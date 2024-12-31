@@ -360,17 +360,331 @@ let rec sub_int c1 c2 dbg =
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
-let rec lsl_int c1 c2 dbg =
-  match c1, c2 with
-  | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsl, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when Misc.no_overflow_lsl n1 n2 ->
-    add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
-  | _, _ -> Cop (Clsl, [c1; c2], dbg)
+let max_defined_shift = (8 * size_int) - 1
 
-let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+let[@inline] get_const = function
+  | Cconst_int (c, _) -> Some (Nativeint.of_int c)
+  | Cconst_natint (c, _) -> Some c
+  | _ -> None
+
+let[@inline] is_defined_shift n = 0 <= n && n <= max_defined_shift
+
+(* identify cmm operations whose result is guaranteed to be small integers (e.g.
+   in the range [min_int / 4; max_int / 4]) *)
+let guaranteed_to_be_small_int = function
+  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+    (* integer/float comparisons return either [1] or [0]. *)
+    true
+  | _ -> false
+
+module Shift = struct
+  type operation =
+    | Lsl
+    | Asr
+    | Lsr
+
+  (** Invariants:
+      - The RHS of the shift must be within the range [0; 8 * size_int - 1] if it is a
+      constant
+      - The LHS of [And]/[Or] is non-constant
+      - The RHS of [And]/[Or] is not [0n] or [-1n]
+  *)
+  type t =
+    | Const of Nativeint.t * Debuginfo.t
+    | Shift of operation * t * t * Debuginfo.t
+    | And of t * t * Debuginfo.t
+    | Or of t * t * Debuginfo.t
+    | Expr of expression  (** We treat this as non-constant *)
+
+  let max_defined_shift = Nativeint.of_int ((8 * size_int) - 1)
+
+  let rec is_definitely_non_negative = function
+    | Const (n, _) -> n >= 0n
+    | Shift (Lsr, _, Const (n, _), _) -> n >= 0n
+    | And (x, y, _) ->
+      is_definitely_non_negative y || is_definitely_non_negative x
+    | Or (x, y, _) ->
+      is_definitely_non_negative y && is_definitely_non_negative x
+    | _ -> false
+
+  let count_leading_zeros =
+    let rec go n ~acc ~num_bits =
+      if num_bits = 1
+      then acc + (1 - Nativeint.to_int n)
+      else
+        let right = num_bits / 2 in
+        let left = num_bits - right in
+        let left_mask = Nativeint.shift_left (-1n) right in
+        if n land left_mask = 0n
+        then go n ~acc:(acc + left) ~num_bits:right
+        else
+          let n = Nativeint.shift_right_logical n right in
+          go n ~acc ~num_bits:left
+    in
+    fun n -> go (n land trailing_mask ~bits:num_bits) ~acc:0 ~num_bits
+
+
+  let count_trailing_zeros =
+    let rec go n ~acc ~num_bits =
+      if n = 0n
+      then acc + num_bits
+      else if num_bits = 1
+      then acc
+      else
+        let right = num_bits / 2 in
+        let left = num_bits - right in
+        let right_mask = Nativeint.pred (Nativeint.shift_left 1n right) in
+        if Nativeint.logand n right_mask <> 0n
+        then go n ~acc ~num_bits:right
+        else
+          let n = Nativeint.shift_right_logical n right in
+          go n ~acc:(acc + right) ~num_bits:left
+    in
+    fun n -> go n ~acc:0 ~num_bits:arch_bits
+
+  let count_trailing_ones x = count_trailing_zeros (Nativeint.lognot x)
+  let count_leading_ones x = count_leading_zeros (Nativeint.lognot x)
+
+  (** tests if a value is 2^n - 1 *)
+  let is_low_bitmask x =
+    match Nativeint.logand x (Nativeint.succ x) with
+    | 0n -> Some (count_trailing_ones x)
+    | _ -> None
+
+  let rec and_ x y ~dbg =
+    match x, y with
+    | Const (x, _), Const (y, _) -> Const (Nativeint.logand x y, dbg)
+    | z, (Const (c, _) as const) | (Const (c, _) as const), z -> (
+      match c with
+      | 0n -> Const (0n, dbg)
+      | -1n -> z
+      | c -> (
+          (* convert zero-extensions to shifts for consistency *)
+          match is_low_bitmask c with
+          | Some bits -> zero_extend z ~bits ~dbg
+          | None ->
+            let z = ignore_low_bits z ~bits:(count_trailing_zeros c) ~dbg in
+            And (z, const, dbg))
+    | x, y -> And (x, y, dbg)
+
+      (* CR jvanburen: add [or_] *)
+
+
+
+  and ignore_high_bits t ~bits ~dbg =
+    assert (0 <= bits && bits < arch_bits);
+    if bits = 0
+    then t
+    else
+      match t with
+      | Const (x, _) ->
+        (* zero-extend the constant *)
+        let x' =
+          Nativeint.shift_right_logical (Nativeint.shift_left x bits) bits
+        in
+        if x = x' then t else Const (x', dbg)
+      | Shift (Lsl, _, Const (n, _), _)
+        when n >= Nativeint.of_int (arch_bits - bits) ->
+        Const (0n, dbg)
+      | Shift
+          ((Asr | Lsr), Shift (Lsl, inner, Const (shl, _), _), Const (shr, _), _)
+        when shr <= shl && shl <= Nativeint.of_int bits ->
+        (* See Z3 proofs *)
+        let n = Nativeint.sub shl shr in
+        ignore_high_bits (shift Lsl inner (Const (n, dbg)) ~dbg) ~bits ~dbg
+      | And (x, y, _) as t ->
+        let x' = ignore_high_bits x ~bits ~dbg in
+        let y' = ignore_high_bits y ~bits ~dbg in
+        if x == x' && y == y' then t else and_ x' y' ~dbg
+      | Or (x, y, _) as t ->
+        let x' = ignore_high_bits x ~bits ~dbg in
+        let y' = ignore_high_bits y ~bits ~dbg in
+        if x == x' && y == y' then t else or_ x' y' ~dbg
+      | t -> t
+
+  and ignore_low_bits t ~bits ~dbg =
+    assert (0 <= bits && bits < arch_bits);
+    if bits = 0
+    then t
+    else
+      match t with
+      | Const (x, _) ->
+        let x' =
+          Nativeint.shift_left (Nativeint.shift_right_logical x bits) bits
+        in
+        if x = x' then t else Const (x', dbg)
+      | Shift (Lsr, _, Const (n, _), _)
+        when n >= Nativeint.of_int (arch_bits - bits) ->
+        Const (0n, dbg)
+      | Shift
+          ( Lsl,
+            Shift (((Asr | Lsr) as op), inner, Const (shr, _), _),
+            Const (shl, _),
+            _ )
+        when shl <= shr && shr <= Nativeint.of_int bits ->
+        (* See Z3 proofs *)
+        let n = Nativeint.sub shr shl in
+        ignore_low_bits (shift op inner (Const (n, dbg)) ~dbg) ~bits ~dbg
+      | And (x, y, _) as t ->
+        let x' = ignore_low_bits x ~bits ~dbg in
+        let y' = ignore_low_bits y ~bits ~dbg in
+        if x == x' && y == y' then t else and_ x' y' ~dbg
+      | Or (x, y, _) as t ->
+        let x' = ignore_low_bits x ~bits ~dbg in
+        let y' = ignore_low_bits y ~bits ~dbg in
+        if x == x' && y == y' then t else or_ x' y' ~dbg
+      | t -> t
+
+  and high_bits t ~bits ~dbg = ignore_low_bits t ~bits:(arch_bits - bits) ~dbg
+
+  and low_bits t ~bits ~dbg = ignore_high_bits t ~bits:(arch_bits - bits) ~dbg
+
+  and shift op x y ~dbg =
+    let op =
+      (* weaken to logical shift if possible since it's simpler to analyze *)
+      match op with Asr when is_definitely_non_negative x -> Lsr | op -> op
+    in
+    match x, y with
+    | x, Const (y, _) -> const_shift op x y ~dbg
+    | Const (0n, _), _ -> x
+    | Shift (inner_op, inner, Const (n1, _), _), y when op = inner_op ->
+      (* move the constant shift to the outside for easier analysis later *)
+      const_shift op (shift op inner y ~dbg) n1 ~dbg
+    | And (x1, (Const _ as x2), _), y ->
+      and_ (shift op x1 y ~dbg) (shift op x2 y ~dbg) ~dbg
+    | Or (x1, (Const _ as x2), _), y ->
+      or_ (shift op x1 y ~dbg) (shift op x2 y ~dbg) ~dbg
+    | x, y -> Shift (op, x, y, dbg)
+
+  and const_shift op x y ~dbg =
+    if not (0n < y && y < Nativeint.of_int (8 * size_int))
+    then
+      (* OCaml shifts are not defined outside of these bounds *)
+      Const (0n, dbg)
+    else
+      let x =
+        let bits = Nativeint.to_int y in
+        match op with
+        | Lsl -> ignore_high_bits x ~bits ~dbg
+        | Lsr | Asr -> ignore_low_bits x ~bits ~dbg
+      in
+      let op =
+        (* weaken to logical shift if possible since it's simpler to analyze *)
+        match op with Asr when is_definitely_non_negative x -> Lsr | op -> op
+      in
+      match x with
+      | And (x1, (Const _ as x2), _) ->
+        and_ (const_shift op x1 y ~dbg) (const_shift op x2 y ~dbg) ~dbg
+      | Or (x1, (Const _ as x2), _) ->
+        or_ (const_shift op x1 y ~dbg) (const_shift op x2 y ~dbg) ~dbg
+      | Shift (inner_op, inner, Const (z, _), _) when op = inner_op -> (
+        (* combine the shifts into a single one *)
+        let n = Nativeint.add y z in
+        if n <= max_defined_shift
+        then const_shift op inner n ~dbg
+        else
+          match op with
+          | Lsr | Lsl -> Const (0n, dbg)
+          | Asr -> const_shift op inner max_defined_shift ~dbg)
+      | (Expr _ | Shift _ | And _ | Or _) as x ->
+        Shift (op, x, Const (y, dbg), dbg)
+      | Const (x, _) ->
+        let z =
+          let y = Nativeint.to_int y in
+          match op with
+          | Lsl -> Nativeint.shift_left x y
+          | Asr -> Nativeint.shift_right x y
+          | Lsr -> Nativeint.shift_right_logical x y
+        in
+        Const (z, dbg)
+
+  and zero_extend t ~bits ~dbg =
+    if bits = arch_bits then t else
+    let n = Nativeint.of_int (arch_bits - bits) in
+    const_shift Lsr (const_shift Lsl t n ~dbg) n ~dbg
+
+  let sign_extend t ~bits ~dbg =
+    if bits = arch_bits then t else
+    let n = Nativeint.of_int (arch_bits - bits) in
+    const_shift Asr (const_shift Lsl t n ~dbg) n ~dbg
+
+  let tag_int t ~dbg = or_ (const_shift Lsl t 1n ~dbg) (Const (1n, dbg)) ~dbg
+
+  let untag_int t ~dbg = const_shift Asr t 1n ~dbg
+
+  let rec of_expression = function
+    | Cop (Cand, [x; y], dbg) -> and_ (of_expression x) (of_expression y) ~dbg
+    | Cop (Cor, [x; y], dbg) -> or_ (of_expression x) (of_expression y) ~dbg
+    | Cop (Clsl, [x; y], dbg) ->
+      shift Lsl (of_expression x) (of_expression x) ~dbg
+    | Cop (Clsr, [x; y], dbg) ->
+      shift Lsr (of_expression x) (of_expression x) ~dbg
+    | Cop (Casr, [x; y], dbg) ->
+      shift Asr (of_expression x) (of_expression x) ~dbg
+    | Cconst_int (i, dbg) -> Const (Nativeint.of_int i, dbg)
+    | Cconst_natint (i, dbg) -> Const (i, dbg)
+    | e -> Expr e
+
+  let rec to_expression = function
+    | Const (i, dbg) -> natint_const_untagged dbg i
+    | And (x, y, dbg) -> Cop (Cand, [to_expression x; to_expression y], dbg)
+    | Or (x, y, dbg) -> Cop (Cor, [to_expression x; to_expression y], dbg)
+    | Shift (op, x, y, dbg) ->
+      let op = match op with Lsl -> Clsl | Lsr -> Clsr | Asr -> Casr in
+      Cop (op, [to_expression x; to_expression y], dbg)
+    | Expr e -> e
+end
+
+(** [low_bits ~bits x] is a (hopefully simplified) value which agrees with x on at least
+    the low [bits] bits. E.g., [low_bits ~bits x & mask = x & mask], where [mask] is a
+    bitmask of the low [bits] bits. *)
+let low_bits ~bits ~dbg x =
+  Shift.of_expression x |> Shift.low_bits ~bits ~dbg |> Shift.to_expression
+
+let lsl_int c1 c2 dbg =
+  Shift.shift Lsl (Shift.of_expression c1) (Shift.of_expression c2) ~dbg
+  |> Shift.to_expression
+
+let lsr_int c1 c2 dbg =
+  Shift.shift Lsr (Shift.of_expression c1) (Shift.of_expression c2) ~dbg
+  |> Shift.to_expression
+
+let asr_int c1 c2 dbg =
+  Shift.shift Asr (Shift.of_expression c1) (Shift.of_expression c2) ~dbg
+  |> Shift.to_expression
+
+let tag_int i dbg =
+  Shift.of_expression i |> Shift.tag_int ~dbg |> Shift.to_expression
+
+let untag_int i dbg =
+  Shift.of_expression i |> Shift.untag_int ~dbg |> Shift.to_expression
+
+and lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+
+and lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
+
+and asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
+
+(** [zero_extend ~bits dbg e] returns [e] with the most significant [arch_bits - bits]
+    bits set to 0 *)
+let zero_extend ~bits ~dbg e =
+  if bits = arch_bits
+  then e
+  else
+    Shift.of_expression e |> Shift.zero_extend ~bits ~dbg |> Shift.to_expression
+
+let sign_extend ~bits ~dbg e =
+  if bits = arch_bits
+  then e
+  else
+    Shift.of_expression e |> Shift.sign_extend ~bits ~dbg |> Shift.to_expression
+
+let make_unsigned_int bi arg dbg =
+  match (bi : Primitive.unboxed_integer) with
+  | Unboxed_int32 -> zero_extend arg ~dbg ~bits:32
+  | Unboxed_int64 | Unboxed_nativeint -> arg
+
+let ignore_low_bit_int t ~dbg
 
 let is_power2 n = n = 1 lsl Misc.log2 n
 
@@ -390,68 +704,6 @@ let rec mul_int c1 c2 dbg =
     when Misc.no_overflow_mul n k ->
     add_const (mul_int c (Cconst_int (k, dbg)) dbg) (n * k) dbg
   | c1, c2 -> Cop (Cmuli, [c1; c2], dbg)
-
-(* identify cmm operations whose result is guaranteed to be small integers (e.g.
-   in the range [min_int / 4; max_int / 4]) *)
-let guaranteed_to_be_small_int = function
-  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
-    (* integer/float comparisons return either [1] or [0]. *)
-    true
-  | _ -> false
-
-let ignore_low_bit_int = function
-  | Cop
-      ( Caddi,
-        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
-        _ )
-    when n > 0 ->
-    c
-  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
-  | c -> c
-
-let lsr_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | c1, Cconst_int (n, _) when n > 0 ->
-    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
-  | _ -> Cop (Clsr, [c1; c2], dbg)
-
-let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
-
-let asr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> (
-    match ignore_low_bit_int c1 with
-    (* some operations always return small enough integers that it is safe and
-       correct to optimise [asr (lsl x 1) 1] into [x]. *)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
-      when n = 1 && guaranteed_to_be_small_int c ->
-      c
-    | c1' -> Cop (Casr, [c1'; c2], dbg))
-  | _ -> Cop (Casr, [c1; c2], dbg)
-
-let tag_int i dbg =
-  match i with
-  | Cconst_int (n, _) -> int_const dbg n
-  | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 ->
-    Cop
-      (Cor, [asr_int c (Cconst_int (n - 1, dbg)) dbg; Cconst_int (1, dbg)], dbg)
-  | c -> incr_int (lsl_int c (Cconst_int (1, dbg)) dbg) dbg
-
-let untag_int i dbg =
-  match i with
-  | Cconst_int (n, _) -> Cconst_int (n asr 1, dbg)
-  | Cop (Cor, [Cop (Casr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
-    when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Casr, [c; Cconst_int (n + 1, dbg)], dbg)
-  | Cop (Cor, [Cop (Clsr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
-    when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Clsr, [c; Cconst_int (n + 1, dbg)], dbg)
-  | c -> asr_int c (Cconst_int (1, dbg)) dbg
 
 let mk_not dbg cmm =
   match cmm with
@@ -1272,36 +1524,6 @@ let addr_array_initialize arr ofs newval dbg =
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
 
-(* low_32 x is a value which agrees with x on at least the low 32 bits *)
-let rec low_32 dbg = function
-  (* Ignore sign and zero extensions, which do not affect the low bits *)
-  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (32, _)], _); Cconst_int (32, _)], _)
-  | Cop (Cand, [x; Cconst_natint (0xFFFFFFFFn, _)], _) ->
-    low_32 dbg x
-  | Clet (id, e, body) -> Clet (id, e, low_32 dbg body)
-  | x -> x
-
-(* sign_extend_32 sign-extends values from 32 bits to the word size. *)
-let sign_extend_32 dbg e =
-  match low_32 dbg e with
-  | Cop
-      ( Cload
-          { memory_chunk = Thirtytwo_unsigned | Thirtytwo_signed;
-            mutability;
-            is_atomic
-          },
-        args,
-        dbg ) ->
-    Cop
-      ( Cload { memory_chunk = Thirtytwo_signed; mutability; is_atomic },
-        args,
-        dbg )
-  | e ->
-    Cop
-      ( Casr,
-        [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
-        dbg )
-
 let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
@@ -1327,7 +1549,7 @@ let unboxed_int32_array_ref =
 let unboxed_mutable_int32_unboxed_product_array_ref arr ~array_index dbg =
   bind "arr" arr (fun arr ->
       bind "index" array_index (fun index ->
-          sign_extend_32 dbg
+          sign_extend ~bits:32 ~dbg
             (Cop
                ( mk_load_mut Thirtytwo_signed,
                  [array_indexing log2_size_addr arr index dbg],
@@ -1338,7 +1560,7 @@ let unboxed_mutable_int32_unboxed_product_array_set arr ~array_index ~new_value
   bind "arr" arr (fun arr ->
       bind "index" array_index (fun index ->
           bind "new_value" new_value (fun new_value ->
-              let new_value = sign_extend_32 dbg new_value in
+              let new_value = sign_extend ~bits:32 ~dbg new_value in
               Cop
                 ( Cstore (Word_int, Assignment),
                   [array_indexing log2_size_addr arr index dbg; new_value],
@@ -1440,7 +1662,9 @@ let set_field_unboxed ~dbg memory_chunk block ~index_in_words newval =
     let field_address =
       array_indexing log2_size_addr block index_in_words dbg
     in
-    let newval = if size_in_bytes = 4 then low_32 dbg newval else newval in
+    let newval =
+      if size_in_bytes = 4 then low_bits ~bits:32 ~dbg newval else newval
+    in
     return_unit dbg
       (Cop (Cstore (memory_chunk, Assignment), [field_address; newval], dbg))
 
@@ -1891,115 +2115,13 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
 (* the three functions below assume 64-bit words *)
 let () = assert (size_int = 8)
 
-let check_64_bit_target func =
-  if size_int <> 8
-  then
-    Misc.fatal_errorf
-      "Cmm helpers function %s can only be used on 64-bit targets" func
-
-(* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
-(* CR gbury: Why not use Cmm.map_tail here ? It seems designed for that kind of
-   thing (and covers more cases than just Clet). *)
-let rec low_63 dbg e =
-  check_64_bit_target "low_63";
-  match e with
-  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
-    low_63 dbg x
-  | Cop (Cand, [x; Cconst_natint (0x7FFF_FFFF_FFFF_FFFFn, _)], _) ->
-    low_63 dbg x
-  | Clet (id, x, body) -> Clet (id, x, low_63 dbg body)
-  | _ -> e
-
-(* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
-   just tag_int. *)
-let sign_extend_63 dbg e =
-  check_64_bit_target "sign_extend_63";
-  match e with
-  | Cop (Casr, [_; Cconst_int (n, _)], _) when n > 0 && n < 64 ->
-    (* [asr] by a positive constant is sign-preserving. However:
-
-       - Some architectures treat the shift length modulo the word size.
-
-       - OCaml does not define behavior of shifts by more than the word size.
-
-       So we don't make the simplification for shifts of length 64 or more. *)
-    e
-  | _ ->
-    let e = low_63 dbg e in
-    Cop
-      ( Casr,
-        [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
-        dbg )
-
-(* zero_extend_32 zero-extends values from 32 bits to the word size. *)
-let zero_extend_32 dbg e =
-  (* CR mshinwell for gbury: same question as above *)
-  match low_32 dbg e with
-  | Cop
-      ( Cload
-          { memory_chunk = Thirtytwo_signed | Thirtytwo_unsigned;
-            mutability;
-            is_atomic
-          },
-        args,
-        dbg ) ->
-    Cop
-      ( Cload { memory_chunk = Thirtytwo_unsigned; mutability; is_atomic },
-        args,
-        dbg )
-  | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
-
-let zero_extend_63 dbg e =
-  check_64_bit_target "zero_extend_63";
-  let e = low_63 dbg e in
-  Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
-
-let zero_extend ~bits ~dbg e =
-  assert (0 < bits && bits <= arch_bits);
-  if bits = arch_bits
-  then e
-  else
-    match bits with
-    | 63 -> zero_extend_63 dbg e
-    | 32 -> zero_extend_32 dbg e
-    | bits -> Misc.fatal_errorf "zero_extend not implemented for %d bits" bits
-
-let sign_extend ~bits ~dbg e =
-  assert (0 < bits && bits <= arch_bits);
-  if bits = arch_bits
-  then e
-  else
-    match bits with
-    | 63 -> sign_extend_63 dbg e
-    | 32 -> sign_extend_32 dbg e
-    | bits -> Misc.fatal_errorf "sign_extend not implemented for %d bits" bits
-
-let low_bits ~bits ~(dbg : Debuginfo.t) e =
-  assert (0 < bits && bits <= arch_bits);
-  if bits = arch_bits
-  then e
-  else
-    match bits with
-    | 63 -> low_63 dbg e
-    | 32 -> low_32 dbg e
-    | bits -> Misc.fatal_errorf "low_bits not implemented for %d bits" bits
-
-let ignore_low_bits ~bits ~dbg:(_ : Debuginfo.t) e =
-  assert (0 <= bits && bits <= arch_bits);
-  if bits = 0 then e else ignore_low_bit_int e
-
 let and_int e1 e2 dbg =
-  let is_mask32 = function
-    | Cconst_natint (0xFFFF_FFFFn, _) -> true
-    | Cconst_int (n, _) -> Nativeint.of_int n = 0xFFFF_FFFFn
-    | _ -> false
-  in
-  match e1, e2 with
-  | e, m when is_mask32 m -> zero_extend_32 dbg e
-  | m, e when is_mask32 m -> zero_extend_32 dbg e
-  | e1, e2 -> Cop (Cand, [e1; e2], dbg)
+  Shift.and_ (Shift.of_expression e1) (Shift.of_expression e2) ~dbg
+  |> Shift.to_expression
 
-let or_int e1 e2 dbg = Cop (Cor, [e1; e2], dbg)
+let or_int e1 e2 dbg =
+  Shift.or_ (Shift.of_expression e1) (Shift.of_expression e2) ~dbg
+  |> Shift.to_expression
 
 let xor_int e1 e2 dbg = Cop (Cxor, [e1; e2], dbg)
 
@@ -2026,7 +2148,7 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
     then
       if big_endian
       then Cop (Clsl, [arg; Cconst_int (32, dbg)], dbg)
-      else sign_extend_32 dbg arg
+      else sign_extend ~bits:32 ~dbg arg
     else arg
   in
   Cop
@@ -2070,12 +2192,12 @@ let unbox_int dbg bi =
       when bi = Primitive.Boxed_int32 && big_endian
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
-      sign_extend_32 dbg contents
+      sign_extend ~bits:32 ~dbg contents
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
       when bi = Primitive.Boxed_int32 && (not big_endian)
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
-      sign_extend_32 dbg contents
+      sign_extend ~bits:32 ~dbg contents
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
       when alloc_matches_boxed_int bi ~hdr ~ops ->
       contents
@@ -2089,9 +2211,6 @@ let unbox_int dbg bi =
         natint_const_untagged dbg (Int64.to_nativeint n)
       | _ -> default cmm)
     | cmm -> default cmm)
-
-let make_unsigned_int bi arg dbg =
-  if bi = Primitive.Unboxed_int32 then zero_extend_32 dbg arg else arg
 
 let unaligned_load_16 ptr idx dbg =
   if Arch.allow_unaligned_access
