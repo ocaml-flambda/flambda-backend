@@ -127,8 +127,8 @@ jobs:
           - name: gi
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1,vectorize=1'
-            ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1,vectorize=1'
+            build_ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1'
+            ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1'
             check_arch: true
 
           - name: cfg-selection
@@ -136,6 +136,13 @@ jobs:
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1'
             ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1'
+            check_arch: true
+
+          - name: vectorizer
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            build_ocamlparam: '_,w=-46,regalloc=cfg,vectorize=1'
+            ocamlparam: '_,w=-46,regalloc=cfg,vectorize=1'
             check_arch: true
 
     env:
