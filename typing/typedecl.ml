@@ -1961,73 +1961,99 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    See [typing-layouts-unboxed-records/recursive.ml].
 
    Because [check_well_founded] already ruled out recursion through structural
-   types (for this check, we care about unboxed tuples and aliases), we just
-   look for a cycle in nominal unboxed types ([@@unboxed] types and unboxed
-   records), tracking the set of seen paths.
+   types, we just look for a cycle in nominal unboxed types ([@@unboxed] types
+   and unboxed records), tracking the set of seen paths.
 
-   An alternative implementation could have introduced layout variables (for
-   this check only), finding infinite-size types via the occurs check. Such an
-   implementation might be more principled, accepting finite-size recursive
-   types like [type t = #{ t : t }]. The current implementation gives more
-   informative error traces, and leaves the flexiblity to switch to a less
-   restrictive check in the future.
+   For each group of mutually recursive type declarations, we define the
+   following "type contains" transitive relation on type expressions:
+
+   1. Unboxed records and variants defined in the group contain their fields.
+
+      If [type 'a t = #{ ...; lbl : u;  ... }],
+      or [type 'a t = { lbl : u } [@@unboxed]],
+      or [type 'a t = U of u [@@unboxed]]
+      is in the recursive group, then ['a t] contains [u].
+
+   2. Abbreviations defined in the group contain their expansions.
+
+      If [type 'a t = u] is in the recursive group then ['a t] contains [u].
+
+   3. Unboxed tuples contain their components.
+
+      [#(u_1 * ...)] contains all [u_i].
+
+   4. Types not in the group contain the parameters indicated by their layout.
+
+      ['a t] contains ['a] if [layout_of 'a] or [any] occurs in ['a t]'s layout.
+      Note: We don't yet have [layout_of], so currently only consider [any].
+
+   If a path starting from the type expression on the LHS of a declaration
+   contains two types with the same head type constructor, and that repeated
+   type is an unboxed record or variant, then the check raises a type error.
 
    CR layouts v7.2: accept safe types that expand the same path multiple times,
-   e.g. [type 'a t = #{ a : 'a } and x = int t t],
-   either by using layouts variables or the algorithm from
-   "Unboxed data constructors - or, how cpp decides a halting problem."
+   e.g. [type 'a t = #{ a : 'a } and x = int t t], either by using layouts
+   variables or the algorithm from "Unboxed data constructors - or, how cpp
+   decides a halting problem."
+   See https://github.com/ocaml-flambda/flambda-backend/pull/3407.
 *)
+type step_result =
+  | Contained of type_expr list
+  | Expanded_to of type_expr
+  | Is_cyclic
 let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
-  let check_visited parents trace ty =
-    match get_desc ty with
-    | Tconstr (path, _, _) ->
-      if Path.Set.mem path parents then
-        let err = Unboxed_recursion(Path.name path0, abs_env, List.rev trace) in
-        raise (Error(loc, err))
-    | _ -> ()
+  let contained_parameters tyl layout =
+    (* A type whose layout has [any] could contain all its parameters.
+       CR layouts v11: update this function for [layout_of] layouts. *)
+    let rec has_any : Jkind_types.Layout.Const.t -> bool = function
+      | Any -> true
+      | Base _ -> false
+      | Product l -> List.exists has_any l
+    in
+    if has_any layout then tyl else []
   in
-  let rec expand parents trace ty =
-    match Ctype.try_expand_safe_opt env ty with
-    | ty' ->
-      begin match get_desc ty with
-      | Tconstr (path, _, _) ->
-        if to_check path then
-          expand (Path.Set.add path parents) (Expands_to (ty, ty') :: trace) ty'
+  let step_once parents ty =
+    match get_desc ty with
+    | Tconstr (path, tyl, _) ->
+      if to_check path then
+        if Path.Set.mem path parents then
+          Is_cyclic, parents
         else
-          parents, trace, ty
-      | _ ->
-        (* Only [Tconstr]s can be expanded *)
-        Misc.fatal_error "Typedecl.check_unboxed_recursion"
-      end
-    | exception Ctype.Cannot_expand ->
-      parents, trace, ty
+          let parents = Path.Set.add path parents in
+          match Ctype.try_expand_safe_opt env ty with
+          | ty' ->
+            Expanded_to ty', parents
+          | exception Ctype.Cannot_expand ->
+            Contained (Ctype.contained_without_boxing env ty), parents
+      else
+        begin try
+          (* Determine contained types by layout for decls outside of the
+             recursive group *)
+          let jkind = (Env.find_type path env).type_jkind in
+          let layout = Option.get (Jkind.get_layout jkind) in
+          Contained (contained_parameters tyl layout), parents
+        with Not_found | Invalid_argument _ ->
+          (* Because [to_check path] is false, this decl has already been
+            typechecked, so it's already in [env] with a constant layout. *)
+          Misc.fatal_error "Typedecl.check_unboxed_recursion"
+        end
+    | _ -> Contained (Ctype.contained_without_boxing env ty), parents
   in
   let rec visit parents trace ty =
-    (* Expand even if this type isn't part of the recursive group, because it
-       could be instantiated back into the group by a type parameter. *)
-    let parents, trace, ty = expand parents trace ty in
-    match get_desc ty with
-    | Tconstr (path, _, _) ->
-      (* Only visit [Tconstr]s in this recursive group of typedecls. *)
-      if to_check path then begin
-        check_visited parents trace ty;
-        visit_subtypes (Path.Set.add path parents) trace ty
-      end
-    | _ ->
-      visit_subtypes parents trace ty
-  and visit_subtypes parents trace ty =
-    List.iter (fun ty' ->
-        let trace = Contains (ty, ty') :: trace in
-        check_visited parents trace ty';
-        visit parents trace ty')
-      (Ctype.contained_without_boxing env ty)
+    match step_once parents ty with
+    | Contained tys, parents ->
+      List.iter (fun ty' -> visit parents (Contains (ty, ty') :: trace) ty') tys
+    | Expanded_to ty', parents ->
+      visit parents (Expands_to(ty,ty') :: trace) ty'
+    | Is_cyclic, _ ->
+      raise (Error (loc, Unboxed_recursion (path0, abs_env, List.rev trace)))
   in
   Ctype.wrap_trace_gadt_instances env (visit Path.Set.empty []) ty0
 
 let check_unboxed_recursion_decl ~abs_env env loc path decl to_check =
   let decl = Ctype.generic_instance_declaration decl in
   let ty = Btype.newgenty (Tconstr (path, decl.type_params, ref Mnil)) in
-  check_unboxed_recursion ~abs_env env loc path ty to_check
+  check_unboxed_recursion ~abs_env env loc (Path.name path) ty to_check
 
 (* Check for non-regular abbreviations; an abbreviation
    [type 'a t = ...] is non-regular if the expansion of [...]
@@ -2301,13 +2327,13 @@ let transl_type_decl env rec_flag sdecl_list =
       (Path.Pident id)
       decl to_check)
     decls;
+  List.iter (fun (tdecl, _shape) ->
+    check_abbrev_regularity ~abs_env new_env id_loc_list to_check tdecl) tdecls;
   List.iter (fun (id, decl) ->
     check_unboxed_recursion_decl ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id)
       decl to_check)
     decls;
-  List.iter (fun (tdecl, _shape) ->
-    check_abbrev_regularity ~abs_env new_env id_loc_list to_check tdecl) tdecls;
   (* Now that we've ruled out ill-formed types, we can perform the delayed
      jkind checks *)
   List.iter (fun (checks,loc) ->
