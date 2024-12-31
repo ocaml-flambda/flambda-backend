@@ -140,9 +140,11 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   in
   match kind with
   | Mixed { field_kind = Value_prefix Any_value; _ }
-  | Values { field_kind = Any_value; _ } -> get_field_computed Pointer
+  | Values { field_kind = Any_value; _ } ->
+    get_field_computed Pointer
   | Mixed { field_kind = Value_prefix Immediate; _ }
-  | Values { field_kind = Immediate; _ } -> get_field_computed Immediate
+  | Values { field_kind = Immediate; _ } ->
+    get_field_computed Immediate
   | Naked_floats _ -> get_field_unboxed Double ~offset_in_words:field
   | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
     let chunk : Cmm.memory_chunk =
@@ -154,9 +156,9 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
       | Naked_vec128 -> Onetwentyeight_unaligned
       | Naked_int64 | Naked_nativeint -> Word_int
     in
-    get_field_unboxed
-      chunk
-      ~offset_in_words:(Flambda_kind.Mixed_block_shape.offset_in_words shape field)
+    get_field_unboxed chunk
+      ~offset_in_words:
+        (Flambda_kind.Mixed_block_shape.offset_in_words shape field)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~field ~new_value =
@@ -466,7 +468,8 @@ let string_like_load_aux ~dbg width ~str ~index =
   match (width : P.string_accessor_width) with
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
-  | Thirty_two -> C.sign_extend ~bits:32 ~dbg (C.unaligned_load_32 str index dbg)
+  | Thirty_two ->
+    C.sign_extend ~bits:32 ~dbg (C.unaligned_load_32 str index dbg)
   | Single -> C.unaligned_load_f32 str index dbg
   | Sixty_four -> C.unaligned_load_64 str index dbg
   | One_twenty_eight { aligned = true } -> C.aligned_load_128 str index dbg
