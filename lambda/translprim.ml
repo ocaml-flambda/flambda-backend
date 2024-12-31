@@ -30,7 +30,6 @@ type error =
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
   | Product_iarrays_unsupported
-  | Invalid_array_kind_for_uninitialized_makearray_dynamic
 
 exception Error of Location.t * error
 
@@ -46,18 +45,6 @@ let unboxed_product_iarray_check loc kind mut =
     | Punboxedintarray _ | Punboxedvectorarray _), _  ->
     ()
 
-let unboxed_product_uninitialized_array_check loc array_kind =
-  (* See comments in lambda_to_lambda_transforms.ml in Flambda 2 for more
-     details on this restriction. *)
-  match array_kind with
-  | Pgcignorableproductarray igns
-    when not (List.exists
-        Lambda.ignorable_product_element_kind_involves_int igns) -> ()
-  | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _ ->
-    ()
-  | Pgenarray | Paddrarray | Pintarray | Pfloatarray
-  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
-    raise (Error (loc, Invalid_array_kind_for_uninitialized_makearray_dynamic))
 
 (* Insertion of debugging events *)
 
@@ -544,23 +531,11 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_nativeint)),
         3)
     | "%makearray_dynamic" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
-      Primitive (Pmakearray_dynamic (gen_array_kind, mode, With_initializer), 2)
-    | "%makearray_dynamic_uninit" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
-      Primitive (Pmakearray_dynamic (gen_array_kind, mode, Uninitialized), 1)
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Primitive (Pmakearray_dynamic (gen_array_kind, mode), 2)
     | "%arrayblit" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
-      Primitive (Parrayblit {
-        src_mutability = Mutable;
-        dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
-      }, 5);
-    | "%arrayblit_src_immut" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
-      Primitive (Parrayblit {
-        src_mutability = Immutable;
-        dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
-      }, 5);
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Primitive (Parrayblit (gen_array_set_kind (get_third_arg_mode ())), 5)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%obj_set_field" ->
@@ -1254,40 +1229,19 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
-  | Primitive (Pmakearray_dynamic (array_kind, mode, With_initializer), 2),
-    _ :: p2 :: [] -> begin
+  | Primitive (Pmakearray_dynamic (at, mode), arity),
+    _ :: p2 :: _ -> begin
       let loc = to_location loc in
-      let new_array_kind =
-        array_kind_of_elt ~elt_sort:None env loc p2
-        |> glb_array_type loc array_kind
+      let array_type =
+        glb_array_type loc at
+          (array_kind_of_elt ~elt_sort:None env loc p2)
       in
       let array_mut = array_type_mut env rest_ty in
-      unboxed_product_iarray_check loc new_array_kind array_mut;
-      if array_kind = new_array_kind then None
-      else
-        Some (Primitive (Pmakearray_dynamic (
-          new_array_kind, mode, With_initializer), 2))
+      unboxed_product_iarray_check loc array_type array_mut;
+      if at = array_type then None
+      else Some (Primitive (Pmakearray_dynamic (array_type, mode), arity))
     end
-  | Primitive (Pmakearray_dynamic (array_kind, mode, Uninitialized), 1),
-    _ :: [] -> begin
-      let loc = to_location loc in
-      let new_array_kind =
-        array_type_kind ~elt_sort:None env loc rest_ty
-        |> glb_array_type loc array_kind
-      in
-      let array_mut = array_type_mut env rest_ty in
-      unboxed_product_iarray_check loc new_array_kind array_mut;
-      unboxed_product_uninitialized_array_check loc new_array_kind;
-      if array_kind = new_array_kind then None
-      else
-        Some (Primitive (Pmakearray_dynamic (
-          new_array_kind, mode, Uninitialized), 1))
-    end
-  | Primitive (Pmakearray_dynamic _, arity), args ->
-    Misc.fatal_errorf
-      "Wrong arity for Pmakearray_dynamic (arity=%d, args length %d)"
-      arity (List.length args)
-  | Primitive (Parrayblit { src_mutability; dst_array_set_kind }, arity),
+  | Primitive (Parrayblit st, arity),
     _p1 :: _ :: p2 :: _ ->
     let loc = to_location loc in
     (* We only use the kind of one of two input arrays here. If you've bound the
@@ -1295,13 +1249,11 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
        kind.  If you haven't, then taking the glb of both would be just as
        likely to compound your error (e.g., by treating a Pgenarray as a
        Pfloatarray) as to help you. *)
-    let array_kind = array_type_kind ~elt_sort:None env loc p2 in
-    let new_dst_array_set_kind =
-      glb_array_set_type loc dst_array_set_kind array_kind
+    let array_type =
+      glb_array_set_type loc st (array_type_kind ~elt_sort:None env loc p2)
     in
-    if dst_array_set_kind = new_dst_array_set_kind then None
-    else Some (Primitive (Parrayblit {
-      src_mutability; dst_array_set_kind = new_dst_array_set_kind }, arity))
+    if st = array_type then None
+    else Some (Primitive (Parrayblit array_type, arity))
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
@@ -1781,7 +1733,7 @@ let lambda_primitive_needs_event_after = function
   | Pmulfloat (_, _) | Pdivfloat (_, _)
   | Pstringrefs | Pbytesrefs
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
-  | Pmakearray_dynamic (Pgenarray, _, _)
+  | Pmakearray_dynamic (Pgenarray, _)
   | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
@@ -1831,7 +1783,7 @@ let lambda_primitive_needs_event_after = function
   | Pmakearray_dynamic
       ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
        | Punboxedintarray _ | Punboxedvectorarray _
-       | Pgcscannableproductarray _ | Pgcignorableproductarray _), _, _)
+       | Pgcscannableproductarray _ | Pgcignorableproductarray _), _)
   | Parrayblit _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
@@ -1905,11 +1857,6 @@ let report_error ppf = function
   | Product_iarrays_unsupported ->
       fprintf ppf
         "Immutable arrays of unboxed products are not yet supported."
-  | Invalid_array_kind_for_uninitialized_makearray_dynamic ->
-      fprintf ppf
-        "%%makearray_dynamic_uninit can only be used for GC-ignorable arrays@ \
-         not involving tagged immediates; and arrays of unboxed numbers.@ Use \
-         %%makearray instead, providing an initializer."
 
 let () =
   Location.register_error_of_exn
