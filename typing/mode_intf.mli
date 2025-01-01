@@ -327,6 +327,10 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+    val print_axis : Format.formatter -> ('m, 'a, 'd) axis -> unit
+
+    val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
+
     type ('a, 'b, 'c, 'd, 'e) modes =
       { areality : 'a;
         linearity : 'b;

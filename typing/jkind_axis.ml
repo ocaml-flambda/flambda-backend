@@ -121,30 +121,8 @@ module Axis = struct
 
   type packed = Pack : 'a t -> packed
 
-  module Accent_lattice (M : Mode_intf.Lattice) = struct
-    (* A functor to add some convenient functions to modal axes *)
-    include M
-
-    let less_or_equal a b : Misc.Le_result.t =
-      match le a b, le b a with
-      | true, true -> Equal
-      | true, false -> Less
-      | false, _ -> Not_le
-
-    let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
-  end
-
   let get (type a) : a t -> (module Lattice with type t = a) = function
-    | Modal (Comonadic Areality) ->
-      (module Accent_lattice (Mode.Locality.Const) : Lattice with type t = a)
-    | Modal (Comonadic Linearity) ->
-      (module Accent_lattice (Mode.Linearity.Const) : Lattice with type t = a)
-    | Modal (Monadic Uniqueness) ->
-      (module Accent_lattice (Mode.Uniqueness.Const) : Lattice with type t = a)
-    | Modal (Comonadic Portability) ->
-      (module Accent_lattice (Mode.Portability.Const) : Lattice with type t = a)
-    | Modal (Monadic Contention) ->
-      (module Accent_lattice (Mode.Contention.Const) : Lattice with type t = a)
+    | Modal axis -> Mode.Alloc.lattice_of_axis axis
     | Nonmodal Externality -> (module Externality : Lattice with type t = a)
     | Nonmodal Nullability -> (module Nullability : Lattice with type t = a)
 
@@ -158,11 +136,7 @@ module Axis = struct
       Pack (Nonmodal Nullability) ]
 
   let name (type a) : a t -> string = function
-    | Modal (Comonadic Areality) -> "locality"
-    | Modal (Comonadic Linearity) -> "linearity"
-    | Modal (Monadic Uniqueness) -> "uniqueness"
-    | Modal (Comonadic Portability) -> "portability"
-    | Modal (Monadic Contention) -> "contention"
+    | Modal axis -> Format.asprintf "%a" Mode.Alloc.print_axis axis
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
 

@@ -1560,6 +1560,13 @@ module Comonadic_with (Areality : Areality) = struct
     let print_axis ax ppf a =
       let obj = proj_obj ax in
       C.print obj ppf a
+
+    let lattice_of_axis (type a) (axis : (t, a) Axis.t) :
+        (module Lattice with type t = a) =
+      match axis with
+      | Areality -> (module Areality.Const)
+      | Linearity -> (module Linearity.Const)
+      | Portability -> (module Portability.Const)
   end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
@@ -1653,6 +1660,12 @@ module Monadic = struct
     let le_axis ax a b =
       let obj = proj_obj ax in
       C.le obj b a
+
+    let lattice_of_axis (type a) (axis : (t, a) Axis.t) :
+        (module Lattice with type t = a) =
+      match axis with
+      | Uniqueness -> (module Uniqueness.Const)
+      | Contention -> (module Contention.Const)
   end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
@@ -1728,6 +1741,17 @@ module Value_with (Areality : Areality) = struct
     | Comonadic :
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+
+  let print_axis (type m a d) ppf (axis : (m, a, d) axis) =
+    match axis with
+    | Monadic ax -> Axis.print ppf ax
+    | Comonadic ax -> Axis.print ppf ax
+
+  let lattice_of_axis (type m a d) (axis : (m, a, d) axis) :
+      (module Lattice with type t = a) =
+    match axis with
+    | Comonadic ax -> Comonadic.Const.lattice_of_axis ax
+    | Monadic ax -> Monadic.Const.lattice_of_axis ax
 
   let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
@@ -2609,14 +2633,10 @@ module Modality = struct
       let to_list { monadic; comonadic } =
         Comonadic.to_list comonadic @ Monadic.to_list monadic
 
-      let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
-
-      let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
-
-      let proj (type m a d) (ax : (m, a, d) Value.axis) t =
+      let proj (type m a d) (ax : (m, a, d) Value.axis) { monadic; comonadic } =
         match ax with
-        | Monadic ax -> proj_monadic ax t
-        | Comonadic ax -> proj_comonadic ax t
+        | Monadic ax -> Monadic.proj ax monadic
+        | Comonadic ax -> Comonadic.proj ax comonadic
 
       let is_constant_for (type m a d) (axis : (m, a, d) Value.axis) t =
         let modality = proj axis t in
