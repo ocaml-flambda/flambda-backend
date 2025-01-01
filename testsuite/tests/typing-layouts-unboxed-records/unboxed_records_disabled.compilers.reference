@@ -1,4 +1,4 @@
-File "unboxed_records.ml", line 54, characters 0-34:
-54 | type ints = #{ x : int ; y : int }
+File "unboxed_records.ml", line 41, characters 0-34:
+41 | type ints = #{ x : int ; y : int }
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+Error: This construct requires the stable version of the extension "layouts", which is disabled and cannot be used

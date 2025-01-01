@@ -5,19 +5,6 @@
  {
    ocamlc_byte_exit_status = "2";
    setup-ocamlc.byte-build-env;
-   compiler_reference = "${test_source_directory}/unboxed_records_stable.compilers.reference";
-   ocamlc.byte;
-   check-ocamlc.byte-output;
- }{
-   ocamlc_byte_exit_status = "2";
-   setup-ocamlc.byte-build-env;
-   flags = "-extension-universe upstream_compatible";
-   compiler_reference = "${test_source_directory}/unboxed_records_stable.compilers.reference";
-   ocamlc.byte;
-   check-ocamlc.byte-output;
- }{
-   ocamlc_byte_exit_status = "2";
-   setup-ocamlc.byte-build-env;
    flags = "-extension-universe no_extensions";
    compiler_reference = "${test_source_directory}/unboxed_records_disabled.compilers.reference";
    ocamlc.byte;
