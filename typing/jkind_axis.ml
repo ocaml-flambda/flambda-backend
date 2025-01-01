@@ -155,7 +155,15 @@ module Axis = struct
     | Nonmodal Nullability | Nonmodal Externality -> false
     | Modal axis ->
       let (P axis) = Mode.Const.Axis.alloc_as_value axis in
-      Mode.Modality.Value.Const.is_constant_for axis modality
+      let modality = Mode.Modality.Value.Const.proj axis modality in
+      if Mode.Modality.is_constant modality
+      then true
+      else if Mode.Modality.is_id modality
+      then false
+      else
+        Misc.fatal_error
+          "Don't yet know how to interpret non-constant, non-identity \
+           modalities"
 end
 
 module type Axed = sig

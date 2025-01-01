@@ -2594,8 +2594,6 @@ module Modality = struct
 
       let id = { monadic = Monadic.id; comonadic = Comonadic.id }
 
-      let modality_is_id = is_id
-
       let is_id { monadic; comonadic } =
         Monadic.is_id monadic && Comonadic.is_id comonadic
 
@@ -2637,17 +2635,6 @@ module Modality = struct
         match ax with
         | Monadic ax -> Monadic.proj ax monadic
         | Comonadic ax -> Comonadic.proj ax comonadic
-
-      let is_constant_for (type m a d) (axis : (m, a, d) Value.axis) t =
-        let modality = proj axis t in
-        if is_constant modality
-        then true
-        else if modality_is_id modality
-        then false
-        else
-          Misc.fatal_error
-            "Don't yet know how to interpret non-constant, non-identity \
-             modalities"
     end
 
     type t = (Monadic.t, Comonadic.t) monadic_comonadic

@@ -492,6 +492,9 @@ module type S = sig
     (** Test if the given modality is the identity modality. *)
     val is_id : t -> bool
 
+    (** Test if the given modality is a constant modality. *)
+    val is_constant : t -> bool
+
     (** Printing for debugging *)
     val print : Format.formatter -> t -> unit
 
@@ -531,9 +534,8 @@ module type S = sig
             output list exactly once. *)
         val to_list : t -> atom list
 
-        (** Test if the given modality is a constant modality along the given
-            axis. *)
-        val is_constant_for : ('m, 'a, 'd) Value.axis -> t -> bool
+        (** Project out the [atom] for the given axis in the given modality. *)
+        val proj : ('m, 'a, 'd) Value.axis -> t -> atom
 
         (** [equate t0 t1] checks that [t0 = t1].
             Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
