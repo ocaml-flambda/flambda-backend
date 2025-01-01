@@ -154,7 +154,7 @@ module Axis = struct
     match t with
     | Nonmodal Nullability | Nonmodal Externality -> false
     | Modal axis ->
-      let (P axis) = Mode.Const.Axis.alloc_as_value axis in
+      let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
       let modality = Mode.Modality.Value.Const.proj axis modality in
       if Mode.Modality.is_constant modality
       then true

@@ -327,6 +327,8 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+    type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
+
     val print_axis : Format.formatter -> ('m, 'a, 'd) axis -> unit
 
     val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
@@ -447,10 +449,7 @@ module type S = sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
 
     module Axis : sig
-      type 'd packed_value_axis =
-        | P : ('m, 'a, 'd) Value.axis -> 'd packed_value_axis
-
-      val alloc_as_value : ('m, 'a, 'd) Alloc.axis -> 'd packed_value_axis
+      val alloc_as_value : 'd Alloc.axis_packed -> 'd Value.axis_packed
     end
 
     val locality_as_regionality : Locality.Const.t -> Regionality.Const.t

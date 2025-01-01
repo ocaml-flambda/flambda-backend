@@ -1742,6 +1742,8 @@ module Value_with (Areality : Areality) = struct
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+  type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
+
   let print_axis (type m a d) ppf (axis : (m, a, d) axis) =
     match axis with
     | Monadic ax -> Axis.print ppf ax
@@ -2199,16 +2201,13 @@ module Const = struct
     { areality; linearity; portability; uniqueness; contention }
 
   module Axis = struct
-    type 'd packed_value_axis =
-      | P : ('m, 'a, 'd) Value.axis -> 'd packed_value_axis
-
-    let alloc_as_value : type m a d. (m, a, d) Alloc.axis -> d packed_value_axis
-        = function
-      | Comonadic Areality -> P (Comonadic Areality)
-      | Comonadic Linearity -> P (Comonadic Linearity)
-      | Comonadic Portability -> P (Comonadic Portability)
-      | Monadic Uniqueness -> P (Monadic Uniqueness)
-      | Monadic Contention -> P (Monadic Contention)
+    let alloc_as_value : type d. d Alloc.axis_packed -> d Value.axis_packed =
+      function
+      | P (Comonadic Areality) -> P (Comonadic Areality)
+      | P (Comonadic Linearity) -> P (Comonadic Linearity)
+      | P (Comonadic Portability) -> P (Comonadic Portability)
+      | P (Monadic Uniqueness) -> P (Monadic Uniqueness)
+      | P (Monadic Contention) -> P (Monadic Contention)
   end
 
   let locality_as_regionality = C.locality_as_regionality
