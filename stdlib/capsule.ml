@@ -281,17 +281,52 @@ let create_with_mutex () =
   let (P name) = Name.make () in
   Mutex.P { name; mutex = M.create (); poisoned = false }
 
-external raise_with_backtrace:
-    exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
-
 exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
 
-let protect f =
-  try f () with
+let protect_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  try f password with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal ->
+       reraise (Protected ({ name; mutex = M.create (); poisoned = false }, data))
+     | None -> reraise exn)
   | exn ->
-    let (P mut) = create_with_mutex () in
-    raise_with_backtrace (Protected (mut, Data.unsafe_mk exn)) (Printexc.get_raw_backtrace ())
-  ;;
+    reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
+
+let protect (f : 'k. 'k Password.t -> _) =
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  try f password with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal ->
+       reraise (Protected ({ name; mutex = M.create (); poisoned = false }, data))
+     | None -> reraise exn)
+  | exn ->
+    reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
+
+let with_password_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  try f password with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal -> reraise (Data.unsafe_get data)
+     | None -> reraise exn)
+  | exn -> reraise exn
+
+let with_password (f : 'k. 'k Password.t -> _) =
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  try f password with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal -> reraise (Data.unsafe_get data)
+     | None -> reraise exn)
+  | exn -> reraise exn
+
 
 module Condition = struct
   type 'k t : value mod portable uncontended
