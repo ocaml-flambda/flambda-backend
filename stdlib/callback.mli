@@ -38,17 +38,18 @@ val register_exception : string -> exn -> unit
    value thus obtained is suitable for passing as first argument
    to [raise_constant] or [raise_with_arg]. *)
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
 module Safe : sig
   val register : string -> 'a @ portable -> unit @@ portable
-  (** [Callback.Safe.register n v] registers the value [v] under
-      the name [n]. C code can later retrieve a handle to [v]
-      by calling [caml_named_value(n)]. *)
+  (** Like {!register}, but is safe to use in the presence of multiple domains.
+
+      The provided value must be [portable] as registered values may be looked up from
+      any domain. *)
 
   val register_exception : string -> exn @ portable -> unit @@ portable
-  (** [Callback.Safe.register_exception n exn] registers the
-      exception contained in the exception value [exn]
-      under the name [n]. C code can later retrieve a handle to
-      the exception by calling [caml_named_value(n)]. The exception
-      value thus obtained is suitable for passing as first argument
-      to [raise_constant] or [raise_with_arg]. *)
+  (** Like {!register_exception}, but is safe to use in the presence of multiple domains.
+
+      The provided exception must be [portable] as registered exceptions may be looked up
+      from any domain. *)
 end

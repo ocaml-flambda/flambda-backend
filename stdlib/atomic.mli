@@ -83,48 +83,49 @@ val incr : int t -> unit @@ portable
 (** [decr r] atomically decrements the value of [r] by [1]. *)
 val decr : int t -> unit @@ portable
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
 module Safe : sig @@ portable
-  (** An atomic (mutable) reference to a value of type ['a]. *)
-  type nonrec 'a t = 'a t
+  (** Like {!make}, but is safe to call in the presence of multiple domains.
 
-  (** Create an atomic reference. *)
+      The provided value must be [portable] as atomics can freely cross between domains.
+  *)
   val make : 'a @ portable contended -> 'a t
 
-  (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
-      the memory of one allocated with [make v].
+  (** Like {!make_contended}, but is safe to call in the presence of multiple domains.
 
-      The primary purpose is to prevent false-sharing and the resulting
-      performance degradation. When a CPU performs an atomic operation, it
-      temporarily takes ownership of an entire cache line that contains the
-      atomic reference. If multiple atomic references share the same cache line,
-      modifying these disjoint memory regions simultaneously becomes impossible,
-      which can create a bottleneck. Hence, as a general guideline, if an atomic
-      reference is experiencing contention, assigning it its own cache line may
-      enhance performance.
-
-      CR ocaml 5 all-runtime5: does not support runtime4 *)
-
+      The provided value must be [portable] as atomics can freely cross between domains.
+  *)
   val make_contended : 'a @ portable contended -> 'a t
 
-  (** Get the current value of the atomic reference. *)
+  (** Like {!get}, but is safe to call in the presence of multiple domains.
+
+      The resulting value must be [contended] as the atomics can freely cross between
+      domains, so the value may come from another domain. *)
   val get : 'a t -> 'a @ portable contended
 
-  (** Set a new value for the atomic reference. *)
+  (** Like {!set}, but is safe to call in the presence of multiple domains.
+
+      The provided value must be [portable] as atomics can freely cross between domains.
+  *)
   val set : 'a t -> 'a @ portable contended -> unit
 
-  (** Set a new value for the atomic reference, and return the current value. *)
+  (** Like {!exchange}, but is safe to call in the presence of multiple domains.
+
+      The provided value must be [portable] and the resulting value must be [contended]
+      as atomics can freely cross between domains. *)
   val exchange : 'a t -> 'a @ portable contended -> 'a @ portable contended
 
-  (** [compare_and_set r seen v] sets the new value of [r] to [v] only
-      if its current value is physically equal to [seen] -- the
-      comparison and the set occur atomically. Returns [true] if the
-      comparison succeeded (so the set happened) and [false]
-      otherwise. *)
+  (** Like {!compare_and_set}, but is safe to call in the presence of multiple domains.
+
+      The provided values must be [portable] as atomics can freely cross between domains.
+  *)
   val compare_and_set : 'a t -> 'a @ portable contended -> 'a @ portable contended -> bool
 
-  (** [compare_exchange r seen v] sets the new value of [r] to [v] only
-      if its current value is physically equal to [seen] -- the comparison
-      and the set occur atomically. Returns the previous value. *)
+  (** Like {!compare_exchange}, but is safe to call in the presence of multiple domains.
+
+      The provided values must be [portable] and the resulting value must be [contended]
+      as atomics can freely cross between domains. *)
   val compare_exchange :
     'a t -> 'a @ portable contended -> 'a @ portable contended -> 'a @ portable contended
 end

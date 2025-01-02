@@ -1462,12 +1462,44 @@ val kasprintf : (string -> 'a) -> ('b, formatter, unit, 'a) format4 -> 'b
   @since 4.03
 *)
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
 module Safe : sig
+  (** Like {!get_std_formatter}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [formatter] does not escape the current domain. This is necessary
+      as the [formatter] may contain functions which close over other data in the current
+      domain. *)
   val get_std_formatter : Domain.Safe.DLS.Access.t -> formatter
+
+  (** Like {!get_err_formatter}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [formatter] does not escape the current domain. This is necessary
+      as the [formatter] may contain functions which close over other data in the current
+      domain. *)
   val get_err_formatter : Domain.Safe.DLS.Access.t -> formatter
+
+  (** Like {!get_str_formatter}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [formatter] does not escape the current domain. This is necessary
+      as the [formatter] may contain functions which close over other data in the current
+      domain. *)
   val get_str_formatter : Domain.Safe.DLS.Access.t -> formatter
+
+  (** Like {!get_stdbuf}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [Buffer.t] does not escape the current domain. This is necessary
+      as the [Buffer.t] is mutable data which is not safe to share between domains. *)
   val get_stdbuf : Domain.Safe.DLS.Access.t -> Buffer.t
 
+  (** Like {!make_synchronized_formatter}, but can be called from any domain.
+
+      The provided closures must be [portable] as they will be called from other domains
+      that access the returned [Domain.Safe.DLS.key]. *)
   val make_synchronized_formatter :
     (string -> int -> int -> unit) @ portable
     -> (unit -> unit) @ portable

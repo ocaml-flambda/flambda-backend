@@ -113,7 +113,7 @@ external finalise_last : (unit -> unit) -> 'a -> unit =
 external finalise_release : unit -> unit @@ portable = "caml_final_release"
 
 
-type alarm = bool Atomic.Safe.t
+type alarm = bool Atomic.t
 type alarm_rec : value mod uncontended = {active : alarm; f : unit -> unit}
 
 let rec call_alarm arec =

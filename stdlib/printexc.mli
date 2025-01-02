@@ -419,43 +419,21 @@ val exn_slot_name: exn -> string
     @since 4.02
 *)
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
 module Safe : sig
   val register_printer: (exn -> string option) @ portable -> unit
-  (** [Printexc.register_printer fn] registers [fn] as an exception
-      printer.  The printer should return [None] or raise an exception
-      if it does not know how to convert the passed exception, and [Some
-      s] with [s] the resulting string if it can convert the passed
-      exception. Exceptions raised by the printer are ignored.
+  (** Like {!register_printer}, but is safe to use in the presence of multiple domains.
 
-      When converting an exception into a string, the printers will be invoked
-      in the reverse order of their registrations, until a printer returns
-      a [Some s] value (if no such printer exists, the runtime will use a
-      generic printer).
-
-      When using this mechanism, one should be aware that an exception backtrace
-      is attached to the thread that saw it raised, rather than to the exception
-      itself. Practically, it means that the code related to [fn] should not use
-      the backtrace if it has itself raised an exception before.
-      @since 3.11.2
-  *)
+      The provided closure must be [portable] as exception printers may be called from
+      any domain, not just the one that it's registered on. *)
 
   val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) @ portable -> unit
-  (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
-      for uncaught exceptions. The default handler is
-      {!Printexc.default_uncaught_exception_handler}.
+  (** Like {!set_uncaught_exception_handler}, but is safe to use in the presence of
+      multiple domains.
 
-      Note that when [fn] is called all the functions registered with
-      {!Stdlib.at_exit} have already been called. Because of this you must
-      make sure any output channel [fn] writes on is flushed.
-
-      Also note that exceptions raised by user code in the interactive toplevel
-      are not passed to this function as they are caught by the toplevel itself.
-
-      If [fn] raises an exception, both the exceptions passed to [fn] and raised
-      by [fn] will be printed with their respective backtrace.
-
-      @since 4.02
-  *)
+      The provided closure must be [portable] as exception handlers may be called from
+      any domain, not just the one that it's registered on. *)
 end
 
 (**/**)
