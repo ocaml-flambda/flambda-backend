@@ -103,6 +103,7 @@ module DLS : sig
     (** Type of a DLS key *)
 
     val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key @@ nonportable
+    [@@alert unsafe_multidomain "Use [Domain.Safe.DLS.new_key]."]
     (** [new_key f] returns a new key bound to initialiser [f] for accessing
 ,        domain-local variables.
 
@@ -156,7 +157,6 @@ module DLS : sig
         to [k], which cannot be restored later. *)
 
 end
-[@@alert unsafe_multidomain "Use [Domain.Safe.DLS]."]
 
 (** Submodule containing non-backwards-compatible functions which enforce thread safety
     via modes. *)
@@ -185,7 +185,7 @@ module Safe : sig
           executed on the primary domain. *)
     end
 
-    type 'a key : value mod portable uncontended = 'a DLS.key [@alert "-unsafe_multidomain"]
+    type 'a key : value mod portable uncontended = 'a DLS.key
     (** See {!DLS.key}. *)
 
     val access
@@ -196,7 +196,7 @@ module Safe : sig
         domain's capsule, even if called from an explicit capsule. During its execution,
         [f] may access the current domain's DLS. *)
 
-    val new_key
+    val new_key'
       :  ?split_from_parent:('a -> (Access.t -> 'a) @ portable) @ portable
       -> (Access.t -> 'a) @ portable
       -> 'a key
@@ -216,14 +216,23 @@ module Safe : sig
         Both provided arguments must be [portable] as they may be called from any domain,
         not just the current one. *)
 
+    val new_key
+      : ?split_from_parent:('a -> (unit -> 'a) @ portable) @ portable
+      -> (unit -> 'a) @ portable
+      -> 'a key
+      @@ portable
+    (** Like {!new_key'}, but does not provide an {!Access.t}. This is slightly simpler to
+        use in cases where you don't need to access other parts of the DLS whil
+        initializing the DLS entry. *)
+
     val get : Access.t -> 'a key -> 'a @@ portable
-    (** Like {!DLS.get}, but is safe to use in the presence of multiple domains.
+    (** Like {!DLS.get}, but can be called from any domain.
 
         An additional {!Access.t} argument is taken as a witness that the returned value
         does not escape the current domain's capsule. *)
 
     val set : Access.t -> 'a key -> 'a -> unit @@ portable
-    (** Like {!DLS.set}, but is safe to use in the presence of multiple domains.
+    (** Like {!DLS.set}, but can be called from any domain.
 
         An additional {!Access.t} argument is taken as a witness that the provided value
         does not unsafely close over data from the current capsule. *)

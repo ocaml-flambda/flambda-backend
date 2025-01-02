@@ -416,7 +416,7 @@ module GenHashTable = struct
 
     module DLS = Domain.Safe.DLS
 
-    let prng_key = DLS.new_key (fun (_ : DLS.Access.t) -> (Random.State.make_self_init()))
+    let prng_key = DLS.new_key Random.State.make_self_init
 
     let create ?(random = (Hashtbl.is_randomized ())) initial_size =
       let s = power_2_above 16 initial_size in

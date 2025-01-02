@@ -347,8 +347,8 @@ let random_key =
   DLS.new_key
     ~split_from_parent:(fun s ->
       let s = State.split s in
-      (fun (_ : DLS.Access.t) -> Obj.magic_uncontended s))
-    (fun (_ : DLS.Access.t) -> mk_default ())
+      (fun () -> Obj.magic_uncontended s))
+    mk_default
 
 let apply0 f () = DLS.access (fun access -> f (DLS.get access random_key))
 

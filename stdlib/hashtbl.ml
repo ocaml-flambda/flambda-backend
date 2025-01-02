@@ -64,7 +64,7 @@ let is_randomized () = Atomic.Safe.get randomized
 
 module DLS = Domain.Safe.DLS
 
-let prng_key = DLS.new_key (fun (_ : DLS.Access.t) -> Random.State.make_self_init ())
+let prng_key = DLS.new_key Random.State.make_self_init
 
 (* Functions which appear before the functorial interface must either be
    independent of the hash function or take it as a parameter (see #2202 and

@@ -335,7 +335,7 @@ external close_desc: int -> unit @@ portable = "caml_sys_close"
 
 module DLS = Domain.Safe.DLS
 
-let prng_key = DLS.new_key (fun (_ : DLS.Access.t) -> Random.State.make_self_init ())
+let prng_key = DLS.new_key Random.State.make_self_init
 
 let temp_file_name temp_dir prefix suffix =
   let rnd =
@@ -347,8 +347,8 @@ let temp_file_name temp_dir prefix suffix =
 
 let current_temp_dir_name =
   DLS.new_key
-    ~split_from_parent:(fun (filename : string) -> (fun (_ : DLS.Access.t) -> filename))
-    (fun (_ : DLS.Access.t) -> temp_dir_name)
+    ~split_from_parent:(fun (filename : string) -> (fun () -> filename))
+    (fun () -> temp_dir_name)
 
 let set_temp_dir_name (s : string) =
   DLS.access (fun access -> DLS.set access current_temp_dir_name s)
