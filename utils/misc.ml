@@ -743,6 +743,9 @@ let protect_writing_to_file ~filename ~f =
 let rec log2 n =
   if n <= 1 then 0 else 1 + log2(n asr 1)
 
+let rec log2_nativeint n =
+  if n <= 1n then 0 else 1 + log2_nativeint (Nativeint.shift_right n 1)
+
 let align n a =
   if n >= 0 then (n + a - 1) land (-a) else n land (-a)
 

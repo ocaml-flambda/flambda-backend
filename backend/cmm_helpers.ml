@@ -635,7 +635,7 @@ let raise_symbol dbg symb =
   Cop
     (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
 
-let rec div_int c1 c2 is_safe dbg =
+let rec div_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) ->
     Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
@@ -663,10 +663,7 @@ let rec div_int c1 c2 is_safe dbg =
           dbg )
     else if n < 0
     then
-      sub_int
-        (Cconst_int (0, dbg))
-        (div_int c1 (Cconst_int (-n, dbg)) is_safe dbg)
-        dbg
+      sub_int (Cconst_int (0, dbg)) (div_int c1 (Cconst_int (-n, dbg)) dbg) dbg
     else
       let m, p = divimm_parameters (Nativeint.of_int n) in
       (* Algorithm:
@@ -688,21 +685,9 @@ let rec div_int c1 c2 is_safe dbg =
             if p > 0 then Cop (Casr, [t; Cconst_int (p, dbg)], dbg) else t
           in
           add_int t (lsr_int c1 (Cconst_int (Nativeint.size - 1, dbg)) dbg) dbg)
-  | c1, c2 when !Clflags.unsafe || is_safe = Lambda.Unsafe ->
-    Cop (Cdivi, [c1; c2], dbg)
-  | c1, c2 ->
-    bind "divisor" c2 (fun c2 ->
-        bind "dividend" c1 (fun c1 ->
-            Cifthenelse
-              ( c2,
-                dbg,
-                Cop (Cdivi, [c1; c2], dbg),
-                dbg,
-                raise_symbol dbg "caml_exn_Division_by_zero",
-                dbg,
-                Any )))
+  | c1, c2 -> Cop (Cdivi, [c1; c2], dbg)
 
-let mod_int c1 c2 is_safe dbg =
+let mod_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) ->
     Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
@@ -732,21 +717,10 @@ let mod_int c1 c2 is_safe dbg =
           sub_int c1 t dbg)
     else
       bind "dividend" c1 (fun c1 ->
-          sub_int c1 (mul_int (div_int c1 c2 is_safe dbg) c2 dbg) dbg)
-  | c1, c2 when !Clflags.unsafe || is_safe = Lambda.Unsafe ->
-    (* Flambda already generates that test *)
-    Cop (Cmodi, [c1; c2], dbg)
+          sub_int c1 (mul_int (div_int c1 c2 dbg) c2 dbg) dbg)
   | c1, c2 ->
-    bind "divisor" c2 (fun c2 ->
-        bind "dividend" c1 (fun c1 ->
-            Cifthenelse
-              ( c2,
-                dbg,
-                Cop (Cmodi, [c1; c2], dbg),
-                dbg,
-                raise_symbol dbg "caml_exn_Division_by_zero",
-                dbg,
-                Any )))
+    (* Flambda already generates the tests for zero*)
+    Cop (Cmodi, [c1; c2], dbg)
 
 (* Division or modulo on boxed integers. The overflow case min_int / -1 can
    occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
@@ -754,8 +728,8 @@ let mod_int c1 c2 is_safe dbg =
 (* Division or modulo on boxed integers. The overflow case min_int / -1 can
    occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
 
-let safe_divmod_bi mkop mkm1 ?(dividend_cannot_be_min_int = false) is_safe
-    dividend divisor dbg =
+let safe_divmod_bi mkop mkm1 ?(dividend_cannot_be_min_int = false) dividend
+    divisor dbg =
   let is_different_from x = function
     | Cconst_int (n, _) -> Nativeint.of_int n <> x
     | Cconst_natint (n, _) -> n <> x
@@ -763,7 +737,7 @@ let safe_divmod_bi mkop mkm1 ?(dividend_cannot_be_min_int = false) is_safe
   in
   bind "divisor" divisor (fun divisor ->
       bind "dividend" dividend (fun dividend ->
-          let c = mkop dividend divisor is_safe dbg in
+          let c = mkop dividend divisor dbg in
           if not Arch.division_crashes_on_overflow
           then c
           else
@@ -786,11 +760,15 @@ let safe_divmod_bi mkop mkm1 ?(dividend_cannot_be_min_int = false) is_safe
                   dbg,
                   Any )))
 
-let safe_div_bi =
-  safe_divmod_bi div_int (fun c1 dbg ->
-      Cop (Csubi, [Cconst_int (0, dbg); c1], dbg))
+let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  safe_divmod_bi ?dividend_cannot_be_min_int div_int
+    (fun c1 dbg -> Cop (Csubi, [Cconst_int (0, dbg); c1], dbg))
+    c1 c2 dbg
 
-let safe_mod_bi = safe_divmod_bi mod_int (fun _ dbg -> Cconst_int (0, dbg))
+let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  safe_divmod_bi ?dividend_cannot_be_min_int mod_int
+    (fun _ dbg -> Cconst_int (0, dbg))
+    c1 c2 dbg
 
 (* Bool *)
 
@@ -2084,8 +2062,9 @@ let low_bits ~bits ~(dbg : Debuginfo.t) e =
     | bits -> Misc.fatal_errorf "low_bits not implemented for %d bits" bits
 
 let ignore_low_bits ~bits ~dbg:(_ : Debuginfo.t) e =
-  assert (0 <= bits && bits <= arch_bits);
-  if bits = 0 then e else ignore_low_bit_int e
+  if bits = 1
+  then ignore_low_bit_int e
+  else Misc.fatal_error "ignore_low_bits expected bits=1 for now"
 
 let and_int e1 e2 dbg =
   let is_mask32 = function
@@ -3568,11 +3547,11 @@ let mul_int_caml arg1 arg2 dbg =
     incr_int (mul_int (untag_int c1 dbg) (decr_int c2 dbg) dbg) dbg
   | c1, c2 -> incr_int (mul_int (decr_int c1 dbg) (untag_int c2 dbg) dbg) dbg
 
-let div_int_caml is_safe arg1 arg2 dbg =
-  tag_int (div_int (untag_int arg1 dbg) (untag_int arg2 dbg) is_safe dbg) dbg
+let div_int_caml arg1 arg2 dbg =
+  tag_int (div_int (untag_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
 
-let mod_int_caml is_safe arg1 arg2 dbg =
-  tag_int (mod_int (untag_int arg1 dbg) (untag_int arg2 dbg) is_safe dbg) dbg
+let mod_int_caml arg1 arg2 dbg =
+  tag_int (mod_int (untag_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
 
 let and_int_caml arg1 arg2 dbg = and_int arg1 arg2 dbg
 
