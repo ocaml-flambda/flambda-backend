@@ -126,6 +126,8 @@ end
    it never returns is also [portable] *)
 external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
+external raise_with_backtrace: exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
+
 module Data = struct
   type ('a, 'k) t : value mod portable uncontended
 
@@ -144,10 +146,10 @@ module Data = struct
   let create f = unsafe_mk (f ())
 
   let reraise_encapsulated password exn =
-    reraise (Encapsulated (Password.name password, unsafe_mk exn))
+    raise_with_backtrace (Encapsulated (Password.name password, unsafe_mk exn)) (Printexc.get_raw_backtrace ())
 
   let reraise_encapsulated_shared password exn =
-    reraise (Encapsulated (Password.Shared.name password, unsafe_mk exn))
+    raise_with_backtrace (Encapsulated (Password.Shared.name password, unsafe_mk exn)) (Printexc.get_raw_backtrace ())
 
   let map pw f t =
     let v = unsafe_get t in
@@ -290,10 +292,10 @@ let protect_local f = exclave_
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal ->
-       reraise (Protected ({ name; mutex = M.create (); poisoned = false }, data))
-     | None -> reraise exn)
+       raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, data)) (Printexc.get_raw_backtrace ())
+     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
   | exn ->
-    reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
+    raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn)) (Printexc.get_raw_backtrace ())
 
 let protect f =
   let (P name) = Name.make () in
@@ -302,10 +304,10 @@ let protect f =
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal ->
-       reraise (Protected ({ name; mutex = M.create (); poisoned = false }, data))
-     | None -> reraise exn)
+       raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, data)) (Printexc.get_raw_backtrace ())
+     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
   | exn ->
-    reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
+    raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn)) (Printexc.get_raw_backtrace ())
 
 let with_password_local f = exclave_
   let (P name) = Name.make () in
@@ -313,9 +315,9 @@ let with_password_local f = exclave_
   try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
-     | Some Equal -> reraise (Data.unsafe_get data)
-     | None -> reraise exn)
-  | exn -> reraise exn
+     | Some Equal -> raise_with_backtrace (Data.unsafe_get data) (Printexc.get_raw_backtrace ())
+     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
+  | exn -> raise_with_backtrace exn (Printexc.get_raw_backtrace ())
 
 let with_password f =
   let (P name) = Name.make () in
@@ -323,10 +325,9 @@ let with_password f =
   try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
-     | Some Equal -> reraise (Data.unsafe_get data)
-     | None -> reraise exn)
-  | exn -> reraise exn
-
+     | Some Equal -> raise_with_backtrace (Data.unsafe_get data) (Printexc.get_raw_backtrace ())
+     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
+  | exn -> raise_with_backtrace exn (Printexc.get_raw_backtrace ())
 
 module Condition = struct
   type 'k t : value mod portable uncontended
