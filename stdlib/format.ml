@@ -1034,11 +1034,11 @@ and str_formatter = formatter_of_buffer stdbuf
 module DLS = Domain.Safe.DLS
 
 let stdbuf_key = DLS.new_key pp_make_buffer
-let _ = DLS.set DLS.Access.for_initial_domain stdbuf_key stdbuf
+let _ = Domain.DLS.set stdbuf_key stdbuf
 
 let str_formatter_key = DLS.new_key' (fun access ->
   formatter_of_buffer (DLS.get access stdbuf_key))
-let _ = DLS.set DLS.Access.for_initial_domain str_formatter_key str_formatter
+let _ = Domain.DLS.set str_formatter_key str_formatter
 
 let buffered_out_string key (str : string) (ofs : int) (len : int) : unit =
   DLS.access (fun access ->
@@ -1066,7 +1066,7 @@ let std_formatter_key = DLS.new_key' (fun access ->
   ppf.pp_out_indent <- display_indent ppf;
   Domain.Safe.at_exit' access (pp_print_flush ppf);
   ppf)
-let _ = DLS.set DLS.Access.for_initial_domain std_formatter_key std_formatter
+let _ = Domain.DLS.set std_formatter_key std_formatter
 
 let err_formatter_key = DLS.new_key' (fun access ->
   let ppf =
@@ -1078,7 +1078,7 @@ let err_formatter_key = DLS.new_key' (fun access ->
   ppf.pp_out_indent <- display_indent ppf;
   Domain.Safe.at_exit' access (pp_print_flush ppf);
   ppf)
-let _ = DLS.set DLS.Access.for_initial_domain err_formatter_key err_formatter
+let _ = Domain.DLS.set err_formatter_key err_formatter
 
 let get_std_formatter' access = DLS.get access std_formatter_key
 let get_err_formatter' access = DLS.get access err_formatter_key
@@ -1192,8 +1192,8 @@ let formatter_of_symbolic_output_buffer sob =
 
 *)
 
-let apply1 f v = f (DLS.get DLS.Access.for_initial_domain std_formatter_key) v
-let apply2 f v w = f (DLS.get DLS.Access.for_initial_domain std_formatter_key) v w
+let apply1 f v = f (Domain.DLS.get std_formatter_key) v
+let apply2 f v w = f (Domain.DLS.get std_formatter_key) v w
 let apply1' (type a : value mod portable uncontended) f (v : a) =
   DLS.access (fun access -> f (DLS.get access std_formatter_key) v)
 let apply2'
@@ -1456,12 +1456,12 @@ let fprintf ppf = kfprintf ignore ppf
 
 let printf (Format (fmt, _)) =
   make_printf
-    (fun acc -> output_acc (DLS.get DLS.Access.for_initial_domain std_formatter_key) acc)
+    (fun acc -> output_acc (Domain.DLS.get std_formatter_key) acc)
     End_of_acc fmt
 
 let eprintf (Format (fmt, _)) =
   make_printf
-    (fun acc -> output_acc (DLS.get DLS.Access.for_initial_domain err_formatter_key) acc)
+    (fun acc -> output_acc (Domain.DLS.get err_formatter_key) acc)
     End_of_acc fmt
 
 let kdprintf k (Format (fmt, _)) =
@@ -1506,8 +1506,8 @@ let make_synchronized_formatter = make_synchronized_formatter_unsafe
 (* Flushing standard formatters at end of execution. *)
 
 let flush_standard_formatters () =
-  pp_print_flush (DLS.get DLS.Access.for_initial_domain std_formatter_key) ();
-  pp_print_flush (DLS.get DLS.Access.for_initial_domain err_formatter_key) ()
+  pp_print_flush (Domain.DLS.get std_formatter_key) ();
+  pp_print_flush (Domain.DLS.get err_formatter_key) ()
 
 let () = at_exit flush_standard_formatters
 
