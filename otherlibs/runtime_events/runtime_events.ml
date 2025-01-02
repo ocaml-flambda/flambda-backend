@@ -296,9 +296,7 @@ module User = struct
       else push buffers buf
     in
     fun consumer ->
-      let buffers =
-        Domain.Safe.DLS.get Domain.Safe.DLS.Access.for_initial_domain write_buffer_cache
-      in
+      let buffers = Domain.DLS.get write_buffer_cache in
       let buf = pop_or_create buffers in
       Fun.protect ~finally:(fun () -> push buffers buf)
         (fun () -> consumer buf)
