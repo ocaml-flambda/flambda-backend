@@ -390,18 +390,6 @@ let protect_local f = exclave_
   | exn ->
     reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
 
-let protect f =
-  let (P name) = Name.make () in
-  let password = Password.unsafe_mk name in
-  try f (Password.P password) with
-  | Encapsulated (inner, data) as exn ->
-    (match Name.equality_witness name inner with
-     | Some Equal ->
-       reraise (Protected ({ name; mutex = M.create (); poisoned = false }, data))
-     | None -> reraise exn)
-  | exn ->
-    reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
-
 let with_password_local f = exclave_
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
@@ -412,12 +400,10 @@ let with_password_local f = exclave_
      | None -> reraise exn)
   | exn -> reraise exn
 
-let with_password f =
-  let (P name) = Name.make () in
-  let password = Password.unsafe_mk name in
-  try f (Password.P password) with
-  | Encapsulated (inner, data) as exn ->
-    (match Name.equality_witness name inner with
-     | Some Equal -> reraise (Data.unsafe_get data)
-     | None -> reraise exn)
-  | exn -> reraise exn
+module Global = struct
+  type 'a t = { global : 'a @@ global } [@@unboxed]
+end
+
+open Global
+let protect f = (protect_local (fun password -> { global = f password })).global
+let with_password f = (with_password_local (fun password -> { global = f password })).global
