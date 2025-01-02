@@ -509,13 +509,39 @@ val eventlog_pause : unit -> unit
 val eventlog_resume : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
 module Safe : sig
   val finalise :
     ('a @ portable contended -> unit) @ portable -> 'a @ portable contended -> unit
+  (** Like {!finalise}, but can be called on any domain. In the presence of multiple
+      domains it should be assumed that any particular finaliser may be executed in any
+      of the domains.
+
+      The provided closure must be [portable] as it may run on any domain. It must take
+      its argument [contended] as the domain it's finalised on may not be the same capsule
+      that has uncontended access to it.
+
+      The provided value must be [portable] as it may have been created inside a capsule,
+      in which case it needs to cross a capsule boundary to be finalised. *)
 
   val finalise_last : (unit -> unit) @ portable -> 'a -> unit
+  (** Like {!finalise_last}, but can be called on any domain. In the presence of multiple
+      domains it should be assumed that any particular finaliser may be executed in any
+      of the domains.
+
+      The provided closure must be [portable] as it may run on any domain.
+
+      The provided value may be [nonportable] as it is not passed to the provided closure.
+  *)
 
   val create_alarm : (unit -> unit) @ portable -> alarm
+  (** Like {!create_alarm}, but can be called on any domain and in particular from within
+      any capsule.
+
+      The provided closure must be [portable] as it might close over data from the current
+      capsule, but will be called on the current domain, regardless of whether the current
+      domain still has uncontended access to the original capsule. *)
 end
 
 (** [Memprof] is a profiling engine which randomly samples allocated
@@ -541,7 +567,7 @@ end
     similar in most regards.)
 
    *)
-module Memprof :
+module (Memprof @ nonportable) :
   sig @@ portable
     type t
     (** the type of a profile *)
@@ -657,13 +683,19 @@ module Memprof :
        called on a profile which has not been stopped.
        *)
 
+    (** Submodule containing non-backwards-compatible functions which enforce thread
+        safety via modes. *)
     module Safe : sig
       val start :
         sampling_rate:float ->
         ?callstack_size:int ->
         ('minor, 'major) tracker @ portable ->
         t
-      (** Like [Memprof.start], but is safe in non-primary domains. *)
+      (** Like {!start}, but can be called from any domain.
+
+          The provided [tracker] must be [portable] as the contained callbacks are
+          registered with the current domain, but may close over data contained in the
+          current capsule which may later move to a different domain. *)
 
       val start' :
         Domain.Safe.DLS.Access.t ->
@@ -671,9 +703,14 @@ module Memprof :
         ?callstack_size:int ->
         ('minor, 'major) tracker ->
         t
-      (** Like [start], but allows nonportable [tracker]s. *)
+      (** Like {!start}, but can be called from any domain.
+
+          An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a
+          witness that the closures contained in the [tracker] do not close over any
+          data from the current capsule in an unsafe way. See {!Domain.Safe.DLS.Access}
+          for more details. *)
     end
-end @@ nonportable
+end
 
 
 (** GC Tweaks are unstable and undocumented configurable GC parameters,
@@ -684,7 +721,7 @@ end @@ nonportable
 
         OCAMLRUNPARAM='Xfoo=42'
     *)
-module Tweak : sig
+module (Tweak @ nonportable) : sig
   (** Change a parameter.
       Raises Invalid_argument if no such parameter exists *)
   val set : string -> int -> unit
@@ -696,4 +733,4 @@ module Tweak : sig
   (** Returns the list of parameters and their values that currently
       have non-default values *)
   val list_active : unit -> (string * int) list
-end @@ nonportable
+end

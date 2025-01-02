@@ -1376,10 +1376,15 @@ val at_exit : (unit -> unit) -> unit @@ nonportable
    The functions are called in 'last in, first out' order: the
    function most recently added with [at_exit] is called first. *)
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
 module Safe : sig
   val at_exit : (unit -> unit) @ portable -> unit
-  (** Like [at_exit], but accepts a [portable] function, and so can be called
-      from any domain. *)
+  (** Like {!at_exit}, but can be called from any domain.
+
+      The provided closure must be [portable] as it might be called from another domain.
+      In particular, the primary domain may call {!exit}, thus calling the provided
+      closure even if it came from a secondary domain. *)
 end
 
 (**/**)
