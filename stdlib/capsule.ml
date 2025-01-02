@@ -293,7 +293,7 @@ let protect_local f = exclave_
     (match Name.equality_witness name inner with
      | Some Equal ->
        raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, data)) (Printexc.get_raw_backtrace ())
-     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
+     | None -> reraise exn)
   | exn ->
     raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn)) (Printexc.get_raw_backtrace ())
 
@@ -305,7 +305,7 @@ let protect f =
     (match Name.equality_witness name inner with
      | Some Equal ->
        raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, data)) (Printexc.get_raw_backtrace ())
-     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
+     | None -> reraise exn)
   | exn ->
     raise_with_backtrace (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn)) (Printexc.get_raw_backtrace ())
 
@@ -315,9 +315,9 @@ let with_password_local f = exclave_
   try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
-     | Some Equal -> raise_with_backtrace (Data.unsafe_get data) (Printexc.get_raw_backtrace ())
-     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
-  | exn -> raise_with_backtrace exn (Printexc.get_raw_backtrace ())
+     | Some Equal -> reraise (Data.unsafe_get data)
+     | None -> reraise exn)
+  | exn -> reraise exn
 
 let with_password f =
   let (P name) = Name.make () in
@@ -325,9 +325,9 @@ let with_password f =
   try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
-     | Some Equal -> raise_with_backtrace (Data.unsafe_get data) (Printexc.get_raw_backtrace ())
-     | None -> raise_with_backtrace exn (Printexc.get_raw_backtrace ()))
-  | exn -> raise_with_backtrace exn (Printexc.get_raw_backtrace ())
+     | Some Equal -> reraise (Data.unsafe_get data)
+     | None -> reraise exn)
+  | exn -> reraise exn
 
 module Condition = struct
   type 'k t : value mod portable uncontended
