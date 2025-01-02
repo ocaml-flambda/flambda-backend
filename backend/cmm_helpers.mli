@@ -383,15 +383,15 @@ val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 (** Operations on n-bit integers *)
 
 (** Simplify the given expression knowing low [bits] bits will be irrelevant *)
-val ignore_low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
+val ignore_low_bits : expression -> dbg:Debuginfo.t -> bits:int -> expression
 
 (** Simplify the given expression knowing that bits other than the low [bits] bits will be
     irrelevant *)
-val low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
+val low_bits : expression -> dbg:Debuginfo.t -> bits:int -> expression
 
-val sign_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
+val sign_extend : expression -> dbg:Debuginfo.t -> bits:int -> expression
 
-val zero_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
+val zero_extend : expression -> dbg:Debuginfo.t -> bits:int -> expression
 
 (** Box a given integer, without sharing of constants *)
 val box_int_gen :
