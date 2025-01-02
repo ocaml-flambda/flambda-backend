@@ -20,8 +20,6 @@
    :standard
    -strict-sequence -absname -w +67+70
    -bin-annot -safe-string -strict-formats
-   ; CR with-kinds: Unnecessary -allow-illegal-crossing
-   -allow-illegal-crossing
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))

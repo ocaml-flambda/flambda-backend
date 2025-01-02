@@ -27,6 +27,8 @@
    -nostdlib
    -safe-string
    -strict-formats
+   ; CR with-kinds: Remove this when we have more fine-grain control over
+   ; what types illegally cross.
    -allow-illegal-crossing))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
