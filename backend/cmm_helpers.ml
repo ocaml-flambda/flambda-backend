@@ -20,7 +20,7 @@ module VP = Backend_var.With_provenance
 open Cmm
 open Arch
 
-let arch_bits = 8 * Arch.size_int
+let arch_bits = Arch.size_int * 8
 
 type arity =
   { function_kind : Lambda.function_kind;
@@ -638,16 +638,54 @@ let raise_symbol dbg symb =
   Cop
     (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
 
-let rec div_int c1 c2 is_safe dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) ->
-    Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
-  | c1, Cconst_int (1, _) -> c1
-  | Cconst_int (n1, _), Cconst_int (n2, _) -> Cconst_int (n1 / n2, dbg)
-  | c1, Cconst_int (n, _) when n <> min_int ->
-    let l = Misc.log2 n in
-    if n = 1 lsl l
+let[@inline] get_const = function
+  | Cconst_int (i, _) -> Some (Nativeint.of_int i)
+  | Cconst_natint (i, _) -> Some i
+  | _ -> None
+
+(** Division or modulo on registers. The overflow case min_int / -1 can
+    occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513).
+    In typical cases, [operator] is used to compute the result.
+
+    However, if division crashes on overflow, we will insert a runtime check for a divisor
+    of -1, and fall back to [if_divisor_is_minus_one]. *)
+let make_safe_divmod operator ~if_divisor_is_negative_one
+    ?(dividend_cannot_be_min_int = false) c1 c2 ~dbg =
+  if dividend_cannot_be_min_int || not Arch.division_crashes_on_overflow
+  then Cop (operator, [c1; c2], dbg)
+  else
+    bind "divisor" c2 (fun c2 ->
+        bind "dividend" c1 (fun c1 ->
+            Cifthenelse
+              ( Cop (Ccmpi Cne, [c2; Cconst_int (-1, dbg)], dbg),
+                dbg,
+                Cop (operator, [c1; c2], dbg),
+                dbg,
+                if_divisor_is_negative_one ~dividend:c1 ~dbg,
+                dbg,
+                Any )))
+
+let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  let if_divisor_is_negative_one ~dividend ~dbg = neg_int dividend dbg in
+  match get_const c1, get_const c2 with
+  | _, Some 0n -> Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
+  | _, Some 1n -> c1
+  | Some n1, Some n2 -> natint_const_untagged dbg (Nativeint.div n1 n2)
+  | _, Some -1n -> if_divisor_is_negative_one ~dividend:c1 ~dbg
+  | _, Some n ->
+    if n < 0n
     then
+      if n = Nativeint.min_int
+      then Cop (Ccmpi Ceq, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg)
+      else
+        neg_int
+          (div_int ?dividend_cannot_be_min_int c1
+             (Cconst_natint (Nativeint.neg n, dbg))
+             dbg)
+          dbg
+    else if Nativeint.logand n (Nativeint.pred n) = 0n
+    then
+      let l = Misc.log2_nativeint n in
       (* Algorithm:
 
          t = shift-right-signed(c1, l - 1)
@@ -664,14 +702,8 @@ let rec div_int c1 c2 is_safe dbg =
                 add_int c1 t dbg);
             Cconst_int (l, dbg) ],
           dbg )
-    else if n < 0
-    then
-      sub_int
-        (Cconst_int (0, dbg))
-        (div_int c1 (Cconst_int (-n, dbg)) is_safe dbg)
-        dbg
     else
-      let m, p = divimm_parameters (Nativeint.of_int n) in
+      let m, p = divimm_parameters n in
       (* Algorithm:
 
          t = multiply-high-signed(c1, m) if m < 0,
@@ -691,30 +723,36 @@ let rec div_int c1 c2 is_safe dbg =
             if p > 0 then Cop (Casr, [t; Cconst_int (p, dbg)], dbg) else t
           in
           add_int t (lsr_int c1 (Cconst_int (Nativeint.size - 1, dbg)) dbg) dbg)
-  | c1, c2 when !Clflags.unsafe || is_safe = Lambda.Unsafe ->
-    Cop (Cdivi, [c1; c2], dbg)
-  | c1, c2 ->
-    bind "divisor" c2 (fun c2 ->
-        bind "dividend" c1 (fun c1 ->
-            Cifthenelse
-              ( c2,
-                dbg,
-                Cop (Cdivi, [c1; c2], dbg),
-                dbg,
-                raise_symbol dbg "caml_exn_Division_by_zero",
-                dbg,
-                Any )))
+  | _, _ ->
+    make_safe_divmod ?dividend_cannot_be_min_int ~if_divisor_is_negative_one
+      Cdivi c1 c2 ~dbg
 
-let mod_int c1 c2 is_safe dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) ->
-    Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
-  | c1, Cconst_int ((1 | -1), _) -> Csequence (c1, Cconst_int (0, dbg))
-  | Cconst_int (n1, _), Cconst_int (n2, _) -> Cconst_int (n1 mod n2, dbg)
-  | c1, (Cconst_int (n, _) as c2) when n <> min_int ->
-    let l = Misc.log2 n in
-    if n = 1 lsl l
+let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  let if_divisor_is_positive_or_negative_one ~dividend ~dbg =
+    match dividend with
+    | Cvar _ -> Cconst_int (0, dbg)
+    | dividend -> Csequence (dividend, Cconst_int (0, dbg))
+  in
+  match get_const c1, get_const c2 with
+  | _, Some 0n -> Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
+  | _, Some (1n | -1n) ->
+    if_divisor_is_positive_or_negative_one ~dividend:c1 ~dbg
+  | Some n1, Some n2 -> natint_const_untagged dbg (Nativeint.rem n1 n2)
+  | _, Some n ->
+    if n = Nativeint.min_int
     then
+      bind "dividend" c1 (fun c1 ->
+          Cifthenelse
+            ( Cop (Ccmpi Ceq, [c1; neg_int c1 dbg], dbg),
+              dbg,
+              Cconst_int (0, dbg),
+              dbg,
+              Cop (Cor, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg),
+              dbg,
+              Any ))
+    else if Nativeint.logand n (Nativeint.pred n) = 0n
+    then
+      let l = Misc.log2_nativeint n in
       (* Algorithm:
 
          t = shift-right-signed(c1, l - 1)
@@ -731,65 +769,25 @@ let mod_int c1 c2 is_safe dbg =
           let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
           let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
           let t = add_int c1 t dbg in
-          let t = Cop (Cand, [t; Cconst_int (-n, dbg)], dbg) in
+          let t = Cop (Cand, [t; Cconst_natint (Nativeint.neg n, dbg)], dbg) in
           sub_int c1 t dbg)
     else
       bind "dividend" c1 (fun c1 ->
-          sub_int c1 (mul_int (div_int c1 c2 is_safe dbg) c2 dbg) dbg)
-  | c1, c2 when !Clflags.unsafe || is_safe = Lambda.Unsafe ->
-    (* Flambda already generates that test *)
-    Cop (Cmodi, [c1; c2], dbg)
-  | c1, c2 ->
-    bind "divisor" c2 (fun c2 ->
-        bind "dividend" c1 (fun c1 ->
-            Cifthenelse
-              ( c2,
-                dbg,
-                Cop (Cmodi, [c1; c2], dbg),
-                dbg,
-                raise_symbol dbg "caml_exn_Division_by_zero",
-                dbg,
-                Any )))
+          sub_int c1 (mul_int (div_int c1 c2 dbg) c2 dbg) dbg)
+  | _, _ ->
+    make_safe_divmod ?dividend_cannot_be_min_int
+      ~if_divisor_is_negative_one:if_divisor_is_positive_or_negative_one Cmodi
+      c1 c2 ~dbg
 
-(* Division or modulo on boxed integers. The overflow case min_int / -1 can
-   occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
+let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  bind "divisor" c2 (fun c2 ->
+      bind "dividend" c1 (fun c1 ->
+          div_int ?dividend_cannot_be_min_int c1 c2 dbg))
 
-let is_different_from x = function
-  | Cconst_int (n, _) -> Nativeint.of_int n <> x
-  | Cconst_natint (n, _) -> n <> x
-  | _ -> false
-
-let safe_divmod_bi mkop mkm1 ?(dividend_cannot_be_min_int = false) is_safe
-    dividend divisor dbg =
-  bind "divisor" divisor (fun divisor ->
-      bind "dividend" dividend (fun dividend ->
-          let dividend_cannot_be_min_int =
-            dividend_cannot_be_min_int
-            || is_different_from Nativeint.min_int dividend
-          in
-          let divisor_cannot_be_negative_one =
-            is_different_from (-1n) divisor
-          in
-          let c = mkop dividend divisor is_safe dbg in
-          if Arch.division_crashes_on_overflow
-             && not
-                  (dividend_cannot_be_min_int || divisor_cannot_be_negative_one)
-          then
-            Cifthenelse
-              ( Cop (Ccmpi Cne, [divisor; Cconst_int (-1, dbg)], dbg),
-                dbg,
-                c,
-                dbg,
-                mkm1 dividend dbg,
-                dbg,
-                Any )
-          else c))
-
-let safe_div_bi =
-  safe_divmod_bi div_int (fun c1 dbg ->
-      Cop (Csubi, [Cconst_int (0, dbg); c1], dbg))
-
-let safe_mod_bi = safe_divmod_bi mod_int (fun _ dbg -> Cconst_int (0, dbg))
+let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  bind "divisor" c2 (fun c2 ->
+      bind "dividend" c1 (fun c1 ->
+          mod_int ?dividend_cannot_be_min_int c1 c2 dbg))
 
 (* Bool *)
 
@@ -920,11 +918,6 @@ let return_unit dbg c =
   | Csequence (_, Cconst_int (1, _)) as c -> c
   | c -> Csequence (c, Cconst_int (1, dbg))
 
-let strided_field_address ptr ~index ~stride dbg =
-  if index * stride = 0
-  then ptr
-  else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
-
 let memory_chunk_width_in_bytes : memory_chunk -> int = function
   | Byte_unsigned | Byte_signed -> 1
   | Sixteen_unsigned | Sixteen_signed -> 2
@@ -935,12 +928,14 @@ let memory_chunk_width_in_bytes : memory_chunk -> int = function
   | Double -> size_float
   | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
 
-let field_address ?(memory_chunk = Word_val) ptr n dbg =
-  if n = 0
+let strided_field_address ptr ~index ~stride dbg =
+  if index * stride = 0
   then ptr
-  else
-    let field_size_in_bytes = memory_chunk_width_in_bytes memory_chunk in
-    Cop (Cadda, [ptr; Cconst_int (n * field_size_in_bytes, dbg)], dbg)
+  else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
+
+let field_address ?(memory_chunk = Word_val) ptr n dbg =
+  strided_field_address ptr dbg ~index:n
+    ~stride:(memory_chunk_width_in_bytes memory_chunk)
 
 let get_field_gen_given_memory_chunk memory_chunk mutability ptr n dbg =
   Cop
@@ -1286,7 +1281,7 @@ let get_const_bitmask = function
 (** [low_bits ~bits x] is a (hopefully simplified) value which agrees with x on at least
     the low [bits] bits. E.g., [low_bits ~bits x & mask = x & mask], where [mask] is a
     bitmask of the low [bits] bits . *)
-let rec low_bits ~bits x dbg =
+let rec low_bits ~bits ~dbg x =
   assert (bits > 0);
   if bits >= arch_bits
   then x
@@ -1306,17 +1301,17 @@ let rec low_bits ~bits x dbg =
               [Cop (Clsl, [x; Cconst_int (left, _)], _); Cconst_int (right, _)],
               _ )
           when 0 <= right && right <= left && left <= unused_bits ->
-          low_bits ~bits (lsl_const x (left - right) dbg) dbg
+          low_bits ~bits (lsl_const x (left - right) dbg) ~dbg
         | x -> (
           match get_const_bitmask x with
           | Some (x, bitmask) when does_mask_ignore_low_bits bitmask ->
-            low_bits ~bits x dbg
+            low_bits ~bits x ~dbg
           | _ -> x))
       x
 
 (** [zero_extend ~bits dbg e] returns [e] with the most significant [arch_bits - bits]
     bits set to 0 *)
-let zero_extend ~bits e dbg =
+let zero_extend ~bits ~dbg e =
   assert (0 < bits && bits <= arch_bits);
   let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
   let zero_extend_via_mask e =
@@ -1339,9 +1334,9 @@ let zero_extend ~bits e dbg =
             load Thirtytwo_unsigned
           | _ -> zero_extend_via_mask e)
         | e -> zero_extend_via_mask e)
-      (low_bits ~bits e dbg)
+      (low_bits ~bits e ~dbg)
 
-let sign_extend ~bits e dbg =
+let sign_extend ~bits ~dbg e =
   assert (0 < bits && bits <= arch_bits);
   let unused_bits = arch_bits - bits in
   let sign_extend_via_shift e =
@@ -1371,7 +1366,7 @@ let sign_extend ~bits e dbg =
           | (Thirtytwo_signed | Thirtytwo_unsigned), 32 -> load Thirtytwo_signed
           | _ -> sign_extend_via_shift e)
         | e -> sign_extend_via_shift e)
-      (low_bits ~bits e dbg)
+      (low_bits ~bits e ~dbg)
 
 let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
   bind "arr" arr (fun arr ->
@@ -1403,14 +1398,14 @@ let unboxed_mutable_int32_unboxed_product_array_ref arr ~array_index dbg =
                ( mk_load_mut Thirtytwo_signed,
                  [array_indexing log2_size_addr arr index dbg],
                  dbg ))
-            dbg))
+            ~dbg))
 
 let unboxed_mutable_int32_unboxed_product_array_set arr ~array_index ~new_value
     dbg =
   bind "arr" arr (fun arr ->
       bind "index" array_index (fun index ->
           bind "new_value" new_value (fun new_value ->
-              let new_value = sign_extend ~bits:32 new_value dbg in
+              let new_value = sign_extend ~bits:32 new_value ~dbg in
               Cop
                 ( Cstore (Word_int, Assignment),
                   [array_indexing log2_size_addr arr index dbg; new_value],
@@ -1471,10 +1466,10 @@ let unboxed_int64_or_nativeint_array_set ~has_custom_ops arr ~index ~new_value
               in
               int_array_set arr index new_value dbg)))
 
-(* Get the field of a block given a possibly inconstant index *)
-let get_field_unboxed memory_chunk mutability block ~index_in_words dbg =
+let get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words =
   if Arch.big_endian && memory_chunk_width_in_bytes memory_chunk <> size_addr
   then
+    (* CR layouts v5.1: Properly support big-endian. *)
     Misc.fatal_error
       "Unboxed non-word size integer fields are only supported on \
        little-endian architectures";
@@ -1493,32 +1488,26 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
     | Lambda.Immediate -> Word_int
     | Lambda.Pointer -> Word_val
   in
-  get_field_unboxed memory_chunk mutability block ~index_in_words:index dbg
+  get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words:index
 
-(* Setters for unboxed int fields *)
-
-let setfield_unboxed memory_chunk arr ~index_in_words newval dbg =
+let set_field_unboxed ~dbg memory_chunk block ~index_in_words newval =
   match memory_chunk with
   | Word_val ->
     Misc.fatal_error "Attempted to set a value via [setfield_unboxed]"
   | memory_chunk ->
-    if Arch.big_endian && memory_chunk_width_in_bytes memory_chunk <> size_addr
-    then
-      Misc.fatal_error
-        "Unboxed non-word-size fields are only supported on little-endian \
-         architectures";
+    let size_in_bytes = memory_chunk_width_in_bytes memory_chunk in
     (* CR layouts v5.1: Properly support big-endian. *)
-    if Arch.big_endian && memory_chunk_width_in_bytes memory_chunk <> size_addr
+    if Arch.big_endian && size_in_bytes <> size_addr
     then
       Misc.fatal_error
         "Unboxed non-word-size fields are only supported on little-endian \
          architectures";
     (* CR layouts v5.1: We will need to vary log2_size_addr, among other things,
        when small fields are efficiently packed. *)
-    let field_address = array_indexing log2_size_addr arr index_in_words dbg in
-    let newval =
-      low_bits ~bits:(8 * memory_chunk_width_in_bytes memory_chunk) newval dbg
+    let field_address =
+      array_indexing log2_size_addr block index_in_words dbg
     in
+    let newval = low_bits newval ~dbg ~bits:(8 * size_in_bytes) in
     return_unit dbg
       (Cop (Cstore (memory_chunk, Assignment), [field_address; newval], dbg))
 
@@ -1963,8 +1952,8 @@ let and_int e1 e2 dbg =
     | _ -> false
   in
   match e1, e2 with
-  | e, m when is_mask32 m -> zero_extend ~bits:32 e dbg
-  | m, e when is_mask32 m -> zero_extend ~bits:32 e dbg
+  | e, m when is_mask32 m -> zero_extend ~bits:32 e ~dbg
+  | m, e when is_mask32 m -> zero_extend ~bits:32 e ~dbg
   | e1, e2 -> Cop (Cand, [e1; e2], dbg)
 
 let or_int e1 e2 dbg = Cop (Cor, [e1; e2], dbg)
@@ -1992,7 +1981,7 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
   let arg' =
     if bi = Primitive.Boxed_int32
     then
-      if big_endian then lsl_const arg 32 dbg else sign_extend ~bits:32 arg dbg
+      if big_endian then lsl_const arg 32 dbg else sign_extend ~bits:32 arg ~dbg
     else arg
   in
   Cop
@@ -2036,12 +2025,12 @@ let unbox_int dbg bi =
       when bi = Primitive.Boxed_int32 && big_endian
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
-      sign_extend ~bits:32 contents dbg
+      sign_extend ~bits:32 contents ~dbg
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
       when bi = Primitive.Boxed_int32 && (not big_endian)
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
-      sign_extend ~bits:32 contents dbg
+      sign_extend ~bits:32 contents ~dbg
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
       when alloc_matches_boxed_int bi ~hdr ~ops ->
       contents
@@ -2057,7 +2046,7 @@ let unbox_int dbg bi =
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
-  if bi = Primitive.Unboxed_int32 then zero_extend ~bits:32 arg dbg else arg
+  if bi = Primitive.Unboxed_int32 then zero_extend ~bits:32 arg ~dbg else arg
 
 let unaligned_load_16 ptr idx dbg =
   if Arch.allow_unaligned_access
@@ -3431,11 +3420,21 @@ let mul_int_caml arg1 arg2 dbg =
     incr_int (mul_int (untag_int c1 dbg) (decr_int c2 dbg) dbg) dbg
   | c1, c2 -> incr_int (mul_int (decr_int c1 dbg) (untag_int c2 dbg) dbg) dbg
 
-let div_int_caml is_safe arg1 arg2 dbg =
-  tag_int (div_int (untag_int arg1 dbg) (untag_int arg2 dbg) is_safe dbg) dbg
+(* Since caml integers are tagged, we know that they when they're untagged, they
+   can't be [Nativeint.min_int] *)
+let caml_integers_are_tagged = true
 
-let mod_int_caml is_safe arg1 arg2 dbg =
-  tag_int (mod_int (untag_int arg1 dbg) (untag_int arg2 dbg) is_safe dbg) dbg
+let div_int_caml arg1 arg2 dbg =
+  tag_int
+    (div_int ~dividend_cannot_be_min_int:caml_integers_are_tagged
+       (untag_int arg1 dbg) (untag_int arg2 dbg) dbg)
+    dbg
+
+let mod_int_caml arg1 arg2 dbg =
+  tag_int
+    (mod_int ~dividend_cannot_be_min_int:caml_integers_are_tagged
+       (untag_int arg1 dbg) (untag_int arg2 dbg) dbg)
+    dbg
 
 let and_int_caml arg1 arg2 dbg = and_int arg1 arg2 dbg
 
@@ -3447,15 +3446,6 @@ let xor_int_caml arg1 arg2 dbg =
       [ xor_int (ignore_low_bit_int arg1) (ignore_low_bit_int arg2) dbg;
         Cconst_int (1, dbg) ],
       dbg )
-
-let lsl_int_caml arg1 arg2 dbg =
-  incr_int (lsl_int (decr_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
-
-let lsr_int_caml arg1 arg2 dbg =
-  Cop (Cor, [lsr_int arg1 (untag_int arg2 dbg) dbg; Cconst_int (1, dbg)], dbg)
-
-let asr_int_caml arg1 arg2 dbg =
-  Cop (Cor, [asr_int arg1 (untag_int arg2 dbg) dbg; Cconst_int (1, dbg)], dbg)
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -4197,7 +4187,7 @@ let make_unboxed_int32_array_payload dbg unboxed_int32_list =
           ( Cor,
             [ (* [a] is sign-extended by default. We need to change it to be
                  zero-extended for the `or` operation to be correct. *)
-              zero_extend ~bits:32 a dbg;
+              zero_extend ~bits:32 a ~dbg;
               Cop (Clsl, [b; Cconst_int (32, dbg)], dbg) ],
             dbg )
       in
@@ -4391,7 +4381,7 @@ module Static_cast = struct
       | `Float, `Word -> float_of_int ~dbg
     in
     let conv_int ~src ~dst arg =
-      if src <= dst then arg else sign_extend ~bits:dst arg dbg
+      if src <= dst then arg else sign_extend ~bits:dst arg ~dbg
     in
     let conv_untagged ~(src : [< untagged]) ~(dst : [< untagged]) =
       match src, dst with

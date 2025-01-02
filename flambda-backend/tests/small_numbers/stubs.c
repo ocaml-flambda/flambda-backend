@@ -2,8 +2,14 @@
 #include <caml/float32.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
+#include <caml/custom.h>
 #include <float.h>
 #include <math.h>
+#include <string.h>
+
+value float32_is_boxed_float32(value f) {
+    return Val_bool(strcmp(Custom_ops_val(f)->identifier, "_f32") == 0);
+}
 
 int32_t float32_bits_to_int(float f) { return *(int32_t *)&f; }
 float float32_of_int(intnat i) { return (float)i; }

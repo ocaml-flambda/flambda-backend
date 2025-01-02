@@ -190,7 +190,7 @@ module Hardware_registers : sig
 
   val make : unit -> t
 
-  val of_reg : t -> Reg.t -> Hardware_register.t
+  val of_reg : t -> Reg.t -> Hardware_register.t option
 
   val find_available : t -> Reg.t -> Interval.t -> available
 end

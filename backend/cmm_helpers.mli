@@ -67,9 +67,6 @@ val alloc_infix_header : int -> Debuginfo.t -> expression
 (** Make an integer constant from the given integer (tags the integer) *)
 val int_const : Debuginfo.t -> int -> expression
 
-(** Simplify the given expression knowing its last bit will be irrelevant *)
-val ignore_low_bit_int : expression -> expression
-
 (** Arithmetical operations on integers *)
 val add_int : expression -> expression -> Debuginfo.t -> expression
 
@@ -85,12 +82,6 @@ val lsr_int : expression -> expression -> Debuginfo.t -> expression
 
 val asr_int : expression -> expression -> Debuginfo.t -> expression
 
-val div_int :
-  expression -> expression -> Lambda.is_safe -> Debuginfo.t -> expression
-
-val mod_int :
-  expression -> expression -> Lambda.is_safe -> Debuginfo.t -> expression
-
 val and_int : expression -> expression -> Debuginfo.t -> expression
 
 val or_int : expression -> expression -> Debuginfo.t -> expression
@@ -104,17 +95,15 @@ val tag_int : expression -> Debuginfo.t -> expression
 val untag_int : expression -> Debuginfo.t -> expression
 
 (** Specific division operations for boxed integers *)
-val safe_div_bi :
+val div_int :
   ?dividend_cannot_be_min_int:bool ->
-  Lambda.is_safe ->
   expression ->
   expression ->
   Debuginfo.t ->
   expression
 
-val safe_mod_bi :
+val mod_int :
   ?dividend_cannot_be_min_int:bool ->
-  Lambda.is_safe ->
   expression ->
   expression ->
   Debuginfo.t ->
@@ -385,12 +374,18 @@ val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 
 (** Operations on n-bit integers *)
 
-(** [low_bits _ x] is a value which agrees with x on at least the low 32 bits *)
-val low_bits : bits:int -> expression -> Debuginfo.t -> expression
+(** Simplify the given expression knowing the low bit will be irrelevant *)
+val ignore_low_bit_int : expression -> expression
 
-val sign_extend : bits:int -> expression -> Debuginfo.t -> expression
+(** Simplify the given expression knowing that bits other than the low [bits] bits will be
+    irrelevant *)
+val low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
-val zero_extend : bits:int -> expression -> Debuginfo.t -> expression
+(** sign-extend a given integer expression from [bits] bits to an entire register *)
+val sign_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
+
+(** zero-extend a given integer expression from [bits] bits to an entire register *)
+val zero_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
 (** Box a given integer, without sharing of constants *)
 val box_int_gen :
@@ -476,21 +471,15 @@ val sub_int_caml : binary_primitive
 
 val mul_int_caml : binary_primitive
 
-val div_int_caml : Lambda.is_safe -> binary_primitive
+val div_int_caml : binary_primitive
 
-val mod_int_caml : Lambda.is_safe -> binary_primitive
+val mod_int_caml : binary_primitive
 
 val and_int_caml : binary_primitive
 
 val or_int_caml : binary_primitive
 
 val xor_int_caml : binary_primitive
-
-val lsl_int_caml : binary_primitive
-
-val lsr_int_caml : binary_primitive
-
-val asr_int_caml : binary_primitive
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -707,13 +696,17 @@ val create_ccatch :
   body:Cmm.expression ->
   Cmm.expression
 
+(** Shift operations.
+    Inputs: a tagged caml integer and an untagged machine integer.
+    Outputs: a tagged caml integer.
+    ake as first argument a tagged caml integer, and as
+    second argument an untagged machine intger which is the amount to shift the
+    first argument by. *)
+
 val lsl_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
-(** Shift operations. take as first argument a tagged caml integer, and as
-    second argument an untagged machine intger which is the amount to shift the
-    first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Reinterpret cast functions *)
@@ -1185,30 +1178,29 @@ val unboxed_int64_or_nativeint_array_set :
   Debuginfo.t ->
   expression
 
-(** {2 Getters and setters for unboxed int and float32 fields of mixed
-    blocks} *)
+(** {2 Getters and setters for unboxed fields of mixed blocks}
 
-(** The argument structure for getters is parallel to [get_field_computed]. *)
+    The first argument is the heap block to modify a field of.
+    The [index_in_words] should be an untagged integer.
+
+    In constrast to [setfield] and [setfield_computed], [immediate_or_pointer] is not
+    needed as the layout is implied from the name, and [initialization_or_assignment] is
+    not needed as unboxed ints can always be assigned without caml_modify (etc.). *)
 
 val get_field_unboxed :
+  dbg:Debuginfo.t ->
   memory_chunk ->
   Asttypes.mutable_flag ->
   expression ->
   index_in_words:expression ->
-  Debuginfo.t ->
   expression
 
-(** The argument structure for setters is parallel to [setfield_computed].
-   [immediate_or_pointer] is not needed as the layout is implied from the name,
-   and [initialization_or_assignment] is not needed as unboxed ints can always be
-   assigned without caml_modify (etc.).
- *)
-val setfield_unboxed :
+val set_field_unboxed :
+  dbg:Debuginfo.t ->
   memory_chunk ->
   expression ->
   index_in_words:expression ->
   expression ->
-  Debuginfo.t ->
   expression
 
 val dls_get : dbg:Debuginfo.t -> expression
