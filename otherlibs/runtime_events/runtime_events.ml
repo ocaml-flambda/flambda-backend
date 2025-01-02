@@ -267,9 +267,7 @@ module User = struct
        maximum number of threads that requested a buffer concurrently,
        and we never free those buffers. *)
     let create_buffer () = Bytes.create 1024 in
-    let write_buffer_cache =
-      Domain.Safe.DLS.new_key (fun () -> ref [])
-    in
+    let write_buffer_cache = Domain.Safe.DLS.new_key (fun () -> ref []) in
     let pop_or_create buffers =
       (* intended to be thread-safe *)
       (* begin atomic *)

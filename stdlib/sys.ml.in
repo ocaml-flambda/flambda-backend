@@ -37,6 +37,7 @@ external get_backend_type : unit -> backend_type @@ portable = "%backend_type"
 
 let executable_name = get_executable_name()
 let (os_type, _, _) = get_config()
+(* CR with-kinds: This reassignment is necessary to let the [string] mode cross. *)
 let os_type = os_type
 let backend_type = get_backend_type ()
 let big_endian = big_endian ()
@@ -177,7 +178,7 @@ type extra_prefix = Plus | Tilde
 
 type extra_info = extra_prefix * string
 
-type ocaml_release_info : value mod uncontended = {
+type ocaml_release_info : value mod portable uncontended = {
   major : int;
   minor : int;
   patchlevel : int;

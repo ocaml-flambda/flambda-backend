@@ -565,7 +565,8 @@ external atomic_compare_and_set : 'a atomic_t -> 'a @ contended portable -> 'a @
 external magic_portable : 'a -> 'a @ portable = "%identity"
 
 (* [exit_function] is only executed from [do_at_exit] below, which is [nonportable],
-   so it is safe to call [nonportable] functions from it as long as *)
+   so it is safe to call [nonportable] functions from it as long as [exit] remains
+   nonportable. *)
 let exit_function = atomic_make flush_all
 
 let rec at_exit_safe (f @ portable) =
