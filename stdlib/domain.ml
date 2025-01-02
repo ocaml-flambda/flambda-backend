@@ -43,7 +43,7 @@ module Runtime_4 = struct
 
     let key_counter = Obj.magic_portable (ref 0)
 
-    let new_key ?split_from_parent:_ init_orphan =
+    let new_key' ?split_from_parent:_ init_orphan =
       let key_counter = Obj.magic_uncontended key_counter in
       let idx = !key_counter in
       key_counter := idx + 1;
@@ -100,7 +100,7 @@ module Runtime_4 = struct
       first_spawn_function := new_f
     end
 
-  let at_exit_key = DLS.new_key (fun (_ : DLS.Access.t) -> (fun () -> ()))
+  let at_exit_key = DLS.new_key' (fun (_ : DLS.Access.t) -> (fun () -> ()))
 
   let at_exit' access f =
     let old_exit : unit -> unit = DLS.get access at_exit_key in
@@ -231,7 +231,7 @@ module Runtime_5 = struct
       if not (Atomic.Safe.compare_and_set parent_keys l (ki :: l))
       then add_parent_key ki
 
-    let new_key ?split_from_parent init_orphan =
+    let new_key' ?split_from_parent init_orphan =
       let idx = Atomic.fetch_and_add key_counter 1 in
       let k = Key (idx, { Modes.Portable.portable = init_orphan }) in
       begin match split_from_parent with
@@ -361,7 +361,7 @@ module Runtime_5 = struct
       first_spawn_function := (fun () -> ())
     end
 
-  let at_exit_key = DLS.new_key (fun (_ : DLS.Access.t) -> (fun () -> ()))
+  let at_exit_key = DLS.new_key' (fun (_ : DLS.Access.t) -> (fun () -> ()))
 
   let at_exit' access f =
     let old_exit : unit -> unit = DLS.get access at_exit_key in
@@ -450,7 +450,7 @@ module type S = sig
       -> 'a @ portable contended
       @@ portable
 
-    val new_key
+    val new_key'
       :  ?split_from_parent:('a -> (Access.t -> 'a) @ portable) @ portable
       -> (Access.t -> 'a) @ portable
       -> 'a key
@@ -485,7 +485,22 @@ module M : S = (val impl)
 include M
 
 module Safe = struct
-  module DLS = DLS
+  module DLS = struct
+    include DLS
+
+    let new_key ?split_from_parent f =
+      let split_from_parent =
+        match split_from_parent with
+        | None -> None
+        | Some split_from_parent ->
+          Some (fun a ->
+            let f = split_from_parent a in
+            (fun (_ : Access.t) -> f ()))
+      in
+      let f = (fun (_ : Access.t) -> f ()) in
+      new_key' ?split_from_parent f
+    ;;
+  end
 
   let spawn' = spawn'
   let spawn f = spawn' (fun _ -> f ())
@@ -501,9 +516,9 @@ module DLS = struct
       match split_from_parent with
       | None -> None
       | Some split_from_parent ->
-        Some (Obj.magic_portable (fun x -> Obj.magic_portable (fun _ -> split_from_parent x)))
+        Some (Obj.magic_portable (fun x -> Obj.magic_portable (fun () -> split_from_parent x)))
     in
-    Safe.DLS.new_key ?split_from_parent (Obj.magic_portable (fun _ -> f ()))
+    Safe.DLS.new_key ?split_from_parent (Obj.magic_portable f)
   ;;
 
   let get key = Safe.DLS.get (Obj.magic () : Safe.DLS.Access.t) key

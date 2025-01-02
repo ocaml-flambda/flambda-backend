@@ -609,7 +609,7 @@ external re_search_backward: regexp -> string -> int -> int array @@ portable
 
 module DLS = Domain.Safe.DLS
 
-let last_search_result_key = DLS.new_key (fun (_ : DLS.Access.t) -> [||])
+let last_search_result_key = DLS.new_key (fun () -> [||])
 
 let string_match re s pos =
   DLS.access (fun access ->

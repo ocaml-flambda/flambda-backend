@@ -1033,10 +1033,10 @@ and str_formatter = formatter_of_buffer stdbuf
 (* Initialise domain local state *)
 module DLS = Domain.Safe.DLS
 
-let stdbuf_key = DLS.new_key (fun (_ : DLS.Access.t) -> pp_make_buffer ())
+let stdbuf_key = DLS.new_key pp_make_buffer
 let _ = DLS.set DLS.Access.for_initial_domain stdbuf_key stdbuf
 
-let str_formatter_key = DLS.new_key (fun access ->
+let str_formatter_key = DLS.new_key' (fun access ->
   formatter_of_buffer (DLS.get access stdbuf_key))
 let _ = DLS.set DLS.Access.for_initial_domain str_formatter_key str_formatter
 
@@ -1053,10 +1053,10 @@ let buffered_out_flush oc key () : unit =
     Stdlib.flush oc;
     Buffer.clear buf)
 
-let std_buf_key = DLS.new_key (fun (_ : DLS.Access.t) -> Buffer.create pp_buffer_size)
-let err_buf_key = DLS.new_key (fun (_ : DLS.Access.t) -> Buffer.create pp_buffer_size)
+let std_buf_key = DLS.new_key (fun () -> Buffer.create pp_buffer_size)
+let err_buf_key = DLS.new_key (fun () -> Buffer.create pp_buffer_size)
 
-let std_formatter_key = DLS.new_key (fun access ->
+let std_formatter_key = DLS.new_key' (fun access ->
   let ppf =
     pp_make_formatter (buffered_out_string std_buf_key)
       (buffered_out_flush Stdlib.stdout std_buf_key) ignore ignore ignore
@@ -1068,7 +1068,7 @@ let std_formatter_key = DLS.new_key (fun access ->
   ppf)
 let _ = DLS.set DLS.Access.for_initial_domain std_formatter_key std_formatter
 
-let err_formatter_key = DLS.new_key (fun access ->
+let err_formatter_key = DLS.new_key' (fun access ->
   let ppf =
     pp_make_formatter (buffered_out_string err_buf_key)
       (buffered_out_flush Stdlib.stderr err_buf_key) ignore ignore ignore
@@ -1107,7 +1107,7 @@ let flush_str_formatter () =
     flush_buffer_formatter stdbuf str_formatter)
 
 let make_synchronized_formatter_safe output flush =
-  DLS.new_key (fun (_ : DLS.Access.t) ->
+  DLS.new_key (fun () ->
     let buf = Buffer.create pp_buffer_size in
     let output' = Buffer.add_substring buf in
     let flush' () =
