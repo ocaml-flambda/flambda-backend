@@ -429,11 +429,11 @@ val protect : ('k. 'k Password.t @ local -> 'a) @ local portable -> 'a @@ portab
     it as [Protected]. If [f] raises any other exception, [protect] re-raises
     it as [Protected]. *)
 
-val with_password : ('k. 'k Password.t @ local -> 'a) @ local -> 'a @@ portable
+val with_password : ('k. 'k Password.t @ local -> 'a) @ local portable -> 'a @@ portable
 (** [with_password f] runs [f] in a fresh capsule. *)
 
 val protect_local : ('k. 'k Password.t @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
 (** See [protect]. *)
 
-val with_password_local : ('k. 'k Password.t @ local -> 'a @ local) @ local -> 'a @ local @@ portable
+val with_password_local : ('k. 'k Password.t @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
 (** See [with_password]. *)
