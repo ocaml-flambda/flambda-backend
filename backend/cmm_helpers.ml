@@ -635,16 +635,54 @@ let raise_symbol dbg symb =
   Cop
     (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
 
-let rec div_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) ->
-    Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
-  | c1, Cconst_int (1, _) -> c1
-  | Cconst_int (n1, _), Cconst_int (n2, _) -> Cconst_int (n1 / n2, dbg)
-  | c1, Cconst_int (n, _) when n <> min_int ->
-    let l = Misc.log2 n in
-    if n = 1 lsl l
+let[@inline] get_const = function
+  | Cconst_int (i, _) -> Some (Nativeint.of_int i)
+  | Cconst_natint (i, _) -> Some i
+  | _ -> None
+
+(** Division or modulo on registers. The overflow case min_int / -1 can
+    occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513).
+    In typical cases, [operator] is used to compute the result.
+
+    However, if division crashes on overflow, we will insert a runtime check for a divisor
+    of -1, and fall back to [if_divisor_is_minus_one]. *)
+let make_safe_divmod operator ~if_divisor_is_negative_one
+    ?(dividend_cannot_be_min_int = false) c1 c2 ~dbg =
+  if dividend_cannot_be_min_int || not Arch.division_crashes_on_overflow
+  then Cop (operator, [c1; c2], dbg)
+  else
+    bind "divisor" c2 (fun c2 ->
+        bind "dividend" c1 (fun c1 ->
+            Cifthenelse
+              ( Cop (Ccmpi Cne, [c2; Cconst_int (-1, dbg)], dbg),
+                dbg,
+                Cop (operator, [c1; c2], dbg),
+                dbg,
+                if_divisor_is_negative_one ~dividend:c1 ~dbg,
+                dbg,
+                Any )))
+
+let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  let if_divisor_is_negative_one ~dividend ~dbg = neg_int dividend dbg in
+  match get_const c1, get_const c2 with
+  | _, Some 0n -> Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
+  | _, Some 1n -> c1
+  | Some n1, Some n2 -> natint_const_untagged dbg (Nativeint.div n1 n2)
+  | _, Some -1n -> if_divisor_is_negative_one ~dividend:c1 ~dbg
+  | _, Some n ->
+    if n < 0n
     then
+      if n = Nativeint.min_int
+      then Cop (Ccmpi Ceq, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg)
+      else
+        neg_int
+          (div_int ?dividend_cannot_be_min_int c1
+             (Cconst_natint (Nativeint.neg n, dbg))
+             dbg)
+          dbg
+    else if Nativeint.logand n (Nativeint.pred n) = 0n
+    then
+      let l = Misc.log2_nativeint n in
       (* Algorithm:
 
          t = shift-right-signed(c1, l - 1)
@@ -661,11 +699,8 @@ let rec div_int c1 c2 dbg =
                 add_int c1 t dbg);
             Cconst_int (l, dbg) ],
           dbg )
-    else if n < 0
-    then
-      sub_int (Cconst_int (0, dbg)) (div_int c1 (Cconst_int (-n, dbg)) dbg) dbg
     else
-      let m, p = divimm_parameters (Nativeint.of_int n) in
+      let m, p = divimm_parameters n in
       (* Algorithm:
 
          t = multiply-high-signed(c1, m) if m < 0,
@@ -685,18 +720,36 @@ let rec div_int c1 c2 dbg =
             if p > 0 then Cop (Casr, [t; Cconst_int (p, dbg)], dbg) else t
           in
           add_int t (lsr_int c1 (Cconst_int (Nativeint.size - 1, dbg)) dbg) dbg)
-  | c1, c2 -> Cop (Cdivi, [c1; c2], dbg)
+  | _, _ ->
+    make_safe_divmod ?dividend_cannot_be_min_int ~if_divisor_is_negative_one
+      Cdivi c1 c2 ~dbg
 
-let mod_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) ->
-    Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
-  | c1, Cconst_int ((1 | -1), _) -> Csequence (c1, Cconst_int (0, dbg))
-  | Cconst_int (n1, _), Cconst_int (n2, _) -> Cconst_int (n1 mod n2, dbg)
-  | c1, (Cconst_int (n, _) as c2) when n <> min_int ->
-    let l = Misc.log2 n in
-    if n = 1 lsl l
+let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
+  let if_divisor_is_positive_or_negative_one ~dividend ~dbg =
+    match dividend with
+    | Cvar _ -> Cconst_int (0, dbg)
+    | dividend -> Csequence (dividend, Cconst_int (0, dbg))
+  in
+  match get_const c1, get_const c2 with
+  | _, Some 0n -> Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
+  | _, Some (1n | -1n) ->
+    if_divisor_is_positive_or_negative_one ~dividend:c1 ~dbg
+  | Some n1, Some n2 -> natint_const_untagged dbg (Nativeint.rem n1 n2)
+  | _, Some n ->
+    if n = Nativeint.min_int
     then
+      bind "dividend" c1 (fun c1 ->
+          Cifthenelse
+            ( Cop (Ccmpi Ceq, [c1; neg_int c1 dbg], dbg),
+              dbg,
+              Cconst_int (0, dbg),
+              dbg,
+              Cop (Cor, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg),
+              dbg,
+              Any ))
+    else if Nativeint.logand n (Nativeint.pred n) = 0n
+    then
+      let l = Misc.log2_nativeint n in
       (* Algorithm:
 
          t = shift-right-signed(c1, l - 1)
@@ -713,62 +766,25 @@ let mod_int c1 c2 dbg =
           let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
           let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
           let t = add_int c1 t dbg in
-          let t = Cop (Cand, [t; Cconst_int (-n, dbg)], dbg) in
+          let t = Cop (Cand, [t; Cconst_natint (Nativeint.neg n, dbg)], dbg) in
           sub_int c1 t dbg)
     else
       bind "dividend" c1 (fun c1 ->
           sub_int c1 (mul_int (div_int c1 c2 dbg) c2 dbg) dbg)
-  | c1, c2 ->
-    (* Flambda already generates the tests for zero*)
-    Cop (Cmodi, [c1; c2], dbg)
-
-(* Division or modulo on boxed integers. The overflow case min_int / -1 can
-   occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
-
-(* Division or modulo on boxed integers. The overflow case min_int / -1 can
-   occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
-
-let safe_divmod_bi mkop mkm1 ?(dividend_cannot_be_min_int = false) dividend
-    divisor dbg =
-  let is_different_from x = function
-    | Cconst_int (n, _) -> Nativeint.of_int n <> x
-    | Cconst_natint (n, _) -> n <> x
-    | _ -> false
-  in
-  bind "divisor" divisor (fun divisor ->
-      bind "dividend" dividend (fun dividend ->
-          let c = mkop dividend divisor dbg in
-          if not Arch.division_crashes_on_overflow
-          then c
-          else
-            let dividend_cannot_be_min_int =
-              dividend_cannot_be_min_int
-              || is_different_from Nativeint.min_int dividend
-            in
-            let divisor_cannot_be_negative_one =
-              is_different_from (-1n) divisor
-            in
-            if dividend_cannot_be_min_int || divisor_cannot_be_negative_one
-            then c
-            else
-              Cifthenelse
-                ( Cop (Ccmpi Cne, [divisor; Cconst_int (-1, dbg)], dbg),
-                  dbg,
-                  c,
-                  dbg,
-                  mkm1 dividend dbg,
-                  dbg,
-                  Any )))
+  | _, _ ->
+    make_safe_divmod ?dividend_cannot_be_min_int
+      ~if_divisor_is_negative_one:if_divisor_is_positive_or_negative_one Cmodi
+      c1 c2 ~dbg
 
 let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
-  safe_divmod_bi ?dividend_cannot_be_min_int div_int
-    (fun c1 dbg -> Cop (Csubi, [Cconst_int (0, dbg); c1], dbg))
-    c1 c2 dbg
+  bind "divisor" c2 (fun c2 ->
+      bind "dividend" c1 (fun c1 ->
+          div_int ?dividend_cannot_be_min_int c1 c2 dbg))
 
 let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
-  safe_divmod_bi ?dividend_cannot_be_min_int mod_int
-    (fun _ dbg -> Cconst_int (0, dbg))
-    c1 c2 dbg
+  bind "divisor" c2 (fun c2 ->
+      bind "dividend" c1 (fun c1 ->
+          mod_int ?dividend_cannot_be_min_int c1 c2 dbg))
 
 (* Bool *)
 
@@ -3547,11 +3563,21 @@ let mul_int_caml arg1 arg2 dbg =
     incr_int (mul_int (untag_int c1 dbg) (decr_int c2 dbg) dbg) dbg
   | c1, c2 -> incr_int (mul_int (decr_int c1 dbg) (untag_int c2 dbg) dbg) dbg
 
+(* Since caml integers are tagged, we know that they when they're untagged, they
+   can't be [Nativeint.min_int] *)
+let caml_integers_are_tagged = true
+
 let div_int_caml arg1 arg2 dbg =
-  tag_int (div_int (untag_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
+  tag_int
+    (div_int ~dividend_cannot_be_min_int:caml_integers_are_tagged
+       (untag_int arg1 dbg) (untag_int arg2 dbg) dbg)
+    dbg
 
 let mod_int_caml arg1 arg2 dbg =
-  tag_int (mod_int (untag_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
+  tag_int
+    (mod_int ~dividend_cannot_be_min_int:caml_integers_are_tagged
+       (untag_int arg1 dbg) (untag_int arg2 dbg) dbg)
+    dbg
 
 let and_int_caml arg1 arg2 dbg = and_int arg1 arg2 dbg
 
