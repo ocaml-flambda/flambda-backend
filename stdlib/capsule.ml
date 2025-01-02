@@ -283,10 +283,10 @@ let create_with_mutex () =
 
 exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
 
-let protect_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
+let protect_local f = exclave_
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal ->
@@ -295,10 +295,10 @@ let protect_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
   | exn ->
     reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
 
-let protect (f : 'k. 'k Password.t -> _) =
+let protect f =
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal ->
@@ -307,20 +307,20 @@ let protect (f : 'k. 'k Password.t -> _) =
   | exn ->
     reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
 
-let with_password_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
+let with_password_local f = exclave_
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal -> reraise (Data.unsafe_get data)
      | None -> reraise exn)
   | exn -> reraise exn
 
-let with_password (f : 'k. 'k Password.t -> _) =
+let with_password f =
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal -> reraise (Data.unsafe_get data)
