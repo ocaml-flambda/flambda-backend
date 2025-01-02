@@ -416,15 +416,24 @@ exception Encapsulated : 'k Name.t * (exn, 'k) Data.t -> exn
     the data. The [Name.t] can be used to associate the [Data.t] with a
     particular [Password.t] or [Mutex.t]. *)
 
+(* CR-soon mslater: ['k Key.t] instead of ['k Mutex.t]. *)
 exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
 (** If a function passed to [protect] raises an exception, it is wrapped
-    in [Protected] to provide access to the capsule in which the function ran. *)
-(* CR-soon mslater: this should return a key, not a mutex. *)
+    in [Protected] to avoid leaking access to the data. The [Mutex.t] can
+    be used to access the [Data.t]. *)
 
-val protect
-  :  (unit -> 'a @ portable contended) @ local portable
-  -> 'a @ portable contended
-  @@ portable
+val protect : ('k. 'k Password.t @ local -> 'a) @ local portable -> 'a @@ portable
 (** [protect f] runs [f] in a fresh capsule. If [f] returns normally, [protect]
-    merges this capsule into the caller's capsule. If [f] raises, [protect]
-    raises [Protected], giving the caller access to the encapsulated exception. *)
+    merges this capsule into the caller's capsule. If [f] raises an [Encapsulated]
+    exception in the capsule ['k], [protect] unwraps the exception and re-raises
+    it as [Protected]. If [f] raises any other exception, [protect] re-raises
+    it as [Protected]. *)
+
+val with_password : ('k. 'k Password.t @ local -> 'a) @ local -> 'a @@ portable
+(** [with_password f] runs [f] in a fresh capsule. *)
+
+val protect_local : ('k. 'k Password.t @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
+(** See [protect]. *)
+
+val with_password_local : ('k. 'k Password.t @ local -> 'a @ local) @ local -> 'a @ local @@ portable
+(** See [with_password]. *)
