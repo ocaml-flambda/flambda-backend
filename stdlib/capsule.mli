@@ -343,14 +343,17 @@ exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
     be used to access the [Data.t]. *)
 
 val protect : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
-(** [protect f] runs [f] in a fresh capsule. If [f] returns normally, [protect]
-    merges this capsule into the caller's capsule. If [f] raises an [Encapsulated]
-    exception in the capsule ['k], [protect] unwraps the exception and re-raises
-    it as [Protected]. If [f] raises any other exception, [protect] re-raises
-    it as [Protected]. *)
+(** [protect f] runs [f password] in a fresh capsule represented by [password].
+    If [f] returns normally, [protect] merges the capsule into the caller's capsule.
+    If [f] raises an [Encapsulated] exception in the capsule represented by [password],
+    [protect] unwraps the exception and re-raises it as [Protected].
+    If [f] raises any other exception, [protect] re-raises it as [Protected]. *)
 
 val with_password : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
-(** [with_password f] runs [f] in a fresh capsule. *)
+(** [with_password f] runs [f password] in a fresh capsule represented by [password].
+    If [f] returns normally, [with_password] merges the capsule into the caller's capsule.
+    If [f] raises an [Encapsulated] exception in the capsule represented by [password],
+    [with_password] unwraps the exception and re-raises it directly. *)
 
 val protect_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
 (** See [protect]. *)
