@@ -85,6 +85,8 @@ module Password : sig
      [void] can't be used for function argument and return types yet. *)
   type 'k t : value mod portable many unique uncontended
 
+  type packed = P : 'k t -> packed
+
   (* Can break the soundness of the API. *)
   val unsafe_mk : 'k Name.t -> 'k t @@ portable
   val name : 'k t @ local -> 'k Name.t @@ portable
@@ -102,6 +104,8 @@ module Password : sig
   val shared : 'k t @ local -> 'k Shared.t @ local @@ portable
 end = struct
   type 'k t = 'k Name.t
+
+  type packed = P : 'k t -> packed
 
   let unsafe_mk name = name
   let name t = t
@@ -374,10 +378,10 @@ let create_with_rwlock () =
 
 exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
 
-let protect_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
+let protect_local f = exclave_
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal ->
@@ -386,10 +390,10 @@ let protect_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
   | exn ->
     reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
 
-let protect (f : 'k. 'k Password.t -> _) =
+let protect f =
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal ->
@@ -398,20 +402,20 @@ let protect (f : 'k. 'k Password.t -> _) =
   | exn ->
     reraise (Protected ({ name; mutex = M.create (); poisoned = false }, Data.unsafe_mk exn))
 
-let with_password_local (f : 'k. 'k Password.t @ local -> _ @ local) = exclave_
+let with_password_local f = exclave_
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal -> reraise (Data.unsafe_get data)
      | None -> reraise exn)
   | exn -> reraise exn
 
-let with_password (f : 'k. 'k Password.t -> _) =
+let with_password f =
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
-  try f password with
+  try f (Password.P password) with
   | Encapsulated (inner, data) as exn ->
     (match Name.equality_witness name inner with
      | Some Equal -> reraise (Data.unsafe_get data)

@@ -104,6 +104,11 @@ module Password : sig
      mutex. This guarantees that uncontended access to the capsule is
      only granted to a single domain at once. *)
 
+  type packed = P : 'k t -> packed
+  (** [packed] is the type of a password for some unknown capsule.
+      Unpacking one provides a ['k t] together with a fresh existential
+      type brand for ['k]. *)
+
   val name : 'k t @ local -> 'k Name.t @@ portable
   (** [name t] identifies the capsule that [t] is associated with. *)
 
@@ -422,18 +427,18 @@ exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
     in [Protected] to avoid leaking access to the data. The [Mutex.t] can
     be used to access the [Data.t]. *)
 
-val protect : ('k. 'k Password.t @ local -> 'a) @ local portable -> 'a @@ portable
+val protect : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
 (** [protect f] runs [f] in a fresh capsule. If [f] returns normally, [protect]
     merges this capsule into the caller's capsule. If [f] raises an [Encapsulated]
     exception in the capsule ['k], [protect] unwraps the exception and re-raises
     it as [Protected]. If [f] raises any other exception, [protect] re-raises
     it as [Protected]. *)
 
-val with_password : ('k. 'k Password.t @ local -> 'a) @ local portable -> 'a @@ portable
+val with_password : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
 (** [with_password f] runs [f] in a fresh capsule. *)
 
-val protect_local : ('k. 'k Password.t @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
+val protect_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
 (** See [protect]. *)
 
-val with_password_local : ('k. 'k Password.t @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
+val with_password_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
 (** See [with_password]. *)

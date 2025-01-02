@@ -204,7 +204,7 @@ let () =
 ;;
 
 let () =
-  match Capsule.protect (fun password ->
+  match Capsule.protect (fun (Capsule.Password.P password) ->
     let data = Capsule.Data.create (fun () -> "fail") in
     let msg = Capsule.Data.extract password (fun s : string -> s) data in
     reraise (Exn msg))
@@ -220,7 +220,7 @@ let () =
 ;;
 
 let () =
-  match Capsule.protect (fun password ->
+  match Capsule.protect (fun (Capsule.Password.P password) ->
     let data = Capsule.Data.create (fun () -> "fail") in
     let () = Capsule.Data.extract password (fun s -> reraise (Exn s)) data in
     ())
@@ -255,7 +255,7 @@ let () =
 ;;
 
 let () =
-  match Capsule.with_password (fun password ->
+  match Capsule.with_password (fun (Capsule.Password.P password) ->
     let data = Capsule.Data.create (fun () -> "fail") in
     let msg = Capsule.Data.extract password (fun s : string -> s) data in
     reraise (Exn msg))
@@ -265,7 +265,7 @@ let () =
 ;;
 
 let () =
-  match Capsule.with_password (fun password ->
+  match Capsule.with_password (fun (Capsule.Password.P password) ->
     let data = Capsule.Data.create (fun () -> "fail") in
     let () = Capsule.Data.extract password (fun s -> reraise (Exn s)) data in
     ())
