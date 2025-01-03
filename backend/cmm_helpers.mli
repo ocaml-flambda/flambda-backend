@@ -374,8 +374,8 @@ val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 
 (** Operations on n-bit integers *)
 
-(** Simplify the given expression knowing low [bits] bits will be irrelevant *)
-val ignore_low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
+(** Simplify the given expression knowing the low [bits] will be irrelevant *)
+val ignore_low_bit_int : expression -> expression
 
 (** Simplify the given expression knowing that bits other than the low [bits] bits will be
     irrelevant *)
@@ -1206,3 +1206,135 @@ val set_field_unboxed :
 val dls_get : dbg:Debuginfo.t -> expression
 
 val poll : dbg:Debuginfo.t -> expression
+
+module Scalar_type : sig
+  type 'a static_cast :=
+    dbg:Debuginfo.t -> src:'a -> dst:'a -> expression -> expression
+
+  (** Conjugate f by [static_cast ~src:outer ~dst:inner].
+
+      Shorthand for:
+      - [static_cast] the argument from [outer] to [inner]
+      - apply [f]
+      - [static_cast] back from [inner] to [outer] *)
+  type 'a conjugate :=
+    outer:'a ->
+    inner:'a ->
+    dbg:Debuginfo.t ->
+    f:(expression -> expression) ->
+    expression ->
+    expression
+
+  (** An IEEE 754 floating-point number *)
+  module Float_width : sig
+    type t = Cmm.float_width =
+      | Float64
+      | Float32
+
+    val static_cast : t static_cast
+  end
+
+  module Signedness : sig
+    type t =
+      | Signed
+      | Unsigned
+
+    val equal : t -> t -> bool
+
+    val print : Format.formatter -> t -> unit
+  end
+
+  module type Integral_ops := sig
+    type t
+
+    val print : Format.formatter -> t -> unit
+
+    val equal : t -> t -> bool
+
+    val signedness : t -> Signedness.t
+
+    val with_signedness : t -> signedness:Signedness.t -> t
+
+    val signed : t -> t
+
+    val unsigned : t -> t
+
+    val is_promotable : src:t -> dst:t -> bool
+
+    val static_cast : t static_cast
+
+    val conjugate : t conjugate
+  end
+
+  (** An integer that fits into a general-purpose register. It is canonically stored in
+      twos-complement representation, in the lower [bits] bits of its container (whether
+      that be memory or a register), and is sign- or zero-extended as needed, according
+      to [signed]. *)
+  module Integer : sig
+    type t [@@immediate]
+
+    val nativeint : t
+
+    val create_exn : bit_width:int -> signedness:Signedness.t -> t
+
+    val bit_width : t -> int
+
+    include Integral_ops with type t := t
+  end
+
+  (** An {!Integer.t} but with the additional stipulation that its lowest bit is always
+      set to 1 and is not considered in mathematical operations on the numbers. *)
+  module Tagged_integer : sig
+    type t [@@immediate]
+
+    val immediate : t
+
+    val create_exn :
+      bit_width_including_tag_bit:int -> signedness:Signedness.t -> t
+
+    val bit_width_excluding_tag_bit : t -> int
+
+    val bit_width_including_tag_bit : t -> int
+
+    val untagged : t -> Integer.t
+
+    include Integral_ops with type t := t
+  end
+
+  module Integral : sig
+    type t =
+      | Untagged of Integer.t
+      | Tagged of Tagged_integer.t
+
+    val nativeint : t
+
+    (** Gets the integral resulting from untagging the integer (if it is tagged).
+
+        E.g., you can use [static_cast ~src ~dst:(Untagged (untagged src))] to untag a
+        value of type [src]
+    *)
+    val untagged : t -> Integer.t
+
+    include Integral_ops with type t := t
+  end
+
+  type t =
+    | Integral of Integral.t
+    | Float of Float_width.t
+
+  val static_cast : t static_cast
+
+  val conjugate : t conjugate
+
+  module Untagged : sig
+    type numeric = t
+
+    type t =
+      | Untagged of Integer.t
+      | Float of float_width
+
+    val to_numeric : t -> numeric
+
+    val static_cast : t static_cast
+  end
+end
