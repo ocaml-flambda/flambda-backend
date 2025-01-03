@@ -435,6 +435,7 @@
   cfg_selection
   cfgize
   cfgize_utils
+  cmm_optimizer
   cmm_helpers
   cmm_builtins
   cmm_invariants
