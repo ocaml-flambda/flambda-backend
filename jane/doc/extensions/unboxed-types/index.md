@@ -258,14 +258,16 @@ The field names of unboxed records occupy a different namespace from the
 field names of "normal" (including `[@@unboxed]`) records.
 
 Unboxed tuples and records may be nested within other unboxed tuples and records.
-There are no limitations on the layouts of the elements of unboxed tuples, but the fields of unboxed records must be representable.
+There are no limitations on the layouts of the elements of unboxed tuples, but the fields
+of unboxed records must be representable.
 
 *Limitations and future plans*:
 - Unboxed products may not currently placed in blocks.
   We plan to lift this restriction in the near future.
 - Unboxed record fields may not be mutable.
   We plan to allow mutating unboxed records within boxed records
-  (the design will differ from boxed record mutability, as unboxed types don't have the same notion of identity).
+  (the design will differ from boxed record mutability, as unboxed types don't have the
+  same notion of identity).
 - Unboxed record fields must be representable.
   We plan to lift this restriction in the future.
 - We plan to add other types with unboxed product layouts (e.g., interior pointers).
