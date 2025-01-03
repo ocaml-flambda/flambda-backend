@@ -1337,9 +1337,9 @@ val sum : int = 3
 
 
 (***********************************)
-(* Test 9: not allowed in let recs *)
+(* Test 10: not allowed in let recs *)
 
-(* An example that is allowed on tuples but not unboxed tuples *)
+(* An example that is allowed on tuples but not unboxed products *)
 let[@warning "-26"] e1 = let rec x = (1, y) and y = 42 in ()
 let[@warning "-26"] e2 = let rec x = #(1, y) and y = 42 in ()
 [%%expect{|
@@ -1355,7 +1355,36 @@ Error: This expression has type "#('a * 'b)"
          because it's the type of the recursive variable x.
 |}]
 
-(* This example motivates having a check in [type_let], because
+let[@warning "-26"] e1 = let rec x = (1, y) and y = 42 in ()
+
+type letrec_record = #{ i1 : int; i2 : int }
+let[@warning "-26"] e2 = let rec x = #{ i1 = 1; i2 = y } and y = 42 in ()
+[%%expect{|
+val e1 : unit = ()
+type letrec_record = #{ i1 : int; i2 : int; }
+Line 4, characters 37-56:
+4 | let[@warning "-26"] e2 = let rec x = #{ i1 = 1; i2 = y } and y = 42 in ()
+                                         ^^^^^^^^^^^^^^^^^^^
+Error: This expression has type "letrec_record"
+       but an expression was expected of type "('a : value_or_null)"
+       The layout of letrec_record is value & value
+         because of the definition of letrec_record at line 3, characters 0-44.
+       But the layout of letrec_record must be a sublayout of value
+         because it's the type of the recursive variable x.
+|}]
+
+(* Unboxed records of kind value are also disallowed: *)
+type letrec_record = #{ i : int }
+let e2 = let rec x = #{ i = y } and y = 42 in ()
+[%%expect{|
+type letrec_record = #{ i : int; }
+Line 2, characters 21-31:
+2 | let e2 = let rec x = #{ i = y } and y = 42 in ()
+                         ^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of "let rec"
+|}]
+
+(* These examples motivate having a check in [type_let], because
    [Value_rec_check] is not set up to reject it, but we don't support even this
    limited form of unboxed let rec (yet). *)
 let _ = let rec _x = #(3, 10) and _y = 42 in 42
@@ -1371,8 +1400,23 @@ Error: This expression has type "#('a * 'b)"
          because it's the type of the recursive variable _x.
 |}]
 
+type letrec_simple = #{ i1 : int; i2 : int }
+let _ = let rec _x = #{ i1 = 3; i2 = 10 } and _y = 42 in 42
+[%%expect{|
+type letrec_simple = #{ i1 : int; i2 : int; }
+Line 2, characters 21-41:
+2 | let _ = let rec _x = #{ i1 = 3; i2 = 10 } and _y = 42 in 42
+                         ^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type "letrec_simple"
+       but an expression was expected of type "('a : value_or_null)"
+       The layout of letrec_simple is value & value
+         because of the definition of letrec_simple at line 1, characters 0-44.
+       But the layout of letrec_simple must be a sublayout of value
+         because it's the type of the recursive variable _x.
+|}]
+
 (**********************************************************)
-(* Test 10: not allowed in [@@unboxed] declarations (yet) *)
+(* Test 11: not allowed in [@@unboxed] declarations (yet) *)
 
 type ('a : value & value) t = A of 'a [@@unboxed]
 [%%expect{|
@@ -1456,7 +1500,7 @@ type t = A of { x : unboxed_record; } [@@unboxed]
 |}]
 
 (**************************************)
-(* Test 11: Unboxed tuples and arrays *)
+(* Test 12: Unboxed tuples and arrays *)
 
 (* You can write the type of an array of unboxed tuples, but not create
    one. Soon, you can do both. *)
@@ -1611,7 +1655,7 @@ let _ = Array.init 3 (fun i -> #{ i })
 |}]
 
 (***********************************************************)
-(* Test 12: Unboxed products are not allowed as class args *)
+(* Test 13: Unboxed products are not allowed as class args *)
 
 class product_instance_variable x =
   let sum = let #(a,b) = x in a + b in
@@ -1663,7 +1707,7 @@ class product_instance_variable :
 |}]
 
 (*****************************************)
-(* Test 13: No lazy unboxed products yet *)
+(* Test 14: No lazy unboxed products yet *)
 
 let x = lazy #(1,2)
 
@@ -1737,7 +1781,7 @@ type t2 = t lazy_t
 
 
 (***************************************)
-(* Test 14: Coercions work covariantly *)
+(* Test 15: Coercions work covariantly *)
 
 type t = private int
 
@@ -1776,7 +1820,7 @@ Error: Type "coerce_record" is not a subtype of "coerce_int_record"
 |}]
 
 (************************************************)
-(* Test 15: Not allowed as an optional argument *)
+(* Test 16: Not allowed as an optional argument *)
 
 let f_optional_utuple ?(x = #(1,2)) () = x
 [%%expect{|
@@ -1807,7 +1851,7 @@ Error: This expression has type "optional_record"
 |}]
 
 (******************************)
-(* Test 16: Decomposing [any] *)
+(* Test 17: Decomposing [any] *)
 
 type ('a : value) u = U of 'a [@@unboxed]
 type ('a : value) t = #('a u * 'a u)
@@ -1902,7 +1946,7 @@ Error: This type "s_record" should be an instance of type
 (* CR layouts v7.1: Both the above have very bad error messages. *)
 
 (********************************************)
-(* Test 17: Subkinding with sorts and [any] *)
+(* Test 18: Subkinding with sorts and [any] *)
 
 (* CR layouts: Change to use [any] instead of [any_non_null] when doing so
    won't cause trouble with the [alpha] check. *)
