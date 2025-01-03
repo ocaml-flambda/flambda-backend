@@ -531,7 +531,11 @@ val sub_or_error : jkind_l -> jkind_r -> (unit, Violation.t) result
 (** Like [sub], but returns the subjkind with an updated history.
     Pre-condition: the super jkind must be fully settled; no variables
     which might be filled in later. *)
-val sub_jkind_l : jkind_l -> jkind_l -> (jkind_l, Violation.t) result
+val sub_jkind_l :
+  ?allow_any_crossing:bool ->
+  jkind_l ->
+  jkind_l ->
+  (jkind_l, Violation.t) result
 
 (* CR layouts v2.8: This almost certainly has to get rewritten, as l-kinds do
    not support meets. *)

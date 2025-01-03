@@ -1529,7 +1529,7 @@ let update_constructor_representation
 
    This function is an important part
    of correctness, as it also checks that the jkind computed from a kind
-   is consistent (i.e. a subjkind of) any jkind annotation.
+   is consistent with (i.e. a subjkind of) any jkind annotation.
    See Note [Default jkinds in transl_declaration].
 *)
 let update_decl_jkind env dpath decl =
@@ -1775,17 +1775,40 @@ let update_decl_jkind env dpath decl =
       type_jkind
   in
 
+  let allow_any_crossing =
+    Builtin_attributes.has_unsafe_allow_any_mode_crossing decl.type_attributes
+  in
+
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
     (* CR layouts v2.8: Consider making a function that doesn't compute
        histories for this use-case, which doesn't need it. *)
-    begin match Jkind.sub_jkind_l new_jkind decl.type_jkind with
-    | Ok _ -> ()
+    begin match Jkind.sub_jkind_l ~allow_any_crossing new_jkind decl.type_jkind with
+    | Ok _ ->
+      if allow_any_crossing then
+        { new_decl with
+          (* If the user is asking us to allow any crossing, we use the modal bounds from
+             the annotation rather than the modal bounds inferred from the type_kind.
+             However, we /only/ take the modal bounds, not the layout - because we still
+             want to be able to eg locally use a type declared as layout [any] as [value]
+             if that's its actual layout! *)
+          type_jkind =
+            { new_decl.type_jkind with
+              jkind =
+                { new_decl.type_jkind.jkind with
+                  modes_upper_bounds = decl.type_jkind.jkind.modes_upper_bounds } };
+          (* If the [@@allow_any_crossing] attribute is set, we unconditionally set
+             [type_has_illegal_crossings], even if the attribute was set unnecessarily,
+             just because it's simpler than tracking whether the attribute was used to
+             allow something unsafe. The only outcome this should cause is that the kind
+             gets printed unconditionally, which is probably fine (?). *)
+          type_has_illegal_crossings = true }
+      else new_decl
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
-    end;
-  new_decl
+    end
+  else new_decl
 
 let update_decls_jkind_reason decls =
   List.map
