@@ -324,5 +324,5 @@ module Make (Ord : OrderedType) : S with type elt = Ord.t
 
 module MakePortable (Ord : sig @@ portable include OrderedType end)
   : sig @@ portable include S with type elt = Ord.t end
-(** Like [Make], but takes a portable [compare] function to
+(** Like {!Make}, but takes a portable [compare] function to
     portable [Set] operations. *)
