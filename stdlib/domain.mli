@@ -188,13 +188,22 @@ module Safe : sig
     type 'a key : value mod portable uncontended = 'a DLS.key
     (** See {!DLS.key}. *)
 
+    (* CR: Update this to use the Capsule API when that is merged into stdlib. *)
+    exception Encapsulated of string
+    (** If a function passed to {!access} raises an exception, it is wrapped in
+        [Encapsulated] to avoid leaking access to data in the DLS. *)
+
     val access
       :  (Access.t -> 'a @ portable contended) @ local portable
       -> 'a @ portable contended
       @@ portable
     (** [access f] scopes the computation [f] to (conceptually) run it in the current
         domain's capsule, even if called from an explicit capsule. During its execution,
-        [f] may access the current domain's DLS. *)
+        [f] may access the current domain's DLS.
+
+        If [f] raises an exception during its execution, the exception is converted to
+        a string and wrapped in {!Encapsulated} to avoid leaking access to data in the
+        DLS. *)
 
     val new_key'
       :  ?split_from_parent:('a -> (Access.t -> 'a) @ portable) @ portable

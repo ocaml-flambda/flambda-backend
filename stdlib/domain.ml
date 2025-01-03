@@ -23,6 +23,8 @@ open! Stdlib
 
 external runtime5 : unit -> bool @@ portable = "%runtime5"
 
+exception Encapsulated of string
+
 module Runtime_4 = struct
   module DLS = struct
     module Access = struct
@@ -30,7 +32,12 @@ module Runtime_4 = struct
       let for_initial_domain = Access
     end
 
-    let access f = f Access.Access
+    let access f =
+      try f Access.Access with
+      | exn ->
+        let bt = Printexc.get_raw_backtrace () in
+        let exn_string = Printexc.to_string exn in
+        Printexc.raise_with_backtrace (Encapsulated exn_string) bt
 
     let unique_value = Obj.magic_portable (Obj.repr (ref 0))
     let state = Obj.magic_portable (ref (Array.make 8 unique_value))
@@ -177,7 +184,12 @@ module Runtime_5 = struct
       let for_initial_domain = Access
     end
 
-    let access (f : Access.t -> 'a @ portable contended) = f Access.Access
+    let access (f : Access.t -> 'a @ portable contended) =
+      try f Access.Access with
+      | exn ->
+        let bt = Printexc.get_raw_backtrace () in
+        let exn_string = Printexc.to_string exn in
+        Printexc.raise_with_backtrace (Encapsulated exn_string) bt
 
     module Obj_opt : sig @@ portable
       type t
@@ -487,6 +499,8 @@ include M
 module Safe = struct
   module DLS = struct
     include DLS
+
+    exception Encapsulated = Encapsulated
 
     let new_key ?split_from_parent f =
       let split_from_parent =
