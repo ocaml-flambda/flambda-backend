@@ -256,14 +256,16 @@ type signal_behavior : value mod uncontended =
    number as argument. *)
 
 external signal :
-  int -> signal_behavior -> signal_behavior = "caml_install_signal_handler"
+  int -> signal_behavior -> signal_behavior @@ nonportable = "caml_install_signal_handler"
+[@@alert unsafe_multidomain "Use [Sys.Safe.signal]."]
 (** Set the behavior of the system on receipt of a given signal.  The
    first argument is the signal number.  Return the behavior
    previously associated with the signal. If the signal number is
    invalid (or not available on your system), an [Invalid_argument]
    exception is raised. *)
 
-val set_signal : int -> signal_behavior -> unit
+val set_signal : int -> signal_behavior -> unit @@ nonportable
+[@@alert unsafe_multidomain "Use [Sys.Safe.set_signal]."]
 (** Same as {!Sys.signal} but return value is ignored. *)
 
 
@@ -489,4 +491,22 @@ module Immediate64 : sig
       | Non_immediate : Non_immediate.t repr
     val repr : t repr
   end
+end
+
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  external signal :
+    int -> signal_behavior @ portable -> signal_behavior @ portable
+    = "caml_install_signal_handler"
+  (** Like {!signal}, but is safe to call in the presence of multiple domains.
+
+      The provided [signal_behavior] must be [portable] as it is shared between all
+      domains. *)
+
+  val set_signal : int -> signal_behavior @ portable -> unit
+  (** Like {!set_signal}, but is safe to call in the presence of multiple domains.
+
+      The provided [signal_behavior] must be [portable] as it is shared between all
+      domains. *)
 end

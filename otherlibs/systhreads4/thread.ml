@@ -101,7 +101,7 @@ let () =
        will point to nowhere after DLL unloading and an accidental
        preempt_signal will crash the main program. So restore the
        default handler. *)
-    Sys.set_signal preempt_signal Sys.Signal_default
+    Sys.Safe.set_signal preempt_signal Sys.Signal_default
   )
 
 (* Wait functions *)
