@@ -627,7 +627,7 @@ module Make(Ord: OrderedType) =
       seq_of_enum_ (aux low s End)
   end
 
-module Make_portable(Ord: sig @@ portable include OrderedType end) =
+module MakePortable(Ord: sig @@ portable include OrderedType end) =
   struct
     type elt = Ord.t
     type t = Empty | Node of {l:t; v:elt; r:t; h:int}

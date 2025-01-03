@@ -254,7 +254,7 @@ module Runtime_5 = struct
 
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
-    let rec (maybe_grow @ portable) idx =
+    let rec maybe_grow idx =
       (* CR ocaml 5 all-runtime5: remove this hack which is here to stop
         the backend seeing the dls_get operation and failing on runtime4 *)
       if not (runtime5 ()) then assert false else

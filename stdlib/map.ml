@@ -551,7 +551,7 @@ module Make(Ord: OrderedType) = struct
       seq_of_enum_ (aux low m End)
 end
 
-module Make_portable(Ord: sig @@ portable include OrderedType end) = struct
+module MakePortable(Ord: sig @@ portable include OrderedType end) = struct
 
     type key = Ord.t
 

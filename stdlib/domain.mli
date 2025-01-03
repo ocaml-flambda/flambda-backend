@@ -165,10 +165,10 @@ module Safe : sig
   (** Like {!DLS}, but uses modes to enforce properties necessary for data-race freedom.
 
       The data in the DLS may only be accessed when the user has an ([uncontended])
-      {!Access.t}. This value acts as a witness that the currently executing function is
-      running in the (conceptual) capsule of the current domain, and so will not
+      {!DLS.Access.t}. This value acts as a witness that the currently executing function
+      is running in the (conceptual) capsule of the current domain, and so will not
       transfer data unsafely between capsule boundaries. A user can get a temporary
-      [Access.t] using {!access} below. *)
+      [Access.t] with {!DLS.access}. *)
   module DLS : sig
 
     (** An {!Access.t} acts as a witness that the currently executing function is
@@ -231,7 +231,7 @@ module Safe : sig
       -> 'a key
       @@ portable
     (** Like {!new_key'}, but does not provide an {!Access.t}. This is slightly simpler to
-        use in cases where you don't need to access other parts of the DLS whil
+        use in cases where you don't need to access other parts of the DLS while
         initializing the DLS entry. *)
 
     val get : Access.t -> 'a key -> 'a @@ portable
