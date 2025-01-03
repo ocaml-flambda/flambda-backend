@@ -18,13 +18,16 @@ end
 
 module Portable = struct
   type 'a t : value mod portable = { portable : 'a @@ portable } [@@unboxed]
+  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 end
 
 module Contended = struct
   type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
+  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 end
 
 module Portended = struct
   type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended }
   [@@unboxed]
+  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 end
