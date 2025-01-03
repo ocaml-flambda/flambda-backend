@@ -2097,7 +2097,6 @@ let contained_without_boxing env ty =
   | Tconstr _ ->
     begin match unbox_once env ty with
     | Stepped ty -> [ty]
-    | Stepped_record_unboxed_product tys -> tys
     | Final_result | Missing _ -> []
     end
   | Tunboxed_tuple labeled_tys ->
