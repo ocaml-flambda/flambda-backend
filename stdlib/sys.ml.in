@@ -113,10 +113,15 @@ type signal_behavior : value mod uncontended =
   | Signal_ignore
   | Signal_handle of (int -> unit)
 
-external signal : int -> signal_behavior -> signal_behavior @@ portable
-                = "caml_install_signal_handler"
+module Safe = struct
+  external signal
+    : int -> signal_behavior @ portable -> signal_behavior @ portable @@ portable
+    = "caml_install_signal_handler"
 
-let set_signal sig_num sig_beh = ignore(signal sig_num sig_beh)
+  let set_signal sig_num sig_beh = ignore(signal sig_num sig_beh)
+end
+
+include Safe
 
 let sigabrt = -1
 let sigalrm = -2
@@ -217,3 +222,11 @@ module Immediate64 = struct
         magic Non_immediate
   end
 end
+
+(* Unsafe implementations of [signal] *)
+
+external signal
+  : int -> signal_behavior -> signal_behavior
+  = "caml_install_signal_handler"
+
+let set_signal sig_num sig_beh = ignore(signal sig_num sig_beh)
