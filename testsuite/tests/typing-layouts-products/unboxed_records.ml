@@ -33,7 +33,13 @@
  }{
    flags = "-extension layouts_beta";
    bytecode;
-   }
+ }{
+   flags = "";
+   bytecode;
+ }{
+   flags = "";
+   native;
+ }
 *)
 
 open Stdlib_upstream_compatible
