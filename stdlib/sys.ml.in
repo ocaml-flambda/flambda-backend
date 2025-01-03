@@ -21,6 +21,7 @@ type backend_type : value mod portable uncontended =
   | Native
   | Bytecode
   | Other of string
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (* System interface *)
 
 external get_config: unit -> string * int * bool @@ portable = "caml_sys_get_config"
@@ -112,6 +113,7 @@ type signal_behavior : value mod uncontended =
     Signal_default
   | Signal_ignore
   | Signal_handle of (int -> unit)
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
 module Safe = struct
   external signal
@@ -189,6 +191,7 @@ type ocaml_release_info : value mod portable uncontended = {
   patchlevel : int;
   extra : extra_info option
 }
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
 let ocaml_release = {
   major = @OCAML_VERSION_MAJOR@;
