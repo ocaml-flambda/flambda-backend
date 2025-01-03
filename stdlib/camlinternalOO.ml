@@ -95,14 +95,14 @@ let public_method_label s : tag =
 (**** Sparse array ****)
 
 module Vars =
-  Map.Make_portable(struct type t = string let compare (x:t) y = compare x y end)
+  Map.MakePortable(struct type t = string let compare (x:t) y = compare x y end)
 type vars = int Vars.t
 
 module Meths =
-  Map.Make_portable(struct type t = string let compare (x:t) y = compare x y end)
+  Map.MakePortable(struct type t = string let compare (x:t) y = compare x y end)
 type meths = label Meths.t
 module Labs =
-  Map.Make_portable(struct type t = label let compare (x:t) y = compare x y end)
+  Map.MakePortable(struct type t = label let compare (x:t) y = compare x y end)
 type labs = bool Labs.t
 
 (* The compiler assumes that the first field of this structure is [size]. *)

@@ -1453,7 +1453,6 @@ let ifprintf _ppf (Format (fmt, _)) =
 
 let fprintf ppf = kfprintf ignore ppf
 
-
 let printf (Format (fmt, _)) =
   make_printf
     (fun acc -> output_acc (Domain.DLS.get std_formatter_key) acc)

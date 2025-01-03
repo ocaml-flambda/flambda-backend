@@ -381,7 +381,7 @@ module GenHashTable = struct
 
   end
 
-  module MakeSeeded_portable(H: sig @@ portable
+  module MakeSeededPortable(H: sig @@ portable
     type t
     type 'a container
     val create: t -> 'a -> 'a container
@@ -770,8 +770,8 @@ module K1 = struct
       tbl
   end
 
-  module MakeSeeded_portable (H:sig @@ portable include Hashtbl.SeededHashedType end) =
-    GenHashTable.MakeSeeded_portable(struct
+  module MakeSeededPortable (H:sig @@ portable include Hashtbl.SeededHashedType end) =
+    GenHashTable.MakeSeededPortable(struct
       type 'a container = (H.t,'a) t
       type t = H.t
       let create k d =
@@ -795,10 +795,10 @@ module K1 = struct
       let check_key = check_key
     end)
 
-  module Make_portable(H:sig @@ portable include Hashtbl.HashedType end)
+  module MakePortable(H:sig @@ portable include Hashtbl.HashedType end)
     : sig @@ portable include S with type key = H.t end =
   struct
-    include MakeSeeded_portable(struct
+    include MakeSeededPortable(struct
         type t = H.t
         let equal = H.equal
         let seeded_hash (_seed: int) x = H.hash x
@@ -930,10 +930,10 @@ module K2 = struct
       tbl
   end
 
-  module MakeSeeded_portable
+  module MakeSeededPortable
       (H1:sig @@ portable include Hashtbl.SeededHashedType end)
       (H2:sig @@ portable include Hashtbl.SeededHashedType end) =
-    GenHashTable.MakeSeeded_portable(struct
+    GenHashTable.MakeSeededPortable(struct
       type 'a container = (H1.t,H2.t,'a) t
       type t = H1.t * H2.t
       let create (k1,k2) d =
@@ -957,12 +957,12 @@ module K2 = struct
       let check_key c = check_key1 c && check_key2 c
     end)
 
-  module Make_portable
+  module MakePortable
       (H1: sig @@ portable include Hashtbl.HashedType end)
       (H2: sig @@ portable include Hashtbl.HashedType end):
     sig @@ portable include S with type key = H1.t * H2.t end =
   struct
-    include MakeSeeded_portable
+    include MakeSeededPortable
         (struct
           type t = H1.t
           let equal = H1.equal
@@ -1108,8 +1108,8 @@ module Kn = struct
       tbl
   end
 
-  module MakeSeeded_portable (H:sig @@ portable include Hashtbl.SeededHashedType end) =
-    GenHashTable.MakeSeeded_portable(struct
+  module MakeSeededPortable (H:sig @@ portable include Hashtbl.SeededHashedType end) =
+    GenHashTable.MakeSeededPortable(struct
       type 'a container = (H.t,'a) t
       type t = H.t array
       let create k d =
@@ -1154,10 +1154,10 @@ module Kn = struct
         check c (length c - 1)
     end)
 
-  module Make_portable(H: sig @@ portable include Hashtbl.HashedType end):
+  module MakePortable(H: sig @@ portable include Hashtbl.HashedType end):
     sig @@ portable include S with type key = H.t array end =
   struct
-    include MakeSeeded_portable(struct
+    include MakeSeededPortable(struct
         type t = H.t
         let equal = H.equal
         let seeded_hash (_seed: int) x = H.hash x

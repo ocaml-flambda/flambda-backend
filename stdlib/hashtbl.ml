@@ -500,7 +500,7 @@ module Make(H: HashedType): (S with type key = H.t) =
       tbl
   end
 
-module MakeSeeded_portable(H: sig @@ portable include SeededHashedType end)
+module MakeSeededPortable(H: sig @@ portable include SeededHashedType end)
   : sig @@ portable include SeededS with type key = H.t end =
   struct
     type key = H.t
@@ -635,10 +635,10 @@ module MakeSeeded_portable(H: sig @@ portable include SeededHashedType end)
     let to_seq_values = to_seq_values
   end
 
-module Make_portable(H: sig @@ portable include HashedType end)
+module MakePortable(H: sig @@ portable include HashedType end)
   : sig @@ portable include S with type key = H.t end =
   struct
-    include MakeSeeded_portable(struct
+    include MakeSeededPortable(struct
         type t = H.t
         let equal = H.equal
         let seeded_hash (_seed: int) x = H.hash x

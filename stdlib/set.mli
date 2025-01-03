@@ -325,7 +325,7 @@ module Make (Ord : OrderedType) : S with type elt = Ord.t
 (** Functor building an implementation of the set structure
    given a totally ordered type. *)
 
-module Make_portable (Ord : sig @@ portable include OrderedType end)
+module MakePortable (Ord : sig @@ portable include OrderedType end)
   : sig @@ portable include S with type elt = Ord.t end
 (** Like [Make], but takes a portable [compare] function to
     portable [Set] operations. *)

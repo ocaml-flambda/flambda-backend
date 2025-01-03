@@ -454,12 +454,12 @@ module Hashtbl : sig
       the [create] operation of the result structure always returns
       non-randomized hash tables. *)
 
-    module Make_portable (H : sig @@ portable include HashedType end) :
+    module MakePortable (H : sig @@ portable include HashedType end) :
       sig @@ portable
         include S with type key = H.t
-                   and type 'a t = 'a Hashtbl.Make_portable(H).t
+                   and type 'a t = 'a Hashtbl.MakePortable(H).t
       end
-    (** Like [Make], but takes a portable [hash] function to
+    (** Like {!Make}, but takes a portable [hash] function to
         portable [Hashtbl] operations. *)
 
   module type SeededHashedType =
@@ -544,12 +544,12 @@ module Hashtbl : sig
       or if randomization is globally on (see {!Hashtbl.randomize}).
       @since 4.00 *)
 
-    module MakeSeeded_portable (H : sig @@ portable include SeededHashedType end) :
+    module MakeSeededPortable (H : sig @@ portable include SeededHashedType end) :
     sig @@ portable
       include SeededS with type key = H.t
-                       and type 'a t = 'a Hashtbl.MakeSeeded_portable(H).t
+                       and type 'a t = 'a Hashtbl.MakeSeededPortable(H).t
     end
-    (** Like [MakeSeeded], but takes a portable [seeded_hash] function to
+    (** Like {!MakeSeeded}, but takes a portable [seeded_hash] function to
         portable [Hashtbl] operations. *)
 
   (** {1 The polymorphic hash functions} *)
@@ -1041,12 +1041,12 @@ module Map : sig
   (** Functor building an implementation of the map structure
      given a totally ordered type. *)
 
-  module Make_portable (Ord : sig @@ portable include OrderedType end)
+  module MakePortable (Ord : sig @@ portable include OrderedType end)
     : sig @@ portable
       include S with type key = Ord.t
-                 and type 'a t = 'a Map.Make_portable(Ord).t
+                 and type 'a t = 'a Map.MakePortable(Ord).t
     end
-  (** Like [Make], but takes a portable [compare] function to
+  (** Like {!Make}, but takes a portable [compare] function to
       portable [Map] operations. *)
 
 end
@@ -1360,12 +1360,12 @@ module Set : sig
   (** Functor building an implementation of the set structure
      given a totally ordered type. *)
 
-  module Make_portable (Ord : sig @@ portable include OrderedType end)
+  module MakePortable (Ord : sig @@ portable include OrderedType end)
     : sig @@ portable
       include S with type elt = Ord.t
-                 and type t = Set.Make_portable(Ord).t
+                 and type t = Set.MakePortable(Ord).t
     end
-  (** Like [Make], but takes a portable [compare] function to
+  (** Like {!Make}, but takes a portable [compare] function to
       portable [Set] operations. *)
 
 end
