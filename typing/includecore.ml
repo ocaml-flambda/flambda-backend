@@ -1349,22 +1349,12 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   in
   let err = match (decl1.type_kind, decl2.type_kind) with
       (_, Type_abstract _) -> begin
-        (* If both the intf has "allow any kind in impl" *and* the impl has "allow any
-           kind in intf", don't check the jkind at all. *)
-        let allow_any =
-          Builtin_attributes.has_unsafe_allow_any_kind_in_impl decl2.type_attributes
-          && Builtin_attributes.has_unsafe_allow_any_kind_in_intf decl1.type_attributes
-        in
         (* Note that [decl2.type_jkind] is an upper bound. If it isn't tight, [decl2] must
            have a manifest, which we're already checking for equality above. Similarly,
            [decl1]'s kind may conservatively approximate its jkind, but [check_decl_jkind]
            will expand its manifest. *)
         match Ctype.check_decl_jkind env decl1 decl2.type_jkind  with
-        | Ok _ ->
-          (if allow_any
-           then Location.prerr_warning decl2.type_loc (Warnings.Unnecessary_allow_any_kind));
-          None
-        | Error _ when allow_any -> None
+        | Ok _ -> None
         | Error v -> Some (Jkind v)
       end
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
