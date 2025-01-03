@@ -430,7 +430,7 @@ module Make (H : HashedType) : S with type key = H.t
 
 module MakePortable (H : sig @@ portable include HashedType end)
   : sig @@ portable include S with type key = H.t end
-(** Like [Make], but takes a portable [hash] function to
+(** Like {!Make}, but takes a portable [hash] function to
     portable [Hashtbl] operations. *)
 
 module type SeededHashedType =
@@ -515,7 +515,7 @@ module MakeSeeded (H : SeededHashedType) : SeededS with type key = H.t
 
 module MakeSeededPortable (H : sig @@ portable include SeededHashedType end)
   : sig @@ portable include SeededS with type key = H.t end
-(** Like [MakeSeeded], but takes a portable [seeded_hash] function to
+(** Like {!MakeSeeded}, but takes a portable [seeded_hash] function to
     portable [Hashtbl] operations. *)
 
 (** {1 The polymorphic hash functions} *)
