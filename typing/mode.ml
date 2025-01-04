@@ -567,7 +567,7 @@ module Lattices_mono = struct
 
     let print : type p r. _ -> (p, r) t -> unit =
      fun ppf -> function
-      | Areality -> Format.fprintf ppf "areality"
+      | Areality -> Format.fprintf ppf "locality"
       | Linearity -> Format.fprintf ppf "linearity"
       | Portability -> Format.fprintf ppf "portability"
       | Uniqueness -> Format.fprintf ppf "uniqueness"
