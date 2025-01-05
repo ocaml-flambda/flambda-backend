@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   jane_ocaml5:
     name: Check that resolved files build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Cache OCaml 4.14, dune, and menhir
         uses: actions/cache@v2

@@ -10,7 +10,7 @@ on:
 
 jobs:
   remind:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
     steps:
