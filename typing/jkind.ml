@@ -1611,22 +1611,22 @@ let extract_layout jk = jk.jkind.layout
 let get_modal_upper_bounds ~type_equal ~jkind_of_type jk : Alloc.Const.t =
   let bounds = jk.jkind.upper_bounds in
   { areality =
-      Bound.reduce ~axis:(Modal Locality) ~type_equal ~jkind_of_type
+      Bound.reduce ~axis:(Modal (Comonadic Areality)) ~type_equal ~jkind_of_type
         bounds.locality;
     linearity =
-      Bound.reduce ~axis:(Modal Linearity) ~type_equal ~jkind_of_type
-        bounds.linearity;
+      Bound.reduce ~axis:(Modal (Comonadic Linearity)) ~type_equal
+        ~jkind_of_type bounds.linearity;
     uniqueness =
-      Bound.reduce ~axis:(Modal Uniqueness) ~type_equal ~jkind_of_type
+      Bound.reduce ~axis:(Modal (Monadic Uniqueness)) ~type_equal ~jkind_of_type
         bounds.uniqueness;
     portability =
-      Bound.reduce ~axis:(Modal Portability) ~type_equal ~jkind_of_type
-        bounds.portability;
+      Bound.reduce ~axis:(Modal (Comonadic Portability)) ~type_equal
+        ~jkind_of_type bounds.portability;
     contention =
-      Bound.reduce ~axis:(Modal Contention) ~type_equal ~jkind_of_type
+      Bound.reduce ~axis:(Modal (Monadic Contention)) ~type_equal ~jkind_of_type
         bounds.contention;
     yielding =
-      Bound.reduce ~axis:(Modal Yielding) ~type_equal ~jkind_of_type
+      Bound.reduce ~axis:(Modal (Comonadic Yielding)) ~type_equal ~jkind_of_type
         bounds.yielding
   }
 
