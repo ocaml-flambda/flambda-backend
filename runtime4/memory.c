@@ -685,6 +685,11 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
   */
   value old;
 
+  if (Is_block(val) && (((uintnat) val) % 8 != 0)) {
+    fprintf(stderr, "caml_initialize at 0x%p with new block value 0x%p is misaligned\n", fp, (void*) val);
+    caml_attach_gdb(Val_unit);
+  }
+
   if (Is_young((value)fp)) {
     /* The modified object resides in the minor heap.
        Conditions 1 and 2 cannot occur. */
