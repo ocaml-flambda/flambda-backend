@@ -631,7 +631,7 @@ CAMLprim value caml_attach_gdb (value unit)
 #else
   snprintf(buf, 2048, "gdb --batch -ex bt -p %d", getpid ());
 #endif
-  system(buf);
+  (void) system(buf);
   abort();
 }
 
