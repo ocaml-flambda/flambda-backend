@@ -232,6 +232,7 @@ let char_of_int n =
 (* Unit operations *)
 
 external ignore : 'a -> unit @@ portable = "%ignore"
+external ignore_contended : 'a @ contended -> unit @@ portable = "%ignore"
 
 (* Pair operations *)
 
