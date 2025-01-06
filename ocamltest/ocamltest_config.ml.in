@@ -61,7 +61,7 @@ let flambda = @flambda@
 let flambda2 = @flambda2@
 
 let ocamlc_default_flags = ""
-let ocamlopt_default_flags = ""
+let ocamlopt_default_flags = "-g"
 
 let flat_float_array = @flat_float_array@
 

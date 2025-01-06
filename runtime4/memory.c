@@ -622,6 +622,19 @@ CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
   }
 }
 
+#include <unistd.h>
+CAMLprim value caml_attach_gdb (value unit)
+{
+  char buf[2048];
+#ifdef __APPLE__
+  snprintf(buf, 2048, "lldb --batch --one-line bt -p %d", getpid ());
+#else
+  snprintf(buf, 2048, "gdb --batch -ex bt -p %d", getpid ());
+#endif
+  system(buf);
+  abort();
+}
+
 /* You must use [caml_initialize] to store the initial value in a field of
    a shared block, unless you are sure the value is not a young block.
    A block value [v] is a shared block if and only if [Is_in_heap (v)]
