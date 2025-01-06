@@ -1419,7 +1419,9 @@ let tree_of_modes modes =
     tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_new "unique"];
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
     tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
-                                  Mode.Contention.Const.Shared, Omd_new "shared"]]
+                                  Mode.Contention.Const.Shared, Omd_new "shared"];
+    tree_of_mode diff.yielding [Mode.Yielding.Const.Yielding, Omd_new "yielding";
+                               Mode.Yielding.Const.Unyielding, Omd_new "unyielding"]]
   in
   List.filter_map Fun.id l
 
