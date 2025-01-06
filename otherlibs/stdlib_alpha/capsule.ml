@@ -85,6 +85,8 @@ module Password : sig
      [void] can't be used for function argument and return types yet. *)
   type 'k t : value mod portable many unique uncontended
 
+  type packed = P : 'k t -> packed
+
   (* Can break the soundness of the API. *)
   val unsafe_mk : 'k Name.t -> 'k t @@ portable
   val name : 'k t @ local -> 'k Name.t @@ portable
@@ -103,6 +105,8 @@ module Password : sig
 end = struct
   type 'k t = 'k Name.t
 
+  type packed = P : 'k t -> packed
+
   let unsafe_mk name = name
   let name t = t
 
@@ -120,9 +124,6 @@ end
 (* Like [Stdlib.raise], but [portable], and the value
    it never returns is also [portable] *)
 external reraise : exn -> 'a @ portable @@ portable = "%reraise"
-
-external raise_with_backtrace :
-  exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
 
 module Data = struct
   type ('a, 'k) t : value mod portable uncontended
@@ -377,14 +378,31 @@ let create_with_rwlock () =
 
 exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
 
-(* CR-soon mslater: replace with portable stdlib *)
-let get_raw_backtrace : unit -> Printexc.raw_backtrace @@ portable =
-  O.magic O.magic Printexc.get_raw_backtrace
+let protect_local f = exclave_
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  let reraise data = reraise (Protected ({ name; mutex = M.create (); poisoned = false }, data)) in
+  try f (Password.P password) with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal -> reraise data
+     | None -> reraise (Data.unsafe_mk exn))
+  | exn -> reraise (Data.unsafe_mk exn)
 
-let protect f =
-  try f () with
-  | exn ->
-    let (P mut) = create_with_mutex () in
-    raise_with_backtrace (Protected (mut, Data.unsafe_mk exn)) (get_raw_backtrace ())
-  ;;
+let with_password_local f = exclave_
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  try f (Password.P password) with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal -> reraise (Data.unsafe_get data)
+     | None -> reraise exn)
+  | exn -> reraise exn
 
+module Global = struct
+  type 'a t = { global : 'a @@ global } [@@unboxed]
+end
+
+open Global
+let protect f = (protect_local (fun password -> { global = f password })).global
+let with_password f = (with_password_local (fun password -> { global = f password })).global

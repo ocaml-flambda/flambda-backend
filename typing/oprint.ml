@@ -976,6 +976,11 @@ and print_out_type_decl kwd ppf td =
   let print_unboxed ppf =
     if td.otype_unboxed then fprintf ppf " [%@%@unboxed]" else ()
   in
+  let print_or_null_reexport ppf =
+    if td.otype_or_null_reexport then
+      fprintf ppf " [%@%@or_null_reexport]"
+    else ()
+  in
   let print_out_tkind ppf = function
   | Otyp_abstract -> ()
   | Otyp_record lbls ->
@@ -1001,12 +1006,13 @@ and print_out_type_decl kwd ppf td =
         print_private td.otype_private
         !out_type ty
   in
-  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t@]"
+  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t%t@]"
     print_name_params
     print_out_jkind_annot td.otype_jkind
     print_out_tkind ty
     print_constraints
     print_unboxed
+    print_or_null_reexport
 
 and print_simple_out_gf_type ppf (ty, gf) =
   let m_legacy, m_new = partition_modalities gf in

@@ -808,7 +808,12 @@ let package_type_of_module_type pmty =
   in
   match pmty with
   | {pmty_desc = Pmty_ident lid} -> (lid, [], pmty.pmty_attributes)
-  | {pmty_desc = Pmty_with({pmty_desc = Pmty_ident lid}, cstrs)} ->
+  | {pmty_desc = Pmty_with({pmty_desc = Pmty_ident lid; pmty_attributes = inner_attributes}, cstrs)} ->
+      begin match inner_attributes with
+      | [] -> ()
+      | attr :: _ ->
+        err attr.attr_loc Syntaxerr.Misplaced_attribute
+      end;
       (lid, List.map map_cstr cstrs, pmty.pmty_attributes)
   | _ ->
       err pmty.pmty_loc Neither_identifier_nor_with_type

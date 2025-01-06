@@ -1,12 +1,9 @@
 (* TEST
- flags = " -w +A -strict-sequence -extension layouts_beta";
+ flags = " -w +A -strict-sequence";
  expect;
 *)
 
-(* Adapted from [testsuite/tests/typing-warnings/unused_types.ml].
-
-   CR layouts v7.2: Once unboxed records are in stable, fold this test back into
-   the original or move it to [typing-layouts-products]. *)
+(* Adapted from [testsuite/tests/typing-warnings/unused_types.ml]. *)
 
 module Unused_record : sig end = struct
   type t = #{ a : int; b : int }
