@@ -144,6 +144,9 @@ module Data = struct
 
   let create f = unsafe_mk (f ())
 
+  (* CR-soon mslater/tdelvecchio: copying the backtrace at each reraise can cause quadratic
+     behavior when propagating the exception through nested handlers. This should use a
+     new reraise-with-current-backtrace primitive that doesn't do the copy. *)
   let reraise_encapsulated password exn =
     raise_with_backtrace (Encapsulated (Password.name password, unsafe_mk exn)) (get_raw_backtrace ())
 
