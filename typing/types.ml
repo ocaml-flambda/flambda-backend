@@ -286,6 +286,7 @@ and ('lbl, 'lbl_flat, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
         | Extension of Path.t
+        | Null
 
 and type_origin =
     Definition
@@ -324,6 +325,7 @@ and variant_representation =
   | Variant_boxed of (constructor_representation *
                       Jkind_types.Sort.Const.t array) array
   | Variant_extensible
+  | Variant_with_null
 
 and constructor_representation =
   | Constructor_uniform_value
@@ -606,15 +608,19 @@ let equal_tag t1 t2 =
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     i2 = i1 (* If i1 = i2, the runtime_tags will also be equal *)
   | Extension path1, Extension path2 -> Path.same path1 path2
-  | (Ordinary _ | Extension _), _ -> false
+  | Null, Null -> true
+  | (Ordinary _ | Extension _ | Null), _ -> false
 
 let compare_tag t1 t2 =
   match (t1, t2) with
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     Int.compare i1 i2
   | Extension path1, Extension path2 -> Path.compare path1 path2
-  | Ordinary _, Extension _ -> -1
-  | Extension _, Ordinary _ -> 1
+  | Null, Null -> 0
+  | Ordinary _, (Extension _ | Null) -> -1
+  | (Extension _ | Null), Ordinary _ -> 1
+  | Extension _, Null -> -1
+  | Null, Extension _ -> 1
 
 let equal_flat_element e1 e2 =
   match e1, e2 with
@@ -669,7 +675,8 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
         cstrs_and_sorts2
   | Variant_extensible, Variant_extensible ->
       true
-  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+  | Variant_with_null, Variant_with_null -> true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible | Variant_with_null), _ ->
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
@@ -745,15 +752,14 @@ let find_unboxed_type decl =
   | Type_record_unboxed_product
                 ([{ld_type = arg; _}], Record_unboxed_product)
   | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
-  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}], Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
                     | Record_mixed _))
   | Type_record_unboxed_product (_, Record_unboxed_product)
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
-                     | Variant_extensible ))
+                     | Variant_extensible | Variant_with_null))
   | Type_abstract _ | Type_open ->
     None
 

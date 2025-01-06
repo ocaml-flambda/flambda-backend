@@ -98,9 +98,10 @@ let copy_file ~enabled_if name new_name =
   (copy ${source} ${target})))
 |}
 
-let filter_dump ~enabled_if name =
+let filter_dump ~enabled_if ~exit_code name =
   let subst = function
     | "enabled_if" -> enabled_if
+    | "exit_code" -> string_of_int exit_code
     | "dump" -> name |> cmx_dump
     | "filtered" -> name |> cmx_dump |> output
     | _ -> assert false
@@ -114,7 +115,8 @@ let filter_dump ~enabled_if name =
  (action
   (with-outputs-to
    %{target}
-   (run %{deps}))))
+   (with-accepted-exit-codes ${exit_code}
+    (run %{deps})))))
 |}
 
 let copy_source_to_vectorize name =
@@ -130,8 +132,8 @@ let compile_with_vectorizer name =
   compile ~enabled_if:enabled_if_main ~extra_flags:"-vectorize"
     (vectorized name)
 
-let filter_vectorizer_dump ~enabled_if name =
-  filter_dump ~enabled_if (name |> vectorized)
+let filter_vectorizer_dump ~enabled_if ~exit_code name =
+  filter_dump ~enabled_if ~exit_code (name |> vectorized)
 
 let diff_vectorizer_dump ~enabled_if name =
   diff_output ~enabled_if (name |> vectorized |> cmx_dump)
@@ -150,7 +152,7 @@ let copy_expected_output name =
   copy_file ~enabled_if:enabled_if_main (name |> expected)
     (name |> vectorized |> expected)
 
-let print_test name =
+let print_test ?(filter_exit_code = 0) name =
   (* check expected test output is up to date *)
   compile_no_vectorizer name;
   run_no_vectorizer name;
@@ -158,11 +160,16 @@ let print_test name =
   (* vectorizer *)
   copy_source_to_vectorize name;
   compile_with_vectorizer name;
-  filter_vectorizer_dump name ~enabled_if:enabled_if_main_amd64;
+  filter_vectorizer_dump name ~exit_code:filter_exit_code
+    ~enabled_if:enabled_if_main_amd64;
   diff_vectorizer_dump name ~enabled_if:enabled_if_main_amd64;
   run_vectorized name;
   copy_expected_output name;
   diff_output_vectorized name;
   ()
 
-let () = print_test "test1"
+let () =
+  print_test "test1";
+  (* can't vectorize *)
+  print_test ~filter_exit_code:1 "test_register_compatible";
+  ()
