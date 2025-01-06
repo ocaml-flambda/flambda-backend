@@ -296,6 +296,8 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
 
   tag = Tag_val (newval);
 
+  CAMLassert (tag != Infix_tag && tag != Closure_tag);
+
   if (tag == Double_array_tag){
     CAMLassert (Wosize_val(newval) == Wosize_val(dummy));
     CAMLassert (Tag_val(dummy) != Infix_tag);
@@ -303,21 +305,6 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
     size = Wosize_val (newval) / Double_wosize;
     for (i = 0; i < size; i++) {
       Store_double_flat_field (dummy, i, Double_flat_field (newval, i));
-    }
-  } else if (tag == Infix_tag) {
-    value clos = newval - Infix_offset_hd(Hd_val(newval));
-    CAMLassert (Tag_val(clos) == Closure_tag);
-    CAMLassert (Tag_val(dummy) == Infix_tag);
-    CAMLassert (Infix_offset_val(dummy) == Infix_offset_val(newval));
-    dummy = dummy - Infix_offset_val(dummy);
-    size = Wosize_val(clos);
-    CAMLassert (size == Wosize_val(dummy));
-    /* It is safe to use [caml_modify] to copy code pointers
-       from [clos] to [dummy], because the value being overwritten is
-       an integer, and the new "value" is a pointer outside the minor
-       heap. */
-    for (i = 0; i < size; i++) {
-      caml_modify (&Field(dummy, i), Field(clos, i));
     }
   } else {
     CAMLassert (tag < No_scan_tag);
