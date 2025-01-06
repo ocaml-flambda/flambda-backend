@@ -12,7 +12,7 @@
  }
 *)
 
-(* CR mshinwell: enable for arm64 once float32 is available *)
+(* CR mshinwell: enable for arm64 once int32 is available *)
 
 open Gen_product_array_helpers
 open Stdlib_stable
@@ -22,16 +22,16 @@ open Stdlib_upstream_compatible
    change the bit between here and the next comment. See README.md in this
    test directory. *)
 type boxed_t =
-  float * (int * int64) * float32 * (int32 * (float32 * float)) * int
+  float * (int * int64) * int32 * (int32 * (int32 * float)) * int
 type unboxed_t =
-  #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#))
+  #(float# * #(int * int64#) * int32# * #(int32# * #(int32# * float#))
     * int)
 
 let elem : boxed_t elem =
   Tup5 (float_elem,
         Tup2 (int_elem, int64_elem),
-        float32_elem,
-        Tup2 (int32_elem, (Tup2 (float32_elem, float_elem))),
+        int32_elem,
+        Tup2 (int32_elem, (Tup2 (int32_elem, float_elem))),
         int_elem)
 
 let words_wide : int = 8
@@ -41,15 +41,15 @@ let zero () : unboxed_t =
 let to_boxed #(a, #(b, c), d, #(e, #(f, g)), h) =
   (Float_u.to_float a,
    (b, Int64_u.to_int64 c),
-   Float32_u.to_float32 d,
-   (Int32_u.to_int32 e, (Float32_u.to_float32 f, Float_u.to_float g)),
+   Int32_u.to_int32 d,
+   (Int32_u.to_int32 e, (Int32_u.to_int32 f, Float_u.to_float g)),
    h)
 
 let of_boxed (a, (b, c), d, (e, (f, g)), h) =
   #(Float_u.of_float a,
     #(b, Int64_u.of_int64 c),
-    Float32_u.of_float32 d,
-    #(Int32_u.of_int32 e, #(Float32_u.of_float32 f, Float_u.of_float g)),
+    Int32_u.of_int32 d,
+    #(Int32_u.of_int32 e, #(Int32_u.of_int32 f, Float_u.of_float g)),
     h)
 
 (* Below here is copy pasted due to the absence of layout polymorphism. Don't
