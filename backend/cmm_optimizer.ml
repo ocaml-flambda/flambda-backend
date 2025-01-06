@@ -326,7 +326,14 @@ type operation =
         body : body;
         handlers : continuation list
       }
-  | Phi of phi
+  | Trywith of
+      { body : body;
+        label : Cmm.trywith_shared_label;
+        exn_var : Backend_var.With_provenance.t;
+        handler : body;
+        dbg : Debuginfo.t;
+        kind : Cmm.kind_for_unboxing
+      }
 
 and phi = { mutable predecessors : expr list }
 
@@ -397,7 +404,6 @@ module Print = struct
     | Ifthenelse (x, _, y, _, z, _, _) ->
       fprintf ppf "@[(@[if@ %a@]@ @[then@ %a@]@ @[else@ %a@])@]" expr x body y
         body z
-    | Phi p -> phi ppf p
     | Switch (e1, indices, cases, _, _) ->
       let indices = Array.to_list indices in
       let indices = List.mapi (fun i x -> i, x) indices in
@@ -421,6 +427,9 @@ module Print = struct
       let print_handlers ppf l = List.iter (handler ppf) l in
       fprintf ppf "@[<2>(catch%a@ %a@;<1 -2>with@[<v>%a@])@]" Printcmm.rec_flag
         recursive body b print_handlers handlers
+    | Trywith { body = b; label; exn_var; handler; dbg = _; kind = _ } ->
+      fprintf ppf "@[<2>(try@ %a@;<1 -2>with(%d)@ %a@ %a)@]" body b label
+        VP.print exn_var body handler
 
   and handler ppf (Continuation { label; vars; body = b; dbg = _; is_cold }) =
     fprintf ppf "(%d:%a)%s@ %a" label
@@ -676,6 +685,9 @@ let rec of_cmm ?name ~bindings ~env (cmm : Cmm.expression) : body =
        make_expr ?name
          (Catch
             { recursive; body = of_cmm body ~bindings ~env:body_env; handlers }))
-  | bindings, Ctrywith _ ->
-    (* CR jvanburen: translate these *)
-    Misc.fatal_error "trywith unimplemented"
+  | bindings, Ctrywith (e1, label, exn_var, e2, dbg, kind) ->
+    return ~bindings
+      (let bindings = { rev_bindings = [] } in
+       let body = of_cmm e1 ~bindings ~env
+       and handler = of_cmm e2 ~bindings ~env in
+       make_expr ?name (Trywith { body; handler; label; exn_var; dbg; kind }))
