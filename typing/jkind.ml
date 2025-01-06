@@ -916,32 +916,27 @@ module Const = struct
       (* Plausibly, once we have non-constant, non-identity modalities, this could be
          extended to track those as well *)
 
-      include Jkind_axis.Axis_collection (struct
-        type (+'type_expr, 'd, 'a) t = modality constraint 'd = 'l * 'r
-      end)
+      type t = modality Jkind_axis.Axis_collection.t
 
-      let to_modality =
-        Fold.f
+      let to_modality : t -> _ =
+        Jkind_axis.Axis_collection.fold
           ~combine:(fun m1 m2 -> Mode.Modality.Value.Const.concat m1 ~then_:m2)
-          { f =
-              (fun (type axis) ~(axis : axis Jkind_axis.Axis.t) include_modality ->
-                match axis, include_modality with
-                | Modal axis, Constant_modality -> (
-                  let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-                  match axis with
-                  | Monadic ax ->
-                    Mode.Modality.Value.Const.singleton
-                      (Atom
-                         ( Monadic ax,
-                           Join_with (Mode.Value.Monadic.Const.max_axis ax) ))
-                  | Comonadic ax ->
-                    Mode.Modality.Value.Const.singleton
-                      (Atom
-                         ( Comonadic ax,
-                           Meet_with (Mode.Value.Comonadic.Const.min_axis ax) ))
-                  )
-                | _ -> Mode.Modality.Value.Const.id)
-          }
+          ~f:(fun ~(axis : Jkind_axis.Axis.packed) include_modality ->
+            match axis, include_modality with
+            | Pack (Modal axis), Constant_modality -> (
+              let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
+              match axis with
+              | Monadic ax ->
+                Mode.Modality.Value.Const.singleton
+                  (Atom
+                     ( Monadic ax,
+                       Join_with (Mode.Value.Monadic.Const.max_axis ax) ))
+              | Comonadic ax ->
+                Mode.Modality.Value.Const.singleton
+                  (Atom
+                     ( Comonadic ax,
+                       Meet_with (Mode.Value.Comonadic.Const.min_axis ax) )))
+            | _ -> Mode.Modality.Value.Const.id)
     end
 
     let get_modal_bound (type a) ~(axis : a Axis.t) ~(base : ('d1, a) Bound.t)
@@ -984,18 +979,16 @@ module Const = struct
        See Note [Reconstructing modalities] *)
     let get_with_tys ~base upper_bounds =
       let default_include_modality =
-        Modality_axis_map.Create.f
-          { f =
-              (fun ~axis ->
-                let base = Bounds.get ~axis base in
-                let actual = Bounds.get ~axis upper_bounds in
-                (* Note we're only defaulting to [Constant_modality] for the bounds actually
-                   mentioned in the kind, so we don't print eg `immutable_data with 'a` as
-                   `immutable_data with 'a @@ global many *)
-                match get_modal_bound ~axis ~base actual with
-                | `Valid (Some _) -> Constant_modality
-                | `Valid None | `Invalid -> No_modality)
-          }
+        Jkind_axis.Axis_collection.create ~f:(fun ~axis ->
+            let (Pack axis) = axis in
+            let base = Bounds.get ~axis base in
+            let actual = Bounds.get ~axis upper_bounds in
+            (* Note we're only defaulting to [Constant_modality] for the bounds actually
+               mentioned in the kind, so we don't print eg `immutable_data with 'a` as
+               `immutable_data with 'a @@ global many *)
+            match get_modal_bound ~axis ~base actual with
+            | `Valid (Some _) -> Modality_axis_map.Constant_modality
+            | `Valid None | `Invalid -> Modality_axis_map.No_modality)
       in
       let types = Btype.TypeHash.create 8 in
       Jkind_types.Bounds.Iter.f
@@ -1010,7 +1003,8 @@ module Const = struct
                   let include_modality' =
                     (* If a type is mentioned on an axis, we don't want a modality on that
                        type! *)
-                    Modality_axis_map.set ~axis include_modality No_modality
+                    Jkind_axis.Axis_collection.set ~axis include_modality
+                      Modality_axis_map.No_modality
                   in
                   Btype.TypeHash.replace types ty include_modality')
                 (Jkind_types.Baggage.as_list baggage))

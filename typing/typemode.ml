@@ -86,7 +86,8 @@ module Transled_modifier = struct
   let drop_loc modifier = Option.map Location.get_txt modifier
 end
 
-module Transled_modifiers = Jkind_axis.Axis_collection (Transled_modifier)
+module Transled_modifiers =
+  Jkind_axis.Axis_collection.Indexed (Transled_modifier)
 
 let transl_modifier_annots annots =
   let step modifiers_so_far annot =

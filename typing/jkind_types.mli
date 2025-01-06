@@ -136,7 +136,7 @@ module Bound : sig
 end
 
 module Bounds : sig
-  include module type of Jkind_axis.Axis_collection (Bound)
+  include module type of Jkind_axis.Axis_collection.Indexed (Bound)
 
   include Allowance.Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) t
 

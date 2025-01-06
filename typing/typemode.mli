@@ -35,7 +35,7 @@ module Transled_modifier : sig
 end
 
 module Transled_modifiers :
-    module type of Jkind_axis.Axis_collection (Transled_modifier)
+    module type of Jkind_axis.Axis_collection.Indexed (Transled_modifier)
 
 (** Interpret a list of modifiers.
     A "modifier" is any keyword coming after a `mod` in a jkind *)
