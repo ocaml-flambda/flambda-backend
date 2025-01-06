@@ -327,13 +327,13 @@ external minor_words : unit -> (float [@unboxed])
 
     @since 4.04 *)
 
-external get : unit -> control @@ nonportable = "caml_gc_get"
+external get : unit -> control = "caml_gc_get"
 [@@alert unsynchronized_access
     "GC parameters are a mutable global state."
 ]
 (** Return the current values of the GC parameters in a [control] record. *)
 
-external set : control -> unit @@ nonportable = "caml_gc_set"
+external set : control -> unit = "caml_gc_set"
 [@@alert unsynchronized_access
     "GC parameters are a mutable global state."
 ]
