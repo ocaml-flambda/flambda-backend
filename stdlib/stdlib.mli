@@ -717,7 +717,7 @@ val char_of_int : int -> char
 
 (** {1 Unit operations} *)
 
-external ignore : 'a -> unit = "%ignore"
+external ignore : 'a @ contended -> unit = "%ignore"
 (** Discard the value of its argument and return [()].
    For instance, [ignore(f x)] discards the result of
    the side-effecting function [f].  It is equivalent to
