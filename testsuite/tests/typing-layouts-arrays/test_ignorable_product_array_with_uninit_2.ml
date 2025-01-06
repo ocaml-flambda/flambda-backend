@@ -36,7 +36,7 @@ let elem : boxed_t elem =
 
 let words_wide : int = 8
 let zero () : unboxed_t =
-  #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L)
+  #(#0., #(#0L, #0L), #0l, #(#0l, #(#0l, #0.)), #0L)
 
 let to_boxed #(a, #(b, c), d, #(e, #(f, g)), h) =
   (Float_u.to_float a,
