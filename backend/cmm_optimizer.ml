@@ -279,7 +279,7 @@ module Rope = struct
       iter y ~f
 end
 
-module Var = Backend_var.With_provenance
+module VP = Backend_var.With_provenance
 
 type shift =
   | Shl
@@ -296,109 +296,206 @@ type binop =
 
 type operation =
   | Const of Nativeint.t
-  | Shift of shift * expr * expr
-  | Binop of binop * expr * expr
-  | Icmp of Cmm.integer_comparison * expr * expr
-  | Ite of
-      expr
+  | Shift of shift * bound * bound
+  | Binop of binop * bound * bound
+  | Icmp of Cmm.integer_comparison * bound * bound
+  | Ifthenelse of
+      bound
       * Debuginfo.t
-      * t
+      * body
       * Debuginfo.t
-      * t
+      * body
       * Debuginfo.t
       * Cmm.kind_for_unboxing
   | Alloca of
       { machtype : Cmm.machtype;
-        initial_value : expr
+        initial_value : bound
       }
   | Uninterpreted of
       { cmm : Cmm.expression;
         free : Backend_var.Set.t
       }
+  | Switch of
+      bound
+      * int array
+      * (body * Debuginfo.t) array
+      * Debuginfo.t
+      * Cmm.kind_for_unboxing
+  | Catch of
+      { recursive : Cmm.rec_flag;
+        body : body;
+        handlers : continuation list
+      }
+  | Phi of phi
+
+and phi = { mutable predecessors : expr list }
+
+and continuation =
+  | Continuation of
+      { label : Lambda.static_label;
+        vars : (VP.t * Cmm.machtype * phi) list;
+        body : body;
+        dbg : Debuginfo.t;
+        is_cold : bool
+      }
 
 and expr =
-  { name : Var.t;
+  { name : VP.t;
     op : operation;
-    value : Lattice.t;
-    dbg : Debuginfo.t;
-    phantom_defining_expr : Cmm.phantom_defining_expr option
+    mutable value : Lattice.t;
+    dbg : Debuginfo.t
   }
 
-and t =
-  | Let of
-      { bindings : t;
-        result : expr
+and bound = expr
+
+and terminator =
+  | Return of expr
+  | Exit of Cmm.exit_label * expr list * Cmm.trap_action list
+  | Unreachable
+
+and bindings = { rev_bindings : expr list } [@@unboxed]
+
+and body =
+  { bindings : bindings;
+    terminator : terminator
+  }
+
+and procedure =
+  | Procedure of
+      { body : body;
+        ret : phi
       }
-  | Expr of expr
 
-let to_bindings t =
-  let rec go ~acc = function
-    | Expr expr -> expr :: acc
-    | Let { bindings; result } -> go bindings ~acc:(result :: acc)
-  in
-  go t ~acc:[]
+module Print = struct
+  open Format
+  open Printcmm
 
-let print_shift fmt binop =
-  match binop with
-  | Shl -> Format.pp_print_string fmt "shl"
-  | Lshr -> Format.pp_print_string fmt "lshr"
-  | Ashr -> Format.pp_print_string fmt "ashr"
+  let shift ppf binop =
+    match binop with
+    | Shl -> Format.pp_print_string ppf "shl"
+    | Lshr -> Format.pp_print_string ppf "lshr"
+    | Ashr -> Format.pp_print_string ppf "ashr"
 
-let print_binop fmt binop =
-  match binop with
-  | Add -> Format.pp_print_string fmt "add"
-  | Sub -> Format.pp_print_string fmt "sub"
-  | Mul -> Format.pp_print_string fmt "mul"
-  | And -> Format.pp_print_string fmt "and"
-  | Or -> Format.pp_print_string fmt "or"
-  | Xor -> Format.pp_print_string fmt "xor"
+  let binop ppf binop =
+    match binop with
+    | Add -> Format.pp_print_string ppf "add"
+    | Sub -> Format.pp_print_string ppf "sub"
+    | Mul -> Format.pp_print_string ppf "mul"
+    | And -> Format.pp_print_string ppf "and"
+    | Or -> Format.pp_print_string ppf "or"
+    | Xor -> Format.pp_print_string ppf "xor"
 
-let rec print_operation fmt operation =
-  match operation with
-  | Const i -> Format.fprintf fmt "%nd" i
-  | Shift (shift, x, y) ->
-    Format.fprintf fmt "@[%a@ %a@ %a@]" print_shift shift Var.print x.name
-      Var.print y.name
-  | Binop (binop, x, y) ->
-    Format.fprintf fmt "@[%a@ %a@ %a@]" print_binop binop Var.print x.name
-      Var.print y.name
-  | Alloca { machtype; initial_value = x } ->
-    Format.fprintf fmt "@[alloca %a@ %a@]" Printcmm.machtype machtype Var.print
-      x.name
-  | Icmp (cmp, x, y) ->
-    Format.fprintf fmt "@[icmp%s@ %a@ %a@]"
-      (Printcmm.integer_comparison cmp)
-      Var.print x.name Var.print y.name
-  | Ite (x, _, y, _, z, _, _) ->
-    Format.fprintf fmt "@[if@ %a@ then@ %a@ else@ %a@]" Var.print x.name print y
-      print z
-  | Uninterpreted { cmm; free = _ } -> Printcmm.expression fmt cmm
+  let rec operation ppf op =
+    match op with
+    | Const i -> fprintf ppf "%nd" i
+    | Shift (op, x, y) -> fprintf ppf "@[%a@ %a@ %a@]" shift op expr x expr y
+    | Binop (op, x, y) -> fprintf ppf "@[%a@ %a@ %a@]" binop op expr x expr y
+    | Alloca { machtype = ty; initial_value = x } ->
+      fprintf ppf "@[alloca %a@ %a@]" machtype ty expr x
+    | Icmp (cmp, x, y) ->
+      fprintf ppf "@[icmp%s@ %a@ %a@]" (integer_comparison cmp) expr x expr y
+    | Ifthenelse (x, _, y, _, z, _, _) ->
+      fprintf ppf "@[(@[if@ %a@]@ @[then@ %a@]@ @[else@ %a@])@]" expr x body y
+        body z
+    | Phi p -> phi ppf p
+    | Switch (e1, indices, cases, _, _) ->
+      let indices = Array.to_list indices in
+      let indices = List.mapi (fun i x -> i, x) indices in
+      let print_cases ppf =
+        ArrayLabels.iteri cases ~f:(fun i (case, _dbg) ->
+            let lhs ppf =
+              match List.filter (fun (_, x) -> x = i) indices with
+              | [] -> fprintf ppf "unreachable:"
+              | _ :: _ as cases ->
+                fprintf ppf "case (%t):" (fun ppf ->
+                    pp_print_list
+                      ~pp_sep:(fun ppf () -> pp_print_char ppf '|')
+                      (fun ppf (j, _) -> fprintf ppf "%d" j)
+                      ppf cases)
+            in
+            fprintf ppf "@ @[<2>%t@ %a@]" lhs body case)
+      in
+      fprintf ppf "@[<v 0>@[<2>(switch@ %a@ @]%t)@]" expr e1 print_cases
+    | Uninterpreted { cmm; free = _ } -> Printcmm.expression ppf cmm
+    | Catch { recursive; body = b; handlers } ->
+      let print_handlers ppf l = List.iter (handler ppf) l in
+      fprintf ppf "@[<2>(catch%a@ %a@;<1 -2>with@[<v>%a@])@]" Printcmm.rec_flag
+        recursive body b print_handlers handlers
 
-and print_expr fmt { name; op; value = _; dbg = _ } =
-  Format.fprintf fmt "@[<hv>%a@ =@ @[%a@]@]" Var.print name print_operation op
+  and handler ppf (Continuation { label; vars; body = b; dbg = _; is_cold }) =
+    fprintf ppf "(%d:%a)%s@ %a" label
+      (fun ppf ids ->
+        ListLabels.iter ids ~f:(fun (id, machtype, phi_) ->
+            fprintf ppf "@ @[%a@ : %a@ =@ %a@]" VP.print id Printcmm.machtype
+              machtype phi phi_))
+      vars
+      (if is_cold then "(cold)" else "")
+      body b
 
-and print fmt t =
-  let bindings, expr =
-    match t with
-    | Expr e -> [], e
-    | Let { bindings; result } -> to_bindings bindings, result
-  in
-  Format.pp_open_vbox fmt 0;
-  ListLabels.iter bindings
-    ~f:(Format.fprintf fmt "@[<hv>let@ %a@ in@]@;" print_expr);
-  print_expr fmt expr;
-  Format.pp_close_box fmt ()
+  and phi ppf phi =
+    fprintf ppf "@[<2>phi@ %t@]" (fun ppf ->
+        ListLabels.iter phi.predecessors ~f:(fun pred ->
+            fprintf ppf ",@ %a" expr pred))
 
-let gensym () = Var.create (Ident.create_local "%tmp")
+  and expr ppf { name; op; value = _; dbg = _ } =
+    match op with Const i -> fprintf ppf "%nd" i | _ -> VP.print ppf name
 
-let expr (Expr expr | Let { bindings = _; result = expr }) = expr
+  and binding ppf { name; op; value = _; dbg = _ } =
+    fprintf ppf "@[<hv>%a@ =@ @[%a@]@]" VP.print name operation op
 
-let get_name t = Var.var (expr t).name
+  and bindings ppf { rev_bindings } =
+    pp_open_vbox ppf 0;
+    ListLabels.iter (List.rev rev_bindings)
+      ~f:(fprintf ppf "@[<hv>let@ %a@ in@]@;" binding);
+    pp_close_box ppf ()
 
-let bind t f = Let { bindings = t; result = f (expr t) }
+  and terminator ppf term =
+    match term with
+    | Unreachable -> pp_print_string ppf "unreachable"
+    | Return x -> fprintf ppf "@[ret@ %a@]" expr x
+    | Exit (label, exprs, _) ->
+      pp_open_box ppf 2;
+      (match label with
+      | Return_lbl -> fprintf ppf "ret"
+      | Lbl label -> fprintf ppf "br %d" label);
+      ListLabels.iter exprs ~f:(fun e -> fprintf ppf ",@ %a" expr e);
+      pp_close_box ppf ()
 
-let[@inline] make_expr ?phantom_defining_expr ?(dbg = Debuginfo.none)
-    ?(name = gensym ()) op =
+  and body ppf { bindings = b; terminator = t } =
+    fprintf ppf "@[<v>%a@;%a@]" bindings b terminator t
+
+  and procedure ppf (Procedure { body = b; ret }) =
+    pp_open_vbox ppf 0;
+    body ppf b;
+    pp_print_string ppf "ret ";
+    phi ppf ret;
+    pp_close_box ppf ()
+end
+
+let gensym () = VP.create (Ident.create_local "%tmp")
+
+let expr = function Unreachable | Exit _ -> None | Return x -> Some x
+
+let expr_name expr = VP.var expr.name
+
+let get_name t = Option.map expr_name (expr t)
+
+(** cons an expression to the *end* of a list of bindings *)
+let[@inline] snoc { rev_bindings } expr =
+  { rev_bindings = expr :: rev_bindings }
+
+let[@inline] bind ({ bindings; terminator } as t) ~f =
+  match terminator with
+  | Unreachable | Exit _ -> t
+  | Return expr -> f expr ~bindings
+
+let[@inline] return expr ~bindings =
+  { bindings = snoc bindings expr; terminator = Return expr }
+
+let[@inline] sequence t expr =
+  bind t ~f:(fun _ ~bindings -> return expr ~bindings)
+
+let[@inline] make_expr ?(dbg = Debuginfo.none) ?(name = gensym ()) op =
   let value =
     match op with
     | Const i -> Lattice.constant i
@@ -406,22 +503,28 @@ let[@inline] make_expr ?phantom_defining_expr ?(dbg = Debuginfo.none)
       (* CR jvanburen: do more things here *)
       Lattice.top
   in
-  { name; op; value; dbg; phantom_defining_expr }
-
-let trivial = lazy (Expr (make_expr (Const 0n)))
+  { name; op; value; dbg }
 
 module Env = struct
-  type t = expr Backend_var.Map.t
+  type t =
+    { vars : expr Backend_var.Map.t;
+      handlers : phi list Numbers.Int.Map.t;
+      ret : phi
+    }
 
-  let empty = Backend_var.Map.empty
+  let empty =
+    { vars = Backend_var.Map.empty;
+      handlers = Numbers.Int.Map.empty;
+      ret = { predecessors = [] }
+    }
 
   let get (t : t) ?name (x : Backend_var.t) =
-    match Backend_var.Map.find_opt x t with
+    match Backend_var.Map.find_opt x t.vars with
     | None ->
       make_expr ?name
         (Uninterpreted { cmm = Cvar x; free = Backend_var.Set.singleton x })
     | Some { name = stack_name; op = Alloca _; _ } ->
-      let stack_name = Var.var stack_name in
+      let stack_name = VP.var stack_name in
       make_expr ?name
         (Uninterpreted
            { cmm = Cvar stack_name;
@@ -429,100 +532,150 @@ module Env = struct
            })
     | Some expr -> expr
 
-  let add (t : t) (x : Var.t) y : t = Backend_var.Map.add (Var.var x) y t
+  let add_var (t : t) (x : VP.t) y : t =
+    assert (not (Backend_var.Map.mem (VP.var x) t.vars));
+    { t with vars = Backend_var.Map.add (VP.var x) y t.vars }
+
+  let add_handler (t : t) label vars : t =
+    assert (not (Numbers.Int.Map.mem label t.handlers));
+    { t with handlers = Numbers.Int.Map.add label vars t.handlers }
+
+  let add_exit t exit_label vars =
+    let phi_vars =
+      match (exit_label : Cmm.exit_label) with
+      | Return_lbl -> [t.ret]
+      | Lbl label -> Numbers.Int.Map.find label t.handlers
+    in
+    ListLabels.iter2 phi_vars vars ~f:(fun phi var ->
+        phi.predecessors <- var :: phi.predecessors)
 end
 
 let cvar x = Cmm.Cvar x
 
-let rec of_cmm ?name ~bindings ~env (cmm : Cmm.expression) : t =
+let rec of_cmm ?name ~bindings ~env (cmm : Cmm.expression) : body =
   let bind_multi ~bindings exprs ~f =
-    let rec go ~bindings ~exprs ~rev_vars =
+    let rec go ~bindings ~exprs ~vars =
       match exprs with
-      | [] -> f (List.rev rev_vars) ~bindings
+      | [] -> f vars ~bindings
       | e :: exprs ->
-        let bindings = of_cmm e ~bindings ~env in
-        go ~bindings ~exprs ~rev_vars:(expr bindings :: rev_vars)
+        bind (of_cmm e ~bindings ~env) ~f:(fun e ~bindings ->
+            go ~bindings ~exprs ~vars:(e :: vars))
     in
-    go ~bindings ~exprs ~rev_vars:[]
+    (* the evaluation order is right-to-left *)
+    go ~bindings ~exprs:(List.rev exprs) ~vars:[]
   in
   match bindings, (cmm : Cmm.expression) with
   | bindings, Cconst_int (i, dbg) ->
     let i = Nativeint.of_int i in
-    Let { bindings; result = make_expr ?name (Const i) }
+    { bindings; terminator = Return (make_expr ?name (Const i)) }
   | bindings, Cconst_natint (i, dbg) ->
-    Let { bindings; result = make_expr ?name (Const i) }
-  | bindings, Cvar var -> Let { bindings; result = Env.get env var }
+    { bindings; terminator = Return (make_expr ?name (Const i)) }
+  | bindings, Cvar var -> return (Env.get env var) ~bindings
   | bindings, Clet (inner_name, x, y) ->
-    let bindings = of_cmm ~name:inner_name ~bindings ~env x in
-    of_cmm y ?name ~bindings ~env:(Env.add env inner_name (expr bindings))
-  | bindings, Cphantom_let (_, _, y) -> of_cmm y ?name ~bindings ~env
+    bind (of_cmm ~name:inner_name ~bindings ~env x) ~f:(fun x ~bindings ->
+        of_cmm y ?name ~bindings ~env:(Env.add_var env inner_name x))
+  | bindings, Cphantom_let (_, _, y) ->
+    Misc.fatal_error "Cphantom_let is not supported by cmm_optimizer"
   | bindings, Clet_mut (stack_var, machtype, x, y) ->
-    let bindings = of_cmm ~bindings ~env x in
-    let alloca =
-      make_expr ~name:stack_var
-        (Alloca { machtype; initial_value = expr bindings })
-    in
-    let bindings = Let { bindings; result = alloca } in
-    of_cmm y ?name ~bindings ~env:(Env.add env stack_var alloca)
+    bind (of_cmm ~bindings ~env x) ~f:(fun initial_value ~bindings ->
+        let alloca =
+          make_expr ~name:stack_var (Alloca { machtype; initial_value })
+        in
+        of_cmm y ?name ~bindings:(snoc bindings alloca)
+          ~env:(Env.add_var env stack_var alloca))
   | bindings, Cassign (var, expr) ->
-    let bindings = of_cmm expr ~bindings ~env in
-    Let
-      { bindings;
-        result =
-          (let rhs = get_name bindings in
-           make_expr ?name
-             (Uninterpreted
-                { cmm = Cassign (var, Cvar rhs);
-                  free = Backend_var.Set.of_list [var; rhs]
-                }))
-      }
+    bind (of_cmm expr ~bindings ~env) ~f:(fun x ~bindings ->
+        let assignment =
+          let rhs = expr_name x in
+          make_expr ?name
+            (Uninterpreted
+               { cmm = Cassign (var, Cvar rhs);
+                 free = Backend_var.Set.of_list [var; rhs]
+               })
+        in
+        return assignment ~bindings)
   | bindings, Ctuple exprs ->
     bind_multi exprs ~bindings ~f:(fun exprs ~bindings ->
-        Let
-          { bindings;
-            result =
-              (let vars = List.map (fun x -> Var.var x.name) exprs in
-               make_expr ?name
-                 (Uninterpreted
-                    { cmm = Ctuple (List.map cvar vars);
-                      free = Backend_var.Set.of_list vars
-                    }))
-          })
+        let tuple =
+          let vars = List.map expr_name exprs in
+          make_expr ?name
+            (Uninterpreted
+               { cmm = Ctuple (List.map cvar vars);
+                 free = Backend_var.Set.of_list vars
+               })
+        in
+        return tuple ~bindings)
   | bindings, Csequence (x, y) ->
-    let bindings = of_cmm x ~bindings ~env in
-    of_cmm ?name y ~bindings ~env
+    bind (of_cmm x ~bindings ~env) ~f:(fun x ~bindings ->
+        of_cmm ?name y ~bindings ~env)
   | bindings, Cifthenelse (x, x_dbg, y, y_dbg, z, z_dbg, kind) ->
-    bind (of_cmm x ~bindings ~env) (fun x ->
-        let y = of_cmm y ~bindings:(Lazy.force trivial) ~env
-        and z = of_cmm z ~bindings:(Lazy.force trivial) ~env in
-        make_expr ?name (Ite (x, x_dbg, y, y_dbg, z, z_dbg, kind)))
+    bind (of_cmm x ~bindings ~env) ~f:(fun x ~bindings ->
+        let y = of_cmm y ~bindings:{ rev_bindings = [] } ~env
+        and z = of_cmm z ~bindings:{ rev_bindings = [] } ~env in
+        return ~bindings
+          (make_expr ?name (Ifthenelse (x, x_dbg, y, y_dbg, z, z_dbg, kind))))
   | bindings, Cop (op, exprs, dbg) ->
     bind_multi ~bindings exprs ~f:(fun exprs ~bindings ->
         let operation =
           match op, exprs with
           | Caddi, [x; y] -> Binop (Add, x, y)
-          | Csub, [x; y] -> Binop (Sub, x, y)
+          | Csubi, [x; y] -> Binop (Sub, x, y)
           | Cmuli, [x; y] -> Binop (Mul, x, y)
           | Cand, [x; y] -> Binop (And, x, y)
           | Cor, [x; y] -> Binop (Or, x, y)
           | Cxor, [x; y] -> Binop (Xor, x, y)
           | Ccmpi cmp, [x; y] -> Icmp (cmp, x, y)
           | _, _ ->
-            let vars = List.map (fun x -> Var.var x.name) exprs in
+            let vars = List.map expr_name exprs in
             Uninterpreted
               { cmm = Cop (op, List.map cvar vars, dbg);
                 free = Backend_var.Set.of_list vars
               }
         in
-        Let { bindings; result = make_expr ~dbg ?name operation })
+        return (make_expr ?name operation) ~bindings)
   | ( bindings,
       ((Cconst_float32 _ | Cconst_float _ | Cconst_vec128 _ | Cconst_symbol _)
       as cmm) ) ->
-    Let
-      { bindings;
-        result =
-          make_expr ?name (Uninterpreted { cmm; free = Backend_var.Set.empty })
-      }
-  | bindings, (Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _) ->
+    return ~bindings
+      (make_expr ?name (Uninterpreted { cmm; free = Backend_var.Set.empty }))
+  | bindings, Cswitch (e, cases, arms, dbg, kind) ->
+    bind (of_cmm e ~bindings ~env) ~f:(fun e ~bindings ->
+        let arms =
+          ArrayLabels.map arms ~f:(fun (e, dbg) -> of_cmm ~bindings ~env e, dbg)
+        in
+        return (make_expr (Switch (e, cases, arms, dbg, kind))) ~bindings)
+  | bindings, Cexit (exit_label, exprs, trap_actions) ->
+    bind_multi ~bindings exprs ~f:(fun exprs ~bindings ->
+        Env.add_exit env exit_label exprs;
+        { bindings; terminator = Exit (exit_label, exprs, trap_actions) })
+  | bindings, Ccatch (recursive, handlers, body, kind) ->
+    return ~bindings
+      (let bindings = { rev_bindings = [] } in
+       let handlers =
+         ListLabels.map handlers ~f:(fun (label, vars, body, dbg, is_cold) ->
+             let vars =
+               ListLabels.map vars ~f:(fun (vp, mach_kind) ->
+                   vp, mach_kind, { predecessors = [] })
+             in
+             label, vars, body, dbg, is_cold)
+       in
+       let body_env =
+         ListLabels.fold_left handlers ~init:env
+           ~f:(fun env (label, vars, _, _, _) ->
+             let vars = ListLabels.map vars ~f:(fun (_, _, phi) -> phi) in
+             Env.add_handler env label vars)
+       in
+       let handlers =
+         let env =
+           match recursive with Recursive -> body_env | Nonrecursive -> env
+         in
+         ListLabels.map handlers ~f:(fun (label, vars, handler, dbg, is_cold) ->
+             let body = of_cmm handler ~bindings ~env in
+             Continuation { label; vars; body; dbg; is_cold })
+       in
+       make_expr ?name
+         (Catch
+            { recursive; body = of_cmm body ~bindings ~env:body_env; handlers }))
+  | bindings, Ctrywith _ ->
     (* CR jvanburen: translate these *)
-    Misc.fatal_error "unimplemented"
+    Misc.fatal_error "trywith unimplemented"
