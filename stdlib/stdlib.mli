@@ -725,6 +725,10 @@ external ignore : 'a -> unit = "%ignore"
    compiler warning; writing [ignore(f x)] instead
    avoids the warning. *)
 
+external ignore_contended : 'a @ contended -> unit = "%ignore"
+(** Like {!ignore}, but takes a [contended] value. This is technically strictly stronger
+    than [ignore], but changing [ignore] in place causes backwards compatibility issues
+    due to type inference. *)
 
 (** {1 String conversion functions} *)
 
