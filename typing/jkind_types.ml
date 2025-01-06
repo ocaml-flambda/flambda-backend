@@ -642,7 +642,7 @@ end
 
 module Bounds = struct
   open Jkind_axis
-  include Axis_collection (Bound)
+  include Axis_collection.Indexed (Bound)
 
   include Allowance.Magic_allow_disallow (struct
     type ('type_expr, _, 'd) sided = ('type_expr, 'd) t
