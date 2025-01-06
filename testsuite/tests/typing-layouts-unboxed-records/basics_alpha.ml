@@ -42,7 +42,10 @@ Error:
 
 (******************************************************************************)
 (* The below is adapted from
-   [testsuite/tests/typing-layouts-products/basics_alpha.ml]. *)
+   [testsuite/tests/typing-layouts-products/basics_alpha.ml].
+
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into
+   the original or move it to [typing-layouts-products]. *)
 
 (* [t3] is allowed for unboxed tuples, and disallowed for (un)boxed records *)
 type t1 : any mod non_null

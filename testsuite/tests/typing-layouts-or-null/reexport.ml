@@ -335,17 +335,3 @@ let[@or_null_reexport] foo = 5
 [%%expect{|
 val foo : int = 5
 |}]
-
-(* [private] re-export fails. *)
-
-module Or_null = struct
-  type ('a : value) t : value_or_null = private 'a or_null [@@or_null_reexport]
-end
-
-[%%expect{|
-Line 2, characters 2-79:
-2 |   type ('a : value) t : value_or_null = private 'a or_null [@@or_null_reexport]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Invalid reexport declaration.
-       Type t must be defined equal to the primitive type or_null.
-|}]

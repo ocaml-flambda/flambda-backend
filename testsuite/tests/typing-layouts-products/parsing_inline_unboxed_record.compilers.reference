@@ -1,4 +1,0 @@
-File "parsing_inline_unboxed_record.ml", line 10, characters 22-24:
-10 | type variant = Foo of #{ x : string }
-                           ^^
-Error: Syntax error

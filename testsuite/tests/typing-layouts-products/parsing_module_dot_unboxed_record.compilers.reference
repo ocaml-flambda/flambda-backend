@@ -1,4 +1,0 @@
-File "parsing_module_dot_unboxed_record.ml", line 14, characters 11-12:
-14 | let t = M.#{ i = 1 }
-                ^
-Error: Syntax error

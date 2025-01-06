@@ -104,11 +104,6 @@ module Password : sig
      mutex. This guarantees that uncontended access to the capsule is
      only granted to a single domain at once. *)
 
-  type packed = P : 'k t -> packed
-  (** [packed] is the type of a password for some unknown capsule.
-      Unpacking one provides a ['k t] together with a fresh existential
-      type brand for ['k]. *)
-
   val name : 'k t @ local -> 'k Name.t @@ portable
   (** [name t] identifies the capsule that [t] is associated with. *)
 
@@ -421,27 +416,15 @@ exception Encapsulated : 'k Name.t * (exn, 'k) Data.t -> exn
     the data. The [Name.t] can be used to associate the [Data.t] with a
     particular [Password.t] or [Mutex.t]. *)
 
-(* CR-soon mslater: ['k Key.t] instead of ['k Mutex.t]. *)
 exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
 (** If a function passed to [protect] raises an exception, it is wrapped
-    in [Protected] to avoid leaking access to the data. The [Mutex.t] can
-    be used to access the [Data.t]. *)
+    in [Protected] to provide access to the capsule in which the function ran. *)
+(* CR-soon mslater: this should return a key, not a mutex. *)
 
-val protect : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
-(** [protect f] runs [f password] in a fresh capsule represented by [password].
-    If [f] returns normally, [protect] merges the capsule into the caller's capsule.
-    If [f] raises an [Encapsulated] exception in the capsule represented by [password],
-    [protect] unwraps the exception and re-raises it as [Protected].
-    If [f] raises any other exception, [protect] re-raises it as [Protected]. *)
-
-val with_password : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
-(** [with_password f] runs [f password] in a fresh capsule represented by [password].
-    If [f] returns normally, [with_password] merges the capsule into the caller's capsule.
-    If [f] raises an [Encapsulated] exception in the capsule represented by [password],
-    [with_password] unwraps the exception and re-raises it directly. *)
-
-val protect_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
-(** See [protect]. *)
-
-val with_password_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
-(** See [with_password]. *)
+val protect
+  :  (unit -> 'a @ portable contended) @ local portable
+  -> 'a @ portable contended
+  @@ portable
+(** [protect f] runs [f] in a fresh capsule. If [f] returns normally, [protect]
+    merges this capsule into the caller's capsule. If [f] raises, [protect]
+    raises [Protected], giving the caller access to the encapsulated exception. *)

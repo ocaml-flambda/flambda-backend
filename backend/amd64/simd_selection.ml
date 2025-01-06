@@ -589,14 +589,13 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       let sse_op =
         match width_type with
         | W128 -> assert false
-        | W64 -> None
-        | W32 -> Some SRA_i32
-        | W16 -> Some SRA_i16
-        | W8 -> None
+        | W64 -> assert false
+        | W32 -> SRA_i32
+        | W16 -> SRA_i16
+        | W8 -> assert false
       in
-      Option.bind sse_op (fun sse_op ->
-          Operation.Specific (Isimd (SSE2 sse_op))
-          |> make_default ~arg_count ~res_count)
+      Operation.Specific (Isimd (SSE2 sse_op))
+      |> make_default ~arg_count ~res_count
     | Icomp (Isigned intcomp) -> (
       match intcomp with
       | Ceq ->

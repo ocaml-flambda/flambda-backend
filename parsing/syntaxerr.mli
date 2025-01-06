@@ -26,7 +26,6 @@ type invalid_package_type =
   | Private_types
   | Not_with_type
   | Neither_identifier_nor_with_type
-  | Misplaced_attribute
 
 type error =
     Unclosed of Location.t * string * Location.t * string

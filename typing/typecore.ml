@@ -3011,7 +3011,7 @@ and type_pat_aux
   | Ppat_record(lid_sp_list, closed) ->
       type_record_pat Legacy lid_sp_list closed
   | Ppat_record_unboxed_product(lid_sp_list, closed) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       type_record_pat Unboxed_product lid_sp_list closed
   | Ppat_array (mut, spl) ->
       let mut =
@@ -5417,9 +5417,7 @@ and type_expect_
             (rep : rep) =
         match record_form with
         | Legacy -> begin match rep with
-          | Record_unboxed
-          | Record_inlined (_, _, (Variant_unboxed | Variant_with_null))
-            -> false
+          | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
           | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _
           | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
             -> true
@@ -6003,7 +6001,7 @@ and type_expect_
   | Pexp_record(lid_sexp_list, opt_sexp) ->
       type_expect_record ~overwrite Legacy lid_sexp_list opt_sexp
   | Pexp_record_unboxed_product(lid_sexp_list, opt_sexp) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       type_expect_record ~overwrite Unboxed_product lid_sexp_list opt_sexp
   | Pexp_field(srecord, lid) ->
       let (record, rmode, label, _) =
@@ -6055,7 +6053,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_unboxed_field(srecord, lid) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       let (record, rmode, label, _) =
         type_label_access Unboxed_product env srecord Env.Projection lid
       in
@@ -8418,7 +8416,7 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
   in
   let (argument_mode, alloc_mode) =
     match constr.cstr_repr with
-    | Variant_unboxed | Variant_with_null -> expected_mode, None
+    | Variant_unboxed -> expected_mode, None
     | Variant_boxed _ when constr.cstr_constant -> expected_mode, None
     | Variant_boxed _ | Variant_extensible ->
        let alloc_mode, argument_mode = register_allocation expected_mode in
@@ -8455,8 +8453,6 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
         raise(Error(loc, env, Private_constructor (constr, ty_res)))
     | Variant_boxed _ | Variant_unboxed ->
         raise (Error(loc, env, Private_type ty_res));
-    | Variant_with_null -> assert false
-      (* [Variant_with_null] can't be made private due to [or_null_reexport]. *)
     end;
   (* NOTE: shouldn't we call "re" on this final expression? -- AF *)
   { texp with

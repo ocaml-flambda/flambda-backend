@@ -1,7 +1,7 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
- flags = "-extension unique";
+ flags = "-extension layouts_alpha -extension unique";
  {
    expect;
  }
@@ -15,7 +15,7 @@ let unique_use2 : ('a : value & value) @ unique -> unit = fun _ -> ()
 type t = #{ x : string ; y : string }
 let mk : unit -> t @ unique = fun () -> #{ x = "hi"; y = "hi" }
 [%%expect{|
-val unique_use : 'a @ unique -> unit = <fun>
+val unique_use : ('a : value_or_null). 'a @ unique -> unit = <fun>
 val unique_use2 : ('a : value & value). 'a @ unique -> unit = <fun>
 type t = #{ x : string; y : string; }
 val mk : unit -> t @ unique = <fun>

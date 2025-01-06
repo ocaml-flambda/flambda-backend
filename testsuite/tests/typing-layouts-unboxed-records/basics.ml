@@ -1,6 +1,7 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
+ flags = "-extension layouts_alpha";
  {
    expect;
  }
@@ -681,7 +682,7 @@ val update_t : t -> unit = <fun>
 
 type ('a : any) t = #{ x : int; y : 'a }
 [%%expect{|
-type 'a t = #{ x : int; y : 'a; }
+type ('a : value_or_null) t = #{ x : int; y : 'a; }
 |}]
 
 (* CR layouts v7.2: once we allow record declarations with unknown kind (right

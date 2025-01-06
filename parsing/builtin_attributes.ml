@@ -504,10 +504,6 @@ let has_unboxed attrs = has_attribute "unboxed" attrs
 
 let has_boxed attrs = has_attribute "boxed" attrs
 
-let has_unsafe_allow_any_kind_in_intf attrs = has_attribute "unsafe_allow_any_kind_in_intf" attrs
-
-let has_unsafe_allow_any_kind_in_impl attrs = has_attribute "unsafe_allow_any_kind_in_impl" attrs
-
 let parse_empty_payload attr =
   match attr.attr_payload with
   | PStr [] -> Some ()
@@ -606,15 +602,6 @@ let zero_alloc_attribute (attr : Parsetree.attribute)  =
         warn_payload attr.attr_loc attr.attr_name.txt
           "Only 'all', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
 
-let attribute_with_ignored_payload name attr =
-  when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () -> ())
-
-let unsafe_allow_any_kind_in_impl_attribute =
-  attribute_with_ignored_payload "unsafe_allow_any_kind_in_impl"
-
-let unsafe_allow_any_kind_in_intf_attribute =
-  attribute_with_ignored_payload "unsafe_allow_any_kind_in_intf"
-
 let afl_inst_ratio_attribute attr =
   clflags_attribute_with_int_payload attr
     ~name:"afl_inst_ratio" Clflags.afl_inst_ratio
@@ -623,8 +610,7 @@ let parse_standard_interface_attributes attr =
   warning_attribute attr;
   principal_attribute attr;
   noprincipal_attribute attr;
-  nolabels_attribute attr;
-  unsafe_allow_any_kind_in_intf_attribute attr
+  nolabels_attribute attr
 
 let parse_standard_implementation_attributes attr =
   warning_attribute attr;
@@ -635,8 +621,7 @@ let parse_standard_implementation_attributes attr =
   afl_inst_ratio_attribute attr;
   flambda_o3_attribute attr;
   flambda_oclassic_attribute attr;
-  zero_alloc_attribute attr;
-  unsafe_allow_any_kind_in_impl_attribute attr
+  zero_alloc_attribute attr
 
 let has_no_mutable_implied_modalities attrs =
   has_attribute "no_mutable_implied_modalities" attrs

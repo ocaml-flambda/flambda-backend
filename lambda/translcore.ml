@@ -536,9 +536,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | [x] -> x
         | _ -> assert false
       end else begin match cstr.cstr_tag, cstr.cstr_repr with
-      | Null, _ -> Misc.fatal_error "[Null] constructors not implemented yet"
-      | Ordinary _, Variant_with_null ->
-        Misc.fatal_error "[Variant_with_null] not implemented yet"
       | Ordinary {runtime_tag}, _ when cstr.cstr_constant ->
           assert (args_with_sorts = []);
           (* CR layouts v5: This could have void args, but for now we've ruled
@@ -612,7 +609,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Pmakemixedblock(0, Immutable, shape, alloc_mode)
             in
             Lprim (makeblock, lam :: ll, of_location ~scopes e.exp_loc)
-      | Extension _, (Variant_boxed _ | Variant_unboxed | Variant_with_null)
+      | Extension _, (Variant_boxed _ | Variant_unboxed)
       | Ordinary _, Variant_extensible -> assert false
       end
   | Texp_extension_constructor (_, path) ->
@@ -700,7 +697,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           in
           Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
-        | Record_inlined (_, _, Variant_with_null) -> assert false
       end
   | Texp_unboxed_field(arg, arg_sort, _id, lbl, _) ->
     begin match lbl.lbl_repres with
@@ -756,8 +752,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              { value_prefix_len; flat_suffix }
            in
            Psetmixedfield(lbl.lbl_pos, write, shape, mode)
-          end
-        | Record_inlined (_, _, Variant_with_null) -> assert false
+        end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.Const.for_record arg;
                      transl_exp ~scopes lbl.lbl_sort newval],
@@ -1926,7 +1921,6 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 Psetmixedfield
                   (lbl.lbl_pos, write, shape, Assignment modify_heap)
               end
-            | Record_inlined (_, _, Variant_with_null) -> assert false
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
                                 transl_exp ~scopes lbl.lbl_sort expr],
@@ -2000,7 +1994,6 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                      { value_prefix_len; flat_suffix }
                    in
                    Pmixedfield (i, read, shape, sem)
-                 | Record_inlined (_, _, Variant_with_null) -> assert false
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
@@ -2043,8 +2036,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                blocks containing unboxed float literals.
             *)
             raise Not_constant
-        | Record_inlined (_, _, (Variant_extensible | Variant_with_null))
-        | Record_inlined ((Extension _ | Null), _, _) ->
+        | Record_inlined (_, _, Variant_extensible)
+        | Record_inlined (Extension _, _, _) ->
             raise Not_constant
       with Not_constant ->
         let loc = of_location ~scopes loc in
@@ -2088,8 +2081,6 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             let shape = transl_mixed_product_shape shape in
             Lprim (Pmakemixedblock (runtime_tag, mut, shape, Option.get mode),
                    ll, loc)
-        | Record_inlined (_, _, Variant_with_null) -> assert false
-        | Record_inlined (Null, _, _) -> assert false
     in
     begin match opt_init_expr with
       None -> lam

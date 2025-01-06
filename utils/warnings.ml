@@ -129,7 +129,6 @@ type t =
   | Unchecked_zero_alloc_attribute          (* 199 *)
   | Unboxing_impossible                     (* 210 *)
   | Mod_by_top of string                    (* 211 *)
-  | Unnecessary_allow_any_kind              (* 212 *)
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -218,7 +217,6 @@ let number = function
   | Unchecked_zero_alloc_attribute -> 199
   | Unboxing_impossible -> 210
   | Mod_by_top _ -> 211
-  | Unnecessary_allow_any_kind -> 212
 ;;
 (* DO NOT REMOVE the ;; above: it is used by
    the testsuite/ests/warnings/mnemonics.mll test to determine where
@@ -594,11 +592,6 @@ let descriptions = [
     names = ["mod-by-top"];
     description = "Including the top-most element of an axis in a kind's modifiers is a no-op.";
     since = since 4 14 };
-  { number = 212;
-    names = ["unnecessary-allow-any-kind"];
-    description = "[@@unsafe_allow_any_kind_in_{impl,intf}] attributes included \
-                   on a type and a signature with matching kinds";
-    since = since 5 1 };
 ]
 
 let name_to_number =
@@ -1242,10 +1235,6 @@ let message = function
         "%s is the top-most modifier.\n\
          Modifying by a top element is a no-op."
         modifier
-  | Unnecessary_allow_any_kind ->
-    Printf.sprintf
-      "[@@allow_any_kind_in_intf] and [@@allow_any_kind_in_impl] set on a \n\
-       type, but the kind matches. The attributes can be removed."
 ;;
 
 let nerrors = ref 0

@@ -1124,11 +1124,6 @@ let iter_pattern_full ~of_sort ~of_const_sort ~both_sides_of_or f sort pat =
           let sorts =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
-            (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
-               users to write their own null constructors. *)
-            | Variant_with_null when cstr.cstr_constant -> []
-            (* CR layouts v3.3: allow all sorts. *)
-            | Variant_with_null -> [ value ]
             | Variant_boxed _ | Variant_extensible ->
               (List.map (fun { ca_sort } -> of_const_sort ca_sort )
                  cstr.cstr_args)

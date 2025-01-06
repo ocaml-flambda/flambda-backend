@@ -21,7 +21,7 @@ jobs:
         path: 'flambda_backend'
 
     - name: Setup OCaml ${{ matrix.ocaml-compiler }}
-      uses: ocaml/setup-ocaml@v3
+      uses: ocaml/setup-ocaml@v2
       with:
         ocaml-compiler: ${{ matrix.ocaml-compiler }}
 

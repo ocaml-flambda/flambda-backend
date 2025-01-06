@@ -1,5 +1,5 @@
 (* TEST
- flags = " -w +A -strict-sequence";
+ flags = " -w +A -strict-sequence -extension layouts_beta";
  expect;
 *)
 
@@ -32,7 +32,10 @@ external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 |}]
 
 (* This below tests are adapted from
-   [testsuite/tests/typing-warnings/records.ml]. *)
+   [testsuite/tests/typing-warnings/records.ml].
+
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into
+   the original or move it to [typing-layouts-products]. *)
 
 (* Use type information *)
 module M1 = struct

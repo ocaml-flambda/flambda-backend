@@ -87,7 +87,7 @@ promote:
 
 .PHONY: fmt
 fmt:
-	find . \( -name "*.ml" -or -name "*.mli" \) | xargs -P $$(nproc 2>/dev/null || echo 1) -n 20 ocamlformat -i
+	ocamlformat -i $$(find . \( -name "*.ml" -or -name "*.mli" \))
 
 .PHONY: check-fmt
 check-fmt:

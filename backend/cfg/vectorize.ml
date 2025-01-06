@@ -2725,32 +2725,10 @@ end = struct
           t1.new_positions t2.new_positions
     }
 
-  (** address registers and vectorizable registers of [t] and [t'] are compatible, i.e.,
-      register [r] used as an address argument in [t] is not replaced by a vectorizable
-      argument in [t'] and vice versa. *)
-  let register_compatible t t' deps =
-    let sub t1 t2 =
-      Instruction.Id.Map.for_all
-        (fun _key g1 ->
-          let scalar_instructions = Group.scalar_instructions g1 in
-          Group.for_all_non_vectorizable_args g1 ~f:(fun ~arg_i ->
-              List.for_all
-                (fun i ->
-                  match
-                    Dependencies.get_direct_dependency_of_arg deps
-                      (Instruction.id i) ~arg_i
-                  with
-                  | None -> true
-                  | Some dep -> not (contains_id t2 dep))
-                scalar_instructions))
-        t1.groups
-    in
-    sub t t' && sub t' t
-
   (** [compatible t t'] returns true if for every group [g] in [t],
       and [g'] in [t'],  [g] and [g'] are equal or have disjoint sets
       of scalar instructions. *)
-  let instruction_compatible t t' =
+  let compatible t t' =
     if Instruction.Id.Set.disjoint t.all_scalar_instructions
          t'.all_scalar_instructions
     then true
@@ -2769,14 +2747,14 @@ end = struct
               (* disjoint groups: if the key is not in t2, then all insts are
                  not in t2. *)
               List.for_all
-                (fun i -> not (contains t2 i))
+                (fun i ->
+                  not
+                    (Instruction.Id.Set.mem (Instruction.id i)
+                       t2.all_scalar_instructions))
                 (Group.scalar_instructions g1))
           t1.groups
       in
       sub t t' && sub t' t
-
-  let compatible t t' deps =
-    instruction_compatible t t' && register_compatible t t' deps
 
   let select_and_join trees block deps =
     match trees with
@@ -2789,7 +2767,7 @@ end = struct
         match trees with
         | [] -> acc
         | hd :: tl ->
-          if compatible hd acc deps
+          if compatible hd acc
           then
             let new_acc = join hd acc in
             if compare_cost new_acc acc < 0
