@@ -1726,8 +1726,8 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
     addr_array_initialize block ofs newval dbg
   | Word_int -> generic_case ()
   (* Generic cases that may differ under big endian archs *)
-  | Single _ | Double | Thirtytwo_unsigned | Thirtytwo_signed
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+  | Double | Thirtytwo_unsigned | Thirtytwo_signed | Onetwentyeight_unaligned
+  | Onetwentyeight_aligned ->
     if Arch.big_endian
     then
       Misc.fatal_errorf
@@ -1735,6 +1735,11 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
          architectures"
         (Printcmm.chunk memory_chunk);
     generic_case ()
+  | Single _ ->
+    let addr = array_indexing log2_size_addr block ofs dbg in
+    Csequence
+      ( Cop (Cstore (Word_int, Initialization), [addr; Cconst_int (0, dbg)], dbg),
+        Cop (Cstore (memory_chunk, Initialization), [addr; newval], dbg) )
   (* Forbidden cases *)
   | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
     Misc.fatal_errorf
