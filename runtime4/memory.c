@@ -647,6 +647,10 @@ CAMLexport CAMLweakdef void caml_initialize (value *fp, value val)
 {
   CAMLassert(Is_in_heap_or_young(fp));
   *fp = val;
+  if (Is_block(val) && (((uintnat) val) % 8 != 0)) {
+    fprintf(stderr, "caml_initialize at 0x%p with new block value 0x%p is misaligned\n", fp, (void*) val);
+    caml_attach_gdb(Val_unit);
+  }
   if (!Is_young((value)fp) && Is_block (val) && Is_young (val)) {
     add_to_ref_table (Caml_state->ref_table, fp);
   }

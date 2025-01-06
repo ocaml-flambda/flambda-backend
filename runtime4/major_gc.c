@@ -206,6 +206,8 @@ static void realloc_mark_stack (struct mark_stack* stk)
   mark_stack_prune(stk);
 }
 
+extern void caml_attach_gdb(value);
+
 /* This function pushes the provided mark_entry [me] onto the current mark
    stack [stk]. It first checks, if the block is small enough, whether there
    are any fields we would actually do mark work on. If so then it enqueues
@@ -216,6 +218,21 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
   value v;
   int i, block_scannable_wsz, block_wsz, end;
   mark_entry* me;
+
+  if (!Is_block(block)) {
+    fprintf(stderr, "mark_stack_push with block=0x%p: is not a block\n", (void*) block);
+    caml_attach_gdb(Val_unit);
+  }
+
+  if (Tag_val(block) < No_scan_tag) {
+    fprintf(stderr, "mark_stack_push with block=0x%p: has tag %d\n", (void*) block, Tag_val(block));
+    caml_attach_gdb(Val_unit);
+  }
+
+  if (((uintnat) block) % 8 != 0) {
+    fprintf(stderr, "mark_stack_push with block=0x%p: is misaligned\n", (void*) block);
+    caml_attach_gdb(Val_unit);
+  }
 
   CAMLassert(Is_block(block) && Is_in_heap (block)
             && Is_black_val(block));
