@@ -1205,10 +1205,10 @@ module Jkind_desc = struct
     in
     let upper_bounds = to_.upper_bounds in
     let upper_bounds, added1 =
-      add_crossing ~axis:(Modal Portability) upper_bounds
+      add_crossing ~axis:(Modal (Comonadic Portability)) upper_bounds
     in
     let upper_bounds, added2 =
-      add_crossing ~axis:(Modal Contention) upper_bounds
+      add_crossing ~axis:(Modal (Monadic Contention)) upper_bounds
     in
     { to_ with upper_bounds }, added1 || added2
 
@@ -1606,19 +1606,19 @@ let extract_layout jk = jk.jkind.layout
 let get_modal_upper_bounds ~type_equal ~jkind_of_type jk : Alloc.Const.t =
   let bounds = jk.jkind.upper_bounds in
   { areality =
-      Bound.reduce ~axis:(Modal Locality) ~type_equal ~jkind_of_type
+      Bound.reduce ~axis:(Modal (Comonadic Areality)) ~type_equal ~jkind_of_type
         bounds.locality;
     linearity =
-      Bound.reduce ~axis:(Modal Linearity) ~type_equal ~jkind_of_type
-        bounds.linearity;
+      Bound.reduce ~axis:(Modal (Comonadic Linearity)) ~type_equal
+        ~jkind_of_type bounds.linearity;
     uniqueness =
-      Bound.reduce ~axis:(Modal Uniqueness) ~type_equal ~jkind_of_type
+      Bound.reduce ~axis:(Modal (Monadic Uniqueness)) ~type_equal ~jkind_of_type
         bounds.uniqueness;
     portability =
-      Bound.reduce ~axis:(Modal Portability) ~type_equal ~jkind_of_type
-        bounds.portability;
+      Bound.reduce ~axis:(Modal (Comonadic Portability)) ~type_equal
+        ~jkind_of_type bounds.portability;
     contention =
-      Bound.reduce ~axis:(Modal Contention) ~type_equal ~jkind_of_type
+      Bound.reduce ~axis:(Modal (Monadic Contention)) ~type_equal ~jkind_of_type
         bounds.contention
   }
 
