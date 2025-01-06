@@ -802,9 +802,10 @@ let box_float32 dbg mode exp =
 
 let unbox_float32 dbg =
   map_tail ~kind:Any (function
-    | Cop (Calloc _, [Cconst_natint (hdr, _); _ops; c], _)
-      when Nativeint.equal hdr boxedfloat32_header
-           || Nativeint.equal hdr boxedfloat32_local_header ->
+    | Cop (Calloc _, [Cconst_natint (hdr, _); Cconst_symbol (sym, _); c], _)
+      when (Nativeint.equal hdr boxedfloat32_header
+           || Nativeint.equal hdr boxedfloat32_local_header)
+           && String.equal sym.sym_name caml_float32_ops ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
