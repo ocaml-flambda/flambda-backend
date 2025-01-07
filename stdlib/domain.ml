@@ -453,7 +453,7 @@ end
 module type S = sig
   module DLS : sig
     module Access : sig
-      type t : value mod global portable many unique
+      type t : value mod external_ global portable many unique
 
       val for_initial_domain : t @@ nonportable
     end
