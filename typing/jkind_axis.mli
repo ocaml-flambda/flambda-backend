@@ -64,6 +64,7 @@ module Axis : sig
       | Uniqueness : Mode.Uniqueness.Const.t t
       | Portability : Mode.Portability.Const.t t
       | Contention : Mode.Contention.Const.t t
+      | Yielding : Mode.Yielding.Const.t t
   end
 
   module Nonmodal : sig
@@ -98,6 +99,7 @@ module Axis_collection (T : Misc.T1) : sig
       uniqueness : Mode.Uniqueness.Const.t T.t;
       portability : Mode.Portability.Const.t T.t;
       contention : Mode.Contention.Const.t T.t;
+      yielding : Mode.Yielding.Const.t T.t;
       externality : Externality.t T.t;
       nullability : Nullability.t T.t
     }

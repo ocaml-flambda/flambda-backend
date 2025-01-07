@@ -263,7 +263,26 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_monadic
   end
 
-  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t
+  module Yielding : sig
+    module Const : sig
+      type t =
+        | Yielding
+        | Unyielding
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
+  end
+
+  type 'a comonadic_with = private
+    'a * Linearity.Const.t * Portability.Const.t * Yielding.Const.t
 
   type monadic = private Uniqueness.Const.t * Contention.Const.t
 
@@ -274,6 +293,7 @@ module type S = sig
       | Areality : ('a comonadic_with, 'a) t
       | Linearity : ('areality comonadic_with, Linearity.Const.t) t
       | Portability : ('areality comonadic_with, Portability.Const.t) t
+      | Yielding : ('areality comonadic_with, Yielding.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
       | Contention : (monadic, Contention.Const.t) t
 
@@ -317,12 +337,13 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-    type ('a, 'b, 'c, 'd, 'e) modes =
+    type ('a, 'b, 'c, 'd, 'e, 'f) modes =
       { areality : 'a;
         linearity : 'b;
         uniqueness : 'c;
         portability : 'd;
-        contention : 'e
+        contention : 'e;
+        yielding : 'f
       }
 
     module Const : sig
@@ -333,7 +354,8 @@ module type S = sig
               Linearity.Const.t,
               Uniqueness.Const.t,
               Portability.Const.t,
-              Contention.Const.t )
+              Contention.Const.t,
+              Yielding.Const.t )
             modes
 
       module Option : sig
@@ -344,7 +366,8 @@ module type S = sig
             Linearity.Const.t option,
             Uniqueness.Const.t option,
             Portability.Const.t option,
-            Contention.Const.t option )
+            Contention.Const.t option,
+            Yielding.Const.t option )
           modes
 
         val none : t
