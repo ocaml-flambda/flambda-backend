@@ -120,6 +120,8 @@ end
 (* Like [Stdlib.raise], but [portable], and the value
    it never returns is also [portable] *)
 external reraise : exn -> 'a @ portable @@ portable = "%reraise"
+external raise_with_backtrace: exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
+external get_raw_backtrace: unit -> Printexc.raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
 external raise_with_backtrace :
   exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
@@ -141,11 +143,14 @@ module Data = struct
 
   let create f = unsafe_mk (f ())
 
+  (* CR-soon mslater/tdelvecchio: copying the backtrace at each reraise can cause quadratic
+     behavior when propagating the exception through nested handlers. This should use a
+     new reraise-with-current-backtrace primitive that doesn't do the copy. *)
   let reraise_encapsulated password exn =
-    reraise (Encapsulated (Password.name password, unsafe_mk exn))
+    raise_with_backtrace (Encapsulated (Password.name password, unsafe_mk exn)) (get_raw_backtrace ())
 
   let reraise_encapsulated_shared password exn =
-    reraise (Encapsulated (Password.Shared.name password, unsafe_mk exn))
+    raise_with_backtrace (Encapsulated (Password.Shared.name password, unsafe_mk exn)) (get_raw_backtrace ())
 
   let map pw f t =
     let v = unsafe_get t in
@@ -377,9 +382,37 @@ let create_with_rwlock () =
 
 exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
 
+<<<<<<< HEAD
 (* CR-soon mslater: replace with portable stdlib *)
 let get_raw_backtrace : unit -> Printexc.raw_backtrace @@ portable =
   O.magic O.magic Printexc.get_raw_backtrace
+||||||| 2de23a5caa
+let protect_local f = exclave_
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  let reraise data = reraise (Protected ({ name; mutex = M.create (); poisoned = false }, data)) in
+  try f (Password.P password) with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal -> reraise data
+     | None -> reraise (Data.unsafe_mk exn))
+  | exn -> reraise (Data.unsafe_mk exn)
+=======
+let protect_local f = exclave_
+  let (P name) = Name.make () in
+  let password = Password.unsafe_mk name in
+  let reraise data =
+    let backtrace = get_raw_backtrace () in
+    let exn = (Protected ({ name; mutex = M.create (); poisoned = false }, data)) in
+    raise_with_backtrace exn backtrace
+  in
+  try f (Password.P password) with
+  | Encapsulated (inner, data) as exn ->
+    (match Name.equality_witness name inner with
+     | Some Equal -> reraise data
+     | None -> reraise (Data.unsafe_mk exn))
+  | exn -> reraise (Data.unsafe_mk exn)
+>>>>>>> flambda-backend/main
 
 let protect f =
   try f () with
