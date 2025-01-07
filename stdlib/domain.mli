@@ -175,6 +175,7 @@ module Safe : sig
         running in the (conceptual) capsule of the current domain. *)
     module Access : sig
 
+      (* CR layouts v5: this should have layout [void]. *)
       type t : value mod global portable many unique
       (** [t] represents access to the current domain's capsule, allowing interaction with
           data in its DLS. *)
