@@ -153,6 +153,10 @@ jobs:
       if: matrix.os == 'ubuntu-22.04'
       run: sudo apt-get install afl++
 
+    - name: gdb
+      if: matrix.os == 'ubuntu-22.04'
+      run: sudo apt-get install gdb
+
     - name: Install AFL (for macOS workers)
       # The "afl-fuzz" package is deprecated (2023-10) and can no longer be installed
       if: matrix.os == 'macos-latest'

@@ -224,8 +224,8 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
     caml_attach_gdb(Val_unit);
   }
 
-  if (Tag_val(block) < No_scan_tag) {
-    fprintf(stderr, "mark_stack_push with block=0x%p: has tag %d\n", (void*) block, Tag_val(block));
+  if (Tag_val(block) >= No_scan_tag) {
+    fprintf(stderr, "mark_stack_push with block=0x%p: non-scannable, tag %d\n", (void*) block, Tag_val(block));
     caml_attach_gdb(Val_unit);
   }
 
