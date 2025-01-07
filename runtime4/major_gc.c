@@ -229,6 +229,11 @@ Caml_inline void mark_stack_push(struct mark_stack* stk, value block,
     caml_attach_gdb(Val_unit);
   }
 
+  if (Wosize_val(block) >= 5000000) {
+    fprintf(stderr, "mark_stack_push with block=0x%p: ridiculous size of %d\n", (void*) block, Wosize_val(block));
+    caml_attach_gdb(Val_unit);
+  }
+
   if (((uintnat) block) % 8 != 0) {
     fprintf(stderr, "mark_stack_push with block=0x%p: is misaligned\n", (void*) block);
     caml_attach_gdb(Val_unit);
