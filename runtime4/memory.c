@@ -631,8 +631,8 @@ CAMLprim value caml_attach_gdb (value unit)
 #else
   snprintf(buf, 2048, "gdb --batch -ex bt -p %d", getpid ());
 #endif
-  (void) system(buf);
-  abort();
+  int x = system(buf);
+  if (x > -1000000) abort();
 }
 
 /* You must use [caml_initialize] to store the initial value in a field of
