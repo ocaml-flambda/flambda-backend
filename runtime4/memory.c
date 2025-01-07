@@ -623,7 +623,7 @@ CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
 }
 
 #include <unistd.h>
-CAMLprim value caml_attach_gdb (value unit)
+CAMLprim void caml_attach_gdb (value unit)
 {
   char buf[2048];
 #ifdef __APPLE__
