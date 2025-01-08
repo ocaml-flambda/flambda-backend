@@ -4,6 +4,13 @@
  (name flambda2_algorithms)
  (wrapped true)
  (instrumentation (backend bisect_ppx))
+ (foreign_stubs
+  (language c)
+  (names builtin_stubs)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp))))
  (ocamlopt_flags
   (:standard -O3 -open Int_replace_polymorphic_compare))
  (libraries ocamlcommon))
