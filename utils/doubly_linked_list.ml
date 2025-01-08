@@ -340,6 +340,14 @@ let for_all t ~f =
   in
   aux t f t.first
 
+let for_all_i t ~f =
+  let rec aux t f i curr =
+    match curr with
+    | Empty -> true
+    | Node node -> if f i node.value then aux t f (i + 1) node.next else false
+  in
+  aux t f 0 t.first
+
 let to_list t = fold_right t ~f:(fun hd tl -> hd :: tl) ~init:[]
 
 let transfer ~to_ ~from () =
