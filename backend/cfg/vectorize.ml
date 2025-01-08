@@ -2119,7 +2119,7 @@ end = struct
         = Simd_selection.vector_width_in_bits);
       Format.(
         State.dump_debug (Dependencies.state deps) "Group.init\n%a\n"
-          (pp_print_list ~pp_sep:pp_print_newline Instruction.print_id)
+          (pp_print_list ~pp_sep:pp_print_newline Instruction.print)
           instructions);
       match instructions with
       | [] -> assert false
@@ -2142,7 +2142,10 @@ end = struct
               ~res_count cfg_ops
           in
           match vector_instructions with
-          | None -> None
+          | None ->
+            State.dump_debug (Dependencies.state deps)
+              "Group.init: cannot vectorize operation\n";
+            None
           | Some vector_instructions ->
             let non_address_arg_count =
               match mem_op with
