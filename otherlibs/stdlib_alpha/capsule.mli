@@ -569,7 +569,7 @@ exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
     in [Protected] to avoid leaking access to the data. The [Mutex.t] can
     be used to access the [Data.t]. *)
 
-val protect : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
+val protect : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
 (** [protect f] runs [f password] in a fresh capsule represented by [password].
     If [f] returns normally, [protect] merges the capsule into the caller's capsule.
     If [f] raises an [Encapsulated] exception in the capsule represented by [password],
@@ -582,7 +582,7 @@ val with_password : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
     If [f] raises an [Encapsulated] exception in the capsule represented by [password],
     [with_password] unwraps the exception and re-raises it directly. *)
 
-val protect_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
+val protect_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
 (** See [protect]. *)
 
 val with_password_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
