@@ -2316,7 +2316,7 @@ let emit_probe_notes0 () =
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
           Printreg.reg arg
     in
-    Printf.sprintf "%d@%s" (Reg.size_of_contents_in_bytes arg) arg_name
+    Printf.sprintf "%d@%s" (Select_utils.size_component arg.Reg.typ) arg_name
   in
   let describe_one_probe p =
     let probe_name, enabled_at_init =

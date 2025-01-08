@@ -193,18 +193,6 @@ let is_reg t =
   | Reg _ -> true
   | _ -> false
 
-let size_of_contents_in_bytes t =
-  match t.typ with
-  | Vec128 -> Arch.size_vec128
-  | Float -> Arch.size_float
-  | Float32 ->
-    assert (Arch.size_float = 8);
-    Arch.size_float / 2
-  | Addr ->
-    assert (Arch.size_addr = Arch.size_int);
-    Arch.size_addr
-  | Int | Val -> Arch.size_int
-
 let reset() =
   (* When reset() is called for the first time, the current stamp reflects
      all hard pseudo-registers that have been allocated by Proc, so

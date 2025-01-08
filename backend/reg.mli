@@ -102,8 +102,6 @@ val name : t -> string
 val is_reg : t -> bool
 val is_stack :  t -> bool
 
-val size_of_contents_in_bytes : t -> int
-
 module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
 module Tbl: Hashtbl.S with type key = t
