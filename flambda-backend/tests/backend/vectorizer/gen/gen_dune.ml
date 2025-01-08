@@ -170,6 +170,13 @@ let print_test ?(filter_exit_code = 0) name =
 
 let () =
   print_test "test1";
+  print_test "test_arrays";
+  print_test "test_int64_unboxed";
+  print_test "test_float_unboxed";
+  print_test "test_int64";
+  print_test "test_float";
+  print_test "test_float32_unboxed";
+  print_test "test_int32_unboxed";
   (* can't vectorize *)
   print_test ~filter_exit_code:1 "test_register_compatible";
   ()

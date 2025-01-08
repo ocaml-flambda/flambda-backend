@@ -1,0 +1,4 @@
+add_unboxed_pairs_mutable_record { d0 = 88. ; d1 = 110.; d2 = 0. ; d3 = -1. }
+copy_unboxed_pairs_mutable_record { d0 = 88. ; d1 = 110.; d2 = 0. ; d3 = -1. }
+copy_bytes 10. 10. 10. 10. 
+copy_bytes_pos 10. 10. 10. 10. 

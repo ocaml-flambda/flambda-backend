@@ -1,0 +1,2 @@
+**** Vectorize selected computation: 2 groups, 8 scalar instructions, 2 vector instructions, cost = -6 (Test_int32_unboxed_vectorized.copy_array_index_from_start)
+**** Vectorize selected computation: 2 groups, 8 scalar instructions, 2 vector instructions, cost = -6 (Test_int32_unboxed_vectorized.copy_array_from_start)
