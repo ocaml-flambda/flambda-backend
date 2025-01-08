@@ -12,6 +12,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Global = struct
+  type 'a t = { global : 'a @@ global } [@@unboxed]
+end
+
+open Global
+
 (* Like [int Stdlib.Atomic.t], but [portable]. *)
 module A = struct
   type t : value mod portable uncontended
@@ -137,20 +143,21 @@ module Data = struct
 
   external unsafe_get : (('a, 'k) t[@local_opt]) -> ('a[@local_opt]) @@ portable = "%identity"
 
+  let wrap _ t = unsafe_mk t
   let wrap_local _ t = exclave_ unsafe_mk t
 
+  let unwrap _ t = unsafe_get t
   let unwrap_local _ t = exclave_ unsafe_get t
 
-  let wrap _ t = unsafe_mk t
-
-  let unwrap _ t = unsafe_get t
-
   let unwrap_shared _ t = unsafe_get t
+  let unwrap_shared_local _ t = exclave_ unsafe_get t
 
   let create f = unsafe_mk (f ())
-
   let create_local f = exclave_ unsafe_mk (f ())
 
+  (* CR-soon mslater/tdelvecchio: copying the backtrace at each reraise can cause quadratic
+     behavior when propagating the exception through nested handlers. This should use a
+     new reraise-with-current-backtrace primitive that doesn't do the copy. *)
   let reraise_encapsulated password exn =
     raise_with_backtrace (Encapsulated (Password.name password, unsafe_mk exn)) (get_raw_backtrace ())
 
@@ -163,7 +170,17 @@ module Data = struct
     | res -> unsafe_mk res
     | exception exn -> reraise_encapsulated pw exn
 
+  let map_local pw f t = exclave_
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise_encapsulated pw exn
+
   let fst t =
+    let t1, _ = unsafe_get t in
+    unsafe_mk t1
+
+  let fst_local t = exclave_
     let t1, _ = unsafe_get t in
     unsafe_mk t1
 
@@ -171,23 +188,35 @@ module Data = struct
     let _, t2 = unsafe_get t in
     unsafe_mk t2
 
-  let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
+  let snd_local t = exclave_
+    let _, t2 = unsafe_get t in
+    unsafe_mk t2
 
-  let extract_local pw f t = exclave_
-    let v = unsafe_get t in
-    try f v with
-    |  exn -> reraise_encapsulated pw exn
+  let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
+  let both_local t1 t2 = exclave_ unsafe_mk (unsafe_get t1, unsafe_get t2)
 
   let extract pw f t =
     let v = unsafe_get t in
     try f v with
     |  exn -> reraise_encapsulated pw exn
 
+  let extract_local pw f t = exclave_
+    let v = unsafe_get t in
+    try f v with
+    |  exn -> reraise_encapsulated pw exn
+
   let inject = unsafe_mk
+  let inject_local = unsafe_mk
 
   let project = unsafe_get
+  let project_local = unsafe_get
 
   let bind pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated pw exn
+
+  let bind_local pw f t = exclave_
     let v = unsafe_get t in
     try f v with
     | exn -> reraise_encapsulated pw exn
@@ -208,7 +237,19 @@ module Data = struct
     | res -> unsafe_mk res
     | exception exn -> reraise_encapsulated_shared pw exn
 
+  let map_shared_local pw f t = exclave_
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise_encapsulated_shared pw exn
+
+
   let extract_shared pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated_shared pw exn
+
+  let extract_shared_local pw f t = exclave_
     let v = unsafe_get t in
     try f v with
     | exn -> reraise_encapsulated_shared pw exn
@@ -223,17 +264,17 @@ let access_local (type k) (pw : k Password.t) f = exclave_
   | res -> res
   | exception exn -> Data.reraise_encapsulated pw exn
 
-let access (type k) (pw : k Password.t) f =
-  let c : k Access.t = Access.unsafe_mk () in
-  match f c with
-  | res -> res
-  | exception exn -> Data.reraise_encapsulated pw exn
+let access pw f =
+  (access_local pw (fun access -> { global = f access })).global
 
-let access_shared (type k) (pw : k Password.Shared.t) f =
+let access_shared_local (type k) (pw : k Password.Shared.t) f = exclave_
   let c : k Access.t = Access.unsafe_mk () in
   match f c with
   | res -> res
   | exception exn -> Data.reraise_encapsulated_shared pw exn
+
+let access_shared pw f =
+  (access_shared_local pw (fun access -> { global = f access })).global
 
 (* Like [Stdlib.Mutex], but [portable] and is a no-op in runtime4. *)
 module M = struct
@@ -332,11 +373,6 @@ let with_password_local f = exclave_
      | None -> reraise exn)
   | exn -> reraise exn
 
-module Global = struct
-  type 'a t = { global : 'a @@ global } [@@unboxed]
-end
-
-open Global
 let protect f = (protect_local (fun password -> { global = f password })).global
 let with_password f = (with_password_local (fun password -> { global = f password })).global
 
