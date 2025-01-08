@@ -100,7 +100,7 @@ module Password : sig
   module Shared : sig
     (* CR layouts v5: this should have layout [void], but
        [void] can't be used for function argument and return types yet. *)
-    type 'k t
+    type 'k t : value mod external_ portable many unique uncontended
 
     (* Can break the soundness of the API. *)
     val name : 'k t @ local -> 'k Name.t @@ portable

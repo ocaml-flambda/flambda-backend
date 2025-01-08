@@ -91,8 +91,8 @@ val initial : initial Access.t
 (** Passwords represent permission to get access to a capsule. *)
 module Password : sig
 
-    (* CR layouts v5: this should have layout [void], but
-       [void] can't be used for function argument and return types yet. *)
+  (* CR layouts v5: this should have layout [void], but
+     [void] can't be used for function argument and return types yet. *)
   type 'k t : value mod external_ portable many unique uncontended
   (** ['k t] is the type of "passwords" representing permission for the
      current fiber to have [uncontended] access to the capsule
@@ -114,7 +114,7 @@ module Password : sig
   (** Shared passwords represent permission to get shared access to a capsule *)
   module Shared : sig
 
-    type 'k t
+    type 'k t : value mod external_ portable many unique uncontended
     (** ['k t] is the type of "shared passwords" representing permission
         for the current fiber to have [shared] access to the capsule
         ['k]. They are only ever avilable locally, so that they cannot
