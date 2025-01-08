@@ -364,13 +364,23 @@ let record_frame_label live dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-      | {typ = Val; loc = Reg r} ->
+      | {typ = Val; loc = Reg r} as reg ->
+          assert (Proc.gc_regs_offset reg = r);
           live_offset := ((r lsl 1) + 1) :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
           live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
+      | {typ = Valx2; loc = Reg r} as reg ->
+          let n = Proc.gc_regs_offset reg in
+          let encode n = ((n lsl 1) + 1) in
+          live_offset := encode n :: encode (n + 1) :: !live_offset
+      | {typ = Valx2; loc = Stack s} as reg ->
+          let n = slot_offset s (stack_slot_class reg.typ)  in
+          live_offset := n :: n + 1 :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
-      | _ -> ()
+      | { typ = (Val | Valx2); loc = Unknown ; } as r ->
+        Misc.fatal_error ("Unknown location " ^ Reg.name r)
+      | { typ = Int | Float | Float32 | Vec128; _ } -> ()
     )
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size())
@@ -2242,6 +2252,7 @@ let emit_probe_handler_wrapper p =
         (match r.typ with
         | Val -> k::acc
         | Int | Float | Vec128 | Float32 -> acc
+        | Valx2 -> k::k+1::acc
         | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
       | _ -> assert false)
     saved_live
