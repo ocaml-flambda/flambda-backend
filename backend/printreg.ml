@@ -43,6 +43,7 @@ let reg ppf r =
     | Int -> "I"
     | Float -> "F"
     | Vec128 -> "X"
+    | Valx2 -> "VV"
     | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc
@@ -62,6 +63,8 @@ let regs' ?(print_reg = reg) ppf v =
     done
 
 let regs ppf v = regs' ppf v
+
+let reglist ppf l = Format.pp_print_list ~pp_sep:pp_print_space reg ppf l
 
 let regset ppf s =
   let first = ref true in

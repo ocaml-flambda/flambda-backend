@@ -127,6 +127,7 @@ method! reload_operation op arg res =
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
   | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
+  | Ispecific(Isimd_mem (op,_)) -> Simd_reload.Mem.reload_operation self#makereg op arg res
   | Iconst_int n ->
       if n <= 0x7FFFFFFFn && n >= -0x80000000n
       then (arg, res)

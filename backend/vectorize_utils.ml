@@ -72,11 +72,17 @@ module Memory_access = struct
   let desc t = t.desc
 
   let first_memory_arg_index t = t.first_memory_arg_index
+
+  let alignment_in_bytes t =
+    (* CR-someday gyorsh: propagate alignment of base address (such as
+       bigarray). Can be used to emit more efficient vector sequences, for
+       example, arithmetic operations with memory arguments (not stack). *)
+    Arch.size_int
 end
 
 module Vectorized_instruction = struct
   type register =
-    | New of int
+    | New_Vec128 of int
     | Argument of int
     | Result of int
     | Original of int
@@ -95,3 +101,18 @@ module Vectorized_instruction = struct
       results = Array.init res_count (fun i -> Result i)
     }
 end
+
+let vectorizable_machtypes (r1 : Reg.t) (r2 : Reg.t) =
+  match r1.typ, r2.typ with
+  | (Vec128 | Valx2), (Val | Int | Addr | Float | Float32 | Vec128 | Valx2)
+  | (Val | Int | Addr | Float | Float32), (Vec128 | Valx2) ->
+    Misc.fatal_errorf "Unexpected vector machtype Vec128 or Valx2: %a %a"
+      Printreg.reg r1 Printreg.reg r2
+  | Val, Val -> true
+  | Val, (Int | Addr | Float | Float32) | (Int | Addr | Float | Float32), Val ->
+    false
+  | (Int | Addr | Float | Float32), (Int | Addr | Float | Float32) ->
+    (* It is safe to mix Float32, Float, and Int for the purpose of GC, because
+       they are not scannable. It may not be possible to vectorize the
+       operation. *)
+    true

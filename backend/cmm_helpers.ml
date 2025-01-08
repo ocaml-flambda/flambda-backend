@@ -1577,6 +1577,7 @@ module Extended_machtype_component = struct
     | Float -> Float
     | Vec128 -> Vec128
     | Float32 -> Float32
+    | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
 
   let to_machtype_component t : machtype_component =
     match t with
@@ -1657,6 +1658,7 @@ let machtype_identifier t =
     | Float32 -> 'S'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
+    | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
   in
   String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
@@ -3101,6 +3103,7 @@ let machtype_stored_size t =
     (fun cur c ->
       match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
       | Val | Int -> cur + 1
       | Float -> cur + ints_per_float
       | Float32 ->
@@ -3114,6 +3117,7 @@ let machtype_non_scanned_size t =
     (fun cur c ->
       match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
       | Val -> cur
       | Int -> cur + 1
       | Float -> cur + ints_per_float
@@ -3135,6 +3139,7 @@ let value_slot_given_machtype vs =
         match (c : machtype_component) with
         | Int | Float | Float32 | Vec128 -> true
         | Val -> false
+        | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
         | Addr -> assert false)
       vs
   in
@@ -3162,6 +3167,7 @@ let read_from_closure_given_machtype t clos base_offset dbg =
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),
             load Onetwentyeight_unaligned non_scanned_pos )
         | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
+        | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
         | Addr -> Misc.fatal_error "[Addr] cannot be read")
       (base_offset, base_offset + machtype_non_scanned_size t)
       (Array.to_list t)

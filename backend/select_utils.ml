@@ -219,6 +219,10 @@ let size_component : machtype_component -> int = function
        Note that packed float32# arrays are handled via a separate path. *)
     Arch.size_float
   | Vec128 -> Arch.size_vec128
+  | Valx2 ->
+    let s = Arch.size_int * 2 in
+    assert (Int.equal s Arch.size_vec128);
+    s
 
 let size_machtype mty =
   let size = ref 0 in
@@ -786,6 +790,8 @@ class virtual ['env, 'op, 'instr] common_selector =
                        (big)array operations are handled separately via cmm. *)
                     Onetwentyeight_unaligned
                   | Val | Addr | Int -> Word_val
+                  | Valx2 ->
+                    Misc.fatal_error "Unexpected machtype_component Valx2"
                 in
                 self#insert_debug env
                   (self#make_store kind !a false)
