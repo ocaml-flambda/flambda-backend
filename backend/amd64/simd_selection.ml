@@ -857,7 +857,6 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       | W32 -> None (* See previous comment *)
       | W16 -> None
       | W8 -> None)
-    | Ifloatarithmem _ -> None
     | Istore_int (_n, addressing_mode, is_assignment) -> (
       if not (Vectorize_utils.Width_in_bits.equal width_type W64)
       then None
@@ -903,6 +902,75 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           in
           Some [const_instruction; store_instruction]
         | Some _ -> None)
+    | Ifloatarithmem (float_width, float_op, addressing_mode) ->
+      let float_width_in_bits : Vectorize_utils.Width_in_bits.t =
+        match float_width with Float64 -> W64 | Float32 -> W32
+      in
+      assert (Vectorize_utils.Width_in_bits.equal float_width_in_bits width_type);
+      let num_args_addressing = Arch.num_args_addressing addressing_mode in
+      assert (arg_count = 1 + num_args_addressing);
+      assert (res_count = 1);
+      let results = [| Vectorize_utils.Vectorized_instruction.Result 0 |] in
+      let address_args =
+        Array.init num_args_addressing (fun i ->
+            Vectorize_utils.Vectorized_instruction.Original (i + 1))
+      in
+      if is_aligned_to_vector_width ()
+      then
+        let sse_op : Simd.Mem.operation =
+          match float_width, float_op with
+          | Float64, Ifloatadd -> SSE2 Add_f64
+          | Float64, Ifloatsub -> SSE2 Sub_f64
+          | Float64, Ifloatmul -> SSE2 Mul_f64
+          | Float64, Ifloatdiv -> SSE2 Div_f64
+          | Float32, Ifloatadd -> SSE Add_f32
+          | Float32, Ifloatsub -> SSE Sub_f32
+          | Float32, Ifloatmul -> SSE Mul_f32
+          | Float32, Ifloatdiv -> SSE Div_f32
+        in
+        Some
+          [ { operation =
+                Operation.Specific (Isimd_mem (sse_op, addressing_mode));
+              arguments = Array.append results address_args;
+              results
+            } ]
+      else
+        (* Emit a load followed by an arithmetic operation, effectively
+           reverting the decision from Arch.selection. It will probably not be
+           beneficial with 128-bit accesses. *)
+        let sse_op : Simd.operation =
+          match float_width, float_op with
+          | Float64, Ifloatadd -> SSE2 Add_f64
+          | Float64, Ifloatsub -> SSE2 Sub_f64
+          | Float64, Ifloatmul -> SSE2 Mul_f64
+          | Float64, Ifloatdiv -> SSE2 Div_f64
+          | Float32, Ifloatadd -> SSE Add_f32
+          | Float32, Ifloatsub -> SSE Sub_f32
+          | Float32, Ifloatmul -> SSE Mul_f32
+          | Float32, Ifloatdiv -> SSE Div_f32
+        in
+        let new_reg = [| Vectorize_utils.Vectorized_instruction.New 0 |] in
+        let load : Vectorize_utils.Vectorized_instruction.t =
+          { operation =
+              Operation.Load
+                { memory_chunk = vec128_chunk ();
+                  addressing_mode;
+                  mutability = Mutable;
+                  is_atomic = false
+                };
+            arguments = address_args;
+            results = new_reg
+          }
+        in
+        let arith : Vectorize_utils.Vectorized_instruction.t =
+          { operation = Operation.Specific (Isimd sse_op);
+            arguments = Array.append results new_reg;
+            results
+          }
+        in
+        Some [load; arith]
+    | Isimd_mem _ ->
+      Misc.fatal_error "Unexpected simd operation with memory arguments"
     | Ioffset_loc _ | Ibswap _ | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence
     | Ipause | Isimd _ | Iprefetch _ | Icldemote _ ->
       None)
