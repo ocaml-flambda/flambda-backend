@@ -14,3 +14,9 @@
  (ocamlopt_flags
   (:standard -O3 -open Int_replace_polymorphic_compare))
  (libraries ocamlcommon))
+
+(install
+ (files
+  (dllflambda2_algorithms_stubs.so as stublibs/dllflambda2_algorithms_stubs.so))
+ (section lib)
+ (package ocaml))
