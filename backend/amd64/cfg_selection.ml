@@ -86,7 +86,14 @@ let pseudoregs_for_operation op arg res =
        edx (high) and eax (low). Make it simple and force the argument in rcx,
        and rax and rdx clobbered *)
     [| rcx |], res
-  | Specific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
+  | Specific (Isimd op) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.register_behavior op)
+      arg res
+  | Specific (Isimd_mem (op, _addr)) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.Mem.register_behavior op)
+      arg res
   | Csel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in

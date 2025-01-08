@@ -1034,8 +1034,8 @@ let emit_static_cast (cast : Cmm.static_cast) i =
        CR mslater: (SIMD) don't load 32 bits once we have unboxed int16/int8 *)
     I.movd (arg32 i 0) (res i 0)
 
-let emit_simd_instr op i =
-  (match Simd_proc.register_behavior op with
+let check_simd_instr (register_behavior : Simd_proc.register_behavior) i =
+  (match register_behavior with
   | R_to_fst ->
     assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0))
@@ -1075,6 +1075,23 @@ let emit_simd_instr op i =
     assert (Reg.is_reg i.arg.(0));
     assert (Reg.same_loc i.res.(0) (phys_xmm0v ()))
   );
+  ()
+
+let emit_simd_instr_with_memory_arg op i addressing_mode =
+  check_simd_instr (Simd_proc.Mem.register_behavior op) i;
+  let addr = addressing addressing_mode VEC128 i 1 in
+  match (op : Simd.Mem.operation) with
+  | SSE2 Add_f64 -> I.addpd addr (res i 0)
+  | SSE2 Sub_f64 -> I.subpd addr (res i 0)
+  | SSE2 Mul_f64 -> I.mulpd addr (res i 0)
+  | SSE2 Div_f64 -> I.divpd addr (res i 0)
+  | SSE Add_f32 -> I.addps addr (res i 0)
+  | SSE Sub_f32 -> I.subps addr (res i 0)
+  | SSE Mul_f32 -> I.mulps addr (res i 0)
+  | SSE Div_f32 -> I.divps addr (res i 0)
+
+let emit_simd_instr op i =
+  check_simd_instr (Simd_proc.register_behavior op) i;
   match (op : Simd.operation) with
   | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
   | BMI2 Extract_64 -> I.pext (arg i 1) (arg i 0) (res i 0)
@@ -1714,6 +1731,8 @@ let emit_instr ~first ~fallthrough i =
     I.mfence ()
   | Lop (Specific (Isimd op)) ->
     emit_simd_instr op i
+  | Lop (Specific (Isimd_mem (op, addressing_mode))) ->
+    emit_simd_instr_with_memory_arg op i addressing_mode
   | Lop (Static_cast cast) ->
     emit_static_cast cast i
   | Lop (Reinterpret_cast cast) ->

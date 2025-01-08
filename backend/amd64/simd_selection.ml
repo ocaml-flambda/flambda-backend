@@ -439,12 +439,13 @@ let select_operation_cfg op args =
   select_simd_instr op args
   |> Option.map (fun (op, args) -> Operation.Specific (Isimd op), args)
 
-let pseudoregs_for_operation op arg res =
+let pseudoregs_for_operation (register_behavior : Simd_proc.register_behavior)
+    arg res =
   let rax = Proc.phys_reg Int 0 in
   let rcx = Proc.phys_reg Int 5 in
   let rdx = Proc.phys_reg Int 4 in
   let xmm0v () = Proc.phys_reg Vec128 100 in
-  match Simd_proc.register_behavior op with
+  match register_behavior with
   | R_to_R | RM_to_R | R_to_RM | R_RM_to_R -> arg, res
   | R_to_fst ->
     (* arg.(0) and res.(0) must be the same *)
@@ -737,7 +738,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
             | Ibased _ -> None, None)
           | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
           | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence
-          | Imfence | Ipause | Isimd _ | Iprefetch _ | Icldemote _ ->
+          | Imfence | Ipause | Isimd _ | Isimd_mem _ | Iprefetch _ | Icldemote _
+            ->
             assert false)
         | Move | Load _ | Store _ | Intop _ | Intop_imm _ | Alloc _
         | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
