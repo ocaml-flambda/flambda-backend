@@ -53,6 +53,10 @@ module Memory_access : sig
   val desc : t -> desc
 
   val first_memory_arg_index : t -> int
+
+  (** Base address of memory access [t] is guaranteed to be aligned to
+      at least [alignment_in_bytes t]. *)
+  val alignment_in_bytes : t -> int
 end
 
 module Vectorized_instruction : sig
