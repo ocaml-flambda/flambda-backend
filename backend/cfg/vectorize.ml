@@ -2807,7 +2807,16 @@ end = struct
     | trees ->
       (* sort by cost, ascending *)
       let compare_cost t1 t2 = Int.compare (cost t1) (cost t2) in
-      let trees = List.sort compare_cost trees in
+      let compare_cost_and_last_pos t1 t2 =
+        let c = compare_cost t1 t2 in
+        if not (c = 0)
+        then c
+        else
+          (* heuristic to prioritize groups that appear later, it reduces the
+             chance they are a dependency of the rest of the body. *)
+          Int.neg (Option.compare Int.compare t1.last_pos t2.last_pos)
+      in
+      let trees = List.sort compare_cost_and_last_pos trees in
       let rec loop trees acc =
         match trees with
         | [] -> acc
