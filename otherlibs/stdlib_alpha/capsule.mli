@@ -58,14 +58,14 @@ module Access : sig
 
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod global portable many unique
+  type 'k t : value mod external_ global portable many unique
   (** ['k t] represents access to the current capsule, allowing wraping
       and unwraping [Data.t] values. An [uncontended] ['k t] indicates
       that ['k] is the current capsule. A [shared] ['k t] indicates that
       ['k] is the current capsule but that it may be shared with other
       domains. *)
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
   (** [packed] is the type of access to some unknown capsule.
       Unpacking one provides a ['k t] together with a fresh existential
       type brand for ['k]. *)
@@ -91,9 +91,9 @@ val initial : initial Access.t
 (** Passwords represent permission to get access to a capsule. *)
 module Password : sig
 
-    (* CR layouts v5: this should have layout [void], but
-       [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod portable many unique uncontended
+  (* CR layouts v5: this should have layout [void], but
+     [void] can't be used for function argument and return types yet. *)
+  type 'k t : value mod external_ portable many unique uncontended
   (** ['k t] is the type of "passwords" representing permission for the
      current fiber to have [uncontended] access to the capsule
      ['k]. They are only ever avilable locally, so that they cannot move
@@ -104,7 +104,7 @@ module Password : sig
      mutex. This guarantees that uncontended access to the capsule is
      only granted to a single domain at once. *)
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
   (** [packed] is the type of a password for some unknown capsule.
       Unpacking one provides a ['k t] together with a fresh existential
       type brand for ['k]. *)
@@ -115,7 +115,7 @@ module Password : sig
   (** Shared passwords represent permission to get shared access to a capsule *)
   module Shared : sig
 
-    type 'k t
+    type 'k t : value mod external_ portable many unique uncontended
     (** ['k t] is the type of "shared passwords" representing permission
         for the current fiber to have [shared] access to the capsule
         ['k]. They are only ever avilable locally, so that they cannot
@@ -244,9 +244,9 @@ end
 (** Requires runtime5. *)
 module Condition : sig
 
-    type 'k t : value mod portable uncontended
-    (** ['k t] is the type of a condition variable associated with the capsule ['k].
-        This condition may only be used with the matching ['k Mutex.t]. *)
+  type 'k t : value mod portable uncontended
+  (** ['k t] is the type of a condition variable associated with the capsule ['k].
+      This condition may only be used with the matching ['k Mutex.t]. *)
 
   val create : unit -> 'k t @@ portable
   (** [create ()] creates and returns a new condition variable.
@@ -287,24 +287,40 @@ module Data : sig
 
     type ('a, 'k) t : value mod portable uncontended
     (** [('a, 'k) t] is the type of ['a]s within the capsule ['k]. It
-       can be passed between domains.  Operations on [('a, 'k) t]
-       require a ['k Password.t], created from the ['k Mutex.t]. *)
+        can be passed between domains.  Operations on [('a, 'k) t]
+        require a ['k Password.t], created from the ['k Mutex.t]. *)
 
     val wrap :
       'k Access.t @ local shared
       -> 'a
       -> ('a, 'k) t
       @@ portable
-    (** [wrap c v] is a pointer to a value [v] from the current
-       capsule. *)
+    (** [wrap c v] is a pointer to a value [v] from the
+        current capsule. *)
+
+    val wrap_local :
+      'k Access.t @ local shared
+      -> 'a @ local
+      -> ('a, 'k) t @ local
+      @@ portable
+    (** [wrap_local c v] is a pointer to a value [v] from the
+        current capsule. *)
 
     val unwrap :
       'k Access.t @ local
       -> ('a, 'k) t
       -> 'a
       @@ portable
-    (** [unwrap c t] returns the value of [t] which is from the current
-       capsule. *)
+    (** [unwrap c t] returns the value of [t] which is from the
+        current capsule. *)
+
+    val unwrap_local :
+      'k Access.t @ local
+      -> ('a, 'k) t @ local
+      -> 'a @ local
+      @@ portable
+    (** [unwrap_local c t] returns the value of [t] which is from the
+        current capsule. *)
 
     val unwrap_shared :
       ('a : value mod portable) 'k.
@@ -312,15 +328,31 @@ module Data : sig
       -> ('a, 'k) t
       -> 'a @ shared
       @@ portable
-    (** [unwrap_shared c t] returns the shared value of [t] which is
-        from the current capsule. *)
+    (** [unwrap_shared c t] returns the shared value of [t] which is from
+        the current capsule. *)
+
+    val unwrap_shared_local :
+      ('a : value mod portable) 'k.
+      'k Access.t @ local shared
+      -> ('a, 'k) t @ local
+      -> 'a @ local shared
+      @@ portable
+    (** [unwrap_shared_local c t] returns the shared value of [t] which is from
+        the current capsule. *)
 
     val create :
       (unit -> 'a) @ local portable
       -> ('a, 'k) t
       @@ portable
-    (** [create f] runs [f] within the capsule ['k] and creates
-        a pointer to the result of [f]. *)
+    (** [create f] runs [f] within the capsule ['k] and creates a pointer to
+        the result of [f]. *)
+
+    val create_local :
+      (unit -> 'a @ local) @ local portable
+      -> ('a, 'k) t @ local
+      @@ portable
+    (** [create_local f] runs [f] within the capsule ['k] and creates a pointer to
+        the result of [f]. *)
 
     val map :
       'k Password.t @ local
@@ -331,6 +363,15 @@ module Data : sig
     (** [map p f t] applies [f] to the value of [p] within the capsule ['k],
         creating a pointer to the result. *)
 
+    val map_local :
+      'k Password.t @ local
+      -> ('a @ local -> 'b @ local) @ local portable
+      -> ('a, 'k) t @ local
+      -> ('b, 'k) t @ local
+      @@ portable
+    (** [map_local p f t] applies [f] to the value of [p] within the capsule ['k],
+        creating a pointer to the result. *)
+
     val both :
       ('a, 'k) t
       -> ('b, 'k) t
@@ -338,17 +379,36 @@ module Data : sig
       @@ portable
     (** [both t1 t2] is a pointer to a pair of the values of [t1] and [t2]. *)
 
+    val both_local :
+      ('a, 'k) t @ local
+      -> ('b, 'k) t @ local
+      -> ('a * 'b, 'k) t @ local
+      @@ portable
+    (** [both_local t1 t2] is a pointer to a pair of the values of [t1] and [t2]. *)
+
     val fst :
       ('a * 'b, 'k) t
       -> ('a, 'k) t
       @@ portable
     (** [fst t] gives a pointer to the first value inside [t] *)
 
+    val fst_local :
+      ('a * 'b, 'k) t @ local
+      -> ('a, 'k) t @ local
+      @@ portable
+    (** [fst_local t] gives a pointer to the first value inside [t] *)
+
     val snd :
       ('a * 'b, 'k) t
       -> ('b, 'k) t
       @@ portable
     (** [snd t] gives a pointer to the second value inside [t] *)
+
+    val snd_local :
+      ('a * 'b, 'k) t @ local
+      -> ('b, 'k) t @ local
+      @@ portable
+    (** [snd_local t] gives a pointer to the second value inside [t] *)
 
     val extract :
       'k Password.t @ local
@@ -360,6 +420,16 @@ module Data : sig
         the capsule ['k] and returns the result. The result is within ['k]
         so it must be [portable] and it is marked [contended]. *)
 
+    val extract_local :
+      'k Password.t @ local
+      -> ('a -> 'b @ local portable contended) @ local portable
+      -> ('a, 'k) t
+      -> 'b @ local portable contended
+      @@ portable
+    (** [extract_local p f t] applies [f] to the value of [t] within
+        the capsule ['k] and returns the result. The result is within ['k]
+        so it must be [portable] and it is marked [contended]. *)
+
     val inject :
       ('a : value mod uncontended) 'k.
       'a @ portable -> ('a, 'k) t
@@ -367,11 +437,25 @@ module Data : sig
     (** [inject v] is a pointer to an immutable value [v] injected
         into the capsule ['k]. *)
 
+    val inject_local :
+      ('a : value mod uncontended) 'k.
+      'a @ local portable -> ('a, 'k) t @ local
+      @@ portable
+    (** [inject_local v] is a pointer to an immutable value [v] injected
+        into the capsule ['k]. *)
+
     val project :
       ('a : value mod portable) 'k.
       ('a, 'k) t -> 'a @ contended
       @@ portable
     (** [project t] returns the value of [t]. The result is within
+        ['k] so it must be [portable] and it is marked [contended]. *)
+
+    val project_local :
+      ('a : value mod portable) 'k.
+      ('a, 'k) t @ local -> 'a @ local contended
+      @@ portable
+    (** [project_local t] returns the value of [t]. The result is within
         ['k] so it must be [portable] and it is marked [contended]. *)
 
     val bind :
@@ -382,6 +466,14 @@ module Data : sig
       @@ portable
     (** [bind f t] is [project (map f t)]. *)
 
+    val bind_local :
+      'k Password.t @ local
+      -> ('a @ local -> ('b, 'j) t @ local) @ local portable
+      -> ('a, 'k) t @ local
+      -> ('b, 'j) t @ local
+      @@ portable
+    (** [bind_local f t] is [project_local (map_local f t)]. *)
+
     val iter :
       'k Password.t @ local
       -> ('a -> unit) @ local portable
@@ -389,6 +481,14 @@ module Data : sig
       -> unit
       @@ portable
     (** [iter] is [extract] with result type specialized to [unit]. *)
+
+    val iter_local :
+      'k Password.t @ local
+      -> ('a @ local -> unit) @ local portable
+      -> ('a, 'k) t @ local
+      -> unit
+      @@ portable
+    (** [iter_local] is [extract_local] with result type specialized to [unit]. *)
 
     val map_shared :
       ('a : value mod portable) 'b 'k.
@@ -401,6 +501,17 @@ module Data : sig
         creating a pointer to the result. Since [nonportable] functions may enclose
         [uncontended] (and thus write) access to data, ['a] must cross [portability] *)
 
+    val map_shared_local :
+      ('a : value mod portable) 'b 'k.
+      'k Password.Shared.t @ local
+      -> ('a @ local shared -> 'b @ local) @ local portable
+      -> ('a, 'k) t @ local
+      -> ('b, 'k) t @ local
+      @@ portable
+    (** [map_shared_local p f t] applies [f] to the shared parts of [p] within the capsule ['k],
+        creating a pointer to the result. Since [nonportable] functions may enclose
+        [uncontended] (and thus write) access to data, ['a] must cross [portability] *)
+
     val extract_shared :
       ('a : value mod portable) 'b 'k.
       'k Password.Shared.t @ local
@@ -408,7 +519,20 @@ module Data : sig
       -> ('a, 'k) t
       -> 'b @ portable contended
       @@ portable
-    (** [extract p f t] applies [f] to the value of [t] within
+    (** [extract_shared p f t] applies [f] to the value of [t] within
+        the capsule ['k] and returns the result. The result is within ['k]
+        so it must be [portable] and it is marked [contended]. Since [nonportable]
+        functions may enclose [uncontended] (and thus write) access to data,
+        ['a] must cross [portability] *)
+
+    val extract_shared_local :
+      ('a : value mod portable) 'b 'k.
+      'k Password.Shared.t @ local
+      -> ('a @ local shared -> 'b @ local portable contended) @ local portable
+      -> ('a, 'k) t @ local
+      -> 'b @ local portable contended
+      @@ portable
+    (** [extract_shared_local p f t] applies [f] to the value of [t] within
         the capsule ['k] and returns the result. The result is within ['k]
         so it must be [portable] and it is marked [contended]. Since [nonportable]
         functions may enclose [uncontended] (and thus write) access to data,
@@ -427,21 +551,21 @@ exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
     in [Protected] to avoid leaking access to the data. The [Mutex.t] can
     be used to access the [Data.t]. *)
 
-val protect : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
+val protect : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
 (** [protect f] runs [f password] in a fresh capsule represented by [password].
     If [f] returns normally, [protect] merges the capsule into the caller's capsule.
     If [f] raises an [Encapsulated] exception in the capsule represented by [password],
     [protect] unwraps the exception and re-raises it as [Protected].
     If [f] raises any other exception, [protect] re-raises it as [Protected]. *)
 
-val with_password : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
+val with_password : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
 (** [with_password f] runs [f password] in a fresh capsule represented by [password].
     If [f] returns normally, [with_password] merges the capsule into the caller's capsule.
     If [f] raises an [Encapsulated] exception in the capsule represented by [password],
     [with_password] unwraps the exception and re-raises it directly. *)
 
-val protect_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
+val protect_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
 (** See [protect]. *)
 
-val with_password_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
+val with_password_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
 (** See [with_password]. *)

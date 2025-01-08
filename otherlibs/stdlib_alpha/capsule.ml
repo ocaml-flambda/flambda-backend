@@ -29,14 +29,14 @@ end
 external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
 
 module Name : sig
-  type 'k t : value mod global portable many uncontended unique
-  type packed = P : 'k t -> packed
+  type 'k t : value mod external_ global portable many uncontended unique
+  type packed = P : 'k t -> packed [@@unboxed]
 
   val make : unit -> packed @@ portable
   val equality_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) Type.eq option @@ portable
 end = struct
   type 'k t = int
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   let ctr = A.make 0
   let make () = P (A.fetch_and_add ctr 1)
@@ -50,9 +50,9 @@ end
 module Access : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod global portable many unique
+  type 'k t : value mod external_ global portable many unique
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   (* Can break soundness. *)
   val unsafe_mk : unit -> 'k t @@ portable
@@ -63,7 +63,7 @@ end = struct
 
   type 'k t = T : dummy t
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   external unsafe_rebrand : 'k t -> 'j t @@ portable = "%identity"
 
@@ -83,9 +83,9 @@ let initial = Access.unsafe_mk ()
 module Password : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod portable many unique uncontended
+  type 'k t : value mod external_ portable many unique uncontended
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   (* Can break the soundness of the API. *)
   val unsafe_mk : 'k Name.t -> 'k t @@ portable
@@ -94,7 +94,7 @@ module Password : sig
   module Shared : sig
     (* CR layouts v5: this should have layout [void], but
        [void] can't be used for function argument and return types yet. *)
-    type 'k t
+    type 'k t : value mod external_ portable many unique uncontended
 
     (* Can break the soundness of the API. *)
     val unsafe_mk : 'k Name.t -> 'k t @@ portable
@@ -105,7 +105,7 @@ module Password : sig
 end = struct
   type 'k t = 'k Name.t
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   let unsafe_mk name = name
   let name t = t
@@ -132,17 +132,21 @@ module Data = struct
 
   exception Encapsulated : 'k Name.t * (exn, 'k) t -> exn
 
-  external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
+  external unsafe_mk : ('a[@local_opt]) -> (('a, 'k) t[@local_opt]) @@ portable = "%identity"
 
-  external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
+  external unsafe_get : (('a, 'k) t[@local_opt]) -> ('a[@local_opt]) @@ portable = "%identity"
 
   let wrap _ t = unsafe_mk t
+  let wrap_local _ t = exclave_ unsafe_mk t
 
   let unwrap _ t = unsafe_get t
+  let unwrap_local _ t = exclave_ unsafe_get t
 
   let unwrap_shared _ t = unsafe_get t
+  let unwrap_shared_local _ t = exclave_ unsafe_get t
 
   let create f = unsafe_mk (f ())
+  let create_local f = exclave_ unsafe_mk (f ())
 
   (* CR-soon mslater/tdelvecchio: copying the backtrace at each reraise can cause quadratic
      behavior when propagating the exception through nested handlers. This should use a
@@ -159,7 +163,17 @@ module Data = struct
     | res -> unsafe_mk res
     | exception exn -> reraise_encapsulated pw exn
 
+  let map_local pw f t = exclave_
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise_encapsulated pw exn
+
   let fst t =
+    let t1, _ = unsafe_get t in
+    unsafe_mk t1
+
+  let fst_local t = exclave_
     let t1, _ = unsafe_get t in
     unsafe_mk t1
 
@@ -167,23 +181,45 @@ module Data = struct
     let _, t2 = unsafe_get t in
     unsafe_mk t2
 
+  let snd_local t = exclave_
+    let _, t2 = unsafe_get t in
+    unsafe_mk t2
+
   let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
+  let both_local t1 t2 = exclave_ unsafe_mk (unsafe_get t1, unsafe_get t2)
 
   let extract pw f t =
     let v = unsafe_get t in
     try f v with
     |  exn -> reraise_encapsulated pw exn
 
+  let extract_local pw f t = exclave_
+    let v = unsafe_get t in
+    try f v with
+    |  exn -> reraise_encapsulated pw exn
+
   let inject = unsafe_mk
+  let inject_local = unsafe_mk
 
   let project = unsafe_get
+  let project_local = unsafe_get
 
   let bind pw f t =
     let v = unsafe_get t in
     try f v with
     | exn -> reraise_encapsulated pw exn
 
+  let bind_local pw f t = exclave_
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated pw exn
+
   let iter pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated pw exn
+
+  let iter_local pw f t =
     let v = unsafe_get t in
     try f v with
     | exn -> reraise_encapsulated pw exn
@@ -194,7 +230,19 @@ module Data = struct
     | res -> unsafe_mk res
     | exception exn -> reraise_encapsulated_shared pw exn
 
+  let map_shared_local pw f t = exclave_
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise_encapsulated_shared pw exn
+
+
   let extract_shared pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated_shared pw exn
+
+  let extract_shared_local pw f t = exclave_
     let v = unsafe_get t in
     try f v with
     | exn -> reraise_encapsulated_shared pw exn
