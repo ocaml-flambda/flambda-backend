@@ -59,7 +59,7 @@ module Vectorized_instruction : sig
   (** Registers used in vectorized instructions of one scalar instruction
      group. *)
   type register =
-    | New of int
+    | New_Vec128 of int
         (** The n-th new temporary register used in the vectorized instructions *)
     | Argument of int
         (** Vector version of the n-th argument's register of the scalar

@@ -76,7 +76,7 @@ end
 
 module Vectorized_instruction = struct
   type register =
-    | New of int
+    | New_Vec128 of int
     | Argument of int
     | Result of int
     | Original of int
