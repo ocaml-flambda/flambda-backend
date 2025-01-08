@@ -354,8 +354,8 @@ module Data : sig
 
   val extract_local :
     'k Password.t @ local
-    -> ('a -> 'b @ local portable contended) @ local portable
-    -> ('a, 'k) t
+    -> ('a @ local -> 'b @ local portable contended) @ local portable
+    -> ('a, 'k) t @ local
     -> 'b @ local portable contended
     @@ portable
   (** [extract_local p f t] applies [f] to the value of [t] within
