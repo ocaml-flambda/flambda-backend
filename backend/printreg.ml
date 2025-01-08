@@ -43,6 +43,7 @@ let reg ppf r =
     | Int -> "I"
     | Float -> "F"
     | Vec128 -> "X"
+    | Valx2 -> "VV"
     | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc

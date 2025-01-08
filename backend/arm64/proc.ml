@@ -71,6 +71,9 @@ let register_class r =
   | Float32 ->
     (* CR mslater: (float32) arm64 *)
     fatal_error "arm64: got float32 register"
+  | Valx2 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got valx2 register"
 
 let num_stack_slot_classes = 2
 
@@ -84,6 +87,9 @@ let stack_slot_class typ =
   | Float32 ->
     (* CR mslater: (float32) arm64 *)
     fatal_error "arm64: got float32 register"
+  | Valx2 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got valx2 register"
 
 let stack_class_tag c =
   match c with
@@ -109,6 +115,9 @@ let register_name ty r =
   | Float32 ->
     (* CR mslater: (float32) arm64 *)
     fatal_error "arm64: got float32 register"
+  | Valx2 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got valx2 register"
 
 let rotate_registers = true
 
@@ -145,6 +154,13 @@ let phys_reg ty n =
   | Float32 ->
     (* CR mslater: (float32) arm64 *)
     fatal_error "arm64: got float32 register"
+  | Valx2 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got valx2 register"
+
+let gc_regs_offset _ =
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: gc_reg_offset unreachable"
 
 let reg_x8 = phys_reg Int 8
 let reg_d7 = phys_reg Float 107
@@ -204,6 +220,9 @@ let calling_conventions
     | Float32 ->
         (* CR mslater: (float32) arm64 *)
         fatal_error "arm64: got float32 register"
+    | Valx2 ->
+      (* CR mslater: (SIMD) arm64 *)
+      fatal_error "arm64: got valx2 register"
   done;
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 

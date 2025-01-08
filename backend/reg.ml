@@ -345,4 +345,8 @@ let types_are_compatible left right =
   | Float32, Float32
   | Vec128, Vec128 ->
     true
-  | (Int | Val | Addr | Float | Float32 | Vec128), _ -> false
+  | Valx2, Valx2 ->
+    true
+  | Valx2, Vec128 | Vec128, Valx2 ->
+    true
+  | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
