@@ -323,6 +323,12 @@ void caml_darken (value v, value *p)
     CAMLassert (!Is_blue_hd (h));
     if (Is_white_hd (h)){
       caml_ephe_list_pure = 0;
+
+      if (Wosize_val(v) >= 5000000) {
+        fprintf(stderr, "caml_darken with v=0x%p: ridiculous size of %d\n", (void*) v, (int) Wosize_val(v));
+        caml_attach_gdb(Val_unit);
+      }
+
       Hd_val (v) = Blackhd_hd (h);
       marked_words += Whsize_hd (h);
       if (t < No_scan_tag){
@@ -506,6 +512,10 @@ Caml_inline void mark_ephe_darken(struct mark_stack* stk, value v, mlsize_t i,
     if (Is_white_hd (chd)){
       caml_ephe_list_pure = 0;
       Hd_val (child) = Blackhd_hd (chd);
+      if (Wosize_val(v) >= 5000000) {
+        fprintf(stderr, "mark_ephe_darken with child=0x%p: ridiculous size of %d\n", (void*) child, (int) Wosize_val(child));
+        caml_attach_gdb(Val_unit);
+      }
       if( Tag_hd(chd) < No_scan_tag ) {
         mark_stack_push(stk, child, 0, work);
       } else {
@@ -701,6 +711,10 @@ Caml_noinline static intnat do_some_marking
       }
       hd = Blackhd_hd (hd);
       Hd_val (block) = hd;
+      if (Wosize_val(block) >= 5000000) {
+        fprintf(stderr, "do_some_marking with block=0x%p: ridiculous size of %d\n", (void*) block, (int) Wosize_val(block));
+        caml_attach_gdb(Val_unit);
+      }
       darkened_anything = 1;
       work--; /* header word */
       if (Tag_hd (hd) >= No_scan_tag) {
@@ -943,6 +957,10 @@ static void sweep_slice (intnat work)
       default:          /* gray or black */
         CAMLassert (Color_hd (hd) == Caml_black);
         Hd_hp (hp) = Whitehd_hd (hd);
+        if (Wosize_hd(hd) >= 5000000) {
+          fprintf(stderr, "sweep_slice with hp=0x%p: ridiculous size of %d\n", (void*) hp, (int) Wosize_hd(hd));
+          caml_attach_gdb(Val_unit);
+        }
         break;
       }
       CAMLassert (sweep_hp <= limit);
