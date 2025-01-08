@@ -29,14 +29,14 @@ end
 external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
 
 module Name : sig
-  type 'k t : value mod global portable many uncontended unique
-  type packed = P : 'k t -> packed
+  type 'k t : value mod external_ global portable many uncontended unique
+  type packed = P : 'k t -> packed [@@unboxed]
 
   val make : unit -> packed @@ portable
   val equality_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) Type.eq option @@ portable
 end = struct
   type 'k t = int
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   let ctr = A.make 0
   let make () = P (A.fetch_and_add ctr 1)
@@ -50,9 +50,9 @@ end
 module Access : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod global portable many unique
+  type 'k t : value mod external_ global portable many unique
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   (* Can break soundness. *)
   val unsafe_mk : unit -> 'k t @@ portable
@@ -63,7 +63,7 @@ end = struct
 
   type 'k t = T : dummy t
 
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   external unsafe_rebrand : 'k t -> 'j t @@ portable = "%identity"
 
@@ -83,8 +83,8 @@ let initial = Access.unsafe_mk ()
 module Password : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod portable many unique uncontended
-  type packed = P : 'k t -> packed
+  type 'k t : value mod external_ portable many unique uncontended
+  type packed = P : 'k t -> packed [@@unboxed]
 
   (* Can break the soundness of the API. *)
   val unsafe_mk : 'k Name.t -> 'k t @@ portable
@@ -103,7 +103,7 @@ module Password : sig
   val shared : 'k t @ local -> 'k Shared.t @ local @@ portable
 end = struct
   type 'k t = 'k Name.t
-  type packed = P : 'k t -> packed
+  type packed = P : 'k t -> packed [@@unboxed]
 
   let unsafe_mk name = name
   let name t = t
@@ -133,9 +133,13 @@ module Data = struct
 
   exception Encapsulated : 'k Name.t * (exn, 'k) t -> exn
 
-  external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
+  external unsafe_mk : ('a[@local_opt]) -> (('a, 'k) t[@local_opt]) @@ portable = "%identity"
 
-  external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
+  external unsafe_get : (('a, 'k) t[@local_opt]) -> ('a[@local_opt]) @@ portable = "%identity"
+
+  let wrap_local _ t = exclave_ unsafe_mk t
+
+  let unwrap_local _ t = exclave_ unsafe_get t
 
   let wrap _ t = unsafe_mk t
 
@@ -144,6 +148,8 @@ module Data = struct
   let unwrap_shared _ t = unsafe_get t
 
   let create f = unsafe_mk (f ())
+
+  let create_local f = exclave_ unsafe_mk (f ())
 
   let reraise_encapsulated password exn =
     raise_with_backtrace (Encapsulated (Password.name password, unsafe_mk exn)) (get_raw_backtrace ())
@@ -167,6 +173,11 @@ module Data = struct
 
   let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
 
+  let extract_local pw f t = exclave_
+    let v = unsafe_get t in
+    try f v with
+    |  exn -> reraise_encapsulated pw exn
+
   let extract pw f t =
     let v = unsafe_get t in
     try f v with
@@ -186,6 +197,11 @@ module Data = struct
     try f v with
     | exn -> reraise_encapsulated pw exn
 
+  let iter_local pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated pw exn
+
   let map_shared pw f t =
     let v = unsafe_get t in
     match f v with
@@ -200,6 +216,12 @@ module Data = struct
 end
 
 exception Encapsulated = Data.Encapsulated
+
+let access_local (type k) (pw : k Password.t) f = exclave_
+  let c : k Access.t = Access.unsafe_mk () in
+  match f c with
+  | res -> res
+  | exception exn -> Data.reraise_encapsulated pw exn
 
 let access (type k) (pw : k Password.t) f =
   let c : k Access.t = Access.unsafe_mk () in
