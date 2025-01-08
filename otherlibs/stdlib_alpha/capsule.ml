@@ -12,6 +12,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Global = struct
+  type 'a t = { global : 'a @@ global } [@@unboxed]
+end
+
+open Global
+
 (* Like [int Stdlib.Atomic.t], but [portable]. *)
 module A = struct
   type t : value mod portable uncontended
@@ -251,17 +257,23 @@ end
 
 exception Encapsulated = Data.Encapsulated
 
-let access (type k) (pw : k Password.t) f =
+let access_local (type k) (pw : k Password.t) f = exclave_
   let c : k Access.t = Access.unsafe_mk () in
   match f c with
   | res -> res
   | exception exn -> Data.reraise_encapsulated pw exn
 
-let access_shared (type k) (pw : k Password.Shared.t) f =
+let access pw f =
+  (access_local pw (fun access -> { global = f access })).global
+
+let access_shared_local (type k) (pw : k Password.Shared.t) f = exclave_
   let c : k Access.t = Access.unsafe_mk () in
   match f c with
   | res -> res
   | exception exn -> Data.reraise_encapsulated_shared pw exn
+
+let access_shared pw f =
+  (access_shared_local pw (fun access -> { global = f access })).global
 
 (* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
@@ -456,10 +468,5 @@ let with_password_local f = exclave_
      | None -> reraise exn)
   | exn -> reraise exn
 
-module Global = struct
-  type 'a t = { global : 'a @@ global } [@@unboxed]
-end
-
-open Global
 let protect f = (protect_local (fun password -> { global = f password })).global
 let with_password f = (with_password_local (fun password -> { global = f password })).global

@@ -137,18 +137,36 @@ end
 val access :
   'k Password.t @ local
   -> ('k Access.t -> 'a @ portable contended) @ local portable
-  -> 'a @ contended
+  -> 'a @ portable contended
   @@ portable
 (** [access p f] runs [f] within the capsule ['k], providing it with
+    an {!Access.t} for ['k]. The result is within ['k] so it must be
+    [portable] and it is marked [contended]. *)
+
+val access_local :
+  'k Password.t @ local
+  -> ('k Access.t -> 'a @ local portable contended) @ local portable
+  -> 'a @ local portable contended
+  @@ portable
+(** [access_local p f] runs [f] within the capsule ['k], providing it with
     an {!Access.t} for ['k]. The result is within ['k] so it must be
     [portable] and it is marked [contended]. *)
 
 val access_shared :
   'k Password.Shared.t @ local
   -> ('k Access.t @ shared -> 'a @ portable contended) @ local portable
-  -> 'a @ contended
+  -> 'a @ portable contended
   @@ portable
 (** [shared_access p f] runs [f] within the capsule ['k], providing it
+    with a shared {!Access.t} for ['k]. The result is within ['k] so it
+    must be [portable] and it is marked [contended]. *)
+
+val access_shared_local :
+  'k Password.Shared.t @ local
+  -> ('k Access.t @ shared -> 'a @ local portable contended) @ local portable
+  -> 'a @ local portable contended
+  @@ portable
+(** [shared_access_local p f] runs [f] within the capsule ['k], providing it
     with a shared {!Access.t} for ['k]. The result is within ['k] so it
     must be [portable] and it is marked [contended]. *)
 
