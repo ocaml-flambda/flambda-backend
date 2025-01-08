@@ -208,6 +208,8 @@ let oper_result_type = function
 (* Infer the size in bytes of the result of an expression whose evaluation may
    be deferred (cf. [emit_parts]). *)
 
+(* [size_component] is placed here and not in [Cmm] to avoid cyclic
+   dependencies, because it uses [Arch]. *)
 let size_component : machtype_component -> int = function
   | Val | Addr -> Arch.size_addr
   | Int -> Arch.size_int
