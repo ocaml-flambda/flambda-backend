@@ -78,7 +78,7 @@ val exists : 'a t -> f:('a -> bool) -> bool
 
 val for_all : 'a t -> f:('a -> bool) -> bool
 
-val for_all_i : 'a t -> f:(int -> 'a -> bool) -> bool
+val for_alli : 'a t -> f:(int -> 'a -> bool) -> bool
 
 val to_list : 'a t -> 'a list
 

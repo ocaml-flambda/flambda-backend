@@ -340,7 +340,7 @@ let for_all t ~f =
   in
   aux t f t.first
 
-let for_all_i t ~f =
+let for_alli t ~f =
   let rec aux t f i curr =
     match curr with
     | Empty -> true
