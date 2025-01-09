@@ -43,7 +43,7 @@ let foo (x @ local) =
 val foo : local_ 'a lazy_t -> 'a = <fun>
 |}]
 
-(* one can construct [portable] lazy if the result is [portable] *)
+(* one can construct [portable] lazy only if the result is [portable] *)
 let foo () =
     let l = lazy (let x @ nonportable = fun x -> x in x) in
     use_portable l
