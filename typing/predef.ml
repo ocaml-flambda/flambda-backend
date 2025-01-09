@@ -386,7 +386,11 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
-       (* CR layouts v2.8: Can [lazy_t] mode-cross at all? *)
+       (* CR layouts v2.8: Can [lazy_t] mode-cross at all? According to Zesen:
+          It can at least cross locality, because it's always heap-allocated.
+          It might also cross portability, linearity, uniqueness subject to its
+          parameter. But I'm also fine not doing that for now (and wait until
+          users complains).  *)
        ~jkind:(fun _ -> Jkind.Builtin.value ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
