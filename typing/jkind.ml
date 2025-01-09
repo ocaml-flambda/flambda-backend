@@ -1480,7 +1480,7 @@ let for_boxed_record lbls =
     add_labels_as_baggage lbls base
 
 (* CR layouts v2.8: This should take modalities into account. *)
-let for_unboxed_record ~jkind_of_type lbls =
+let for_unboxed_record ~jkind_of_first_type lbls =
   let open Types in
   let tys = List.map (fun lbl -> lbl.ld_type) lbls in
   let layouts =
@@ -1488,15 +1488,7 @@ let for_unboxed_record ~jkind_of_type lbls =
       (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
       lbls
   in
-  Builtin.product
-    ~jkind_of_first_type:(fun () ->
-      match lbls with
-      | [lbl] -> jkind_of_type lbl.ld_type
-      | _ ->
-        Misc.fatal_error
-          "Jkind.for_unboxed_record: jkind_of_first_type used with more than 1 \
-           type")
-    ~why:Unboxed_record tys layouts
+  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys layouts
 
 (* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =

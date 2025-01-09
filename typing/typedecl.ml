@@ -1872,7 +1872,12 @@ let update_decl_jkind env dpath decl =
           in
           let type_jkind =
             Jkind.for_unboxed_record
-              ~jkind_of_type:(Ctype.estimate_type_jkind env)
+              ~jkind_of_first_type:(fun () ->
+                match lbls with
+                | [lbl] -> Ctype.estimate_type_jkind env lbl.ld_type
+                | [] | _ :: _ :: _ -> Misc.fatal_error
+                         "[for_unboxed_record] called [jkind_of_first_type] \
+                         for non-singleton record.")
               lbls
           in
           let type_jkind, type_has_illegal_crossings =

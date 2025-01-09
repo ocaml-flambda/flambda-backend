@@ -415,11 +415,11 @@ val of_type_decl_default :
 (** Choose an appropriate jkind for a boxed record type *)
 val for_boxed_record : Types.label_declaration list -> jkind_l
 
-(** Choose an appropriate jkind for an unboxed record type. Uses [jkind_of_type]
-    only in the singleton case, where the jkind of the unboxed record must match
-    that of the single field. *)
+(** Choose an appropriate jkind for an unboxed record type. Uses
+    [jkind_of_first_type] only in the singleton case, where the jkind of the
+    unboxed record must match that of the single field. *)
 val for_unboxed_record :
-  jkind_of_type:(Types.type_expr -> jkind_l) ->
+  jkind_of_first_type:(unit -> jkind_l) ->
   Types.label_declaration list ->
   jkind_l
 
