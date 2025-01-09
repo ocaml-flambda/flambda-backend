@@ -207,12 +207,12 @@ module Const : sig
 
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
-  (** This returns [true] iff both types have no baggage and they are equal.
+  (** This returns [true] iff both types have no with-bounds and they are equal.
       Normally, we want an equality check to happen only on values that are
-      allowed on both the left and the right. But a type with no baggage is
+      allowed on both the left and the right. But a type with no with-bounds is
       allowed on the left and the right, so we test for that condition first
       before doing the proper equality check. *)
-  val no_baggage_and_equal : 'd1 t -> 'd2 t -> bool
+  val no_with_bounds_and_equal : 'd1 t -> 'd2 t -> bool
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
@@ -328,25 +328,21 @@ end
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd t -> 'd t
 
-(** Take an existing [jkind_l] and add some baggage. *)
-val add_baggage :
+(** Take an existing [jkind_l] and add some with-bounds. *)
+val add_with_bounds :
   modality:Mode.Modality.Value.Const.t ->
-  baggage:Types.type_expr ->
+  type_expr:Types.type_expr ->
   jkind_l ->
   jkind_l
 
-(** Does this jkind have baggage? *)
-val has_baggage : jkind_l -> bool
+(** Does this jkind have with-bounds? *)
+val has_with_bounds : jkind_l -> bool
 
 (** Take an existing [t] and add an ability to mode-cross along the portability and
     contention axes, if [from] crosses the respective axes. Return the new jkind,
     along with a boolean of whether illegal crossing was added *)
 val add_portability_and_contention_crossing :
-  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
-  jkind_of_type:(Types.type_expr -> jkind_l option) ->
-  from:'d t ->
-  (allowed * 'r) t ->
-  (allowed * 'r) t * bool
+  from:'d t -> (allowed * 'r) t -> (allowed * 'r) t * bool
 
 (******************************)
 (* construction *)
