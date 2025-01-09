@@ -333,20 +333,20 @@ let exists t ~f =
   aux t f t.first
 
 let for_all t ~f =
-  let rec aux t f curr =
+  let rec aux f curr =
     match curr with
     | Empty -> true
-    | Node node -> if f node.value then aux t f node.next else false
+    | Node node -> if f node.value then aux f node.next else false
   in
-  aux t f t.first
+  aux f t.first
 
 let for_alli t ~f =
-  let rec aux t f i curr =
+  let rec aux f i curr =
     match curr with
     | Empty -> true
-    | Node node -> if f i node.value then aux t f (i + 1) node.next else false
+    | Node node -> if f i node.value then aux f (i + 1) node.next else false
   in
-  aux t f 0 t.first
+  aux f 0 t.first
 
 let to_list t = fold_right t ~f:(fun hd tl -> hd :: tl) ~init:[]
 
