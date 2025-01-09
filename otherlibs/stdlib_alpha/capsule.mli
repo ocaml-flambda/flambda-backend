@@ -569,12 +569,19 @@ exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
     in [Protected] to avoid leaking access to the data. The [Mutex.t] can
     be used to access the [Data.t]. *)
 
-val protect : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
+val protect : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
 (** [protect f] runs [f password] in a fresh capsule represented by [password].
-    If [f] returns normally, [protect] merges the capsule into the caller's capsule.
     If [f] raises an [Encapsulated] exception in the capsule represented by [password],
     [protect] unwraps the exception and re-raises it as [Protected].
-    If [f] raises any other exception, [protect] re-raises it as [Protected]. *)
+    If [f] raises any other exception or returns normally, [protect] merges
+    the capsule into the caller's capsule. *)
+
+val protect_portable : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
+(** [protect_portable f] runs [f password] in a fresh capsule represented by [password].
+    If [f] returns normally, [protect_portable] merges the capsule into the caller's capsule.
+    If [f] raises an [Encapsulated] exception in the capsule represented by [password],
+    [protect_portable] unwraps the exception and re-raises it as [Protected].
+    If [f] raises any other exception, [protect_portable] re-raises it as [Protected]. *)
 
 val with_password : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
 (** [with_password f] runs [f password] in a fresh capsule represented by [password].
@@ -582,8 +589,11 @@ val with_password : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
     If [f] raises an [Encapsulated] exception in the capsule represented by [password],
     [with_password] unwraps the exception and re-raises it directly. *)
 
-val protect_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
+val protect_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
 (** See [protect]. *)
+
+val protect_portable_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
+(** See [protect_portable]. *)
 
 val with_password_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
 (** See [with_password]. *)
