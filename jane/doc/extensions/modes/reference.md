@@ -28,7 +28,15 @@ weakens its comonadic fragment. This rule doesn't apply to several axes:
 - The thunk is always heap-allocated so always `global`.
 - Since the thunk is only evaluated if the lazy value is `uncontended`, one can construct
 a lazy value at `portable` even if the thunk is `nonportable` (e.g., closing over
-`uncontended` or `nonportable` values).
+`uncontended` or `nonportable` values). For example, the following is allowed:
+```ocaml
+let r = ref 0 in
+let l @ portable = lazy (r := 42) in
+```
 - Since the thunk runs at most once even if the lazy value is forced multiple times, one
 can construct the lazy value at `many` even if the thunk is `once` (e.g., closing over
-`unique` or `once` values).
+`unique` or `once` values). For example, the following is allowed:
+```ocaml
+let r = { x = 0 } in
+let l @ many = lazy (overwrite_ r with { x = 42 })
+```
