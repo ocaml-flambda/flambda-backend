@@ -760,12 +760,8 @@ Line 1, characters 0-61:
 1 | type q : any mod portable = #{ x : int -> int; y : int -> q }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "q" is
-         value_or_null mod global unique many uncontended portable external_
-                           non_null
-         with int -> int with int -> q
-         & value_or_null mod global unique many uncontended portable
-                             external_ non_null
-         with int -> int with int -> q
+         immediate with int -> int with int -> q & immediate with int -> int
+         with int -> q
          because it is an unboxed record.
        But the kind of type "q" must be a subkind of
          value_or_null mod portable & value_or_null mod portable

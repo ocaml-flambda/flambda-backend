@@ -31,7 +31,7 @@ val untransl_modalities :
   Parsetree.modalities
 
 module Transled_modifier : sig
-  type (_, 'd, 'a) t = 'a Location.loc option constraint 'd = 'l * 'r
+  type 'a t = 'a Location.loc option
 end
 
 module Transled_modifiers :
@@ -39,4 +39,4 @@ module Transled_modifiers :
 
 (** Interpret a list of modifiers.
     A "modifier" is any keyword coming after a `mod` in a jkind *)
-val transl_modifier_annots : Parsetree.modes -> _ Transled_modifiers.t
+val transl_modifier_annots : Parsetree.modes -> Transled_modifiers.t
