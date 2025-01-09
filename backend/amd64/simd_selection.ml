@@ -853,7 +853,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           | Specific
               ( Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _
               | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _
-              | Isimd_mem _ | Ilea _ | Ibswap _ | Isextend32 | Izextend32 )
+              | Ilea _ | Ibswap _ | Isextend32 | Izextend32 )
           | Intop_imm _ | Move | Load _ | Store _ | Intop _ | Alloc _
           | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
           | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
