@@ -519,26 +519,6 @@ module Stdlib = struct
       val return : 'a -> ('a, _) t
     end
 
-    module type S = sig
-      type 'a t
-
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-      val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
-      val return : 'a -> 'a t
-      val map : ('a -> 'b) -> 'a t -> 'b t
-      val join : 'a t t -> 'a t
-      val ignore_m : 'a t -> unit t
-      val all : 'a t list -> 'a list t
-      val all_unit : unit t list -> unit t
-
-      module Syntax : sig
-        val (let+) : 'a t -> ('a -> 'b) -> 'b t
-        val (and+) : 'a t -> 'b t -> ('a * 'b) t
-        val (let*) : 'a t -> ('a -> 'b t) -> 'b t
-        val (and*) : 'a t -> 'b t -> ('a * 'b) t
-      end
-    end
-
     module type S2 = sig
       type ('a, 'e) t
 
@@ -547,6 +527,7 @@ module Stdlib = struct
       val return : 'a -> ('a, _) t
       val map : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
       val join : (('a, 'e) t, 'e) t -> ('a, 'e) t
+      val both : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
       val ignore_m : (_, 'e) t -> (unit, 'e) t
       val all : ('a, 'e) t list -> ('a list, 'e) t
       val all_unit : (unit, 'e) t list -> (unit, 'e) t
@@ -559,33 +540,9 @@ module Stdlib = struct
       end
     end
 
-    module[@inline] Make (X : Basic) = struct
-      include X
-
-      let[@inline] ( >>= ) t f = bind t f
-
-      let map f ma = ma >>= fun a -> return (f a)
-
-      let join t = t >>= fun t' -> t'
-      let ignore_m t = map (fun _ -> ()) t
-
-      let all =
-        let rec loop vs = function
-          | [] -> return (List.rev vs)
-          | t :: ts -> t >>= fun v -> loop (v :: vs) ts
-        in
-        fun ts -> loop [] ts
-
-      let rec all_unit = function
-        | [] -> return ()
-        | t :: ts -> t >>= fun () -> all_unit ts
-
-      module Syntax = struct
-        let[@inline] (let+) t f = map f t
-        let[@inline] (and+) a b = a >>= fun a -> b >>= fun b -> return (a,b)
-        let[@inline] (let*) t f = bind t f
-        let[@inline] (and*) a b = (and+) a b
-      end
+    module type S = sig
+      type 'a t
+      include S2 with type ('a, _) t := 'a t
     end
 
     module[@inline] Make2 (X : Basic2) = struct
@@ -597,6 +554,8 @@ module Stdlib = struct
         bind m (fun a -> return (f a))
 
       let join m = bind m Fun.id
+
+      let both t1 t2 = t1 >>= fun t1 -> t2 >>= fun t2 -> return (t1, t2)
 
       let ignore_m m = bind m (fun _ -> return ())
 
@@ -613,10 +572,19 @@ module Stdlib = struct
 
       module Syntax = struct
         let[@inline] (let+) t f = map f t
-        let[@inline] (and+) a b = a >>= fun a -> b >>= fun b -> return (a,b)
+        let[@inline] (and+) a b = both a b
         let[@inline] (let*) t f = bind t f
         let[@inline] (and*) a b = (and+) a b
       end
+    end
+
+    module[@inline] Make (X : Basic) = struct
+      include Make2(struct
+          include X
+          type ('a, _) t = 'a X.t
+        end)
+
+      type nonrec 'a t = 'a X.t
     end
 
     module Identity = Make(struct

@@ -535,7 +535,7 @@ let () =
   cross_portable t;
   cross_uncontended t
 
-(* CR layouts v2.8: Fix this in the principal case. I think. *)
+(* CR layouts v2.8: Fix this in the principal case, Richard and Liam think. *)
 [%%expect{|
 type t = Foo of int | Bar of string
 val t : t = Foo 10

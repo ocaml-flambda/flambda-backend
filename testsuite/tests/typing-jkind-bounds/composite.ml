@@ -407,8 +407,6 @@ and 'a u = None | Some of 'a t
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
-(* CR reisenberg: This looks unsound, unless it's inferring a kind
-   of [immutable_data] for the argument but failing to print this.*)
 [%%expect {|
 val foo : 'a t @ contended -> unit = <fun>
 |}]
@@ -694,7 +692,8 @@ Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t
-(* CR layouts v2.8: this should work when we get tuples working *)
+(* CR layouts v2.8: this should work, but the recursive expansion
+   of with-bounds presumably runs out of fuel and gives up. *)
 [%%expect {|
 Line 1, characters 51-52:
 1 | let foo (t : int t @@ contended) = use_uncontended t
@@ -744,7 +743,6 @@ type 'a t = None | Some of 'a t * 'a t
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
-(* CR reisenberg: This looks unsound *)
 [%%expect {|
 val foo : 'a t @ contended -> unit = <fun>
 |}]
