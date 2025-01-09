@@ -1002,7 +1002,7 @@ let transl_declaration env sdecl (id, uid) =
       | None, None -> jkind_default
     in
     let jkind =
-      (* Hack: unboxed records are given a product-of-[any]s jkind
+      (* Hack: unboxed records are given a product-of-[any]s layout
          when they would otherwise be given [any].
 
          This allows [estimate_type_jkind] to give an estimate that's
