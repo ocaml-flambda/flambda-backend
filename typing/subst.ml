@@ -213,7 +213,8 @@ let rec type_path s path =
         fatal_error "Subst.type_path"
      | Pextra_ty (p, extra) ->
          match extra with
-         | Pcstr_ty _ -> Pextra_ty (type_path s p, extra)
+         | Pcstr_ty _ | Pderived_unboxed_ty
+           -> Pextra_ty (type_path s p, extra)
          | Pext_ty -> Pextra_ty (value_path s p, extra)
 
 let to_subst_by_type_function s p =

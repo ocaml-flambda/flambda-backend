@@ -127,29 +127,29 @@ val list_argument_jkind : 'd jkind
    over Env.t, Env.add_type and Env.add_extension. *)
 
 val build_initial_env:
-  (Ident.t -> type_declaration -> 'a -> 'a) ->
+  (Ident.t -> type_declaration -> type_declaration option -> 'a -> 'a) ->
   (Ident.t -> extension_constructor -> 'a -> 'a) ->
   'a -> 'a
 
 (* Add simd types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the simd extension is on. *)
 val add_simd_stable_extension_types :
-  (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+  (Ident.t -> type_declaration -> type_declaration option -> 'a -> 'a) -> 'a -> 'a
 
 (* Add small number types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the small numbers extension is on. *)
 val add_small_number_extension_types :
-   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+   (Ident.t -> type_declaration -> type_declaration option -> 'a -> 'a) -> 'a -> 'a
 
 (* Add small number types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the small numbers extension is set to [Beta]. *)
 val add_small_number_beta_extension_types :
-  (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+  (Ident.t -> type_declaration -> type_declaration option -> 'a -> 'a) -> 'a -> 'a
 
 (* Add [or_null] to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if layouts are set to [Alpha]. *)
 val add_or_null :
-   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+   (Ident.t -> type_declaration -> type_declaration option -> 'a -> 'a) -> 'a -> 'a
 
 (* Construct the [type_kind] of [or_null]. For re-exporting [or_null]
    while users can't define their own types with null constructors. *)

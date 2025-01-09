@@ -322,7 +322,7 @@ let init_shape id modl =
     | Sig_value _ :: _rem ->
         assert false
     | Sig_type(id, tdecl, _, _) :: rem ->
-        init_shape_struct (Env.add_type ~check:false id tdecl env) rem
+        init_shape_struct (Env.add_type ~check:false id tdecl None env) rem
     | Sig_typext (subid, {ext_loc=loc},_,_) :: _ ->
         raise (Initialization_failure (Unsafe {reason=Unsafe_typext;loc;subid}))
     | Sig_module(id, Mp_present, md, _, _) :: rem ->

@@ -182,9 +182,9 @@ let make_params env path params =
 
 (* Enter all declared types in the environment as abstract types *)
 
-let add_type ~check ?shape id decl env =
+let add_type ~check ?shape id decl decl_unboxed env =
   Builtin_attributes.warning_scope ~ppwarning:false decl.type_attributes
-    (fun () -> Env.add_type ~check ?shape id decl env)
+    (fun () -> Env.add_type ~check ?shape id decl decl_unboxed env)
 
 (* Add a dummy type declaration to the environment, with the given arity.
    The [type_kind] is [Type_abstract], but there is a generic [type_manifest]
@@ -304,7 +304,7 @@ in
       type_has_illegal_crossings = false;
     }
   in
-  add_type ~check:true id decl env
+  add_type ~check:true id decl None env
 
 (* nroberts: The below [update_type] is deleted upstream in
    https://github.com/ocaml/ocaml/pull/12180 to stop ocamlc from looping on some
@@ -2227,7 +2227,7 @@ let check_redefined_unit (td: Parsetree.type_declaration) =
 let add_types_to_env decls shapes env =
   List.fold_right2
     (fun (id, decl) shape env ->
-      add_type ~check:true ~shape id decl env)
+      add_type ~check:true ~shape id decl None env)
     decls shapes env
 
 (* Translate a set of type declarations, mutually recursive or not *)
@@ -2765,6 +2765,7 @@ let get_native_repr_attribute attrs ~global_repr =
 let is_upstream_compatible_non_value_unbox env ty =
   (* CR layouts v2.5: This needs to be updated when we support unboxed
      types with arbitrary names suffixed with "#" *)
+  (* CR rtjoa:  *)
   match get_desc (Ctype.expand_head_opt env ty) with
   | Tconstr (path, _, _) ->
     List.exists

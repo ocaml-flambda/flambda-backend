@@ -45,6 +45,7 @@ let rec env_from_summary sum subst =
       | Env_type(s, id, desc) ->
           Env.add_type ~check:false id
             (Subst.type_declaration subst desc)
+            None
             (env_from_summary s subst)
       | Env_extension(s, id, desc) ->
           Env.add_extension ~check:false ~rebind:false id

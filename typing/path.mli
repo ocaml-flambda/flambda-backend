@@ -55,6 +55,8 @@ and extra_ty =
       it has the path
         [Pextra_ty (Pident `Error`, Pext_ty)].
   *)
+  | Pderived_unboxed_ty
+  (* CR rtjoa: comment *)
 
 val same: t -> t -> bool
 val compare: t -> t -> int

@@ -711,7 +711,9 @@ and label_data = label_description
 and type_data =
   { tda_declaration : type_declaration;
     tda_descriptions : type_descriptions;
-    tda_shape : Shape.t; }
+    tda_shape : Shape.t;
+    tda_derived_unboxed : type_data option }
+  [@@warning "-69"]
 
 and module_data =
   { mda_declaration : Subst.Lazy.module_declaration;
@@ -793,6 +795,7 @@ type lookup_error =
       Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | No_unboxed_version of Longident.t
   | Error_from_persistent_env of Persistent_env.error
 
 type error =
@@ -1336,21 +1339,30 @@ let type_of_cstr path = function
           tda_declaration = decl;
           tda_descriptions = Type_record (labels, repr);
           tda_shape = Shape.leaf decl.type_uid;
+          tda_derived_unboxed = None;
         }
       | _ -> assert false
       end
   | _ -> assert false
 
-let rec find_type_data path env =
+let[@warning "-27"] rec find_type_data path env =
+  (* CR rtjoa: need ot understand what types of paths can be keys in env.local
+     constraints *)
   match Path.Map.find path env.local_constraints with
   | decl ->
     {
       tda_declaration = decl;
       tda_descriptions = Type_abstract (Btype.type_origin decl);
       tda_shape = Shape.leaf decl.type_uid;
+      tda_derived_unboxed = None;
     }
   | exception Not_found -> begin
       match path with
+      | Pextra_ty (path', Pderived_unboxed_ty) ->
+        begin match find_type_data path' env with
+        | { tda_derived_unboxed = Some data ; _ } -> data
+        | { tda_derived_unboxed = None ; _ } -> raise Not_found
+        end
       | Pident id -> IdTbl.find_same id env.types
       | Pdot(p, s) ->
           let sc = find_structure_components p env in
@@ -1364,6 +1376,7 @@ let rec find_type_data path env =
           | Pext_ty ->
               let cda = find_extension_full p env in
               type_of_cstr path cda.cda_description
+          | Pderived_unboxed_ty -> assert false
         end
     end
 and find_cstr path name env =
@@ -2024,7 +2037,8 @@ let rec components_of_module_maker
             let tda =
               { tda_declaration = final_decl;
                 tda_descriptions = descrs;
-                tda_shape = shape; }
+                tda_shape = shape;
+                tda_derived_unboxed = None; }
             in
             c.comp_types <- NameMap.add (Ident.name id) tda c.comp_types;
             env := store_type_infos ~tda_shape:shape id decl !env
@@ -2249,7 +2263,7 @@ and store_label
   end;
   add_label record_form env lbl_id lbl
 
-and store_type ~check id info shape env =
+and store_type ~check id info info_unboxed shape env =
   let loc = info.type_loc in
   if check then
     check_usage loc id info.type_uid
@@ -2285,10 +2299,23 @@ and store_type ~check id info shape env =
     | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
   in
+  let tda_derived_unboxed = match info_unboxed with
+    | Some decl ->
+      Some {
+        tda_declaration = decl;
+        tda_descriptions = (match decl.type_kind with
+            Type_abstract r -> Type_abstract r
+          | _ -> assert false); (* CR rtjoa: no assert false *)
+        tda_shape = Shape.leaf decl.type_uid;
+        tda_derived_unboxed = None
+      }
+    | None -> None
+  in
   let tda =
     { tda_declaration = info;
       tda_descriptions = descrs;
-      tda_shape = shape }
+      tda_shape = shape;
+      tda_derived_unboxed; }
   in
   Builtin_attributes.mark_alerts_used info.type_attributes;
   { env with
@@ -2305,7 +2332,8 @@ and store_type_infos ~tda_shape id info env =
     {
       tda_declaration = info;
       tda_descriptions = Type_abstract (Btype.type_origin info);
-      tda_shape
+      tda_shape;
+      tda_derived_unboxed = None;
     }
   in
   { env with
@@ -2456,9 +2484,9 @@ let add_value_lazy ?check ?shape ~mode id desc env =
   let mode = Mode.Value.disallow_right mode in
   store_value ?check ~mode id addr desc shape env
 
-let add_type ~check ?shape id info env =
+let add_type ~check ?shape id info info_unboxed env =
   let shape = shape_or_leaf info.type_uid shape in
-  store_type ~check id info shape env
+  store_type ~check id info info_unboxed shape env
 
 and add_extension ~check ?shape ~rebind id ext env =
   let addr = extension_declaration_address env id ext in
@@ -2533,7 +2561,7 @@ let enter_value ?check ~mode name desc env =
 
 let enter_type ~scope name info env =
   let id = Ident.create_scoped ~scope name in
-  let env = store_type ~check:true id info (Shape.leaf info.type_uid) env in
+  let env = store_type ~check:true id info None (Shape.leaf info.type_uid) env in
   (id, env)
 
 let enter_extension ~scope ~rebind name ext env =
@@ -2620,7 +2648,7 @@ end) = struct
         map, M.add_value ?shape ~mode:Mode.Value.legacy id decl env
     | Sig_type(id, decl, _, _) ->
         let map, shape = proj_shape map mod_shape (Shape.Item.type_ id) in
-        map, add_type ~check:false ?shape id decl env
+        map, add_type ~check:false ?shape id decl None env
     | Sig_typext(id, ext, _, _) ->
         let map, shape = proj_shape map mod_shape (Shape.Item.extension_constructor id) in
         map, add_extension ~check:false ?shape ~rebind:false id ext env
@@ -2762,7 +2790,8 @@ let save_signature_with_imports ~alerts sg modname cu cmi imports =
 (* Make the initial environment, without language extensions *)
 let initial =
   Predef.build_initial_env
-    (add_type ~check:false)
+    (fun id decl decl_unboxed (env : t) ->
+       add_type ~check:false ?shape:None id decl decl_unboxed (env : t))
     (add_extension ~check:false ~rebind:false)
     empty
 
@@ -2771,7 +2800,8 @@ let add_language_extension_types env =
     match Language_extension.is_at_least ext lvl with
     | true ->
       (* CR-someday poechsel: Pass a correct shape here *)
-      f (add_type ?shape:None ~check:false) env
+      f (fun id decl decl_unboxed ->
+          add_type ?shape:None ~check:false id decl decl_unboxed) env
     | false -> env
   in
   lazy
@@ -3657,11 +3687,41 @@ let lookup_value ~errors ~use ~loc lid env =
   in
   path, vd, vmode
 
-let lookup_type_full ~errors ~use ~loc lid env =
+let lookup_type_full' ~errors ~use ~loc lid env =
   match lid with
   | Lident s -> lookup_ident_type ~errors ~use ~loc s env
   | Ldot(l, s) -> lookup_dot_type ~errors ~use ~loc l s env
   | Lapply _ -> assert false
+
+let string_without_hash s =
+  if String.ends_with ~suffix:"#" s then
+    Some (String.sub s 0 (String.length s - 1))
+  else
+    None
+
+let lid_without_hash = function
+  | Lident s -> begin
+      match string_without_hash s with
+      | Some s -> Some (Lident s)
+      | None -> None
+      end
+  | Ldot(l, s) -> begin
+      match string_without_hash s with
+      | Some s -> Some (Ldot(l, s))
+      | None -> None
+      end
+  | Lapply _ -> None
+
+let lookup_type_full ~errors ~use ~loc lid env =
+  (* CR rtjoa: comment *)
+  match lid_without_hash lid with
+  | None -> lookup_type_full' ~errors ~use ~loc lid env
+  | Some lid' ->
+    match lookup_type_full' ~errors ~use ~loc lid' env with
+    | path, { tda_derived_unboxed = Some type_data ; _ } ->
+      Pextra_ty (path, Pderived_unboxed_ty), type_data
+    | _, { tda_derived_unboxed = None ; _ } ->
+      may_lookup_error errors loc env (No_unboxed_version lid')
 
 let lookup_type ~errors ~use ~loc lid env =
   let (path, tda) = lookup_type_full ~errors ~use ~loc lid env in
@@ -4457,6 +4517,9 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+  | No_unboxed_version lid ->
+      fprintf ppf "@[%a has no unboxed version.@]"
+        (Style.as_inline_code !print_longident) lid
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
 

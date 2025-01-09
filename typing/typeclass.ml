@@ -1632,7 +1632,7 @@ let initial_env define_class approx
   (* Temporary abbreviations *)
   let arity = List.length cl.pci_params in
   let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc obj_id arity uid in
-  let env = Env.add_type ~check:true obj_id obj_td env in
+  let env = Env.add_type ~check:true obj_id obj_td None env in
   let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc ty_id arity uid in
 
   (* Temporary type for the class constructor *)
@@ -1964,7 +1964,7 @@ let merge_type_decls decl (obj_abbr, clty, cltydef) =
 let final_env define_class env { id; clty; ty_id; cltydef; obj_id; obj_abbr; } =
   (* Add definitions after cleaning them *)
   Env.add_type ~check:true obj_id
-    (Subst.type_declaration Subst.identity obj_abbr) (
+    (Subst.type_declaration Subst.identity obj_abbr) None (
   Env.add_cltype ty_id (Subst.cltype_declaration Subst.identity cltydef) (
   if define_class then
     Env.add_class id (Subst.class_declaration Subst.identity clty) env

@@ -531,7 +531,7 @@ let enrich_typedecl env p id decl =
             Ctype.reify_univars env
               (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))
           in
-          let env = Env.add_type ~check:false id decl env in
+          let env = Env.add_type ~check:false id decl None env in
           match Ctype.mcomp env orig_ty new_ty with
           | exception Ctype.Incompatible -> decl
               (* The current declaration is not compatible with the one we got

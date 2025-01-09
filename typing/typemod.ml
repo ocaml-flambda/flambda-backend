@@ -309,11 +309,12 @@ let check_type_decl env sg loc id row_id newdecl decl =
   let newdecl = Subst.type_declaration sub newdecl in
   let decl = Subst.type_declaration sub decl in
   let sg = List.map (Subst.signature_item Keep sub) sg in
-  let env = Env.add_type ~check:false fresh_id newdecl env in
+  let env = Env.add_type ~check:false fresh_id newdecl None env in
   let env =
     match fresh_row_id with
     | None -> env
-    | Some fresh_row_id -> Env.add_type ~check:false fresh_row_id newdecl env
+    | Some fresh_row_id ->
+      Env.add_type ~check:false fresh_row_id newdecl None env
   in
   let env = Env.add_signature sg env in
   Includemod.type_declarations ~mark:Mark_both ~loc env fresh_id newdecl decl;
@@ -695,7 +696,7 @@ let merge_constraint initial_env loc sg lid constr =
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
-          Env.add_type ~check:false id_row decl_row initial_env
+          Env.add_type ~check:false id_row decl_row None initial_env
         in
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
         let tdecl =
@@ -2318,7 +2319,7 @@ let enrich_type_decls anchor decls oldenv newenv =
             Mtype.enrich_typedecl oldenv (Pdot(p, Ident.name id))
               id info.typ_type
           in
-            Env.add_type ~check:true id info' e)
+            Env.add_type ~check:true id info' None e)
         oldenv decls
 
 let enrich_module_type anchor name mty env =
