@@ -176,9 +176,66 @@ let () =
   assert (Capsule.Data.project ptr' = 111)
 ;;
 
-(* [protect]. *)
+(* [protect_portable]. *)
 exception Exn of string
 
+let () =
+  match Capsule.protect_portable (fun _password -> "ok") with
+  | s -> assert (s = "ok")
+  | exception _ -> assert false
+;;
+
+let () =
+  match Capsule.protect_portable (fun _password -> Exn "ok") with
+  | Exn s -> assert (s = "ok")
+  | _ -> assert false
+;;
+
+let () =
+  match Capsule.protect_portable (fun _password -> reraise (Exn "fail")) with
+  | exception (Capsule.Protected (mut, exn)) ->
+    let s = Capsule.Mutex.with_lock mut (fun password ->
+      Capsule.Data.extract password (fun exn ->
+        match exn with
+        | Exn s -> s
+        | _ -> assert false) exn) in
+    assert (s = "fail")
+  | _ -> assert false
+;;
+
+let () =
+  match Capsule.protect_portable (fun (Capsule.Password.P password) ->
+    let data = Capsule.Data.create (fun () -> "fail") in
+    let msg = Capsule.Data.extract password (fun s : string -> s) data in
+    reraise (Exn msg))
+  with
+  | exception (Capsule.Protected (mut, exn)) ->
+    let s = Capsule.Mutex.with_lock mut (fun password ->
+      Capsule.Data.extract password (fun exn ->
+        match exn with
+        | Exn s -> s
+        | _ -> assert false) exn) in
+    assert (s = "fail")
+  | _ -> assert false
+;;
+
+let () =
+  match Capsule.protect_portable (fun (Capsule.Password.P password) ->
+    let data = Capsule.Data.create (fun () -> "fail") in
+    let () = Capsule.Data.extract password (fun s -> reraise (Exn s)) data in
+    ())
+  with
+  | exception (Capsule.Protected (mut, exn)) ->
+    let s = Capsule.Mutex.with_lock mut (fun password ->
+      Capsule.Data.extract password (fun exn ->
+        match exn with
+        | Exn s -> s
+        | _ -> assert false) exn) in
+    assert (s = "fail")
+  | _ -> assert false
+;;
+
+(* [protect]. *)
 let () =
   match Capsule.protect (fun _password -> "ok") with
   | s -> assert (s = "ok")
@@ -193,13 +250,7 @@ let () =
 
 let () =
   match Capsule.protect (fun _password -> reraise (Exn "fail")) with
-  | exception (Capsule.Protected (mut, exn)) ->
-    let s = Capsule.Mutex.with_lock mut (fun password ->
-      Capsule.Data.extract password (fun exn ->
-        match exn with
-        | Exn s -> s
-        | _ -> assert false) exn) in
-    assert (s = "fail")
+  | exception Exn s -> assert (s = "fail")
   | _ -> assert false
 ;;
 
@@ -209,13 +260,7 @@ let () =
     let msg = Capsule.Data.extract password (fun s : string -> s) data in
     reraise (Exn msg))
   with
-  | exception (Capsule.Protected (mut, exn)) ->
-    let s = Capsule.Mutex.with_lock mut (fun password ->
-      Capsule.Data.extract password (fun exn ->
-        match exn with
-        | Exn s -> s
-        | _ -> assert false) exn) in
-    assert (s = "fail")
+  | exception Exn s -> assert (s = "fail")
   | _ -> assert false
 ;;
 
