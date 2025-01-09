@@ -491,7 +491,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           ~res_count operation ]
   in
   let create_const_vec consts =
-    let highs, lows = Misc.Stdlib.List.split_at (length / 2) consts in
+    let lows, highs = Misc.Stdlib.List.split_at (length / 2) consts in
     let pack_int64 nums =
       let mask =
         Int64.shift_right_logical Int64.minus_one (64 - width_in_bits)
