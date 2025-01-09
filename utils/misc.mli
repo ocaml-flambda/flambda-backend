@@ -1040,6 +1040,10 @@ module Le_result : sig
 
   val is_le : t -> bool
   val is_equal : t -> bool
+
+  (* adaptors for structures that can only compare less-or-equal *)
+  val less_or_equal : le:('a -> 'a -> bool) -> 'a -> 'a -> t
+  val equal : le:('a -> 'a -> bool) -> 'a -> 'a -> bool
 end
 
 (** Propositional equality *)

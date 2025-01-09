@@ -12,7 +12,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module type Lattice = Mode_intf.Lattice
+module type Axis_ops = sig
+  include Mode_intf.Lattice
+
+  val less_or_equal : t -> t -> Misc.Le_result.t
+
+  val equal : t -> t -> bool
+end
 
 module Externality = struct
   type t =
@@ -130,32 +136,24 @@ module Axis = struct
 
   type packed = Pack : 'a t -> packed
 
-  module Accent_lattice (M : Mode_intf.Lattice) = struct
+  module Accent_lattice (M : Mode_intf.Lattice) : Axis_ops with type t = M.t =
+  struct
     (* A functor to add some convenient functions to modal axes *)
     include M
 
-    let less_or_equal a b : Misc.Le_result.t =
-      match le a b, le b a with
-      | true, true -> Equal
-      | true, false -> Less
-      | false, _ -> Not_le
+    let less_or_equal a b = Misc.Le_result.less_or_equal ~le a b
 
-    let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
+    let equal a b = Misc.Le_result.equal ~le a b
   end
 
-  let get (type a) : a t -> (module Lattice with type t = a) = function
-    | Modal Locality ->
-      (module Accent_lattice (Mode.Locality.Const) : Lattice with type t = a)
-    | Modal Linearity ->
-      (module Accent_lattice (Mode.Linearity.Const) : Lattice with type t = a)
-    | Modal Uniqueness ->
-      (module Accent_lattice (Mode.Uniqueness.Const) : Lattice with type t = a)
-    | Modal Portability ->
-      (module Accent_lattice (Mode.Portability.Const) : Lattice with type t = a)
-    | Modal Contention ->
-      (module Accent_lattice (Mode.Contention.Const) : Lattice with type t = a)
-    | Nonmodal Externality -> (module Externality : Lattice with type t = a)
-    | Nonmodal Nullability -> (module Nullability : Lattice with type t = a)
+  let get (type a) : a t -> (module Axis_ops with type t = a) = function
+    | Modal Locality -> (module Accent_lattice (Mode.Locality.Const))
+    | Modal Linearity -> (module Accent_lattice (Mode.Linearity.Const))
+    | Modal Uniqueness -> (module Accent_lattice (Mode.Uniqueness.Const))
+    | Modal Portability -> (module Accent_lattice (Mode.Portability.Const))
+    | Modal Contention -> (module Accent_lattice (Mode.Contention.Const))
+    | Nonmodal Externality -> (module Externality)
+    | Nonmodal Nullability -> (module Nullability)
 
   let all =
     [ Pack (Modal Locality);

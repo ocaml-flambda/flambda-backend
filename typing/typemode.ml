@@ -87,7 +87,7 @@ let transl_modifier_annots annots =
       transl_annot ~annot_type:Modifier ~required_mode_maturity:None
       @@ unpack_mode_annot annot
     in
-    let (module A : Mode_intf.Lattice with type t = a) = Axis.get axis in
+    let (module A) = Axis.get axis in
     let is_top = A.le A.max mode in
     if is_top
     then

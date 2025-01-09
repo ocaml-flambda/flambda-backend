@@ -1067,7 +1067,7 @@ module Const = struct
         Bounds.Create.f
           { f =
               (fun (type a) ~(axis : a Axis.t) : _ Bound.t ->
-                let (module A : Lattice with type t = a) = Axis.get axis in
+                let (module A) = Axis.get axis in
                 let parsed_modifier =
                   Typemode.Transled_modifiers.get ~axis parsed_modifiers
                 in
@@ -1176,7 +1176,7 @@ module Jkind_desc = struct
   let add_portability_and_contention_crossing ~type_equal ~jkind_of_type ~from
       to_ =
     let add_crossing (type a) ~(axis : a Axis.t) to_ =
-      let (module A : Lattice with type t = a) = Axis.get axis in
+      let (module A) = Axis.get axis in
       let from_bound = Bounds.get ~axis from.upper_bounds in
       let to_bound = Bounds.get ~axis to_ in
       let new_bound =

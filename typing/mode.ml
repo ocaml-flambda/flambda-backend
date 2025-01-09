@@ -25,18 +25,6 @@ type nonrec disallowed = disallowed
 
 type nonrec equate_step = equate_step
 
-module Make_lattice (L : Basic_lattice) = struct
-  include L
-
-  let less_or_equal a b : Misc.Le_result.t =
-    match le a b, le b a with
-    | true, true -> Equal
-    | true, false -> Less
-    | false, _ -> Not_le
-
-  let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
-end
-
 module type BiHeyting = sig
   (** Extend the [Lattice] interface with operations of bi-Heyting algebras *)
 
@@ -71,10 +59,6 @@ module Lattices = struct
 
     let print = L.print
 
-    let less_or_equal a b = L.less_or_equal b a
-
-    let equal = L.equal
-
     let imply a b = L.subtract b a
 
     let subtract a b = L.imply b a
@@ -83,8 +67,8 @@ module Lattices = struct
 
   (* A lattice is total order, if for any [a] [b], [a <= b] or [b <= a].
      A total lattice has a bi-heyting structure given as follows. *)
-  module Total (L : Basic_lattice) : BiHeyting with type t := L.t = struct
-    include Make_lattice (L)
+  module Total (L : Lattice) : BiHeyting with type t := L.t = struct
+    include L
 
     (* Prove the [subtract] below is the left adjoint of [join].
        - If [subtract a c <= b], by the definition of [subtract] below,
@@ -336,24 +320,22 @@ module Lattices = struct
   type monadic = Uniqueness.t * Contention.t
 
   module Monadic = struct
-    include Make_lattice (struct
-      type t = monadic
+    type t = monadic
 
-      let min = Uniqueness.min, Contention.min
+    let min = Uniqueness.min, Contention.min
 
-      let max = Uniqueness.max, Contention.max
+    let max = Uniqueness.max, Contention.max
 
-      let legacy = Uniqueness.legacy, Contention.legacy
+    let legacy = Uniqueness.legacy, Contention.legacy
 
-      let le (a0, a1) (b0, b1) = Uniqueness.le a0 b0 && Contention.le a1 b1
+    let le (a0, a1) (b0, b1) = Uniqueness.le a0 b0 && Contention.le a1 b1
 
-      let join (a0, a1) (b0, b1) = Uniqueness.join a0 b0, Contention.join a1 b1
+    let join (a0, a1) (b0, b1) = Uniqueness.join a0 b0, Contention.join a1 b1
 
-      let meet (a0, a1) (b0, b1) = Uniqueness.meet a0 b0, Contention.meet a1 b1
+    let meet (a0, a1) (b0, b1) = Uniqueness.meet a0 b0, Contention.meet a1 b1
 
-      let print ppf (a0, a1) =
-        Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
-    end)
+    let print ppf (a0, a1) =
+      Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
 
     let imply (a0, a1) (b0, b1) = Uniqueness.imply a0 b0, Contention.imply a1 b1
 
@@ -364,28 +346,26 @@ module Lattices = struct
   type 'areality comonadic_with = 'areality * Linearity.t * Portability.t
 
   module Comonadic_with (Areality : Areality) = struct
-    include Make_lattice (struct
-      type t = Areality.t comonadic_with
+    type t = Areality.t comonadic_with
 
-      let min = Areality.min, Linearity.min, Portability.min
+    let min = Areality.min, Linearity.min, Portability.min
 
-      let max = Areality.max, Linearity.max, Portability.max
+    let max = Areality.max, Linearity.max, Portability.max
 
-      let legacy = Areality.legacy, Linearity.legacy, Portability.legacy
+    let legacy = Areality.legacy, Linearity.legacy, Portability.legacy
 
-      let le (a0, a1, a2) (b0, b1, b2) =
-        Areality.le a0 b0 && Linearity.le a1 b1 && Portability.le a2 b2
+    let le (a0, a1, a2) (b0, b1, b2) =
+      Areality.le a0 b0 && Linearity.le a1 b1 && Portability.le a2 b2
 
-      let join (a0, a1, a2) (b0, b1, b2) =
-        Areality.join a0 b0, Linearity.join a1 b1, Portability.join a2 b2
+    let join (a0, a1, a2) (b0, b1, b2) =
+      Areality.join a0 b0, Linearity.join a1 b1, Portability.join a2 b2
 
-      let meet (a0, a1, a2) (b0, b1, b2) =
-        Areality.meet a0 b0, Linearity.meet a1 b1, Portability.meet a2 b2
+    let meet (a0, a1, a2) (b0, b1, b2) =
+      Areality.meet a0 b0, Linearity.meet a1 b1, Portability.meet a2 b2
 
-      let print ppf (a0, a1, a2) =
-        Format.fprintf ppf "%a,%a,%a" Areality.print a0 Linearity.print a1
-          Portability.print a2
-    end)
+    let print ppf (a0, a1, a2) =
+      Format.fprintf ppf "%a,%a,%a" Areality.print a0 Linearity.print a1
+        Portability.print a2
 
     let imply (a0, a1, a2) (b0, b1, b2) =
       Areality.imply a0 b0, Linearity.imply a1 b1, Portability.imply a2 b2
@@ -1768,47 +1748,43 @@ module Value_with (Areality : Areality) = struct
     module Monadic = Monadic.Const
     module Comonadic = Comonadic.Const
 
-    include Make_lattice (struct
-      type t =
-        ( Areality.Const.t,
-          Linearity.Const.t,
-          Uniqueness.Const.t,
-          Portability.Const.t,
-          Contention.Const.t )
-        modes
+    type t =
+      ( Areality.Const.t,
+        Linearity.Const.t,
+        Uniqueness.Const.t,
+        Portability.Const.t,
+        Contention.Const.t )
+      modes
 
-      let min = merge { comonadic = Comonadic.min; monadic = Monadic.min }
+    let min = merge { comonadic = Comonadic.min; monadic = Monadic.min }
 
-      let max = merge { comonadic = Comonadic.max; monadic = Monadic.max }
+    let max = merge { comonadic = Comonadic.max; monadic = Monadic.max }
 
-      let le m0 m1 =
-        let m0 = split m0 in
-        let m1 = split m1 in
-        Comonadic.le m0.comonadic m1.comonadic
-        && Monadic.le m0.monadic m1.monadic
+    let le m0 m1 =
+      let m0 = split m0 in
+      let m1 = split m1 in
+      Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
-      let print ppf m =
-        let { monadic; comonadic } = split m in
-        Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print
-          monadic
+    let print ppf m =
+      let { monadic; comonadic } = split m in
+      Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print monadic
 
-      let legacy =
-        merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
+    let legacy =
+      merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
 
-      let meet m0 m1 =
-        let m0 = split m0 in
-        let m1 = split m1 in
-        let monadic = Monadic.meet m0.monadic m1.monadic in
-        let comonadic = Comonadic.meet m0.comonadic m1.comonadic in
-        merge { monadic; comonadic }
+    let meet m0 m1 =
+      let m0 = split m0 in
+      let m1 = split m1 in
+      let monadic = Monadic.meet m0.monadic m1.monadic in
+      let comonadic = Comonadic.meet m0.comonadic m1.comonadic in
+      merge { monadic; comonadic }
 
-      let join m0 m1 =
-        let m0 = split m0 in
-        let m1 = split m1 in
-        let monadic = Monadic.join m0.monadic m1.monadic in
-        let comonadic = Comonadic.join m0.comonadic m1.comonadic in
-        merge { monadic; comonadic }
-    end)
+    let join m0 m1 =
+      let m0 = split m0 in
+      let m1 = split m1 in
+      let monadic = Monadic.join m0.monadic m1.monadic in
+      let comonadic = Comonadic.join m0.comonadic m1.comonadic in
+      merge { monadic; comonadic }
 
     module Option = struct
       type some = t

@@ -1668,6 +1668,14 @@ module Le_result = struct
   let is_equal = function
     | Equal -> true
     | Less | Not_le -> false
+
+  let less_or_equal ~le a b =
+    match le a b, le b a with
+    | true, true -> Equal
+    | true, false -> Less
+    | false, _ -> Not_le
+
+  let equal ~le a b = le a b && le b a
 end
 
 (*********************************************)

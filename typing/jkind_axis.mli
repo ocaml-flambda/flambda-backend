@@ -13,7 +13,13 @@
 (**************************************************************************)
 
 (** Re-export *)
-module type Lattice = Mode_intf.Lattice
+module type Axis_ops = sig
+  include Mode_intf.Lattice
+
+  val less_or_equal : t -> t -> Misc.Le_result.t
+
+  val equal : t -> t -> bool
+end
 
 (** The jkind axis of Externality *)
 module Externality : sig
@@ -22,7 +28,7 @@ module Externality : sig
     | External64
     | Internal
 
-  include Lattice with type t := t
+  include Axis_ops with type t := t
 end
 
 (** The jkind axis of nullability *)
@@ -31,7 +37,7 @@ module Nullability : sig
     | Non_null
     | Maybe_null
 
-  include Lattice with type t := t
+  include Axis_ops with type t := t
 end
 
 module Axis : sig
@@ -61,7 +67,7 @@ module Axis : sig
   (* CR zqian: push ['a t] into the module to avoid first-class module. *)
 
   (** Given a jkind axis, get its interface *)
-  val get : 'a t -> (module Lattice with type t = 'a)
+  val get : 'a t -> (module Axis_ops with type t = 'a)
 
   val all : packed list
 
