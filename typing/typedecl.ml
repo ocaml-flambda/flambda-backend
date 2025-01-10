@@ -2095,6 +2095,11 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    4. Types not in the group contain the parameters indicated by their layout.
 
       ['a t] contains ['a] if [layout_of 'a] or [any] occurs in ['a t]'s layout.
+
+      For example, if [('a, 'b) t] has layout [layout_of 'a], it may contain
+      ['a], but not ['b]. If it has layout [any], we must conservatively
+      consider it to contain both ['a] and ['b].
+
       Note: We don't yet have [layout_of], so currently only consider [any].
 
    If a path starting from the type expression on the LHS of a declaration
