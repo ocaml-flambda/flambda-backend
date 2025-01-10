@@ -1572,8 +1572,7 @@ external array_set : ('a : any_non_null). 'a array -> int -> 'a -> unit
 val f : #(int * int) array -> unit = <fun>
 |}]
 
-(* You can write the type of an array of unboxed records, but not create
-   one. Soon, you can do both. *)
+(* You can write the type of an array of unboxed records and also create one. *)
 type ('a : value & value) t1 = 'a array
 type ('a : bits64 & (value & float64)) t2 = 'a array
 
@@ -1597,30 +1596,15 @@ type array_record = #{ i1 : int; i2 : int }
 let _ = [| #{ i1 = 1; i2 = 2 } |]
 [%%expect{|
 type array_record = #{ i1 : int; i2 : int; }
-Line 2, characters 8-33:
-2 | let _ = [| #{ i1 = 1; i2 = 2 } |]
-            ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout value & value detected as sort for type array_record,
-       but this requires extension layouts_alpha, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 type array_init_record = #{ i1 : int; i2 : int }
 let _ = Array.init 3 (fun _ -> #{ i1 = 1; i2 = 2 })
 [%%expect{|
 type array_init_record = #{ i1 : int; i2 : int; }
-Line 2, characters 31-50:
-2 | let _ = Array.init 3 (fun _ -> #{ i1 = 1; i2 = 2 })
-                                   ^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "array_init_record"
-       but an expression was expected of type "('a : value)"
-       The layout of array_init_record is value & value
-         because of the definition of array_init_record at line 1, characters 0-48.
-       But the layout of array_init_record must be a sublayout of value.
 |}]
 
-(* Arrays of unboxed records of kind value *are* allowed *)
+(* Arrays of unboxed records of kind value are also allowed *)
 type array_record = #{ i : int  }
 let _ = [| #{ i = 1 } |]
 [%%expect{|
