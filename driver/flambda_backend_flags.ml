@@ -17,7 +17,7 @@ let use_ocamlcfg = ref true             (* -[no-]ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
-let regalloc = ref ""                   (* -regalloc *)
+let regalloc = ref "cfg"                (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
 let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
@@ -32,8 +32,8 @@ let cfg_selection = ref false           (* -[no-]cfg-selection *)
 
 let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
-let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
-let cfg_zero_alloc_checker = ref false  (* -[no-]cfg-zero-alloc-checker *)
+let cfg_cse_optimize = ref true        (* -[no-]cfg-cse-optimize *)
+let cfg_zero_alloc_checker = ref true  (* -[no-]cfg-zero-alloc-checker *)
 
 let cfg_stack_checks = ref true         (* -[no-]cfg-stack-check *)
 let cfg_stack_checks_threshold = ref 16384 (* -cfg-stack-threshold *)
