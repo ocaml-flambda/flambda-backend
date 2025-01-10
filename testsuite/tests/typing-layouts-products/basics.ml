@@ -1572,7 +1572,7 @@ external array_set : ('a : any_non_null). 'a array -> int -> 'a -> unit
 val f : #(int * int) array -> unit = <fun>
 |}]
 
-(* You can write the type of an array of unboxed records and also create one. *)
+(* You can write the type of an array of unboxed records and create one. *)
 type ('a : value & value) t1 = 'a array
 type ('a : bits64 & (value & float64)) t2 = 'a array
 
@@ -1596,15 +1596,25 @@ type array_record = #{ i1 : int; i2 : int }
 let _ = [| #{ i1 = 1; i2 = 2 } |]
 [%%expect{|
 type array_record = #{ i1 : int; i2 : int; }
+- : array_record array = [|#{i1 = 1; i2 = 2}|]
 |}]
 
+(* However, such records can't be passed to [Array.init]. *)
 type array_init_record = #{ i1 : int; i2 : int }
 let _ = Array.init 3 (fun _ -> #{ i1 = 1; i2 = 2 })
 [%%expect{|
 type array_init_record = #{ i1 : int; i2 : int; }
+Line 2, characters 31-50:
+2 | let _ = Array.init 3 (fun _ -> #{ i1 = 1; i2 = 2 })
+                                   ^^^^^^^^^^^^^^^^^^^
+Error: This expression has type "array_init_record"
+       but an expression was expected of type "('a : value)"
+       The layout of array_init_record is value & value
+         because of the definition of array_init_record at line 1, characters 0-48.
+       But the layout of array_init_record must be a sublayout of value.
 |}]
 
-(* Arrays of unboxed records of kind value are also allowed *)
+(* Arrays of unboxed records of kind value *are* allowed in all cases *)
 type array_record = #{ i : int  }
 let _ = [| #{ i = 1 } |]
 [%%expect{|
