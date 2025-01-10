@@ -132,7 +132,7 @@ let check_float_array_optimisation_enabled name =
       ()
 
 type converted_array_kind =
-  | Array_kind of P.Array_kind.t
+  | Array_kind of Array_kind.t
   | Float_array_opt_dynamic
 
 let convert_array_kind (kind : L.array_kind) : converted_array_kind =
@@ -150,7 +150,7 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Punboxedvectorarray Unboxed_vec128 -> Array_kind Naked_vec128s
   | Pgcscannableproductarray kinds ->
     let rec convert_kind (kind : L.scannable_product_element_kind) :
-        P.Array_kind.t =
+        Array_kind.t =
       match kind with
       | Pint_scannable -> Immediates
       | Paddr_scannable -> Values
@@ -160,7 +160,7 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
     Array_kind (Unboxed_product (List.map convert_kind kinds))
   | Pgcignorableproductarray kinds ->
     let rec convert_kind (kind : L.ignorable_product_element_kind) :
-        P.Array_kind.t =
+        Array_kind.t =
       match kind with
       | Pint_ignorable -> Immediates
       | Punboxedfloat_ignorable Unboxed_float32 -> Naked_float32s
@@ -256,7 +256,7 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
       (No_float_array_opt (Unboxed_product (List.map convert_kind kinds)))
 
 let rec convert_unboxed_product_array_ref_kind
-    (kind : Array_ref_kind.no_float_array_opt) : P.Array_kind.t =
+    (kind : Array_ref_kind.no_float_array_opt) : Array_kind.t =
   match kind with
   | Immediates -> Immediates
   | Values -> Values
@@ -270,7 +270,7 @@ let rec convert_unboxed_product_array_ref_kind
     Unboxed_product (List.map convert_unboxed_product_array_ref_kind kinds)
 
 let convert_array_ref_kind_to_array_kind (array_ref_kind : Array_ref_kind.t) :
-    P.Array_kind.t =
+    Array_kind.t =
   match array_ref_kind with
   | Naked_floats_to_be_boxed _ -> Naked_floats
   | No_float_array_opt nfo -> (
@@ -384,7 +384,7 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
       (No_float_array_opt (Unboxed_product (List.map convert_kind kinds)))
 
 let rec convert_unboxed_product_array_set_kind
-    (kind : Array_set_kind.no_float_array_opt) : P.Array_kind.t =
+    (kind : Array_set_kind.no_float_array_opt) : Array_kind.t =
   match kind with
   | Immediates -> Immediates
   | Values _init_or_assign -> Values
@@ -398,7 +398,7 @@ let rec convert_unboxed_product_array_set_kind
     Unboxed_product (List.map convert_unboxed_product_array_set_kind kinds)
 
 let convert_array_set_kind_to_array_kind (array_set_kind : Array_set_kind.t) :
-    P.Array_kind.t =
+    Array_kind.t =
   match array_set_kind with
   | Naked_floats_to_be_unboxed -> Naked_floats
   | No_float_array_opt nfo -> (
@@ -883,7 +883,7 @@ let multiple_word_array_access_validity_condition array ~size_int
 (* CR mshinwell: it seems like these could be folded into the normal array
    load/store functions below *)
 
-let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
+let array_vector_access_width_in_scalars (array_kind : Array_kind.t) =
   match array_kind with
   | Naked_vec128s -> 1
   | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
@@ -898,7 +898,7 @@ let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
        which is not yet supported."
 
 let array_vector_access_validity_condition array ~size_int
-    (array_kind : P.Array_kind.t) index =
+    (array_kind : Array_kind.t) index =
   let width_in_scalars = array_vector_access_width_in_scalars array_kind in
   multiple_word_array_access_validity_condition array ~size_int
     (Array_kind array_kind) Ptagged_int_index ~width_in_scalars ~index
@@ -1227,9 +1227,8 @@ let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
        too much *)
     If_then_else
       ( Unary (Is_flat_float_array, array),
-        f P.Array_kind.Naked_floats
-          (Array_ref_kind.Naked_floats_to_be_boxed mode),
-        f P.Array_kind.Values
+        f Array_kind.Naked_floats (Array_ref_kind.Naked_floats_to_be_boxed mode),
+        f Array_kind.Values
           (Array_ref_kind.No_float_array_opt Values : Array_ref_kind.t),
         (* There are never any unboxed products in this case, so we always have
            a singleton. *)
@@ -1246,8 +1245,8 @@ let[@inline always] match_on_array_set_kind ~array array_set_kind f :
        too much *)
     If_then_else
       ( Unary (Is_flat_float_array, array),
-        f P.Array_kind.Naked_floats Array_set_kind.Naked_floats_to_be_unboxed,
-        f P.Array_kind.Values
+        f Array_kind.Naked_floats Array_set_kind.Naked_floats_to_be_unboxed,
+        f Array_kind.Values
           (Array_set_kind.No_float_array_opt (Values (Assignment mode))
             : Array_set_kind.t),
         (* There are never any unboxed products in this case, so we always have
@@ -1669,7 +1668,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let obj =
       H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj)
     in
-    let array_kind : P.Array_kind.t =
+    let array_kind : Array_kind.t =
       match imm_or_pointer with Immediate -> Immediates | Pointer -> Values
     in
     let array_set_kind : P.Array_set_kind.t =
@@ -1691,7 +1690,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       (* [Array_length] returns the unarized length (see
          flambda_primitive.mli). *)
       let divisor =
-        P.Array_kind.width_in_scalars array_kind
+        Array_kind.width_in_scalars array_kind
         |> Targetint_31_63.of_int |> Simple.const_int
       in
       [Binary (Int_arith (Tagged_immediate, Div), Prim prim, Simple divisor)])

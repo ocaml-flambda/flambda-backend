@@ -370,7 +370,7 @@ let clear_demoted_trap_action_and_patch_unused_exn_bucket uacc apply_cont =
    return any kind for empty arrays. So this function is only safe for
    operations that are invalid on empty arrays.
    [T.meet_is_non_empty_naked_number_array] also has the same restriction. *)
-let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
+let specialise_array_kind dacc (array_kind : Array_kind.t) ~array_ty :
     _ Or_bottom.t =
   let typing_env = DA.typing_env dacc in
   let for_naked_number kind : _ Or_bottom.t =
@@ -397,7 +397,7 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     match T.prove_is_immediates_array typing_env array_ty with
     | Proved () ->
       (* Specialise the array operation to [Immediates]. *)
-      Ok P.Array_kind.Immediates
+      Ok Array_kind.Immediates
     | Unknown -> (
       (* Check for float arrays *)
       match T.meet_is_flat_float_array typing_env array_ty with

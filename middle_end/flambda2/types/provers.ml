@@ -583,20 +583,19 @@ let prove_unique_fully_constructed_immutable_heap_block env t :
 let meet_is_flat_float_array_value _env
     (value_head : TG.head_of_kind_value_non_null) : bool generic_proof =
   match value_head with
-  | Array { element_kind = Unknown; _ } -> Unknown
-  | Array { element_kind = Bottom; _ } ->
+  | Array { array_kind = Unknown; _ } -> Unknown
+  | Array { array_kind = Bottom; _ } ->
     (* Empty array case. We cannot return Invalid, but any other result is
        correct. We arbitrarily pick [false], as this is what we would get if we
        looked at the tag at runtime. *)
     Proved false
-  | Array { element_kind = Ok element_kind; _ } -> (
-    match K.With_subkind.kind element_kind with
-    | Value -> Proved false
-    | Naked_number Naked_float -> Proved true
-    | Naked_number _ -> Invalid
-    | Region | Rec_info ->
-      Misc.fatal_errorf "Wrong element kind for array: %a" K.With_subkind.print
-        element_kind)
+  | Array { array_kind = Ok array_kind; _ } -> (
+    match array_kind with
+    | Naked_floats -> Proved true
+    | Values -> Proved false
+    | Immediates | Naked_float32s | Naked_int32s | Naked_int64s
+    | Naked_nativeints | Naked_vec128s | Unboxed_product _ ->
+      Invalid)
   | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
   | Boxed_nativeint _ | Boxed_vec128 _ | Closures _ | String _ ->
     Invalid
@@ -610,18 +609,25 @@ let meet_is_flat_float_array env t =
 let meet_is_non_empty_naked_number_array_value naked_number_kind _env
     (value_head : TG.head_of_kind_value_non_null) : unit generic_proof =
   match value_head with
-  | Array { element_kind = Unknown; _ } -> Unknown
-  | Array { element_kind = Bottom; _ } -> Invalid
-  | Array { element_kind = Ok element_kind; _ } -> (
-    match K.With_subkind.kind element_kind with
-    | Value -> Invalid
-    | Naked_number naked_number_kind' ->
+  | Array { array_kind = Unknown; _ } -> Unknown
+  | Array { array_kind = Bottom; _ } -> Invalid
+  | Array { array_kind = Ok array_kind; _ } -> (
+    let naked_number_kind' : K.Naked_number_kind.t Or_invalid.t =
+      match array_kind with
+      | Naked_floats -> Ok Naked_float
+      | Naked_float32s -> Ok Naked_float32
+      | Naked_int32s -> Ok Naked_int32
+      | Naked_int64s -> Ok Naked_int64
+      | Naked_nativeints -> Ok Naked_nativeint
+      | Naked_vec128s -> Ok Naked_vec128
+      | Values | Immediates | Unboxed_product _ -> Invalid
+    in
+    match naked_number_kind' with
+    | Invalid -> Invalid
+    | Ok naked_number_kind' ->
       if K.Naked_number_kind.equal naked_number_kind naked_number_kind'
       then Proved ()
-      else Invalid
-    | Region | Rec_info ->
-      Misc.fatal_errorf "Wrong element kind for array: %a" K.With_subkind.print
-        element_kind)
+      else Invalid)
   | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
   | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _ | Boxed_vec128 _
   | Closures _ | String _ ->
@@ -635,19 +641,16 @@ let meet_is_non_empty_naked_number_array naked_number_kind env t =
 let prove_is_immediates_array_value _env
     (value_head : TG.head_of_kind_value_non_null) : unit generic_proof =
   match value_head with
-  | Array { element_kind = Unknown; _ } -> Unknown
-  | Array { element_kind = Bottom; _ } ->
+  | Array { array_kind = Unknown; _ } -> Unknown
+  | Array { array_kind = Bottom; _ } ->
     (* Empty array case. We cannot return Invalid, but it's correct to state
        that any value contained in this array must be an immediate. *)
     Proved ()
-  | Array { element_kind = Ok element_kind; _ } -> (
-    match K.With_subkind.non_null_value_subkind element_kind with
-    | Tagged_immediate -> Proved ()
-    | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
-    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
-    | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
-    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
-    | Unboxed_vec128_array | Unboxed_product_array ->
+  | Array { array_kind = Ok array_kind; _ } -> (
+    match array_kind with
+    | Immediates -> Proved ()
+    | Values | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+    | Naked_nativeints | Naked_vec128s | Unboxed_product _ ->
       Unknown)
   | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
   | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
@@ -692,9 +695,9 @@ let prove_single_closures_entry env t =
 let prove_is_immutable_array_generic_value _env
     (value_head : TG.head_of_kind_value_non_null) : _ generic_proof =
   match value_head with
-  | Array { element_kind; length = _; contents; alloc_mode } -> (
+  | Array { array_kind; length = _; contents; alloc_mode } -> (
     match contents with
-    | Known (Immutable { fields }) -> Proved (element_kind, fields, alloc_mode)
+    | Known (Immutable { fields }) -> Proved (array_kind, fields, alloc_mode)
     | Known Mutable -> Invalid
     | Unknown -> Unknown)
   | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _

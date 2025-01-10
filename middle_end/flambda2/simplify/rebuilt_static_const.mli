@@ -97,6 +97,9 @@ val create_immutable_vec128_array :
   Vector_types.Vec128.Bit_pattern.t Or_variable.t list ->
   t
 
+val create_immutable_non_scannable_unboxed_product_array :
+  Are_rebuilding_terms.t -> Simple.With_debuginfo.t list -> Array_kind.t -> t
+
 val create_immutable_value_array :
   Are_rebuilding_terms.t -> Simple.With_debuginfo.t list -> t
 

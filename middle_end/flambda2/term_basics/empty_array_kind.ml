@@ -34,22 +34,24 @@ let print ppf t =
 
 let compare = Stdlib.compare
 
-let of_element_kind t =
-  (* This is used for reification, and we don't yet handle unboxed product
-     arrays there. *)
-  match (t : Flambda_kind.t) with
-  | Value | Naked_number Naked_float -> Values_or_immediates_or_naked_floats
-  | Naked_number Naked_immediate ->
-    Misc.fatal_errorf
-      "Arrays cannot yet contain elements of kind naked immediate"
-  | Naked_number Naked_float32 -> Naked_float32s
-  | Naked_number Naked_int32 -> Naked_int32s
-  | Naked_number Naked_int64 -> Naked_int64s
-  | Naked_number Naked_nativeint -> Naked_nativeints
-  | Naked_number Naked_vec128 -> Naked_vec128s
-  | Region | Rec_info ->
-    Misc.fatal_errorf
-      "Arrays cannot contain elements of kind region or rec_info"
+let of_element_kinds (kinds : Flambda_kind.t list) =
+  match kinds with
+  | [] -> Misc.fatal_error "No kinds specified"
+  | _ :: _ :: _ -> Unboxed_products
+  | [kind] -> (
+    match kind with
+    | Value | Naked_number Naked_float -> Values_or_immediates_or_naked_floats
+    | Naked_number Naked_immediate ->
+      Misc.fatal_errorf
+        "Arrays cannot yet contain elements of kind naked immediate"
+    | Naked_number Naked_float32 -> Naked_float32s
+    | Naked_number Naked_int32 -> Naked_int32s
+    | Naked_number Naked_int64 -> Naked_int64s
+    | Naked_number Naked_nativeint -> Naked_nativeints
+    | Naked_number Naked_vec128 -> Naked_vec128s
+    | Region | Rec_info ->
+      Misc.fatal_errorf
+        "Arrays cannot contain elements of kind region or rec_info")
 
 let of_lambda array_kind =
   match (array_kind : Lambda.array_kind) with
@@ -62,3 +64,13 @@ let of_lambda array_kind =
   | Punboxedintarray Unboxed_nativeint -> Naked_nativeints
   | Punboxedvectorarray Unboxed_vec128 -> Naked_vec128s
   | Pgcscannableproductarray _ | Pgcignorableproductarray _ -> Unboxed_products
+
+let of_array_kind (array_kind : Array_kind.t) =
+  match array_kind with
+  | Immediates | Values | Naked_floats -> Values_or_immediates_or_naked_floats
+  | Naked_float32s -> Naked_float32s
+  | Naked_int32s -> Naked_int32s
+  | Naked_int64s -> Naked_int64s
+  | Naked_nativeints -> Naked_nativeints
+  | Naked_vec128s -> Naked_vec128s
+  | Unboxed_product _ -> Unboxed_products

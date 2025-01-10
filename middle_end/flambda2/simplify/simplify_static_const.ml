@@ -43,17 +43,20 @@ let simplify_or_variable dacc type_for_const (or_variable : _ Or_variable.t)
     (* CR mshinwell: There should be some kind of reification here *)
     or_variable, TE.find (DE.typing_env denv) (Name.var var) (Some kind)
 
-let rebuild_naked_number_array dacc ~bind_result_sym kind type_creator creator
-    ~fields =
+let rebuild_naked_number_array dacc ~bind_result_sym (array_kind : Array_kind.t)
+    type_creator creator ~fields =
   let fields, field_tys =
+    let kind =
+      Array_kind.element_kind_without_subkind_must_be_singleton array_kind
+    in
     List.map
-      (fun field -> simplify_or_variable dacc type_creator field K.naked_float)
+      (fun field -> simplify_or_variable dacc type_creator field kind)
       fields
     |> List.split
   in
   let dacc =
     bind_result_sym
-      (T.immutable_array ~element_kind:(Ok kind) ~fields:field_tys
+      (T.immutable_array ~array_kind:(Ok array_kind) ~fields:field_tys
          Alloc_mode.For_types.heap)
   in
   creator (DA.are_rebuilding_terms dacc) fields, dacc
@@ -182,23 +185,40 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         fields,
       dacc )
   | Immutable_float_array fields ->
-    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_float
+    rebuild_naked_number_array dacc ~bind_result_sym Naked_floats
       T.this_naked_float RSC.create_immutable_float_array ~fields
   | Immutable_float32_array fields ->
-    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_float32
+    rebuild_naked_number_array dacc ~bind_result_sym Naked_float32s
       T.this_naked_float32 RSC.create_immutable_float32_array ~fields
   | Immutable_int32_array fields ->
-    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_int32
+    rebuild_naked_number_array dacc ~bind_result_sym Naked_int32s
       T.this_naked_int32 RSC.create_immutable_int32_array ~fields
   | Immutable_int64_array fields ->
-    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_int64
+    rebuild_naked_number_array dacc ~bind_result_sym Naked_int64s
       T.this_naked_int64 RSC.create_immutable_int64_array ~fields
   | Immutable_nativeint_array fields ->
-    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_nativeint
+    rebuild_naked_number_array dacc ~bind_result_sym Naked_nativeints
       T.this_naked_nativeint RSC.create_immutable_nativeint_array ~fields
   | Immutable_vec128_array fields ->
-    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_vec128
+    rebuild_naked_number_array dacc ~bind_result_sym Naked_vec128s
       T.this_naked_vec128 RSC.create_immutable_vec128_array ~fields
+  | Immutable_non_scannable_unboxed_product_array (fields, array_kind) ->
+    let fields_with_tys =
+      List.map
+        (simplify_field_of_block dacc)
+        (List.combine fields
+           (Array_kind.element_kinds_without_subkinds array_kind))
+    in
+    let fields, field_tys = List.split fields_with_tys in
+    let dacc =
+      bind_result_sym
+        (T.immutable_array ~array_kind:(Ok array_kind) ~fields:field_tys
+           Alloc_mode.For_types.heap)
+    in
+    ( Rebuilt_static_const.create_immutable_non_scannable_unboxed_product_array
+        (DA.are_rebuilding_terms dacc)
+        fields array_kind,
+      dacc )
   | Immutable_value_array fields ->
     let fields_with_tys =
       List.map
@@ -208,7 +228,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let fields, field_tys = List.split fields_with_tys in
     let dacc =
       bind_result_sym
-        (T.immutable_array ~element_kind:(Ok KS.any_value) ~fields:field_tys
+        (T.immutable_array ~array_kind:(Ok Values) ~fields:field_tys
            Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_immutable_value_array
@@ -218,7 +238,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Empty_array array_kind ->
     let dacc =
       bind_result_sym
-        (T.array_of_length ~element_kind:Bottom
+        (T.array_of_length ~array_kind:Bottom
            ~length:(T.this_tagged_immediate Targetint_31_63.zero)
            Alloc_mode.For_types.heap)
     in

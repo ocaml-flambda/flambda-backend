@@ -475,7 +475,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
 
-let array_kind : 'a -> Fexpr.array_kind -> Flambda_primitive.Array_kind.t =
+let array_kind : 'a -> Fexpr.array_kind -> Array_kind.t =
  fun _env -> function
   | Immediates -> Immediates
   | Naked_floats -> Naked_floats

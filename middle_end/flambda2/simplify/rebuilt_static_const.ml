@@ -185,6 +185,16 @@ let create_immutable_nativeint_array =
 let create_immutable_vec128_array =
   create_immutable_naked_number_array SC.immutable_vec128_array
 
+let create_immutable_non_scannable_unboxed_product_array are_rebuilding fields
+    array_kind =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then
+    let free_names = free_names_of_fields fields in
+    Block_not_rebuilt { free_names }
+  else
+    create_normal_non_code
+      (SC.immutable_non_scannable_unboxed_product_array fields array_kind)
+
 let create_immutable_value_array are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding
   then
@@ -227,7 +237,8 @@ let map_set_of_closures t ~f =
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
-      | Immutable_vec128_array _ | Immutable_value_array _ | Empty_array _
+      | Immutable_vec128_array _ | Immutable_value_array _
+      | Immutable_non_scannable_unboxed_product_array _ | Empty_array _
       | Mutable_string _ | Immutable_string _ ->
         t))
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->

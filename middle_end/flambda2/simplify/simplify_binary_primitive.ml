@@ -926,21 +926,13 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     in
     SPR.create original_term ~try_reify:false dacc
 
-let simplify_array_load (array_kind : P.Array_kind.t)
-    (array_load_kind : P.Array_load_kind.t) mutability dacc ~original_term:_ dbg
-    ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:index_ty ~result_var =
-  let result_kind =
-    match array_load_kind with
-    | Immediates -> (* CR mshinwell: use the subkind *) K.value
-    | Values -> K.value
-    | Naked_floats -> K.naked_float
-    | Naked_float32s -> K.naked_float32
-    | Naked_int32s -> K.naked_int32
-    | Naked_int64s -> K.naked_int64
-    | Naked_nativeints -> K.naked_nativeint
-    | Naked_vec128s -> K.naked_vec128
-  in
+let simplify_array_load (array_kind : Array_kind.t)
+    (array_load_kind : P.Array_load_kind.t) mutability dacc ~original_prim
+    ~original_term:_ dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index
+    ~arg2_ty:index_ty ~result_var =
+  let result_kind = P.result_kind' original_prim in
   let array_kind =
+    (* XXX mshinwell: should the array_load_kind be specialised too? *)
     Simplify_common.specialise_array_kind dacc array_kind ~array_ty
   in
   (* CR-someday mshinwell: should do a meet on the new value too *)
@@ -959,36 +951,39 @@ let simplify_array_load (array_kind : P.Array_kind.t)
       SPR.create named ~try_reify dacc
     in
     let[@inline] contents_unknown () =
-      return_given_type (T.unknown (P.result_kind' prim)) ~try_reify:false
+      return_given_type (T.unknown result_kind) ~try_reify:false
     in
     (* CR mshinwell/vlaviron: if immutable array accesses were consistently
        setting [mutability] to [Immutable], we could restrict the following code
        to immutable loads only and use [T.meet_is_immutable_array] instead. *)
     match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
     | Unknown -> contents_unknown ()
-    | Proved (elt_kind, fields, _mode) -> (
-      match elt_kind with
+    | Proved (array_kind, fields, _mode) -> (
+      match array_kind with
       | Unknown | Bottom -> contents_unknown ()
-      | Ok elt_kind -> (
-        if not (K.equal (K.With_subkind.kind elt_kind) result_kind)
-        then contents_unknown ()
-        else
-          match
-            T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty
-          with
-          | Unknown -> contents_unknown ()
-          | Proved imms -> (
-            match Targetint_31_63.Set.get_singleton imms with
-            | None -> contents_unknown ()
-            | Some imm ->
-              if Targetint_31_63.( < ) imm Targetint_31_63.zero
-                 || Targetint_31_63.( >= ) imm
-                      (Array.length fields |> Targetint_31_63.of_int)
-              then SPR.create_invalid dacc
-              else
-                return_given_type
-                  fields.(Targetint_31_63.to_int imm)
-                  ~try_reify:true))))
+      | Ok array_kind -> (
+        match
+          T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty
+        with
+        | Unknown -> contents_unknown ()
+        | Proved imms -> (
+          match Targetint_31_63.Set.get_singleton imms with
+          | None -> contents_unknown ()
+          | Some imm ->
+            if Targetint_31_63.( < ) imm Targetint_31_63.zero
+               || Targetint_31_63.( >= ) imm
+                    (Array.length fields |> Targetint_31_63.of_int)
+            then SPR.create_invalid dacc
+            else
+              let elt_kinds = Array_kind.element_kinds array_kind in
+              let index = Targetint_31_63.to_int imm in
+              let num_elt_kinds = List.length elt_kinds in
+              let elt_kind = List.nth elt_kinds (index mod num_elt_kinds) in
+              if not (K.equal (K.With_subkind.kind elt_kind) result_kind)
+              then
+                (* CR mshinwell: I think this should try to reinterpret *)
+                contents_unknown ()
+              else return_given_type fields.(index) ~try_reify:true))))
 
 let simplify_string_or_bigstring_load _string_like_value _string_accessor_width
     ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_
@@ -1034,7 +1029,7 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
     match prim with
     | Block_set { kind; init; field } -> simplify_block_set kind init ~field
     | Array_load (array_kind, width, mutability) ->
-      simplify_array_load array_kind width mutability
+      simplify_array_load array_kind width mutability ~original_prim
     | Int_arith (kind, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_arith_tagged_immediate.simplify op

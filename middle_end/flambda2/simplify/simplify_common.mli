@@ -135,9 +135,9 @@ val clear_demoted_trap_action_and_patch_unused_exn_bucket :
     operations that are invalid on empty arrays. *)
 val specialise_array_kind :
   Downwards_acc.t ->
-  Flambda_primitive.Array_kind.t ->
+  Array_kind.t ->
   array_ty:Flambda2_types.t ->
-  Flambda_primitive.Array_kind.t Or_bottom.t
+  Array_kind.t Or_bottom.t
 
 (** General notes about symbol projections (applicable to [Block_load] and
     [Project_value_slot] primitives):

@@ -168,6 +168,10 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
         fields
     in
     Static_const.immutable_vec128_array fields
+  | Immutable_non_scannable_unboxed_product_array (fields, array_kind) ->
+    (* CR mshinwell: could check kinds against [array_kind] *)
+    let fields = List.map (rewrite_simple_with_debuginfo kinds env) fields in
+    Static_const.immutable_non_scannable_unboxed_product_array fields array_kind
   | Empty_array _ | Mutable_string _ | Immutable_string _ -> sc
 
 let rewrite_static_const_or_code kinds env (sc : Static_const_or_code.t) =

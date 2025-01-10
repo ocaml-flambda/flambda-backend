@@ -195,9 +195,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
    integer. *)
 
 let make_non_scannable_unboxed_product_array ~dbg kind mode args =
-  let element_kinds_per_non_unarized_element =
-    P.Array_kind.element_kinds kind
-  in
+  let element_kinds_per_non_unarized_element = Array_kind.element_kinds kind in
   let mem_chunks_per_non_unarized_element =
     List.map C.memory_chunk_of_kind element_kinds_per_non_unarized_element
   in
@@ -212,7 +210,7 @@ let make_non_scannable_unboxed_product_array ~dbg kind mode args =
       (Format.pp_print_list Printcmm.expression)
       args
       (List.length mem_chunks_per_non_unarized_element)
-      P.Array_kind.print kind;
+      Array_kind.print kind;
   let mem_chunks_per_non_unarized_element =
     Array.of_list mem_chunks_per_non_unarized_element
   in
@@ -228,7 +226,7 @@ let make_non_scannable_unboxed_product_array ~dbg kind mode args =
 let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
-  match (kind : P.Array_kind.t) with
+  match (kind : Array_kind.t) with
   | Immediates | Values -> C.make_alloc ~mode dbg ~tag:0 args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg ~tag:(Tag.to_int Tag.double_array_tag) args
@@ -239,11 +237,11 @@ let make_array ~dbg kind alloc_mode args =
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
   | Naked_vec128s -> C.allocate_unboxed_vec128_array ~elements:args mode dbg
   | Unboxed_product _ ->
-    if P.Array_kind.must_be_gc_scannable kind
+    if Array_kind.must_be_gc_scannable kind
     then C.make_alloc ~mode dbg ~tag:0 args
     else make_non_scannable_unboxed_product_array ~dbg kind mode args
 
-let array_length ~dbg arr (kind : P.Array_kind.t) =
+let array_length ~dbg arr (kind : Array_kind.t) =
   match kind with
   | Immediates | Values | Naked_floats | Unboxed_product _ ->
     (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
@@ -288,7 +286,7 @@ let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
   in
   C.unaligned_set_128 arr index new_value dbg
 
-let array_load ~dbg (array_kind : P.Array_kind.t)
+let array_load ~dbg (array_kind : Array_kind.t)
     (load_kind : P.Array_load_kind.t) ~arr ~index =
   (* CR mshinwell: refactor this function in the same way as [block_load] *)
   match array_kind, load_kind with
@@ -337,7 +335,7 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
     Misc.fatal_errorf
       "Array reinterpret load operation (array kind %a, array ref kind %a) not \
        yet supported"
-      P.Array_kind.print array_kind P.Array_load_kind.print load_kind
+      Array_kind.print array_kind P.Array_load_kind.print load_kind
   | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
       | Naked_nativeints | Naked_vec128s ),
       Naked_float32s )
@@ -362,8 +360,8 @@ let addr_array_store init ~arr ~index ~new_value dbg =
   | Assignment Local -> C.addr_array_set_local arr index new_value dbg
   | Initialization -> C.addr_array_initialize arr index new_value dbg
 
-let array_set0 ~dbg (array_kind : P.Array_kind.t)
-    (set_kind : P.Array_set_kind.t) ~arr ~index ~new_value =
+let array_set0 ~dbg (array_kind : Array_kind.t) (set_kind : P.Array_set_kind.t)
+    ~arr ~index ~new_value =
   match array_kind, set_kind with
   | (Values | Immediates | Unboxed_product _), Immediates ->
     C.int_array_set arr index new_value dbg
@@ -417,7 +415,7 @@ let array_set0 ~dbg (array_kind : P.Array_kind.t)
     Misc.fatal_errorf
       "Array reinterpret set operation (array kind %a, array ref kind %a) not \
        yet supported"
-      P.Array_kind.print array_kind P.Array_set_kind.print set_kind
+      Array_kind.print array_kind P.Array_set_kind.print set_kind
   | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
       | Naked_nativeints | Naked_vec128s ),
       Naked_float32s )

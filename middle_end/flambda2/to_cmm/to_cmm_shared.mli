@@ -138,6 +138,8 @@ module Update_kind : sig
   (** Assumes each field is a word; the byte offset is [index * size_addr].
       Note that in this case the index is still based on word-width fields! *)
   val naked_vec128_fields : t
+
+  val of_kind_with_subkind : Flambda_kind.With_subkind.t -> t
 end
 
 (** Make an update to a statically-allocated block. *)
