@@ -306,6 +306,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
+  | With_null_representation of position
   | Jkind of Jkind.Violation.t
 
 let report_modality_sub_error first second ppf e =
@@ -634,6 +635,10 @@ let report_type_mismatch first second decl env ppf err =
       pr "Their internal representations differ:@ %s %s %s."
          (choose ord first second) decl
          "is extensible"
+  | With_null_representation ord ->
+      pr "Their internal representations differ:@ %s %s %s."
+         (choose ord first second) decl
+         "has a null constructor"
   | Jkind v ->
       Jkind.Violation.report_with_name ~name:first ppf v
 
@@ -989,7 +994,8 @@ module Variant_diffing = struct
     match err, rep1, rep2 with
     | None, Variant_unboxed, Variant_unboxed
     | None, Variant_boxed _, Variant_boxed _
-    | None, Variant_extensible, Variant_extensible -> None
+    | None, Variant_extensible, Variant_extensible
+    | None, Variant_with_null, Variant_with_null -> None
     | Some err, _, _ ->
         Some (Variant_mismatch err)
     | None, Variant_unboxed, Variant_boxed _ ->
@@ -1000,6 +1006,10 @@ module Variant_diffing = struct
       Some (Extensible_representation First)
     | None, _, Variant_extensible ->
       Some (Extensible_representation Second)
+    | None, Variant_with_null, _ ->
+      Some (With_null_representation First)
+    | None, _, Variant_with_null ->
+      Some (With_null_representation Second)
 end
 
 (* Inclusion between "private" annotations *)
@@ -1338,15 +1348,25 @@ let type_declarations ?(equality = false) ~loc env ~mark name
       rep1 rep2
   in
   let err = match (decl1.type_kind, decl2.type_kind) with
-      (_, Type_abstract _) ->
-       (* Note that [decl2.type_jkind] is an upper bound.
-          If it isn't tight, [decl2] must
-          have a manifest, which we're already checking for equality
-          above. Similarly, [decl1]'s kind may conservatively approximate its
-          jkind, but [check_decl_jkind] will expand its manifest.  *)
-        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
-         | Ok _ -> None
-         | Error v -> Some (Jkind v))
+      (_, Type_abstract _) -> begin
+        (* If both the intf has "allow any kind in impl" *and* the impl has "allow any
+           kind in intf", don't check the jkind at all. *)
+        let allow_any =
+          Builtin_attributes.has_unsafe_allow_any_kind_in_impl decl2.type_attributes
+          && Builtin_attributes.has_unsafe_allow_any_kind_in_intf decl1.type_attributes
+        in
+        (* Note that [decl2.type_jkind] is an upper bound. If it isn't tight, [decl2] must
+           have a manifest, which we're already checking for equality above. Similarly,
+           [decl1]'s kind may conservatively approximate its jkind, but [check_decl_jkind]
+           will expand its manifest. *)
+        match Ctype.check_decl_jkind env decl1 decl2.type_jkind  with
+        | Ok _ ->
+          (if allow_any
+           then Location.prerr_warning decl2.type_loc (Warnings.Unnecessary_allow_any_kind));
+          None
+        | Error _ when allow_any -> None
+        | Error v -> Some (Jkind v)
+      end
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
         if mark then begin
           let mark usage cstrs =

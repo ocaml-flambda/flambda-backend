@@ -1365,6 +1365,7 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
+    | "dump-vectorize" -> set' Flambda_backend_flags.dump_vectorize
     | "vectorize-max-block-size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
     | "cfg-selection" -> set' Flambda_backend_flags.cfg_selection
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize

@@ -37,6 +37,8 @@ val regs : Format.formatter -> Reg.t array -> unit
 
 val regset : Format.formatter -> Reg.Set.t -> unit
 
+val reglist : Format.formatter -> Reg.t list -> unit
+
 val regsetaddr' :
   ?print_reg:(Format.formatter -> Reg.t -> unit) ->
   Format.formatter ->

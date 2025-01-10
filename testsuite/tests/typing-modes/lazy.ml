@@ -43,8 +43,7 @@ let foo (x @ local) =
 val foo : local_ 'a lazy_t -> 'a = <fun>
 |}]
 
-(* one can construct portable lazy, if both the thunk and the result are
-   portable *)
+(* one can construct [portable] lazy only if the result is [portable] *)
 let foo () =
     let l = lazy (let x @ nonportable = fun x -> x in x) in
     use_portable l
@@ -55,32 +54,21 @@ Line 3, characters 17-18:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
+(* thunk is evaluated only when [uncontended] lazy is forced, so the thunk can be
+    [nonportable] even if the lazy is [portable]. *)
 let foo (x @ nonportable) =
     let l = lazy (let _ = x in ()) in
     use_portable l
 [%%expect{|
-Line 3, characters 17-18:
-3 |     use_portable l
-                     ^
-Error: This value is "nonportable" but expected to be "portable".
+val foo : 'a -> unit = <fun>
 |}]
 
-let foo (x @ portable) =
-    let l = lazy (let _ = x in let y = fun () -> () in y) in
-    use_portable l
-[%%expect{|
-val foo : 'a @ portable -> unit = <fun>
-|}]
-
-(* inside a portable lazy, things are available as contended *)
+(* For the same reason, [portable] lazy can close over things at [uncontended]. *)
 let foo (x @ uncontended) =
-    let l @ portable = lazy ( let x' @ uncontended = x in ()) in
+    let l @ portable = lazy ( let _x @ uncontended = x in ()) in
     use_portable l
 [%%expect{|
-Line 2, characters 53-54:
-2 |     let l @ portable = lazy ( let x' @ uncontended = x in ()) in
-                                                         ^
-Error: This value is "contended" but expected to be "uncontended".
+val foo : 'a -> unit = <fun>
 |}]
 
 (* Portable lazy gives portable result *)
@@ -91,6 +79,7 @@ let foo (x @ portable) =
 val foo : 'a lazy_t @ portable -> unit = <fun>
 |}]
 
+(* Nonportable lazy gives nonportable result *)
 let foo (x @ nonportable) =
     match x with
     | lazy r -> use_portable x

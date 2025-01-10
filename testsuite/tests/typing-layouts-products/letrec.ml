@@ -1,20 +1,22 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
- flags = "-extension layouts_beta";
  {
    expect;
  }
 *)
 
+(* This test was made to error by disallowing singleton recursive unboxed types.
+   We keep it in case these are re-allowed, in which case it should error with:
+   [This kind of expression is not allowed as right-hand side of "let rec"] *)
 type t : value = #{ t : t }
 let rec t = #{ t = t }
 [%%expect{|
-type t = #{ t : t; }
-Line 2, characters 12-22:
-2 | let rec t = #{ t = t }
-                ^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of "let rec"
+Line 1, characters 0-27:
+1 | type t : value = #{ t : t }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t" is recursive without boxing:
+         "t" contains "t"
 |}]
 
 type bx = { bx : ubx }
@@ -34,10 +36,7 @@ let rec t = { bx = #{ ubx = t } }
 val t : bx = {bx = <cycle>}
 |}]
 
-(* The below is adapted from [testsuite/tests/letrec-check/unboxed.ml].
-
-   CR layouts v7.2: once unboxed records are in stable, fold this test back into
-   the original or move it to [typing-layouts-products]. *)
+(* The below is adapted from [testsuite/tests/letrec-check/unboxed.ml]. *)
 
 type t = #{x: int64}
 let rec x = #{x = y} and y = 3L;;

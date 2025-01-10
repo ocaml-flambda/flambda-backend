@@ -491,7 +491,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           ~res_count operation ]
   in
   let create_const_vec consts =
-    let highs, lows = Misc.Stdlib.List.split_at (length / 2) consts in
+    let lows, highs = Misc.Stdlib.List.split_at (length / 2) consts in
     let pack_int64 nums =
       let mask =
         Int64.shift_right_logical Int64.minus_one (64 - width_in_bits)
@@ -589,13 +589,14 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       let sse_op =
         match width_type with
         | W128 -> assert false
-        | W64 -> assert false
-        | W32 -> SRA_i32
-        | W16 -> SRA_i16
-        | W8 -> assert false
+        | W64 -> None
+        | W32 -> Some SRA_i32
+        | W16 -> Some SRA_i16
+        | W8 -> None
       in
-      Operation.Specific (Isimd (SSE2 sse_op))
-      |> make_default ~arg_count ~res_count
+      Option.bind sse_op (fun sse_op ->
+          Operation.Specific (Isimd (SSE2 sse_op))
+          |> make_default ~arg_count ~res_count)
     | Icomp (Isigned intcomp) -> (
       match intcomp with
       | Ceq ->
@@ -702,9 +703,9 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       then (
         assert (arg_count = 1 && res_count = 1);
         const_instruction.results.(0)
-          <- Vectorize_utils.Vectorized_instruction.New 0;
+          <- Vectorize_utils.Vectorized_instruction.New_Vec128 0;
         intop_instruction.arguments.(1)
-          <- Vectorize_utils.Vectorized_instruction.New 0;
+          <- Vectorize_utils.Vectorized_instruction.New_Vec128 0;
         Some [const_instruction; intop_instruction])
       else None
     | _ -> None)
@@ -775,8 +776,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           (* reg + displ *)
           Some
             [ make_move (Argument 0) (Result 0);
-              make_const (New 0) displs;
-              make_binary_operation (Result 0) (New 0) (Result 0) add ]
+              make_const (New_Vec128 0) displs;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) add ]
         | None -> None)
       | Iindexed2 _ -> (
         match add_op with
@@ -787,8 +788,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           Some
             [ make_move (Argument 0) (Result 0);
               make_binary_operation (Result 0) (Argument 1) (Result 0) add;
-              make_const (New 0) displs;
-              make_binary_operation (Result 0) (New 0) (Result 0) add ]
+              make_const (New_Vec128 0) displs;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) add ]
         | None -> None)
       | Iscaled _ -> (
         match add_op, mul_op with
@@ -799,10 +800,10 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           (* reg * scale + displ *)
           Some
             [ make_move (Argument 0) (Result 0);
-              make_const (New 0) scales;
-              make_binary_operation (Result 0) (New 0) (Result 0) mul;
-              make_const (New 1) displs;
-              make_binary_operation (Result 0) (New 1) (Result 0) add ]
+              make_const (New_Vec128 0) scales;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) mul;
+              make_const (New_Vec128 1) displs;
+              make_binary_operation (Result 0) (New_Vec128 1) (Result 0) add ]
         | _ -> None)
       | Iindexed2scaled _ -> (
         match add_op, mul_op with
@@ -813,11 +814,11 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           (* reg + reg * scale + displ *)
           Some
             [ make_move (Argument 1) (Result 0);
-              make_const (New 0) scales;
-              make_binary_operation (Result 0) (New 0) (Result 0) mul;
+              make_const (New_Vec128 0) scales;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) mul;
               make_binary_operation (Result 0) (Argument 0) (Result 0) add;
-              make_const (New 1) displs;
-              make_binary_operation (Result 0) (New 1) (Result 0) add ]
+              make_const (New_Vec128 1) displs;
+              make_binary_operation (Result 0) (New_Vec128 1) (Result 0) add ]
         | _ -> None)
       | Ibased _ -> None)
     | Isextend32 -> (

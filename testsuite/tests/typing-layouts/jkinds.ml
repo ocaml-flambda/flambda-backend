@@ -279,8 +279,8 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 |}]
 
 type a : immediate
-type b : value mod global unique many uncontended portable external_ = a
-type c : value mod global unique many uncontended portable external_
+type b : value mod global unique many uncontended portable unyielding external_ = a
+type c : value mod global unique many uncontended portable unyielding external_
 type d : immediate = c
 [%%expect{|
 type a : immediate
@@ -290,8 +290,8 @@ type d = c
 |}]
 
 type a : immediate64
-type b : value mod global unique many uncontended portable external64 = a
-type c : value mod global unique many uncontended portable external64
+type b : value mod global unique many uncontended portable unyielding external64 = a
+type c : value mod global unique many uncontended portable unyielding external64
 type d : immediate64 = c
 [%%expect{|
 type a : immediate64

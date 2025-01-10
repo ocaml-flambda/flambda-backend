@@ -1,0 +1,4 @@
+File "unboxed_records.ml", line 47, characters 0-34:
+47 | type ints = #{ x : int ; y : int }
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This construct requires the stable version of the extension "layouts", which is disabled and cannot be used

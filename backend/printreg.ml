@@ -63,6 +63,8 @@ let regs' ?(print_reg = reg) ppf v =
 
 let regs ppf v = regs' ppf v
 
+let reglist ppf l = Format.pp_print_list ~pp_sep:pp_print_space reg ppf l
+
 let regset ppf s =
   let first = ref true in
   Set.iter

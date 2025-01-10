@@ -51,6 +51,8 @@ module Axis_pair = struct
     | "external64" ->
       Any_axis_pair (Nonmodal Externality, Externality.External64)
     | "external_" -> Any_axis_pair (Nonmodal Externality, Externality.External)
+    | "yielding" -> Any_axis_pair (Modal Yielding, Yielding.Const.Yielding)
+    | "unyielding" -> Any_axis_pair (Modal Yielding, Yielding.Const.Unyielding)
     | _ -> raise Not_found
 end
 
@@ -116,7 +118,8 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
     linearity = modes.linearity;
     uniqueness = modes.uniqueness;
     portability = modes.portability;
-    contention = modes.contention
+    contention = modes.contention;
+    yielding = modes.yielding
   }
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
@@ -134,9 +137,10 @@ let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   let contention =
     print_to_string_opt Mode.Contention.Const.print modes.contention
   in
+  let yielding = print_to_string_opt Mode.Yielding.Const.print modes.yielding in
   List.filter_map
     (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
-    [areality; uniqueness; linearity; portability; contention]
+    [areality; uniqueness; linearity; portability; contention; yielding]
 
 let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
   let axis_pair =
@@ -155,6 +159,8 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
     Modality.Atom (Comonadic Portability, Meet_with mode)
   | Modal_axis_pair (Contention, mode) ->
     Modality.Atom (Monadic Contention, Join_with mode)
+  | Modal_axis_pair (Yielding, mode) ->
+    Modality.Atom (Comonadic Yielding, Meet_with mode)
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
@@ -174,6 +180,9 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
     | Atom (Monadic Contention, Join_with Contention.Const.Shared) -> "shared"
     | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
       "uncontended"
+    | Atom (Comonadic Yielding, Meet_with Yielding.Const.Yielding) -> "yielding"
+    | Atom (Comonadic Yielding, Meet_with Yielding.Const.Unyielding) ->
+      "unyielding"
     | _ -> failwith "BUG: impossible modality atom"
   in
   { txt = Modality s; loc = Location.none }
@@ -188,7 +197,8 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
   let comonadic : Modality.t list =
     [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
       Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
-      Atom (Comonadic Portability, Meet_with Portability.Const.legacy) ]
+      Atom (Comonadic Portability, Meet_with Portability.Const.legacy);
+      Atom (Comonadic Yielding, Meet_with Yielding.Const.legacy) ]
   in
   let monadic : Modality.t list =
     [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);

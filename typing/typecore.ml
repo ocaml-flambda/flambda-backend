@@ -551,6 +551,9 @@ let mode_lazy expected_mode =
     (* The thunk is evaluated only once, so we only require it to be [once],
        even if the [lazy] is [many]. *)
     |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
+    (* The thunk is evaluated only when the [lazy] is [uncontended], so we only require it
+       to be [nonportable], even if the [lazy] is [portable]. *)
+    |> Value.join_with (Comonadic Portability) Portability.Const.Nonportable
   in
   {expected_mode with locality_context = Some Lazy }, closure_mode
 
@@ -3011,7 +3014,7 @@ and type_pat_aux
   | Ppat_record(lid_sp_list, closed) ->
       type_record_pat Legacy lid_sp_list closed
   | Ppat_record_unboxed_product(lid_sp_list, closed) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       type_record_pat Unboxed_product lid_sp_list closed
   | Ppat_array (mut, spl) ->
       let mut =
@@ -5417,7 +5420,9 @@ and type_expect_
             (rep : rep) =
         match record_form with
         | Legacy -> begin match rep with
-          | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
+          | Record_unboxed
+          | Record_inlined (_, _, (Variant_unboxed | Variant_with_null))
+            -> false
           | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _
           | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
             -> true
@@ -6001,7 +6006,7 @@ and type_expect_
   | Pexp_record(lid_sexp_list, opt_sexp) ->
       type_expect_record ~overwrite Legacy lid_sexp_list opt_sexp
   | Pexp_record_unboxed_product(lid_sexp_list, opt_sexp) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       type_expect_record ~overwrite Unboxed_product lid_sexp_list opt_sexp
   | Pexp_field(srecord, lid) ->
       let (record, rmode, label, _) =
@@ -6053,7 +6058,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_unboxed_field(srecord, lid) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       let (record, rmode, label, _) =
         type_label_access Unboxed_product env srecord Env.Projection lid
       in
@@ -8416,7 +8421,7 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
   in
   let (argument_mode, alloc_mode) =
     match constr.cstr_repr with
-    | Variant_unboxed -> expected_mode, None
+    | Variant_unboxed | Variant_with_null -> expected_mode, None
     | Variant_boxed _ when constr.cstr_constant -> expected_mode, None
     | Variant_boxed _ | Variant_extensible ->
        let alloc_mode, argument_mode = register_allocation expected_mode in
@@ -8453,6 +8458,8 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
         raise(Error(loc, env, Private_constructor (constr, ty_res)))
     | Variant_boxed _ | Variant_unboxed ->
         raise (Error(loc, env, Private_type ty_res));
+    | Variant_with_null -> assert false
+      (* [Variant_with_null] can't be made private due to [or_null_reexport]. *)
     end;
   (* NOTE: shouldn't we call "re" on this final expression? -- AF *)
   { texp with
@@ -10811,6 +10818,7 @@ let report_error ~loc env = function
         | Error (Monadic Contention, _ ) ->
           contention_hint fail_reason submode_reason contention_context
         | Error (Comonadic Portability, _ ) -> []
+        | Error (Comonadic Yielding, _) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with
