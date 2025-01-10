@@ -21,7 +21,7 @@ let regalloc = ref "cfg"                (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
 let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
-let vectorize = ref false                (* -[no-]vectorize *)
+let vectorize = ref true                 (* -[no-]vectorize *)
 let dump_vectorize = ref false          (* -dvectorize *)
 
 let default_vectorize_max_block_size = 100
