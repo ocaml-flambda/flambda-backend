@@ -60,7 +60,7 @@ let handle = function
   | Eff1.Exception e -> raise e
   | Eff1.Operation(Xchg msg, cont) -> Suspended { msg;  cont }
 
-let step (f : (*local_*) _ -> 'a) () : 'a status =
+let step (f : local_ _ -> 'a) () : 'a status =
   handle (Eff1.run f)
 ;;
 
@@ -82,7 +82,7 @@ let () =
 ;;
 
 type ('a, 't) op2 =
-  | Fork : ((*local_*) 't Handler.t -> unit) -> (unit, 't) op2
+  | Fork : (local_ 't Handler.t -> unit) -> (unit, 't) op2
   | Yield : (unit, 't) op2
   | Xchg : int -> (int, 't) op2
 
@@ -228,7 +228,7 @@ module Eff5 = Effect.Make1 (struct
     type ('a, 'p) t = ('a, 'p) op5
   end)
 
-let invert (type a) ~(iter : (*local_*) (a -> unit) -> unit) : a Seq.t =
+let invert (type a) ~(iter : local_ (a -> unit) -> unit) : a Seq.t =
   fun () ->
     let rec handle = function
       | Eff5.Value () -> Seq.Nil

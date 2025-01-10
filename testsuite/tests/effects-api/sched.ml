@@ -6,7 +6,7 @@ module Effect = Stdlib_alpha.Effect
 
 type ('a, 'e) op =
   | Yield : (unit, 'e) op
-  | Fork : ((*local_*) 'e Effect.Handler.t -> string) -> (unit, 'e) op
+  | Fork : (local_ 'e Effect.Handler.t -> string) -> (unit, 'e) op
   | Ping : (unit, 'e) op
 
 module Eff = Effect.Make_rec (struct
