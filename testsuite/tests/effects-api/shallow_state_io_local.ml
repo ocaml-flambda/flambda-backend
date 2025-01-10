@@ -1,5 +1,7 @@
 (* TEST
  include stdlib_alpha;
+ skip;
+ reason = "Local continuations are not supported yet";
 *)
 
 module Effect = Stdlib_alpha.Effect
@@ -57,4 +59,3 @@ let main () =
   Printf.printf "Final state: %d\n" i
 
 let _ = main ()
-
