@@ -551,6 +551,9 @@ let mode_lazy expected_mode =
     (* The thunk is evaluated only once, so we only require it to be [once],
        even if the [lazy] is [many]. *)
     |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
+    (* The thunk is evaluated only when the [lazy] is [uncontended], so we only require it
+       to be [nonportable], even if the [lazy] is [portable]. *)
+    |> Value.join_with (Comonadic Portability) Portability.Const.Nonportable
   in
   {expected_mode with locality_context = Some Lazy }, closure_mode
 
