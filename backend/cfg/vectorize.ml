@@ -2888,7 +2888,7 @@ let add_vector_instructions_for_group reg_map state group ~before:cell
     let get_register
         (simd_reg : Vectorize_utils.Vectorized_instruction.register) =
       match simd_reg with
-      | New n -> get_new_reg n
+      | New_Vec128 n -> get_new_reg n
       | Argument n ->
         let original_reg = (Instruction.arguments key_instruction).(n) in
         Substitution.get_reg_exn reg_map original_reg
