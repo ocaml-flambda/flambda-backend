@@ -2116,6 +2116,20 @@ let unbox_once env ty =
   | Tpoly (ty, _) -> Stepped ty
   | _ -> Final_result
 
+let contained_without_boxing env ty =
+  match get_desc ty with
+  | Tconstr _ ->
+    begin match unbox_once env ty with
+    | Stepped ty -> [ty]
+    | Stepped_record_unboxed_product tys -> tys
+    | Final_result | Missing _ -> []
+    end
+  | Tunboxed_tuple labeled_tys ->
+    List.map snd labeled_tys
+  | Tpoly (ty, _) -> [ty]
+  | Tvar _ | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil | Tlink _
+  | Tsubst _ | Tvariant _ | Tunivar _ | Tpackage _ -> []
+
 (* We use ty_prev to track the last type for which we found a definition,
    allowing us to return a type for which a definition was found even if
    we eventually bottom out at a missing cmi file, or otherwise. *)
