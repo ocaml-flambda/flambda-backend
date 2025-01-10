@@ -12,19 +12,19 @@ performance-enhancing operations can be performed safely. For example:
 
 # Lazy
 `lazy e` contains a thunk that evaluates `e`, as well as a mutable cell to store the
-result of `e`. Upon construction, the mode of `lazy e` is weaker than `e`. For example, if
-`e` is `nonportable`, then `lazy e` cannot be `portable`. Upon destruction (forcing a lazy
-value), the result is weaker than the mode of lazy value. For example, forcing a
-`nonportable` lazy value cannot give a `portable` result. Additionally, forcing a lazy
-value involves accessing the mutable cell and thus requires the lazy value to be
-`uncontended`.
+result of `e`. Upon construction, the mode of `lazy e` cannot be stronger than `e`. For
+example, if `e` is `nonportable`, then `lazy e` cannot be `portable`. Upon destruction
+(forcing a lazy value), the result cannot be stronger than the mode of lazy value. For
+example, forcing a `nonportable` lazy value cannot give a `portable` result. Additionally,
+forcing a lazy value involves accessing the mutable cell and thus requires the lazy value
+to be `uncontended`.
 
 Currently, the above rules don't apply to the locality axis, because both the result and
 the lazy value are heap-allocated, so they are always `global`.
 
-Additionally, upon construction, the comonadic fragment of `lazy e` is weaker than the
-thunk. The thunk is checked as `fun () -> e`, potentially closing over variables, which
-weakens its comonadic fragment. This rule doesn't apply to several axes:
+Additionally, upon construction, the comonadic fragment of `lazy e` cannot be stronger
+than the thunk. The thunk is checked as `fun () -> e`, potentially closing over variables,
+which weakens its comonadic fragment. This rule doesn't apply to several axes:
 - The thunk is always heap-allocated so always `global`.
 - Since the thunk is only evaluated if the lazy value is `uncontended`, one can construct
 a lazy value at `portable` even if the thunk is `nonportable` (e.g., closing over
