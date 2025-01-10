@@ -35,6 +35,8 @@
     - ocaml.tailcall
     - ocaml.tail_mod_cons
     - ocaml.unboxed
+    - ocaml.unsafe_allow_any_kind_in_impl
+    - ocaml.unsafe_allow_any_kind_in_intf
     - ocaml.untagged
     - ocaml.unrolled
     - ocaml.warnerror
@@ -197,6 +199,9 @@ val explicit_arity: Parsetree.attributes -> bool
 
 val has_unboxed: Parsetree.attributes -> bool
 val has_boxed: Parsetree.attributes -> bool
+
+val has_unsafe_allow_any_kind_in_impl: Parsetree.attributes -> bool
+val has_unsafe_allow_any_kind_in_intf: Parsetree.attributes -> bool
 
 val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit

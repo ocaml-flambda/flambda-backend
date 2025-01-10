@@ -171,7 +171,7 @@ class selector =
     method! insert_move_extcall_arg env ty_arg src dst =
       let ty_arg_is_int32 =
         match ty_arg with
-        | XInt8 | XInt16 | XInt32 -> true
+        | XInt32 -> true
         | XInt | XInt64 | XFloat32 | XFloat | XVec128 -> false
       in
       if macosx && ty_arg_is_int32 && is_stack_slot dst

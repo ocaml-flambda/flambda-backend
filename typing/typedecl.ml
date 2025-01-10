@@ -1671,6 +1671,11 @@ let update_decl_jkind env dpath decl =
   let update_variant_kind cstrs rep =
     (* CR layouts: factor out duplication *)
     match cstrs, rep with
+    | _, Variant_with_null ->
+      (* CR layouts v3.5: this case only happens with [or_null_reexport].
+         Change when we allow users to write their own null constructors. *)
+      (* CR layouts v3.3: use [any_non_null]. *)
+      cstrs, rep, Jkind.Builtin.value_or_null ~why:(Primitive Predef.ident_or_null)
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _} as arg] -> begin
@@ -1745,8 +1750,7 @@ let update_decl_jkind env dpath decl =
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
-    (* CR layouts v3.0: handle this case in [update_variant_jkind] when
-       [Variant_with_null] introduced.
+    (* CR layouts v3.0: remove this once [or_null] is [Variant_with_null].
 
        No updating required for [or_null_reexport], and we must not
        incorrectly override the jkind to [non_null].

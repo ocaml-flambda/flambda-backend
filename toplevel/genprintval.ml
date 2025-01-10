@@ -449,6 +449,10 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                       match rep with
                       | Variant_unboxed -> true
                       | Variant_boxed _ | Variant_extensible -> false
+                      | Variant_with_null ->
+                        (* CR layouts v3.0: fix this. *)
+                        Misc.fatal_error "[Variant_with_null] not implemented\
+                          in bytecode"
                     in
                     begin
                       match cd_args with

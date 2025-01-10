@@ -853,7 +853,7 @@ CAMLexport const struct custom_operations caml_unboxed_float32_array_ops[2] = {
     custom_fixed_length_default },
 };
 
-static value caml_make_unboxed_float32_vect0(value len, int local)
+CAMLprim value caml_make_unboxed_float32_vect(value len)
 {
   /* This is only used on 64-bit targets. */
 
@@ -863,23 +863,8 @@ static value caml_make_unboxed_float32_vect0(value len, int local)
   /* [num_fields] does not include the custom operations field. */
   mlsize_t num_fields = num_elements / 2 + num_elements % 2;
 
-  const struct custom_operations* ops =
-    &caml_unboxed_float32_array_ops[num_elements % 2];
-
-  if (local)
-    return caml_alloc_custom_local(ops, num_fields * sizeof(value), 0, 0);
-  else
-    return caml_alloc_custom(ops, num_fields * sizeof(value), 0, 0);
-}
-
-CAMLprim value caml_make_unboxed_float32_vect(value len)
-{
-  return caml_make_unboxed_float32_vect0(len, 0);
-}
-
-CAMLprim value caml_make_local_unboxed_float32_vect(value len)
-{
-  return caml_make_unboxed_float32_vect0(len, 1);
+  return caml_alloc_custom(&caml_unboxed_float32_array_ops[num_elements % 2],
+                           num_fields * sizeof(value), 0, 0);
 }
 
 CAMLprim value caml_make_unboxed_float32_vect_bytecode(value len)
@@ -899,4 +884,9 @@ CAMLprim value caml_unboxed_float32_vect_blit(value a1, value ofs1, value a2,
           (float *)((uintnat *)a1 + 1) + Long_val(ofs1),
           Long_val(n) * sizeof(float));
   return Val_unit;
+}
+
+CAMLprim value caml_float32_is_stage1(value v) {
+  (void)v;
+  return Val_false;
 }

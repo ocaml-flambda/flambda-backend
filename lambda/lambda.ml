@@ -43,10 +43,6 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
-type has_initializer =
-  | With_initializer
-  | Uninitialized
-
 include (struct
 
   type locality_mode =
@@ -193,12 +189,9 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
-  | Pmakearray_dynamic of array_kind * locality_mode * has_initializer
+  | Pmakearray_dynamic of array_kind * locality_mode
   | Pduparray of array_kind * mutable_flag
-  | Parrayblit of {
-      src_mutability : mutable_flag;
-      dst_array_set_kind : array_set_kind;
-    }
+  | Parrayblit of array_set_kind (* Kind of the dest array. *)
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -956,10 +949,6 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
     (lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region)
 
 let lambda_unit = Lconst const_unit
-
-let of_bool = function
-  | true -> Lconst (const_int 1)
-  | false -> Lconst (const_int 0)
 
 (* CR vlaviron: review the following cases *)
 let non_null_value raw_kind =
@@ -1838,7 +1827,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
-  | Pmakearray_dynamic (_, m, _) -> Some m
+  | Pmakearray_dynamic (_, m) -> Some m
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parrayblit _
@@ -2416,21 +2405,6 @@ let array_set_kind mode = function
   | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
   | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
 
-let array_ref_kind_of_array_set_kind (kind : array_set_kind) mode
-      : array_ref_kind =
-  match kind with
-  | Pintarray_set -> Pintarray_ref
-  | Punboxedfloatarray_set uf -> Punboxedfloatarray_ref uf
-  | Punboxedintarray_set ui -> Punboxedintarray_ref ui
-  | Punboxedvectorarray_set uv -> Punboxedvectorarray_ref uv
-  | Pgcscannableproductarray_set (_, scannables) ->
-    Pgcscannableproductarray_ref scannables
-  | Pgcignorableproductarray_set ignorables ->
-    Pgcignorableproductarray_ref ignorables
-  | Pgenarray_set _ -> Pgenarray_ref mode
-  | Paddrarray_set _ -> Paddrarray_ref
-  | Pfloatarray_set -> Pfloatarray_ref mode
-
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)
   let rec loop_region lam =
@@ -2522,42 +2496,3 @@ let rec try_to_find_location lam =
 
 let try_to_find_debuginfo lam =
   Debuginfo.from_location (try_to_find_location lam)
-
-let rec count_initializers_scannable
-      (scannable : scannable_product_element_kind) =
-  match scannable with
-  | Pint_scannable | Paddr_scannable -> 1
-  | Pproduct_scannable scannables ->
-    List.fold_left
-      (fun acc scannable -> acc + count_initializers_scannable scannable)
-      0 scannables
-
-let rec count_initializers_ignorable
-    (ignorable : ignorable_product_element_kind) =
-  match ignorable with
-  | Pint_ignorable | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> 1
-  | Pproduct_ignorable ignorables ->
-    List.fold_left
-      (fun acc ignorable -> acc + count_initializers_ignorable ignorable)
-      0 ignorables
-
-let count_initializers_array_kind (lambda_array_kind : array_kind) =
-  match lambda_array_kind with
-  | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
-  | Punboxedintarray _ | Punboxedvectorarray _ -> 1
-  | Pgcscannableproductarray scannables ->
-    List.fold_left
-      (fun acc scannable -> acc + count_initializers_scannable scannable)
-      0 scannables
-  | Pgcignorableproductarray ignorables ->
-    List.fold_left
-      (fun acc ignorable -> acc + count_initializers_ignorable ignorable)
-      0 ignorables
-
-let rec ignorable_product_element_kind_involves_int
-    (kind : ignorable_product_element_kind) =
-  match kind with
-  | Pint_ignorable -> true
-  | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> false
-  | Pproduct_ignorable kinds ->
-    List.exists ignorable_product_element_kind_involves_int kinds
