@@ -67,6 +67,10 @@ val is_mutable : mutability -> bool
 
     Note on mutability: TBD.
  *)
+
+module Jkind_bounds :
+  module type of Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
+
 type type_expr
 type row_desc
 type row_field
@@ -229,12 +233,62 @@ and abbrev_memo =
     This is only allowed when the real type is known.
 *)
 
-(** Jkinds classify types. *)
-(* CR layouts v2.8: Say more here. *)
-and 'd jkind = (type_expr, 'd) Jkind_types.t
+
+(**** Jkinds ****)
+
+(** A history of conditions placed on a jkind.
+
+   INVARIANT: at most one sort variable appears in this history.
+   This is a natural consequence of producing this history by comparing
+   jkinds.
+*)
+and jkind_history =
+  | Interact of
+      { reason : Jkind_intf.History.interact_reason;
+        jkind1 : jkind_desc_packed;
+        history1 : jkind_history;
+        jkind2 : jkind_desc_packed;
+        history2 : jkind_history
+      }
+  | Creation of Jkind_intf.History.creation_reason
+
+and with_bounds_type =
+  { type_expr : type_expr;
+    modality : Mode.Modality.Value.Const.t;
+    nullability : bool
+  }
+
+and 'd with_bounds =
+  | No_with_bounds : ('l * 'r) with_bounds
+  (* There must always be at least one type. *)
+  | With_bounds :
+      with_bounds_type Misc.Nonempty_list.t
+      -> ('l * Allowance.disallowed) with_bounds
+
+and ('layout, 'd) layout_and_axes =
+  { layout : 'layout;
+    upper_bounds : Jkind_bounds.t;
+    with_bounds : 'd with_bounds
+  }
+  constraint 'd = 'l * 'r
+
+and 'd jkind_desc = (Jkind_types.Sort.t Jkind_types.Layout.t, 'd) layout_and_axes
+  constraint 'd = 'l * 'r
+
+and jkind_desc_packed = Pack_jkind_desc : ('l * 'r) jkind_desc -> jkind_desc_packed
+
+and 'd jkind =
+  { jkind : 'd jkind_desc;
+    annotation : Parsetree.jkind_annotation option;
+    history : jkind_history;
+    has_warned : bool
+  }
+  constraint 'd = 'l * 'r
+
 and jkind_l = (allowed * disallowed) jkind  (* the jkind of an actual type *)
 and jkind_r = (disallowed * allowed) jkind  (* the jkind expected of a type *)
 and jkind_lr = (allowed * allowed) jkind    (* the jkind of a variable *)
+and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
 
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable
