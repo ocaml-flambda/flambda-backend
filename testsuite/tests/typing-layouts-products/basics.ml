@@ -2,9 +2,6 @@
  flambda2;
  include stdlib_upstream_compatible;
  {
-   expect;
- }
- {
    flags = "-extension layouts_beta";
    expect;
  }
@@ -1519,13 +1516,7 @@ type t4 = #(string * #(float# * bool option)) array
    arrays to beta. *)
 let _ = [| #(1,2) |]
 [%%expect{|
-Line 1, characters 8-20:
-1 | let _ = [| #(1,2) |]
-            ^^^^^^^^^^^^
-Error: Non-value layout value & value detected as sort for type #(int * int),
-       but this requires extension layouts_alpha, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
+- : #(int * int) array = [|#(1, 2)|]
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -1569,13 +1560,7 @@ let f x : #(int * int) = array_get x 3
 [%%expect{|
 external array_get : ('a : any_non_null). 'a array -> int -> 'a
   = "%array_safe_get" [@@layout_poly]
-Line 3, characters 25-38:
-3 | let f x : #(int * int) = array_get x 3
-                             ^^^^^^^^^^^^^
-Error: Non-value layout value & value detected as sort for type #(int * int),
-       but this requires extension layouts_alpha, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
+val f : #(int * int) array -> #(int * int) = <fun>
 |}]
 
 external[@layout_poly] array_set : ('a : any_non_null) . 'a array -> int -> 'a -> unit =
@@ -1584,17 +1569,10 @@ let f x = array_set x 3 #(1,2)
 [%%expect{|
 external array_set : ('a : any_non_null). 'a array -> int -> 'a -> unit
   = "%array_safe_set" [@@layout_poly]
-Line 3, characters 10-30:
-3 | let f x = array_set x 3 #(1,2)
-              ^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout value & value detected as sort for type #(int * int),
-       but this requires extension layouts_alpha, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
+val f : #(int * int) array -> unit = <fun>
 |}]
 
-(* You can write the type of an array of unboxed records, but not create
-   one. Soon, you can do both. *)
+(* You can write the type of an array of unboxed records and create one. *)
 type ('a : value & value) t1 = 'a array
 type ('a : bits64 & (value & float64)) t2 = 'a array
 
@@ -1618,15 +1596,10 @@ type array_record = #{ i1 : int; i2 : int }
 let _ = [| #{ i1 = 1; i2 = 2 } |]
 [%%expect{|
 type array_record = #{ i1 : int; i2 : int; }
-Line 2, characters 8-33:
-2 | let _ = [| #{ i1 = 1; i2 = 2 } |]
-            ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout value & value detected as sort for type array_record,
-       but this requires extension layouts_alpha, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
+- : array_record array = [|#{i1 = 1; i2 = 2}|]
 |}]
 
+(* However, such records can't be passed to [Array.init]. *)
 type array_init_record = #{ i1 : int; i2 : int }
 let _ = Array.init 3 (fun _ -> #{ i1 = 1; i2 = 2 })
 [%%expect{|
@@ -1641,7 +1614,7 @@ Error: This expression has type "array_init_record"
        But the layout of array_init_record must be a sublayout of value.
 |}]
 
-(* Arrays of unboxed records of kind value *are* allowed *)
+(* Arrays of unboxed records of kind value *are* allowed in all cases *)
 type array_record = #{ i : int  }
 let _ = [| #{ i = 1 } |]
 [%%expect{|

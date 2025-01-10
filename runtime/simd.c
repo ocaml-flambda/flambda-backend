@@ -75,20 +75,37 @@ CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
     return Val_unit;
 }
 
-CAMLprim value caml_make_unboxed_vec128_vect(value len) {
-    /* This is only used on 64-bit targets. */
+static value caml_make_unboxed_vec128_vect0(value len, int local)
+{
+  /* This is only used on 64-bit targets. */
 
-    mlsize_t num_elements = Long_val(len);
-    if (num_elements > Max_unboxed_vec128_array_wosize) caml_invalid_argument("Array.make");
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_unboxed_vec128_array_wosize)
+    caml_invalid_argument("Array.make");
 
-    /* [num_fields] does not include the custom operations field. */
-    mlsize_t num_fields = num_elements * 2;
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = num_elements * 2;
 
-    return caml_alloc_custom(&caml_unboxed_vec128_array_ops, num_fields * sizeof(value), 0, 0);
+  if (local)
+    return caml_alloc_custom_local(&caml_unboxed_vec128_array_ops,
+      num_fields * sizeof(value), 0, 0);
+  else
+    return caml_alloc_custom(&caml_unboxed_vec128_array_ops,
+      num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_vec128_vect(value len)
+{
+  return caml_make_unboxed_vec128_vect0(len, 0);
+}
+
+CAMLprim value caml_make_local_unboxed_vec128_vect(value len)
+{
+  return caml_make_unboxed_vec128_vect0(len, 1);
 }
 
 CAMLprim value caml_make_unboxed_vec128_vect_bytecode(value len) {
-    caml_failwith("SIMD is not supported in bytecode mode.");
+  caml_failwith("SIMD is not supported on this platform.");
 }
 
 #else
@@ -99,6 +116,10 @@ CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
 }
 
 CAMLprim value caml_make_unboxed_vec128_vect(value len) {
+  caml_failwith("SIMD is not supported on this platform.");
+}
+
+CAMLprim value caml_make_local_unboxed_vec128_vect(value len) {
   caml_failwith("SIMD is not supported on this platform.");
 }
 
