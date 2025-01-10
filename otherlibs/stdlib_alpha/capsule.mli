@@ -563,37 +563,14 @@ exception Encapsulated : 'k Name.t * (exn, 'k) Data.t -> exn
     the data. The [Name.t] can be used to associate the [Data.t] with a
     particular [Password.t] or [Mutex.t]. *)
 
-(* CR-soon mslater: ['k Key.t] instead of ['k Mutex.t]. *)
-exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
-(** If a function passed to [protect] raises an exception, it is wrapped
-    in [Protected] to avoid leaking access to the data. The [Mutex.t] can
-    be used to access the [Data.t]. *)
-
-val protect : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
-(** [protect f] runs [f password] in a fresh capsule represented by [password].
-    If [f] raises an [Encapsulated] exception in the capsule represented by [password],
-    [protect] unwraps the exception and re-raises it as [Protected].
-    If [f] raises any other exception or returns normally, [protect] merges
-    the capsule into the caller's capsule. *)
-
-val protect_portable : (Password.packed @ local -> 'a) @ local portable -> 'a @@ portable
-(** [protect_portable f] runs [f password] in a fresh capsule represented by [password].
-    If [f] returns normally, [protect_portable] merges the capsule into the caller's capsule.
-    If [f] raises an [Encapsulated] exception in the capsule represented by [password],
-    [protect_portable] unwraps the exception and re-raises it as [Protected].
-    If [f] raises any other exception, [protect_portable] re-raises it as [Protected]. *)
-
 val with_password : (Password.packed @ local -> 'a) @ local -> 'a @@ portable
-(** [with_password f] runs [f password] in a fresh capsule represented by [password].
-    If [f] returns normally, [with_password] merges the capsule into the caller's capsule.
+(** [with_password f] creates a fresh capsule and applies [f] with the associated [password].
+
     If [f] raises an [Encapsulated] exception in the capsule represented by [password],
-    [with_password] unwraps the exception and re-raises it directly. *)
-
-val protect_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
-(** See [protect]. *)
-
-val protect_portable_local : (Password.packed @ local -> 'a @ local) @ local portable -> 'a @ local @@ portable
-(** See [protect_portable]. *)
+    [with_password] destroys the capsule, unwraps the exception, and re-raises it directly. *)
 
 val with_password_local : (Password.packed @ local -> 'a @ local) @ local -> 'a @ local @@ portable
-(** See [with_password]. *)
+(** See [with_password].
+
+    If [f] returns normally, note that the capsule is not destroyed, and locality still enforces
+    that the password cannot escape. *)

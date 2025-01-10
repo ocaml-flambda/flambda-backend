@@ -441,34 +441,6 @@ let create_with_rwlock () =
   let (P name) = Name.make () in
   Rwlock.P { name; rwlock = Rw.create (); poisoned = false }
 
-exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
-
-let reraise_protected name data =
-  let backtrace = get_raw_backtrace () in
-  let exn = (Protected ({ name; mutex = M.create (); poisoned = false }, data)) in
-  raise_with_backtrace exn backtrace
-;;
-
-let protect_local f = exclave_
-  let (P name) = Name.make () in
-  let password = Password.unsafe_mk name in
-  try f (Password.P password) with
-  | Encapsulated (inner, data) as exn ->
-    (match Name.equality_witness name inner with
-     | Some Equal -> reraise_protected name data
-     | None -> reraise exn)
-  | exn -> reraise exn
-
-let protect_portable_local f = exclave_
-  let (P name) = Name.make () in
-  let password = Password.unsafe_mk name in
-  try f (Password.P password) with
-  | Encapsulated (inner, data) as exn ->
-    (match Name.equality_witness name inner with
-     | Some Equal -> reraise_protected name data
-     | None -> reraise_protected name (Data.unsafe_mk exn))
-  | exn -> reraise_protected name (Data.unsafe_mk exn)
-
 let with_password_local f = exclave_
   let (P name) = Name.make () in
   let password = Password.unsafe_mk name in
@@ -479,6 +451,4 @@ let with_password_local f = exclave_
      | None -> reraise exn)
   | exn -> reraise exn
 
-let protect f = (protect_local (fun password -> { global = f password })).global
-let protect_portable f = (protect_portable_local (fun password -> { global = f password })).global
 let with_password f = (with_password_local (fun password -> { global = f password })).global
