@@ -104,11 +104,12 @@
         resumed.
      *)
 
-    val continue_local :
+    (* CR effects: implement when pointers between different stacks are allowed. *)
+    (* val continue_local :
       local_ ('a, 'b, 'es) Continuation.t
       -> 'a
       -> local_ 'es Handler.List.t
-      -> local_ 'b
+      -> local_ 'b *)
     (** [continue_local k v hs] resumes the continuation [k] with value [v].
         [hs] are used to handle [k]'s additional effects.
 
@@ -116,11 +117,12 @@
         resumed.
      *)
 
-    val discontinue_local :
+    (* CR effects: implement when pointers between different stacks are allowed. *)
+    (* val discontinue_local :
       local_ ('a, 'b, 'es) Continuation.t
       -> exn
       -> local_ 'es Handler.List.t
-      -> local_ 'b
+      -> local_ 'b *)
     (** [discontinue k e hs] resumes the continuation [k] by raising the
         exception [e]. [hs] are used to handle [k]'s additional effects.
 
@@ -128,12 +130,13 @@
         resumed.
      *)
 
-    val discontinue_local_with_backtrace :
+    (* CR effects: implement when pointers between different stacks are allowed. *)
+    (* val discontinue_local_with_backtrace :
       local_ ('a,'b, 'es) Continuation.t
       -> exn
       -> Printexc.raw_backtrace
       -> local_ 'es Handler.List.t
-      -> local_ 'b
+      -> local_ 'b *)
     (** [discontinue_with k e bt hs] resumes the continuation [k] by raising the
         exception [e] using the raw backtrace [bt] as the origin of the exception.
         [hs] are used to handle [k]'s additional effects.
@@ -159,10 +162,11 @@
         type eff := t
 
         type ('a, 'es) t =
-          | Value : 'a -> ('a, 'es) t
-          | Exception : exn -> ('a, 'es) t
+          | Value : global_ 'a -> ('a, 'es) t
+          | Exception : global_ exn -> ('a, 'es) t
           | Operation :
-              ('o, eff) ops * ('o, ('a, 'es) t, 'es) Continuation.t -> ('a, 'es) t
+              global_ ('o, eff) ops
+              * ('o, ('a, 'es) t, 'es) Continuation.t -> ('a, 'es) t
         (** [('a, 'es) t] is the result of running a continuation until it
             either finishes and returns an ['a] value, raises an exception, or
             performs an operation. *)
@@ -181,10 +185,10 @@
       end
 
       type ('a, 'es) result = ('a, 'es) Result.t =
-        | Value : (* global_ *) 'a -> ('a, 'es) result
-        | Exception : (* global_ *) exn -> ('a, 'es) result
+        | Value : global_ 'a -> ('a, 'es) result
+        | Exception : global_ exn -> ('a, 'es) result
         | Operation :
-            (* global_ *) ('o, t) ops
+            global_ ('o, t) ops
             * ('o, ('a, 'es) result, 'es) Continuation.t
             -> ('a, 'es) result
 
@@ -195,9 +199,10 @@
           is passed a [t Handler.t] so that it can perform operations from effect
           [t]. *)
 
-      val fiber_local :
+      (* CR effects: implement when pointers between different stacks are allowed. *)
+      (* val fiber_local :
         local_ (local_ t Handler.t -> 'a -> 'b)
-        -> local_ ('a, ('b, unit) Result.t, unit) Continuation.t
+        -> local_ ('a, ('b, unit) Result.t, unit) Continuation.t *)
       (** [fiber_local f] constructs a continuation that runs the computation [f].
           [f] is passed a [t Handler.t] so that it can perform operations from effect
           [t]. *)
@@ -216,9 +221,10 @@
           immediately continues it. [f] is passed a [t Handler.t] so that it can
           perform operations from effect [t]. *)
 
-      val run_local :
+      (* CR effects: implement when pointers between different stacks are allowed. *)
+      (* val run_local :
         local_ (local_ t Handler.t -> 'a)
-        -> local_ ('a, unit) Result.t
+        -> local_ ('a, unit) Result.t *)
       (** [run_local f] constructs a continuation that runs the computation
           [f], and immediately continues it. [f] is passed a [t Handler.t]
           so that it can perform operations from effect [t]. *)
@@ -273,10 +279,11 @@
         type 'p eff := 'p t
 
         type ('a, 'p, 'es) t =
-          | Value : 'a -> ('a, 'p, 'es) t
-          | Exception : exn -> ('a, 'p, 'es) t
+          | Value : global_ 'a -> ('a, 'p, 'es) t
+          | Exception : global_ exn -> ('a, 'p, 'es) t
           | Operation :
-              ('o, 'p, 'p eff) ops * ('o, ('a, 'p, 'es) t, 'es) Continuation.t
+              global_ ('o, 'p, 'p eff) ops
+              * ('o, ('a, 'p, 'es) t, 'es) Continuation.t
               -> ('a, 'p, 'es) t
         (** [('a, 'p, 'es) t] is the result of running a continuation until it
             either finishes and returns an ['a] value, raises an exception, or
@@ -296,10 +303,11 @@
       end
 
       type ('a, 'p, 'es) result = ('a, 'p, 'es) Result.t =
-        | Value : 'a -> ('a, 'p, 'es) result
-        | Exception : exn -> ('a, 'p, 'es) result
+        | Value : global_ 'a -> ('a, 'p, 'es) result
+        | Exception : global_ exn -> ('a, 'p, 'es) result
         | Operation :
-            ('o, 'p, 'p t) ops * ('o, ('a, 'p, 'es) result, 'es) Continuation.t
+            global_ ('o, 'p, 'p t) ops
+            * ('o, ('a, 'p, 'es) result, 'es) Continuation.t
             -> ('a, 'p, 'es) result
 
       val fiber :
@@ -309,9 +317,10 @@
           is passed a [t Handler.t] so that it can perform operations from effect
           [t]. *)
 
-      val fiber_local :
+      (* CR effects: implement when pointers between different stacks are allowed. *)
+      (* val fiber_local :
         local_ (local_ 'p t Handler.t -> 'a -> 'b)
-        -> local_ ('a, ('b, 'p, unit) Result.t, unit) Continuation.t
+        -> local_ ('a, ('b, 'p, unit) Result.t, unit) Continuation.t *)
       (** [fiber_local f] constructs a continuation that runs the
           computation [f]. [f] is passed a [t Handler.t] so that it can
           perform operations from effect [t]. *)
@@ -329,9 +338,10 @@
       (** [run f] constructs a continuation that runs the computation [f], and
           immediately continues it. *)
 
-      val run_local :
+      (* CR effects: implement when pointers between different stacks are allowed. *)
+      (* val run_local :
         local_ (local_ 'p t Handler.t -> 'a)
-        -> local_ ('a, 'p, unit) Result.t
+        -> local_ ('a, 'p, unit) Result.t *)
       (** [run_local f] constructs a continuation that runs the computation
           [f], and immediately continues it. *)
 
@@ -377,10 +387,10 @@
         type ('p, 'q) eff := ('p, 'q) t
 
         type ('a, 'p, 'q, 'es) t =
-          | Value : 'a -> ('a, 'p, 'q, 'es) t
-          | Exception : exn -> ('a, 'p, 'q, 'es) t
+          | Value : global_ 'a -> ('a, 'p, 'q, 'es) t
+          | Exception : global_ exn -> ('a, 'p, 'q, 'es) t
           | Operation :
-              ('o, 'p, 'q, ('p, 'q) eff) ops
+              global_ ('o, 'p, 'q, ('p, 'q) eff) ops
               * ('o, ('a, 'p, 'q, 'es) t, 'es) Continuation.t
               -> ('a, 'p, 'q, 'es) t
         (** [('a, 'p, 'q, 'es) t] is the result of running a continuation until
@@ -401,10 +411,10 @@
       end
 
       type ('a, 'p, 'q, 'es) result = ('a, 'p, 'q, 'es) Result.t =
-        | Value : 'a -> ('a, 'p, 'q, 'es) result
-        | Exception : exn -> ('a, 'p, 'q, 'es) result
+        | Value : global_ 'a -> ('a, 'p, 'q, 'es) result
+        | Exception : global_ exn -> ('a, 'p, 'q, 'es) result
         | Operation :
-            ('o, 'p, 'q, ('p, 'q) t) ops
+            global_ ('o, 'p, 'q, ('p, 'q) t) ops
             * ('o, ('a, 'p, 'q, 'es) result, 'es) Continuation.t
             -> ('a, 'p, 'q, 'es) result
 
@@ -415,9 +425,10 @@
           is passed a [t Handler.t] so that it can perform operations from effect
           [t]. *)
 
-      val fiber_local :
+      (* CR effects: implement when pointers between different stacks are allowed. *)
+      (* val fiber_local :
         local_ (local_ ('p, 'q) t Handler.t -> 'a -> 'b)
-        -> local_ ('a, ('b, 'p, 'q, unit) Result.t, unit) Continuation.t
+        -> local_ ('a, ('b, 'p, 'q, unit) Result.t, unit) Continuation.t *)
       (** [fiber_local f] constructs a continuation that runs the
           computation [f]. [f] is passed a [t Handler.t] so that it can
           perform operations from effect [t]. *)
@@ -437,9 +448,10 @@
       (** [run f] constructs a continuation that runs the computation [f], and
           immediately continues it. *)
 
-      val run_local :
+      (* CR effects: implement when pointers between different stacks are allowed. *)
+      (* val run_local :
         local_ (local_ ('p, 'q) t Handler.t -> 'a)
-        -> local_ ('a, 'p, 'q, unit) Result.t
+        -> local_ ('a, 'p, 'q, unit) Result.t *)
       (** [run_local f] constructs a continuation that runs the computation
           [f], and immediately continues it. *)
 
