@@ -546,7 +546,7 @@ Line 2, characters 28-32:
 Error: This expression has type "('a : float64)"
        but an expression was expected of type "int64#"
        The layout of int64# is bits64
-         because it is the primitive type int64#.
+         because it is unboxed version of the primitive type int64.
        But the layout of int64# must be a sublayout of float64
          because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
