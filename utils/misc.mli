@@ -303,21 +303,6 @@ module Stdlib : sig
   external compare : 'a -> 'a -> int = "%compare"
 
   module Monad : sig
-    module type Basic = sig
-      type 'a t
-
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-      val return : 'a -> 'a t
-
-      (** The following identities ought to hold (for some value of =):
-
-          - [return x >>= f = f x]
-          - [t >>= fun x -> return x = t]
-          - [(t >>= f) >>= g = t >>= fun x -> (f x >>= g)]
-
-          Note: [>>=] is the infix notation for [bind]) *)
-    end
-
     module type Basic2 = sig
       (** Multi parameter monad. The second parameter gets unified across all
           the computation.  This is used to encode monads working on a multi
@@ -328,6 +313,19 @@ module Stdlib : sig
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
 
       val return : 'a -> ('a, _) t
+
+      (** The following identities ought to hold (for some value of =):
+
+          - [return x >>= f = f x]
+          - [t >>= fun x -> return x = t]
+          - [(t >>= f) >>= g = t >>= fun x -> (f x >>= g)]
+
+          Note: [>>=] is the infix notation for [bind]) *)
+    end
+
+    module type Basic = sig
+      type 'a t
+      include Basic2 with type ('a, _) t := 'a t
     end
 
     module type S2 = sig

@@ -504,19 +504,17 @@ module Stdlib = struct
   external compare : 'a -> 'a -> int = "%compare"
 
   module Monad = struct
-    module type Basic = sig
-      type 'a t
-
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-      val return : 'a -> 'a t
-    end
-
     module type Basic2 = sig
       type ('a, 'e) t
 
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
 
       val return : 'a -> ('a, _) t
+    end
+
+    module type Basic = sig
+      type 'a t
+      include Basic2 with type ('a, _) t := 'a t
     end
 
     module type S2 = sig
