@@ -1,6 +1,6 @@
 (* TEST
  modules = "custom_block_padding.c";
- flags = "-extension layouts_alpha";
+ flags = "-extension layouts_beta";
  flambda2;
  {
    bytecode;
@@ -8,8 +8,6 @@
    native;
  }
 *)
-
-(* CR layouts v7.1: move this test to beta/stable when product arrays are ready. *)
 
 (* CR layouts v4: The below C stub is just to give this test slightly different
    behavior on native code and bytecode, because some arrays of unboxed things
