@@ -1,6 +1,8 @@
 (* TEST
  flags = "-extension layouts_beta";
  flambda2;
+ stack-allocation;
+ amd64;
  {
    bytecode;
  } {
