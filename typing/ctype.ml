@@ -1403,6 +1403,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin jkind =
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     type_has_illegal_crossings = false;
+    type_unboxed_version = None;
   }
 
 let existential_name name_counter ty =
@@ -6771,7 +6772,7 @@ let nondep_type env id ty =
 let () = nondep_type' := nondep_type
 
 (* Preserve sharing inside type declarations. *)
-let nondep_type_decl env mid is_covariant decl =
+let rec nondep_type_decl env mid is_covariant decl =
   try
     let params = List.map (nondep_type_rec env mid) decl.type_params in
     let tk =
@@ -6795,6 +6796,10 @@ let nondep_type_decl env mid is_covariant decl =
       | Some ty when Btype.has_constr_row ty -> Private
       | _ -> priv
     in
+    let type_unboxed_version =
+      Option.map
+        (nondep_type_decl env mid is_covariant) decl.type_unboxed_version
+    in
     { type_params = params;
       type_arity = decl.type_arity;
       type_kind = tk;
@@ -6810,6 +6815,7 @@ let nondep_type_decl env mid is_covariant decl =
       type_unboxed_default = decl.type_unboxed_default;
       type_uid = decl.type_uid;
       type_has_illegal_crossings = decl.type_has_illegal_crossings;
+      type_unboxed_version;
     }
   with Nondep_cannot_erase _ as exn ->
     clear_hash ();
