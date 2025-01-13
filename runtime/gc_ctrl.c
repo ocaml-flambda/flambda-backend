@@ -253,6 +253,7 @@ static value gc_major_exn(int force_compaction)
   caml_gc_log ("Major GC cycle requested");
   caml_empty_minor_heaps_once();
   caml_finish_major_cycle(force_compaction);
+  caml_reset_major_pacing();
   value exn = caml_process_pending_actions_exn();
   CAML_EV_END(EV_EXPLICIT_GC_MAJOR);
   return exn;
@@ -275,6 +276,7 @@ static value gc_full_major_exn(void)
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
     caml_finish_major_cycle(0);
+    caml_reset_major_pacing();
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
@@ -311,6 +313,7 @@ CAMLprim value caml_gc_compaction(value v)
      why this needs three iterations. */
   for (i = 0; i < 3; i++) {
     caml_finish_major_cycle(i == 2);
+    caml_reset_major_pacing();
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
