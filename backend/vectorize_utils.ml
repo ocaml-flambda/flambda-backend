@@ -121,11 +121,11 @@ let vectorize_machtypes (pack : Reg.t list) : Cmm.machtype_component =
       Misc.fatal_errorf "register pack with incompatible mach types:"
         Printreg.reglist pack;
     match hd.typ, List.length pack with
-    | (Int | Addr | Float | Float32), _ ->
+    | (Int | Addr | Float), 2 | Float32, 4 ->
       (* allows subregs, width should be correct by construction of [Group]. *)
       Vec128
     | Val, 2 -> Valx2
-    | Val, n ->
+    | (Val | Int | Addr | Float | Float32), n ->
       Misc.fatal_errorf "Unexpected pack size %d for %a" n Printreg.reglist pack
     | Vec128, _ | Valx2, _ ->
       Misc.fatal_errorf "Unexpected machtype for %a" Printreg.reg hd)
