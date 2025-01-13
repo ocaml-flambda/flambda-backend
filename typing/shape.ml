@@ -402,6 +402,8 @@ let of_path ~find_shape ~namespace path =
         match extra with
           Pcstr_ty name -> proj (aux Type path) (name, Constructor)
         | Pext_ty -> aux Extension_constructor path
+        (* CR rtjoa: check *)
+        | Pderived_unboxed_ty -> aux Unboxed_label path
       end
   in
   aux namespace path

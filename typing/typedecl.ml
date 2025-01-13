@@ -303,6 +303,8 @@ in
       type_unboxed_default = false;
       type_uid = uid;
       type_has_illegal_crossings = false;
+      (* CR rtjoa: def wrong *)
+      type_unboxed_version = None;
     }
   in
   add_type ~check:true id decl env
@@ -984,6 +986,39 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_record_unboxed_product _ | Ptype_open -> jkind
     in
     let arity = List.length params in
+    let decl_unboxed =
+      match man with
+      | None -> None
+      | Some ty ->
+        match get_desc ty with
+        | Tconstr (path, args, _) ->
+          let path' = Path.Pextra_ty (path, Pderived_unboxed_ty) in
+          begin match Env.find_type path' env with
+          | exception Not_found -> None
+          | unboxed_version ->
+            (* CR layouts v11: we'll have to update type_jkind once we have
+                [layout_of] layouts *)
+            Some { type_params = params;
+              type_arity = arity;
+              type_kind = Type_abstract Definition;
+              type_jkind = unboxed_version.type_jkind;
+              type_private = sdecl.ptype_private;
+              type_manifest = Some (Ctype.newconstr path' args);
+              type_variance = Variance.unknown_signature ~injective:false ~arity;
+              type_separability = Types.Separability.default_signature ~arity;
+              type_is_newtype = false;
+              type_expansion_scope = Btype.lowest_level;
+              type_loc = sdecl.ptype_loc;
+              type_attributes = [];
+              type_unboxed_default = false;
+              (* CR rtjoa: consider own UID? *)
+              type_uid = unboxed_version.type_uid ;
+              type_has_illegal_crossings = false;
+              type_unboxed_version = None;
+                }
+          end
+        | _ -> None
+    in
     let decl =
       { type_params = params;
         type_arity = arity;
@@ -1000,6 +1035,7 @@ let transl_declaration env sdecl (id, uid) =
         type_unboxed_default = unboxed_default;
         type_uid = uid;
         type_has_illegal_crossings = false;
+        type_unboxed_version = decl_unboxed;
       } in
   (* Check constraints *)
     List.iter
@@ -2875,6 +2911,7 @@ let get_native_repr_attribute attrs ~global_repr =
 let is_upstream_compatible_non_value_unbox env ty =
   (* CR layouts v2.5: This needs to be updated when we support unboxed
      types with arbitrary names suffixed with "#" *)
+  (* CR rtjoa:  *)
   match get_desc (Ctype.expand_head_opt env ty) with
   | Tconstr (path, _, _) ->
     List.exists
@@ -3415,6 +3452,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_unboxed_default;
       type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       type_has_illegal_crossings = false;
+      (* CR rtjoa:  *)
+      type_unboxed_version = None;
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -3455,6 +3494,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_variance = new_type_variance;
       type_separability = new_type_separability;
       type_has_illegal_crossings = false;
+      (* CR rtjoa:  *)
+      type_unboxed_version = None;
     } in
   {
     typ_id = id;
@@ -3494,6 +3535,8 @@ let transl_package_constraint ~loc ty =
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     type_has_illegal_crossings = false;
+    (* CR rtjoa:  *)
+    type_unboxed_version = None;
   }
 
 (* Approximate a type declaration: just make all types abstract *)
@@ -3517,6 +3560,7 @@ let abstract_type_decl ~injective ~jkind ~params =
       type_unboxed_default = false;
       type_uid = Uid.internal_not_actually_unique;
       type_has_illegal_crossings = false;
+      type_unboxed_version = None;
     }
   end
 

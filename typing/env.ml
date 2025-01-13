@@ -793,6 +793,7 @@ type lookup_error =
       Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | No_unboxed_version of Longident.t
   | Error_from_persistent_env of Persistent_env.error
 
 type error =
@@ -1342,6 +1343,7 @@ let type_of_cstr path = function
   | _ -> assert false
 
 let rec find_type_data path env =
+  (* CR rtjoa: local constraints? *)
   match Path.Map.find path env.local_constraints with
   | decl ->
     {
@@ -1364,6 +1366,32 @@ let rec find_type_data path env =
           | Pext_ty ->
               let cda = find_extension_full p env in
               type_of_cstr path cda.cda_description
+          | Pderived_unboxed_ty ->
+              let tda = find_type_data p env in
+              match tda.tda_declaration.type_unboxed_version with
+              | None -> raise Not_found
+              | Some tda_declaration ->
+                let descrs =
+                  match tda_declaration.type_kind with
+                  | Type_abstract r -> Type_abstract r
+                  | Type_record_unboxed_product (_, repr) ->
+                    let lbls =
+                      Datarepr.unboxed_labels_of_type
+                        (Pextra_ty (path, Pderived_unboxed_ty))
+                        tda_declaration
+                      |> List.map snd
+                    in
+                    Type_record_unboxed_product (lbls, repr)
+                  | Type_open | Type_record _ | Type_variant _ ->
+                    Misc.fatal_error
+                      "Env.find_type_data: unexpected unboxed version kind"
+                in
+                {
+                  tda_declaration;
+                  tda_descriptions = descrs;
+                  (* CR rtjoa: shape? *)
+                  tda_shape = tda.tda_shape
+                }
         end
     end
 and find_cstr path name env =
@@ -3663,9 +3691,39 @@ let lookup_type_full ~errors ~use ~loc lid env =
   | Ldot(l, s) -> lookup_dot_type ~errors ~use ~loc l s env
   | Lapply _ -> assert false
 
+let string_without_hash s =
+  if String.ends_with ~suffix:"#" s then
+    Some (String.sub s 0 (String.length s - 1))
+  else
+    None
+
+let lid_without_hash = function
+  | Lident s -> begin
+      match string_without_hash s with
+      | Some s -> Some (Lident s)
+      | None -> None
+      end
+  | Ldot(l, s) -> begin
+      match string_without_hash s with
+      | Some s -> Some (Ldot(l, s))
+      | None -> None
+      end
+  | Lapply _ -> None
+
 let lookup_type ~errors ~use ~loc lid env =
-  let (path, tda) = lookup_type_full ~errors ~use ~loc lid env in
-  path, tda.tda_declaration
+  match lid_without_hash lid with
+  | None ->
+    let path, tda = lookup_type_full ~errors ~use ~loc lid env in
+    path, tda.tda_declaration
+  | Some lid ->
+    (* To get the hash version, look up without the hash, then look for the
+       unboxed version *)
+    let path, tda = lookup_type_full ~errors ~use ~loc lid env in
+    match tda.tda_declaration.type_unboxed_version with
+    | Some decl ->
+      Pextra_ty (path, Pderived_unboxed_ty), decl
+    | None ->
+      may_lookup_error errors loc env (No_unboxed_version lid)
 
 let lookup_modtype_lazy ~errors ~use ~loc lid env =
   match lid with
@@ -4457,6 +4515,9 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+  | No_unboxed_version lid ->
+      fprintf ppf "@[%a has no unboxed version.@]"
+        (Style.as_inline_code !print_longident) lid
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
 

@@ -270,6 +270,7 @@ type type_declaration =
     type_unboxed_default: bool;
     type_uid: Uid.t;
     type_has_illegal_crossings: bool;
+    type_unboxed_version : type_declaration option;
  }
 
 and type_decl_kind =
