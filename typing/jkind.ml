@@ -1497,7 +1497,8 @@ let for_unboxed_record ~jkind_of_first_type lbls =
       (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
       lbls
   in
-  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys_modalities layouts
+  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys_modalities
+    layouts
 
 (* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =
