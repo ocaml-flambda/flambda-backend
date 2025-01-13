@@ -375,7 +375,7 @@ let record_frame_label live dbg =
           live_offset := encode n :: encode (n + 1) :: !live_offset
       | {typ = Valx2; loc = Stack s} as reg ->
           let n = slot_offset s (stack_slot_class reg.typ)  in
-          live_offset := n :: n + 1 :: !live_offset
+          live_offset := n :: n + Arch.size_addr :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | { typ = (Val | Valx2); loc = Unknown ; } as r ->
@@ -2252,7 +2252,7 @@ let emit_probe_handler_wrapper p =
         (match r.typ with
         | Val -> k::acc
         | Int | Float | Vec128 | Float32 -> acc
-        | Valx2 -> k::k+1::acc
+        | Valx2 -> k::k+Arch.size_addr::acc
         | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
       | _ -> assert false)
     saved_live
