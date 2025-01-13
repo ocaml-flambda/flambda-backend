@@ -1,5 +1,8 @@
 (* TEST
  include stdlib_alpha;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 module Effect = Stdlib_alpha.Effect
@@ -57,4 +60,3 @@ let main () =
   Printf.printf "Final state: %d\n" i
 
 let _ = main ()
-

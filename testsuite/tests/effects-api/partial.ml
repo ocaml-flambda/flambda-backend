@@ -1,5 +1,8 @@
 (* TEST
  include stdlib_alpha;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 module Effect = Stdlib_alpha.Effect
