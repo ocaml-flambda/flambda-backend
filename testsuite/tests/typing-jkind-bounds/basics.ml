@@ -1221,11 +1221,11 @@ type 'a t = { x : 'a @@ portable; }
 |}]
 
 type 'a t : immutable_data with 'a @@ many = { x : 'a @@ many }
-type 'a t : immutable_data with 'a @@ uncontended = { x : 'a @@ uncontended }
+type 'a t : immutable_data with 'a @@ contended = { x : 'a @@ contended }
 type 'a t : immutable_data with 'a @@ portable = { x : 'a @@ portable }
 [%%expect{|
 type 'a t = { x : 'a @@ many; }
-type 'a t = { x : 'a; }
+type 'a t = { x : 'a @@ contended; }
 type 'a t = { x : 'a @@ portable; }
 |}]
 
