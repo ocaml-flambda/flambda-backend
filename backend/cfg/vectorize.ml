@@ -1807,6 +1807,8 @@ end = struct
               let (new_node : Node.t) = Instruction.Id.Tbl.find t new_id in
               Instruction.Id.Set.union new_node.all_dependencies acc)
             init init
+          |> (* reflexivity *)
+          Instruction.Id.Set.add id
         in
         let node = { node with all_dependencies } in
         Instruction.Id.Tbl.add t id node
