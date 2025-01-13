@@ -141,7 +141,8 @@ module Axis = struct
   end
 
   let get (type a) : a t -> (module Axis_ops with type t = a) = function
-    | Modal axis -> (module Accent_lattice (val Mode.Alloc.lattice_of_axis axis))
+    | Modal axis ->
+      (module Accent_lattice ((val Mode.Alloc.lattice_of_axis axis)))
     | Nonmodal Externality -> (module Externality)
     | Nonmodal Nullability -> (module Nullability)
 
