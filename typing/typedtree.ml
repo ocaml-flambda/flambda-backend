@@ -756,6 +756,7 @@ and type_declaration =
     typ_name: string loc;
     typ_params: (core_type * (variance * injectivity)) list;
     typ_type: Types.type_declaration;
+    typ_unboxed_type: Types.type_declaration option;
     typ_cstrs: (core_type * core_type * Location.t) list;
     typ_kind: type_kind;
     typ_private: private_flag;

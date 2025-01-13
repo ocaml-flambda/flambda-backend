@@ -1000,6 +1000,38 @@ let transl_declaration env sdecl (id, uid) =
         type_uid = uid;
         type_has_illegal_crossings = false;
       } in
+  let decl_unboxed =
+    match man with
+    | None -> None
+    | Some ty ->
+      match get_desc ty with
+      | Tconstr (path, args, _) ->
+        let path' = Path.Pextra_ty (path, Pderived_unboxed_ty) in
+        begin match Env.find_type path' env with
+        | exception Not_found -> None
+        | unboxed_version ->
+          (* CR layouts v11: we'll have to update type_jkind once we have
+              [layout_of] layouts *)
+          Some { type_params = params;
+            type_arity = arity;
+            type_kind = Type_abstract Definition;
+            type_jkind = unboxed_version.type_jkind;
+            type_private = sdecl.ptype_private;
+            type_manifest = Some (Ctype.newconstr path' args);
+            type_variance = unboxed_version.type_variance;
+            type_separability = unboxed_version.type_separability;
+            type_is_newtype = false;
+            type_expansion_scope = decl.type_expansion_scope;
+            type_loc = decl.type_loc;
+            type_attributes = [];
+            type_unboxed_default = false;
+            (* CR rtjoa: consider own UID? *)
+            type_uid = unboxed_version.type_uid ;
+            type_has_illegal_crossings = false;
+              }
+        end
+      | _ -> None
+  in
   (* Check constraints *)
     List.iter
       (fun (cty, cty', loc) ->
@@ -1023,6 +1055,7 @@ let transl_declaration env sdecl (id, uid) =
         typ_name = sdecl.ptype_name;
         typ_params = tparams;
         typ_type = decl;
+        typ_unboxed_type = decl_unboxed;
         typ_cstrs = cstrs;
         typ_loc = sdecl.ptype_loc;
         typ_manifest = tman;
@@ -2224,11 +2257,18 @@ let check_redefined_unit (td: Parsetree.type_declaration) =
   | _ ->
       ()
 
-let add_types_to_env decls shapes env =
+let fold_right3 f xs ys zs init =
   List.fold_right2
-    (fun (id, decl) shape env ->
-      add_type ~check:true ~shape id decl None env)
-    decls shapes env
+    (fun (x, y) z acc -> f x y z acc)
+    (List.combine xs ys)
+    zs
+    init
+
+let add_types_to_env decls tdecls shapes env =
+  fold_right3
+    (fun (id, decl) (tdecl, _) shape env ->
+      add_type ~check:true ~shape id decl tdecl.typ_unboxed_type env)
+    decls tdecls shapes env
 
 (* Translate a set of type declarations, mutually recursive or not *)
 let transl_type_decl env rec_flag sdecl_list =
@@ -2265,6 +2305,12 @@ let transl_type_decl env rec_flag sdecl_list =
   let tdecls, decls, shapes, new_env, delayed_jkind_checks =
     Ctype.with_local_level_iter ~post:generalize_decl begin fun () ->
       (* Enter types. *)
+      (* A type gets a dummy unboxed version if:
+         - It aliases a type outside of a group with an unboxed version
+         - (Future work) It's a boxed record with a [Record_boxed]
+           representation.
+         - It aliases a type within the group with a dummy unboxed version
+      *)
       let temp_env =
         List.fold_left2 (enter_type rec_flag) env sdecl_list ids_list in
       (* Translate each declaration. *)
@@ -2312,7 +2358,7 @@ let transl_type_decl env rec_flag sdecl_list =
       (* Check for duplicates *)
       check_duplicates sdecl_list;
       (* Build the final env. *)
-      let new_env = add_types_to_env decls shapes env in
+      let new_env = add_types_to_env decls tdecls shapes env in
       (* Update stubs *)
       let delayed_jkind_checks =
         match rec_flag with
@@ -2420,7 +2466,8 @@ let transl_type_decl env rec_flag sdecl_list =
   (* Check re-exportation, updating [type_jkind] from the manifest *)
   let decls = List.map2 (check_abbrev new_env) sdecl_list decls in
   (* Compute the final environment with variance and immediacy *)
-  let final_env = add_types_to_env decls shapes env in
+  let final_env = add_types_to_env decls tdecls shapes env in
+  (* let final_env = add_types_to_env decls shapes env in *)
   (* Keep original declaration *)
   let final_decls =
     List.map2
@@ -3352,6 +3399,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_name = sdecl.ptype_name;
     typ_params = tparams;
     typ_type = new_sig_decl;
+    (* CR rtjoa: def wrong *)
+    typ_unboxed_type = None;
     typ_cstrs = constraints;
     typ_loc = loc;
     typ_manifest = Some tman;
