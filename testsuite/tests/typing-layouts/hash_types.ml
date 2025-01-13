@@ -4,11 +4,11 @@
 *)
 
 (* Non-existent #-type *)
-type t = a#
+type bad = a#
 [%%expect{|
-Line 1, characters 9-11:
-1 | type t = a#
-             ^^
+Line 1, characters 11-13:
+1 | type bad = a#
+               ^^
 Error: Unbound type constructor "a"
 |}]
 
@@ -26,10 +26,7 @@ type t = float
 (* CR rtjoa:  *)
 type u = t#
 [%%expect{|
-Line 1, characters 9-11:
-1 | type u = t#
-             ^^
-Error: "t" has no unboxed version.
+type u = t#
 |}]
 
 (* Shadowing hides #-type *)
@@ -38,20 +35,23 @@ type float
 type float
 |}]
 
+type bad = float#
+
 (* But it's still accessible via the alias *)
 type u2 = t#
 [%%expect{|
-Line 1, characters 10-12:
-1 | type u2 = t#
-              ^^
-Error: "t" has no unboxed version.
+Line 1, characters 11-17:
+1 | type bad = float#
+               ^^^^^^
+Error: "float" has no unboxed version.
 |}]
 
 module M = struct
   type t = int32
+  type u = t#
 end
 [%%expect{|
-module M : sig type t = int32 end
+module M : sig type t = int32 type u = t# end
 |}]
 
 type int32_u = M.t#
