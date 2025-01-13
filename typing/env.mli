@@ -204,13 +204,7 @@ type shared_context =
   | Module
   | Probe
 
-type lock =
-  | Escape_lock of escaping_context
-  | Share_lock of shared_context
-  | Closure_lock of closure_context * Mode.Value.Comonadic.r
-  | Region_lock
-  | Exclave_lock
-  | Unboxed_lock (* to prevent capture of terms with non-value types *)
+type lock
 
 (** Items whose accesses are affected by locks *)
 type lock_item =

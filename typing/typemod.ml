@@ -2587,31 +2587,36 @@ let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
     Mode.Modality.Value.id
   end
 
-type alias =
-  | No
-  | Yes_walk_locks
-  | Yes_hold_locks
+type 'locks alias =
+  | No : unit alias
+  | Yes_walk_locks : unit alias
+  | Yes_hold_locks : Env.lock list alias
 
-let is_alias = function
+let is_alias : type locks. locks alias -> bool = function
   | No -> false
   | Yes_walk_locks | Yes_hold_locks -> true
 
-let rec type_module_maybe_hold_locks ~alias sttn funct_body anchor env smod =
+let locks_of_non_aliasable : type locks. locks alias -> locks = function
+  | No -> ()
+  | Yes_walk_locks -> ()
+  | Yes_hold_locks -> []
+
+let rec type_module_maybe_hold_locks :
+type locks. alias:locks alias -> _ -> _ -> _ -> _ -> _ -> _ * _ * locks =
+fun ~alias sttn funct_body anchor env smod ->
   Builtin_attributes.warning_scope smod.pmod_attributes
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module ?(alias=false) sttn funct_body anchor env smod =
   let alias = if alias then Yes_walk_locks else No in
-  let md, shape, locks =
+  let md, shape, () =
     type_module_maybe_hold_locks ~alias sttn funct_body anchor env smod
   in
-  begin match locks with
-  | [] -> ()
-  | _ :: _ -> Misc.fatal_error "locks should not be held"
-  end;
   md, shape
 
-and type_module_aux ~alias sttn funct_body anchor env smod =
+and type_module_aux :
+type locks. alias:locks alias -> _ -> _ -> _ -> _ -> _ -> _ * _ * locks =
+fun ~alias sttn funct_body anchor env smod ->
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, locks =
@@ -2629,12 +2634,13 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
           mod_loc = smod.pmod_loc }
       in
       let sg' = Signature_names.simplify _finalenv names sg in
-      if List.length sg' = List.length sg then md, shape, [] else
+      let locks = locks_of_non_aliasable alias in
+      if List.length sg' = List.length sg then md, shape, locks else
       let md, shape =
         wrap_constraint_with_shape env false md
           (Mty_signature sg') shape Tmodtype_implicit
       in
-      md, shape, []
+      md, shape, locks
   | Pmod_functor(arg_opt, sbody) ->
       let t_arg, ty_arg, newenv, funct_shape_param, funct_body =
         match arg_opt with
@@ -2674,10 +2680,10 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
         mod_env = env;
         mod_attributes = smod.pmod_attributes;
         mod_loc = smod.pmod_loc },
-      Shape.abs funct_shape_param body_shape, []
+      Shape.abs funct_shape_param body_shape, locks_of_non_aliasable alias
   | Pmod_apply _ | Pmod_apply_unit _ ->
       let md, shape = type_application smod.pmod_loc sttn funct_body env smod in
-      md, shape, []
+      md, shape, locks_of_non_aliasable alias
   | Pmod_constraint(sarg, smty, smode) ->
       check_no_modal_modules ~env smode;
       let smty = Option.get smty in
@@ -2726,7 +2732,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
         mod_env = env;
         mod_attributes = smod.pmod_attributes;
         mod_loc = smod.pmod_loc },
-      Shape.leaf_for_unpack, []
+      Shape.leaf_for_unpack, locks_of_non_aliasable alias
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
   | Pmod_instance glob ->
@@ -2745,18 +2751,23 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       in
       type_module_path_aux ~alias sttn env path locks lid smod
 
-and type_module_path_aux ~alias sttn env path locks (lid : _ loc) smod =
-  let locks =
+and type_module_path_aux :
+type locks. alias:locks alias -> _ -> _ -> _ -> Env.lock list -> _ -> _ ->
+    _ * _ * locks =
+fun ~(alias : locks alias) sttn env path locks (lid : _ loc) smod ->
+  let walk_locks () =
+    let vmode =
+      Env.walk_locks ~loc:lid.loc ~env ~item:Module ~lid:lid.txt
+        Mode.Value.(legacy |> disallow_right) None locks
+    in
+    Mode.Value.submode_exn vmode.mode Mode.Value.legacy;
+    ()
+  in
+  let locks : locks =
     match alias with
     | Yes_hold_locks -> locks
-    | No | Yes_walk_locks -> begin
-        let vmode =
-          Env.walk_locks ~loc:lid.loc ~env ~item:Module ~lid:lid.txt
-            Mode.Value.(legacy |> disallow_right) None locks
-        in
-        Mode.Value.submode_exn vmode.mode Mode.Value.legacy;
-        []
-      end
+    | No -> walk_locks ()
+    | Yes_walk_locks -> walk_locks ()
   in
   let alias = is_alias alias in
   let md = { mod_desc = Tmod_ident (path, lid);
