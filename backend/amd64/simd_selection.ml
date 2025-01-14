@@ -474,12 +474,25 @@ let vector_width_in_bits = 128
 
 (* CR-soon gyorsh: [vectorize_operation] is too long, refactor / split up. *)
 let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
-    ~arg_count ~res_count (cfg_ops : Operation.t list) :
+    ~arg_count ~res_count ~alignment_in_bytes (cfg_ops : Operation.t list) :
     Vectorize_utils.Vectorized_instruction.t list option =
   (* Assumes cfg_ops are isomorphic *)
   let width_in_bits = Vectorize_utils.Width_in_bits.to_int width_type in
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
+  let vector_width_in_bytes = vector_width_in_bits / 8 in
+  let is_aligned_to_vector_width () =
+    match alignment_in_bytes with
+    | None -> Misc.fatal_error "Unexpected memory operation"
+    | Some alignment_in_bytes ->
+      alignment_in_bytes mod vector_width_in_bytes = 0
+      && alignment_in_bytes / vector_width_in_bytes > 1
+  in
+  let vec128_chunk () : Cmm.memory_chunk =
+    if is_aligned_to_vector_width ()
+    then Onetwentyeight_aligned
+    else Onetwentyeight_unaligned
+  in
   let same_width memory_chunk =
     Vectorize_utils.Width_in_bits.equal width_type
       (Vectorize_utils.Width_in_bits.of_memory_chunk memory_chunk)
@@ -650,7 +663,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       assert (arg_count = num_args_addressing && res_count = 1);
       let operation =
         Operation.Load
-          { memory_chunk = Onetwentyeight_unaligned;
+          { memory_chunk = vec128_chunk ();
             addressing_mode;
             mutability;
             is_atomic
@@ -670,8 +683,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       let num_args_addressing = Arch.num_args_addressing addressing_mode in
       assert (arg_count = num_args_addressing + 1 && res_count = 0);
       let operation =
-        Operation.Store
-          (Onetwentyeight_unaligned, addressing_mode, is_assignment)
+        Operation.Store (vec128_chunk (), addressing_mode, is_assignment)
       in
       Some
         [ { operation;

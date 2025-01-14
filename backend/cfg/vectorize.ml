@@ -638,6 +638,8 @@ module Dependencies : sig
       type t
 
       val first_memory_arg_index : t -> int
+
+      val alignment_in_bytes : t -> int
     end
   end
 
@@ -821,6 +823,8 @@ end = struct
       type t
 
       val first_memory_arg_index : t -> int
+
+      val alignment_in_bytes : t -> int
     end
 
     module Dependencies : sig
@@ -918,6 +922,8 @@ end = struct
 
       val first_memory_arg_index : t -> int
 
+      val alignment_in_bytes : t -> int
+
       val get_instruction_id : t -> Instruction.Id.t
 
       (** [is_adjacent t1 t2] assumes that [t1] and [t2] have isomorphic operations,
@@ -955,6 +961,9 @@ end = struct
 
       let first_memory_arg_index t =
         Memory_access.first_memory_arg_index t.memory_access
+
+      let alignment_in_bytes t =
+        Vectorize_utils.Memory_access.alignment_in_bytes t.memory_access
 
       let get_instruction_id t = Instruction.id t.instruction
 
@@ -2136,12 +2145,15 @@ end = struct
              && can_vectorize_memory_accesses mem_op instructions deps)
         then None
         else
+          let alignment_in_bytes =
+            Option.map Dependencies.Memory.Operation.alignment_in_bytes mem_op
+          in
           let cfg_ops =
             List.map (fun i -> i |> Instruction.op |> Option.get) instructions
           in
           let vector_instructions =
             Simd_selection.vectorize_operation width_in_bits ~arg_count
-              ~res_count cfg_ops
+              ~res_count ~alignment_in_bytes cfg_ops
           in
           match vector_instructions with
           | None ->
