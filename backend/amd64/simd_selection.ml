@@ -883,7 +883,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           assert (arg_count = num_args_addressing);
           assert (res_count = 0);
           assert (Array.length const_instruction.results = 1);
-          let new_reg = Vectorize_utils.Vectorized_instruction.New 0 in
+          let new_reg = Vectorize_utils.Vectorized_instruction.New_Vec128 0 in
           const_instruction.results.(0) <- new_reg;
           let address_args =
             Array.init num_args_addressing (fun i ->
