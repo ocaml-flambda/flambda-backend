@@ -157,6 +157,14 @@ CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
   return v;
 }
 
+CAMLexport value caml_alloc_custom_dep(const struct custom_operations * ops,
+                                       uintnat size, mlsize_t mem)
+{
+  /* For now, alias caml_alloc_custom_mem, but this implementation
+     is to be replaced */
+  return caml_alloc_custom_mem(ops, size, mem);
+}
+
 struct custom_operations_list {
   const struct custom_operations * ops;
   struct custom_operations_list * next;

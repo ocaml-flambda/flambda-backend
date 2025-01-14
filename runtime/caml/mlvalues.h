@@ -527,6 +527,7 @@ CAMLextern int caml_is_double_array (value);   /* 0 is false, 1 is true */
    See [custom.h] for operations on method suites. */
 #define Custom_tag 255
 #define Data_custom_val(v) ((void *) (Op_val(v) + 1))
+#define Custom_val_data(d) (Val_op((value *)d - 1))
 struct custom_operations;       /* defined in [custom.h] */
 
 /* Int32.t, Int64.t and Nativeint.t are represented as custom blocks. */

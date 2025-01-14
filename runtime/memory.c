@@ -236,19 +236,14 @@ CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
    free it.  In both cases, you pass as argument the size (in bytes)
    of the block being allocated or freed.
 */
-CAMLexport void caml_alloc_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_alloc_dependent_memory (value v, mlsize_t nbytes)
 {
-  Caml_state->dependent_size += nbytes / sizeof (value);
-  Caml_state->dependent_allocated += nbytes / sizeof (value);
+  /* No-op for now */
 }
 
-CAMLexport void caml_free_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_free_dependent_memory (value v, mlsize_t nbytes)
 {
-  if (Caml_state->dependent_size < nbytes / sizeof (value)){
-    Caml_state->dependent_size = 0;
-  }else{
-    Caml_state->dependent_size -= nbytes / sizeof (value);
-  }
+  /* No-op for now */
 }
 
 /* Use this function to tell the major GC to speed up when you use
