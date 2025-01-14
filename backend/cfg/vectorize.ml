@@ -2873,7 +2873,9 @@ let augment_reg_map reg_map group =
 let add_vector_instructions_for_group reg_map state group ~before:cell
     old_instruction =
   let vector_instructions = Computation.Group.vector_instructions group in
-  let key_instruction = Instruction.basic old_instruction in
+  let first_instruction =
+    Computation.Group.scalar_instructions group |> List.hd
+  in
   let new_regs : Reg.t Numbers.Int.Tbl.t = Numbers.Int.Tbl.create 2 in
   let get_new_reg n =
     match Numbers.Int.Tbl.find_opt new_regs n with
@@ -2890,13 +2892,13 @@ let add_vector_instructions_for_group reg_map state group ~before:cell
       match simd_reg with
       | New_Vec128 n -> get_new_reg n
       | Argument n ->
-        let original_reg = (Instruction.arguments key_instruction).(n) in
+        let original_reg = (Instruction.arguments first_instruction).(n) in
         Substitution.get_reg_exn reg_map original_reg
       | Result n ->
-        let original_reg = (Instruction.results key_instruction).(n) in
+        let original_reg = (Instruction.results first_instruction).(n) in
         Substitution.get_reg_exn reg_map original_reg
       | Original n ->
-        let original_reg = (Instruction.arguments key_instruction).(n) in
+        let original_reg = (Instruction.arguments first_instruction).(n) in
         original_reg
     in
     let desc = Cfg.Op simd_instruction.operation in
