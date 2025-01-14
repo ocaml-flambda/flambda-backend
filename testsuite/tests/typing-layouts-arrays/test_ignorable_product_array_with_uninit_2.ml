@@ -6,7 +6,6 @@
  modules = "${readonly_files}";
  flambda2;
  arch_amd64;
- runtime5;
  {
    flags = "-extension layouts_beta";
    bytecode;
@@ -16,11 +15,6 @@
    native;
  }
 *)
-
-(* This test exhibited intermittent failures with very low probability on
-   runtime4, and extensive investigation has not found the cause.  It is
-   suspected it might be a problem in the runtime4 GC.  So we have restricted
-   the test to runtime5 at least for now. *)
 
 (* CR mshinwell: enable for arm64 once float32 is available *)
 
