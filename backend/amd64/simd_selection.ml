@@ -855,9 +855,54 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       | W32 -> None (* See previous comment *)
       | W16 -> None
       | W8 -> None)
-    | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Irdtsc
-    | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Iprefetch _
-    | Icldemote _ ->
+    | Ifloatarithmem _ -> None
+    | Istore_int (_n, addressing_mode, is_assignment) -> (
+      if not (Vectorize_utils.Width_in_bits.equal width_type W64)
+      then None
+      else
+        let extract_store_int_imm (op : Operation.t) =
+          match op with
+          | Specific (Istore_int (n, _addr, _is_assign)) -> Int64.of_nativeint n
+          | Specific
+              ( Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _
+              | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _
+              | Ilea _ | Ibswap _ | Isextend32 | Izextend32 )
+          | Intop_imm _ | Move | Load _ | Store _ | Intop _ | Alloc _
+          | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
+          | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
+          | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
+          | Probe_is_enabled _ | Opaque | Begin_region | End_region
+          | Name_for_debugger _ | Dls_get | Poll ->
+            assert false
+        in
+        let consts = List.map extract_store_int_imm cfg_ops in
+        match create_const_vec consts with
+        | None -> None
+        | Some [const_instruction] ->
+          let num_args_addressing = Arch.num_args_addressing addressing_mode in
+          assert (arg_count = num_args_addressing);
+          assert (res_count = 0);
+          assert (Array.length const_instruction.results = 1);
+          let new_reg = Vectorize_utils.Vectorized_instruction.New 0 in
+          const_instruction.results.(0) <- new_reg;
+          let address_args =
+            Array.init num_args_addressing (fun i ->
+                Vectorize_utils.Vectorized_instruction.Original i)
+          in
+          let store_operation =
+            Operation.Store
+              (Onetwentyeight_unaligned, addressing_mode, is_assignment)
+          in
+          let store_instruction : Vectorize_utils.Vectorized_instruction.t =
+            { operation = store_operation;
+              arguments = Array.append [| new_reg |] address_args;
+              results = [||]
+            }
+          in
+          Some [const_instruction; store_instruction]
+        | Some _ -> None)
+    | Ioffset_loc _ | Ibswap _ | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence
+    | Ipause | Isimd _ | Iprefetch _ | Icldemote _ ->
       None)
   | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
   | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _

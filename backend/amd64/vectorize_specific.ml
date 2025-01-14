@@ -53,3 +53,13 @@ let memory_access : Arch.specific_operation -> Memory_access.t option =
        the moment. *)
     if Simd.is_pure op then None else create Memory_access.Arbitrary
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> None
+
+let is_seed_store :
+    Arch.specific_operation -> Vectorize_utils.Width_in_bits.t option =
+ fun op ->
+  match op with
+  | Istore_int _ -> Some W64
+  | Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _ | Irdtsc
+  | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Ilea _ | Ibswap _
+  | Isextend32 | Izextend32 ->
+    None

@@ -2251,13 +2251,15 @@ end = struct
       | None -> None
       | Some op -> (
         match op with
-        | Store (chunk, _, _) -> Some chunk
+        | Store (chunk, _, _) ->
+          Some (Vectorize_utils.Width_in_bits.of_memory_chunk chunk)
+        | Specific s -> Vectorize_specific.is_seed_store s
         | Alloc _ | Load _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
         | Reload | Const_int _ | Const_float32 _ | Const_float _
         | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
         | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
-        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
-        | Dls_get | Poll ->
+        | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
+        | Poll ->
           None)
 
     let from_block (block : Block.t) deps : t list =
@@ -2280,8 +2282,7 @@ end = struct
         DLL.fold_right body ~init:[] ~f:(fun i acc ->
             let i = Instruction.basic i in
             match is_store i with
-            | Some chunk ->
-              (Vectorize_utils.Width_in_bits.of_memory_chunk chunk, i) :: acc
+            | Some width -> (width, i) :: acc
             | None -> acc)
       in
       Format.(
