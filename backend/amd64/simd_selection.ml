@@ -485,7 +485,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
     match alignment_in_bytes with
     | None -> Misc.fatal_error "Unexpected memory operation"
     | Some alignment_in_bytes ->
-      Int.compare alignment_in_bytes vector_width_in_bytes >= 0
+      alignment_in_bytes mod vector_width_in_bytes = 0
+      && alignment_in_bytes / vector_width_in_bytes > 1
   in
   let vec128_chunk () : Cmm.memory_chunk =
     if is_aligned_to_vector_width ()
