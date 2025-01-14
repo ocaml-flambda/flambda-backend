@@ -32,7 +32,7 @@ module Runtime_4 = struct
       let for_initial_domain = Access
     end
 
-    let access f =
+    let[@inline] access f =
       try f Access.Access with
       | exn ->
         let bt = Printexc.get_raw_backtrace () in
@@ -184,7 +184,7 @@ module Runtime_5 = struct
       let for_initial_domain = Access
     end
 
-    let access (f : Access.t -> 'a @ portable contended) =
+    let[@inline] access (f : Access.t -> 'a @ portable contended) =
       try f Access.Access with
       | exn ->
         let bt = Printexc.get_raw_backtrace () in

@@ -1193,11 +1193,11 @@ let formatter_of_symbolic_output_buffer sob =
 
 *)
 
-let apply1 f v = f (Domain.DLS.get std_formatter_key) v
-let apply2 f v w = f (Domain.DLS.get std_formatter_key) v w
-let apply1' (type a : value mod portable uncontended) f (v : a) =
+let[@inline] apply1 f v = f (Domain.DLS.get std_formatter_key) v
+let[@inline] apply2 f v w = f (Domain.DLS.get std_formatter_key) v w
+let[@inline] apply1' (type a : value mod portable uncontended) f (v : a) =
   DLS.access (fun access -> f (DLS.get access std_formatter_key) v)
-let apply2'
+let[@inline] apply2'
       (type (a : value mod portable uncontended) (b : value mod portable uncontended))
       f (v : a) (w : b) =
   DLS.access (fun access -> f (DLS.get access std_formatter_key) v w)
