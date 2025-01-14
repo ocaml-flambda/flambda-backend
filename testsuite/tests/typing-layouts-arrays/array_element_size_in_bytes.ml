@@ -2,7 +2,7 @@
  flags = "-extension layouts_beta";
  flambda2;
  stack-allocation;
- amd64;
+ arch_amd64;
  {
    bytecode;
  } {
