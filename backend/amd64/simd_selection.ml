@@ -867,7 +867,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           | Specific
               ( Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _
               | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _
-              | Ilea _ | Ibswap _ | Isextend32 | Izextend32 )
+              | Isimd_mem _ | Ilea _ | Ibswap _ | Isextend32 | Izextend32 )
           | Intop_imm _ | Move | Load _ | Store _ | Intop _ | Alloc _
           | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
           | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
@@ -884,7 +884,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           assert (arg_count = num_args_addressing);
           assert (res_count = 0);
           assert (Array.length const_instruction.results = 1);
-          let new_reg = Vectorize_utils.Vectorized_instruction.New 0 in
+          let new_reg = Vectorize_utils.Vectorized_instruction.New_Vec128 0 in
           const_instruction.results.(0) <- new_reg;
           let address_args =
             Array.init num_args_addressing (fun i ->
@@ -949,7 +949,9 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           | Float32, Ifloatmul -> SSE Mul_f32
           | Float32, Ifloatdiv -> SSE Div_f32
         in
-        let new_reg = [| Vectorize_utils.Vectorized_instruction.New 0 |] in
+        let new_reg =
+          [| Vectorize_utils.Vectorized_instruction.New_Vec128 0 |]
+        in
         let load : Vectorize_utils.Vectorized_instruction.t =
           { operation =
               Operation.Load

@@ -63,6 +63,6 @@ let is_seed_store :
   match op with
   | Istore_int _ -> Some W64
   | Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _ | Irdtsc
-  | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Ilea _ | Ibswap _
-  | Isextend32 | Izextend32 ->
+  | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Isimd_mem _
+  | Ilea _ | Ibswap _ | Isextend32 | Izextend32 ->
     None
