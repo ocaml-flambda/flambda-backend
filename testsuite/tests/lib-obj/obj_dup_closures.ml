@@ -163,46 +163,33 @@ let check_one () =
   let i64_3 = rand_near_minor_heap () in
   let i64_4 = rand_near_minor_heap () in
   let x = rand_string () in
-  let ( c1_1arg,
-        c2_1arg,
-        c3_1arg,
-        c1_2arg,
-        c2_2arg,
-        c3_2arg,
-        rec_c1_1arg,
-        rec_c2_1arg,
-        rec_c3_1arg,
-        rec_c1_2arg,
-        rec_c2_2arg,
-        rec_c3_2arg ) =
+  let ( c1_1arg_original,
+        c2_1arg_original,
+        c3_1arg_original,
+        c1_2arg_original,
+        c2_2arg_original,
+        c3_2arg_original,
+        rec_c1_1arg_original,
+        rec_c2_1arg_original,
+        rec_c3_1arg_original,
+        rec_c1_2arg_original,
+        rec_c2_2arg_original,
+        rec_c3_2arg_original ) =
     make_closures i64_1 i64_2 i64_3 i64_4 x
   in
-  let c1_1arg : unit -> int64# = Obj.obj (Obj.dup (Obj.repr c1_1arg)) in
-  let c2_1arg : unit -> int64# = Obj.obj (Obj.dup (Obj.repr c2_1arg)) in
-  let c3_1arg : unit -> int = Obj.obj (Obj.dup (Obj.repr c3_1arg)) in
-  let c1_2arg : unit -> unit -> int64# =
-    Obj.obj (Obj.dup (Obj.repr c1_2arg))
-  in
-  let c2_2arg : unit -> unit -> int64# =
-    Obj.obj (Obj.dup (Obj.repr c2_2arg))
-  in
-  let c3_2arg : unit -> unit -> int = Obj.obj (Obj.dup (Obj.repr c3_2arg)) in
-  let rec_c1_1arg : unit -> int64# =
-    Obj.obj (Obj.dup (Obj.repr rec_c1_1arg))
-  in
-  let rec_c2_1arg : unit -> int64# =
-    Obj.obj (Obj.dup (Obj.repr rec_c2_1arg))
-  in
-  let rec_c3_1arg : unit -> int = Obj.obj (Obj.dup (Obj.repr rec_c3_1arg)) in
-  let rec_c1_2arg : unit -> unit -> int64# =
-    Obj.obj (Obj.dup (Obj.repr rec_c1_2arg))
-  in
-  let rec_c2_2arg : unit -> unit -> int64# =
-    Obj.obj (Obj.dup (Obj.repr rec_c2_2arg))
-  in
-  let rec_c3_2arg : unit -> unit -> int =
-    Obj.obj (Obj.dup (Obj.repr rec_c3_2arg))
-  in
+  let dup (type a) (x : a) : a = Obj.(obj (dup (repr x))) in
+  let c1_1arg = dup c1_1arg_original in
+  let c2_1arg = dup c2_1arg_original in
+  let c3_1arg = dup c3_1arg_original in
+  let c1_2arg = dup c1_2arg_original in
+  let c2_2arg = dup c2_2arg_original in
+  let c3_2arg = dup c3_2arg_original in
+  let rec_c1_1arg = dup rec_c1_1arg_original in
+  let rec_c2_1arg = dup rec_c2_1arg_original in
+  let rec_c3_1arg = dup rec_c3_1arg_original in
+  let rec_c1_2arg = dup rec_c1_2arg_original in
+  let rec_c2_2arg = dup rec_c2_2arg_original in
+  let rec_c3_2arg = dup rec_c3_2arg_original in
   Gc.compact ();
   check i64_1 i64_2 i64_3 i64_4 x
     ( c1_1arg,
