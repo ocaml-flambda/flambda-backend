@@ -461,8 +461,8 @@ let destroyed_at_pushtrap =
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
-let destroyed_by_simd_op op =
-  match Simd_proc.register_behavior op with
+let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
+  match register_behavior with
   | R_RM_rax_rdx_to_xmm0
   | R_RM_to_xmm0 -> destroy_xmm 0
   | R_RM_rax_rdx_to_rcx
@@ -496,7 +496,10 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
-  | Iop(Ispecific(Isimd op)) -> destroyed_by_simd_op op
+  | Iop(Ispecific(Isimd op)) ->
+    destroyed_by_simd_op (Simd_proc.register_behavior op)
+  | Iop(Ispecific(Isimd_mem (op,_))) ->
+    destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause | Icldemote _ | Iprefetch _
@@ -549,7 +552,10 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
-  | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
+  | Op (Specific (Isimd op)) ->
+    destroyed_by_simd_op (Simd_proc.register_behavior op)
+  | Op (Specific (Isimd_mem (op,_))) ->
+    destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
        | Const_vec128 _
@@ -601,7 +607,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Call {op = Indirect | Direct _; _} -> all_phys_regs
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Ilfence | Isfence | Imfence
+                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Icldemote _ | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
@@ -631,7 +637,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     true
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Ilfence | Isfence | Imfence
+                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Icldemote _ | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
@@ -655,13 +661,29 @@ let safe_register_pressure = function
   | Ibeginregion | Iendregion | Idls_get
     -> if fp then 10 else 11
 
-let max_register_pressure =
+let max_register_pressure op =
   let consumes ~int ~float =
     if fp
     then [| 12 - int; 16 - float |]
     else [| 13 - int; 16 - float |]
-  in function
-    Iextcall _ ->
+  in
+  let simd_max_register_pressure (register_behavior : Simd_proc.register_behavior) =
+    (match register_behavior with
+     | R_RM_rax_rdx_to_xmm0
+     | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
+     | R_RM_rax_rdx_to_rcx
+     | R_RM_to_rcx -> consumes ~int:1 ~float:0
+     | R_to_fst
+     | R_to_R
+     | R_to_RM
+     | RM_to_R
+     | R_R_to_fst
+     | R_RM_to_fst
+     | R_RM_to_R
+     | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
+  in
+  match op with
+  | Iextcall _ ->
     if win64
       then consumes ~int:5 ~float:6
       else consumes ~int:9 ~float:16
@@ -675,19 +697,9 @@ let max_register_pressure =
   | Ifloatop ((Float64 | Float32), Icompf _) ->
     consumes ~int:0 ~float:1
   | Ispecific(Isimd op) ->
-    (match Simd_proc.register_behavior op with
-    | R_RM_rax_rdx_to_xmm0
-    | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
-    | R_RM_rax_rdx_to_rcx
-    | R_RM_to_rcx -> consumes ~int:1 ~float:0
-    | R_to_fst
-    | R_to_R
-    | R_to_RM
-    | RM_to_R
-    | R_R_to_fst
-    | R_RM_to_fst
-    | R_RM_to_R
-    | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
+    simd_max_register_pressure (Simd_proc.register_behavior op)
+  | Ispecific(Isimd_mem (op,_)) ->
+    simd_max_register_pressure (Simd_proc.Mem.register_behavior op)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
