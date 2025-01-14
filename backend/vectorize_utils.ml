@@ -1,3 +1,5 @@
+[@@@ocaml.warning "+a-40-42"]
+
 open Arch
 
 module Width_in_bits = struct
