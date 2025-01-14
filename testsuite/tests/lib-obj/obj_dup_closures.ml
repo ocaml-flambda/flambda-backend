@@ -191,6 +191,24 @@ let check_one () =
   let rec_c2_2arg = dup rec_c2_2arg_original in
   let rec_c3_2arg = dup rec_c3_2arg_original in
   Gc.compact ();
+  let check_tag_and_size v1 v2 =
+    let v1 = Obj.repr v1 in
+    let v2 = Obj.repr v2 in
+    assert (Obj.tag v1 = Obj.tag v2);
+    assert (Obj.size v1 = Obj.size v2)
+  in
+  check_tag_and_size c1_1arg c1_1arg_original;
+  check_tag_and_size c2_1arg c2_1arg_original;
+  check_tag_and_size c3_1arg c3_1arg_original;
+  check_tag_and_size c1_2arg c1_2arg_original;
+  check_tag_and_size c2_2arg c2_2arg_original;
+  check_tag_and_size c3_2arg c3_2arg_original;
+  check_tag_and_size rec_c1_1arg rec_c1_1arg_original;
+  check_tag_and_size rec_c2_1arg rec_c2_1arg_original;
+  check_tag_and_size rec_c3_1arg rec_c3_1arg_original;
+  check_tag_and_size rec_c1_2arg rec_c1_2arg_original;
+  check_tag_and_size rec_c2_2arg rec_c2_2arg_original;
+  check_tag_and_size rec_c3_2arg rec_c3_2arg_original;
   check i64_1 i64_2 i64_3 i64_4 x
     ( c1_1arg,
       c2_1arg,
