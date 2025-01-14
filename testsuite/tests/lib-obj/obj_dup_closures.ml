@@ -1,5 +1,7 @@
 (* TEST *)
 
+[@@@ocaml.flambda_oclassic]
+
 external int_as_pointer : _ -> int = "%int_as_pointer"
 
 module Int64_u = struct
@@ -130,7 +132,8 @@ let[@opaque] make_small_closures (i64_1 : int64#) (i64_2 : int64#)
     rec_c2_2arg,
     rec_c3_2arg )
 
-let check_results (i64_1 : int64#) (i64_2 : int64#) (i64_3 : int64#)
+let[@opaque] check_results small_or_large
+    (i64_1 : int64#) (i64_2 : int64#) (i64_3 : int64#)
     (i64_4 : int64#) (x : string)
     ( c1_1arg,
       c2_1arg,
@@ -144,18 +147,21 @@ let check_results (i64_1 : int64#) (i64_2 : int64#) (i64_3 : int64#)
       rec_c1_2arg,
       rec_c2_2arg,
       rec_c3_2arg ) =
-  assert (Int64_u.equal (c1_1arg ()) i64_1);
-  assert (Int64_u.equal (c2_1arg ()) i64_2);
-  assert (Int.equal (c3_1arg ()) 100);
-  assert (Int64_u.equal (c1_2arg () ()) i64_3);
-  assert (Int64_u.equal (c2_2arg () ()) i64_4);
-  assert (Int.equal (c3_2arg () ()) 200);
-  assert (Int64_u.equal (rec_c1_1arg ()) i64_1);
-  assert (Int64_u.equal (rec_c2_1arg ()) i64_2);
-  assert (Int.equal (rec_c3_1arg ()) 300);
-  assert (Int64_u.equal (rec_c1_2arg () ()) i64_1);
-  assert (Int64_u.equal (rec_c2_2arg () ()) i64_2);
-  assert (Int.equal (rec_c3_2arg () ()) 300)
+  let check name b =
+    if not b then failwith (small_or_large ^ ": " ^ name)
+  in
+  check "c1_1" (Int64_u.equal (c1_1arg ()) i64_1);
+  check "c2_1" (Int64_u.equal (c2_1arg ()) i64_2);
+  check "c3_1" (Int.equal (c3_1arg ()) 100);
+  check "c1_2" (Int64_u.equal (c1_2arg () ()) i64_3);
+  check "c2_2" (Int64_u.equal (c2_2arg () ()) i64_4);
+  check "c3_2" (Int.equal (c3_2arg () ()) 200);
+  check "rec_c1_1" (Int64_u.equal (rec_c1_1arg ()) i64_1);
+  check "rec_c2_1" (Int64_u.equal (rec_c2_1arg ()) i64_2);
+  check "rec_c3_1" (Int.equal (rec_c3_1arg ()) 300);
+  check "rec_c1_2" (Int64_u.equal (rec_c1_2arg () ()) i64_1);
+  check "rec_c2_2" (Int64_u.equal (rec_c2_2arg () ()) i64_2);
+  check "rec_c3_2" (Int.equal (rec_c3_2arg () ()) 300)
 
 let check_tag_and_size v1 v2 =
   let v1 = Obj.repr v1 in
@@ -209,7 +215,7 @@ let check_one_small_closures () =
   check_tag_and_size rec_c1_2arg rec_c1_2arg_original;
   check_tag_and_size rec_c2_2arg rec_c2_2arg_original;
   check_tag_and_size rec_c3_2arg rec_c3_2arg_original;
-  check_results i64_1 i64_2 i64_3 i64_4 x
+  check_results "small" i64_1 i64_2 i64_3 i64_4 x
     ( c1_1arg,
       c2_1arg,
       c3_1arg,
@@ -1878,7 +1884,7 @@ let[@opaque] make_large_closures (i64_1 : int64#) (i64_2 : int64#)
     let (_ : int64#) = Sys.opaque_identity padding_i64_268 in
     let (_ : int64#) = Sys.opaque_identity padding_i64_269 in
     let (_ : int64#) = Sys.opaque_identity padding_i64_270 in
-    i64_1
+    i64_3
   in
   let[@opaque] c2_2arg () () =
     (* An unboxed environment plus a scannable environment *)
@@ -2155,7 +2161,7 @@ let[@opaque] make_large_closures (i64_1 : int64#) (i64_2 : int64#)
     let (_ : int64#) = Sys.opaque_identity padding_i64_269 in
     let (_ : int64#) = Sys.opaque_identity padding_i64_270 in
     let (_i : int) = Sys.opaque_identity (String.length x) in
-    i64_2
+    i64_4
   in
   let[@opaque] c3_2arg () () =
     (* Only a scannable environment *)
@@ -2432,7 +2438,7 @@ let[@opaque] make_large_closures (i64_1 : int64#) (i64_2 : int64#)
     let (_ : string) = Sys.opaque_identity padding_269 in
     let (_ : string) = Sys.opaque_identity padding_270 in
     let (_i : int) = Sys.opaque_identity (String.length x) in
-    100
+    200
   in
   (* Cases to exercise [Infix_tag] logic *)
   let[@opaque] rec rec_c1_1arg () =
@@ -3532,7 +3538,6 @@ let[@opaque] make_large_closures (i64_1 : int64#) (i64_2 : int64#)
     let (_ : int64#) = Sys.opaque_identity padding_i64_268 in
     let (_ : int64#) = Sys.opaque_identity padding_i64_269 in
     let (_ : int64#) = Sys.opaque_identity padding_i64_270 in
-
     let (_ : int64#) = Sys.opaque_identity i64_3 in
     rec_c1_1arg ()
   and[@opaque] rec_c2_2arg () () =
@@ -5237,7 +5242,7 @@ let check_one_large_closures () =
   check_tag_and_size rec_c1_2arg rec_c1_2arg_original;
   check_tag_and_size rec_c2_2arg rec_c2_2arg_original;
   check_tag_and_size rec_c3_2arg rec_c3_2arg_original;
-  check_results i64_1 i64_2 i64_3 i64_4 x
+  check_results "large" i64_1 i64_2 i64_3 i64_4 x
     ( c1_1arg,
       c2_1arg,
       c3_1arg,
