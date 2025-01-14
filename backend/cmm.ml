@@ -51,7 +51,7 @@ let typ_vec128 = [|Vec128|]
   then the result is treated as a derived pointer into the heap (i.e. [Addr]).
   (Such a result may not be live across any call site or a fatal compiler
   error will result.)
-  The order is used only in selection, Valx2 is generated after it from two Val.
+  The order is used only in selection, Valx2 is generated after selection.
 *)
 
 let lub_component comp1 comp2 =
