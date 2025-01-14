@@ -1,5 +1,3 @@
-# 2 "backend/amd64/regalloc_stack_operands.ml"
-
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Regalloc_utils
