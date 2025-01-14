@@ -46,6 +46,7 @@ and cfg_magic_number = {magic|@CFG_MAGIC_NUMBER@|magic}
 
 let safe_string = true
 let default_safe_string = true
+let naked_pointers = false
 let flambda_backend = true
 
 let interface_suffix = ref ".mli"
