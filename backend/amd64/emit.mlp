@@ -811,8 +811,7 @@ let move (src : Reg.t) (dst : Reg.t) =
   begin match src.typ, src.loc, dst.typ, dst.loc with
   | Float, Reg _, Float, Reg _
   | Float32, Reg _, Float32, Reg _
-  | Valx2, _, Valx2, _
-  | Vec128, _, Vec128, _ (* Vec128 stack slots are always aligned. *) ->
+  | (Vec128 | Valx2), _, (Vec128 | Valx2), _ (* Vec128 stack slots are always aligned. *) ->
     if distinct then I.movapd (reg src) (reg dst)
   | Float, _, Float, _ ->
     if distinct then I.movsd (reg src) (reg dst)
