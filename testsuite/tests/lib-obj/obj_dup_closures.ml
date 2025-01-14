@@ -14,13 +14,13 @@ module Int64_u = struct
   let equal x y = Int64.equal (to_int64 x) (to_int64 y)
 end
 
+let minor_heap_size_in_bytes =
+  assert (Sys.word_size = 64);
+  (Gc.get ()).minor_heap_size * Sys.word_size / 8
+
 let[@opaque] rand_near_minor_heap () =
   let r = ref () in
   let i : int = Obj.magic (int_as_pointer r) in
-  let minor_heap_size_in_bytes =
-    assert (Sys.word_size = 64);
-    (Gc.get ()).minor_heap_size * Sys.word_size / 8
-  in
   let b = minor_heap_size_in_bytes / 2 in
   let n = (Random.int b - (b / 2)) * 2 in
   Int64_u.of_int64 (Int64.of_int ((i * 2) + n))
