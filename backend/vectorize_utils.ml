@@ -75,7 +75,7 @@ module Memory_access = struct
 
   let first_memory_arg_index t = t.first_memory_arg_index
 
-  let alignment_in_bytes t =
+  let alignment_in_bytes _t =
     (* CR-someday gyorsh: propagate alignment of base address (such as
        bigarray). Can be used to emit more efficient vector sequences, for
        example, arithmetic operations with memory arguments (not stack). *)
