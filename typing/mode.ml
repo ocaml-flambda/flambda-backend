@@ -2424,21 +2424,6 @@ module Modality = struct
       | Diff (mm, m) ->
         (* For soundness, we want some [c] such that [m <= join c mm], which
            gives [subtract_mm m <= c]. To satisfy coherence conditions (see
-           [mode_intf.ml]), we must zap [mm] and [m] fully. First we zap [m] to
-           strongest. *)
-        let m = Mode.zap_to_floor m in
-        (* Note that [subtract] is antitone for [mm], so we zap [mm] to
-           strongest, to get the weakest [c]. *)
-        let mm = Mode.zap_to_floor mm in
-        let c = Mode.Const.subtract m mm in
-        Const.Join_const c
-
-    let zap_to_id = function
-      | Const c -> c
-      | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
-      | Diff (mm, m) ->
-        (* For soundness, we want some [c] such that [m <= join c mm], which
-           gives [subtract_mm m <= c]. To satisfy coherence conditions (see
            [mode_intf.ml]), we must zap [mm] and [m] fully. Note that [subtract]
            is antitone for [mm] and monotone for [m], so we zap [mm] to ceil,
            and [m] to floor, to get the floor of [c]. *)
@@ -2446,6 +2431,8 @@ module Modality = struct
         let mm = Mode.zap_to_ceil mm in
         let c = Mode.Const.subtract m mm in
         Const.Join_const c
+
+    let zap_to_id = zap_to_floor
 
     let to_const_exn = function
       | Const c -> c
@@ -2569,7 +2556,7 @@ module Modality = struct
 
     let max = Const Const.max
 
-    let zap_to_id = function
+    let zap_to_ceil = function
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (mm, m) ->
@@ -2578,25 +2565,21 @@ module Modality = struct
            conditions listed in [mode_intf.ml], we need to zap [mm] and [m]
            fully. [imply] is antitone in [mm] but monotone in [m] , so we zap
            [mm] to strongest and [m] to weakest, in order to get the weakest
-           [c].
-        *)
+           [c]. *)
         let m = Mode.zap_to_ceil m in
         let mm = Mode.zap_to_floor mm in
         let c = Mode.Const.imply mm m in
         Const.Meet_const c
 
+    let zap_to_id = zap_to_ceil
+
     let zap_to_floor = function
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (mm, m) ->
-        (* We want to return [c = imply mm m]. To satisfy the coherence
-           conditions listed in [mode_intf.ml], we need to zap [mm] and [m]
-           fully. First, we want the strongest mode for the value. *)
+        (* Opposite to [zap_to_ceil]. *)
         let m = Mode.zap_to_floor m in
-        (* Then, we want to return the weakest modality that will give the above
-           [m]. Since [imply mm m] is antitone in [mm], we zap [mm] to strongest.
-        *)
-        let mm = Mode.zap_to_floor mm in
+        let mm = Mode.zap_to_ceil mm in
         let c = Mode.Const.imply mm m in
         Const.Meet_const c
 

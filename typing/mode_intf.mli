@@ -580,14 +580,15 @@ module type S = sig
          - [c0 <= c1] always holds, where [c0] and [c1] are results of two
             abitrary zappings of some [m], even after further mutations to [m].
             Essentially that means [c0 = c1].
+
+         NB: zapping an inferred modality will zap both [md_mode] and [mode] that
+         it contains. The caller is reponsible for correct zapping order.
       *)
 
       (** Zap an inferred modality towards identity modality. *)
       val zap_to_id : t -> Const.t
 
-      (** Zap an inferred modality, so that it would give the strongest mode of
-          the value. If multiple modalities can achieve that, choose the weakest
-          one. *)
+      (** Zap an inferred modality towards the lowest (strongest) modality. *)
       val zap_to_floor : t -> Const.t
 
       (** Asserts the given modality is a const modality, and returns it. *)
