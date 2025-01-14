@@ -140,6 +140,9 @@ static uintnat round_up_p2(uintnat x, uintnat p2)
    well-defined), but other fields are uninitialised */
 Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 {
+  /* Ensure 16-byte alignment of the [struct stack_handler*] (e.g. for arm64) */
+  const int stack_alignment = 16;
+
 #ifdef USE_MMAP_MAP_STACK
   size_t len = sizeof(struct stack_info) +
                sizeof(value) * wosize +
@@ -153,10 +156,10 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 
   si->size = len;
 
-  /* Ensure 16-byte alignment (e.g. for arm64) */
   si->handler =
     (struct stack_handler*)
-    round_up_p2((uintnat)si + sizeof(struct stack_info) + sizeof(value) * wosize, 16);
+    round_up_p2((uintnat)si + sizeof(struct stack_info)
+      + sizeof(value) * wosize, stack_alignment);
 
   return si;
 #else
@@ -173,7 +176,8 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
    */
   size_t page_size = caml_plat_pagesize;
   size_t len = Bsize_wsize(wosize);
-  uintnat trailer_size = round_up_p2(sizeof(struct stack_handler), 16);
+  uintnat trailer_size = round_up_p2(sizeof(struct stack_handler),
+    stack_alignment);
   len += trailer_size;
   // We need two more pages for stack_info and guard
   CAMLassert(sizeof(struct stack_info) <= page_size);
@@ -219,18 +223,20 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 
   stack->size = len;
   stack->handler = (struct stack_handler*)((char*)stack + len - trailer_size);
+  CAMLassert(((uintnat) stack->handler) % stack_alignment == 0);
 
   return stack;
 #else
   size_t len = sizeof(struct stack_info)+
                sizeof(value) * wosize +
-               8 /* for alignment to 16-bytes, needed for arm64 */ +
+               stack_alignment +
                sizeof(struct stack_handler);
   struct stack_info* stack = caml_stat_alloc_noexc(len);
   if (stack == NULL) return NULL;
   stack->handler =
     (struct stack_handler*)
-    round_up_p2((uintnat)stack + sizeof(struct stack_info) + sizeof(value) * wosize, 16);
+    round_up_p2((uintnat)stack + sizeof(struct stack_info) +
+      sizeof(value) * wosize, stack_alignment);
   return stack;
 #endif /* NATIVE_CODE */
 #endif /* USE_MMAP_MAP_STACK */

@@ -38,7 +38,7 @@
 #include "caml/weak.h"
 
 CAMLexport atomic_uintnat caml_compactions_count;
-uintnat caml_pool_min_chunk_size = 8 * 1024 * 1024; /* 8 MB */
+uintnat caml_pool_min_chunk_bsz = 8 * 1024 * 1024; /* 8 MB */
 
 typedef unsigned int sizeclass;
 
@@ -209,7 +209,7 @@ static pool* pool_acquire(struct caml_heap_state* local) {
     if (pool_freelist.fresh_pools == 0) {
       uintnat new_pools = pool_freelist.active_pools * 15 / 100;
       uintnat min_new_pools =
-        Wsize_bsize(caml_pool_min_chunk_size) / POOL_WSIZE;
+        Wsize_bsize(caml_pool_min_chunk_bsz) / POOL_WSIZE;
       if (new_pools < min_new_pools) new_pools = min_new_pools;
 
       uintnat mapping_size =
