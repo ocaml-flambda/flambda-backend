@@ -141,6 +141,7 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
+  | Parray_element_size_in_bytes of array_kind
   (* Context switches *)
   | Prunstack
   | Pperform

@@ -561,6 +561,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         src_mutability = Immutable;
         dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
       }, 5);
+    | "%array_element_size_in_bytes" ->
+      (* The array kind will be filled in later *)
+      Primitive (Parray_element_size_in_bytes Pgenarray, 1)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%obj_set_field" ->
@@ -1302,6 +1305,12 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     if dst_array_set_kind = new_dst_array_set_kind then None
     else Some (Primitive (Parrayblit {
       src_mutability; dst_array_set_kind = new_dst_array_set_kind }, arity))
+  | Primitive (Parray_element_size_in_bytes _, arity), p1 :: _ -> (
+      let array_kind =
+        array_type_kind ~elt_sort:None env (to_location loc) p1
+      in
+      Some (Primitive (Parray_element_size_in_bytes array_kind, arity))
+    )
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
@@ -1815,6 +1824,7 @@ let lambda_primitive_needs_event_after = function
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pmakeufloatblock _ | Pmakemixedblock _
   | Pmake_unboxed_product _ | Punboxed_product_field _
+  | Parray_element_size_in_bytes _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _

@@ -1363,6 +1363,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Values (tag, shape), mutability, mode), args)]
   | Pmake_unboxed_product layouts, _ ->
+    (* CR mshinwell: this should check the unarized lengths of [layouts] and
+       [args] (like [Parray_element_size_in_bytes] below) *)
     if List.compare_lengths layouts args <> 0
     then
       Misc.fatal_errorf "Pmake_unboxed_product: expected %d arguments, got %d"
@@ -1392,6 +1394,26 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       |> Array.to_list
     in
     List.map (fun arg : H.expr_primitive -> Simple arg) projected_args
+  | Parray_element_size_in_bytes array_kind, [_witness] ->
+    (* This is implemented as a unary primitive, but from our point of view it's
+       actually nullary. *)
+    let num_bytes =
+      match array_kind with
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> 8
+      | Punboxedfloatarray Unboxed_float32 ->
+        (* float32# arrays are packed *)
+        4
+      | Punboxedfloatarray Unboxed_float64 -> 8
+      | Punboxedintarray Unboxed_int32 ->
+        (* int32# arrays are packed *)
+        4
+      | Punboxedintarray (Unboxed_int64 | Unboxed_nativeint) -> 8
+      | Punboxedvectorarray Unboxed_vec128 -> 16
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        (* All elements of unboxed product arrays are currently 8 bytes wide. *)
+        L.count_initializers_array_kind array_kind * 8
+    in
+    [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -2405,7 +2427,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
-      | Preinterpret_tagged_int63_as_unboxed_int64 ),
+      | Preinterpret_tagged_int63_as_unboxed_int64
+      | Parray_element_size_in_bytes _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
