@@ -36,6 +36,14 @@ val num_stack_slot_classes: int
 val stack_slot_class: Cmm.machtype_component -> int
 val stack_class_tag: int -> string
 
+(* If two registers have compatible types then we allow moves between them.
+   Note that we never allow moves between different register classes or
+   stack slot classes, so the following must hold:
+   if [machtypes_are_compatible r1 r2] = true then
+   [register_class r1] = [register_class r2]
+   and [stack_class r1.typ] = [stack_class r2.typ]. *)
+val types_are_compatible : Reg.t -> Reg.t -> bool
+
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int
 val loc_results_call: Cmm.machtype -> Reg.t array * int

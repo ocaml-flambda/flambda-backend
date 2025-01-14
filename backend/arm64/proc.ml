@@ -91,6 +91,22 @@ let stack_slot_class typ =
     (* CR mslater: (SIMD) arm64 *)
     fatal_error "arm64: got valx2 register"
 
+let types_are_compatible left right =
+  match left.typ, right.typ with
+  | (Int | Val | Addr), (Int | Val | Addr)
+  | Float, Float ->
+    true
+  | Float32, _ | _, Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
+  | Vec128, _ | _, Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Valx2, _ | _, Valx2 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got valx2 register"
+  | (Int | Val | Addr | Float), _ -> false
+
 let stack_class_tag c =
   match c with
   | 0 -> "i"

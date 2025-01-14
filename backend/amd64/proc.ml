@@ -111,6 +111,19 @@ let stack_slot_class typ =
   | Float | Float32 -> 1
   | Vec128 | Valx2 -> 2
 
+let types_are_compatible left right =
+  match left.typ, right.typ with
+  | (Int | Val | Addr), (Int | Val | Addr)
+  | Float, Float
+  | Float32, Float32
+  | Vec128, Vec128 ->
+    true
+  | Valx2, Valx2 ->
+    true
+  | Valx2, Vec128 | Vec128, Valx2 ->
+    true
+  | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
+
 let stack_class_tag c =
   match c with
   | 0 -> "i"
