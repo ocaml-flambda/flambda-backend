@@ -890,6 +890,9 @@ module Jkind_desc = struct
       },
       added_crossings )
 
+  let unsafely_set_upper_bounds t ~from =
+    { t with modes_upper_bounds = from.modes_upper_bounds }
+
   let max = of_const Const.max
 
   let equate_or_equal ~allow_mutation
@@ -1074,6 +1077,9 @@ let add_portability_and_contention_crossing ~from t =
     Jkind_desc.add_portability_and_contention_crossing ~from:from.jkind t.jkind
   in
   { t with jkind }, added_crossings
+
+let unsafely_set_upper_bounds ~from t =
+  { t with jkind = Jkind_desc.unsafely_set_upper_bounds t.jkind ~from:from.jkind }
 
 (******************************)
 (* construction *)

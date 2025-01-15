@@ -309,6 +309,10 @@ val add_nullability_crossing : 'd t -> 'd t
     along with a boolean of whether illegal crossing was added *)
 val add_portability_and_contention_crossing : from:'d t -> 'd t -> 'd t * bool
 
+(** Forcibly change the modal upper bounds of a [t] based on the modal upper bounds of
+    [from]. *)
+val unsafely_set_upper_bounds : from:'d t -> 'd t -> 'd t
+
 (******************************)
 (* construction *)
 

@@ -1794,11 +1794,9 @@ let update_decl_jkind env dpath decl =
              want to be able to eg locally use a type declared as layout [any] as [value]
              if that's its actual layout! *)
           type_jkind =
-            { new_decl.type_jkind with
-              jkind =
-                { new_decl.type_jkind.jkind with
-                  modes_upper_bounds = decl.type_jkind.jkind.modes_upper_bounds } };
-          (* If the [@@allow_any_crossing] attribute is set, we unconditionally set
+            Jkind.unsafely_set_upper_bounds ~from:decl.type_jkind
+              new_decl.type_jkind;
+          (* If the attribute to allow any crossing is set, we unconditionally set
              [type_has_illegal_crossings], even if the attribute was set unnecessarily,
              just because it's simpler than tracking whether the attribute was used to
              allow something unsafe. The only outcome this should cause is that the kind
