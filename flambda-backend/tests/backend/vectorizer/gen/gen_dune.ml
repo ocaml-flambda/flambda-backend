@@ -5,7 +5,7 @@ let enabled_if_main_amd64 =
 
 let flags =
   "-S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc \
-   cfg -extension simd"
+   cfg -extension simd -vectorize-max-block-size 1000"
 
 let runner name = name ^ "_runner.exe"
 
