@@ -524,10 +524,14 @@ end
 
 module With_bounds = struct
   module Type_info = struct
+    type relevant_for_nullability =
+      | Relevant_for_nullability
+      | Irrelevant_for_nullability
+
     type +'type_expr t =
       { type_expr : 'type_expr;
         modality : Mode.Modality.Value.Const.t;
-        nullability : bool
+        relevant_for_nullability: relevant_for_nullability
       }
 
     let print ~print_type_expr ppf { type_expr; modality } =
@@ -541,10 +545,14 @@ module With_bounds = struct
     let map_type_expr f ({ type_expr; _ } as t) =
       { t with type_expr = f type_expr }
 
+    let is_relevant_for_nullability = function
+      | { relevant_for_nullability = Relevant_for_nullability; _ } -> true
+      | { relevant_for_nullability = Irrelevant_for_nullability; _ } -> false
+
     let is_on_axis (type a) ~(axis : a Jkind_axis.Axis.t) t =
       match axis with
       | Nonmodal Externality -> true (* All fields matter for externality *)
-      | Nonmodal Nullability -> t.nullability
+      | Nonmodal Nullability -> is_relevant_for_nullability t
       | Modal axis ->
         let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
         not
@@ -556,8 +564,8 @@ module With_bounds = struct
       assert (not (Mode.Modality.Value.Const.is_id modality));
       { t with modality }
 
-    let create ~type_expr ~modality ~deep_only =
-      { type_expr; modality; nullability = not deep_only }
+    let create ~type_expr ~modality ~relevant_for_nullability =
+      { type_expr; modality; relevant_for_nullability }
   end
 
   type (+'type_expr, 'd) t =
