@@ -457,14 +457,14 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets test_float32_unboxed_runner.exe test_float32_unboxed.cmx.dump)
  (deps test_float32_unboxed.mli test_float32_unboxed.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_float32_unboxed_runner.exe)))
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
   (with-outputs-to
    test_float32_unboxed.output
@@ -472,25 +472,25 @@
 
 (rule
  (alias runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
    (diff test_float32_unboxed.expected test_float32_unboxed.output)))
 
 (rule
  (alias runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
   (copy test_float32_unboxed.ml test_float32_unboxed_vectorized.ml)))
 
 (rule
  (alias runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
   (copy test_float32_unboxed.mli test_float32_unboxed_vectorized.mli)))
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets test_float32_unboxed_vectorized_runner.exe test_float32_unboxed_vectorized.cmx.dump)
  (deps test_float32_unboxed_vectorized.mli test_float32_unboxed_vectorized.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_float32_unboxed_vectorized_runner.exe)))
@@ -513,7 +513,7 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
   (with-outputs-to
    test_float32_unboxed_vectorized.output
@@ -521,13 +521,13 @@
 
 (rule
  (alias runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
   (copy test_float32_unboxed.expected test_float32_unboxed_vectorized.expected)))
 
 (rule
  (alias runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
    (diff test_float32_unboxed_vectorized.expected test_float32_unboxed_vectorized.output)))
 
