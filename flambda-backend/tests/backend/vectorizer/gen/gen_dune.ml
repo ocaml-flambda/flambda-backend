@@ -119,18 +119,15 @@ let filter_dump ~enabled_if ~exit_code name =
     (run %{deps})))))
 |}
 
-let copy_source_to_vectorize name =
-  copy_file ~enabled_if:enabled_if_main (name |> impl)
-    (name |> vectorized |> impl);
-  copy_file ~enabled_if:enabled_if_main (name |> intf)
-    (name |> vectorized |> intf)
+let copy_source_to_vectorize ~enabled_if name =
+  copy_file ~enabled_if (name |> impl) (name |> vectorized |> impl);
+  copy_file ~enabled_if (name |> intf) (name |> vectorized |> intf)
 
-let compile_no_vectorizer name =
-  compile ~enabled_if:enabled_if_main ~extra_flags:"-no-vectorize" name
+let compile_no_vectorizer ~enabled_if name =
+  compile ~enabled_if ~extra_flags:"-no-vectorize" name
 
-let compile_with_vectorizer name =
-  compile ~enabled_if:enabled_if_main ~extra_flags:"-vectorize"
-    (vectorized name)
+let compile_with_vectorizer ~enabled_if name =
+  compile ~enabled_if ~extra_flags:"-vectorize" (vectorized name)
 
 let filter_vectorizer_dump ~enabled_if ~exit_code name =
   filter_dump ~enabled_if ~exit_code (name |> vectorized)
@@ -138,34 +135,32 @@ let filter_vectorizer_dump ~enabled_if ~exit_code name =
 let diff_vectorizer_dump ~enabled_if name =
   diff_output ~enabled_if (name |> vectorized |> cmx_dump)
 
-let run_no_vectorizer name = run ~enabled_if:enabled_if_main name
+let run_no_vectorizer ~enabled_if name = run ~enabled_if name
 
-let run_vectorized name = run ~enabled_if:enabled_if_main (name |> vectorized)
+let run_vectorized ~enabled_if name = run ~enabled_if (name |> vectorized)
 
-let diff_output_no_vectorizer name =
-  diff_output ~enabled_if:enabled_if_main name
+let diff_output_no_vectorizer ~enabled_if name = diff_output ~enabled_if name
 
-let diff_output_vectorized name =
-  diff_output ~enabled_if:enabled_if_main (name |> vectorized)
+let diff_output_vectorized ~enabled_if name =
+  diff_output ~enabled_if (name |> vectorized)
 
-let copy_expected_output name =
-  copy_file ~enabled_if:enabled_if_main (name |> expected)
-    (name |> vectorized |> expected)
+let copy_expected_output ~enabled_if name =
+  copy_file ~enabled_if (name |> expected) (name |> vectorized |> expected)
 
-let print_test ?(filter_exit_code = 0) name =
+let print_test ?(enabled_if = enabled_if_main) ?(filter_exit_code = 0) name =
   (* check expected test output is up to date *)
-  compile_no_vectorizer name;
-  run_no_vectorizer name;
-  diff_output_no_vectorizer name;
+  compile_no_vectorizer ~enabled_if name;
+  run_no_vectorizer ~enabled_if name;
+  diff_output_no_vectorizer ~enabled_if name;
   (* vectorizer *)
-  copy_source_to_vectorize name;
-  compile_with_vectorizer name;
+  copy_source_to_vectorize ~enabled_if name;
+  compile_with_vectorizer ~enabled_if name;
   filter_vectorizer_dump name ~exit_code:filter_exit_code
     ~enabled_if:enabled_if_main_amd64;
   diff_vectorizer_dump name ~enabled_if:enabled_if_main_amd64;
-  run_vectorized name;
-  copy_expected_output name;
-  diff_output_vectorized name;
+  run_vectorized ~enabled_if name;
+  copy_expected_output ~enabled_if name;
+  diff_output_vectorized ~enabled_if name;
   ()
 
 let () =
