@@ -108,17 +108,23 @@ end
 
 module With_bounds : sig
   module Type_info : sig
+    type relevant_for_nullability =
+      | Relevant_for_nullability
+      | Irrelevant_for_nullability
+
     type +'type_expr t =
       { type_expr : 'type_expr;
         modality : Mode.Modality.Value.Const.t;
-        nullability : bool
+        relevant_for_nullability: relevant_for_nullability
       }
 
     val create :
       type_expr:'type_expr ->
       modality:Mode.Modality.Value.Const.t ->
-      deep_only:bool ->
+      relevant_for_nullability:relevant_for_nullability ->
       'type_expr t
+
+    val is_relevant_for_nullability : 'type_expr t -> bool
   end
 
   type (+'type_expr, 'd) t =
