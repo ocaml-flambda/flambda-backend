@@ -207,6 +207,35 @@ Line 2, characters 11-18:
 Error: "Bad2.t" has no unboxed version.
 |}]
 
+type t = { i : int ; j : int }
+type s = t#
+[%%expect{|
+type t = { i : int; j : int; }
+type s = t#
+|}]
+
+type t = { i : int ; j : int }
+and s = t#
+[%%expect{|
+type t = { i : int; j : int; }
+and s = t#
+|}]
+
+let x () = #{ i = 1 ; j = 2 }
+[%%expect{|
+val x : unit -> t# = <fun>
+|}]
+
+type t = { s : s# }
+and s = { t : t# }
+[%%expect{|
+Line 1, characters 0-19:
+1 | type t = { s : s# }
+    ^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t#" is recursive without boxing:
+         "t#" contains "s#",
+         "s#" contains "t#"
+|}]
 
 (* Many cases from the [recursive.ml] test to try... *)
 
@@ -247,3 +276,30 @@ Error: "Bad2.t" has no unboxed version.
    Also need to check that unused type error are eliminated by using the hash
    version.
 *)
+
+
+
+(* this should work. non-minimized *)
+
+(* module type S2 = sig
+ *   type t = { i : int ; j : int }
+ * end
+ *
+ * type t' = { i : int ; j : int }
+ *
+ * module type Sm' = S2 with type t = t'
+ *
+ * (* This compiles if the constraints were added *)
+ * module Check_constraints(M:Sm') = struct
+ *   let f : M.t -> t' = fun x -> x
+ *   let f : M.t# -> t'# = fun x -> x
+ * end
+ * [%%expect{|
+ * module type S2 = sig type t = { i : int; j : int; } end
+ * type t' = { i : int; j : int; }
+ * module type Sm' = sig type t = t' = { i : int; j : int; } end
+ * Line 12, characters 10-14:
+ * 12 |   let f : M.t# -> t'# = fun x -> x
+ *                ^^^^
+ * Error: "M.t" has no unboxed version.
+ * |}] *)

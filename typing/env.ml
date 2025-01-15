@@ -2006,7 +2006,7 @@ let rec components_of_module_maker
             let final_decl = Subst.type_declaration sub decl in
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
-            let descrs =
+            let compute_descrs path decl final_decl =
               match decl.type_kind with
               | Type_variant (_,repr) ->
                   let cstrs = List.map snd
@@ -2036,7 +2036,7 @@ let rec components_of_module_maker
                     lbls;
                   Type_record (lbls, repr)
               | Type_record_unboxed_product (_, repr) ->
-                  let (lbls : unboxed_label_description list) = List.map snd
+                  let lbls = List.map snd
                     (Datarepr.unboxed_labels_of_type path final_decl)
                   in
                   List.iter
@@ -2048,6 +2048,16 @@ let rec components_of_module_maker
               | Type_abstract r -> Type_abstract r
               | Type_open -> Type_open
             in
+            let descrs = compute_descrs path decl final_decl in
+            (* Update [c] with unboxed version *)
+            begin match
+                decl.type_unboxed_version, final_decl.type_unboxed_version with
+            | Some decl, Some final_decl ->
+              let path = Pextra_ty (path, Pderived_unboxed_ty) in
+              ignore (compute_descrs path decl final_decl)
+            | None, None -> ()
+            | Some _, None | None, Some _ -> assert false
+            end;
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
               { tda_declaration = final_decl;
@@ -2283,8 +2293,8 @@ and store_type ~check id info shape env =
     check_usage loc id info.type_uid
       (fun s -> Warnings.Unused_type_declaration s)
       !type_declarations;
-  let descrs, env =
-    let path = Pident id in
+
+  let store_decl path info env =
     match info.type_kind with
     | Type_variant (_,repr) ->
         let constructors = Datarepr.constructors_of_type path info
@@ -2313,6 +2323,16 @@ and store_type ~check id info shape env =
     | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
   in
+  let env =
+    match info.type_unboxed_version with
+    | Some info ->
+      (* CR rtjoa: usage?? *)
+      let path = Pextra_ty (Pident id, Pderived_unboxed_ty) in
+      let _, env = store_decl path info env in
+      env
+    | None -> env
+  in
+  let descrs, env = store_decl (Pident id) info env in
   let tda =
     { tda_declaration = info;
       tda_descriptions = descrs;
