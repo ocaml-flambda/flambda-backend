@@ -26,6 +26,7 @@ type t : value mod uncontended = { mutable contents : string }
 let f (x : t @@ contended) = use_uncontended x
 [%%expect{|
 type t : value mod uncontended = { mutable contents : string; }
+[@@unsafe_allow_any_mode_crossing]
 val f : t @ contended -> t = <fun>
 |}]
 
@@ -82,10 +83,14 @@ end = struct
 end
 [%%expect{|
 module M1 :
-  sig type t : value mod uncontended = { mutable contents : string; } end
+  sig
+    type t : value mod uncontended = { mutable contents : string; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
 module M2 :
   sig
     type t = M1.t : value mod uncontended = { mutable contents : string; }
+    [@@unsafe_allow_any_mode_crossing]
   end
 |}]
 
@@ -103,6 +108,7 @@ end
 module Private :
   sig
     type t : value mod uncontended = private { mutable contents : string; }
+    [@@unsafe_allow_any_mode_crossing]
   end
 |}]
 
@@ -138,11 +144,14 @@ end
 module M :
   sig
     type t1 : value mod uncontended = { mutable contents : string; }
+    [@@unsafe_allow_any_mode_crossing]
     type t2 : value mod uncontended = private { mutable contents : string; }
+    [@@unsafe_allow_any_mode_crossing]
     type t3
       : value mod uncontended =
         Immut of string
       | Mut of { mutable contents : string; }
+    [@@unsafe_allow_any_mode_crossing]
   end
 |}]
 

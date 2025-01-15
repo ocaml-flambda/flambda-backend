@@ -205,7 +205,8 @@ and out_type_decl =
 
     otype_unboxed: bool;
     otype_or_null_reexport: bool;
-    otype_cstrs: (out_type * out_type) list }
+    otype_cstrs: (out_type * out_type) list;
+    otype_attributes: out_attribute list }
 and out_extension_constructor =
   { oext_name: string;
     oext_type_name: string;

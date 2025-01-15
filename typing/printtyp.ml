@@ -1990,6 +1990,17 @@ let tree_of_type_decl id decl =
         Some (out_jkind_of_desc (Jkind.get decl.type_jkind))
     | _ -> None (* other cases have no jkind annotation *)
   in
+  let attrs =
+    match decl.type_has_illegal_crossings, decl.type_kind with
+    | (true, Type_variant _ )
+    | (true, Type_record _ )
+    | (true, Type_record_unboxed_product _) ->
+      [{ oattr_name = "unsafe_allow_any_mode_crossing" }]
+    | (true, Type_open)
+    | (true, Type_abstract _)
+    | (false, _) ->
+      []
+  in
     { otype_name = name;
       otype_params = args;
       otype_type = ty;
@@ -1997,7 +2008,8 @@ let tree_of_type_decl id decl =
       otype_jkind;
       otype_unboxed = unboxed;
       otype_or_null_reexport = or_null_reexport;
-      otype_cstrs = constraints }
+      otype_cstrs = constraints;
+      otype_attributes = attrs }
 
 let add_type_decl_to_preparation id decl =
    ignore @@ prepare_decl id decl

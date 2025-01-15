@@ -13,6 +13,7 @@ type b : value mod portable = { a : int; b : int }
 [%%expect {|
 type a
 type b : value mod portable = { a : int; b : int; }
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type a
@@ -20,6 +21,7 @@ type b : value mod uncontended = Foo of int
 [%%expect {|
 type a
 type b : value mod uncontended = Foo of int
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type a
@@ -27,6 +29,7 @@ type b : value mod uncontended portable = Foo of int | Bar of int
 [%%expect {|
 type a
 type b : value mod uncontended portable = Foo of int | Bar of int
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 module _ = struct
@@ -46,49 +49,61 @@ Error: The kind of type "a" is value
 type t : value mod portable uncontended = { a : int; b : int }
 [%%expect {|
 type t : value mod uncontended portable = { a : int; b : int; }
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 [%%expect {|
 type ('a, 'b) t : value mod uncontended portable = { a : 'a; b : 'b; }
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type t : value mod portable = private { foo : string }
 [%%expect {|
 type t : value mod portable = private { foo : string; }
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type a : value mod portable = { foo : string }
 type b : value mod portable = a = { foo : string }
 [%%expect {|
 type a : value mod portable = { foo : string; }
+[@@unsafe_allow_any_mode_crossing]
 type b = a : value mod portable = { foo : string; }
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type a : value mod uncontended = private { foo : string }
 type b : value mod uncontended = a = private { foo : string }
 [%%expect {|
 type a : value mod uncontended = private { foo : string; }
+[@@unsafe_allow_any_mode_crossing]
 type b = a : value mod uncontended = private { foo : string; }
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type t : value mod uncontended = private Foo of int | Bar
 [%%expect {|
 type t : value mod uncontended = private Foo of int | Bar
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type a : value mod uncontended = Foo of int | Bar
 type b : value mod uncontended = a = Foo of int | Bar
 [%%expect {|
 type a : value mod uncontended = Foo of int | Bar
+[@@unsafe_allow_any_mode_crossing]
 type b = a : value mod uncontended = Foo of int | Bar
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 type a : value mod portable = private Foo of int | Bar
 type b : value mod portable = a = private Foo of int | Bar
 [%%expect {|
 type a : value mod portable = private Foo of int | Bar
+[@@unsafe_allow_any_mode_crossing]
 type b = a : value mod portable = private Foo of int | Bar
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 module A : sig
@@ -97,7 +112,11 @@ end = struct
   type t = { a : string }
 end
 [%%expect {|
-module A : sig type t : value mod portable = { a : string; } end
+module A :
+  sig
+    type t : value mod portable = { a : string; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
 |}]
 
 (********************************************)
@@ -108,6 +127,7 @@ type ('a : value mod portable uncontended) b
 type c = a b
 [%%expect {|
 type a : value mod uncontended portable = Foo of string
+[@@unsafe_allow_any_mode_crossing]
 type ('a : value mod uncontended portable) b
 type c = a b
 |}]
@@ -117,6 +137,7 @@ let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
 let g (x : t) = f x
 [%%expect {|
 type t : value mod uncontended portable = { a : string; b : int; }
+[@@unsafe_allow_any_mode_crossing]
 val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
 val g : t -> t = <fun>
 |}]
@@ -125,6 +146,7 @@ type t : value mod portable uncontended = { a : int; b : int }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
 type t : value mod uncontended portable = { a : int; b : int; }
+[@@unsafe_allow_any_mode_crossing]
 val x : t = {a = 5; b = 5}
 |}]
 
@@ -132,6 +154,7 @@ type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
 type ('a, 'b) t : value mod uncontended portable = { a : 'a; b : 'b; }
+[@@unsafe_allow_any_mode_crossing]
 val x : (int, int) t = {a = 5; b = 5}
 |}]
 
@@ -139,6 +162,7 @@ type t : value mod portable uncontended = Foo of string | Bar of int
 let x : _ as (_ : value mod portable uncontended) = Foo "hello world"
 [%%expect {|
 type t : value mod uncontended portable = Foo of string | Bar of int
+[@@unsafe_allow_any_mode_crossing]
 val x : t = Foo "hello world"
 |}]
 
@@ -151,7 +175,11 @@ type ('a : value mod portable) u = 'a
 type v = A.t u
 let x : _ as (_ : value mod portable) = ({ a = "hello" } : A.t)
 [%%expect {|
-module A : sig type t : value mod portable = { a : string; } end
+module A :
+  sig
+    type t : value mod portable = { a : string; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
 type ('a : value mod portable) u = 'a
 type v = A.t u
 val x : A.t = {A.a = "hello"}
@@ -162,6 +190,7 @@ let my_str : string @@ nonportable = ""
 let y = ({ a = my_str } : t @@ portable)
 [%%expect {|
 type t : value mod portable = { a : string; }
+[@@unsafe_allow_any_mode_crossing]
 val my_str : string = ""
 val y : t = {a = ""}
 |}]
@@ -171,6 +200,7 @@ let my_fun @ nonportable = fun x -> x
 let y : t @@ portable = { a = my_fun }
 [%%expect {|
 type t : value mod portable = { a : string -> string; }
+[@@unsafe_allow_any_mode_crossing]
 val my_fun : 'a -> 'a = <fun>
 val y : t = {a = <fun>}
 |}]
@@ -182,6 +212,7 @@ let f () =
   ()
 [%%expect {|
 type t : value mod uncontended = { a : string; }
+[@@unsafe_allow_any_mode_crossing]
 val make_str : unit -> string = <fun>
 val f : unit -> unit = <fun>
 |}]
@@ -193,6 +224,7 @@ let f () =
   ()
 [%%expect {|
 type t : value mod uncontended = { a : string; }
+[@@unsafe_allow_any_mode_crossing]
 val make_str : unit -> string = <fun>
 val f : unit -> unit = <fun>
 |}]
@@ -209,6 +241,7 @@ let f () =
 [%%expect {|
 type t_value
 type t : value mod uncontended portable = Foo of t_value
+[@@unsafe_allow_any_mode_crossing]
 val make_value : unit -> t_value = <fun>
 val f : unit -> unit = <fun>
 |}]
@@ -218,6 +251,7 @@ let my_fun : _ @@ nonportable = fun x -> x
 let y = ({ a = my_fun } : _ @@ portable)
 [%%expect {|
 type t : value mod portable = { a : string -> string; }
+[@@unsafe_allow_any_mode_crossing]
 val my_fun : 'a -> 'a = <fun>
 Line 3, characters 15-21:
 3 | let y = ({ a = my_fun } : _ @@ portable)
@@ -234,6 +268,7 @@ let g (x : t @@ nonportable contended) = f x; f (Foo ""); f (Bar 10)
 [%%expect {|
 val f : 'a @ portable -> unit = <fun>
 type t : value mod uncontended portable = Foo of string | Bar of int
+[@@unsafe_allow_any_mode_crossing]
 val g : t @ contended -> unit = <fun>
 |}]
 
