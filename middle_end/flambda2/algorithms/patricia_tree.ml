@@ -18,6 +18,7 @@ type key = int
 
 external int_clz : int -> (int[@untagged])
   = "caml_int_clz_tagged_to_tagged" "caml_int_clz_tagged_to_untagged"
+  [@@noalloc] [@@builtin] [@@no_effects] [@@no_coeffects]
 
 (* A bit [b], represented as a bitmask with only [b] set. This makes testing an
    individual bit very cheap. *)
@@ -577,6 +578,9 @@ end = struct
     | Leaf _ -> 1
     | Branch (_, _, t0, t1) -> cardinal t0 + cardinal t1
 
+  let[@inline always] order_branches bit t0 t1 =
+    if bit < 0 then t1, t0 else t0, t1
+
   let rec unsigned_iter f t =
     match descr t with
     | Empty -> ()
@@ -590,13 +594,9 @@ end = struct
     | Empty -> ()
     | Leaf (key, d) -> Callback.call f key d
     | Branch (_, bit, t0, t1) ->
-      if bit < 0
-      then (
-        unsigned_iter f t1;
-        unsigned_iter f t0)
-      else (
-        unsigned_iter f t0;
-        unsigned_iter f t1)
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_iter f t0;
+      unsigned_iter f t1
 
   let rec unsigned_fold f t acc =
     match descr t with
@@ -609,9 +609,8 @@ end = struct
     | Empty -> acc
     | Leaf (key, d) -> Callback.call f key d acc
     | Branch (_, bit, t0, t1) ->
-      if bit < 0
-      then unsigned_fold f t0 (unsigned_fold f t1 acc)
-      else unsigned_fold f t1 (unsigned_fold f t0 acc)
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_fold f t1 (unsigned_fold f t0 acc)
 
   let rec unsigned_for_all p t =
     match descr t with
@@ -624,9 +623,8 @@ end = struct
     | Empty -> true
     | Leaf (key, d) -> Callback.call p key d
     | Branch (_, bit, t0, t1) ->
-      if bit < 0
-      then unsigned_for_all p t1 && unsigned_for_all p t0
-      else unsigned_for_all p t0 && unsigned_for_all p t1
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_for_all p t0 && unsigned_for_all p t1
 
   let rec unsigned_exists p t =
     match descr t with
@@ -639,9 +637,8 @@ end = struct
     | Empty -> false
     | Leaf (key, d) -> Callback.call p key d
     | Branch (_, bit, t0, t1) ->
-      if bit < 0
-      then unsigned_exists p t1 || unsigned_exists p t0
-      else unsigned_exists p t0 || unsigned_exists p t1
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_exists p t0 || unsigned_exists p t1
 
   let filter p t =
     let rec loop t =
@@ -744,31 +741,38 @@ end = struct
       | Branch _, Empty -> -1
       | Branch _, Leaf _ -> -1
 
-  let rec unsigned_split ~found ~not_found i t =
-    match descr t with
-    | Empty ->
-      let iv = is_value_of t in
-      empty iv, not_found, empty iv
-    | Leaf (j, d) ->
-      let iv = is_value_of t in
-      if i = j
-      then empty iv, (found [@inlined hint]) d, empty iv
-      else if j < i
-      then singleton iv j d, not_found, empty iv
-      else empty iv, not_found, singleton iv j d
-    | Branch (prefix, bit, t0, t1) ->
-      if match_prefix i prefix bit
-      then
-        if zero_bit i bit
+  (* All entries in [t] have the same sign -- either all are non-negative or all
+     are negative.
+
+     [i] might be any value. *)
+  let same_sign_split ~found ~not_found i t =
+    let rec loop t =
+      match descr t with
+      | Empty ->
+        let iv = is_value_of t in
+        empty iv, not_found, empty iv
+      | Leaf (j, d) ->
+        let iv = is_value_of t in
+        if i = j
+        then empty iv, found d, empty iv
+        else if j < i
+        then singleton iv j d, not_found, empty iv
+        else empty iv, not_found, singleton iv j d
+      | Branch (prefix, bit, t0, t1) ->
+        if match_prefix i prefix bit
         then
-          let lt, mem, gt = unsigned_split ~found ~not_found i t0 in
-          lt, mem, branch prefix bit gt t1
-        else
-          let lt, mem, gt = unsigned_split ~found ~not_found i t1 in
-          branch prefix bit t0 lt, mem, gt
-      else if i < prefix
-      then empty (is_value_of t), not_found, t
-      else t, not_found, empty (is_value_of t)
+          if zero_bit i bit
+          then
+            let lt, mem, gt = loop t0 in
+            lt, mem, branch prefix bit gt t1
+          else
+            let lt, mem, gt = loop t1 in
+            branch prefix bit t0 lt, mem, gt
+        else if i < prefix
+        then empty (is_value_of t), not_found, t
+        else t, not_found, empty (is_value_of t)
+    in
+    loop t
 
   let split ~found ~not_found i t =
     match descr t with
@@ -776,13 +780,13 @@ end = struct
       (* prefix is necessarily empty *)
       if i < 0
       then
-        let lt, mem, gt = unsigned_split ~found ~not_found i t1 in
+        let lt, mem, gt = same_sign_split ~found ~not_found i t1 in
         lt, mem, branch 0 bit t0 gt
       else
-        let lt, mem, gt = unsigned_split ~found ~not_found i t0 in
+        let lt, mem, gt = same_sign_split ~found ~not_found i t0 in
         branch 0 bit lt t1, mem, gt
     | Empty | Leaf _ | Branch _ ->
-      (unsigned_split [@inlined hint]) ~found ~not_found i t
+      (same_sign_split [@inlined hint]) ~found ~not_found i t
 
   let to_list t =
     let rec loop acc t =
@@ -795,7 +799,8 @@ end = struct
     | Empty -> []
     | Leaf (i, d) -> [Binding.create i d]
     | Branch (_, bit, t0, t1) ->
-      if bit < 0 then loop (loop [] t0) t1 else loop (loop [] t1) t0
+      let t0, t1 = order_branches bit t0 t1 in
+      loop (loop [] t1) t0
 
   (* CR-someday lmaurer: We could borrow Haskell's trick and generalize this
      function quite a bit, giving us a single implementation of [union],
@@ -955,7 +960,8 @@ end = struct
       | Empty -> Seq.Nil
       | Leaf (key, value) -> Seq.Cons (Binding.create key value, aux [])
       | Branch (_, bit, t0, t1) ->
-        if bit < 0 then aux [t1; t0] () else aux [t0; t1] ()
+        let t0, t1 = order_branches bit t0 t1 in
+        aux [t0; t1] ()
 
   let[@inline always] of_list iv l =
     List.fold_left

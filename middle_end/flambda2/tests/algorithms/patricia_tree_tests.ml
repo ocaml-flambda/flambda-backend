@@ -757,7 +757,8 @@ module Types = struct
   let generate_key =
     Generator.choose
       [ 1, Generator.one_of [0; 1; 2; 3; -1; Int.min_int; Int.max_int];
-        2, Generator.log_int ]
+        1, Generator.log_int;
+        1, Generator.map Generator.log_int ~f:(~-) ]
 
   let drop_leading_digits key : key Seq.t =
     let rec next mask : key Seq.node =
