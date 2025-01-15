@@ -739,12 +739,12 @@ module Layout_and_axes = struct
     match With_bounds.try_allow_l with_bounds with
     | None -> None
     | Some with_bounds ->
-      Some { layout; upper_bounds = Obj.magic upper_bounds; with_bounds }
+      Some { layout; upper_bounds; with_bounds }
 
   let try_allow_r { layout; upper_bounds; with_bounds } =
     match With_bounds.try_allow_r with_bounds with
     | Some with_bounds ->
-      Some { layout; upper_bounds = Obj.magic upper_bounds; with_bounds }
+      Some { layout; upper_bounds; with_bounds }
     | None -> None
 
   let debug_print ~print_type_expr format_layout ppf
