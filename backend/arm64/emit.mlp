@@ -247,7 +247,7 @@ let name_for_int_operation = function
   | Ilsl -> "lsl"
   | Ilsr -> "lsr"
   | Iasr -> "asr"
-  | Iclz -> "clz"
+  | Iclz { arg_is_non_zero = _ } -> "clz"
   | _ -> assert false
 
 (* Decompose an integer constant into four 16-bit shifted fragments.
