@@ -285,19 +285,19 @@ jobs:
     - uses: actions/upload-artifact@v4
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
-        name: cores
+        name: cores-${{ artifact-id }}
         path: /cores
 
     - uses: actions/upload-artifact@v4
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
-        name: _build
+        name: _build-${{ artifact-id }}
         path: $GITHUB_WORKSPACE/_build
 
     - uses: actions/upload-artifact@v4
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
-        name: _runtest
+        name: _runtest-${{ artifact-id }}
         path: $GITHUB_WORKSPACE/_runtest
 
 concurrency:
