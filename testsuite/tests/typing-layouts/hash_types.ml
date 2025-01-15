@@ -122,8 +122,128 @@ type stringbar = string bar
 type t = float
 and s = t#
 [%%expect{|
+type t = float
+and s = t#
+|}]
+
+type t = int
+and s = t#
+[%%expect{|
 Line 2, characters 8-10:
 2 | and s = t#
             ^^
-Error: "t" has no unboxed version.
+Error: "t" has no unboxed version. (typedecl.ml)
 |}]
+
+type t = s#
+and s = t#
+[%%expect{|
+Line 1, characters 9-11:
+1 | type t = s#
+             ^^
+Error: "s" has no unboxed version. (typedecl.ml)
+|}]
+
+type t = s#
+and s = float
+[%%expect{|
+type t = s#
+and s = float
+|}]
+
+type t = float
+and s = t#
+[%%expect{|
+type t = float
+and s = t#
+|}]
+
+module rec M : sig
+  type t = M2.t#
+end = struct
+  type t = M2.t#
+end
+and M2 : sig
+  type t = float
+end = struct
+  type t = float
+end
+[%%expect{|
+module rec M : sig type t = M2.t# end
+and M2 : sig type t = float end
+|}]
+
+module rec M : sig
+  type t = M2.t#
+end = struct
+  type t = M2.t#
+end
+and M2 : sig
+  type t = int
+end = struct
+  type t = int
+end
+[%%expect{|
+Line 2, characters 11-16:
+2 |   type t = M2.t#
+               ^^^^^
+Error: "M2.t" has no unboxed version.
+|}]
+
+module rec Bad1 : sig
+  type t = Bad2.t#
+end = struct
+  type t = Bad2.t#
+end
+and Bad2 : sig
+  type t = Bad1.t#
+end = struct
+  type t = Bad1.t#
+end
+[%%expect{|
+Line 2, characters 11-18:
+2 |   type t = Bad2.t#
+               ^^^^^^^
+Error: "Bad2.t" has no unboxed version.
+|}]
+
+
+(* Many cases from the [recursive.ml] test to try... *)
+
+(* Do we give a type a hash type in enter type based on manifest, kind or both?
+   I think we give it if *either* has a hash type, in order for both of the
+   following to give good errors:
+
+     type a = { i : int }
+     type b = a = { i : int } [@@unboxed]
+     and s = b#
+
+     type a = { i : int } [@@unboxed]
+     type b = a = { i : int }
+     and s = b#
+
+   (Also consider if there are other variations than boxed/unboxed versions of
+   records, consider abstravct types with unboxed versions (only possible with
+   [boxes]). A further challenge: float records; we need to type these to
+   determine whether or not to give them dummy unboxed versions. Maybe we give
+   all records dummy unboxed versions, then have a check at the end that it's
+   [Record_boxed]?)
+
+   Also... these dummy declarations need to have good-enough jkinds for
+   typechecking. E.g. products need the right arity (remember the
+   product-of-[any]s hack.)
+
+   Another tricky case:
+   (Maybe not necessary for exactly this case, but it's worth thinking about
+   what dummy jkind [s] has)
+
+   type t = { i : int ; j : int }
+
+   type s = t
+   and m = s# = #{ i : int ; j : int }
+
+   (It's fine if we disallow this, I think.)
+
+   Also need to check that unused type error are eliminated by using the hash
+   version.
+*)

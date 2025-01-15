@@ -146,6 +146,7 @@ type error =
       ; expected: Path.t
       }
   | Non_abstract_reexport of Path.t
+  | No_unboxed_version of Path.t
 
 open Typedtree
 
@@ -287,6 +288,25 @@ in
         Btype.newgenvar ?name jkind)
       sdecl.ptype_params
   in
+  let type_unboxed_version =
+    Some { type_params;
+      type_arity = arity;
+      type_kind = Type_abstract abstract_source;
+      type_jkind = any;
+      type_private = sdecl.ptype_private;
+      type_manifest;
+      type_variance = Variance.unknown_signature ~injective:false ~arity;
+      type_separability = Types.Separability.default_signature ~arity;
+      type_is_newtype = false;
+      type_expansion_scope = Btype.lowest_level;
+      type_loc = sdecl.ptype_loc;
+      type_attributes = [];
+      type_unboxed_default = false;
+      type_uid = uid;
+      type_has_illegal_crossings = false;
+      type_unboxed_version = None;
+    }
+  in
   let decl =
     { type_params;
       type_arity = arity;
@@ -303,8 +323,7 @@ in
       type_unboxed_default = false;
       type_uid = uid;
       type_has_illegal_crossings = false;
-      (* CR rtjoa: def wrong *)
-      type_unboxed_version = None;
+      type_unboxed_version;
     }
   in
   add_type ~check:true id decl env
@@ -1100,6 +1119,19 @@ module TypeMap = Btype.TypeMap
 let rec check_constraints_rec env loc visited ty =
   if TypeSet.mem ty !visited then () else begin
   visited := TypeSet.add ty !visited;
+  (* If this is a derived unboxed type, first check that it has a valid boxed
+     type source *)
+  begin match get_desc ty with
+  | Tconstr (Pextra_ty (path, Pderived_unboxed_ty), args, _) ->
+    let ty' = Ctype.newconstr path args in
+    check_constraints_rec env loc visited ty';
+    begin match Env.find_type path env with
+    | { type_unboxed_version = None; _ } ->
+      raise (Error (loc, No_unboxed_version path))
+    | { type_unboxed_version = Some _; _ } -> ()
+    end
+  | _ -> ()
+  end;
   match get_desc ty with
   | Tconstr (path, args, _) ->
       let decl =
@@ -2486,7 +2518,11 @@ let transl_type_decl env rec_flag sdecl_list =
       (Path.Pident id) decl)
     decls;
   let to_check =
-    function Path.Pident id -> List.mem_assoc id id_loc_list | _ -> false in
+    function
+    | Path.Pident id | Path.Pextra_ty (Path.Pident id, Pderived_unboxed_ty) ->
+      List.mem_assoc id id_loc_list
+    | _ -> false
+  in
   List.iter (fun (id, decl) ->
     check_well_founded_decl ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id)
@@ -3560,7 +3596,25 @@ let abstract_type_decl ~injective ~jkind ~params =
       type_unboxed_default = false;
       type_uid = Uid.internal_not_actually_unique;
       type_has_illegal_crossings = false;
-      type_unboxed_version = None;
+      type_unboxed_version =
+        Some {
+          type_params = params;
+          type_arity = arity;
+          type_kind = Type_abstract Definition;
+          type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+          type_private = Public;
+          type_manifest = None;
+          type_variance = Variance.unknown_signature ~injective ~arity;
+          type_separability = Types.Separability.default_signature ~arity;
+          type_is_newtype = false;
+          type_expansion_scope = Btype.lowest_level;
+          type_loc = Location.none;
+          type_attributes = [];
+          type_unboxed_default = false;
+          type_uid = Uid.internal_not_actually_unique;
+          type_has_illegal_crossings = false;
+          type_unboxed_version = None
+        };
     }
   end
 
@@ -4159,6 +4213,12 @@ let report_error ppf = function
       "@[Invalid reexport declaration.\
          @ Type %s must not define an explicit representation.@]"
       (Path.name definition)
+  (* CR rtjoa: Should this be distinguishable from Env.No_unboxed_version?
+     For now, I just included the filename.
+  *)
+  | No_unboxed_version p ->
+      fprintf ppf "@[%a@ has no unboxed version. (typedecl.ml) @]"
+        (Style.as_inline_code Printtyp.path) p
 
 let () =
   Location.register_error_of_exn

@@ -182,6 +182,7 @@ type error =
       ; expected: Path.t
       }
   | Non_abstract_reexport of Path.t
+  | No_unboxed_version of Path.t
 
 exception Error of Location.t * error
 
