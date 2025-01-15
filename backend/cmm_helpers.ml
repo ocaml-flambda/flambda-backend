@@ -4165,7 +4165,8 @@ let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =
   in
   Cop (mk_load_atomic memory_chunk, [atomic], dbg)
 
-let atomic_exchange ~dbg atomic new_value =
+let atomic_exchange
+    ~dbg (_ : Lambda.immediate_or_pointer) atomic new_value =
   Cop
     ( Cextcall
         { func = "caml_atomic_exchange";
@@ -4181,36 +4182,55 @@ let atomic_exchange ~dbg atomic new_value =
       dbg )
 
 let atomic_fetch_and_add ~dbg atomic i =
-  Cop
-    ( Cextcall
-        { func = "caml_atomic_fetch_add";
-          builtin = false;
-          returns = true;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects;
-          ty = typ_int;
-          ty_args = [];
-          alloc = false
-        },
-      [atomic; i],
-      dbg )
+  let op = Catomic { op = Fetch_and_add; size = Word } in
+  if Proc.operation_supported op then begin
+    Cop (op , [(add_const i (-1) dbg); atomic], dbg)
+  end else begin   
+    Cop
+      ( Cextcall
+          { func = "caml_atomic_fetch_add";
+            builtin = false;
+            returns = true;
+            effects = Arbitrary_effects;
+            coeffects = Has_coeffects;
+            ty = typ_int;
+            ty_args = [];
+            alloc = false
+          },
+        [atomic; i],
+        dbg )
+  end
 
-let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
-  Cop
-    ( Cextcall
-        { func = "caml_atomic_cas";
-          builtin = false;
-          returns = true;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects;
-          ty = typ_int;
-          ty_args = [];
-          alloc = false
-        },
-      [atomic; old_value; new_value],
-      dbg )
+let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
+  Cop (Cextcall
+         { func = "caml_atomic_cas";
+           builtin = false;
+           returns = true;
+           effects = Arbitrary_effects;
+           coeffects = Has_coeffects;
+           ty = typ_int;
+           ty_args = [];
+           alloc = false
+         },
+       [atomic; old_value; new_value], dbg)
 
-let atomic_compare_exchange ~dbg atomic ~old_value ~new_value =
+let atomic_compare_and_set
+    ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
+    atomic ~old_value ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+      let op = Catomic { op = Compare_and_swap; size = Word } in
+      if Proc.operation_supported op then
+        (* Use a bind to ensure [tag_int] gets optimised. *)
+        bind "res" (Cop (op, [old_value; new_value; atomic], dbg))
+          (fun a2 -> tag_int a2 dbg)
+      else
+        atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
+  | Pointer ->
+      atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
+
+let atomic_compare_exchange
+    ~dbg (_ : Lambda.immediate_or_pointer)atomic ~old_value ~new_value =
   Cop
     ( Cextcall
         { func = "caml_atomic_compare_exchange";

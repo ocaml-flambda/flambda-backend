@@ -1077,7 +1077,7 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
         ~original_prim
     | Bigarray_get_alignment align ->
       simplify_bigarray_get_alignment align ~original_prim
-    | Atomic_exchange -> simplify_atomic_exchange ~original_prim
+    | Atomic_exchange _ -> simplify_atomic_exchange ~original_prim
     | Atomic_fetch_and_add -> simplify_atomic_fetch_and_add ~original_prim
     | Poke _ -> simplify_poke
   in
@@ -1088,7 +1088,7 @@ let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
   | Block_set _ | Array_load _ | Int_arith _ | Int_shift _
   | Int_comp (_, Yielding_int_like_compare_functions _)
   | Float_arith _ | Float_comp _ | Phys_equal _ | String_or_bigstring_load _
-  | Bigarray_load _ | Bigarray_get_alignment _ | Atomic_exchange
+  | Bigarray_load _ | Bigarray_get_alignment _ | Atomic_exchange _
   | Atomic_fetch_and_add | Poke _ ->
     None
   | Int_comp (kind, Yielding_bool op) -> (

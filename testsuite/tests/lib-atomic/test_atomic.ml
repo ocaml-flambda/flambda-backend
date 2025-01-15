@@ -37,3 +37,26 @@ let () =
   let cur = Atomic.get r in
   ignore (Atomic.incr r, Atomic.decr r);
   assert (Atomic.get r = cur)
+
+(* Test primitives with non-immediate types *)
+
+let a = ref 1
+let r = Atomic.make a
+let () = assert (Atomic.get r == a)
+
+let b = ref 2
+let () = Atomic.set r b
+let () = assert (Atomic.get r == b)
+
+let c = ref 3
+let () = assert (Atomic.exchange r c == b)
+
+let d = ref 4
+let () = assert (Atomic.compare_and_set r c d = true)
+let () = assert (Atomic.get r == d)
+
+let e = ref (-4)
+let () = assert (Atomic.compare_and_set r c e = false)
+let () = assert (Atomic.get r == d)
+
+let () = assert (Atomic.compare_and_set r c d = false)

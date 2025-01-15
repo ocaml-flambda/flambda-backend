@@ -913,9 +913,18 @@ let primitive ppf = function
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_load_imm"
         | Pointer -> fprintf ppf "atomic_load_ptr")
-  | Patomic_exchange -> fprintf ppf "atomic_exchange"
-  | Patomic_compare_exchange -> fprintf ppf "atomic_compare_exchange"
-  | Patomic_cas -> fprintf ppf "atomic_cas"
+  | Patomic_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_exchange_imm"
+        | Pointer -> fprintf ppf "atomic_exchange_ptr")
+  | Patomic_compare_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_compare_exchange_imm"
+        | Pointer -> fprintf ppf "atomic_compare_exchange_ptr")
+  | Patomic_cas {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_cas_imm"
+        | Pointer -> fprintf ppf "atomic_cas_ptr")
   | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
   | Popaque _ -> fprintf ppf "opaque"
   | Pdls_get -> fprintf ppf "dls_get"
@@ -1095,9 +1104,18 @@ let name_of_primitive = function
       (match immediate_or_pointer with
         | Immediate -> "atomic_load_imm"
         | Pointer -> "atomic_load_ptr")
-  | Patomic_exchange -> "Patomic_exchange"
-  | Patomic_compare_exchange -> "Patomic_compare_exchange"
-  | Patomic_cas -> "Patomic_cas"
+  | Patomic_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_exchange_imm"
+        | Pointer -> "atomic_exchange_ptr")
+  | Patomic_compare_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_compare_exchange_imm"
+        | Pointer -> "atomic_compare_exchange_ptr")
+  | Patomic_cas {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_cas_imm"
+        | Pointer -> "atomic_cas_ptr")
   | Patomic_fetch_add -> "Patomic_fetch_add"
   | Popaque _ -> "Popaque"
   | Prunstack -> "Prunstack"
