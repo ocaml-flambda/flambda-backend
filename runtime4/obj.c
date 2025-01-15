@@ -154,37 +154,90 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
   CAMLparam2 (new_tag_v, arg);
   CAMLlocal1 (res);
   mlsize_t sz, i;
-  tag_t tg;
+  tag_t tag_for_alloc;
+  uintnat infix_offset = 0;
+
+  tag_t new_tag = (tag_t)Long_val(new_tag_v);
+  tag_t existing_tag = Tag_val(arg);
+
+  if ((existing_tag == Closure_tag || existing_tag == Infix_tag
+       || new_tag == Closure_tag || new_tag == Infix_tag)
+      && existing_tag != new_tag) {
+    caml_failwith("Cannot change tags of existing closures or create \
+      new closures using [caml_obj_with_tag]");
+  }
+
+  if (new_tag == Infix_tag) {
+    // If we received an infix block, we must return the same; but the whole
+    // Closure_tag block has to be copied.
+    infix_offset = Infix_offset_val(arg);
+    arg -= infix_offset;
+    tag_for_alloc = Closure_tag;
+    CAMLassert(Tag_val(arg) == tag_for_alloc);
+  } else {
+    tag_for_alloc = new_tag;
+  }
 
   sz = Wosize_val(arg);
-  tg = (tag_t)Long_val(new_tag_v);
-  if (sz == 0) CAMLreturn (Atom(tg));
-  if (tg >= No_scan_tag) {
-    res = caml_alloc(sz, tg);
+  if (sz == 0) {
+    CAMLassert(new_tag != Infix_tag);
+    CAMLreturn (Atom(tag_for_alloc));
+  }
+
+  if (tag_for_alloc >= No_scan_tag) {
+    res = caml_alloc(sz, tag_for_alloc);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
     reserved_t reserved = Reserved_val(arg);
-    res = caml_alloc_small_with_reserved(sz, tg, reserved);
+    res = caml_alloc_small_with_reserved(sz, tag_for_alloc, reserved);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
     mlsize_t scannable_sz = Scannable_wosize_val(arg);
     reserved_t reserved = Reserved_val(arg);
 
-    res = caml_alloc_shr_reserved(sz, tg, reserved);
-    /* It is safe to use [caml_initialize] even if [tag == Closure_tag]
-       and some of the "values" being copied are actually code pointers.
-       That's because the new "value" does not point to the minor heap. */
-    for (i = 0; i < scannable_sz; i++) {
+    res = caml_alloc_shr_reserved(sz, tag_for_alloc, reserved);
+
+    CAMLassert(tag_for_alloc != Infix_tag);
+    if (tag_for_alloc == Closure_tag) {
+      // The portion prior to the scannable environment may contain code
+      // pointers, infix tags, infix tagged zero padding and unboxed numbers.
+      // The latter in particular must not be copied using [caml_initialize],
+      // as they might satisfy [Is_young].
+
+      mlsize_t start_of_scannable_env = Start_env_closinfo(Closinfo_val(arg));
+
+      // There is always at least one function slot in a closure block at
+      // the moment.
+      CAMLassert(start_of_scannable_env >= 2);
+
+      // These two can be equal when there is no scannable environment.
+      CAMLassert(start_of_scannable_env <= scannable_sz);
+
+      for (i = 0; i < start_of_scannable_env; i++) {
+        Field(res, i) = Field(arg, i);
+      }
+    } else {
+      i = 0;
+    }
+
+    // Copy scannable values (for closures, this is only the scannable
+    // environment).
+    for (; i < scannable_sz; i++) {
       caml_initialize(&Field(res, i), Field(arg, i));
     }
 
-    for (i = scannable_sz; i < sz; i++) {
+    // Copy any non-scannable flat suffix of a mixed block.
+    for (; i < sz; i++) {
       Field(res, i) = Field(arg, i);
     }
 
     /* Give gc a chance to run, and run memprof callbacks */
     caml_process_pending_actions();
   }
+
+  res += infix_offset;
+  CAMLassert(infix_offset == 0 || Tag_val(res) == Infix_tag);
+
   CAMLreturn (res);
 }
 
