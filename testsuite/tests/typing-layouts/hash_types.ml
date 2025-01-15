@@ -118,3 +118,12 @@ type intbar = int bar
 type stringbar = string bar
 - : intbar * intbar -> stringbar * stringbar = <fun>
 |}]
+
+type t = float
+and s = t#
+[%%expect{|
+Line 2, characters 8-10:
+2 | and s = t#
+            ^^
+Error: "t" has no unboxed version.
+|}]
