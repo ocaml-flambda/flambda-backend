@@ -95,9 +95,9 @@ module Axis_collection : sig
 
   val set : axis:'ax Axis.t -> 'a t -> 'a -> 'a t
 
-  val map : f:(axis:Axis.packed -> 'a -> 'a) -> 'a t -> 'a t
+  val mapi : f:(axis:Axis.packed -> 'a -> 'a) -> 'a t -> 'a t
 
-  val map' : f:('a -> 'a) -> 'a t -> 'a t
+  val map : f:('a -> 'a) -> 'a t -> 'a t
 
   val fold :
     f:(axis:Axis.packed -> 'a -> 'r) -> combine:('r -> 'r -> 'r) -> 'a t -> 'r
@@ -176,7 +176,7 @@ module Axis_collection : sig
       type 'r f = { f : 'axis. axis:'axis Axis.t -> 'axis T.t -> 'r }
       [@@unboxed]
 
-      (** [combine] should be associative. *)
+      (** [combine] should be commutative and associative. *)
       val f : 'r f -> t -> combine:('r -> 'r -> 'r) -> 'r
     end
 
@@ -186,7 +186,7 @@ module Axis_collection : sig
         { f : 'axis. axis:'axis Axis.t -> 'axis T.t -> 'axis T.t -> 'r }
       [@@unboxed]
 
-      (** [combine] should be associative. *)
+      (** [combine] should be commutative and associative. *)
       val f : 'r f -> t -> t -> combine:('r -> 'r -> 'r) -> 'r
     end
   end
