@@ -610,6 +610,82 @@
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
+ (targets test_spill_valx2_runner.exe test_spill_valx2.cmx.dump)
+ (deps test_spill_valx2.mli test_spill_valx2.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_spill_valx2_runner.exe)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (with-outputs-to
+   test_spill_valx2.output
+   (run ./test_spill_valx2_runner.exe))))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+   (diff test_spill_valx2.expected test_spill_valx2.output)))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (copy test_spill_valx2.ml test_spill_valx2_vectorized.ml)))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (copy test_spill_valx2.mli test_spill_valx2_vectorized.mli)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (targets test_spill_valx2_vectorized_runner.exe test_spill_valx2_vectorized.cmx.dump)
+ (deps test_spill_valx2_vectorized.mli test_spill_valx2_vectorized.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_spill_valx2_vectorized_runner.exe)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (target test_spill_valx2_vectorized.cmx.dump.output)
+ (deps ./filter.sh test_spill_valx2_vectorized.cmx.dump)
+ (action
+  (with-outputs-to
+   %{target}
+   (with-accepted-exit-codes 0
+    (run %{deps})))))
+
+(rule
+ (alias runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (action
+   (diff test_spill_valx2_vectorized.cmx.dump.expected test_spill_valx2_vectorized.cmx.dump.output)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (with-outputs-to
+   test_spill_valx2_vectorized.output
+   (run ./test_spill_valx2_vectorized_runner.exe))))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (copy test_spill_valx2.expected test_spill_valx2_vectorized.expected)))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+   (diff test_spill_valx2_vectorized.expected test_spill_valx2_vectorized.output)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
  (targets test_register_compatible_runner.exe test_register_compatible.cmx.dump)
  (deps test_register_compatible.mli test_register_compatible.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_register_compatible_runner.exe)))
