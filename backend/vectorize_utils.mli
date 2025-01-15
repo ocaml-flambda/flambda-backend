@@ -88,6 +88,6 @@ end
 val vectorizable_machtypes : Reg.t -> Reg.t -> bool
 
 val vectorize_machtypes : Reg.t list -> Cmm.machtype_component
-(* CR-someday gyorsh: [vectorizable_machtypes] should take a [pack] instead of a
-   pair, to handle longer vectors, and to present a uniform interface with
-   [vectorize_machtypes]. *)
+(* CR-someday gyorsh: [vectorizable_machtypes] should take a [Reg.t list]
+   instead of a pair, to handle longer vectors, and to present a uniform
+   interface with [vectorize_machtypes]. *)
