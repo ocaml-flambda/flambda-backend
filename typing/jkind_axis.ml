@@ -261,10 +261,10 @@ module Axis_collection = struct
         nullability
       } =
     combine (f ~axis:(Pack (Modal (Comonadic Areality))) locality)
-    @@ combine (f ~axis:(Pack (Modal (Comonadic Linearity))) uniqueness)
-    @@ combine (f ~axis:(Pack (Modal (Monadic Uniqueness))) linearity)
-    @@ combine (f ~axis:(Pack (Modal (Comonadic Portability))) contention)
-    @@ combine (f ~axis:(Pack (Modal (Monadic Contention))) portability)
+    @@ combine (f ~axis:(Pack (Modal (Comonadic Linearity))) linearity)
+    @@ combine (f ~axis:(Pack (Modal (Monadic Uniqueness))) uniqueness)
+    @@ combine (f ~axis:(Pack (Modal (Comonadic Portability))) portability)
+    @@ combine (f ~axis:(Pack (Modal (Monadic Contention))) contention)
     @@ combine (f ~axis:(Pack (Nonmodal Externality)) externality)
     @@ f ~axis:(Pack (Nonmodal Nullability)) nullability
 
