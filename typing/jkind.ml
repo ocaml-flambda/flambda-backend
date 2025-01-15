@@ -1079,7 +1079,9 @@ let add_portability_and_contention_crossing ~from t =
   { t with jkind }, added_crossings
 
 let unsafely_set_upper_bounds ~from t =
-  { t with jkind = Jkind_desc.unsafely_set_upper_bounds t.jkind ~from:from.jkind }
+  { t with
+    jkind = Jkind_desc.unsafely_set_upper_bounds t.jkind ~from:from.jkind
+  }
 
 (******************************)
 (* construction *)
