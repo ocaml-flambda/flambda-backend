@@ -53,12 +53,8 @@ type t = { t : t# }
 Line 1, characters 0-19:
 1 | type t = { t : t# }
     ^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of t# is any
-         because it's assigned a dummy kind that should have been overwritten.
-                 Please notify the Jane Street compilers group if you see this output.
-       But the layout of t# must be representable
-         because it is the type of record field t.
+Error: The definition of "t#" is recursive without boxing:
+         "t#" contains "t#"
 |}]
 
 type t = { t : t# ; i : int }
@@ -66,11 +62,8 @@ type t = { t : t# ; i : int }
 Line 1, characters 0-29:
 1 | type t = { t : t# ; i : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of t# is any & any
-         because it is an unboxed record.
-       But the layout of t# must be representable
-         because it is the type of record field t.
+Error: The definition of "t#" is recursive without boxing:
+         "t#" contains "t#"
 |}]
 
 type t = { i : int ; t : t# }
@@ -78,11 +71,8 @@ type t = { i : int ; t : t# }
 Line 1, characters 0-29:
 1 | type t = { i : int ; t : t# }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of t# is any & any
-         because it is an unboxed record.
-       But the layout of t# must be representable
-         because it is the type of record field t.
+Error: The definition of "t#" is recursive without boxing:
+         "t#" contains "t#"
 |}]
 
 type t = { s : s# }
@@ -91,10 +81,7 @@ and s = { t : t# }
 Line 1, characters 0-19:
 1 | type t = { s : s# }
     ^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of t# is any
-         because it's assigned a dummy kind that should have been overwritten.
-                 Please notify the Jane Street compilers group if you see this output.
-       But the layout of t# must be representable
-         because it is the type of record field t.
+Error: The definition of "t#" is recursive without boxing:
+         "t#" contains "s#",
+         "s#" contains "t#"
 |}]

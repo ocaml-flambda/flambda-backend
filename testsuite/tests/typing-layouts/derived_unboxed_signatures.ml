@@ -30,7 +30,7 @@ end
 Line 2, characters 11-22:
 2 |   type t = Shadowed.t#
                ^^^^^^^^^^^
-Error: Unbound type constructor "Shadowed.t#"
+Error: "Shadowed.t" has no unboxed version.
 |}]
 
 (* ...or its labels. *)
@@ -85,7 +85,10 @@ end
 module type S = sig type t = { i : int; j : int; } end
 type t' = { i : int; j : int; }
 module type S' = sig type t = t' = { i : int; j : int; } end
-module Check_constraints : functor (M : S') -> sig val f : M.t# -> t'# end
+Line 12, characters 10-14:
+12 |   let f : M.t# -> t'# = fun x -> x
+               ^^^^
+Error: "M.t" has no unboxed version.
 |}]
 
 (*******************************)
@@ -123,7 +126,7 @@ end
 Line 2, characters 13-15:
 2 |   type bad = t#
                  ^^
-Error: Unbound type constructor "t#"
+Error: Unbound type constructor "t"
 |}]
 
 (* Check that order stays the same after replacing *)
@@ -167,7 +170,10 @@ type float = int
 type float64 : float64 = float#
 [%%expect{|
 type float = int
-type float64 = float#
+Line 2, characters 25-31:
+2 | type float64 : float64 = float#
+                             ^^^^^^
+Error: "float" has no unboxed version.
 |}]
 
 (* but it gets shadowed by a "float" boxed record! *)
@@ -181,7 +187,10 @@ type float64 : float64 = float#
 type float = { i : int; j : int; }
 type ij = float#
 type float = int
-type float64 = float#
+Line 6, characters 25-31:
+6 | type float64 : float64 = float#
+                             ^^^^^^
+Error: "float" has no unboxed version.
 |}]
 
 (********************************************)
@@ -218,17 +227,20 @@ type ('a : value & float64) t
 type s = r# t
 and r = {x:int; y:float#}
 [%%expect{|
-type s = r# t
-and r = { x : int; y : float#; }
+Line 2, characters 18-24:
+2 | and r = {x:int; y:float#}
+                      ^^^^^^
+Error: "float" has no unboxed version.
 |}]
 
 type s = q t
 and r = {x:int; y:float#}
 and q = r#
 [%%expect{|
-type s = q t
-and r = { x : int; y : float#; }
-and q = r#
+Line 2, characters 18-24:
+2 | and r = {x:int; y:float#}
+                      ^^^^^^
+Error: "float" has no unboxed version.
 |}]
 
 (* CR rtjoa: bad error *)
@@ -239,9 +251,9 @@ Line 2, characters 0-23:
 2 | and r = {x:int; y:bool}
     ^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of r# is value
-         because it's an enumeration variant type (all constructors are constant).
-       But the layout of r# must be a sublayout of float64
+       The layout of r is value
+         because it's a boxed record type.
+       But the layout of r must be a sublayout of value & float64
          because of the definition of t at line 1, characters 0-29.
 |}]
 
@@ -253,8 +265,8 @@ Line 3, characters 0-10:
 3 | and q = r#
     ^^^^^^^^^^
 Error:
-       The layout of q is value
-         because it's an enumeration variant type (all constructors are constant).
-       But the layout of q must be a sublayout of float64
+       The layout of q is any & any
+         because it is an unboxed record.
+       But the layout of q must be a sublayout of value & float64
          because of the definition of t at line 1, characters 0-29.
 |}]
