@@ -155,12 +155,10 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
   CAMLlocal1 (res);
   mlsize_t sz, i;
   tag_t tag_for_alloc;
-  tag_t new_tag;
-  tag_t existing_tag;
   uintnat infix_offset = 0;
 
-  new_tag = (tag_t)Long_val(new_tag_v);
-  existing_tag = Tag_val(arg);
+  tag_t new_tag = (tag_t)Long_val(new_tag_v);
+  tag_t existing_tag = Tag_val(arg);
 
   if ((existing_tag == Closure_tag || existing_tag == Infix_tag
        || new_tag == Closure_tag || new_tag == Infix_tag)
@@ -175,6 +173,7 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     infix_offset = Infix_offset_val(arg);
     arg -= infix_offset;
     tag_for_alloc = Closure_tag;
+    CAMLassert(Tag_val(arg) == tag_for_alloc);
   } else {
     tag_for_alloc = new_tag;
   }
