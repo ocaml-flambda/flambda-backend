@@ -442,7 +442,9 @@ let f ~(x1 @ many)
   let (x15 @ local) y z : int = y + z in
   (* NO: let (x15 @ local) y z : int @@ local = y + z in *)
   let _ = ("hi" : string @@ global) in
-  stack_ (x1, x2, x3, x4, x5, x9, x10, x11, (* x12, *) x13, x14, x15)
+  let stack_ x16 : _ = (42, 24) in
+  let stack_ x17 a b c = a + b + c in
+  stack_ (x1, x2, x3, x4, x5, x9, x10, x11, (* x12, *) x13, x14, x15, x16, x17)
 
 [%%expect{|
 val f :
@@ -459,7 +461,8 @@ val f :
     local_ 'd -> local_
     'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
     int array * string * (int -> local_ (int -> int)) *
-    (int -> local_ (int -> int)) @ contended =
+    (int -> local_ (int -> int)) * (int * int) *
+    (int -> local_ (int -> int -> int)) @ contended =
   <fun>
 |}]
 

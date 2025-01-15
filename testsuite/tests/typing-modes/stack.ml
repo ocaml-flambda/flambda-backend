@@ -299,3 +299,25 @@ Line 3, characters 2-5:
 Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
+
+(* syntax support at more places. Only test that the parsetree is correct. *)
+let mk () =
+  let stack_ x : _ = "hello" in
+  x
+[%%expect{|
+Line 2, characters 21-28:
+2 |   let stack_ x : _ = "hello" in
+                         ^^^^^^^
+Error: This expression is not an allocation site.
+|}]
+
+let mk () =
+  let stack_ f a b c = a + b + c in
+  f
+[%%expect{|
+Line 3, characters 2-3:
+3 |   f
+      ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]

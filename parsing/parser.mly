@@ -227,6 +227,10 @@ let exclave_extension loc =
 let mkexp_exclave ~loc ~kwd_loc exp =
   ghexp ~loc (Pexp_apply(exclave_extension (make_loc kwd_loc), [Nolabel, exp]))
 
+let ghexp_maybe_stack ~loc ~stack exp =
+  if stack then ghexp ~loc (Pexp_stack exp)
+  else exp
+
 let mktyp_curry typ loc =
   {typ with ptyp_attributes =
      Builtin_attributes.curry_attr loc :: typ.ptyp_attributes}
@@ -3160,11 +3164,12 @@ labeled_simple_expr:
 let_binding_body_no_punning:
     let_ident strict_binding
       { ($1, $2, None, []) }
-  | modes0 = optional_mode_expr_legacy let_ident constraint_ EQUAL seq_expr
+  | modes0 = optional_mode_expr_legacy_stack let_ident constraint_ EQUAL seq_expr
       (* CR zqian: modes are duplicated, and one of them needs to be made ghost
          to make internal tools happy. We should try to avoid that. *)
       { let v = $2 in (* PR#7344 *)
         let typ, modes1 = $3 in
+        let modes0, stack = modes0 in
         let t =
           Option.map (function
           | Pconstraint t ->
@@ -3173,14 +3178,15 @@ let_binding_body_no_punning:
           ) typ
         in
         let modes = modes0 @ modes1 in
-        (v, $5, t, modes)
+        (v, ghexp_maybe_stack ~loc:$sloc ~stack $5, t, modes)
       }
-  | modes0 = optional_mode_expr_legacy let_ident COLON poly(core_type) modes1 = optional_atat_mode_expr EQUAL seq_expr
+  | modes0 = optional_mode_expr_legacy_stack let_ident COLON poly(core_type) modes1 = optional_atat_mode_expr EQUAL seq_expr
       { let bound_vars, inner_type = $4 in
+        let modes0, stack = modes0 in
         let ltyp = Ptyp_poly (bound_vars, inner_type) in
         let typ = ghtyp ~loc:$loc($4) ltyp in
         let modes = modes0 @ modes1 in
-        ($2, $7, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
+        ($2, ghexp_maybe_stack ~loc:$sloc ~stack $7, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
          modes)
       }
   | let_ident COLON TYPE newtypes DOT core_type modes=optional_atat_mode_expr EQUAL seq_expr
@@ -3212,9 +3218,10 @@ let_binding_body_no_punning:
         let pvc, modes = $2 in
         ($1, $4, pvc, modes)
       }
-  | modes=mode_expr_legacy let_ident strict_binding_modes
+  | modes_stack=mode_expr_legacy_stack let_ident strict_binding_modes
       {
-        ($2, $3 modes, None, modes)
+        let modes, stack = modes_stack in
+        ($2, ghexp_maybe_stack ~loc:$sloc ~stack ($3 modes), None, modes)
       }
   | LPAREN let_ident modes=at_mode_expr RPAREN strict_binding_modes
       {
@@ -4474,6 +4481,14 @@ strict_function_or_labeled_tuple_type:
    | { [] }
    | mode_expr_legacy {$1}
 ;
+
+%inline mode_expr_legacy_stack:
+   | mode_legacy+ { ($1, false) }
+   | STACK { ([], true) }
+
+%inline optional_mode_expr_legacy_stack:
+   | { ([], false)}
+   | mode_expr_legacy_stack {$1}
 
 /* New mode annotation, introduced by AT or ATAT */
 %inline mode:
