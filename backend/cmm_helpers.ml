@@ -1770,15 +1770,11 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
            fields and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
-      match Config.runtime5, block_kind with
-      | true, Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
-      | false, Regular_block -> "caml_alloc", [wordsize; tag]
-      | true, Mixed_block { scannable_prefix } ->
+      match block_kind with
+      | Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | Mixed_block { scannable_prefix } ->
         Mixed_block_support.assert_mixed_block_support ();
         "caml_alloc_mixed_shr_check_gc", [wordsize; tag; scannable_prefix]
-      | false, Mixed_block { scannable_prefix } ->
-        Mixed_block_support.assert_mixed_block_support ();
-        "caml_alloc_mixed", [wordsize; tag; scannable_prefix]
     in
     Clet
       ( VP.create id,
