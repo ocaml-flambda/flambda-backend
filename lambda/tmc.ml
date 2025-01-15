@@ -974,6 +974,7 @@ let rec choice ctx t =
     | Pint_as_pointer _
     | Psequand | Psequor
     | Ppoll
+    | Ppeek _ | Ppoke _
       ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))

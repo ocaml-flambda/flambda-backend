@@ -350,7 +350,9 @@ let compute_static_size lam =
     | Patomic_cas
     | Patomic_fetch_add
     | Popaque _
-    | Pdls_get ->
+    | Pdls_get
+    | Ppeek _
+    | Ppoke _ ->
         dynamic_size lam
 
     (* Primitives specific to flambda-backend *)

@@ -1089,6 +1089,7 @@ type unary_primitive =
   | Obj_dup
   | Get_header
   | Atomic_load of Block_access_field_kind.t
+  | Peek of Flambda_kind.Standard_int_or_float.t
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -1120,7 +1121,7 @@ let unary_primitive_eligible_for_cse p ~arg =
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
-  | End_region _ | End_try_region _ | Obj_dup | Atomic_load _ -> false
+  | End_region _ | End_try_region _ | Obj_dup | Atomic_load _ | Peek _ -> false
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -1154,6 +1155,7 @@ let compare_unary_primitive p1 p2 =
     | Get_header -> 26
     | Atomic_load _ -> 27
     | Is_null -> 28
+    | Peek _ -> 29
   in
   match p1, p2 with
   | ( Block_load { kind = kind1; mut = mut1; field = field1 },
@@ -1245,7 +1247,7 @@ let compare_unary_primitive p1 p2 =
       | Bigarray_length _ | Unbox_number _ | Box_number _ | Untag_immediate
       | Tag_immediate | Project_function_slot _ | Project_value_slot _
       | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
-      | Obj_dup | Get_header | Atomic_load _ ),
+      | Obj_dup | Get_header | Atomic_load _ | Peek _ ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -1312,6 +1314,9 @@ let print_unary_primitive ppf p =
   | Atomic_load block_access_field_kind ->
     Format.fprintf ppf "@[(Atomic_load@ %a)@]" Block_access_field_kind.print
       block_access_field_kind
+  | Peek kind ->
+    fprintf ppf "@[(Peek@ %a)@]"
+      Flambda_kind.Standard_int_or_float.print_lowercase kind
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -1346,6 +1351,7 @@ let arg_kind_of_unary_primitive p =
   | Obj_dup -> K.value
   | Get_header -> K.value
   | Atomic_load _ -> K.value
+  | Peek _ -> K.naked_nativeint
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
@@ -1383,6 +1389,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Obj_dup -> Singleton K.value
   | Get_header -> Singleton K.naked_nativeint
   | Atomic_load _ -> Singleton K.value
+  | Peek kind -> Singleton (K.Standard_int_or_float.to_kind kind)
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1471,7 +1478,9 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
       Has_coeffects,
       Strict )
   | Get_header -> No_effects, No_coeffects, Strict
-  | Atomic_load _ -> Arbitrary_effects, Has_coeffects, Strict
+  | Atomic_load _ | Peek _ ->
+    (* For the moment, prevent [Peek] from being moved. *)
+    Arbitrary_effects, Has_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1489,6 +1498,7 @@ let unary_classify_for_printing p =
   | Is_boxed_float | Is_flat_float_array -> Neither
   | End_region _ | End_try_region _ -> Neither
   | Get_header -> Neither
+  | Peek _ -> Neither
 
 let free_names_unary_primitive p =
   match p with
@@ -1510,7 +1520,8 @@ let free_names_unary_primitive p =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1531,7 +1542,8 @@ let apply_renaming_unary_primitive p renaming =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
     p
 
 let ids_for_export_unary_primitive p =
@@ -1544,7 +1556,8 @@ let ids_for_export_unary_primitive p =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
     Ids_for_export.empty
 
 type binary_int_arith_op =
@@ -1618,6 +1631,7 @@ type binary_primitive =
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
+  | Poke of Flambda_kind.Standard_int_or_float.t
 
 let binary_primitive_eligible_for_cse p =
   match p with
@@ -1635,7 +1649,7 @@ let binary_primitive_eligible_for_cse p =
        floating-point arithmetic operations. See also the comment in
        effects_and_coeffects of unary primitives. *)
     Flambda_features.float_const_prop ()
-  | Atomic_exchange | Atomic_fetch_and_add -> false
+  | Atomic_exchange | Atomic_fetch_and_add | Poke _ -> false
 
 let compare_binary_primitive p1 p2 =
   let binary_primitive_numbering p =
@@ -1653,6 +1667,7 @@ let compare_binary_primitive p1 p2 =
     | Bigarray_get_alignment _ -> 10
     | Atomic_exchange -> 11
     | Atomic_fetch_and_add -> 12
+    | Poke _ -> 13
   in
   match p1, p2 with
   | ( Block_set { kind = kind1; init = init1; field = field1 },
@@ -1704,7 +1719,7 @@ let compare_binary_primitive p1 p2 =
   | ( ( Block_set _ | Array_load _ | String_or_bigstring_load _
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
       | Float_arith _ | Float_comp _ | Bigarray_get_alignment _
-      | Atomic_exchange | Atomic_fetch_and_add ),
+      | Atomic_exchange | Atomic_fetch_and_add | Poke _ ),
       _ ) ->
     Stdlib.compare
       (binary_primitive_numbering p1)
@@ -1742,6 +1757,9 @@ let print_binary_primitive ppf p =
     fprintf ppf "@[(Bigarray_get_alignment[%d])@]" align
   | Atomic_exchange -> fprintf ppf "Atomic_exchange"
   | Atomic_fetch_and_add -> fprintf ppf "Atomic_fetch_and_add"
+  | Poke kind ->
+    fprintf ppf "@[(Poke@ %a)@]"
+      Flambda_kind.Standard_int_or_float.print_lowercase kind
 
 let args_kind_of_binary_primitive p =
   match p with
@@ -1767,6 +1785,7 @@ let args_kind_of_binary_primitive p =
     K.naked_float32, K.naked_float32
   | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
   | Atomic_exchange | Atomic_fetch_and_add -> K.value, K.value
+  | Poke kind -> K.naked_nativeint, K.Standard_int_or_float.to_kind kind
 
 let result_kind_of_binary_primitive p : result_kind =
   match p with
@@ -1789,6 +1808,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
   | Bigarray_get_alignment _ -> Singleton K.naked_immediate
   | Atomic_exchange | Atomic_fetch_and_add -> Singleton K.value
+  | Poke _ -> Unit
 
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1818,13 +1838,15 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   | Bigarray_get_alignment _ -> No_effects, No_coeffects, Strict
   | Atomic_exchange | Atomic_fetch_and_add ->
     Arbitrary_effects, Has_coeffects, Strict
+  | Poke _ -> Arbitrary_effects, No_coeffects, Strict
 
 let binary_classify_for_printing p =
   match p with
   | Array_load _ -> Destructive
   | Block_set _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
   | Float_arith _ | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _
-  | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ->
+  | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add | Poke _
+    ->
     Neither
 
 let free_names_binary_primitive p =
@@ -1832,7 +1854,8 @@ let free_names_binary_primitive p =
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
   | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Atomic_fetch_and_add
+  | Poke (_ : Flambda_kind.Standard_int_or_float.t) ->
     Name_occurrences.empty
 
 let apply_renaming_binary_primitive p _renaming =
@@ -1840,7 +1863,8 @@ let apply_renaming_binary_primitive p _renaming =
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
   | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Atomic_fetch_and_add
+  | Poke (_ : Flambda_kind.Standard_int_or_float.t) ->
     p
 
 let ids_for_export_binary_primitive p =
@@ -1848,7 +1872,8 @@ let ids_for_export_binary_primitive p =
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
   | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Atomic_fetch_and_add
+  | Poke (_ : Flambda_kind.Standard_int_or_float.t) ->
     Ids_for_export.empty
 
 type ternary_primitive =

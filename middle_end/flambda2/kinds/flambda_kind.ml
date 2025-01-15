@@ -414,65 +414,6 @@ module Standard_int = struct
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
 end
 
-module Standard_int_or_float = struct
-  type t =
-    | Tagged_immediate
-    | Naked_immediate
-    | Naked_float32
-    | Naked_float
-    | Naked_int32
-    | Naked_int64
-    | Naked_nativeint
-
-  let of_standard_int (t : Standard_int.t) : t =
-    match t with
-    | Tagged_immediate -> Tagged_immediate
-    | Naked_immediate -> Naked_immediate
-    | Naked_int32 -> Naked_int32
-    | Naked_int64 -> Naked_int64
-    | Naked_nativeint -> Naked_nativeint
-
-  let to_kind t : kind =
-    match t with
-    | Tagged_immediate -> Value
-    | Naked_immediate -> Naked_number Naked_immediate
-    | Naked_float32 -> Naked_number Naked_float32
-    | Naked_float -> Naked_number Naked_float
-    | Naked_int32 -> Naked_number Naked_int32
-    | Naked_int64 -> Naked_number Naked_int64
-    | Naked_nativeint -> Naked_number Naked_nativeint
-
-  include Container_types.Make (struct
-    type nonrec t = t
-
-    let print ppf t =
-      match t with
-      | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
-      | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
-      | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
-      | Naked_float -> Format.pp_print_string ppf "Naked_float"
-      | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
-      | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
-      | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
-
-    let compare = Stdlib.compare
-
-    let equal t1 t2 = compare t1 t2 = 0
-
-    let hash = Hashtbl.hash
-  end)
-
-  let print_lowercase ppf t =
-    match t with
-    | Tagged_immediate -> Format.pp_print_string ppf "tagged_immediate"
-    | Naked_immediate -> Format.pp_print_string ppf "naked_immediate"
-    | Naked_float32 -> Format.pp_print_string ppf "naked_float32"
-    | Naked_float -> Format.pp_print_string ppf "naked_float"
-    | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
-    | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
-    | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
-end
-
 module Boxable_number = struct
   type t =
     | Naked_float32
@@ -1088,4 +1029,70 @@ module Flat_suffix_element = struct
     | Naked_int64 -> With_subkind.naked_int64
     | Naked_nativeint -> With_subkind.naked_nativeint
     | Naked_vec128 -> With_subkind.naked_vec128
+end
+
+module Standard_int_or_float = struct
+  type t =
+    | Tagged_immediate
+    | Naked_immediate
+    | Naked_float32
+    | Naked_float
+    | Naked_int32
+    | Naked_int64
+    | Naked_nativeint
+
+  let of_standard_int (t : Standard_int.t) : t =
+    match t with
+    | Tagged_immediate -> Tagged_immediate
+    | Naked_immediate -> Naked_immediate
+    | Naked_int32 -> Naked_int32
+    | Naked_int64 -> Naked_int64
+    | Naked_nativeint -> Naked_nativeint
+
+  let to_kind t : kind =
+    match t with
+    | Tagged_immediate -> Value
+    | Naked_immediate -> Naked_number Naked_immediate
+    | Naked_float32 -> Naked_number Naked_float32
+    | Naked_float -> Naked_number Naked_float
+    | Naked_int32 -> Naked_number Naked_int32
+    | Naked_int64 -> Naked_number Naked_int64
+    | Naked_nativeint -> Naked_number Naked_nativeint
+
+  include Container_types.Make (struct
+    type nonrec t = t
+
+    let print ppf t =
+      match t with
+      | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
+      | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
+      | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
+      | Naked_float -> Format.pp_print_string ppf "Naked_float"
+      | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
+      | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
+      | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
+
+    let compare = Stdlib.compare
+
+    let equal t1 t2 = compare t1 t2 = 0
+
+    let hash = Hashtbl.hash
+  end)
+
+  let print_lowercase ppf t =
+    match t with
+    | Tagged_immediate -> Format.pp_print_string ppf "tagged_immediate"
+    | Naked_immediate -> Format.pp_print_string ppf "naked_immediate"
+    | Naked_float32 -> Format.pp_print_string ppf "naked_float32"
+    | Naked_float -> Format.pp_print_string ppf "naked_float"
+    | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
+    | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
+    | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
+
+  let to_kind_with_subkind t =
+    match t with
+    | Tagged_immediate -> With_subkind.tagged_immediate
+    | Naked_immediate | Naked_float32 | Naked_float | Naked_int32 | Naked_int64
+    | Naked_nativeint ->
+      With_subkind.anything (to_kind t)
 end

@@ -981,6 +981,12 @@ let unary_primitive env res dbg f arg =
       | Immediate -> Immediate
     in
     None, res, C.atomic_load ~dbg imm_or_ptr arg
+  | Peek kind ->
+    let memory_chunk =
+      K.Standard_int_or_float.to_kind_with_subkind kind
+      |> C.memory_chunk_of_kind
+    in
+    None, res, C.load ~dbg memory_chunk Mutable ~addr:arg
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
@@ -1007,6 +1013,13 @@ let binary_primitive env dbg f x y =
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
   | Atomic_exchange -> C.atomic_exchange ~dbg x y
   | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y
+  | Poke kind ->
+    let memory_chunk =
+      K.Standard_int_or_float.to_kind_with_subkind kind
+      |> C.memory_chunk_of_kind
+    in
+    C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
+    |> C.return_unit dbg
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with

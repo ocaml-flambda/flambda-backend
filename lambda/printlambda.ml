@@ -478,6 +478,15 @@ let field_read_semantics ppf sem =
   | Reads_agree -> ()
   | Reads_vary -> fprintf ppf "_mut"
 
+let peek_or_poke ppf (pp : peek_or_poke) =
+  match pp with
+  | Ppp_tagged_immediate -> fprintf ppf "tagged_immediate"
+  | Ppp_unboxed_float32 -> fprintf ppf "unboxed_float32"
+  | Ppp_unboxed_float -> fprintf ppf "unboxed_float"
+  | Ppp_unboxed_int32 -> fprintf ppf "unboxed_int32"
+  | Ppp_unboxed_int64 -> fprintf ppf "unboxed_int64"
+  | Ppp_unboxed_nativeint -> fprintf ppf "unboxed_nativeint"
+
 let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
@@ -930,6 +939,12 @@ let primitive ppf = function
       fprintf ppf "reinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       fprintf ppf "reinterpret_unboxed_int64_as_tagged_int63"
+  | Ppeek layout ->
+      fprintf ppf "(peek@ %a)"
+        peek_or_poke layout
+  | Ppoke layout ->
+      fprintf ppf "(poke@ %a)"
+        peek_or_poke layout
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -1107,6 +1122,8 @@ let name_of_primitive = function
       "Preinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       "Preinterpret_unboxed_int64_as_tagged_int63"
+  | Ppeek _ -> "Ppeek"
+  | Ppoke _ -> "Ppoke"
 
 let zero_alloc_attribute ppf check =
   match check with
