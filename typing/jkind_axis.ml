@@ -231,7 +231,7 @@ module Axis_collection = struct
     | Nonmodal Externality -> { t with externality = value }
     | Nonmodal Nullability -> { t with nullability = value }
 
-  let map ~(f : axis:Axis.packed -> _ -> _)
+  let mapi ~(f : axis:Axis.packed -> _ -> _)
       { locality;
         linearity;
         uniqueness;
@@ -249,7 +249,7 @@ module Axis_collection = struct
       nullability = f ~axis:(Pack (Nonmodal Nullability)) nullability
     }
 
-  let map' ~f = map ~f:(fun ~axis:_ x -> f x)
+  let map ~f = mapi ~f:(fun ~axis:_ x -> f x)
 
   let fold ~(f : axis:Axis.packed -> _ -> _) ~combine
       { locality;

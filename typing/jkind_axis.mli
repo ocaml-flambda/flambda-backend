@@ -70,11 +70,6 @@ module Axis : sig
   val modality_is_const_for_axis : _ t -> Mode.Modality.Value.Const.t -> bool
 end
 
-(** [Axed] describes a type that is parameterized by axis. *)
-module type Axed = sig
-  type 'axis t
-end
-
 (** A collection with one item for each jkind axis *)
 module Axis_collection : sig
   type 'a t =
@@ -102,7 +97,7 @@ module Axis_collection : sig
 
   (** A collection with one item for each jkind axis, where the value type is indexed by the
       particular axis. *)
-  module Indexed (T : Axed) : sig
+  module Indexed (T : Misc.T1) : sig
     type t =
       { locality : Mode.Locality.Const.t T.t;
         linearity : Mode.Linearity.Const.t T.t;
