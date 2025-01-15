@@ -175,7 +175,7 @@ let () =
   print_test "test_float_unboxed";
   print_test "test_int64";
   print_test "test_float";
-  print_test "test_float32_unboxed";
+  print_test ~enabled_if:enabled_if_main_amd64 "test_float32_unboxed";
   print_test "test_int32_unboxed";
   print_test "test_spill_valx2";
   (* can't vectorize *)
