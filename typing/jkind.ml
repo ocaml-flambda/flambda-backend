@@ -401,9 +401,11 @@ module With_bounds = struct
       (l1 * allowed) t =
     match bag1, bag2 with No_with_bounds, No_with_bounds -> No_with_bounds
 
-  let add ~deep_only ~modality ~type_expr (t : (allowed * 'r) t) :
-      (allowed * 'r) t =
-    let type_info = Type_info.create ~type_expr ~modality ~deep_only in
+  let add ~relevant_for_nullability ~modality ~type_expr (t : (allowed * 'r) t)
+      : (allowed * 'r) t =
+    let type_info =
+      Type_info.create ~type_expr ~modality ~relevant_for_nullability
+    in
     match t with
     | No_with_bounds -> With_bounds (type_info, [])
     | With_bounds (ty, tys) -> With_bounds (type_info, ty :: tys)
@@ -1052,8 +1054,9 @@ module Const = struct
         { layout = base.layout;
           upper_bounds = base.upper_bounds;
           with_bounds =
-            With_bounds.add ~modality ~deep_only:true ~type_expr:type_
-              base.with_bounds
+            With_bounds.add ~modality
+              ~relevant_for_nullability:Irrelevant_for_nullability
+              ~type_expr:type_ base.with_bounds
         })
     | Default | Kind_of _ -> raise ~loc:jkind.pjkind_loc Unimplemented_syntax
 
@@ -1130,10 +1133,11 @@ module Jkind_desc = struct
   let unsafely_set_upper_bounds t ~from =
     { t with upper_bounds = from.upper_bounds }
 
-  let add_with_bounds ~deep_only ~type_expr ~modality t =
+  let add_with_bounds ~relevant_for_nullability ~type_expr ~modality t =
     { t with
       with_bounds =
-        With_bounds.add ~deep_only ~type_expr ~modality t.with_bounds
+        With_bounds.add ~relevant_for_nullability ~type_expr ~modality
+          t.with_bounds
     }
 
   let max = of_const Const.max
@@ -1227,7 +1231,8 @@ module Jkind_desc = struct
         let with_bounds =
           List.fold_right
             (fun (type_expr, modality) bounds ->
-              With_bounds.add ~deep_only:false ~type_expr ~modality bounds)
+              With_bounds.add ~relevant_for_nullability:Relevant_for_nullability
+                ~type_expr ~modality bounds)
             tys_modalities Jkind_types.With_bounds.No_with_bounds
         in
         { layout; upper_bounds; with_bounds }
@@ -1353,7 +1358,11 @@ let unsafely_set_upper_bounds ~from t =
 let add_with_bounds ~modality ~type_expr t =
   { t with
     jkind =
-      Jkind_desc.add_with_bounds ~deep_only:true ~type_expr ~modality t.jkind
+      Jkind_desc.add_with_bounds
+      (* We only care about types in fields of unboxed products for the nullability of
+         the overall kind *)
+        ~relevant_for_nullability:Irrelevant_for_nullability ~type_expr
+        ~modality t.jkind
   }
 
 let has_with_bounds (type l r) (t : (l * r) t) =
