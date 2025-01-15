@@ -2564,6 +2564,19 @@ let simplify_app_summary app_view = match app_view.arg with
 
 let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
   if Language_extension.(is_at_least Mode Alpha) then begin
+    (* Values are packed into a structure at modes weaker than they actually
+      are. This is to allow our legacy zapping behavior. For example:
+
+      module M = struct
+        let foo x = x
+        let bar = use_portable foo
+      end
+      module type S = module type of M
+      use_portable M.foo
+
+      would type error at the last line.
+    *)
+    let mode, _ = Mode.Value.newvar_above mode in
     (* Upon construction, for comonadic (prescriptive) axes, module
     must be weaker than the values therein, for otherwise operations
     would be allowed to performed on the module (and extended to the

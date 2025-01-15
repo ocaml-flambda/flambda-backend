@@ -571,16 +571,24 @@ module type S = sig
       value description in the inferred module type.
 
       The caller should ensure that for comonadic axes, [md_mode >= mode]. *)
-      val infer : md_mode:Value.lr -> mode:Value.l -> t
+      val infer : md_mode:Value.lr -> mode:Value.lr -> t
 
       (* The following zapping functions possibly mutate a potentially inferred
          modality [m] to a constant modality [c]. The constant modality is
-         returned. [m <= c] holds, even after further mutations to [m]. *)
+         returned. The following coherence conditions hold:
+         - [m <= c] always holds, even after further mutations to [m].
+         - [c0 <= c1] always holds, where [c0] and [c1] are results of two
+            abitrary zappings of some [m], even after further mutations to [m].
+            Essentially that means [c0 = c1].
 
-      (** Returns a const modality weaker than the given modality. *)
+         NB: zapping an inferred modality will zap both [md_mode] and [mode] that
+         it contains. The caller is reponsible for correct zapping order.
+      *)
+
+      (** Zap an inferred modality towards identity modality. *)
       val zap_to_id : t -> Const.t
 
-      (** Returns a const modality lowest (strongest) possible. *)
+      (** Zap an inferred modality towards the lowest (strongest) modality. *)
       val zap_to_floor : t -> Const.t
 
       (** Asserts the given modality is a const modality, and returns it. *)

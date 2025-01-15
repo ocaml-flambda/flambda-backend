@@ -2371,7 +2371,7 @@ module Modality = struct
 
     type t =
       | Const of Const.t
-      | Diff of Mode.lr * Mode.l
+      | Diff of Mode.lr * Mode.lr
           (** inferred modality. See [apply] for its behavior. *)
       | Undefined
 
@@ -2411,7 +2411,7 @@ module Modality = struct
       | Const c -> Const.apply c x |> Mode.disallow_right
       | Undefined ->
         Misc.fatal_error "modality Undefined should not be applied."
-      | Diff (_, m) -> Mode.join [m; Mode.disallow_right x]
+      | Diff (_, m) -> Mode.join [Mode.allow_right m; x]
 
     let print ppf = function
       | Const c -> Const.print ppf c
@@ -2422,13 +2422,15 @@ module Modality = struct
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Diff (mm, m) ->
-        let m = Mode.zap_to_floor m in
         (* For soundness, we want some [c] such that [m <= join c mm], which
-           gives [subtract_mm m <= c]. Note that [mm] is a variable, but we need
-           a constant. Therefore, we take its floor [mm' <= mm], and we have
-           [subtract_mm m <= subtract_mm' m <= c]. *)
-        let mm' = Mode.Guts.get_floor mm in
-        Const.Join_const (Mode.Const.subtract m mm')
+           gives [subtract_mm m <= c]. To satisfy coherence conditions (see
+           [mode_intf.ml]), we must zap [mm] and [m] fully. Note that [subtract]
+           is antitone for [mm] and monotone for [m], so we zap [mm] to ceil,
+           and [m] to floor, to get the floor of [c]. *)
+        let m = Mode.zap_to_floor m in
+        let mm = Mode.zap_to_ceil mm in
+        let c = Mode.Const.subtract m mm in
+        Const.Join_const c
 
     let zap_to_id = zap_to_floor
 
@@ -2504,7 +2506,7 @@ module Modality = struct
     type t =
       | Const of Const.t
       | Undefined
-      | Exactly of Mode.lr * Mode.l
+      | Exactly of Mode.lr * Mode.lr
           (** inferred modality. See [apply] for its behavior. *)
 
     let sub_log left right ~log : (unit, error) Result.t =
@@ -2543,7 +2545,7 @@ module Modality = struct
       | Const c -> Const.apply c x |> Mode.disallow_right
       | Undefined ->
         Misc.fatal_error "modality Undefined should not be applied."
-      | Exactly (_mm, m) -> m
+      | Exactly (_mm, m) -> Mode.disallow_right m
 
     let print ppf = function
       | Const c -> Const.print ppf c
@@ -2557,7 +2559,17 @@ module Modality = struct
     let zap_to_ceil = function
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
-      | Exactly _ -> Const.id
+      | Exactly (mm, m) ->
+        (* For soundness and completeness, we need some [c] such that [meet_c mm
+           = m], or equivalently [c = imply mm m]. To satisfy the coherence
+           conditions listed in [mode_intf.ml], we need to zap [mm] and [m]
+           fully. [imply] is antitone in [mm] but monotone in [m] , so we zap
+           [mm] to strongest and [m] to weakest, in order to get the weakest
+           [c]. *)
+        let m = Mode.zap_to_ceil m in
+        let mm = Mode.zap_to_floor mm in
+        let c = Mode.Const.imply mm m in
+        Const.Meet_const c
 
     let zap_to_id = zap_to_ceil
 
@@ -2565,39 +2577,10 @@ module Modality = struct
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (mm, m) ->
+        (* Opposite to [zap_to_ceil]. *)
         let m = Mode.zap_to_floor m in
-        (* We want some [c] such that:
-           - Soundness: [meet_with c mm >= m].
-           - Completeness: [meet_with c mm <= m].
-           - Simplicity: Optionally, we want [c] to be as high as possible to make
-            [meet_with c] a simpler modality.
-
-            We first rewrite completeness condition to [c <= imply_with mm m].
-            We will take [c] to be [imply_with mm m] and prove soundness for it.
-
-            To prove soundness [meet_with (imply_with mm m) mm >= m], we need to prove:
-            - [imply_with mm m >= m], or equivalently [meet mm m <= m] which is trivial.
-            - [mm >= m], which is guaranteed by the caller of [infer].
-            In fact, the soundness condition holds for any [c]  taken to be
-            [imply_with _ m] where the underscore can be anything.
-
-            Note that [imply_with] requires its first argument to be a constant, so we
-            need to get a constant out of [mm]. First recall that [imply_with] is antitone
-            in its first argument. Now, we have several choices:
-            - Take its floor [mm' <= mm], and then [c' = imply_with mm' m]. [c'] is higher
-              than [c] and thus might be incomplete.
-            - Take its ceil [mm' >= mm]. Then, [c'] is lower than [c] and thus complete,
-              but might be less simple than [c].
-            - Zap to floor. This gives us a [c' = c] that is complete and simple, but we
-               are imposing extra constraint to [mm] not requested by the caller.
-            - Zap to ceil. This gives us a [c' = c] that is complete, but less simple than
-              zapping it to floor. Also, we are imposing extra constraint.
-
-            We prioritize completeness and "not imposing extra constarint" over
-            simplicity. So we take its ceil [mm' >= mm].
-        *)
-        let mm' = Mode.Guts.get_ceil mm in
-        let c = Mode.Const.imply mm' m in
+        let mm = Mode.zap_to_ceil mm in
+        let c = Mode.Const.imply mm m in
         Const.Meet_const c
 
     let to_const_exn = function

@@ -67,24 +67,23 @@ module M : sig val x : string @@ portable contended end
 
 (* Testing the defaulting behaviour.
    "module type of" triggers the defaulting logic.
-    Note that the defaulting will mutate the original module type.
-*)
+    Note that the defaulting will mutate the original module type: it zaps the
+    inferred modalities and make them fully fixed. *)
 module Module_type_of_comonadic = struct
     module M = struct
         let x @ portable = fun x -> x
     end
     (* for comonadic axes, we default to id = meet_with_max, which is the
-    weakest. The original modality is not mutated. *)
+    weakest. *)
     module M' : module type of M = struct
         let x @ portable = fun x -> x
     end
-    let _ = portable_use M.x (* The original modality stays portable *)
-    let _ = portable_use M'.x
+    let _ = portable_use M.x (* The original inferred modality is zapped *)
 end
 [%%expect{|
-Line 11, characters 25-29:
-11 |     let _ = portable_use M'.x
-                              ^^^^
+Line 10, characters 25-28:
+10 |     let _ = portable_use M.x (* The original inferred modality is zapped *)
+                              ^^^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
