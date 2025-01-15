@@ -2103,6 +2103,35 @@ end = struct
         in
         List.for_all is_isomorphic tl
 
+    let vectorizable_machtypes regs1 regs2 count =
+      let rec loop index =
+        if index = count
+        then true
+        else if Vectorize_utils.vectorizable_machtypes regs1.(index)
+                  regs2.(index)
+        then loop (index + 1)
+        else false
+      in
+      loop 0
+
+    let vectorizable_machtypes ~non_address_arg_count instructions =
+      match instructions with
+      | [] -> true
+      | hd :: tl ->
+        (* assumes the instructions are isomorphic, which guarantees the same
+           number of result registers for all instructions, and the same number
+           of argument registers for all instructions. *)
+        let res_count = get_res_count hd in
+        let res = Instruction.results hd in
+        let arg = Instruction.arguments hd in
+        List.for_all
+          (fun instr ->
+            vectorizable_machtypes res (Instruction.results instr) res_count
+            && vectorizable_machtypes arg
+                 (Instruction.arguments instr)
+                 non_address_arg_count)
+          tl
+
     let independent instructions deps =
       let res = Dependencies.all_independent deps instructions in
       State.dump_debug (Dependencies.state deps) "Group.independent: res=%b\n"
@@ -2139,9 +2168,16 @@ end = struct
         let arg_count = get_arg_count instruction in
         let res_count = get_res_count instruction in
         let mem_op = Dependencies.get_memory_operation deps instruction in
+        let non_address_arg_count =
+          match mem_op with
+          | None -> arg_count
+          | Some mem_op ->
+            Dependencies.Memory.Operation.first_memory_arg_index mem_op
+        in
         if not
              (same_stack_offset instructions
              && have_isomorphic_op instructions
+             && vectorizable_machtypes instructions ~non_address_arg_count
              && independent instructions deps
              && can_vectorize_memory_accesses mem_op instructions deps)
         then None
@@ -2162,12 +2198,6 @@ end = struct
               "Group.init: cannot vectorize operation\n";
             None
           | Some vector_instructions ->
-            let non_address_arg_count =
-              match mem_op with
-              | None -> arg_count
-              | Some mem_op ->
-                Dependencies.Memory.Operation.first_memory_arg_index mem_op
-            in
             assert (List.length vector_instructions > 0);
             Some
               { vector_instructions;
@@ -2893,9 +2923,15 @@ let augment_reg_map reg_map group =
     match pack with
     | [] -> ()
     | hd :: tl -> (
+      let packed_reg_typ = Vectorize_utils.vectorize_machtypes pack in
       match Substitution.get_reg_opt reg_map hd with
-      | None -> Substitution.fresh_reg_for_pack reg_map pack Vec128
+      | None -> Substitution.fresh_reg_for_pack reg_map pack packed_reg_typ
       | Some old_reg_for_hd ->
+        if not (Cmm.equal_machtype_component old_reg_for_hd.typ packed_reg_typ)
+        then
+          Misc.fatal_errorf "Expected %a but got %a for pack %a)"
+            Printcmm.machtype_component packed_reg_typ Printreg.reg
+            old_reg_for_hd Printreg.reglist pack;
         (* other registers in the pack must be mapped in the same way as
            [hd]. *)
         List.iter
@@ -2911,7 +2947,9 @@ let augment_reg_map reg_map group =
                 Misc.fatal_errorf
                   "augment_reg_map: %a is mapped to %a but %a is mapped to %a"
                   Printreg.reg hd Printreg.reg old_reg_for_hd Printreg.reg reg
-                  Printreg.reg old_reg)
+                  Printreg.reg old_reg;
+              assert (
+                Cmm.equal_machtype_component old_reg_for_hd.typ old_reg.typ))
           tl)
   in
   (* only some of the args are vectorizable, but all results are vectorizable. *)

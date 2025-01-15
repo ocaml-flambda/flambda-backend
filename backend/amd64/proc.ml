@@ -101,7 +101,7 @@ let num_register_classes = 2
 let register_class r =
   match r.typ with
   | Val | Int | Addr -> 0
-  | Float | Float32 | Vec128 -> 1
+  | Float | Float32 | Vec128 | Valx2 -> 1
 
 let num_stack_slot_classes = 3
 
@@ -109,7 +109,16 @@ let stack_slot_class typ =
   match (typ : machtype_component) with
   | Val | Addr | Int -> 0
   | Float | Float32 -> 1
-  | Vec128 -> 2
+  | Vec128 | Valx2 -> 2
+
+let types_are_compatible left right =
+  match left.typ, right.typ with
+  | (Int | Val | Addr), (Int | Val | Addr)
+  | Float, Float
+  | Float32, Float32
+  | (Valx2 | Vec128), (Valx2 | Vec128) ->
+    true
+  | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
 
 let stack_class_tag c =
   match c with
@@ -127,7 +136,7 @@ let register_name ty r =
   match (ty : machtype_component) with
   | Int | Addr | Val ->
     int_reg_name.(r - first_available_register.(0))
-  | Float | Float32 | Vec128 ->
+  | Float | Float32 | Vec128 | Valx2 ->
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -164,7 +173,40 @@ let phys_reg ty n =
   | Int | Addr | Val -> hard_int_reg.(n)
   | Float -> hard_float_reg.(n - 100)
   | Float32 -> hard_float32_reg.(n - 100)
-  | Vec128 -> hard_vec128_reg.(n - 100)
+  | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
+
+let gc_regs_offset reg =
+  (* Given register [r], return the offset (the number of [value] slots,
+     not their size in bytes) of the register from the
+     [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
+  let r =
+    match reg.loc with
+    | Reg r -> r
+    | Stack _ | Unknown ->
+      Misc.fatal_errorf "Unexpected register location for %d" reg.stamp
+  in
+  let reg_class = register_class reg in
+  let index = (r - first_available_register.(reg_class)) in
+  match reg_class with
+  | 0 -> index
+  | 1 ->
+    let slot_size_in_vals = 2 in
+    assert (Arch.size_vec128 / Arch.size_int = slot_size_in_vals);
+    if Config.runtime5
+    then
+      (* xmm slots are above regular slots based at [gc_regs_bucket] *)
+      let num_regular_slots =
+        (* rbp is always spilled even without frame pointers *)
+        13
+      in
+      num_regular_slots + (index * slot_size_in_vals)
+    else
+      (* xmm slots are below [gc_regs] pointer *)
+      let num_xmm_slots = 16 in
+      let offset = Int.neg (num_xmm_slots * slot_size_in_vals) in
+      offset + (index * slot_size_in_vals)
+  | _ -> assert false
+
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
@@ -235,6 +277,8 @@ let calling_conventions
         loc.(i) <- stack_slot (make_stack !ofs) Vec128;
         ofs := !ofs + size_vec128
       end
+    | Valx2 ->
+      Misc.fatal_error "Unexpected machtype_component Valx2"
     | Float32 ->
         if !float <= last_float then begin
           loc.(i) <- phys_reg Float32 !float;
@@ -386,6 +430,8 @@ let win64_loc_external_arguments arg =
     | Vec128 ->
         (* CR mslater: (SIMD) win64 calling convention requires pass by reference *)
         Misc.fatal_error "SIMD external arguments are not supported on Win64"
+    | Valx2 ->
+      Misc.fatal_error "Unexpected machtype_component Valx2"
   done;
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
 

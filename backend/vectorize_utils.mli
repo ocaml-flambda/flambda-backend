@@ -85,3 +85,13 @@ module Vectorized_instruction : sig
 
   val make_default : arg_count:int -> res_count:int -> Operation.t -> t
 end
+
+(** Given two registers of non-vector types, return true iff there exist a vector type
+    that can contain both of them. Currently distinguishes between [Val] and other
+    types. Mixing [Val] with non-Val in a vector is not yet supported. *)
+val vectorizable_machtypes : Reg.t -> Reg.t -> bool
+
+val vectorize_machtypes : Reg.t list -> Cmm.machtype_component
+(* CR-someday gyorsh: [vectorizable_machtypes] should take a [Reg.t list]
+   instead of a pair, to handle longer vectors, and to present a uniform
+   interface with [vectorize_machtypes]. *)

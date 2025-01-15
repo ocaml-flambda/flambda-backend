@@ -212,13 +212,18 @@ let oper_result_type = function
    dependencies, because it uses [Arch]. *)
 let size_component : machtype_component -> int = function
   | Val | Addr -> Arch.size_addr
-  | Int -> Arch.size_int
+  | Int ->
+    assert (Int.equal Arch.size_int Arch.size_addr);
+    Arch.size_int
   | Float -> Arch.size_float
   | Float32 ->
     (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
        Note that packed float32# arrays are handled via a separate path. *)
     Arch.size_float
   | Vec128 -> Arch.size_vec128
+  | Valx2 ->
+    assert (Int.equal (Arch.size_addr * 2) Arch.size_vec128);
+    Arch.size_vec128
 
 let size_machtype mty =
   let size = ref 0 in
@@ -786,6 +791,8 @@ class virtual ['env, 'op, 'instr] common_selector =
                        (big)array operations are handled separately via cmm. *)
                     Onetwentyeight_unaligned
                   | Val | Addr | Int -> Word_val
+                  | Valx2 ->
+                    Misc.fatal_error "Unexpected machtype_component Valx2"
                 in
                 self#insert_debug env
                   (self#make_store kind !a false)

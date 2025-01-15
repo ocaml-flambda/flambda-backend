@@ -103,3 +103,45 @@ module Vectorized_instruction = struct
       results = Array.init res_count (fun i -> Result i)
     }
 end
+
+let vectorizable_machtypes (r1 : Reg.t) (r2 : Reg.t) =
+  match r1.typ, r2.typ with
+  | Addr, _ | _, Addr ->
+    (* Register of type [Addr] can point into the middle of a heap block. It
+       must not be live across a GC as the pointer can be invalidated if the GC
+       moves the block. This information would be lost if we combined [Addr]
+       with another non-scannable type into [Vec128]. To correctly vectorize
+       [Addr], we could generalize [machtype], but for simplicity do not
+       vectorize [Addr]. *)
+    false
+  | (Vec128 | Valx2), (Val | Int | Float | Float32 | Vec128 | Valx2)
+  | (Val | Int | Float | Float32), (Vec128 | Valx2) ->
+    Misc.fatal_errorf "Unexpected vector machtype Vec128 or Valx2: %a %a"
+      Printreg.reg r1 Printreg.reg r2
+  | Val, Val -> true
+  | Val, (Int | Float | Float32) | (Int | Float | Float32), Val -> false
+  | (Int | Float | Float32), (Int | Float | Float32) ->
+    (* It is safe to mix Float32, Float, and Int for the purpose of GC, because
+       they are not scannable. It may not be possible to vectorize the
+       operation. *)
+    true
+
+let vectorize_machtypes (pack : Reg.t list) : Cmm.machtype_component =
+  match pack with
+  | [] -> assert false
+  | hd :: tl -> (
+    let can_vectorize = List.for_all (vectorizable_machtypes hd) tl in
+    if not can_vectorize
+    then
+      Misc.fatal_errorf "register pack with incompatible mach types:"
+        Printreg.reglist pack;
+    match hd.typ, List.length pack with
+    | Addr, _ -> Misc.fatal_errorf "Unexpected machtype for %a" Printreg.reg hd
+    | (Int | Float), 2 | Float32, 4 ->
+      (* allows subregs, width should be correct by construction of [Group]. *)
+      Vec128
+    | Val, 2 -> Valx2
+    | (Val | Int | Float | Float32), n ->
+      Misc.fatal_errorf "Unexpected pack size %d for %a" n Printreg.reglist pack
+    | Vec128, _ | Valx2, _ ->
+      Misc.fatal_errorf "Unexpected machtype for %a" Printreg.reg hd)

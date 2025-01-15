@@ -695,6 +695,7 @@ class virtual selector_generic =
             (fun reg ->
               match reg.Reg.typ with
               | Addr -> assert false
+              | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
               | Val | Int | Float | Vec128 | Float32 -> ())
             src;
           self#insert_moves env src tmp_regs;
