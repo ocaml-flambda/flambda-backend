@@ -6,21 +6,9 @@ Instead of allocating values normally on the GC heap, you can stack-allocate
 values using the new `stack_` keyword:
 
 ```ocaml
-let stack_ x = { foo; bar } in
-...
-```
-
-or equivalently, by putting the keyword on the expression itself:
-
-```ocaml
 let x = stack_ { foo; bar } in
 ...
 ```
-
-These values live in a region, and are available until the end of the _region_.
-Region is the compile-time representation of stack frame at runtime. Usually,
-each function body has a region, and stack-allocated values live in the
-surrouding region. Read [the reference](reference.md) for more details.
 
 This helps performance in a couple of ways: first, the same few hot
 cache lines are constantly reused, so the cache footprint is lower than
@@ -29,11 +17,11 @@ and so they're safe to use in low-latency code that must currently be
 zero-alloc.
 
 However, for this to be safe, stack-allocated values must not be used after
-their region ends. This is ensured by the type-checker as follows.
-Stack-allocated values will be _local_ to the region they live in, and cannot
-escape their region. Heap-allocated values will be _global_ and can escape any
-region. If a local value tries to escape the current region, you'll see error
-messages:
+their stack frame is freed. This is ensured by the type-checker as follows.
+Stack frames are represented as _region_ at compile time, and each
+stack-allocated value lives in the surrounding region (usually a function body).
+Stack-allocated values are not allowed to escape their region. If they do,
+you'll see error messages:
 
 ```ocaml
 let foo () =
@@ -58,7 +46,7 @@ allocations is meaningless and triggers type errors.
 Generally, OCaml functions can do whatever they like with their
 arguments: use them, return them, capture them in closures or store
 them in globals, etc. This is a problem when trying to pass around
-local values, since we need to guarantee they do not
+stack-allocated values, since we need to guarantee they do not
 escape.
 
 The remedy is that we allow the `local_` keyword to appear on
@@ -70,15 +58,15 @@ let f (local_ x) = ...
 
 A local parameter is a promise by a function not to let a particular
 argument escape its region. In the body of f, you'll get a type error
-if x escapes, but when calling f you can freely pass local values as
+if x escapes, but when calling f you can freely pass stack-allocated values as
 the argument. This promise is visible in the type of f:
 
 ```ocaml
 val f : local_ 'a -> ...
 ```
 
-The function f may be equally be called with local or
-global values: the `local_` annotation places obligations only on the
+The function f may be equally be called with stack or
+heap-allocated values: the `local_` annotation places obligations only on the
 definition of f, not its uses.
 
 Even if you're not interested in performance benefits, local
@@ -147,7 +135,7 @@ over which values are stack-allocated, including:
       ...
     ```
 
-    defines a function `f` which returns local values into its
+    defines a function `f` which returns stack-allocated values into its
     caller's region.
 
   - **Global fields**
@@ -156,8 +144,8 @@ over which values are stack-allocated, including:
     type 'a t = { global_ g : 'a }
     ```
 
-    defines a record type `t` whose `g` field is always known to be global
-    (and thus on the GC heap and may freely escape regions), even though
-    the record itself may be `local`.
+    defines a record type `t` whose `g` field is always known to be
+    heap-allocated (and may freely escape regions), even though the record
+    itself may be stack-allocated.
 
 For more details, read [the reference](./reference.md).
