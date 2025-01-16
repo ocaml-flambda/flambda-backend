@@ -103,17 +103,16 @@ As well as function bodies, a region is also placed around:
   - Module bindings (`let x = ...` at module level, including in sub-modules)
 
 Module bindings are wrapped in regions to enforce the rule (as mentioned above)
-that modules never contain `local` values.
+that modules never contain local values.
 
 Additionally, it is possible to write functions that do *not* have a region
 around their body, which is useful to write functions that return
 stack-allocated values. See "Use exclave_ to return a local value" below.
 
-
-
 ### Nested regions
-Let's further explore the idea of nested regions mentioned above.
-Additionally, `local` variables are further subdivided into two cases:
+Let's further explore the idea of nested regions mentioned above. Say we are in
+the middle of a region, the local variables in scope are further subdivided into
+two cases:
 
   - **Outer-region local**: lives in an outer region, not the current region.
 
@@ -133,7 +132,7 @@ let f () =
 ```
 
 At the point marked `??` inside `g`, both `outer` and `inner` are
-stack-allocated values and thus `local`. However, only `inner` is any-region
+stack-allocated values and thus local. However, only `inner` is any-region
 local, having been allocated in `g`'s region. The value `outer` is instead
 outer-region local: it is stack-allocated but from a region outer than `g`'s
 own.
@@ -143,7 +142,7 @@ So, if we replace `??` with `inner`, we see an error:
     Error: This local value escapes its region
 
 However, if we replace `??` with `outer`, the compiler will accept it: the
-value `outer`, while being `local`, was definitely not `local` to the region of
+value `outer`, while being local, was definitely not local to the region of
 `g`, and there is therefore no problem allowing it to escape `g`'s region.
 
 (This is quite subtle, and there is an additional wrinkle: how does the
@@ -173,7 +172,7 @@ let l = local_ if n > 0 then n :: x else x in
 ...
 ```
 
-The `local_` annotation forces `l` to be `local`, which prevents `l` from
+The `local_` annotation forces `l` to be local, which prevents `l` from
 escaping the current region. As a result, the compiler might optimize `n :: x`
 to be stack-allocated in the current region. However, this is not to be relied
 upon - you should always use `stack_` to ensure stack allocation.
@@ -213,7 +212,7 @@ Inference does not cross file boundaries. If local annotations subject to
 inference appear in the type of a module (e.g. since they can appear in
 function types, see below) then inference will resolve them according to what
 appears in the `.mli`. If there is no `.mli` file, then inference will always
-choose `global` for anything that can be accessed from another file.
+choose global for anything that can be accessed from another file.
 
 Local annotations (or the lack thereof) in the mli don't affect inference
 within the ml. In the below example, the `~foo` parameter is inferred to
@@ -262,13 +261,13 @@ In all cases, the `local_` annotation means "local to the caller's region"
 a region.
 
 In argument positions, `local_` indicates that the function may be passed
-`local` values. As always, the `local_` keyword does not *require*
-a stack-allocated value, and you may pass `global` values to such functions. In
+local values. As always, the `local_` keyword does not *require*
+a stack-allocated value, and you may pass global values to such functions. In
 effect, a function of type `local_ a -> b` is a function accepting `a`
 and returning `b` that promises not to capture any reference to its argument.
 
 In return positions, `local_` indicates that the function may return values that
-are `local` (See "Use `exclave_` to return a local value" below). A function of
+are local (See "Use `exclave_` to return a local value" below). A function of
 type `local_ a -> local_ b` promises not to capture any reference to its
 argument except possibly in its return value.
 
@@ -301,7 +300,7 @@ function's region, because the value `x` is known to come from outside that
 region.
 
 In contrast, `f3` is an error. The value `42 :: x` refers to a local value `x`,
-which means it cannot be `global`. Therefore, it must be stack-allocated, and it
+which means it cannot be global. Therefore, it must be stack-allocated, and it
  is allocated within region of `f3`. When this region ends, the any-region local
 value `42 :: x` is not allowed to escape it.
 
@@ -310,7 +309,7 @@ values, but this requires explicit annotation, as it would otherwise be easy to
 do by mistake.  See "Use exclave_ to return a local value" below.
 
 Like local variables, inference can determine whether function arguments are
-`local`. However, note that for arguments of exported functions to be local, the
+local. However, note that for arguments of exported functions to be local, the
 `local_` keyword must appear in their declarations in the corresponding `.mli`
 file.
 
@@ -318,8 +317,8 @@ file.
 ## Closures
 
 Like most other values, closures can be stack-allocated. In particular, this
-happens when a closure closes over `local` values: since `global` values cannot
-refer to `local` values, all such closures cannot be `global` and _must_ be
+happens when a closure closes over local values: since global values cannot
+refer to local values, all such closures cannot be global and _must_ be
 stack-allocated.
 
 Consider again the example from "Variables and regions" above:
@@ -463,7 +462,7 @@ let f2 () =
   g () [@nontail]
 ```
 
-These changes makes the `local` values (`r` and `g`) stay available until after
+These changes makes the local values (`r` and `g`) stay available until after
 the call has returned.
 
 Note that values which are outer-region local rather than any-region local (that
@@ -644,11 +643,11 @@ let f () =
   x'
 ```
 
-Here, the `packed` values is treated as `local`, and the type-checker then
-conservatively assumes that `x'` and `y'` may also be `local` (since they are
+Here, the `packed` values is treated as local, and the type-checker then
+conservatively assumes that `x'` and `y'` may also be local (since they are
 extracted from `packed`), and so cannot safely be returned.
 
-Similarly, a `local` value of type `string list` means a local
+Similarly, a local value of type `string list` means a local
 list of local strings, and none of these strings can be safely
 returned from a function like `f`.
 
@@ -676,9 +675,9 @@ In particular, by defining:
 type 'a t = { global_ global : 'a } [@@unboxed]
 ```
 
-then a `local` value of type `string t list` is a local list of global
+then a local value of type `string t list` is a local list of global
 strings, and while the list itself cannot be returned out of a region, the
-`global` field of any of its elements can. For convenience, `base` provides
+global field of any of its elements can. For convenience, `base` provides
 this as the type `Modes.Global.t`.
 
 The same overriding can be used on constructor arguments. To imitate the example
