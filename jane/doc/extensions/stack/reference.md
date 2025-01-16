@@ -35,103 +35,6 @@ let stack_ abc = [a; b; c] in
 Placing `stack_` on an expression that is not an allocation is meaningless and
 causes type error.
 
-<!-- CR zqian: need to motivate the modes by safety. Consider lifting the "regions" section here. -->
-
-Stack-allocated values are _local_, and may reference _global_ (that is,
-GC-allocated) values, but _global_ values may not reference _local_ ones.
-In the example above, any or all of `a`, `b` and `c` may themselves be stack-allocated.
-
-Global values can be weakened to local, effectively "forgetting" that a
-value can escape regions. For instance, if there is a global `x : int list` in
-scope, then this is allowed:
-
-```ocaml
-let l = if n > 0 then stack_ (n :: x) else x in
-...
-```
-
-Here, if `n > 0`, then `l` will be a stack-allocated cons cell and thus local.
-However, if `n <= 0`, then `l` will be `x`, which is global. The later is
-implicitly weakened to local and joins with the other branch, making the whole
-expression local.
-
-Consider another example:
-
-```ocaml
-let l = local_ if n > 0 then n :: x else x in
-...
-```
-
-The `local_` annotation forces `l` to be `local`, which prevents `l` from
-escaping the current region. As a result, the compiler might optimize `n :: x`
-to be stack-allocated in the current region. However, this is not to be relied
-upon - you should always use `stack_` to ensure stack allocation.
-
-Most OCaml types can be stack-allocated, including records, variants,
-polymorphic variants, closures, boxed numbers and strings. However, certain
-values cannot be stack-allocated, and will always be on the GC heap,
-including:
-
-  - Modules (including first-class modules)
-
-  - Exceptions
-    (Technically, values of type `exn` can be locally allocated, but only global
-    ones may be raised)
-
-  - Classes and objects
-
-In addition, any value that is to be put into a mutable field (for example
-inside a `ref`, an `array` or a mutable record) must be global and thus cannot
-be stack-allocated. Should you need to put a local value into one of these
-places, you may want to check out
-[`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
-
-## Inference
-
-In fact, the allocations of the examples above will be on
-stack even without the `stack_` keyword, if it is safe to do
-so. The presence of the keyword on an expression only affects what
-happens if the value escapes (e.g. is stored into a global hash table)
-and therefore cannot be stack-allocated. With the keyword, an error
-will be reported, while without the keyword the allocations will occur
-on the GC heap as usual.
-
-Inference does not cross file boundaries. If local annotations subject to
-inference appear in the type of a module (e.g. since they can appear in
-function types, see below) then inference will resolve them according to what
-appears in the `.mli`. If there is no `.mli` file, then inference will always
-choose `global` for anything that can be accessed from another file.
-
-Local annotations (or the lack thereof) in the mli don't affect inference
-within the ml. In the below example, the `~foo` parameter is inferred to
-be local internally to `a.ml`, so `foo:(Some x)` can be stack-allocated.
-
-```ocaml
-(* in a.mli *)
-val f1 : foo:local_ int option -> unit
-val f2 : int -> unit
-
-(* in a.ml *)
-let f1 ~foo:_ = ()
-let f2 x = f1 ~foo:(Some x) (* [Some x] is stack allocated *)
-```
-
-<!-- See Note [Inference affects allocation in mli-less files] in [testsuite/tests/typing-local/alloc_arg_with_mli.ml]
-     in the flambda-backend Git repo. The ensuing paragraph is related to that
-     note; we can remove this comment when the note is resolved.
--->
-However, a missing mli *does* affect inference within the ml. As a conservative
-rule of thumb, function arguments in an mli-less file will default to global
-unless the function parameter or argument is annotated with `local_`. This is
-due to an implementation detail of the type-checker and is not fundamental, but
-for now, it's yet another reason to prefer writing mlis.
-
-```ocaml
-(* in a.ml; a.mli is missing *)
-let f1 ~foo:_ = ()
-let f2 x = f1 ~foo:(Some x) (* [Some x] is heap allocated *)
-```
-
 ## Regions
 
 Every stack allocation takes places inside a stack frame, and is freed when the
@@ -245,6 +148,103 @@ value `outer`, while being `local`, was definitely not `local` to the region of
 (This is quite subtle, and there is an additional wrinkle: how does the
 compiler know that it is safe to still refer to `outer` from within the closure
 `g`? See "Closures" below for more details)
+
+
+Stack-allocated values are _local_, and may reference _global_ (that is,
+GC-allocated) values, but _global_ values may not reference _local_ ones.
+In the example above, any or all of `a`, `b` and `c` may themselves be stack-allocated.
+
+Global values can be weakened to local, effectively "forgetting" that a
+value can escape regions. For instance, if there is a global `x : int list` in
+scope, then this is allowed:
+
+```ocaml
+let l = if n > 0 then stack_ (n :: x) else x in
+...
+```
+
+Here, if `n > 0`, then `l` will be a stack-allocated cons cell and thus local.
+However, if `n <= 0`, then `l` will be `x`, which is global. The later is
+implicitly weakened to local and joins with the other branch, making the whole
+expression local.
+
+Consider another example:
+
+```ocaml
+let l = local_ if n > 0 then n :: x else x in
+...
+```
+
+The `local_` annotation forces `l` to be `local`, which prevents `l` from
+escaping the current region. As a result, the compiler might optimize `n :: x`
+to be stack-allocated in the current region. However, this is not to be relied
+upon - you should always use `stack_` to ensure stack allocation.
+
+Most OCaml types can be stack-allocated, including records, variants,
+polymorphic variants, closures, boxed numbers and strings. However, certain
+values cannot be stack-allocated, and will always be on the GC heap,
+including:
+
+  - Modules (including first-class modules)
+
+  - Exceptions
+    (Technically, values of type `exn` can be locally allocated, but only global
+    ones may be raised)
+
+  - Classes and objects
+
+In addition, any value that is to be put into a mutable field (for example
+inside a `ref`, an `array` or a mutable record) must be global and thus cannot
+be stack-allocated. Should you need to put a local value into one of these
+places, you may want to check out
+[`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
+
+## Inference
+
+In fact, the allocations of the examples above will be on
+stack even without the `stack_` keyword, if it is safe to do
+so. The presence of the keyword on an expression only affects what
+happens if the value escapes (e.g. is stored into a global hash table)
+and therefore cannot be stack-allocated. With the keyword, an error
+will be reported, while without the keyword the allocations will occur
+on the GC heap as usual.
+
+Inference does not cross file boundaries. If local annotations subject to
+inference appear in the type of a module (e.g. since they can appear in
+function types, see below) then inference will resolve them according to what
+appears in the `.mli`. If there is no `.mli` file, then inference will always
+choose `global` for anything that can be accessed from another file.
+
+Local annotations (or the lack thereof) in the mli don't affect inference
+within the ml. In the below example, the `~foo` parameter is inferred to
+be local internally to `a.ml`, so `foo:(Some x)` can be stack-allocated.
+
+```ocaml
+(* in a.mli *)
+val f1 : foo:local_ int option -> unit
+val f2 : int -> unit
+
+(* in a.ml *)
+let f1 ~foo:_ = ()
+let f2 x = f1 ~foo:(Some x) (* [Some x] is stack allocated *)
+```
+
+<!-- See Note [Inference affects allocation in mli-less files] in [testsuite/tests/typing-local/alloc_arg_with_mli.ml]
+     in the flambda-backend Git repo. The ensuing paragraph is related to that
+     note; we can remove this comment when the note is resolved.
+-->
+However, a missing mli *does* affect inference within the ml. As a conservative
+rule of thumb, function arguments in an mli-less file will default to global
+unless the function parameter or argument is annotated with `local_`. This is
+due to an implementation detail of the type-checker and is not fundamental, but
+for now, it's yet another reason to prefer writing mlis.
+
+```ocaml
+(* in a.ml; a.mli is missing *)
+let f1 ~foo:_ = ()
+let f2 x = f1 ~foo:(Some x) (* [Some x] is heap allocated *)
+```
+
 
 
 ## Function types and local arguments
