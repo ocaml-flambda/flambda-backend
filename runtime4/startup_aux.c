@@ -100,13 +100,9 @@ static void scanmult (char_os *opt, uintnat *var)
   }
 }
 
-void caml_parse_ocamlrunparam(void)
+static void parse_ocamlrunparam(char_os* opt)
 {
-  char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
   uintnat p;
-
-  if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
-
   if (opt != NULL){
     while (*opt != '\0'){
       switch (*opt++){
@@ -136,6 +132,24 @@ void caml_parse_ocamlrunparam(void)
       }
     }
   }
+}
+
+#ifdef NATIVE_CODE
+// See asmcomp/asmlink.ml
+extern char caml_ocamlrunparam[];
+#endif
+
+void caml_parse_ocamlrunparam(void)
+{
+  char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
+
+  if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
+
+#ifdef NATIVE_CODE
+  parse_ocamlrunparam(caml_ocamlrunparam);
+#endif
+
+  parse_ocamlrunparam(opt);
 }
 
 

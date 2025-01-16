@@ -198,6 +198,7 @@ val shared : bool ref
 val dlcode : bool ref
 val pic_code : bool ref
 val runtime_variant : string ref
+val ocamlrunparam : string ref
 val with_runtime : bool ref
 val force_slash : bool ref
 val keep_docs : bool ref
