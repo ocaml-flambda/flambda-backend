@@ -76,6 +76,51 @@ Global values, being allowed to escape regions, may not reference local ones,
 since that will make the local values escape regions, which breaks the
 guarantee. Local values may reference global ones.
 
+A global value can be weakened to local, effectively "forgetting" that it
+can escape regions. For instance, if there is a global `x : int list` in
+scope, then this is allowed:
+
+```ocaml
+let l = if n > 0 then stack_ (n :: x) else x in
+...
+```
+
+Here, if `n > 0`, then `l` will be a stack-allocated cons cell and thus local.
+However, if `n <= 0`, then `l` will be `x`, which is global. The later is
+implicitly weakened to local and joins with the other branch, making the whole
+expression local.
+
+Consider another example:
+
+```ocaml
+let l = local_ if n > 0 then n :: x else x in
+...
+```
+
+The `local_` annotation forces `l` to be local, which prevents `l` from
+escaping the current region. As a result, the compiler might optimize `n :: x`
+to be stack-allocated in the current region. However, this is not to be relied
+upon - you should always use `stack_` to ensure stack allocation.
+
+Most OCaml types can be stack-allocated, including records, variants,
+polymorphic variants, closures, boxed numbers and strings. However, certain
+values cannot be stack-allocated, and will always be on the GC heap,
+including:
+
+  - Modules (including first-class modules)
+
+  - Exceptions
+    (Technically, values of type `exn` can be locally allocated, but only global
+    ones may be raised)
+
+  - Classes and objects
+
+In addition, any value that is to be put into a mutable field (for example
+inside a `ref`, an `array` or a mutable record) must be global and thus cannot
+be stack-allocated. Should you need to put a local value into one of these
+places, you may want to check out
+[`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
+
 
 "Region" is a wider concept than "scope", and stack-allocated variables can
 outlive their scope. For example:
@@ -150,51 +195,6 @@ compiler know that it is safe to still refer to `outer` from within the closure
 `g`? See "Closures" below for more details)
 
 
-
-Global values can be weakened to local, effectively "forgetting" that a
-value can escape regions. For instance, if there is a global `x : int list` in
-scope, then this is allowed:
-
-```ocaml
-let l = if n > 0 then stack_ (n :: x) else x in
-...
-```
-
-Here, if `n > 0`, then `l` will be a stack-allocated cons cell and thus local.
-However, if `n <= 0`, then `l` will be `x`, which is global. The later is
-implicitly weakened to local and joins with the other branch, making the whole
-expression local.
-
-Consider another example:
-
-```ocaml
-let l = local_ if n > 0 then n :: x else x in
-...
-```
-
-The `local_` annotation forces `l` to be local, which prevents `l` from
-escaping the current region. As a result, the compiler might optimize `n :: x`
-to be stack-allocated in the current region. However, this is not to be relied
-upon - you should always use `stack_` to ensure stack allocation.
-
-Most OCaml types can be stack-allocated, including records, variants,
-polymorphic variants, closures, boxed numbers and strings. However, certain
-values cannot be stack-allocated, and will always be on the GC heap,
-including:
-
-  - Modules (including first-class modules)
-
-  - Exceptions
-    (Technically, values of type `exn` can be locally allocated, but only global
-    ones may be raised)
-
-  - Classes and objects
-
-In addition, any value that is to be put into a mutable field (for example
-inside a `ref`, an `array` or a mutable record) must be global and thus cannot
-be stack-allocated. Should you need to put a local value into one of these
-places, you may want to check out
-[`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
 
 ## Inference
 
