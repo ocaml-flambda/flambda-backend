@@ -209,8 +209,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
           ppf flambda;
         print_flexpect "simplify" ppf ~raw_flambda flambda;
         let flambda, free_names, all_code, slot_offsets, last_pass_name =
-          if Option.is_some (Sys.getenv_opt "REAPER")
-             || Flambda_features.enable_reaper ()
+          if Flambda_features.enable_reaper ()
           then (
             let flambda, free_names, all_code, slot_offsets =
               Profile.record_call ~accumulate:true "reaper" (fun () ->
