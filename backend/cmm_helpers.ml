@@ -30,6 +30,12 @@ type arity =
 
 (* Local binding of complex expressions *)
 
+let sequence x y =
+  match x, y with
+  | (Cvar _ | Cconst_int _ | Cconst_natint _ | Ctuple []), y -> y
+  | x, Ctuple [] -> x
+  | x, y -> Csequence (x, y)
+
 let bind name arg fn =
   match arg with
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ -> fn arg
@@ -662,6 +668,8 @@ let make_safe_divmod operator ~if_divisor_is_negative_one
                 dbg,
                 Any )))
 
+let is_power_of_2 n = Nativeint.logand n (Nativeint.pred n) = 0n
+
 let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
   let if_divisor_is_negative_one ~dividend ~dbg = neg_int dividend dbg in
   match get_const c1, get_const c2 with
@@ -673,14 +681,18 @@ let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
     if n < 0n
     then
       if n = Nativeint.min_int
-      then Cop (Ccmpi Ceq, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg)
+      then
+        (* integer division by min_int always returns 0 unless the dividend is
+           also min_int, in which case it's 1. This is the same as comparing
+           against min_int. *)
+        Cop (Ccmpi Ceq, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg)
       else
         neg_int
           (div_int ?dividend_cannot_be_min_int c1
              (Cconst_natint (Nativeint.neg n, dbg))
              dbg)
           dbg
-    else if Nativeint.logand n (Nativeint.pred n) = 0n
+    else if is_power_of_2 n
     then
       let l = Misc.log2_nativeint n in
       (* Algorithm:
@@ -726,9 +738,7 @@ let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
 
 let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
   let if_divisor_is_positive_or_negative_one ~dividend ~dbg =
-    match dividend with
-    | Cvar _ -> Cconst_int (0, dbg)
-    | dividend -> Csequence (dividend, Cconst_int (0, dbg))
+    sequence dividend (Cconst_int (0, dbg))
   in
   match get_const c1, get_const c2 with
   | _, Some 0n -> Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
@@ -747,7 +757,7 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
               Cop (Cor, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg),
               dbg,
               Any ))
-    else if Nativeint.logand n (Nativeint.pred n) = 0n
+    else if is_power_of_2 n
     then
       let l = Misc.log2_nativeint n in
       (* Algorithm:
@@ -775,16 +785,6 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
     make_safe_divmod ?dividend_cannot_be_min_int
       ~if_divisor_is_negative_one:if_divisor_is_positive_or_negative_one Cmodi
       c1 c2 ~dbg
-
-let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
-  bind "divisor" c2 (fun c2 ->
-      bind "dividend" c1 (fun c1 ->
-          div_int ?dividend_cannot_be_min_int c1 c2 dbg))
-
-let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
-  bind "divisor" c2 (fun c2 ->
-      bind "dividend" c1 (fun c1 ->
-          mod_int ?dividend_cannot_be_min_int c1 c2 dbg))
 
 (* Bool *)
 
@@ -3560,20 +3560,26 @@ let mul_int_caml arg1 arg2 dbg =
     incr_int (mul_int (untag_int c1 dbg) (decr_int c2 dbg) dbg) dbg
   | c1, c2 -> incr_int (mul_int (decr_int c1 dbg) (untag_int c2 dbg) dbg) dbg
 
-(* Since caml integers are tagged, we know that they when they're untagged, they
-   can't be [Nativeint.min_int] *)
-let caml_integers_are_tagged = true
-
 let div_int_caml arg1 arg2 dbg =
+  let dividend_cannot_be_min_int =
+    (* Since caml integers are tagged, we know that they when they're untagged,
+       they can't be [Nativeint.min_int] *)
+    true
+  in
   tag_int
-    (div_int ~dividend_cannot_be_min_int:caml_integers_are_tagged
-       (untag_int arg1 dbg) (untag_int arg2 dbg) dbg)
+    (div_int ~dividend_cannot_be_min_int (untag_int arg1 dbg)
+       (untag_int arg2 dbg) dbg)
     dbg
 
 let mod_int_caml arg1 arg2 dbg =
+  let dividend_cannot_be_min_int =
+    (* Since caml integers are tagged, we know that they when they're untagged,
+       they can't be [Nativeint.min_int] *)
+    true
+  in
   tag_int
-    (mod_int ~dividend_cannot_be_min_int:caml_integers_are_tagged
-       (untag_int arg1 dbg) (untag_int arg2 dbg) dbg)
+    (mod_int ~dividend_cannot_be_min_int (untag_int arg1 dbg)
+       (untag_int arg2 dbg) dbg)
     dbg
 
 let and_int_caml arg1 arg2 dbg = and_int arg1 arg2 dbg
@@ -3896,12 +3902,6 @@ let letin v ~defining_expr ~body =
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
 
 let assign x e = Cassign (x, e)
-
-let sequence x y =
-  match x, y with
-  | Ctuple [], _ -> y
-  | _, Ctuple [] -> x
-  | _, _ -> Csequence (x, y)
 
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
   Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
