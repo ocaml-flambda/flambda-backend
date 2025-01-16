@@ -85,7 +85,8 @@ uintnat caml_get_init_stack_wsize (int thread_stack_wsz)
      page size. However, the stack guard pages, headers, etc. have
      some overhead, so we want the requested stack size to be a bit
      less than a multiple of the hugepage size */
-  if (stack_wsize > Wsize_bsize(caml_plat_hugepagesize)) {
+  if (caml_plat_hugepagesize > 0
+      && stack_wsize > Wsize_bsize(caml_plat_hugepagesize)) {
     /* round down to multiple of hugepage size */
     stack_wsize &= ~(Wsize_bsize(caml_plat_hugepagesize) - 1);
     /* 3 pages is enough to cover the overhead */
