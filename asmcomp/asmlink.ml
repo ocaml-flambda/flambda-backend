@@ -356,7 +356,7 @@ let emit_ocamlrunparam ~ppf_dump =
         sym_name = "caml_ocamlrunparam";
         sym_global = Global
       };
-      Cmm.Cstring !Clflags.ocamlrunparam
+      Cmm.Cstring (!Clflags.ocamlrunparam ^ "\000")
     ])
 
 let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_gen =
