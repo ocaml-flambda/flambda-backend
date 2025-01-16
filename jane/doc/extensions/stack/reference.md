@@ -13,7 +13,7 @@ stack-allocates certain values is controlled or inferred from new keywords
 `stack_` and `local_`, whose effects are explained below.
 
 
-## Stack allocation and local expressions
+## Stack allocation
 
 The `stack_` keyword may be placed on an allocation to indicate that
 it should be stack-allocated:
@@ -35,6 +35,24 @@ let stack_ abc = (42, 24) in
 Placing `stack_` on an expression that is not an allocation is meaningless and
 causes type error.
 
+Most OCaml types can be stack-allocated, including records, variants,
+polymorphic variants, closures, boxed numbers and strings. However, certain
+values cannot be stack-allocated, and will always be on the GC heap,
+including:
+
+  - Modules (including first-class modules)
+
+  - Exceptions
+    (Technically, values of type `exn` can be locally allocated, but only global
+    ones may be raised)
+
+  - Classes and objects
+
+In addition, any value that is to be put into a mutable field (for example
+inside a `ref`, an `array` or a mutable record) must be heap-allocated. Should you need to put a stack-allocated value into one of these
+places, you may want to check out
+[`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
+
 ### Runtime behavior
 
 At runtime, stack allocations do not take place on the C stack, but on a
@@ -46,7 +64,7 @@ without the need to copy returned values.
 The beginning of a stack frame records the stack pointer of this local stack,
 and the end of the stack frame resets the stack pointer to this value.
 
-### Regions
+## Regions and local values
 
 Every stack allocation takes places inside a stack frame, and is freed when the
 stack frame is freed. For this to be safe, stack-allocated values cannot be used
@@ -76,6 +94,8 @@ Global values, being allowed to escape regions, may not reference local ones,
 since that will make the local values escape regions, which breaks the
 guarantee. Local values may reference global ones.
 
+
+### Weakening
 A global value can be weakened to local, effectively "forgetting" that it
 can escape regions. For instance, if there is a global `x : int list` in
 scope, then this is allowed:
@@ -104,26 +124,7 @@ result the compiler might optimize `n :: x` to be stack-allocated in the current
 region. However, this is not to be relied upon - you should always use `stack_`
 to ensure stack allocation.
 
-Most OCaml types can be stack-allocated, including records, variants,
-polymorphic variants, closures, boxed numbers and strings. However, certain
-values cannot be stack-allocated, and will always be on the GC heap,
-including:
-
-  - Modules (including first-class modules)
-
-  - Exceptions
-    (Technically, values of type `exn` can be locally allocated, but only global
-    ones may be raised)
-
-  - Classes and objects
-
-In addition, any value that is to be put into a mutable field (for example
-inside a `ref`, an `array` or a mutable record) must be global and thus cannot
-be stack-allocated. Should you need to put a local value into one of these
-places, you may want to check out
-[`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
-
-
+### Region vs. Scope
 "Region" is a wider concept than "scope", and stack-allocated variables can
 outlive their scope. For example:
 
@@ -143,6 +144,7 @@ The stack-allocated reference `r` is allocated inside the definition of
 type-checker ensures that it does not outlive the region that it lives in,
 which is the entire body of `f`.
 
+### Other regions
 As well as function bodies, a region is also placed around:
 
   - Loop bodies (`while` and `for`)
