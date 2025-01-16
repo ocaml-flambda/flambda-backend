@@ -85,13 +85,13 @@ let[@inline never] [@local never] [@specialize never] add_arrays_rec_unrolled_at
   in
   loop 0 a b c (2 * n)
 
-(* cannot vectorizer for-loops *)
+(* cannot vectorize for-loops *)
 let[@inline never] [@local never] [@specialize never] add_arrays_for a b c n =
   for i = 0 to n - 1 do
     Array.unsafe_set c i (Array.unsafe_get a i + Array.unsafe_get b i)
   done
 
-(* cannot vectorizer loops expressed using recursion *)
+(* cannot vectorize loops expressed using recursion *)
 let[@inline never] [@local never] [@specialize never] add_arrays_rec a b c n =
   let rec loop i =
     if i < n
