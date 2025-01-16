@@ -168,6 +168,8 @@ static void parse_ocamlrunparam(char_os* opt)
 }
 
 #ifdef NATIVE_CODE
+// Any default parameters added to an ocaml executable by passing -ocamlrunparam
+// to the compiler.
 // See asmcomp/asmlink.ml
 extern char caml_ocamlrunparam[];
 #endif
