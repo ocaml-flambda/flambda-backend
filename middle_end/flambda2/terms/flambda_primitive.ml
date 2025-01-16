@@ -1716,9 +1716,8 @@ let compare_binary_primitive p1 p2 =
     if c <> 0 then c else Stdlib.compare comp1 comp2
   | Bigarray_get_alignment align1, Bigarray_get_alignment align2 ->
     Int.compare align1 align2
-  | Atomic_exchange block_access_field_kind1,
-    Atomic_exchange block_access_field_kind2
-    ->
+  | ( Atomic_exchange block_access_field_kind1,
+      Atomic_exchange block_access_field_kind2 ) ->
     Block_access_field_kind.compare block_access_field_kind1
       block_access_field_kind2
   | ( ( Block_set _ | Array_load _ | String_or_bigstring_load _
@@ -1761,8 +1760,8 @@ let print_binary_primitive ppf p =
   | Bigarray_get_alignment align ->
     fprintf ppf "@[(Bigarray_get_alignment[%d])@]" align
   | Atomic_exchange block_access_field_kind ->
-      Format.fprintf ppf "@[(Atomic_exchange@ %a)@]" Block_access_field_kind.print
-        block_access_field_kind
+    Format.fprintf ppf "@[(Atomic_exchange@ %a)@]" Block_access_field_kind.print
+      block_access_field_kind
   | Atomic_fetch_and_add -> fprintf ppf "Atomic_fetch_and_add"
   | Poke kind ->
     fprintf ppf "@[(Poke@ %a)@]"
@@ -1921,14 +1920,12 @@ let compare_ternary_primitive p1 p2 =
     else
       let c = Stdlib.compare kind1 kind2 in
       if c <> 0 then c else Stdlib.compare layout1 layout2
-  | Atomic_compare_and_set block_access_field_kind1,
-    Atomic_compare_and_set block_access_field_kind2
-    ->
+  | ( Atomic_compare_and_set block_access_field_kind1,
+      Atomic_compare_and_set block_access_field_kind2 ) ->
     Block_access_field_kind.compare block_access_field_kind1
       block_access_field_kind2
-  | Atomic_compare_exchange block_access_field_kind1,
-    Atomic_compare_exchange block_access_field_kind2
-    ->
+  | ( Atomic_compare_exchange block_access_field_kind1,
+      Atomic_compare_exchange block_access_field_kind2 ) ->
     Block_access_field_kind.compare block_access_field_kind1
       block_access_field_kind2
   | ( ( Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
@@ -1954,11 +1951,11 @@ let print_ternary_primitive ppf p =
       "@[(Bigarray_set (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
   | Atomic_compare_and_set block_access_field_kind ->
-      Format.fprintf ppf "@[(Atomic_compare_and_set@ %a)@]"
-        Block_access_field_kind.print block_access_field_kind
+    Format.fprintf ppf "@[(Atomic_compare_and_set@ %a)@]"
+      Block_access_field_kind.print block_access_field_kind
   | Atomic_compare_exchange block_access_field_kind ->
-      Format.fprintf ppf "@[(Atomic_compare_exchange@ %a)@]"
-        Block_access_field_kind.print block_access_field_kind
+    Format.fprintf ppf "@[(Atomic_compare_exchange@ %a)@]"
+      Block_access_field_kind.print block_access_field_kind
 
 let args_kind_of_ternary_primitive p =
   match p with

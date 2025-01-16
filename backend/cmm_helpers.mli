@@ -1011,7 +1011,7 @@ val atomic_fetch_and_add :
 
 val atomic_compare_and_set :
   dbg:Debuginfo.t ->
-  Lambda.immediate_or_pointer -> 
+  Lambda.immediate_or_pointer ->
   expression ->
   old_value:expression ->
   new_value:expression ->
@@ -1019,7 +1019,7 @@ val atomic_compare_and_set :
 
 val atomic_compare_exchange :
   dbg:Debuginfo.t ->
-  Lambda.immediate_or_pointer -> 
+  Lambda.immediate_or_pointer ->
   expression ->
   old_value:expression ->
   new_value:expression ->

@@ -2383,21 +2383,26 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
           atomic ) ]
   | Patomic_exchange { immediate_or_pointer }, [[atomic]; [new_value]] ->
-    [Binary
-       (Atomic_exchange (convert_block_access_field_kind immediate_or_pointer),
-        atomic, new_value)]
-  | Patomic_compare_exchange { immediate_or_pointer },
-    [[atomic]; [old_value]; [new_value]] ->
-    [Ternary
-       (Atomic_compare_exchange
-          (convert_block_access_field_kind immediate_or_pointer),
-        atomic, old_value, new_value)]
-  | Patomic_cas { immediate_or_pointer },
-    [[atomic]; [old_value]; [new_value]] ->
-    [Ternary
-       (Atomic_compare_and_set
-          (convert_block_access_field_kind immediate_or_pointer),
-        atomic, old_value, new_value)]
+    [ Binary
+        ( Atomic_exchange (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          new_value ) ]
+  | ( Patomic_compare_exchange { immediate_or_pointer },
+      [[atomic]; [old_value]; [new_value]] ) ->
+    [ Ternary
+        ( Atomic_compare_exchange
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
+  | Patomic_cas { immediate_or_pointer }, [[atomic]; [old_value]; [new_value]]
+    ->
+    [ Ternary
+        ( Atomic_compare_and_set
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
   | Patomic_fetch_add, [[atomic]; [i]] ->
     [Binary (Atomic_fetch_and_add, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
@@ -2496,8 +2501,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Pgcscannableproductarray_ref _ | Pgcignorableproductarray_ref _ ),
             _,
             _ )
-      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange _
-      | Patomic_fetch_add | Ppoke _ ),
+      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+      | Patomic_exchange _ | Patomic_fetch_add | Ppoke _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
