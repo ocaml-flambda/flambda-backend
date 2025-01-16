@@ -35,6 +35,17 @@ let stack_ abc = (42, 24) in
 Placing `stack_` on an expression that is not an allocation is meaningless and
 causes type error.
 
+### Runtime behavior
+
+At runtime, stack allocations do not take place on the C stack, but on a
+separately-allocated stack that follows the same layout as the OCaml
+minor heap. In particular, this allows local-returning functions
+(see "Use exclave_ to return a local value" below )
+without the need to copy returned values.
+
+The beginning of a stack frame records the stack pointer of this local stack,
+and the end of the stack frame resets the stack pointer to this value.
+
 ### Regions
 
 Every stack allocation takes places inside a stack frame, and is freed when the
@@ -98,16 +109,6 @@ Additionally, it is possible to write functions that do *not* have a region
 around their body, which is useful to write functions that return
 stack-allocated values. See "Use exclave_ to return a local value" below.
 
-### Runtime behavior
-
-At runtime, stack allocations do not take place on the C stack, but on a
-separately-allocated stack that follows the same layout as the OCaml
-minor heap. In particular, this allows local-returning functions
-without the need to copy returned values.
-
-The beginning of a region records the stack pointer of this local
-stack, and the end of the region resets the stack pointer to this
-value.
 
 
 ### Nested regions
