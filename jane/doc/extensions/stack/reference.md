@@ -19,38 +19,52 @@ The `stack_` keyword may be placed on an allocation to indicate that
 it should be stack-allocated:
 
 ```ocaml
-let abc = stack_ [a; b; c] in
+let abc = stack_ (42, 24) in
 ...
 ```
 
-Here, the three cons cells of the list `[a; b; c]` will all be stack-allocated.
+Here, the tuple cell will be stack-allocated.
 
 Equivalently, the keyword `stack_` may precede the bound variable in a `let`:
 
 ```ocaml
-let stack_ abc = [a; b; c] in
+let stack_ abc = (42, 24) in
 ...
 ```
 
 Placing `stack_` on an expression that is not an allocation is meaningless and
 causes type error.
 
-## Regions
+### Regions
 
 Every stack allocation takes places inside a stack frame, and is freed when the
-stack frame is freed. Correspondingly, every OCaml value belongs to a _region_,
-which is a block of code (usually a function body, but see below), and is not
-available out of the region. We say the value is `local` to the region.
+stack frame is freed. For this to be safe, stack-allocated values cannot be used
+after their stack frame is freed. This runtime behavior is guaranteed at
+compile-time by the type checker as follows.
 
-Regions may nest, for instance when one function calls another. Stack allocaiton
-always gives a value that is `local` to the current region. `global` values are
-in the outermost region that represents the GC heap.
+Every OCaml value lives in a _region_. Usually a function body has a region,
+representing the function's stack frame at runtime. A stack-allocated value
+lives in the region it's allocated in. We say the value is _local_ to the region
+it lives in. Regions may nest, for instance when one function calls another.
+Stack allocaiton always gives a value that lives in the current region, since at
+runtime one can only allocate in the current stack frame. There is an outermost
+region, and values living in it are _global_. Heap-allocated values live in this
+region.
 
 We say that a value _escapes_ a region if it is still referenced beyond the end
-of that region. The job of the type-checker is to ensure that values do not
-escape the region that they belong to. Since stack-allocated values belong to
-the region representing the stack frame containing the allocation, they are
-ensured to be never referenced after their stack frame is freed.
+of that region. The type-checker guarantees that values do not escape the region
+that they live in. Since stack-allocated values live in the region representing
+the stack frame containing the allocation, they are guaranteed to be never
+referenced after their stack frame is freed.
+
+The above guarantee means that global values can escape all regions except the
+outermost one. However, we say the outermost region never ends, so values never
+need to escape that region.
+
+Global values, being allowed to escape regions, may not reference local ones,
+since that will make the local values escape regions, which breaks the
+guarantee. Local values may reference global ones.
+
 
 "Region" is a wider concept than "scope", and stack-allocated variables can
 outlive their scope. For example:
@@ -68,7 +82,7 @@ let f () =
 The stack-allocated reference `r` is allocated inside the definition of
 `counter`. This value outlives the scope of `r` (it is bound to the variable
 `counter` and may later be used in the code marked `...`). However, the
-type-checker ensures that it does not outlive the region that it belongs to,
+type-checker ensures that it does not outlive the region that it lives in,
 which is the entire body of `f`.
 
 As well as function bodies, a region is also placed around:
@@ -95,28 +109,14 @@ The beginning of a region records the stack pointer of this local
 stack, and the end of the region resets the stack pointer to this
 value.
 
-### Variables and regions
 
-To spot escaping `local` values, the type checker internally tracks whether
-each variable is:
-
-<!-- CR zqian: move this above -->
-
-  - **Global**: must be a global value. These variables are allowed to freely
-    cross region boundaries, as normal OCaml values.
-
-  - **Local**: may be a locally-allocated value. These variables are restricted
-    from crossing region boundaries.
-
-As described above, whether a given variable is global or local (and hence
-whether or not optimized to stack allocation) is inferred by
-the type-checker, although the `stack_` keyword may be used to specify it.
-
+### Nested regions
+Let's further explore the idea of nested regions mentioned above.
 Additionally, `local` variables are further subdivided into two cases:
 
-  - **Outer-region local**: belongs to an outer region, not the current region.
+  - **Outer-region local**: lives in an outer region, not the current region.
 
-  - **Any-region local**: belongs to an unknown region, potentially the current
+  - **Any-region local**: lives in an unknown region, potentially the current
     region.
 
 For instance:
@@ -150,9 +150,6 @@ compiler know that it is safe to still refer to `outer` from within the closure
 `g`? See "Closures" below for more details)
 
 
-Stack-allocated values are _local_, and may reference _global_ (that is,
-GC-allocated) values, but _global_ values may not reference _local_ ones.
-In the example above, any or all of `a`, `b` and `c` may themselves be stack-allocated.
 
 Global values can be weakened to local, effectively "forgetting" that a
 value can escape regions. For instance, if there is a global `x : int list` in
@@ -203,11 +200,13 @@ places, you may want to check out
 
 In fact, the allocations of the examples above will be on
 stack even without the `stack_` keyword, if it is safe to do
-so. The presence of the keyword on an expression only affects what
-happens if the value escapes (e.g. is stored into a global hash table)
+so. The presence of the keyword on an allocation only affects what
+happens if the allocated value escapes (e.g. is stored into a global hash table)
 and therefore cannot be stack-allocated. With the keyword, an error
 will be reported, while without the keyword the allocations will occur
-on the GC heap as usual.
+on the GC heap as usual. Similarly, whether a value is global or local (and
+hence whether certain allocation can be on stack) is inferred by the
+type-checker, although the `local_` keyword may be used to specify it.
 
 Inference does not cross file boundaries. If local annotations subject to
 inference appear in the type of a module (e.g. since they can appear in
