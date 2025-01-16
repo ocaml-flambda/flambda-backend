@@ -440,6 +440,8 @@ let asr_int c1 c2 dbg =
     | c1' -> Cop (Casr, [c1'; c2], dbg))
   | _ -> Cop (Casr, [c1; c2], dbg)
 
+let asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
+
 let tag_int i dbg =
   match i with
   | Cconst_int (n, _) -> int_const dbg n
@@ -570,22 +572,28 @@ let udivmod n d =
 
 let divimm_parameters d =
   Nativeint.(
-    assert (d > 0n);
-    let twopsm1 = min_int in
+    let ad = abs d in
+    assert (ad > 1n);
     (* 2^31 for 32-bit archs, 2^63 for 64-bit archs *)
-    let nc = sub (pred twopsm1) (snd (udivmod twopsm1 d)) in
+    let t = add min_int (shift_right_logical d (size - 1)) in
+    let anc = sub (pred t) (snd (udivmod t ad)) in
     let rec loop p (q1, r1) (q2, r2) =
       let p = p + 1 in
       let q1 = shift_left q1 1 and r1 = shift_left r1 1 in
-      let q1, r1 = if ucompare r1 nc >= 0 then succ q1, sub r1 nc else q1, r1 in
+      let q1, r1 =
+        if ucompare r1 anc >= 0 then succ q1, sub r1 anc else q1, r1
+      in
       let q2 = shift_left q2 1 and r2 = shift_left r2 1 in
-      let q2, r2 = if ucompare r2 d >= 0 then succ q2, sub r2 d else q2, r2 in
-      let delta = sub d r2 in
+      let q2, r2 = if ucompare r2 ad >= 0 then succ q2, sub r2 ad else q2, r2 in
+      let delta = sub ad r2 in
       if ucompare q1 delta < 0 || (q1 = delta && r1 = 0n)
       then loop p (q1, r1) (q2, r2)
-      else succ q2, p - size
+      else
+        let m = succ q2 in
+        let m = if d < 0n then neg m else m in
+        m, p - size
     in
-    loop (size - 1) (udivmod twopsm1 nc) (udivmod twopsm1 d))
+    loop (size - 1) (udivmod min_int anc) (udivmod min_int ad))
 
 (* The result [(m, p)] of [divimm_parameters d] satisfies the following
    inequality:
@@ -670,31 +678,23 @@ let make_safe_divmod operator ~if_divisor_is_negative_one
 
 let is_power_of_2 n = Nativeint.logand n (Nativeint.pred n) = 0n
 
-let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
+let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
   let if_divisor_is_negative_one ~dividend ~dbg = neg_int dividend dbg in
   match get_const c1, get_const c2 with
-  | _, Some 0n -> Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
+  | _, Some 0n -> sequence c1 (raise_symbol dbg "caml_exn_Division_by_zero")
   | _, Some 1n -> c1
   | Some n1, Some n2 -> natint_const_untagged dbg (Nativeint.div n1 n2)
   | _, Some -1n -> if_divisor_is_negative_one ~dividend:c1 ~dbg
-  | _, Some n ->
-    if n < 0n
+  | _, Some divisor ->
+    if divisor = Nativeint.min_int
     then
-      if n = Nativeint.min_int
-      then
-        (* integer division by min_int always returns 0 unless the dividend is
-           also min_int, in which case it's 1. This is the same as comparing
-           against min_int. *)
-        Cop (Ccmpi Ceq, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg)
-      else
-        neg_int
-          (div_int ?dividend_cannot_be_min_int c1
-             (Cconst_natint (Nativeint.neg n, dbg))
-             dbg)
-          dbg
-    else if is_power_of_2 n
+      (* integer division by min_int always returns 0 unless the dividend is
+         also min_int, in which case it's 1. This is the same as comparing
+         against min_int. *)
+      Cop (Ccmpi Ceq, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg)
+    else if is_power_of_2 divisor
     then
-      let l = Misc.log2_nativeint n in
+      let l = Misc.log2_nativeint divisor in
       (* Algorithm:
 
          t = shift-right-signed(c1, l - 1)
@@ -702,17 +702,15 @@ let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
          t = shift-right(t, W - l)
 
          t = c1 + t res = shift-right-signed(c1 + t, l) *)
-      Cop
-        ( Casr,
-          [ bind "dividend" c1 (fun c1 ->
-                assert (l >= 1);
-                let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
-                let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
-                add_int c1 t dbg);
-            Cconst_int (l, dbg) ],
-          dbg )
+      asr_const
+        (bind "dividend" c1 (fun c1 ->
+             assert (l >= 1);
+             let t = asr_const c1 (l - 1) dbg in
+             let t = lsr_const t (Nativeint.size - l) dbg in
+             add_int c1 t dbg))
+        l dbg
     else
-      let m, p = divimm_parameters n in
+      let m, p = divimm_parameters divisor in
       (* Algorithm:
 
          t = multiply-high-signed(c1, m) if m < 0,
@@ -722,16 +720,22 @@ let rec div_int ?dividend_cannot_be_min_int c1 c2 dbg =
          t = shift-right-signed(t, p)
 
          res = t + sign-bit(c1) *)
-      bind "dividend" c1 (fun c1 ->
-          let t =
-            Cop
-              (Cmulhi { signed = true }, [c1; natint_const_untagged dbg m], dbg)
+      bind "dividend" c1 (fun n ->
+          let q =
+            Cop (Cmulhi { signed = true }, [n; natint_const_untagged dbg m], dbg)
           in
-          let t = if m < 0n then Cop (Caddi, [t; c1], dbg) else t in
-          let t =
-            if p > 0 then Cop (Casr, [t; Cconst_int (p, dbg)], dbg) else t
+          let q =
+            if m < 0n && divisor >= 0n
+            then add_int q n dbg
+            else if m >= 0n && divisor < 0n
+            then sub_int q n dbg
+            else q
           in
-          add_int t (lsr_int c1 (Cconst_int (Nativeint.size - 1, dbg)) dbg) dbg)
+          let q = asr_const q p dbg in
+          let q_is_negative =
+            lsr_const (if divisor >= 0n then n else q) (Nativeint.size - 1) dbg
+          in
+          add_int q q_is_negative dbg)
   | _, _ ->
     make_safe_divmod ?dividend_cannot_be_min_int ~if_divisor_is_negative_one
       Cdivi c1 c2 ~dbg
@@ -741,20 +745,24 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
     sequence dividend (Cconst_int (0, dbg))
   in
   match get_const c1, get_const c2 with
-  | _, Some 0n -> Csequence (c1, raise_symbol dbg "caml_exn_Division_by_zero")
+  | _, Some 0n -> sequence c1 (raise_symbol dbg "caml_exn_Division_by_zero")
   | _, Some (1n | -1n) ->
     if_divisor_is_positive_or_negative_one ~dividend:c1 ~dbg
   | Some n1, Some n2 -> natint_const_untagged dbg (Nativeint.rem n1 n2)
   | _, Some n ->
     if n = Nativeint.min_int
     then
+      (* similarly to the division by min_int almost always being 0, modulo
+         min_int is almost always the identity, the exception being when the
+         divisor is min_int *)
       bind "dividend" c1 (fun c1 ->
+          let min_int = Cconst_natint (Nativeint.min_int, dbg) in
           Cifthenelse
-            ( Cop (Ccmpi Ceq, [c1; neg_int c1 dbg], dbg),
+            ( Cop (Ccmpi Ceq, [c1; min_int], dbg),
               dbg,
               Cconst_int (0, dbg),
               dbg,
-              Cop (Cor, [c1; Cconst_natint (Nativeint.min_int, dbg)], dbg),
+              c1,
               dbg,
               Any ))
     else if is_power_of_2 n
