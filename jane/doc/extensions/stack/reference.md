@@ -90,17 +90,19 @@ However, if `n <= 0`, then `l` will be `x`, which is global. The later is
 implicitly weakened to local and joins with the other branch, making the whole
 expression local.
 
-Consider another example:
+You can also use the `local_` keyword to explicitly weaken a value to local. For
+example:
 
 ```ocaml
 let l = local_ if n > 0 then n :: x else x in
 ...
 ```
 
-The `local_` annotation forces `l` to be local, which prevents `l` from
-escaping the current region. As a result, the compiler might optimize `n :: x`
-to be stack-allocated in the current region. However, this is not to be relied
-upon - you should always use `stack_` to ensure stack allocation.
+The `local_` keyword doesn't force stack allocation. However, it does weaken
+`l` to local, which prevents `l` from escaping the current region, and as a
+result the compiler might optimize `n :: x` to be stack-allocated in the current
+region. However, this is not to be relied upon - you should always use `stack_`
+to ensure stack allocation.
 
 Most OCaml types can be stack-allocated, including records, variants,
 polymorphic variants, closures, boxed numbers and strings. However, certain
