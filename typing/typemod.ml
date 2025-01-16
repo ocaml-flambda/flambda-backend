@@ -660,7 +660,6 @@ let merge_constraint initial_env loc sg lid constr =
       when Ident.name id = s && Typedecl.is_fixed_type sdecl ->
         let decl_row =
           let arity = List.length sdecl.ptype_params in
-          (* CR rtjoa:  *)
           { type_params =
               (* jkind any is fine on the params because they get thrown away
                  below *)
@@ -693,7 +692,6 @@ let merge_constraint initial_env loc sg lid constr =
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
             type_has_illegal_crossings = false;
-            (* CR rtjoa: with type *)
             type_unboxed_version = None;
           }
         and id_row = Ident.create_local (s^"#row") in

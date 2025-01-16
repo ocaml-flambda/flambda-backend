@@ -3533,6 +3533,48 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
+  let type_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+  let type_unboxed_version =
+    match sig_decl.type_unboxed_version with
+    | None -> None
+    | Some sig_decl_unboxed ->
+      let type_kind, type_jkind =
+        (* CR rtjoa: understand *)
+        if arity_ok then
+          sig_decl_unboxed.type_kind, sig_decl_unboxed.type_jkind
+        else
+          Type_abstract Definition, sig_decl_unboxed.type_jkind
+      in
+      let man = match get_desc man with
+        | Tconstr (path, args, _) ->
+          (* CR rtjoa: will this give good errors if the derived unboxed version
+             doesn't exist, or has a different number of args? *)
+          Ctype.newconstr
+            (Pextra_ty (path, Pderived_unboxed_ty)) args
+        | _ ->
+          (* CR rtjoa: this is reachable. but an error, because only
+             tconstr can have a derived unboxed version *)
+          assert false
+      in
+      Some
+        { type_params = params;
+        type_arity = arity;
+        type_kind;
+        type_jkind;
+        type_private = priv;
+        type_manifest = Some man;
+        type_variance = [];
+        type_separability = Types.Separability.default_signature ~arity;
+        type_is_newtype = false;
+        type_expansion_scope = Btype.lowest_level;
+        type_loc = loc;
+        type_attributes = [];
+        type_unboxed_default = false;
+        type_uid;
+        type_has_illegal_crossings = false;
+        type_unboxed_version = None;
+      }
+  in
   let type_kind, type_unboxed_default, type_jkind =
     if arity_ok then
       sig_decl.type_kind,
@@ -3555,10 +3597,9 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_loc = loc;
       type_attributes = sdecl.ptype_attributes;
       type_unboxed_default;
-      type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+      type_uid;
       type_has_illegal_crossings = false;
-      (* CR rtjoa: with constraint*)
-      type_unboxed_version = None;
+      type_unboxed_version;
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -3600,7 +3641,14 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_separability = new_type_separability;
       type_has_illegal_crossings = false;
       (* CR rtjoa: with constraint *)
-      type_unboxed_version = None;
+      type_unboxed_version =
+        Option.map (fun d -> {
+          d with
+          type_variance = new_type_variance;
+          type_separability = new_type_separability;
+          type_has_illegal_crossings = false;
+        }) new_sig_decl.type_unboxed_version
+        ;
     } in
   {
     typ_id = id;
