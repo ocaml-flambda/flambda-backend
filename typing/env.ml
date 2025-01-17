@@ -339,6 +339,12 @@ type lock =
   | Exclave_lock
   | Unboxed_lock (* to prevent capture of terms with non-value types *)
 
+type locks = lock list
+
+let locks_empty = []
+
+let locks_is_empty l = l = locks_empty
+
 type lock_item =
   | Value
   | Module
@@ -719,7 +725,7 @@ and module_data =
     mda_address : address_lazy;
     mda_shape: Shape.t; }
 
-and module_alias_locks = lock list
+and module_alias_locks = locks
   (** If the module is an alias for another module, this is the list of locks
       from the original module to this module. This is accumulative: write
       [module B = A;; module C = B;;], then [C] will record all locks from [A]
@@ -2614,7 +2620,7 @@ module Add_signature(T : Types.Wrapped)(M : sig
   val add_value: ?shape:Shape.t -> mode:(Mode.allowed * 'r0) Mode.Value.t -> Ident.t ->
     T.value_description  -> t -> t
   val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool
-    -> Ident.t -> module_presence -> T.module_declaration -> ?locks:lock list ->
+    -> Ident.t -> module_presence -> T.module_declaration -> ?locks:locks ->
     t -> t
   val add_modtype: ?shape:Shape.t -> Ident.t -> T.modtype_declaration -> t -> t
 end) = struct

@@ -301,7 +301,7 @@ let error_of_filter_arrow_failure ~explanation ~first ty_fun
 let type_module =
   ref ((fun _env _md -> assert false) :
        Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t *
-        Env.lock list)
+        Env.locks)
 
 (* Forward declaration, to be filled in by Typemod.type_open *)
 
