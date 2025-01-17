@@ -94,7 +94,7 @@ val tag_int : expression -> Debuginfo.t -> expression
 (** Integer untagging. [untag_int x = (x asr 1)] *)
 val untag_int : expression -> Debuginfo.t -> expression
 
-(** Specific division operations for boxed integers *)
+(** signed division of two register-width integers *)
 val div_int :
   ?dividend_cannot_be_min_int:bool ->
   expression ->
@@ -102,6 +102,7 @@ val div_int :
   Debuginfo.t ->
   expression
 
+(** signed remainder of two register-width integers *)
 val mod_int :
   ?dividend_cannot_be_min_int:bool ->
   expression ->
