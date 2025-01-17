@@ -154,7 +154,8 @@ let unless_atom id args k info =
   let post_level =
     find_last_binding (Cursor.initial_actions info.context) args
   in
-  Cursor.add_action post_level (Cursor.unless id refs);
+  let r = Cursor.add_naive_binder info.context id in
+  Cursor.add_action post_level (Cursor.unless id r refs);
   k info
 
 let yield output (info : _ context) =

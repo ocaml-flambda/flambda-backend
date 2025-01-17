@@ -19,7 +19,7 @@ type action
 
 val bind_iterator : 'a option ref -> 'a Trie.Iterator.t -> action
 
-val unless : ('t, 'k, 'v) Table.Id.t -> 'k Option_ref.hlist -> action
+val unless : ('t, 'k, 'v) Table.Id.t -> 't ref -> 'k Option_ref.hlist -> action
 
 type actions
 
@@ -63,6 +63,8 @@ val create_context : unit -> context
 val add_new_level : context -> string -> 'a Level.t
 
 val add_iterator : context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.hlist
+
+val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't ref
 
 (** Initial actions are always executed when iterating over a cursor, before
     opening the first level. *)

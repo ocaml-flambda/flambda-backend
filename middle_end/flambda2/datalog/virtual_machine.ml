@@ -19,130 +19,106 @@ type outcome =
   | Accept
   | Skip
 
-type ('y, 'r) state =
-  | Yielded of 'y
-  | Complete of 'r
-
 module Make (Iterator : Leapfrog.Iterator) = struct
-  type ('i, 'x, 'y, 's) stack =
-    | Stack_nil : ('i, 'x, 'y, nil) stack
+  type ('y, 's) stack =
+    | Stack_nil : ('y, nil) stack
     | Stack_cons :
-        'a
-        * 'a Iterator.t
-        * ('i, 'x, 'y, 'a -> 's) compiled
-        * ('i, 'x, 'y, 's) stack
-        -> ('i, 'x, 'y, 'a -> 's) stack
+        'a Iterator.t
+        * 'a option ref
+        * ('y, 'a -> 's) continuation
+        * ('y, 's) stack
+        -> ('y, 'a -> 's) stack
 
-  and ('i, 'x, 'y) suspension =
+  and 'y suspension =
     | Suspension :
-        { stack : ('i, 'x, 'y, 's) stack;
-          state : 'i;
-          instruction : ('i, 'x, 'y, 's) compiled
+        { stack : ('y, 's) stack;
+          continuation : ('y, 's) continuation
         }
-        -> ('i, 'x, 'y) suspension
+        -> 'y suspension
 
-  and ('i, 'x, 'y, 's) compiled =
-    'i -> ('i, 'x, 'y, 's) stack -> ('i, 'x, 'y) suspension * ('y, 'i) state
-
-  let rec exhausted :
-      type x y i.
-      i -> (i, x, y, nil) stack -> (i, x, y) suspension * (y, i) state =
-   fun state Stack_nil ->
-    ( Suspension { state; stack = Stack_nil; instruction = exhausted },
-      Complete state )
-
-  let rec advance :
-      type i x y s.
-      i -> (i, x, y, s) stack -> (i, x, y) suspension * (y, i) state =
-   fun input stack ->
-    match stack with
-    | Stack_nil -> exhausted input stack
-    | Stack_cons (_, iterator, level, stack) -> (
-      Iterator.advance iterator;
-      match Iterator.current iterator with
-      | Some current_key ->
-        Iterator.accept iterator;
-        level input (Stack_cons (current_key, iterator, level, stack))
-      | None -> advance input stack)
-
-  let pop : type i a x y s. (i, x, y, s) compiled -> (i, x, y, a -> s) compiled
-      =
-   fun k input (Stack_cons (_, _, _, stack)) -> k input stack
-
-  let open_ :
-      type a x y s.
-      a Iterator.t -> (_, x, y, a -> s) compiled -> (_, x, y, s) compiled =
-   fun iterator k input stack ->
-    Iterator.init iterator;
-    match Iterator.current iterator with
-    | Some current_key ->
-      Iterator.accept iterator;
-      k input (Stack_cons (current_key, iterator, k, stack))
-    | None -> advance input stack
-
-  let yield rs k : (_, _, _, _) compiled =
-   fun state stack ->
-    Suspension { state; stack; instruction = k }, Yielded (Option_ref.get rs)
-
-  let set_output r k input (Stack_cons (v, _, _, _) as stack) =
-    r := Some v;
-    k input stack
-
-  let step : type y i. (i, _, y) suspension ref -> (y, i) state =
-   fun state ->
-    let (Suspension { stack; state = input; instruction }) = !state in
-    let suspension, outcome = instruction input stack in
-    state := suspension;
-    outcome
-
-  type 'y t = State : ('i, 'a, 'y) suspension ref -> 'y t [@@unboxed]
-
-  let create input instruction =
-    State (ref (Suspension { state = input; stack = Stack_nil; instruction }))
+  and ('y, 's) continuation = ('y, 's) stack -> 'y suspension * 'y option
 
   type ('a, 'y, 's) instruction =
     | Advance : ('a, 'y, 's) instruction
-    | Pop : ('x, 'y, 's) instruction -> ('x, 'y, 'a -> 's) instruction
+    | Up : ('x, 'y, 's) instruction -> ('x, 'y, 'a -> 's) instruction
+    | Dispatch : ('a, 'y, 'b -> 's) instruction
     | Open :
-        'b Iterator.t * ('a, 'y, 'b -> 's) instruction
+        'b Iterator.t
+        * 'b option ref
+        * ('a, 'y, 'b -> 's) instruction
+        * ('a, 'y, 'b -> 's) instruction
         -> ('a, 'y, 's) instruction
     | Action : 'a * ('a, 'y, 's) instruction -> ('a, 'y, 's) instruction
     | Yield :
         'y Option_ref.hlist * ('a, 'y Constant.hlist, 's) instruction
         -> ('a, 'y Constant.hlist, 's) instruction
-    | Set_output :
-        'a option ref * ('x, 'y, 'a -> 's) instruction
-        -> ('x, 'y, 'a -> 's) instruction
 
-  let compile (type a i) ~(evaluate : a -> i -> outcome) instruction :
-      (_, _, _, _) compiled =
-    let action op k input stack =
-      match (evaluate [@inlined hint]) op input with
-      | Accept -> k input stack
-      | Skip -> advance input stack
+  let rec exhausted : type y. (y, nil) continuation =
+   fun Stack_nil ->
+    Suspension { stack = Stack_nil; continuation = exhausted }, None
+
+  let[@inline always] dispatch ~advance (stack : (_, _ -> _) stack) =
+    let (Stack_cons (iterator, cell, level, stack)) = stack in
+    match Iterator.current iterator with
+    | Some current_key ->
+      Iterator.accept iterator;
+      cell := Some current_key;
+      level (Stack_cons (iterator, cell, level, stack))
+    | None -> advance stack
+
+  let[@loop] rec advance : type y s. (y, s) continuation =
+   fun stack ->
+    match stack with
+    | Stack_nil -> exhausted stack
+    | Stack_cons (iterator, _, _, _) as stack ->
+      Iterator.advance iterator;
+      dispatch ~advance stack
+
+  let step : type y. y suspension ref -> y option =
+   fun state ->
+    let (Suspension { stack; continuation }) = !state in
+    let suspension, outcome = continuation stack in
+    state := suspension;
+    outcome
+
+  type 'y t = State : 'y suspension ref -> 'y t [@@unboxed]
+
+  let[@inline] execute (type a) ~(evaluate : a -> outcome) instruction =
+    let rec execute : type s y. (a, y, s) instruction -> (y, s) continuation =
+     fun instruction stack ->
+      match instruction with
+      | Advance -> advance stack
+      | Up k ->
+        let (Stack_cons (_, _, _, stack)) = stack in
+        execute k stack
+      | Open (iterator, cell, for_each, k) ->
+        Iterator.init iterator;
+        execute k (Stack_cons (iterator, cell, execute for_each, stack))
+      | Dispatch -> dispatch ~advance stack
+      | Action (op, k) -> (
+        match (evaluate [@inlined hint]) op with
+        | Accept -> execute k stack
+        | Skip -> advance stack)
+      | Yield (rs, k) ->
+        Suspension { stack; continuation = execute k }, Some (Option_ref.get rs)
     in
-    let rec compile : type y s. (a, y, s) instruction -> (i, a, y, s) compiled =
-      function
-      | Advance -> advance
-      | Pop k -> pop (compile k)
-      | Open (iterator, k) -> open_ iterator (compile k)
-      | Action (a, k) -> action a (compile k)
-      | Yield (rs, k) -> yield rs (compile k)
-      | Set_output (r, k) -> set_output r (compile k)
-    in
-    compile instruction
+    execute instruction
+
+  let create ~evaluate (instruction : (_, _, _) instruction) =
+    let continuation = execute ~evaluate instruction in
+    State (ref (Suspension { stack = Stack_nil; continuation }))
 
   let advance = Advance
 
-  let pop i = Pop i
+  let up i = Up i
 
-  let open_ i a = Open (i, a)
+  let dispatch = Dispatch
+
+  let open_ i cell a dispatch = Open (i, cell, a, dispatch)
 
   let action a i = Action (a, i)
 
   let yield y i = Yield (y, i)
-
-  let set_output r i = Set_output (r, i)
 
   let rec refs : type s. s Iterator.hlist -> s Option_ref.hlist = function
     | [] -> []
@@ -151,7 +127,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
   type erev = Erev : 's Iterator.hlist * 's Option_ref.hlist -> erev
 
   let iterate :
-      type x s. s Iterator.hlist -> (x, s Constant.hlist, nil) instruction =
+      type a. a Iterator.hlist -> (_, a Constant.hlist, nil) instruction =
    fun iterators ->
     let rec rev0 :
         type s. s Iterator.hlist -> s Option_ref.hlist -> erev -> erev =
@@ -165,30 +141,32 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     let rs = refs iterators in
     let (Erev (rev_iterators, rev_refs)) = rev0 iterators rs (Erev ([], [])) in
     let rec loop :
-        type y s.
-        s Iterator.hlist ->
-        s Option_ref.hlist ->
-        (x, y Constant.hlist, s) instruction ->
-        (x, y Constant.hlist, nil) instruction =
+        type y s a.
+        (a -> s) Iterator.hlist ->
+        (a -> s) Option_ref.hlist ->
+        (_, y Constant.hlist, a -> s) instruction ->
+        (_, y Constant.hlist, nil) instruction =
      fun iterators refs instruction ->
       match iterators, refs with
-      | [], [] -> instruction
-      | iterator :: iterators, r :: refs ->
-        loop iterators refs (open_ iterator (set_output r instruction))
+      | [iterator], [r] -> open_ iterator r instruction dispatch
+      | iterator :: (_ :: _ as iterators), r :: refs ->
+        loop iterators refs (open_ iterator r instruction dispatch)
     in
-    loop rev_iterators rev_refs (yield rs advance)
+    match rev_iterators with
+    | [] -> Advance
+    | _ :: _ -> loop rev_iterators rev_refs (yield rs advance)
 
   type void = |
 
   let iterator iterators =
-    let evaluate : void -> unit -> outcome = function _ -> . in
-    create () (compile ~evaluate (iterate iterators))
+    let evaluate : void -> outcome = function _ -> . in
+    create ~evaluate (iterate iterators)
 
   let[@inline] fold f (State state) init =
     let rec loop state acc =
       match step state with
-      | Yielded output -> loop state (f output acc)
-      | Complete _ -> acc
+      | Some output -> loop state (f output acc)
+      | None -> acc
     in
     loop state init
 

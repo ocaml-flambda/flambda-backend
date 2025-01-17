@@ -17,11 +17,11 @@ open Heterogenous_list
 
 type action =
   | Bind_iterator : 'a option ref * 'a Trie.Iterator.t -> action
-  | Unless : ('t, 'k, 'v) Table.Id.t * 'k Option_ref.hlist -> action
+  | Unless : ('t, 'k, 'v) Trie.is_trie * 't ref * 'k Option_ref.hlist -> action
 
 let bind_iterator var iterator = Bind_iterator (var, iterator)
 
-let unless id args = Unless (id, args)
+let unless id cell args = Unless (Table.Id.is_trie id, cell, args)
 
 type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't ref -> binder
 
@@ -120,13 +120,15 @@ let add_binder binders binder =
 type context =
   { levels : levels;
     actions : actions;
-    binders : binders
+    binders : binders;
+    naive_binders : binders
   }
 
 let create_context () =
   { levels = create_levels ();
     actions = create_actions ();
-    binders = create_binders ()
+    binders = create_binders ();
+    naive_binders = create_binders ()
   }
 
 let add_new_level context name = add_new_level context.levels name
@@ -136,10 +138,16 @@ let add_iterator context id =
   add_binder context.binders (Bind_table (id, handler));
   iterators
 
+let add_naive_binder context id =
+  let handler = ref (Trie.empty (Table.Id.is_trie id)) in
+  add_binder context.naive_binders (Bind_table (id, handler));
+  handler
+
 let initial_actions { actions; _ } = actions
 
 type 'v t =
   { cursor_binders : binder list;
+    cursor_naive_binders : binder list;
     instruction : (action, 'v Constant.hlist, nil) Cursor.instruction
   }
 
@@ -162,33 +170,37 @@ let apply_actions actions instruction =
 (* NB: the variables must be passed in reverse order, i.e. deepest variable
    first. *)
 let rec open_rev_vars :
-    type s y.
-    s Level.hlist ->
-    (action, y, s) Cursor.instruction ->
+    type a s y.
+    (a -> s) Level.hlist ->
+    (action, y, a -> s) Cursor.instruction ->
     (action, y, nil) Cursor.instruction =
  fun vars instruction ->
   match vars with
-  | [] -> instruction
   | var :: vars -> (
     match var.iterators with
     | [] ->
-      if true
-      then assert false
-      else
-        Misc.fatal_errorf
-          "@[<v>@[Variable '%a' is never used in a binding position.@]@ \
-           @[Hint: A position is binding if it respects the provided variable \
-           ordering.@]@]"
-          Level.print var
-    | _ ->
+      Misc.fatal_errorf
+        "@[<v>@[Variable '%a' is never used in a binding position.@]@ @[Hint: \
+         A position is binding if it respects the provided variable \
+         ordering.@]@]"
+        Level.print var
+    | _ -> (
       let instruction = apply_actions var.actions instruction in
-      let instruction =
-        match var.output with
-        | Some output -> Cursor.set_output output instruction
-        | None -> instruction
+      let cell =
+        (* If we do not need the output (we usually do), write it to a dummy
+           [ref] for simplicity. *)
+        match var.output with Some output -> output | None -> ref None
       in
-      open_rev_vars vars
-        (Cursor.open_ (Join_iterator.create var.iterators) instruction))
+      match vars with
+      | [] ->
+        Cursor.open_
+          (Join_iterator.create var.iterators)
+          cell instruction Cursor.dispatch
+      | _ :: _ as vars ->
+        open_rev_vars vars
+          (Cursor.open_
+             (Join_iterator.create var.iterators)
+             cell instruction Cursor.dispatch)))
 
 (* Optimisation: if we do not use the output from the last variable, we only
    need the first matching value of that variable.
@@ -200,17 +212,23 @@ let rec pop_rev_vars :
   | [] -> Cursor.advance
   | var :: vars -> (
     match var.output with
-    | None -> Cursor.pop (pop_rev_vars vars)
+    | None -> Cursor.up (pop_rev_vars vars)
     | _ -> Cursor.advance)
 
 let create context output =
-  let { levels; actions; binders } = context in
+  let { levels; actions; binders; naive_binders } = context in
   let (Level_list rev_levels) = levels.rev_levels in
-  let instruction =
-    open_rev_vars rev_levels @@ Cursor.yield output @@ pop_rev_vars rev_levels
+  let instruction : (_, _, nil) Cursor.instruction =
+    match rev_levels with
+    | [] -> Cursor.yield output @@ pop_rev_vars rev_levels
+    | _ :: _ ->
+      open_rev_vars rev_levels @@ Cursor.yield output @@ pop_rev_vars rev_levels
   in
   let instruction = apply_actions actions instruction in
-  { cursor_binders = binders.rev_binders; instruction }
+  { cursor_binders = binders.rev_binders;
+    cursor_naive_binders = naive_binders.rev_binders;
+    instruction
+  }
 
 let bind_table (Bind_table (id, handler)) database =
   let table = Table.Map.get id database in
@@ -223,7 +241,7 @@ let bind_table (Bind_table (id, handler)) database =
 let bind_table_list binders database =
   List.iter (fun binder -> ignore @@ bind_table binder database) binders
 
-let evaluate op input =
+let evaluate op =
   match op with
   | Bind_iterator (value, it) -> (
     let value = Option.get !value in
@@ -234,37 +252,35 @@ let evaluate op input =
       Trie.Iterator.accept it;
       Virtual_machine.Accept
     | None | Some _ -> Virtual_machine.Skip)
-  | Unless (id, args) ->
-    if Option.is_some
-         (Trie.find_opt (Table.Id.is_trie id) (Option_ref.get args)
-            (Table.Map.get id input))
+  | Unless (is_trie, cell, args) ->
+    if Option.is_some (Trie.find_opt is_trie (Option_ref.get args) !cell)
     then Virtual_machine.Skip
     else Virtual_machine.Accept
 
 let naive_fold cursor db f acc =
   bind_table_list cursor.cursor_binders db;
-  Cursor.fold f
-    (Cursor.create db (Cursor.compile ~evaluate cursor.instruction))
-    acc
+  bind_table_list cursor.cursor_naive_binders db;
+  Cursor.fold f (Cursor.create ~evaluate cursor.instruction) acc
 
 let naive_iter cursor db f =
   bind_table_list cursor.cursor_binders db;
-  Cursor.iter f (Cursor.create db (Cursor.compile ~evaluate cursor.instruction))
+  bind_table_list cursor.cursor_naive_binders db;
+  Cursor.iter f (Cursor.create ~evaluate cursor.instruction)
 
 (* Seminaive evaluation iterates over all the {b new} tuples in the [diff]
    database that are not in the [previous] database.
 
    [current] must be equal to [concat ~earlier:previous ~later:diff]. *)
 let[@inline] seminaive_fold cursor ~previous ~diff ~current f acc =
-  let compiled = Cursor.compile ~evaluate cursor.instruction in
   bind_table_list cursor.cursor_binders current;
+  bind_table_list cursor.cursor_naive_binders current;
   let rec loop binders acc =
     match binders with
     | [] -> acc
     | binder :: binders ->
       let acc =
         if bind_table binder diff
-        then Cursor.fold f (Cursor.create current compiled) acc
+        then Cursor.fold f (Cursor.create ~evaluate cursor.instruction) acc
         else acc
       in
       if bind_table binder previous then loop binders acc else acc
