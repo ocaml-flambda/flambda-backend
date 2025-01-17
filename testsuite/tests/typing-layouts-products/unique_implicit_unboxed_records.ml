@@ -7,15 +7,14 @@
  }
 *)
 
-(* NOTE: When adding tests to this file, also update
-   [typing-layouts-products/unique_implicit_unboxed_records.ml] *)
+(* Based on [testsuite/tests/typing-layouts-products/unique.ml] *)
 
 (* Uniqueness tests *)
 
 let unique_use : 'a @ unique -> unit = fun _ -> ()
 let unique_use2 : ('a : value & value) @ unique -> unit = fun _ -> ()
 
-type t = #{ x : string ; y : string }
+type t = { x : string ; y : string }
 let mk : unit -> t @ unique = fun () -> #{ x = "hi"; y = "hi" }
 [%%expect{|
 val unique_use : 'a @ unique -> unit = <fun>

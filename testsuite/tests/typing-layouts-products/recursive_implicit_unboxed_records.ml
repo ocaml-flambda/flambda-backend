@@ -7,7 +7,7 @@
 *)
 
 (* NOTE: When adding tests to this file, also update
-   [typing-layouts-products/recursive_implicit_unboxed_records.ml] *)
+   [typing-layouts-products/recursive.ml] *)
 
 (* We only allow recursion of unboxed product types through boxing, otherwise
    the type is uninhabitable and usually also infinite-size. *)
@@ -16,9 +16,9 @@
 (* Allowed (guarded) recursive unboxed records *)
 
 (* Guarded by `list` *)
-type t = #{ tl: t list }
+type t = { tl: t# list }
 [%%expect{|
-type t = #{ tl : t list; }
+type t = { tl : t list; }
 |}]
 
 module AbstractList : sig
@@ -30,13 +30,13 @@ end
 module AbstractList : sig type 'a t end
 |}]
 
-type t = #{ tl: t AbstractList.t }
+type t = { tl: t# AbstractList.t }
 [%%expect{|
-type t = #{ tl : t AbstractList.t; }
+type t = { tl : t AbstractList.t; }
 |}]
 
 type 'a mylist = Cons of 'a * 'a list | Nil
-and t = { t : t mylist } [@@unboxed]
+and t = { t : t# mylist } [@@unboxed]
 [%%expect{|
 type 'a mylist = Cons of 'a * 'a list | Nil
 and t = { t : t mylist; } [@@unboxed]
@@ -45,12 +45,12 @@ and t = { t : t mylist; } [@@unboxed]
 (* This passes the unboxed recursion check (as [pair] always has jkind
    [value & value], [(int, bad) pair] is indeed finite-size, but it fails the
    jkind check *)
-type ('a, 'b) pair = #{ a : 'a ; b : 'b }
-type bad = #{ bad : (int, bad) pair }
+type ('a, 'b) pair = { a : 'a ; b : 'b }
+type bad = { bad : (int, bad#) pair# }
 [%%expect{|
-type ('a, 'b) pair = #{ a : 'a; b : 'b; }
+type ('a, 'b) pair = { a : 'a; b : 'b; }
 Line 2, characters 0-37:
-2 | type bad = #{ bad : (int, bad) pair }
+2 | type bad = { bad : (int, bad) pair }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
        The layout of bad is value & value
@@ -61,8 +61,8 @@ Error:
 
 (* This fails the unboxed recursion check; we must look into [pair] since it's
    part of the same mutually recursive type decl. *)
-type ('a, 'b) pair = #{ a : 'a ; b : 'b }
-and bad = #{ bad : (int, bad) pair }
+type ('a, 'b) pair = { a : 'a ; b : 'b }
+and bad = #{ bad : (int, bad#) pair# }
 [%%expect{|
 Line 2, characters 0-36:
 2 | and bad = #{ bad : (int, bad) pair }
@@ -73,96 +73,96 @@ Error: The definition of "bad" is recursive without boxing:
 |}]
 
 (* Guarded by a function *)
-type t = #{ f1 : t -> t ; f2 : t -> t }
+type t = { f1 : t# -> t# ; f2 : t# -> t# }
 [%%expect{|
-type t = #{ f1 : t -> t; f2 : t -> t; }
+type t = { f1 : t -> t; f2 : t -> t; }
 |}]
 
 (* Guarded by a tuple *)
-type a = #{ b : b }
-and b = a * a
+type a = { b : b }
+and b = a# * a#
 [%%expect{|
-type a = #{ b : b; }
+type a = { b : b; }
 and b = a * a
 |}]
 
 (* Guarded by a function *)
-type a = #{ b : b }
-and b = #{ c1 : c ; c2 : c }
-and c = unit -> a
+type a = { b : b# }
+and b = { c1 : c ; c2 : c }
+and c = unit -> a#
 [%%expect{|
-type a = #{ b : b; }
+type a = { b : b; }
 and b = #{ c1 : c; c2 : c; }
 and c = unit -> a
 |}]
 
 (* Recursion through modules guarded by a function *)
 module rec A : sig
-  type t = #{ b1 : B.t ; b2 : B.t }
+  type t = { b1 : B.t ; b2 : B.t }
 end = struct
-  type t = #{ b1 : B.t ; b2 : B.t }
+  type t = { b1 : B.t ; b2 : B.t }
 end
 and B : sig
-  type t = unit -> A.t
+  type t = unit -> A.t#
 end = struct
-  type t = unit -> A.t
+  type t = unit -> A.t#
 end
 [%%expect{|
-module rec A : sig type t = #{ b1 : B.t; b2 : B.t; } end
+module rec A : sig type t = { b1 : B.t; b2 : B.t; } end
 and B : sig type t = unit -> A.t end
 |}]
 
 (**********************************)
 (* Infinite-sized unboxed records *)
 
-type bad = #{ bad : bad ; i : int}
+type bad = { bad : bad# ; i : int}
 [%%expect{|
 Line 1, characters 0-34:
-1 | type bad = #{ bad : bad ; i : int}
+1 | type bad = { bad : bad ; i : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-type a_bad = #{ b_bad : b_bad }
-and b_bad = #{ a_bad : a_bad }
+type a_bad = { b_bad : b_bad# }
+and b_bad = { a_bad : a_bad# }
 [%%expect{|
 Line 1, characters 0-31:
-1 | type a_bad = #{ b_bad : b_bad }
+1 | type a_bad = { b_bad : b_bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "a_bad" is recursive without boxing:
          "a_bad" contains "b_bad",
          "b_bad" contains "a_bad"
 |}]
 
-type bad : any = #{ bad : bad }
+type bad : any = { bad : bad# }
 [%%expect{|
 Line 1, characters 0-31:
-1 | type bad : any = #{ bad : bad }
+1 | type bad : any = { bad : bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-type bad = #{ x : #(int * u) }
-and u = T of bad [@@unboxed]
+type bad = { x : (int * u) }
+and u = T of bad# [@@unboxed]
 [%%expect{|
 Line 1, characters 0-30:
-1 | type bad = #{ x : #(int * u) }
+1 | type bad = #{ x : (int * u) }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "u",
          "u" contains "bad"
 |}]
 
-type 'a record_id = #{ a : 'a }
+type 'a record_id = { a : 'a }
 type 'a alias_id = 'a
 [%%expect{|
-type 'a record_id = #{ a : 'a; }
+type 'a record_id = { a : 'a; }
 type 'a alias_id = 'a
 |}]
 
-type bad = bad record_id
+type bad = bad record_id#
 [%%expect{|
 Line 1, characters 0-24:
 1 | type bad = bad record_id
@@ -183,50 +183,50 @@ Error: The type abbreviation "bad" is cyclic:
 |}]
 
 
-type 'a bad = #{ bad : 'a bad ; u : 'a}
+type 'a bad = { bad : 'a bad# ; u : 'a}
 [%%expect{|
 Line 1, characters 0-39:
-1 | type 'a bad = #{ bad : 'a bad ; u : 'a}
+1 | type 'a bad = { bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "'a bad" contains "'a bad"
 |}]
 
-type 'a bad = { bad : 'a bad ; u : 'a}
+type 'a bad = { bad : 'a bad# ; u : 'a}
 [%%expect{|
 type 'a bad = { bad : 'a bad; u : 'a; }
 |}]
 
-type bad : float64 = #{ bad : bad ; i : int}
+type bad : float64 = { bad : bad# ; i : int}
 [%%expect{|
 Line 1, characters 0-44:
-1 | type bad : float64 = #{ bad : bad ; i : int}
+1 | type bad : float64 = { bad : bad ; i : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-type bad = #{ a : bad ; b : bad }
+type bad = { a : bad# ; b : bad# }
 [%%expect{|
-type bad = #{ a : t; b : t; }
+type bad = { a : t; b : t; }
 |}]
 
-type 'a bad = #{ a : 'a bad }
+type 'a bad = { a : 'a bad# }
 [%%expect{|
 Line 1, characters 0-29:
-1 | type 'a bad = #{ a : 'a bad }
+1 | type 'a bad = { a : 'a bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "'a bad" contains "'a bad"
 |}]
 
-type bad = #( s * s )
-and ('a : any) record_id2 = #{ a : 'a }
-and s = #{ u : u }
-and u = #(int * bad record_id2)
+type bad = ( s# * s# )
+and ('a : any) record_id2 = { a : 'a }
+and s = { u : u }
+and u = #(int * bad record_id2#)
 [%%expect{|
 Line 1, characters 0-21:
-1 | type bad = #( s * s )
+1 | type bad = ( s * s )
     ^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" = "#(s * s)",
@@ -237,13 +237,13 @@ Error: The definition of "bad" is recursive without boxing:
          "bad record_id2" contains "bad"
 |}]
 
-type bad = #( s * s )
-and ('a : any) record_id2 = #{ a : 'a }
-and s = #{ u : u }
-and u = #(int * bad record_id2)
+type bad = ( s# * s# )
+and ('a : any) record_id2 = { a : 'a }
+and s = { u : u }
+and u = #(int * bad record_id2#)
 [%%expect{|
 Line 1, characters 0-21:
-1 | type bad = #( s * s )
+1 | type bad = ( s * s )
     ^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" = "#(s * s)",
@@ -256,11 +256,11 @@ Error: The definition of "bad" is recursive without boxing:
 
 (* We also check recursive types via modules *)
 module rec Bad_rec1 : sig
-  type t = #( s * s )
-  and s = #{ u : Bad_rec2.u }
+  type t = ( s# * s# )
+  and s = { u : Bad_rec2.u }
 end = struct
-  type t = #( s * s )
-  and s = #{ u : Bad_rec2.u }
+  type t = ( s# * s# )
+  and s = { u : Bad_rec2.u }
 end
 and Bad_rec2 : sig
   type u = Bad_rec1.t id
@@ -272,10 +272,10 @@ end
 [%%expect{|
 Lines 1-7, characters 0-3:
 1 | module rec Bad_rec1 : sig
-2 |   type t = #( s * s )
+2 |   type t = ( s * s )
 3 |   and s = #{ u : Bad_rec2.u }
 4 | end = struct
-5 |   type t = #( s * s )
+5 |   type t = ( s * s )
 6 |   and s = #{ u : Bad_rec2.u }
 7 | end
 Error: The definition of "Bad_rec1.t" is recursive without boxing:
@@ -296,11 +296,11 @@ end
 [%%expect{|
 module M : sig type ('a : any) opaque_id : any end
 |}]
-type a = #{ b : b M.opaque_id }
-and b = #{ a : a M.opaque_id }
+type a = { b : b# M.opaque_id }
+and b = { a : a# M.opaque_id }
 [%%expect{|
 Line 1, characters 12-29:
-1 | type a = #{ b : b M.opaque_id }
+1 | type a = { b : b M.opaque_id }
                 ^^^^^^^^^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of b M.opaque_id is any
@@ -311,22 +311,22 @@ Error: Unboxed record element types must have a representable layout.
 
 (* Make sure we look through [as] types *)
 
-type 'a t = #{ x: ('a s as 'm) list ; m : 'm }
-and 'b s = #{ x : 'b t }
+type 'a t = { x: ('a s# as 'm) list ; m : 'm }
+and 'b s = { x : 'b t# }
 [%%expect{|
 Line 1, characters 0-46:
-1 | type 'a t = #{ x: ('a s as 'm) list ; m : 'm }
+1 | type 'a t = { x: ('a s as 'm) list ; m : 'm }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "t" is recursive without boxing:
          "'a t" contains "'a s",
          "'a s" contains "'a t"
 |}]
 
-type 'a t = #{ x: ('a s as 'm) }
-and 'b s = #{ x : 'b t }
+type 'a t = { x: ('a s# as 'm) }
+and 'b s = { x : 'b t# }
 [%%expect{|
 Line 1, characters 0-32:
-1 | type 'a t = #{ x: ('a s as 'm) }
+1 | type 'a t = { x: ('a s as 'm) }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "t" is recursive without boxing:
          "'a t" contains "'a s",
@@ -336,24 +336,24 @@ Error: The definition of "t" is recursive without boxing:
 (***************************************)
 (* Singleton recursive unboxed records *)
 
-type 'a safe = #{ a : 'a }
-type x = int safe safe
+type 'a safe = { a : 'a }
+type x = int safe# safe#
 [%%expect{|
-type 'a safe = #{ a : 'a; }
+type 'a safe = { a : 'a; }
 type x = int safe safe
 |}]
 
 type 'a id = 'a
-type x = #{ x : x id }
+type x = { x : x# id }
 [%%expect{|
 type 'a id = 'a
-type x = #{ x : x id; }
+type x = { x : x id; }
 |}]
 
 (* CR layouts v7.2: allow bounded repetition of the same type constructor of
    unboxed records. *)
-type 'a safe = #{ a : 'a }
-and x = int safe safe
+type 'a safe = { a : 'a }
+and x = int safe# safe#
 [%%expect{|
 Line 2, characters 0-21:
 2 | and x = int safe safe
@@ -369,101 +369,37 @@ Error: The definition of "x" is recursive without boxing:
    However, allowing them makes checking for recursive types more difficult,
    and they are uninhabitable anyway. *)
 
-type bad : value = #{ bad : bad }
+type bad : value = { bad : bad# }
 [%%expect{|
 Line 1, characters 0-33:
-1 | type bad : value = #{ bad : bad }
+1 | type bad : value = { bad : bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-type bad : float64 = #{ bad : bad }
-[%%expect{|
-Line 1, characters 0-35:
-1 | type bad : float64 = #{ bad : bad }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The definition of "bad" is recursive without boxing:
-         "bad" contains "bad"
-|}]
-
-
-type bad : value = #{ bad : bad }
-[%%expect{|
-Line 1, characters 0-33:
-1 | type bad : value = #{ bad : bad }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The definition of "bad" is recursive without boxing:
-         "bad" contains "bad"
-|}]
-
-type bad = #{ bad : bad }
+type bad = { bad : bad# }
 [%%expect{|
 Line 1, characters 0-25:
-1 | type bad = #{ bad : bad }
+1 | type bad = { bad : bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-(* We actually can create singleton recursive unboxed record types,
-   through recursive modules *)
-
-module F (X : sig type t end) = struct
-  type u = #{ u : X.t }
-end
-
-module rec M : sig
-  type u
-  type t = u
-end = struct
-  include F(M)
-  type t = u
-end
-[%%expect{|
-module F : functor (X : sig type t end) -> sig type u = #{ u : X.t; } end
-module rec M : sig type u type t = u end
-|}]
-
-module F (X : sig
-    type u
-    type t = #{ u : u }
-  end) = struct
-  type u = X.t = #{ u : X.u }
-end
-
-module rec M : sig
-  type u
-  type t = #{ u : u }
-end = struct
-  include F(M)
-  type t = #{ u : u }
-  let rec u = #{ u }
-end
-[%%expect{|
-module F :
-  functor (X : sig type u type t = #{ u : u; } end) ->
-    sig type u = X.t = #{ u : X.u; } end
-Line 14, characters 14-20:
-14 |   let rec u = #{ u }
-                   ^^^^^^
-Error: This kind of expression is not allowed as right-hand side of "let rec"
-|}]
-
-
 (* This should still error once unboxed records elements need not have a
    representable layout *)
 module type S = sig
   type u : any
-  type t = #{ a : u ; b : u }
+  type t = { a : u ; b : u }
 end
 module F (X : S) = struct
-  type u = X.t = #{ a : X.u ; b : X.u}
+  type u = X.t# = #{ a : X.u ; b : X.u}
 end
 
 module rec M : S = struct
   include F(M)
-  type t = #{ a : u ; b : u }
+  type t = { a : u ; b : u }
   let rec u = #{ u ; u }
 end
 [%%expect{|

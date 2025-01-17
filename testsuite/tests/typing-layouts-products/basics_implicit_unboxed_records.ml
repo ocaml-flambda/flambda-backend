@@ -7,7 +7,7 @@
 *)
 
 (* NOTE: When adding tests to this file, also update
-   [typing-layouts-products/basics_implicit_unboxed_records.ml] *)
+   [typing-layouts-products/basics_unboxed_records.ml] *)
 
 open Stdlib_upstream_compatible
 
@@ -16,24 +16,24 @@ open Stdlib_upstream_compatible
 
 (* We can change the type of an unboxed record with a functional update. *)
 
-type ('a : value & value) t = #{ x : 'a ; y : string }
-let f : #(int * string) t -> #(string * int) t =
+type ('a : value & value) t = { x : 'a ; y : string }
+let f : #(int * string) t# -> #(string * int) t# =
   fun (#{ x = #(i, s); y } as r) -> #{ r with x = #(s, i) }
 [%%expect{|
-type ('a : value & value) t = #{ x : 'a; y : string; }
+type ('a : value & value) t = { x : 'a; y : string; }
 val f : #(int * string) t -> #(string * int) t = <fun>
 |}]
 
 (* Patterns, as-patterns, partial patterns *)
 
-type t = #{ i: int; j : int }
+type t = { i: int; j : int }
 let add (#{ i; _} as r) = i + r.#j
 [%%expect{|
-type t = #{ i : int; j : int; }
+type t = { i : int; j : int; }
 val add : t -> int = <fun>
 |}]
 
-let bad_match (x : t) =
+let bad_match (x : t#) =
   match x with
   | _ -> .
 [%%expect{|
@@ -46,9 +46,9 @@ Error: This match case could not be refuted.
 
 (* Unboxed records are not subject to the mixed-block restriction *)
 
-type t = #{ f : float# ; i : int }
+type t = { f : float# ; i : int }
 [%%expect{|
-type t = #{ f : float#; i : int; }
+type t = { f : float#; i : int; }
 |}]
 
 let mk_t () =
@@ -92,30 +92,30 @@ Error: Types of unnamed expressions must have layout value when using
 
 (* However, we can have a top-level unboxed record if its kind is value *)
 
-type m_record = #{ i1 : int }
+type m_record = { i1 : int }
 module M = struct
   let x = #{ i1 = 1 }
 end
 [%%expect{|
-type m_record = #{ i1 : int; }
+type m_record = { i1 : int; }
 module M : sig val x : m_record end
 |}]
 
-type wrap_int = #{ i : int }
-type wrap_wrap_int = #{ wi : wrap_int}
+type wrap_int = { i : int }
+type wrap_wrap_int = { wi : wrap_int# }
 let w5 = #{ i = 5 }
 let ww5 = #{ wi = #{ i = 5 }}
 [%%expect{|
-type wrap_int = #{ i : int; }
-type wrap_wrap_int = #{ wi : wrap_int; }
+type wrap_int = { i : int; }
+type wrap_wrap_int = { wi : wrap_int; }
 val w5 : wrap_int = #{i = 5}
 val ww5 : wrap_wrap_int = #{wi = #{i = 5}}
 |}]
 
-type t = #{ s : string }
+type t = { s : string }
 let s = #{ s = "hi" }
 [%%expect{|
-type t = #{ s : string; }
+type t = { s : string; }
 val s : t = #{s = "hi"}
 |}]
 
@@ -127,20 +127,20 @@ val s : t = #{s = "hi"}
 
 (* Accessing inner products *)
 
-type t = #{ is: #(int * int) }
+type t = { is: #(int * int) }
 
 let add t =
   let #(x, y) = t.#is in
   x + y
 [%%expect{|
-type t = #{ is : #(int * int); }
+type t = { is : #(int * int); }
 val add : t -> int = <fun>
 |}]
 
 (* An unboxed record is not an allocation, but a regular record is *)
 
 type ('a, 'b) ab = { left : 'a ; right : 'b }
-type ('a, 'b) ab_u = #{ left : 'a ; right : 'b }
+type ('a, 'b) ab_u = { left : 'a ; right : 'b }
 
 let f_unboxed_record (local_ left) (local_ right) =
   let t = #{ left; right } in
@@ -148,7 +148,7 @@ let f_unboxed_record (local_ left) (local_ right) =
   left'
 [%%expect{|
 type ('a, 'b) ab = { left : 'a; right : 'b; }
-type ('a, 'b) ab_u = #{ left : 'a; right : 'b; }
+type ('a, 'b) ab_u = { left : 'a; right : 'b; }
 val f_unboxed_record : local_ 'a -> local_ 'b -> local_ 'a = <fun>
 |}]
 
@@ -164,64 +164,54 @@ Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
-(* Mutable fields are not allowed *)
-
-type mut = #{ mutable i : int }
-[%%expect{|
-Line 1, characters 14-29:
-1 | type mut = #{ mutable i : int }
-                  ^^^^^^^^^^^^^^^
-Error: Unboxed record labels cannot be mutable
-|}]
-
 (*********************************)
 (* Parameterized unboxed records *)
 
 (* Checks of constrain_type_jkind *)
 
-type 'a r = #{ i: 'a }
-type int_r : immediate = int r
+type 'a r = { i: 'a }
+type int_r : immediate = int r#
 [%%expect{|
-type 'a r = #{ i : 'a; }
+type 'a r = { i : 'a; }
 type int_r = int r
 |}]
 
-type ('a : float64) t = #{ i: 'a }
-type floatu_t : float64 = float# t
+type ('a : float64) t = { i: 'a }
+type floatu_t : float64 = float t#
 [%%expect{|
-type ('a : float64) t = #{ i : 'a; }
-type floatu_t = float# t
+type ('a : float64) t = { i : 'a; }
+type floatu_t = float t
 |}]
 
-type 'a t = #{ i : 'a ; j : 'a }
-type int_t : immediate & immediate = int t
+type 'a t = { i : 'a ; j : 'a }
+type int_t : immediate & immediate = int t#
 [%%expect{|
-type 'a t = #{ i : 'a; j : 'a; }
+type 'a t = { i : 'a; j : 'a; }
 type int_t = int t
 |}]
 
-type ('a : float64) t = #{ i : 'a ; j : 'a }
-type floatu_t : float64 & float64 = float# t
+type ('a : float64) t = { i : 'a ; j : 'a }
+type floatu_t : float64 & float64 = float t#
 [%%expect{|
-type ('a : float64) t = #{ i : 'a; j : 'a; }
-type floatu_t = float# t
+type ('a : float64) t = { i : 'a; j : 'a; }
+type floatu_t = float t
 |}]
 
 type 'a t = 'a list
-type s = #{ lbl : s t }
+type s = { lbl : s t# }
 [%%expect{|
 type 'a t = 'a list
-type s = #{ lbl : s t; }
+type s = { lbl : s t; }
 |}]
 
-type ('a : float64) t = #{ x : string; y : 'a }
+type ('a : float64) t = { x : string; y : 'a }
 [%%expect{|
-type ('a : float64) t = #{ x : string; y : 'a; }
+type ('a : float64) t = { x : string; y : 'a; }
 |}];;
 
-type ('a : float64, 'b : immediate) t = #{ x : string; y : 'a; z : 'b }
+type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
 [%%expect{|
-type ('a : float64, 'b : immediate) t = #{ x : string; y : 'a; z : 'b; }
+type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b; }
 |}];;
 
 type ('a : value & float64 & value) t1
@@ -231,15 +221,15 @@ type ('a : value & float64 & value) t1
 type 'a t2
 |}]
 
-type s = r t1
-and r = #{ x : int; y : float#; z : s t2 }
+type s = r# t1
+and r = { x : int; y : float#; z : s t2 }
 [%%expect{|
 type s = r t1
-and r = #{ x : int; y : float#; z : s t2; }
+and r = { x : int; y : float#; z : s t2; }
 |}]
 
-type s = r_bad t1
-and r_bad = #{ y : float#; z : s t2 }
+type s = r_bad# t1
+and r_bad = { y : float#; z : s t2 }
 [%%expect{|
 Line 2, characters 0-37:
 2 | and r_bad = #{ y : float#; z : s t2 }
@@ -251,11 +241,11 @@ Error:
          because of the definition of t1 at line 1, characters 0-38.
 |}]
 
-type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
-and r = #{ i : int ; f : float# }
+type 'a t = { a : 'a ; a' : 'a } constraint 'a = r#
+and r = { i : int ; f : float# }
 [%%expect{|
-type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r
-and r = #{ i : int; f : float#; }
+type 'a t = { a : 'a; a' : 'a; } constraint 'a = r
+and r = { i : int; f : float#; }
 |}]
 
 (*******************)
@@ -264,20 +254,20 @@ and r = #{ i : int; f : float#; }
 let f (x : < m: 'a. ([< `Foo of int & float] as 'a) -> unit>)
          : < m: 'a. ([< `Foo of int & float] as 'a) -> unit> = x;;
 
-type t = #{ x : 'a. ([< `Foo of int & float ] as 'a) -> unit };;
+type t = { x : 'a. ([< `Foo of int & float ] as 'a) -> unit };;
 let f t = #{ x = t.#x };;
 [%%expect{|
 val f :
   < m : 'a. ([< `Foo of int & float ] as 'a) -> unit > ->
   < m : 'b. ([< `Foo of int & float ] as 'b) -> unit > = <fun>
-type t = #{ x : 'a. ([< `Foo of int & float ] as 'a) -> unit; }
+type t = { x : 'a. ([< `Foo of int & float ] as 'a) -> unit; }
 val f : t -> t = <fun>
 |}]
 
 module Bad : sig
-  type t = #{ i : int ; a: (<x:'a> as 'a) }
+  type t = { i : int ; a: (<x:'a> as 'a) }
 end = struct
-  type t = #{ i : int ; a: (<x:'a * 'a> as 'a) }
+  type t = { i : int ; a: (<x:'a * 'a> as 'a) }
 end
 [%%expect{|
 Lines 3-5, characters 6-3:
@@ -310,32 +300,15 @@ Error: Signature mismatch:
 module M : sig
   type t
 end = struct
-  type t = #{ s: string; r: string }
+  type t = { s: string; r: string }
+  type nonrec t = t
 end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = #{ s: string; r: string }
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = #{ s : string; r : string; } end
-       is not included in
-         sig type t end
-       Type declarations do not match:
-         type t = #{ s : string; r : string; }
-       is not included in
-         type t
-       The layout of the first is value & value
-         because of the definition of t at line 4, characters 2-36.
-       But the layout of the first must be a sublayout of value
-         because of the definition of t at line 2, characters 2-8.
-|}]
+[%%expect{||}]
 
 module M : sig
-  type t = #{ f : float# ; s : string }
+  type t = { f : float# ; s : string }
 end = struct
-  type t = #{ f : float# ; s : string }
+  type t = { f : float# ; s : string }
 end
 [%%expect{|
 module M : sig type t = #{ f : float#; s : string; } end
@@ -345,62 +318,40 @@ module M2 : sig
   type t : float64 & value
 end = struct
   include M
+  type nonrec t = t#
 end
-[%%expect{|
-module M2 : sig type t : float64 & value end
-|}]
+[%%expect{||}]
 
 module M : sig
   type t : float64 & value
 end = struct
-  type t = #{ i : float# ; s : string }
+  type t = { i : float# ; s : string }
+  type nonrec t = t#
 end
-[%%expect{|
-module M : sig type t : float64 & value end
-|}]
+[%%expect{||}]
 
 module M : sig
   type t : float64 & value
 end = struct
-  type t = #{ i : float# ; s : string }
+  type t = { i : float# ; s : string }
+  type nonrec t = t#
 end
-[%%expect{|
-module M : sig type t : float64 & value end
-|}]
+[%%expect{||}]
 
 module M : sig
   type t
 end = struct
   type t = #{ s : string }
+  type nonrec t = t#
 end
-[%%expect{|
-module M : sig type t end
-|}]
+[%%expect{||}]
 
 (*************************************)
 (* Types that mode cross externality *)
 
-type ('a : value mod external_) t = #{ x : float#; y : 'a }
-type ('a : immediate) t = #{ x : float#; y : 'a }
-[%%expect {|
-type ('a : value mod external_) t = #{ x : float#; y : 'a; }
-type ('a : immediate) t = #{ x : float#; y : 'a; }
-|}]
+(* No corresponding tests for implicit unboxed records *)
 
-type u : value mod external_
-type t = #{ x : float#; y : u }
-[%%expect {|
-type u : value mod external_
-type t = #{ x : float#; y : u; }
-|}]
-
-type u : immediate
-type t = #{ x : float#; y : u }
-[%%expect {|
-type u : immediate
-type t = #{ x : float#; y : u; }
-|}]
-
+(********************)
 (* Recursive groups *)
 
 type ('a : float64) t_float64_id = 'a
@@ -413,7 +364,8 @@ type ('a : immediate) t_immediate_id = 'a
 type 'a t_float = 'a t_float64_id
 and 'a t_imm = 'a t_immediate_id
 and ('a, 'b, 'ptr) t =
-  #{ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
+  {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
+and ('a, 'b, 'ptr) u = t#
 [%%expect{|
 Line 4, characters 28-38:
 4 |   #{ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
@@ -435,11 +387,13 @@ Error: Layout mismatch in final type declaration consistency check.
 type 'a t_float = 'a t_float64_id
 and 'a t_imm = 'a t_immediate_id
 and ('a : float64, 'b : immediate, 'ptr) t =
-  #{ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
+  {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
+and ('a : float64, 'b : immediate, 'ptr) u =
+  t#
 [%%expect{|
 type ('a : float64) t_float = 'a t_float64_id
 and ('a : immediate) t_imm = 'a t_immediate_id
-and ('a : float64, 'b : immediate, 'ptr) t = #{
+and ('a : float64, 'b : immediate, 'ptr) t = {
   ptr : 'ptr;
   x : 'a;
   y : 'a t_float;
@@ -451,10 +405,10 @@ and ('a : float64, 'b : immediate, 'ptr) t = #{
 (* We don't yet have syntax for setting an unboxed record field.
    However, the below, using a boxed set field, will never work. *)
 
-type r = #{ i : int }
+type r = { i : int }
 let f = #{ i = 1 }
 [%%expect{|
-type r = #{ i : int; }
+type r = { i : int; }
 val f : r = #{i = 1}
 |}]
 
@@ -549,10 +503,10 @@ Error: Signature mismatch:
 (*****************************************************)
 (* Special-cased errors for boxed/unboxed mismatches *)
 
-type t_u = #{ u : int }
+type t_u = { u : int }
 type t = { b : int }
 [%%expect{|
-type t_u = #{ u : int; }
+type t_u = { u : int; }
 type t = { b : int; }
 |}]
 
@@ -565,7 +519,7 @@ Error: This boxed record expression should be unboxed instead,
        the expected type is "t_u"
 |}]
 
-let f () : t = #{ u = 2 }
+let f () : t = { u = 2 }
 [%%expect{|
 Line 1, characters 15-25:
 1 | let f () : t = #{ u = 2 }
@@ -648,7 +602,7 @@ Hint: There is a boxed record field with this name.
 
 (* Initial expressions for functionally updated records are always evaluated *)
 
-type t = #{ x : string }
+type t = { x : string }
 
 let [@warning "-23"] update_t t =
   let updated = ref false in
@@ -657,12 +611,12 @@ let [@warning "-23"] update_t t =
 
 let _ = update_t #{ x = "x" }
 [%%expect{|
-type t = #{ x : string; }
+type t = { x : string; }
 val update_t : t -> unit = <fun>
 - : unit = ()
 |}]
 
-type t = #{ x : string ; y : float# ; z : unit}
+type t = { x : string ; y : float# ; z : unit}
 
 let [@warning "-23"] update_t t =
   let counter = ref 0 in
@@ -673,7 +627,7 @@ let [@warning "-23"] update_t t =
 
 let _ = update_t #{ x = "x" ; y = #1.0 ; z = ()}
 [%%expect{|
-type t = #{ x : string; y : float#; z : unit; }
+type t = { x : string; y : float#; z : unit; }
 val update_t : t -> unit = <fun>
 - : unit = ()
 |}]
@@ -681,9 +635,9 @@ val update_t : t -> unit = <fun>
 (************************************************************)
 (* Basic tests for construction/projection representability *)
 
-type ('a : any) t = #{ x : int; y : 'a }
+type ('a : any) t = { x : int; y : 'a }
 [%%expect{|
-type 'a t = #{ x : int; y : 'a; }
+type 'a t = { x : int; y : 'a; }
 |}]
 
 (* CR layouts v7.2: once we allow record declarations with unknown kind (right
@@ -724,7 +678,7 @@ Error: The universal type variable 'a was declared to have kind any.
    [a] was necessary to trigger the error because it called
    [check_representable] on [b], constraining its kind to be a sort variable. *)
 type a = B of b
-and b : any = #{ i : int ; j : int }
+and b : any = { i : int ; j : int }
 [%%expect{|
 Line 1, characters 9-15:
 1 | type a = B of b
@@ -733,7 +687,7 @@ Error: Type "b" has layout "value & value".
        Variants may not yet contain types of this layout.
 |}]
 type a = B of b_portable
-and b_portable : any mod portable = #{ i : int ; j : int }
+and b_portable : any mod portable = { i : int ; j : int }
 [%%expect{|
 Line 1, characters 9-24:
 1 | type a = B of b_portable
@@ -742,7 +696,7 @@ Error: Type "b_portable" has layout "value & value".
        Variants may not yet contain types of this layout.
 |}]
 type a = B of b
-and b : any & any & any = #{ i : int ; j : int }
+and b : any & any & any = { i : int ; j : int }
 [%%expect{|
 Line 2, characters 0-48:
 2 | and b : any & any & any = #{ i : int ; j : int }
