@@ -1113,9 +1113,7 @@ let rec check_constraints_rec env loc visited ty =
            *already* violate the constraints -- we need to report a problem with
            the unexpanded types, or we get errors that talk about the same type
            twice.  This is generally true for constraint errors. *)
-        match Ctype.matches ~expand_error_trace:false env
-                (Ctype.instance ty) ty'
-        with
+        match Ctype.matches ~expand_error_trace:false env ty ty' with
         | Unification_failure err ->
           raise (Error(loc, Constraint_failed (env, err)))
         | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->

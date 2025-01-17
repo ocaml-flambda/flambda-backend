@@ -102,7 +102,7 @@ Line 3, characters 7-9:
 3 |   and ('k,'l) abs = 'l constraint 'k = 'l is_an_object
            ^^
 Error: Constraints are not satisfied in this type.
-       Type "'a is_an_object" should be an instance of "< .. > is_an_object"
+       Type "'l is_an_object" should be an instance of "< .. > is_an_object"
 |}]
 
 module PR6505a = struct
