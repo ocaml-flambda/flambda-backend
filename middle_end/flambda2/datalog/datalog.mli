@@ -15,28 +15,6 @@
 
 open Heterogenous_list
 
-(** {2 Facts database} *)
-
-(** {2 Inference rules} *)
-
-(** [compile_rule vars f]
-
-    As for [Cursor.create], the order of the variables in [vars] determines the
-    iteration order, and variables must appear in the same order in rules (see
-    the documentation of the {!Cursor} module for more details).
-
-    {b Example}
-
-    The following creates a rule stating that the successor of marked nodes
-    should themselves be marked.
-
-    {[
-    let mark_successors_rule =
-      compile_rule ["X"; "Y"] (fun [x; y] ->
-          rule [edge_rel [x; y]; marked_pred [x]] (marked_pred [y]))
-    ]}
-*)
-
 (** {2 Query language} *)
 
 (** Fact retrieval is supported through a query expressed using (typed) Datalog
@@ -53,12 +31,8 @@ module String : sig
   include Heterogenous_list.S with type 'a t := string
 end
 
-(** The type [('free, 'p, 'v) program] is the type of programs returning
-      values of type ['v] with free parameters ['free] and used parameters
-      ['p].
-
-      Only programs with no free parameters (i.e. ['free] is
-      [Heterogenous_list.nil]) can be compiled, see [compile].
+(** The type [('p, 'v) program] is the type of programs returning
+      values of type ['v] with parameters ['p].
 
       The output of programs is either queries or rules; the use of a shared
       types allows writing combinators that work in both cases.

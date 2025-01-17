@@ -244,8 +244,7 @@ module Datalog : sig
         evaluate a query, we require that all variables have at least one binding
         occurrence in the query.
 
-        Occurrences in negated atoms (with the [?negate] optional parameter) are
-        never binding.
+        Occurrences from negated atoms (from [not]) are never binding.
       *)
 
     (** Parameterized cursors take an additional argument of type

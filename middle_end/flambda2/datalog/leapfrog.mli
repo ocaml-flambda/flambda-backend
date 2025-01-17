@@ -104,7 +104,7 @@ module Join (Iterator : Iterator) : sig
   (** [create iterators] returns a new imperative iterator that iterates over
       the join of the keys in [iterators] using the leapfrog join algorithm. The
       keys of the returned iterator are those that are present in {b all} of the
-      iterators in [iteraators].
+      iterators in [iterators].
 
       The trie navigation operations [init] and [accept] are delegated to the
       underlying iterators.

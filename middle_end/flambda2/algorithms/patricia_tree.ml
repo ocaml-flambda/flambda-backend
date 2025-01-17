@@ -955,6 +955,14 @@ end = struct
       let t1' = filter_map_sharing f t1 in
       if t0' == t0 && t1' == t1 then t else branch prefix bit t0' t1'
 
+  (* NB: an iterator [Next (binding, rest)] is positioned on the binding
+     [binding] and then will iterate on the trees in [rest] in order.
+
+     The trees in ['a t] are {b never} at top-level; in particular, they never
+     contain branches with a negative bit and we can safely use signed
+     comparison in all the functions below (except for [iterator], which is
+     called on a top-level tree). *)
+
   type 'a iterator =
     | Done
     | Next of 'a Binding.t * 'a t list
