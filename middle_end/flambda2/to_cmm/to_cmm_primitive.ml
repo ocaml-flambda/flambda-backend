@@ -1017,7 +1017,7 @@ let binary_primitive env dbg f x y =
       | Any_value -> Pointer
       | Immediate -> Immediate
     in
-    C.atomic_exchange ~dbg imm_or_ptr x y
+    C.atomic_exchange ~dbg imm_or_ptr x ~new_value:y
   | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y
   | Poke kind ->
     let memory_chunk =

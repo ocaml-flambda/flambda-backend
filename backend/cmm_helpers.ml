@@ -4254,8 +4254,8 @@ let atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value =
       [atomic; old_value; new_value],
       dbg )
 
-let atomic_compare_exchange ~dbg (_ : Lambda.immediate_or_pointer) atomic
-    ~old_value ~new_value =
+let atomic_compare_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
+    atomic ~old_value ~new_value =
   match imm_or_ptr with
   | Immediate ->
     let op = Catomic { op = Compare_exchange; size = Word } in

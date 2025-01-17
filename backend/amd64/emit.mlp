@@ -982,19 +982,44 @@ let emit_push_trap_label handler =
 (* Emit Code *)
 
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
-  let src, dst = match op, size with
-  | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
-  | Fetch_and_add, (Sixtyfour|Word) -> arg instr 0, addressing addr QWORD instr 1
-  | Compare_and_swap, Thirtytwo -> arg32 instr 1, addressing addr DWORD instr 2
-  | Compare_and_swap, (Sixtyfour|Word) -> arg instr 1, addressing addr QWORD instr 2 in
+  let first_memory_arg_index =
+    match op with
+    | Compare_and_swap -> 2
+    | Fetch_and_add -> 1
+    | Exchange -> 1
+    | Compare_exchange -> 2
+  in
+  let dst =
+    addressing addr DWORD instr first_memory_arg_index
+  in
+  let src_index = first_memory_arg_index - 1 in
+  let typ, src =
+    match size with
+    | Thirtytwo -> DWORD, arg32 instr src_index
+    | (Sixtyfour|Word) -> QWORD, arg instr src_index
+  in
   match op with
-  | Fetch_and_add -> I.lock_xadd src dst
+  | Fetch_and_add ->
+    assert (Reg.same_loc instr.res.(0) instr.arg.(0));
+    I.lock_xadd src dst
   | Compare_and_swap ->
     (* compare_with is already in rax, set_to is src *)
+    assert (Reg.is_reg instr.arg.(1));
+    assert (Reg.same_loc instr.arg.(0) phys_rax);
     let res8, res = res8 instr 0, res instr 0 in
     I.lock_cmpxchg src dst;
     I.set E res8;
     I.movzx res8 res
+  | Compare_exchange ->
+    (* compare_with is already in rax, set_to is src, res in rax *)
+    assert (Reg.is_reg instr.arg.(1));
+    assert (Reg.same_loc instr.arg.(0) phys_rax);
+    assert (Reg.same_loc instr.res.(0) phys_rax);
+    I.lock_cmpxchg src dst
+  | Exchange ->
+    (* no need for a "lock" prefix for XCHG with a memory operand *)
+    assert (Reg.is_reg instr.arg.(0));
+    I.xchg src dst
 
 let emit_reinterpret_cast (cast : Cmm.reinterpret_cast) i =
   let distinct = not (Reg.same_loc i.arg.(0) i.res.(0)) in
