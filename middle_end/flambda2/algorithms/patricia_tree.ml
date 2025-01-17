@@ -967,6 +967,8 @@ end = struct
     | Done
     | Next of 'a Binding.t * 'a t list
 
+  (* NB: We rely on [rest] not containing a top-level patricia tree to use
+     signed comparison. *)
   let rec iterator0 t rest =
     match descr t with
     | Empty -> Done
@@ -987,6 +989,8 @@ end = struct
     | Done | Next (_, []) -> Done
     | Next (_, t :: rest) -> iterator0 t rest
 
+  (* NB: We rely on [rest] not containing a top-level patricia tree to use
+     signed comparison. *)
   let rec seek0 k t rest =
     match descr t, rest with
     | Leaf (i, d), _ when k <= i -> Next (Binding.create i d, rest)
