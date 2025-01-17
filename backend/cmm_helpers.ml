@@ -4183,7 +4183,8 @@ let atomic_exchange ~dbg (_ : Lambda.immediate_or_pointer) atomic new_value =
 let atomic_fetch_and_add ~dbg atomic i =
   let op = Catomic { op = Fetch_and_add; size = Word } in
   if Proc.operation_supported op
-  then Cop (op, [add_const i (-1) dbg; atomic], dbg)
+  then (* addition of tagged integers *)
+    Cop (op, [decr_int i dbg; atomic], dbg)
   else
     Cop
       ( Cextcall
