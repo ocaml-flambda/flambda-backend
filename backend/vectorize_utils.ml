@@ -137,11 +137,13 @@ let vectorize_machtypes (pack : Reg.t list) : Cmm.machtype_component =
         Printreg.reglist pack;
     match hd.typ, List.length pack with
     | Addr, _ -> Misc.fatal_errorf "Unexpected machtype for %a" Printreg.reg hd
-    | (Int | Float), 2 | Float32, 4 ->
-      (* allows subregs, width should be correct by construction of [Group]. *)
+    | Float, 2 | Float32, 4 -> Vec128
+    | Int, _ ->
+      (* [Int] may be used for int32, width should be correct by construction of
+         [Group]. *)
       Vec128
     | Val, 2 -> Valx2
-    | (Val | Int | Float | Float32), n ->
+    | (Val | Float | Float32), n ->
       Misc.fatal_errorf "Unexpected pack size %d for %a" n Printreg.reglist pack
     | Vec128, _ | Valx2, _ ->
       Misc.fatal_errorf "Unexpected machtype for %a" Printreg.reg hd)
