@@ -8,11 +8,13 @@ external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 |}]
 
-type t = {x:int}
-type b = {x:bool}
-type s = t = { x : int }
-let f (x:t) = x.x
-let g (x:t#) = x.#x
+module M = struct
+  type t = {x:int}
+  type b = {x:bool}
+  type s = t = { x : int }
+  let f (x:t) = x.x
+  let g (x:t#) = x.#x
+end
 [%%expect{||}]
 
 module M = struct
