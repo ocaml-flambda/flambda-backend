@@ -948,7 +948,7 @@ let diff env1 env2 =
 (* Functions for use in "wrap" parameters in IdTbl *)
 let wrap_identity x = x
 let wrap_value vda = Val_bound vda
-let wrap_module mda = Mod_local (mda, [])
+let wrap_module mda = Mod_local (mda, locks_empty)
 
 (* Forward declarations *)
 
@@ -2089,7 +2089,7 @@ let rec components_of_module_maker
               NameMap.add (Ident.name id) mda c.comp_modules;
             env :=
               store_module ~update_summary:false ~check:None
-                id addr pres md shape [] !env
+                id addr pres md shape locks_empty !env
         | Sig_modtype(id, decl, _) ->
             let final_decl =
               (* The prefixed items get the same scope as [cm_path], which is

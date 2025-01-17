@@ -2603,17 +2603,17 @@ let is_alias = function
   | No -> false
   | Yes_walk_locks | Yes_hold_locks -> true
 
-let rec type_module_maybe_hold_locks ~alias sttn funct_body anchor env smod =
-  Builtin_attributes.warning_scope smod.pmod_attributes
-    (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
-
-and type_module ?(alias=false) sttn funct_body anchor env smod =
+let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   let alias = if alias then Yes_walk_locks else No in
   let md, shape, locks =
     type_module_maybe_hold_locks ~alias sttn funct_body anchor env smod
   in
   assert (Env.locks_is_empty locks);
   md, shape
+
+and  type_module_maybe_hold_locks ~alias sttn funct_body anchor env smod =
+  Builtin_attributes.warning_scope smod.pmod_attributes
+    (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
   match smod.pmod_desc with
@@ -2633,13 +2633,12 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
           mod_loc = smod.pmod_loc }
       in
       let sg' = Signature_names.simplify _finalenv names sg in
-      let locks = Env.locks_empty in
-      if List.length sg' = List.length sg then md, shape, locks else
       let md, shape =
+        if List.length sg' = List.length sg then md, shape else
         wrap_constraint_with_shape env false md
           (Mty_signature sg') shape Tmodtype_implicit
       in
-      md, shape, locks
+      md, shape, Env.locks_empty
   | Pmod_functor(arg_opt, sbody) ->
       let t_arg, ty_arg, newenv, funct_shape_param, funct_body =
         match arg_opt with
