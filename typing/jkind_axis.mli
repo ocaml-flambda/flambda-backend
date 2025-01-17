@@ -52,7 +52,7 @@ module Axis : sig
     | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
     | Nonmodal : 'a Nonmodal.t -> 'a t
 
-  type packed = Pack : 'a t -> packed
+  type packed = Pack : 'a t -> packed [@@unboxed]
 
   (* CR zqian: push ['a t] into the module to avoid first-class module. *)
 
@@ -183,4 +183,20 @@ module Axis_collection : sig
       val f : 'r f -> t -> t -> combine:('r -> 'r -> 'r) -> 'r
     end
   end
+end
+
+module Axis_set : sig
+  type t
+
+  val empty : t
+
+  val add : t -> Axis.packed -> t
+
+  val union : t -> t -> t
+
+  val intersection : t -> t -> t
+
+  val is_subset : t -> t -> bool
+
+  val to_list : t -> Axis.packed list
 end
