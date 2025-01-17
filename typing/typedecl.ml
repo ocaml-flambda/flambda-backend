@@ -294,6 +294,7 @@ in
       type_kind = Type_abstract abstract_source;
       type_jkind = any;
       type_private = sdecl.ptype_private;
+      (* CR rtjoa: manifest probably wrong *)
       type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
       type_separability = Types.Separability.default_signature ~arity;
@@ -1046,8 +1047,17 @@ let transl_declaration env sdecl (id, uid) =
           type_kind = kind;
           type_jkind = jkind;
           type_private = sdecl.ptype_private;
-          (* CR rtjoa: maybe if the boxed version has a manifest, need this manifest to be the unboxed version of that? *)
-          type_manifest = None;
+          (* CR rtjoa: helpers for unboxed versions of htings *)
+          type_manifest =
+            begin match man with
+            | None -> None
+            | Some ty ->
+              match get_desc ty with
+              | Tconstr (path, args, _) ->
+                Some (Ctype.newconstr (Path.unboxed_version path) args)
+              | _ -> None
+            end
+            ;
           type_variance = Variance.unknown_signature ~injective:false ~arity;
           type_separability = Types.Separability.default_signature ~arity;
           type_is_newtype = false;
@@ -1066,7 +1076,7 @@ let transl_declaration env sdecl (id, uid) =
           match get_desc ty with
           | Tconstr (path, args, _) ->
             begin match Env.find_type path env with
-            | { type_unboxed_version = None; _ }-> None
+            | { type_unboxed_version = None; _ } -> None
             | { type_unboxed_version = Some unboxed_version ; _ } ->
               (* CR layouts v11: we'll have to update type_jkind once we have
                   [layout_of] layouts *)
@@ -1368,8 +1378,13 @@ let check_kind_coherence env loc dpath decl =
     end
   | _ -> ()
 
+(* CR rtjoa: consider updating? *)
 let check_coherence env loc dpath decl =
   check_kind_coherence env loc dpath decl;
+  begin match decl.type_unboxed_version with
+  | Some decl' ->
+    check_kind_coherence env loc (Path.unboxed_version dpath) decl'
+  | None -> () end;
   narrow_to_manifest_jkind env loc decl
 
 let check_abbrev env sdecl (id, decl) =

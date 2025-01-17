@@ -2442,6 +2442,7 @@ let check_recmodule_inclusion env bindings =
 let rec package_constraints_sig env loc sg constrs =
   List.map
     (function
+      (* CR rtjoa: consider updating *)
       | Sig_type (id, ({type_params=[]} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in

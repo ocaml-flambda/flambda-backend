@@ -2452,6 +2452,7 @@ let check_decl_jkind env decl jkind =
       | None -> err
       | Some ty -> check_type_jkind env ty jkind
 
+(* CR rtjoa: consider updating? *)
 let constrain_decl_jkind env decl jkind =
   (* CR layouts v2.8: This will need to be deeply reimplemented. *)
   let jkind = Jkind.terrible_relax_l jkind in

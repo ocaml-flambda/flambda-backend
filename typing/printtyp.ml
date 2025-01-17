@@ -2640,6 +2640,7 @@ and tree_of_sigitem ?abbrev = function
   | Sig_value(id, decl, _) ->
       tree_of_value_description id decl
   | Sig_type(id, decl, rs, _) ->
+    (* CR rtjoa: consider updating? (think not) *)
       tree_of_type_declaration id decl rs
   | Sig_typext(id, ext, es, _) ->
       tree_of_extension_constructor id ext es

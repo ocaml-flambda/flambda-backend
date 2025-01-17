@@ -275,3 +275,12 @@ Error: The definition of "t#" is recursive without boxing:
    Also need to check that unused type error are eliminated by using the hash
    version.
 *)
+
+module M = struct
+  type t = {x:int}
+  module N = struct
+    type b = t
+    type u = t#
+  end
+end
+[%%expect{||}]
