@@ -247,7 +247,7 @@ let mk_add_type add_type
       type_expansion_scope = lowest_level;
       type_attributes = [];
       type_unboxed_default = false;
-      (* CR rtjoa: respect abstraction *)
+      (* CR rtjoa: ok to give same uid? *)
       (* type_uid = Uid.of_predef_id (ident_create (Ident.name type_ident ^ "#")); *)
       (* type_uid = Uid.of_predef_id (ident_create (Ident.name type_ident ^ "#")); *)
       type_uid;

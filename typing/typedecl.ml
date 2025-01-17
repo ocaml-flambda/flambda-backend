@@ -271,15 +271,16 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       ~default:any
       sdecl
   in
-  let abstract_source, type_manifest =
+  let abstract_source, type_manifest, unboxed_type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
     (* Make a manifest with an unrestricted type variable. This type variable
        essentially collects constraints that arise from the usage of the
        type being constructed. Nothing is gained by using the jkind from
        an annotation here, and doing so with separated left- and right-jkinds
        is hard to do. *)
-    | None, _ | Some _, None -> Definition, Some (Ctype.newvar any)
-    | Some _, Some reason -> reason, None
+    | None, _ | Some _, None ->
+      Definition, Some (Ctype.newvar any), Some (Ctype.newvar any)
+    | Some _, Some reason -> reason, None, None
 in
   let type_params =
     List.map (fun (param, _) ->
@@ -294,8 +295,7 @@ in
       type_kind = Type_abstract abstract_source;
       type_jkind = any;
       type_private = sdecl.ptype_private;
-      (* CR rtjoa: manifest probably wrong *)
-      type_manifest;
+      type_manifest = unboxed_type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
       type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
@@ -1006,17 +1006,19 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_record_unboxed_product _ | Ptype_open -> jkind
     in
     let arity = List.length params in
-    let decl_unboxed =
-
+    (* Invaraint: the kind and the manifest agree on whether this type has an
+       unboxed version *)
+    let unboxed_kind_jkind =
       match kind with
+      | Type_abstract a ->
+        `Abstract_kind a
       | Type_record_unboxed_product _ | Type_variant _
       | Type_open
       | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
                         | Record_ufloat | Record_mixed _))->
-        None
+        `No_unboxed_version
       | Type_record (lbls, Record_boxed _) ->
         (* CR rtjoa: factor out shared code *)
-
         (* let path' = Path.Path.unboxed_version path in *)
         let lbls_unboxed =
           (* CR rtjoa: Need warning scope? *)
@@ -1041,23 +1043,49 @@ let transl_declaration env sdecl (id, uid) =
         in
         let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
         let kind = Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product) in
+        `Unboxed_kind_jkind (kind, jkind)
+    in
+    let unboxed_manifest =
+      match man with
+      | None -> `No_manifest
+      | Some ty ->
+        match get_desc ty with
+        | Tconstr (path, args, _) ->
+          begin match Env.find_type path env with
+          | { type_unboxed_version = None; _ } -> `No_unboxed_version
+          | { type_unboxed_version = Some unboxed_version ; _ } ->
+            (* CR layouts v11: we'll have to update type_jkind once we have
+                [layout_of] layouts *)
+            `Unboxed_manifest_jkind
+              (Ctype.newconstr (Path.unboxed_version path) args,
+               unboxed_version.type_jkind)
+          end
+        | _ ->
+          `No_unboxed_version
+    in
+    let unboxed_kind_jkind_manifest =
+      match unboxed_kind_jkind, unboxed_manifest with
+      | `No_unboxed_version, _ | _, `No_unboxed_version
+      | `Abstract_kind _, `No_manifest -> None
+      | `Unboxed_kind_jkind (kind, jkind), `No_manifest ->
+        Some (kind, jkind, None)
+      | `Abstract_kind a, `Unboxed_manifest_jkind (ty, jkind) ->
+        Some (Type_abstract a, jkind, Some ty)
+      | `Unboxed_kind_jkind (kind, jkind), `Unboxed_manifest_jkind (ty, _jkind) ->
+        (* [check_coherence] will make sure [jkind] and [_jkind] align *)
+        Some (kind, jkind, Some ty)
+    in
+    let decl_unboxed =
+      match unboxed_kind_jkind_manifest with
+      | None -> None
+      | Some (kind, jkind, manifest) ->
         Some {
           type_params = params;
           type_arity = arity;
           type_kind = kind;
           type_jkind = jkind;
           type_private = sdecl.ptype_private;
-          (* CR rtjoa: helpers for unboxed versions of htings *)
-          type_manifest =
-            begin match man with
-            | None -> None
-            | Some ty ->
-              match get_desc ty with
-              | Tconstr (path, args, _) ->
-                Some (Ctype.newconstr (Path.unboxed_version path) args)
-              | _ -> None
-            end
-            ;
+          type_manifest = manifest;
           type_variance = Variance.unknown_signature ~injective:false ~arity;
           type_separability = Types.Separability.default_signature ~arity;
           type_is_newtype = false;
@@ -1069,36 +1097,6 @@ let transl_declaration env sdecl (id, uid) =
           type_has_illegal_crossings = false;
           type_unboxed_version = None;
         }
-      | Type_abstract _ ->
-      match man with
-        | None -> None
-        | Some ty ->
-          match get_desc ty with
-          | Tconstr (path, args, _) ->
-            begin match Env.find_type path env with
-            | { type_unboxed_version = None; _ } -> None
-            | { type_unboxed_version = Some unboxed_version ; _ } ->
-              (* CR layouts v11: we'll have to update type_jkind once we have
-                  [layout_of] layouts *)
-              Some { type_params = params;
-                type_arity = arity;
-                type_kind = Type_abstract Definition;
-                type_jkind = unboxed_version.type_jkind;
-                type_private = sdecl.ptype_private;
-                type_manifest = Some (Ctype.newconstr (Path.unboxed_version path) args);
-                type_variance = Variance.unknown_signature ~injective:false ~arity;
-                type_separability = Types.Separability.default_signature ~arity;
-                type_is_newtype = false;
-                type_expansion_scope = Btype.lowest_level;
-                type_loc = sdecl.ptype_loc;
-                type_attributes = [];
-                type_unboxed_default = false;
-                type_uid = uid;
-                type_has_illegal_crossings = false;
-                type_unboxed_version = None;
-                  }
-            end
-          | _ -> None
     in
     let decl =
       { type_params = params;
