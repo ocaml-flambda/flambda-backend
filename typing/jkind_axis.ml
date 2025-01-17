@@ -125,7 +125,7 @@ module Axis = struct
     | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
     | Nonmodal : 'a Nonmodal.t -> 'a t
 
-  type packed = Pack : 'a t -> packed
+  type packed = Pack : 'a t -> packed [@@unboxed]
 
   module Accent_lattice (M : Mode_intf.Lattice) = struct
     (* A functor to add some convenient functions to modal axes *)
@@ -474,4 +474,34 @@ module Axis_collection = struct
         @@ f ~axis:Axis.(Nonmodal Nullability) nul1 nul2
     end
   end
+end
+
+module Axis_set = struct
+  (* each axis is true or false to indicate membership  *)
+  type t = bool Axis_collection.t
+
+  let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
+
+  let add t (Axis.Pack axis) = Axis_collection.set ~axis t true
+
+  let union t1 t2 =
+    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
+        Axis_collection.get ~axis t1 || Axis_collection.get ~axis t2)
+
+  let intersection t1 t2 =
+    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
+        Axis_collection.get ~axis t1 && Axis_collection.get ~axis t2)
+
+  let is_subset t1 t2 =
+    Axis_collection.fold
+      ~f:(fun ~axis:(Pack axis) t1_on_axis ->
+        let t2_on_axis = Axis_collection.get ~axis t2 in
+        (not t1_on_axis) || t2_on_axis)
+      ~combine:( && ) t1
+
+  let to_list t =
+    Axis_collection.fold
+      ~f:(fun ~axis t_on_axis ->
+        match t_on_axis with true -> [axis] | false -> [])
+      ~combine:( @ ) t
 end
