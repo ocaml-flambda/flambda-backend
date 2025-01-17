@@ -344,7 +344,6 @@ module M4 : sig type s : immutable_data end
 type 'a t4_val
 type t4 = M4.s t4_val
 |}]
-(* CR layouts v2.8: The appearance of [immutable_data] there is just wrong. *)
 
 type ('a : float64) t4_float64
 type t4f' = M4.s t4_float64;;

@@ -288,7 +288,6 @@ type 'a t4_val
 type ('a : void) t4_void
 type t4 = M4.s t4_val
 |}]
-(* CR layouts v2.8: The appearance of [immutable_data] there is just wrong. *)
 
 type t4' = M4.s t4_void;;
 [%%expect {|

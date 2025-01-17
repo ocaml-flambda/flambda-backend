@@ -2246,57 +2246,54 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
    kind polymorphism design. *)
 let sub_jkind_l ~type_equal ~jkind_of_type sub super =
-  let success =
+  (* CR layouts v2.8: Do something better than just comparing for equality. *)
+  (* We can't use other functions, because they insist that we only compare
+     lr-jkinds for equality, not just l-jkinds. *)
+  let layouts =
+    Misc.Le_result.is_le (Layout.sub sub.jkind.layout super.jkind.layout)
+  in
+  let bounds =
+    Bounds.Fold2.f
+      { f =
+          (fun (type axis) ~(axis : axis Axis.t) (bound1 : _ Bound.t)
+               (bound2 : _ Bound.t) ->
+            let (module Bound_ops) = Axis.get axis in
+            (* If bound1 is min and has no baggage, we're good. *)
+            Bound_ops.le bound1.modifier Bound_ops.min
+            && not (Baggage.has_baggage bound1.baggage)
+            (* If bound2 is max, we're good. *)
+            || Bound_ops.le Bound_ops.max bound2.modifier
+            (* Otherwise, try harder. *)
+            ||
+            (* Maybe an individual axis has the right shape on the right;
+               try this before doing the stupid equality check. *)
+            match Bound.try_allow_r bound2 with
+            | Some bound2 ->
+              Misc.Le_result.is_le
+                (Bound.less_or_equal ~axis ~type_equal ~jkind_of_type bound1
+                   bound2)
+            | None ->
+              let baggage1 = Baggage.as_list bound1.baggage in
+              let baggage2 = Baggage.as_list bound2.baggage in
+              let modifiers = Bound_ops.le bound1.modifier bound2.modifier in
+              let baggages =
+                (* Check lengths first to avoid unnecessary `type_equal`. *)
+                List.compare_lengths baggage1 baggage2 = 0
+                && List.for_all2 type_equal baggage1 baggage2
+              in
+              modifiers && baggages)
+      }
+      ~combine:( && ) sub.jkind.upper_bounds super.jkind.upper_bounds
+  in
+  if layouts && bounds
+  then
     Ok
       { sub with
         history =
           combine_histories ~type_equal ~jkind_of_type Subjkind (Pack sub)
             (Pack super)
       }
-  in
-  let failure = Error (Violation.of_ (Not_a_subjkind (sub, super))) in
-  (* First try normal subjkinding, if the right-hand jkind has the right
-     shape. *)
-  match try_allow_r super with
-  | Some super -> (
-    match check_sub ~type_equal ~jkind_of_type sub super with
-    | Less | Equal -> success
-    | Not_le -> failure)
-  | None ->
-    (* CR layouts v2.8: Do something better than just comparing for equality. *)
-    (* We can't use other functions, because they insist that we only compare
-       lr-jkinds for equality, not just l-jkinds. *)
-    let layouts =
-      Misc.Le_result.is_le (Layout.sub sub.jkind.layout super.jkind.layout)
-    in
-    let bounds =
-      Bounds.Fold2.f
-        { f =
-            (fun (type axis) ~(axis : axis Axis.t) (bound1 : _ Bound.t)
-                 (bound2 : _ Bound.t) ->
-              (* Maybe an individual axis has the right shape on the right;
-                 try this again before doing the stupid equality check. *)
-              match Bound.try_allow_r bound2 with
-              | Some bound2 ->
-                Misc.Le_result.is_le
-                  (Bound.less_or_equal ~axis ~type_equal ~jkind_of_type bound1
-                     bound2)
-              | None ->
-                let (module Bound_ops) = Axis.get axis in
-                let baggage1 = Baggage.as_list bound1.baggage in
-                let baggage2 = Baggage.as_list bound2.baggage in
-                let modifiers =
-                  Bound_ops.equal bound1.modifier bound2.modifier
-                in
-                let baggages =
-                  List.compare_lengths baggage1 baggage2 = 0
-                  && List.for_all2 type_equal baggage1 baggage2
-                in
-                modifiers && baggages)
-        }
-        ~combine:( && ) sub.jkind.upper_bounds super.jkind.upper_bounds
-    in
-    if layouts && bounds then success else failure
+  else Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s

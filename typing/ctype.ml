@@ -2456,6 +2456,11 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     let jkind_of_type = type_jkind_purely_if_principal env in
     let jkind1 = Jkind.round_up ~type_equal ~jkind_of_type jkind1 in
     let jkind2 = Jkind.round_up ~type_equal ~jkind_of_type jkind2 in
+    (* This is strange, in that we're rounding up and then computing an
+       intersection. So we might find an intersection where there isn't really
+       one. See the comment above this function arguing why this is OK here. *)
+    (* CR layouts v2.8: Think about doing better, but it's probably not worth
+       it. *)
     Jkind.intersection_or_error ~type_equal ~jkind_of_type ~reason jkind1 jkind2
 
 (* See comment on [jkind_unification_mode] *)
