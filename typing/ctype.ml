@@ -4265,9 +4265,11 @@ let unify_pairs env ty1 ty2 pairs =
 let unify env ty1 ty2 =
   unify_pairs env ty1 ty2 []
 
-let unify_delaying_jkind_checks env ty1 ty2 =
+let unify_delaying_jkind_checks env ty_pairs =
   delay_jkind_checks_in (fun () ->
-    unify_pairs env ty1 ty2 [])
+    List.iter (fun (ty1, ty2) ->
+      unify_pairs env ty1 ty2 [])
+      ty_pairs)
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =

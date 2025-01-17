@@ -247,9 +247,9 @@ Line 2, characters 0-23:
 2 | and r = {x:int; y:bool}
     ^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of r is value
-         because it's a boxed record type.
-       But the layout of r must be a sublayout of value & float64
+       The layout of r# is any & any
+         because it is an unboxed record.
+       But the layout of r# must be a sublayout of value & float64
          because of the definition of t at line 1, characters 0-29.
 |}]
 

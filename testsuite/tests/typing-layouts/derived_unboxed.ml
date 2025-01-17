@@ -106,10 +106,8 @@ type b = a = { i : int }
 and s = b#
 [%%expect{|
 type a = { i : int; } [@@unboxed]
-Line 2, characters 0-24:
-2 | type b = a = { i : int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type "a"
-       Their internal representations differ:
-       the original definition uses unboxed representation.
+Line 3, characters 8-10:
+3 | and s = b#
+            ^^
+Error: "b" has no unboxed version. (typedecl.ml)
 |}]

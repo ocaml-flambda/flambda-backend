@@ -357,13 +357,25 @@ in
 let update_type temp_env env id loc =
   let path = Path.Pident id in
   let decl = Env.find_type path temp_env in
-  match decl.type_manifest with None -> assert false
-  | Some ty ->
-      try
-        Ctype.(unify_delaying_jkind_checks env
-                 (newconstr path decl.type_params) ty)
-      with Ctype.Unify err ->
-        raise (Error(loc, Type_clash (env, err)))
+  let to_unify =
+    match decl.type_unboxed_version with
+    | None -> []
+    | Some decl' ->
+      match decl'.type_manifest with
+      | None -> assert false
+      | Some ty ->
+        [Ctype.newconstr (Path.unboxed_version path) decl'.type_params, ty]
+  in
+  let to_unify =
+    match decl.type_manifest with
+    | None -> assert false
+    | Some ty ->
+      ((Ctype.newconstr path decl.type_params), ty) :: to_unify
+  in
+  try
+    Ctype.unify_delaying_jkind_checks env to_unify
+  with Ctype.Unify err ->
+    raise (Error(loc, Type_clash (env, err)))
 
 (* Determine if a type's values are represented by floats at run-time. *)
 (* CR layouts v2.5: Should we check for unboxed float here? Is a record with all
