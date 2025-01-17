@@ -502,7 +502,7 @@ type binary_primitive =
   | Float_arith of float_bitwidth * binary_float_arith_op
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
-  | Atomic_exchange
+  | Atomic_exchange of Block_access_field_kind.t
   | Atomic_fetch_and_add
   | Poke of Flambda_kind.Standard_int_or_float.t
 
@@ -513,8 +513,8 @@ type ternary_primitive =
           for more details on the unarization. *)
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Atomic_compare_and_set
-  | Atomic_compare_exchange
+  | Atomic_compare_and_set of Block_access_field_kind.t
+  | Atomic_compare_exchange of Block_access_field_kind.t
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

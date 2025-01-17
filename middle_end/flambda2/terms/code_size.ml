@@ -403,8 +403,8 @@ let binary_prim_size prim =
     binary_float_comp_primitive width cmp
   | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
-  | Atomic_exchange | Atomic_fetch_and_add ->
-    does_not_need_caml_c_call_extcall_size
+  | Atomic_fetch_and_add -> 1
+  | Atomic_exchange _ -> does_not_need_caml_c_call_extcall_size
   | Poke _ -> 1
 
 let ternary_prim_size prim =
@@ -415,7 +415,8 @@ let ternary_prim_size prim =
     5 (* ~ 3 block_load + 2 block_set *)
   | Bigarray_set (_dims, _kind, _layout) -> 2
   (* ~ 1 block_load + 1 block_set *)
-  | Atomic_compare_and_set | Atomic_compare_exchange ->
+  | Atomic_compare_and_set Immediate -> 1
+  | Atomic_compare_and_set Any_value | Atomic_compare_exchange _ ->
     does_not_need_caml_c_call_extcall_size
 
 let variadic_prim_size prim args =

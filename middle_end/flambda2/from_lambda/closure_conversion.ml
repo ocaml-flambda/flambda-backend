@@ -1046,7 +1046,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Parray_element_size_in_bytes _
       | Pget_header _ | Prunstack | Pperform | Presume | Preperform
-      | Patomic_exchange | Patomic_compare_exchange | Patomic_cas
+      | Patomic_exchange _ | Patomic_compare_exchange _ | Patomic_cas _
       | Patomic_fetch_add | Pdls_get | Ppoll | Patomic_load _
       | Preinterpret_tagged_int63_as_unboxed_int64
       | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _ ->
