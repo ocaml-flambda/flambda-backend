@@ -522,6 +522,8 @@ module Bound = struct
         | Tvariant _ | Tunivar _ | Tpackage _ ->
           (* these cases either cannot be infinitely recursive or their jkinds
              do not have baggage *)
+          (* CR layouts v2.8: Some of these might get with-bounds someday. We
+             should double-check before we're done that they haven't. *)
           Continue t
         | Tlink _ | Tsubst _ ->
           Misc.fatal_error "Tlink or Tsubst in reduce_baggage"
@@ -575,13 +577,12 @@ module Bound = struct
     | No_baggage, No_baggage -> Axis_ops.less_or_equal m1 m2
     (* CR layouts v2.8: This should expand types on the left. *)
     | Baggage (ty, tys), No_baggage ->
-      if Axis_ops.le Axis_ops.max m2
-      then Less
-      else
-        let m1' =
-          reduce_baggage ~type_equal ~jkind_of_type ~axis m1 (ty :: tys)
-        in
-        Axis_ops.less_or_equal m1' m2
+      (* Could test [le max m2] here, but [reduce_baggage] essentially does this
+         *)
+      let m1' =
+        reduce_baggage ~type_equal ~jkind_of_type ~axis m1 (ty :: tys)
+      in
+      Axis_ops.less_or_equal m1' m2
 end
 
 module Bounds = struct
