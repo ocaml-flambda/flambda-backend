@@ -188,6 +188,8 @@ module type Map = sig
 
   val mapi : (key -> 'a -> 'b) -> 'a t -> 'b t
 
+  val to_seq : 'a t -> (key * 'a) Seq.t
+
   val print_debug :
     (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
