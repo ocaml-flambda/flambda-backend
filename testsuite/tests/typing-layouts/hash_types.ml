@@ -283,4 +283,7 @@ module M = struct
     type u = t#
   end
 end
-[%%expect{||}]
+[%%expect{|
+module M :
+  sig type t = { x : int; } module N : sig type b = t type u = t# end end
+|}]
