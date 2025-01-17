@@ -73,7 +73,9 @@ module Axis : sig
 
   val name : _ t -> string
 
-  val is_deep : _ t -> bool
+  (** Is this a modal axis? Includes externality, because that will one
+      day be modal (it is a deep property). *)
+  val is_modal : _ t -> bool
 end
 
 (** [Axed] describes a type that is parameterized by axis. *)

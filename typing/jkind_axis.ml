@@ -173,7 +173,7 @@ module Axis = struct
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
 
-  let is_deep (type a) : a t -> bool = function
+  let is_modal (type a) : a t -> bool = function
     | Modal Locality -> true
     | Modal Linearity -> true
     | Modal Uniqueness -> true

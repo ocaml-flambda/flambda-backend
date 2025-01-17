@@ -633,7 +633,7 @@ module Bounds = struct
     Map.f
       { f =
           (fun ~axis (bound : _ Bound.t) : _ Bound.t ->
-            if Axis.is_deep axis || not deep_only
+            if Axis.is_modal axis || not deep_only
             then Bound.add_baggage bound ~axis baggage
             else bound)
       }
