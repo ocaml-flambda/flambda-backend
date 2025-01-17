@@ -66,6 +66,18 @@ type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 [%%expect {|
 type ('a, 'b) t : immutable_data = { a : 'a; b : 'b; }
 |}]
+(* The printing above is scary -- that looks wrong. But it's just the printing
+   code, which drops the baggage (for now). Here is a test that proves it: *)
+
+let f1 (x : (int, int) t @@ once) : _ @@ many = x
+let f2 (x : (int -> int, int) t @@ once) : _ @@ many = x
+[%%expect{|
+val f1 : (int, int) t @ once -> (int, int) t = <fun>
+Line 2, characters 55-56:
+2 | let f2 (x : (int -> int, int) t @@ once) : _ @@ many = x
+                                                           ^
+Error: This value is "once" but expected to be "many".
+|}]
 
 type t : value mod portable = private { foo : string }
 [%%expect {|
