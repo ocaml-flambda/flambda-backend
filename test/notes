@@ -1,0 +1,50 @@
+Not-Unboxable:
+
+X intrinsequement unboxable.
+
+X alias de Y point d'allocation
+
+X pas alias de Z point d'allocation
+
+Tout alias W de Y est unboxable
+
+On connait tous les points où Y flow
+
+Tous les conteneurs intermédiaires sont capable de contenir une version unboxée:
+  Pour l'instant argument et retour de fonction ne sont pas ok.
+  => ceux ok
+    argument de continuation
+    let binding alias
+    cloture (en tant que value slot)
+    block ? (en tant que field) (si c'est pas ok on suppose que l'échapement le montrerait)
+      => pas pour l'instant
+      => Mixte ?
+      Compliqué, désactivé pour l'instant !
+      Mais Potentiellement, si le conteneur est unboxé lui même ça peut être OK.
+
+Il faut pouvoir patcher tous les acces au conteneur, donc connaitre tous les usages.
+
+
+Il peut y avoir divergence sur le chemin dans les conteneurs.
+
+Ne pas oublier d'ajouter les constantes
+
+
+Optimiser patricia tree union pour que ce ne soit pas cher sur l'identité (égalité physique). (union_unit pour se débarasser de la fonction f)
+
+
+Faire des invariants entre construction de Alias_if_def et Propagate: Ne pas exposer ce bout de type (private) et faire une fonction pour les introduire
+
+Renomer les champs target en source dans le type Dep.dep
+
+### TODO:
+* Le monde exterieur: comme c'est vite top, on perds les relations.
+  Il faudrait avoir une variable par paramêtre de fonction
+  et peut être un constructeur spécifique monde extérieur ?
+
+Pas besoin de l'enregistrer, les contraintes sont déjà suffisante: si il flow vers un truc, c'est un constructeur pas unboxable, donc 
+
+* Faire des exemples unboxable et pas unboxable
+
+
+Mais est-ce que c'est fiable la propagation de flow dans ce sens là ? Si on a des top, peut on faire confiance à quoi que ce soit ?

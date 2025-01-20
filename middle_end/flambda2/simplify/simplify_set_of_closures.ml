@@ -474,6 +474,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~poll_attribute:(Code.poll_attribute code) ~is_a_functor ~is_opaque
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
       ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~is_my_closure_used
+      ~never_called_indirectly:(Code.never_called_indirectly code)
       ~inlining_decision ~absolute_history ~relative_history ~loopify
   in
   let code =

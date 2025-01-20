@@ -20,7 +20,7 @@ type tail_expr =
   | Apply of Apply_expr.t
 
 type rev_expr_holed =
-  | Up
+  | Hole
   | Let of
       { bound_pattern : Bound_pattern.t;
         defining_expr : rev_named;
@@ -45,7 +45,13 @@ and rev_named =
 and rev_static_const_or_code =
   | Code of rev_code
   | Deleted_code
-  | Static_const of Static_const.t
+  | Static_const of rev_static_const
+
+and rev_static_const =
+  | Set_of_closures of rev_set_of_closures
+  | Other of Static_const.t
+      (** The [Set_of_closures] case in [Static_const] is not allowed in
+          conjunction with [Other]. *)
 
 and rev_code =
   { params_and_body : rev_params_and_body;

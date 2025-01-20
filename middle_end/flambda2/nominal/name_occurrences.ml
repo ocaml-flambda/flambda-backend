@@ -820,6 +820,10 @@ let mem_symbol t symbol = For_names.mem t.names (Name.symbol symbol)
 
 let mem_code_id t code_id = For_code_ids.mem t.code_ids code_id
 
+let mem_continuation t cont =
+  For_continuations.mem t.continuations cont
+  || For_continuations.mem t.continuations_in_trap_actions cont
+
 let value_slot_is_used_or_imported t value_slot =
   Value_slot.is_imported value_slot
   || For_value_slots.mem t.value_slots_in_projections value_slot

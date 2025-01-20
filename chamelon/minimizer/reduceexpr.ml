@@ -31,7 +31,7 @@ let is_simplified e =
       | _ -> false)
   | _ -> false
 
-let simplify e =
+let simplify apply_dummy e =
   match get_desc e.exp_type with
   | Tconstr (path, [], _) -> (
       match path with
@@ -46,17 +46,18 @@ let simplify e =
                   Texp_constant (Const_string ("", Location.none, None));
               }
           | "unit" -> { e with exp_desc = mkTexp_tuple [] }
-          | _ -> apply_dummy2)
-      | _ -> apply_dummy2)
-  | _ -> apply_dummy2
+          | _ -> apply_dummy)
+      | _ -> apply_dummy)
+  | _ -> apply_dummy
 
-let minimize should_remove map cur_name =
+let minimize apply_dummy should_remove map cur_name =
   let reduce_def_mapper =
     {
       Tast_mapper.default with
       expr =
         (fun mapper e ->
-          if (not (is_simplified e)) && should_remove () then simplify e
+          if (not (is_simplified e)) && should_remove () then
+            simplify apply_dummy e
           else Tast_mapper.default.expr mapper e);
     }
   in
@@ -65,4 +66,8 @@ let minimize should_remove map cur_name =
   in
   Smap.add cur_name nstr map
 
-let minimizer = { minimizer_name = "reduce-expr"; minimizer_func = minimize }
+let minimizer =
+  { minimizer_name = "reduce-expr"; minimizer_func = minimize apply_dummy2 }
+
+let minimizer_dummy1 =
+  { minimizer_name = "reduce-expr-2"; minimizer_func = minimize apply_dummy1 }

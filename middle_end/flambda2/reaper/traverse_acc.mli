@@ -17,7 +17,8 @@ module Graph = Global_flow_graph
 
 type continuation_info =
   { is_exn_handler : bool;
-    params : Variable.t list
+    params : Variable.t list;
+    arity : Flambda_kind.With_subkind.t list
   }
 
 module Env : sig
@@ -26,7 +27,9 @@ module Env : sig
   type t =
     { parent : Rev_expr.rev_expr_holed;
       conts : cont_kind Continuation.Map.t;
-      current_code_id : Code_id.t option
+      current_code_id : Code_id.t option;
+      le_monde_exterieur : Name.t;
+      all_constants : Name.t
     }
 end
 
@@ -36,7 +39,8 @@ type code_dep =
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
     exn : Variable.t; (* Dummy variable representing exn return value *)
-    is_tupled : bool
+    is_tupled : bool;
+    call_witnesses : Code_id_or_name.t list
   }
 
 type apply_dep =
@@ -45,7 +49,8 @@ type apply_dep =
     apply_args : Simple.t list;
     apply_closure : Simple.t option;
     params_of_apply_return_cont : Variable.t list option;
-    param_of_apply_exn_cont : Variable.t
+    param_of_apply_exn_cont : Variable.t;
+    not_pure_call_witness : Variable.t
   }
 
 type t
@@ -91,4 +96,9 @@ val code_deps : t -> code_dep Code_id.Map.t
 
 val graph : t -> Graph.graph
 
-val deps : t -> Graph.graph
+val deps :
+  t ->
+  get_code_metadata:(Code_id.t -> Code_metadata.t) ->
+  le_monde_exterieur:Name.t ->
+  all_constants:Name.t ->
+  Graph.graph
