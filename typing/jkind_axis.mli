@@ -64,10 +64,6 @@ module Axis : sig
   val name : _ t -> string
 
   val is_deep : _ t -> bool
-
-  (* CR layouts v2.8: Not sure this belongs here, but there's not another obvious spot. Once this
-     file is more aligned with axis treatment in mode.ml, possibly re-home this. *)
-  val modality_is_const_for_axis : _ t -> Mode.Modality.Value.Const.t -> bool
 end
 
 (** A collection with one item for each jkind axis *)
@@ -190,7 +186,11 @@ module Axis_set : sig
 
   val empty : t
 
-  val add : t -> Axis.packed -> t
+  val add : t -> _ Axis.t -> t
+
+  val remove : t -> _ Axis.t -> t
+
+  val mem : t -> _ Axis.t -> bool
 
   val union : t -> t -> t
 
@@ -198,5 +198,9 @@ module Axis_set : sig
 
   val is_subset : t -> t -> bool
 
+  val complement : t -> t
+
   val to_list : t -> Axis.packed list
+
+  val print : Format.formatter -> t -> unit
 end

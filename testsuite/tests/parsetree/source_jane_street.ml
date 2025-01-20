@@ -1068,8 +1068,8 @@ type 'a contended_with_int : immutable_data with 'a @@ contended with int
 [%%expect{|
 type 'a list : immutable_data with 'a
 type ('a, 'b) either : immutable_data with 'a * 'b
-type 'a contended : immutable_data with 'a @@ contended
-type 'a contended_with_int : immutable_data with 'a @@ contended
+type 'a contended : immutable_data with 'a
+type 'a contended_with_int : immutable_data with 'a
 |}]
 
 (* not yet supported *)

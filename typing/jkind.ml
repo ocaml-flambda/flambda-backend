@@ -348,55 +348,15 @@ module With_bounds = struct
   module Type_info = struct
     include With_bounds_type_info
 
-    let print ppf { modality; relevant_for_nullability } =
+    let print ppf relevant_axes =
       let open Format in
-      fprintf ppf "@[{ modality = %a; relevant_for_nullability = %s }]"
-        Mode.Modality.Value.Const.print modality
-        (match relevant_for_nullability with
-        | Relevant_for_nullability -> "Relevant_for_nullability"
-        | Irrelevant_for_nullability -> "Irrelevant_for_nullability")
+      fprintf ppf "@[{ relevant_axes = %a }]" Axis_set.print relevant_axes
 
-    let is_relevant_for_nullability = function
-      | { relevant_for_nullability = Relevant_for_nullability; _ } -> true
-      | { relevant_for_nullability = Irrelevant_for_nullability; _ } -> false
+    let is_on_axis (type a) ~(axis : a Axis.t) t = Axis_set.mem t axis
 
-    let is_on_axis (type a) ~(axis : a Jkind_axis.Axis.t) t =
-      match axis with
-      | Nonmodal Externality -> true (* All fields matter for externality *)
-      | Nonmodal Nullability -> is_relevant_for_nullability t
-      | Modal axis ->
-        let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-        not
-          (Mode.Modality.Value.Const.proj axis t.modality
-          |> Mode.Modality.is_constant)
+    let make_irrelevant t ~axis = Axis_set.remove t axis
 
-    let compose_modality (t : t) ~then_ =
-      let modality = Mode.Modality.Value.Const.compose t.modality ~then_ in
-      assert (not (Mode.Modality.Value.Const.is_id modality));
-      { t with modality }
-
-    let join t1 t2 =
-      let modality =
-        Mode.Value.all_axes
-        |> List.map (fun (P axis : _ Mode.Value.axis_packed) ->
-               let on_t1 = Mode.Modality.Value.Const.proj axis t1.modality in
-               let constant_t1 = Mode.Modality.is_constant on_t1 in
-               let on_t2 = Mode.Modality.Value.Const.proj axis t1.modality in
-               let constant_t2 = Mode.Modality.is_constant on_t2 in
-               match constant_t1, constant_t2 with
-               | true, _ -> on_t1
-               | _, true -> on_t2
-               | false, false -> on_t1)
-        |> Mode.Modality.Value.Const.of_list
-      in
-      let relevant_for_nullability =
-        match t1.relevant_for_nullability, t2.relevant_for_nullability with
-        | Irrelevant_for_nullability, Irrelevant_for_nullability ->
-          Irrelevant_for_nullability
-        | Relevant_for_nullability, _ | _, Relevant_for_nullability ->
-          Relevant_for_nullability
-      in
-      { modality; relevant_for_nullability }
+    let join t1 t2 = Axis_set.union t1 t2
   end
 
   let of_with_bounds_types tys =
@@ -456,11 +416,11 @@ module With_bounds = struct
              if Type_info.is_on_axis ~axis ti then Some te else None)
       |> List.of_seq
 
-  let compose_modality (type l r) ~then_ : (l * r) t -> (l * r) t = function
+  let make_irrelevant (type l r) ~axis : (l * r) t -> (l * r) t = function
     | No_with_bounds -> No_with_bounds
     | With_bounds ts ->
       With_bounds
-        (With_bounds_types.Non_empty.map (Type_info.compose_modality ~then_) ts)
+        (With_bounds_types.Non_empty.map (Type_info.make_irrelevant ~axis) ts)
 
   let debug_print (type l r) ~print_type_expr ppf : (l * r) t -> _ =
     let open Format in
@@ -521,11 +481,40 @@ module With_bounds = struct
 
   let add ~relevant_for_nullability ~modality ~type_expr (t : (allowed * 'r) t)
       : (allowed * 'r) t =
-    let type_info = Type_info.{ modality; relevant_for_nullability } in
+    let relevant_axes =
+      List.fold_left
+        (fun acc (Pack axis : Jkind_axis.Axis.packed) ->
+          let is_relevant =
+            match axis with
+            | Modal axis -> (
+              let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
+              let modality = Mode.Modality.Value.Const.proj axis modality in
+              let is_constant = Mode.Modality.is_constant modality in
+              let is_id = Mode.Modality.is_id modality in
+              match is_constant, is_id with
+              | true, _ -> false
+              | _, true -> true
+              | false, false ->
+                Misc.fatal_errorf
+                  "Don't yet know how to interpret non-constant, non-identity \
+                   modalities, but got %a along axis %a.\n\n\
+                   If you see this error, please contant the Jane Street \
+                   compiler team."
+                  Mode.Modality.print modality Value.print_axis axis)
+            | Nonmodal Externality -> true
+            | Nonmodal Nullability -> (
+              match relevant_for_nullability with
+              | `Relevant -> true
+              | `Irrelevant -> false)
+          in
+          if is_relevant then Axis_set.add acc axis else acc)
+        Jkind_axis.Axis_set.empty Jkind_axis.Axis.all
+    in
     match t with
     | No_with_bounds ->
-      With_bounds (With_bounds_types.Non_empty.singleton type_expr type_info)
-    | With_bounds tys -> With_bounds (add_bound type_expr type_info tys)
+      With_bounds
+        (With_bounds_types.Non_empty.singleton type_expr relevant_axes)
+    | With_bounds tys -> With_bounds (add_bound type_expr relevant_axes tys)
 end
 
 module Bounds = struct
@@ -1042,6 +1031,31 @@ module Const = struct
              | Some acc, `Valid (Some mode) -> Some (mode :: acc))
            (Some [])
 
+    let modality_from_relevant_axes relevant_axes =
+      (* The modality is id along relevant axes and constant along irrelevant axes. *)
+      let irrelevant_axes = Axis_set.complement relevant_axes in
+      List.fold_left
+        (fun acc (Axis.Pack axis) ->
+          match axis with
+          | Modal axis ->
+            let then_ : Modality.t =
+              let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
+              match axis with
+              | Monadic monadic ->
+                Atom
+                  (axis, Join_with (Mode.Value.Monadic.Const.min_axis monadic))
+              | Comonadic comonadic ->
+                Atom
+                  ( axis,
+                    Meet_with (Mode.Value.Comonadic.Const.max_axis comonadic) )
+            in
+            Modality.Value.Const.compose acc ~then_
+          | Nonmodal _ ->
+            (* TODO: don't know how to print *)
+            acc)
+        Modality.Value.Const.id
+        (Axis_set.to_list irrelevant_axes)
+
     (** Write [actual] in terms of [base] *)
     let convert_with_base ~(base : Builtin.t) (actual : _ t) =
       let matching_layouts =
@@ -1052,9 +1066,11 @@ module Const = struct
       in
       let printable_with_bounds =
         List.map
-          (fun (type_expr, With_bounds_type_info.{ modality; _ }) ->
+          (fun (type_expr, relevant_axes) ->
             ( !outcometree_of_type_scheme type_expr,
-              !outcometree_of_modalities_new Types.Immutable [] modality ))
+              !outcometree_of_modalities_new
+                Types.Immutable []
+                (modality_from_relevant_axes relevant_axes) ))
           (With_bounds.to_list actual.with_bounds)
       in
       match matching_layouts, modal_bounds with
@@ -1231,8 +1247,7 @@ module Const = struct
         { layout = base.layout;
           upper_bounds = base.upper_bounds;
           with_bounds =
-            With_bounds.add ~modality
-              ~relevant_for_nullability:Irrelevant_for_nullability
+            With_bounds.add ~modality ~relevant_for_nullability:`Irrelevant
               ~type_expr:type_ base.with_bounds
         })
     | Default | Kind_of _ -> raise ~loc:jkind.pjkind_loc Unimplemented_syntax
@@ -1306,8 +1321,7 @@ module Jkind_desc = struct
     }
 
   let add_portability_and_contention_crossing ~from to_ =
-    let add_crossing (type a) ~(axis : a Axis.t) ~constant_modality bounds
-        with_bounds =
+    let add_crossing (type a) ~(axis : a Axis.t) bounds with_bounds =
       let (module A) = Axis.get axis in
       let from_bound = Bounds.get ~axis from.upper_bounds in
       let to_bound = Bounds.get ~axis bounds in
@@ -1324,25 +1338,18 @@ module Jkind_desc = struct
       in
       let with_bounds =
         if added_crossings
-        then With_bounds.compose_modality with_bounds ~then_:constant_modality
+        then With_bounds.make_irrelevant with_bounds ~axis
         else with_bounds
       in
       Bounds.set ~axis bounds new_bound, with_bounds, added_crossings
     in
     let { with_bounds; upper_bounds; _ } = to_ in
     let upper_bounds, with_bounds, added1 =
-      add_crossing ~axis:(Modal (Comonadic Portability))
-        ~constant_modality:
-          (Mode.Modality.Atom
-             (Comonadic Portability, Meet_with Mode.Portability.Const.Portable))
-        upper_bounds with_bounds
+      add_crossing ~axis:(Modal (Comonadic Portability)) upper_bounds
+        with_bounds
     in
     let upper_bounds, with_bounds, added2 =
-      add_crossing ~axis:(Modal (Monadic Contention))
-        ~constant_modality:
-          (Mode.Modality.Atom
-             (Monadic Contention, Join_with Mode.Contention.Const.Contended))
-        upper_bounds with_bounds
+      add_crossing ~axis:(Modal (Monadic Contention)) upper_bounds with_bounds
     in
     { to_ with upper_bounds; with_bounds }, added1 || added2
 
@@ -1460,16 +1467,7 @@ module Jkind_desc = struct
         bounds_so_far, With_bounds_types.empty
       | [] -> bounds_so_far, With_bounds_types.empty
       | (ty, ti) :: bs -> (
-        let omit (type a) (axis : a Axis.t) =
-          match axis with
-          | Modal axis ->
-            let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-            Mode.Modality.Value.Const.proj axis ti.modality
-            |> Mode.Modality.is_constant
-          | Nonmodal Nullability ->
-            not (With_bounds.Type_info.is_relevant_for_nullability ti)
-          | Nonmodal Externality -> false
-        in
+        let omit (type a) (axis : a Axis.t) = not (Axis_set.mem ti axis) in
         let join_respecting_omit bound =
           Bounds.Map2.f
             { f =
@@ -1599,8 +1597,8 @@ module Jkind_desc = struct
       let with_bounds =
         List.fold_right
           (fun (type_expr, modality) bounds ->
-            With_bounds.add ~relevant_for_nullability:Relevant_for_nullability
-              ~type_expr ~modality bounds)
+            With_bounds.add ~relevant_for_nullability:`Relevant ~type_expr
+              ~modality bounds)
           tys_modalities No_with_bounds
       in
       { layout; upper_bounds; with_bounds }
@@ -1711,8 +1709,7 @@ let add_with_bounds ~modality ~type_expr t =
       Jkind_desc.add_with_bounds
       (* We only care about types in fields of unboxed products for the nullability of
          the overall kind *)
-        ~relevant_for_nullability:Irrelevant_for_nullability ~type_expr
-        ~modality t.jkind
+        ~relevant_for_nullability:`Irrelevant ~type_expr ~modality t.jkind
   }
 
 let has_with_bounds (type l r) (t : (l * r) jkind) =
