@@ -348,15 +348,18 @@ module With_bounds = struct
   module Type_info = struct
     include With_bounds_type_info
 
-    let print ppf relevant_axes =
+    let print ppf { relevant_axes } =
       let open Format in
       fprintf ppf "@[{ relevant_axes = %a }]" Axis_set.print relevant_axes
 
-    let is_on_axis (type a) ~(axis : a Axis.t) t = Axis_set.mem t axis
+    let is_on_axis (type a) ~(axis : a Axis.t) { relevant_axes } =
+      Axis_set.mem relevant_axes axis
 
-    let make_irrelevant t ~axis = Axis_set.remove t axis
+    let make_irrelevant { relevant_axes } ~axis =
+      { relevant_axes = Axis_set.remove relevant_axes axis }
 
-    let join t1 t2 = Axis_set.union t1 t2
+    let join { relevant_axes = axes1 } { relevant_axes = axes2 } =
+      { relevant_axes = Axis_set.union axes1 axes2 }
   end
 
   let of_with_bounds_types tys =
@@ -513,8 +516,8 @@ module With_bounds = struct
     match t with
     | No_with_bounds ->
       With_bounds
-        (With_bounds_types.Non_empty.singleton type_expr relevant_axes)
-    | With_bounds tys -> With_bounds (add_bound type_expr relevant_axes tys)
+        (With_bounds_types.Non_empty.singleton type_expr { relevant_axes })
+    | With_bounds tys -> With_bounds (add_bound type_expr { relevant_axes } tys)
 end
 
 module Bounds = struct
@@ -1066,7 +1069,7 @@ module Const = struct
       in
       let printable_with_bounds =
         List.map
-          (fun (type_expr, relevant_axes) ->
+          (fun (type_expr, ({ relevant_axes } : With_bounds_type_info.t)) ->
             ( !outcometree_of_type_scheme type_expr,
               !outcometree_of_modalities_new
                 Types.Immutable []
@@ -1467,7 +1470,9 @@ module Jkind_desc = struct
         bounds_so_far, With_bounds_types.empty
       | [] -> bounds_so_far, With_bounds_types.empty
       | (ty, ti) :: bs -> (
-        let omit (type a) (axis : a Axis.t) = not (Axis_set.mem ti axis) in
+        let omit (type a) (axis : a Axis.t) =
+          not (Axis_set.mem ti.relevant_axes axis)
+        in
         let join_respecting_omit bound =
           Bounds.Map2.f
             { f =
