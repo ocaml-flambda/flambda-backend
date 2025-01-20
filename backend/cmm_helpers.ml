@@ -4211,19 +4211,29 @@ let atomic_arith ~dbg ~op ~untag ~ext_name atomic i =
         [atomic; i],
         dbg )
 
-let atomic_fetch_and_add =
-  atomic_arith ~untag:true ~op:Fetch_and_add ~ext_name:"caml_atomic_fetch_add"
+let atomic_fetch_and_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Fetch_and_add
+    ~ext_name:"caml_atomic_fetch_add" atomic i
 
-let atomic_add = atomic_arith ~untag:true ~op:Add ~ext_name:"caml_atomic_add"
+let atomic_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Add ~ext_name:"caml_atomic_add" atomic i
+  |> return_unit dbg
 
-let atomic_sub = atomic_arith ~untag:true ~op:Sub ~ext_name:"caml_atomic_sub"
+let atomic_sub ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Sub ~ext_name:"caml_atomic_sub" atomic i
+  |> return_unit dbg
 
-let atomic_land =
-  atomic_arith ~untag:false ~op:Land ~ext_name:"caml_atomic_land"
+let atomic_land ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Land ~ext_name:"caml_atomic_land" atomic i
+  |> return_unit dbg
 
-let atomic_lor = atomic_arith ~untag:false ~op:Lor ~ext_name:"caml_atomic_lor"
+let atomic_lor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Lor ~ext_name:"caml_atomic_lor" atomic i
+  |> return_unit dbg
 
-let atomic_lxor = atomic_arith ~untag:true ~op:Lxor ~ext_name:"caml_atomic_lxor"
+let atomic_lxor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Lxor ~ext_name:"caml_atomic_lxor" atomic i
+  |> return_unit dbg
 
 let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
   Cop
