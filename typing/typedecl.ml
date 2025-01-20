@@ -1191,19 +1191,6 @@ module TypeMap = Btype.TypeMap
 let rec check_constraints_rec env loc visited ty =
   if TypeSet.mem ty !visited then () else begin
   visited := TypeSet.add ty !visited;
-  (* If this is a derived unboxed type, first check that it has a valid boxed
-     type source *)
-  begin match get_desc ty with
-  | Tconstr (Pextra_ty (path, Punboxed_ty), args, _) ->
-    let ty' = Ctype.newconstr path args in
-    check_constraints_rec env loc visited ty';
-    begin match Env.find_type path env with
-    | { type_unboxed_version = None; _ } ->
-      raise (Error (loc, No_unboxed_version path))
-    | { type_unboxed_version = Some _; _ } -> ()
-    end
-  | _ -> ()
-  end;
   match get_desc ty with
   | Tconstr (path, args, _) ->
       let decl =
@@ -1970,6 +1957,32 @@ let update_decls_jkind env decls =
     (fun (id, decl) -> (id, update_decl_jkind env (Pident id) decl))
     decls
 
+let check_unboxed_versions_exist env loc decl =
+  let open Btype in
+  (* We iterate on all subexpressions of the declaration to check
+     "in depth" that no non-existent unboxed version is used. *)
+  let it =
+    let checked =
+      (* [checked] remembers the types that the iterator already
+         checked, to avoid looping on cyclic types. *)
+      ref TypeSet.empty in
+    {type_iterators with it_type_expr =
+     (fun self ty ->
+       if TypeSet.mem ty !checked then () else begin
+         begin match get_desc ty with
+         | Tconstr(Pextra_ty (path, Punboxed_ty), _, _) ->
+            begin match Env.find_type path env with
+            | { type_unboxed_version = None; _ } ->
+              raise (Error (loc, No_unboxed_version path))
+            | { type_unboxed_version = Some _; _ } -> ()
+            end
+         | _ -> ()
+         end;
+         checked := TypeSet.add ty !checked;
+         self.it_do_type_expr self ty
+       end)} in
+  it.it_type_declaration it (Ctype.generic_instance_declaration decl)
+
 
 (* Note: Well-foundedness for OCaml types
 
@@ -2605,6 +2618,9 @@ let transl_type_decl env rec_flag sdecl_list =
     List.fold_left2
       (enter_type ~abstract_abbrevs:Rec_check_regularity rec_flag)
       env sdecl_list ids_list in
+  List.iter (fun (id, decl) ->
+    check_unboxed_versions_exist new_env (List.assoc id id_loc_list) decl)
+    decls;
   List.iter (fun (id, decl) ->
     check_well_founded_manifest ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id) decl)
