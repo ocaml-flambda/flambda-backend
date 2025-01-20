@@ -102,4 +102,56 @@ Error: The type constructor "t" expects 1 argument(s),
        but is here applied to 0 argument(s)
 |}]
 
+(***********************************************************************)
+(* This test is about trying to avoid inconsistent contexts.
+   See
+   https://github.com/ocaml-flambda/flambda-backend/pull/3284#discussion_r1920019049
+*)
+
+module type S = sig
+  type t1
+  type t2
+end
+
+type (_ : any, _ : any) eq =
+  Refl : ('a : any). ('a, 'a) eq
+
+let use_portable (_ : _ @@ portable) = ()
+
+module F (X : S) = struct
+  type t3 : value mod portable with X.t1
+  type t4 : value mod portable with X.t2
+end
+
+module Arg1 = struct
+  type t1 = int -> int
+  type t2 = string
+end
+
+module M1 = F(Arg1)
+
+let f (witness : (M1.t3, M1.t4) eq)
+      (t3 : M1.t3 @@ nonportable) (t4 : M1.t4 @@ nonportable) =
+  match witness with
+  | Refl ->
+    use_portable t3;
+    use_portable t4
+
+(* CR layouts v2.8: This is obviously terrible. But at least it's not
+   a soundness problem. *)
+[%%expect{|
+module type S = sig type t1 type t2 end
+type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
+val use_portable : 'a @ portable -> unit = <fun>
+module F :
+  functor (X : S) ->
+    sig type t3 : value mod portable type t4 : value mod portable end
+module Arg1 : sig type t1 = int -> int type t2 = string end
+module M1 : sig type t3 = F(Arg1).t3 type t4 = F(Arg1).t4 end
+>> Fatal error: Abstract kind with [with]: value mod portable
+Uncaught exception: Misc.Fatal_error
+
+|}]
+
+(*****************************************)
 (* CR layouts v2.8: write more gadt tests *)

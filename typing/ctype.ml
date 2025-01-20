@@ -6678,6 +6678,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
   in
   match get_desc ty with
     Tvar _ | Tunivar _ -> ty
+    (* CR layouts v2.8: This needs to traverse the jkind. *)
   | _ -> try TypeHash.find nondep_hash ty
   with Not_found ->
     let ty' = newgenstub ~scope:(get_scope ty)
@@ -6783,7 +6784,7 @@ let nondep_type_decl env mid is_covariant decl =
               None, decl.type_private
     and jkind =
       try Jkind.map_type_expr (nondep_type_rec env mid) decl.type_jkind
-      (* CR layouts v2.8: I have no idea what I'm doing on this next line. *)
+      (* CR layouts v2.8: This should be done with a proper nondep_jkind. *)
       with Nondep_cannot_erase _ when is_covariant ->
         let type_equal = !type_equal' env in
         let jkind_of_type = type_jkind_purely_if_principal env in
