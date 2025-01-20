@@ -62,7 +62,7 @@ Error:
 (* This fails the unboxed recursion check; we must look into [pair] since it's
    part of the same mutually recursive type decl. *)
 type ('a, 'b) pair = { a : 'a ; b : 'b }
-and bad = #{ bad : (int, bad#) pair# }
+and bad = { bad : (int, bad#) pair# }
 [%%expect{|
 Line 2, characters 0-36:
 2 | and bad = #{ bad : (int, bad) pair }
@@ -88,11 +88,11 @@ and b = a * a
 
 (* Guarded by a function *)
 type a = { b : b# }
-and b = { c1 : c ; c2 : c }
+and b = { c : c }
 and c = unit -> a#
 [%%expect{|
 type a = { b : b; }
-and b = #{ c1 : c; c2 : c; }
+and b = #{ c : c }
 and c = unit -> a
 |}]
 
@@ -144,11 +144,11 @@ Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-type bad = { x : (int * u) }
+type bad = { x : u }
 and u = T of bad# [@@unboxed]
 [%%expect{|
 Line 1, characters 0-30:
-1 | type bad = #{ x : (int * u) }
+1 | type bad = #{ x : u }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "u",
@@ -220,6 +220,7 @@ Error: The definition of "bad" is recursive without boxing:
          "'a bad" contains "'a bad"
 |}]
 
+(* CR layouts v5: this should still fail once we allow non-value record fields *)
 type bad = ( s# * s# )
 and ('a : any) record_id2 = { a : 'a }
 and s = { u : u }
