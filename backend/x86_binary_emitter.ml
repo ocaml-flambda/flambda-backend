@@ -1637,11 +1637,11 @@ let emit_lock_op ~ops b dst src =
 
 let emit_lock_cmpxchg = emit_lock_op ~ops:[ 0x0F; 0xB1 ]
 let emit_lock_xadd = emit_lock_op ~ops:[ 0x0F; 0xC1 ]
-let emit_lock_add = emit_lock_op ~ops:[ 0x03 ]
-let emit_lock_sub = emit_lock_op ~ops:[ 0x2B ]
-let emit_lock_and = emit_lock_op ~ops:[ 0x23 ]
-let emit_lock_or = emit_lock_op ~ops:[ 0x0B ]
-let emit_lock_xor = emit_lock_op ~ops:[ 0x33 ]
+let emit_lock_add = emit_lock_op ~ops:[ 0x01 ]
+let emit_lock_sub = emit_lock_op ~ops:[ 0x29 ]
+let emit_lock_and = emit_lock_op ~ops:[ 0x21 ]
+let emit_lock_or = emit_lock_op ~ops:[ 0x09 ]
+let emit_lock_xor = emit_lock_op ~ops:[ 0x31 ]
 
 let emit_stack_reg b opcode dst =
   match dst with
