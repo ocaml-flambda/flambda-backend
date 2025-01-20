@@ -16,9 +16,9 @@ open Stdlib_upstream_compatible
 
 (* We can change the type of an unboxed record with a functional update. *)
 
-type ('a : value & value) t = { x : 'a ; y : string }
-let f : #(int * string) t# -> #(string * int) t# =
-  fun (#{ x = #(i, s); y } as r) -> #{ r with x = #(s, i) }
+type 'a t = { x : 'a ; y : string }
+let f : (int * string) t# -> (string * int) t# =
+  fun (#{ x = (i, s); y } as r) -> #{ r with x = (s, i) }
 [%%expect{|
 type ('a : value & value) t = { x : 'a; y : string; }
 val f : #(int * string) t -> #(string * int) t = <fun>
@@ -127,6 +127,7 @@ val s : t = #{s = "hi"}
 
 (* Accessing inner products *)
 
+(* CR layouts v5: this should work once we allow non-value record fields *)
 type t = { is: #(int * int) }
 
 let add t =
@@ -176,6 +177,7 @@ type 'a r = { i : 'a; }
 type int_r = int r
 |}]
 
+(* CR layouts v5: this should work once we allow non-value record fields *)
 type ('a : float64) t = { i: 'a }
 type floatu_t : float64 = float t#
 [%%expect{|
@@ -221,6 +223,7 @@ type ('a : value & float64 & value) t1
 type 'a t2
 |}]
 
+(* CR layouts v5: this should work once we reorder record fields *)
 type s = r# t1
 and r = { x : int; y : float#; z : s t2 }
 [%%expect{|
@@ -241,11 +244,19 @@ Error:
          because of the definition of t1 at line 1, characters 0-38.
 |}]
 
+(* CR layouts v5: this should work once we allow non-value record fields *)
 type 'a t = { a : 'a ; a' : 'a } constraint 'a = r#
 and r = { i : int ; f : float# }
 [%%expect{|
 type 'a t = { a : 'a; a' : 'a; } constraint 'a = r
 and r = { i : int; f : float#; }
+|}]
+
+type 'a t = { a : 'a ; a' : 'a } constraint 'a = r#
+and r = { i : int }
+[%%expect{|
+type 'a t = { a : 'a; a' : 'a; } constraint 'a = r
+and r = { i : int }
 |}]
 
 (*******************)
@@ -300,22 +311,20 @@ Error: Signature mismatch:
 module M : sig
   type t
 end = struct
-  type t = { s: string; r: string }
-  type nonrec t = t
+  type t' = { s: string; r: string }
+  type nonrec t = t'
 end
 [%%expect{||}]
 
 module M : sig
-  type t = { f : float# ; s : string }
+  type t = { s : string; f : float# }
 end = struct
-  type t = { f : float# ; s : string }
+  type t = { s : string; f : float# }
 end
-[%%expect{|
-module M : sig type t = #{ f : float#; s : string; } end
-|}]
+[%%expect{||}]
 
 module M2 : sig
-  type t : float64 & value
+  type t : value & float64
 end = struct
   include M
   type nonrec t = t#
@@ -323,9 +332,9 @@ end
 [%%expect{||}]
 
 module M : sig
-  type t : float64 & value
+  type t : value & float64
 end = struct
-  type t = { i : float# ; s : string }
+  type t = { s : string; f : float# }
   type nonrec t = t#
 end
 [%%expect{||}]
@@ -333,7 +342,7 @@ end
 module M : sig
   type t : float64 & value
 end = struct
-  type t = { i : float# ; s : string }
+  type t = { s : string; f : float# }
   type nonrec t = t#
 end
 [%%expect{||}]
@@ -365,7 +374,7 @@ type 'a t_float = 'a t_float64_id
 and 'a t_imm = 'a t_immediate_id
 and ('a, 'b, 'ptr) t =
   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
-and ('a, 'b, 'ptr) u = t#
+and ('a, 'b, 'ptr) u = ('a, 'b, 'ptr) t#
 [%%expect{|
 Line 4, characters 28-38:
 4 |   #{ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
@@ -389,7 +398,7 @@ and 'a t_imm = 'a t_immediate_id
 and ('a : float64, 'b : immediate, 'ptr) t =
   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 and ('a : float64, 'b : immediate, 'ptr) u =
-  t#
+  ('a, 'b, 'ptr) t#
 [%%expect{|
 type ('a : float64) t_float = 'a t_float64_id
 and ('a : immediate) t_imm = 'a t_immediate_id
@@ -421,185 +430,52 @@ Error: This expression has type "r",
        which is an unboxed record rather than a boxed one.
 |}]
 
-(********************************)
-(* Private unboxed record types *)
+(*****************************************)
+(* Private implicit unboxed record types *)
 
 module M : sig
-  type t = private #{ x : int; y : bool }
+  type u = private #{ x : int; y : bool }
 end = struct
-  type t = #{ x : int; y : bool }
-end;;
-[%%expect{|
-module M : sig type t = private #{ x : int; y : bool; } end
-|}]
+  type t = { x : int; y : bool }
+  type u = t#
+end
+[%%expect{||}]
 
-module M : sig
+module Bad : sig
   type t = #{ x : int; y : bool }
 end = struct
-  type t = private #{ x : int; y : bool }
-end;;
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = private #{ x : int; y : bool }
-5 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = private #{ x : int; y : bool; } end
-       is not included in
-         sig type t = #{ x : int; y : bool; } end
-       Type declarations do not match:
-         type t = private #{ x : int; y : bool; }
-       is not included in
-         type t = #{ x : int; y : bool; }
-       A private unboxed record constructor would be revealed.
-|}];;
+  type t = private { x : int; y : bool }
+  type u = t# = #{ x : int; y : bool }
+end
+[%%expect{||}]
 
+module Bad = struct
+  type t = private { x : int; y : bool }
+  type u = t# = #{ x : int; y : bool }
+end
+[%%expect{||}]
 
-module M : sig
+module Bad : sig
   type t = #{ x : int }
 end = struct
-  type t = private #{ x : int; y : bool }
+  type t = private { x : int; y : bool }
+  type u = t# = private #{ x : int; y : bool }
 end;;
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = private #{ x : int; y : bool }
-5 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = private #{ x : int; y : bool; } end
-       is not included in
-         sig type t = #{ x : int; } end
-       Type declarations do not match:
-         type t = private #{ x : int; y : bool; }
-       is not included in
-         type t = #{ x : int; }
-       A private unboxed record constructor would be revealed.
-|}];;
+[%%expect{||}];;
 
-module M : sig
-  type t = #{ x : int; y : bool }
+module Bad : sig
+  type u = #{ x : int; y : bool }
 end = struct
   type t = private #{ x : int }
 end;;
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = private #{ x : int }
-5 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = private #{ x : int; } end
-       is not included in
-         sig type t = #{ x : int; y : bool; } end
-       Type declarations do not match:
-         type t = private #{ x : int; }
-       is not included in
-         type t = #{ x : int; y : bool; }
-       A private unboxed record constructor would be revealed.
-|}];;
+[%%expect{||}];;
 
 (*****************************************************)
 (* Special-cased errors for boxed/unboxed mismatches *)
 
-type t_u = { u : int }
-type t = { b : int }
-[%%expect{|
-type t_u = { u : int; }
-type t = { b : int; }
-|}]
+(* Doesn't apply to implicit unboxed records *)
 
-let f () : t_u = { b = 1 }
-[%%expect{|
-Line 1, characters 17-26:
-1 | let f () : t_u = { b = 1 }
-                     ^^^^^^^^^
-Error: This boxed record expression should be unboxed instead,
-       the expected type is "t_u"
-|}]
-
-let f () : t = { u = 2 }
-[%%expect{|
-Line 1, characters 15-25:
-1 | let f () : t = #{ u = 2 }
-                   ^^^^^^^^^^
-Error: This unboxed record expression should be boxed instead,
-       the expected type is "t"
-|}]
-
-let ({ b } : t_u) = assert false
-[%%expect{|
-Line 1, characters 5-10:
-1 | let ({ b } : t_u) = assert false
-         ^^^^^
-Error: This boxed record pattern should be unboxed instead,
-       the expected type is "t_u"
-|}]
-
-let (#{ u } : t) = assert false
-[%%expect{|
-Line 1, characters 5-11:
-1 | let (#{ u } : t) = assert false
-         ^^^^^^
-Error: This unboxed record pattern should be boxed instead,
-       the expected type is "t"
-|}]
-
-let bad_get (t_u : t_u) = t_u.u
-[%%expect{|
-Line 1, characters 26-29:
-1 | let bad_get (t_u : t_u) = t_u.u
-                              ^^^
-Error: This expression has type "t_u",
-       which is an unboxed record rather than a boxed one.
-|}]
-
-let bad_get (t : t) = t.#b
-[%%expect{|
-Line 1, characters 22-23:
-1 | let bad_get (t : t) = t.#b
-                          ^
-Error: This expression has type "t",
-       which is a boxed record rather than an unboxed one.
-|}]
-
-let _ = #{ b = 5 }
-[%%expect{|
-Line 1, characters 11-12:
-1 | let _ = #{ b = 5 }
-               ^
-Error: Unbound unboxed record field "b"
-Hint: There is a boxed record field with this name.
-|}]
-
-let _ = { u = 5 }
-[%%expect{|
-Line 1, characters 10-11:
-1 | let _ = { u = 5 }
-              ^
-Error: Unbound record field "u"
-Hint: There is an unboxed record field with this name.
-|}]
-
-let bad_get t_u = t_u.u
-[%%expect{|
-Line 1, characters 22-23:
-1 | let bad_get t_u = t_u.u
-                          ^
-Error: Unbound record field "u"
-Hint: There is an unboxed record field with this name.
-|}]
-
-let bad_get t = t.#b
-[%%expect{|
-Line 1, characters 19-20:
-1 | let bad_get t = t.#b
-                       ^
-Error: Unbound unboxed record field "b"
-Hint: There is a boxed record field with this name.
-|}]
-
+(*****************************************************************************)
 (* Initial expressions for functionally updated records are always evaluated *)
 
 type t = { x : string }
@@ -678,7 +554,8 @@ Error: The universal type variable 'a was declared to have kind any.
    [a] was necessary to trigger the error because it called
    [check_representable] on [b], constraining its kind to be a sort variable. *)
 type a = B of b
-and b : any = { i : int ; j : int }
+and b : any = r#
+and r = { i : int ; j : int }
 [%%expect{|
 Line 1, characters 9-15:
 1 | type a = B of b
@@ -687,7 +564,8 @@ Error: Type "b" has layout "value & value".
        Variants may not yet contain types of this layout.
 |}]
 type a = B of b_portable
-and b_portable : any mod portable = { i : int ; j : int }
+and b_portable : any mod portable = r#
+and r = { i : int ; j : int }
 [%%expect{|
 Line 1, characters 9-24:
 1 | type a = B of b_portable
@@ -696,7 +574,8 @@ Error: Type "b_portable" has layout "value & value".
        Variants may not yet contain types of this layout.
 |}]
 type a = B of b
-and b : any & any & any = { i : int ; j : int }
+and b : any & any & any = r#
+and r = { i : int ; j : int }
 [%%expect{|
 Line 2, characters 0-48:
 2 | and b : any & any & any = #{ i : int ; j : int }
