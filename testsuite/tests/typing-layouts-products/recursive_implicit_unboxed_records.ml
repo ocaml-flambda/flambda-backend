@@ -36,10 +36,10 @@ type t = { tl : t AbstractList.t; }
 |}]
 
 type 'a mylist = Cons of 'a * 'a list | Nil
-and t = { t : t# mylist } [@@unboxed]
+and t = { t : t# mylist }
 [%%expect{|
 type 'a mylist = Cons of 'a * 'a list | Nil
-and t = { t : t mylist; } [@@unboxed]
+and t = { t : t mylist; }
 |}]
 
 (* This passes the unboxed recursion check (as [pair] always has jkind
@@ -256,10 +256,10 @@ Error: The definition of "bad" is recursive without boxing:
 
 (* We also check recursive types via modules *)
 module rec Bad_rec1 : sig
-  type t = ( s# * s# )
+  type t = #( s# * s# )
   and s = { u : Bad_rec2.u }
 end = struct
-  type t = ( s# * s# )
+  type t = #( s# * s# )
   and s = { u : Bad_rec2.u }
 end
 and Bad_rec2 : sig

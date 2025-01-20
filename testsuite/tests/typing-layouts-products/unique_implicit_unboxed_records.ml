@@ -15,7 +15,7 @@ let unique_use : 'a @ unique -> unit = fun _ -> ()
 let unique_use2 : ('a : value & value) @ unique -> unit = fun _ -> ()
 
 type t = { x : string ; y : string }
-let mk : unit -> t @ unique = fun () -> #{ x = "hi"; y = "hi" }
+let mk : unit -> t# @ unique = fun () -> #{ x = "hi"; y = "hi" }
 [%%expect{|
 val unique_use : 'a @ unique -> unit = <fun>
 val unique_use2 : ('a : value & value). 'a @ unique -> unit = <fun>
@@ -122,8 +122,8 @@ let [@warning "-23"] () =
 [%%expect{|
 |}]
 
-type t = #{ x : unit ; y : string }
-let mk : unit -> t @ unique = fun () -> #{ x = () ; y = "fresh" }
+type t = { x : unit ; y : string }
+let mk : unit -> t# @ unique = fun () -> #{ x = () ; y = "fresh" }
 [%%expect{|
 type t = #{ x : unit; y : string; }
 val mk : unit -> t @ unique = <fun>
