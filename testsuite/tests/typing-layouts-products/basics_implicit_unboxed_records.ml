@@ -308,11 +308,11 @@ Error: Signature mismatch:
 (* Signature checking *)
 
 (* Must expose non-value kind *)
-module M : sig
-  type t
+module Bad : sig
+  type u
 end = struct
-  type t' = { s: string; r: string }
-  type nonrec t = t'
+  type t = { s: string; r: string }
+  type nonrec u = t#
 end
 [%%expect{||}]
 
@@ -324,34 +324,26 @@ end
 [%%expect{||}]
 
 module M2 : sig
-  type t : value & float64
+  type u : value & float64
 end = struct
   include M
-  type nonrec t = t#
+  type nonrec u = t#
 end
 [%%expect{||}]
 
 module M : sig
-  type t : value & float64
+  type u : value & float64
 end = struct
   type t = { s : string; f : float# }
-  type nonrec t = t#
+  type nonrec u = t#
 end
 [%%expect{||}]
 
 module M : sig
-  type t : float64 & value
-end = struct
-  type t = { s : string; f : float# }
-  type nonrec t = t#
-end
-[%%expect{||}]
-
-module M : sig
-  type t
+  type u
 end = struct
   type t = #{ s : string }
-  type nonrec t = t#
+  type nonrec u = t#
 end
 [%%expect{||}]
 
@@ -437,12 +429,12 @@ module M : sig
   type u = private #{ x : int; y : bool }
 end = struct
   type t = { x : int; y : bool }
-  type u = t#
+  type u = t# = #{ x : int ; y : bool }
 end
 [%%expect{||}]
 
 module Bad : sig
-  type t = #{ x : int; y : bool }
+  type u = #{ x : int; y : bool }
 end = struct
   type t = private { x : int; y : bool }
   type u = t# = #{ x : int; y : bool }
@@ -456,7 +448,7 @@ end
 [%%expect{||}]
 
 module Bad : sig
-  type t = #{ x : int }
+  type u = #{ x : int }
 end = struct
   type t = private { x : int; y : bool }
   type u = t# = private #{ x : int; y : bool }
@@ -466,7 +458,8 @@ end;;
 module Bad : sig
   type u = #{ x : int; y : bool }
 end = struct
-  type t = private #{ x : int }
+  type t = private { x : int }
+  type u = t# = private #{ x : int }
 end;;
 [%%expect{||}];;
 
