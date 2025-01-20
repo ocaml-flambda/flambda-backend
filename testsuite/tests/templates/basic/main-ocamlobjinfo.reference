@@ -26,8 +26,8 @@ Runtime parameters:
 	Monoid_utils[Monoid:Monoid_of_semigroup]
 	Monoid_of_semigroup
 	Chain[Category:Category_of_monoid[Monoid:List_monoid]]
-	Import
 	Category_of_monoid[Monoid:List_monoid]
+	Import
 	List_element
 	List_monoid
 	Category_utils[Category:Category_of_monoid[Monoid:List_monoid]]
