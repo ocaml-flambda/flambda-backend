@@ -1100,10 +1100,10 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
   | Begin_region { is_try_region; ghost } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Variadic
-        ((if is_try_region
+        ( (if is_try_region
           then Begin_try_region { ghost }
           else Begin_region { ghost }),
-         [])
+          [] )
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       prim Debuginfo.none k
@@ -3143,12 +3143,16 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       Let_with_acc.create acc
         (Bound_pattern.singleton
            (Bound_var.create ghost_region Name_mode.normal))
-        (Named.create_prim (Variadic (Begin_region { ghost = true }, [])) apply_dbg)
+        (Named.create_prim
+           (Variadic (Begin_region { ghost = true }, []))
+           apply_dbg)
         ~body:both_applications
     in
     Let_with_acc.create acc
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
-      (Named.create_prim (Variadic (Begin_region { ghost = false }, [])) apply_dbg)
+      (Named.create_prim
+         (Variadic (Begin_region { ghost = false }, []))
+         apply_dbg)
       ~body
 
 type call_args_split =

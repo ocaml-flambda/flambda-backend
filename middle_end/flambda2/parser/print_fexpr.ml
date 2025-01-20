@@ -640,21 +640,17 @@ let prim ppf = function
     let varop ppf (o : varop) =
       match o with
       | Make_block (tag, mut, alloc) ->
-          Format.fprintf ppf "%%Block %a%i%a" (mutability ~space:After) mut
-            tag
-            (alloc_mode_for_allocations_opt ~space:Before)
-            alloc
+        Format.fprintf ppf "%%Block %a%i%a" (mutability ~space:After) mut tag
+          (alloc_mode_for_allocations_opt ~space:Before)
+          alloc
       | Begin_region { ghost } ->
-          Format.pp_print_string ppf
-          @@
-          if ghost then "%begin_ghost_region" else "%begin_region"
+        Format.pp_print_string ppf
+        @@ if ghost then "%begin_ghost_region" else "%begin_region"
       | Begin_try_region { ghost } ->
-          Format.pp_print_string ppf
-          @@
-          if ghost then "%begin_ghost_try_region" else "%begin_try_region"
+        Format.pp_print_string ppf
+        @@ if ghost then "%begin_ghost_try_region" else "%begin_try_region"
     in
-    Format.fprintf ppf "@[<2>%a%a@]"
-      varop v
+    Format.fprintf ppf "@[<2>%a%a@]" varop v
       (simple_args ~space:Before ~omit_if_empty:false)
       elts
 

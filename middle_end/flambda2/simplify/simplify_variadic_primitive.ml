@@ -154,7 +154,8 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     in
     SPR.create named ~try_reify:true dacc
 
-let simplify_begin_region dacc ~original_term _dbg ~args_with_tys:_ ~result_var =
+let simplify_begin_region dacc ~original_term _dbg ~args_with_tys:_ ~result_var
+    =
   let ty = T.any_region in
   let dacc = DA.add_variable dacc result_var ty in
   Simplify_primitive_result.create original_term ~try_reify:false dacc

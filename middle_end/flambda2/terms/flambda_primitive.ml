@@ -899,8 +899,8 @@ type nullary_primitive =
   | Poll
 
 let nullary_primitive_eligible_for_cse = function
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _
-  | Enter_inlined_apply _ | Dls_get | Poll ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+  | Dls_get | Poll ->
     false
 
 let compare_nullary_primitive p1 p2 =
@@ -914,31 +914,26 @@ let compare_nullary_primitive p1 p2 =
   | Dls_get, Dls_get -> 0
   | Poll, Poll -> 0
   | ( Invalid _,
-      ( Optimised_out _ | Probe_is_enabled _
-      | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
-    -1
-  | ( Optimised_out _,
-      ( Probe_is_enabled _
-      | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
-    -1
-  | Optimised_out _, Invalid _ -> 1
-  | ( Probe_is_enabled _,
-      ( Enter_inlined_apply _ | Dls_get
+      ( Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ | Dls_get
       | Poll ) ) ->
     -1
+  | ( Optimised_out _,
+      (Probe_is_enabled _ | Enter_inlined_apply _ | Dls_get | Poll) ) ->
+    -1
+  | Optimised_out _, Invalid _ -> 1
+  | Probe_is_enabled _, (Enter_inlined_apply _ | Dls_get | Poll) -> -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
-  | ( Enter_inlined_apply _,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ ) ) ->
+  | Enter_inlined_apply _, (Invalid _ | Optimised_out _ | Probe_is_enabled _) ->
     1
   | Enter_inlined_apply _, (Dls_get | Poll) -> -1
   | ( Dls_get,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
-      | Enter_inlined_apply _ ) ) ->
+      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _)
+    ) ->
     1
   | Dls_get, Poll -> -1
   | ( Poll,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
-      | Enter_inlined_apply _ | Dls_get ) ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get ) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -989,8 +984,8 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
 
 let nullary_classify_for_printing p =
   match p with
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _
-  | Enter_inlined_apply _ | Dls_get | Poll ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+  | Dls_get | Poll ->
     Neither
 
 module Reinterpret_64_bit_word = struct
@@ -2075,12 +2070,12 @@ let compare_variadic_primitive p1 p2 =
       if c <> 0
       then c
       else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
-  | Begin_region _, ( Begin_try_region _ | Make_block _ | Make_array _ ) -> -1
-  | Begin_try_region _, ( Make_block _ | Make_array _ ) -> -1
+  | Begin_region _, (Begin_try_region _ | Make_block _ | Make_array _) -> -1
+  | Begin_try_region _, (Make_block _ | Make_array _) -> -1
   | Begin_try_region _, Begin_region _ -> 1
   | Make_block _, Make_array _ -> -1
-  | Make_block _, ( Begin_region _ | Begin_try_region _ ) -> 1
-  | Make_array _, ( Begin_region _ | Begin_try_region _ | Make_block _ ) -> 1
+  | Make_block _, (Begin_region _ | Begin_try_region _) -> 1
+  | Make_array _, (Begin_region _ | Begin_try_region _ | Make_block _) -> 1
 
 let equal_variadic_primitive p1 p2 = compare_variadic_primitive p1 p2 = 0
 
@@ -2274,8 +2269,8 @@ let equal t1 t2 = compare t1 t2 = 0
 let free_names t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
-      | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get | Poll ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -2301,8 +2296,8 @@ let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
-      | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get | Poll ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -2331,8 +2326,8 @@ let apply_renaming t renaming =
 let ids_for_export t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
-      | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get | Poll ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union
