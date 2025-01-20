@@ -2,19 +2,31 @@
 
 See also the full feature [reference](reference.md) and [common pitfalls](pitfalls.md).
 
-Instead of allocating values normally on the GC heap, you can stack-allocate
-values using the new `stack_` keyword:
-
-```ocaml
-let x = stack_ { foo; bar } in
-...
-```
-
+This page describes how OCaml sometimes allocates values on a stack,
+as opposed to its usual behavior of allocating on the heap.
 This helps performance in a couple of ways: first, the same few hot
 cache lines are constantly reused, so the cache footprint is lower than
 usual. More importantly, stack allocations will never trigger a GC,
 and so they're safe to use in low-latency code that must currently be
 zero-alloc.
+
+Because of these advantages, values are allocated on a stack whenever
+possible. Of course, not all values can be allocated on a stack: a value that is
+used beyond the scope of its introduction must be on the heap. Accordingly,
+the compiler uses the _locality_ of a value to determine where it will be
+allocated: _local_ values go on the stack, while _global_ ones must go on the
+heap.
+
+Though type inference will infer where stack allocation is possible, it is
+often wise to annotate places where you wish to enforce locality and stack
+allocation. This can be done in two ways, by either giving variables or
+values the `local` mode or by labeling an allocation as a `stack_` allocation:
+
+```ocaml
+let local_ x1 = { foo; bar } in
+let x2 = stack_ { foo; bar } in
+...
+```
 
 However, for this to be safe, stack-allocated values must not be used after
 their stack frame is freed. This is ensured by the type-checker as follows.
@@ -37,9 +49,10 @@ although this requires code changes to use the new `caml_alloc_local` instead of
 `caml_alloc`. A few types of allocation cannot be stack-allocated, though,
 including first-class modules, classes and objects, and exceptions. The contents
 of mutable fields (inside `ref`s, `array`s and mutable record fields) also
-cannot be stack-allocated. Annotating `stack_` on expressions that are not
-allocations is meaningless and triggers type errors.
+cannot be stack-allocated.
 
+The `stack_` keyword must immediately precede an allocation; putting it
+anywhere else (like on a function call) leads to a type error.
 
 ## Local parameters
 
@@ -65,7 +78,7 @@ the argument. This promise is visible in the type of f:
 val f : local_ 'a -> ...
 ```
 
-The function f may be equally be called with stack or
+The function f may be equally be called with stack- or
 heap-allocated values: the `local_` annotation places obligations only on the
 definition of f, not its uses.
 
@@ -135,7 +148,7 @@ over which values are stack-allocated, including:
       ...
     ```
 
-    defines a function `f` which returns stack-allocated values into its
+    defines a function `f` which puts its stack-allocated values in its
     caller's region.
 
   - **Global fields**

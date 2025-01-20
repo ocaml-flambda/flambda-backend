@@ -5,7 +5,7 @@ OCaml.
 
 The mode system in the compiler tracks various properties of values, so that certain
 performance-enhancing operations can be performed safely. For example:
-- Locality tracks escaping. See [the local allocations reference](../local/reference.md)
+- Locality tracks escaping. See [the local allocations reference](../stack/reference.md)
 - Uniqueness and linearity tracks aliasing. See [the uniqueness reference](../uniqueness/reference.md)
 - Portability and contention tracks inter-thread sharing.
     <!-- CR zqian: reference for portability and contention -->
