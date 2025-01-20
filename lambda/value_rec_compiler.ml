@@ -349,6 +349,11 @@ let compute_static_size lam =
     | Patomic_compare_exchange _
     | Patomic_cas _
     | Patomic_fetch_add
+    | Patomic_add
+    | Patomic_sub
+    | Patomic_land
+    | Patomic_lor
+    | Patomic_lxor
     | Popaque _
     | Pdls_get
     | Ppeek _

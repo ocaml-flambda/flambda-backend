@@ -70,6 +70,21 @@ val compare_exchange : 'a t -> 'a -> 'a -> 'a
     and returns the current value (before the increment). *)
 val fetch_and_add : int t -> int -> int
 
+(** [add r i] atomically adds [i] onto [r]. *)
+val add : int t -> int -> unit
+
+(** [sub r i] atomically subtracts [i] onto [r]. *)
+val sub : int t -> int -> unit
+
+(** [logand r i] atomically bitwise-ands [i] onto [r]. *)
+val logand : int t -> int -> unit
+
+(** [logor r i] atomically bitwise-ors [i] onto [r]. *)
+val logor : int t -> int -> unit
+
+(** [logxor r i] atomically bitwise-ors [i] onto [r]. *)
+val logxor : int t -> int -> unit
+
 (** [incr r] atomically increments the value of [r] by [1]. *)
 val incr : int t -> unit
 

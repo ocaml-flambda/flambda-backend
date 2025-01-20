@@ -926,6 +926,11 @@ let primitive ppf = function
         | Immediate -> fprintf ppf "atomic_cas_imm"
         | Pointer -> fprintf ppf "atomic_cas_ptr")
   | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
+  | Patomic_add -> fprintf ppf "atomic_add"
+  | Patomic_sub -> fprintf ppf "atomic_sub"
+  | Patomic_land -> fprintf ppf "atomic_land"
+  | Patomic_lor -> fprintf ppf "atomic_lor"
+  | Patomic_lxor -> fprintf ppf "atomic_lxor"
   | Popaque _ -> fprintf ppf "opaque"
   | Pdls_get -> fprintf ppf "dls_get"
   | Ppoll -> fprintf ppf "poll"
@@ -1117,6 +1122,11 @@ let name_of_primitive = function
         | Immediate -> "atomic_cas_imm"
         | Pointer -> "atomic_cas_ptr")
   | Patomic_fetch_add -> "Patomic_fetch_add"
+  | Patomic_add -> "Patomic_add"
+  | Patomic_sub -> "Patomic_sub"
+  | Patomic_land -> "Patomic_land"
+  | Patomic_lor -> "Patomic_lor"
+  | Patomic_lxor -> "Patomic_lxor"
   | Popaque _ -> "Popaque"
   | Prunstack -> "Prunstack"
   | Presume -> "Presume"

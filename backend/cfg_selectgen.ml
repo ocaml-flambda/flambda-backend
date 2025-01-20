@@ -264,7 +264,7 @@ class virtual selector_generic =
       | Cstatic_cast cast -> basic_op (Static_cast cast), args
       | Catomic { op; size } -> (
         match op with
-        | Fetch_and_add ->
+        | Exchange | Fetch_and_add | Add | Sub | Land | Lor | Lxor ->
           let src, dst = two_args () in
           let dst_size =
             match size with
@@ -272,8 +272,8 @@ class virtual selector_generic =
             | Thirtytwo -> Thirtytwo_signed
           in
           let addr, eloc = self#select_addressing dst_size dst in
-          basic_op (Intop_atomic { op = Fetch_and_add; size; addr }), [src; eloc]
-        | Compare_and_swap ->
+          basic_op (Intop_atomic { op; size; addr }), [src; eloc]
+        | Compare_and_swap | Compare_exchange ->
           let compare_with, set_to, dst = three_args () in
           let dst_size =
             match size with
@@ -281,27 +281,8 @@ class virtual selector_generic =
             | Thirtytwo -> Thirtytwo_signed
           in
           let addr, eloc = self#select_addressing dst_size dst in
-          ( basic_op (Intop_atomic { op = Compare_and_swap; size; addr }),
-            [compare_with; set_to; eloc] )
-        | Compare_exchange ->
-          let compare_with, set_to, dst = three_args () in
-          let dst_size =
-            match size with
-            | Word | Sixtyfour -> Word_int
-            | Thirtytwo -> Thirtytwo_signed
-          in
-          let addr, eloc = self#select_addressing dst_size dst in
-          ( basic_op (Intop_atomic { op = Compare_exchange; size; addr }),
-            [compare_with; set_to; eloc] )
-        | Exchange ->
-          let src, dst = two_args () in
-          let dst_size =
-            match size with
-            | Word | Sixtyfour -> Word_int
-            | Thirtytwo -> Thirtytwo_signed
-          in
-          let addr, eloc = self#select_addressing dst_size dst in
-          basic_op (Intop_atomic { op = Exchange; size; addr }), [src; eloc])
+          ( basic_op (Intop_atomic { op; size; addr }),
+            [compare_with; set_to; eloc] ))
       | Cprobe { name; handler_code_sym; enabled_at_init } ->
         ( Terminator
             (Prim

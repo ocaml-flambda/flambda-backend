@@ -419,6 +419,81 @@ CAMLprim value caml_atomic_fetch_add (value ref, value incr)
   return ret;
 }
 
+CAMLprim value caml_atomic_add (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) + Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_add(p, 2*Long_val(incr)); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_sub (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) - Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_sub(p, 2*Long_val(incr)); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_land (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) & Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_and(p, incr); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_lor (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) | Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_or(p, incr); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_lxor (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) ^ Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_xor(p, 2*Long_val(incr)); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
 CAMLexport int caml_is_stack (value v)
 {
   int i;

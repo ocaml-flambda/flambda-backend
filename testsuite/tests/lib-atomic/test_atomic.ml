@@ -26,6 +26,12 @@ let () = assert ((Atomic.incr r; Atomic.get r) = 5)
 
 let () = assert ((Atomic.decr r; Atomic.get r) = 4)
 
+let () = assert ((Atomic.add r 3; Atomic.get r) = 7)
+let () = assert ((Atomic.sub r 3; Atomic.get r) = 4)
+let () = assert ((Atomic.logand r 2; Atomic.get r) = 0)
+let () = assert ((Atomic.logor r 2; Atomic.get r) = 2)
+let () = assert ((Atomic.logxor r 3; Atomic.get r) = 1)
+
 let () =
   let r = Atomic.make 0 in
   let cur = Atomic.get r in

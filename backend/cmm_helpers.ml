@@ -4190,15 +4190,16 @@ let atomic_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic
     else atomic_exchange_extcall ~dbg atomic ~new_value
   | Pointer -> atomic_exchange_extcall ~dbg atomic ~new_value
 
-let atomic_fetch_and_add ~dbg atomic i =
-  let op = Catomic { op = Fetch_and_add; size = Word } in
+let atomic_arith ~dbg ~op ~untag ~ext_name atomic i =
+  let i = if untag then decr_int i dbg else i in
+  let op = Catomic { op; size = Word } in
   if Proc.operation_supported op
-  then (* addition of tagged integers *)
-    Cop (op, [decr_int i dbg; atomic], dbg)
+  then (* input is a tagged integer *)
+    Cop (op, [i; atomic], dbg)
   else
     Cop
       ( Cextcall
-          { func = "caml_atomic_fetch_add";
+          { func = ext_name;
             builtin = false;
             returns = true;
             effects = Arbitrary_effects;
@@ -4209,6 +4210,20 @@ let atomic_fetch_and_add ~dbg atomic i =
           },
         [atomic; i],
         dbg )
+
+let atomic_fetch_and_add =
+  atomic_arith ~untag:true ~op:Fetch_and_add ~ext_name:"caml_atomic_fetch_add"
+
+let atomic_add = atomic_arith ~untag:true ~op:Add ~ext_name:"caml_atomic_add"
+
+let atomic_sub = atomic_arith ~untag:true ~op:Sub ~ext_name:"caml_atomic_sub"
+
+let atomic_land =
+  atomic_arith ~untag:false ~op:Land ~ext_name:"caml_atomic_land"
+
+let atomic_lor = atomic_arith ~untag:false ~op:Lor ~ext_name:"caml_atomic_lor"
+
+let atomic_lxor = atomic_arith ~untag:true ~op:Lxor ~ext_name:"caml_atomic_lxor"
 
 let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
   Cop

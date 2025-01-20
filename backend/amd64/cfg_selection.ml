@@ -47,7 +47,9 @@ let pseudoregs_for_operation op arg res =
     let arg = Array.copy arg in
     arg.(0) <- res.(0);
     arg, res
-  | Intop_atomic { op = Fetch_and_add; size = _; addr = _ } ->
+  | Intop_atomic
+      { op = Fetch_and_add | Add | Sub | Land | Lor | Lxor; size = _; addr = _ }
+    ->
     (* first arg must be the same as res.(0) *)
     let arg = Array.copy arg in
     arg.(0) <- res.(0);
