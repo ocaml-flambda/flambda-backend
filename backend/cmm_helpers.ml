@@ -4165,7 +4165,7 @@ let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =
   in
   Cop (mk_load_atomic memory_chunk, [atomic], dbg)
 
-let atomic_exchange ~dbg (_ : Lambda.immediate_or_pointer) atomic new_value =
+let atomic_exchange_extcall ~dbg atomic ~new_value =
   Cop
     ( Cextcall
         { func = "caml_atomic_exchange";
@@ -4180,10 +4180,21 @@ let atomic_exchange ~dbg (_ : Lambda.immediate_or_pointer) atomic new_value =
       [atomic; new_value],
       dbg )
 
+let atomic_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic
+    ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Exchange; size = Word } in
+    if Proc.operation_supported op
+    then Cop (op, [new_value; atomic], dbg)
+    else atomic_exchange_extcall ~dbg atomic ~new_value
+  | Pointer -> atomic_exchange_extcall ~dbg atomic ~new_value
+
 let atomic_fetch_and_add ~dbg atomic i =
   let op = Catomic { op = Fetch_and_add; size = Word } in
   if Proc.operation_supported op
-  then Cop (op, [add_const i (-1) dbg; atomic], dbg)
+  then (* addition of tagged integers *)
+    Cop (op, [decr_int i dbg; atomic], dbg)
   else
     Cop
       ( Cextcall
@@ -4228,8 +4239,7 @@ let atomic_compare_and_set ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
     else atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
   | Pointer -> atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
 
-let atomic_compare_exchange ~dbg (_ : Lambda.immediate_or_pointer) atomic
-    ~old_value ~new_value =
+let atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value =
   Cop
     ( Cextcall
         { func = "caml_atomic_compare_exchange";
@@ -4243,6 +4253,16 @@ let atomic_compare_exchange ~dbg (_ : Lambda.immediate_or_pointer) atomic
         },
       [atomic; old_value; new_value],
       dbg )
+
+let atomic_compare_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
+    atomic ~old_value ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Compare_exchange; size = Word } in
+    if Proc.operation_supported op
+    then Cop (op, [old_value; new_value; atomic], dbg)
+    else atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value
+  | Pointer -> atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value
 
 type even_or_odd =
   | Even

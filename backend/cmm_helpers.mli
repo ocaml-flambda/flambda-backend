@@ -1003,7 +1003,7 @@ val atomic_exchange :
   dbg:Debuginfo.t ->
   Lambda.immediate_or_pointer ->
   expression ->
-  expression ->
+  new_value:expression ->
   expression
 
 val atomic_fetch_and_add :

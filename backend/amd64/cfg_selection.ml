@@ -37,6 +37,16 @@ let pseudoregs_for_operation op arg res =
     let arg = Array.copy arg in
     arg.(0) <- rax;
     arg, res
+  | Intop_atomic { op = Compare_exchange; size = _; addr = _ } ->
+    (* first arg must be rax, res.(0) must be rax. *)
+    let arg = Array.copy arg in
+    arg.(0) <- rax;
+    arg, [| rax |]
+  | Intop_atomic { op = Exchange; size = _; addr = _ } ->
+    (* first arg must be the same as res.(0) *)
+    let arg = Array.copy arg in
+    arg.(0) <- res.(0);
+    arg, res
   | Intop_atomic { op = Fetch_and_add; size = _; addr = _ } ->
     (* first arg must be the same as res.(0) *)
     let arg = Array.copy arg in
