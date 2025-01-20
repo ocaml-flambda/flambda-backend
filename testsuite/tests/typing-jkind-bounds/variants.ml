@@ -535,22 +535,9 @@ let () =
   cross_portable t;
   cross_uncontended t
 
-(* CR layouts v2.8: Fix this in the principal case, Richard and Liam think. *)
 [%%expect{|
 type t = Foo of int | Bar of string
 val t : t = Foo 10
-|}, Principal{|
-type t = Foo of int | Bar of string
-val t : t = Foo 10
-Line 4, characters 13-14:
-4 |   cross_many t;
-                 ^
-Error: This expression has type "t" but an expression was expected of type
-         "('a : value mod many)"
-       The kind of t is immutable_data
-         because of the definition of t at line 1, characters 0-35.
-       But the kind of t must be a subkind of value mod many
-         because of the definition of cross_many at line 11, characters 49-60.
 |}]
 
 let () = cross_global t
@@ -782,25 +769,8 @@ module M : sig
 end = struct
   type 'a t = Foo of 'a * int
 end
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type 'a t = Foo of 'a * int
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = Foo of 'a * int end
-       is not included in
-         sig type 'a t : immutable_data end
-       Type declarations do not match:
-         type 'a t = Foo of 'a * int
-       is not included in
-         type 'a t : immutable_data
-       The kind of the first is immutable_data
-         because of the definition of t at line 4, characters 2-29.
-       But the kind of the first must be a subkind of immutable_data
-         because of the definition of t at line 2, characters 2-36.
+module M : sig type 'a t : immutable_data end
 |}]
 
 module M : sig
@@ -868,7 +838,7 @@ Error: Signature mismatch:
          type t = Foo of int ref | Bar of string
        is not included in
          type t : immutable_data
-       The kind of the first is immutable_data
+       The kind of the first is mutable_data
          because of the definition of t at line 4, characters 2-41.
        But the kind of the first must be a subkind of immutable_data
          because of the definition of t at line 2, characters 2-25.

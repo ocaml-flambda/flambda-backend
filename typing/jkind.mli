@@ -149,7 +149,9 @@ module Violation : sig
     (* [Not_a_subjkind] allows l-jkinds on the right so that it can be used
        in [sub_jkind_l]. There is no downside to this, as the printing
        machinery works over l-jkinds. *)
-    | Not_a_subjkind : (allowed * 'r1) Types.jkind * ('l * 'r2) Types.jkind -> violation
+    | Not_a_subjkind :
+        (allowed * 'r1) Types.jkind * ('l * 'r2) Types.jkind
+        -> violation
     | No_intersection : 'd Types.jkind * ('l * allowed) Types.jkind -> violation
 
   type t
@@ -195,6 +197,8 @@ module Const : sig
       The existence of [with]-types means, though, that we still need the
       allowance machinery here. *)
   type 'd t constraint 'd = 'l * 'r
+
+  include Allowance.Allow_disallow with type (_, _, 'd) sided = 'd t
 
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
@@ -279,9 +283,10 @@ module Builtin : sig
   val any : why:History.any_creation_reason -> 'd Types.jkind
 
   (** Value of types of this jkind are not retained at all at runtime *)
-  val void : why:History.void_creation_reason -> 'd Types.jkind
+  val void : why:History.void_creation_reason -> ('l * disallowed) Types.jkind
 
-  val value_or_null : why:History.value_or_null_creation_reason -> 'd Types.jkind
+  val value_or_null :
+    why:History.value_or_null_creation_reason -> 'd Types.jkind
 
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> 'd Types.jkind
@@ -293,7 +298,8 @@ module Builtin : sig
   val mutable_data : why:History.value_creation_reason -> 'd Types.jkind
 
   (** We know for sure that values of types of this jkind are always immediate *)
-  val immediate : why:History.immediate_creation_reason -> 'd Types.jkind
+  val immediate :
+    why:History.immediate_creation_reason -> ('l * disallowed) Types.jkind
 
   (** Build a jkind of unboxed products, from a list of types with
       their layouts. Errors if zero inputs are given. If only one input
@@ -313,7 +319,8 @@ module Builtin : sig
   (** Build a jkind of unboxed products, given only an arity. This jkind
       will not mode-cross, even though unboxed products generally should.
       This is useful when creating an initial jkind in Typedecl. *)
-  val product_of_sorts : why:History.product_creation_reason -> int -> Types.jkind_l
+  val product_of_sorts :
+    why:History.product_creation_reason -> int -> Types.jkind_l
 end
 
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
@@ -333,14 +340,21 @@ val has_with_bounds : Types.jkind_l -> bool
     contention axes, if [from] crosses the respective axes. Return the new jkind,
     along with a boolean of whether illegal crossing was added *)
 val add_portability_and_contention_crossing :
-  from:'d Types.jkind -> (allowed * 'r) Types.jkind -> (allowed * 'r) Types.jkind * bool
+  from:'d Types.jkind ->
+  (allowed * 'r) Types.jkind ->
+  (allowed * 'r) Types.jkind * bool
+
+(** Mark the given jkind as {ibest}, meaning we can never learn any more information about
+    it that will cause it to become lower in the preorder of kinds*)
+val mark_best : ('l * 'r) Types.jkind -> ('l * disallowed) Types.jkind
 
 (******************************)
 (* construction *)
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:History.concrete_creation_reason -> 'd Types.jkind * sort
+val of_new_sort_var :
+  why:History.concrete_creation_reason -> 'd Types.jkind * sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
 val of_new_sort : why:History.concrete_creation_reason -> 'd Types.jkind
@@ -354,15 +368,20 @@ val of_new_legacy_sort_var :
 (** Same as [of_new_sort], but the jkind is lowered to [Non_null]
     to mirror "legacy" OCaml values.
     Defaulting the sort variable produces exactly [value].  *)
-val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> 'd Types.jkind
+val of_new_legacy_sort :
+  why:History.concrete_legacy_creation_reason -> 'd Types.jkind
 
 val of_const :
   annotation:Parsetree.jkind_annotation option ->
   why:History.creation_reason ->
+  quality:'d Types.jkind_quality ->
   'd Const.t ->
   'd Types.jkind
 
-val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd Types.jkind
+val of_builtin :
+  why:History.creation_reason ->
+  Const.Builtin.t ->
+  ('l * disallowed) Types.jkind
 
 val of_annotation :
   context:('l * allowed) History.annotation_context ->
@@ -473,21 +492,20 @@ val extract_layout : 'd Types.jkind -> Sort.t Layout.t
 
 (** Gets the maximum modes for types of this jkind. *)
 val get_modal_upper_bounds :
-  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
   Mode.Alloc.Const.t
 
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
 val get_externality_upper_bound :
-  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
   Externality.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
-val set_externality_upper_bound : Types.jkind_r -> Externality.t -> Types.jkind_r
+val set_externality_upper_bound :
+  Types.jkind_r -> Externality.t -> Types.jkind_r
 
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind
@@ -502,6 +520,15 @@ val decompose_product : 'd Types.jkind -> 'd Types.jkind list option
 
 (** Get an annotation (that a user might write) for this [t]. *)
 val get_annotation : 'd Types.jkind -> Parsetree.jkind_annotation option
+
+(*********************************)
+(* normalization *)
+
+val normalize :
+  require_best:bool ->
+  jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
+  Types.jkind_l ->
+  Types.jkind_l
 
 (*********************************)
 (* pretty printing *)
@@ -617,14 +644,15 @@ val sub_jkind_l :
 (** "round up" a [jkind_l] to a [jkind_r] such that the input is less than the
     output. *)
 val round_up :
-  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   (allowed * 'r) Types.jkind ->
   ('l * allowed) Types.jkind
 
 (** Map a function over types in [upper_bounds] *)
 val map_type_expr :
-  (Types.type_expr -> Types.type_expr) -> (allowed * 'r) Types.jkind -> (allowed * 'r) Types.jkind
+  (Types.type_expr -> Types.type_expr) ->
+  (allowed * 'r) Types.jkind ->
+  (allowed * 'r) Types.jkind
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)

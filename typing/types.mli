@@ -71,6 +71,19 @@ val is_mutable : mutability -> bool
 module Jkind_bounds :
   module type of Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
 
+(** Information tracked about an individual type within the with-bounds for a jkind *)
+module With_bounds_type_info : sig
+  (** Does the nullability of this type affect the (upper bound for) nullability of the
+      jkind? *)
+  type relevant_for_nullability =
+    | Relevant_for_nullability
+    | Irrelevant_for_nullability
+
+  type t =
+    { modality : Mode.Modality.Value.Const.t;
+      relevant_for_nullability: relevant_for_nullability }
+end
+
 type type_expr
 type row_desc
 type row_field
@@ -252,22 +265,15 @@ and jkind_history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
-and relevant_for_nullability =
-  | Relevant_for_nullability
-  | Irrelevant_for_nullability
+(** The types within the with-bounds of a jkind *)
+and with_bounds_types
 
-and with_bounds_type =
-  { type_expr : type_expr;
-    modality : Mode.Modality.Value.Const.t;
-    relevant_for_nullability: relevant_for_nullability
-  }
+(** The types within the with-bounds of a jkind; guaranteed to be non-empty. *)
+and nonempty_with_bounds_types
 
 and 'd with_bounds =
   | No_with_bounds : ('l * 'r) with_bounds
-  (* There must always be at least one type. *)
-  | With_bounds :
-      with_bounds_type Misc.Nonempty_list.t
-      -> ('l * Allowance.disallowed) with_bounds
+  | With_bounds : nonempty_with_bounds_types -> ('l * Allowance.disallowed) with_bounds
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
@@ -281,11 +287,26 @@ and 'd jkind_desc = (Jkind_types.Sort.t Jkind_types.Layout.t, 'd) layout_and_axe
 
 and jkind_desc_packed = Pack_jkind_desc : ('l * 'r) jkind_desc -> jkind_desc_packed
 
+(** The "quality" of a jkind indicates whether we are able to learn more about the jkind
+    later.
+
+    We can never learn more about a [Best] jkind to make it "less" along the jkind poset.
+    A [Not_best], jkind, however, might have more information provided about it later that
+    makes it lower along the jkind poset.
+
+    Note that only left jkinds can be [Best] (meaning we can never compare less than or
+    equal to a left jkind!)
+*)
+and 'd jkind_quality =
+  | Best : ('l * disallowed) jkind_quality
+  | Not_best : ('l * 'r) jkind_quality
+
 and 'd jkind =
   { jkind : 'd jkind_desc;
     annotation : Parsetree.jkind_annotation option;
     history : jkind_history;
-    has_warned : bool
+    has_warned : bool;
+    quality : 'd jkind_quality;
   }
   constraint 'd = 'l * 'r
 
@@ -293,6 +314,41 @@ and jkind_l = (allowed * disallowed) jkind  (* the jkind of an actual type *)
 and jkind_r = (disallowed * allowed) jkind  (* the jkind expected of a type *)
 and jkind_lr = (allowed * allowed) jkind    (* the jkind of a variable *)
 and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
+
+(** This module provides the interface to construct, query, and destruct
+    [with_bounds_types] and [nonempty_with_bounds_types]. Under the hood this is a
+    [Stdlib.Map] from [type_expr] to [With_bounds_type_info.t]
+*)
+module With_bounds_types : sig
+  type info := With_bounds_type_info.t
+  type t := with_bounds_types
+
+  val empty : t
+  val is_empty : t -> bool
+  val to_seq : t -> (type_expr * info) Seq.t
+  val of_list : (type_expr * info) list -> t
+  val map : (info -> info) -> t -> t
+  val merge
+    : (type_expr -> info option -> info option -> info option) ->
+    t -> t -> t
+  val update : type_expr -> (info option -> info option) -> t -> t
+
+  (** A guaranteed non-empty set of with-bounds types *)
+  module Non_empty : sig
+    type maybe_empty := t
+    type t = nonempty_with_bounds_types
+
+    val of_maybe_empty : maybe_empty -> t option
+    val to_maybe_empty : t -> maybe_empty
+    val singleton : type_expr -> info -> t
+    val to_seq : t -> (type_expr * info) Seq.t
+    val map : (info -> info) -> t -> t
+    val merge
+      : (type_expr -> info option -> info option -> info option) ->
+      t -> t -> t
+    val update : type_expr -> (info option -> info option) -> t -> t
+  end
+end
 
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable

@@ -858,8 +858,10 @@ let transl_declaration env sdecl (id, uid) =
           in
           let type_kind = Predef.or_null_kind param in
           let jkind =
-            Jkind.Builtin.value_or_null
-              ~why:(Primitive Predef.ident_or_null)
+            Jkind.Builtin.value_or_null ~why:(Primitive Predef.ident_or_null)
+            (* Even though this type is abstract, it's actually a reexport of ['a
+               or_null], which has a best kind *)
+            |> Jkind.mark_best
           in
           Ttype_abstract, type_kind, jkind
       | (Ptype_variant _ | Ptype_record _ | Ptype_record_unboxed_product _
@@ -923,7 +925,7 @@ let transl_declaration env sdecl (id, uid) =
         let rep, jkind =
           if unbox then
             Variant_unboxed,
-            Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
+            (Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type |> Jkind.mark_best)
           else
             (* We mark all arg sorts "void" here.  They are updated later,
                after the circular type checks make it safe to check sorts.
@@ -942,7 +944,8 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, sorts)
                 (Array.of_list cstrs)
             ),
-            Jkind.Builtin.value ~why:Boxed_variant
+            (Jkind.Builtin.value ~why:Boxed_variant
+             |> Jkind.mark_best)
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
@@ -956,14 +959,15 @@ let transl_declaration env sdecl (id, uid) =
           let rep, jkind =
             if unbox then
               Record_unboxed,
-              Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
+              (Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
+               |> Jkind.mark_best)
             else
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
                [Record_mixed].  Those cases are fixed up after we can get
                accurate sorts for the fields, in [update_decl_jkind]. *)
               Record_boxed (Array.make (List.length lbls) Jkind.Sort.Const.void),
-              Jkind.Builtin.value ~why:Boxed_record
+              (Jkind.Builtin.value ~why:Boxed_record |> Jkind.mark_best)
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_record_unboxed_product lbls ->
@@ -983,7 +987,8 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_record_unboxed_product lbls,
           Type_record_unboxed_product(lbls', Record_unboxed_product), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
+        Ttype_open, Type_open, (Jkind.Builtin.value ~why:Extensible_variant
+                                |> Jkind.mark_best)
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -1475,11 +1480,8 @@ module Element_repr = struct
     else
       let layout = Jkind.get_layout_defaulting_to_value jkind in
       let sort = Jkind.Layout.Const.get_sort layout in
-      let type_equal = Ctype.type_equal env in
       let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
-      let externality_upper_bound =
-        Jkind.get_externality_upper_bound ~type_equal ~jkind_of_type jkind
-      in
+      let externality_upper_bound = Jkind.get_externality_upper_bound ~jkind_of_type jkind in
       let base = match sort with
         | None ->
             Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
@@ -1840,7 +1842,10 @@ let update_decl_jkind env dpath decl =
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
-      let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
+      let type_jkind =
+        Jkind.Builtin.value ~why:Extensible_variant
+        |> Jkind.mark_best
+      in
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
@@ -2348,6 +2353,32 @@ let add_types_to_env decls shapes env =
       add_type ~check:true ~shape id decl env)
     decls shapes env
 
+(* Normalize the jkinds in a list of (potentially mutually recursive) type declarations *)
+let normalize_decls env shapes decls =
+  (* Add the types, with non-normalized kinds, to the environment to start, so that eg
+     types can look up their own (potentially non-normalized) kinds *)
+  let env = add_types_to_env decls shapes env in
+  let (decls, env) =
+    List.fold_left2
+      (fun (decls, env) (id, decl) shape ->
+         let normalized_jkind =
+           Jkind.normalize
+             ~require_best:true
+             ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
+             decl.type_jkind
+         in
+         let decl = { decl with type_jkind = normalized_jkind } in
+         (* Add the decl with the normalized kind back to the environment, so that later
+            kinds don't have to normalize this kind if they mention this type in their
+            with-bounds *)
+         let env = add_type ~check:false ~shape:shape id decl env in
+         ((id, decl) :: decls), env)
+      ([], env)
+      decls
+      shapes
+  in
+  List.rev decls, env
+
 (* Translate a set of type declarations, mutually recursive or not *)
 let transl_type_decl env rec_flag sdecl_list =
   List.iter check_redefined_unit sdecl_list;
@@ -2521,14 +2552,17 @@ let transl_type_decl env rec_flag sdecl_list =
   (* Check that constraints are enforced *)
   List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Add type properties to declarations *)
-  let decls =
+  let decls, new_env =
     try
-      decls
-      |> name_recursion_decls sdecl_list
-      |> Typedecl_variance.update_decls env sdecl_list
-      |> Typedecl_separability.update_decls env
-      |> update_decls_jkind new_env
-      |> update_decls_jkind_reason new_env
+      let (decls, new_env) =
+        decls
+        |> name_recursion_decls sdecl_list
+        |> Typedecl_variance.update_decls env sdecl_list
+        |> Typedecl_separability.update_decls env
+        |> update_decls_jkind new_env
+        |> normalize_decls new_env shapes
+      in
+      update_decls_jkind_reason new_env decls, new_env
     with
     | Typedecl_variance.Error (loc, err) ->
         raise (Error (loc, Variance err))

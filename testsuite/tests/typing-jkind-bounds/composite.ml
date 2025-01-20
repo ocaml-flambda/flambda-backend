@@ -39,18 +39,8 @@ type t = { z : u; }
 |}]
 
 type t_test = t require_portable
-(* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = t require_portable
-|}, Principal{|
-Line 1, characters 14-15:
-1 | type t_test = t require_portable
-                  ^
-Error: This type "t" should be an instance of type "('a : value mod portable)"
-       The kind of t is immutable_data
-         because of the definition of t at line 2, characters 0-35.
-       But the kind of t must be a subkind of value mod portable
-         because of the definition of require_portable at line 10, characters 0-47.
 |}]
 
 type t_test = t require_global
@@ -87,18 +77,8 @@ type t = { z : u; }
 |}]
 
 type t_test = t require_uncontended
-(* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = t require_uncontended
-|}, Principal{|
-Line 1, characters 14-15:
-1 | type t_test = t require_uncontended
-                  ^
-Error: This type "t" should be an instance of type "('a : value mod uncontended)"
-       The kind of t is immutable_data
-         because of the definition of t at line 2, characters 0-18.
-       But the kind of t must be a subkind of value mod uncontended
-         because of the definition of require_uncontended at line 9, characters 0-53.
 |}]
 
 type t_test = t require_unique
