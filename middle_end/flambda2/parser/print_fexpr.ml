@@ -383,15 +383,6 @@ let static_data ppf : static_data -> unit = function
 let static_data_binding ppf { symbol = s; defining_expr = sp } =
   Format.fprintf ppf "%a =@ %a" symbol s static_data sp
 
-let nullop ppf (o : nullop) =
-  Format.pp_print_string ppf
-  @@
-  match o with
-  | Begin_region { ghost } ->
-    if ghost then "%begin_ghost_region" else "%begin_region"
-  | Begin_try_region { ghost } ->
-    if ghost then "%begin_ghost_try_region" else "%begin_try_region"
-
 let binary_int_arith_op ppf (o : binary_int_arith_op) =
   Format.pp_print_string ppf
   @@
@@ -642,15 +633,28 @@ let ternop ppf t a1 a2 a3 =
       simple a1 simple a2 simple a3
 
 let prim ppf = function
-  | Nullary n -> nullop ppf n
   | Unary (u, a) -> Format.fprintf ppf "%a %a" unop u simple a
   | Binary (b, a1, a2) -> binop ppf b a1 a2
   | Ternary (t, a1, a2, a3) -> ternop ppf t a1 a2 a3
-  | Variadic (Make_block (tag, mut, alloc), elts) ->
-    Format.fprintf ppf "@[<2>%%Block %a%i%a%a@]" (mutability ~space:After) mut
-      tag
-      (alloc_mode_for_allocations_opt ~space:Before)
-      alloc
+  | Variadic (v, elts) ->
+    let varop ppf (o : varop) =
+      match o with
+      | Make_block (tag, mut, alloc) ->
+          Format.fprintf ppf "%%Block %a%i%a" (mutability ~space:After) mut
+            tag
+            (alloc_mode_for_allocations_opt ~space:Before)
+            alloc
+      | Begin_region { ghost } ->
+          Format.pp_print_string ppf
+          @@
+          if ghost then "%begin_ghost_region" else "%begin_region"
+      | Begin_try_region { ghost } ->
+          Format.pp_print_string ppf
+          @@
+          if ghost then "%begin_ghost_try_region" else "%begin_try_region"
+    in
+    Format.fprintf ppf "@[<2>%a%a@]"
+      varop v
       (simple_args ~space:Before ~omit_if_empty:false)
       elts
 

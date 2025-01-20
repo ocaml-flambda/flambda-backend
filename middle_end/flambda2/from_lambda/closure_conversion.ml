@@ -1099,10 +1099,11 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
       prim Debuginfo.none k
   | Begin_region { is_try_region; ghost } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Nullary
-        (if is_try_region
-        then Begin_try_region { ghost }
-        else Begin_region { ghost })
+      Variadic
+        ((if is_try_region
+          then Begin_try_region { ghost }
+          else Begin_region { ghost }),
+         [])
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       prim Debuginfo.none k
@@ -1197,7 +1198,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
       | Simple simple ->
         let body_env = Env.add_simple_to_substitute env id simple kind in
         body acc body_env
-      | Prim ((Nullary (Begin_region _) | Unary (End_region _, _)), _)
+      | Prim ((Variadic (Begin_region _, _) | Unary (End_region _, _)), _)
         when not (Flambda_features.stack_allocation_enabled ()) ->
         (* We use [body_env] to ensure the region variables are still in the
            environment, to avoid lookup errors, even though the [Let] won't be
@@ -3142,12 +3143,12 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       Let_with_acc.create acc
         (Bound_pattern.singleton
            (Bound_var.create ghost_region Name_mode.normal))
-        (Named.create_prim (Nullary (Begin_region { ghost = true })) apply_dbg)
+        (Named.create_prim (Variadic (Begin_region { ghost = true }, [])) apply_dbg)
         ~body:both_applications
     in
     Let_with_acc.create acc
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
-      (Named.create_prim (Nullary (Begin_region { ghost = false })) apply_dbg)
+      (Named.create_prim (Variadic (Begin_region { ghost = false }, [])) apply_dbg)
       ~body
 
 type call_args_split =

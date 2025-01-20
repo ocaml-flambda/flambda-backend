@@ -393,11 +393,6 @@ let init_or_assign _env (ia : Fexpr.init_or_assign) :
   | Initialization -> Initialization
   | Assignment alloc -> Assignment (alloc_mode_for_assignments alloc)
 
-let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
-  match nullop with
-  | Begin_region { ghost } -> Begin_region { ghost }
-  | Begin_try_region { ghost } -> Begin_try_region { ghost }
-
 let block_access_kind (ak : Fexpr.block_access_kind) :
     Flambda_primitive.Block_access_kind.t =
   let size s : _ Or_unknown.t =
@@ -511,6 +506,8 @@ let convert_block_shape ~num_fields =
 
 let varop env (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
   match varop with
+  | Begin_region { ghost } -> Begin_region { ghost }
+  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Make_block (tag, mutability, alloc) ->
     let shape = convert_block_shape ~num_fields:n in
     let kind : Flambda_primitive.Block_kind.t =
@@ -521,7 +518,6 @@ let varop env (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
 
 let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   match p with
-  | Nullary op -> Nullary (nullop op)
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, a1, a2) -> Binary (binop op, simple env a1, simple env a2)
   | Ternary (op, a1, a2, a3) ->

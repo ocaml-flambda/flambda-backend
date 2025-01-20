@@ -164,7 +164,7 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
         | Variadic_mixed arg_kinds ->
           List.combine arg_tys
             (Array.to_list (K.Mixed_block_shape.field_kinds arg_kinds))
-        | Variadic_all_of_kind kind ->
+        | Variadic_all_of_kind kind | Variadic_zero_or_one kind ->
           List.map (fun arg_ty -> arg_ty, kind) arg_tys
         | Variadic_unboxed_product kinds ->
           (* CR mshinwell: move to Misc, may be useful in e.g.

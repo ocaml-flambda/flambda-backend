@@ -883,6 +883,7 @@ let print_unary_float_arith_op ppf width op =
 type arg_kinds =
   | Variadic_mixed of K.Mixed_block_shape.t
   | Variadic_all_of_kind of K.t
+  | Variadic_zero_or_one of K.t
   | Variadic_unboxed_product of Flambda_kind.t list
 
 type result_kind =
@@ -893,15 +894,13 @@ type nullary_primitive =
   | Invalid of K.t
   | Optimised_out of K.t
   | Probe_is_enabled of { name : string }
-  | Begin_region of { ghost : bool }
-  | Begin_try_region of { ghost : bool }
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
   | Dls_get
   | Poll
 
 let nullary_primitive_eligible_for_cse = function
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _
+  | Enter_inlined_apply _ | Dls_get | Poll ->
     false
 
 let compare_nullary_primitive p1 p2 =
@@ -910,49 +909,36 @@ let compare_nullary_primitive p1 p2 =
   | Optimised_out k1, Optimised_out k2 -> K.compare k1 k2
   | Probe_is_enabled { name = name1 }, Probe_is_enabled { name = name2 } ->
     String.compare name1 name2
-  | Begin_region { ghost = ghost1 }, Begin_region { ghost = ghost2 } ->
-    Bool.compare ghost1 ghost2
-  | Begin_try_region { ghost = ghost1 }, Begin_try_region { ghost = ghost2 } ->
-    Bool.compare ghost1 ghost2
   | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
     Inlined_debuginfo.compare dbg1 dbg2
   | Dls_get, Dls_get -> 0
   | Poll, Poll -> 0
   | ( Invalid _,
-      ( Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
+      ( Optimised_out _ | Probe_is_enabled _
+      | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
     -1
   | ( Optimised_out _,
-      ( Probe_is_enabled _ | Begin_region _ | Begin_try_region _
+      ( Probe_is_enabled _
       | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
     -1
   | Optimised_out _, Invalid _ -> 1
   | ( Probe_is_enabled _,
-      ( Begin_region _ | Begin_try_region _ | Enter_inlined_apply _ | Dls_get
+      ( Enter_inlined_apply _ | Dls_get
       | Poll ) ) ->
     -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
-  | Begin_region _, (Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll)
-    ->
-    -1
-  | Begin_region _, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
-  | Begin_try_region _, (Enter_inlined_apply _ | Dls_get | Poll) -> -1
-  | ( Begin_try_region _,
-      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _) ) ->
-    1
   | ( Enter_inlined_apply _,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ ) ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ ) ) ->
     1
   | Enter_inlined_apply _, (Dls_get | Poll) -> -1
   | ( Dls_get,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ ) ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
+      | Enter_inlined_apply _ ) ) ->
     1
   | Dls_get, Poll -> -1
   | ( Poll,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ) ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
+      | Enter_inlined_apply _ | Dls_get ) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -967,10 +953,6 @@ let print_nullary_primitive ppf p =
       Flambda_colours.pop
   | Probe_is_enabled { name } ->
     Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
-  | Begin_region { ghost } ->
-    Format.fprintf ppf "Begin_region%s" (if ghost then "_ghost" else "")
-  | Begin_try_region { ghost } ->
-    Format.fprintf ppf "Begin_try_region%s" (if ghost then "_ghost" else "")
   | Enter_inlined_apply { dbg } ->
     Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
       Inlined_debuginfo.print dbg
@@ -982,8 +964,6 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Invalid k -> Singleton k
   | Optimised_out k -> Singleton k
   | Probe_is_enabled _ -> Singleton K.naked_immediate
-  | Begin_region _ -> Singleton K.region
-  | Begin_try_region _ -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
   | Dls_get -> Singleton K.value
   | Poll -> Unit
@@ -991,10 +971,6 @@ let result_kind_of_nullary_primitive p : result_kind =
 let coeffects_of_mode : Alloc_mode.For_allocations.t -> Coeffects.t = function
   | Local _ -> Coeffects.Has_coeffects
   | Heap -> Coeffects.No_coeffects
-
-let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
-  (* Ensure these don't get moved, but allow them to be deleted. *)
-  Only_generative_effects Mutable, Has_coeffects, Strict
 
 let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1004,7 +980,6 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
     (* This doesn't really have effects, but we want to make sure it never gets
        moved around. *)
     Arbitrary_effects, Has_coeffects, Strict
-  | Begin_region _ | Begin_try_region _ -> effects_and_coeffects_of_begin_region
   | Enter_inlined_apply _ ->
     (* This doesn't really have effects, but without effects, these primitives
        get deleted during lambda_to_flambda. *)
@@ -1014,8 +989,8 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
 
 let nullary_classify_for_printing p =
   match p with
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _
+  | Enter_inlined_apply _ | Dls_get | Poll ->
     Neither
 
 module Reinterpret_64_bit_word = struct
@@ -2057,11 +2032,14 @@ let ids_for_export_ternary_primitive p =
     Ids_for_export.empty
 
 type variadic_primitive =
+  | Begin_region of { ghost : bool }
+  | Begin_try_region of { ghost : bool }
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
 
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
+  | Begin_region _ | Begin_try_region _ -> false
   | Make_block (_, _, Local _) | Make_array (_, _, Local _) -> false
   | Make_block (_, Mutable, _) | Make_array (_, Mutable, _) -> false
   | Make_block (_, Immutable_unique, _) | Make_array (_, Immutable_unique, _) ->
@@ -2073,6 +2051,10 @@ let variadic_primitive_eligible_for_cse p ~args =
 
 let compare_variadic_primitive p1 p2 =
   match p1, p2 with
+  | Begin_region { ghost = ghost1 }, Begin_region { ghost = ghost2 } ->
+    Bool.compare ghost1 ghost2
+  | Begin_try_region { ghost = ghost1 }, Begin_try_region { ghost = ghost2 } ->
+    Bool.compare ghost1 ghost2
   | Make_block (kind1, mut1, alloc_mode1), Make_block (kind2, mut2, alloc_mode2)
     ->
     let c = Block_kind.compare kind1 kind2 in
@@ -2093,14 +2075,22 @@ let compare_variadic_primitive p1 p2 =
       if c <> 0
       then c
       else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
-  | Make_block _, _ -> -1
-  | _, Make_block _ -> 1
+  | Begin_region _, ( Begin_try_region _ | Make_block _ | Make_array _ ) -> -1
+  | Begin_try_region _, ( Make_block _ | Make_array _ ) -> -1
+  | Begin_try_region _, Begin_region _ -> 1
+  | Make_block _, Make_array _ -> -1
+  | Make_block _, ( Begin_region _ | Begin_try_region _ ) -> 1
+  | Make_array _, ( Begin_region _ | Begin_try_region _ | Make_block _ ) -> 1
 
 let equal_variadic_primitive p1 p2 = compare_variadic_primitive p1 p2 = 0
 
 let print_variadic_primitive ppf p =
   let fprintf = Format.fprintf in
   match p with
+  | Begin_region { ghost } ->
+    Format.fprintf ppf "Begin_region%s" (if ghost then "_ghost" else "")
+  | Begin_try_region { ghost } ->
+    Format.fprintf ppf "Begin_try_region%s" (if ghost then "_ghost" else "")
   | Make_block (kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_block@ %a@ %a@ %a)@]" Block_kind.print kind
       Mutability.print mut Alloc_mode.For_allocations.print alloc_mode
@@ -2110,6 +2100,7 @@ let print_variadic_primitive ppf p =
 
 let args_kind_of_variadic_primitive p : arg_kinds =
   match p with
+  | Begin_region _ | Begin_try_region _ -> Variadic_zero_or_one K.region
   | Make_block (Values _, _, _) -> Variadic_all_of_kind K.value
   | Make_block (Naked_floats, _, _) -> Variadic_all_of_kind K.naked_float
   | Make_block (Mixed (_tag, shape), _, _) -> Variadic_mixed shape
@@ -2117,10 +2108,17 @@ let args_kind_of_variadic_primitive p : arg_kinds =
     Variadic_unboxed_product (Array_kind.element_kinds_for_primitive kind)
 
 let result_kind_of_variadic_primitive p : result_kind =
-  match p with Make_block _ | Make_array _ -> Singleton K.value
+  match p with
+  | Begin_region _ | Begin_try_region _ -> Singleton K.region
+  | Make_block _ | Make_array _ -> Singleton K.value
+
+let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
+  (* Ensure these don't get moved, but allow them to be deleted. *)
+  Only_generative_effects Mutable, Has_coeffects, Strict
 
 let effects_and_coeffects_of_variadic_primitive p =
   match p with
+  | Begin_region _ | Begin_try_region _ -> effects_and_coeffects_of_begin_region
   | Make_block (_, mut, alloc_mode) | Make_array (_, mut, alloc_mode) ->
     let coeffects : Coeffects.t =
       match alloc_mode with
@@ -2130,10 +2128,13 @@ let effects_and_coeffects_of_variadic_primitive p =
     Effects.Only_generative_effects mut, coeffects, Placement.Strict
 
 let variadic_classify_for_printing p =
-  match p with Make_block _ | Make_array _ -> Constructive
+  match p with
+  | Begin_region _ | Begin_try_region _ -> Neither
+  | Make_block _ | Make_array _ -> Constructive
 
 let free_names_variadic_primitive p =
   match p with
+  | Begin_region _ | Begin_try_region _ -> Name_occurrences.empty
   | Make_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
@@ -2141,6 +2142,7 @@ let free_names_variadic_primitive p =
 
 let apply_renaming_variadic_primitive p renaming =
   match p with
+  | Begin_region _ | Begin_try_region _ -> p
   | Make_block (kind, mut, alloc_mode) ->
     let alloc_mode' =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
@@ -2154,6 +2156,7 @@ let apply_renaming_variadic_primitive p renaming =
 
 let ids_for_export_variadic_primitive p =
   match p with
+  | Begin_region _ | Begin_try_region _ -> Ids_for_export.empty
   | Make_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
@@ -2271,8 +2274,8 @@ let equal t1 t2 = compare t1 t2 = 0
 let free_names t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
+      | Enter_inlined_apply _ | Dls_get | Poll ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -2298,8 +2301,8 @@ let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
+      | Enter_inlined_apply _ | Dls_get | Poll ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -2328,8 +2331,8 @@ let apply_renaming t renaming =
 let ids_for_export t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _
+      | Enter_inlined_apply _ | Dls_get | Poll ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union
@@ -2504,6 +2507,7 @@ end = struct
              subkinds here by erasing them. *)
           let prim =
             match prim with
+            | Begin_region _ | Begin_try_region _ -> assert false
             | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
               let kinds = List.map K.With_subkind.erase_subkind kinds in
               Make_block (Values (tag, kinds), mutability, alloc_mode)
@@ -2645,7 +2649,7 @@ end
 
 let is_begin_or_end_region t =
   match t with
-  | Nullary (Begin_region _ | Begin_try_region _)
+  | Variadic ((Begin_region _ | Begin_try_region _), _)
   | Unary ((End_region _ | End_try_region _), _) ->
     true
   | _ -> false

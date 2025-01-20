@@ -154,11 +154,18 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     in
     SPR.create named ~try_reify:true dacc
 
+let simplify_begin_region dacc ~original_term _dbg ~args_with_tys:_ ~result_var =
+  let ty = T.any_region in
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplify_primitive_result.create original_term ~try_reify:false dacc
+
 let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
+    | Begin_region { ghost = _ } | Begin_try_region { ghost = _ } ->
+      simplify_begin_region
     | Make_block (block_kind, mutable_or_immutable, alloc_mode) ->
       simplify_make_block ~original_prim ~block_kind ~mutable_or_immutable
         alloc_mode

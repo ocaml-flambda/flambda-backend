@@ -524,10 +524,8 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
   | Initialization -> Initialization
   | Assignment alloc -> Assignment (alloc_mode_for_assignments env alloc)
 
-let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
+let nullop _env (op : Flambda_primitive.nullary_primitive) : _ =
   match op with
-  | Begin_region { ghost } -> Begin_region { ghost }
-  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
   | Dls_get | Poll ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
@@ -653,6 +651,8 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
 
 let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
   match op with
+  | Begin_region { ghost } -> Begin_region { ghost }
+  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Make_block (Values (tag, _), mutability, alloc) ->
     let tag = tag |> Tag.Scannable.to_int in
     let alloc = alloc_mode_for_allocations env alloc in
@@ -664,7 +664,7 @@ let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
 
 let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   match p with
-  | Nullary op -> Nullary (nullop env op)
+  | Nullary op -> nullop env op
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, arg1, arg2) ->
     Binary (binop env op, simple env arg1, simple env arg2)

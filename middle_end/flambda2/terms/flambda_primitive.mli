@@ -312,13 +312,6 @@ type nullary_primitive =
           let-binding. *)
   | Probe_is_enabled of { name : string }
       (** Returns a boolean saying whether the given tracing probe is enabled. *)
-  | Begin_region of { ghost : bool }
-      (** Starting delimiter of local allocation region, returning a region
-          name. For regions for the "try" part of a "try...with", use
-          [Begin_try_region] (below) instead. *)
-  | Begin_try_region of { ghost : bool }
-      (** Starting delimiter of local allocation region, when used for a "try"
-          body. *)
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
@@ -528,6 +521,13 @@ type ternary_primitive =
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =
+  | Begin_region of { ghost : bool }
+      (** Starting delimiter of local allocation region, returning a region
+          name. For regions for the "try" part of a "try...with", use
+          [Begin_try_region] (below) instead. *)
+  | Begin_try_region of { ghost : bool }
+      (** Starting delimiter of local allocation region, when used for a "try"
+          body. *)
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
@@ -581,6 +581,7 @@ val args_kind_of_ternary_primitive :
 type arg_kinds =
   | Variadic_mixed of Flambda_kind.Mixed_block_shape.t
   | Variadic_all_of_kind of Flambda_kind.t
+  | Variadic_zero_or_one of Flambda_kind.t
   | Variadic_unboxed_product of Flambda_kind.t list
 
 val args_kind_of_variadic_primitive : variadic_primitive -> arg_kinds
