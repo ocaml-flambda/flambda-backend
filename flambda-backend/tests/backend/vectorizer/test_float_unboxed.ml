@@ -24,8 +24,7 @@ let[@opaque][@specialize never] copy_mutable_record (a : t1) (b: t1) : unit =
 
 (* Currently, can't vectorize because of the specific floatmem operation (looks like
    it is treated overly conservatively. *)
-let[@opaque][@specialize never] add_mutable_record (a : t1) (b: t1) (c : t1) :
-    t1 =
+let[@opaque][@specialize never] add_mutable_record (a : t1) (b: t1) (c : t1) : t1 =
   c.d0 <- Float_u.add a.d0 b.d0;
   c.d1 <- Float_u.add a.d1 b.d1;
   c.d2 <- Float_u.add a.d2 b.d2;
