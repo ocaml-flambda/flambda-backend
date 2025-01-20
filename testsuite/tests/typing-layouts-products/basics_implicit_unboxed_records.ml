@@ -20,8 +20,8 @@ type 'a t = { x : 'a ; y : string }
 let f : (int * string) t# -> (string * int) t# =
   fun (#{ x = (i, s); y } as r) -> #{ r with x = (s, i) }
 [%%expect{|
-type ('a : value & value) t = { x : 'a; y : string; }
-val f : #(int * string) t -> #(string * int) t = <fun>
+type 'a t = { x : 'a; y : string; }
+val f : (int * string) t# -> (string * int) t# = <fun>
 |}]
 
 (* Patterns, as-patterns, partial patterns *)
@@ -30,7 +30,7 @@ type t = { i: int; j : int }
 let add (#{ i; _} as r) = i + r.#j
 [%%expect{|
 type t = { i : int; j : int; }
-val add : t -> int = <fun>
+val add : t# -> int = <fun>
 |}]
 
 let bad_match (x : t#) =
@@ -48,16 +48,21 @@ Error: This match case could not be refuted.
 
 let disallowed = #{ i = 1; j = 2 }
 [%%expect{|
+Line 1, characters 4-14:
+1 | let disallowed = #{ i = 1; j = 2 }
+        ^^^^^^^^^^
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "disallowed" has layout "value & value".
 |}]
 
 ;;
 #{ i = 1; j = 2 };;
 [%%expect{|
-Line 1, characters 0-20:
-1 | #{ f = #3.14; i = 0};;
-    ^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-17:
+1 | #{ i = 1; j = 2 };;
+    ^^^^^^^^^^^^^^^^^
 Error: Types of unnamed expressions must have layout value when using
-       the toplevel, but this expression has layout "float64 & value".
+       the toplevel, but this expression has layout "value & value".
 |}]
 
 (* However, we can have a top-level unboxed record if its kind is value *)
@@ -68,7 +73,7 @@ module M = struct
 end
 [%%expect{|
 type m_record = { i1 : int; }
-module M : sig val x : m_record end
+module M : sig val x : m_record# end
 |}]
 
 type wrap_int = { i : int }
@@ -77,22 +82,22 @@ let w5 = #{ i = 5 }
 let ww5 = #{ wi = #{ i = 5 }}
 [%%expect{|
 type wrap_int = { i : int; }
-type wrap_wrap_int = { wi : wrap_int; }
-val w5 : wrap_int = #{i = 5}
-val ww5 : wrap_wrap_int = #{wi = #{i = 5}}
+type wrap_wrap_int = { wi : wrap_int#; }
+val w5 : wrap_int# = #{i = 5}
+val ww5 : wrap_wrap_int# = #{wi = #{i = 5}}
 |}]
 
 type t = { s : string }
 let s = #{ s = "hi" }
 [%%expect{|
 type t = { s : string; }
-val s : t = #{s = "hi"}
+val s : t# = #{s = "hi"}
 |}]
 
 ;;
 #{ i1 = 1 };;
 [%%expect{|
-- : m_record = #{i1 = 1}
+- : m_record# = #{i1 = 1}
 |}]
 
 (* Accessing inner products *)
@@ -104,8 +109,11 @@ let add t =
   let #(x, y) = t.#is in
   x + y
 [%%expect{|
-type t = { is : #(int * int); }
-val add : t -> int = <fun>
+Line 1, characters 0-29:
+1 | type t = { is: #(int * int) }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type "#(int * int)" has layout "value & value".
+       Records may not yet contain types of this layout.
 |}]
 
 (* An unboxed record is not an allocation, but a regular record is *)
@@ -144,14 +152,14 @@ type 'a r = { i: 'a }
 type int_r : immediate = int r#
 [%%expect{|
 type 'a r = { i : 'a; }
-type int_r = int r
+type int_r = int r#
 |}]
 
 type 'a t = { i : 'a ; j : 'a }
 type int_t : immediate & immediate = int t#
 [%%expect{|
 type 'a t = { i : 'a; j : 'a; }
-type int_t = int t
+type int_t = int t#
 |}]
 
 type ('a : float64) t = { x : string; y : 'a }
@@ -184,7 +192,7 @@ val f :
   < m : 'a. ([< `Foo of int & float ] as 'a) -> unit > ->
   < m : 'b. ([< `Foo of int & float ] as 'b) -> unit > = <fun>
 type t = { x : 'a. ([< `Foo of int & float ] as 'a) -> unit; }
-val f : t -> t = <fun>
+val f : t# -> t# = <fun>
 |}]
 
 module Bad : sig
@@ -195,17 +203,17 @@ end
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   type t = #{ i : int ; a: (<x:'a * 'a> as 'a) }
+4 |   type t = { i : int ; a: (<x:'a * 'a> as 'a) }
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = #{ i : int; a : < x : 'a * 'a > as 'a; } end
+         sig type t = { i : int; a : < x : 'a * 'a > as 'a; } end
        is not included in
-         sig type t = #{ i : int; a : < x : 'a > as 'a; } end
+         sig type t = { i : int; a : < x : 'a > as 'a; } end
        Type declarations do not match:
-         type t = #{ i : int; a : < x : 'a * 'a > as 'a; }
+         type t = { i : int; a : < x : 'a * 'a > as 'a; }
        is not included in
-         type t = #{ i : int; a : < x : 'a > as 'a; }
+         type t = { i : int; a : < x : 'a > as 'a; }
        Fields do not match:
          "a : < x : 'a * 'a > as 'a;"
        is not the same as:
@@ -226,14 +234,32 @@ end = struct
   type t = { s: string; r: string }
   type nonrec u = t#
 end
-[%%expect{||}]
+[%%expect{|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   type t = { s: string; r: string }
+5 |   type nonrec u = t#
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { s : string; r : string; } type nonrec u = t# end
+       is not included in
+         sig type u end
+       Type declarations do not match: type u = t# is not included in type u
+       The layout of the first is value & value
+         because it is an unboxed record.
+       But the layout of the first must be a sublayout of value
+         because of the definition of u at line 2, characters 2-8.
+|}]
 
 module M : sig
   type t = { s : string; t : string }
 end = struct
   type t = { s : string; t : string }
 end
-[%%expect{||}]
+[%%expect{|
+module M : sig type t = { s : string; t : string; } end
+|}]
 
 module M2 : sig
   type u : value & value
@@ -241,7 +267,9 @@ end = struct
   include M
   type nonrec u = t#
 end
-[%%expect{||}]
+[%%expect{|
+module M2 : sig type u : value & value end
+|}]
 
 module M : sig
   type u : value & value
@@ -249,7 +277,9 @@ end = struct
   type t = { s : string; t : string }
   type nonrec u = t#
 end
-[%%expect{||}]
+[%%expect{|
+module M : sig type u : value & value end
+|}]
 
 module M : sig
   type u
@@ -257,7 +287,12 @@ end = struct
   type t = #{ s : string }
   type nonrec u = t#
 end
-[%%expect{||}]
+[%%expect{|
+Line 5, characters 18-20:
+5 |   type nonrec u = t#
+                      ^^
+Error: The type "t" has no unboxed version.
+|}]
 
 (*************************************)
 (* Types that mode cross externality *)
@@ -280,9 +315,9 @@ and ('a, 'b, 'ptr) t =
   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 and ('a, 'b, 'ptr) u = ('a, 'b, 'ptr) t#
 [%%expect{|
-Line 4, characters 28-38:
-4 |   #{ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
-                                ^^^^^^^^^^
+Line 4, characters 27-37:
+4 |   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
+                               ^^^^^^^^^^
 Error: Layout mismatch in final type declaration consistency check.
        This is most often caused by the fact that type inference is not
        clever enough to propagate layouts through variables in different
@@ -304,7 +339,7 @@ type r = { i : int }
 let f = #{ i = 1 }
 [%%expect{|
 type r = { i : int; }
-val f : r = #{i = 1}
+val f : r# = #{i = 1}
 |}]
 
 let () = f.i <- 2
@@ -312,7 +347,7 @@ let () = f.i <- 2
 Line 1, characters 9-10:
 1 | let () = f.i <- 2
              ^
-Error: This expression has type "r",
+Error: This expression has type "r#",
        which is an unboxed record rather than a boxed one.
 |}]
 
@@ -325,7 +360,9 @@ end = struct
   type t = { x : int; y : bool }
   type u = t# = #{ x : int ; y : bool }
 end
-[%%expect{||}]
+[%%expect{|
+module M : sig type u = private #{ x : int; y : bool; } end
+|}]
 
 module Bad : sig
   type u = #{ x : int; y : bool }
@@ -333,13 +370,25 @@ end = struct
   type t = private { x : int; y : bool }
   type u = t# = #{ x : int; y : bool }
 end
-[%%expect{||}]
+[%%expect{|
+Line 5, characters 2-38:
+5 |   type u = t# = #{ x : int; y : bool }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "t#"
+       A private unboxed record constructor would be revealed.
+|}]
 
 module Bad = struct
   type t = private { x : int; y : bool }
   type u = t# = #{ x : int; y : bool }
 end
-[%%expect{||}]
+[%%expect{|
+Line 3, characters 2-38:
+3 |   type u = t# = #{ x : int; y : bool }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "t/2#"
+       A private unboxed record constructor would be revealed.
+|}]
 
 module Bad : sig
   type u = #{ x : int }
@@ -347,7 +396,26 @@ end = struct
   type t = private { x : int; y : bool }
   type u = t# = private #{ x : int; y : bool }
 end;;
-[%%expect{||}];;
+[%%expect{|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   type t = private { x : int; y : bool }
+5 |   type u = t# = private #{ x : int; y : bool }
+6 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type t = private { x : int; y : bool; }
+           type u = t# = private #{ x : int; y : bool; }
+         end
+       is not included in
+         sig type u = #{ x : int; } end
+       Type declarations do not match:
+         type u = t# = private #{ x : int; y : bool; }
+       is not included in
+         type u = #{ x : int; }
+       A private unboxed record constructor would be revealed.
+|}];;
 
 module Bad : sig
   type u = #{ x : int; y : bool }
@@ -355,11 +423,33 @@ end = struct
   type t = private { x : int }
   type u = t# = private #{ x : int }
 end;;
-[%%expect{||}];;
+[%%expect{|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   type t = private { x : int }
+5 |   type u = t# = private #{ x : int }
+6 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type t = private { x : int; }
+           type u = t# = private #{ x : int; }
+         end
+       is not included in
+         sig type u = #{ x : int; y : bool; } end
+       Type declarations do not match:
+         type u = t# = private #{ x : int; }
+       is not included in
+         type u = #{ x : int; y : bool; }
+       A private unboxed record constructor would be revealed.
+|}];;
 
 type t = private { i : int }
 let f #{ i } = i
-[%%expect{||}]
+[%%expect{|
+type t = private { i : int; }
+val f : t# -> int = <fun>
+|}]
 
 module M = struct
   type 'a t = private { f : 'a -> int }
@@ -367,7 +457,11 @@ end
 
 type 'a t = 'a M.t = private { f : 'a -> int }
 module type S = module type of M with type 'a t := 'a t
-[%%expect{||}]
+[%%expect{|
+module M : sig type 'a t = private { f : 'a -> int; } end
+type 'a t = 'a M.t = private { f : 'a -> int; }
+module type S = sig end
+|}]
 
 (*****************************************************)
 (* Special-cased errors for boxed/unboxed mismatches *)
@@ -387,7 +481,7 @@ let [@warning "-23"] update_t t =
 let _ = update_t #{ x = "x" }
 [%%expect{|
 type t = { x : string; }
-val update_t : t -> unit = <fun>
+val update_t : t# -> unit = <fun>
 - : unit = ()
 |}]
 
@@ -403,7 +497,7 @@ let [@warning "-23"] update_t t =
 let _ = update_t #{ x = "x" ; y = 1.0 ; z = ()}
 [%%expect{|
 type t = { x : string; y : float; z : unit; }
-val update_t : t -> unit = <fun>
+val update_t : t# -> unit = <fun>
 - : unit = ()
 |}]
 
@@ -425,7 +519,7 @@ Line 1, characters 8-30:
             ^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have kind any.
        But it was inferred to have kind value_or_null
-         because of the definition of t at line 1, characters 0-40.
+         because of the definition of t at line 1, characters 0-39.
 |}]
 
 (* CR layouts v7.2: once we allow record declarations with unknown kind
@@ -440,7 +534,7 @@ Line 1, characters 8-30:
             ^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have kind any.
        But it was inferred to have kind value_or_null
-         because of the definition of t at line 1, characters 0-40.
+         because of the definition of t at line 1, characters 0-39.
 |}]
 
 
@@ -476,12 +570,12 @@ type a = B of b
 and b : any & any & any = r#
 and r = { i : int ; j : int }
 [%%expect{|
-Line 2, characters 0-48:
-2 | and b : any & any & any = #{ i : int ; j : int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-28:
+2 | and b : any & any & any = r#
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of b is any & any & any
-         because of the annotation on the declaration of the type b.
+       The layout of b is '_representable_layout_1 & '_representable_layout_2
+         because it is an unboxed record.
        But the layout of b must be representable
          because it's the type of a constructor field.
 |}]
