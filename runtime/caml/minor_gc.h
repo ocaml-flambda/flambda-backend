@@ -75,6 +75,13 @@ struct caml_minor_tables {
   struct caml_dependent_table dependent;
 };
 
+/* Setting this to a different value can be useful for debugging
+ * although may cause some slowdown. I suggest 0x200 (zero size,
+ * non-zero colour). Compare with In_progress_update_val in
+ * minor_gc.c. */
+#define Promoted_hd ((header_t)0x0)
+#define Is_promoted_hd(hd) ((hd) == Promoted_hd)
+
 CAMLextern void caml_minor_collection (void);
 
 #ifdef CAML_INTERNALS
