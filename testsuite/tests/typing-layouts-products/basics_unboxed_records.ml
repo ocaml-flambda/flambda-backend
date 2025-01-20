@@ -620,11 +620,7 @@ Error: This expression has type "t",
 
 let _ = #{ b = 5 }
 [%%expect{|
-Line 1, characters 11-12:
-1 | let _ = #{ b = 5 }
-               ^
-Error: Unbound unboxed record field "b"
-Hint: There is a boxed record field with this name.
+- : t# = #{b = 5}
 |}]
 
 let _ = { u = 5 }
@@ -647,11 +643,7 @@ Hint: There is an unboxed record field with this name.
 
 let bad_get t = t.#b
 [%%expect{|
-Line 1, characters 19-20:
-1 | let bad_get t = t.#b
-                       ^
-Error: Unbound unboxed record field "b"
-Hint: There is a boxed record field with this name.
+val bad_get : t# -> int = <fun>
 |}]
 
 (*****************************************************************************)
