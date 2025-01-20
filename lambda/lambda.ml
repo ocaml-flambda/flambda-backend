@@ -311,6 +311,7 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
@@ -1950,6 +1951,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Ppoll ->
     Some alloc_heap
   | Patomic_load _
+  | Patomic_set _
   | Patomic_exchange _
   | Patomic_compare_exchange _
   | Patomic_compare_set _
@@ -2126,7 +2128,7 @@ let primitive_can_raise prim =
   | Patomic_exchange _ | Patomic_compare_exchange _
   | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add
   | Patomic_sub | Patomic_land | Patomic_lor
-  | Patomic_lxor | Patomic_load _ -> false
+  | Patomic_lxor | Patomic_load _ | Patomic_set _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
@@ -2357,6 +2359,7 @@ let primitive_result_layout (p : primitive) =
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_set _ -> layout_unit
   | Patomic_exchange { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_exchange { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int

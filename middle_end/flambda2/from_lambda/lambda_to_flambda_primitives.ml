@@ -2382,6 +2382,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Unary
         ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
           atomic ) ]
+  | Patomic_set { immediate_or_pointer }, [[atomic]; [new_value]] ->
+    [ Binary
+        ( Atomic_set (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          new_value ) ]
   | Patomic_exchange { immediate_or_pointer }, [[atomic]; [new_value]] ->
     [ Binary
         ( Atomic_exchange (convert_block_access_field_kind immediate_or_pointer),
@@ -2507,8 +2512,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _,
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
-      | Patomic_exchange _ | Patomic_fetch_add | Patomic_add | Patomic_sub
-      | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
+      | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
+      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
