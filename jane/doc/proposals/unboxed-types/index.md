@@ -1033,19 +1033,7 @@ get from the definition of `t0` or `t2` to a tightly packed representation; use
 
 A separate takeaway here is that memory layout in our design is *associative*:
 the memory layout does not depend on how the type definitions are
-structured. This is in contrast to C `struct`s, where each sub-`struct` must be
-appropriately aligned and padded. For example, the C translation of this example
-is
-
-```c
-struct t3 {
-  struct t1 { int32 x; int16 y; } t1;
-  int16 z;
-};
-```
-
-Yet this would take 2 words in memory, as `t1` would be padded in order to be
-32-bit aligned.
+structured.
 
 ### Further memory-layout concerns
 
