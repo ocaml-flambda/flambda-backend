@@ -258,6 +258,13 @@ type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r
 and r = #{ i : int; f : float#; }
 |}]
 
+type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
+and r = #{ i : int }
+[%%expect{|
+type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
+and r = #{ i : int }
+|}]
+
 (*******************)
 (* Types with [as] *)
 
@@ -401,6 +408,7 @@ type u : immediate
 type t = #{ x : float#; y : u; }
 |}]
 
+(********************)
 (* Recursive groups *)
 
 type ('a : float64) t_float64_id = 'a
@@ -646,6 +654,7 @@ Error: Unbound unboxed record field "b"
 Hint: There is a boxed record field with this name.
 |}]
 
+(*****************************************************************************)
 (* Initial expressions for functionally updated records are always evaluated *)
 
 type t = #{ x : string }
