@@ -1018,98 +1018,6 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_record_unboxed_product _ | Ptype_open -> jkind
     in
     let arity = List.length params in
-    (* Invaraint: the kind and the manifest agree on whether this type has an
-       unboxed version *)
-    let unboxed_kind_jkind =
-      match kind with
-      | Type_abstract a ->
-        `Abstract_kind a
-      | Type_record_unboxed_product _ | Type_variant _
-      | Type_open
-      | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                        | Record_ufloat | Record_mixed _))->
-        `No_unboxed_version
-      | Type_record (lbls, Record_boxed _) ->
-        (* CR rtjoa: factor out shared code *)
-        (* let path' = Path.Path.unboxed_version path in *)
-        let lbls_unboxed =
-          (* CR rtjoa: Need warning scope? *)
-          List.map
-            (fun (ld : Types.label_declaration) ->
-                (* CR rtjoa: why do we have a type_desc? (next two lines???) *)
-                (* CR rtjoa: same id ok? *)
-                { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
-                ld_mutable = Immutable;
-                ld_modalities = ld.ld_modalities;
-                (* CR rtjoa: update sort in [update_label_sorts], maybe? *)
-                ld_sort = Jkind.Sort.Const.void;
-                ld_type = ld.ld_type;
-                ld_loc = ld.ld_loc;
-                ld_attributes = [];
-                ld_uid = ld.ld_uid;
-              })
-            lbls
-        in
-        let jkind_ls =
-          List.map (fun _ -> Jkind.Builtin.any ~why:Initial_typedecl_env) lbls
-        in
-        let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
-        let kind = Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product) in
-        `Unboxed_kind_jkind (kind, jkind)
-    in
-    let unboxed_manifest =
-      match man with
-      | None -> `No_manifest
-      | Some ty ->
-        match get_desc ty with
-        | Tconstr (path, args, _) ->
-          begin match Env.find_type path env with
-          | { type_unboxed_version = None; _ } -> `No_unboxed_version
-          | { type_unboxed_version = Some unboxed_version ; _ } ->
-            (* CR layouts v11: we'll have to update type_jkind once we have
-                [layout_of] layouts *)
-            `Unboxed_manifest_jkind
-              (Ctype.newconstr (Path.unboxed_version path) args,
-               unboxed_version.type_jkind)
-          end
-        | _ ->
-          `No_unboxed_version
-    in
-    let unboxed_kind_jkind_manifest =
-      match unboxed_kind_jkind, unboxed_manifest with
-      | `No_unboxed_version, _ | _, `No_unboxed_version
-      | `Abstract_kind _, `No_manifest -> None
-      | `Unboxed_kind_jkind (kind, jkind), `No_manifest ->
-        Some (kind, jkind, None)
-      | `Abstract_kind a, `Unboxed_manifest_jkind (ty, jkind) ->
-        Some (Type_abstract a, jkind, Some ty)
-      | `Unboxed_kind_jkind (kind, jkind), `Unboxed_manifest_jkind (ty, _jkind) ->
-        (* [check_coherence] will make sure [jkind] and [_jkind] align *)
-        Some (kind, jkind, Some ty)
-    in
-    let decl_unboxed =
-      match unboxed_kind_jkind_manifest with
-      | None -> None
-      | Some (kind, jkind, manifest) ->
-        Some {
-          type_params = params;
-          type_arity = arity;
-          type_kind = kind;
-          type_jkind = jkind;
-          type_private = sdecl.ptype_private;
-          type_manifest = manifest;
-          type_variance = Variance.unknown_signature ~injective:false ~arity;
-          type_separability = Types.Separability.default_signature ~arity;
-          type_is_newtype = false;
-          type_expansion_scope = Btype.lowest_level;
-          type_loc = sdecl.ptype_loc;
-          type_attributes = [];
-          type_unboxed_default = false;
-          type_uid = uid;
-          type_has_illegal_crossings = false;
-          type_unboxed_version = None;
-        }
-    in
     let decl =
       { type_params = params;
         type_arity = arity;
@@ -1126,7 +1034,8 @@ let transl_declaration env sdecl (id, uid) =
         type_unboxed_default = unboxed_default;
         type_uid = uid;
         type_has_illegal_crossings = false;
-        type_unboxed_version = decl_unboxed;
+        (* CR rtjoa: comment *)
+        type_unboxed_version = None;
       } in
   (* Check constraints *)
     List.iter
@@ -1172,6 +1081,175 @@ let transl_declaration env sdecl (id, uid) =
     in
     decl, typ_shape
   end
+
+let derive_unboxed_version find_type decl =
+  let unboxed_kind_jkind =
+    match decl.type_kind with
+    | Type_abstract a ->
+      `Abstract_kind a
+    | Type_record_unboxed_product _ | Type_variant _
+    | Type_open
+    | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
+                      | Record_ufloat | Record_mixed _))->
+      `No_unboxed_version
+    | Type_record (lbls, Record_boxed _) ->
+      (* CR rtjoa: factor out shared code *)
+      (* let path' = Path.Path.unboxed_version path in *)
+      let lbls_unboxed =
+        (* CR rtjoa: Need warning scope? *)
+        List.map
+          (fun (ld : Types.label_declaration) ->
+              (* CR rtjoa: same id ok? *)
+              { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
+              ld_mutable = Immutable;
+              ld_modalities = ld.ld_modalities;
+              (* CR rtjoa: update sort in [update_label_sorts], maybe? *)
+              ld_sort = Jkind.Sort.Const.void;
+              ld_type = ld.ld_type;
+              ld_loc = ld.ld_loc;
+              ld_attributes = [];
+              ld_uid = ld.ld_uid;
+            })
+          lbls
+      in
+      let jkind_ls =
+        List.map (fun _ -> Jkind.Builtin.any ~why:Initial_typedecl_env) lbls
+      in
+      let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
+      let kind = Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product) in
+      `Unboxed_kind_jkind (kind, jkind)
+  in
+  let unboxed_manifest =
+    match decl.type_manifest with
+    | None -> `No_manifest
+    | Some ty ->
+      match get_desc ty with
+      | Tconstr (path, args, _) ->
+        begin match path with
+        | Pextra_ty (_, Punboxed_ty) -> `No_unboxed_version
+        | _ ->
+        begin match find_type path with
+        | { type_unboxed_version = None; _ } -> `No_unboxed_version
+        | { type_unboxed_version = Some unboxed_version ; _ } ->
+          (* CR layouts v11: we'll have to update type_jkind once we have
+              [layout_of] layouts *)
+          `Unboxed_manifest_jkind
+            (Ctype.newconstr (Path.unboxed_version path) args,
+              unboxed_version.type_jkind)
+        | exception Not_found ->
+          Misc.fatal_error "derive_unboxed_version"
+        end
+        end
+      | _ ->
+        `No_unboxed_version
+  in
+  let unboxed_kind_jkind_manifest =
+    match unboxed_kind_jkind, unboxed_manifest with
+    | `No_unboxed_version, _ | _, `No_unboxed_version
+    | `Abstract_kind _, `No_manifest -> None
+    | `Unboxed_kind_jkind (kind, jkind), `No_manifest ->
+      Some (kind, jkind, None)
+    | `Abstract_kind a, `Unboxed_manifest_jkind (ty, jkind) ->
+      Some (Type_abstract a, jkind, Some ty)
+    | `Unboxed_kind_jkind (kind, jkind), `Unboxed_manifest_jkind (ty, _jkind) ->
+      (* [check_coherence] will make sure [jkind] and [_jkind] align *)
+      Some (kind, jkind, Some ty)
+  in
+  match unboxed_kind_jkind_manifest with
+  | None -> None
+  | Some (kind, jkind, manifest) ->
+    Some {
+      type_params = decl.type_params;
+      type_arity = decl.type_arity;
+      type_kind = kind;
+      type_jkind = jkind;
+      type_private = decl.type_private;
+      type_manifest = manifest;
+      type_variance = Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
+      type_separability = Types.Separability.default_signature ~arity:decl.type_arity;
+      type_is_newtype = false;
+      type_expansion_scope = Btype.lowest_level;
+      type_loc = decl.type_loc;
+      type_attributes = [];
+      type_unboxed_default = false;
+      type_uid = decl.type_uid;
+      type_has_illegal_crossings = false;
+      type_unboxed_version = None;
+    }
+
+let add_unboxed_versions (env : Env.t) (decls : Typedtree.type_declaration list) =
+  (* Map each id in the decl group to its aliases in the same group *)
+  let id_to_aliases, alias_of_other_list =
+    List.fold_left_map
+      (fun id_to_aliases decl ->
+         match decl.typ_type.type_manifest with
+         | None -> id_to_aliases, false
+         | Some ty ->
+           match get_desc ty with
+           | Tconstr (Pident id, _, _)
+             when List.exists (fun d -> Ident.equal d.typ_id id) decls ->
+              Ident.Map.update
+                id
+                (function
+                  | Some aliases -> Some (decl.typ_id :: aliases)
+                  | None -> Some [decl.typ_id])
+                id_to_aliases,
+              true
+           | _ -> id_to_aliases, false)
+      Ident.Map.empty
+      decls
+  in
+  (* These types in the decls group must have unboxed versions
+     - Types that "create" a new unboxed version (only [Record_boxed] records)
+     - Aliases of types outside of the group with unboxed versions
+     Then, we propagate unboxed versions within the decls group based on
+     aliases until fixed point.
+  *)
+  let id_to_decl =
+    Ident.Map.of_list (List.map (fun decl -> decl.typ_id, decl) decls)
+  in
+  let find_type id_to_decl path =
+    match path with
+    | Path.Pident id ->
+        begin match Ident.Map.find_opt id id_to_decl with
+        | Some decl -> decl.typ_type
+        | None -> Env.find_type path env
+        end
+    | _ -> Env.find_type path env
+  in
+  let rec visit id_to_decl (id : Ident.t) =
+    match
+      derive_unboxed_version
+        (fun decl -> (find_type id_to_decl decl))
+        (Ident.Map.find id id_to_decl).typ_type
+    with
+    | Some unboxed_version ->
+      let id_to_decl =
+        Ident.Map.update
+          id
+          (function
+           | Some (tdecl : Typedtree.type_declaration) ->
+             assert (Option.is_none tdecl.typ_type.type_unboxed_version);
+             Some { tdecl with typ_type = { tdecl.typ_type with type_unboxed_version = Some unboxed_version } }
+           | None -> assert false)
+          id_to_decl
+      in
+      begin match Ident.Map.find_opt id id_to_aliases with
+      | Some aliases ->
+        List.fold_left (fun id_to_decl id -> visit id_to_decl id) id_to_decl aliases
+      | None ->
+        id_to_decl
+      end
+    | None ->
+      id_to_decl
+  in
+  let id_to_decl =
+    List.fold_left2
+      (fun id_to_decl decl alias_of_other ->
+         if alias_of_other then id_to_decl else visit id_to_decl decl.typ_id)
+      id_to_decl decls alias_of_other_list
+  in
+  List.map (fun decl -> Ident.Map.find decl.typ_id id_to_decl) decls
 
 (* Generalize a type declaration *)
 
@@ -2581,11 +2659,10 @@ let transl_type_decl env rec_flag sdecl_list =
          enviroment. *)
       let tdecls =
         List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
-      let decls, shapes =
-        List.map (fun (tdecl, shape) ->
-          (tdecl.typ_id, tdecl.typ_type), shape) tdecls
-        |> List.split
-      in
+      let decls, shapes = List.split tdecls in
+      let decls = add_unboxed_versions env decls in
+      let tdecls = List.combine decls shapes in
+      let decls = List.map (fun d -> (d.typ_id, d.typ_type)) decls in
       current_slot := None;
       (* Check for duplicates *)
       check_duplicates sdecl_list;

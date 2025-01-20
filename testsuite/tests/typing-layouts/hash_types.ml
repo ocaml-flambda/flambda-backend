@@ -128,18 +128,18 @@ and s = t#
 type t = int
 and s = t#
 [%%expect{|
-Line 2, characters 8-10:
+Line 2, characters 0-10:
 2 | and s = t#
-            ^^
+    ^^^^^^^^^^
 Error: "t" has no unboxed version. (typedecl.ml)
 |}]
 
 type t = s#
 and s = t#
 [%%expect{|
-Line 1, characters 9-11:
+Line 1, characters 0-11:
 1 | type t = s#
-             ^^
+    ^^^^^^^^^^^
 Error: "s" has no unboxed version. (typedecl.ml)
 |}]
 
@@ -286,4 +286,30 @@ end
 [%%expect{|
 module M :
   sig type t = { x : int; } module N : sig type b = t type u = t# end end
+|}]
+
+type a = b
+and b = int
+type bad = a#
+[%%expect{|
+type a = b
+and b = int
+Line 3, characters 11-13:
+3 | type bad = a#
+               ^^
+Error: "a" has no unboxed version.
+|}]
+
+type t = a = { i : int }
+and a = { i : int }
+[%%expect{|
+type t = a = { i : int; }
+and a = { i : int; }
+|}]
+
+type a = { i : int }
+and t = a = { i : int }
+[%%expect{|
+type a = { i : int; }
+and t = a = { i : int; }
 |}]

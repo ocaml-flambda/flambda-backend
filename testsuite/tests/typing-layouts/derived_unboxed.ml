@@ -95,9 +95,9 @@ type b = a = { i : int } [@@unboxed]
 and s = b#
 [%%expect{|
 type a = { i : int; }
-Line 3, characters 8-10:
+Line 3, characters 0-10:
 3 | and s = b#
-            ^^
+    ^^^^^^^^^^
 Error: "b" has no unboxed version. (typedecl.ml)
 |}]
 
@@ -106,8 +106,8 @@ type b = a = { i : int }
 and s = b#
 [%%expect{|
 type a = { i : int; } [@@unboxed]
-Line 3, characters 8-10:
+Line 3, characters 0-10:
 3 | and s = b#
-            ^^
+    ^^^^^^^^^^
 Error: "b" has no unboxed version. (typedecl.ml)
 |}]
