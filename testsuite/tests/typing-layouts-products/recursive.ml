@@ -192,9 +192,13 @@ Error: The definition of "bad" is recursive without boxing:
          "'a bad" contains "'a bad"
 |}]
 
-type 'a bad = { bad : 'a bad ; u : 'a}
+type 'a bad = #{ bad : 'a bad ; u : 'a}
 [%%expect{|
-type 'a bad = { bad : 'a bad; u : 'a; }
+Line 1, characters 0-39:
+1 | type 'a bad = #{ bad : 'a bad ; u : 'a}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "'a bad" contains "'a bad"
 |}]
 
 type bad : float64 = #{ bad : bad ; i : int}
@@ -208,7 +212,11 @@ Error: The definition of "bad" is recursive without boxing:
 
 type bad = #{ a : bad ; b : bad }
 [%%expect{|
-type bad = #{ a : t; b : t; }
+Line 1, characters 0-33:
+1 | type bad = #{ a : bad ; b : bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "bad" contains "bad"
 |}]
 
 type 'a bad = #{ a : 'a bad }
