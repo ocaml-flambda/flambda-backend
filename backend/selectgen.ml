@@ -258,6 +258,23 @@ class virtual selector_generic =
         let addr, eloc = self#select_addressing dst_size dst in
         ( Iintop_atomic { op = Compare_and_swap; size; addr },
           [compare_with; set_to; eloc] )
+      | Catomic { op = Compare_exchange; size }, [compare_with; set_to; dst] ->
+        let dst_size =
+          match size with
+          | Word | Sixtyfour -> Word_int
+          | Thirtytwo -> Thirtytwo_signed
+        in
+        let addr, eloc = self#select_addressing dst_size dst in
+        ( Iintop_atomic { op = Compare_exchange; size; addr },
+          [compare_with; set_to; eloc] )
+      | Catomic { op = Exchange; size }, [src; dst] ->
+        let dst_size =
+          match size with
+          | Word | Sixtyfour -> Word_int
+          | Thirtytwo -> Thirtytwo_signed
+        in
+        let addr, eloc = self#select_addressing dst_size dst in
+        Iintop_atomic { op = Exchange; size; addr }, [src; eloc]
       | Cprobe { name; handler_code_sym; enabled_at_init }, _ ->
         Iprobe { name; handler_code_sym; enabled_at_init }, args
       | Cprobe_is_enabled { name }, _ -> Iprobe_is_enabled { name }, []
