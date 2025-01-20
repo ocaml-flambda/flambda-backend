@@ -32,7 +32,7 @@ module Jkind_mod_bounds =
   Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
 
 module With_bounds_type_info = struct
-  type t = Jkind_axis.Axis_set.t
+  type t = {relevant_axes : Jkind_axis.Axis_set.t } [@@unboxed]
 end
 
 

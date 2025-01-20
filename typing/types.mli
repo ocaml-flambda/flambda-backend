@@ -75,7 +75,7 @@ module Jkind_mod_bounds :
 (** Information tracked about an individual type within the with-bounds for a jkind *)
 module With_bounds_type_info : sig
   (** The axes that the with-bound applies to *)
-  type t = Jkind_axis.Axis_set.t
+  type t = { relevant_axes : Jkind_axis.Axis_set.t } [@@unboxed]
 end
 
 type type_expr
