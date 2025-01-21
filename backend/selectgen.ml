@@ -241,24 +241,24 @@ class virtual selector_generic =
       | Cdivf w, _ -> Ifloatop (w, Idivf), args
       | Creinterpret_cast cast, _ -> Ireinterpret_cast cast, args
       | Cstatic_cast cast, _ -> Istatic_cast cast, args
-      (* | Catomic { op = Fetch_and_add; size }, [src; dst] ->
-       *   let dst_size =
-       *     match size with
-       *     | Word | Sixtyfour -> Word_int
-       *     | Thirtytwo -> Thirtytwo_signed
-       *   in
-       *   let addr, eloc = self#select_addressing dst_size dst in
-       *   Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc]
-       * | Catomic { op = Compare_and_swap; size }, [compare_with; set_to; dst] ->
-       *   let dst_size =
-       *     match size with
-       *     | Word | Sixtyfour -> Word_int
-       *     | Thirtytwo -> Thirtytwo_signed
-       *   in
-       *   let addr, eloc = self#select_addressing dst_size dst in
-       *   ( Iintop_atomic { op = Compare_and_swap; size; addr },
-       *     [compare_with; set_to; eloc] )
-       * | Catomic { op = Compare_exchange; size }, [compare_with; set_to; dst] ->
+      | Catomic { op = Fetch_and_add; size }, [src; dst] ->
+        let dst_size =
+          match size with
+          | Word | Sixtyfour -> Word_int
+          | Thirtytwo -> Thirtytwo_signed
+        in
+        let addr, eloc = self#select_addressing dst_size dst in
+        Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc]
+      | Catomic { op = Compare_and_swap; size }, [compare_with; set_to; dst] ->
+        let dst_size =
+          match size with
+          | Word | Sixtyfour -> Word_int
+          | Thirtytwo -> Thirtytwo_signed
+        in
+        let addr, eloc = self#select_addressing dst_size dst in
+        ( Iintop_atomic { op = Compare_and_swap; size; addr },
+          [compare_with; set_to; eloc] )
+      (* | Catomic { op = Compare_exchange; size }, [compare_with; set_to; dst] ->
        *   let dst_size =
        *     match size with
        *     | Word | Sixtyfour -> Word_int
