@@ -750,10 +750,7 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
   | _, Some n ->
     if n = Nativeint.min_int
     then
-      (* [divisor] must be positive be here since we already handled zero and
-         min_int (the only negative power of 2).
-
-         Similarly to the division by min_int almost always being 0, modulo
+      (* Similarly to the division by min_int almost always being 0, modulo
          min_int is almost always the identity, the exception being when the
          divisor is min_int *)
       bind "dividend" c1 (fun c1 ->
@@ -768,6 +765,8 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
               Any ))
     else if is_power_of_2_or_zero n
     then
+      (* [divisor] must be positive be here since we already handled zero and
+         min_int (the only negative power of 2). *)
       let l = Misc.log2_nativeint n in
       (* Algorithm:
 
