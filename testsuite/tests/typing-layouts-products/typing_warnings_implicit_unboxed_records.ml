@@ -4,43 +4,40 @@
 *)
 
 (* NOTE: When adding tests to this file, consider updating
-   [typing-layouts-products/typing_warnings_implicit_unboxed_records.ml] *)
-
-module Duplicate_label_definitions = struct
-  type t = { a : int }
-  and t2 = #{ a : int }
-end
-[%%expect{|
-module Duplicate_label_definitions :
-  sig type t = { a : int; } and t2 = #{ a : int; } end
-|}]
-
-module Duplicate_label_definitions2 = struct
-  type t = #{ a : int }
-  and t2 = #{ a : int }
-end
-[%%expect{|
-Line 3, characters 14-21:
-3 |   and t2 = #{ a : int }
-                  ^^^^^^^
-Warning 30 [duplicate-definitions]: the unboxed record label a is defined in both types t and t2.
-
-module Duplicate_label_definitions2 :
-  sig type t = #{ a : int; } and t2 = #{ a : int; } end
-|}]
+   [typing-layouts-products/typing_warnings_unboxed_records.ml] *)
 
 external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 [%%expect{|
 external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 |}]
+
+module M = struct
+  type t = {x:int}
+  type b = {x:bool}
+  type s = t = { x : int }
+  let f (x:t) = x.x
+  let g (x:t#) = x.#x
+end
+[%%expect{||}]
+
+module M = struct
+  type t = {x:int}
+  module N = struct type s = t = {x:int} end
+end
+module OK = struct
+  open M.N
+  let f (r : M.t) = r.x
+  let g (r : M.t#) = r.#x
+end
+[%%expect{||}]
 
 (* This below tests are adapted from
    [testsuite/tests/typing-warnings/records.ml]. *)
 
 (* Use type information *)
 module M1 = struct
-  type t = #{x: int; y: int}
-  type u = #{x: bool; y: bool}
+  type t = {x: int; y: int}
+  type u = {x: bool; y: bool}
 end;;
 [%%expect{|
 module M1 :
@@ -49,10 +46,10 @@ module M1 :
 
 module OK = struct
   open M1
-  let f1 (r:t) = r.#x (* ok *)
-  let f2 r = ignore_product (r:t); r.#x (* non principal *)
+  let f1 (r:t#) = r.#x (* ok *)
+  let f2 r = ignore_product (r:t#); r.#x (* non principal *)
 
-  let f3 (r: t) =
+  let f3 (r: t#) =
     match r with #{x; y} -> y + y (* ok *)
 end;;
 [%%expect{|
@@ -147,7 +144,7 @@ Error: This expression has type "bool" but an expression was expected of type
 module F2 = struct
   open M1
   let f r =
-    ignore_product (r: t);
+    ignore_product (r: t#);
     match r with
        #{x; y} -> y + y
 end;; (* fails for -principal *)
@@ -198,13 +195,13 @@ module F2 : sig val f : M1.t -> int end
 
 (* Use type information with modules*)
 module M = struct
-  type t = #{x:int}
-  type u = #{x:bool}
+  type t = {x:int}
+  type u = {x:bool}
 end;;
 [%%expect{|
 module M : sig type t = #{ x : int; } type u = #{ x : bool; } end
 |}]
-let f (r:M.t) = r.#M.x;; (* ok *)
+let f (r:M.t#) = r.#M.x;; (* ok *)
 [%%expect{|
 Line 1, characters 19-22:
 1 | let f (r:M.t) = r.#M.x;; (* ok *)
@@ -214,7 +211,7 @@ it will not compile with OCaml 4.00 or earlier.
 
 val f : M.t -> int = <fun>
 |}]
-let f (r:M.t) = r.#x;; (* warning *)
+let f (r:M.t#) = r.#x;; (* warning *)
 [%%expect{|
 Line 1, characters 19-20:
 1 | let f (r:M.t) = r.#x;; (* warning *)
@@ -231,7 +228,7 @@ it will not compile with OCaml 4.00 or earlier.
 
 val f : M.t -> int = <fun>
 |}]
-let f (#{x}:M.t) = x;; (* warning *)
+let f (#{x}:M.t#) = x;; (* warning *)
 [%%expect{|
 Line 1, characters 9-10:
 1 | let f (#{x}:M.t) = x;; (* warning *)
@@ -250,13 +247,13 @@ val f : M.t -> int = <fun>
 |}]
 
 module M = struct
-  type t = #{x: int; y: int}
+  type t = {x: int; y: int}
 end;;
 [%%expect{|
 module M : sig type t = #{ x : int; y : int; } end
 |}]
 module N = struct
-  type u = #{x: bool; y: bool}
+  type u = {x: bool; y: bool}
 end;;
 [%%expect{|
 module N : sig type u = #{ x : bool; y : bool; } end
@@ -264,7 +261,7 @@ module N : sig type u = #{ x : bool; y : bool; } end
 module OK = struct
   open M
   open N
-  let f (r:M.t) = r.#x
+  let f (r:M.t#) = r.#x
 end;;
 [%%expect{|
 Line 4, characters 21-22:
@@ -282,9 +279,9 @@ module OK : sig val f : M.t -> int end
 |}]
 
 module M = struct
-  type t = #{x:int}
-  module N = struct type s = t = #{x:int} end
-  type u = #{x:bool}
+  type t = {x:int}
+  module N = struct type s = t = {x:int} end
+  type u = {x:bool}
 end;;
 [%%expect{|
 module M :
@@ -296,7 +293,7 @@ module M :
 |}]
 module OK = struct
   open M.N
-  let f (r:M.t) = r.#x
+  let f (r:M.t#) = r.#x
 end;;
 [%%expect{|
 module OK : sig val f : M.t -> int end
@@ -304,8 +301,8 @@ module OK : sig val f : M.t -> int end
 
 (* Use field information *)
 module M = struct
-  type u = #{x:bool;y:int;z:char}
-  type t = #{x:int;y:bool}
+  type u = {x:bool;y:int;z:char}
+  type t = {x:int;y:bool}
 end;;
 [%%expect{|
 module M :
@@ -352,8 +349,8 @@ Error: Some unboxed record fields are undefined: "y"
 |}]
 
 module OK = struct
-  type u = #{x:int;y:bool}
-  type t = #{x:bool;y:int;z:char}
+  type u = {x:int;y:bool}
+  type t = {x:bool;y:int;z:char}
   let r () = #{x=3; y=true}
 end;; (* ok *)
 [%%expect{|
@@ -380,8 +377,8 @@ module OK :
 (* Corner cases *)
 
 module F4 = struct
-  type foo = #{x:int; y:int}
-  type bar = #{x:int}
+  type foo = {x:int; y:int}
+  type bar = {x:int}
   let b : bar = #{x=3; y=4}
 end;; (* fail but don't warn *)
 [%%expect{|
@@ -392,11 +389,11 @@ Error: This unboxed record expression is expected to have type "bar"
        There is no unboxed record field "y" within type "bar"
 |}]
 
-module M = struct type foo = #{x:int;y:int} end;;
+module M = struct type foo = {x:int;y:int} end;;
 [%%expect{|
 module M : sig type foo = #{ x : int; y : int; } end
 |}]
-module N = struct type bar = #{x:int;y:int} end;;
+module N = struct type bar = {x:int;y:int} end;;
 [%%expect{|
 module N : sig type bar = #{ x : int; y : int; } end
 |}]
@@ -447,8 +444,8 @@ Error: The unboxed record field "NM.y" belongs to the type "NM.foo" = "M.foo"
 (* Lpw25 *)
 
 module M = struct
-  type foo = #{ x: int; y: int }
-  type bar = #{ x:int; y: int; z: int}
+  type foo = { x: int; y: int }
+  type bar = { x:int; y: int; z: int}
 end;;
 [%%expect{|
 module M :
@@ -459,7 +456,7 @@ module M :
 |}]
 module F5 = struct
   open M
-  let f r = ignore_product (r: foo); #{r with x = 2; z = 3}
+  let f r = ignore_product (r: foo#); #{r with x = 2; z = 3}
 end;;
 [%%expect{|
 Line 3, characters 46-47:
@@ -476,7 +473,7 @@ Error: This unboxed record expression is expected to have type "M.foo"
 |}]
 module M = struct
   include M
-  type other = #{ a: int; b: int }
+  type other = { a: int; b: int }
 end;;
 [%%expect{|
 module M :
@@ -488,7 +485,7 @@ module M :
 |}]
 module F6 = struct
   open M
-  let f r = ignore_product (r: foo); #{ r with x = 3; a = 4 }
+  let f r = ignore_product (r: foo#); #{ r with x = 3; a = 4 }
 end;;
 [%%expect{|
 Line 3, characters 47-48:
@@ -506,7 +503,7 @@ Error: This unboxed record expression is expected to have type "M.foo"
 module F7 = struct
   open M
   let r () = #{x=1; y=2}
-  let r () : other = #{x=1; y=2}
+  let r () : other# = #{x=1; y=2}
 end;;
 [%%expect{|
 Line 3, characters 15-16:
@@ -528,13 +525,13 @@ Error: This unboxed record expression is expected to have type "M.other"
        There is no unboxed record field "x" within type "M.other"
 |}]
 
-module A = struct type t = #{x: int} end
-module B = struct type t = #{x: int} end;;
+module A = struct type t = {x: int} end
+module B = struct type t = {x: int} end;;
 [%%expect{|
 module A : sig type t = #{ x : int; } end
 module B : sig type t = #{ x : int; } end
 |}]
-let f (r : B.t) = r.#A.x;; (* fail *)
+let f (r : B.t#) = r.#A.x;; (* fail *)
 [%%expect{|
 Line 1, characters 21-24:
 1 | let f (r : B.t) = r.#A.x;; (* fail *)
@@ -547,8 +544,8 @@ Error: The unboxed record field "A.x" belongs to the unboxed record type "A.t"
 (* Spellchecking *)
 
 module F8 = struct
-  type t = #{x:int; yyy:int}
-  let a : t = #{x=1;yyz=2}
+  type t = {x:int; yyy:int}
+  let a : t# = {x=1;yyz=2}
 end;;
 [%%expect{|
 Line 3, characters 20-23:
@@ -559,76 +556,15 @@ Error: This unboxed record expression is expected to have type "t"
 Hint: Did you mean "yyy"?
 |}]
 
-(* PR#6004 *)
-
-type t = A
-type s = A
-
-class f (_ : t) = object end;;
-[%%expect{|
-type t = A
-type s = A
-class f : t -> object  end
-|}]
-class g = f A;; (* ok *)
-
-class f (_ : 'a) (_ : 'a) = object end;;
-[%%expect{|
-Line 1, characters 12-13:
-1 | class g = f A;; (* ok *)
-                ^
-Warning 42 [disambiguated-name]: this use of A relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-class g : f
-class f : 'a -> 'a -> object  end
-|}]
-class g = f (A : t) A;; (* warn with -principal *)
-[%%expect{|
-Line 1, characters 13-14:
-1 | class g = f (A : t) A;; (* warn with -principal *)
-                 ^
-Warning 42 [disambiguated-name]: this use of A relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-Line 1, characters 20-21:
-1 | class g = f (A : t) A;; (* warn with -principal *)
-                        ^
-Warning 42 [disambiguated-name]: this use of A relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-class g : f
-|}, Principal{|
-Line 1, characters 13-14:
-1 | class g = f (A : t) A;; (* warn with -principal *)
-                 ^
-Warning 42 [disambiguated-name]: this use of A relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-Line 1, characters 20-21:
-1 | class g = f (A : t) A;; (* warn with -principal *)
-                        ^
-Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
-
-Line 1, characters 20-21:
-1 | class g = f (A : t) A;; (* warn with -principal *)
-                        ^
-Warning 42 [disambiguated-name]: this use of A relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-class g : f
-|}]
-
-
 (* PR#5980 *)
 
 module Shadow1 = struct
-  type t = #{x: int}
+  type t = {x: int}
   module M = struct
-    type s = #{x: string}
+    type s = {x: string}
   end
   open M  (* this open is unused, it isn't reported as shadowing 'x' *)
-  let y : t = #{x = 0}
+  let y : t# = #{x = 0}
 end;;
 [%%expect{|
 Line 7, characters 16-17:
@@ -650,9 +586,9 @@ module Shadow1 :
   end
 |}]
 module Shadow2 = struct
-  type t = #{x: int}
+  type t = {x: int}
   module M = struct
-    type s = #{x: string}
+    type s = {x: string}
   end
   open M  (* this open shadows label 'x' *)
   let y = #{x = ""}
@@ -680,9 +616,9 @@ module Shadow2 :
 (* PR#6235 *)
 
 module P6235 = struct
-  type t = #{ loc : string; }
-  type v = #{ loc : string; x : int; }
-  type u = [ `Key of t ]
+  type t = { loc : string; }
+  type v = { loc : string; x : int; }
+  type u = [ `Key of t# ]
   let f (u : u) = match u with `Key #{loc} -> loc
 end;;
 [%%expect{|
@@ -704,9 +640,9 @@ module P6235 :
 (* Remove interaction between branches *)
 
 module P6235' = struct
-  type t = #{ loc : string; }
-  type v = #{ loc : string; x : int; }
-  type u = [ `Key of t ]
+  type t = { loc : string; }
+  type v = { loc : string; x : int; }
+  type u = [ `Key of t# ]
   let f = function
     | (_ : u) when false -> ""
     |`Key #{loc} -> loc
@@ -751,10 +687,10 @@ module P6235' :
     while reviewing #9196
  *)
 module M = struct
-  type t = #{ x:int; y:int}
+  type t = { x:int; y:int}
 end
-type u = #{ a:int }
-let _ = ( #{ M.x=0 } : u );;
+type u = { a:int }
+let _ = ( #{ M.x=0 } : u# );;
 [%%expect{|
 module M : sig type t = #{ x : int; y : int; } end
 type u = #{ a : int; }
@@ -767,10 +703,10 @@ Error: The unboxed record field "M.x" belongs to the unboxed record type "M.t"
 |}]
 
 (* PR#8747 *)
-module M = struct type t = #{ x : int; y: char } end
-let f (x : M.t) () = #{ x with y = 'a' }
-let g (x : M.t) () = #(#{ x with y = 'a' }, [])
-let h (x : M.t) () = #(#{ x with y = 'a' }, #(#{ x with y = 'b' }, []));;
+module M = struct type t = { x : int; y: char } end
+let f (x : M.t#) () = #{ x with y = 'a' }
+let g (x : M.t#) () = #(#{ x with y = 'a' }, [])
+let h (x : M.t#) () = #(#{ x with y = 'a' }, #(#{ x with y = 'b' }, []));;
 [%%expect{|
 module M : sig type t = #{ x : int; y : char; } end
 Line 2, characters 31-32:
