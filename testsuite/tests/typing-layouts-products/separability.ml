@@ -7,6 +7,9 @@
  }
 *)
 
+(* NOTE: When adding tests to this file, consider updating
+   [typing-layouts-products/separability_implicit_unboxed_records.ml] *)
+
 type 'a r = #{ a : 'a }
 and 'a ok = F : 'a r -> 'a ok [@@unboxed]
 [%%expect{|
