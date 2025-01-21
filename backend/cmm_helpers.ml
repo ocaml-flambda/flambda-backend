@@ -592,7 +592,7 @@ let divimm_parameters d =
 
  * let add2 (xh, xl) (yh, yl) =
  *   let zl = add xl yl and zh = add xh yh in
- *   (if ucompare zl xl < 0 then succ zh else zh), zl
+ *   (if unsigned_compare zl xl < 0 then succ zh else zh), zl
  *
  * let shl2 (xh, xl) n =
  *   assert (0 < n && n < size + size);
@@ -613,16 +613,16 @@ let divimm_parameters d =
  *        (shl2 (0n, mul xl yh) halfsize)
  *        (add2 (shl2 (0n, mul xh yl) halfsize) (0n, mul xl yl)))
  *
- * let ucompare2 (xh, xl) (yh, yl) =
- *   let c = ucompare xh yh in
- *   if c = 0 then ucompare xl yl else c
+ * let unsigned_compare2 (xh, xl) (yh, yl) =
+ *   let c = unsigned_compare xh yh in
+ *   if c = 0 then unsigned_compare xl yl else c
  *
  * let validate d m p =
  *   let md = mul2 m d in
  *   let one2 = 0n, 1n in
  *   let twoszp = shl2 one2 (size + p) in
  *   let twop1 = shl2 one2 (p + 1) in
- *   ucompare2 twoszp md < 0 && ucompare2 md (add2 twoszp twop1) <= 0
+ *   unsigned_compare2 twoszp md < 0 && unsigned_compare2 md (add2 twoszp twop1) <= 0
  *)
 
 let raise_symbol dbg symb =
