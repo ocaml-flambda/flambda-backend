@@ -2253,7 +2253,8 @@ and store_label
       let used = label_usages () in
       Types.Uid.Tbl.add !used_labels k
         (add_label_usage used);
-      if not (ty_name = "" || ty_name.[0] = '_' || name.[0] = '_')
+      if not (ty_name = "" || ty_name.[0] = '_' || name.[0] = '_'
+              || type_decl.type_is_unboxed_version)
       then !add_delayed_check_forward
           (fun () ->
             Option.iter
@@ -2309,6 +2310,7 @@ and store_type ~check id info shape env =
     | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
   in
+  let descrs, env = store_decl (Pident id) info env in
   let env =
     match info.type_unboxed_version with
     | Some info ->
@@ -2318,7 +2320,6 @@ and store_type ~check id info shape env =
       env
     | None -> env
   in
-  let descrs, env = store_decl (Pident id) info env in
   let tda =
     { tda_declaration = info;
       tda_descriptions = descrs;

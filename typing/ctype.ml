@@ -1404,6 +1404,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin jkind =
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     type_has_illegal_crossings = false;
     type_unboxed_version = None;
+    type_is_unboxed_version = false;
   }
 
 let existential_name name_counter ty =
@@ -6819,6 +6820,7 @@ let rec nondep_type_decl env mid is_covariant decl =
       type_uid = decl.type_uid;
       type_has_illegal_crossings = decl.type_has_illegal_crossings;
       type_unboxed_version;
+      type_is_unboxed_version = false;
     }
   with Nondep_cannot_erase _ as exn ->
     clear_hash ();

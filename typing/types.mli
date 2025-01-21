@@ -546,6 +546,7 @@ type type_declaration =
        contention axes *)
     (* CR layouts v2.8: remove type_has_illegal_crossings *)
     type_unboxed_version : type_declaration option;
+    type_is_unboxed_version : bool;
   }
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind

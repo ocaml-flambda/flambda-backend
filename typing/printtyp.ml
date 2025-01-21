@@ -2446,6 +2446,7 @@ let dummy =
     type_uid = Uid.internal_not_actually_unique;
     type_has_illegal_crossings = false;
     type_unboxed_version = None;
+    type_is_unboxed_version = false;
   }
 
 (** we hide items being defined from short-path to avoid shortening

@@ -535,6 +535,7 @@ let rec type_declaration' copy_scope s decl =
     type_has_illegal_crossings = decl.type_has_illegal_crossings;
     type_unboxed_version =
       Option.map (type_declaration' copy_scope s) decl.type_unboxed_version;
+    type_is_unboxed_version = decl.type_is_unboxed_version;
   }
 
 let type_declaration s decl =

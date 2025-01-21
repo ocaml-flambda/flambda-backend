@@ -306,6 +306,7 @@ in
       type_uid = uid;
       type_has_illegal_crossings = false;
       type_unboxed_version = None;
+      type_is_unboxed_version = true;
     }
   in
   let decl =
@@ -325,6 +326,7 @@ in
       type_uid = uid;
       type_has_illegal_crossings = false;
       type_unboxed_version;
+      type_is_unboxed_version = false;
     }
   in
   add_type ~check:true id decl env
@@ -1036,6 +1038,7 @@ let transl_declaration env sdecl (id, uid) =
         type_has_illegal_crossings = false;
         (* CR rtjoa: comment *)
         type_unboxed_version = None;
+        type_is_unboxed_version = false;
       } in
   (* Check constraints *)
     List.iter
@@ -1175,6 +1178,7 @@ let derive_unboxed_version find_type decl =
       type_uid = decl.type_uid;
       type_has_illegal_crossings = false;
       type_unboxed_version = None;
+      type_is_unboxed_version = true;
     }
 
 let add_unboxed_versions (env : Env.t) (decls : Typedtree.type_declaration list) =
@@ -3661,6 +3665,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
         else
           Type_abstract Definition, sig_decl_unboxed.type_jkind
       in
+      (* CR rtjoa: maybe this should all use the derive helper function? *)
       let man = match get_desc man with
         | Tconstr (path, args, _) ->
           (* CR rtjoa: will this give good errors if the derived unboxed version
@@ -3689,6 +3694,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
         type_uid;
         type_has_illegal_crossings = false;
         type_unboxed_version = None;
+        type_is_unboxed_version = true;
       }
   in
   let type_kind, type_unboxed_default, type_jkind =
@@ -3716,6 +3722,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_uid;
       type_has_illegal_crossings = false;
       type_unboxed_version;
+      type_is_unboxed_version = false;
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -3765,6 +3772,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
           type_has_illegal_crossings = false;
         }) new_sig_decl.type_unboxed_version
         ;
+      type_is_unboxed_version = new_sig_decl.type_is_unboxed_version;
     } in
   {
     typ_id = id;
@@ -3806,6 +3814,7 @@ let transl_package_constraint ~loc ty =
     type_has_illegal_crossings = false;
     (* CR rtjoa: package constraint *)
     type_unboxed_version = None;
+    type_is_unboxed_version = false;
   }
 
 (* Approximate a type declaration: just make all types abstract *)
@@ -3846,8 +3855,10 @@ let abstract_type_decl ~injective ~jkind ~params =
           type_unboxed_default = false;
           type_uid = Uid.internal_not_actually_unique;
           type_has_illegal_crossings = false;
-          type_unboxed_version = None
+          type_unboxed_version = None;
+          type_is_unboxed_version = true;
         };
+      type_is_unboxed_version = false;
     }
   end
 

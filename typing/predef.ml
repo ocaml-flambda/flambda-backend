@@ -253,6 +253,7 @@ let mk_add_type add_type
       type_uid;
       type_has_illegal_crossings = false;
       type_unboxed_version = None;
+      type_is_unboxed_version = true;
       }
   in
   let decl =
@@ -272,6 +273,7 @@ let mk_add_type add_type
      type_uid;
      type_has_illegal_crossings = false;
      type_unboxed_version;
+     type_is_unboxed_version = false;
     }
   in
   add_type type_ident decl env
@@ -302,8 +304,9 @@ let mk_add_type1 add_type type_ident
       type_attributes = [];
       type_unboxed_default = false;
       type_uid = Uid.of_predef_id type_ident;
-       type_has_illegal_crossings = false;
+      type_has_illegal_crossings = false;
       type_unboxed_version = None;
+      type_is_unboxed_version = false;
     }
   in
   add_type type_ident decl env
