@@ -2362,13 +2362,13 @@ let primitive_result_layout (p : primitive) =
   | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_compare_exchange { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_cas _
-  | Patomic_fetch_add
+  | Patomic_fetch_add -> layout_int
+  | Pdls_get -> layout_any_value
   | Patomic_add
   | Patomic_sub
   | Patomic_land
   | Patomic_lor
-  | Patomic_lxor -> layout_int
-  | Pdls_get -> layout_any_value
+  | Patomic_lxor
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
