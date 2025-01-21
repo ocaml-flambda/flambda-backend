@@ -26,7 +26,7 @@ Line 1, characters 51-52:
 Error: This expression has type "float#" but an expression was expected of type
          "('a : value)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because of the annotation on the wildcard _ at line 1, characters 20-31.
 |}]
@@ -45,7 +45,7 @@ Line 1, characters 53-54:
 Error: This expression has type "float#" but an expression was expected of type
          "('a : value)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because of the annotation on the wildcard _ at line 1, characters 20-31.
 |}]
@@ -59,7 +59,7 @@ Line 1, characters 68-69:
 Error: This expression has type "float#" but an expression was expected of type
          "('a : value)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because of the annotation on the wildcard _ at line 1, characters 20-31.
          Custom message
