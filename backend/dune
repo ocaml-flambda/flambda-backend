@@ -15,13 +15,12 @@
 (copy_files# "%{env:ARCH=amd64}/*.ml{,i}")
 
 (rule
+ (enabled_if (= %{env:ARCH=amd64} "arm64"))
  (targets emit.ml)
  (mode    fallback)
- (deps    amd64/emit.mlp
-          arm64/emit.mlp)
+ (deps    arm64/emit.mlp)
  (action
    (progn
-     (with-stdout-to contains-input-name
-       (bash "echo %{env:ARCH=amd64}/emit.mlp"))
+     (copy# arm64/emit.mlp contains-input-name)
      (with-stdout-to %{targets}
-         (bash "%{dep:../tools/cvt_emit.exe} < `cat contains-input-name`")))))
+         (bash "cat contains-input-name | %{dep:../tools/cvt_emit.exe} ")))))

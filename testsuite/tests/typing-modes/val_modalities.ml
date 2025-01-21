@@ -900,3 +900,64 @@ let () =
   ()
 [%%expect{|
 |}]
+
+(* CR zqian: finer treatment of packing and unpacking *)
+module type Empty = sig end
+
+module type S = sig
+  val foo : 'a -> 'a
+  val baz : 'a -> 'a @@ portable
+end
+
+module M : S = struct
+  let foo = fun x -> x
+  let baz = fun x -> x
+end
+[%%expect{|
+module type Empty = sig end
+module type S = sig val foo : 'a -> 'a val baz : 'a -> 'a @@ portable end
+module M : S
+|}]
+
+let (bar @ portable) () =
+    let m = (module M : Empty) in
+    ()
+[%%expect{|
+Line 2, characters 20-21:
+2 |     let m = (module M : Empty) in
+                        ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let m = (module M : S)
+[%%expect{|
+val m : (module S) = <module>
+|}]
+
+let (bar @ portable) () =
+    let module M' = (val m : Empty) in
+    ()
+[%%expect{|
+Line 2, characters 25-26:
+2 |     let module M' = (val m : Empty) in
+                             ^
+Error: The value "m" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* CR zqian: this mode crossing should work *)
+module M : sig
+  val x : int
+end = struct
+  let x = 42
+end
+
+let (foo @ portable) () =
+  let _ = M.x in
+  ()
+[%%expect{|
+module M : sig val x : int end
+Line 8, characters 10-13:
+8 |   let _ = M.x in
+              ^^^
+Error: The value "M.x" is nonportable, so cannot be used inside a function that is portable.
+|}]
