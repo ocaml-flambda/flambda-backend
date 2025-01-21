@@ -274,10 +274,10 @@ class virtual selector_generic =
        *     | Thirtytwo -> Thirtytwo_signed
        *   in
        *   let addr, eloc = self#select_addressing dst_size dst in
-       *   Iintop_atomic { op = Exchange; size; addr }, [src; eloc]
-       * | Cprobe { name; handler_code_sym; enabled_at_init }, _ ->
-       *   Iprobe { name; handler_code_sym; enabled_at_init }, args
-       * | Cprobe_is_enabled { name }, _ -> Iprobe_is_enabled { name }, [] *)
+       *   Iintop_atomic { op = Exchange; size; addr }, [src; eloc] *)
+      | Cprobe { name; handler_code_sym; enabled_at_init }, _ ->
+        Iprobe { name; handler_code_sym; enabled_at_init }, args
+      | Cprobe_is_enabled { name }, _ -> Iprobe_is_enabled { name }, []
       | Cbeginregion, _ -> Ibeginregion, []
       | Cendregion, _ -> Iendregion, args
       | _ -> Misc.fatal_error "Selection.select_oper"
