@@ -639,18 +639,51 @@ and compute_global penv modname ~params ~check ~allow_excess_args =
   global
 
 and acknowledge_pers_name penv check global_name import ~allow_excess_args =
+  let {persistent_names; _} = penv in
   let params = import.imp_params in
-  let arg_for = import.imp_arg_for in
-  let sign = import.imp_raw_sign in
   let global =
     compute_global penv global_name ~params ~check ~allow_excess_args
   in
+  (* Check whether this global is already known. Possible if there are excess
+     arguments (or there were in a previous call) since then more than one
+     [global_name] will map to the same [global]. *)
+  let canonical_global_name =
+    (* The minimal form of the global name, without any excess arguments *)
+    Global_module.to_name global
+  in
+  let pn =
+    match Hashtbl.find_opt persistent_names canonical_global_name with
+    | Some pn ->
+        (* No need to call [remember_global]: it will have been called before
+           with [global]. This does cause any entry for our approximate
+           [global_name] to linger, but it doesn't do any damage and will get
+           substituted away eventually. *)
+        (* CR-someday lmaurer: Allow the tracking of bound globals to deal with
+           multiple different names being bound to the same global. *)
+        pn
+    | None ->
+        acknowledge_new_pers_name penv check canonical_global_name global import
+  in
+  if not (Global_module.Name.equal global_name canonical_global_name) then
+    (* Just remember that both names point here. Note that we don't call
+       [remember_global], since it will already have been called by
+       [acknowledge_new_pers_name] (either just now or earlier). This lets
+       the approximate global name linger in the cache of bound globals, but
+       it doesn't do any damage and will get substituted away eventually. *)
+    (* CR-someday lmaurer: Modify [remember_global] so that it can remember
+       multiple global names mapped to the same global. Only likely to be
+       relevant if there are _a lot_ of bound globals. *)
+    Hashtbl.add persistent_names global_name pn;
+  pn
+and acknowledge_new_pers_name penv check global_name global import =
   (* This checks only [global] itself without recursing into argument values.
      That's fine, however, since those argument values will have come from
      recursive calls to [global_of_global_name] and therefore have passed
      through here already. *)
   check_for_unset_parameters penv global;
   let {persistent_names; _} = penv in
+  let arg_for = import.imp_arg_for in
+  let sign = import.imp_raw_sign in
   let sign =
     let bindings =
       List.map
@@ -774,7 +807,7 @@ type 'a sig_reader =
 (* Add a persistent structure to the hash table and bind it in the [Env].
    Checks that OCaml source is allowed to refer to this module. *)
 
-let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
+let acknowledge_new_pers_struct penv modname pers_name val_of_pers_sig =
   let {persistent_structures; _} = penv in
   let import = pers_name.pn_import in
   let global = pers_name.pn_global in
@@ -823,6 +856,22 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
     }
   in
   Hashtbl.add persistent_structures modname ps;
+  ps
+
+let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
+  (* This is the same dance that [acknowledge_pers_name] does. See comments
+     there. *)
+  let {persistent_structures; _} = penv in
+  let canonical_modname = Global_module.to_name pers_name.pn_global in
+  let ps =
+    match Hashtbl.find_opt persistent_structures canonical_modname with
+    | Some ps -> ps
+    | None ->
+        acknowledge_new_pers_struct penv canonical_modname pers_name
+          val_of_pers_sig
+  in
+  if not (Global_module.Name.equal modname canonical_modname) then
+    Hashtbl.add persistent_structures modname ps;
   ps
 
 let read_pers_struct penv check modname cmi =
