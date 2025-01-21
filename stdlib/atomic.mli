@@ -82,7 +82,7 @@ val logand : int t -> int -> unit
 (** [logor r i] atomically bitwise-ors [i] onto [r]. *)
 val logor : int t -> int -> unit
 
-(** [logxor r i] atomically bitwise-ors [i] onto [r]. *)
+(** [logxor r i] atomically bitwise-xors [i] onto [r]. *)
 val logxor : int t -> int -> unit
 
 (** [incr r] atomically increments the value of [r] by [1]. *)
