@@ -575,6 +575,56 @@ let divimm_parameters d =
   in
   loop (size - 1) (udivmod min_int anc) (udivmod min_int ad)
 
+(* For d > 1, the result [(m, p)] of [divimm_parameters d] satisfies the following
+   inequality:
+
+   2^(wordsize + p) < m * d <= 2^(wordsize + p) + 2^(p + 1) (i)
+
+   from which it follows that
+
+   floor(n / d) = floor(n * m / 2^(wordsize+p)), if 0 <= n < 2^(wordsize-1)
+
+   ceil(n / d) = floor(n * m / 2^(wordsize+p)) + 1, if -2^(wordsize-1) <= n < 0
+
+   The correctness condition (i) above can be checked by the code below. It was
+   exhaustively tested for values of d from 2 to 10^9 in the wordsize = 64
+   case.
+
+ * let add2 (xh, xl) (yh, yl) =
+ *   let zl = add xl yl and zh = add xh yh in
+ *   (if ucompare zl xl < 0 then succ zh else zh), zl
+ *
+ * let shl2 (xh, xl) n =
+ *   assert (0 < n && n < size + size);
+ *   if n < size
+ *   then
+ *     logor (shift_left xh n) (shift_right_logical xl (size - n)),
+ *       shift_left xl n
+ *   else shift_left xl (n - size), 0n
+ *
+ * let mul2 x y =
+ *   let halfsize = size / 2 in
+ *   let halfmask = pred (shift_left 1n halfsize) in
+ *   let xl = logand x halfmask and xh = shift_right_logical x halfsize in
+ *   let yl = logand y halfmask and yh = shift_right_logical y halfsize in
+ *   add2
+ *     (mul xh yh, 0n)
+ *     (add2
+ *        (shl2 (0n, mul xl yh) halfsize)
+ *        (add2 (shl2 (0n, mul xh yl) halfsize) (0n, mul xl yl)))
+ *
+ * let ucompare2 (xh, xl) (yh, yl) =
+ *   let c = ucompare xh yh in
+ *   if c = 0 then ucompare xl yl else c
+ *
+ * let validate d m p =
+ *   let md = mul2 m d in
+ *   let one2 = 0n, 1n in
+ *   let twoszp = shl2 one2 (size + p) in
+ *   let twop1 = shl2 one2 (p + 1) in
+ *   ucompare2 twoszp md < 0 && ucompare2 md (add2 twoszp twop1) <= 0
+ *)
+
 let raise_symbol dbg symb =
   Cop
     (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
