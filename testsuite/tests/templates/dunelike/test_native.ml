@@ -1,22 +1,35 @@
 (* TEST (* DO NOT EDIT. Instead edit test_byte.ml and run gen-native.sh. *)
  readonly_files = "\
    basic.ml basic.mli basic__.ml \
+   export_fancy_q_impl.ml export_fancy_q_impl.mli export_fancy_q_impl__.ml \
    fancy.ml fancy.mli flourish.ml flourish.mli ornament.ml ornament.mli fancy__.ml \
    main.ml main.mli main__.ml \
    main_basic.ml main_basic.mli main_basic__.ml \
    p.mli p__.ml \
    p_int.ml p_int.mli p_int__.ml \
    p_string.ml p_string.mli p_string__.ml \
+   q.mli q__.ml \
+   q_impl.ml q_impl__.ml \
    test_native.reference \
+   use_fancy_q_impl.ml use_fancy_q_impl__.ml \
+   util.ml util.mli util__.ml \
  ";
  {
    setup-ocamlopt.byte-build-env;
 
-   script = "mkdir basic fancy main main_basic p p_int p_string instances";
+   script = "\
+     mkdir \
+       basic export_fancy_q_impl fancy instances main main_basic p p_int p_string \
+       q q_impl use_fancy_q_impl util \
+   ";
    script;
 
    src = "basic.ml basic.mli basic__.ml";
    dst = "basic/";
+   copy;
+
+   src = "export_fancy_q_impl.ml export_fancy_q_impl.mli export_fancy_q_impl__.ml";
+   dst = "export_fancy_q_impl/";
    copy;
 
    src = "fancy.ml fancy.mli flourish.ml flourish.mli ornament.ml ornament.mli fancy__.ml";
@@ -43,6 +56,22 @@
    dst = "p_string/";
    copy;
 
+   src = "q.mli q__.ml";
+   dst = "q/";
+   copy;
+
+   src = "q_impl.ml q_impl__.ml";
+   dst = "q_impl/";
+   copy;
+
+   src = "use_fancy_q_impl.ml use_fancy_q_impl__.ml";
+   dst = "use_fancy_q_impl/";
+   copy;
+
+   src = "util.ml util.mli util__.ml";
+   dst = "util/";
+   copy;
+
    set flg_alias_deps = "-w -53";
    set flg = "$flg_alias_deps -no-alias-deps";
    set flg_int_iface = "$flg -w -49";
@@ -54,6 +83,14 @@
 
    flags = "$flg -as-parameter -I p -open P__ -open No_direct_access_to_p";
    module = "p/p.mli";
+   ocamlopt.byte;
+
+   flags = "$flg_int_iface";
+   module = "q/q__.ml";
+   ocamlopt.byte;
+
+   flags = "$flg -as-parameter -I q -open Q__ -open No_direct_access_to_q";
+   module = "q/q.mli";
    ocamlopt.byte;
 
    set flg_basic = "\
@@ -73,17 +110,17 @@
    [fancy.ml] et al.) once PR #3489 is in.
 
    set flg_fancy = "\
-     $flg -parameter P -I p -I basic -I fancy \
+     $flg -parameter P -parameter Q -I p -I q -I basic -I fancy -I util \
      -open Fancy__ -open No_direct_access_to_fancy \
    ";
 *)
 
    (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
    set flg_fancy = "\
-     $flg -parameter P -I p -I basic -I fancy \
+     $flg -parameter P -parameter Q -I p -I q -I basic -I fancy -I util \
    ";
 
-   flags = "${flg_int_iface} -I p -parameter P";
+   flags = "${flg_int_iface} -parameter P -parameter Q -I p -I q";
    module = "fancy/fancy__.ml";
    ocamlopt.byte;
 
@@ -103,11 +140,11 @@
    module = "fancy/ornament.ml";
    ocamlopt.byte;
 
-   flags = "$flg_fancy -o fancy/fancy.cmi";
+   flags = "$flg_fancy -o fancy/fancy.cmi -w -49";
    module = "fancy/fancy.mli";
    ocamlopt.byte;
 
-   flags = "$flg_fancy -o fancy/fancy.cmx";
+   flags = "$flg_fancy -o fancy/fancy.cmx -w -49";
    module = "fancy/fancy.ml";
    ocamlopt.byte;
 
@@ -166,60 +203,185 @@
    module = "main_basic/main_basic.mli main_basic/main_basic.ml";
    ocamlopt.byte;
 
-   set flg_fancy_p_int = "$flg_fancy $flg_instance -I p_int";
+   set flg_q_impl = "\
+     $flg -I q -I q_impl \
+     -open Q_impl__ -open No_direct_access_to_q_impl \
+   ";
+
+   flags = "${flg_int_iface}";
+   module = "q_impl/q_impl__.ml";
+   ocamlopt.byte;
+
+   flags = "$flg_q_impl -as-argument-for Q";
+   module = "q_impl/q_impl.ml";
+   ocamlopt.byte;
+
+   set flg_fancy_p_int = "$flg_fancy $flg_instance -I p_int -I q_impl";
 
    flags = "$flg_fancy_p_int -instantiate";
    module = "";
-   program = "instances/fancy__-P_int";
-   all_modules = "fancy/fancy__.cmx p_int/p_int.cmx";
+   program = "instances/fancy__-P_int-Q_impl";
+   all_modules = "fancy/fancy__.cmx p_int/p_int.cmx q_impl/q_impl.cmx";
    ocamlopt.byte;
 
    flags = "$flg_fancy_p_int -instantiate";
    module = "";
-   program = "instances/fancy__Flourish-P_int";
-   all_modules = "fancy/fancy__Flourish.cmx p_int/p_int.cmx";
+   program = "instances/fancy__Flourish-P_int-Q_impl";
+   all_modules = "fancy/fancy__Flourish.cmx p_int/p_int.cmx q_impl/q_impl.cmx";
    ocamlopt.byte;
 
    flags = "$flg_fancy_p_int -instantiate";
    module = "";
-   program = "instances/fancy__Ornament-P_int";
-   all_modules = "fancy/fancy__Ornament.cmx p_int/p_int.cmx";
+   program = "instances/fancy__Ornament-P_int-Q_impl";
+   all_modules = "fancy/fancy__Ornament.cmx p_int/p_int.cmx q_impl/q_impl.cmx";
    ocamlopt.byte;
 
    flags = "$flg_fancy_p_int -instantiate";
    module = "";
-   program = "instances/fancy-P_int";
-   all_modules = "fancy/fancy.cmx p_int/p_int.cmx";
+   program = "instances/fancy-P_int-Q_impl";
+   all_modules = "fancy/fancy.cmx p_int/p_int.cmx q_impl/q_impl.cmx";
    ocamlopt.byte;
 
-   set flg_fancy_p_string = "$flg_fancy $flg_instance -I p_string";
+   set flg_fancy_p_string = "$flg_fancy $flg_instance -I p_string -I q_impl";
 
    flags = "$flg_fancy_p_string -instantiate";
    module = "";
-   program = "instances/fancy__-P_string";
-   all_modules = "fancy/fancy__.cmx p_string/p_string.cmx";
-   ocamlopt.byte;
-
-   flags = "$flg_fancy_p_string -instantiate";
-   module = "";
-   program = "instances/fancy__Flourish-P_string";
-   all_modules = "fancy/fancy__Flourish.cmx p_string/p_string.cmx";
+   program = "instances/fancy__-P_string-Q_impl";
+   all_modules = "fancy/fancy__.cmx p_string/p_string.cmx q_impl/q_impl.cmx";
    ocamlopt.byte;
 
    flags = "$flg_fancy_p_string -instantiate";
    module = "";
-   program = "instances/fancy__Ornament-P_string";
-   all_modules = "fancy/fancy__Ornament.cmx p_string/p_string.cmx";
+   program = "instances/fancy__Flourish-P_string-Q_impl";
+   all_modules = "fancy/fancy__Flourish.cmx p_string/p_string.cmx q_impl/q_impl.cmx";
    ocamlopt.byte;
 
    flags = "$flg_fancy_p_string -instantiate";
    module = "";
-   program = "instances/fancy-P_string";
-   all_modules = "fancy/fancy.cmx p_string/p_string.cmx";
+   program = "instances/fancy__Ornament-P_string-Q_impl";
+   all_modules = "fancy/fancy__Ornament.cmx p_string/p_string.cmx q_impl/q_impl.cmx";
+   ocamlopt.byte;
+
+   flags = "$flg_fancy_p_string -instantiate";
+   module = "";
+   program = "instances/fancy-P_string-Q_impl";
+   all_modules = "fancy/fancy.cmx p_string/p_string.cmx q_impl/q_impl.cmx";
+   ocamlopt.byte;
+
+(* CR-soon lmaurer: Uncomment this once PR #3489 is in.
+
+   set flg_util = "\
+     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I util \
+     -open Util__ -open No_direct_access_to_util \
+   ";
+*)
+
+   (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
+   set flg_util = "\
+     $flg -parameter P -I p -I q -I q_impl -H basic -I fancy -I util \
+   ";
+
+   flags = "$flg_int_iface -parameter P -I p";
+   module = "util/util__.ml";
+   ocamlopt.byte;
+
+   flags = "$flg_util";
+   module = "util/util.mli util/util.ml";
+   ocamlopt.byte;
+
+   set flg_util_p_int = "$flg_util $flg_instance -I p_int";
+
+   flags = "$flg_util_p_int -instantiate";
+   module = "";
+   program = "instances/util__-P_int.cmx";
+   all_modules = "util/util__.cmx p_int/p_int.cmx";
+   ocamlopt.byte;
+
+   flags = "$flg_util_p_int -instantiate";
+   module = "";
+   program = "instances/util-P_int.cmx";
+   all_modules = "util/util.cmx p_int/p_int.cmx";
+   ocamlopt.byte;
+
+(* CR-soon lmaurer: Uncomment this (and remove the extra [open] lines in
+   [export_fancy_q_impl.ml] et al.) once PR #3489 is in.
+
+   set flg_export_fancy_q_impl = "\
+     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy \
+     -I export_fancy_q_impl -I util \
+     -open Export_fancy_q_impl__ -open No_direct_access_to_export_fancy_q_impl \
+   ";
+*)
+
+   (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
+   set flg_export_fancy_q_impl = "\
+     $flg -parameter P -I p -I q -I q_impl -H basic -I fancy \
+     -I export_fancy_q_impl -I util \
+   ";
+
+   flags = "$flg_int_iface -parameter P -I p";
+   module = "export_fancy_q_impl/export_fancy_q_impl__.ml";
+   ocamlopt.byte;
+
+   flags = "$flg_export_fancy_q_impl";
+   module = "\
+     export_fancy_q_impl/export_fancy_q_impl.mli \
+     export_fancy_q_impl/export_fancy_q_impl.ml \
+   ";
+   ocamlopt.byte;
+
+   set flg_export_fancy_q_impl_p_int = "$flg_export_fancy_q_impl $flg_instance -I p_int";
+
+   flags = "$flg_export_fancy_q_impl_p_int -instantiate";
+   module = "";
+   program = "instances/export_fancy_q_impl__-P_int.cmx";
+   all_modules = "export_fancy_q_impl/export_fancy_q_impl__.cmx p_int/p_int.cmx";
+   ocamlopt.byte;
+
+   flags = "$flg_export_fancy_q_impl_p_int -instantiate";
+   module = "";
+   program = "instances/export_fancy_q_impl-P_int.cmx";
+   all_modules = "export_fancy_q_impl/export_fancy_q_impl.cmx p_int/p_int.cmx";
+   ocamlopt.byte;
+
+(* CR-soon lmaurer: Uncomment this once PR #3489 is in.
+
+   set flg_use_fancy_q_impl = "\
+     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I export_fancy_q_impl \
+     -open Use_fancy_q_impl__ -open No_direct_access_to_use_fancy_q_impl \
+   ";
+*)
+
+   (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
+   set flg_use_fancy_q_impl = "\
+     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I export_fancy_q_impl \
+   ";
+
+   flags = "$flg_int_iface -parameter P -I p";
+   module = "use_fancy_q_impl/use_fancy_q_impl__.ml";
+   ocamlopt.byte;
+
+   flags = "$flg_use_fancy_q_impl";
+   module = "use_fancy_q_impl/use_fancy_q_impl.ml";
+   ocamlopt.byte;
+
+   set flg_use_fancy_q_impl_p_int = "$flg_use_fancy_q_impl $flg_instance -I p_int";
+
+   flags = "$flg_use_fancy_q_impl_p_int -instantiate";
+   module = "";
+   program = "instances/use_fancy_q_impl__-P_int.cmx";
+   all_modules = "use_fancy_q_impl/use_fancy_q_impl__.cmx p_int/p_int.cmx";
+   ocamlopt.byte;
+
+   flags = "$flg_use_fancy_q_impl_p_int -instantiate";
+   module = "";
+   program = "instances/use_fancy_q_impl-P_int.cmx";
+   all_modules = "use_fancy_q_impl/use_fancy_q_impl.cmx p_int/p_int.cmx";
    ocamlopt.byte;
 
    set flg_main = "\
-     $flg -I p -I p_int -I p_string -I fancy -I basic -I main -I instances \
+     $flg -I p -I p_int -I p_string -I q -I q_impl -I fancy -I basic -I main \
+     -H export_fancy_q_impl -I use_fancy_q_impl -H util -I instances \
      -open Main__ -open No_direct_access_to_main \
    ";
 

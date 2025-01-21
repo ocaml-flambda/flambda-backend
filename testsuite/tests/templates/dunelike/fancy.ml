@@ -4,6 +4,7 @@ open! No_direct_access_to_fancy
 module Flourish = Flourish
 module Ornament = Ornament
 module PI = PI
+module Util = Util
 
 type t = {
   basic : Basic.t;

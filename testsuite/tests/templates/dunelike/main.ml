@@ -11,6 +11,7 @@ let run () =
   in
   print_endline (fancy_int |> Fancy_int.to_string);
   print_endline (fancy_string |> Fancy_string.to_string);
+  print_endline (Use_fancy_q_impl_p_int.fancy |> Util.to_string);
   fancy_int, fancy_string
 
 let _ : Fancy_int.PI.t =
