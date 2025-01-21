@@ -106,3 +106,49 @@ Warning 69 [unused-field]: unused unboxed record field b.
 
 module Unused_field_disable_one_warning : sig end
 |}]
+
+(****************************************************)
+(* Using records via their implicit unboxed records *)
+
+module Unused_field : sig end = struct
+  type t = { a : int }
+  let foo () = #{ a = 0 }
+  let _ = foo
+end;;
+[%%expect {|
+Line 2, characters 13-20:
+2 |   type t = { a : int }
+                 ^^^^^^^
+Warning 69 [unused-field]: record field a is never read.
+(However, this field is used to build or mutate values.)
+
+module Unused_field : sig end
+|}]
+
+module Unused_field : sig end = struct
+  type t = { a : int; b : int; c : int }
+  let foo () = #{ a = 0; b = 0; c = 0 }
+  let bar x = x.#a
+  let baz #{ c; _ } = c
+  let _ = foo, bar, baz
+end;;
+[%%expect {|
+Line 2, characters 22-30:
+2 |   type t = { a : int; b : int; c : int }
+                          ^^^^^^^^
+Warning 69 [unused-field]: record field b is never read.
+(However, this field is used to build or mutate values.)
+
+module Unused_field : sig end
+|}]
+
+module Unused_field_exported_private : sig
+  type t = private { a : int }
+end = struct
+  type t = { a : int }
+  let foo x = x.#a
+  let _ = foo
+end;;
+[%%expect {|
+module Unused_field_exported_private : sig type t = private { a : int; } end
+|}]
