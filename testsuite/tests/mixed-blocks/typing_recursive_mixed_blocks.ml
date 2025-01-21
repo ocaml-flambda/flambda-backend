@@ -30,7 +30,7 @@ Line 1, characters 34-36:
 Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "float#"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of the recursive variable x2.
 |}];;
@@ -65,7 +65,7 @@ Line 1, characters 40-48:
 Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "float#"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of the recursive variable bad_flat.
 |}];;
@@ -100,7 +100,7 @@ Line 1, characters 54-62:
 Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "float#"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of the recursive variable bad_flat.
 |}];;
