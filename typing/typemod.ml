@@ -3681,18 +3681,6 @@ let () =
   type_module_type_of_fwd := type_module_type_of
 
 
-(* File-level details *)
-
-let register_params params =
-  List.iter
-    (fun param_name ->
-       (* We don't (yet!) support parameterised parameters *)
-       let param = Global_module.Name.create_no_args param_name in
-       Env.register_parameter param
-    )
-    params
-
-
 (* Typecheck an implementation file *)
 
 let gen_annot target annots =
@@ -3779,7 +3767,6 @@ let type_implementation target modulename initial_env ast =
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
       if !Clflags.as_parameter then
         error Cannot_compile_implementation_as_parameter;
-      register_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
@@ -3967,7 +3954,6 @@ let type_interface ~sourcefile modulename env ast =
   if !Clflags.as_parameter && !Clflags.parameters <> [] then begin
     error Compiling_as_parameterised_parameter
   end;
-  register_params !Clflags.parameters;
   if !Clflags.binary_annotations_cms then begin
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
