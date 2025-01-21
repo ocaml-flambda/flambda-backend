@@ -1257,7 +1257,8 @@ let add_unboxed_versions (env : Env.t) (decls : Typedtree.type_declaration list)
 
 (* Generalize a type declaration *)
 
-let generalize_decl decl =
+let rec generalize_decl decl =
+  Option.iter generalize_decl (decl.type_unboxed_version);
   List.iter Ctype.generalize decl.type_params;
   Btype.iter_type_expr_kind Ctype.generalize decl.type_kind;
   begin match decl.type_manifest with
