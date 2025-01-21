@@ -106,18 +106,9 @@
    module = "basic/basic.mli basic/basic.ml";
    ocamlc.byte;
 
-(* CR-soon lmaurer: Uncomment this (and remove the extra [open] lines in
-   [fancy.ml] et al.) once PR #3489 is in.
-
    set flg_fancy = "\
      $flg -parameter P -parameter Q -I p -I q -I basic -I fancy -I util \
      -open Fancy__ -open No_direct_access_to_fancy \
-   ";
-*)
-
-   (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
-   set flg_fancy = "\
-     $flg -parameter P -parameter Q -I p -I q -I basic -I fancy -I util \
    ";
 
    flags = "${flg_int_iface} -parameter P -parameter Q -I p -I q";
@@ -174,7 +165,7 @@
    module = "p_string/p_string.mli p_string/p_string.ml";
    ocamlc.byte;
 
-   set flg_basic_p_int = "$flg_basic $flg_instance -I p_int";
+   set flg_basic_p_int = "$flg_instance -I basic -I p -I p_int";
 
    flags = "$flg_basic_p_int -instantiate";
    module = "";
@@ -182,7 +173,7 @@
    all_modules = "basic/basic.cmo p_int/p_int.cmo";
    ocamlc.byte;
 
-   set flg_basic_p_string = "$flg_basic $flg_instance -I p_string";
+   set flg_basic_p_string = "$flg_instance -I basic -I p -I p_string";
 
    flags = "$flg_basic_p_string -instantiate";
    module = "";
@@ -216,7 +207,7 @@
    module = "q_impl/q_impl.ml";
    ocamlc.byte;
 
-   set flg_fancy_p_int = "$flg_fancy $flg_instance -I p_int -I q_impl";
+   set flg_fancy_p_int = "$flg_instance -I fancy -I p -I p_int -I q -I q_impl";
 
    flags = "$flg_fancy_p_int -instantiate";
    module = "";
@@ -242,7 +233,8 @@
    all_modules = "fancy/fancy.cmo p_int/p_int.cmo q_impl/q_impl.cmo";
    ocamlc.byte;
 
-   set flg_fancy_p_string = "$flg_fancy $flg_instance -I p_string -I q_impl";
+   set flg_fancy_p_string =
+     "$flg_instance -I fancy -I p -I p_string -I q -I q_impl";
 
    flags = "$flg_fancy_p_string -instantiate";
    module = "";
@@ -268,17 +260,9 @@
    all_modules = "fancy/fancy.cmo p_string/p_string.cmo q_impl/q_impl.cmo";
    ocamlc.byte;
 
-(* CR-soon lmaurer: Uncomment this once PR #3489 is in.
-
    set flg_util = "\
      $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I util \
      -open Util__ -open No_direct_access_to_util \
-   ";
-*)
-
-   (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
-   set flg_util = "\
-     $flg -parameter P -I p -I q -I q_impl -H basic -I fancy -I util \
    ";
 
    flags = "$flg_int_iface -parameter P -I p";
@@ -289,7 +273,7 @@
    module = "util/util.mli util/util.ml";
    ocamlc.byte;
 
-   set flg_util_p_int = "$flg_util $flg_instance -I p_int";
+   set flg_util_p_int = "$flg_instance -I util -I p -I p_int";
 
    flags = "$flg_util_p_int -instantiate";
    module = "";
@@ -303,20 +287,10 @@
    all_modules = "util/util.cmo p_int/p_int.cmo";
    ocamlc.byte;
 
-(* CR-soon lmaurer: Uncomment this (and remove the extra [open] lines in
-   [export_fancy_q_impl.ml] et al.) once PR #3489 is in.
-
    set flg_export_fancy_q_impl = "\
      $flg -parameter P -I p -I q -I q_impl -I basic -I fancy \
      -I export_fancy_q_impl -I util \
      -open Export_fancy_q_impl__ -open No_direct_access_to_export_fancy_q_impl \
-   ";
-*)
-
-   (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
-   set flg_export_fancy_q_impl = "\
-     $flg -parameter P -I p -I q -I q_impl -H basic -I fancy \
-     -I export_fancy_q_impl -I util \
    ";
 
    flags = "$flg_int_iface -parameter P -I p";
@@ -330,7 +304,8 @@
    ";
    ocamlc.byte;
 
-   set flg_export_fancy_q_impl_p_int = "$flg_export_fancy_q_impl $flg_instance -I p_int";
+   set flg_export_fancy_q_impl_p_int =
+     "$flg_instance -I export_fancy_q_impl -I p -I p_int";
 
    flags = "$flg_export_fancy_q_impl_p_int -instantiate";
    module = "";
@@ -344,17 +319,9 @@
    all_modules = "export_fancy_q_impl/export_fancy_q_impl.cmo p_int/p_int.cmo";
    ocamlc.byte;
 
-(* CR-soon lmaurer: Uncomment this once PR #3489 is in.
-
    set flg_use_fancy_q_impl = "\
      $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I export_fancy_q_impl \
      -open Use_fancy_q_impl__ -open No_direct_access_to_use_fancy_q_impl \
-   ";
-*)
-
-   (* CR-soon lmaurer: Delete this when PR #3489 is in. *)
-   set flg_use_fancy_q_impl = "\
-     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I export_fancy_q_impl \
    ";
 
    flags = "$flg_int_iface -parameter P -I p";
@@ -365,7 +332,8 @@
    module = "use_fancy_q_impl/use_fancy_q_impl.ml";
    ocamlc.byte;
 
-   set flg_use_fancy_q_impl_p_int = "$flg_use_fancy_q_impl $flg_instance -I p_int";
+   set flg_use_fancy_q_impl_p_int =
+     "$flg_instance -I use_fancy_q_impl -I p -I p_int";
 
    flags = "$flg_use_fancy_q_impl_p_int -instantiate";
    module = "";

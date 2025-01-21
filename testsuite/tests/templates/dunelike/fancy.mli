@@ -1,6 +1,3 @@
-open! Fancy__
-open! No_direct_access_to_fancy
-
 module Flourish = Flourish
 module Ornament = Ornament
 
