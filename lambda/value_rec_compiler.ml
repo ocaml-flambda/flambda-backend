@@ -219,7 +219,12 @@ let compute_static_size lam =
     | Pbigstring_set_32 _
     | Pbigstring_set_f32 _
     | Pbigstring_set_64 _
-    | Ppoll ->
+    | Ppoll
+    | Patomic_add
+    | Patomic_sub
+    | Patomic_land
+    | Patomic_lor
+    | Patomic_lxor ->
         (* Unit-returning primitives. Most of these are only generated from
            external declarations and not special-cased by [Value_rec_check],
            but it doesn't hurt to be consistent. *)
@@ -349,11 +354,6 @@ let compute_static_size lam =
     | Patomic_compare_exchange _
     | Patomic_cas _
     | Patomic_fetch_add
-    | Patomic_add
-    | Patomic_sub
-    | Patomic_land
-    | Patomic_lor
-    | Patomic_lxor
     | Popaque _
     | Pdls_get
     | Ppeek _

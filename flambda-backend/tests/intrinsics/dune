@@ -13,6 +13,7 @@
  (modules atomics)
  (enabled_if
   (and
+   (= %{context_name} "main")
    (= %{architecture} "amd64")
    (<> %{system} macosx)))
  (ocamlopt_flags
