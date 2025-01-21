@@ -21,7 +21,6 @@
  (deps    arm64/emit.mlp)
  (action
    (progn
-     (with-stdout-to contains-input-name
-       (bash "echo %{env:ARCH=arm64}/emit.mlp"))
+     (copy# arm64/emit.mlp contains-input-name)
      (with-stdout-to %{targets}
-         (bash "%{dep:../tools/cvt_emit.exe} < `cat contains-input-name`")))))
+         (bash "cat contains-input-name | %{dep:../tools/cvt_emit.exe} ")))))
