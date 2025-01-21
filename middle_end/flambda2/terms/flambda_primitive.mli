@@ -478,6 +478,15 @@ type binary_float_arith_op =
   | Mul
   | Div
 
+(** Binary atomic arithmetic operations on integers. *)
+type binary_int_atomic_op =
+  | Fetch_add
+  | Add
+  | Sub
+  | And
+  | Or
+  | Xor
+
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
   | Block_set of
@@ -503,7 +512,7 @@ type binary_primitive =
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
   | Atomic_exchange of Block_access_field_kind.t
-  | Atomic_fetch_and_add
+  | Atomic_int_arith of binary_int_atomic_op
   | Poke of Flambda_kind.Standard_int_or_float.t
 
 (** Primitives taking exactly three arguments. *)

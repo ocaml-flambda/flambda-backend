@@ -107,10 +107,12 @@ let operation' ?(print_reg = Printreg.reg) op arg ppf res =
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
-  | Iintop_atomic {op = Fetch_and_add; size; addr} ->
-    fprintf ppf "lock %s[%a] += %a"
+  | Iintop_atomic {op = (Fetch_and_add | Add | Sub | Land | Lor | Lxor) as op; size; addr} ->
+    fprintf ppf "lock %s[%a] %s %a"
       (Printcmm.atomic_bitwidth size)
-      (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
+      (Arch.print_addressing reg addr)
+      (Array.sub arg 1 (Array.length arg - 1))
+      (Printcmm.atomic_op op)
       reg arg.(0)
   | Ifloatop (_, (Icompf _ | Iaddf | Isubf | Imulf | Idivf as op)) ->
     fprintf ppf "%a %a %a" reg arg.(0) Simple_operation.format_float_operation op reg arg.(1)

@@ -36,12 +36,7 @@ let pseudoregs_for_operation op arg res =
     let arg = Array.copy arg in
     arg.(0) <- rax;
     arg, [| rax |]
-  | Iintop_atomic { op = Exchange; size = _; addr = _ } ->
-    (* first arg must be the same as res.(0) *)
-    let arg = Array.copy arg in
-    arg.(0) <- res.(0);
-    arg, res
-  | Iintop_atomic { op = Fetch_and_add; size = _; addr = _ } ->
+  | Iintop_atomic { op = Exchange | Fetch_and_add; size = _; addr = _ } ->
     (* first arg must be the same as res.(0) *)
     let arg = Array.copy arg in
     arg.(0) <- res.(0);
@@ -105,6 +100,7 @@ let pseudoregs_for_operation op arg res =
     arg.(len - 1) <- res.(0);
     arg, res
   (* Other instructions are regular *)
+  | Iintop_atomic { op = Add | Sub | Land | Lor | Lxor; _ }
   | Iintop (Ipopcnt | Iclz _ | Ictz _ | Icomp _)
   | Iintop_imm ((Imulh _ | Idiv | Imod | Icomp _ | Ipopcnt | Iclz _ | Ictz _), _)
   | Ispecific

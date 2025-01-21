@@ -2404,7 +2404,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           old_value,
           new_value ) ]
   | Patomic_fetch_add, [[atomic]; [i]] ->
-    [Binary (Atomic_fetch_and_add, atomic, i)]
+    [Binary (Atomic_int_arith Fetch_add, atomic, i)]
+  | Patomic_add, [[atomic]; [i]] -> [Binary (Atomic_int_arith Add, atomic, i)]
+  | Patomic_sub, [[atomic]; [i]] -> [Binary (Atomic_int_arith Sub, atomic, i)]
+  | Patomic_land, [[atomic]; [i]] -> [Binary (Atomic_int_arith And, atomic, i)]
+  | Patomic_lor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Or, atomic, i)]
+  | Patomic_lxor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Xor, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
   | Ppoll, _ -> [Nullary Poll]
   | Preinterpret_unboxed_int64_as_tagged_int63, [[i]] ->
@@ -2502,7 +2507,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _,
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
-      | Patomic_exchange _ | Patomic_fetch_add | Ppoke _ ),
+      | Patomic_exchange _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+      | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _

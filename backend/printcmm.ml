@@ -131,7 +131,12 @@ let temporal_locality = function
   | High -> "high"
 
 let atomic_op = function
-  | Fetch_and_add -> "fetch_and_add"
+  | Fetch_and_add -> "xadd"
+  | Add -> "+="
+  | Sub -> "-="
+  | Land -> "&="
+  | Lor -> "|="
+  | Lxor -> "^="
   | Compare_and_swap -> "compare_and_swap"
   | Exchange -> "exchange"
   | Compare_exchange -> "compare_exchange"

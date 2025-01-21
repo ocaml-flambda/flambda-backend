@@ -315,6 +315,11 @@ type primitive =
   | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_cas of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -1949,6 +1954,11 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Patomic_compare_exchange _
   | Patomic_cas _
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Parray_element_size_in_bytes _
@@ -2114,7 +2124,9 @@ let primitive_can_raise prim =
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange _ | Patomic_compare_exchange _
-  | Patomic_cas _ | Patomic_fetch_add | Patomic_load _ -> false
+  | Patomic_cas _ | Patomic_fetch_add | Patomic_add
+  | Patomic_sub | Patomic_land | Patomic_lor
+  | Patomic_lxor | Patomic_load _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
@@ -2352,6 +2364,11 @@ let primitive_result_layout (p : primitive) =
   | Patomic_cas _
   | Patomic_fetch_add -> layout_int
   | Pdls_get -> layout_any_value
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int

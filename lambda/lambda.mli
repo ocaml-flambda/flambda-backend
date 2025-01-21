@@ -313,6 +313,11 @@ type primitive =
   | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_cas of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
