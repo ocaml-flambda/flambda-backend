@@ -1,12 +1,12 @@
 (* TEST
- reference = "${test_source_directory}/unboxed_records.reference";
+ reference = "${test_source_directory}/implicit_unboxed_records.reference";
  include stdlib_upstream_compatible;
  flambda2;
  {
    ocamlc_byte_exit_status = "2";
    setup-ocamlc.byte-build-env;
    flags = "-extension-universe no_extensions";
-   compiler_reference = "${test_source_directory}/unboxed_records_disabled.compilers.reference";
+   compiler_reference = "${test_source_directory}/implicit_unboxed_records_disabled.compilers.reference";
    ocamlc.byte;
    check-ocamlc.byte-output;
  } {
@@ -43,11 +43,15 @@
 *)
 
 (* NOTE: When adding tests to this file, consider updating
-   [typing-layouts-products/implicit_unboxed_records.ml] *)
+   [typing-layouts-products/unboxed_records.ml] *)
+
+(* CR layouts v5: once we support boxed records whose elements have arbitrary
+   layouts and orders, replace all uses of unboxed records in this file with
+   unboxed versions of boxed records. *)
 
 open Stdlib_upstream_compatible
 
-type ints = #{ x : int ; y : int }
+type ints = { x : int ; y : int }
 
 let print_floatu prefix x =
   Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
@@ -58,7 +62,7 @@ let print_ints prefix #{ x; y } = Printf.printf "%s: [%d %d]\n" prefix x y
 (********************************************************)
 (* Test 1: Basic functions manipulating unboxed records *)
 
-type unboxed_float_int = #{ f : float# ; i : int }
+type unboxed_float_int = { f : float# ; i : int }
 
 (* takes an unboxed record *)
 let mult_float_by_int #{ f ; i } = Float_u.(mul f (of_int i))
@@ -66,15 +70,15 @@ let mult_float_by_int #{ f ; i } = Float_u.(mul f (of_int i))
 (* returns a unboxed record *)
 let div_mod m n = #{ x = m/n; y = m mod n }
 
-type cd = #{ c : int ; d : int }
-type abcd = #{ a : int ; b : int ; cd : cd }
+type cd = { c : int ; d : int }
+type abcd = #{ a : int ; b : int ; cd : cd# }
 
-type ghi = #{ g : int; h : int ; i : int }
-type fghi = #{ f : int ; ghi : ghi }
+type ghi = { g : int; h : int ; i : int }
+type fghi = #{ f : int ; ghi : ghi# }
 type efghi = #{ e : int ; fghi : fghi }
 
-type add_some_stuff_res_inner = #{ res2 : int ; res3 : int }
-type add_some_stuff_res = #{ res1 : int ; res23 : add_some_stuff_res_inner }
+type add_some_stuff_res_inner = { res2 : int ; res3 : int }
+type add_some_stuff_res = #{ res1 : int ; res23 : add_some_stuff_res_inner# }
 
 (* take multiple nested unboxed records, returns an unboxed record *)
 let add_some_stuff x y =
@@ -108,8 +112,8 @@ let _ = test1 ()
 (**********************************)
 (* Test 2: higher-order functions *)
 
-type ff' = #{ f : float# ; f' : float }
-type t = #{ i : int ; ff' : ff' }
+type ff' = { f : float# ; f' : float }
+type t = #{ i : int ; ff' : ff'# }
 
 let[@inline never] add_t
     #{ i = i1; ff' = #{ f = f1; f' = f1'}}
@@ -171,8 +175,8 @@ let _ =
 (***************************************)
 (* Test 3: unboxed records in closures *)
 
-type int_floatu = #{ i : int ; f : float# }
-type floatarray_floatu = #{ fa : float array ; f : float# }
+type int_floatu = { i : int ; f : float# }
+type floatarray_floatu = { fa : float array ; f : float# }
 
 (* [go]'s closure should have an unboxed record with an [int] (immediate), a
    [float#] (float64) and a [float array] (value). *)
@@ -398,10 +402,10 @@ let _ =
 (**********************************)
 (* Test 9: Continuations / @local *)
 
-type zy = #{ z : float ; y : int }
-type zyxw = #{ zy : zy ; x : float# ; w : string }
-type yz = #{ y_ : int ; z_ : float }
-type wxyz = #{ w : string ; x : float# ; yz : yz }
+type zy = { z : float ; y : int }
+type zyxw = #{ zy : zy# ; x : float# ; w : string }
+type yz = { y_ : int ; z_ : float }
+type wxyz = #{ w : string ; x : float# ; yz : yz# }
 
 let print4 prefix #{ zy = #{ z; y }; x; w } =
   Printf.printf "%s: [%.1f %d %.1f %s]\n" prefix z y (Float_u.to_float x) w
@@ -455,8 +459,8 @@ let _ =
 (**************************)
 (* Test 10: Loopification *)
 
-type xy = #{ x : float ; y : int }
-type wxyz_ = #{ w : float# ; xy : xy ; z : int }
+type xy = { x : float ; y : int }
+type wxyz_ = #{ w : float# ; xy : xy# ; z : int }
 
 let print4 prefix #{ w; xy = #{x;y}; z } =
   Printf.printf "%s: [%.1f %.1f %d %d]\n" prefix
@@ -479,7 +483,7 @@ let _ =
 (****************************************************************************)
 (* Test 11: Basic tests of functional updates, projection, partial patterns *)
 
-type t_ = #{ i : int ; j : int }
+type t_ = { i : int ; j : int }
 
 let add t = t.#i + t.#j
 let () =
@@ -527,10 +531,10 @@ let () =
 
 (* [go]'s closure should have an unboxed record with an [int] (immediate), a
    [float#] (float64) and a [float array] (value). *)
-let[@inline never] f3 (bounds : int_floatu) (steps_init :floatarray_floatu) () =
+let[@inline never] f3 (bounds : int_floatu#) (steps_init :floatarray_floatu#) () =
   let[@inline never] rec go k =
     let n = bounds.#i in
-    let (#{ f = m; _ } : int_floatu) = bounds in
+    let (#{ f = m; _ } : int_floatu#) = bounds in
     let init = steps_init.#f in
     if k = n
     then init
@@ -546,7 +550,7 @@ let[@inline never] f3 (bounds : int_floatu) (steps_init :floatarray_floatu) () =
 
 (* many args - odd args are floats, even args are unboxed records *)
 let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
-  let (#{ x = start_k; y = end_k } : ints) = x0 in
+  let (#{ x = start_k; y = end_k } : ints#) = x0 in
   let[@inline never] rec go k =
     if k = end_k
     then 0.0
