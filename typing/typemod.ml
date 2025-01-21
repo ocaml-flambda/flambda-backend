@@ -692,6 +692,8 @@ let merge_constraint initial_env loc sg lid constr =
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
             type_has_illegal_crossings = false;
+            type_unboxed_version = None;
+            type_is_unboxed_version = false;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -2441,6 +2443,7 @@ let check_recmodule_inclusion env bindings =
 let rec package_constraints_sig env loc sg constrs =
   List.map
     (function
+      (* CR rtjoa: consider updating *)
       | Sig_type (id, ({type_params=[]} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in

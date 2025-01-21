@@ -55,6 +55,10 @@ and extra_ty =
       it has the path
         [Pextra_ty (Pident `Error`, Pext_ty)].
   *)
+  | Punboxed_ty
+  (* CR rtjoa: comment *)
+
+val unboxed_version : t -> t
 
 val same: t -> t -> bool
 val compare: t -> t -> int
