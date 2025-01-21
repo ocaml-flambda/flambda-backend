@@ -182,7 +182,11 @@ type error =
       ; expected: Path.t
       }
   | Non_abstract_reexport of Path.t
+  | No_unboxed_version of Path.t
 
 exception Error of Location.t * error
 
 val report_error: formatter -> error -> unit
+
+val derive_unboxed_version : (Path.t -> Types.type_declaration) ->
+Types.type_declaration -> Types.type_declaration option

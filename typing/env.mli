@@ -167,7 +167,7 @@ val mark_extension_used:
 type label_usage =
     Projection | Mutation | Construct | Exported_private | Exported
 val mark_label_used:
-    _ record_form -> label_usage -> label_declaration -> unit
+    label_usage -> label_declaration -> unit
 
 (* Lookup by long identifiers *)
 
@@ -246,6 +246,7 @@ type lookup_error =
   | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | No_unboxed_version of Longident.t
   | Error_from_persistent_env of Persistent_env.error
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
@@ -434,6 +435,7 @@ val filter_non_loaded_persistent : (Ident.t -> bool) -> t -> t
 
 val add_signature: signature -> t -> t
 val add_signature_lazy: Subst.Lazy.signature_item list -> t -> t
+
 
 (* Insertion of all fields of a signature, relative to the given path.
    Used to implement open. Returns None if the path refers to a functor,
@@ -675,3 +677,7 @@ type address_head =
 val address_head : address -> address_head
 
 val sharedness_hint : Format.formatter -> shared_context -> unit
+
+(* CR rtjoa: move *)
+(* val derive_unboxed_version : (Path.t -> Types.type_declaration) ->
+ * Types.type_declaration -> Types.type_declaration option *)
