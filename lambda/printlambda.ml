@@ -921,10 +921,10 @@ let primitive ppf = function
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_compare_exchange_imm"
         | Pointer -> fprintf ppf "atomic_compare_exchange_ptr")
-  | Patomic_cas {immediate_or_pointer} ->
+  | Patomic_compare_set {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> fprintf ppf "atomic_cas_imm"
-        | Pointer -> fprintf ppf "atomic_cas_ptr")
+        | Immediate -> fprintf ppf "atomic_compare_set_imm"
+        | Pointer -> fprintf ppf "atomic_compare_set_ptr")
   | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
   | Patomic_add -> fprintf ppf "atomic_add"
   | Patomic_sub -> fprintf ppf "atomic_sub"
@@ -1117,10 +1117,10 @@ let name_of_primitive = function
       (match immediate_or_pointer with
         | Immediate -> "atomic_compare_exchange_imm"
         | Pointer -> "atomic_compare_exchange_ptr")
-  | Patomic_cas {immediate_or_pointer} ->
+  | Patomic_compare_set {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> "atomic_cas_imm"
-        | Pointer -> "atomic_cas_ptr")
+        | Immediate -> "atomic_compare_set_imm"
+        | Pointer -> "atomic_compare_set_ptr")
   | Patomic_fetch_add -> "Patomic_fetch_add"
   | Patomic_add -> "Patomic_add"
   | Patomic_sub -> "Patomic_sub"

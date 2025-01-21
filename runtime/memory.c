@@ -306,7 +306,7 @@ CAMLexport CAMLweakdef void caml_initialize (volatile value *fp, value val)
     Ref_table_add(&Caml_state->minor_tables->major_ref, fp);
 }
 
-CAMLexport int caml_atomic_cas_field (
+CAMLexport int caml_atomic_compare_set_field (
   value obj, intnat field, value oldval, value newval)
 {
   if (caml_domain_alone()) {
@@ -393,7 +393,7 @@ CAMLprim value caml_atomic_compare_exchange (value ref, value oldv, value newv)
   }
 }
 
-CAMLprim value caml_atomic_cas (value ref, value oldv, value newv)
+CAMLprim value caml_atomic_compare_set (value ref, value oldv, value newv)
 {
   if (caml_atomic_compare_exchange(ref, oldv, newv) == oldv) {
     return Val_true;

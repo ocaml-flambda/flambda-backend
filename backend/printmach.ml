@@ -92,8 +92,8 @@ let operation' ?(print_reg = Printreg.reg) op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (Simple_operation.string_of_integer_operation op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (Simple_operation.string_of_integer_operation op) n
-  | Iintop_atomic {op = Compare_and_swap; size; addr} ->
-    fprintf ppf "lock cas %s[%a] ?%a %a"
+  | Iintop_atomic {op = Compare_set; size; addr} ->
+    fprintf ppf "lock compare_set %s[%a] ?%a %a"
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 2))
       reg arg.(0) reg arg.(1)

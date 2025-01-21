@@ -2395,8 +2395,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           atomic,
           old_value,
           new_value ) ]
-  | Patomic_cas { immediate_or_pointer }, [[atomic]; [old_value]; [new_value]]
-    ->
+  | ( Patomic_compare_set { immediate_or_pointer },
+      [[atomic]; [old_value]; [new_value]] ) ->
     [ Ternary
         ( Atomic_compare_and_set
             (convert_block_access_field_kind immediate_or_pointer),
@@ -2537,7 +2537,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_cas _
+      | Punboxed_nativeint_array_set_128 _ | Patomic_compare_set _
       | Patomic_compare_exchange _ ),
       ( []
       | [_]

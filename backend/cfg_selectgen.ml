@@ -273,7 +273,7 @@ class virtual selector_generic =
           in
           let addr, eloc = self#select_addressing dst_size dst in
           basic_op (Intop_atomic { op; size; addr }), [src; eloc]
-        | Compare_and_swap | Compare_exchange ->
+        | Compare_set | Compare_exchange ->
           let compare_with, set_to, dst = three_args () in
           let dst_size =
             match size with

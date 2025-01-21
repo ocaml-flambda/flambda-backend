@@ -560,7 +560,7 @@ type 'a atomic_t
 external atomic_make : 'a -> 'a atomic_t = "%makemutable"
 external atomic_get : 'a atomic_t -> 'a = "%atomic_load"
 external atomic_compare_and_set : 'a atomic_t -> 'a -> 'a -> bool
-  = "%atomic_cas"
+  = "%atomic_compare_set"
 
 let exit_function = atomic_make flush_all
 

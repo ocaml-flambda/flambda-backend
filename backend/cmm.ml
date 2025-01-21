@@ -163,8 +163,8 @@ type atomic_op =
   | Land
   | Lor
   | Lxor
-  | Compare_and_swap
   | Exchange
+  | Compare_set
   | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
