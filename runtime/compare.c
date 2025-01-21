@@ -142,6 +142,8 @@ static intnat do_compare_val(struct compare_stack* stk,
       if (v1 == v2 && total) goto next_item;
       if (Is_long(v1)) {
         if (v1 == v2) goto next_item;
+        if (v1 == Val_null) return LESS; /* v1 null < v2 non-null */
+        if (v2 == Val_null) return GREATER; /* v1 non-null > v2 null */
         if (Is_long(v2))
           return Long_val(v1) - Long_val(v2);
         /* Subtraction above cannot overflow and cannot result in UNORDERED */
@@ -183,7 +185,7 @@ static intnat do_compare_val(struct compare_stack* stk,
           }
           default: /*fallthrough*/;
           }
-        return GREATER;            /* v1 block > v2 long */
+        return GREATER;            /* v1 block > v2 long or null */
       }
       t1 = Tag_val(v1);
       t2 = Tag_val(v2);

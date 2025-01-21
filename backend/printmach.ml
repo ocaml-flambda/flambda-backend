@@ -97,6 +97,16 @@ let operation' ?(print_reg = Printreg.reg) op arg ppf res =
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 2))
       reg arg.(0) reg arg.(1)
+  | Iintop_atomic {op = Compare_exchange; size; addr} ->
+    fprintf ppf "lock compare_exchange %s[%a] ?%a %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 2))
+      reg arg.(0) reg arg.(1)
+  | Iintop_atomic {op = Exchange; size; addr} ->
+    fprintf ppf "lock exchange %s[%a] %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
+      reg arg.(0)
   | Iintop_atomic {op = Fetch_and_add; size; addr} ->
     fprintf ppf "lock %s[%a] += %a"
       (Printcmm.atomic_bitwidth size)

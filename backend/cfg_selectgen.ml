@@ -282,7 +282,26 @@ class virtual selector_generic =
           in
           let addr, eloc = self#select_addressing dst_size dst in
           ( basic_op (Intop_atomic { op = Compare_and_swap; size; addr }),
-            [compare_with; set_to; eloc] ))
+            [compare_with; set_to; eloc] )
+        | Compare_exchange ->
+          let compare_with, set_to, dst = three_args () in
+          let dst_size =
+            match size with
+            | Word | Sixtyfour -> Word_int
+            | Thirtytwo -> Thirtytwo_signed
+          in
+          let addr, eloc = self#select_addressing dst_size dst in
+          ( basic_op (Intop_atomic { op = Compare_exchange; size; addr }),
+            [compare_with; set_to; eloc] )
+        | Exchange ->
+          let src, dst = two_args () in
+          let dst_size =
+            match size with
+            | Word | Sixtyfour -> Word_int
+            | Thirtytwo -> Thirtytwo_signed
+          in
+          let addr, eloc = self#select_addressing dst_size dst in
+          basic_op (Intop_atomic { op = Exchange; size; addr }), [src; eloc])
       | Cprobe { name; handler_code_sym; enabled_at_init } ->
         ( Terminator
             (Prim
@@ -695,6 +714,7 @@ class virtual selector_generic =
             (fun reg ->
               match reg.Reg.typ with
               | Addr -> assert false
+              | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
               | Val | Int | Float | Vec128 | Float32 -> ())
             src;
           self#insert_moves env src tmp_regs;

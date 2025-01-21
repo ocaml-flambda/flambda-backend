@@ -89,8 +89,9 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
       simplify_bytes_or_bigstring_set bytes_like_value string_accessor_width
     | Bigarray_set (num_dimensions, bigarray_kind, bigarray_layout) ->
       simplify_bigarray_set ~num_dimensions bigarray_kind bigarray_layout
-    | Atomic_compare_and_set -> simplify_atomic_compare_and_set ~original_prim
-    | Atomic_compare_exchange -> simplify_atomic_compare_exchange ~original_prim
+    | Atomic_compare_and_set _ -> simplify_atomic_compare_and_set ~original_prim
+    | Atomic_compare_exchange _ ->
+      simplify_atomic_compare_exchange ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3
     ~arg3_ty ~result_var

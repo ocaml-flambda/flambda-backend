@@ -443,6 +443,9 @@ type unary_primitive =
           (by the type system) should always go through caml_obj_tag, which is
           opaque to the compiler. *)
   | Atomic_load of Block_access_field_kind.t
+  (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
+     deleting [Atomic_load] *)
+  | Peek of Flambda_kind.Standard_int_or_float.t
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
@@ -499,8 +502,9 @@ type binary_primitive =
   | Float_arith of float_bitwidth * binary_float_arith_op
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
-  | Atomic_exchange
+  | Atomic_exchange of Block_access_field_kind.t
   | Atomic_fetch_and_add
+  | Poke of Flambda_kind.Standard_int_or_float.t
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -509,8 +513,8 @@ type ternary_primitive =
           for more details on the unarization. *)
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Atomic_compare_and_set
-  | Atomic_compare_exchange
+  | Atomic_compare_and_set of Block_access_field_kind.t
+  | Atomic_compare_exchange of Block_access_field_kind.t
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

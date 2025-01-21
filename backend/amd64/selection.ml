@@ -31,6 +31,16 @@ let pseudoregs_for_operation op arg res =
     let arg = Array.copy arg in
     arg.(0) <- rax;
     arg, res
+  | Iintop_atomic { op = Compare_exchange; size = _; addr = _ } ->
+    (* first arg must be rax, res.(0) must be rax. *)
+    let arg = Array.copy arg in
+    arg.(0) <- rax;
+    arg, [| rax |]
+  | Iintop_atomic { op = Exchange; size = _; addr = _ } ->
+    (* first arg must be the same as res.(0) *)
+    let arg = Array.copy arg in
+    arg.(0) <- res.(0);
+    arg, res
   | Iintop_atomic { op = Fetch_and_add; size = _; addr = _ } ->
     (* first arg must be the same as res.(0) *)
     let arg = Array.copy arg in
@@ -80,7 +90,14 @@ let pseudoregs_for_operation op arg res =
        edx (high) and eax (low). Make it simple and force the argument in rcx,
        and rax and rdx clobbered *)
     [| rcx |], res
-  | Ispecific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
+  | Ispecific (Isimd op) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.register_behavior op)
+      arg res
+  | Ispecific (Isimd_mem (op, _addr)) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.Mem.register_behavior op)
+      arg res
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in

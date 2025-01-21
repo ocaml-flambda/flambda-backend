@@ -207,6 +207,7 @@ module History = struct
     | Optional_arg_default
     | Layout_poly_in_external
     | Unboxed_tuple_element
+    | Peek_or_poke
 
   (* For sort variables that are in the "legacy" position
      on the jkind lattice, defaulting exactly to [value]. *)

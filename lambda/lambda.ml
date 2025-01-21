@@ -311,9 +311,9 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
+  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_cas of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
   (* Inhibition of optimisation *)
   | Popaque of layout
@@ -334,6 +334,8 @@ type primitive =
   | Parray_to_iarray
   | Parray_of_iarray
   | Pget_header of locality_mode
+  | Ppeek of peek_or_poke
+  | Ppoke of peek_or_poke
   (* Fetching domain-local state *)
   | Pdls_get
   (* Poll for runtime actions *)
@@ -489,6 +491,14 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
+
+and peek_or_poke =
+  | Ppp_tagged_immediate
+  | Ppp_unboxed_float32
+  | Ppp_unboxed_float
+  | Ppp_unboxed_int32
+  | Ppp_unboxed_int64
+  | Ppp_unboxed_nativeint
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -1935,13 +1945,14 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Ppoll ->
     Some alloc_heap
   | Patomic_load _
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
+  | Patomic_exchange _
+  | Patomic_compare_exchange _
+  | Patomic_cas _
   | Patomic_fetch_add
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ -> None
+  | Parray_element_size_in_bytes _
+  | Ppeek _ | Ppoke _ -> None
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if !Clflags.native_code then None
     else
@@ -2102,12 +2113,12 @@ let primitive_can_raise prim =
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
-  | Patomic_exchange | Patomic_compare_exchange
-  | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
+  | Patomic_exchange _ | Patomic_compare_exchange _
+  | Patomic_cas _ | Patomic_fetch_add | Patomic_load _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ ->
+  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
     false
 
 let constant_layout: constant -> layout = function
@@ -2334,14 +2345,26 @@ let primitive_result_layout (p : primitive) =
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
-  | Patomic_fetch_add
+  | Patomic_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_exchange { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_compare_exchange { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_cas _
+  | Patomic_fetch_add -> layout_int
   | Pdls_get -> layout_any_value
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
+  | Ppeek layout -> (
+      match layout with
+      | Ppp_tagged_immediate -> layout_int
+      | Ppp_unboxed_float32 -> layout_unboxed_float Unboxed_float32
+      | Ppp_unboxed_float -> layout_unboxed_float Unboxed_float64
+      | Ppp_unboxed_int32 -> layout_unboxed_int32
+      | Ppp_unboxed_int64 -> layout_unboxed_int64
+      | Ppp_unboxed_nativeint -> layout_unboxed_nativeint
+    )
+  | Ppoke _ -> layout_unit
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

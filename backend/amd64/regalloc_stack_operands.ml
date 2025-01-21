@@ -176,6 +176,21 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
       may_use_stack_operand_for_second_argument map instr ~num_args:3 ~res_is_fst:true
     | R_to_RM -> may_use_stack_operand_for_result map instr ~num_args:1
     | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
+  | Op (Specific (Isimd_mem (op,_))) ->
+    (match Simd_proc.Mem.register_behavior op with
+     | R_RM_to_fst -> May_still_have_spilled_registers
+     | R_to_fst
+     | R_to_R
+     | R_to_RM
+     | RM_to_R
+     | R_R_to_fst
+     | R_RM_to_R
+     | R_RM_xmm0_to_fst
+     | R_RM_rax_rdx_to_rcx
+     | R_RM_to_rcx
+     | R_RM_rax_rdx_to_xmm0
+     | R_RM_to_xmm0
+      -> Misc.fatal_error "Unexpected simd operation with memory arguments")
   | Op (Reinterpret_cast (Float_of_float32 | Float32_of_float | V128_of_v128))
   | Op (Static_cast (V128_of_scalar Float64x2 | Scalar_of_v128 Float64x2))
   | Op (Static_cast (V128_of_scalar Float32x4 | Scalar_of_v128 Float32x4)) ->

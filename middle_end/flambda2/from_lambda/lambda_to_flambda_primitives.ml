@@ -100,6 +100,16 @@ let standard_int_or_float_of_unboxed_integer (ubint : L.unboxed_integer) :
 let standard_int_or_float_of_boxed_integer bint =
   standard_int_or_float_of_unboxed_integer (Primitive.unboxed_integer bint)
 
+let standard_int_or_float_of_peek_or_poke (layout : L.peek_or_poke) :
+    K.Standard_int_or_float.t =
+  match layout with
+  | Ppp_tagged_immediate -> Tagged_immediate
+  | Ppp_unboxed_float32 -> Naked_float32
+  | Ppp_unboxed_float -> Naked_float
+  | Ppp_unboxed_int32 -> Naked_int32
+  | Ppp_unboxed_int64 -> Naked_int64
+  | Ppp_unboxed_nativeint -> Naked_nativeint
+
 let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
   match i_or_p with L.Immediate -> Immediate | L.Pointer -> Any_value
 
@@ -2372,12 +2382,27 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Unary
         ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
           atomic ) ]
-  | Patomic_exchange, [[atomic]; [new_value]] ->
-    [Binary (Atomic_exchange, atomic, new_value)]
-  | Patomic_compare_exchange, [[atomic]; [old_value]; [new_value]] ->
-    [Ternary (Atomic_compare_exchange, atomic, old_value, new_value)]
-  | Patomic_cas, [[atomic]; [old_value]; [new_value]] ->
-    [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
+  | Patomic_exchange { immediate_or_pointer }, [[atomic]; [new_value]] ->
+    [ Binary
+        ( Atomic_exchange (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          new_value ) ]
+  | ( Patomic_compare_exchange { immediate_or_pointer },
+      [[atomic]; [old_value]; [new_value]] ) ->
+    [ Ternary
+        ( Atomic_compare_exchange
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
+  | Patomic_cas { immediate_or_pointer }, [[atomic]; [old_value]; [new_value]]
+    ->
+    [ Ternary
+        ( Atomic_compare_and_set
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
   | Patomic_fetch_add, [[atomic]; [i]] ->
     [Binary (Atomic_fetch_and_add, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
@@ -2396,6 +2421,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
          targets";
     [Unary (Reinterpret_64_bit_word Tagged_int63_as_unboxed_int64, i)]
+  | Ppeek layout, [[ptr]] ->
+    let kind = standard_int_or_float_of_peek_or_poke layout in
+    [Unary (Peek kind, ptr)]
+  | Ppoke layout, [[ptr]; [new_value]] ->
+    let kind = standard_int_or_float_of_peek_or_poke layout in
+    [Binary (Poke kind, ptr, new_value)]
   | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),
@@ -2428,7 +2459,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64
-      | Parray_element_size_in_bytes _ ),
+      | Parray_element_size_in_bytes _ | Ppeek _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -2470,8 +2501,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Pgcscannableproductarray_ref _ | Pgcignorableproductarray_ref _ ),
             _,
             _ )
-      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
-      | Patomic_fetch_add ),
+      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+      | Patomic_exchange _ | Patomic_fetch_add | Ppoke _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -2500,8 +2531,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_cas
-      | Patomic_compare_exchange ),
+      | Punboxed_nativeint_array_set_128 _ | Patomic_cas _
+      | Patomic_compare_exchange _ ),
       ( []
       | [_]
       | [_; _]

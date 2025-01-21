@@ -1,0 +1,7 @@
+add_mutable_record { d0 = 88 ; d1 = 110; d2 = -40 ; d3 = -100 }
+copy_array_four 30 30 30 30 
+copy_array_index_four 30 30 30 30 
+add_array_from_start 60 60 60 60 
+copy_array_index_from_start 60 60 60 60 
+copy_array_from_start 60 60 60 60 
+copy_array_from_start_v2 60 60 60 60 

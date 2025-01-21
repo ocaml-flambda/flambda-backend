@@ -1,3 +1,5 @@
+[@@@ocaml.warning "+a-40-42"]
+
 (* Keep in sync with [Arch.operation_is_pure], [Arch.operation_can_raise],
    [Arch.operation_allocates]. *)
 module Memory_access = Vectorize_utils.Memory_access
@@ -50,4 +52,17 @@ let memory_access : Arch.specific_operation -> Memory_access.t option =
     (* Conservative. we don't have any simd operations with memory operations at
        the moment. *)
     if Simd.is_pure op then None else create Memory_access.Arbitrary
+  | Isimd_mem _ ->
+    Misc.fatal_errorf
+      "Unexpected simd instruction with memory operands before vectorization"
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> None
+
+let is_seed_store :
+    Arch.specific_operation -> Vectorize_utils.Width_in_bits.t option =
+ fun op ->
+  match op with
+  | Istore_int _ -> Some W64
+  | Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _ | Irdtsc
+  | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Isimd_mem _
+  | Ilea _ | Ibswap _ | Isextend32 | Izextend32 ->
+    None

@@ -32,7 +32,9 @@
 
 static int obj_tag (value arg)
 {
-  if (Is_long (arg)){
+  if (arg == Val_null) {
+    return 1010;   /* null_tag */
+  } else if (Is_long (arg)) {
     return 1000;   /* int_tag */
   }else if ((long) arg & (sizeof (value) - 1)){
     return 1002;   /* unaligned_tag */
@@ -154,37 +156,90 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
   CAMLparam2 (new_tag_v, arg);
   CAMLlocal1 (res);
   mlsize_t sz, i;
-  tag_t tg;
+  tag_t tag_for_alloc;
+  uintnat infix_offset = 0;
+
+  tag_t new_tag = (tag_t)Long_val(new_tag_v);
+  tag_t existing_tag = Tag_val(arg);
+
+  if ((existing_tag == Closure_tag || existing_tag == Infix_tag
+       || new_tag == Closure_tag || new_tag == Infix_tag)
+      && existing_tag != new_tag) {
+    caml_failwith("Cannot change tags of existing closures or create \
+      new closures using [caml_obj_with_tag]");
+  }
+
+  if (new_tag == Infix_tag) {
+    // If we received an infix block, we must return the same; but the whole
+    // Closure_tag block has to be copied.
+    infix_offset = Infix_offset_val(arg);
+    arg -= infix_offset;
+    tag_for_alloc = Closure_tag;
+    CAMLassert(Tag_val(arg) == tag_for_alloc);
+  } else {
+    tag_for_alloc = new_tag;
+  }
 
   sz = Wosize_val(arg);
-  tg = (tag_t)Long_val(new_tag_v);
-  if (sz == 0) CAMLreturn (Atom(tg));
-  if (tg >= No_scan_tag) {
-    res = caml_alloc(sz, tg);
+  if (sz == 0) {
+    CAMLassert(new_tag != Infix_tag);
+    CAMLreturn (Atom(tag_for_alloc));
+  }
+
+  if (tag_for_alloc >= No_scan_tag) {
+    res = caml_alloc(sz, tag_for_alloc);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
     reserved_t reserved = Reserved_val(arg);
-    res = caml_alloc_small_with_reserved(sz, tg, reserved);
+    res = caml_alloc_small_with_reserved(sz, tag_for_alloc, reserved);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
     mlsize_t scannable_sz = Scannable_wosize_val(arg);
     reserved_t reserved = Reserved_val(arg);
 
-    res = caml_alloc_shr_reserved(sz, tg, reserved);
-    /* It is safe to use [caml_initialize] even if [tag == Closure_tag]
-       and some of the "values" being copied are actually code pointers.
-       That's because the new "value" does not point to the minor heap. */
-    for (i = 0; i < scannable_sz; i++) {
+    res = caml_alloc_shr_reserved(sz, tag_for_alloc, reserved);
+
+    CAMLassert(tag_for_alloc != Infix_tag);
+    if (tag_for_alloc == Closure_tag) {
+      // The portion prior to the scannable environment may contain code
+      // pointers, infix tags, infix tagged zero padding and unboxed numbers.
+      // The latter in particular must not be copied using [caml_initialize],
+      // as they might satisfy [Is_young].
+
+      mlsize_t start_of_scannable_env = Start_env_closinfo(Closinfo_val(arg));
+
+      // There is always at least one function slot in a closure block at
+      // the moment.
+      CAMLassert(start_of_scannable_env >= 2);
+
+      // These two can be equal when there is no scannable environment.
+      CAMLassert(start_of_scannable_env <= scannable_sz);
+
+      for (i = 0; i < start_of_scannable_env; i++) {
+        Field(res, i) = Field(arg, i);
+      }
+    } else {
+      i = 0;
+    }
+
+    // Copy scannable values (for closures, this is only the scannable
+    // environment).
+    for (; i < scannable_sz; i++) {
       caml_initialize(&Field(res, i), Field(arg, i));
     }
 
-    for (i = scannable_sz; i < sz; i++) {
+    // Copy any non-scannable flat suffix of a mixed block.
+    for (; i < sz; i++) {
       Field(res, i) = Field(arg, i);
     }
 
     /* Give gc a chance to run, and run memprof callbacks */
     caml_process_pending_actions();
   }
+
+  res += infix_offset;
+  CAMLassert(infix_offset == 0 || Tag_val(res) == Infix_tag);
+
   CAMLreturn (res);
 }
 
@@ -192,69 +247,6 @@ CAMLprim value caml_obj_dup(value arg)
 {
   if (!Is_block(arg)) return arg;
   return caml_obj_with_tag(Val_long(Tag_val(arg)), arg);
-}
-
-/* Shorten the given block to the given size and return void.
-   Raise Invalid_argument if the given size is less than or equal
-   to 0 or greater than the current size.
-
-   algorithm:
-   Change the length field of the header.  Make up a black object
-   with the leftover part of the object: this is needed in the major
-   heap and harmless in the minor heap. The object cannot be white
-   because there may still be references to it in the ref table. By
-   using a black object we ensure that the ref table will be emptied
-   before the block is reallocated (since there must be a minor
-   collection within each major cycle).
-
-   [newsize] is a value encoding a number of fields (words, except
-   for float arrays on 32-bit architectures).
-*/
-CAMLprim value caml_obj_truncate (value v, value newsize)
-{
-  mlsize_t new_wosize = Long_val (newsize);
-  header_t hd = Hd_val (v);
-  tag_t tag = Tag_hd (hd);
-  color_t color = Color_hd (hd);
-  color_t frag_color = Is_young(v) ? 0 : Caml_black;
-  mlsize_t wosize = Wosize_hd (hd);
-  mlsize_t i;
-
-  if (tag == Double_array_tag) new_wosize *= Double_wosize;  /* PR#2520 */
-
-  if (new_wosize <= 0 || new_wosize > wosize){
-    caml_invalid_argument ("Obj.truncate");
-  }
-  if (new_wosize == wosize) return Val_unit;
-  /* PR#2400: since we're about to lose our references to the elements
-     beyond new_wosize in v, erase them explicitly so that the GC
-     can darken them as appropriate. */
-  if (tag < No_scan_tag) {
-    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
-    for (i = new_wosize; i < scannable_wosize; i++){
-      caml_modify(&Field(v, i), Val_unit);
-#ifdef DEBUG
-      Field (v, i) = Debug_free_truncate;
-#endif
-    }
-#ifdef DEBUG
-    /* Unless we're in debug mode, it's not necessary to empty out
-       the non-scannable suffix, as the GC knows not to look there
-       anyway.
-     */
-    for (; i < wosize; i++) {
-      Field (v, i) = Debug_free_truncate;
-    }
-#endif
-  }
-  /* We must use an odd tag for the header of the leftovers so it does not
-     look like a pointer because there may be some references to it in
-     ref_table. */
-  Field (v, new_wosize) =
-    Make_header (Wosize_whsize (wosize-new_wosize), Abstract_tag, frag_color);
-  Hd_val (v) =
-    Make_header_with_profinfo (new_wosize, tag, color, Profinfo_val(v));
-  return Val_unit;
 }
 
 CAMLprim value caml_obj_add_offset (value v, value offset)
@@ -380,4 +372,9 @@ CAMLprim value caml_succ_scannable_prefix_len (value v) {
     return Val_long(0);
   }
 #endif /* NATIVE_CODE */
+}
+
+CAMLprim value caml_is_null(value v)
+{
+  return v == Val_null ? Val_true : Val_false;
 }

@@ -85,6 +85,9 @@ type specific_operation =
   | Imfence                            (* memory fence *)
   | Ipause                             (* hint for spin-wait loops *)
   | Isimd of Simd.operation            (* SIMD instruction set operations *)
+  | Isimd_mem of Simd.Mem.operation * addressing_mode
+                                       (* SIMD instruction set operations
+                                          with memory args *)
   | Icldemote of addressing_mode       (* hint to demote a cacheline to L3 *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;

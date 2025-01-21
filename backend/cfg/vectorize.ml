@@ -355,11 +355,11 @@ module Block : sig
 
   val find : t -> Instruction.Id.t -> Instruction.t
 
-  (** [find_last_instruction t instrs] returns instruction [i]
-      from [instrs] such that [i] appears after
-      all other instructions from [instrs] according to the order of instructions
-      in this basic block.  Raises if [instrs] is empty. *)
-  val find_last_instruction : t -> Instruction.Id.t list -> Instruction.t
+  (** [find_last_instruction_id_and_pos group block] returns scalar instruction [i] from
+      [group] and its position [pos] such that [i] appears after all other instructions
+        from [group] according to the order of instructions in this basic [block].  *)
+  val find_last_instruction_id_and_pos :
+    t -> Instruction.t list -> Instruction.Id.t * int
 
   val get_live_regs_before_terminator : t -> State.live_regs
 
@@ -417,28 +417,29 @@ end = struct
   let get_live_regs_before_terminator t =
     State.liveness t.state t.block.terminator.id
 
-  let find_last_instruction t instructions =
-    let instruction_set = Instruction.Id.Set.of_list instructions in
-    let terminator = terminator t in
-    if Instruction.Id.Set.mem (Instruction.id terminator) instruction_set
-    then terminator
-    else
-      let body = t.block.body in
-      let rec find_last cell_option =
-        match cell_option with
-        | None ->
-          Misc.fatal_errorf "Vectorizer.find_last_instruction in block %a"
-            Label.print t.block.start ()
-        | Some cell ->
-          let current_instruction = Instruction.basic (DLL.value cell) in
-          let current_instruction_id = Instruction.id current_instruction in
-          if Instruction.Id.Set.exists
-               (Instruction.Id.equal current_instruction_id)
-               instruction_set
-          then current_instruction
-          else find_last (DLL.prev cell)
-      in
-      find_last (DLL.last_cell body)
+  let find_last_instruction_id_and_pos t instructions =
+    let get instr =
+      let id = Instruction.id instr in
+      let pos = pos t id in
+      id, pos
+    in
+    let rec loop instructions last_id last_pos =
+      match instructions with
+      | [] -> last_id, last_pos
+      | hd :: tl ->
+        let hd_id, hd_pos = get hd in
+        if Int.compare hd_pos last_pos > 0
+        then loop tl hd_id hd_pos
+        else loop tl last_id last_pos
+    in
+    let loop_non_empty instructions =
+      match instructions with
+      | [] -> assert false
+      | hd :: tl ->
+        let last_id, last_pos = get hd in
+        loop tl last_id last_pos
+    in
+    loop_non_empty instructions
 end
 
 (* CR-someday gyorsh: Dependencies computed below can be used for other
@@ -638,6 +639,8 @@ module Dependencies : sig
       type t
 
       val first_memory_arg_index : t -> int
+
+      val alignment_in_bytes : t -> int
     end
   end
 
@@ -821,6 +824,8 @@ end = struct
       type t
 
       val first_memory_arg_index : t -> int
+
+      val alignment_in_bytes : t -> int
     end
 
     module Dependencies : sig
@@ -918,6 +923,8 @@ end = struct
 
       val first_memory_arg_index : t -> int
 
+      val alignment_in_bytes : t -> int
+
       val get_instruction_id : t -> Instruction.Id.t
 
       (** [is_adjacent t1 t2] assumes that [t1] and [t2] have isomorphic operations,
@@ -955,6 +962,9 @@ end = struct
 
       let first_memory_arg_index t =
         Memory_access.first_memory_arg_index t.memory_access
+
+      let alignment_in_bytes t =
+        Vectorize_utils.Memory_access.alignment_in_bytes t.memory_access
 
       let get_instruction_id t = Instruction.id t.instruction
 
@@ -1004,7 +1014,11 @@ end = struct
                 }
             in
             let first_memory_arg_index =
-              match op with Compare_and_swap -> 2 | Fetch_and_add -> 1
+              match op with
+              | Compare_and_swap -> 2
+              | Fetch_and_add -> 1
+              | Exchange -> 1
+              | Compare_exchange -> 2
             in
             create ~first_memory_arg_index desc
           | Specific s -> Vectorize_specific.memory_access s
@@ -2093,6 +2107,35 @@ end = struct
         in
         List.for_all is_isomorphic tl
 
+    let vectorizable_machtypes regs1 regs2 count =
+      let rec loop index =
+        if index = count
+        then true
+        else if Vectorize_utils.vectorizable_machtypes regs1.(index)
+                  regs2.(index)
+        then loop (index + 1)
+        else false
+      in
+      loop 0
+
+    let vectorizable_machtypes ~non_address_arg_count instructions =
+      match instructions with
+      | [] -> true
+      | hd :: tl ->
+        (* assumes the instructions are isomorphic, which guarantees the same
+           number of result registers for all instructions, and the same number
+           of argument registers for all instructions. *)
+        let res_count = get_res_count hd in
+        let res = Instruction.results hd in
+        let arg = Instruction.arguments hd in
+        List.for_all
+          (fun instr ->
+            vectorizable_machtypes res (Instruction.results instr) res_count
+            && vectorizable_machtypes arg
+                 (Instruction.arguments instr)
+                 non_address_arg_count)
+          tl
+
     let independent instructions deps =
       let res = Dependencies.all_independent deps instructions in
       State.dump_debug (Dependencies.state deps) "Group.independent: res=%b\n"
@@ -2121,7 +2164,7 @@ end = struct
         = Simd_selection.vector_width_in_bits);
       Format.(
         State.dump_debug (Dependencies.state deps) "Group.init\n%a\n"
-          (pp_print_list ~pp_sep:pp_print_newline Instruction.print_id)
+          (pp_print_list ~pp_sep:pp_print_newline Instruction.print)
           instructions);
       match instructions with
       | [] -> assert false
@@ -2129,29 +2172,36 @@ end = struct
         let arg_count = get_arg_count instruction in
         let res_count = get_res_count instruction in
         let mem_op = Dependencies.get_memory_operation deps instruction in
+        let non_address_arg_count =
+          match mem_op with
+          | None -> arg_count
+          | Some mem_op ->
+            Dependencies.Memory.Operation.first_memory_arg_index mem_op
+        in
         if not
              (same_stack_offset instructions
              && have_isomorphic_op instructions
+             && vectorizable_machtypes instructions ~non_address_arg_count
              && independent instructions deps
              && can_vectorize_memory_accesses mem_op instructions deps)
         then None
         else
+          let alignment_in_bytes =
+            Option.map Dependencies.Memory.Operation.alignment_in_bytes mem_op
+          in
           let cfg_ops =
             List.map (fun i -> i |> Instruction.op |> Option.get) instructions
           in
           let vector_instructions =
             Simd_selection.vectorize_operation width_in_bits ~arg_count
-              ~res_count cfg_ops
+              ~res_count ~alignment_in_bytes cfg_ops
           in
           match vector_instructions with
-          | None -> None
+          | None ->
+            State.dump_debug (Dependencies.state deps)
+              "Group.init: cannot vectorize operation\n";
+            None
           | Some vector_instructions ->
-            let non_address_arg_count =
-              match mem_op with
-              | None -> arg_count
-              | Some mem_op ->
-                Dependencies.Memory.Operation.first_memory_arg_index mem_op
-            in
             assert (List.length vector_instructions > 0);
             Some
               { vector_instructions;
@@ -2235,13 +2285,15 @@ end = struct
       | None -> None
       | Some op -> (
         match op with
-        | Store (chunk, _, _) -> Some chunk
+        | Store (chunk, _, _) ->
+          Some (Vectorize_utils.Width_in_bits.of_memory_chunk chunk)
+        | Specific s -> Vectorize_specific.is_seed_store s
         | Alloc _ | Load _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
         | Reload | Const_int _ | Const_float32 _ | Const_float _
         | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
         | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
-        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
-        | Dls_get | Poll ->
+        | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
+        | Poll ->
           None)
 
     let from_block (block : Block.t) deps : t list =
@@ -2264,8 +2316,7 @@ end = struct
         DLL.fold_right body ~init:[] ~f:(fun i acc ->
             let i = Instruction.basic i in
             match is_store i with
-            | Some chunk ->
-              (Vectorize_utils.Width_in_bits.of_memory_chunk chunk, i) :: acc
+            | Some width -> (width, i) :: acc
             | None -> acc)
       in
       Format.(
@@ -2330,12 +2381,16 @@ end = struct
 
   type t =
     { groups : Group.t Instruction.Id.Map.t;
-      (* [all_instructions] is all the scalar instructions in the computations.
-         It is an optimization to cache this value here. It is used for ruling
-         out computations that are invalid or not implementable, and to estimate
-         cost/benefit of vectorized computations. *)
       all_scalar_instructions : Instruction.Id.Set.t;
-      new_positions : int Instruction.Id.Map.t
+          (** [all_scalar_instructions] is all the scalar instructions in the
+              computations.  It is an optimization to cache this value here. It is used
+              for ruling out computations that are invalid or not implementable, and to
+              estimate cost/benefit of vectorized computations. *)
+      new_positions : int Instruction.Id.Map.t;
+          (** [new_positions] is used for validation. *)
+      last_pos : int option
+          (** [last_pos] the position in the block body of the last scalar instruction, used
+             for heuristics. [None] for empty computations. *)
     }
 
   let num_groups t = Instruction.Id.Map.cardinal t.groups
@@ -2577,19 +2632,31 @@ end = struct
     && respects_register_order_constraints t deps
     && not (is_dependency_of_outside_body t block deps)
 
-  (** The key is the last instruction id, for now. This is the place
-      where the vectorized intructions will be inserted. *)
-  let get_key block instruction_ids =
-    let last_instruction = Block.find_last_instruction block instruction_ids in
-    Instruction.id last_instruction
+  (** The key is the last instruction id, for now. This is the place in the body of the
+      block where the vectorized instructions will be inserted. *)
+  let get_key group block =
+    let id, _pos =
+      Block.find_last_instruction_id_and_pos block
+        (Group.scalar_instructions group)
+    in
+    id
+
+  let get_last_pos group block =
+    let _id, pos =
+      Block.find_last_instruction_id_and_pos block
+        (Group.scalar_instructions group)
+    in
+    pos
 
   (** Returns the dependencies of arguments at position [arg_i]
       of each instruction in [instruction_ids]. Returns None if
       one of the instruction's dependencies is None for [arg_i]. *)
-  let get_deps deps ~arg_i instruction_ids =
+  let get_deps deps ~arg_i group =
     Misc.Stdlib.List.map_option
-      (Dependencies.get_direct_dependency_of_arg deps ~arg_i)
-      instruction_ids
+      (fun instruction ->
+        let id = Instruction.id instruction in
+        Dependencies.get_direct_dependency_of_arg deps ~arg_i id)
+      (Group.scalar_instructions group)
 
   let all_instructions map =
     Instruction.Id.Map.fold
@@ -2619,7 +2686,8 @@ end = struct
   let empty =
     { groups = Instruction.Id.Map.empty;
       all_scalar_instructions = Instruction.Id.Set.empty;
-      new_positions = Instruction.Id.Map.empty
+      new_positions = Instruction.Id.Map.empty;
+      last_pos = None
     }
 
   (* CR gyorsh: if same instruction belongs to two groups, is it handled
@@ -2634,10 +2702,7 @@ end = struct
     match group with
     | None -> None
     | Some (group : Group.t) -> (
-      let instruction_ids =
-        Group.scalar_instructions group |> List.map Instruction.id
-      in
-      let key = get_key block instruction_ids in
+      let key = get_key group block in
       (* Is there another group with the same key already in the tree? If the
          key instruction of the group is already in another group, and the other
          group is different from this group, we won't vectorize this for
@@ -2659,7 +2724,7 @@ end = struct
               (* CR-someday gyorsh: refer directly to [Reg.t] instead of
                  positional [arg_i]. Currently, the code assumes that address
                  args are always at the end. *)
-              match get_deps deps ~arg_i instruction_ids with
+              match get_deps deps ~arg_i group with
               | None ->
                 (* At least one of the arguments has a dependency outside the
                    block. Currently, not supported. *)
@@ -2691,13 +2756,20 @@ end = struct
       let t =
         { groups = map;
           all_scalar_instructions = all_instructions map;
-          new_positions = new_positions map block
+          new_positions = new_positions map block;
+          last_pos = Some (get_last_pos root block)
         }
       in
       State.dump_debug (Block.state block)
         "Computation.from_seed build finished\n%a\n" (dump ~block) t;
       assert (seed_address_does_not_depend_on_tree t block deps seed);
       if is_valid t block deps then Some t else None
+
+  let max_pos o1 o2 =
+    match o1, o2 with
+    | Some p1, Some p2 -> Some (Int.max p1 p2)
+    | None, None -> None
+    | (Some _ as res), None | None, (Some _ as res) -> res
 
   let join t1 t2 =
     { groups =
@@ -2724,7 +2796,8 @@ end = struct
                  pos2=%d"
                 Instruction.Id.print key pos1 pos2;
             Some pos1)
-          t1.new_positions t2.new_positions
+          t1.new_positions t2.new_positions;
+      last_pos = max_pos t1.last_pos t2.last_pos
     }
 
   (** address registers and vectorizable registers of [t] and [t'] are compatible, i.e.,
@@ -2786,7 +2859,16 @@ end = struct
     | trees ->
       (* sort by cost, ascending *)
       let compare_cost t1 t2 = Int.compare (cost t1) (cost t2) in
-      let trees = List.sort compare_cost trees in
+      let compare_cost_and_last_pos t1 t2 =
+        let c = compare_cost t1 t2 in
+        if not (c = 0)
+        then c
+        else
+          (* heuristic to prioritize groups that appear later, it reduces the
+             chance they are a dependency of the rest of the body. *)
+          Int.neg (Option.compare Int.compare t1.last_pos t2.last_pos)
+      in
+      let trees = List.sort compare_cost_and_last_pos trees in
       let rec loop trees acc =
         match trees with
         | [] -> acc
@@ -2845,9 +2927,15 @@ let augment_reg_map reg_map group =
     match pack with
     | [] -> ()
     | hd :: tl -> (
+      let packed_reg_typ = Vectorize_utils.vectorize_machtypes pack in
       match Substitution.get_reg_opt reg_map hd with
-      | None -> Substitution.fresh_reg_for_pack reg_map pack Vec128
+      | None -> Substitution.fresh_reg_for_pack reg_map pack packed_reg_typ
       | Some old_reg_for_hd ->
+        if not (Cmm.equal_machtype_component old_reg_for_hd.typ packed_reg_typ)
+        then
+          Misc.fatal_errorf "Expected %a but got %a for pack %a)"
+            Printcmm.machtype_component packed_reg_typ Printreg.reg
+            old_reg_for_hd Printreg.reglist pack;
         (* other registers in the pack must be mapped in the same way as
            [hd]. *)
         List.iter
@@ -2863,7 +2951,9 @@ let augment_reg_map reg_map group =
                 Misc.fatal_errorf
                   "augment_reg_map: %a is mapped to %a but %a is mapped to %a"
                   Printreg.reg hd Printreg.reg old_reg_for_hd Printreg.reg reg
-                  Printreg.reg old_reg)
+                  Printreg.reg old_reg;
+              assert (
+                Cmm.equal_machtype_component old_reg_for_hd.typ old_reg.typ))
           tl)
   in
   (* only some of the args are vectorizable, but all results are vectorizable. *)

@@ -999,13 +999,19 @@ val apply_function :
 val atomic_load :
   dbg:Debuginfo.t -> Lambda.immediate_or_pointer -> expression -> expression
 
-val atomic_exchange : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_exchange :
+  dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
+  expression ->
+  new_value:expression ->
+  expression
 
 val atomic_fetch_and_add :
   dbg:Debuginfo.t -> expression -> expression -> expression
 
 val atomic_compare_and_set :
   dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
   expression ->
   old_value:expression ->
   new_value:expression ->
@@ -1013,6 +1019,7 @@ val atomic_compare_and_set :
 
 val atomic_compare_exchange :
   dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
   expression ->
   old_value:expression ->
   new_value:expression ->

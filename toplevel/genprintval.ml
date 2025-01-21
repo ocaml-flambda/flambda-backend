@@ -75,6 +75,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
 
     type t = O.t
 
+    external is_null : O.t -> bool = "%is_null"
+
+    (* Normally, [Obj.is_block] can't be called on [value_or_null]s.
+       But here we need to handle nullable values at toplevel. *)
+    let is_real_block o = O.is_block o && not (is_null o)
+
     module ObjTbl = Hashtbl.Make(struct
         type t = O.t
         let equal = (==)
@@ -94,7 +100,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         let list = ref [] in
         for i = start_offset to O.size obj - 1 do
           let arg = O.field obj i in
-          if not (O.is_block arg) then
+          if is_null arg then
+            list := Oval_constr (Oide_ident (Out_name.create "<null>"), []) :: !list
+          else if not (O.is_block arg) then
             list := Oval_int (O.obj arg : int) :: !list
                (* Note: this could be a char or a constant constructor... *)
           else if O.tag arg = Obj.string_tag then
@@ -268,7 +276,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       let nested_values = ObjTbl.create 8 in
       let nest_gen err f depth obj ty =
         let repr = obj in
-        if not (O.is_block repr) then
+        if not (is_real_block repr) then
           f depth obj ty
         else
           if ObjTbl.mem nested_values repr then
@@ -302,14 +310,14 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 (tree_of_labeled_val_list 0 depth obj labeled_tys)
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_list ->
-              if O.is_block obj then
+              if is_real_block obj then
                 match check_depth depth obj ty with
                   Some x -> x
                 | None ->
                     let rec tree_of_conses tree_list depth obj ty_arg =
                       if !printer_steps < 0 || depth < 0 then
                         Oval_ellipsis :: tree_list
-                      else if O.is_block obj then
+                      else if is_real_block obj then
                         let tree =
                           nest tree_of_val (depth - 1) (O.field obj 0) ty_arg
                         in
@@ -421,19 +429,32 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         ~loc:Location.none Positive path env
                     in
                     let constant, tag =
-                      if O.is_block obj
-                      then false, O.tag obj
-                      else true, O.obj obj
-                    in
-                    let {cstr_uid} =
-                      Datarepr.find_constr_by_tag ~constant tag cstrs
+                      (* CR dkalinichenko: the null case being represented
+                         by [-1] is hacky, but there's no simple fix. *)
+                      if is_null obj then
+                        true, -1
+                      else if O.is_block obj then
+                        false, O.tag obj
+                      else
+                        true, O.obj obj
                     in
                     let {cd_id;cd_args;cd_res} =
                       try
+                        (* CR dkalinichenko: this is broken for unboxed variants:
+                           unless the tag of the inner value just happens to be 0,
+                           [Datarepr.find_constr_by_tag] will fail. *)
+                        let {cstr_uid} =
+                          Datarepr.find_constr_by_tag ~constant tag cstrs
+                        in
                         List.find (fun {cd_uid} -> Uid.equal cd_uid cstr_uid)
                           constr_list
                       with
-                      | Not_found -> raise Datarepr.Constr_not_found
+                      | Datarepr.Constr_not_found | Not_found ->
+                        (* If a [Variant_with_null] is not a [Null],
+                            it's guaranteed to be [This value]. *)
+                        match rep with
+                        | Variant_with_null -> List.nth constr_list 1
+                        | _ -> raise Datarepr.Constr_not_found
                     in
                     let type_params =
                       match cd_res with
@@ -447,11 +468,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     let unbx =
                       match rep with
                       | Variant_unboxed -> true
+                      | Variant_with_null when tag = -1 -> false
+                      | Variant_with_null -> true
                       | Variant_boxed _ | Variant_extensible -> false
-                      | Variant_with_null ->
-                        (* CR layouts v3.0: fix this. *)
-                        Misc.fatal_error "[Variant_with_null] not implemented\
-                          in bytecode"
                     in
                     begin
                       match cd_args with

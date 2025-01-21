@@ -78,14 +78,14 @@ jobs:
             config: --enable-middle-end=flambda2 --disable-warn-error
             os: macos-latest
 
-          - name: flambda2_macos_arm64_irc
-            config: --enable-middle-end=flambda2 --disable-warn-error
+          - name: flambda2_macos_arm64_runtime5_irc
+            config: --enable-middle-end=flambda2 --enable-runtime5 --disable-warn-error
             os: macos-latest
             build_ocamlparam: '_,w=-46,regalloc=irc'
             ocamlparam: '_,w=-46,regalloc=irc'
 
-          - name: flambda2_macos_arm64_ls
-            config: --enable-middle-end=flambda2 --disable-warn-error
+          - name: flambda2_macos_arm64_runtime5_ls
+            config: --enable-middle-end=flambda2 --enable-runtime5 --disable-warn-error
             os: macos-latest
             build_ocamlparam: '_,w=-46,regalloc=ls'
             ocamlparam: '_,w=-46,regalloc=ls'
@@ -282,22 +282,22 @@ jobs:
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
-        name: cores
+        name: cores-${{ github.sha }}
         path: /cores
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
-        name: _build
+        name: _build-${{ github.sha }}
         path: $GITHUB_WORKSPACE/_build
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
-        name: _runtest
+        name: _runtest-${{ github.sha }}
         path: $GITHUB_WORKSPACE/_runtest
 
 concurrency:

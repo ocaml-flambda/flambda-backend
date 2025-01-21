@@ -272,6 +272,8 @@ let patch_object buff patchlist =
 external float32_is_stage1 : unit -> bool = "caml_float32_is_stage1"
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
+external int_as_pointer : int -> Obj.t = "%int_as_pointer"
+
 let rec transl_const = function
     Const_base(Const_int i) -> Obj.repr i
   | Const_base(Const_char c) -> Obj.repr c
@@ -308,8 +310,7 @@ let rec transl_const = function
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
         fields;
       Obj.repr res
-  | Const_null -> Misc.fatal_error "[Const_null] not supported in bytecode."
-    (* CR layouts v3: add bytecode support. *)
+  | Const_null -> int_as_pointer 0
 
 (* Build the initial table of globals *)
 

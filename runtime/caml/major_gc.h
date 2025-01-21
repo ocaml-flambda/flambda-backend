@@ -48,6 +48,11 @@ void caml_darken_cont(value);
 void caml_mark_root(value, value*);
 void caml_mark_roots_stw(int, caml_domain_state**);
 void caml_finish_major_cycle(int force_compaction);
+/* Reset any internal accounting the GC uses to set collection pacing.
+ * For use at times when we have disturbed the usual pacing, for
+ * example, after any synchronous major collection.
+ */
+void caml_reset_major_pacing(void);
 #ifdef DEBUG
 int caml_mark_stack_is_empty(void);
 #endif

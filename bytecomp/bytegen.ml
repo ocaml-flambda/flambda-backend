@@ -196,10 +196,10 @@ let preserve_tailcall_for_prim = function
   | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pprobe_is_enabled _ | Pobj_dup
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
-  | Patomic_exchange | Patomic_compare_exchange
-  | Patomic_cas | Patomic_fetch_add | Patomic_load _
+  | Patomic_exchange _ | Patomic_compare_exchange _
+  | Patomic_cas _ | Patomic_fetch_add | Patomic_load _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll ->
+  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _ ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -592,7 +592,6 @@ let comp_primitive stack_info p sz args =
        | Runtime5 -> "runtime5" in
      Kccall(Printf.sprintf "caml_sys_const_%s" const_name, 1)
   | Pisint _ -> Kisint
-  | Pisnull -> Misc.fatal_error "null not implemented in bytecode" (* CR layouts v3: support null in bytecode *)
   | Pisout -> Kisout
   | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args
@@ -656,12 +655,13 @@ let comp_primitive stack_info p sz args =
   | Pget_header _ -> Kccall("caml_get_header", 1)
   | Pobj_dup -> Kccall("caml_obj_dup", 1)
   | Patomic_load _ -> Kccall("caml_atomic_load", 1)
-  | Patomic_exchange -> Kccall("caml_atomic_exchange", 2)
-  | Patomic_compare_exchange -> Kccall("caml_atomic_compare_exchange", 3)
-  | Patomic_cas -> Kccall("caml_atomic_cas", 3)
+  | Patomic_exchange _ -> Kccall("caml_atomic_exchange", 2)
+  | Patomic_compare_exchange _ -> Kccall("caml_atomic_compare_exchange", 3)
+  | Patomic_cas _ -> Kccall("caml_atomic_cas", 3)
   | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
   | Pdls_get -> Kccall("caml_domain_dls_get", 1)
   | Ppoll -> Kccall("caml_process_pending_actions_with_root", 1)
+  | Pisnull -> Kccall("caml_is_null", 1)
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
   | Pbigstring_load_128 _ | Pbigstring_set_128 _
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
@@ -737,6 +737,8 @@ let comp_primitive stack_info p sz args =
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
     ->
       fatal_error "Bytegen.comp_primitive"
+  | Ppeek _ | Ppoke _ ->
+      fatal_error "Bytegen.comp_primitive: Ppeek/Ppoke not supported in bytecode"
 
 let is_immed n = immed_min <= n && n <= immed_max
 

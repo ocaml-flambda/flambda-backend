@@ -16,11 +16,12 @@
 
 (* SIMD instruction reload for AMD64 *)
 
-let reload_operation makereg op arg res =
+let reload_operation makereg (register_behavior : Simd_proc.register_behavior)
+    arg res =
   let stackp r =
     match r.Reg.loc with Stack _ -> true | Reg _ | Unknown -> false
   in
-  match Simd_proc.register_behavior op with
+  match register_behavior with
   | R_to_fst ->
     (* Argument must be in a register; result must be the argument. *)
     let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
@@ -67,3 +68,11 @@ let reload_operation makereg op arg res =
        enforced by selection. *)
     let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
     [| arg0; arg.(1); arg.(2); arg.(3) |], res
+
+module Mem = struct
+  let reload_operation makereg (op : Simd.Mem.operation) arg res =
+    reload_operation makereg (Simd_proc.Mem.register_behavior op) arg res
+end
+
+let reload_operation makereg op arg res =
+  reload_operation makereg (Simd_proc.register_behavior op) arg res

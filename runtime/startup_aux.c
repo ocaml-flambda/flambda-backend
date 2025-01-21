@@ -76,6 +76,7 @@ static void init_startup_params(void)
   params.init_main_stack_wsz = init_main_stack_wsz;
   params.init_thread_stack_wsz = 0;
   params.init_max_stack_wsz = Max_stack_def;
+  params.max_domains = Max_domains_def;
   params.runtime_events_log_wsize = Default_runtime_events_log_wsize;
 
 #ifdef DEBUG
@@ -111,19 +112,14 @@ static void scanmult (char_os *opt, uintnat *var)
   }
 }
 
-void caml_parse_ocamlrunparam(void)
+static void parse_ocamlrunparam(char_os* opt)
 {
-  init_startup_params();
-  caml_init_gc_tweaks();
-
-  char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
-  if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
-
   if (opt != NULL){
     while (*opt != '\0'){
       switch (*opt++){
       case 'b': scanmult (opt, &params.backtrace_enabled); break;
       case 'c': scanmult (opt, &params.cleanup_on_exit); break;
+      case 'd': scanmult (opt, &params.max_domains); break;
       case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
       case 'i': scanmult (opt, &params.init_main_stack_wsz); break;
       case 'j': scanmult (opt, &params.init_thread_stack_wsz); break;
@@ -171,8 +167,38 @@ void caml_parse_ocamlrunparam(void)
       }
     }
   }
+
+  /* Validate */
+  if (params.max_domains < 1) {
+    caml_fatal_error("OCAMLRUNPARAM: max_domains(d) must be at least 1");
+  }
+  if (params.max_domains > Max_domains_max) {
+    caml_fatal_error("OCAMLRUNPARAM: max_domains(d) is too large. "
+                     "The maximum value is %d.", Max_domains_max);
+  }
 }
 
+#ifdef NATIVE_CODE
+// Any default parameters added to an ocaml executable by passing -ocamlrunparam
+// to the compiler.
+// See asmcomp/asmlink.ml
+extern char caml_ocamlrunparam[];
+#endif
+
+void caml_parse_ocamlrunparam(void)
+{
+  init_startup_params();
+  caml_init_gc_tweaks();
+
+  char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
+  if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
+
+#ifdef NATIVE_CODE
+  parse_ocamlrunparam(caml_ocamlrunparam);
+#endif
+
+  parse_ocamlrunparam(opt);
+}
 
 /* The number of outstanding calls to caml_startup */
 static int startup_count = 0;

@@ -25,6 +25,7 @@ val num_available_registers: int array
 val first_available_register: int array
 val register_name: Cmm.machtype_component -> int -> string
 val phys_reg: Cmm.machtype_component -> int -> Reg.t
+val gc_regs_offset : Reg.t -> int
 val rotate_registers: bool
 val precolored_regs : unit -> Reg.Set.t
 
@@ -34,6 +35,14 @@ val precolored_regs : unit -> Reg.Set.t
 val num_stack_slot_classes: int
 val stack_slot_class: Cmm.machtype_component -> int
 val stack_class_tag: int -> string
+
+(* If two registers have compatible types then we allow moves between them.
+   Note that we never allow moves between different register classes or
+   stack slot classes, so the following must hold:
+   if [machtypes_are_compatible r1 r2] = true then
+   [register_class r1] = [register_class r2]
+   and [stack_class r1.typ] = [stack_class r2.typ]. *)
+val types_are_compatible : Reg.t -> Reg.t -> bool
 
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int

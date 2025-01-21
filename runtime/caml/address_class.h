@@ -26,7 +26,7 @@
      out-of-heap pointers may not point to odd addresses.
 
    A valid value is either:
-   - a tagged integer (Is_long)
+   - a tagged integer or a null pointer (Is_long)
    - a pointer to the minor heap
    - a pointer to a well-formed block outside the minor heap. It may be in the
      major heap, or static data allocated by the OCaml code or the OCaml
