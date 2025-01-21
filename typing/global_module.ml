@@ -13,11 +13,17 @@ module Argument = struct
   }
 
   let compare cmp_param cmp_value
-        { param = param1; value = value1 }
-        { param = param2; value = value2 } =
-    match cmp_param param1 param2 with
-    | 0 -> cmp_value value1 value2
-    | c -> c
+        ({ param = param1; value = value1 } as t1)
+        ({ param = param2; value = value2 } as t2) =
+    if t1 == t2 then 0 else
+      match cmp_param param1 param2 with
+      | 0 -> cmp_value value1 value2
+      | c -> c
+
+  let equal equal_param equal_value
+        ({ param = param1; value = value1 } as t1)
+        ({ param = param2; value = value2 } as t2) =
+    t1 == t2 || (equal_param param1 param2 && equal_value value1 value2)
 end
 
 let check_uniqueness_of_sorted l ~cmp =
@@ -334,12 +340,12 @@ module With_precision = struct
 
   let output = Misc.output_of_print print
 
-  let equal_visible_parts glob1 glob2 =
-    let compare_arg_lists =
-      List.compare (Argument.compare Name.compare compare)
+  let rec equal_visible_parts glob1 glob2 =
+    let equal_arg_lists =
+      List.equal (Argument.equal Name.equal equal_visible_parts)
     in
     let equal_visible_args =
-      compare_arg_lists glob1.visible_args glob2.visible_args = 0
+      equal_arg_lists glob1.visible_args glob2.visible_args
     in
     String.equal glob1.head glob2.head && equal_visible_args
 
@@ -350,20 +356,35 @@ module With_precision = struct
     | false ->
         Error Inconsistent
     | true ->
-        let hidden_args_rev =
-          (* Keep only the hidden arguments that appear in both lists *)
-          Misc.Stdlib.List.merge_fold glob1.hidden_args glob2.hidden_args
-            ~cmp:compare_arg_name
-            ~init:[]
-            ~left_only:(fun acc_rev _ -> acc_rev)
-            ~right_only:(fun acc_rev _ -> acc_rev)
-            ~both:
-              (fun acc_rev (arg1 : _ Argument.t) (arg2 : _ Argument.t) ->
-                 assert (equal arg1.value arg2.value); arg1 :: acc_rev)
+        (* Compute the meet, assuming the visible parts are equal *)
+        let rec meet glob1 glob2 =
+          let visible_args_rev =
+            Misc.Stdlib.List.merge_fold glob1.visible_args glob2.visible_args
+              ~cmp:compare_arg_name
+              ~init:[]
+              ~left_only:(fun _ _ -> assert false)
+              ~right_only:(fun _ _ -> assert false)
+              ~both:(fun acc_rev arg1 arg2 -> meet_args arg1 arg2 :: acc_rev)
+          in
+          let hidden_args_rev =
+            (* Keep only the hidden arguments that appear in both lists *)
+            Misc.Stdlib.List.merge_fold glob1.hidden_args glob2.hidden_args
+              ~cmp:compare_arg_name
+              ~init:[]
+              ~left_only:(fun acc_rev _ -> acc_rev)
+              ~right_only:(fun acc_rev _ -> acc_rev)
+              ~both:(fun acc_rev arg1 arg2 -> meet_args arg1 arg2 :: acc_rev)
+          in
+          assert (String.equal glob1.head glob2.head);
+          let visible_args = List.rev visible_args_rev in
+          let hidden_args = List.rev hidden_args_rev in
+          create_exn glob1.head visible_args ~hidden_args
+        and meet_args (arg1 : _ Argument.t) (arg2 : _ Argument.t) =
+          assert (Name.equal arg1.param arg2.param);
+          let value = meet arg1.value arg2.value in
+          ({ param = arg1.param; value } : _ Argument.t)
         in
-        let hidden_args = List.rev hidden_args_rev in
-        let glob = create_exn glob1.head glob1.visible_args ~hidden_args in
-        Ok (glob, Approximate)
+        Ok (meet glob1 glob2, Approximate)
 
   (* True if the exact name has a subset (possibly equal) of the
      approximation's hidden arguments *)
