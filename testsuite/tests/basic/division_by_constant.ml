@@ -85,7 +85,7 @@ let () =
 (* Since [check] is always inlined, the division-by-constant optimization should
    trigger in every case when called with a literal ~divisor
 *)
-let[@inline always] [@specialise always] check ~divisor =
+let[@inline always] check ~divisor =
   let[@inline always] quotient ~dividend = div dividend divisor in
   let[@inline always] remainder ~dividend = rem dividend divisor in
   ListLabels.iter test_cases ~f:(fun dividend ->
