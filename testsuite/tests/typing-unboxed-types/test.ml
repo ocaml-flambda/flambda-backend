@@ -47,10 +47,23 @@ Obj.repr x == Obj.repr x.#f
 - : bool = true
 |}];;
 
-(* For inline records *)
-type t3 = B of { g : string } [@@ocaml.unboxed];;
+(* For implicit unboxed records *)
+type t3 = { s : string } ;;
 [%%expect{|
-type t3 = B of { g : string; } [@@unboxed]
+type t3 = { s : string; }
+|}];;
+
+let x = #{ s = "foo" } in
+Obj.repr x == Obj.repr x.#s
+;;
+[%%expect{|
+- : bool = true
+|}];;
+
+(* For inline records *)
+type t4 = B of { g : string } [@@ocaml.unboxed];;
+[%%expect{|
+type t4 = B of { g : string; } [@@unboxed]
 |}];;
 
 let x = B { g = "foo" } in
@@ -354,6 +367,17 @@ type t11 = #{ f : float; }
 |}];;
 let x = Array.make 10 #{ f = 3.14 }   (* represented as a flat array *)
 and f (a : t11 array) = a.(0)    (* might wrongly assume an array of pointers *)
+in assert (f x = #{ f = 3.14});;
+[%%expect{|
+- : unit = ()
+|}];;
+
+type t11 = { f : float };;
+[%%expect{|
+type t11 = { f : float; }
+|}];;
+let x = Array.make 10 #{ f = 3.14 }   (* represented as a flat array *)
+and f (a : t11# array) = a.(0)   (* might wrongly assume an array of pointers *)
 in assert (f x = #{ f = 3.14});;
 [%%expect{|
 - : unit = ()
