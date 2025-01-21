@@ -1206,21 +1206,21 @@ Error: This value escapes its region.
 
 let foo (local_ x) = x.#imm
 [%%expect{|
-val foo : local_ 'a imm -> local_ 'a = <fun>
+val foo : local_ 'a imm# -> local_ 'a = <fun>
 |}]
 let foo y =
   let x = local_ #{ imm = y } in
   x.#imm
 [%%expect{|
-Line 3, characters 2-7:
-3 |   x.imm
-      ^^^^^
+Line 3, characters 2-8:
+3 |   x.#imm
+      ^^^^^^
 Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 let foo (local_ x) = x.#mut
 [%%expect{|
-val foo : local_ 'a mut -> 'a = <fun>
+val foo : local_ 'a mut# -> 'a = <fun>
 |}]
 let foo y =
   let x = local_ #{ mut = y } in
@@ -1230,7 +1230,7 @@ val foo : 'a -> 'a = <fun>
 |}]
 let foo (local_ x) = x.#gbl
 [%%expect{|
-val foo : local_ 'a gbl -> 'a = <fun>
+val foo : local_ 'a gbl# -> 'a = <fun>
 |}]
 let foo y =
   let x = local_ #{ gbl = y } in
@@ -1241,7 +1241,7 @@ val foo : 'a -> 'a = <fun>
 
 let foo (local_ #{ imm }) = imm
 [%%expect{|
-val foo : local_ 'a imm -> local_ 'a = <fun>
+val foo : local_ 'a imm# -> local_ 'a = <fun>
 |}]
 let foo y =
   let #{ imm } = local_ #{ imm = y } in
@@ -1255,7 +1255,7 @@ Error: This value escapes its region.
 |}]
 let foo (local_ #{ mut }) = mut
 [%%expect{|
-val foo : local_ 'a mut -> 'a = <fun>
+val foo : local_ 'a mut# -> 'a = <fun>
 |}]
 let foo y =
   let #{ mut } = local_ #{ mut = y } in
@@ -1265,7 +1265,7 @@ val foo : 'a -> 'a = <fun>
 |}]
 let foo (local_ #{ gbl }) = gbl
 [%%expect{|
-val foo : local_ 'a gbl -> 'a = <fun>
+val foo : local_ 'a gbl# -> 'a = <fun>
 |}]
 let foo y =
   let #{ gbl } = local_ #{ gbl = y } in
@@ -1291,9 +1291,9 @@ let foo (local_ mut) =
   let _ = #{ mut } in
   ()
 [%%expect{|
-Line 2, characters 12-15:
-2 |   let _ = { mut } in
-                ^^^
+Line 2, characters 13-16:
+2 |   let _ = #{ mut } in
+                 ^^^
 Error: This value escapes its region.
 |}]
 let foo () =
@@ -1301,18 +1301,18 @@ let foo () =
   let _ = #{ mut } in
   ()
 [%%expect{|
-Line 3, characters 12-15:
-3 |   let _ = { mut } in
-                ^^^
+Line 3, characters 13-16:
+3 |   let _ = #{ mut } in
+                 ^^^
 Error: This value escapes its region.
 |}]
 let foo (local_ gbl) =
   let _ = #{ gbl } in
   ()
 [%%expect{|
-Line 2, characters 12-15:
-2 |   let _ = { gbl } in
-                ^^^
+Line 2, characters 13-16:
+2 |   let _ = #{ gbl } in
+                 ^^^
 Error: This value escapes its region.
 |}]
 let foo () =
@@ -1320,9 +1320,9 @@ let foo () =
   let _ = #{ gbl } in
   ()
 [%%expect{|
-Line 3, characters 12-15:
-3 |   let _ = { gbl } in
-                ^^^
+Line 3, characters 13-16:
+3 |   let _ = #{ gbl } in
+                 ^^^
 Error: This value escapes its region.
 |}]
 
