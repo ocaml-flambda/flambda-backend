@@ -58,8 +58,8 @@ type error =
       }
   | Inconsistent_global_name_resolution of {
       name: Global_module.Name.t;
-      old_global : Global_module.t;
-      new_global : Global_module.t;
+      old_global : Global_module.With_precision.t;
+      new_global : Global_module.With_precision.t;
       first_mentioned_by : Global_module.Name.t;
       now_mentioned_by : Global_module.Name.t;
     }
@@ -93,7 +93,7 @@ type can_load_cmis =
   | Cannot_load_cmis of Lazy_backtrack.log
 
 type global_name_info = {
-  gn_global : Global_module.t;
+  gn_global : Global_module.With_precision.t;
   gn_mentioned_by : Global_module.Name.t; (* For error reporting *)
 }
 
@@ -401,22 +401,73 @@ let find_import ~allow_hidden penv ~check modname =
           add_import penv modname;
           acknowledge_import penv ~check modname psig
 
-let remember_global { globals; _ } global ~mentioned_by =
-  if Global_module.has_arguments global then
-    let global_name = Global_module.to_name global in
-    match Hashtbl.find globals global_name with
-    | exception Not_found ->
-        Hashtbl.add globals global_name
-          { gn_global = global; gn_mentioned_by = mentioned_by }
-    | { gn_global = old_global; gn_mentioned_by = first_mentioned_by } ->
-        if not (Global_module.equal old_global global) then
+let remember_global { globals; _ } global ~precision ~mentioned_by =
+  let mentioned_by =
+    match mentioned_by with
+    | `Other global_module -> global_module
+    | `Current ->
+        (* This leaves off the prefix, but we're only using this for reporting
+           what should be internal errors *)
+        CU.get_current_or_dummy ()
+        |> CU.to_global_name_without_prefix
+  in
+  let global_name = Global_module.to_name global in
+  match Hashtbl.find globals global_name with
+  | exception Not_found ->
+      Hashtbl.add globals global_name
+        { gn_global = (global, precision);
+          gn_mentioned_by = mentioned_by;
+        }
+  | { gn_global = old_global;
+      gn_mentioned_by = first_mentioned_by } ->
+      let new_global = global, precision in
+      match
+        Global_module.With_precision.meet old_global new_global
+      with
+      | Ok updated_global ->
+        if not (old_global == updated_global) then
+          Hashtbl.replace globals global_name
+            { gn_global = updated_global;
+              gn_mentioned_by = first_mentioned_by }
+      | Error Inconsistent ->
           error (Inconsistent_global_name_resolution {
               name = global_name;
               old_global;
-              new_global = global;
+              new_global;
               first_mentioned_by;
               now_mentioned_by = mentioned_by;
             })
+
+let rec approximate_global_by_name penv global_name =
+  let { param_imports; _ } = penv in
+  (* We're not looking up this global's .cmi, so we can't know its parameters
+     exactly. So we can only assume that every parameter that it's not already
+     getting an argument for is a hidden argument. *)
+  let ({ head; args = visible_args } : Global_module.Name.t) = global_name in
+  let params_not_being_passed, visible_args =
+    List.fold_left_map
+      (fun params ({ param; value } : _ Global_module.Argument.t) ->
+         let params = Param_set.remove param params in
+         let value = approximate_global_by_name penv value in
+         let arg : _ Global_module.Argument.t = { param; value } in
+         params, arg)
+      !param_imports
+      visible_args
+  in
+  let arg_of_param (param : Global_module.Name.t) : Global_module.t =
+    (* CR-someday Really should just have a separate Parameter_name.t type *)
+    (* Assume the parameter has no arguments because it can't have any *)
+    Global_module.create_exn param.head [] ~hidden_args:[]
+  in
+  let hidden_args =
+    Param_set.elements params_not_being_passed
+    |> List.map
+      (fun param ->
+         ({ param; value = arg_of_param param } : _ Global_module.Argument.t))
+  in
+  let global = Global_module.create_exn head visible_args ~hidden_args in
+  remember_global penv global ~precision:Approximate ~mentioned_by:`Current;
+  global
 
 let current_unit_is_aux name ~allow_args =
   match CU.get_current () with
@@ -467,18 +518,23 @@ let check_for_unset_parameters penv global =
            }))
     global.Global_module.hidden_args
 
-let rec global_of_global_name penv ~check name =
+let rec global_of_global_name penv ~check name ~allow_excess_args =
+  let load () =
+    let pn =
+      find_pers_name ~allow_hidden:true penv ~check name ~allow_excess_args
+    in
+    pn.pn_global
+  in
   match Hashtbl.find penv.globals name with
-  | { gn_global; _ } -> gn_global
-  | exception Not_found ->
-      let pn = find_pers_name ~allow_hidden:true penv check name in
-      pn.pn_global
+  | { gn_global = (global, Exact); _ } -> global
+  | { gn_global = (_, Approximate); _ } -> load ()
+  | exception Not_found -> load ()
 
-and compute_global penv modname ~params check =
+and compute_global penv modname ~params ~check ~allow_excess_args =
   let arg_global_by_param_name =
     List.map
       (fun ({ param = name; value } : Global_module.Name.argument) ->
-         match global_of_global_name penv ~check value with
+         match global_of_global_name penv ~check value ~allow_excess_args with
          | value -> name, value
          | exception Not_found ->
              error
@@ -518,18 +574,23 @@ and compute_global penv modname ~params check =
            ())
       ~right_only:
         (fun (param, value) ->
-            (* Argument with no parameter: not fine *)
-            raise
-              (Error (Imported_module_has_no_such_parameter {
-                        imported = CU.Name.of_head_of_global_name modname;
-                        valid_parameters = params |> List.map Global_module.to_name;
-                        parameter = param;
-                        value = value |> Global_module.to_name;
-                      })))
+            (* Argument with no parameter: fine only if allowed by flag *)
+            if not allow_excess_args then
+              raise
+                (Error (Imported_module_has_no_such_parameter {
+                          imported = CU.Name.of_head_of_global_name modname;
+                          valid_parameters =
+                            params |> List.map Global_module.to_name;
+                          parameter = param;
+                          value = value |> Global_module.to_name;
+                        })))
       ~both:
         (fun (param_name, expected_type_global) (_arg_name, arg_value_global) ->
             let arg_value = arg_value_global |> Global_module.to_name in
-            let pn = find_pers_name ~allow_hidden:true penv check arg_value in
+            let pn =
+              find_pers_name ~allow_hidden:true penv ~check arg_value
+                ~allow_excess_args
+            in
             let actual_type =
               match pn.pn_arg_for with
               | None ->
@@ -539,7 +600,7 @@ and compute_global penv modname ~params check =
               | Some ty -> ty
             in
             let actual_type_global =
-              global_of_global_name penv ~check actual_type
+              global_of_global_name ~allow_excess_args penv ~check actual_type
             in
             if not (Global_module.equal expected_type_global actual_type_global)
             then begin
@@ -577,11 +638,13 @@ and compute_global penv modname ~params check =
   let global, _changed = Global_module.subst global_without_args subst in
   global
 
-and acknowledge_pers_name penv check global_name import =
+and acknowledge_pers_name penv check global_name import ~allow_excess_args =
   let params = import.imp_params in
   let arg_for = import.imp_arg_for in
   let sign = import.imp_raw_sign in
-  let global = compute_global penv global_name ~params check in
+  let global =
+    compute_global penv global_name ~params ~check ~allow_excess_args
+  in
   (* This checks only [global] itself without recursing into argument values.
      That's fine, however, since those argument values will have come from
      recursive calls to [global_of_global_name] and therefore have passed
@@ -599,8 +662,9 @@ and acknowledge_pers_name penv check global_name import =
     Signature_with_global_bindings.subst sign bindings
   in
   Array.iter
-    (fun bound_global ->
-       remember_global penv bound_global ~mentioned_by:global_name)
+    (fun (bound_global, precision) ->
+       remember_global penv bound_global ~precision
+         ~mentioned_by:(`Other global_name))
     sign.bound_globals;
   let pn = { pn_import = import;
              pn_global = global;
@@ -609,17 +673,17 @@ and acknowledge_pers_name penv check global_name import =
            } in
   if check then check_consistency penv import;
   Hashtbl.add persistent_names global_name pn;
-  remember_global penv global ~mentioned_by:global_name;
+  remember_global penv global ~precision:Exact ~mentioned_by:`Current;
   pn
 
-and find_pers_name ~allow_hidden penv check name =
+and find_pers_name ~allow_hidden penv ~check name ~allow_excess_args =
   let {persistent_names; _} = penv in
   match Hashtbl.find persistent_names name with
   | pn -> pn
   | exception Not_found ->
       let unit_name = CU.Name.of_head_of_global_name name in
       let import = find_import ~allow_hidden penv ~check unit_name in
-      acknowledge_pers_name penv check name import
+      acknowledge_pers_name penv check name import ~allow_excess_args
 
 let read_pers_name penv check name filename =
   let unit_name = CU.Name.of_head_of_global_name name in
@@ -761,20 +825,21 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
   Hashtbl.add persistent_structures modname ps;
   ps
 
-let read_pers_struct penv val_of_pers_sig check modname cmi ~add_binding =
-  let pers_name = read_pers_name penv check modname cmi in
-  if add_binding then
-    ignore
-      (acknowledge_pers_struct penv modname pers_name val_of_pers_sig
-       : _ pers_struct_info);
+let read_pers_struct penv check modname cmi =
+  let pers_name =
+    read_pers_name penv check modname cmi ~allow_excess_args:false
+  in
   pers_name.pn_sign
 
-let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
+let find_pers_struct
+    ~allow_hidden penv val_of_pers_sig ~check name ~allow_excess_args =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
   | ps -> check_visibility ~allow_hidden ps.ps_name_info.pn_import; ps
   | exception Not_found ->
-      let pers_name = find_pers_name ~allow_hidden penv check name in
+      let pers_name =
+        find_pers_name ~allow_hidden penv ~check name ~allow_excess_args
+      in
       acknowledge_pers_struct penv name pers_name val_of_pers_sig
 
 let describe_prefix ppf prefix =
@@ -788,7 +853,8 @@ module Style = Misc.Style
 let check_pers_struct ~allow_hidden penv f ~loc name =
   let name_as_string = CU.Name.to_string (CU.Name.of_head_of_global_name name) in
   try
-    ignore (find_pers_struct ~allow_hidden penv f false name)
+    ignore (find_pers_struct ~allow_hidden penv f ~check:false name
+              ~allow_excess_args:true)
   with
   | Not_found ->
       let warn = Warnings.No_cmi_file(name_as_string, None) in
@@ -831,11 +897,12 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
 
-let read penv f modname a ~add_binding =
-  read_pers_struct penv f true modname a ~add_binding
+let read penv modname a =
+  read_pers_struct penv true modname a
 
-let find ~allow_hidden penv f name =
-  (find_pers_struct ~allow_hidden penv f true name).ps_val
+let find ~allow_hidden penv f name ~allow_excess_args =
+  (find_pers_struct ~allow_hidden ~allow_excess_args penv f ~check:true
+     name).ps_val
 
 let check ~allow_hidden penv f ~loc name =
   let {persistent_structures; _} = penv in
@@ -844,6 +911,12 @@ let check ~allow_hidden penv f ~loc name =
        whether the check succeeds, to help make builds more
        deterministic. *)
     add_import penv (name |> CU.Name.of_head_of_global_name);
+    let _ : Global_module.t =
+      (* Record an overapproximation of the elaborated form of this name so that
+         substitution will work when the signature we're compiling is imported
+         later *)
+      approximate_global_by_name penv name
+    in
     if (Warnings.is_active (Warnings.No_cmi_file("", None))) then
       !add_delayed_check_forward
         (fun () -> check_pers_struct ~allow_hidden penv f ~loc name)
@@ -922,15 +995,23 @@ let make_cmi penv modname kind sign alerts =
   let params =
     (* Needs to be consistent with [Translmod] *)
     parameters penv
-    |> List.map (global_of_global_name penv ~check:true)
+    |> List.map (global_of_global_name penv ~check:true ~allow_excess_args:false)
   in
   (* Need to calculate [params] before these since [global_of_global_name] has
      side effects *)
   let crcs = imports penv in
   let globals =
     Hashtbl.to_seq_values penv.globals
+    |> Seq.filter_map
+         (fun { gn_global; _ } ->
+            let global, _precision = gn_global in
+            if Global_module.is_complete global then
+              (* The globals we need to remember here are the ones that are
+                 relevant for substitution. A complete global is precisely one
+                 for which no further substitutions can apply. *)
+              None
+            else Some gn_global)
     |> Array.of_seq
-    |> Array.map (fun ({ gn_global; _ }) -> gn_global)
   in
   {
     cmi_name = modname;
@@ -1080,13 +1161,15 @@ let report_error ppf =
         Global_module.Name.print expected
   | Inconsistent_global_name_resolution
       { name; old_global; new_global; first_mentioned_by; now_mentioned_by } ->
+      (* This isn't something users should see, so the odd "(approx)" in the
+         output should be fine. *)
       fprintf ppf
         "@[<hov>The name %a@ was bound to %a@ by %a@ \
          but it is instead bound to %a@ by %a.@]"
         (Style.as_inline_code Global_module.Name.print) name
-        (Style.as_inline_code Global_module.print) old_global
+        (Style.as_inline_code Global_module.With_precision.print) old_global
         (Style.as_inline_code Global_module.Name.print) first_mentioned_by
-        (Style.as_inline_code Global_module.print) new_global
+        (Style.as_inline_code Global_module.With_precision.print) new_global
         (Style.as_inline_code Global_module.Name.print) now_mentioned_by
   | Unbound_module_as_argument_value { instance; value } ->
       fprintf ppf

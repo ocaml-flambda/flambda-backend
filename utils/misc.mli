@@ -211,6 +211,20 @@ module Stdlib : sig
         that appear only in the left list, [right_only] on those elements
         that appear only in the right list, and [both] on those elements that
         appear in both. *)
+
+    val merge_fold
+      : cmp:('a -> 'b -> int)
+      -> left_only:('acc -> 'a -> 'acc)
+      -> right_only:('acc -> 'b -> 'acc)
+      -> both:('acc -> 'a -> 'b -> 'acc)
+      -> init:'acc
+      -> 'a t
+      -> 'b t
+      -> 'acc
+      (** Folds over two sorted lists, calling [left_only] on those elements
+          that appear only in the left list, [right_only] on those elements
+          that appear only in the right list, and [both] on those elements that
+          appear in both. *)
   end
 
 (** {2 Extensions to the Option module} *)

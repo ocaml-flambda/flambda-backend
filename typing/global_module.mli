@@ -122,3 +122,40 @@ val is_complete : t -> bool
 (** Returns [true] if this name has at least one argument (either hidden or
     visible). *)
 val has_arguments : t -> bool
+
+module Precision : sig
+  (** Whether a global's elaborated form is known exactly. For example, given
+      the elaborated form [Foo{Bar; Baz}], if we never loaded foo.cmi then
+      we don't actually know whether [Foo] takes [Bar] or [Baz]. *)
+  type t =
+    | Exact (** The base module takes exactly the arguments being passed. *)
+    | Approximate
+        (** The base module takes some subset of the arguments being passed
+            (possibly all of them). *)
+
+  val print : Format.formatter -> t -> unit
+
+  val output : out_channel -> t -> unit
+end
+
+module With_precision : sig
+  type nonrec t = t * Precision.t
+
+  val equal : t -> t -> bool
+
+  type inconsistent = Inconsistent
+
+  (** Given two elaborated forms of the same name and their precision, reconcile
+      them. In any case, if the visible parts of the globals disagree, it is an
+      error (because they don't in fact elaborate the same [Name.t]). For the
+      hidden parts, we treat an exact [t] as requiring equality and an
+      approximate [t] as specifying an upper bound. Thus exact vs. exact checks
+      for equality, exact vs. approximate checks the upper bound, and
+      approximate vs. approximate takes the least upper bound (that is, the
+      intersection). *)
+  val meet : t -> t -> (t, inconsistent) Result.t
+
+  val print : Format.formatter -> t -> unit
+
+  val output : out_channel -> t -> unit
+end

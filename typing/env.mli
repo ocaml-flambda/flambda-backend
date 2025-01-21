@@ -498,7 +498,7 @@ val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file. *)
 val read_signature:
-  Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+  Global_module.Name.t -> Unit_info.Artifact.t
   -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for

@@ -63,7 +63,7 @@ type flags = pers_flags list
 type header = {
     header_name : Compilation_unit.Name.t;
     header_kind : kind;
-    header_globals : Global_module.t array;
+    header_globals : Global_module.With_precision.t array;
     header_sign : Serialized.signature;
     header_params : Global_module.t list;
 }
@@ -71,7 +71,7 @@ type header = {
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
-    cmi_globals : Global_module.t array;
+    cmi_globals : Global_module.With_precision.t array;
     cmi_sign : 'sg;
     cmi_params : Global_module.t list;
     cmi_crcs : crcs;
