@@ -306,7 +306,7 @@ CAMLexport CAMLweakdef void caml_initialize (volatile value *fp, value val)
     Ref_table_add(&Caml_state->minor_tables->major_ref, fp);
 }
 
-CAMLexport int caml_atomic_compare_set_field (
+CAMLexport int caml_atomic_cas_field (
   value obj, intnat field, value oldval, value newval)
 {
   if (caml_domain_alone()) {

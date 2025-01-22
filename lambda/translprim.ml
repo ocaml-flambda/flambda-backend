@@ -901,7 +901,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         Primitive (Patomic_exchange {immediate_or_pointer=Pointer}, 2)
     | "%atomic_compare_exchange" ->
         Primitive (Patomic_compare_exchange {immediate_or_pointer=Pointer}, 3)
-    | "%atomic_compare_set" ->
+    | "%atomic_cas" ->
         Primitive (Patomic_compare_set {immediate_or_pointer=Pointer}, 3)
     | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
     | "%atomic_add" -> Primitive (Patomic_add, 2)
