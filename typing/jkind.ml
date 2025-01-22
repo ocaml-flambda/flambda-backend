@@ -2612,119 +2612,134 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
   | Sub -> Ok ()
   | _ -> Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
-(** See comment at usage in sub_jkind_l for explanation of what this function does *)
-let pair_up_with_bounds ~type_equal lefts rights =
-  (* Since type_equal calls are expensive and this function is called a lot, we try to
-     minimize the number of type_equal calls. This is helped by using
-     Best_effort_type_map, but we care about duplicates, so we must do some additional
-     comparisons beyond that. *)
-  let open struct
-    type pairing =
-      | Pair of With_bounds_type_info.t * With_bounds_type_info.t
-      | Left_only of With_bounds_type_info.t
-      | Right_only of With_bounds_type_info.t
-  end in
-  (* be_merged may contain duplicate types, since Best_effort_type_map does not guarantee
-     that two semantically equal types compare as equal *)
-  let be_merged =
-    Best_effort_type_map.merge
-      (fun _ left right ->
-        match left, right with
-        | Some left, Some right -> Some (Pair (left, right))
-        | Some left, None -> Some (Left_only left)
-        | None, Some right -> Some (Right_only right)
-        | None, None -> None)
-      lefts rights
-    |> Best_effort_type_map.to_seq
-  in
-  (* pairs has no duplicate types within it, and no type in pairs appears in be_left or
-     be_right. But there can be duplicates within be_left and be_right, as well as between
-     be_left and be_right *)
-  let pairs, be_left_only, be_right_only =
-    let step (pairs_so_far, lefts_so_far, rights_so_far) (ty, pairing) =
-      (* loop invariant: pairs_so_far has no dups, and any type in pairs_so_far does not
-         appear in lefts_so_far or rights_so_far *)
-      match pairing with
-      | Pair (left, right) ->
-        let is_ty (ty', _) = type_equal ty ty' in
-        let ( dup_pair,
-              pairs_so_far,
-              dup_lefts,
-              lefts_so_far,
-              dup_rights,
-              rights_so_far ) =
-          (* Since there are no duplicates within pairs_so_far, we know that there is at
-             most 1 instance of ty in pairs_so_far, so we can stop once we find one
-             instance. *)
-          match Misc.Stdlib.List.find_and_drop ~f:is_ty pairs_so_far with
-          | Some (dup_pair, pairs_so_far) ->
-            (* Since pairs_so_far contains ty, we know that lefts_so_far and rights_so_far
-               don't. So we don't need to scan them for duplicates. *)
-            Some dup_pair, pairs_so_far, [], lefts_so_far, [], rights_so_far
-          | None ->
-            (* lefts_so_far and rights_so_far may have duplicate elements, so we must scan
-               the entire list *)
-            let dup_lefts, lefts_so_far = List.partition is_ty lefts_so_far in
-            let dup_rights, rights_so_far =
-              List.partition is_ty rights_so_far
-            in
-            ( None,
-              pairs_so_far,
-              dup_lefts,
-              lefts_so_far,
-              dup_rights,
-              rights_so_far )
-        in
-        let merged_pair =
-          let rec merge_pairings (left, right) dup_pairs dup_lefts dup_rights =
-            let merge = With_bounds.Type_info.join in
-            match dup_pairs, dup_lefts, dup_rights with
-            | None, [], [] -> left, right
-            | Some (_, (incoming_left, incoming_right)), _, _ ->
-              merge_pairings
-                (merge left incoming_left, merge right incoming_right)
-                None dup_lefts dup_rights
-            | _, (_, incoming_left) :: rest_dup_lefts, _ ->
-              merge_pairings
-                (merge left incoming_left, right)
-                dup_pairs rest_dup_lefts dup_rights
-            | _, _, (_, incoming_right) :: rest_dup_rights ->
-              merge_pairings
-                (left, merge right incoming_right)
-                dup_pairs dup_lefts rest_dup_rights
+module With_bound_pairing = struct
+  type _ t =
+    | Both : With_bounds_type_info.t * With_bounds_type_info.t -> [> `both] t
+    | Left_only : With_bounds_type_info.t -> [> `left_only] t
+    | Right_only : With_bounds_type_info.t -> [> `right_only] t
+
+  type both = [`both] t
+
+  type left_only = [`left_only] t
+
+  type right_only = [`right_only] t
+
+  (** See comment at usage in sub_jkind_l for explanation of what this function does *)
+  let pair_up ~type_equal lefts rights =
+    (* Since type_equal calls are expensive and this function is called a lot, we try to
+       minimize the number of type_equal calls. This is helped by using
+       Best_effort_type_map, but we care about duplicates, so we must do some additional
+       comparisons beyond that. *)
+    (* be_merged may contain duplicate types, since Best_effort_type_map does not guarantee
+       that two semantically equal types compare as equal *)
+    let be_merged =
+      Best_effort_type_map.merge
+        (fun _ left right ->
+          match left, right with
+          | Some left, Some right -> Some (Both (left, right))
+          | Some left, None -> Some (Left_only left)
+          | None, Some right -> Some (Right_only right)
+          | None, None -> None)
+        lefts rights
+      |> Best_effort_type_map.to_seq
+    in
+    (* pairs has no duplicate types within it, and no type in pairs appears in be_left or
+       be_right. But there can be duplicates within be_left and be_right, as well as between
+       be_left and be_right *)
+    let pairs, be_left_only, be_right_only =
+      let step (pairs_so_far, lefts_so_far, rights_so_far) (ty, pairing) =
+        (* loop invariant: pairs_so_far has no dups, and any type in pairs_so_far does not
+           appear in lefts_so_far or rights_so_far *)
+        match pairing with
+        | Both (left, right) ->
+          let is_ty (ty', _) = type_equal ty ty' in
+          let ( dup_pair,
+                pairs_so_far,
+                dup_lefts,
+                lefts_so_far,
+                dup_rights,
+                rights_so_far ) =
+            (* Since there are no duplicates within pairs_so_far, we know that there is at
+               most 1 instance of ty in pairs_so_far, so we can stop once we find one
+               instance. *)
+            match Misc.Stdlib.List.find_and_drop ~f:is_ty pairs_so_far with
+            | Some (dup_pair, pairs_so_far) ->
+              (* Since pairs_so_far contains ty, we know that lefts_so_far and rights_so_far
+                 don't. So we don't need to scan them for duplicates. *)
+              Some dup_pair, pairs_so_far, [], lefts_so_far, [], rights_so_far
+            | None ->
+              (* lefts_so_far and rights_so_far may have duplicate elements, so we must scan
+                 the entire list *)
+              let dup_lefts, lefts_so_far = List.partition is_ty lefts_so_far in
+              let dup_rights, rights_so_far =
+                List.partition is_ty rights_so_far
+              in
+              ( None,
+                pairs_so_far,
+                dup_lefts,
+                lefts_so_far,
+                dup_rights,
+                rights_so_far )
           in
-          merge_pairings (left, right) dup_pair dup_lefts dup_rights
-        in
-        (ty, merged_pair) :: pairs_so_far, lefts_so_far, rights_so_far
-      | Left_only left ->
-        pairs_so_far, (ty, left) :: lefts_so_far, rights_so_far
-      | Right_only right ->
-        pairs_so_far, lefts_so_far, (ty, right) :: rights_so_far
-    in
-    Seq.fold_left step ([], [], []) be_merged
-  in
-  let pairs, be_left_only =
-    (* For each element in be_right, find all elements in be_left that it can pair with
-       and merge them together. This maintains the invariant that pairs contains no
-       duplicates, and that be_left_only contains no types that appear in pairs.
-       (but be_left_only may still contain duplicates) *)
-    let merge_right (pairs_so_far, lefts_so_far) (ty, right) =
-      let dup_lefts, new_lefts_so_far =
-        List.partition (fun (ty', _) -> type_equal ty ty') lefts_so_far
+          let merged_pair =
+            let rec merge_pairings (Both (left, right) : both) dup_pairs
+                dup_lefts dup_rights =
+              let merge = With_bounds.Type_info.join in
+              match dup_pairs, dup_lefts, dup_rights with
+              | None, [], [] -> Both (left, right)
+              | Some (_, (Both (incoming_left, incoming_right) : both)), _, _ ->
+                merge_pairings
+                  (Both (merge left incoming_left, merge right incoming_right))
+                  None dup_lefts dup_rights
+              | ( _,
+                  (_, (Left_only incoming_left : left_only)) :: rest_dup_lefts,
+                  _ ) ->
+                merge_pairings
+                  (Both (merge left incoming_left, right))
+                  dup_pairs rest_dup_lefts dup_rights
+              | ( _,
+                  _,
+                  (_, (Right_only incoming_right : right_only))
+                  :: rest_dup_rights ) ->
+                merge_pairings
+                  (Both (left, merge right incoming_right))
+                  dup_pairs dup_lefts rest_dup_rights
+            in
+            merge_pairings (Both (left, right)) dup_pair dup_lefts dup_rights
+          in
+          (ty, merged_pair) :: pairs_so_far, lefts_so_far, rights_so_far
+        | Left_only _ as left ->
+          pairs_so_far, (ty, left) :: lefts_so_far, rights_so_far
+        | Right_only _ as right ->
+          pairs_so_far, lefts_so_far, (ty, right) :: rights_so_far
       in
-      match dup_lefts with
-      | [] -> pairs_so_far, lefts_so_far
-      | (_, first_dup_left) :: rest_dup_lefts ->
-        let left =
-          List.fold_left
-            (fun a (_, b) -> With_bounds.Type_info.join a b)
-            first_dup_left rest_dup_lefts
-        in
-        (ty, (left, right)) :: pairs_so_far, new_lefts_so_far
+      Seq.fold_left step ([], [], []) be_merged
     in
-    List.fold_left merge_right (pairs, be_left_only) be_right_only
-  in
-  pairs, be_left_only
+    let pairs, be_left_only =
+      (* For each element in be_right, find all elements in be_left that it can pair with
+         and merge them together. This maintains the invariant that pairs contains no
+         duplicates, and that be_left_only contains no types that appear in pairs.
+         (but be_left_only may still contain duplicates) *)
+      let merge_right (pairs_so_far, lefts_so_far)
+          (ty, (Right_only right : right_only)) =
+        let dup_lefts, new_lefts_so_far =
+          List.partition (fun (ty', _) -> type_equal ty ty') lefts_so_far
+        in
+        match dup_lefts with
+        | [] -> pairs_so_far, lefts_so_far
+        | (_, Left_only first_dup_left) :: rest_dup_lefts ->
+          let left =
+            List.fold_left
+              (fun a (_, (Left_only b : left_only)) ->
+                With_bounds.Type_info.join a b)
+              first_dup_left rest_dup_lefts
+          in
+          (ty, Both (left, right)) :: pairs_so_far, new_lefts_so_far
+      in
+      List.fold_left merge_right (pairs, be_left_only) be_right_only
+    in
+    pairs, be_left_only
+end
 
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
    kind polymorphism design. *)
@@ -2755,7 +2770,7 @@ let sub_jkind_l :
        paired_up_with_bounds. Types that appear on just the left side must have entries in
        only_left, but there can be multiple entries. (Types that appear on just the right
        can be dropped.) *)
-    pair_up_with_bounds ~type_equal
+    With_bound_pairing.pair_up ~type_equal
       (With_bounds.to_with_bounds_types sub.jkind.with_bounds)
       (With_bounds.to_with_bounds_types best_super.jkind.with_bounds)
   in
@@ -2763,10 +2778,7 @@ let sub_jkind_l :
     (* MB_WITH *)
     let rec validate_bound_pairs = function
       | [] -> Ok ()
-      | ( _,
-          ((left : With_bounds_type_info.t), (right : With_bounds_type_info.t))
-        )
-        :: rest -> (
+      | (_, (Both (left, right) : With_bound_pairing.both)) :: rest -> (
         match Axis_set.is_subset right.relevant_axes left.relevant_axes with
         | true -> validate_bound_pairs rest
         | false -> make_error ())
@@ -2778,7 +2790,15 @@ let sub_jkind_l :
     let sub_highest_bounds =
       get_upper_bounds ~jkind_of_type
         { sub with
-          jkind = { sub.jkind with with_bounds = With_bounds.of_list only_left }
+          jkind =
+            { sub.jkind with
+              with_bounds =
+                List.map
+                  (fun (ty, (Left_only left : With_bound_pairing.left_only)) ->
+                    ty, left)
+                  only_left
+                |> With_bounds.of_list
+            }
         }
     in
     let super_lowest_bounds = best_super.jkind.mod_bounds in
