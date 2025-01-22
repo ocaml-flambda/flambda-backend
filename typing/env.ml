@@ -1387,7 +1387,6 @@ let rec find_type_data path env =
                 {
                   tda_declaration;
                   tda_descriptions = descrs;
-                  (* CR rtjoa: shape? *)
                   tda_shape = tda.tda_shape
                 }
         end
@@ -2326,7 +2325,6 @@ and store_type ~check id info shape env =
   let env =
     match info.type_unboxed_version with
     | Some info ->
-      (* CR rtjoa: usage?? *)
       let path = Path.unboxed_version (Pident id) in
       let _, env = store_decl path info env in
       env

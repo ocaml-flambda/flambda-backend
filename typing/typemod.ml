@@ -753,23 +753,37 @@ let merge_constraint initial_env loc sg lid constr =
            checked in [check_type_decl], but there it is check, not constrain,
            which we need here to deal with type variables in package constraints
            (see tests in [typing-modules/package_constraint.ml]).  *)
-        begin match
-          Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind
-        with
-        | Ok _-> ()
-        | Error v ->
-          (* This is morally part of the below [check_type_decl], so we give the
-             same error that would be given there for good error messages. *)
-          let err =
-            Includemod.Error.In_Type_declaration(
-              id, Type_declarations
-                    {got=tdecl;
-                     expected=sig_decl;
-                     symptom=Includecore.Jkind v})
-          in
-          raise Includemod.(Error(initial_env, err))
-        end;
+        let constrain_jkind decl jkind =
+          match
+            Ctype.constrain_decl_jkind initial_env decl jkind
+          with
+          | Ok _-> ()
+          | Error v ->
+            (* This is morally part of the below [check_type_decl], so we give
+               the same error that would be given there for good error messages.
+            *)
+            let err =
+              Includemod.Error.In_Type_declaration(
+                id, Type_declarations
+                      {got=tdecl;
+                      expected=sig_decl;
+                      symptom=Includecore.Jkind v})
+            in
+            raise Includemod.(Error(initial_env, err))
+        in
+        constrain_jkind tdecl sig_decl.type_jkind;
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
+        begin match
+          tdecl.type_unboxed_version, sig_decl.type_unboxed_version with
+        | None, None -> ()
+        | Some tdecl_unboxed, Some sig_decl_unboxed ->
+          constrain_jkind tdecl_unboxed sig_decl_unboxed.type_jkind
+        | _ ->
+          (* If only one of [tdecl] and [sig_decl] have an unboxed version, then
+             the above check should have failed, as the unboxed version is
+             implied by the kind/manifest. *)
+          Misc.fatal_error "Typemod.merge_constraint"
+        end;
         let tdecl = { tdecl with type_manifest = None } in
         return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
           (Pident id, lid, None)
