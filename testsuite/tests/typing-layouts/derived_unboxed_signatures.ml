@@ -192,7 +192,8 @@ Error: "float" has no unboxed version.
 (********************************************)
 (* Illegal shadowing with predefined #-types*)
 
-(* CR rtjoa: "float/2#" is wrong *)
+(* CR layouts v7.2: "float/2#" makes sense with the view of [#] as an operator,
+   but we may aesthetically prefer "float#/2". *)
 include struct type float = { a : int } end
 type float = string
 let x = #{ a = 1 }
@@ -239,7 +240,6 @@ Line 2, characters 18-24:
 Error: "float" has no unboxed version.
 |}]
 
-(* CR rtjoa: bad error *)
 type s_bad = r# t
 and r = {x:int; y:bool}
 [%%expect{|
