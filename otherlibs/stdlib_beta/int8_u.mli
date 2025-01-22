@@ -35,8 +35,8 @@ external to_int8 : int8# -> int8 = "%tag_int8" [@@warning "-187"]
 (** Untag a tagged [int8] *)
 external of_int8 : int8 -> int8# = "%untag_int8" [@@warning "-187"]
 
-(** [int_size] is the number of bits in an integer (i.e., 8). *)
-val int_size : int
+(** [size] is the number of bits in an integer (i.e., 8). *)
+val size : int
 
 (** [zero] is the integer [0]. *)
 val zero : unit -> int8#

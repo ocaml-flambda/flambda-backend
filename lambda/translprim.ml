@@ -327,24 +327,36 @@ let indexing_primitives =
   |> List.to_seq
   |> fun seq -> String.Map.add_seq seq String.Map.empty
 
-let naked_arithmetic_primitives =
-  let tbl = String.Tbl.create 1_000 in
-  let sizes : Primitive.unboxed_integer list =
-    [ Unboxed_int8; Unboxed_int16; Unboxed_int32; Unboxed_nativeint; Unboxed_int64 ]
+let lookup_naked_integer_primitive =
+  let tbl = lazy (
+    let tbl = String.Tbl.create 500 in
+    let sizes : Primitive.unboxed_integer list =
+      [ Unboxed_int8; Unboxed_int16; Unboxed_int32; Unboxed_nativeint; Unboxed_int64 ]
+    in
+    let binops : Lambda.naked_integer_binop list =
+      [ Add; Sub; Mul; Div; Rem; And; Or; Xor; Shl; Lshr; Ashr ]
+    in
+    let comparisons : Lambda.integer_comparison list =
+      [ Ceq; Cne; Cle; Cge; Clt; Cgt ]
+    in
+    ListLabels.iter sizes ~f:(fun size ->
+      ListLabels.iter sizes ~f:(fun src ->
+        let dst = size in
+        if src <> dst then
+          String.Tbl.add tbl
+            (Printlambda.naked_integer_cast ~src ~dst)
+            (Primitive (Pnaked_int_cast { src; dst }, 1) ));
+      ListLabels.iter comparisons ~f:(fun op ->
+        String.Tbl.add tbl
+          (Printlambda.naked_integer_cmp op size)
+          (Primitive(Pnaked_int_cmp { op; size}, 2)));
+      ListLabels.iter binops ~f:(fun op ->
+        String.Tbl.add tbl
+          (Printlambda.naked_integer_binop op size)
+          (Primitive (Pnaked_int_binop {op; size}, 2))));
+    tbl)
   in
-  let bits : Primitive.unboxed_integer -> int = function
-    | Unboxed_int8 -> 8
-    | Unboxed_int16 -> 16
-    | Unboxed_int32 -> 32
-    | Unboxed_nativeint -> Targetint.size
-    | Unboxed_int64 -> 64
-  in
-  let binops : Lambda.naked_integer_binop list =
-    [ Add; Sub; Mul; Div; Rem; And; Or; Xor; Shl; Shr ]
-  in
-  failwith "TODO"
-
-
+  fun s -> String.Tbl.find_opt (Lazy.force tbl) s
 
 
 let lookup_primitive loc ~poly_mode ~poly_sort pos p =
@@ -913,11 +925,17 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
-    | s when String.length s > 0 && s.[0] = '%' ->
-      (match String.Map.find_opt s indexing_primitives with
-       | Some prim -> prim ~mode
-       | None -> raise (Error (loc, Unknown_builtin_primitive s)))
-    | _ -> External lambda_prim
+    | s ->
+      if String.length s = 0 || s.[0] <> '%' then
+        External lambda_prim
+      else
+        (match String.Map.find_opt s indexing_primitives with
+         | Some prim -> prim ~mode
+         | None ->
+           match lookup_naked_integer_primitive s with
+           | Some prim -> prim
+           | None ->
+             raise (Error (loc, Unknown_builtin_primitive s)))
   in
   prim
 
@@ -1763,7 +1781,7 @@ let lambda_primitive_needs_event_after = function
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-  | Pbintcomp _ | Punboxed_int_comp _ | Pcompare_bints _
+  | Pbintcomp _ | Pcompare_bints _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
   | Pstring_load_32 _ | Pstring_load_f32 _ | Pstring_load_64 _ | Pstring_load_128 _
   | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_f32 _ | Pbytes_load_64 _
@@ -1782,6 +1800,8 @@ let lambda_primitive_needs_event_after = function
   | Punboxed_nativeint_array_set_128 _
   | Prunstack | Pperform | Preperform | Presume
   | Pbbswap _ | Ppoll | Pobj_dup | Pget_header _ -> true
+  | (Pnaked_int_binop _ | Pnaked_int_cast _ | Pnaked_int_cmp _) as prim ->
+    Lambda.primitive_can_raise prim
   (* [Preinterpret_tagged_int63_as_unboxed_int64] has to allocate in
      bytecode, because int64# is actually represented as a boxed value. *)
   | Preinterpret_tagged_int63_as_unboxed_int64 -> true

@@ -32,95 +32,44 @@ let convert_integer_comparison_prim (comp : L.integer_comparison) :
   | Cge -> Int_comp (Tagged_immediate, Yielding_bool (Ge Signed))
 
 let convert_unboxed_integer_comparison_prim (kind : L.unboxed_integer)
-    (comp : L.integer_comparison) (signedness : L.signedness) :
-    P.binary_primitive =
-  match kind, comp, signedness with
-  | Unboxed_int8, Ceq, _ -> Int_comp (Naked_int8, Yielding_bool Eq)
-  | Unboxed_int8, Cneq, _ -> Int_comp (Naked_int8, Yielding_bool Neq)
-  | Unboxed_int8, Clt, Signed -> Int_comp (Naked_int8, Yielding_bool (Lt Signed))
-  | Unboxed_int8, Cgt, Signed -> Int_comp (Naked_int8, Yielding_bool (Gt Signed))
-  | Unboxed_int8, Cle, Signed -> Int_comp (Naked_int8, Yielding_bool (Le Signed))
-  | Unboxed_int8, Cge, Signed -> Int_comp (Naked_int8, Yielding_bool (Ge Signed))
-  | Unboxed_int8, Clt, Unsigned ->
-    Int_comp (Naked_int8, Yielding_bool (Lt Unsigned))
-  | Unboxed_int8, Cgt, Unsigned ->
-    Int_comp (Naked_int8, Yielding_bool (Gt Unsigned))
-  | Unboxed_int8, Cle, Unsigned ->
-    Int_comp (Naked_int8, Yielding_bool (Le Unsigned))
-  | Unboxed_int8, Cge, Unsigned ->
-    Int_comp (Naked_int8, Yielding_bool (Ge Unsigned))
-  | Unboxed_int16, Ceq, _ -> Int_comp (Naked_int16, Yielding_bool Eq)
-  | Unboxed_int16, Cneq, _ -> Int_comp (Naked_int16, Yielding_bool Neq)
-  | Unboxed_int16, Clt, Signed ->
-    Int_comp (Naked_int16, Yielding_bool (Lt Signed))
-  | Unboxed_int16, Cgt, Signed ->
-    Int_comp (Naked_int16, Yielding_bool (Gt Signed))
-  | Unboxed_int16, Cle, Signed ->
-    Int_comp (Naked_int16, Yielding_bool (Le Signed))
-  | Unboxed_int16, Cge, Signed ->
-    Int_comp (Naked_int16, Yielding_bool (Ge Signed))
-  | Unboxed_int16, Clt, Unsigned ->
-    Int_comp (Naked_int16, Yielding_bool (Lt Unsigned))
-  | Unboxed_int16, Cgt, Unsigned ->
-    Int_comp (Naked_int16, Yielding_bool (Gt Unsigned))
-  | Unboxed_int16, Cle, Unsigned ->
-    Int_comp (Naked_int16, Yielding_bool (Le Unsigned))
-  | Unboxed_int16, Cge, Unsigned ->
-    Int_comp (Naked_int16, Yielding_bool (Ge Unsigned))
-  | Unboxed_int32, Ceq, _ -> Int_comp (Naked_int32, Yielding_bool Eq)
-  | Unboxed_int32, Cneq, _ -> Int_comp (Naked_int32, Yielding_bool Neq)
-  | Unboxed_int32, Clt, Signed ->
-    Int_comp (Naked_int32, Yielding_bool (Lt Signed))
-  | Unboxed_int32, Cgt, Signed ->
-    Int_comp (Naked_int32, Yielding_bool (Gt Signed))
-  | Unboxed_int32, Cle, Signed ->
-    Int_comp (Naked_int32, Yielding_bool (Le Signed))
-  | Unboxed_int32, Cge, Signed ->
-    Int_comp (Naked_int32, Yielding_bool (Ge Signed))
-  | Unboxed_int32, Clt, Unsigned ->
-    Int_comp (Naked_int32, Yielding_bool (Lt Unsigned))
-  | Unboxed_int32, Cgt, Unsigned ->
-    Int_comp (Naked_int32, Yielding_bool (Gt Unsigned))
-  | Unboxed_int32, Cle, Unsigned ->
-    Int_comp (Naked_int32, Yielding_bool (Le Unsigned))
-  | Unboxed_int32, Cge, Unsigned ->
-    Int_comp (Naked_int32, Yielding_bool (Ge Unsigned))
-  | Unboxed_int64, Ceq, _ -> Int_comp (Naked_int64, Yielding_bool Eq)
-  | Unboxed_int64, Cneq, _ -> Int_comp (Naked_int64, Yielding_bool Neq)
-  | Unboxed_int64, Clt, Signed ->
-    Int_comp (Naked_int64, Yielding_bool (Lt Signed))
-  | Unboxed_int64, Cgt, Signed ->
-    Int_comp (Naked_int64, Yielding_bool (Gt Signed))
-  | Unboxed_int64, Cle, Signed ->
-    Int_comp (Naked_int64, Yielding_bool (Le Signed))
-  | Unboxed_int64, Cge, Signed ->
-    Int_comp (Naked_int64, Yielding_bool (Ge Signed))
-  | Unboxed_int64, Clt, Unsigned ->
-    Int_comp (Naked_int64, Yielding_bool (Lt Unsigned))
-  | Unboxed_int64, Cgt, Unsigned ->
-    Int_comp (Naked_int64, Yielding_bool (Gt Unsigned))
-  | Unboxed_int64, Cle, Unsigned ->
-    Int_comp (Naked_int64, Yielding_bool (Le Unsigned))
-  | Unboxed_int64, Cge, Unsigned ->
-    Int_comp (Naked_int64, Yielding_bool (Ge Unsigned))
-  | Unboxed_nativeint, Ceq, _ -> Int_comp (Naked_nativeint, Yielding_bool Eq)
-  | Unboxed_nativeint, Cneq, _ -> Int_comp (Naked_nativeint, Yielding_bool Neq)
-  | Unboxed_nativeint, Clt, Signed ->
+    (comp : L.integer_comparison) : P.binary_primitive =
+  (* we enumerate all the possible cases here so that the result is statically
+     allocated (and therefore memoized) *)
+  match kind, comp with
+  | Unboxed_int8, Ceq -> Int_comp (Naked_int8, Yielding_bool Eq)
+  | Unboxed_int8, Cne -> Int_comp (Naked_int8, Yielding_bool Neq)
+  | Unboxed_int8, Clt -> Int_comp (Naked_int8, Yielding_bool (Lt Signed))
+  | Unboxed_int8, Cgt -> Int_comp (Naked_int8, Yielding_bool (Gt Signed))
+  | Unboxed_int8, Cle -> Int_comp (Naked_int8, Yielding_bool (Le Signed))
+  | Unboxed_int8, Cge -> Int_comp (Naked_int8, Yielding_bool (Ge Signed))
+  | Unboxed_int16, Ceq -> Int_comp (Naked_int16, Yielding_bool Eq)
+  | Unboxed_int16, Cne -> Int_comp (Naked_int16, Yielding_bool Neq)
+  | Unboxed_int16, Clt -> Int_comp (Naked_int16, Yielding_bool (Lt Signed))
+  | Unboxed_int16, Cgt -> Int_comp (Naked_int16, Yielding_bool (Gt Signed))
+  | Unboxed_int16, Cle -> Int_comp (Naked_int16, Yielding_bool (Le Signed))
+  | Unboxed_int16, Cge -> Int_comp (Naked_int16, Yielding_bool (Ge Signed))
+  | Unboxed_int32, Ceq -> Int_comp (Naked_int32, Yielding_bool Eq)
+  | Unboxed_int32, Cne -> Int_comp (Naked_int32, Yielding_bool Neq)
+  | Unboxed_int32, Clt -> Int_comp (Naked_int32, Yielding_bool (Lt Signed))
+  | Unboxed_int32, Cgt -> Int_comp (Naked_int32, Yielding_bool (Gt Signed))
+  | Unboxed_int32, Cle -> Int_comp (Naked_int32, Yielding_bool (Le Signed))
+  | Unboxed_int32, Cge -> Int_comp (Naked_int32, Yielding_bool (Ge Signed))
+  | Unboxed_int64, Ceq -> Int_comp (Naked_int64, Yielding_bool Eq)
+  | Unboxed_int64, Cne -> Int_comp (Naked_int64, Yielding_bool Neq)
+  | Unboxed_int64, Clt -> Int_comp (Naked_int64, Yielding_bool (Lt Signed))
+  | Unboxed_int64, Cgt -> Int_comp (Naked_int64, Yielding_bool (Gt Signed))
+  | Unboxed_int64, Cle -> Int_comp (Naked_int64, Yielding_bool (Le Signed))
+  | Unboxed_int64, Cge -> Int_comp (Naked_int64, Yielding_bool (Ge Signed))
+  | Unboxed_nativeint, Ceq -> Int_comp (Naked_nativeint, Yielding_bool Eq)
+  | Unboxed_nativeint, Cne -> Int_comp (Naked_nativeint, Yielding_bool Neq)
+  | Unboxed_nativeint, Clt ->
     Int_comp (Naked_nativeint, Yielding_bool (Lt Signed))
-  | Unboxed_nativeint, Cgt, Signed ->
+  | Unboxed_nativeint, Cgt ->
     Int_comp (Naked_nativeint, Yielding_bool (Gt Signed))
-  | Unboxed_nativeint, Cle, Signed ->
+  | Unboxed_nativeint, Cle ->
     Int_comp (Naked_nativeint, Yielding_bool (Le Signed))
-  | Unboxed_nativeint, Cge, Signed ->
+  | Unboxed_nativeint, Cge ->
     Int_comp (Naked_nativeint, Yielding_bool (Ge Signed))
-  | Unboxed_nativeint, Clt, Unsigned ->
-    Int_comp (Naked_nativeint, Yielding_bool (Lt Unsigned))
-  | Unboxed_nativeint, Cgt, Unsigned ->
-    Int_comp (Naked_nativeint, Yielding_bool (Gt Unsigned))
-  | Unboxed_nativeint, Cle, Unsigned ->
-    Int_comp (Naked_nativeint, Yielding_bool (Le Unsigned))
-  | Unboxed_nativeint, Cge, Unsigned ->
-    Int_comp (Naked_nativeint, Yielding_bool (Ge Unsigned))
 
 let convert_float_comparison (comp : L.float_comparison) : unit P.comparison =
   match comp with
@@ -1613,12 +1562,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                comp,
              arg1,
              arg2 )) ]
-  | Pnaked_int_cmp { size; op; signedness }, (kind, comp), [[arg1]; [arg2]] ->
+  | Pnaked_int_cmp { size; op }, [[arg1]; [arg2]] ->
     [ tag_int
-        (Binary
-           ( convert_unboxed_integer_comparison_prim size op signedness,
-             arg1,
-             arg2 )) ]
+        (Binary (convert_unboxed_integer_comparison_prim size op, arg1, arg2))
+    ]
   | Pfloatoffloat32 mode, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float32 in
     let dst = K.Standard_int_or_float.Naked_float in
@@ -2435,6 +2382,47 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pprobe_is_enabled { name }, [] ->
     [tag_int (Nullary (Probe_is_enabled { name }))]
   | Pobj_dup, [[v]] -> [Unary (Obj_dup, v)]
+  | Pnaked_int_cast { src; dst }, [[v]] ->
+    [ Unary
+        ( Num_conv
+            { src = standard_int_or_float_of_unboxed_integer src;
+              dst = standard_int_or_float_of_unboxed_integer dst
+            },
+          v ) ]
+  | Pnaked_int_binop { op; size }, [[i1]; [i2]] -> (
+    let int_arith op : H.expr_primitive list =
+      [Binary (Int_arith (standard_int_of_unboxed_integer size, op), i1, i2)]
+    in
+    let int_shift op : H.expr_primitive list =
+      [Binary (Int_shift (standard_int_of_unboxed_integer size, op), i1, i2)]
+    in
+    let prohibit_zero_divisor op : H.expr_primitive list =
+      [ Checked
+          { primitive =
+              Binary
+                (Int_arith (standard_int_of_unboxed_integer size, op), i1, i2);
+            validity_conditions =
+              [ Binary
+                  ( Int_comp
+                      (standard_int_of_unboxed_integer size, Yielding_bool Neq),
+                    i2,
+                    Simple Simple.untagged_const_zero ) ];
+            failure = Division_by_zero;
+            dbg
+          } ]
+    in
+    match op with
+    | Add -> int_arith Add
+    | Sub -> int_arith Sub
+    | Mul -> int_arith Mul
+    | Div -> prohibit_zero_divisor Div
+    | Rem -> prohibit_zero_divisor Mod
+    | And -> int_arith And
+    | Or -> int_arith Or
+    | Xor -> int_arith Xor
+    | Shl -> int_shift Lsl
+    | Lshr -> int_shift Lsr
+    | Ashr -> int_shift Asr)
   | Pget_header m, [[obj]] -> [get_header obj m ~current_region]
   | Patomic_load { immediate_or_pointer }, [[atomic]] ->
     [ Unary
@@ -2497,7 +2485,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punboxed_product_field _ | Pget_header _ | Pufloatfield _
       | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
-      | Preinterpret_tagged_int63_as_unboxed_int64 ),
+      | Preinterpret_tagged_int63_as_unboxed_int64 | Pnaked_int_cast _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -2518,7 +2506,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Paddbint _ | Psubbint _ | Pmulbint _ | Pandbint _ | Porbint _
       | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pfield_computed _
       | Pdivbint _ | Pmodbint _ | Psetfloatfield _ | Psetufloatfield _
-      | Pbintcomp _ | Punboxed_int_comp _ | Psetmixedfield _
+      | Pbintcomp _ | Pnaked_int_cmp _ | Pnaked_int_binop _ | Psetmixedfield _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_f32 _
       | Pbigstring_load_64 _ | Pbigstring_load_128 _ | Pfloatarray_load_128 _
       | Pfloat_array_load_128 _ | Pint_array_load_128 _

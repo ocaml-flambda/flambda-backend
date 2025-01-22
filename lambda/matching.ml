@@ -3174,18 +3174,18 @@ let combine_constant value_kind loc arg cst partial ctx def
           arg const_lambda_list
     | Const_unboxed_int32 _ ->
         make_test_sequence value_kind loc fail
-          (Pnaked_int_cmp {op = Cne; size = Unboxed_int32; signedness = Signed})
-          (Pnaked_int_cmp {op = Clt; size = Unboxed_int32; signedness = Signed})
+          (Pnaked_int_cmp {op = Cne; size = Unboxed_int32})
+          (Pnaked_int_cmp {op = Clt; size = Unboxed_int32})
           arg const_lambda_list
     | Const_unboxed_int64 _ ->
         make_test_sequence value_kind loc fail
-          (Pnaked_int_cmp {op = Cne; size = Unboxed_int64; signedness = Signed})
-          (Pnaked_int_cmp {op = Clt; size = Unboxed_int64; signedness = Signed})
+          (Pnaked_int_cmp {op = Cne; size = Unboxed_int64})
+          (Pnaked_int_cmp {op = Clt; size = Unboxed_int64})
           arg const_lambda_list
     | Const_unboxed_nativeint _ ->
         make_test_sequence value_kind loc fail
-          (Pnaked_int_cmp {op = Cne; size = Unboxed_nativeint; signedness = Signed})
-          (Pnaked_int_cmp {op = Clt; size = Unboxed_nativeint; signedness = Signed})
+          (Pnaked_int_cmp {op = Cne; size = Unboxed_nativeint})
+          (Pnaked_int_cmp {op = Clt; size = Unboxed_nativeint})
           arg const_lambda_list
   in
   (lambda1, Jumps.union local_jumps total)

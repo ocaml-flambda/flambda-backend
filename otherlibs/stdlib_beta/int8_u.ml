@@ -24,7 +24,7 @@ external to_int8 : int8# -> int8 = "%tag_int8" [@@warning "-187"]
 (** Untag a tagged [int8] *)
 external of_int8 : int8 -> int8# = "%untag_int8" [@@warning "-187"]
 
-let int_size = Int8.int_size
+let size = Int8.size
 
 let[@inline always] zero () = of_int8 Int8.zero
 

@@ -35,8 +35,8 @@ external to_int16 : int16# -> int16 = "%tag_int16" [@@warning "-187"]
 (** Untag a tagged [int16] *)
 external of_int16 : int16 -> int16# = "%untag_int16" [@@warning "-187"]
 
-(** [int_size] is the number of bits in an integer (i.e., 16). *)
-val int_size : int
+(** [size] is the number of bits in an integer (i.e., 16). *)
+val size : int
 
 (** [zero] is the integer [0]. *)
 val zero : unit -> int16#

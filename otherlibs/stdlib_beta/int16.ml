@@ -22,7 +22,7 @@ include
     (struct
       type nonrec t = t
 
-      let int_size = 16
+      let size = 16
 
       external inject : t -> int = "%identity"
 

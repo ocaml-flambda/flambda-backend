@@ -120,13 +120,6 @@ type region_close =
   | Rc_nontail
   | Rc_close_at_apply
 
-type signedness =
-  | Signed
-  | Unsigned
-
-type overflow_behavior =
-  | Wrap
-  | Raise
 
 type naked_integer_binop =
   | Add
@@ -138,7 +131,8 @@ type naked_integer_binop =
   | Or
   | Xor
   | Shl
-  | Shr
+  | Lshr
+  | Ashr
 
 
 type primitive =
@@ -247,18 +241,14 @@ type primitive =
   | Pnaked_int_cast of
     { src : unboxed_integer
     ; dst : unboxed_integer
-    ; overflow_behavior : overflow_behavior
     }
   | Pnaked_int_binop of
     { op : naked_integer_binop
-    ; signedness : signedness
     ; size : unboxed_integer
-    ; overflow_behavior : overflow_behavior
     }
   | Pnaked_int_cmp of
     { op : integer_comparison
     ; size : unboxed_integer
-    ; signedness : signedness
     }
 
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
@@ -2149,16 +2139,12 @@ let primitive_can_raise prim =
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
     false
-  | Pnaked_int_binop { overflow_behavior = Raise ; _}
-  | Pnaked_int_binop { op = Div | Rem ; _ }
-  | Pnaked_int_cast { overflow_behavior = Raise ; _}
+  | Pnaked_int_binop { op = Div | Rem ; size = _ }
     -> true
-  | Pnaked_int_cast { overflow_behavior = Wrap ; _}
-  | Pnaked_int_binop { overflow_behavior = Wrap ;
-                       op =  Add | Sub | Mul | And | Or | Xor | Shl | Shr
-                     ; signedness = _
-                     }
+  | Pnaked_int_binop { op =  Add | Sub | Mul | And | Or | Xor | Shl | Lshr | Ashr
+                     ; size = _ }
     -> false
+  | Pnaked_int_cast { src = _; dst = _ } -> false
 
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> non_null_value Pintval

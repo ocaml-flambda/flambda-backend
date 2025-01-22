@@ -622,17 +622,17 @@ let comp_primitive stack_info p sz args =
   | Plslbint(bi,_) -> comp_bint_primitive bi "shift_left" args
   | Plsrbint(bi,_) -> comp_bint_primitive bi "shift_right_unsigned" args
   | Pasrbint(bi,_) -> comp_bint_primitive bi "shift_right" args
-  | Pbintcomp(_, Ceq) | Pnaked_int_cmp {size = _; signedness = Signed; op = Ceq }
+  | Pbintcomp(_, Ceq) | Pnaked_int_cmp {size = _; op = Ceq }
     -> Kccall("caml_equal", 2)
-  | Pbintcomp(_, Cne) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cne }
+  | Pbintcomp(_, Cne) | Pnaked_int_cmp {size = _; op = Cne }
     -> Kccall("caml_notequal", 2)
-  | Pbintcomp(_, Clt) | Pnaked_int_cmp {size = _; signedness = Signed; op = Clt }
+  | Pbintcomp(_, Clt) | Pnaked_int_cmp {size = _; op = Clt }
     -> Kccall("caml_lessthan", 2)
-  | Pbintcomp(_, Cgt) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cgt }
+  | Pbintcomp(_, Cgt) | Pnaked_int_cmp {size = _; op = Cgt }
     -> Kccall("caml_greaterthan", 2)
-  | Pbintcomp(_, Cle) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cle }
+  | Pbintcomp(_, Cle) | Pnaked_int_cmp {size = _; op = Cle }
     -> Kccall("caml_lessequal", 2)
-  | Pbintcomp(_, Cge) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cge }
+  | Pbintcomp(_, Cge) | Pnaked_int_cmp {size = _; op = Cge }
     -> Kccall("caml_greaterequal", 2)
   | Pbigarrayref(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_set_" ^ Int.to_string n, n + 2)
@@ -739,7 +739,6 @@ let comp_primitive stack_info p sz args =
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
   | Ptag_int _ | Puntag_int _
-  | Pnaked_int_cmp { signedness = Unsigned; _ }
   | Pnaked_int_cast _ | Pnaked_int_binop _
     ->
       fatal_error "Bytegen.comp_primitive"

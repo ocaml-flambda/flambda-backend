@@ -343,17 +343,6 @@ let boxed_integer_mark name bi m =
 let print_boxed_integer name ppf bi m =
   fprintf ppf "%s" (boxed_integer_mark name bi m);;
 
-let unboxed_integer_mark name bi m =
-  match bi with
-  | Unboxed_nativeint -> Printf.sprintf "Nativeint_u.%s%s" name (locality_kind m)
-  | Unboxed_int8 -> Printf.sprintf "Int8_u.%s%s" name (locality_kind m)
-  | Unboxed_int16 -> Printf.sprintf "Int16_u.%s%s" name (locality_kind m)
-  | Unboxed_int32 -> Printf.sprintf "Int32_u.%s%s" name (locality_kind m)
-  | Unboxed_int64 -> Printf.sprintf "Int64_u.%s%s" name (locality_kind m)
-
-let print_unboxed_integer name ppf bi m =
-  fprintf ppf "%s" (unboxed_integer_mark name bi m);;
-
 let boxed_float_mark name bf m =
   match bf with
   | Boxed_float64 -> Printf.sprintf "Float.%s%s" name (locality_kind m)
@@ -476,66 +465,49 @@ let field_read_semantics ppf sem =
   | Reads_agree -> ()
   | Reads_vary -> fprintf ppf "_mut"
 
-let naked_integer signedness size =
-  match (signedness : Lambda.signedness), (size : Primitive.unboxed_integer) with
-  | Unsigned, Unboxed_int8 -> "naked_u8"
-  | Unsigned, Unboxed_int16 -> "naked_u16"
-  | Unsigned, Unboxed_int32 -> "naked_u32"
-  | Unsigned, Unboxed_nativeint -> "naked_unativeint"
-  | Unsigned, Unboxed_int64 -> "naked_u64"
-  | Signed, Unboxed_int8 -> "naked_i8"
-  | Signed, Unboxed_int16 -> "naked_i16"
-  | Signed, Unboxed_int32 -> "naked_i32"
-  | Signed, Unboxed_nativeint -> "naked_nativeint"
-  | Signed, Unboxed_int64 -> "naked_i64"
+let naked_integer size =
+  match (size : Primitive.unboxed_integer) with
+  | Unboxed_int8 -> "naked_i8"
+  | Unboxed_int16 -> "naked_i16"
+  | Unboxed_int32 -> "naked_i32"
+  | Unboxed_nativeint -> "naked_nativeint"
+  | Unboxed_int64 -> "naked_i64"
 
-let naked_arithmetic_primitive signedness binop size =
+let naked_integer_binop binop ni =
   let binop =
-    match
-      (signedness : Lambda.signedness),
-      (binop : Lambda.naked_integer_binop)
-    with
-    (* there's no distinction between signed/unsigned for most operators *)
-    | (Signed | Unsigned), Add -> "add"
-    | (Signed | Unsigned), Sub -> "sub"
-    | (Signed | Unsigned), Mul -> "mul"
-    | (Signed | Unsigned), And -> "and"
-    | (Signed | Unsigned), Or -> "or"
-    | (Signed | Unsigned), Xor -> "xor"
-    | (Signed | Unsigned), Shl -> "shl"
-    | Signed, Div -> "sdiv"
-    | Unsigned, Div -> "udiv"
-    | Signed, Rem -> "srem"
-    | Unsigned, Rem -> "urem"
-    | Unsigned, Shr -> "lshr"
-    | Signed, Shr -> "ashr"
+    match (binop : naked_integer_binop) with
+    | Add -> "add"
+    | Sub -> "sub"
+    | Mul -> "mul"
+    | Div -> "sdiv"
+    | Rem -> "srem"
+    | And -> "and"
+    | Or -> "or"
+    | Xor -> "xor"
+    | Shl -> "shl"
+    | Lshr  -> "lshr"
+    | Ashr  -> "ashr"
   in
-  Printf.sprintf "%s_%s" binop (naked_integer signedness size)
+  Printf.sprintf "%%%s_%s" binop (naked_integer ni)
 
-let naked_arithmetic_conv signedness ~src ~dst =
-  let bits : Primitive.unboxed_integer -> int = function
-    | Unboxed_int8 -> 8
-    | Unboxed_int16 -> 16
-    | Unboxed_int32 -> 32
-    | Unboxed_nativeint -> failwith "TODO"
-    | Unboxed_int64 -> 64
-  in
-  let operation =
-    let cmp = Int.compare (bits src) (bits dst) in
-    if cmp > 0 then
-      "trunc"
-    else if cmp = 0 then
-      "bitcast"
-    else
-      match signedness with
-      | Signed -> "sext"
-      | Unsigned -> "zext"
-  in
+let naked_integer_cast ~src ~dst =
   Printf.sprintf
-    "%s_%s_to_%s"
-    operation
-    (naked_integer signedness src)
-    (naked_integer signedness dst)
+    "%%%s_of_%s"
+    (naked_integer dst)
+    (naked_integer src)
+
+
+  let naked_integer_cmp op ni =
+    let op =
+      match op with
+      | Ceq -> "eq"
+      | Cne -> "ne"
+      | Clt -> "lt"
+      | Cgt -> "gt"
+      | Cle -> "le"
+      | Cge -> "ge"
+    in
+    Printf.sprintf "%%%s_%s" op (naked_integer ni)
 
 let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
@@ -790,12 +762,15 @@ let primitive ppf = function
   | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
   | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
   | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Ceq) -> print_unboxed_integer "==" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cne) -> print_unboxed_integer "!=" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Clt) -> print_unboxed_integer "<" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cgt) -> print_unboxed_integer ">" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cle) -> print_unboxed_integer "<=" ppf bi alloc_heap
-  | Punboxed_int_comp(bi, Cge) -> print_unboxed_integer ">=" ppf bi alloc_heap
+  | Pnaked_int_cmp { op; size } ->
+    pp_print_string ppf (naked_integer_cmp op size)
+  | Pnaked_int_binop { op; size } ->
+    pp_print_string ppf  (naked_integer_binop op size)
+  | Pnaked_int_cast { src; dst } ->
+    pp_print_string ppf
+      (naked_integer_cast
+         ~src
+         ~dst)
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->
@@ -1078,7 +1053,7 @@ let name_of_primitive = function
   | Plsrbint _ -> "Plsrbint"
   | Pasrbint _ -> "Pasrbint"
   | Pbintcomp _ -> "Pbintcomp"
-  | Punboxed_int_comp _ -> "Punboxed_int_comp"
+  | Pnaked_int_cmp _ -> "Pnaked_int_cmp"
   | Pbigarrayref _ -> "Pbigarrayref"
   | Pbigarrayset _ -> "Pbigarrayset"
   | Pbigarraydim _ -> "Pbigarraydim"
@@ -1159,6 +1134,8 @@ let name_of_primitive = function
       "Preinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       "Preinterpret_unboxed_int64_as_tagged_int63"
+  | Pnaked_int_cast _ -> "Pnaked_int_cast"
+  | Pnaked_int_binop _ -> "Pnaked_int_binop"
 
 let zero_alloc_attribute ppf check =
   match check with

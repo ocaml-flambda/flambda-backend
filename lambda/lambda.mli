@@ -100,14 +100,6 @@ type region_close =
     tail call because the outer region needs to end there.)
 *)
 
-type signedness =
-  | Signed
-  | Unsigned
-
-type overflow_behavior =
-  | Wrap
-  | Raise
-
 type naked_integer_binop =
   | Add
   | Sub
@@ -118,7 +110,8 @@ type naked_integer_binop =
   | Or
   | Xor
   | Shl
-  | Shr
+  | Lshr
+  | Ashr
 
 (* CR layouts v5: When we add more blocks of non-scannable values, consider
    whether some of the primitives specific to ufloat records
@@ -241,18 +234,14 @@ type primitive =
   | Pnaked_int_cast of
     { src : unboxed_integer
     ; dst : unboxed_integer
-    ; overflow_behavior : overflow_behavior
     }
   | Pnaked_int_binop of
     { op : naked_integer_binop
-    ; signedness : signedness
     ; size : unboxed_integer
-    ; overflow_behavior : overflow_behavior
     }
   | Pnaked_int_cmp of
     { op : integer_comparison
     ; size : unboxed_integer
-    ; signedness : signedness
     }
 
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)

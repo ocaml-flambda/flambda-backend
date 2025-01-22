@@ -24,7 +24,7 @@ external to_int16 : int16# -> int16 = "%tag_int16" [@@warning "-187"]
 (** Untag a tagged [int16] *)
 external of_int16 : int16 -> int16# = "%untag_int16" [@@warning "-187"]
 
-let int_size = Int16.int_size
+let size = Int16.size
 
 let[@inline always] zero () = of_int16 Int16.zero
 

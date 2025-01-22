@@ -17,6 +17,9 @@ open Lambda
 
 open Format
 
+val naked_integer_binop : naked_integer_binop ->  unboxed_integer -> string
+val naked_integer_cast :  src:unboxed_integer -> dst:unboxed_integer -> string
+val naked_integer_cmp : integer_comparison  -> unboxed_integer -> string
 val integer_comparison: formatter -> integer_comparison -> unit
 val float_comparison: float_comparison -> string
 val structured_constant: formatter -> structured_constant -> unit
