@@ -1096,8 +1096,6 @@ let derive_unboxed_version find_type decl =
                       | Record_ufloat | Record_mixed _))->
       `No_unboxed_version
     | Type_record (lbls, Record_boxed _) ->
-      (* CR rtjoa: factor out shared code *)
-      (* let path' = Path.Path.unboxed_version path in *)
       let lbls_unboxed =
         (* CR rtjoa: Need warning scope? *)
         List.map
@@ -1106,7 +1104,6 @@ let derive_unboxed_version find_type decl =
               { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
               ld_mutable = Immutable;
               ld_modalities = ld.ld_modalities;
-              (* CR rtjoa: update sort in [update_label_sorts], maybe? *)
               ld_sort = Jkind.Sort.Const.void;
               ld_type = ld.ld_type;
               ld_loc = ld.ld_loc;
@@ -1234,13 +1231,16 @@ let add_unboxed_versions (env : Env.t) (decls : Typedtree.type_declaration list)
           (function
            | Some (tdecl : Typedtree.type_declaration) ->
              assert (Option.is_none tdecl.typ_type.type_unboxed_version);
-             Some { tdecl with typ_type = { tdecl.typ_type with type_unboxed_version = Some unboxed_version } }
+             let type_unboxed_version = Some unboxed_version in
+             let typ_type = { tdecl.typ_type with type_unboxed_version } in
+             Some { tdecl with typ_type }
            | None -> assert false)
           id_to_decl
       in
       begin match Ident.Map.find_opt id id_to_aliases with
       | Some aliases ->
-        List.fold_left (fun id_to_decl id -> visit id_to_decl id) id_to_decl aliases
+        List.fold_left
+          (fun id_to_decl id -> visit id_to_decl id) id_to_decl aliases
       | None ->
         id_to_decl
       end
@@ -1747,7 +1747,6 @@ let update_constructor_representation
    is consistent (i.e. a subjkind of) any jkind annotation.
    See Note [Default jkinds in transl_declaration].
 *)
-(* CR rtjoa: need to update unboxed versions of types... *)
 let rec update_decl_jkind env dpath decl =
   let type_unboxed_version =
     Option.map

@@ -56,7 +56,10 @@ and extra_ty =
         [Pextra_ty (Pident `Error`, Pext_ty)].
   *)
   | Punboxed_ty
-  (* CR rtjoa: comment *)
+  (** [Pextra_ty (p, Punboxed_ty)] is the type of the unboxed version of [p].
+
+      Example: [float#], or [t#] given [type t = { i : int ; s : string}].
+  *)
 
 val unboxed_version : t -> t
 
