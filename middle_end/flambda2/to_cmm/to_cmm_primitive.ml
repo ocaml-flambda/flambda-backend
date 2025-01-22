@@ -128,36 +128,42 @@ let make_block ~dbg kind alloc_mode args =
     let tag = Tag.Scannable.to_int tag in
     C.make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks
 
+let memory_chunk_of_flat_suffix_element :
+    K.flat_suffix_element -> Cmm.memory_chunk = function
+  | Tagged_immediate -> Word_int
+  | Naked_float -> Double
+  | Naked_float32 -> Single { reg = Float32 }
+  | Naked_int8 -> Byte_signed
+  | Naked_int16 -> Sixteen_signed
+  | Naked_int32 -> Thirtytwo_signed
+  | Naked_vec128 -> Onetwentyeight_unaligned
+  | Naked_int64 | Naked_nativeint -> Word_int
+
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~field =
   let mutability = Mutability.to_asttypes mutability in
   let field = Targetint_31_63.to_int field in
-  let (memory_chunk : Cmm.memory_chunk), index_in_words =
-    match kind with
-    | Mixed { field_kind = Value_prefix Any_value; _ }
-    | Values { field_kind = Any_value; _ } ->
-      (Word_val : Cmm.memory_chunk), field
-    | Mixed { field_kind = Value_prefix Immediate; _ }
-    | Values { field_kind = Immediate; _ } ->
-      (Word_int : Cmm.memory_chunk), field
-    | Naked_floats _ -> (Double : Cmm.memory_chunk), field
-    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
-      let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
-      let chunk : Cmm.memory_chunk =
-        match field_kind with
-        | Tagged_immediate -> Word_int
-        | Naked_float -> Double
-        | Naked_float32 -> Single { reg = Float32 }
-        | Naked_int8 -> Byte_signed
-        | Naked_int16 -> Sixteen_signed
-        | Naked_int32 -> Thirtytwo_signed
-        | Naked_vec128 -> Onetwentyeight_unaligned
-        | Naked_int64 | Naked_nativeint -> Word_int
-      in
-      chunk, offset
+  let get_field_computed immediate_or_pointer =
+    let index = C.int_const dbg field in
+    C.get_field_computed immediate_or_pointer mutability ~block ~index dbg
   in
-  let index_in_words = C.int_const dbg index_in_words in
-  C.get_field_unboxed memory_chunk mutability block ~index_in_words dbg
+  let get_field_unboxed memory_chunk ~offset_in_words =
+    let index_in_words = C.int_const dbg offset_in_words in
+    C.get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words
+  in
+  match kind with
+  | Mixed { field_kind = Value_prefix Any_value; _ }
+  | Values { field_kind = Any_value; _ } ->
+    get_field_computed Pointer
+  | Mixed { field_kind = Value_prefix Immediate; _ }
+  | Values { field_kind = Immediate; _ } ->
+    get_field_computed Immediate
+  | Naked_floats _ -> get_field_unboxed Double ~offset_in_words:field
+  | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+    get_field_unboxed
+      (memory_chunk_of_flat_suffix_element field_kind)
+      ~offset_in_words:
+        (Flambda_kind.Mixed_block_shape.offset_in_words shape field)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~field ~new_value =
@@ -179,23 +185,14 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     let index = C.int_const dbg field in
     C.float_array_set block index new_value dbg
   | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
-    let memory_chunk : Cmm.memory_chunk =
-      match field_kind with
-      | Tagged_immediate -> Word_int
-      | Naked_float -> Double
-      | Naked_float32 -> Single { reg = Float32 }
-      | Naked_int32 -> Thirtytwo_signed
-      | Naked_int8 -> Byte_signed
-      | Naked_int16 -> Sixteen_signed
-      | Naked_vec128 -> Onetwentyeight_unaligned
-      | Naked_int64 | Naked_nativeint -> Word_int
-    in
     let index_in_words =
       Flambda_kind.Mixed_block_shape.offset_in_words shape field
     in
-    C.setfield_unboxed memory_chunk block
+    C.set_field_unboxed ~dbg
+      (memory_chunk_of_flat_suffix_element field_kind)
+      block
       ~index_in_words:(C.int_const dbg index_in_words)
-      new_value dbg
+      new_value
 
 (* Array creation and access. For these functions, [index] is a tagged
    integer. *)
@@ -469,7 +466,8 @@ let string_like_load_aux ~dbg width ~str ~index =
   match (width : P.string_accessor_width) with
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
-  | Thirty_two -> C.sign_extend ~bits:32 (C.unaligned_load_32 str index dbg) dbg
+  | Thirty_two ->
+    C.sign_extend ~bits:32 ~dbg (C.unaligned_load_32 str index dbg)
   | Single -> C.unaligned_load_f32 str index dbg
   | Sixty_four -> C.unaligned_load_64 str index dbg
   | One_twenty_eight { aligned = true } -> C.aligned_load_128 str index dbg
@@ -528,34 +526,35 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
-let integral_of_standard_int : K.Standard_int.t -> C.Numeric.Integral.t =
-  let[@inline] untagged_int bit_width : C.Numeric.Integral.t =
-    Untagged (C.Numeric.Integer.create_exn ~bit_width ~signedness:Signed)
+let integral_of_standard_int : K.Standard_int.t -> C.Scalar_type.Integral.t =
+  let[@inline] untagged_int bit_width : C.Scalar_type.Integral.t =
+    Untagged (C.Scalar_type.Integer.create_exn ~bit_width ~signedness:Signed)
   in
   function
-  | Naked_int8 -> untagged_int 8
-  | Naked_int16 -> untagged_int 16
+  | Naked_int8 -> untagged_int 32
+  | Naked_int16 -> untagged_int 64
   | Naked_int32 -> untagged_int 32
   | Naked_int64 -> untagged_int 64
-  | Naked_nativeint -> Untagged C.Numeric.Integer.nativeint
-  | Naked_immediate -> Untagged C.Numeric.Tagged_integer.(untagged immediate)
-  | Tagged_immediate -> Tagged C.Numeric.Tagged_integer.immediate
-
-let numeric_of_standard_int_or_float : K.Standard_int_or_float.t -> C.Numeric.t
-    =
-  let[@inline] untagged_int bit_width : C.Numeric.t =
-    Integral
-      (Untagged (C.Numeric.Integer.create_exn ~bit_width ~signedness:Signed))
-  in
-  function
-  | Naked_int8 -> untagged_int 8
-  | Naked_int16 -> untagged_int 16
-  | Naked_int32 -> untagged_int 32
-  | Naked_int64 -> untagged_int 64
-  | Naked_nativeint -> Integral (Untagged C.Numeric.Integer.nativeint)
+  | Naked_nativeint -> Untagged C.Scalar_type.Integer.nativeint
   | Naked_immediate ->
-    Integral (Untagged C.Numeric.Tagged_integer.(untagged immediate))
-  | Tagged_immediate -> Integral (Tagged C.Numeric.Tagged_integer.immediate)
+    Untagged C.Scalar_type.Tagged_integer.(untagged immediate)
+  | Tagged_immediate -> Tagged C.Scalar_type.Tagged_integer.immediate
+
+let numeric_of_standard_int_or_float :
+    K.Standard_int_or_float.t -> C.Scalar_type.t =
+  let[@inline] untagged_int bit_width : C.Scalar_type.t =
+    Integral
+      (Untagged (C.Scalar_type.Integer.create_exn ~bit_width ~signedness:Signed))
+  in
+  function
+  | Naked_int8 -> untagged_int 8
+  | Naked_int16 -> untagged_int 16
+  | Naked_int32 -> untagged_int 32
+  | Naked_int64 -> untagged_int 64
+  | Naked_nativeint -> Integral (Untagged C.Scalar_type.Integer.nativeint)
+  | Naked_immediate ->
+    Integral (Untagged C.Scalar_type.Tagged_integer.(untagged immediate))
+  | Tagged_immediate -> Integral (Tagged C.Scalar_type.Tagged_integer.immediate)
   | Naked_float32 -> Float Float32
   | Naked_float -> Float Float64
 
@@ -564,19 +563,17 @@ let unary_int_arith_primitive _env dbg kind op arg =
   | Neg -> (
     match integral_of_standard_int kind with
     | Tagged src ->
-      C.Numeric.Tagged_integer.static_cast arg ~src
-        ~dst:C.Numeric.Tagged_integer.immediate ~dbg
-      |> (fun arg -> C.negint arg dbg)
-      |> C.Numeric.Tagged_integer.static_cast
-           ~src:C.Numeric.Tagged_integer.immediate ~dst:src ~dbg
+      C.Scalar_type.Tagged_integer.conjugate ~dbg ~outer:src
+        ~inner:C.Scalar_type.Tagged_integer.immediate
+        ~f:(fun x -> C.negint x dbg)
+        arg
     | Untagged src ->
-      C.Numeric.Integer.static_cast arg ~src ~dst:C.Numeric.Integer.nativeint
-        ~dbg
-      |> (fun arg ->
-           let bits = C.Numeric.Integer.bit_width src in
-           C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg)
-      |> C.Numeric.Integer.static_cast ~src:C.Numeric.Integer.nativeint ~dst:src
-           ~dbg)
+      let bits = C.Scalar_type.Integer.bit_width src in
+      C.Scalar_type.Integer.static_cast arg ~src
+        ~dst:C.Scalar_type.Integer.nativeint ~dbg
+      |> (fun arg -> C.neg_int (C.low_bits ~bits arg ~dbg) dbg)
+      |> C.Scalar_type.Integer.static_cast ~src:C.Scalar_type.Integer.nativeint
+           ~dst:src ~dbg)
   | Swap_byte_endianness -> (
     match (kind : K.Standard_int.t) with
     | Tagged_immediate ->
@@ -592,10 +589,13 @@ let unary_int_arith_primitive _env dbg kind op arg =
     | Naked_int16 ->
       (* Byte swaps of small integers need a sign-extension in order to match
          the Lambda semantics (where the swap might affect the sign). *)
-      C.sign_extend ~bits:16 (C.bbswap Unboxed_int16 arg dbg) dbg
-    | Naked_int32 -> C.sign_extend ~bits:32 (C.bbswap Unboxed_int32 arg dbg) dbg
-    | Naked_int64 -> C.sign_extend ~bits:64 (C.bbswap Unboxed_int64 arg dbg) dbg
-    | Naked_nativeint -> C.bbswap Unboxed_nativeint arg dbg)
+      C.sign_extend (C.bbswap Unboxed_int16 arg dbg) ~bits:16 ~dbg
+    | Naked_int32 ->
+      C.sign_extend (C.bbswap Unboxed_int32 arg dbg) ~bits:32 ~dbg
+    | Naked_int64 ->
+      C.sign_extend (C.bbswap Unboxed_int64 arg dbg) ~bits:64 ~dbg
+    | Naked_nativeint ->
+      C.sign_extend (C.bbswap Unboxed_nativeint arg dbg) ~bits:C.arch_bits ~dbg)
 
 let unary_float_arith_primitive _env dbg width op arg =
   match (width : P.float_bitwidth), (op : P.unary_float_arith_op) with
@@ -613,14 +613,15 @@ let arithmetic_conversion dbg src dst arg =
     let extra =
       match src, dst with
       | Integral (Tagged src), Integral (Untagged dst)
-        when C.Numeric.Integer.equal (C.Numeric.Tagged_integer.untagged src) dst
-        ->
+        when C.Scalar_type.Integer.equal
+               (C.Scalar_type.Tagged_integer.untagged src)
+               dst ->
         Some (Env.Untag arg)
       | ( (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)),
           (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)) ) ->
         None
     in
-    extra, C.Numeric.static_cast ~dbg ~src ~dst arg
+    extra, C.Scalar_type.static_cast ~dbg ~src ~dst arg
 
 let phys_equal _env dbg op x y =
   match (op : P.equality_comparison) with
@@ -631,13 +632,13 @@ let phys_equal _env dbg op x y =
 let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     (op : P.binary_int_arith_op) x y =
   let kind = integral_of_standard_int kind in
-  let[@inline] wrap f =
+  let[@local] wrap f =
     (* We cast the operands to the width that the operator expects, apply the
        operator, and cast the result back. *)
-    let operator_type : C.Numeric.Integral.t =
+    let operator_type : C.Scalar_type.Integral.t =
       match kind with
-      | Untagged _ -> Untagged C.Numeric.Integer.nativeint
-      | Tagged _ -> Tagged C.Numeric.Tagged_integer.immediate
+      | Untagged _ -> Untagged C.Scalar_type.Integer.nativeint
+      | Tagged _ -> Tagged C.Scalar_type.Tagged_integer.immediate
     in
     let requires_sign_extended_operands =
       match op with
@@ -671,23 +672,24 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     in
     let[@inline] prepare_operand operand =
       let operand =
-        C.Numeric.Integral.static_cast ~dbg ~src:kind ~dst:operator_type operand
+        C.Scalar_type.Integral.static_cast ~dbg ~src:kind ~dst:operator_type
+          operand
       in
       if requires_sign_extended_operands
       then operand
       else
         let bits =
           match kind with
-          | Untagged untagged -> C.Numeric.Integer.bit_width untagged
+          | Untagged untagged -> C.Scalar_type.Integer.bit_width untagged
           | Tagged tagged ->
-            C.Numeric.Tagged_integer.bit_width_including_tag_bit tagged
+            C.Scalar_type.Tagged_integer.bit_width_including_tag_bit tagged
         in
-        C.low_bits ~bits operand dbg
+        C.low_bits ~bits operand ~dbg
     in
     let x = prepare_operand x in
     let y = prepare_operand y in
     let result = f x y dbg in
-    C.Numeric.Integral.static_cast ~dbg ~src:operator_type ~dst:kind result
+    C.Scalar_type.Integral.static_cast ~dbg ~src:operator_type ~dst:kind result
     (* Operations on integer arguments must return something in the range of
        their values, hence the [static_cast] here. The [C.low_bits] operations
        (see above in [prepare_operand]) are used to avoid unnecessary
@@ -700,21 +702,21 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     | Add -> wrap C.add_int_caml
     | Sub -> wrap C.sub_int_caml
     | Mul -> wrap C.mul_int_caml
-    | Div -> wrap (C.div_int_caml Unsafe)
-    | Mod -> wrap (C.mod_int_caml Unsafe)
+    | Div -> wrap C.div_int_caml
+    | Mod -> wrap C.mod_int_caml
     | And -> wrap C.and_int_caml
     | Or -> wrap C.or_int_caml
     | Xor -> wrap C.xor_int_caml)
   | Untagged untagged -> (
     let dividend_cannot_be_min_int =
-      C.Numeric.Integer.bit_width untagged < C.arch_bits
+      C.Scalar_type.Integer.bit_width untagged < C.arch_bits
     in
     match op with
     | Add -> wrap C.add_int
     | Sub -> wrap C.sub_int
     | Mul -> wrap C.mul_int
-    | Div -> wrap (C.safe_div_bi Unsafe ~dividend_cannot_be_min_int)
-    | Mod -> wrap (C.safe_mod_bi Unsafe ~dividend_cannot_be_min_int)
+    | Div -> wrap (C.div_int ~dividend_cannot_be_min_int)
+    | Mod -> wrap (C.mod_int ~dividend_cannot_be_min_int)
     | And -> wrap C.and_int
     | Or -> wrap C.or_int
     | Xor -> wrap C.xor_int)
@@ -724,31 +726,28 @@ let binary_int_shift_primitive _env dbg kind (op : P.int_shift_op) x y =
      and use of [C.low_bits]. *)
   let kind = integral_of_standard_int kind in
   let right_shift_kind signedness =
-    (* right shifts can operate directly on untagged small integers of the
-       correct signedness, as they do not require sign- or zero-extension after
-       the shift *)
-    C.Numeric.Integer.with_signedness
-      (C.Numeric.Integral.untagged kind)
+    (* right shifts can operate directly on any untagged integers of the correct
+       signedness, as they do not require sign- or zero-extension after the
+       shift *)
+    C.Scalar_type.Integer.with_signedness
+      (C.Scalar_type.Integral.untagged kind)
       ~signedness
   in
-  let f, (op_kind : Cmm_helpers.Numeric.Integer.t) =
+  let f, (op_kind : C.Scalar_type.Integer.t) =
     match op with
     | Asr -> C.asr_int, right_shift_kind Signed
     | Lsr -> C.lsr_int, right_shift_kind Unsigned
     | Lsl ->
-      (* Left shifts need to be casted back from nativeint since they might
-         shift arbitrary bits into the high bits of the register. *)
-      C.lsl_int, C.Numeric.Integer.nativeint
+      (* Left shifts operate on nativeints since they might shift arbitrary bits
+         into the high bits of the register. *)
+      C.lsl_int, C.Scalar_type.Integer.nativeint
   in
-  let x =
-    C.Numeric.Integral.static_cast x ~dbg ~src:kind ~dst:(Untagged op_kind)
-  in
-  let shifted =
-    (* [kind] only applies to [x], the [y] argument is always a bare
-       register-sized integer *)
-    f x y dbg
-  in
-  C.Numeric.Integral.static_cast shifted ~dbg ~src:(Untagged op_kind) ~dst:kind
+  C.Scalar_type.Integral.conjugate ~outer:kind ~inner:(Untagged op_kind) ~dbg
+    ~f:(fun x ->
+      (* [kind] only applies to [x], the [y] argument is always a bare
+         register-sized integer *)
+      f x y dbg)
+    x
 
 let binary_int_comp_primitive _env dbg kind cmp x y =
   match
