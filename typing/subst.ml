@@ -499,14 +499,14 @@ let type_declaration' copy_scope s decl =
     type_kind =
       begin match decl.type_kind with
         Type_abstract r -> Type_abstract r
-      | Type_variant (cstrs, rep) ->
+      | Type_variant (cstrs, rep, umc) ->
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
-                        rep)
-      | Type_record(lbls, rep) ->
-          Type_record (List.map (label_declaration copy_scope s) lbls, rep)
-      | Type_record_unboxed_product(lbls, rep) ->
+                        rep, umc)
+      | Type_record(lbls, rep, umc) ->
+          Type_record (List.map (label_declaration copy_scope s) lbls, rep, umc)
+      | Type_record_unboxed_product(lbls, rep, umc) ->
           Type_record_unboxed_product
-            (List.map (label_declaration copy_scope s) lbls, rep)
+            (List.map (label_declaration copy_scope s) lbls, rep, umc)
       | Type_open -> Type_open
       end;
     type_manifest =

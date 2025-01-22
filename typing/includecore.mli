@@ -105,6 +105,10 @@ type private_object_mismatch =
   | Missing of string
   | Types of Errortrace.equality_error
 
+type unsafe_mode_crossing_mismatch =
+  | Mode_crossing_only_on_right
+  | Mode_crossing_not_le
+
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
@@ -121,6 +125,7 @@ type type_mismatch =
   | Extensible_representation of position
   | With_null_representation of position
   | Jkind of Jkind.Violation.t
+  | Unsafe_mode_crossing of unsafe_mode_crossing_mismatch
 
 type mmodes =
   | All

@@ -155,21 +155,75 @@ module M :
   end
 |}]
 
-(* If the kind annotation on a (non-abstract) type has a more general layout than the one
-   inferred from the declaration, we should be able to use the type as if it had the
-   inferred layout - but also able to use it as if it had the modal bounds on the
-   annotation.
-*)
-module Weaker_layout_stronger_modes : sig
-  type t : any mod uncontended
+(* [@@unsafe_allow_any_mode_crossing] should not allow you to weaken the modal bounds on a
+   kind in module inclusion *)
+module M : sig
+  type t : value mod uncontended = { mutable x : int } [@@unsafe_allow_any_mode_crossing]
 end = struct
-  type t : any mod uncontended = { mutable contents : string }
-  [@@unsafe_allow_any_mode_crossing]
-
-  (* The actual kind here looks more like [value mod uncontended] *)
-  let f1 (x : t @@ contended) = use_uncontended x
-  let _ = use_as_value ({ contents = "foo" } : t)
+  type t = { mutable x : int }
 end
 [%%expect{|
-module Weaker_layout_stronger_modes : sig type t : any mod uncontended end
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { mutable x : int }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { mutable x : int; } end
+       is not included in
+         sig
+           type t : value mod uncontended = { mutable x : int; }
+           [@@unsafe_allow_any_mode_crossing]
+         end
+       Type declarations do not match:
+         type t = { mutable x : int; }
+       is not included in
+         type t : value mod uncontended = { mutable x : int; }
+       [@@unsafe_allow_any_mode_crossing]
+       They have different unsafe mode crossing behavior:
+       the first has [@@unsafe_allow_any_mode_crossing], but the second does not
+|}]
+
+
+module type S = sig
+  type t : value mod uncontended = { mutable x : int } [@@unsafe_allow_any_mode_crossing]
+end
+
+module M = struct
+    type t = { mutable x : int }
+end
+
+module _ = (M : S)
+[%%expect{|
+module type S =
+  sig
+    type t : value mod uncontended = { mutable x : int; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M : sig type t = { mutable x : int; } end
+Line 9, characters 12-13:
+9 | module _ = (M : S)
+                ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = M.t = { mutable x : int; } end
+       is not included in
+         S
+       Type declarations do not match:
+         type t = M.t = { mutable x : int; }
+       is not included in
+         type t : value mod uncontended = { mutable x : int; }
+       [@@unsafe_allow_any_mode_crossing]
+       They have different unsafe mode crossing behavior:
+       the first has [@@unsafe_allow_any_mode_crossing], but the second does not
+|}]
+
+module type S2 = S with type t = M.t
+[%%expect{|
+Line 1, characters 24-36:
+1 | module type S2 = S with type t = M.t
+                            ^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "M.t"
+       They have different unsafe mode crossing behavior:
+       the original has [@@unsafe_allow_any_mode_crossing], but this does not
 |}]
