@@ -37,7 +37,8 @@ module IR = struct
     | Get_tag of Ident.t
     | Begin_region of
         { ghost : bool;
-          is_try_region : bool
+          is_try_region : bool;
+          parent_region : Ident.t
         }
     | End_region of
         { is_try_region : bool;
@@ -98,7 +99,7 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
-    | Begin_region { is_try_region; ghost } ->
+    | Begin_region { is_try_region; ghost; parent_region = _ } ->
       if is_try_region
       then fprintf ppf "Begin_try_region"
       else fprintf ppf "Begin_region";

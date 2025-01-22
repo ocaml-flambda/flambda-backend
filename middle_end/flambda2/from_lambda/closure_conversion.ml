@@ -1097,13 +1097,13 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       prim Debuginfo.none k
-  | Begin_region { is_try_region; ghost } ->
+  | Begin_region { is_try_region; ghost; parent_region } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Variadic
         ( (if is_try_region
           then Begin_try_region { ghost }
           else Begin_region { ghost }),
-          [] )
+          [Simple (find_simple_from_id env parent_region)] )
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       prim Debuginfo.none k

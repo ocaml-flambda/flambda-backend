@@ -39,7 +39,8 @@ module IR : sig
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
     | Begin_region of
         { ghost : bool;
-          is_try_region : bool
+          is_try_region : bool;
+          parent_region : Ident.t
         }
     | End_region of
         { is_try_region : bool;

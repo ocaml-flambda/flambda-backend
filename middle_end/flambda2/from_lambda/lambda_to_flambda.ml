@@ -845,16 +845,26 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                { is_try_region = true; region = ghost_region; ghost = true })
             ~body:(fun acc ccenv -> cps_tail acc env ccenv handler k k_exn))
     in
+    let region_stack_elt = Env.current_region env in
     let begin_try_region body =
       CC.close_let acc ccenv
         [region, Flambda_kind.With_subkind.region]
         Not_user_visible
-        (Begin_region { is_try_region = true; ghost = false })
+        (Begin_region
+           { is_try_region = true;
+             ghost = false;
+             parent_region = Env.Region_stack_element.region region_stack_elt
+           })
         ~body:(fun acc ccenv ->
           CC.close_let acc ccenv
             [ghost_region, Flambda_kind.With_subkind.region]
             Not_user_visible
-            (Begin_region { is_try_region = true; ghost = true })
+            (Begin_region
+               { is_try_region = true;
+                 ghost = true;
+                 parent_region =
+                   Env.Region_stack_element.ghost_region region_stack_elt
+               })
             ~body)
     in
     begin_try_region (fun acc ccenv ->
@@ -964,6 +974,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        continuation for the code after the body. *)
     let region = Ident.create_local "region" in
     let ghost_region = Ident.create_local "ghost_region" in
+    let parent_stack_elt = Env.current_region env in
     let region_stack_elt =
       Env.Region_stack_element.create ~region ~ghost_region
     in
@@ -971,12 +982,21 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     CC.close_let acc ccenv
       [region, Flambda_kind.With_subkind.region]
       Not_user_visible
-      (Begin_region { is_try_region = false; ghost = false })
+      (Begin_region
+         { is_try_region = false;
+           ghost = false;
+           parent_region = Env.Region_stack_element.region parent_stack_elt
+         })
       ~body:(fun acc ccenv ->
         CC.close_let acc ccenv
           [ghost_region, Flambda_kind.With_subkind.region]
           Not_user_visible
-          (Begin_region { is_try_region = false; ghost = true })
+          (Begin_region
+             { is_try_region = false;
+               ghost = true;
+               parent_region =
+                 Env.Region_stack_element.ghost_region parent_stack_elt
+             })
           ~body:(fun acc ccenv ->
             maybe_insert_let_cont "body_return" layout k acc env ccenv
               (fun acc env ccenv k ->
