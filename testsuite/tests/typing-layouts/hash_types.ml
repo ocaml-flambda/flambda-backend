@@ -92,30 +92,7 @@ let (_ : s -> v) = fun x -> x
 type 'a t = float
 type s = int t#
 type v = string t#
-- : t/2# -> t/2# = <fun>
-|}, Principal{|
-type 'a t = float
-type s = int t#
-type v = string t#
 - : s -> v = <fun>
-|}]
-
-(* The difference between principal and non-principal above is normal. See: *)
-
-type 'a bar = float
-type intbar = int bar
-type stringbar = string bar
-let (_ : intbar * intbar -> stringbar * stringbar) = fun x -> x
-[%%expect{|
-type 'a bar = float
-type intbar = int bar
-type stringbar = string bar
-- : stringbar * stringbar -> stringbar * stringbar = <fun>
-|}, Principal{|
-type 'a bar = float
-type intbar = int bar
-type stringbar = string bar
-- : intbar * intbar -> stringbar * stringbar = <fun>
 |}]
 
 type t = float
