@@ -902,7 +902,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%atomic_compare_exchange" ->
         Primitive (Patomic_compare_exchange {immediate_or_pointer=Pointer}, 3)
     | "%atomic_cas" ->
-        Primitive (Patomic_cas {immediate_or_pointer=Pointer}, 3)
+        Primitive (Patomic_compare_set {immediate_or_pointer=Pointer}, 3)
     | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
     | "%atomic_add" -> Primitive (Patomic_add, 2)
     | "%atomic_sub" -> Primitive (Patomic_sub, 2)
@@ -1398,14 +1398,14 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
                (Patomic_compare_exchange
                   {immediate_or_pointer = Immediate}, arity))
     end
-  | Primitive (Patomic_cas { immediate_or_pointer = Pointer },
+  | Primitive (Patomic_compare_set { immediate_or_pointer = Pointer },
                arity), [_; p2; p3] -> begin
       match maybe_pointer_type env p2, maybe_pointer_type env p3 with
       | Pointer, _ | _, Pointer -> None
       | Immediate, Immediate ->
           Some
             (Primitive
-               (Patomic_cas
+               (Patomic_compare_set
                   {immediate_or_pointer = Immediate}, arity))
     end
   | Comparison(comp, Compare_generic), p1 :: _ ->
@@ -1937,7 +1937,7 @@ let lambda_primitive_needs_event_after = function
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange _ | Patomic_compare_exchange _
-  | Patomic_cas _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add | Patomic_sub
   | Patomic_land | Patomic_lor | Patomic_lxor | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get

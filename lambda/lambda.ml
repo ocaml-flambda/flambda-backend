@@ -313,7 +313,7 @@ type primitive =
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_cas of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
   | Patomic_add
   | Patomic_sub
@@ -1952,7 +1952,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Patomic_load _
   | Patomic_exchange _
   | Patomic_compare_exchange _
-  | Patomic_cas _
+  | Patomic_compare_set _
   | Patomic_fetch_add
   | Patomic_add
   | Patomic_sub
@@ -2124,7 +2124,7 @@ let primitive_can_raise prim =
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange _ | Patomic_compare_exchange _
-  | Patomic_cas _ | Patomic_fetch_add | Patomic_add
+  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add
   | Patomic_sub | Patomic_land | Patomic_lor
   | Patomic_lxor | Patomic_load _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
@@ -2361,7 +2361,7 @@ let primitive_result_layout (p : primitive) =
   | Patomic_exchange { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_compare_exchange { immediate_or_pointer = Pointer } -> layout_any_value
-  | Patomic_cas _
+  | Patomic_compare_set _
   | Patomic_fetch_add -> layout_int
   | Pdls_get -> layout_any_value
   | Patomic_add

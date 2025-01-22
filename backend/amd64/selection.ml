@@ -26,7 +26,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop (Iadd | Isub | Imul | Iand | Ior | Ixor)
   | Ifloatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
     [| res.(0); arg.(1) |], res
-  | Iintop_atomic { op = Compare_and_swap; size = _; addr = _ } ->
+  | Iintop_atomic { op = Compare_set; size = _; addr = _ } ->
     (* first arg must be rax *)
     let arg = Array.copy arg in
     arg.(0) <- rax;

@@ -157,8 +157,7 @@ let oper_result_type = function
   | Cdls_get -> typ_val
   | Cprefetch _ -> typ_void
   | Catomic
-      { op = Fetch_and_add | Compare_and_swap | Exchange | Compare_exchange; _ }
-    ->
+      { op = Fetch_and_add | Compare_set | Exchange | Compare_exchange; _ } ->
     typ_int
   | Catomic { op = Add | Sub | Land | Lor | Lxor; _ } -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor | Clsl
