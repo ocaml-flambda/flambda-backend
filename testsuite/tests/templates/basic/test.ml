@@ -434,11 +434,11 @@
            ocamlc.byte;
 
            {
-             flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+             flags = "-open Import -parameter Semigroup -parameter List_element -w -misplaced-attribute";
              module = "main.mli";
              ocamlc.byte;
              {
-               flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+               flags = "-open Import -parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
                module = "main.ml";
                compiler_output = "main.output";
                ocamlc.byte;
@@ -919,11 +919,11 @@
            ocamlopt.byte;
 
            {
-             flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+             flags = "-open Import -parameter Semigroup -parameter List_element -w -misplaced-attribute";
              module = "main.mli";
              ocamlopt.byte;
              {
-               flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+               flags = "-open Import -parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
                module = "main.ml";
                compiler_output = "main.output";
                ocamlopt.byte;

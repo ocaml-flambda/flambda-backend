@@ -331,6 +331,11 @@ type instruction =
   | LEA of arg * arg
   | LOCK_CMPXCHG of arg * arg
   | LOCK_XADD of arg * arg
+  | LOCK_ADD of arg * arg
+  | LOCK_SUB of arg * arg
+  | LOCK_AND of arg * arg
+  | LOCK_OR of arg * arg
+  | LOCK_XOR of arg * arg
   | LEAVE
   | MAXSD of arg * arg
   | MINSD of arg * arg

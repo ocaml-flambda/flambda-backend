@@ -674,7 +674,20 @@ let prim_has_valid_reprs ~loc prim =
         any;
         is (Same_as_ocaml_repr C.value);
       ]
-
+    | "%makearray_dynamic_uninit" ->
+      (* Restrictions on this primitive are checked in [Translprim] *)
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.value);
+      ]
+    | "%array_element_size_in_bytes" ->
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.value);
+      ]
+    | "%peek" | "%poke" ->
+      (* Arities and layouts of these primitives are checked in [Translprim] *)
+      fun _ -> Success
     | "%box_float" ->
       exactly [Same_as_ocaml_repr C.float64; Same_as_ocaml_repr C.value]
     | "%unbox_float" ->

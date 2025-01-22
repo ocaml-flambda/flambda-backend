@@ -37,6 +37,7 @@ let machtype_component ppf (ty : machtype_component) =
   | Float -> fprintf ppf "float"
   | Vec128 -> fprintf ppf "vec128"
   | Float32 -> fprintf ppf "float32"
+  | Valx2 -> fprintf ppf "valx2"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -132,8 +133,15 @@ let temporal_locality = function
   | High -> "high"
 
 let atomic_op = function
-  | Fetch_and_add -> "fetch_and_add"
-  | Compare_and_swap -> "compare_and_swap"
+  | Fetch_and_add -> "xadd"
+  | Add -> "+="
+  | Sub -> "-="
+  | Land -> "&="
+  | Lor -> "|="
+  | Lxor -> "^="
+  | Exchange -> "exchange"
+  | Compare_set -> "compare_set"
+  | Compare_exchange -> "compare_exchange"
 
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with

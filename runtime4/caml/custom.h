@@ -61,9 +61,27 @@ CAMLextern value caml_alloc_custom(struct custom_operations * ops,
                                    mlsize_t mem, /*resources consumed*/
                                    mlsize_t max  /*max resources*/);
 
+// The local version will fail if a finalizer is supplied in the [ops],
+// since finalizers on locally-allocated values are not yet supported.
+CAMLextern value caml_alloc_custom_local(struct custom_operations * ops,
+                                         uintnat size, /*size in bytes*/
+                                         mlsize_t mem, /*resources consumed*/
+                                         mlsize_t max  /*max resources*/);
+
 CAMLextern value caml_alloc_custom_mem(struct custom_operations * ops,
                                        uintnat size, /*size in bytes*/
                                        mlsize_t mem  /*memory consumed*/);
+
+  /* [caml_alloc_custom_dep] allocates a custom block with dependent memory
+   (memory outside the heap that will be reclaimed when the block is
+   finalized). If [mem] is greater than [custom_minor_max_size] (see gc.mli)
+   the block is allocated directly in the major heap.
+   The program must call [caml_free_dependent_memory] when the memory is
+   reclaimed.
+  */
+CAMLextern value caml_alloc_custom_dep(struct custom_operations * ops,
+                                       uintnat size, /*size in bytes*/
+                                       mlsize_t mem  /*dep memory in bytes*/);
 
 CAMLextern void caml_register_custom_operations(struct custom_operations * ops);
 

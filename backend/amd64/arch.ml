@@ -1,4 +1,3 @@
-# 2 "backend/amd64/arch.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -153,6 +152,9 @@ type specific_operation =
   | Imfence                            (* memory fence *)
   | Ipause                             (* hint for spin-wait loops *)
   | Isimd of Simd.operation            (* SIMD instruction set operations *)
+  | Isimd_mem of Simd.Mem.operation * addressing_mode
+                                       (* SIMD instruction set operations
+                                          with memory args *)
   | Icldemote of addressing_mode       (* hint to demote a cacheline to L3 *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
@@ -273,6 +275,8 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "rdpmc %a" printreg arg.(0)
   | Isimd simd ->
       Simd.print_operation printreg simd ppf arg
+  | Isimd_mem (simd, addr) ->
+      Simd.Mem.print_operation printreg (print_addressing printreg addr) simd ppf arg
   | Ipause ->
       fprintf ppf "pause"
   | Icldemote _ ->
@@ -299,13 +303,14 @@ let operation_is_pure = function
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Icldemote _ | Iprefetch _ -> false
   | Isimd op -> Simd.is_pure op
+  | Isimd_mem (op, _addr) -> Simd.Mem.is_pure op
 
 (* Specific operations that can raise *)
 (* Keep in sync with [Vectorize_specific] *)
 let operation_can_raise = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _
-  | Irdtsc | Irdpmc | Ipause | Isimd _
+  | Irdtsc | Irdpmc | Ipause | Isimd _ | Isimd_mem _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Icldemote _ | Iprefetch _ -> false
@@ -314,7 +319,7 @@ let operation_can_raise = function
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _
-  | Irdtsc | Irdpmc | Ipause | Isimd _
+  | Irdtsc | Irdpmc | Ipause | Isimd _ | Isimd_mem _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Icldemote _ | Iprefetch _ -> false
@@ -405,9 +410,11 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | Isimd l, Isimd r ->
     Simd.equal_operation l r
+  | Isimd_mem (l,al), Isimd_mem (r,ar) ->
+    Simd.Mem.equal_operation l r && equal_addressing_mode al ar
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
-     Ipause | Isimd _ | Icldemote _ | Iprefetch _), _ ->
+     Ipause | Isimd _ | Isimd_mem _ | Icldemote _ | Iprefetch _), _ ->
     false
 
 (* addressing mode functions *)
@@ -512,7 +519,9 @@ let isomorphic_specific_operation op1 op2 =
     && equal_addressing_mode_without_displ left_addr right_addr
   | Isimd l, Isimd r ->
     Simd.equal_operation l r
+  | Isimd_mem (l,al), Isimd_mem (r,ar) ->
+    Simd.Mem.equal_operation l r && equal_addressing_mode_without_displ al ar
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
-     Ipause | Isimd _ | Icldemote _ | Iprefetch _), _ ->
+     Ipause | Isimd _ | Isimd_mem _ | Icldemote _ | Iprefetch _), _ ->
     false

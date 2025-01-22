@@ -139,7 +139,7 @@ let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
 let native_pointer_cas size (arg1, arg2, arg3) dbg =
-  let op = Catomic { op = Compare_and_swap; size } in
+  let op = Catomic { op = Compare_set; size } in
   if_operation_supported op ~f:(fun () ->
       bind "set_to" arg3 (fun set_to ->
           bind "compare_with" arg2 (fun compare_with ->
@@ -150,7 +150,7 @@ let ext_pointer_cas size (arg1, arg2, arg3) dbg =
   native_pointer_cas size (int_as_pointer arg1 dbg, arg2, arg3) dbg
 
 let bigstring_cas size (arg1, arg2, arg3, arg4) dbg =
-  let op = Catomic { op = Compare_and_swap; size } in
+  let op = Catomic { op = Compare_set; size } in
   if_operation_supported op ~f:(fun () ->
       bind "set_to" arg4 (fun set_to ->
           bind "compare_with" arg3 (fun compare_with ->

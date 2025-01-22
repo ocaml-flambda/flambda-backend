@@ -263,7 +263,26 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_monadic
   end
 
-  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t
+  module Yielding : sig
+    module Const : sig
+      type t =
+        | Yielding
+        | Unyielding
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
+  end
+
+  type 'a comonadic_with = private
+    'a * Linearity.Const.t * Portability.Const.t * Yielding.Const.t
 
   type monadic = private Uniqueness.Const.t * Contention.Const.t
 
@@ -274,6 +293,7 @@ module type S = sig
       | Areality : ('a comonadic_with, 'a) t
       | Linearity : ('areality comonadic_with, Linearity.Const.t) t
       | Portability : ('areality comonadic_with, Portability.Const.t) t
+      | Yielding : ('areality comonadic_with, Yielding.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
       | Contention : (monadic, Contention.Const.t) t
 
@@ -317,12 +337,13 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-    type ('a, 'b, 'c, 'd, 'e) modes =
+    type ('a, 'b, 'c, 'd, 'e, 'f) modes =
       { areality : 'a;
         linearity : 'b;
         uniqueness : 'c;
         portability : 'd;
-        contention : 'e
+        contention : 'e;
+        yielding : 'f
       }
 
     module Const : sig
@@ -333,7 +354,8 @@ module type S = sig
               Linearity.Const.t,
               Uniqueness.Const.t,
               Portability.Const.t,
-              Contention.Const.t )
+              Contention.Const.t,
+              Yielding.Const.t )
             modes
 
       module Option : sig
@@ -344,7 +366,8 @@ module type S = sig
             Linearity.Const.t option,
             Uniqueness.Const.t option,
             Portability.Const.t option,
-            Contention.Const.t option )
+            Contention.Const.t option,
+            Yielding.Const.t option )
           modes
 
         val none : t
@@ -548,16 +571,24 @@ module type S = sig
       value description in the inferred module type.
 
       The caller should ensure that for comonadic axes, [md_mode >= mode]. *)
-      val infer : md_mode:Value.lr -> mode:Value.l -> t
+      val infer : md_mode:Value.lr -> mode:Value.lr -> t
 
       (* The following zapping functions possibly mutate a potentially inferred
          modality [m] to a constant modality [c]. The constant modality is
-         returned. [m <= c] holds, even after further mutations to [m]. *)
+         returned. The following coherence conditions hold:
+         - [m <= c] always holds, even after further mutations to [m].
+         - [c0 <= c1] always holds, where [c0] and [c1] are results of two
+            abitrary zappings of some [m], even after further mutations to [m].
+            Essentially that means [c0 = c1].
 
-      (** Returns a const modality weaker than the given modality. *)
+         NB: zapping an inferred modality will zap both [md_mode] and [mode] that
+         it contains. The caller is reponsible for correct zapping order.
+      *)
+
+      (** Zap an inferred modality towards identity modality. *)
       val zap_to_id : t -> Const.t
 
-      (** Returns a const modality lowest (strongest) possible. *)
+      (** Zap an inferred modality towards the lowest (strongest) modality. *)
       val zap_to_floor : t -> Const.t
 
       (** Asserts the given modality is a const modality, and returns it. *)

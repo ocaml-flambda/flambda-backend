@@ -157,6 +157,11 @@ let print_instr b = function
   | LEA (arg1, arg2) -> i2 b "lea" arg1 arg2
   | LOCK_CMPXCHG (arg1, arg2) -> i2 b "lock cmpxchg" arg1 arg2
   | LOCK_XADD (arg1, arg2) -> i2 b "lock xadd" arg1 arg2
+  | LOCK_ADD (arg1, arg2) -> i2 b "lock add" arg1 arg2
+  | LOCK_SUB (arg1, arg2) -> i2 b "lock sub" arg1 arg2
+  | LOCK_AND (arg1, arg2) -> i2 b "lock and" arg1 arg2
+  | LOCK_OR (arg1, arg2) -> i2 b "lock or" arg1 arg2
+  | LOCK_XOR (arg1, arg2) -> i2 b "lock xor" arg1 arg2
   | LEAVE -> i0 b "leave"
   | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
   | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2

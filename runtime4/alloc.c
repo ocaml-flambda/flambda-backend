@@ -67,12 +67,42 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
+/* This is used by the native compiler for large block allocations. */
+CAMLexport value caml_alloc_shr_reserved_check_gc (mlsize_t wosize, tag_t tag,
+                                                   reserved_t reserved)
+{
+  CAMLassert (tag < Num_tags);
+  CAMLassert (tag != Infix_tag);
+  caml_check_urgent_gc (Val_unit);
+  value result = caml_alloc_shr_reserved (wosize, tag, reserved);
+  if (tag < No_scan_tag) {
+    mlsize_t scannable_wosize = Scannable_wosize_val(result);
+    for (mlsize_t i = 0; i < scannable_wosize; i++) {
+      Field (result, i) = Val_unit;
+    }
+  }
+  return result;
+}
+
+CAMLexport value caml_alloc_shr_check_gc (mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, 0);
+}
+
 #ifdef NATIVE_CODE
 CAMLexport value caml_alloc_mixed (mlsize_t wosize, tag_t tag,
                                    mlsize_t scannable_prefix) {
   reserved_t reserved =
     Reserved_mixed_block_scannable_wosize_native(scannable_prefix);
   return caml_alloc_with_reserved (wosize, tag, reserved);
+}
+
+CAMLexport value caml_alloc_mixed_shr_check_gc (mlsize_t wosize, tag_t tag,
+                                                mlsize_t scannable_prefix_len)
+{
+  reserved_t reserved =
+    Reserved_mixed_block_scannable_wosize_native(scannable_prefix_len);
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, reserved);
 }
 #endif // NATIVE_CODE
 
@@ -296,6 +326,8 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
 
   tag = Tag_val (newval);
 
+  CAMLassert (tag != Infix_tag && tag != Closure_tag);
+
   if (tag == Double_array_tag){
     CAMLassert (Wosize_val(newval) == Wosize_val(dummy));
     CAMLassert (Tag_val(dummy) != Infix_tag);
@@ -303,21 +335,6 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
     size = Wosize_val (newval) / Double_wosize;
     for (i = 0; i < size; i++) {
       Store_double_flat_field (dummy, i, Double_flat_field (newval, i));
-    }
-  } else if (tag == Infix_tag) {
-    value clos = newval - Infix_offset_hd(Hd_val(newval));
-    CAMLassert (Tag_val(clos) == Closure_tag);
-    CAMLassert (Tag_val(dummy) == Infix_tag);
-    CAMLassert (Infix_offset_val(dummy) == Infix_offset_val(newval));
-    dummy = dummy - Infix_offset_val(dummy);
-    size = Wosize_val(clos);
-    CAMLassert (size == Wosize_val(dummy));
-    /* It is safe to use [caml_modify] to copy code pointers
-       from [clos] to [dummy], because the value being overwritten is
-       an integer, and the new "value" is a pointer outside the minor
-       heap. */
-    for (i = 0; i < size; i++) {
-      caml_modify (&Field(dummy, i), Field(clos, i));
     }
   } else {
     CAMLassert (tag < No_scan_tag);

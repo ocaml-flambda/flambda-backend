@@ -264,7 +264,7 @@ class virtual selector_generic =
       | Cstatic_cast cast -> basic_op (Static_cast cast), args
       | Catomic { op; size } -> (
         match op with
-        | Fetch_and_add ->
+        | Exchange | Fetch_and_add | Add | Sub | Land | Lor | Lxor ->
           let src, dst = two_args () in
           let dst_size =
             match size with
@@ -272,8 +272,8 @@ class virtual selector_generic =
             | Thirtytwo -> Thirtytwo_signed
           in
           let addr, eloc = self#select_addressing dst_size dst in
-          basic_op (Intop_atomic { op = Fetch_and_add; size; addr }), [src; eloc]
-        | Compare_and_swap ->
+          basic_op (Intop_atomic { op; size; addr }), [src; eloc]
+        | Compare_set | Compare_exchange ->
           let compare_with, set_to, dst = three_args () in
           let dst_size =
             match size with
@@ -281,7 +281,7 @@ class virtual selector_generic =
             | Thirtytwo -> Thirtytwo_signed
           in
           let addr, eloc = self#select_addressing dst_size dst in
-          ( basic_op (Intop_atomic { op = Compare_and_swap; size; addr }),
+          ( basic_op (Intop_atomic { op; size; addr }),
             [compare_with; set_to; eloc] ))
       | Cprobe { name; handler_code_sym; enabled_at_init } ->
         ( Terminator
@@ -695,6 +695,7 @@ class virtual selector_generic =
             (fun reg ->
               match reg.Reg.typ with
               | Addr -> assert false
+              | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
               | Val | Int | Float | Vec128 | Float32 -> ())
             src;
           self#insert_moves env src tmp_regs;

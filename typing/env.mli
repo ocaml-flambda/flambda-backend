@@ -204,6 +204,12 @@ type shared_context =
   | Module
   | Probe
 
+type locks
+
+val locks_empty : locks
+
+val locks_is_empty : locks -> bool
+
 (** Items whose accesses are affected by locks *)
 type lock_item =
   | Value
@@ -262,6 +268,13 @@ type actual_mode = {
   (** Explains why [mode] is high. *)
 }
 
+(** Takes the [mode] and [ty] of a value at definition site, walks through the list of
+    locks and constrains [mode] and [ty]. Return the access mode of the value allowed by
+    the locks. [ty] is optional as the function works on modules and classes as well, for
+    which [ty] should be [None]. *)
+val walk_locks : loc:Location.t -> env:t -> item:lock_item -> lid:Longident.t ->
+  Mode.Value.l -> type_expr option -> locks -> actual_mode
+
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * value_description * actual_mode
@@ -281,14 +294,16 @@ val lookup_cltype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * class_type_declaration
 
+(* When locks are returned instead of walked for modules, the mode remains as
+  defined (always legacy), and thus not returned. *)
 val lookup_module_path:
-  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool -> Longident.t -> t ->
-    Path.t * Mode.Value.l
+  ?use:bool -> loc:Location.t -> load:bool -> Longident.t -> t ->
+    Path.t * locks
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
 val lookup_module_instance_path:
-  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool ->
-  Global_module.Name.t -> t -> Path.t * Mode.Value.l
+  ?use:bool -> loc:Location.t -> load:bool -> Global_module.Name.t -> t ->
+    Path.t * locks
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
@@ -386,7 +401,7 @@ val add_module: ?arg:bool -> ?shape:Shape.t ->
 val add_module_lazy: update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_type -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
-  Ident.t -> module_presence -> module_declaration -> t -> t
+  Ident.t -> module_presence -> module_declaration -> ?locks:locks -> t -> t
 val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_declaration -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
@@ -450,7 +465,7 @@ val enter_module:
   module_type -> t -> Ident.t * t
 val enter_module_declaration:
   scope:int -> ?arg:bool -> ?shape:Shape.t -> string -> module_presence ->
-  module_declaration -> t -> Ident.t * t
+  module_declaration -> ?locks:locks -> t -> Ident.t * t
 val enter_modtype:
   scope:int -> string -> modtype_declaration -> t -> Ident.t * t
 val enter_class: scope:int -> string -> class_declaration -> t -> Ident.t * t

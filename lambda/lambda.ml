@@ -43,6 +43,10 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type has_initializer =
+  | With_initializer
+  | Uninitialized
+
 include (struct
 
   type locality_mode =
@@ -149,6 +153,7 @@ type primitive =
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
+  | Parray_element_size_in_bytes of array_kind
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -189,9 +194,12 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
-  | Pmakearray_dynamic of array_kind * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode * has_initializer
   | Pduparray of array_kind * mutable_flag
-  | Parrayblit of array_set_kind (* Kind of the dest array. *)
+  | Parrayblit of {
+      src_mutability : mutable_flag;
+      dst_array_set_kind : array_set_kind;
+    }
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -303,10 +311,15 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
+  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -326,6 +339,8 @@ type primitive =
   | Parray_to_iarray
   | Parray_of_iarray
   | Pget_header of locality_mode
+  | Ppeek of peek_or_poke
+  | Ppoke of peek_or_poke
   (* Fetching domain-local state *)
   | Pdls_get
   (* Poll for runtime actions *)
@@ -481,6 +496,14 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
+
+and peek_or_poke =
+  | Ppp_tagged_immediate
+  | Ppp_unboxed_float32
+  | Ppp_unboxed_float
+  | Ppp_unboxed_int32
+  | Ppp_unboxed_int64
+  | Ppp_unboxed_nativeint
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -943,6 +966,10 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
     (lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region)
 
 let lambda_unit = Lconst const_unit
+
+let of_bool = function
+  | true -> Lconst (const_int 1)
+  | false -> Lconst (const_int 0)
 
 (* CR vlaviron: review the following cases *)
 let non_null_value raw_kind =
@@ -1819,7 +1846,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
-  | Pmakearray_dynamic (_, m) -> Some m
+  | Pmakearray_dynamic (_, m, _) -> Some m
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parrayblit _
@@ -1923,12 +1950,19 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Ppoll ->
     Some alloc_heap
   | Patomic_load _
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
+  | Patomic_exchange _
+  | Patomic_compare_exchange _
+  | Patomic_compare_set _
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   | Pdls_get
-  | Preinterpret_unboxed_int64_as_tagged_int63 -> None
+  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Parray_element_size_in_bytes _
+  | Ppeek _ | Ppoke _ -> None
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if !Clflags.native_code then None
     else
@@ -2089,11 +2123,14 @@ let primitive_can_raise prim =
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
-  | Patomic_exchange | Patomic_compare_exchange
-  | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
+  | Patomic_exchange _ | Patomic_compare_exchange _
+  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add
+  | Patomic_sub | Patomic_land | Patomic_lor
+  | Patomic_lxor | Patomic_load _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
     false
 
 let constant_layout: constant -> layout = function
@@ -2205,6 +2242,7 @@ let primitive_result_layout (p : primitive) =
   | Pfield _ | Pfield_computed _ -> layout_value_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
+  | Parray_element_size_in_bytes _ -> layout_int
   | Pfloatfield _ -> layout_boxed_float Boxed_float64
   | Pfloatoffloat32 _ -> layout_boxed_float Boxed_float64
   | Pfloat32offloat _ -> layout_boxed_float Boxed_float32
@@ -2319,14 +2357,31 @@ let primitive_result_layout (p : primitive) =
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
-  | Patomic_fetch_add
+  | Patomic_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_exchange { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_compare_exchange { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_compare_set _
+  | Patomic_fetch_add -> layout_int
   | Pdls_get -> layout_any_value
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
+  | Ppeek layout -> (
+      match layout with
+      | Ppp_tagged_immediate -> layout_int
+      | Ppp_unboxed_float32 -> layout_unboxed_float Unboxed_float32
+      | Ppp_unboxed_float -> layout_unboxed_float Unboxed_float64
+      | Ppp_unboxed_int32 -> layout_unboxed_int32
+      | Ppp_unboxed_int64 -> layout_unboxed_int64
+      | Ppp_unboxed_nativeint -> layout_unboxed_nativeint
+    )
+  | Ppoke _ -> layout_unit
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function
@@ -2387,6 +2442,21 @@ let array_set_kind mode = function
   | Punboxedvectorarray vec_kind -> Punboxedvectorarray_set vec_kind
   | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
   | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
+
+let array_ref_kind_of_array_set_kind (kind : array_set_kind) mode
+      : array_ref_kind =
+  match kind with
+  | Pintarray_set -> Pintarray_ref
+  | Punboxedfloatarray_set uf -> Punboxedfloatarray_ref uf
+  | Punboxedintarray_set ui -> Punboxedintarray_ref ui
+  | Punboxedvectorarray_set uv -> Punboxedvectorarray_ref uv
+  | Pgcscannableproductarray_set (_, scannables) ->
+    Pgcscannableproductarray_ref scannables
+  | Pgcignorableproductarray_set ignorables ->
+    Pgcignorableproductarray_ref ignorables
+  | Pgenarray_set _ -> Pgenarray_ref mode
+  | Paddrarray_set _ -> Paddrarray_ref
+  | Pfloatarray_set -> Pfloatarray_ref mode
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)
@@ -2479,3 +2549,47 @@ let rec try_to_find_location lam =
 
 let try_to_find_debuginfo lam =
   Debuginfo.from_location (try_to_find_location lam)
+
+(* The "count_initializers_*" functions count the number of individual
+   components in an initializer for the corresponding array kind _after_
+   unarization.  These are used to implement the "%array_element_size_in_bytes"
+   primitives for products, as each such component takes a full word in product
+   arrays. *)
+let rec count_initializers_scannable
+      (scannable : scannable_product_element_kind) =
+  match scannable with
+  | Pint_scannable | Paddr_scannable -> 1
+  | Pproduct_scannable scannables ->
+    List.fold_left
+      (fun acc scannable -> acc + count_initializers_scannable scannable)
+      0 scannables
+
+let rec count_initializers_ignorable
+    (ignorable : ignorable_product_element_kind) =
+  match ignorable with
+  | Pint_ignorable | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> 1
+  | Pproduct_ignorable ignorables ->
+    List.fold_left
+      (fun acc ignorable -> acc + count_initializers_ignorable ignorable)
+      0 ignorables
+
+let count_initializers_array_kind (lambda_array_kind : array_kind) =
+  match lambda_array_kind with
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+  | Punboxedintarray _ | Punboxedvectorarray _ -> 1
+  | Pgcscannableproductarray scannables ->
+    List.fold_left
+      (fun acc scannable -> acc + count_initializers_scannable scannable)
+      0 scannables
+  | Pgcignorableproductarray ignorables ->
+    List.fold_left
+      (fun acc ignorable -> acc + count_initializers_ignorable ignorable)
+      0 ignorables
+
+let rec ignorable_product_element_kind_involves_int
+    (kind : ignorable_product_element_kind) =
+  match kind with
+  | Pint_ignorable -> true
+  | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> false
+  | Pproduct_ignorable kinds ->
+    List.exists ignorable_product_element_kind_involves_int kinds

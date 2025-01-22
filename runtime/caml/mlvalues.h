@@ -69,9 +69,63 @@ typedef opcode_t * code_t;
 
 #include "domain_state.h"
 
+/* The null pointer value. */
+#define Val_null ((value) 0)
+
 /* Longs vs blocks. */
-#define Is_long(x)   (((x) & 1) != 0)
-#define Is_block(x)  (((x) & 1) == 0)
+
+#ifdef __x86_64__
+// Specialize the implementation of Is_block and Is_long on x86-64.
+//
+// Is_block(x) returns 1 if the least significant bit of x is 0, and x != 0.
+// Normally, that is translated into 4 assembly instructions.
+//
+// However, we can use TZCNT to compute Is_block(x) in just one instruction.
+// TZCNT counts the number of trailing zeros in x, setting the carry flag
+// to 1 if x == 0 and setting the zero flag to 1 if the LSB of x is 1.
+// Therefore, Is_block(x) == 1 iff CF == 0 && ZF == 0.
+// We discard the output register as unnecessary.
+//
+// Similarly, after TZCNT, Is_long(x) == 1 iff CF == 1 || ZF == 1.
+//
+// Unfortunately, we can't port this optimization to ARM, since CTZ
+// there does not set any flags.
+//
+// On platforms prior to Haswell, TZCNT is not available and is silently
+// interpreted as BSF, producing undefined results when x == 0.
+// We don't have any CPUs with those architectures, so this seems fine.
+Caml_inline int Is_block(value x) {
+    int result;
+    value never_used;
+    __asm__ (
+        "tzcnt %2, %1"
+        : "=@cca" (result), "=r" (never_used)
+        : "r" (x)
+        : "cc"
+    );
+    return result;
+}
+
+Caml_inline int Is_long(value x) {
+    int result;
+    value never_used;
+    __asm__ (
+        "tzcnt %2, %1"
+        : "=@ccbe" (result), "=r" (never_used)
+        : "r" (x)
+        : "cc"
+    );
+    return result;
+}
+#else
+Caml_inline int Is_long(value x) {
+  return ((x & 1) != 0 || x == 0);
+}
+
+Caml_inline int Is_block(value x) {
+  return ((x & 1) == 0 && x != 0);
+}
+#endif
 
 /* Conversion macro names are always of the form  "to_from". */
 /* Example: Val_long as in "Val from long" or "Val of long". */
@@ -443,10 +497,7 @@ CAMLextern value caml_hash_variant(char const * tag);
 #define Byte_u(x, i) (((unsigned char *) (x)) [i]) /* Also an l-value. */
 
 /* Abstract things.  Their contents is not traced by the GC; therefore
-   they must not contain any [value]. Must have odd number so that
-   headers with this tag cannot be mistaken for pointers. Previously
-   used in caml_obj_truncate for a header of the truncated tail of the
-   object.
+   they must not contain any [value].
 */
 #define Abstract_tag 251
 #define Data_abstract_val(v) ((void*) Op_val(v))
@@ -527,6 +578,7 @@ CAMLextern int caml_is_double_array (value);   /* 0 is false, 1 is true */
    See [custom.h] for operations on method suites. */
 #define Custom_tag 255
 #define Data_custom_val(v) ((void *) (Op_val(v) + 1))
+#define Custom_val_data(d) (Val_op((value *)d - 1))
 struct custom_operations;       /* defined in [custom.h] */
 
 /* Int32.t, Int64.t and Nativeint.t are represented as custom blocks. */

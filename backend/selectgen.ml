@@ -241,23 +241,28 @@ class virtual selector_generic =
       | Cdivf w, _ -> Ifloatop (w, Idivf), args
       | Creinterpret_cast cast, _ -> Ireinterpret_cast cast, args
       | Cstatic_cast cast, _ -> Istatic_cast cast, args
-      | Catomic { op = Fetch_and_add; size }, [src; dst] ->
+      | ( Catomic
+            { op =
+                (Exchange | Fetch_and_add | Add | Sub | Land | Lor | Lxor) as op;
+              size
+            },
+          [src; dst] ) ->
         let dst_size =
           match size with
           | Word | Sixtyfour -> Word_int
           | Thirtytwo -> Thirtytwo_signed
         in
         let addr, eloc = self#select_addressing dst_size dst in
-        Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc]
-      | Catomic { op = Compare_and_swap; size }, [compare_with; set_to; dst] ->
+        Iintop_atomic { op; size; addr }, [src; eloc]
+      | ( Catomic { op = (Compare_set | Compare_exchange) as op; size },
+          [compare_with; set_to; dst] ) ->
         let dst_size =
           match size with
           | Word | Sixtyfour -> Word_int
           | Thirtytwo -> Thirtytwo_signed
         in
         let addr, eloc = self#select_addressing dst_size dst in
-        ( Iintop_atomic { op = Compare_and_swap; size; addr },
-          [compare_with; set_to; eloc] )
+        Iintop_atomic { op; size; addr }, [compare_with; set_to; eloc]
       | Cprobe { name; handler_code_sym; enabled_at_init }, _ ->
         Iprobe { name; handler_code_sym; enabled_at_init }, args
       | Cprobe_is_enabled { name }, _ -> Iprobe_is_enabled { name }, []

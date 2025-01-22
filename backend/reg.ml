@@ -193,18 +193,6 @@ let is_reg t =
   | Reg _ -> true
   | _ -> false
 
-let size_of_contents_in_bytes t =
-  match t.typ with
-  | Vec128 -> Arch.size_vec128
-  | Float -> Arch.size_float
-  | Float32 ->
-    assert (Arch.size_float = 8);
-    Arch.size_float / 2
-  | Addr ->
-    assert (Arch.size_addr = Arch.size_int);
-    Arch.size_addr
-  | Int | Val -> Arch.size_int
-
 let reset() =
   (* When reset() is called for the first time, the current stamp reflects
      all hard pseudo-registers that have been allocated by Proc, so
@@ -346,15 +334,3 @@ let same left right =
 
 let compare left right =
   Int.compare left.stamp right.stamp
-
-(* Two registers have compatible types if we allow moves between them.
-   Note that we never allow moves between different register classes, so this
-   condition must be at least as strict as [class left = class right]. *)
-let types_are_compatible left right =
-  match left.typ, right.typ with
-  | (Int | Val | Addr), (Int | Val | Addr)
-  | Float, Float
-  | Float32, Float32
-  | Vec128, Vec128 ->
-    true
-  | (Int | Val | Addr | Float | Float32 | Vec128), _ -> false

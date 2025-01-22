@@ -55,14 +55,28 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
     fprintf ppf "%a%s%i" reg arg.(0)
       (Simple_operation.string_of_integer_operation op)
       n
-  | Intop_atomic { op = Compare_and_swap; size; addr } ->
-    fprintf ppf "lock cas %s[%a] ?%a %a"
+  | Intop_atomic { op = Compare_set; size; addr } ->
+    fprintf ppf "lock compare_set %s[%a] ?%a %a"
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr)
       (Array.sub arg 2 (Array.length arg - 2))
       reg arg.(0) reg arg.(1)
-  | Intop_atomic { op = Fetch_and_add; size; addr } ->
-    fprintf ppf "lock %s[%a] += %a"
+  | Intop_atomic
+      { op = (Fetch_and_add | Add | Sub | Land | Lor | Lxor) as op; size; addr }
+    ->
+    fprintf ppf "lock %s[%a] %s %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr)
+      (Array.sub arg 1 (Array.length arg - 1))
+      (Printcmm.atomic_op op) reg arg.(0)
+  | Intop_atomic { op = Compare_exchange; size; addr } ->
+    fprintf ppf "lock compare_exchange %s[%a] ?%a %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr)
+      (Array.sub arg 2 (Array.length arg - 2))
+      reg arg.(0) reg arg.(1)
+  | Intop_atomic { op = Exchange; size; addr } ->
+    fprintf ppf "lock exchange %s[%a] %a"
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr)
       (Array.sub arg 1 (Array.length arg - 1))

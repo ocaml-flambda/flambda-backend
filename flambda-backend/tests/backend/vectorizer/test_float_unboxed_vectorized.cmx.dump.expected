@@ -1,0 +1,2 @@
+**** Vectorize selected computation: 2 groups, 4 scalar instructions, 2 vector instructions, cost = -2 (Test_float_unboxed_vectorized.copy_mutable_record)
+**** Vectorize selected computation: 8 groups, 16 scalar instructions, 10 vector instructions, cost = -6 (Test_float_unboxed_vectorized.add_mutable_record)

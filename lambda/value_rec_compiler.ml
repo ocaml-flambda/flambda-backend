@@ -219,7 +219,12 @@ let compute_static_size lam =
     | Pbigstring_set_32 _
     | Pbigstring_set_f32 _
     | Pbigstring_set_64 _
-    | Ppoll ->
+    | Ppoll
+    | Patomic_add
+    | Patomic_sub
+    | Patomic_land
+    | Patomic_lor
+    | Patomic_lxor ->
         (* Unit-returning primitives. Most of these are only generated from
            external declarations and not special-cased by [Value_rec_check],
            but it doesn't hurt to be consistent. *)
@@ -345,12 +350,14 @@ let compute_static_size lam =
     | Pbbswap _
     | Pint_as_pointer _
     | Patomic_load _
-    | Patomic_exchange
-    | Patomic_compare_exchange
-    | Patomic_cas
+    | Patomic_exchange _
+    | Patomic_compare_exchange _
+    | Patomic_compare_set _
     | Patomic_fetch_add
     | Popaque _
-    | Pdls_get ->
+    | Pdls_get
+    | Ppeek _
+    | Ppoke _ ->
         dynamic_size lam
 
     (* Primitives specific to flambda-backend *)
@@ -368,7 +375,8 @@ let compute_static_size lam =
     | Punboxed_float32_array_set_128 _
     | Punboxed_int32_array_set_128 _
     | Punboxed_int64_array_set_128 _
-    | Punboxed_nativeint_array_set_128 _ ->
+    | Punboxed_nativeint_array_set_128 _
+    | Parray_element_size_in_bytes _ ->
         Constant
 
     | Pmakeufloatblock (_, _)

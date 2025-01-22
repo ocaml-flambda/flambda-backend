@@ -100,6 +100,16 @@ let standard_int_or_float_of_unboxed_integer (ubint : L.unboxed_integer) :
 let standard_int_or_float_of_boxed_integer bint =
   standard_int_or_float_of_unboxed_integer (Primitive.unboxed_integer bint)
 
+let standard_int_or_float_of_peek_or_poke (layout : L.peek_or_poke) :
+    K.Standard_int_or_float.t =
+  match layout with
+  | Ppp_tagged_immediate -> Tagged_immediate
+  | Ppp_unboxed_float32 -> Naked_float32
+  | Ppp_unboxed_float -> Naked_float
+  | Ppp_unboxed_int32 -> Naked_int32
+  | Ppp_unboxed_int64 -> Naked_int64
+  | Ppp_unboxed_nativeint -> Naked_nativeint
+
 let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
   match i_or_p with L.Immediate -> Immediate | L.Pointer -> Any_value
 
@@ -814,13 +824,48 @@ let bytes_like_set ~dbg ~unsafe
 
 (* Array bounds checks *)
 
+(* The following function constructs bounds checks based on two things:
+
+   1. The array length kind, which specifies the representation of the array,
+   including any unboxed product types. This kind is used to establish the
+   starting field index in the runtime value where the access(es) is/are going
+   to occur, in addition to how many fields are going to be accessed at a
+   minimum. "How many fields" is always one except in the case where unboxed
+   products are involved: in such cases, more than one field may be accessed.
+   "At a minimum" only applies for vector reinterpret operations as described
+   next; in all other cases this number is exact.
+
+   2. The [num_consecutive_elements_being_accessed]. "Elements" here refers to
+   the non-unarized elements as the user sees via the array get/set primitives.
+   This value is always 1 except in the case where the array operation is in
+   fact really a reinterpret operation with a vector input or output (for
+   example an array of naked floats being read as a 128-bit vector of such
+   floats). In these latter cases the value of
+   [num_consecutive_elements_being_accessed] may be greater than 1. This value
+   may not be greater than 1 if unboxed products are involved, at present. *)
+
+(* CR mshinwell: When considering vectors and unboxed products, we should think
+   again about whether the abstractions/concepts here can be improved. *)
 let multiple_word_array_access_validity_condition array ~size_int
-    array_length_kind (index_kind : L.array_index_kind) ~width_in_scalars ~index
-    =
+    array_length_kind (index_kind : L.array_index_kind)
+    ~num_consecutive_elements_being_accessed ~index =
+  let width_in_scalars_per_access =
+    P.Array_kind_for_length.width_in_scalars array_length_kind
+  in
+  assert (width_in_scalars_per_access >= 1);
   let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
-  if width_in_scalars < 1
-  then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
-  else if width_in_scalars = 1
+  if num_consecutive_elements_being_accessed < 1
+  then
+    Misc.fatal_errorf
+      "Invalid num_consecutive_elements_being_accessed value: %d"
+      num_consecutive_elements_being_accessed
+  else if width_in_scalars_per_access > 1
+          && num_consecutive_elements_being_accessed > 1
+  then
+    Misc.fatal_error
+      "Unboxed product arrays cannot involve vector accesses at present"
+  else if width_in_scalars_per_access = 1
+          && num_consecutive_elements_being_accessed = 1
   then
     (* Ensure good code generation in the common case. *)
     check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
@@ -828,13 +873,19 @@ let multiple_word_array_access_validity_condition array ~size_int
   else
     let length_untagged = untag_int length_tagged in
     let reduced_length_untagged =
-      H.Prim
-        (Binary
-           ( Int_arith (Naked_immediate, Sub),
-             length_untagged,
-             Simple
-               (Simple.untagged_const_int
-                  (Targetint_31_63.of_int (width_in_scalars - 1))) ))
+      if num_consecutive_elements_being_accessed = 1
+      then length_untagged
+      else
+        (* This is used for vector accesses, where no unarization is
+           involved. *)
+        H.Prim
+          (Binary
+             ( Int_arith (Naked_immediate, Sub),
+               length_untagged,
+               Simple
+                 (Simple.untagged_const_int
+                    (Targetint_31_63.of_int
+                       (num_consecutive_elements_being_accessed - 1))) ))
     in
     (* We need to convert the length into a naked_nativeint because the
        optimised version of the max_with_zero function needs to be on
@@ -847,34 +898,21 @@ let multiple_word_array_access_validity_condition array ~size_int
              reduced_length_untagged ))
     in
     let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
-    let index : H.simple_or_prim =
-      (* [length_tagged] is in units of scalars. Multiply up [index] to
-         match. *)
-      let multiplier =
-        P.Array_kind_for_length.width_in_scalars array_length_kind
-      in
-      let arith_kind, multiplier =
-        match index_kind with
-        | Ptagged_int_index ->
-          ( I.Tagged_immediate,
-            Simple.const_int (Targetint_31_63.of_int multiplier) )
-        | Punboxed_int_index bint -> (
-          match bint with
-          | Unboxed_int32 ->
-            ( I.Naked_int32,
-              Simple.const
-                (Reg_width_const.naked_int32 (Int32.of_int multiplier)) )
-          | Unboxed_int64 ->
-            ( I.Naked_int64,
-              Simple.const
-                (Reg_width_const.naked_int64 (Int64.of_int multiplier)) )
-          | Unboxed_nativeint ->
-            ( I.Naked_nativeint,
-              Simple.const
-                (Reg_width_const.naked_nativeint
-                   (Targetint_32_64.of_int multiplier)) ))
-      in
-      Prim (Binary (Int_arith (arith_kind, Mul), index, Simple multiplier))
+    let nativeint_bound : H.simple_or_prim =
+      if width_in_scalars_per_access = 1
+      then nativeint_bound
+      else
+        (* This is used for unboxed product accesses. [index] is in non-unarized
+           terms and we don't touch it, to avoid risks of overflow. Instead we
+           compute the non-unarized bound, then compare against that. *)
+        Prim
+          (Binary
+             ( Int_arith (Naked_nativeint, Div),
+               nativeint_bound,
+               Simple
+                 (Simple.const
+                    (Reg_width_const.naked_nativeint
+                       (Targetint_32_64.of_int width_in_scalars_per_access))) ))
     in
     check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
       ~bound:nativeint_bound
@@ -883,25 +921,25 @@ let multiple_word_array_access_validity_condition array ~size_int
 (* CR mshinwell: it seems like these could be folded into the normal array
    load/store functions below *)
 
-let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
-  match array_kind with
-  | Naked_vec128s -> 1
-  | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
-  | Naked_int32s | Naked_float32s -> 4
-  | Values ->
-    Misc.fatal_error
-      "Attempted to load/store a SIMD vector from/to a value array."
-  | Unboxed_product _ ->
-    (* CR mshinwell: support unboxed products involving vectors? *)
-    Misc.fatal_error
-      "Attempted to load/store a SIMD vector from/to an unboxed product array, \
-       which is not yet supported."
-
 let array_vector_access_validity_condition array ~size_int
     (array_kind : P.Array_kind.t) index =
-  let width_in_scalars = array_vector_access_width_in_scalars array_kind in
+  let num_consecutive_elements_being_accessed =
+    match array_kind with
+    | Naked_vec128s -> 1
+    | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
+    | Naked_int32s | Naked_float32s -> 4
+    | Values ->
+      Misc.fatal_error
+        "Attempted to load/store a SIMD vector from/to a value array."
+    | Unboxed_product _ ->
+      (* CR mshinwell: support unboxed products involving vectors? *)
+      Misc.fatal_error
+        "Attempted to load/store a SIMD vector from/to an unboxed product \
+         array, which is not yet supported."
+  in
   multiple_word_array_access_validity_condition array ~size_int
-    (Array_kind array_kind) Ptagged_int_index ~width_in_scalars ~index
+    (Array_kind array_kind) Ptagged_int_index
+    ~num_consecutive_elements_being_accessed ~index
 
 let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
     : H.expr_primitive =
@@ -1053,17 +1091,16 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 
 (* Array accesses *)
 let array_access_validity_condition array array_kind index
-    ~(index_kind : L.array_index_kind) ~width_in_scalars ~size_int =
+    ~(index_kind : L.array_index_kind) ~size_int =
   [ multiple_word_array_access_validity_condition array ~size_int array_kind
-      index_kind ~width_in_scalars ~index ]
+      index_kind ~num_consecutive_elements_being_accessed:1 ~index ]
 
 let check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
     primitive : H.expr_primitive =
-  let width_in_scalars = P.Array_kind_for_length.width_in_scalars array_kind in
   checked_access ~primitive
     ~conditions:
       (array_access_validity_condition array array_kind index ~index_kind
-         ~width_in_scalars ~size_int)
+         ~size_int)
     ~dbg
 
 let compute_array_indexes ~index ~num_elts =
@@ -1190,7 +1227,7 @@ let rec array_set_unsafe dbg ~array ~index array_kind
     then
       Misc.fatal_errorf "Wrong arity for unboxed product array_set_unsafe:@ %a"
         Debuginfo.print_compact dbg;
-    (* XXX mshinwell: should these be set in reverse order, to match the
+    (* CR mshinwell: should these be set in reverse order, to match the
        evaluation order? *)
     [ H.Sequence
         (List.concat_map
@@ -1336,6 +1373,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Values (tag, shape), mutability, mode), args)]
   | Pmake_unboxed_product layouts, _ ->
+    (* CR mshinwell: this should check the unarized lengths of [layouts] and
+       [args] (like [Parray_element_size_in_bytes] below) *)
     if List.compare_lengths layouts args <> 0
     then
       Misc.fatal_errorf "Pmake_unboxed_product: expected %d arguments, got %d"
@@ -1365,6 +1404,26 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       |> Array.to_list
     in
     List.map (fun arg : H.expr_primitive -> Simple arg) projected_args
+  | Parray_element_size_in_bytes array_kind, [_witness] ->
+    (* This is implemented as a unary primitive, but from our point of view it's
+       actually nullary. *)
+    let num_bytes =
+      match array_kind with
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> 8
+      | Punboxedfloatarray Unboxed_float32 ->
+        (* float32# arrays are packed *)
+        4
+      | Punboxedfloatarray Unboxed_float64 -> 8
+      | Punboxedintarray Unboxed_int32 ->
+        (* int32# arrays are packed *)
+        4
+      | Punboxedintarray (Unboxed_int64 | Unboxed_nativeint) -> 8
+      | Punboxedvectorarray Unboxed_vec128 -> 16
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        (* All elements of unboxed product arrays are currently 8 bytes wide. *)
+        L.count_initializers_array_kind array_kind * 8
+    in
+    [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1431,10 +1490,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                   List.map unbox_float args ),
               Variadic (Make_array (Values, mutability, mode), args),
               [K.With_subkind.any_value] ) ]))
-  | Pmakearray_dynamic (_lambda_array_kind, _mode), _ ->
-    Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
-  | Parrayblit _array_set_kind, _ ->
-    Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
+  | Pmakearray_dynamic _, _ | Parrayblit _, _ ->
+    Misc.fatal_error
+      "Lambda_to_flambda_primitives.convert_lprim: Pmakearray_dynamic and \
+       Parrayblit should have been expanded in [Lambda_to_lambda_transforms]"
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
   | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
   | Pduprecord (repr, num_fields), [[arg]] ->
@@ -1976,6 +2035,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
     [checked_arith_op ~dbg None Div None arg1 arg2 ~current_region]
+  | Pmodint Unsafe, [[arg1]; [arg2]] ->
+    [H.Binary (Int_arith (I.Tagged_immediate, Mod), arg1, arg2)]
   | Pmodint Safe, [[arg1]; [arg2]] ->
     [checked_arith_op ~dbg None Mod None arg1 arg2 ~current_region]
   | Pdivbint { size = Boxed_int32; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
@@ -2321,14 +2382,34 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Unary
         ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
           atomic ) ]
-  | Patomic_exchange, [[atomic]; [new_value]] ->
-    [Binary (Atomic_exchange, atomic, new_value)]
-  | Patomic_compare_exchange, [[atomic]; [old_value]; [new_value]] ->
-    [Ternary (Atomic_compare_exchange, atomic, old_value, new_value)]
-  | Patomic_cas, [[atomic]; [old_value]; [new_value]] ->
-    [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
+  | Patomic_exchange { immediate_or_pointer }, [[atomic]; [new_value]] ->
+    [ Binary
+        ( Atomic_exchange (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          new_value ) ]
+  | ( Patomic_compare_exchange { immediate_or_pointer },
+      [[atomic]; [old_value]; [new_value]] ) ->
+    [ Ternary
+        ( Atomic_compare_exchange
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
+  | ( Patomic_compare_set { immediate_or_pointer },
+      [[atomic]; [old_value]; [new_value]] ) ->
+    [ Ternary
+        ( Atomic_compare_and_set
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
   | Patomic_fetch_add, [[atomic]; [i]] ->
-    [Binary (Atomic_fetch_and_add, atomic, i)]
+    [Binary (Atomic_int_arith Fetch_add, atomic, i)]
+  | Patomic_add, [[atomic]; [i]] -> [Binary (Atomic_int_arith Add, atomic, i)]
+  | Patomic_sub, [[atomic]; [i]] -> [Binary (Atomic_int_arith Sub, atomic, i)]
+  | Patomic_land, [[atomic]; [i]] -> [Binary (Atomic_int_arith And, atomic, i)]
+  | Patomic_lor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Or, atomic, i)]
+  | Patomic_lxor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Xor, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
   | Ppoll, _ -> [Nullary Poll]
   | Preinterpret_unboxed_int64_as_tagged_int63, [[i]] ->
@@ -2345,8 +2426,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
          targets";
     [Unary (Reinterpret_64_bit_word Tagged_int63_as_unboxed_int64, i)]
-  | ( ( Pmodint Unsafe
-      | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
+  | Ppeek layout, [[ptr]] ->
+    let kind = standard_int_or_float_of_peek_or_poke layout in
+    [Unary (Peek kind, ptr)]
+  | Ppoke layout, [[ptr]; [new_value]] ->
+    let kind = standard_int_or_float_of_peek_or_poke layout in
+    [Binary (Poke kind, ptr, new_value)]
+  | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),
       _ ) ->
@@ -2377,7 +2463,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
-      | Preinterpret_tagged_int63_as_unboxed_int64 ),
+      | Preinterpret_tagged_int63_as_unboxed_int64
+      | Parray_element_size_in_bytes _ | Ppeek _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -2419,8 +2506,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Pgcscannableproductarray_ref _ | Pgcignorableproductarray_ref _ ),
             _,
             _ )
-      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
-      | Patomic_fetch_add ),
+      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+      | Patomic_exchange _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+      | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -2449,8 +2537,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_cas
-      | Patomic_compare_exchange ),
+      | Punboxed_nativeint_array_set_128 _ | Patomic_compare_set _
+      | Patomic_compare_exchange _ ),
       ( []
       | [_]
       | [_; _]

@@ -174,7 +174,7 @@ module Transfer = struct
             let reg_is_of_type_addr =
               match (RD.reg reg).typ with
               | Addr -> true
-              | Val | Int | Float | Vec128 | Float32 -> false
+              | Val | Int | Float | Vec128 | Float32 | Valx2 -> false
             in
             if remains_available
                || (not (extend_live ()))
