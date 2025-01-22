@@ -31,3 +31,12 @@ let _y = x.#a
 let f = function
   | #{ a = 42 } -> ()
   | _ -> ()
+
+type tb = { b : string }
+
+let x = #{ b = "" }
+let _y = x.#b
+
+let f = function
+  | #{ b = "" } -> ()
+  | _ -> ()
