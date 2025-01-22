@@ -1368,8 +1368,18 @@ module Jkind_desc = struct
   let equate_or_equal ~allow_mutation t1 t2 =
     Layout_and_axes.equal (Layout.equate_or_equal ~allow_mutation) t1 t2
 
-  let normalize (type l r) ~jkind_of_type ~require_best (t : (l * r) jkind_desc)
-      : (l * disallowed) jkind_desc =
+  type 'd normalize_side =
+    | (** Normalize a left jkind, dropping not-best types in with-bounds and leaving
+          bounds at their conservative maximum *)
+      L : ('l * disallowed) normalize_side
+    | LR : ('l * 'r) normalize_side
+
+  let normalize
+        (type l1 r1 l2 r2)
+        ~jkind_of_type
+        (side : (l2 * r2) normalize_side)
+        (t : (l1 * r1) jkind_desc)
+      : (l2 * r2) jkind_desc =
     (* Sadly, it seems hard (impossible?) to be sure to expand all types
        here without using a fuel parameter to stop infinite regress. Here
        is a nasty case:
