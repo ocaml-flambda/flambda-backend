@@ -34,7 +34,7 @@ module DLS : sig
     module Password : sig
         type t
 
-        val to_capsule_password : t -> Capsule.Password.packed @@ portable
+        (* val to_capsule_password : t -> Capsule.Password.packed @@ portable *)
         val for_initial_domain : t
     end
 

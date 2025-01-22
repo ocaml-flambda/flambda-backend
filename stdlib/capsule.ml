@@ -23,7 +23,14 @@ module A = struct
   type t : value mod portable uncontended
 
   external make : int -> t @@ portable = "%makemutable"
-  external fetch_and_add : t -> int -> int @@ portable = "%atomic_fetch_add"
+
+  external get : (t[@local_opt]) -> int @@ portable = "%atomic_load"
+  external compare_exchange : (t[@local_opt]) -> int -> int -> int @@ portable = "%atomic_compare_exchange"
+  external fetch_and_add : (t[@local_opt]) -> int -> int @@ portable = "%atomic_fetch_add"
+
+  (* Unsafe unless [A.t] is only accessible by 1 thread. *)
+  external get_unsync : (t[@local_opt]) -> int @@ portable = "%field0"
+  external set_unsync : (t[@local_opt]) -> int -> unit @@ portable = "%setfield0"
 end
 
 (* Like [Stdlib.Magic], but [portable]. *)
@@ -33,25 +40,6 @@ end
 
 (* Like [Stdlib.( = ), but [portable]. *)
 external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
-
-module Name : sig
-  type 'k t : value mod external_ global portable many uncontended unique
-  type packed = P : 'k t -> packed [@@unboxed]
-
-  val make : unit -> packed @@ portable
-  val equality_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) Type.eq option @@ portable
-end = struct
-  type 'k t = int
-  type packed = P : 'k t -> packed [@@unboxed]
-
-  let ctr = A.make 0
-  let make () = P (A.fetch_and_add ctr 1)
-
-  let equality_witness t1 t2 =
-    if t1 = t2
-    then Some (O.magic Type.Equal)
-    else None
-end
 
 module Access : sig
   (* CR layouts v5: this should have layout [void], but
@@ -87,57 +75,79 @@ type initial
 let initial = Access.unsafe_mk ()
 
 module Password : sig
-  (* CR layouts v5: this should have layout [void], but
-     [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod external_ portable many unique uncontended
-  type packed = P : 'k t -> packed [@@unboxed]
+  type 'k t : value mod portable uncontended
+
+  module Id : sig
+    type 'k t : value mod external_ global portable many uncontended unique
+
+    val equality_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) Type.eq option @@ portable
+  end
 
   (* Can break the soundness of the API. *)
-  val unsafe_mk : 'k Name.t -> 'k t @@ portable
-  val name : 'k t @ local -> 'k Name.t @@ portable
-  val make : unit -> packed @@ portable
+  val unsafe_mk : unit -> 'k t @@ portable
+  val id : 'k t @ local -> 'k Id.t @@ portable
 
   module Shared : sig
-    (* CR layouts v5: this should have layout [void], but
-       [void] can't be used for function argument and return types yet. *)
-    type 'k t : value mod external_ portable many unique uncontended
+    type 'k t : value mod portable uncontended
 
-    (* Can break the soundness of the API. *)
-    val name : 'k t @ local -> 'k Name.t @@ portable
+    val id : 'k t @ local -> 'k Id.t @@ portable
   end
 
   val shared : 'k t @ local -> 'k Shared.t @ local @@ portable
 end = struct
-  type 'k t = 'k Name.t
-  type packed = P : 'k t -> packed [@@unboxed]
+  module Id = struct
+    type 'k t = int
 
-  let unsafe_mk name = name
-  let name t = t
+    let uninitialized = 0
+    let ctr = A.make (uninitialized + 1)
+    let unsafe_mk () = A.fetch_and_add ctr 1
 
-  let make () =
-    let (P name) = Name.make () in
-    P name
+    let equality_witness t1 t2 =
+      if t1 = t2
+      then Some (O.magic Type.Equal)
+      else None
+  end
+
+  type 'k t = A.t
+
+  let unsafe_mk () = A.make Id.uninitialized
+  let id t =
+    (* Safe since [Password.t] is only ever accessible by 1 fiber. *)
+    match A.get_unsync t with
+    | id when id = Id.uninitialized ->
+      let set_id = Id.unsafe_mk () in
+      A.set_unsync t set_id;
+      set_id
+    | set_id -> set_id
 
   module Shared = struct
-    type 'k t = 'k Name.t
+    type 'k t = A.t
 
-    let name t = t
+    (* Multiple fibers can access the same [Password.Shared.t] concurrently.
+       Therefore, we use atomic operations. *)
+    let id t =
+      match A.get t with
+      | id when id = Id.uninitialized ->
+        let new_id = Id.unsafe_mk () in
+        (match A.compare_exchange t Id.uninitialized new_id with
+        | id when id = Id.uninitialized -> new_id
+        | already_set_id -> already_set_id)
+      | set_id -> set_id
   end
 
   let shared t = t
-
 end
 
 (* Like [Stdlib.raise], but [portable], and the value
-   it never returns is also [portable] *)
-external reraise : exn -> 'a @ portable @@ portable = "%reraise"
+   it never returns is also [portable unique] *)
+external raise : exn -> 'a @ portable unique @@ portable = "%raise"
 external raise_with_backtrace: exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
 external get_raw_backtrace: unit -> Printexc.raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
 module Data = struct
   type ('a, 'k) t : value mod portable uncontended
 
-  exception Encapsulated : 'k Name.t * (exn, 'k) t -> exn
+  exception Encapsulated : 'k Password.Id.t * (exn, 'k) t -> exn
 
   external unsafe_mk : ('a[@local_opt]) -> (('a, 'k) t[@local_opt]) @@ portable = "%identity"
 
@@ -159,10 +169,10 @@ module Data = struct
      behavior when propagating the exception through nested handlers. This should use a
      new reraise-with-current-backtrace primitive that doesn't do the copy. *)
   let reraise_encapsulated password exn =
-    raise_with_backtrace (Encapsulated (Password.name password, unsafe_mk exn)) (get_raw_backtrace ())
+    raise_with_backtrace (Encapsulated (Password.id password, unsafe_mk exn)) (get_raw_backtrace ())
 
   let reraise_encapsulated_shared password exn =
-    raise_with_backtrace (Encapsulated (Password.Shared.name password, unsafe_mk exn)) (get_raw_backtrace ())
+    raise_with_backtrace (Encapsulated (Password.Shared.id password, unsafe_mk exn)) (get_raw_backtrace ())
 
   let map pw f t =
     let v = unsafe_get t in
@@ -258,6 +268,71 @@ end
 
 exception Encapsulated = Data.Encapsulated
 
+module Key : sig
+  type 'k t : value mod external_ portable uncontended
+
+  type packed = P : 'k t -> packed [@@unboxed]
+
+  val unsafe_mk : unit -> 'k t @ unique @@ portable
+
+  val with_password :
+    'k t @ unique
+    -> ('k Password.t @ local -> 'a @ unique) @ local
+    -> 'a * 'k t @ unique @@ portable
+  val with_password_local :
+    'k t @ unique
+    -> ('k Password.t @ local -> 'a @ local) @ local
+    -> 'a @ local @@ portable
+
+  val access :
+    'k t @ unique
+    -> ('k Access.t -> 'a @ unique portable contended) @ local portable
+    -> 'a * 'k t @ unique portable contended @@ portable
+
+    val access_local :
+    'k t @ unique
+    -> ('k Access.t -> 'a @ local unique portable contended) @ local portable
+    -> 'a * 'k t Modes.Global.t @ local unique portable contended
+    @@ portable
+
+
+  val destroy : 'k t @ unique -> 'k Access.t @@ portable
+end = struct
+  type 'k t : value mod external_ portable uncontended = unit
+
+  type packed = P : 'k t -> packed [@@unboxed]
+
+  let unsafe_mk () = ()
+
+  let with_password (type k) (_ : k t @@ unique) (f : _ @ local -> _ @ unique) =
+    let pw : k Password.t = Password.unsafe_mk () in
+    try (f pw, () : _ @@ unique) with
+    | Encapsulated (id, data) as exn ->
+      let exn =
+        match Password.Id.equality_witness (Password.id pw) id with
+        | Some Equal -> Data.unsafe_get data
+        | None -> exn
+      in
+      raise exn
+  let with_password_local (type k) (_ : k t @@ unique) (f : _ @ local -> _ @ local) =
+    let pw : k Password.t = Password.unsafe_mk () in
+    exclave_ (try (f pw : _ @@ local) with
+    | Encapsulated (id, data) as exn ->
+      let exn =
+        match Password.Id.equality_witness (Password.id pw) id with
+        | Some Equal -> Data.unsafe_get data
+        | None -> exn
+      in
+      raise exn)
+
+  let access (_ : _ t @@ unique) (f : _ @ unique -> _ @ unique portable contended) = (f (Access.unsafe_mk ()), () : _ @@ unique portable contended)
+  let access_local (type k) (_ : k t @@ unique) (f : _ @ unique -> _ @ local unique portable contended) = exclave_ (f (Access.unsafe_mk ()), (Modes.Global.{global=()} : k t Modes.Global.t @@ unique portable contended) : _ @@ local unique portable contended)
+
+  let destroy _ = Access.unsafe_mk ()
+end
+
+let create () = Key.P (Key.unsafe_mk ())
+
 let access_local (type k) (pw : k Password.t) f = exclave_
   let c : k Access.t = Access.unsafe_mk () in
   match f c with
@@ -276,13 +351,15 @@ let access_shared_local (type k) (pw : k Password.Shared.t) f = exclave_
 let access_shared pw f =
   (access_shared_local pw (fun access -> { global = f access })).global
 
-(* Like [Stdlib.Mutex], but [portable] and is a no-op in runtime4. *)
+(* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
   type t : value mod portable uncontended
-  external create: unit -> t @@ portable = "caml_ml_capsule_mutex_new"
-  external lock: t -> unit @@ portable = "caml_ml_capsule_mutex_lock"
-  external unlock: t -> unit @@ portable = "caml_ml_capsule_mutex_unlock"
+  external create: unit -> t @@ portable = "caml_ml_mutex_new"
+  external lock: t @ local -> unit @@ portable = "caml_ml_mutex_lock"
+  external unlock: t @ local -> unit @@ portable = "caml_ml_mutex_unlock"
 end
+
+
 
 module Mutex = struct
 
@@ -290,7 +367,7 @@ module Mutex = struct
      since [poisoned] protected by [mutex] and not exposed in the API, but
      is not allowed by the type system. *)
   type 'k t : value mod portable uncontended =
-    { name : 'k Name.t
+    { pw : 'k Password.t
     ; mutex : M.t
     ; mutable poisoned : bool
     }
@@ -299,9 +376,20 @@ module Mutex = struct
      but should be legal. *)
   type packed : value mod portable uncontended = P : 'k t -> packed
 
-  let name t = t.name
+  let create _ = { pw = Password.unsafe_mk (); mutex = M.create (); poisoned = false }
 
   exception Poisoned
+
+  let id t =
+    M.lock t.mutex;
+    match t.poisoned with
+    | true ->
+      M.unlock t.mutex;
+      raise Poisoned
+    | false ->
+      let id = Password.id t.pw in
+      M.unlock t.mutex;
+      id
 
   let with_lock :
     type k.
@@ -312,9 +400,9 @@ module Mutex = struct
     = fun t f ->
       M.lock t.mutex;
       match t.poisoned with
-      | true -> M.unlock t.mutex; reraise Poisoned
+      | true -> M.unlock t.mutex; raise Poisoned
       | false ->
-        match f (Password.unsafe_mk t.name) with
+        match f t.pw with
         | x -> M.unlock t.mutex; x
         | exception exn ->
           t.poisoned <- true;
@@ -322,69 +410,38 @@ module Mutex = struct
           M.unlock t.mutex;
           let exn =
             match exn with
-            | Encapsulated (name, data) ->
-              (match Name.equality_witness name t.name with
+            | Encapsulated (id, data) ->
+              (match Password.Id.equality_witness (Password.id t.pw) id with
                | Some Equal -> Data.unsafe_get data
                | None -> exn)
             | _ -> exn
           in
-          reraise exn
+          raise exn
 
   let destroy t =
     M.lock t.mutex;
     match t.poisoned with
     | true ->
       M.unlock t.mutex;
-      reraise Poisoned
+      raise Poisoned
     | false ->
       t.poisoned <- true;
       M.unlock t.mutex;
-      Access.unsafe_mk ()
+      Key.unsafe_mk ()
 end
 
-let create_with_mutex () =
-  let (P name) = Name.make () in
-  Mutex.P { name; mutex = M.create (); poisoned = false }
-
-exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
-
-let protect_local f = exclave_
-  let (P name) = Name.make () in
-  let password = Password.unsafe_mk name in
-  let reraise data =
-    let backtrace = get_raw_backtrace () in
-    let exn = (Protected ({ name; mutex = M.create (); poisoned = false }, data)) in
-    raise_with_backtrace exn backtrace
-  in
-  try f (Password.P password) with
-  | Encapsulated (inner, data) as exn ->
-    (match Name.equality_witness name inner with
-     | Some Equal -> reraise data
-     | None -> reraise (Data.unsafe_mk exn))
-  | exn -> reraise (Data.unsafe_mk exn)
-
-let with_password_local f = exclave_
-  let (P name) = Name.make () in
-  let password = Password.unsafe_mk name in
-  try f (Password.P password) with
-  | Encapsulated (inner, data) as exn ->
-    (match Name.equality_witness name inner with
-     | Some Equal -> reraise (Data.unsafe_get data)
-     | None -> reraise exn)
-  | exn -> reraise exn
-
-let protect f = (protect_local (fun password -> { global = f password })).global
-let with_password f = (with_password_local (fun password -> { global = f password })).global
 
 module Condition = struct
+
   type 'k t : value mod portable uncontended
 
-  external create : unit -> 'k t @@ portable = "caml_ml_capsule_condition_new"
-  external wait : 'k t -> M.t -> unit @@ portable = "caml_ml_capsule_condition_wait"
-  external signal : 'k t -> unit @@ portable = "caml_ml_capsule_condition_signal"
-  external broadcast : 'k t -> unit @@ portable = "caml_ml_capsule_condition_broadcast"
+  external create : unit -> 'k t @@ portable = "caml_ml_condition_new"
+  external wait : 'k t -> M.t -> unit @@ portable = "caml_ml_condition_wait"
+  external signal : 'k t -> unit @@ portable = "caml_ml_condition_signal"
+  external broadcast : 'k t -> unit @@ portable = "caml_ml_condition_broadcast"
 
   let wait t (mut : 'k Mutex.t) _password =
-    (* mut is locked, so it must not be poisoned *)
+    (* [mut] is locked, so we know it is not poisoned. *)
     wait t mut.mutex
+
 end

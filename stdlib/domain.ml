@@ -31,10 +31,10 @@ module Runtime_4 = struct
     let init () = ()
 
     module Password = struct
-      type t = Capsule.Password.packed
+      type t = P : _ Capsule.Password.t -> t
 
-      let for_initial_domain = Capsule.Password.make ()
-      let to_capsule_password t = t
+      let for_initial_domain = P (Obj.magic ((Atomic.make_safe 0)))
+      (* let to_capsule_password t = t *)
     end
 
     let with_password f = f Password.for_initial_domain
@@ -221,10 +221,10 @@ module Runtime_5 = struct
       "caml_domain_dls_compare_and_set" [@@noalloc]
 
     module Password = struct
-      type t = Capsule.Password.packed
+        type t = P : _ Capsule.Password.t -> t
 
-      let for_initial_domain = Capsule.Password.make ()
-      let to_capsule_password t = t
+        let for_initial_domain = P (Obj.magic ((Atomic.make_safe 0)))
+      (* let to_capsule_password t = t *)
     end
 
     let key_counter = Atomic.make_safe 0
@@ -247,7 +247,7 @@ module Runtime_5 = struct
       try f password with
       | exn ->
         let P password = password in
-        let name = Capsule.Password.name password in
+        let name = Capsule.Password.id password in
         let capsule =
           (* CR tdelvecchio: Document. *)
           let exn = Obj.magic_portable exn in
@@ -260,7 +260,7 @@ module Runtime_5 = struct
       exclave_ try f password with
       | exn ->
         let P password = password in
-        let name = Capsule.Password.name password in
+        let name = Capsule.Password.id password in
         let capsule =
           (* CR tdelvecchio: Document. *)
           let exn = Obj.magic_portable exn in
@@ -463,7 +463,7 @@ module Runtime_5 = struct
 
     let body () =
       match
-        let password = Capsule.Password.make () in
+        let password = Obj.magic (Atomic.make_safe 0) in
         DLS.create_dls password;
         DLS.set_initial_keys pk password;
         let res = f password in
@@ -514,7 +514,7 @@ module type S4 = sig
   module DLS : sig
     module Password : sig
       type t
-      val to_capsule_password : t -> Capsule.Password.packed
+      (* val to_capsule_password : t -> Capsule.Password.packed *)
       val for_initial_domain : t
     end
 
@@ -556,7 +556,7 @@ module type S5 = sig
   module DLS : sig
     module Password : sig
       type t
-      val to_capsule_password : t -> Capsule.Password.packed @@ portable
+      (* val to_capsule_password : t -> Capsule.Password.packed @@ portable *)
       val for_initial_domain : t
     end
 
