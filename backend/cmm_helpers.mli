@@ -94,7 +94,7 @@ val tag_int : expression -> Debuginfo.t -> expression
 (** Integer untagging. [untag_int x = (x asr 1)] *)
 val untag_int : expression -> Debuginfo.t -> expression
 
-(** Specific division operations for boxed integers *)
+(** signed division of two register-width integers *)
 val div_int :
   ?dividend_cannot_be_min_int:bool ->
   expression ->
@@ -102,6 +102,7 @@ val div_int :
   Debuginfo.t ->
   expression
 
+(** signed remainder of two register-width integers *)
 val mod_int :
   ?dividend_cannot_be_min_int:bool ->
   expression ->
@@ -699,7 +700,7 @@ val create_ccatch :
 (** Shift operations.
     Inputs: a tagged caml integer and an untagged machine integer.
     Outputs: a tagged caml integer.
-    ake as first argument a tagged caml integer, and as
+    Take as first argument a tagged caml integer, and as
     second argument an untagged machine intger which is the amount to shift the
     first argument by. *)
 
@@ -1183,9 +1184,10 @@ val unboxed_int64_or_nativeint_array_set :
     The first argument is the heap block to modify a field of.
     The [index_in_words] should be an untagged integer.
 
-    In constrast to [setfield] and [setfield_computed], [immediate_or_pointer] is not
-    needed as the layout is implied from the name, and [initialization_or_assignment] is
-    not needed as unboxed ints can always be assigned without caml_modify (etc.). *)
+    In contrast to [setfield] and [setfield_computed], [immediate_or_pointer] is not
+    needed as the layout is known from the [memory_chunk] argument, and
+    [initialization_or_assignment] is not needed as unboxed ints can always be assigned
+    without caml_modify (etc.). *)
 
 val get_field_unboxed :
   dbg:Debuginfo.t ->
