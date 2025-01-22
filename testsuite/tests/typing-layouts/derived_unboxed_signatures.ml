@@ -94,17 +94,12 @@ type t = { i : int ; j : string }
 module type S = sig
   type t_to_replace = { i : int ; j : string }
 
-  type r = t
-  type ru = t#
-end with type t_to_replace = t
+  type r = t_to_replace
+  type ru = t_to_replace#
+end with type t_to_replace := t
 [%%expect{|
 type t = { i : int; j : string; }
-module type S =
-  sig
-    type t_to_replace = t = { i : int; j : string; }
-    type r = t
-    type ru = t#
-  end
+module type S = sig type r = t type ru = t# end
 |}]
 
 module CheckSubsted(M : S) = struct
