@@ -21,6 +21,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Float
   | Vec128
   | Float32
+  | Valx2
 
 type machtype = machtype_component array
 
@@ -38,7 +39,7 @@ let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float32     Float     Vec128
+      Addr     Float32     Float     Vec128   Valx2
        ^
        |
       Val
@@ -51,6 +52,7 @@ let typ_vec128 = [|Vec128|]
   then the result is treated as a derived pointer into the heap (i.e. [Addr]).
   (Such a result may not be live across any call site or a fatal compiler
   error will result.)
+  The order is used only in selection, Valx2 is generated after selection.
 *)
 
 let lub_component comp1 comp2 =
@@ -76,6 +78,8 @@ let lub_component comp1 comp2 =
     Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
+  | Valx2, _ | _, Valx2 ->
+    Misc.fatal_errorf "Unexpected machtype_component Valx2"
 
 let ge_component comp1 comp2 =
   match comp1, comp2 with
@@ -99,6 +103,8 @@ let ge_component comp1 comp2 =
   | Float, Float32 ->
     Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
+  | Valx2, _ | _, Valx2 ->
+    Misc.fatal_error "Unexpected machtype_component Valx2"
 
 type exttype =
   | XInt
@@ -155,7 +161,16 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_and_add | Compare_and_swap
+type atomic_op =
+  | Fetch_and_add
+  | Add
+  | Sub
+  | Land
+  | Lor
+  | Lxor
+  | Exchange
+  | Compare_set
+  | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 
@@ -570,12 +585,14 @@ let equal_machtype_component (left : machtype_component) (right : machtype_compo
   | Float, Float -> true
   | Vec128, Vec128 -> true
   | Float32, Float32 -> true
-  | Val, (Addr | Int | Float | Vec128 | Float32)
-  | Addr, (Val | Int | Float | Vec128 | Float32)
-  | Int, (Val | Addr | Float | Vec128 | Float32)
-  | Float, (Val | Addr | Int | Vec128 | Float32)
-  | Vec128, (Val | Addr | Int | Float | Float32)
-  | Float32, (Val | Addr | Int | Float | Vec128) ->
+  | Valx2, Valx2 -> true
+  | Valx2, (Val | Addr | Int | Float | Vec128 | Float32)
+  | Val, (Addr | Int | Float | Vec128 | Float32 | Valx2)
+  | Addr, (Val | Int | Float | Vec128 | Float32 | Valx2)
+  | Int, (Val | Addr | Float | Vec128 | Float32 | Valx2)
+  | Float, (Val | Addr | Int | Vec128 | Float32 | Valx2)
+  | Vec128, (Val | Addr | Int | Float | Float32 | Valx2)
+  | Float32, (Val | Addr | Int | Float | Vec128 | Valx2) ->
     false
 
 let equal_exttype
@@ -742,4 +759,4 @@ let caml_flambda2_invalid = "caml_flambda2_invalid"
 let is_val (m: machtype_component) =
   match m with
   | Val -> true
-  | Addr | Int | Float | Vec128 | Float32 -> false
+  | Addr | Int | Float | Vec128 | Float32 | Valx2 -> false

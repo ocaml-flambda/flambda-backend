@@ -129,6 +129,12 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       end
     | Variant_unboxed, ([] | _ :: _) ->
       Misc.fatal_error "Multiple or 0 constructors in [@@unboxed] variant"
+    | Variant_with_null, _ ->
+      (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
+         users to write their own null constructors. *)
+      (* CR layouts v3.3: generalize to [any]. *)
+      [| Constructor_uniform_value, [| |]
+       ; Constructor_uniform_value, [| Jkind.Sort.Const.value |] |]
   in
   let all_void sorts = Array.for_all Jkind.Sort.Const.(equal void) sorts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
@@ -155,7 +161,11 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       then const_tag, 1 + const_tag, nonconst_tag
       else nonconst_tag, const_tag, 1 + nonconst_tag
     in
-    let cstr_tag = Ordinary {src_index; runtime_tag} in
+    let cstr_tag =
+      match rep, cstr_constant with
+      | Variant_with_null, true -> Null
+      | _, _ ->  Ordinary {src_index; runtime_tag}
+    in
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
@@ -273,6 +283,7 @@ let find_constr ~constant tag cstrs =
       (function
         | ({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_) ->
           tag' = tag && cstr_constant = constant
+        | ({cstr_tag=Null; cstr_constant}, _) -> tag = -1 && cstr_constant = constant
         | ({cstr_tag=Extension _},_) -> false)
       cstrs
   with

@@ -12,53 +12,51 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* The following is a "little endian" implementation. *)
-
-(* CR-someday mshinwell: Can we fix the traversal order by swapping endianness?
-   What other (dis)advantages might that have?
-
-   lmaurer: It would make [split] nearly as fast as [find]. One issue is we'd
-   want fast clz in order to implement [highest_bit]. *)
+(* The following is a "big endian" implementation. *)
 
 type key = int
+
+external int_clz : int -> (int[@untagged])
+  = "caml_int_clz_tagged_to_tagged" "caml_int_clz_tagged_to_untagged"
+  [@@noalloc] [@@builtin] [@@no_effects] [@@no_coeffects]
 
 (* A bit [b], represented as a bitmask with only [b] set. This makes testing an
    individual bit very cheap. *)
 type bit = int
 
-(* A sequence of bits matched by the beginning (little-endian!) of every key in
-   a subtree. It has some length, represented as the first [bit] after the
-   entire prefix. *)
+(* A sequence of bits matched by the beginning (big-endian) of every key in a
+   subtree. It has some length, represented as the first [bit] after the entire
+   prefix. *)
 type prefix = int
 
 let zero_bit i bit = i land bit = 0
 
-(* Least significant 1 bit *)
-let lowest_bit x = x land -x
+(* Most significant 1 bit *)
+let highest_bit x = 1 lsl (62 - int_clz x)
 
-(* Lowest bit at which [prefix0] and [prefix1] differ *)
-let branching_bit prefix0 prefix1 = lowest_bit (prefix0 lxor prefix1)
+(* Highest bit at which [prefix0] and [prefix1] differ *)
+let branching_bit prefix0 prefix1 = highest_bit (prefix0 lxor prefix1)
 
-(* Keep only the bits strictly lower than [i] *)
-let mask i bit = i land (bit - 1)
+(* Keep only the bits strictly higher than [i] *)
+let mask i bit = i land -(bit lsl 1)
 
 (* Does [i] match [prefix], whose length is [bit]? In other words, does [i]
-   match [prefix] at every position strictly lower than [bit]? *)
+   match [prefix] at every position strictly higher than [bit]? *)
 let match_prefix i prefix bit = mask i bit = prefix
 
 let equal_prefix prefix0 bit0 prefix1 bit1 = bit0 = bit1 && prefix0 = prefix1
 
-let lower bit0 bit1 =
+let higher bit0 bit1 =
   (* Need to do _unsigned_ int comparison *)
   match bit0 < 0, bit1 < 0 with
-  | false, false -> bit0 < bit1
-  | true, _ -> false (* the only bit < 0 is 0x4000..., which is the highest *)
-  | false, true -> true
+  | false, false -> bit0 > bit1
+  | _, true -> false (* the only bit < 0 is 0x4000..., which is the highest *)
+  | true, false -> true
 
 (* Is [prefix0], of length [bit0], a sub-prefix of [prefix1], of length
    [bit1]? *)
 let includes_prefix prefix0 bit0 prefix1 bit1 =
-  lower bit0 bit1 && match_prefix prefix1 prefix0 bit0
+  higher bit0 bit1 && match_prefix prefix1 prefix0 bit0
 
 (* Provides a total ordering over [(prefix, bit)] pairs. Not otherwise
    specified. (Only useful for implementing [compare], which is similarly
@@ -95,8 +93,8 @@ module type Tree = sig
 
   (* A tree with the given prefix, the length of the prefix, and two subtrees.
      If the prefix is P, we require that [t0] has prefix P0 and [t1] has prefix
-     P1 (note that this is little-endian notation). For efficiency, [t0] and
-     [t1] are assumed to be non-empty. *)
+     P1 (note that this is big-endian notation). For efficiency, [t0] and [t1]
+     are assumed to be non-empty. *)
   val branch : prefix -> bit -> 'a t -> 'a t -> 'a t
 
   (* A view on a given node, corresponding to which of [empty], [leaf], or
@@ -289,7 +287,7 @@ module Tree_operations (Tree : Tree) : sig
   val split :
     found:('a -> 'b) -> not_found:'b -> key -> 'a t -> 'a t * 'b * 'a t
 
-  val to_list_unordered : 'a t -> 'a Binding.t list
+  val to_list : 'a t -> 'a Binding.t list
 
   val merge :
     'c is_value ->
@@ -580,31 +578,67 @@ end = struct
     | Leaf _ -> 1
     | Branch (_, _, t0, t1) -> cardinal t0 + cardinal t1
 
-  let rec iter f t =
+  let[@inline always] order_branches bit t0 t1 =
+    if bit < 0 then t1, t0 else t0, t1
+
+  let rec unsigned_iter f t =
     match descr t with
     | Empty -> ()
     | Leaf (key, d) -> Callback.call f key d
     | Branch (_, _, t0, t1) ->
-      iter f t0;
-      iter f t1
+      unsigned_iter f t0;
+      unsigned_iter f t1
 
-  let rec fold f t acc =
+  let iter f t =
+    match descr t with
+    | Empty -> ()
+    | Leaf (key, d) -> Callback.call f key d
+    | Branch (_, bit, t0, t1) ->
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_iter f t0;
+      unsigned_iter f t1
+
+  let rec unsigned_fold f t acc =
     match descr t with
     | Empty -> acc
     | Leaf (key, d) -> Callback.call f key d acc
-    | Branch (_, _, t0, t1) -> fold f t0 (fold f t1 acc)
+    | Branch (_, _, t0, t1) -> unsigned_fold f t1 (unsigned_fold f t0 acc)
 
-  let rec for_all p t =
+  let fold f t acc =
+    match descr t with
+    | Empty -> acc
+    | Leaf (key, d) -> Callback.call f key d acc
+    | Branch (_, bit, t0, t1) ->
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_fold f t1 (unsigned_fold f t0 acc)
+
+  let rec unsigned_for_all p t =
     match descr t with
     | Empty -> true
     | Leaf (key, d) -> Callback.call p key d
-    | Branch (_, _, t0, t1) -> for_all p t0 && for_all p t1
+    | Branch (_, _, t0, t1) -> unsigned_for_all p t0 && unsigned_for_all p t1
 
-  let rec exists p t =
+  let for_all p t =
+    match descr t with
+    | Empty -> true
+    | Leaf (key, d) -> Callback.call p key d
+    | Branch (_, bit, t0, t1) ->
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_for_all p t0 && unsigned_for_all p t1
+
+  let rec unsigned_exists p t =
     match descr t with
     | Empty -> false
     | Leaf (key, d) -> Callback.call p key d
-    | Branch (_, _, t0, t1) -> exists p t0 || exists p t1
+    | Branch (_, _, t0, t1) -> unsigned_exists p t0 || unsigned_exists p t1
+
+  let exists p t =
+    match descr t with
+    | Empty -> false
+    | Leaf (key, d) -> Callback.call p key d
+    | Branch (_, bit, t0, t1) ->
+      let t0, t1 = order_branches bit t0 t1 in
+      unsigned_exists p t0 || unsigned_exists p t1
 
   let filter p t =
     let rec loop t =
@@ -639,28 +673,34 @@ end = struct
   let choose_opt t =
     match choose t with exception Not_found -> None | choice -> Some choice
 
-  let[@inline always] min_binding_by ~compare_key (t : 'a t) : 'a Binding.t =
-    let rec loop t =
-      match descr t with
-      | Empty -> raise Not_found
-      | Leaf (i, d) -> Binding.create i d
-      | Branch (_, _, t0, t1) ->
-        let b0 = loop t0 in
-        let b1 = loop t1 in
-        if (compare_key [@inlined hint]) (Binding.key b0) (Binding.key b1) < 0
-        then b0
-        else b1
-    in
-    loop t
+  let rec unsigned_min_binding t =
+    match descr t with
+    | Empty -> raise Not_found
+    | Leaf (key, d) -> Binding.create key d
+    | Branch (_, _, t0, _) -> unsigned_min_binding t0
 
-  let min_binding t = min_binding_by ~compare_key:Int.compare t
+  let min_binding t =
+    match descr t with
+    | Empty -> raise Not_found
+    | Leaf (key, d) -> Binding.create key d
+    | Branch (_, bit, t0, t1) ->
+      unsigned_min_binding (if bit < 0 then t1 else t0)
 
   let min_binding_opt t =
     match min_binding t with exception Not_found -> None | min -> Some min
 
+  let rec unsigned_max_binding t =
+    match descr t with
+    | Empty -> raise Not_found
+    | Leaf (key, d) -> Binding.create key d
+    | Branch (_, _, _, t1) -> unsigned_max_binding t1
+
   let max_binding t =
-    let[@inline always] compare_key i1 i2 = Int.compare i2 i1 in
-    min_binding_by ~compare_key t
+    match descr t with
+    | Empty -> raise Not_found
+    | Leaf (key, d) -> Binding.create key d
+    | Branch (_, bit, t0, t1) ->
+      unsigned_max_binding (if bit < 0 then t0 else t1)
 
   let max_binding_opt t =
     match max_binding t with exception Not_found -> None | max -> Some max
@@ -701,32 +741,66 @@ end = struct
       | Branch _, Empty -> -1
       | Branch _, Leaf _ -> -1
 
-  (* CR-someday lmaurer: Make this O(n) rather than O(n log n). Easy if we make
-     a version of [partition] that can drop the element. Even easier if we
-     switch to big-endian. *)
-  let[@inline always] split ~found ~not_found i t =
-    let rec loop ((lt, mem, gt) as acc) t =
-      match descr t with
-      | Empty -> acc
-      | Leaf (j, d) ->
-        if i = j
-        then lt, (found [@inlined hint]) d, gt
-        else if j < i
-        then add j d lt, mem, gt
-        else lt, mem, add j d gt
-      | Branch (_, _, t0, t1) -> loop (loop acc t0) t1
-    in
-    let empty = empty (is_value_of t) in
-    loop (empty, not_found, empty) t
+  (* All entries in [t] have the same sign -- either all are non-negative or all
+     are negative.
 
-  let to_list_unordered t =
+     [i] might be any value. *)
+  let same_sign_split ~found ~not_found i t =
+    let rec loop t =
+      match descr t with
+      | Empty ->
+        let iv = is_value_of t in
+        empty iv, not_found, empty iv
+      | Leaf (j, d) ->
+        let iv = is_value_of t in
+        if i = j
+        then empty iv, found d, empty iv
+        else if j < i
+        then singleton iv j d, not_found, empty iv
+        else empty iv, not_found, singleton iv j d
+      | Branch (prefix, bit, t0, t1) ->
+        if match_prefix i prefix bit
+        then
+          if zero_bit i bit
+          then
+            let lt, mem, gt = loop t0 in
+            lt, mem, branch prefix bit gt t1
+          else
+            let lt, mem, gt = loop t1 in
+            branch prefix bit t0 lt, mem, gt
+        else if i < prefix
+        then empty (is_value_of t), not_found, t
+        else t, not_found, empty (is_value_of t)
+    in
+    loop t
+
+  let split ~found ~not_found i t =
+    match descr t with
+    | Branch (_, bit, t0, t1) when bit < 0 ->
+      (* prefix is necessarily empty *)
+      if i < 0
+      then
+        let lt, mem, gt = same_sign_split ~found ~not_found i t1 in
+        lt, mem, branch 0 bit t0 gt
+      else
+        let lt, mem, gt = same_sign_split ~found ~not_found i t0 in
+        branch 0 bit lt t1, mem, gt
+    | Empty | Leaf _ | Branch _ ->
+      (same_sign_split [@inlined hint]) ~found ~not_found i t
+
+  let to_list t =
     let rec loop acc t =
       match descr t with
       | Empty -> acc
       | Leaf (i, d) -> Binding.create i d :: acc
-      | Branch (_, _, t0, t1) -> loop (loop acc t0) t1
+      | Branch (_, _, t0, t1) -> loop (loop acc t1) t0
     in
-    loop [] t
+    match descr t with
+    | Empty -> []
+    | Leaf (i, d) -> [Binding.create i d]
+    | Branch (_, bit, t0, t1) ->
+      let t0, t1 = order_branches bit t0 t1 in
+      loop (loop [] t1) t0
 
   (* CR-someday lmaurer: We could borrow Haskell's trick and generalize this
      function quite a bit, giving us a single implementation of [union],
@@ -881,7 +955,13 @@ end = struct
         | Leaf (key, value) -> Seq.Cons (Binding.create key value, aux r)
         | Branch (_, _, t1, t2) -> aux (t1 :: t2 :: r) ())
     in
-    aux [t]
+    fun () ->
+      match descr t with
+      | Empty -> Seq.Nil
+      | Leaf (key, value) -> Seq.Cons (Binding.create key value, aux [])
+      | Branch (_, bit, t0, t1) ->
+        let t0, t1 = order_branches bit t0 t1 in
+        aux [t0; t1] ()
 
   let[@inline always] of_list iv l =
     List.fold_left
@@ -913,7 +993,7 @@ end = struct
     let rec check_deep prefix bit t =
       match descr t with
       | Empty -> false (* [Empty] should only occur at top level *)
-      | Leaf (i, _) -> bit = 0 || match_prefix i prefix bit
+      | Leaf (i, _) -> (bit = 0 && prefix = i) || match_prefix i prefix bit
       | Branch (prefix', bit', t0, t1) ->
         (* CR-someday lmaurer: Should check that [bit'] has a POPCOUNT of 1 *)
         let prefix0 =
@@ -922,14 +1002,15 @@ end = struct
           prefix' land lnot bit'
         in
         let prefix1 = prefix' lor bit' in
-        let bit0 = bit' lsl 1 in
+        let bit0 = bit' lsr 1 in
         let bit1 = bit0 in
         prefix0 = prefix'
-        && (bit = bit' || lower bit bit')
-        && (bit = 0 || match_prefix prefix' prefix bit)
+        && (bit = bit' || higher bit bit')
+        && bit <> 0
+        && match_prefix prefix' prefix bit
         && check_deep prefix0 bit0 t0 && check_deep prefix1 bit1 t1
     in
-    is_empty t || check_deep 0 0 t
+    is_empty t || check_deep 0 min_int t
 end
 [@@inline always]
 
@@ -969,7 +1050,7 @@ module Set = struct
     in
     loop f Empty t
 
-  let elements = Ops.to_list_unordered
+  let elements = Ops.to_list
 
   let min_elt = Ops.min_binding
 
@@ -1005,10 +1086,7 @@ module Map = struct
 
   let split i t = Ops.split ~found:(fun a -> Some a) ~not_found:None i t
 
-  let bindings s =
-    List.sort
-      (fun (id1, _) (id2, _) -> Int.compare id1 id2)
-      (Ops.to_list_unordered s)
+  let bindings s = Ops.to_list s
 
   let map f t = Ops.map Any f t
 

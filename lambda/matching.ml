@@ -1960,12 +1960,18 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   else
     match cstr.cstr_repr with
     | Variant_boxed _ ->
-        List.mapi
-          (fun i { ca_sort } ->
-             make_field_access str ca_sort ~field:i ~pos:i)
-          cstr.cstr_args
+      List.mapi
+      (fun i { ca_sort } ->
+         make_field_access str ca_sort ~field:i ~pos:i)
+      cstr.cstr_args
         @ rem
-    | Variant_unboxed -> (arg, str, sort, layout) :: rem
+    | Variant_unboxed | Variant_with_null ->
+      if cstr.cstr_constant then
+        rem (* [Null] constructor case. *)
+      else
+        (arg, str, sort, layout) :: rem
+        (* the unboxed variant constructor, or the [This] constructor
+           for [Variant_with_null]. *)
     | Variant_extensible ->
         List.mapi
           (fun i { ca_sort } ->
@@ -2380,6 +2386,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
             in
             Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [ arg ], loc),
             lbl.lbl_sort, lbl_layout
+        | Record_inlined (_, _, Variant_with_null) -> assert false
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
       let str = add_barrier_to_let_kind ubr str in
@@ -3189,21 +3196,29 @@ let combine_constant value_kind loc arg cst partial ctx def
 
 let split_cases tag_lambda_list =
   let rec split_rec = function
-    | [] -> ([], [])
+    | [] -> ([], [], None)
     | ({cstr_tag; cstr_repr; cstr_constant}, act) :: rem -> (
-        let consts, nonconsts = split_rec rem in
+        let consts, nonconsts, null = split_rec rem in
         match cstr_tag, cstr_repr with
-        | Ordinary _, Variant_unboxed -> (consts, (0, act) :: nonconsts)
+        | Ordinary _, (Variant_unboxed | Variant_with_null) ->
+          (consts, (0, act) :: nonconsts, null)
         | Ordinary {runtime_tag}, Variant_boxed _ when cstr_constant ->
-          ((runtime_tag, act) :: consts, nonconsts)
+          ((runtime_tag, act) :: consts, nonconsts, null)
         | Ordinary {runtime_tag}, Variant_boxed _ ->
-          (consts, (runtime_tag, act) :: nonconsts)
+          (consts, (runtime_tag, act) :: nonconsts, null)
+        | Null, Variant_with_null ->
+          (match null with
+          | None -> (consts, nonconsts, Some act)
+          | Some _ -> Misc.fatal_error
+            "Multiple null cases in Matching.split_cases")
+        | Null, (Variant_boxed _ | Variant_unboxed) ->
+          assert false
         | _, Variant_extensible -> assert false
         | Extension _, _ -> assert false
       )
   in
-  let const, nonconst = split_rec tag_lambda_list in
-  (sort_int_lambda_list const, sort_int_lambda_list nonconst)
+  let const, nonconst, null = split_rec tag_lambda_list in
+  (sort_int_lambda_list const, sort_int_lambda_list nonconst, null)
 
 (* The bool tracks whether the constructor is constant, because we don't have a
    constructor_description available for polymorphic variants *)
@@ -3223,7 +3238,7 @@ let split_extension_cases tag_lambda_list =
        match cstr_constant, cstr_tag with
        | true, Extension path -> Left (path, act)
        | false, Extension path -> Right (path, act)
-       | _, Ordinary _ -> assert false)
+       | _, (Ordinary _ | Null) -> assert false)
     tag_lambda_list
 
 let transl_match_on_option value_kind arg loc ~if_some ~if_none =
@@ -3237,6 +3252,9 @@ let transl_match_on_option value_kind arg loc ~if_some ~if_none =
                 if_none, if_some, value_kind)
   else
     Lifthenelse(arg, if_some, if_none, value_kind)
+
+let transl_match_on_or_null value_kind arg loc ~if_null ~if_this =
+  Lifthenelse (Lprim (Pisnull, [ arg ], loc), if_null, if_this, value_kind)
 
 let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx def
     (descr_lambda_list, total1, pats) =
@@ -3299,7 +3317,7 @@ let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx 
           mk_failaction_pos partial constrs ctx def
       in
       let descr_lambda_list = fails @ descr_lambda_list in
-      let consts, nonconsts = split_cases descr_lambda_list in
+      let consts, nonconsts, null = split_cases descr_lambda_list in
       (* Our duty below is to generate code, for matching on a list of
          constructor+action cases, that is good for both bytecode and
          native-code compilation. (Optimizations that only work well
@@ -3329,19 +3347,25 @@ let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx 
             act
         | _ -> (
             match
-              (cstr.cstr_consts, cstr.cstr_nonconsts, consts, nonconsts)
+              (cstr.cstr_consts, cstr.cstr_nonconsts, consts, nonconsts, null)
             with
-            | 1, 1, [ (0, act1) ], [ (0, act2) ]
+            | 1, 1, [ (0, act1) ], [ (0, act2) ], None
               when not (Clflags.is_flambda2 ()) ->
                 transl_match_on_option value_kind arg loc
                   ~if_none:act1 ~if_some:act2
-            | n, 0, _, [] ->
+            | 1, 1, [], [(_, act2)], Some act1 ->
+                (* The [Variant_with_null] case. *)
+                transl_match_on_or_null value_kind arg loc
+                  ~if_null:act1 ~if_this:act2
+            | _, _, _, _, Some _ ->
+                Misc.fatal_error "Matching.combine_constructor: Unexpected Null case"
+            | n, 0, _, [], None ->
                 (* The matched type defines constant constructors only.
                    (typically the constant cases are dense, so
                    call_switcher will generate a Lswitch, still one
                    instruction.) *)
                 call_switcher value_kind loc fail_opt arg 0 (n - 1) consts
-            | n, _, _, _ -> (
+            | n, _, _, _, None -> (
                 let act0 =
                   (* = Some act when all non-const constructors match to act *)
                   match (fail_opt, nonconsts) with
@@ -3368,7 +3392,7 @@ let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx 
                            match token with SEMISEMI -> true | _ -> false
 
                        (The type of tokens has more than 120 constructors.)
-                       *)
+                    *)
                     Lifthenelse
                       ( Lprim (Pisint { variant_only = true }, [ arg ], loc),
                         call_switcher value_kind loc fail_opt arg 0 (n - 1) consts,
@@ -3385,9 +3409,7 @@ let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx 
                     in
                     let hs, sw = share_actions_sw value_kind sw in
                     let sw = reintroduce_fail sw in
-                    hs (Lswitch (arg, sw, loc, value_kind))
-              )
-          )
+                    hs (Lswitch (arg, sw, loc, value_kind))))
       in
       (lambda1, Jumps.union local_jumps total1)
 

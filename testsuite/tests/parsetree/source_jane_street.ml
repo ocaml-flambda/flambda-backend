@@ -166,7 +166,8 @@ end
 let x () = #( M.Null, M.This "hi" )
 
 [%%expect{|
-module M : sig type 'a t = 'a or_null = Null | This of 'a end
+module M :
+  sig type 'a t = 'a or_null = Null | This of 'a [@@or_null_reexport] end
 val x : unit -> #('a M.t * string M.t) = <fun>
 |}]
 

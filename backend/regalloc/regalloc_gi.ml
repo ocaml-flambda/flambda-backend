@@ -83,13 +83,15 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
   Reg.Tbl.iter
     (fun reg interval ->
       match reg.loc with
-      | Reg _ ->
+      | Reg _ -> (
         if gi_debug
         then (
           log ~indent:1 "pre-assigned register %a" Printreg.reg reg;
           log ~indent:2 "%a" Interval.print interval);
-        let hardware_reg = Hardware_registers.of_reg hardware_registers reg in
-        Hardware_register.add_non_evictable hardware_reg reg interval
+        match Hardware_registers.of_reg hardware_registers reg with
+        | None -> ()
+        | Some hardware_reg ->
+          Hardware_register.add_non_evictable hardware_reg reg interval)
       | Unknown ->
         let priority = priority_heuristics reg interval in
         if gi_debug

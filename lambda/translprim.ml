@@ -28,6 +28,7 @@ module String = Misc.Stdlib.String
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
+  | Wrong_layout_for_peek_or_poke of string
   | Invalid_floatarray_glb
   | Product_iarrays_unsupported
   | Invalid_array_kind_for_uninitialized_makearray_dynamic
@@ -123,6 +124,10 @@ type prim =
   | Identity
   | Apply of Lambda.region_close * Lambda.layout
   | Revapply of Lambda.region_close * Lambda.layout
+  | Peek of Lambda.peek_or_poke option
+  | Poke of Lambda.peek_or_poke option
+    (* For [Peek] and [Poke] the [option] is [None] until the primitive
+       specialization code (below) has been run. *)
   | Unsupported of Lambda.primitive
 
 let units_with_used_primitives = Hashtbl.create 7
@@ -561,6 +566,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         src_mutability = Immutable;
         dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
       }, 5);
+    | "%array_element_size_in_bytes" ->
+      (* The array kind will be filled in later *)
+      Primitive (Parray_element_size_in_bytes Pgenarray, 1)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%obj_set_field" ->
@@ -889,10 +897,18 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%get_header" -> Primitive (Pget_header mode, 1)
     | "%atomic_load" ->
         Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)
-    | "%atomic_exchange" -> Primitive (Patomic_exchange, 2)
-    | "%atomic_compare_exchange" -> Primitive (Patomic_compare_exchange, 3)
-    | "%atomic_cas" -> Primitive (Patomic_cas, 3)
+    | "%atomic_exchange" ->
+        Primitive (Patomic_exchange {immediate_or_pointer=Pointer}, 2)
+    | "%atomic_compare_exchange" ->
+        Primitive (Patomic_compare_exchange {immediate_or_pointer=Pointer}, 3)
+    | "%atomic_cas" ->
+        Primitive (Patomic_compare_set {immediate_or_pointer=Pointer}, 3)
     | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
+    | "%atomic_add" -> Primitive (Patomic_add, 2)
+    | "%atomic_sub" -> Primitive (Patomic_sub, 2)
+    | "%atomic_land" -> Primitive (Patomic_land, 2)
+    | "%atomic_lor" -> Primitive (Patomic_lor, 2)
+    | "%atomic_lxor" -> Primitive (Patomic_lxor, 2)
     | "%runstack" ->
       if runtime5 then Primitive (Prunstack, 3) else Unsupported Prunstack
     | "%reperform" ->
@@ -917,6 +933,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
+    | "%peek" -> Peek None
+    | "%poke" -> Poke None
     | s when String.length s > 0 && s.[0] = '%' ->
       (match String.Map.find_opt s indexing_primitives with
        | Some prim -> prim ~mode
@@ -1186,6 +1204,29 @@ let glb_array_set_type loc t1 t2 =
   (* Pfloatarray is a minimum *)
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
 
+let peek_or_poke_layout_from_type ~prim_name error_loc env ty
+      : Lambda.peek_or_poke option =
+  match Ctype.type_sort ~why:Peek_or_poke ~fixed:true env ty with
+  | Error _ -> None
+  | Ok sort ->
+    let sort = Jkind.Sort.default_to_value_and_get sort in
+    let layout = Typeopt.layout env error_loc sort ty in
+    match layout with
+    | Punboxed_float Unboxed_float32 -> Some Ppp_unboxed_float32
+    | Punboxed_float Unboxed_float64 -> Some Ppp_unboxed_float
+    | Punboxed_int Unboxed_int8 -> Some Ppp_unboxed_int8
+    | Punboxed_int Unboxed_int16 -> Some Ppp_unboxed_int16
+    | Punboxed_int Unboxed_int32 -> Some Ppp_unboxed_int32
+    | Punboxed_int Unboxed_int64 -> Some Ppp_unboxed_int64
+    | Punboxed_int Unboxed_nativeint -> Some Ppp_unboxed_nativeint
+    | Pvalue { raw_kind = Pintval ; _ } -> Some Ppp_tagged_immediate
+    | Ptop
+    | Pvalue _
+    | Punboxed_vector _
+    | Punboxed_product _
+    | Pbottom ->
+      raise (Error (error_loc, Wrong_layout_for_peek_or_poke prim_name))
+
 (* Specialize a primitive from available type information. *)
 (* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
@@ -1306,6 +1347,12 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     if dst_array_set_kind = new_dst_array_set_kind then None
     else Some (Primitive (Parrayblit {
       src_mutability; dst_array_set_kind = new_dst_array_set_kind }, arity))
+  | Primitive (Parray_element_size_in_bytes _, arity), p1 :: _ -> (
+      let array_kind =
+        array_type_kind ~elt_sort:None env (to_location loc) p1
+      in
+      Some (Primitive (Parray_element_size_in_bytes array_kind, arity))
+    )
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
@@ -1337,6 +1384,36 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         | Some (_p1, rhs) -> maybe_pointer_type env rhs in
       Some (Primitive (Patomic_load {immediate_or_pointer = is_int}, arity))
     end
+  | Primitive (Patomic_exchange { immediate_or_pointer = Pointer },
+               arity), [_; p2] -> begin
+      match maybe_pointer_type env p2 with
+      | Pointer -> None
+      | Immediate ->
+          Some
+            (Primitive
+               (Patomic_exchange
+                  {immediate_or_pointer = Immediate}, arity))
+    end
+  | Primitive (Patomic_compare_exchange { immediate_or_pointer = Pointer },
+               arity), [_; p2; p3] -> begin
+      match maybe_pointer_type env p2, maybe_pointer_type env p3 with
+      | Pointer, _ | _, Pointer -> None
+      | Immediate, Immediate ->
+          Some
+            (Primitive
+               (Patomic_compare_exchange
+                  {immediate_or_pointer = Immediate}, arity))
+    end
+  | Primitive (Patomic_compare_set { immediate_or_pointer = Pointer },
+               arity), [_; p2; p3] -> begin
+      match maybe_pointer_type env p2, maybe_pointer_type env p3 with
+      | Pointer, _ | _, Pointer -> None
+      | Immediate, Immediate ->
+          Some
+            (Primitive
+               (Patomic_compare_set
+                  {immediate_or_pointer = Immediate}, arity))
+    end
   | Comparison(comp, Compare_generic), p1 :: _ ->
     if (has_constant_constructor
         && simplify_constant_constructor comp) then begin
@@ -1362,6 +1439,25 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     end else begin
       None
     end
+  | Peek _, _ -> (
+    match is_function_type env ty with
+    | None -> None
+    | Some (_p1, result_ty) ->
+      match
+        peek_or_poke_layout_from_type ~prim_name:"peek"
+          (to_location loc) env result_ty
+      with
+      | None -> None
+      | Some contents_layout -> Some (Peek (Some contents_layout))
+  )
+  | Poke _, _ptr_ty :: new_value_ty :: _ -> (
+    match
+      peek_or_poke_layout_from_type ~prim_name:"poke"
+        (to_location loc) env new_value_ty
+    with
+    | None -> None
+    | Some contents_layout -> Some (Poke (Some contents_layout))
+  )
   | _ -> None
 
 let caml_equal =
@@ -1608,6 +1704,12 @@ let lambda_of_prim prim_name prim loc args arg_exps =
         ap_region_close = pos;
         ap_mode = alloc_heap;
       }
+  | Peek None, _ | Poke None, _ ->
+      raise(Error(to_location loc, Wrong_layout_for_peek_or_poke prim_name))
+  | Peek (Some layout), [ptr] ->
+      Lprim (Ppeek layout, [ptr], loc)
+  | Poke (Some layout), [ptr; new_value] ->
+      Lprim (Ppoke layout, [ptr; new_value], loc)
   | Unsupported prim, _ ->
       let exn =
         transl_extension_path loc (Lazy.force Env.initial)
@@ -1626,7 +1728,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
   | (Raise _ | Raise_with_backtrace
     | Lazy_force _ | Loc _ | Primitive _ | Sys_argv | Comparison _
     | Send _ | Send_self _ | Send_cache _ | Frame_pointers | Identity
-    | Apply _ | Revapply _), _ ->
+    | Apply _ | Revapply _ | Peek _ | Poke _), _ ->
       raise(Error(to_location loc, Wrong_arity_builtin_primitive prim_name))
 
 let check_primitive_arity loc p =
@@ -1658,8 +1760,8 @@ let check_primitive_arity loc p =
     | Send _ | Send_self _ -> p.prim_arity = 2
     | Send_cache _ -> p.prim_arity = 4
     | Frame_pointers -> p.prim_arity = 0
-    | Identity -> p.prim_arity = 1
-    | Apply _ | Revapply _ -> p.prim_arity = 2
+    | Identity | Peek _ -> p.prim_arity = 1
+    | Apply _ | Revapply _ | Poke _ -> p.prim_arity = 2
     | Unsupported _ -> true
   in
   if not ok then raise(Error(loc, Wrong_arity_builtin_primitive p.prim_name))
@@ -1819,6 +1921,7 @@ let lambda_primitive_needs_event_after = function
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pmakeufloatblock _ | Pmakemixedblock _
   | Pmake_unboxed_product _ | Punboxed_product_field _
+  | Parray_element_size_in_bytes _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
@@ -1839,12 +1942,13 @@ let lambda_primitive_needs_event_after = function
   | Parrayblit _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
-  | Patomic_exchange | Patomic_compare_exchange
-  | Patomic_cas | Patomic_fetch_add | Patomic_load _
+  | Patomic_exchange _ | Patomic_compare_exchange _
+  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+  | Patomic_land | Patomic_lor | Patomic_lxor | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _
-  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
   | Puntag_int _ | Ptag_int _
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
@@ -1859,7 +1963,7 @@ let primitive_needs_event_after = function
   | Lazy_force _ | Send _ | Send_self _ | Send_cache _
   | Apply _ | Revapply _ -> true
   | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity
-  | Unsupported _ -> false
+  | Peek _ | Poke _ | Unsupported _ -> false
 
 let transl_primitive_application loc p env ty ~poly_mode ~poly_sort
     path exp args arg_exps pos =
@@ -1903,6 +2007,8 @@ let report_error ppf = function
   | Wrong_arity_builtin_primitive prim_name ->
       fprintf ppf "Wrong arity for builtin primitive %a"
         Style.inline_code prim_name
+  | Wrong_layout_for_peek_or_poke prim_name ->
+      fprintf ppf "Unsupported layout for the %s primitive" prim_name
   | Invalid_floatarray_glb ->
       fprintf ppf
         "@[Floatarray primitives can't be used on arrays containing@ \

@@ -975,6 +975,12 @@ let unary_primitive env res dbg f arg =
       | Immediate -> Immediate
     in
     None, res, C.atomic_load ~dbg imm_or_ptr arg
+  | Peek kind ->
+    let memory_chunk =
+      K.Standard_int_or_float.to_kind_with_subkind kind
+      |> C.memory_chunk_of_kind
+    in
+    None, res, C.load ~dbg memory_chunk Mutable ~addr:arg
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
@@ -999,8 +1005,26 @@ let binary_primitive env dbg f x y =
   | Float_comp (width, Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg width x y
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
-  | Atomic_exchange -> C.atomic_exchange ~dbg x y
-  | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y
+  | Atomic_exchange block_access_kind ->
+    let imm_or_ptr : Lambda.immediate_or_pointer =
+      match block_access_kind with
+      | Any_value -> Pointer
+      | Immediate -> Immediate
+    in
+    C.atomic_exchange ~dbg imm_or_ptr x ~new_value:y
+  | Atomic_int_arith Fetch_add -> C.atomic_fetch_and_add ~dbg x y
+  | Atomic_int_arith Add -> C.atomic_add ~dbg x y
+  | Atomic_int_arith Sub -> C.atomic_sub ~dbg x y
+  | Atomic_int_arith And -> C.atomic_land ~dbg x y
+  | Atomic_int_arith Or -> C.atomic_lor ~dbg x y
+  | Atomic_int_arith Xor -> C.atomic_lxor ~dbg x y
+  | Poke kind ->
+    let memory_chunk =
+      K.Standard_int_or_float.to_kind_with_subkind kind
+      |> C.memory_chunk_of_kind
+    in
+    C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
+    |> C.return_unit dbg
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -1010,10 +1034,20 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
-  | Atomic_compare_and_set ->
-    C.atomic_compare_and_set ~dbg x ~old_value:y ~new_value:z
-  | Atomic_compare_exchange ->
-    C.atomic_compare_exchange ~dbg x ~old_value:y ~new_value:z
+  | Atomic_compare_and_set block_access_kind ->
+    let imm_or_ptr : Lambda.immediate_or_pointer =
+      match block_access_kind with
+      | Any_value -> Pointer
+      | Immediate -> Immediate
+    in
+    C.atomic_compare_and_set ~dbg imm_or_ptr x ~old_value:y ~new_value:z
+  | Atomic_compare_exchange block_access_kind ->
+    let imm_or_ptr : Lambda.immediate_or_pointer =
+      match block_access_kind with
+      | Any_value -> Pointer
+      | Immediate -> Immediate
+    in
+    C.atomic_compare_exchange ~dbg imm_or_ptr x ~old_value:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with

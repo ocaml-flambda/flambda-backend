@@ -208,6 +208,7 @@ let pic_code = ref (match Config.architecture with (* -fPIC *)
                      | _       -> false)
 
 let runtime_variant = ref ""
+let ocamlrunparam = ref ""
 
 let with_runtime = ref true         (* -with-runtime *)
 

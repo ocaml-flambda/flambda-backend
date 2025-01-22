@@ -828,9 +828,10 @@ let box_float32 dbg mode exp =
 
 let unbox_float32 dbg =
   map_tail ~kind:Any (function
-    | Cop (Calloc _, [Cconst_natint (hdr, _); _ops; c], _)
-      when Nativeint.equal hdr boxedfloat32_header
-           || Nativeint.equal hdr boxedfloat32_local_header ->
+    | Cop (Calloc _, [Cconst_natint (hdr, _); Cconst_symbol (sym, _); c], _)
+      when (Nativeint.equal hdr boxedfloat32_header
+           || Nativeint.equal hdr boxedfloat32_local_header)
+           && String.equal sym.sym_name caml_float32_ops ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
@@ -1616,6 +1617,7 @@ module Extended_machtype_component = struct
     | Float -> Float
     | Vec128 -> Vec128
     | Float32 -> Float32
+    | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
 
   let to_machtype_component t : machtype_component =
     match t with
@@ -1696,6 +1698,7 @@ let machtype_identifier t =
     | Float32 -> 'S'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
+    | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
   in
   String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
@@ -1801,15 +1804,11 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
            fields and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
-      match Config.runtime5, block_kind with
-      | true, Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
-      | false, Regular_block -> "caml_alloc", [wordsize; tag]
-      | true, Mixed_block { scannable_prefix } ->
+      match block_kind with
+      | Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | Mixed_block { scannable_prefix } ->
         Mixed_block_support.assert_mixed_block_support ();
         "caml_alloc_mixed_shr_check_gc", [wordsize; tag; scannable_prefix]
-      | false, Mixed_block { scannable_prefix } ->
-        Mixed_block_support.assert_mixed_block_support ();
-        "caml_alloc_mixed", [wordsize; tag; scannable_prefix]
     in
     Clet
       ( VP.create id,
@@ -3062,6 +3061,7 @@ let machtype_stored_size t =
     (fun cur c ->
       match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
       | Val | Int -> cur + 1
       | Float -> cur + ints_per_float
       | Float32 ->
@@ -3075,6 +3075,7 @@ let machtype_non_scanned_size t =
     (fun cur c ->
       match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
       | Val -> cur
       | Int -> cur + 1
       | Float -> cur + ints_per_float
@@ -3096,6 +3097,7 @@ let value_slot_given_machtype vs =
         match (c : machtype_component) with
         | Int | Float | Float32 | Vec128 -> true
         | Val -> false
+        | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
         | Addr -> assert false)
       vs
   in
@@ -3123,6 +3125,7 @@ let read_from_closure_given_machtype t clos base_offset dbg =
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),
             load Onetwentyeight_unaligned non_scanned_pos )
         | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
+        | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
         | Addr -> Misc.fatal_error "[Addr] cannot be read")
       (base_offset, base_offset + machtype_non_scanned_size t)
       (Array.to_list t)
@@ -4113,7 +4116,7 @@ let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =
   in
   Cop (mk_load_atomic memory_chunk, [atomic], dbg)
 
-let atomic_exchange ~dbg atomic new_value =
+let atomic_exchange_extcall ~dbg atomic ~new_value =
   Cop
     ( Cextcall
         { func = "caml_atomic_exchange";
@@ -4128,25 +4131,65 @@ let atomic_exchange ~dbg atomic new_value =
       [atomic; new_value],
       dbg )
 
-let atomic_fetch_and_add ~dbg atomic i =
-  Cop
-    ( Cextcall
-        { func = "caml_atomic_fetch_add";
-          builtin = false;
-          returns = true;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects;
-          ty = typ_int;
-          ty_args = [];
-          alloc = false
-        },
-      [atomic; i],
-      dbg )
+let atomic_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic
+    ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Exchange; size = Word } in
+    if Proc.operation_supported op
+    then Cop (op, [new_value; atomic], dbg)
+    else atomic_exchange_extcall ~dbg atomic ~new_value
+  | Pointer -> atomic_exchange_extcall ~dbg atomic ~new_value
 
-let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
+let atomic_arith ~dbg ~op ~untag ~ext_name atomic i =
+  let i = if untag then decr_int i dbg else i in
+  let op = Catomic { op; size = Word } in
+  if Proc.operation_supported op
+  then (* input is a tagged integer *)
+    Cop (op, [i; atomic], dbg)
+  else
+    Cop
+      ( Cextcall
+          { func = ext_name;
+            builtin = false;
+            returns = true;
+            effects = Arbitrary_effects;
+            coeffects = Has_coeffects;
+            ty = typ_int;
+            ty_args = [];
+            alloc = false
+          },
+        [atomic; i],
+        dbg )
+
+let atomic_fetch_and_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Fetch_and_add
+    ~ext_name:"caml_atomic_fetch_add" atomic i
+
+let atomic_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Add ~ext_name:"caml_atomic_add" atomic i
+  |> return_unit dbg
+
+let atomic_sub ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Sub ~ext_name:"caml_atomic_sub" atomic i
+  |> return_unit dbg
+
+let atomic_land ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Land ~ext_name:"caml_atomic_land" atomic i
+  |> return_unit dbg
+
+let atomic_lor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Lor ~ext_name:"caml_atomic_lor" atomic i
+  |> return_unit dbg
+
+let atomic_lxor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Lxor ~ext_name:"caml_atomic_lxor" atomic i
+  |> return_unit dbg
+
+let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
   Cop
     ( Cextcall
-        { func = "caml_atomic_cas";
+        { func = "caml_atomic_compare_set";
           builtin = false;
           returns = true;
           effects = Arbitrary_effects;
@@ -4158,7 +4201,21 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
       [atomic; old_value; new_value],
       dbg )
 
-let atomic_compare_exchange ~dbg atomic ~old_value ~new_value =
+let atomic_compare_and_set ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
+    atomic ~old_value ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Compare_set; size = Word } in
+    if Proc.operation_supported op
+    then
+      (* Use a bind to ensure [tag_int] gets optimised. *)
+      bind "res"
+        (Cop (op, [old_value; new_value; atomic], dbg))
+        (fun a2 -> tag_int a2 dbg)
+    else atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
+  | Pointer -> atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
+
+let atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value =
   Cop
     ( Cextcall
         { func = "caml_atomic_compare_exchange";
@@ -4172,6 +4229,16 @@ let atomic_compare_exchange ~dbg atomic ~old_value ~new_value =
         },
       [atomic; old_value; new_value],
       dbg )
+
+let atomic_compare_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
+    atomic ~old_value ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Compare_exchange; size = Word } in
+    if Proc.operation_supported op
+    then Cop (op, [old_value; new_value; atomic], dbg)
+    else atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value
+  | Pointer -> atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value
 
 type even_or_odd =
   | Even

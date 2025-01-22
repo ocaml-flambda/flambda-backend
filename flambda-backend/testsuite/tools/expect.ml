@@ -385,6 +385,9 @@ let usage = "Usage: expect_test <options> [script-file [arguments]]\n\
              options are:"
 
 let () =
+  (* Some tricky typing tests cause stack overflows in the compiler.
+     Bounding the compiler's stack size makes that happen faster. *)
+  Gc.set {(Gc.get ()) with stack_limit = 1_000_000};
 (* Early disabling of colors in any output *)
   let () =
     Clflags.color := Some Misc.Color.Never;

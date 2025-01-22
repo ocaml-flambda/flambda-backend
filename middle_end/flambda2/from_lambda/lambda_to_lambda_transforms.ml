@@ -134,7 +134,7 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
       let length_is_greater_than_zero_and_is_one_mod_two =
         L.Lprim
           ( Psequand,
-            [ Lprim (Pintcomp Cgt, [Lconst (L.const_int 0); length], loc);
+            [ Lprim (Pintcomp Cgt, [length; Lconst (L.const_int 0)], loc);
               Lprim
                 ( Pintcomp Cne,
                   [ Lprim (Pmodint Unsafe, [length; Lconst (L.const_int 2)], loc);

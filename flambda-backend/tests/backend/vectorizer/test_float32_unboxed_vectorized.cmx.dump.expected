@@ -1,0 +1,1 @@
+**** Vectorize selected computation: 2 groups, 8 scalar instructions, 2 vector instructions, cost = -6 (Test_float32_unboxed_vectorized.copy_bytes)

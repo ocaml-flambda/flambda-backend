@@ -89,6 +89,7 @@ type error =
   | Unboxed_mutable_label
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
+  | Unboxed_recursion of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
@@ -933,7 +934,7 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_record_unboxed_product lbls ->
           Language_extension.assert_enabled ~loc:sdecl.ptype_loc Layouts
-            Language_extension.Beta;
+            Language_extension.Stable;
           let lbls, lbls' =
             transl_labels ~record_form:Unboxed_product ~new_var_jkind:Any
               ~allow_unboxed:true env None true lbls Record_unboxed_product
@@ -1671,6 +1672,11 @@ let update_decl_jkind env dpath decl =
   let update_variant_kind cstrs rep =
     (* CR layouts: factor out duplication *)
     match cstrs, rep with
+    | _, Variant_with_null ->
+      (* CR layouts v3.5: this case only happens with [or_null_reexport].
+         Change when we allow users to write their own null constructors. *)
+      (* CR layouts v3.3: use [any_non_null]. *)
+      cstrs, rep, Jkind.Builtin.value_or_null ~why:(Primitive Predef.ident_or_null)
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _} as arg] -> begin
@@ -1745,12 +1751,6 @@ let update_decl_jkind env dpath decl =
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
-    (* CR layouts v3.0: handle this case in [update_variant_jkind] when
-       [Variant_with_null] introduced.
-
-       No updating required for [or_null_reexport], and we must not
-       incorrectly override the jkind to [non_null].
-    *)
     | Type_record_unboxed_product (lbls, rep) ->
         begin match rep with
         | Record_unboxed_product ->
@@ -1773,9 +1773,6 @@ let update_decl_jkind env dpath decl =
                       type_has_illegal_crossings },
           type_jkind
         end
-    | Type_variant _ when
-      Builtin_attributes.has_or_null_reexport decl.type_attributes ->
-      decl, decl.type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
@@ -2068,6 +2065,110 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
        end)} in
   it.it_type_declaration it (Ctype.generic_instance_declaration decl)
 
+(* We only allow recursion in unboxed product types to occur through boxes,
+   otherwise the type is uninhabitable and usually also infinite-size.
+   See [typing-layouts-unboxed-records/recursive.ml].
+
+   Because [check_well_founded] already ruled out recursion through structural
+   types, we just look for a cycle in nominal unboxed types ([@@unboxed] types
+   and unboxed records), tracking the set of seen paths.
+
+   For each group of mutually recursive type declarations, we define the
+   following "type contains" transitive relation on type expressions:
+
+   1. Unboxed records and variants defined in the group contain their fields.
+
+      If [type 'a t = #{ ...; lbl : u;  ... }],
+      or [type 'a t = { lbl : u } [@@unboxed]],
+      or [type 'a t = U of u [@@unboxed]]
+      is in the recursive group, then ['a t] contains [u].
+
+   2. Abbreviations defined in the group contain their expansions.
+
+      If [type 'a t = u] is in the recursive group then ['a t] contains [u].
+
+   3. Unboxed tuples contain their components.
+
+      [#(u_1 * ...)] contains all [u_i].
+
+   4. Types not in the group contain the parameters indicated by their layout.
+
+      ['a t] contains ['a] if [layout_of 'a] or [any] occurs in ['a t]'s layout.
+
+      For example, if [('a, 'b) t] has layout [layout_of 'a], it may contain
+      ['a], but not ['b]. If it has layout [any], we must conservatively
+      consider it to contain both ['a] and ['b].
+
+      Note: We don't yet have [layout_of], so currently only consider [any].
+
+   If a path starting from the type expression on the LHS of a declaration
+   contains two types with the same head type constructor, and that repeated
+   type is an unboxed record or variant, then the check raises a type error.
+
+   CR layouts v7.2: accept safe types that expand the same path multiple times,
+   e.g. [type 'a t = #{ a : 'a } and x = int t t], either by using layouts
+   variables or the algorithm from "Unboxed data constructors - or, how cpp
+   decides a halting problem."
+   See https://github.com/ocaml-flambda/flambda-backend/pull/3407.
+*)
+type step_result =
+  | Contained of type_expr list
+  | Expanded_to of type_expr
+  | Is_cyclic
+let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
+  let contained_parameters tyl layout =
+    (* A type whose layout has [any] could contain all its parameters.
+       CR layouts v11: update this function for [layout_of] layouts. *)
+    let rec has_any : Jkind_types.Layout.Const.t -> bool = function
+      | Any -> true
+      | Base _ -> false
+      | Product l -> List.exists has_any l
+    in
+    if has_any layout then tyl else []
+  in
+  let step_once parents ty =
+    match get_desc ty with
+    | Tconstr (path, tyl, _) ->
+      if to_check path then
+        if Path.Set.mem path parents then
+          Is_cyclic, parents
+        else
+          let parents = Path.Set.add path parents in
+          match Ctype.try_expand_safe_opt env ty with
+          | ty' ->
+            Expanded_to ty', parents
+          | exception Ctype.Cannot_expand ->
+            Contained (Ctype.contained_without_boxing env ty), parents
+      else
+        begin try
+          (* Determine contained types by layout for decls outside of the
+             recursive group *)
+          let jkind = (Env.find_type path env).type_jkind in
+          let layout = Option.get (Jkind.get_layout jkind) in
+          Contained (contained_parameters tyl layout), parents
+        with Not_found | Invalid_argument _ ->
+          (* Because [to_check path] is false, this decl has already been
+            typechecked, so it's already in [env] with a constant layout. *)
+          Misc.fatal_error "Typedecl.check_unboxed_recursion"
+        end
+    | _ -> Contained (Ctype.contained_without_boxing env ty), parents
+  in
+  let rec visit parents trace ty =
+    match step_once parents ty with
+    | Contained tys, parents ->
+      List.iter (fun ty' -> visit parents (Contains (ty, ty') :: trace) ty') tys
+    | Expanded_to ty', parents ->
+      visit parents (Expands_to(ty,ty') :: trace) ty'
+    | Is_cyclic, _ ->
+      raise (Error (loc, Unboxed_recursion (path0, abs_env, List.rev trace)))
+  in
+  Ctype.wrap_trace_gadt_instances env (visit Path.Set.empty []) ty0
+
+let check_unboxed_recursion_decl ~abs_env env loc path decl to_check =
+  let decl = Ctype.generic_instance_declaration decl in
+  let ty = Btype.newgenty (Tconstr (path, decl.type_params, ref Mnil)) in
+  check_unboxed_recursion ~abs_env env loc (Path.name path) ty to_check
+
 (* Check for non-regular abbreviations; an abbreviation
    [type 'a t = ...] is non-regular if the expansion of [...]
    contains instances [ty t] where [ty] is not equal to ['a].
@@ -2356,6 +2457,11 @@ let transl_type_decl env rec_flag sdecl_list =
     decls;
   List.iter (fun (tdecl, _shape) ->
     check_abbrev_regularity ~abs_env new_env id_loc_list to_check tdecl) tdecls;
+  List.iter (fun (id, decl) ->
+    check_unboxed_recursion_decl ~abs_env new_env (List.assoc id id_loc_list)
+      (Path.Pident id)
+      decl to_check)
+    decls;
   (* Now that we've ruled out ill-formed types, we can perform the delayed
      jkind checks *)
   List.iter (fun (checks,loc) ->
@@ -3441,6 +3547,7 @@ let check_recmod_typedecl env loc recmod_ids path decl =
      (path, decl) is the type declaration to be checked. *)
   let to_check path = Path.exists_free recmod_ids path in
   check_well_founded_decl ~abs_env:env env loc path decl to_check;
+  check_unboxed_recursion_decl ~abs_env:env env loc path decl to_check;
   check_regularity ~abs_env:env env loc path decl to_check;
   (* additional coherence check, as one might build an incoherent signature,
      and use it to build an incoherent module, cf. #7851 *)
@@ -3495,8 +3602,10 @@ module Reaching_path = struct
 
   (* Simplify a reaching path before showing it in error messages. *)
   let simplify path =
+    let is_tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false in
     let rec simplify : t -> t = function
-      | Contains (ty1, _ty2) :: Contains (_ty2', ty3) :: rest ->
+      | Contains (ty1, _ty2) :: Contains (ty2', ty3) :: rest
+        when not (is_tconstr ty2') ->
           (* If t1 contains t2 and t2 contains t3, then t1 contains t3
              and we don't need to show t2. *)
           simplify (Contains (ty1, ty3) :: rest)
@@ -3582,6 +3691,14 @@ let report_error ppf = function
       Printtyp.reset ();
       Reaching_path.add_to_preparation reaching_path;
       fprintf ppf "@[<v>The definition of %a contains a cycle%a@]"
+        Style.inline_code s
+        Reaching_path.pp_colon reaching_path
+  | Unboxed_recursion (s, env, reaching_path) ->
+      let reaching_path = Reaching_path.simplify reaching_path in
+      Printtyp.wrap_printing_env ~error:true env @@ fun () ->
+      Printtyp.reset ();
+      Reaching_path.add_to_preparation reaching_path;
+      fprintf ppf "@[<v>The definition of %a is recursive without boxing%a@]"
         Style.inline_code s
         Reaching_path.pp_colon reaching_path
   | Definition_mismatch (ty, _env, None) ->

@@ -141,6 +141,7 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
+  | Parray_element_size_in_bytes of array_kind
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -308,10 +309,15 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
+  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -344,6 +350,8 @@ type primitive =
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
   | Pget_header of locality_mode
+  | Ppeek of peek_or_poke
+  | Ppoke of peek_or_poke
   (* Get the header of a block. This primitive is invalid if provided with an
      immediate value.
      Note: The GC color bits in the header are not reliable except for checking
@@ -528,6 +536,16 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
+
+and peek_or_poke =
+  | Ppp_tagged_immediate
+  | Ppp_unboxed_float32
+  | Ppp_unboxed_float
+  | Ppp_unboxed_int8
+  | Ppp_unboxed_int16
+  | Ppp_unboxed_int32
+  | Ppp_unboxed_int64
+  | Ppp_unboxed_nativeint
 
 and bigarray_kind =
     Pbigarray_unknown
