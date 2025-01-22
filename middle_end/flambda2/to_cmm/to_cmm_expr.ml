@@ -169,7 +169,10 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
          https://github.com/ARM-software/abi-aa/releases/download/2024Q3/aapcs64.pdf
 
          and figure out what happens for mixed int/float struct returns (it
-         looks like the floats may be returned in int regs) *)
+         looks like the floats may be returned in int regs)
+
+         jvanburen: that seems to be what clang does:
+         https://godbolt.org/z/snzEoME9h *)
       (match Target_system.architecture () with
       | X86_64 -> ()
       | AArch64 ->
