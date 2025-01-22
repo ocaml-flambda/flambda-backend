@@ -174,7 +174,9 @@ let preserve_tailcall_for_prim = function
   | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _
   | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
   | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-  | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _
+  | Pasrbint _ | Pbintcomp _ | Pnaked_int_cmp _
+  | Pnaked_int_binop _ | Pnaked_int_cast _
+
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
   | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_f32 _
   | Pstring_load_64 _ | Pstring_load_128 _
@@ -199,7 +201,8 @@ let preserve_tailcall_for_prim = function
   | Patomic_exchange | Patomic_compare_exchange
   | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll ->
+  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll
+    ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -619,12 +622,18 @@ let comp_primitive stack_info p sz args =
   | Plslbint(bi,_) -> comp_bint_primitive bi "shift_left" args
   | Plsrbint(bi,_) -> comp_bint_primitive bi "shift_right_unsigned" args
   | Pasrbint(bi,_) -> comp_bint_primitive bi "shift_right" args
-  | Pbintcomp(_, Ceq) | Punboxed_int_comp(_, Ceq) -> Kccall("caml_equal", 2)
-  | Pbintcomp(_, Cne) | Punboxed_int_comp(_, Cne) -> Kccall("caml_notequal", 2)
-  | Pbintcomp(_, Clt) | Punboxed_int_comp(_, Clt) -> Kccall("caml_lessthan", 2)
-  | Pbintcomp(_, Cgt) | Punboxed_int_comp(_, Cgt) -> Kccall("caml_greaterthan", 2)
-  | Pbintcomp(_, Cle) | Punboxed_int_comp(_, Cle) -> Kccall("caml_lessequal", 2)
-  | Pbintcomp(_, Cge) | Punboxed_int_comp(_, Cge) -> Kccall("caml_greaterequal", 2)
+  | Pbintcomp(_, Ceq) | Pnaked_int_cmp {size = _; signedness = Signed; op = Ceq }
+    -> Kccall("caml_equal", 2)
+  | Pbintcomp(_, Cne) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cne }
+    -> Kccall("caml_notequal", 2)
+  | Pbintcomp(_, Clt) | Pnaked_int_cmp {size = _; signedness = Signed; op = Clt }
+    -> Kccall("caml_lessthan", 2)
+  | Pbintcomp(_, Cgt) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cgt }
+    -> Kccall("caml_greaterthan", 2)
+  | Pbintcomp(_, Cle) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cle }
+    -> Kccall("caml_lessequal", 2)
+  | Pbintcomp(_, Cge) | Pnaked_int_cmp {size = _; signedness = Signed; op = Cge }
+    -> Kccall("caml_greaterequal", 2)
   | Pbigarrayref(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_set_" ^ Int.to_string n, n + 2)
   | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
@@ -730,6 +739,8 @@ let comp_primitive stack_info p sz args =
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
   | Ptag_int _ | Puntag_int _
+  | Pnaked_int_cmp { signedness = Unsigned; _ }
+  | Pnaked_int_cast _ | Pnaked_int_binop _
     ->
       fatal_error "Bytegen.comp_primitive"
 

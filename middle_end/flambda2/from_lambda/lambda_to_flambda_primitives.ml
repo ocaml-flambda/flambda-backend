@@ -32,42 +32,95 @@ let convert_integer_comparison_prim (comp : L.integer_comparison) :
   | Cge -> Int_comp (Tagged_immediate, Yielding_bool (Ge Signed))
 
 let convert_unboxed_integer_comparison_prim (kind : L.unboxed_integer)
-    (comp : L.integer_comparison) : P.binary_primitive =
-  match kind, comp with
-  | Unboxed_int8, Ceq -> Int_comp (Naked_int8, Yielding_bool Eq)
-  | Unboxed_int8, Cne -> Int_comp (Naked_int8, Yielding_bool Neq)
-  | Unboxed_int8, Clt -> Int_comp (Naked_int8, Yielding_bool (Lt Signed))
-  | Unboxed_int8, Cgt -> Int_comp (Naked_int8, Yielding_bool (Gt Signed))
-  | Unboxed_int8, Cle -> Int_comp (Naked_int8, Yielding_bool (Le Signed))
-  | Unboxed_int8, Cge -> Int_comp (Naked_int8, Yielding_bool (Ge Signed))
-  | Unboxed_int16, Ceq -> Int_comp (Naked_int16, Yielding_bool Eq)
-  | Unboxed_int16, Cne -> Int_comp (Naked_int16, Yielding_bool Neq)
-  | Unboxed_int16, Clt -> Int_comp (Naked_int16, Yielding_bool (Lt Signed))
-  | Unboxed_int16, Cgt -> Int_comp (Naked_int16, Yielding_bool (Gt Signed))
-  | Unboxed_int16, Cle -> Int_comp (Naked_int16, Yielding_bool (Le Signed))
-  | Unboxed_int16, Cge -> Int_comp (Naked_int16, Yielding_bool (Ge Signed))
-  | Unboxed_int32, Ceq -> Int_comp (Naked_int32, Yielding_bool Eq)
-  | Unboxed_int32, Cne -> Int_comp (Naked_int32, Yielding_bool Neq)
-  | Unboxed_int32, Clt -> Int_comp (Naked_int32, Yielding_bool (Lt Signed))
-  | Unboxed_int32, Cgt -> Int_comp (Naked_int32, Yielding_bool (Gt Signed))
-  | Unboxed_int32, Cle -> Int_comp (Naked_int32, Yielding_bool (Le Signed))
-  | Unboxed_int32, Cge -> Int_comp (Naked_int32, Yielding_bool (Ge Signed))
-  | Unboxed_int64, Ceq -> Int_comp (Naked_int64, Yielding_bool Eq)
-  | Unboxed_int64, Cne -> Int_comp (Naked_int64, Yielding_bool Neq)
-  | Unboxed_int64, Clt -> Int_comp (Naked_int64, Yielding_bool (Lt Signed))
-  | Unboxed_int64, Cgt -> Int_comp (Naked_int64, Yielding_bool (Gt Signed))
-  | Unboxed_int64, Cle -> Int_comp (Naked_int64, Yielding_bool (Le Signed))
-  | Unboxed_int64, Cge -> Int_comp (Naked_int64, Yielding_bool (Ge Signed))
-  | Unboxed_nativeint, Ceq -> Int_comp (Naked_nativeint, Yielding_bool Eq)
-  | Unboxed_nativeint, Cne -> Int_comp (Naked_nativeint, Yielding_bool Neq)
-  | Unboxed_nativeint, Clt ->
+    (comp : L.integer_comparison) (signedness : L.signedness) :
+    P.binary_primitive =
+  match kind, comp, signedness with
+  | Unboxed_int8, Ceq, _ -> Int_comp (Naked_int8, Yielding_bool Eq)
+  | Unboxed_int8, Cneq, _ -> Int_comp (Naked_int8, Yielding_bool Neq)
+  | Unboxed_int8, Clt, Signed -> Int_comp (Naked_int8, Yielding_bool (Lt Signed))
+  | Unboxed_int8, Cgt, Signed -> Int_comp (Naked_int8, Yielding_bool (Gt Signed))
+  | Unboxed_int8, Cle, Signed -> Int_comp (Naked_int8, Yielding_bool (Le Signed))
+  | Unboxed_int8, Cge, Signed -> Int_comp (Naked_int8, Yielding_bool (Ge Signed))
+  | Unboxed_int8, Clt, Unsigned ->
+    Int_comp (Naked_int8, Yielding_bool (Lt Unsigned))
+  | Unboxed_int8, Cgt, Unsigned ->
+    Int_comp (Naked_int8, Yielding_bool (Gt Unsigned))
+  | Unboxed_int8, Cle, Unsigned ->
+    Int_comp (Naked_int8, Yielding_bool (Le Unsigned))
+  | Unboxed_int8, Cge, Unsigned ->
+    Int_comp (Naked_int8, Yielding_bool (Ge Unsigned))
+  | Unboxed_int16, Ceq, _ -> Int_comp (Naked_int16, Yielding_bool Eq)
+  | Unboxed_int16, Cneq, _ -> Int_comp (Naked_int16, Yielding_bool Neq)
+  | Unboxed_int16, Clt, Signed ->
+    Int_comp (Naked_int16, Yielding_bool (Lt Signed))
+  | Unboxed_int16, Cgt, Signed ->
+    Int_comp (Naked_int16, Yielding_bool (Gt Signed))
+  | Unboxed_int16, Cle, Signed ->
+    Int_comp (Naked_int16, Yielding_bool (Le Signed))
+  | Unboxed_int16, Cge, Signed ->
+    Int_comp (Naked_int16, Yielding_bool (Ge Signed))
+  | Unboxed_int16, Clt, Unsigned ->
+    Int_comp (Naked_int16, Yielding_bool (Lt Unsigned))
+  | Unboxed_int16, Cgt, Unsigned ->
+    Int_comp (Naked_int16, Yielding_bool (Gt Unsigned))
+  | Unboxed_int16, Cle, Unsigned ->
+    Int_comp (Naked_int16, Yielding_bool (Le Unsigned))
+  | Unboxed_int16, Cge, Unsigned ->
+    Int_comp (Naked_int16, Yielding_bool (Ge Unsigned))
+  | Unboxed_int32, Ceq, _ -> Int_comp (Naked_int32, Yielding_bool Eq)
+  | Unboxed_int32, Cneq, _ -> Int_comp (Naked_int32, Yielding_bool Neq)
+  | Unboxed_int32, Clt, Signed ->
+    Int_comp (Naked_int32, Yielding_bool (Lt Signed))
+  | Unboxed_int32, Cgt, Signed ->
+    Int_comp (Naked_int32, Yielding_bool (Gt Signed))
+  | Unboxed_int32, Cle, Signed ->
+    Int_comp (Naked_int32, Yielding_bool (Le Signed))
+  | Unboxed_int32, Cge, Signed ->
+    Int_comp (Naked_int32, Yielding_bool (Ge Signed))
+  | Unboxed_int32, Clt, Unsigned ->
+    Int_comp (Naked_int32, Yielding_bool (Lt Unsigned))
+  | Unboxed_int32, Cgt, Unsigned ->
+    Int_comp (Naked_int32, Yielding_bool (Gt Unsigned))
+  | Unboxed_int32, Cle, Unsigned ->
+    Int_comp (Naked_int32, Yielding_bool (Le Unsigned))
+  | Unboxed_int32, Cge, Unsigned ->
+    Int_comp (Naked_int32, Yielding_bool (Ge Unsigned))
+  | Unboxed_int64, Ceq, _ -> Int_comp (Naked_int64, Yielding_bool Eq)
+  | Unboxed_int64, Cneq, _ -> Int_comp (Naked_int64, Yielding_bool Neq)
+  | Unboxed_int64, Clt, Signed ->
+    Int_comp (Naked_int64, Yielding_bool (Lt Signed))
+  | Unboxed_int64, Cgt, Signed ->
+    Int_comp (Naked_int64, Yielding_bool (Gt Signed))
+  | Unboxed_int64, Cle, Signed ->
+    Int_comp (Naked_int64, Yielding_bool (Le Signed))
+  | Unboxed_int64, Cge, Signed ->
+    Int_comp (Naked_int64, Yielding_bool (Ge Signed))
+  | Unboxed_int64, Clt, Unsigned ->
+    Int_comp (Naked_int64, Yielding_bool (Lt Unsigned))
+  | Unboxed_int64, Cgt, Unsigned ->
+    Int_comp (Naked_int64, Yielding_bool (Gt Unsigned))
+  | Unboxed_int64, Cle, Unsigned ->
+    Int_comp (Naked_int64, Yielding_bool (Le Unsigned))
+  | Unboxed_int64, Cge, Unsigned ->
+    Int_comp (Naked_int64, Yielding_bool (Ge Unsigned))
+  | Unboxed_nativeint, Ceq, _ -> Int_comp (Naked_nativeint, Yielding_bool Eq)
+  | Unboxed_nativeint, Cneq, _ -> Int_comp (Naked_nativeint, Yielding_bool Neq)
+  | Unboxed_nativeint, Clt, Signed ->
     Int_comp (Naked_nativeint, Yielding_bool (Lt Signed))
-  | Unboxed_nativeint, Cgt ->
+  | Unboxed_nativeint, Cgt, Signed ->
     Int_comp (Naked_nativeint, Yielding_bool (Gt Signed))
-  | Unboxed_nativeint, Cle ->
+  | Unboxed_nativeint, Cle, Signed ->
     Int_comp (Naked_nativeint, Yielding_bool (Le Signed))
-  | Unboxed_nativeint, Cge ->
+  | Unboxed_nativeint, Cge, Signed ->
     Int_comp (Naked_nativeint, Yielding_bool (Ge Signed))
+  | Unboxed_nativeint, Clt, Unsigned ->
+    Int_comp (Naked_nativeint, Yielding_bool (Lt Unsigned))
+  | Unboxed_nativeint, Cgt, Unsigned ->
+    Int_comp (Naked_nativeint, Yielding_bool (Gt Unsigned))
+  | Unboxed_nativeint, Cle, Unsigned ->
+    Int_comp (Naked_nativeint, Yielding_bool (Le Unsigned))
+  | Unboxed_nativeint, Cge, Unsigned ->
+    Int_comp (Naked_nativeint, Yielding_bool (Ge Unsigned))
 
 let convert_float_comparison (comp : L.float_comparison) : unit P.comparison =
   match comp with
@@ -1560,10 +1613,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                comp,
              arg1,
              arg2 )) ]
-  | Punboxed_int_comp (kind, comp), [[arg1]; [arg2]] ->
+  | Pnaked_int_cmp { size; op; signedness }, (kind, comp), [[arg1]; [arg2]] ->
     [ tag_int
-        (Binary (convert_unboxed_integer_comparison_prim kind comp, arg1, arg2))
-    ]
+        (Binary
+           ( convert_unboxed_integer_comparison_prim size op signedness,
+             arg1,
+             arg2 )) ]
   | Pfloatoffloat32 mode, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float32 in
     let dst = K.Standard_int_or_float.Naked_float in

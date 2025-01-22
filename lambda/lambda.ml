@@ -120,6 +120,27 @@ type region_close =
   | Rc_nontail
   | Rc_close_at_apply
 
+type signedness =
+  | Signed
+  | Unsigned
+
+type overflow_behavior =
+  | Wrap
+  | Raise
+
+type naked_integer_binop =
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Rem
+  | And
+  | Or
+  | Xor
+  | Shl
+  | Shr
+
+
 type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
@@ -221,7 +242,25 @@ type primitive =
   | Plsrbint of boxed_integer * locality_mode
   | Pasrbint of boxed_integer * locality_mode
   | Pbintcomp of boxed_integer * integer_comparison
-  | Punboxed_int_comp of unboxed_integer * integer_comparison
+
+  (* operations on naked (unboxed and untagged) integers *)
+  | Pnaked_int_cast of
+    { src : unboxed_integer
+    ; dst : unboxed_integer
+    ; overflow_behavior : overflow_behavior
+    }
+  | Pnaked_int_binop of
+    { op : naked_integer_binop
+    ; signedness : signedness
+    ; size : unboxed_integer
+    ; overflow_behavior : overflow_behavior
+    }
+  | Pnaked_int_cmp of
+    { op : integer_comparison
+    ; size : unboxed_integer
+    ; signedness : signedness
+    }
+
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -1860,7 +1899,11 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Plslbint (_, m)
   | Plsrbint (_, m)
   | Pasrbint (_, m) -> Some m
-  | Pbintcomp _ | Punboxed_int_comp _ -> None
+  | Pbintcomp _
+  | Pnaked_int_cmp _
+  | Pnaked_int_binop _
+  | Pnaked_int_cast _
+    -> None
   | Pbigarrayset _ | Pbigarraydim _ -> None
   | Pbigarrayref (_, _, _, _) ->
      (* Boxes arising from Bigarray access are always Alloc_heap *)
@@ -2030,7 +2073,7 @@ let primitive_can_raise prim =
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-  | Pbintcomp _ | Punboxed_int_comp _ | Pbigarraydim _
+  | Pbintcomp _ | Pnaked_int_cmp _ | Pbigarraydim _
   | Pbigarrayref
       ( true,
         _,
@@ -2106,6 +2149,16 @@ let primitive_can_raise prim =
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
     false
+  | Pnaked_int_binop { overflow_behavior = Raise ; _}
+  | Pnaked_int_binop { op = Div | Rem ; _ }
+  | Pnaked_int_cast { overflow_behavior = Raise ; _}
+    -> true
+  | Pnaked_int_cast { overflow_behavior = Wrap ; _}
+  | Pnaked_int_binop { overflow_behavior = Wrap ;
+                       op =  Add | Sub | Mul | And | Or | Xor | Shl | Shr
+                     ; signedness = _
+                     }
+    -> false
 
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> non_null_value Pintval
@@ -2245,7 +2298,7 @@ let primitive_result_layout (p : primitive) =
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisnull | Pisout | Pintofbint _
-  | Pbintcomp _ | Punboxed_int_comp _
+  | Pbintcomp _ | Pnaked_int_cmp _
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
@@ -2344,6 +2397,10 @@ let primitive_result_layout (p : primitive) =
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
+  | Pnaked_int_cast {dst; _ } -> Punboxed_int dst
+  | Pnaked_int_binop {size; _ } -> Punboxed_int size
+
+
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

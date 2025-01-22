@@ -476,6 +476,67 @@ let field_read_semantics ppf sem =
   | Reads_agree -> ()
   | Reads_vary -> fprintf ppf "_mut"
 
+let naked_integer signedness size =
+  match (signedness : Lambda.signedness), (size : Primitive.unboxed_integer) with
+  | Unsigned, Unboxed_int8 -> "naked_u8"
+  | Unsigned, Unboxed_int16 -> "naked_u16"
+  | Unsigned, Unboxed_int32 -> "naked_u32"
+  | Unsigned, Unboxed_nativeint -> "naked_unativeint"
+  | Unsigned, Unboxed_int64 -> "naked_u64"
+  | Signed, Unboxed_int8 -> "naked_i8"
+  | Signed, Unboxed_int16 -> "naked_i16"
+  | Signed, Unboxed_int32 -> "naked_i32"
+  | Signed, Unboxed_nativeint -> "naked_nativeint"
+  | Signed, Unboxed_int64 -> "naked_i64"
+
+let naked_arithmetic_primitive signedness binop size =
+  let binop =
+    match
+      (signedness : Lambda.signedness),
+      (binop : Lambda.naked_integer_binop)
+    with
+    (* there's no distinction between signed/unsigned for most operators *)
+    | (Signed | Unsigned), Add -> "add"
+    | (Signed | Unsigned), Sub -> "sub"
+    | (Signed | Unsigned), Mul -> "mul"
+    | (Signed | Unsigned), And -> "and"
+    | (Signed | Unsigned), Or -> "or"
+    | (Signed | Unsigned), Xor -> "xor"
+    | (Signed | Unsigned), Shl -> "shl"
+    | Signed, Div -> "sdiv"
+    | Unsigned, Div -> "udiv"
+    | Signed, Rem -> "srem"
+    | Unsigned, Rem -> "urem"
+    | Unsigned, Shr -> "lshr"
+    | Signed, Shr -> "ashr"
+  in
+  Printf.sprintf "%s_%s" binop (naked_integer signedness size)
+
+let naked_arithmetic_conv signedness ~src ~dst =
+  let bits : Primitive.unboxed_integer -> int = function
+    | Unboxed_int8 -> 8
+    | Unboxed_int16 -> 16
+    | Unboxed_int32 -> 32
+    | Unboxed_nativeint -> failwith "TODO"
+    | Unboxed_int64 -> 64
+  in
+  let operation =
+    let cmp = Int.compare (bits src) (bits dst) in
+    if cmp > 0 then
+      "trunc"
+    else if cmp = 0 then
+      "bitcast"
+    else
+      match signedness with
+      | Signed -> "sext"
+      | Unsigned -> "zext"
+  in
+  Printf.sprintf
+    "%s_%s_to_%s"
+    operation
+    (naked_integer signedness src)
+    (naked_integer signedness dst)
+
 let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"

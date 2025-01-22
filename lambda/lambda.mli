@@ -100,6 +100,26 @@ type region_close =
     tail call because the outer region needs to end there.)
 *)
 
+type signedness =
+  | Signed
+  | Unsigned
+
+type overflow_behavior =
+  | Wrap
+  | Raise
+
+type naked_integer_binop =
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Rem
+  | And
+  | Or
+  | Xor
+  | Shl
+  | Shr
+
 (* CR layouts v5: When we add more blocks of non-scannable values, consider
    whether some of the primitives specific to ufloat records
    ([Pmakeufloatblock], [Pufloatfield], and [Psetufloatfield]) can/should be
@@ -216,7 +236,25 @@ type primitive =
   | Plsrbint of boxed_integer * locality_mode
   | Pasrbint of boxed_integer * locality_mode
   | Pbintcomp of boxed_integer * integer_comparison
-  | Punboxed_int_comp of unboxed_integer * integer_comparison
+
+  (* operations on naked (unboxed and untagged) integers *)
+  | Pnaked_int_cast of
+    { src : unboxed_integer
+    ; dst : unboxed_integer
+    ; overflow_behavior : overflow_behavior
+    }
+  | Pnaked_int_binop of
+    { op : naked_integer_binop
+    ; signedness : signedness
+    ; size : unboxed_integer
+    ; overflow_behavior : overflow_behavior
+    }
+  | Pnaked_int_cmp of
+    { op : integer_comparison
+    ; size : unboxed_integer
+    ; signedness : signedness
+    }
+
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout

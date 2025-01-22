@@ -327,6 +327,26 @@ let indexing_primitives =
   |> List.to_seq
   |> fun seq -> String.Map.add_seq seq String.Map.empty
 
+let naked_arithmetic_primitives =
+  let tbl = String.Tbl.create 1_000 in
+  let sizes : Primitive.unboxed_integer list =
+    [ Unboxed_int8; Unboxed_int16; Unboxed_int32; Unboxed_nativeint; Unboxed_int64 ]
+  in
+  let bits : Primitive.unboxed_integer -> int = function
+    | Unboxed_int8 -> 8
+    | Unboxed_int16 -> 16
+    | Unboxed_int32 -> 32
+    | Unboxed_nativeint -> Targetint.size
+    | Unboxed_int64 -> 64
+  in
+  let binops : Lambda.naked_integer_binop list =
+    [ Add; Sub; Mul; Div; Rem; And; Or; Xor; Shl; Shr ]
+  in
+  failwith "TODO"
+
+
+
+
 let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   let runtime5 = Config.runtime5 in
   let mode = to_locality ~poly:poly_mode p.prim_native_repr_res in
@@ -607,6 +627,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%int64_to_int32" -> Primitive ((Pcvtbint(Boxed_int64, Boxed_int32, mode)), 1)
     | "%int64_of_nativeint" -> Primitive ((Pcvtbint(Boxed_nativeint, Boxed_int64, mode)), 1)
     | "%int64_to_nativeint" -> Primitive ((Pcvtbint(Boxed_int64, Boxed_nativeint, mode)), 1)
+
     | "%caml_ba_ref_1" ->
       Primitive
         ((Pbigarrayref(false, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),

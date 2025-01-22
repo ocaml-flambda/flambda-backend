@@ -350,7 +350,9 @@ let compute_static_size lam =
     | Patomic_cas
     | Patomic_fetch_add
     | Popaque _
-    | Pdls_get ->
+    | Pdls_get
+    | Pnaked_int_cast _
+    | Pnaked_int_binop _ ->
         dynamic_size lam
 
     (* Primitives specific to flambda-backend *)
@@ -382,7 +384,7 @@ let compute_static_size lam =
     | Pufloatfield (_, _)
     | Punboxed_product_field (_, _)
     | Punboxed_float_comp (_, _)
-    | Punboxed_int_comp (_, _)
+    | Pnaked_int_cmp _
     | Pstring_load_128 _
     | Pbytes_load_128 _
     | Pbigstring_load_128 _
