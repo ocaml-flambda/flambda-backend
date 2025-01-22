@@ -528,24 +528,24 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
-let integral_of_standard_int : K.Standard_int.t -> C.Numeric.Integral.t
-  =
+let integral_of_standard_int : K.Standard_int.t -> C.Numeric.Integral.t =
   let[@inline] untagged_int bit_width : C.Numeric.Integral.t =
     Untagged (C.Numeric.Integer.create_exn ~bit_width ~signedness:Signed)
   in
   function
-    | Naked_int8 -> untagged_int 8
-    | Naked_int16 -> untagged_int 16
-    | Naked_int32 -> untagged_int 32
-    | Naked_int64 -> untagged_int 64
-    | Naked_nativeint -> Untagged C.Numeric.Integer.nativeint
-    | Naked_immediate -> Untagged (C.Numeric.Tagged_integer.(untagged immediate))
-    | Tagged_immediate -> Tagged C.Numeric.Tagged_integer.immediate
+  | Naked_int8 -> untagged_int 8
+  | Naked_int16 -> untagged_int 16
+  | Naked_int32 -> untagged_int 32
+  | Naked_int64 -> untagged_int 64
+  | Naked_nativeint -> Untagged C.Numeric.Integer.nativeint
+  | Naked_immediate -> Untagged C.Numeric.Tagged_integer.(untagged immediate)
+  | Tagged_immediate -> Tagged C.Numeric.Tagged_integer.immediate
 
-let numeric_of_standard_int_or_float : K.Standard_int_or_float.t -> C.Numeric.t =
+let numeric_of_standard_int_or_float : K.Standard_int_or_float.t -> C.Numeric.t
+    =
   let[@inline] untagged_int bit_width : C.Numeric.t =
-    Integral (Untagged (C.Numeric.Integer.create_exn
-                          ~bit_width ~signedness:Signed))
+    Integral
+      (Untagged (C.Numeric.Integer.create_exn ~bit_width ~signedness:Signed))
   in
   function
   | Naked_int8 -> untagged_int 8
@@ -554,30 +554,29 @@ let numeric_of_standard_int_or_float : K.Standard_int_or_float.t -> C.Numeric.t 
   | Naked_int64 -> untagged_int 64
   | Naked_nativeint -> Integral (Untagged C.Numeric.Integer.nativeint)
   | Naked_immediate ->
-    Integral (Untagged (C.Numeric.Tagged_integer.(untagged immediate)))
+    Integral (Untagged C.Numeric.Tagged_integer.(untagged immediate))
   | Tagged_immediate -> Integral (Tagged C.Numeric.Tagged_integer.immediate)
   | Naked_float32 -> Float Float32
   | Naked_float -> Float Float64
 
-
 let unary_int_arith_primitive _env dbg kind op arg =
   match (op : P.unary_int_arith_op) with
   | Neg -> (
-      match integral_of_standard_int kind with
-      | Tagged src ->
-        C.Numeric.Tagged_integer.static_cast  arg
-          ~src ~dst:C.Numeric.Tagged_integer.immediate ~dbg
-        |> (fun arg -> (C.negint arg dbg))
-        |>  C.Numeric.Tagged_integer.static_cast
-              ~src:C.Numeric.Tagged_integer.immediate ~dst:src ~dbg
-      | Untagged src ->
-        C.Numeric.Integer.static_cast arg
-          ~src ~dst:C.Numeric.Integer.nativeint ~dbg
-        |> (fun arg ->
-          let bits = C.Numeric.Integer.bit_width src in
-          (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg))
-        |>  C.Numeric.Integer.static_cast
-              ~src:C.Numeric.Integer.nativeint ~dst:src ~dbg)
+    match integral_of_standard_int kind with
+    | Tagged src ->
+      C.Numeric.Tagged_integer.static_cast arg ~src
+        ~dst:C.Numeric.Tagged_integer.immediate ~dbg
+      |> (fun arg -> C.negint arg dbg)
+      |> C.Numeric.Tagged_integer.static_cast
+           ~src:C.Numeric.Tagged_integer.immediate ~dst:src ~dbg
+    | Untagged src ->
+      C.Numeric.Integer.static_cast arg ~src ~dst:C.Numeric.Integer.nativeint
+        ~dbg
+      |> (fun arg ->
+           let bits = C.Numeric.Integer.bit_width src in
+           C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg)
+      |> C.Numeric.Integer.static_cast ~src:C.Numeric.Integer.nativeint ~dst:src
+           ~dbg)
   | Swap_byte_endianness -> (
     match (kind : K.Standard_int.t) with
     | Tagged_immediate ->
@@ -614,11 +613,12 @@ let arithmetic_conversion dbg src dst arg =
     let extra =
       match src, dst with
       | Integral (Tagged src), Integral (Untagged dst)
-        when C.Numeric.Integer.equal (C.Numeric.Tagged_integer.untagged src)
-               dst
-        -> Some (Env.Untag arg)
-      | (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)),
-        (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)) -> None
+        when C.Numeric.Integer.equal (C.Numeric.Tagged_integer.untagged src) dst
+        ->
+        Some (Env.Untag arg)
+      | ( (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)),
+          (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)) ) ->
+        None
     in
     extra, C.Numeric.static_cast ~dbg ~src ~dst arg
 
@@ -629,21 +629,21 @@ let phys_equal _env dbg op x y =
   | Neq -> C.neq ~dbg x y
 
 let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
-      (op : P.binary_int_arith_op) x y =
+    (op : P.binary_int_arith_op) x y =
   let kind = integral_of_standard_int kind in
-  let[@inline] wrap f  =
+  let[@inline] wrap f =
     (* We cast the operands to the width that the operator expects, apply the
        operator, and cast the result back. *)
     let operator_type : C.Numeric.Integral.t =
       match kind with
-      | Untagged _ -> Untagged (C.Numeric.Integer.nativeint)
-      | Tagged _ -> Tagged (C.Numeric.Tagged_integer.immediate)
+      | Untagged _ -> Untagged C.Numeric.Integer.nativeint
+      | Tagged _ -> Tagged C.Numeric.Tagged_integer.immediate
     in
     let requires_sign_extended_operands =
       match op with
       | Div | Mod ->
-        (* Note that it would be wrong to apply [C.low_bits] to operands
-           for div and mod.
+        (* Note that it would be wrong to apply [C.low_bits] to operands for div
+           and mod.
 
            Some background: The problem arises in cases like: [(num1 * num2) /
            num3]. If an overflow occurs in the multiplication, then we must deal
@@ -694,30 +694,30 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
        sign-extensions, e.g. when chaining additions together. Also see comment
        below about [C.low_bits] in the [Div] and [Mod] cases. *)
   in
-
   match kind with
-  | Tagged _ -> (match op with
+  | Tagged _ -> (
+    match op with
     | Add -> wrap C.add_int_caml
     | Sub -> wrap C.sub_int_caml
     | Mul -> wrap C.mul_int_caml
     | Div -> wrap (C.div_int_caml Unsafe)
     | Mod -> wrap (C.mod_int_caml Unsafe)
     | And -> wrap C.and_int_caml
-    | Or ->  wrap C.or_int_caml
+    | Or -> wrap C.or_int_caml
     | Xor -> wrap C.xor_int_caml)
-  | Untagged untagged ->
+  | Untagged untagged -> (
     let dividend_cannot_be_min_int =
       C.Numeric.Integer.bit_width untagged < C.arch_bits
     in
-    (match op with
-     | Add -> wrap C.add_int
-     | Sub -> wrap C.sub_int
-     | Mul -> wrap C.mul_int
-     | Div -> wrap (C.safe_div_bi Unsafe ~dividend_cannot_be_min_int)
-     | Mod -> wrap (C.safe_mod_bi Unsafe ~dividend_cannot_be_min_int)
-     | And -> wrap C.and_int
-     | Or ->  wrap C.or_int
-     | Xor -> wrap C.xor_int)
+    match op with
+    | Add -> wrap C.add_int
+    | Sub -> wrap C.sub_int
+    | Mul -> wrap C.mul_int
+    | Div -> wrap (C.safe_div_bi Unsafe ~dividend_cannot_be_min_int)
+    | Mod -> wrap (C.safe_mod_bi Unsafe ~dividend_cannot_be_min_int)
+    | And -> wrap C.and_int
+    | Or -> wrap C.or_int
+    | Xor -> wrap C.xor_int)
 
 let binary_int_shift_primitive _env dbg kind (op : P.int_shift_op) x y =
   (* See comments on [binary_int_arity_primitive], above, about sign extension
@@ -773,14 +773,14 @@ let binary_int_comp_primitive _env dbg kind cmp x y =
   | Tagged _, Gt Unsigned -> C.ugt ~dbg (C.ignore_low_bit_int x) y
   | Tagged _, Ge Unsigned -> C.uge ~dbg x (C.ignore_low_bit_int y)
   (* Naked integers. *)
-  | Untagged _ , Lt Signed -> C.lt ~dbg x y
-  | Untagged _ , Le Signed -> C.le ~dbg x y
-  | Untagged _ , Gt Signed -> C.gt ~dbg x y
-  | Untagged _ , Ge Signed -> C.ge ~dbg x y
-  | Untagged _ , Lt Unsigned -> C.ult ~dbg x y
-  | Untagged _ , Le Unsigned -> C.ule ~dbg x y
-  | Untagged _ , Gt Unsigned -> C.ugt ~dbg x y
-  | Untagged _ , Ge Unsigned -> C.uge ~dbg x y
+  | Untagged _, Lt Signed -> C.lt ~dbg x y
+  | Untagged _, Le Signed -> C.le ~dbg x y
+  | Untagged _, Gt Signed -> C.gt ~dbg x y
+  | Untagged _, Ge Signed -> C.ge ~dbg x y
+  | Untagged _, Lt Unsigned -> C.ult ~dbg x y
+  | Untagged _, Le Unsigned -> C.ule ~dbg x y
+  | Untagged _, Gt Unsigned -> C.ugt ~dbg x y
+  | Untagged _, Ge Unsigned -> C.uge ~dbg x y
   | (Tagged _ | Untagged _), Eq -> C.eq ~dbg x y
   | (Tagged _ | Untagged _), Neq -> C.neq ~dbg x y
 
