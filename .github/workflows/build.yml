@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - name: flambda2_macos_arm64_gi
-            config: --enable-middle-end=flambda2 --disable-warn-error
+            config: --enable-middle-end=flambda2 --disable-warn-error --enable-runtime5
             os: macos-latest
             build_ocamlparam: '_,w=-46,regalloc=gi'
             ocamlparam: '_,w=-46,regalloc=gi'
