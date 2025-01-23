@@ -30,7 +30,7 @@ let vectorize_max_block_size =
 
 let cfg_selection = ref false           (* -[no-]cfg-selection *)
 
-let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
+let cfg_peephole_optimize = ref false   (* -[no-]cfg-peephole-optimize *)
 
 let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
 let cfg_zero_alloc_checker = ref false  (* -[no-]cfg-zero-alloc-checker *)
