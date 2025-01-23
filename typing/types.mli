@@ -73,15 +73,8 @@ module Jkind_bounds :
 
 (** Information tracked about an individual type within the with-bounds for a jkind *)
 module With_bounds_type_info : sig
-  (** Does the nullability of this type affect the (upper bound for) nullability of the
-      jkind? *)
-  type relevant_for_nullability =
-    | Relevant_for_nullability
-    | Irrelevant_for_nullability
-
-  type t =
-    { modality : Mode.Modality.Value.Const.t;
-      relevant_for_nullability: relevant_for_nullability }
+  (** The axes that the with-bound applies to *)
+  type t = Jkind_axis.Axis_set.t
 end
 
 type type_expr
