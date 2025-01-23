@@ -1461,17 +1461,20 @@ module Jkind_desc = struct
         bounds_so_far, No_with_bounds
       | [] -> bounds_so_far, No_with_bounds
       | (ty, ti) :: bs -> (
-        let join_relevant_axes bound =
+        let join_bounds b1 b2 ~relevant_axes =
           Bounds.Map2.f
             { f =
                 (fun (type a) ~(axis : a Axis.t) b1 b2 ->
-                  if Axis_set.mem ti.relevant_axes axis
+                  if Axis_set.mem relevant_axes axis
                   then
                     let (module Bound_ops) = Axis.get axis in
                     Bound_ops.join b1 b2
                   else b1)
             }
-            bounds_so_far bound
+            b1 b2
+        in
+        let join_relevant_axes bound =
+          join_bounds bounds_so_far bound ~relevant_axes:ti.relevant_axes
         in
         let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
             Bounds.t * (l2 * r2) with_bounds =
@@ -1494,18 +1497,21 @@ module Jkind_desc = struct
             bounds_so_far, With_bounds.add ty ti bs'
         in
         match Loop_control.check ctl ty with
-        | Stop -> (
-          ( (* out of fuel, so assume ty has max kind *)
-            (* TODO: the below commented out code is sound, unlike the code that's
-               actually running. That's because the below code isn't best when we care
-               about best-ness. But odoc doesn't compile with the commented-out code. *)
-            (* found_jkind_for_ty ctl Bounds.max No_with_bounds Not_best *)
-            join_relevant_axes Bounds.max,
-            match bs with
-            | [] -> No_with_bounds
-            | _ ->
-              With_bounds (Best_effort_type_map.of_list bs |> Obj.magic)
-              |> Obj.magic ))
+        | Stop ->
+          (* out of fuel, so assume ty has max kind along all relevant axes. *)
+          let all_relevant_axes =
+            List.fold_left
+              (fun acc
+                   (_, ({ relevant_axes = incoming } : With_bounds_type_info.t)) ->
+                Axis_set.union acc incoming)
+              Axis_set.empty
+              (With_bounds.to_list t.with_bounds)
+          in
+          let worst_bounds =
+            join_bounds t.upper_bounds Bounds.max
+              ~relevant_axes:all_relevant_axes
+          in
+          worst_bounds, No_with_bounds
         | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
         | Continue ctl_after_unpacking_b -> (
           match jkind_of_type ty with
