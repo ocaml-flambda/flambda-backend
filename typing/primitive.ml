@@ -51,9 +51,9 @@ type 'repr description_gen =
     prim_c_builtin: bool;        (* Is the compiler allowed to replace it? *)
     prim_effects: effects;
     prim_coeffects: coeffects;
-    prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: (mode * 'repr) list;
     prim_native_repr_res: mode * 'repr;
+    prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_is_layout_poly: bool }
 
 type description = native_repr description_gen
