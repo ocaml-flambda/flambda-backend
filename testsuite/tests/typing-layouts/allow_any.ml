@@ -34,7 +34,11 @@ val f : t @ contended -> t = <fun>
 type t : value mod many portable uncontended = string
 [@@unsafe_allow_any_mode_crossing]
 [%%expect{|
-type t = string
+Lines 1-2, characters 0-34:
+1 | type t : value mod many portable uncontended = string
+2 | [@@unsafe_allow_any_mode_crossing]
+Error: [@@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.
+       Only records, unboxed products, and variants are supported.
 |}]
 
 (* The attribute shouldn't allow us to change the layout *)
@@ -62,6 +66,28 @@ end
 [%%expect{|
 module M : sig type t : value mod uncontended end
 |}]
+
+(* Setting the attribute on an open or abstract type is not allowed *)
+module type S = sig
+  type abstract [@@unsafe_allow_any_mode_crossing]
+end
+[%%expect{|
+Line 2, characters 2-50:
+2 |   type abstract [@@unsafe_allow_any_mode_crossing]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: [@@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.
+       Only records, unboxed products, and variants are supported.
+|}]
+
+type open_ = .. [@@unsafe_allow_any_mode_crossing]
+[%%expect{|
+Line 1, characters 0-50:
+1 | type open_ = .. [@@unsafe_allow_any_mode_crossing]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: [@@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.
+       Only records, unboxed products, and variants are supported.
+|}]
+
 
 module M1 : sig
   type t : value mod uncontended = { mutable contents : string }

@@ -146,6 +146,7 @@ type error =
       ; expected: Path.t
       }
   | Non_abstract_reexport of Path.t
+  | Unsafe_mode_crossing_on_invalid_type_kind
 
 open Typedtree
 
@@ -1779,6 +1780,14 @@ let update_decl_jkind env dpath decl =
     Builtin_attributes.has_unsafe_allow_any_mode_crossing decl.type_attributes
   in
 
+  (* Check that the attribute is valid, if set (unconditionally, for consistency). *)
+  if allow_any_crossing then begin
+    match decl.type_kind with
+    | Type_abstract _ | Type_open ->
+      raise(Error(decl.type_loc, Unsafe_mode_crossing_on_invalid_type_kind))
+    | _ -> ()
+  end;
+
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
@@ -1801,7 +1810,7 @@ let update_decl_jkind env dpath decl =
         in
         let type_kind =
           match decl.type_kind with
-          | Type_abstract _ | Type_open -> decl.type_kind
+          | Type_abstract _ | Type_open -> assert false (* Checked above *)
           | Type_record (lbls, rep, _) ->
             Type_record (lbls, rep, umc)
           | Type_record_unboxed_product (lbls, rep, _) ->
@@ -4144,6 +4153,10 @@ let report_error ppf = function
       "@[Invalid reexport declaration.\
          @ Type %s must not define an explicit representation.@]"
       (Path.name definition)
+  | Unsafe_mode_crossing_on_invalid_type_kind ->
+    fprintf ppf
+      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.\
+       @ Only records, unboxed products, and variants are supported.@]"
 
 let () =
   Location.register_error_of_exn
