@@ -181,7 +181,7 @@ Error: Signature mismatch:
          type t : value mod uncontended = { mutable x : int; }
        [@@unsafe_allow_any_mode_crossing]
        They have different unsafe mode crossing behavior:
-       the first has [@@unsafe_allow_any_mode_crossing], but the second does not
+       the second has [@@unsafe_allow_any_mode_crossing], but the first does not
 |}]
 
 
@@ -215,7 +215,7 @@ Error: Signature mismatch:
          type t : value mod uncontended = { mutable x : int; }
        [@@unsafe_allow_any_mode_crossing]
        They have different unsafe mode crossing behavior:
-       the first has [@@unsafe_allow_any_mode_crossing], but the second does not
+       the second has [@@unsafe_allow_any_mode_crossing], but the first does not
 |}]
 
 module type S2 = S with type t = M.t
@@ -225,5 +225,41 @@ Line 1, characters 24-36:
                             ^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type "M.t"
        They have different unsafe mode crossing behavior:
-       the original has [@@unsafe_allow_any_mode_crossing], but this does not
+       this has [@@unsafe_allow_any_mode_crossing], but the original does not
+|}]
+
+(** The mod-bounds must be equal if the attribute is specified in both the sig and the
+    struct *)
+module M : sig
+  type t : value mod uncontended = { mutable x : int }
+  [@@unsafe_allow_any_mode_crossing]
+end = struct
+  type t : value mod portable uncontended = { mutable x : int }
+  [@@unsafe_allow_any_mode_crossing]
+end
+[%%expect{|
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   type t : value mod portable uncontended = { mutable x : int }
+6 |   [@@unsafe_allow_any_mode_crossing]
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type t : value mod uncontended portable = { mutable x : int; }
+           [@@unsafe_allow_any_mode_crossing]
+         end
+       is not included in
+         sig
+           type t : value mod uncontended = { mutable x : int; }
+           [@@unsafe_allow_any_mode_crossing]
+         end
+       Type declarations do not match:
+         type t : value mod uncontended portable = { mutable x : int; }
+       [@@unsafe_allow_any_mode_crossing]
+       is not included in
+         type t : value mod uncontended = { mutable x : int; }
+       [@@unsafe_allow_any_mode_crossing]
+       They have different unsafe mode crossing behavior:
+       Both specify [@@unsafe_allow_any_mode_crossing], but their mod-bounds are not equal
 |}]

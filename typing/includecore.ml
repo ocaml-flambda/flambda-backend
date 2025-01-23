@@ -293,8 +293,8 @@ type variant_change =
     Diffing_with_keys.change
 
 type unsafe_mode_crossing_mismatch =
-  | Mode_crossing_only_on_right
-  | Mode_crossing_not_le
+  | Mode_crossing_only_on of position
+  | Mode_crossing_not_equal
 
 type type_mismatch =
   | Arity
@@ -600,14 +600,13 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
 let report_unsafe_mode_crossing_mismatch first second ppf e =
   let pr fmt = Format.fprintf ppf fmt in
   match e with
-  | Mode_crossing_only_on_right ->
+  | Mode_crossing_only_on ord ->
     pr "%s has [%@%@unsafe_allow_any_mode_crossing], but %s does not"
-      first
-      second
-  | Mode_crossing_not_le ->
-    pr "The kind of %s has lower mod-bounds than %s"
-      first
-      second
+      (choose ord first second)
+      (choose_other ord first second)
+  | Mode_crossing_not_equal ->
+    pr "Both specify [%@%@unsafe_allow_any_mode_crossing], but their \
+        mod-bounds are not equal"
 
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -664,16 +663,14 @@ let report_type_mismatch first second decl env ppf err =
 
 let compare_unsafe_mode_crossing umc1 umc2 =
   match umc1, umc2 with
-  | Some _, None | None, None -> None
-  | None, Some { modal_upper_bounds = mub } ->
-    if Mode.Alloc.Const.(le max mub)
-    then None
-    else Some (Unsafe_mode_crossing Mode_crossing_only_on_right)
+  | None, None -> None
+  | Some _, None -> Some (Unsafe_mode_crossing (Mode_crossing_only_on First))
+  | None, Some _ -> Some (Unsafe_mode_crossing (Mode_crossing_only_on Second))
   | Some ({ modal_upper_bounds = mub1 }),
     Some ({ modal_upper_bounds = mub2 }) ->
-    if (Mode.Alloc.Const.le mub1 mub2)
+    if (Mode.Alloc.Const.le mub1 mub2 && Mode.Alloc.Const.le mub2 mub1)
     then None
-    else Some (Unsafe_mode_crossing Mode_crossing_not_le)
+    else Some (Unsafe_mode_crossing Mode_crossing_not_equal)
 
 module Record_diffing = struct
 

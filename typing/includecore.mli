@@ -106,8 +106,8 @@ type private_object_mismatch =
   | Types of Errortrace.equality_error
 
 type unsafe_mode_crossing_mismatch =
-  | Mode_crossing_only_on_right
-  | Mode_crossing_not_le
+  | Mode_crossing_only_on of position
+  | Mode_crossing_not_equal
 
 type type_mismatch =
   | Arity
