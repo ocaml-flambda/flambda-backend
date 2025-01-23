@@ -639,7 +639,7 @@ let letter = function
   | 'x' -> [14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 30]
   | 'y' -> [26]
   | 'z' -> [27]
-  | _ -> assert false
+  | chr -> Misc.fatal_errorf "XXX %C" chr
 
 type state =
   {
