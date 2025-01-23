@@ -63,8 +63,6 @@ type 'repr description_gen = private
     prim_native_repr_res: mode * 'repr;
     prim_is_layout_poly: bool;
     dummy_field : unit;
-    dummy_field2: unit;
-    dummy_field3: unit;
   }
 
 type description = native_repr description_gen
