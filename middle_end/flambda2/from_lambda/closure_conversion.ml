@@ -568,7 +568,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         prim_native_name;
         prim_native_repr_args;
         prim_native_repr_res;
-        prim_is_layout_poly
+        prim_is_layout_poly;
+        _
       } :
        Lambda.external_call_description) as prim_desc)
     ~(args : Simple.t list list) exn_continuation dbg ~current_region
