@@ -650,9 +650,12 @@ let prim ppf = function
         Format.pp_print_string ppf
         @@ if ghost then "%begin_ghost_try_region" else "%begin_try_region"
     in
-    Format.fprintf ppf "@[<2>%a%a@]" varop v
-      (simple_args ~space:Before ~omit_if_empty:false)
-      elts
+    let print_elts =
+      match v with
+      | Make_block _ -> simple_args ~space:Before ~omit_if_empty:false
+      | Begin_region _ | Begin_try_region _ -> fun _ _ -> ()
+    in
+    Format.fprintf ppf "@[<2>%a%a@]" varop v print_elts elts
 
 let parameter ppf { param; kind = k } = kinded_variable ppf (param, k)
 

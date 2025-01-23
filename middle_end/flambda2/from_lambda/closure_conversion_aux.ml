@@ -792,14 +792,14 @@ module Function_decls = struct
         | None -> Ident.create_local "unnamed_function"
         | Some let_rec_ident -> let_rec_ident
       in
-      (match contains_no_escaping_local_allocs, my_region, my_ghost_region with
-      | true, None, None -> ()
-      | false, Some _, Some _ -> ()
-      | _, _, _ ->
+      (match my_region, my_ghost_region with
+      | None, None -> ()
+      | Some _, Some _ -> ()
+      | _, _ ->
         Misc.fatal_errorf
-          "Function %a declared with contains_no_escaping_local_allocs:%b but \
-           my_region is %a and my_ghost_region is %a"
-          Ident.print let_rec_ident contains_no_escaping_local_allocs
+          "Function %a has mismatched parameters my_region %a and \
+           my_ghost_region %a"
+          Ident.print let_rec_ident
           (Format.pp_print_option Ident.print)
           my_region
           (Format.pp_print_option Ident.print)

@@ -2530,7 +2530,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     | Unboxed_calling_convention _ -> Code_id.rename code_id
   in
   let contains_no_escaping_local_allocs =
-    Function_decl.contains_no_escaping_local_allocs decl
+    match Function_decl.result_mode decl with
+    | Alloc_heap -> false
+    | Alloc_local -> true
   in
   let main_code =
     Code.create main_code_id ~params_and_body
@@ -2980,6 +2982,11 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let all_args =
     provided @ List.map (fun (p : Function_decl.param) -> IR.Var p.name) params
   in
+  let contains_no_escaping_local_allocs =
+    match (result_mode : Lambda.locality_mode) with
+    | Alloc_heap -> true
+    | Alloc_local -> false
+  in
   let my_region =
     if contains_no_escaping_local_allocs
     then None
@@ -3053,10 +3060,10 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
                })
           ~params ~params_arity ~removed_params:Ident.Set.empty
           ~return:result_arity ~calling_convention:Normal_calling_convention
-          ~return_continuation ~exn_continuation ~my_region:apply.region
-          ~my_ghost_region:apply.ghost_region ~body:fbody ~attr ~loc:apply.loc
-          ~free_idents_of_body ~closure_alloc_mode ~first_complex_local_param
-          ~result_mode Recursive.Non_recursive ]
+          ~return_continuation ~exn_continuation ~my_region ~my_ghost_region
+          ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body
+          ~closure_alloc_mode ~first_complex_local_param ~result_mode
+          Recursive.Non_recursive ]
     in
     let body acc env =
       let arg = find_simple_from_id env wrapper_id in
