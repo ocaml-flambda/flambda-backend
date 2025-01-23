@@ -54,7 +54,6 @@ type 'repr description_gen =
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: (mode * 'repr) list;
     prim_native_repr_res: mode * 'repr;
-    prim_is_alloc_poly: bool;
     prim_is_layout_poly: bool }
 
 type description = native_repr description_gen
@@ -103,7 +102,6 @@ let make ~name ~alloc ~c_builtin ~effects ~coeffects
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res;
-   prim_is_alloc_poly = false;
    prim_is_layout_poly = is_layout_poly }
 
 let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly =
@@ -211,7 +209,6 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res;
-   prim_is_alloc_poly = false;
    prim_is_layout_poly }
 
 open Outcometree
