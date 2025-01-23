@@ -459,23 +459,34 @@ let params_and_body0 env res code_id ~result_arity ~fun_dbg
     Env.enter_function_body env ~return_continuation ~return_continuation_arity
       ~exn_continuation
   in
-  (* [my_region] can be referenced in [Begin_try_region] primitives so must be
-     in the environment; however it should never end up in actual generated
-     code, so we don't need any binder for it (this is why we can ignore
+  (* [my_region] can be referenced in [Begin_region] primitives so must be in
+     the environment; however it should never end up in actual generated code,
+     so we don't need any binder for it (this is why we can ignore
      [_bound_var]). If it does end up in generated code, Selection will complain
      and refuse to compile the code. *)
-  let env, my_region_var = Env.create_bound_parameter env my_region in
+  let env, my_region_var =
+    match my_region with
+    | None -> env, None
+    | Some my_region ->
+      let env, region = Env.create_bound_parameter env my_region in
+      env, Some region
+  in
   (* Similarly for [my_ghost_region]. *)
   let env, my_ghost_region_var =
-    Env.create_bound_parameter env my_ghost_region
+    match my_ghost_region with
+    | None -> env, None
+    | Some my_ghost_region ->
+      let env, region = Env.create_bound_parameter env my_ghost_region in
+      env, Some region
   in
   (* Translate the arg list and body *)
   let env, fun_params = C.function_bound_parameters env params in
   let fun_body, fun_body_free_vars, res = translate_expr env res body in
   let fun_free_vars =
     C.remove_vars_with_machtype
-      (C.remove_var_with_provenance
-         (C.remove_var_with_provenance fun_body_free_vars my_ghost_region_var)
+      (C.remove_var_opt_with_provenance
+         (C.remove_var_opt_with_provenance fun_body_free_vars
+            my_ghost_region_var)
          my_region_var)
       fun_params
   in

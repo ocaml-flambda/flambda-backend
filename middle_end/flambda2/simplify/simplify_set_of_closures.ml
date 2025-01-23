@@ -65,12 +65,18 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
           (T.alias_type_of K.value (Simple.name name)))
   in
   let denv =
-    let my_region = Bound_var.create my_region Name_mode.normal in
-    DE.add_variable denv my_region (T.unknown K.region)
+    match my_region with
+    | None -> denv
+    | Some my_region ->
+      let my_region = Bound_var.create my_region Name_mode.normal in
+      DE.add_variable denv my_region (T.unknown K.region)
   in
   let denv =
-    let my_ghost_region = Bound_var.create my_ghost_region Name_mode.normal in
-    DE.add_variable denv my_ghost_region (T.unknown K.region)
+    match my_ghost_region with
+    | None -> denv
+    | Some my_ghost_region ->
+      let my_ghost_region = Bound_var.create my_ghost_region Name_mode.normal in
+      DE.add_variable denv my_ghost_region (T.unknown K.region)
   in
   let denv =
     let my_depth = Bound_var.create my_depth Name_mode.normal in
@@ -177,18 +183,25 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a" DA.print
       dacc;
   assert (not (DE.at_unit_toplevel (DA.denv dacc)));
+  let region_params =
+    let region_param region =
+      match region with
+      | None -> []
+      | Some region ->
+        [Bound_parameter.create region Flambda_kind.With_subkind.region]
+    in
+    region_param my_region @ region_param my_ghost_region
+  in
   match
     C.simplify_function_body context dacc body ~return_continuation
       ~exn_continuation ~return_arity:(Code.result_arity code)
       ~implicit_params:
         (Bound_parameters.create
-           [ Bound_parameter.create my_closure
-               Flambda_kind.With_subkind.any_value;
-             Bound_parameter.create my_region Flambda_kind.With_subkind.region;
-             Bound_parameter.create my_ghost_region
-               Flambda_kind.With_subkind.region;
-             Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
-           ])
+           ([ Bound_parameter.create my_closure
+                Flambda_kind.With_subkind.any_value;
+              Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
+            ]
+           @ region_params))
       ~loopify_state ~params
   with
   | body, uacc ->
@@ -213,27 +226,13 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       then Recursive
       else Non_recursive
     in
-    if NO.mem_var free_names_of_body my_region
-       && Lambda.is_heap_mode (Code.result_mode code)
-    then
-      Misc.fatal_errorf
-        "Unexpected free my_region in code with heap result mode:\n%a"
-        (RE.print (UA.are_rebuilding_terms uacc))
-        body;
-    if NO.mem_var free_names_of_body my_ghost_region
-       && Lambda.is_heap_mode (Code.result_mode code)
-    then
-      Misc.fatal_errorf
-        "Unexpected free my_ghost_region in code with heap result mode:\n%a"
-        (RE.print (UA.are_rebuilding_terms uacc))
-        body;
     let free_names_of_code =
       free_names_of_body
       |> NO.remove_continuation ~continuation:return_continuation
       |> NO.remove_continuation ~continuation:exn_continuation
       |> NO.remove_var ~var:my_closure
-      |> NO.remove_var ~var:my_region
-      |> NO.remove_var ~var:my_ghost_region
+      |> NO.remove_var_opt ~var:my_region
+      |> NO.remove_var_opt ~var:my_ghost_region
       |> NO.remove_var ~var:my_depth
       |> NO.diff ~without:(Bound_parameters.free_names params)
       |> NO.diff ~without:previously_free_depth_variables
@@ -247,8 +246,11 @@ let simplify_function_body context ~outer_dacc function_slot_opt
          %a@ \n\
          Simplified version:@ fun %a %a %a %a %a ->@ \n\
         \  %a" NO.print free_names_of_code Code_id.print code_id
-        Bound_parameters.print params Variable.print my_closure Variable.print
-        my_region Variable.print my_ghost_region Variable.print my_depth
+        Bound_parameters.print params Variable.print my_closure
+        (Format.pp_print_option Variable.print)
+        my_region
+        (Format.pp_print_option Variable.print)
+        my_ghost_region Variable.print my_depth
         (RE.print (UA.are_rebuilding_terms uacc))
         body;
     { params;

@@ -919,8 +919,16 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                 (Bound_parameters.to_list params)
             in
             let closure_var, env = Env.bind_var env my_closure in
-            let region_var, env = Env.bind_var env my_region in
-            let ghost_region_var, env = Env.bind_var env my_ghost_region in
+            let region_var, env =
+              match my_region with
+              | None -> nowhere "_region", env
+              | Some my_region -> Env.bind_var env my_region
+            in
+            let ghost_region_var, env =
+              match my_ghost_region with
+              | None -> nowhere "_ghost_region", env
+              | Some my_ghost_region -> Env.bind_var env my_ghost_region
+            in
             let depth_var, env = Env.bind_var env my_depth in
             let body = expr env body in
             (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)

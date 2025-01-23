@@ -40,7 +40,7 @@ module IR : sig
     | Begin_region of
         { ghost : bool;
           is_try_region : bool;
-          parent_region : Ident.t
+          parent_region : Ident.t option
         }
     | End_region of
         { is_try_region : bool;
@@ -54,8 +54,8 @@ module IR : sig
           args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
-          region : Ident.t;
-          ghost_region : Ident.t
+          region : Ident.t option;
+          ghost_region : Ident.t option
         }
 
   type apply_kind =
@@ -76,8 +76,8 @@ module IR : sig
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.locality_mode;
-      region : Ident.t;
-      ghost_region : Ident.t;
+      region : Ident.t option;
+      ghost_region : Ident.t option;
       args_arity : [`Complex] Flambda_arity.t;
       return_arity : [`Unarized] Flambda_arity.t
     }
@@ -263,6 +263,8 @@ module Acc : sig
 
   val remove_var_from_free_names : Variable.t -> t -> t
 
+  val remove_var_opt_from_free_names : Variable.t option -> t -> t
+
   val remove_continuation_from_free_names : Continuation.t -> t -> t
 
   val mark_continuation_as_untrackable : Continuation.t -> t -> t
@@ -354,8 +356,8 @@ module Function_decls : sig
       calling_convention:calling_convention ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
-      my_region:Ident.t ->
-      my_ghost_region:Ident.t ->
+      my_region:Ident.t option ->
+      my_ghost_region:Ident.t option ->
       body:(Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t) ->
       attr:Lambda.function_attribute ->
       loc:Lambda.scoped_location ->
@@ -384,9 +386,9 @@ module Function_decls : sig
 
     val exn_continuation : t -> IR.exn_continuation
 
-    val my_region : t -> Ident.t
+    val my_region : t -> Ident.t option
 
-    val my_ghost_region : t -> Ident.t
+    val my_ghost_region : t -> Ident.t option
 
     val body : t -> Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t
 

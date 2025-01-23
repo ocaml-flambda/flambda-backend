@@ -262,19 +262,25 @@ let restore_continuation_context acc env ccenv cont ~close_current_region_early
   if close_current_region_early
   then
     let env, region_stack_elt = Env.pop_one_region env in
-    let region = Env.Region_stack_element.region region_stack_elt in
-    let ghost_region = Env.Region_stack_element.ghost_region region_stack_elt in
-    CC.close_let acc ccenv
-      [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-      Not_user_visible
-      (End_region { is_try_region = false; region; ghost = false })
-      ~body:(fun acc ccenv ->
-        CC.close_let acc ccenv
-          [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-          Not_user_visible
-          (End_region
-             { is_try_region = false; region = ghost_region; ghost = true })
-          ~body:(fun acc ccenv -> normal_case env acc ccenv))
+    match region_stack_elt with
+    | None -> normal_case env acc ccenv
+    | Some region_stack_elt ->
+      let region = Env.Region_stack_element.region region_stack_elt in
+      let ghost_region =
+        Env.Region_stack_element.ghost_region region_stack_elt
+      in
+      CC.close_let acc ccenv
+        [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+        Not_user_visible
+        (End_region { is_try_region = false; region; ghost = false })
+        ~body:(fun acc ccenv ->
+          CC.close_let acc ccenv
+            [ ( Ident.create_local "unit",
+                Flambda_kind.With_subkind.tagged_immediate ) ]
+            Not_user_visible
+            (End_region
+               { is_try_region = false; region = ghost_region; ghost = true })
+            ~body:(fun acc ccenv -> normal_case env acc ccenv))
   else normal_case env acc ccenv
 
 let restore_continuation_context_for_switch_arm env cont =
@@ -306,13 +312,10 @@ let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
-  let close_current_region_early, region_stack_elt =
+  let close_current_region_early, region, ghost_region =
     match apply.region_close with
-    | Rc_normal | Rc_nontail ->
-      ( false,
-        Env.Region_stack_element.create ~region:apply.region
-          ~ghost_region:apply.ghost_region )
-    | Rc_close_at_apply ->
+    | Rc_normal | Rc_nontail -> false, apply.region, apply.ghost_region
+    | Rc_close_at_apply -> (
       (* [Rc_close_at_apply] means that the application is in tail position with
          respect to the *current region*. Only that region should be closed
          early, prior to the application, meaning that the region for the
@@ -320,13 +323,17 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
          application, further regions should be closed if necessary in order to
          bring the current region stack in line with the return continuation's
          region stack. *)
-      true, Env.parent_region env
+      match Env.parent_region env with
+      | None -> true, None, None
+      | Some region_stack_elt ->
+        ( true,
+          Some (Env.Region_stack_element.region region_stack_elt),
+          Some (Env.Region_stack_element.ghost_region region_stack_elt) ))
   in
-  let region = Env.Region_stack_element.region region_stack_elt in
-  let ghost_region = Env.Region_stack_element.ghost_region region_stack_elt in
   let body acc ccenv continuation =
     match extra_args with
-    | [] -> CC.close_apply acc ccenv { apply with continuation; region }
+    | [] ->
+      CC.close_apply acc ccenv { apply with continuation; region; ghost_region }
     | _ :: _ ->
       let wrapper_cont = Continuation.create () in
       let return_kinds = Flambda_arity.unarized_components apply.return_arity in
@@ -488,7 +495,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         (Singleton Flambda_kind.With_subkind.any_value)
     in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
-      ~current_region:(Env.current_region env |> Env.Region_stack_element.region)
+      ~current_region:
+        (Env.current_region env |> Option.map Env.Region_stack_element.region)
   | Lmutlet (value_kind, id, defining_expr, body) ->
     (* CR mshinwell: user-visibleness needs thinking about here *)
     let temp_id = Ident.create_local "let_mutable" in
@@ -515,7 +523,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         (fun body func acc ccenv ->
           CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
             ~current_region:
-              (Env.current_region env |> Env.Region_stack_element.region))
+              (Env.current_region env
+              |> Option.map Env.Region_stack_element.region))
         body bindings
     in
     let_expr acc ccenv
@@ -578,9 +587,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           in
           let body acc ccenv = cps acc env ccenv body k k_exn in
           let current_region = Env.current_region env in
-          let region = Env.Region_stack_element.region current_region in
+          let region =
+            Option.map Env.Region_stack_element.region current_region
+          in
           let ghost_region =
-            Env.Region_stack_element.ghost_region current_region
+            Option.map Env.Region_stack_element.ghost_region current_region
           in
           CC.close_let acc ccenv ids_with_kinds (is_user_visible env id)
             (Prim { prim; args; loc; exn_continuation; region; ghost_region })
@@ -641,7 +652,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let function_declarations = cps_function_bindings env bindings in
     let body acc ccenv = cps acc env ccenv body k k_exn in
     CC.close_let_rec acc ccenv ~function_declarations ~body
-      ~current_region:(Env.current_region env |> Env.Region_stack_element.region)
+      ~current_region:
+        (Env.current_region env |> Option.map Env.Region_stack_element.region)
   | Lprim (prim, args, loc) -> (
     match[@ocaml.warning "-fragile-match"] prim with
     | Praise raise_kind -> (
@@ -794,9 +806,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         inlined = Default_inlined;
                         probe = None;
                         mode;
-                        region = Env.Region_stack_element.region current_region;
+                        region =
+                          Option.map Env.Region_stack_element.region
+                            current_region;
                         ghost_region =
-                          Env.Region_stack_element.ghost_region current_region;
+                          Option.map Env.Region_stack_element.ghost_region
+                            current_region;
                         args_arity = Flambda_arity.create args_arity;
                         return_arity =
                           Flambda_arity.unarize_t
@@ -853,7 +868,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         (Begin_region
            { is_try_region = true;
              ghost = false;
-             parent_region = Env.Region_stack_element.region region_stack_elt
+             parent_region =
+               Option.map Env.Region_stack_element.region region_stack_elt
            })
         ~body:(fun acc ccenv ->
           CC.close_let acc ccenv
@@ -863,7 +879,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                { is_try_region = true;
                  ghost = true;
                  parent_region =
-                   Env.Region_stack_element.ghost_region region_stack_elt
+                   Option.map Env.Region_stack_element.ghost_region
+                     region_stack_elt
                })
             ~body)
     in
@@ -952,7 +969,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Lregion (body, _) when not (Flambda_features.stack_allocation_enabled ()) ->
     cps acc env ccenv body k k_exn
   | Lexclave body ->
-    let current_region = Env.current_region env in
+    let current_region =
+      match Env.current_region env with
+      | Some region -> region
+      | None -> Misc.fatal_error "Lexclave in a context with no current region"
+    in
     let region = Env.Region_stack_element.region current_region in
     let ghost_region = Env.Region_stack_element.ghost_region current_region in
     CC.close_let acc ccenv
@@ -985,7 +1006,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       (Begin_region
          { is_try_region = false;
            ghost = false;
-           parent_region = Env.Region_stack_element.region parent_stack_elt
+           parent_region =
+             Option.map Env.Region_stack_element.region parent_stack_elt
          })
       ~body:(fun acc ccenv ->
         CC.close_let acc ccenv
@@ -995,7 +1017,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
              { is_try_region = false;
                ghost = true;
                parent_region =
-                 Env.Region_stack_element.ghost_region parent_stack_elt
+                 Option.map Env.Region_stack_element.ghost_region
+                   parent_stack_elt
              })
           ~body:(fun acc ccenv ->
             maybe_insert_let_cont "body_return" layout k acc env ccenv
@@ -1117,9 +1140,9 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               inlined = ap_inlined;
               probe = ap_probe;
               mode = ap_mode;
-              region = Env.Region_stack_element.region current_region;
+              region = Option.map Env.Region_stack_element.region current_region;
               ghost_region =
-                Env.Region_stack_element.ghost_region current_region;
+                Option.map Env.Region_stack_element.ghost_region current_region;
               args_arity = Flambda_arity.create args_arity;
               return_arity =
                 Flambda_arity.unarize_t
@@ -1238,6 +1261,9 @@ and cps_function_bindings env (bindings : Lambda.rec_binding list) =
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; ret_mode } : L.lfunction) :
     Function_decl.t =
+  let contains_no_escaping_local_allocs =
+    match ret_mode with Alloc_heap -> true | Alloc_local -> false
+  in
   let first_complex_local_param =
     List.length params
     - match kind with Curried { nlocal } -> nlocal | Tupled -> 0
@@ -1364,11 +1390,17 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     | Some ids -> ids
     | None -> Lambda.free_variables body
   in
-  let my_region = Ident.create_local "my_region" in
-  let my_ghost_region = Ident.create_local "my_ghost_region" in
-  let my_region_stack_elt =
-    Env.Region_stack_element.create ~region:my_region
-      ~ghost_region:my_ghost_region
+  let my_region_stack_elt, my_region, my_ghost_region =
+    if contains_no_escaping_local_allocs
+    then None, None, None
+    else
+      let my_region = Ident.create_local "my_region" in
+      let my_ghost_region = Ident.create_local "my_ghost_region" in
+      ( Some
+          (Env.Region_stack_element.create ~region:my_region
+             ~ghost_region:my_ghost_region),
+        Some my_region,
+        Some my_ghost_region )
   in
   let new_env =
     Env.create ~current_unit:(Env.current_unit env)
@@ -1586,9 +1618,11 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
                 isint_switch
             in
             let current_region = Env.current_region env in
-            let region = Env.Region_stack_element.region current_region in
+            let region =
+              Option.map Env.Region_stack_element.region current_region
+            in
             let ghost_region =
-              Env.Region_stack_element.ghost_region current_region
+              Option.map Env.Region_stack_element.ghost_region current_region
             in
             CC.close_let acc ccenv
               [is_scrutinee_int, Flambda_kind.With_subkind.tagged_immediate]
@@ -1628,13 +1662,9 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
   let toplevel_my_ghost_region =
     Ident.create_local "toplevel_my_ghost_region"
   in
-  let toplevel_my_region_stack_elt =
-    Env.Region_stack_element.create ~region:toplevel_my_region
-      ~ghost_region:toplevel_my_ghost_region
-  in
   let env =
     Env.create ~current_unit:compilation_unit ~return_continuation
-      ~exn_continuation ~my_region:toplevel_my_region_stack_elt
+      ~exn_continuation ~my_region:None
   in
   let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation

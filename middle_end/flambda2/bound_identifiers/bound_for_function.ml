@@ -19,8 +19,8 @@ type t =
     exn_continuation : Continuation.t;
     params : Bound_parameters.t;
     my_closure : Variable.t;
-    my_region : Variable.t;
-    my_ghost_region : Variable.t;
+    my_region : Variable.t option;
+    my_ghost_region : Variable.t option;
     my_depth : Variable.t
   }
 
@@ -39,8 +39,8 @@ let[@ocamlformat "disable"] print ppf
     Continuation.print exn_continuation
     Bound_parameters.print params
     Variable.print my_closure
-    Variable.print my_region
-    Variable.print my_ghost_region
+    (Format.pp_print_option Variable.print) my_region
+    (Format.pp_print_option Variable.print) my_ghost_region
     Variable.print my_depth
 
 let create ~return_continuation ~exn_continuation ~params ~my_closure ~my_region
@@ -49,10 +49,19 @@ let create ~return_continuation ~exn_continuation ~params ~my_closure ~my_region
   (if Flambda_features.check_invariants ()
   then
     let params_set = Bound_parameters.var_set params in
-    let my_set =
-      Variable.Set.of_list [my_closure; my_region; my_ghost_region; my_depth]
+    let my_set, expected_size =
+      let regions, num_regions =
+        match my_region, my_ghost_region with
+        | None, None -> [], 0
+        | Some region, Some ghost_region -> [region; ghost_region], 2
+        | None, Some _ | Some _, None ->
+          Misc.fatal_errorf
+            "[my_region] and [my_ghost_region] must be both present or both \
+             absent"
+      in
+      Variable.Set.of_list (my_closure :: my_depth :: regions), 2 + num_regions
     in
-    if Variable.Set.cardinal my_set <> 4
+    if Variable.Set.cardinal my_set <> expected_size
        || not (Variable.Set.is_empty (Variable.Set.inter my_set params_set))
     then
       Misc.fatal_errorf
@@ -106,10 +115,17 @@ let free_names
     Name_occurrences.add_variable free_names my_closure Name_mode.normal
   in
   let free_names =
-    Name_occurrences.add_variable free_names my_region Name_mode.normal
+    Option.fold ~none:free_names
+      ~some:(fun my_region ->
+        Name_occurrences.add_variable free_names my_region Name_mode.normal)
+      my_region
   in
   let free_names =
-    Name_occurrences.add_variable free_names my_ghost_region Name_mode.normal
+    Option.fold ~none:free_names
+      ~some:(fun my_ghost_region ->
+        Name_occurrences.add_variable free_names my_ghost_region
+          Name_mode.normal)
+      my_ghost_region
   in
   Name_occurrences.add_variable free_names my_depth Name_mode.normal
 
@@ -130,8 +146,10 @@ let apply_renaming
   in
   let params = Bound_parameters.apply_renaming params renaming in
   let my_closure = Renaming.apply_variable renaming my_closure in
-  let my_region = Renaming.apply_variable renaming my_region in
-  let my_ghost_region = Renaming.apply_variable renaming my_ghost_region in
+  let my_region = Option.map (Renaming.apply_variable renaming) my_region in
+  let my_ghost_region =
+    Option.map (Renaming.apply_variable renaming) my_ghost_region
+  in
   let my_depth = Renaming.apply_variable renaming my_depth in
   (* CR mshinwell: this should have a phys-equal check *)
   { return_continuation;
@@ -158,8 +176,17 @@ let ids_for_export
   let ids = Ids_for_export.add_continuation ids exn_continuation in
   let ids = Ids_for_export.union ids (Bound_parameters.ids_for_export params) in
   let ids = Ids_for_export.add_variable ids my_closure in
-  let ids = Ids_for_export.add_variable ids my_region in
-  let ids = Ids_for_export.add_variable ids my_ghost_region in
+  let ids =
+    Option.fold ~none:ids
+      ~some:(fun my_region -> Ids_for_export.add_variable ids my_region)
+      my_region
+  in
+  let ids =
+    Option.fold ~none:ids
+      ~some:(fun my_ghost_region ->
+        Ids_for_export.add_variable ids my_ghost_region)
+      my_ghost_region
+  in
   Ids_for_export.add_variable ids my_depth
 
 let rename
@@ -175,8 +202,8 @@ let rename
     exn_continuation = Continuation.rename exn_continuation;
     params = Bound_parameters.rename params;
     my_closure = Variable.rename my_closure;
-    my_region = Variable.rename my_region;
-    my_ghost_region = Variable.rename my_ghost_region;
+    my_region = Option.map (Variable.rename ?append:None) my_region;
+    my_ghost_region = Option.map (Variable.rename ?append:None) my_ghost_region;
     my_depth = Variable.rename my_depth
   }
 
@@ -216,10 +243,21 @@ let renaming
       ~guaranteed_fresh:my_closure2
   in
   let renaming =
-    Renaming.add_fresh_variable renaming my_region1 ~guaranteed_fresh:my_region2
+    match my_region1, my_region2 with
+    | None, None -> renaming
+    | Some my_region1, Some my_region2 ->
+      Renaming.add_fresh_variable renaming my_region1
+        ~guaranteed_fresh:my_region2
+    | None, Some _ | Some _, None ->
+      Misc.fatal_error "Mismatched [my_region] field in renaming"
   in
   let renaming =
-    Renaming.add_fresh_variable renaming my_ghost_region1
-      ~guaranteed_fresh:my_ghost_region2
+    match my_ghost_region1, my_ghost_region2 with
+    | None, None -> renaming
+    | Some my_ghost_region1, Some my_ghost_region2 ->
+      Renaming.add_fresh_variable renaming my_ghost_region1
+        ~guaranteed_fresh:my_ghost_region2
+    | None, Some _ | Some _, None ->
+      Misc.fatal_error "Mismatched [my_ghost_region] field in renaming"
   in
   Renaming.add_fresh_variable renaming my_depth1 ~guaranteed_fresh:my_depth2

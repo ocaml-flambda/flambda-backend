@@ -32,7 +32,7 @@ val create :
   current_unit:Compilation_unit.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
-  my_region:Region_stack_element.t ->
+  my_region:Region_stack_element.t option ->
   t
 
 val current_unit : t -> Compilation_unit.t
@@ -162,15 +162,16 @@ val entering_region :
 val leaving_region : t -> t
 
 (** The region stack element corresponding to the [my_region] parameter of
-    the current function, or the toplevel region stack element created by
-    simplify.ml. *)
-val my_region : t -> Region_stack_element.t
+    the current function, if relevant.
+    The toplevel expression doesn't have such a variable, and functions
+    that cannot allocate in the parent region may not have one either. *)
+val my_region : t -> Region_stack_element.t option
 
 (** The current region stack element, to be used for allocation etc. *)
-val current_region : t -> Region_stack_element.t
+val current_region : t -> Region_stack_element.t option
 
 (** The region stack element immediately outside [current_region]. *)
-val parent_region : t -> Region_stack_element.t
+val parent_region : t -> Region_stack_element.t option
 
 (** The innermost (newest) region is first in the list. *)
 val region_stack : t -> Region_stack_element.t list
@@ -178,7 +179,7 @@ val region_stack : t -> Region_stack_element.t list
 val region_stack_in_cont_scope :
   t -> Continuation.t -> Region_stack_element.t list
 
-val pop_one_region : t -> t * Region_stack_element.t
+val pop_one_region : t -> t * Region_stack_element.t option
 
 (** Hack for staticfail (which should eventually use
       [pop_regions_up_to_context]) *)

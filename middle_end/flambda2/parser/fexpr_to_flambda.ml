@@ -917,7 +917,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             Flambda.Function_params_and_body.create ~return_continuation
               ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
               (Bound_parameters.create params)
-              ~body ~my_closure ~my_region ~my_ghost_region ~my_depth
+              ~body ~my_closure ~my_region:(Some my_region)
+              ~my_ghost_region:(Some my_ghost_region) ~my_depth
               ~free_names_of_body:Unknown
           in
           let free_names =

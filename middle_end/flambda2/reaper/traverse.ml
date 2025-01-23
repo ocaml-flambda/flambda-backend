@@ -646,8 +646,12 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
   Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params;
   Acc.kind (Name.var my_closure) Flambda_kind.value acc;
-  Acc.kind (Name.var my_region) Flambda_kind.region acc;
-  Acc.kind (Name.var my_ghost_region) Flambda_kind.region acc;
+  Option.iter
+    (fun region -> Acc.kind (Name.var region) Flambda_kind.region acc)
+    my_region;
+  Option.iter
+    (fun region -> Acc.kind (Name.var region) Flambda_kind.region acc)
+    my_ghost_region;
   Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
   if is_opaque
   then

@@ -80,9 +80,7 @@ type t =
     try_stack_at_handler : Continuation.t list Continuation.Map.t;
     static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
     recursive_static_catches : Numeric_types.Int.Set.t;
-    my_region : Region_stack_element.t;
-    (* CR-someday ncourant/mshinwell: replace this with [my_region:
-       Region_stack_element.t option] *)
+    my_region : Region_stack_element.t option;
     region_stack : Region_stack_element.t list;
     region_stack_in_cont_scope : Region_stack_element.t list Continuation.Map.t;
     region_closure_continuations :
@@ -309,7 +307,7 @@ let current_region t =
   else
     match t.region_stack with
     | [] -> t.my_region
-    | region_stack_elt :: _ -> region_stack_elt
+    | region_stack_elt :: _ -> Some region_stack_elt
 
 let parent_region t =
   if not (Flambda_features.stack_allocation_enabled ())
@@ -319,7 +317,7 @@ let parent_region t =
     | [] ->
       Misc.fatal_error "Cannot determine parent region, region stack is empty"
     | [_] -> t.my_region
-    | _ :: region :: _ -> region
+    | _ :: region :: _ -> Some region
 
 let my_region t = t.my_region
 
@@ -340,7 +338,7 @@ let pop_one_region t =
   else
     match t.region_stack with
     | [] -> Misc.fatal_error "No regions available to pop"
-    | region :: region_stack -> { t with region_stack }, region
+    | region :: region_stack -> { t with region_stack }, Some region
 
 let pop_regions_up_to_context t continuation =
   let initial_stack_context = region_stack_in_cont_scope t continuation in

@@ -173,6 +173,8 @@ val value_slot_is_used_or_imported : t -> Value_slot.t -> bool
 
 val remove_var : t -> var:Variable.t -> t
 
+val remove_var_opt : t -> var:Variable.t option -> t
+
 val remove_code_id_or_symbol : t -> code_id_or_symbol:Code_id_or_symbol.t -> t
 
 val remove_continuation : t -> continuation:Continuation.t -> t

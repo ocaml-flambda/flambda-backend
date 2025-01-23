@@ -37,6 +37,11 @@ let remove_var_with_provenance free_vars var =
   let v = Backend_var.With_provenance.var var in
   Backend_var.Set.remove v free_vars
 
+let remove_var_opt_with_provenance free_vars var =
+  match var with
+  | None -> free_vars
+  | Some var -> remove_var_with_provenance free_vars var
+
 let remove_vars_with_machtype free_vars vars =
   List.fold_left
     (fun free_vars (cmm_var, _machtype) ->
