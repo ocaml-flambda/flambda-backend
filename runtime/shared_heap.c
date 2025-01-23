@@ -199,18 +199,34 @@ void caml_teardown_shared_heap(struct caml_heap_state* heap) {
               released, released_large);
 }
 
-/* this _must_ be called either with the pool_freelist.lock held or
+/* TODO: resurrect major_heap_increment */
+
+uintnat new_chunk_bsize(void)
+{
+  uintnat new_pools = pool_freelist.active_pools * 15 / 100;
+  uintnat min_new_pools =
+    Wsize_bsize(caml_pool_min_chunk_bsz) / POOL_WSIZE;
+  if (new_pools < min_new_pools) new_pools = min_new_pools;
+
+  return caml_mem_round_up_mapping_size(Bsize_wsize(POOL_WSIZE) * new_pools);
+}
+
+uintnat caml_shared_heap_grow_bsize(void)
+{
+  caml_plat_lock_blocking(&pool_freelist.lock);
+  uintnat res = new_chunk_bsize();
+  caml_plat_unlock(&pool_freelist.lock);
+  return res;
+}
+
+/* This _must_ be called either with the pool_freelist.lock held or
    during a stw in only a single domain */
 static pool* alloc_pool(struct caml_heap_state* local) {
   pool* r = NULL;
 
   if (pool_freelist.fresh_pools == 0) {
-    uintnat new_pools = pool_freelist.active_pools * 15 / 100;
-    if (new_pools < 8) new_pools = 8;
-
-    uintnat mapping_size =
-      caml_mem_round_up_mapping_size(Bsize_wsize(POOL_WSIZE) * new_pools);
-    new_pools = mapping_size / Bsize_wsize(POOL_WSIZE);
+    uintnat mapping_size = new_chunk_bsize();
+    uintnat new_pools = mapping_size / Bsize_wsize(POOL_WSIZE);
 
     char mapping_name[64];
     snprintf(mapping_name, sizeof mapping_name,
