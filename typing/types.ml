@@ -32,14 +32,7 @@ module Jkind_mod_bounds =
   Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
 
 module With_bounds_type_info = struct
-  type relevant_for_nullability =
-    | Relevant_for_nullability
-    | Irrelevant_for_nullability
-
-  type t =
-    { modality : Mode.Modality.Value.Const.t;
-      relevant_for_nullability: relevant_for_nullability
-    }
+  type t = Jkind_axis.Axis_set.t
 end
 
 

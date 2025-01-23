@@ -95,8 +95,7 @@ Line 1, characters 47-48:
 Error: This expression has type "string t"
        but an expression was expected of type
          "('a : value mod global & value mod global)"
-       The kind of string t is
-         immediate with string @@ global & immediate with string @@ global
+       The kind of string t is immediate with string & immediate with string
          because of the definition of t at line 4, characters 0-51.
        But the kind of string t must be a subkind of
          value mod global & value mod global
@@ -123,8 +122,7 @@ Line 1, characters 65-66:
 Error: This expression has type "(string -> string) t"
        but an expression was expected of type "('a : value & value)"
        The kind of (string -> string) t is
-         immediate with string -> string @@ global & immediate
-         with string -> string @@ global
+         immediate with string -> string & immediate with string -> string
          because of the definition of t at line 4, characters 0-51.
        But the kind of (string -> string) t must be a subkind of
          value & value

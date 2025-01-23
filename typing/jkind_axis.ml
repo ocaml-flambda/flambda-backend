@@ -170,22 +170,6 @@ module Axis = struct
     | Modal (Comonadic Yielding) -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
-
-  let modality_is_const_for_axis (type a) (t : a t)
-      (modality : Mode.Modality.Value.Const.t) =
-    match t with
-    | Nonmodal Nullability | Nonmodal Externality -> false
-    | Modal axis ->
-      let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-      let modality = Mode.Modality.Value.Const.proj axis modality in
-      if Mode.Modality.is_constant modality
-      then true
-      else if Mode.Modality.is_id modality
-      then false
-      else
-        Misc.fatal_error
-          "Don't yet know how to interpret non-constant, non-identity \
-           modalities"
 end
 
 module type Axed = sig
@@ -480,9 +464,15 @@ module Axis_set = struct
   (* each axis is true or false to indicate membership  *)
   type t = bool Axis_collection.t
 
+  (* TODO: this could be represented with a unit8 since there's only 7 possible members *)
+
   let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
 
-  let add t (Axis.Pack axis) = Axis_collection.set ~axis t true
+  let add t axis = Axis_collection.set ~axis t true
+
+  let remove t axis = Axis_collection.set ~axis t false
+
+  let mem t axis = Axis_collection.get ~axis t
 
   let union t1 t2 =
     Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
@@ -499,9 +489,17 @@ module Axis_set = struct
         (not t1_on_axis) || t2_on_axis)
       ~combine:( && ) t1
 
+  let complement t = Axis_collection.map ~f:not t
+
   let to_list t =
     Axis_collection.fold
       ~f:(fun ~axis t_on_axis ->
         match t_on_axis with true -> [axis] | false -> [])
       ~combine:( @ ) t
+
+  let print ppf t =
+    Format.pp_print_list
+      ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
+      (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
+      ppf (to_list t)
 end

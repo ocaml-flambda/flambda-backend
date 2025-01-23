@@ -596,7 +596,15 @@ let foo () =
   ignore_once r.x;
   ignore_once r;
 [%%expect{|
-val foo : unit -> unit = <fun>
+Line 4, characters 14-15:
+4 |   ignore_once r;
+                  ^
+Error: This value is used here,
+       but part of it is defined as once and has already been used:
+Line 3, characters 14-17:
+3 |   ignore_once r.x;
+                  ^^^
+
 |}]
 (* CR aspsmith: This should not be accepted *)
 
@@ -677,7 +685,15 @@ let foo () =
   ignore_once x;
   ignore_once r;
 [%%expect{|
-val foo : unit -> unit = <fun>
+Line 5, characters 14-15:
+5 |   ignore_once r;
+                  ^
+Error: This value is used here,
+       but part of it is defined as once and has already been used:
+Line 4, characters 14-15:
+4 |   ignore_once x;
+                  ^
+
 |}]
 (* CR aspsmith: This should not be accepted *)
 
