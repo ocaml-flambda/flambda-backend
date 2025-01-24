@@ -820,6 +820,12 @@
   (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
    as
    compiler-libs/libflambda2_floats_stubs_native.a)
+  (middle_end/flambda2/algorithms/libflambda2_algorithms_stubs.a
+   as
+   compiler-libs/libflambda2_algorithms_stubs.a)
+  (middle_end/flambda2/algorithms/libflambda2_algorithms_stubs.a
+   as
+   compiler-libs/libflambda2_algorithms_stubs_native.a)
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
