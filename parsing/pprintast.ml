@@ -116,11 +116,14 @@ let protect_longident ppf print_longident longprefix txt =
 let is_curry_attr attr =
   attr.attr_name.txt = Builtin_attributes.curry_attr_name
 
-let filter_curry_attrs attrs =
-  List.filter (fun attr -> not (is_curry_attr attr)) attrs
-
-let has_non_curry_attr attrs =
-  List.exists (fun attr -> not (is_curry_attr attr)) attrs
+let split_out_curry_attr attrs =
+  let curry, non_curry = List.partition is_curry_attr attrs in
+  let is_curry =
+    match curry with
+    | [] -> false
+    | _ :: _ -> true
+  in
+  is_curry, non_curry
 
 type space_formatter = (unit, Format.formatter, unit) format
 
@@ -498,10 +501,9 @@ and name_jkind f (name, jkind) =
 and name_loc_jkind f (str, jkind) = name_jkind f (str.txt,jkind)
 
 and core_type ctxt f x =
-  let filtered_attrs = filter_curry_attrs x.ptyp_attributes in
-  if filtered_attrs <> [] then begin
+  if x.ptyp_attributes <> [] then begin
     pp f "((%a)%a)" (core_type ctxt) {x with ptyp_attributes=[]}
-      (attributes ctxt) filtered_attrs
+      (attributes ctxt) x.ptyp_attributes
   end
   else match x.ptyp_desc with
     | Ptyp_arrow (l, ct1, ct2, m1, m2) ->
@@ -525,8 +527,7 @@ and core_type ctxt f x =
     | _ -> pp f "@[<2>%a@]" (core_type1 ctxt) x
 
 and core_type1 ctxt f x =
-  (* CR zqian: the logic about curry should be pushed into Ptyp_arrow *)
-  if has_non_curry_attr x.ptyp_attributes then core_type ctxt f x
+  if x.ptyp_attributes <> [] then core_type ctxt f x
   else
     match x.ptyp_desc with
     | Ptyp_any jkind -> tyvar_loc_option_jkind f (None, jkind)
@@ -628,7 +629,9 @@ and labeled_core_type1 ctxt f (label, ty) =
   core_type1 ctxt f ty
 
 and return_type ctxt f (x, m) =
-  if x.ptyp_attributes <> [] then core_type_with_optional_legacy_modes core_type1 ctxt f (x, m)
+  let is_curry, ptyp_attributes = split_out_curry_attr x.ptyp_attributes in
+  let x = {x with ptyp_attributes} in
+  if is_curry then core_type_with_optional_legacy_modes core_type1 ctxt f (x, m)
   else core_type_with_optional_legacy_modes core_type ctxt f (x, m)
 
 and core_type_with_optional_modes  ctxt f (ty, modes) =
