@@ -401,9 +401,11 @@ module With_bounds = struct
       (l1 * allowed) t =
     match bag1, bag2 with No_with_bounds, No_with_bounds -> No_with_bounds
 
-  let add ~relevant_for_nullability ~modality ~type_expr (t : (allowed * 'r) t) :
-      (allowed * 'r) t =
-    let type_info = Type_info.create ~type_expr ~modality ~relevant_for_nullability in
+  let add ~relevant_for_nullability ~modality ~type_expr (t : (allowed * 'r) t)
+      : (allowed * 'r) t =
+    let type_info =
+      Type_info.create ~type_expr ~modality ~relevant_for_nullability
+    in
     match t with
     | No_with_bounds -> With_bounds (type_info, [])
     | With_bounds (ty, tys) -> With_bounds (type_info, ty :: tys)
@@ -1049,11 +1051,9 @@ module Const = struct
         { layout = base.layout;
           upper_bounds = base.upper_bounds;
           with_bounds =
-            With_bounds.add
-              ~modality
+            With_bounds.add ~modality
               ~relevant_for_nullability:Irrelevant_for_nullability
-              ~type_expr:type_
-              base.with_bounds
+              ~type_expr:type_ base.with_bounds
         })
     | Default | Kind_of _ -> raise ~loc:jkind.pjkind_loc Unimplemented_syntax
 
@@ -1171,10 +1171,7 @@ module Jkind_desc = struct
   let add_with_bounds ~relevant_for_nullability ~type_expr ~modality t =
     { t with
       with_bounds =
-        With_bounds.add
-          ~relevant_for_nullability
-          ~type_expr
-          ~modality
+        With_bounds.add ~relevant_for_nullability ~type_expr ~modality
           t.with_bounds
     }
 
@@ -1267,11 +1264,8 @@ module Jkind_desc = struct
       let with_bounds =
         List.fold_right
           (fun (type_expr, modality) bounds ->
-             With_bounds.add
-               ~relevant_for_nullability:Relevant_for_nullability
-               ~type_expr
-               ~modality
-               bounds)
+            With_bounds.add ~relevant_for_nullability:Relevant_for_nullability
+              ~type_expr ~modality bounds)
           tys_modalities Jkind_types.With_bounds.No_with_bounds
       in
       { layout; upper_bounds; with_bounds }
@@ -1371,12 +1365,10 @@ let add_with_bounds ~modality ~type_expr t =
   { t with
     jkind =
       Jkind_desc.add_with_bounds
-        (* We only care about types in fields of unboxed products for the nullability of
-           the overall kind *)
-        ~relevant_for_nullability:Irrelevant_for_nullability
-        ~type_expr
-        ~modality
-        t.jkind
+      (* We only care about types in fields of unboxed products for the nullability of
+         the overall kind *)
+        ~relevant_for_nullability:Irrelevant_for_nullability ~type_expr
+        ~modality t.jkind
   }
 
 let has_with_bounds (type l r) (t : (l * r) t) =
@@ -2292,8 +2284,7 @@ let sub_jkind_l ~type_equal ~jkind_of_type sub super =
             With_bounds.extend_bound ~type_equal ~jkind_of_type ~axis
               ~bound:bound1 sub.jkind.with_bounds
           in
-          Misc.Le_result.is_le
-            (Bound_ops.less_or_equal bound1_extended bound2)
+          Misc.Le_result.is_le (Bound_ops.less_or_equal bound1_extended bound2)
         | with_bounds2 ->
           let modifiers = Bound_ops.le bound1 bound2 in
           let with_bounds =

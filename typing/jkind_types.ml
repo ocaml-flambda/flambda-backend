@@ -531,7 +531,7 @@ module With_bounds = struct
     type +'type_expr t =
       { type_expr : 'type_expr;
         modality : Mode.Modality.Value.Const.t;
-        relevant_for_nullability: relevant_for_nullability
+        relevant_for_nullability : relevant_for_nullability
       }
 
     let print ~print_type_expr ppf { type_expr; modality } =
@@ -738,13 +738,11 @@ module Layout_and_axes = struct
    fun { layout; upper_bounds; with_bounds } ->
     match With_bounds.try_allow_l with_bounds with
     | None -> None
-    | Some with_bounds ->
-      Some { layout; upper_bounds; with_bounds }
+    | Some with_bounds -> Some { layout; upper_bounds; with_bounds }
 
   let try_allow_r { layout; upper_bounds; with_bounds } =
     match With_bounds.try_allow_r with_bounds with
-    | Some with_bounds ->
-      Some { layout; upper_bounds; with_bounds }
+    | Some with_bounds -> Some { layout; upper_bounds; with_bounds }
     | None -> None
 
   let debug_print ~print_type_expr format_layout ppf
