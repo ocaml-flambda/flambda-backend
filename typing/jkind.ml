@@ -1199,7 +1199,6 @@ module Jkind_desc = struct
              match with_bounds1, with_bounds2 with
              | No_with_bounds, No_with_bounds ->
                Axis_ops.less_or_equal bound1 bound2
-             (* CR layouts v2.8: This should expand types on the left. *)
              | (With_bounds (_, _) as wbs), No_with_bounds ->
                if Axis_ops.le Axis_ops.max bound2
                then Less
