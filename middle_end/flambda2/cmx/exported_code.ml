@@ -21,6 +21,8 @@ type t = Code_or_metadata.t Code_id.Map.t
 
 let print ppf t = Code_id.Map.print Code_or_metadata.print ppf t
 
+let print_view ppf t = Code_id.Map.print Code_or_metadata.print_view ppf t
+
 let empty = Code_id.Map.empty
 
 let free_names t =

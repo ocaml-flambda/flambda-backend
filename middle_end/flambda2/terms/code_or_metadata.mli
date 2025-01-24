@@ -21,6 +21,8 @@ module View : sig
   type t = private
     | Code_present of Code.t
     | Metadata_only of Code_metadata.t
+
+  val print : Format.formatter -> t -> unit
 end
 
 val view : t -> View.t
@@ -29,6 +31,8 @@ val view : t -> View.t
 val get_code : t -> Code.t
 
 val print : Format.formatter -> t -> unit
+
+val print_view : Format.formatter -> t -> unit
 
 val merge : Code_id.t -> t -> t -> t option
 
