@@ -111,7 +111,7 @@
      -open Fancy__ -open No_direct_access_to_fancy \
    ";
 
-   flags = "${flg_int_iface} -parameter P -parameter Q -I p -I q";
+   flags = "$flg_int_iface -parameter P -parameter Q -I p -I q";
    module = "fancy/fancy__.ml";
    ocamlopt.byte;
 
@@ -144,7 +144,7 @@
      -open P_int__ -open No_direct_access_to_p_int \
    ";
 
-   flags = "${flg_int_iface}";
+   flags = "$flg_int_iface";
    module = "p_int/p_int__.ml";
    ocamlopt.byte;
 
@@ -157,7 +157,7 @@
      -open P_string__ -open No_direct_access_to_p_string \
    ";
 
-   flags = "${flg_int_iface}";
+   flags = "$flg_int_iface";
    module = "p_string/p_string__.ml";
    ocamlopt.byte;
 
@@ -199,7 +199,7 @@
      -open Q_impl__ -open No_direct_access_to_q_impl \
    ";
 
-   flags = "${flg_int_iface}";
+   flags = "$flg_int_iface";
    module = "q_impl/q_impl__.ml";
    ocamlopt.byte;
 
@@ -374,7 +374,7 @@
 
    flags = "$flg";
    module = "";
-   program = "${test_build_directory}/test_native.exe";
+   program = "$test_build_directory/test_native.exe";
    all_modules = "\
      basic/basic.cmx \
      fancy/fancy__.cmx \
