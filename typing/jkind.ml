@@ -2272,31 +2272,36 @@ let sub_jkind_l ~type_equal ~jkind_of_type sub super =
   let bounds =
     List.for_all
       (fun (Axis.Pack axis) ->
-        let (module Axis_ops) = Axis.get axis in
+        let (module Bound_ops) = Axis.get axis in
         let bound1 = Bounds.get ~axis sub.jkind.upper_bounds in
         let bound2 = Bounds.get ~axis super.jkind.upper_bounds in
+        let with_bounds1 =
+          With_bounds.types_on_axis ~axis sub.jkind.with_bounds
+        in
+        (* If bound1 is min and has no with-bounds, we're good. *)
+        (Bound_ops.le bound1 Bound_ops.min && List.length with_bounds1 = 0)
+        (* If bound2 is max, we're good. *)
+        || Bound_ops.le Bound_ops.max bound2
+        (* Otherwise, try harder. *)
+        ||
         (* Maybe an individual axis has the right shape on the right;
-           try this again before doing the stupid equality check. *)
-        if Axis_ops.le Axis_ops.max bound2
-        then true
-        else
-          match With_bounds.types_on_axis ~axis super.jkind.with_bounds with
-          | [] ->
-            let bound1' =
-              With_bounds.extend_bound ~type_equal ~jkind_of_type ~axis
-                ~bound:bound1 sub.jkind.with_bounds
-            in
-            Axis_ops.less_or_equal bound1' bound2 |> Misc.Le_result.is_le
-          | with_bounds2 ->
-            let with_bounds1 =
-              With_bounds.types_on_axis ~axis sub.jkind.with_bounds
-            in
-            let modifiers = Axis_ops.equal bound1 bound2 in
-            let with_bounds =
-              List.compare_lengths with_bounds1 with_bounds2 = 0
-              && List.for_all2 type_equal with_bounds1 with_bounds2
-            in
-            modifiers && with_bounds)
+           try this before doing the stupid equality check. *)
+        match With_bounds.types_on_axis ~axis super.jkind.with_bounds with
+        | [] ->
+          let bound1_extended =
+            With_bounds.extend_bound ~type_equal ~jkind_of_type ~axis
+              ~bound:bound1 sub.jkind.with_bounds
+          in
+          Misc.Le_result.is_le
+            (Bound_ops.less_or_equal bound1_extended bound2)
+        | with_bounds2 ->
+          let modifiers = Bound_ops.le bound1 bound2 in
+          let with_bounds =
+            (* Check lengths first to avoid unnecessary `type_equal`. *)
+            List.compare_lengths with_bounds1 with_bounds2 = 0
+            && List.for_all2 type_equal with_bounds1 with_bounds2
+          in
+          modifiers && with_bounds)
       Axis.all
   in
   if layouts && bounds

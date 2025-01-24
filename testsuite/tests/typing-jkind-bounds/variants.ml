@@ -252,12 +252,15 @@ type 'a t : value mod immutable_data with 'a -> 'a = Foo of { x : 'a -> 'a } | B
 (* CR layouts v2.8: the above will be accepted once we have proper subsumption
    *)
 [%%expect {|
-Line 1, characters 0-40:
-1 | type 'a t : immutable_data with 'a = Foo
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immediate
-         because it's an enumeration variant type (all constructors are constant).
-       But the kind of type "t" must be a subkind of immutable_data
+type 'a t = Foo
+type 'a t = Foo of 'a
+type 'a t = Bar of { mutable x : 'a; }
+Line 4, characters 0-48:
+4 | type 'a t : mutable_data with 'a = Foo of 'a ref
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is immutable_data
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
