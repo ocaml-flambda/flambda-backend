@@ -157,7 +157,8 @@ let add_equations_on_params typing_env ~is_recursive ~params:params'
         let name = Bound_parameter.name param in
         let kind = Bound_parameter.kind param in
         let typing_env =
-          if Flambda_kind.With_subkind.has_useful_subkind_info kind
+          if not (Flambda_features.untrusted_kinds ())
+          && Flambda_kind.With_subkind.has_useful_subkind_info kind
           then
             let raw_kind = Flambda_kind.With_subkind.kind kind in
             let type_from_kind = T.unknown_with_subkind kind in

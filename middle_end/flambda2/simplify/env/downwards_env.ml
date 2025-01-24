@@ -378,7 +378,10 @@ let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
   in
   let param_types =
     ListLabels.map2 params alloc_modes ~f:(fun param alloc_mode ->
-        T.unknown_with_subkind ~alloc_mode (BP.kind param))
+        if Flambda_features.untrusted_kinds () then
+          T.unknown (Flambda_kind.With_subkind.kind (BP.kind param))
+        else
+          T.unknown_with_subkind ~alloc_mode (BP.kind param))
   in
   add_parameters ?name_mode t params' ~param_types
 

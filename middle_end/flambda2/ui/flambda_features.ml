@@ -41,6 +41,11 @@ let join_points () =
   !Flambda_backend_flags.Flambda2.join_points
   |> with_default ~f:(fun d -> d.join_points)
 
+let untrusted_kinds () =
+  match Sys.getenv_opt "FLAMBDA2_UNTRUSTED_KINDS" with
+  | None | Some "" -> false
+  | Some _ -> true
+
 let unbox_along_intra_function_control_flow () =
   !Flambda_backend_flags.Flambda2.unbox_along_intra_function_control_flow
   |> with_default ~f:(fun d -> d.unbox_along_intra_function_control_flow)
