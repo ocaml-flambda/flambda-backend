@@ -1658,6 +1658,31 @@ and expand_modtype_path env path =
   | Some (Mty_ident path) -> normalize_modtype_path env path
   | _ | exception Not_found -> path
 
+let normalize_instance_names_in_ident ident =
+  if Ident.is_instance ident then
+    let modname = Ident.to_global_exn ident in
+    let modname2 =
+      Persistent_env.normalize_global_name !persistent_env modname
+    in
+    if modname == modname2 then ident else Ident.create_global modname2
+  else
+    ident
+
+let rec normalize_instance_names_in_module_path path =
+  match path with
+  | Pident i ->
+      let i2 = normalize_instance_names_in_ident i in
+      if i == i2 then path else Pident i2
+  | Pdot (p, s) ->
+      let p2 = normalize_instance_names_in_module_path p in
+      if p == p2 then path else Pdot (p2, s)
+  | Pextra_ty (p, extra) ->
+      let p2 = normalize_instance_names_in_module_path p in
+      if p == p2 then path else Pextra_ty (p2, extra)
+  | Papply (p, a) ->
+      let p2 = normalize_instance_names_in_module_path p in
+      if p == p2 then path else Papply (p2, a)
+
 let find_module_lazy path env =
   find_module_lazy ~alias:false path env
 

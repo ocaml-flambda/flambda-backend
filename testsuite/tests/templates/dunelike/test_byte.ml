@@ -75,7 +75,7 @@
    set flg_alias_deps = "-w -53";
    set flg = "$flg_alias_deps -no-alias-deps";
    set flg_int_iface = "$flg -w -49";
-   set flg_instance = "-H instances -w -24";
+   set flg_instance = "-H instances -w -24 -w -58";
 
    flags = "$flg_int_iface";
    module = "p/p__.ml";
@@ -207,7 +207,8 @@
    module = "q_impl/q_impl.ml";
    ocamlc.byte;
 
-   set flg_fancy_p_int = "$flg_instance -I fancy -I p -I p_int -I q -I q_impl";
+   set flg_fancy_p_int =
+     "$flg_instance -I basic -I fancy -I p -I p_int -I q -I q_impl";
 
    flags = "$flg_fancy_p_int -instantiate";
    module = "";
@@ -320,7 +321,8 @@
    ocamlc.byte;
 
    set flg_use_fancy_q_impl = "\
-     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I export_fancy_q_impl \
+     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy \
+     -I export_fancy_q_impl -I use_fancy_q_impl -I util \
      -open Use_fancy_q_impl__ -open No_direct_access_to_use_fancy_q_impl \
    ";
 
@@ -349,7 +351,7 @@
 
    set flg_main = "\
      $flg -I p -I p_int -I p_string -I q -I q_impl -I fancy -I basic -I main \
-     -H export_fancy_q_impl -I use_fancy_q_impl -H util -I instances \
+     -H export_fancy_q_impl -I use_fancy_q_impl -I util -I instances \
      -open Main__ -open No_direct_access_to_main \
    ";
 
@@ -364,7 +366,7 @@
    check-ocamlc.byte-output;
 
    flags = "\
-     $flg -H p -H p_int -H p_string -H fancy -H basic -H instances \
+     $flg -H p -H p_int -H p_string -H q -H q_impl -H fancy -H basic \
      -I main -I main_basic \
    ";
    module = "test_byte.ml";
@@ -384,14 +386,26 @@
      instances/basic-P_int.cmo \
      instances/basic-P_string.cmo \
      main_basic/main_basic.cmo \
-     instances/fancy__-P_int.cmo \
-     instances/fancy__Flourish-P_int.cmo \
-     instances/fancy__Ornament-P_int.cmo \
-     instances/fancy-P_int.cmo \
-     instances/fancy__-P_string.cmo \
-     instances/fancy__Flourish-P_string.cmo \
-     instances/fancy__Ornament-P_string.cmo \
-     instances/fancy-P_string.cmo \
+     util/util__.cmo \
+     util/util.cmo \
+     instances/util__-P_int.cmo \
+     instances/util-P_int.cmo \
+     instances/fancy__-P_int-Q_impl.cmo \
+     instances/fancy__Flourish-P_int-Q_impl.cmo \
+     instances/fancy__Ornament-P_int-Q_impl.cmo \
+     instances/fancy-P_int-Q_impl.cmo \
+     instances/fancy__-P_string-Q_impl.cmo \
+     instances/fancy__Flourish-P_string-Q_impl.cmo \
+     instances/fancy__Ornament-P_string-Q_impl.cmo \
+     instances/fancy-P_string-Q_impl.cmo \
+     export_fancy_q_impl/export_fancy_q_impl__.cmo \
+     export_fancy_q_impl/export_fancy_q_impl.cmo \
+     use_fancy_q_impl/use_fancy_q_impl__.cmo \
+     use_fancy_q_impl/use_fancy_q_impl.cmo \
+     instances/export_fancy_q_impl__-P_int.cmo \
+     instances/export_fancy_q_impl-P_int.cmo \
+     instances/use_fancy_q_impl__-P_int.cmo \
+     instances/use_fancy_q_impl-P_int.cmo \
      main/main.cmo \
      test_byte.cmo \
    ";

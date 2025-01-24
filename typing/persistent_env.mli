@@ -153,6 +153,10 @@ val global_of_global_name : 'a t
   -> allow_excess_args:bool
   -> Global_module.t
 
+(* [normalize_global_name penv g] returns [g] with any excess arguments removed,
+   loading any .cmi files necessary to do so. *)
+val normalize_global_name : 'a t -> Global_module.Name.t -> Global_module.Name.t
+
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
   -> Cmi_format.kind

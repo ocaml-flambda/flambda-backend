@@ -723,6 +723,13 @@ let read_pers_name penv check name filename =
   let import = read_import penv ~check unit_name filename in
   acknowledge_pers_name penv check name import
 
+let normalize_global_name penv modname =
+  let new_modname =
+    global_of_global_name penv modname ~check:true ~allow_excess_args:true
+    |> Global_module.to_name
+  in
+  if Global_module.Name.equal modname new_modname then modname else new_modname
+
 let need_local_ident penv (global : Global_module.t) =
   (* There are three equivalent ways to phrase the question we're asking here:
 
