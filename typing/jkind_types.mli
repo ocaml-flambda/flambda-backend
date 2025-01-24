@@ -115,7 +115,7 @@ module With_bounds : sig
     type +'type_expr t =
       { type_expr : 'type_expr;
         modality : Mode.Modality.Value.Const.t;
-        relevant_for_nullability: relevant_for_nullability
+        relevant_for_nullability : relevant_for_nullability
       }
 
     val create :
