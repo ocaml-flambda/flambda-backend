@@ -246,20 +246,18 @@ type 'a t : immutable_data with 'a = { x : int }
 type 'a t : value mod uncontended with 'a = { x : int }
 type 'a t : immutable_data with 'a = { x : 'a option }
 type 'a t : immutable_data with 'a -> 'a = { x : 'a -> 'a }
-(* CR layouts v2.8: the above should be accepted *)
 [%%expect {|
 type 'a t = { x : int; }
 type 'a t = { x : 'a; }
 type 'a t = { mutable x : 'a; }
 type 'a t = { x : 'a ref; }
 type ('a, 'b) t = { x : 'a; y : 'b; z : 'a; }
-Line 6, characters 0-83:
-6 | type ('a, 'b) t : mutable_data with 'a with 'b = { x : 'a; y : 'b; mutable z : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of mutable_data
-         because of the annotation on the declaration of the type t.
+type ('a, 'b) t = { x : 'a; y : 'b; mutable z : 'a; }
+type 'a t = { x : unit -> unit; y : 'a; }
+type 'a t = { x : int; }
+type 'a t = { x : int; }
+type 'a t = { x : 'a option; }
+type 'a t = { x : 'a -> 'a; }
 |}]
 
 type 'a t : immutable_data with 'a = { mutable x : 'a }

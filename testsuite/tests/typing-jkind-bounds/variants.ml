@@ -248,23 +248,20 @@ type ('a, 'b) t : mutable_data with 'a with 'b = Foo of { x : 'a; y : 'b; mutabl
 type 'a t : value mod uncontended with 'a = Foo of { x : unit -> unit; y : 'a }
 type 'a t : immutable_data with 'a = Foo | Bar of { x : int }
 type 'a t : value mod uncontended with 'a = Foo of int
-type 'a t : value mod immutable_data with 'a = Foo of 'a option
-type 'a t : value mod immutable_data with 'a -> 'a = Foo of { x : 'a -> 'a } | Bar of ('a -> 'a)
-(* CR layouts v2.8: the above will be accepted once we have proper subsumption
-   *)
+type 'a t : immutable_data with 'a = Foo of 'a option
+type 'a t : immutable_data with 'a -> 'a = Foo of { x : 'a -> 'a } | Bar of ('a -> 'a)
 [%%expect {|
 type 'a t = Foo
 type 'a t = Foo of 'a
 type 'a t = Bar of { mutable x : 'a; }
 type 'a t = Foo of 'a ref
 type ('a, 'b) t = Foo of { x : 'a; y : 'b; z : 'a; }
-Line 6, characters 0-90:
-6 | type ('a, 'b) t : mutable_data with 'a with 'b = Foo of { x : 'a; y : 'b; mutable z : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data
-         because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of mutable_data
-         because of the annotation on the declaration of the type t.
+type ('a, 'b) t = Foo of { x : 'a; y : 'b; mutable z : 'a; }
+type 'a t = Foo of { x : unit -> unit; y : 'a; }
+type 'a t = Foo | Bar of { x : int; }
+type 'a t = Foo of int
+type 'a t = Foo of 'a option
+type 'a t = Foo of { x : 'a -> 'a; } | Bar of ('a -> 'a)
 |}]
 
 type 'a t : immutable_data with 'a = Foo of { mutable x : 'a }
