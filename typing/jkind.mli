@@ -198,6 +198,8 @@ module Const : sig
       allowance machinery here. *)
   type 'd t constraint 'd = 'l * 'r
 
+  include Allowance.Allow_disallow with type (_, _, 'd) sided = 'd t
+
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
   (** This returns [true] iff both types have no with-bounds and they are equal.
@@ -281,7 +283,7 @@ module Builtin : sig
   val any : why:History.any_creation_reason -> 'd Types.jkind
 
   (** Value of types of this jkind are not retained at all at runtime *)
-  val void : why:History.void_creation_reason -> 'd Types.jkind
+  val void : why:History.void_creation_reason -> ('l * disallowed) Types.jkind
 
   val value_or_null :
     why:History.value_or_null_creation_reason -> 'd Types.jkind
@@ -296,7 +298,8 @@ module Builtin : sig
   val mutable_data : why:History.value_creation_reason -> 'd Types.jkind
 
   (** We know for sure that values of types of this jkind are always immediate *)
-  val immediate : why:History.immediate_creation_reason -> 'd Types.jkind
+  val immediate :
+    why:History.immediate_creation_reason -> ('l * disallowed) Types.jkind
 
   (** Build a jkind of unboxed products, from a list of types with
       their layouts. Errors if zero inputs are given. If only one input
@@ -341,6 +344,10 @@ val add_with_bounds :
 (** Does this jkind have with-bounds? *)
 val has_with_bounds : Types.jkind_l -> bool
 
+(** Mark the given jkind as {ibest}, meaning we can never learn any more information about
+    it that will cause it to become lower in the preorder of kinds*)
+val mark_best : ('l * 'r) Types.jkind -> ('l * disallowed) Types.jkind
+
 (******************************)
 (* construction *)
 
@@ -367,11 +374,14 @@ val of_new_legacy_sort :
 val of_const :
   annotation:Parsetree.jkind_annotation option ->
   why:History.creation_reason ->
+  quality:'d Types.jkind_quality ->
   'd Const.t ->
   'd Types.jkind
 
 val of_builtin :
-  why:History.creation_reason -> Const.Builtin.t -> 'd Types.jkind
+  why:History.creation_reason ->
+  Const.Builtin.t ->
+  ('l * disallowed) Types.jkind
 
 val of_annotation :
   context:('l * allowed) History.annotation_context ->
