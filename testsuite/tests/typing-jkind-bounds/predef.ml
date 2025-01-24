@@ -218,15 +218,8 @@ type ('a : immutable_data) t = 'a list
 |}]
 
 type 'a t : immutable_data with 'a = 'a list
-(* CR layouts v2.8: this should work once we get proper subsumption working *)
 [%%expect {|
-Line 1, characters 0-44:
-1 | type 'a t : immutable_data with 'a = 'a list
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a list" is immutable_data
-         because it's a boxed variant type.
-       But the kind of type "'a list" must be a subkind of immutable_data
-         because of the definition of t at line 1, characters 0-44.
+type 'a t = 'a list
 |}]
 
 type 'a t : immutable_data = 'a list

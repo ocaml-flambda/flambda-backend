@@ -140,7 +140,7 @@ type t : immutable_data = { x : int ref }
 Line 1, characters 0-41:
 1 | type t : immutable_data = { x : int ref }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -151,7 +151,7 @@ type t : immutable_data = { x : unit -> unit }
 Line 1, characters 0-46:
 1 | type t : immutable_data = { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -184,7 +184,7 @@ type t : mutable_data = { x : unit -> unit }
 Line 1, characters 0-44:
 1 | type t : mutable_data = { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
@@ -244,16 +244,21 @@ type ('a, 'b) t : mutable_data with 'a with 'b = { x : 'a; y : 'b; mutable z : '
 type 'a t : value mod uncontended with 'a = { x : unit -> unit; y : 'a }
 type 'a t : immutable_data with 'a = { x : int }
 type 'a t : value mod uncontended with 'a = { x : int }
-type 'a t : value mod immutable_data with 'a = { x : 'a option }
-type 'a t : value mod immutable_data with 'a -> 'a = { x : 'a -> 'a }
+type 'a t : immutable_data with 'a = { x : 'a option }
+type 'a t : immutable_data with 'a -> 'a = { x : 'a -> 'a }
 (* CR layouts v2.8: the above should be accepted *)
 [%%expect {|
-Line 1, characters 0-48:
-1 | type 'a t : immutable_data with 'a = { x : int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+type 'a t = { x : int; }
+type 'a t = { x : 'a; }
+type 'a t = { mutable x : 'a; }
+type 'a t = { x : 'a ref; }
+type ('a, 'b) t = { x : 'a; y : 'b; z : 'a; }
+Line 6, characters 0-83:
+6 | type ('a, 'b) t : mutable_data with 'a with 'b = { x : 'a; y : 'b; mutable z : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of immutable_data
+       But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -273,7 +278,7 @@ type 'a t : immutable_data with 'a = { x : 'a -> 'a }
 Line 1, characters 0-53:
 1 | type 'a t : immutable_data with 'a = { x : 'a -> 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -534,18 +539,6 @@ let () =
 [%%expect{|
 type t = { x : int; y : string; }
 val t : t = {x = 10; y = "hello"}
-|}, Principal{|
-type t = { x : int; y : string; }
-val t : t = {x = 10; y = "hello"}
-Line 4, characters 13-14:
-4 |   cross_many t;
-                 ^
-Error: This expression has type "t" but an expression was expected of type
-         "('a : value mod many)"
-       The kind of t is immutable_data
-         because of the definition of t at line 1, characters 0-32.
-       But the kind of t must be a subkind of value mod many
-         because of the definition of cross_many at line 11, characters 49-60.
 |}]
 
 let () = cross_global t
@@ -778,25 +771,8 @@ module M : sig
 end = struct
   type 'a t = { x : 'a; y : int }
 end
-(* CR layouts v2.8: This should work when we have proper subsumption *)
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type 'a t = { x : 'a; y : int }
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = { x : 'a; y : int; } end
-       is not included in
-         sig type 'a t : immutable_data end
-       Type declarations do not match:
-         type 'a t = { x : 'a; y : int; }
-       is not included in
-         type 'a t : immutable_data
-       The kind of the first is immutable_data
-         because of the definition of t at line 4, characters 2-33.
-       But the kind of the first must be a subkind of immutable_data
-         because of the definition of t at line 2, characters 2-36.
+module M : sig type 'a t : immutable_data end
 |}]
 
 module M : sig
@@ -864,7 +840,7 @@ Error: Signature mismatch:
          type t = { x : int ref; y : string; }
        is not included in
          type t : immutable_data
-       The kind of the first is immutable_data
+       The kind of the first is mutable_data
          because of the definition of t at line 4, characters 2-38.
        But the kind of the first must be a subkind of immutable_data
          because of the definition of t at line 2, characters 2-25.
