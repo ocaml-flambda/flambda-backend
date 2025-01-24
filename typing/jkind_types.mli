@@ -143,6 +143,7 @@ module With_bounds : sig
   val types_on_axis :
     axis:'a Jkind_axis.Axis.t -> ('type_expr, 'l * 'r) t -> 'type_expr list
 
+  (* CR aspsmith: this function can be removed once we remove allow-illegal-crossing *)
   val compose_modality :
     then_:Mode.Modality.t -> ('type_expr, 'l * 'r) t -> ('type_expr, 'l * 'r) t
 
