@@ -158,6 +158,11 @@ module I : sig
   val lea: arg -> arg -> unit
   val lock_cmpxchg: arg -> arg -> unit
   val lock_xadd: arg -> arg -> unit
+  val lock_add: arg -> arg -> unit
+  val lock_sub: arg -> arg -> unit
+  val lock_and: arg -> arg -> unit
+  val lock_or: arg -> arg -> unit
+  val lock_xor: arg -> arg -> unit
   val maxsd: arg -> arg -> unit
   val minsd: arg -> arg -> unit
   val mov: arg -> arg -> unit

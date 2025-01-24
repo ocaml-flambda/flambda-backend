@@ -1,5 +1,5 @@
 (* TEST
-    flags+="-extension mode_alpha";
+    flags+="-extension mode";
    expect;
 *)
 
@@ -25,7 +25,7 @@ end
 val portable_use : 'a @ portable -> unit = <fun>
 module type S = sig val x : 'a -> unit end
 module type SL = sig type 'a t end
-module M : sig type 'a t = int val x : 'a -> unit @@ portable end
+module M : sig type 'a t = int val x : 'a -> unit end
 module F : functor (X : S) -> sig type t = int val x : 'a -> unit end
 |}]
 

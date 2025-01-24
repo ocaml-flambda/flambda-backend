@@ -1018,7 +1018,12 @@ let binary_primitive env dbg f x y =
       | Immediate -> Immediate
     in
     C.atomic_exchange ~dbg imm_or_ptr x ~new_value:y
-  | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y
+  | Atomic_int_arith Fetch_add -> C.atomic_fetch_and_add ~dbg x y
+  | Atomic_int_arith Add -> C.atomic_add ~dbg x y
+  | Atomic_int_arith Sub -> C.atomic_sub ~dbg x y
+  | Atomic_int_arith And -> C.atomic_land ~dbg x y
+  | Atomic_int_arith Or -> C.atomic_lor ~dbg x y
+  | Atomic_int_arith Xor -> C.atomic_lxor ~dbg x y
   | Poke kind ->
     let memory_chunk =
       K.Standard_int_or_float.to_kind_with_subkind kind

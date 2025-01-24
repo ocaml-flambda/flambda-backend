@@ -263,7 +263,7 @@ CAMLprim value caml_atomic_compare_exchange(value ref, value oldv, value newv)
   }
 }
 
-CAMLprim value caml_atomic_cas(value ref, value oldv, value newv)
+CAMLprim value caml_atomic_compare_set(value ref, value oldv, value newv)
 {
   if (caml_atomic_compare_exchange(ref, oldv, newv) == oldv) {
     return Val_true;
@@ -287,6 +287,46 @@ CAMLprim value caml_atomic_fetch_add(value ref, value incr)
   ret = *p;
   *p = Val_long(Long_val(ret) + Long_val(incr));
   return ret;
+}
+
+CAMLprim value caml_atomic_add(value ref, value incr)
+{
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  *p = Val_long(Long_val(*p) + Long_val(incr));
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_sub(value ref, value incr)
+{
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  *p = Val_long(Long_val(*p) - Long_val(incr));
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_land(value ref, value incr)
+{
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  *p = Val_long(Long_val(*p) & Long_val(incr));
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_lor(value ref, value incr)
+{
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  *p = Val_long(Long_val(*p) | Long_val(incr));
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_lxor(value ref, value incr)
+{
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  *p = Val_long(Long_val(*p) ^ Long_val(incr));
+  return Val_unit;
 }
 
 // Dummy implementations so effect.ml can compile

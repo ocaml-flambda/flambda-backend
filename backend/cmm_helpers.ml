@@ -4190,15 +4190,16 @@ let atomic_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic
     else atomic_exchange_extcall ~dbg atomic ~new_value
   | Pointer -> atomic_exchange_extcall ~dbg atomic ~new_value
 
-let atomic_fetch_and_add ~dbg atomic i =
-  let op = Catomic { op = Fetch_and_add; size = Word } in
+let atomic_arith ~dbg ~op ~untag ~ext_name atomic i =
+  let i = if untag then decr_int i dbg else i in
+  let op = Catomic { op; size = Word } in
   if Proc.operation_supported op
-  then (* addition of tagged integers *)
-    Cop (op, [decr_int i dbg; atomic], dbg)
+  then (* input is a tagged integer *)
+    Cop (op, [i; atomic], dbg)
   else
     Cop
       ( Cextcall
-          { func = "caml_atomic_fetch_add";
+          { func = ext_name;
             builtin = false;
             returns = true;
             effects = Arbitrary_effects;
@@ -4210,10 +4211,34 @@ let atomic_fetch_and_add ~dbg atomic i =
         [atomic; i],
         dbg )
 
+let atomic_fetch_and_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Fetch_and_add
+    ~ext_name:"caml_atomic_fetch_add" atomic i
+
+let atomic_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Add ~ext_name:"caml_atomic_add" atomic i
+  |> return_unit dbg
+
+let atomic_sub ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Sub ~ext_name:"caml_atomic_sub" atomic i
+  |> return_unit dbg
+
+let atomic_land ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Land ~ext_name:"caml_atomic_land" atomic i
+  |> return_unit dbg
+
+let atomic_lor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Lor ~ext_name:"caml_atomic_lor" atomic i
+  |> return_unit dbg
+
+let atomic_lxor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Lxor ~ext_name:"caml_atomic_lxor" atomic i
+  |> return_unit dbg
+
 let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
   Cop
     ( Cextcall
-        { func = "caml_atomic_cas";
+        { func = "caml_atomic_compare_set";
           builtin = false;
           returns = true;
           effects = Arbitrary_effects;
@@ -4229,7 +4254,7 @@ let atomic_compare_and_set ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
     atomic ~old_value ~new_value =
   match imm_or_ptr with
   | Immediate ->
-    let op = Catomic { op = Compare_and_swap; size = Word } in
+    let op = Catomic { op = Compare_set; size = Word } in
     if Proc.operation_supported op
     then
       (* Use a bind to ensure [tag_int] gets optimised. *)

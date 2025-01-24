@@ -984,8 +984,9 @@ let emit_push_trap_label handler =
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
   let first_memory_arg_index =
     match op with
-    | Compare_and_swap -> 2
+    | Compare_set -> 2
     | Fetch_and_add -> 1
+    | Add | Sub | Land | Lor | Lxor -> 1
     | Exchange -> 1
     | Compare_exchange -> 2
   in
@@ -1002,7 +1003,12 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
   | Fetch_and_add ->
     assert (Reg.same_loc instr.res.(0) instr.arg.(0));
     I.lock_xadd src dst
-  | Compare_and_swap ->
+  | Add -> I.lock_add src dst
+  | Sub -> I.lock_sub src dst
+  | Land -> I.lock_and src dst
+  | Lor -> I.lock_or src dst
+  | Lxor -> I.lock_xor src dst
+  | Compare_set ->
     (* compare_with is already in rax, set_to is src *)
     assert (Reg.is_reg instr.arg.(1));
     assert (Reg.same_loc instr.arg.(0) phys_rax);
@@ -2574,3 +2580,4 @@ let end_assembly () =
   (* The internal assembler does not work if reset_all is called here *)
   if not !Flambda_backend_flags.internal_assembler then
     reset_all ()
+

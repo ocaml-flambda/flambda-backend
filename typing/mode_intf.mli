@@ -505,6 +505,19 @@ module type S = sig
 
       type nonrec equate_error = equate_step * error
 
+      (* In the following we have both [Const.t] and [t]. The former is parameterized by
+         constant modes and thus its behavior fully determined. It is what users read and
+         write on constructor arguments, record fields and value descriptions in signatures.
+
+         The latter is parameterized by variable modes and thus its behavior changes as the
+         variable modes change. It is used in module type inference: structures are inferred
+         to have a signature containing a list of value descriptions, each of which carries a
+         modality. This modality depends on the mode of the value, which is a variable.
+         Therefore, we parameterize the modality over the variable mode.
+
+         Utilities are provided to convert between [Const.t] and [t], such as [of_const],
+         [zap_to_id], [zap_to_floor], etc.. *)
+
       module Const : sig
         (** A modality that acts on [Value] modes. Conceptually it is a sequnce
             of [atom] that acts on individual axes. *)

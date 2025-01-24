@@ -131,9 +131,14 @@ let temporal_locality = function
   | High -> "high"
 
 let atomic_op = function
-  | Fetch_and_add -> "fetch_and_add"
-  | Compare_and_swap -> "compare_and_swap"
+  | Fetch_and_add -> "xadd"
+  | Add -> "+="
+  | Sub -> "-="
+  | Land -> "&="
+  | Lor -> "|="
+  | Lxor -> "^="
   | Exchange -> "exchange"
+  | Compare_set -> "compare_set"
   | Compare_exchange -> "compare_exchange"
 
 let phantom_defining_expr ppf defining_expr =
