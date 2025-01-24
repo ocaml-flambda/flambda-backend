@@ -561,7 +561,6 @@ module With_bounds = struct
 
     let compose_modality t ~then_ =
       let modality = Mode.Modality.Value.Const.compose t.modality ~then_ in
-      assert (not (Mode.Modality.Value.Const.is_id modality));
       { t with modality }
 
     let create ~type_expr ~modality ~relevant_for_nullability =
