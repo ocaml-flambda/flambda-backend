@@ -39,18 +39,8 @@ type t = { z : u; }
 |}]
 
 type t_test = t require_portable
-(* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = t require_portable
-|}, Principal{|
-Line 1, characters 14-15:
-1 | type t_test = t require_portable
-                  ^
-Error: This type "t" should be an instance of type "('a : value mod portable)"
-       The kind of t is immutable_data
-         because of the definition of t at line 2, characters 0-35.
-       But the kind of t must be a subkind of value mod portable
-         because of the definition of require_portable at line 10, characters 0-47.
 |}]
 
 type t_test = t require_global
@@ -87,18 +77,8 @@ type t = { z : u; }
 |}]
 
 type t_test = t require_uncontended
-(* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = t require_uncontended
-|}, Principal{|
-Line 1, characters 14-15:
-1 | type t_test = t require_uncontended
-                  ^
-Error: This type "t" should be an instance of type "('a : value mod uncontended)"
-       The kind of t is immutable_data
-         because of the definition of t at line 2, characters 0-18.
-       But the kind of t must be a subkind of value mod uncontended
-         because of the definition of require_uncontended at line 9, characters 0-53.
 |}]
 
 type t_test = t require_unique
@@ -753,4 +733,66 @@ Line 1, characters 44-45:
 1 | let foo (t : int t @@ aliased) = use_unique t
                                                 ^
 Error: This value is "aliased" but expected to be "unique".
+|}]
+
+(***********************************************************************)
+type 'a rose_tree = Node of 'a * 'a rose_tree list
+
+let f (x : int rose_tree @@ contended) = use_uncontended x
+[%%expect{|
+type 'a rose_tree = Node of 'a * 'a rose_tree list
+val f : int rose_tree @ contended -> unit = <fun>
+|}]
+
+let f (x : int ref rose_tree @@ contended) = use_uncontended x
+[%%expect{|
+Line 1, characters 61-62:
+1 | let f (x : int ref rose_tree @@ contended) = use_uncontended x
+                                                                 ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let f (x : int rose_tree @@ nonportable) = use_portable x
+[%%expect{|
+val f : int rose_tree -> unit = <fun>
+|}]
+
+let f (x : (int -> int) rose_tree @@ nonportable) = use_portable x
+[%%expect{|
+Line 1, characters 65-66:
+1 | let f (x : (int -> int) rose_tree @@ nonportable) = use_portable x
+                                                                     ^
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
+type 'a rose_tree2 =
+  | Empty
+  | Leaf of 'a
+  | Branch of 'a rose_tree2 list
+
+let f (x : int rose_tree2 @@ contended) = use_uncontended x
+[%%expect{|
+type 'a rose_tree2 = Empty | Leaf of 'a | Branch of 'a rose_tree2 list
+val f : int rose_tree2 @ contended -> unit = <fun>
+|}]
+
+let f (x : int ref rose_tree2 @@ contended) = use_uncontended x
+[%%expect{|
+Line 1, characters 62-63:
+1 | let f (x : int ref rose_tree2 @@ contended) = use_uncontended x
+                                                                  ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let f (x : int rose_tree2 @@ nonportable) = use_portable x
+[%%expect{|
+val f : int rose_tree2 -> unit = <fun>
+|}]
+
+let f (x : (int -> int) rose_tree2 @@ nonportable) = use_portable x
+[%%expect{|
+Line 1, characters 66-67:
+1 | let f (x : (int -> int) rose_tree2 @@ nonportable) = use_portable x
+                                                                      ^
+Error: This value is "nonportable" but expected to be "portable".
 |}]
