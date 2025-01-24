@@ -138,7 +138,7 @@ module With_bounds : sig
 
   val as_list : ('type_expr, 'l * 'r) t -> 'type_expr Type_info.t list
 
-  val has_with_bounds : ('type_expr, 'l * 'r) t -> bool
+  val has_with_bounds : ('type_expr, 'l * Allowance.disallowed) t -> bool
 
   val types_on_axis :
     axis:'a Jkind_axis.Axis.t -> ('type_expr, 'l * 'r) t -> 'type_expr list

@@ -579,7 +579,7 @@ module With_bounds = struct
     | No_with_bounds -> []
     | With_bounds (ty, tys) -> ty :: tys
 
-  let has_with_bounds : type l r. (_, l * r) t -> _ = function
+  let has_with_bounds = function
     | No_with_bounds -> false
     | With_bounds _ -> true
 
