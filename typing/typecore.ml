@@ -8040,6 +8040,8 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
           (type_option(newvar Predef.option_argument_jkind));
+      if is_position lbl then
+        unify_exp env arg (instance Predef.type_lexing_position);
       (lbl, Arg (arg, mode_arg, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
