@@ -8164,11 +8164,7 @@ and type_application env app_loc expected_mode position_and_mode
       let ty_ret, mode_ret, args, position_and_mode =
         with_local_level_if_principal begin fun () ->
           let sargs = List.map
-            (* Application will never contain Position labels, so no need to pass
-               argument type here. When checking against the function type,
-               Labelled arguments will be matched up to Position parameters
-               based on label names *)
-            (fun (label, e) -> Typetexp.transl_label label None, e) sargs
+            (fun (label, e) -> Typetexp.transl_label_from_expr label e) sargs
           in
           let ty_ret, mode_ret, untyped_args =
             collect_apply_args env funct ignore_labels ty (instance ty)
