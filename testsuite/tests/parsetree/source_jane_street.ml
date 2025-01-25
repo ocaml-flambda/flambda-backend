@@ -740,7 +740,7 @@ let f a =
 
 [%%expect{|
 type t = { a : int; }
-val f : int -> int @@ global many = <fun>
+val f : int -> int = <fun>
 |}]
 
 let apply ~(f @ local) x = f x [@nontail]
@@ -749,20 +749,36 @@ let double2 y = apply ~f:(stack_ function x -> x + y) y [@nontail]
 
 [%%expect{|
 val apply :
-  ('a : value_or_null) ('b : value_or_null). f:local_ ('a -> 'b) -> 'a -> 'b
-  @@ global many = <fun>
-val double1 : int -> int @@ global many = <fun>
-val double2 : int -> int @@ global many = <fun>
+  ('a : value_or_null) ('b : value_or_null). f:local_ ('a -> 'b) -> 'a -> 'b =
+  <fun>
+val double1 : int -> int = <fun>
+val double2 : int -> int = <fun>
 |}]
 
 let make_tuple x y z = stack_ (x, y), z
 [%%expect{|
-Line 1, characters 30-36:
+Line 1, characters 23-36:
 1 | let make_tuple x y z = stack_ (x, y), z
-                                  ^^^^^^
-Error: This allocation cannot be on the stack.
+                           ^^^^^^^^^^^^^
+Error: This value escapes its region.
 |}]
 
+type u = A of unit | C of int | B of int * int | D
+
+let create_us () =
+  let a = stack_ A () in
+  let b = stack_ B (1, 2) in
+  let c = stack_ C 3 in
+  let d = stack_ D in
+  ()
+
+[%%expect{|
+type u = A of unit | C of int | B of int * int | D
+Line 7, characters 17-18:
+7 |   let d = stack_ D in
+                     ^
+Error: This expression is not an allocation site.
+|}]
 
 (**********)
 (* unique *)
