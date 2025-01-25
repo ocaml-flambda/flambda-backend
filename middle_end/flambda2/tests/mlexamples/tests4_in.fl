@@ -1,9 +1,9 @@
-let $camlTests4__float14 = 0x1.8p+1 in
-let $camlTests4__float21 = 0x0p+0 in
-let $camlTests4__int6499 = 3L in
-let $camlTests4__int32105 = 4l in
-let $camlTests4__int64114 = 0L in
-let $camlTests4__int32120 = 2l in
+let $camlTests4__float16 = 0x1.8p+1 in
+let $camlTests4__float23 = 0x0p+0 in
+let $camlTests4__int64104 = 3L in
+let $camlTests4__int32110 = 4l in
+let $camlTests4__int64119 = 0L in
+let $camlTests4__int32125 = 2l in
 let code size(51)
       pr2162_2_first_0 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_ghost_region my_depth
@@ -14,14 +14,14 @@ let code size(51)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_float $camlTests4__float14 in
+      let prim = %unbox_float $camlTests4__float16 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 *. prim in
       let b = %Box_float prim_2 in
       let a = x * 2 in
       cont k2 (a, b)
     where k3 =
-      let prim = %unbox_float $camlTests4__float21 in
+      let prim = %unbox_float $camlTests4__float23 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 +. prim in
       let b = %Box_float prim_2 in
@@ -45,14 +45,14 @@ let code size(51)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_float $camlTests4__float14 in
+      let prim = %unbox_float $camlTests4__float16 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 *. prim in
       let b = %Box_float prim_2 in
       let a = x * 2 in
       cont k2 (a, b)
     where k3 =
-      let prim = %unbox_float $camlTests4__float21 in
+      let prim = %unbox_float $camlTests4__float23 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 +. prim in
       let b = %Box_float prim_2 in
@@ -76,7 +76,7 @@ let code size(67)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_float $camlTests4__float14 in
+      let prim = %unbox_float $camlTests4__float16 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 *. prim in
       let Pmulfloat = %Box_float prim_2 in
@@ -84,15 +84,15 @@ let code size(67)
       let Pmakeblock = %Block 0 (Pmulint, Pmulfloat) in
       cont k2 (Pmakeblock)
     where k3 =
-      let prim = %unbox_float $camlTests4__float21 in
+      let prim = %unbox_float $camlTests4__float23 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 +. prim in
       let Paddfloat = %Box_float prim_2 in
       let Pmakeblock = %Block 0 (x, Paddfloat) in
       cont k2 (Pmakeblock)
     where k2 (pair : [ 0 of imm tagged * float boxed ]) =
-      let Pfield = %block_load (pair, 1) in
-      let Pfield_1 = %block_load (pair, 0) in
+      let Pfield = %block_load (1) pair in
+      let Pfield_1 = %block_load (0) pair in
       let prim = %num_conv (imm tagged -> float) Pfield_1 in
       let Pfloatofint = %Box_float prim in
       let prim_1 = %unbox_float Pfield in
@@ -112,11 +112,11 @@ let code size(122)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_int64 $camlTests4__int6499 in
+      let prim = %unbox_int64 $camlTests4__int64104 in
       let prim_1 = %unbox_int64 y in
       let prim_2 = %int_arith int64 prim_1 * prim in
       let Pmulbint = %Box_int64 prim_2 in
-      let prim_3 = %unbox_int32 $camlTests4__int32105 in
+      let prim_3 = %unbox_int32 $camlTests4__int32110 in
       let prim_4 = %unbox_int32 y' in
       let prim_5 = %int_arith int32 prim_4 * prim_3 in
       let Pmulbint_1 = %Box_int32 prim_5 in
@@ -125,25 +125,25 @@ let code size(122)
       let Pmakeblock_1 = %Block 0 (Pmulint, Pmakeblock) in
       cont k2 (Pmakeblock_1)
     where k3 =
-      let prim = %unbox_int64 $camlTests4__int64114 in
+      let prim = %unbox_int64 $camlTests4__int64119 in
       let prim_1 = %unbox_int64 y in
       let prim_2 = %int_arith int64 prim_1 + prim in
       let Paddbint = %Box_int64 prim_2 in
-      let Pmakeblock = %Block 0 ($camlTests4__int32120, Paddbint) in
+      let Pmakeblock = %Block 0 ($camlTests4__int32125, Paddbint) in
       let Pmakeblock_1 = %Block 0 (x, Pmakeblock) in
       cont k2 (Pmakeblock_1)
     where k2
             (pair : [ 0 of imm tagged * [ 0 of int32 boxed * int64 boxed ] ]) =
-      let b = %block_load (pair, 1) in
-      let a = %block_load (pair, 0) in
-      let Pfield = %block_load (b, 0) in
+      let b = %block_load (1) pair in
+      let a = %block_load (0) pair in
+      let Pfield = %block_load (0) b in
       let prim = %num_conv (imm tagged -> int32) a in
       let Pbintofint = %Box_int32 prim in
       let prim_1 = %unbox_int32 Pfield in
       let prim_2 = %unbox_int32 Pbintofint in
       let prim_3 = %int_arith int32 prim_2 - prim_1 in
       let Psubbint = %Box_int32 prim_3 in
-      let Pfield_1 = %block_load (b, 1) in
+      let Pfield_1 = %block_load (1) b in
       let prim_4 = %num_conv (imm tagged -> int64) a in
       let Pbintofint_1 = %Box_int64 prim_4 in
       let prim_5 = %unbox_int64 Pfield_1 in
@@ -162,9 +162,9 @@ in
  in
  cont k (Pmakeblock))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(4) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(4) (module_block, 1) in
-    let field_2 = %block_load tag(0) size(4) (module_block, 2) in
-    let field_3 = %block_load tag(0) size(4) (module_block, 3) in
+    let field_0 = %block_load tag(0) size(4) (0) module_block in
+    let field_1 = %block_load tag(0) size(4) (1) module_block in
+    let field_2 = %block_load tag(0) size(4) (2) module_block in
+    let field_3 = %block_load tag(0) size(4) (3) module_block in
     let $camlTests4 = Block 0 (field_0, field_1, field_2, field_3) in
     cont done ($camlTests4)

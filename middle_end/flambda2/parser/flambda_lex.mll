@@ -55,6 +55,7 @@ let keyword_table =
     "error", KWD_ERROR;
     "exn", KWD_EXN;
     "float", KWD_FLOAT;
+    "generic", KWD_GENERIC;
     "halt_and_catch_fire", KWD_HCF;
     "heap_or_local", KWD_HEAP_OR_LOCAL;
     "hint", KWD_HINT;
@@ -74,6 +75,7 @@ let keyword_table =
     "local", KWD_LOCAL;
     "loopify", KWD_LOOPIFY;
     "lor", KWD_LOR;
+    "lxor", KWD_LXOR;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
     "mutable", KWD_MUTABLE;

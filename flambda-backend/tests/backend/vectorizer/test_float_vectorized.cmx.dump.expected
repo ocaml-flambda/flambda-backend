@@ -1,0 +1,7 @@
+**** Vectorize selected computation: 4 groups, 8 scalar instructions, 5 vector instructions, cost = -3 (Test_float_vectorized.add_mutable_record)
+**** Vectorize selected computation: 2 groups, 4 scalar instructions, 2 vector instructions, cost = -2 (Test_float_vectorized.copy_mutable_record)
+**** Vectorize selected computation: 4 groups, 8 scalar instructions, 5 vector instructions, cost = -3 (Test_float_vectorized.add_mutable_record_fresh)
+**** Vectorize selected computation: 2 groups, 4 scalar instructions, 2 vector instructions, cost = -2 (Test_float_vectorized.copy_mutable_record_fresh)
+**** Vectorize selected computation: 8 groups, 16 scalar instructions, 10 vector instructions, cost = -6 (Test_float_vectorized.add_mutable_record_t4)
+**** Vectorize selected computation: 4 groups, 8 scalar instructions, 4 vector instructions, cost = -4 (Test_float_vectorized.copy_mutable_record_t4)
+**** Vectorize selected computation: 4 groups, 8 scalar instructions, 4 vector instructions, cost = -4 (Test_float_vectorized.dup_mutable_record_t4)

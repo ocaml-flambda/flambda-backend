@@ -53,7 +53,9 @@ type texp_function_param_identifier = {
   param_sort : Jkind.Sort.t;
   param_mode : Alloc.l;
   param_curry : function_curry;
-  param_newtypes : (string Location.loc * Jkind.annotation option) list;
+  param_newtypes :
+    (Ident.t * string Location.loc * Parsetree.jkind_annotation option * Uid.t)
+    list;
 }
 
 type texp_function_param = {
@@ -278,6 +280,18 @@ let view_texp (e : expression_desc) =
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
 
+let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
+    ~pat_attributes =
+  {
+    pat_desc;
+    pat_loc;
+    pat_extra;
+    pat_type;
+    pat_env;
+    pat_attributes;
+    pat_unique_barrier = Unique_barrier.not_computed ();
+  }
+
 type tpat_var_identifier = Value.l
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
@@ -377,7 +391,6 @@ let mk_constructor_description cstr_name =
     cstr_attributes = [];
     cstr_inlined = None;
     cstr_uid = Uid.internal_not_actually_unique;
-    cstr_arg_jkinds = [||];
     cstr_repr = Variant_boxed [||];
     cstr_constant = true;
   }

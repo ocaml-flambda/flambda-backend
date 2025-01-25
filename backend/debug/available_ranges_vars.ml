@@ -25,7 +25,7 @@ module Key = struct
   module Set = struct
     include Reg_availability_set
 
-    let print ppf t = print ~print_reg:Printmach.reg ppf t
+    let print ppf t = print ~print_reg:Printreg.reg ppf t
   end
 
   module Map = Map.Make (struct
@@ -34,7 +34,7 @@ module Key = struct
     let compare = Reg_with_debug_info.compare
   end)
 
-  let print ppf t = Reg_with_debug_info.print ~print_reg:Printmach.reg ppf t
+  let print ppf t = Reg_with_debug_info.print ~print_reg:Printreg.reg ppf t
 
   let all_parents _ = []
 end
@@ -67,13 +67,13 @@ module Vars = struct
     let advance_over_instruction t (insn : L.instruction) =
       let stack_offset =
         match insn.desc with
-        | Lop (Istackoffset delta) -> t.stack_offset + delta
+        | Lop (Stackoffset delta) -> t.stack_offset + delta
         | Lpushtrap _ -> t.stack_offset + Proc.trap_frame_size_in_bytes
         | Lpoptrap -> t.stack_offset - Proc.trap_frame_size_in_bytes
         | Ladjust_stack_offset { delta_bytes } -> t.stack_offset + delta_bytes
-        | Lend | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _
-        | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
-        | Lraise _ | Lstackcheck _ ->
+        | Lend | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn
+        | Llabel _ | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _
+        | Lentertrap | Lraise _ | Lstackcheck _ ->
           t.stack_offset
       in
       { stack_offset }
@@ -97,7 +97,7 @@ module Vars = struct
       }
 
     let print ppf { reg; offset } =
-      Format.fprintf ppf "@[<hov 1>((reg %a)@ (offset %a))@]" Printmach.reg reg
+      Format.fprintf ppf "@[<hov 1>((reg %a)@ (offset %a))@]" Printreg.reg reg
         (Misc.Stdlib.Option.print Stack_reg_offset.print)
         offset
 

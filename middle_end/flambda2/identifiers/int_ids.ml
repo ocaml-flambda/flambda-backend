@@ -48,6 +48,7 @@ module Const_data = struct
     | Naked_int64 of Int64.t
     | Naked_nativeint of Targetint_32_64.t
     | Naked_vec128 of Vector_types.Vec128.Bit_pattern.t
+    | Null
 
   let flags = const_flags
 
@@ -96,6 +97,10 @@ module Const_data = struct
           Flambda_colours.naked_number
           Vector_types.Vec128.Bit_pattern.print v
           Flambda_colours.pop
+      | Null ->
+        Format.fprintf ppf "%t#null%t"
+          Flambda_colours.naked_number
+          Flambda_colours.pop
 
     let compare t1 t2 =
       match t1, t2 with
@@ -111,6 +116,7 @@ module Const_data = struct
       | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.compare n1 n2
       | Naked_vec128 v1, Naked_vec128 v2 ->
         Vector_types.Vec128.Bit_pattern.compare v1 v2
+      | Null, Null -> 0
       | Naked_immediate _, _ -> -1
       | _, Naked_immediate _ -> 1
       | Tagged_immediate _, _ -> -1
@@ -125,6 +131,8 @@ module Const_data = struct
       | _, Naked_int64 _ -> 1
       | Naked_vec128 _, _ -> -1
       | _, Naked_vec128 _ -> 1
+      | Null, _ -> -1
+      | _, Null -> 1
 
     let equal t1 t2 =
       if t1 == t2
@@ -143,9 +151,10 @@ module Const_data = struct
         | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.equal n1 n2
         | Naked_vec128 v1, Naked_vec128 v2 ->
           Vector_types.Vec128.Bit_pattern.equal v1 v2
+        | Null, Null -> true
         | ( ( Naked_immediate _ | Tagged_immediate _ | Naked_float _
             | Naked_float32 _ | Naked_vec128 _ | Naked_int32 _ | Naked_int64 _
-            | Naked_nativeint _ ),
+            | Naked_nativeint _ | Null ),
             _ ) ->
           false
 
@@ -159,6 +168,7 @@ module Const_data = struct
       | Naked_int64 n -> Hashtbl.hash n
       | Naked_nativeint n -> Targetint_32_64.hash n
       | Naked_vec128 v -> Vector_types.Vec128.Bit_pattern.hash v
+      | Null -> Hashtbl.hash 0
   end)
 end
 
@@ -312,6 +322,8 @@ module Const = struct
   let const_one = tagged_immediate Targetint_31_63.one
 
   let const_unit = const_zero
+
+  let const_null = create Null
 
   let descr t = find_data t
 
@@ -845,6 +857,61 @@ module Code_id_or_symbol = struct
     Symbol.Set.fold
       (fun sym free_syms -> Set.add (create_symbol sym) free_syms)
       symbols Set.empty
+end
+
+module Code_id_or_name = struct
+  type t = Table_by_int_id.Id.t
+
+  let code_id code_id = code_id
+
+  let name name = name
+
+  let var var = var
+
+  let symbol symbol = symbol
+
+  let pattern_match t ~code_id ~var ~symbol =
+    let flags = Table_by_int_id.Id.flags t in
+    if flags = Code_id_data.flags
+    then code_id t
+    else if flags = Symbol_data.flags
+    then symbol t
+    else if flags = Variable_data.flags
+    then var t
+    else
+      Misc.fatal_errorf "Code_id_or_symbol 0x%x with wrong flags 0x%x" t flags
+
+  module T0 = struct
+    let compare = Id.compare
+
+    let equal = Id.equal
+
+    let hash = Id.hash
+
+    let print ppf t =
+      pattern_match t
+        ~code_id:(fun code_id ->
+          Format.fprintf ppf "@[<hov 1>(code_id@ %a)@]" Code_id.print code_id)
+        ~symbol:(fun symbol ->
+          Format.fprintf ppf "@[<hov 1>(symbol@ %a)@]" Symbol.print symbol)
+        ~var:(fun var ->
+          Format.fprintf ppf "@[<hov 1>(var@ %a)@]" Variable.print var)
+  end
+
+  include T0
+
+  module T = struct
+    type nonrec t = t
+
+    include T0
+  end
+
+  module Tree = Patricia_tree.Make (struct
+    let print = print
+  end)
+
+  module Set = Tree.Set
+  module Map = Tree.Map
 end
 
 let initialise () =

@@ -1,0 +1,45 @@
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
+ (deps select_float.ml)
+ (action
+  (run %{bin:ocamlopt.opt} %{deps} -c)))
+
+; Test atomics with binary emitter - not supported on macOS
+
+(executables
+ (names atomics)
+ (modules atomics)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")
+   (<> %{system} macosx)))
+ (ocamlopt_flags
+  (:standard -internal-assembler)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")
+   (<> %{system} macosx)))
+ (targets atomics.out)
+ (deps atomics.exe)
+ (action
+  (progn
+   (with-outputs-to
+    atomics.out
+    (run ./atomics.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")
+   (<> %{system} macosx)))
+ (action
+  (progn
+   (diff empty.expected atomics.out))))

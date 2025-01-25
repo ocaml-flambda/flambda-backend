@@ -9,9 +9,9 @@ class cse_generic :
   object
     (* The following methods can be overridden to handle processor-specific
        operations. *)
-    method class_of_operation : Cfg.operation -> op_class
+    method class_of_operation : Operation.t -> op_class
 
-    method is_cheap_operation : Cfg.operation -> bool
+    method is_cheap_operation : Operation.t -> bool
     (* Operations that are so cheap that it isn't worth factoring them. *)
 
     (* The following method is the entry point and should not be overridden *)

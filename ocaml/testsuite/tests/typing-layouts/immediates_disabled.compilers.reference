@@ -1,4 +1,0 @@
-File "immediates.ml", line 29, characters 0-30:
-29 | type a : immediate = A | B | C
-     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The extension "layouts" is disabled and cannot be used

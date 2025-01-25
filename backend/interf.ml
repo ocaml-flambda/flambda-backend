@@ -23,9 +23,9 @@ let assert_no_collisions set =
   Misc.fatal_error "live set has physical register collisions"
 
 let assert_compatible src dst =
-  if not (Reg.types_are_compatible src dst) then
+  if not (Proc.types_are_compatible src dst) then
   Misc.fatal_errorf "found move between registers of incompatible types (%a to %a)"
-  Printmach.reg src Printmach.reg dst
+  Printreg.reg src Printreg.reg dst
 
 module IntPairSet =
   Hashtbl.Make(struct

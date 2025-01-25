@@ -26,12 +26,17 @@ let pseudoregs_for_operation op arg res =
   | Iintop (Iadd | Isub | Imul | Iand | Ior | Ixor)
   | Ifloatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
     [| res.(0); arg.(1) |], res
-  | Iintop_atomic { op = Compare_and_swap; size = _; addr = _ } ->
+  | Iintop_atomic { op = Compare_set; size = _; addr = _ } ->
     (* first arg must be rax *)
     let arg = Array.copy arg in
     arg.(0) <- rax;
     arg, res
-  | Iintop_atomic { op = Fetch_and_add; size = _; addr = _ } ->
+  | Iintop_atomic { op = Compare_exchange; size = _; addr = _ } ->
+    (* first arg must be rax, res.(0) must be rax. *)
+    let arg = Array.copy arg in
+    arg.(0) <- rax;
+    arg, [| rax |]
+  | Iintop_atomic { op = Exchange | Fetch_and_add; size = _; addr = _ } ->
     (* first arg must be the same as res.(0) *)
     let arg = Array.copy arg in
     arg.(0) <- res.(0);
@@ -80,7 +85,14 @@ let pseudoregs_for_operation op arg res =
        edx (high) and eax (low). Make it simple and force the argument in rcx,
        and rax and rdx clobbered *)
     [| rcx |], res
-  | Ispecific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
+  | Ispecific (Isimd op) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.register_behavior op)
+      arg res
+  | Ispecific (Isimd_mem (op, _addr)) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.Mem.register_behavior op)
+      arg res
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
@@ -88,6 +100,7 @@ let pseudoregs_for_operation op arg res =
     arg.(len - 1) <- res.(0);
     arg, res
   (* Other instructions are regular *)
+  | Iintop_atomic { op = Add | Sub | Land | Lor | Lxor; _ }
   | Iintop (Ipopcnt | Iclz _ | Ictz _ | Icomp _)
   | Iintop_imm ((Imulh _ | Idiv | Imod | Icomp _ | Ipopcnt | Iclz _ | Ictz _), _)
   | Ispecific
@@ -95,7 +108,7 @@ let pseudoregs_for_operation op arg res =
       | Istore_int (_, _, _)
       | Ipause | Ilfence | Isfence | Imfence
       | Ioffset_loc (_, _)
-      | Irdtsc | Iprefetch _ )
+      | Irdtsc | Icldemote _ | Iprefetch _ )
   | Imove | Ispill | Ireload | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _ | Iconst_vec128 _
   | Iconst_symbol _ | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -186,13 +199,17 @@ class selector =
           Ispecific (Ilea addr), [arg])
       (* Recognize float arithmetic with memory. *)
       | Caddf width ->
-        self#select_floatarith true width Mach.Iaddf Arch.Ifloatadd args
+        self#select_floatarith true width Simple_operation.Iaddf Arch.Ifloatadd
+          args
       | Csubf width ->
-        self#select_floatarith false width Mach.Isubf Arch.Ifloatsub args
+        self#select_floatarith false width Simple_operation.Isubf Arch.Ifloatsub
+          args
       | Cmulf width ->
-        self#select_floatarith true width Mach.Imulf Arch.Ifloatmul args
+        self#select_floatarith true width Simple_operation.Imulf Arch.Ifloatmul
+          args
       | Cdivf width ->
-        self#select_floatarith false width Mach.Idivf Arch.Ifloatdiv args
+        self#select_floatarith false width Simple_operation.Idivf Arch.Ifloatdiv
+          args
       | Cpackf32 ->
         (* We must operate on registers. This is because if the second argument
            was a float stack slot, the resulting UNPCKLPS instruction would
@@ -211,6 +228,11 @@ class selector =
         | "caml_load_fence" -> Ispecific Ilfence, args
         | "caml_store_fence" -> Ispecific Isfence, args
         | "caml_memory_fence" -> Ispecific Imfence, args
+        | "caml_cldemote" ->
+          let addr, eloc =
+            self#select_addressing Word_int (one_arg "cldemote" args)
+          in
+          Ispecific (Icldemote addr), [eloc]
         | _ -> (
           match Simd_selection.select_operation func args with
           | Some (op, args) -> op, args

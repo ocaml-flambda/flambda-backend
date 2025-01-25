@@ -106,7 +106,7 @@ val safe_div_bi :
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
+  Primitive.unboxed_integer ->
   Debuginfo.t ->
   expression
 
@@ -114,7 +114,7 @@ val safe_mod_bi :
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
+  Primitive.unboxed_integer ->
   Debuginfo.t ->
   expression
 
@@ -273,7 +273,7 @@ module Extended_machtype_component : sig
   type t =
     | Val
     | Addr
-    | Tagged_int
+    | Val_and_int
     | Any_int
     | Float
     | Vec128
@@ -418,7 +418,7 @@ val unbox_int :
 
 (** Used to prepare 32-bit integers on 64-bit platforms for a lsr operation *)
 val make_unsigned_int :
-  Primitive.boxed_integer -> expression -> Debuginfo.t -> expression
+  Primitive.unboxed_integer -> expression -> Debuginfo.t -> expression
 
 val unaligned_load_16 : expression -> expression -> Debuginfo.t -> expression
 
@@ -464,10 +464,10 @@ val raise_prim : Lambda.raise_kind -> unary_primitive
 val negint : unary_primitive
 
 (** Return the length of the array argument, as an OCaml integer *)
-val arraylength : Lambda.array_kind -> unary_primitive
+val addr_array_length : unary_primitive
 
 (** Byte swap primitive Operates on Cmm integers (unboxed values) *)
-val bbswap : Primitive.boxed_integer -> unary_primitive
+val bbswap : Primitive.unboxed_integer -> unary_primitive
 
 (** 16-bit byte swap primitive Operates on Cmm integers (untagged integers) *)
 val bswap16 : unary_primitive
@@ -975,13 +975,14 @@ val cmm_arith_size : expression -> int option
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
-val kind_of_layout : Lambda.layout -> kind_for_unboxing
-
 val machtype_of_layout : Lambda.layout -> machtype
 
 val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 
 val make_tuple : expression list -> expression
+
+val tuple_field :
+  expression -> component_tys:machtype array -> int -> Debuginfo.t -> expression
 
 (* Generated functions *)
 val curry_function :
@@ -998,13 +999,37 @@ val apply_function :
 val atomic_load :
   dbg:Debuginfo.t -> Lambda.immediate_or_pointer -> expression -> expression
 
-val atomic_exchange : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_exchange :
+  dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
+  expression ->
+  new_value:expression ->
+  expression
 
 val atomic_fetch_and_add :
   dbg:Debuginfo.t -> expression -> expression -> expression
 
+val atomic_add : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_sub : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_land : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_lor : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_lxor : dbg:Debuginfo.t -> expression -> expression -> expression
+
 val atomic_compare_and_set :
   dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
+  expression ->
+  old_value:expression ->
+  new_value:expression ->
+  expression
+
+val atomic_compare_exchange :
+  dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
   expression ->
   old_value:expression ->
   new_value:expression ->
@@ -1036,6 +1061,9 @@ val reperform :
   last_fiber:expression ->
   expression
 
+(* CR mshinwell: change unboxed scalar arrays to use mixed block (or similar)
+   representations rather than custom blocks *)
+
 (** Allocate a block to hold an unboxed float32 array for the given number of
     elements. *)
 val allocate_unboxed_float32_array :
@@ -1056,6 +1084,11 @@ val allocate_unboxed_int64_array :
 val allocate_unboxed_nativeint_array :
   elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
+(** Allocate a block to hold an unboxed vec128 array for the given number of
+    elements. *)
+val allocate_unboxed_vec128_array :
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
+
 (** Compute the length of an unboxed float32 array. *)
 val unboxed_float32_array_length : expression -> Debuginfo.t -> expression
 
@@ -1066,18 +1099,89 @@ val unboxed_int32_array_length : expression -> Debuginfo.t -> expression
 val unboxed_int64_or_nativeint_array_length :
   expression -> Debuginfo.t -> expression
 
+(** Compute the length of an unboxed vec128 array. *)
+val unboxed_vec128_array_length : expression -> Debuginfo.t -> expression
+
 (** Read from an unboxed float32 array (without bounds check). *)
 val unboxed_float32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
+
+(** Read an unboxed float32 from a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The float32 is expected to be in the least significant bits of the
+    64-bit field.  The most significant 32 bits of such field are ignored.
+
+    The zero-indexed element number is specified as a tagged immediate.
+*)
+val unboxed_mutable_float32_unboxed_product_array_ref :
+  expression -> array_index:expression -> Debuginfo.t -> expression
+
+(* CR mshinwell/mslater: We could do movss xmm xmm, movsd mem xmm instead of
+   separate writes *)
+
+(** Write an unboxed float32 into a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+
+    The float32 will be written to the least significant bits of the
+    64-bit field.  The top 32 bits of the written word will be initialized
+    to zero.  Note that two writes are involved.
+*)
+val unboxed_mutable_float32_unboxed_product_array_set :
+  expression ->
+  array_index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
 
 (** Read from an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+(** Read an unboxed int32 from (the least significant bits of) a 64-bit field
+    in an array represented as a mixed block (with tag zero), as used for
+    unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+
+    The returned value is always sign extended, but it is not assumed that
+    the 64-bit field in the array contains a sign-extended representation.
+*)
+val unboxed_mutable_int32_unboxed_product_array_ref :
+  expression -> array_index:expression -> Debuginfo.t -> expression
+
+(** Write an unboxed int32 into a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+
+    The write is done as a 64-bit write of a sign-extended version of the
+    supplied [new_value].
+*)
+val unboxed_mutable_int32_unboxed_product_array_set :
+  expression ->
+  array_index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
 (** Read from an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+
+    The zero-indexed element number is specified as a tagged immediate.
+*)
 val unboxed_int64_or_nativeint_array_ref :
-  expression -> expression -> Debuginfo.t -> expression
+  has_custom_ops:bool ->
+  expression ->
+  array_index:expression ->
+  Debuginfo.t ->
+  expression
 
 (** Update an unboxed float32 array (without bounds check). *)
 val unboxed_float32_array_set :
@@ -1096,8 +1200,14 @@ val unboxed_int32_array_set :
   expression
 
 (** Update an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+*)
 val unboxed_int64_or_nativeint_array_set :
+  has_custom_ops:bool ->
   expression ->
   index:expression ->
   new_value:expression ->
@@ -1123,6 +1233,13 @@ val get_field_unboxed_float32 :
   Debuginfo.t ->
   expression
 
+val get_field_unboxed_vec128 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index_in_words:expression ->
+  Debuginfo.t ->
+  expression
+
 val get_field_unboxed_int64_or_nativeint :
   Asttypes.mutable_flag ->
   block:expression ->
@@ -1139,6 +1256,13 @@ val get_field_unboxed_int64_or_nativeint :
 val setfield_unboxed_int32 : ternary_primitive
 
 val setfield_unboxed_float32 : ternary_primitive
+
+val setfield_unboxed_vec128 :
+  expression ->
+  index_in_words:expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
 

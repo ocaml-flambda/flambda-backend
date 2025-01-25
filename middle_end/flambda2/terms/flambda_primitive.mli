@@ -50,20 +50,31 @@ module Array_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
+    | Unboxed_product of t list
+        (** Accesses to arrays of unboxed products are unarized on the way into
+            Flambda 2.  The float array optimization never applies for these
+            arrays.  Vectors are not yet supported inside these arrays. *)
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val element_kind : t -> Flambda_kind.With_subkind.t
+  val element_kinds : t -> Flambda_kind.With_subkind.t list
 
-  val for_empty_array : t -> Empty_array_kind.t
+  val must_be_gc_scannable : t -> bool
+
+  val has_custom_ops : t -> bool
+
+  val width_in_scalars : t -> int
 end
 
 module Array_kind_for_length : sig
   type t =
     | Array_kind of Array_kind.t
     | Float_array_opt_dynamic
+
+  val width_in_scalars : t -> int
 end
 
 module Init_or_assign : sig
@@ -72,6 +83,26 @@ module Init_or_assign : sig
     | Assignment of Alloc_mode.For_assignments.t
 
   val to_lambda : t -> Lambda.initialization_or_assignment
+end
+
+module Array_load_kind : sig
+  type t =
+    | Immediates  (** An array consisting only of immediate values. *)
+    | Values
+        (** An array consisting of elements of kind [value]. With the float
+            array optimisation enabled, such elements must never be [float]s. *)
+    | Naked_floats
+        (** An array consisting of naked floats, represented using
+            [Double_array_tag]. *)
+    | Naked_float32s
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
+    | Naked_vec128s
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
 end
 
 module Array_set_kind : sig
@@ -87,16 +118,11 @@ module Array_set_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
-
-  val array_kind : t -> Array_kind.t
-
-  val init_or_assign : t -> Init_or_assign.t
-
-  val element_kind : t -> Flambda_kind.With_subkind.t
 end
 
 module Duplicate_block_kind : sig
@@ -126,6 +152,7 @@ module Duplicate_array_kind : sig
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
     | Naked_nativeints of { length : Targetint_31_63.t option }
+    | Naked_vec128s of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 
@@ -253,10 +280,6 @@ val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
 val byte_width_of_string_accessor_width : string_accessor_width -> int
 
-type array_accessor_width =
-  | Scalar
-  | Vec128
-
 type float_bitwidth =
   | Float32
   | Float64
@@ -331,6 +354,11 @@ end
 
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
+  | Block_load of
+      { kind : Block_access_kind.t;
+        mut : Mutability.t;
+        field : Targetint_31_63.t
+      }
   | Duplicate_block of { kind : Duplicate_block_kind.t }
       (** [Duplicate_block] may not be used to change the tag or the mutability
           of a block. *)
@@ -340,8 +368,12 @@ type unary_primitive =
         destination_mutability : Mutability.t
       }
   | Is_int of { variant_only : bool }
+  | Is_null
   | Get_tag
   | Array_length of Array_kind_for_length.t
+      (** The unarized length of an array.  So for an example an array of
+          kind [Unboxed_product [tagged_immediate; tagged_immediate]] always
+          has a length that is a multiple of two. *)
   | Bigarray_length of { dimension : int }
       (** This primitive is restricted by type-checking to bigarrays that have
           at least the correct number of dimensions. More specifically, they
@@ -411,6 +443,9 @@ type unary_primitive =
           (by the type system) should always go through caml_obj_tag, which is
           opaque to the compiler. *)
   | Atomic_load of Block_access_field_kind.t
+  (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
+     deleting [Atomic_load] *)
+  | Peek of Flambda_kind.Standard_int_or_float.t
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
@@ -443,10 +478,28 @@ type binary_float_arith_op =
   | Mul
   | Div
 
+(** Binary atomic arithmetic operations on integers. *)
+type binary_int_atomic_op =
+  | Fetch_add
+  | Add
+  | Sub
+  | And
+  | Or
+  | Xor
+
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
-  | Block_load of Block_access_kind.t * Mutability.t
-  | Array_load of Array_kind.t * array_accessor_width * Mutability.t
+  | Block_set of
+      { kind : Block_access_kind.t;
+        init : Init_or_assign.t;
+        field : Targetint_31_63.t
+      }
+  | Array_load of Array_kind.t * Array_load_kind.t * Mutability.t
+      (** Unarized or SIMD array load.
+
+          The array kind preserves unboxed product information but the load
+          kind and index all correspond to the unarized representation.
+          See also [Array_length], above. *)
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -458,16 +511,19 @@ type binary_primitive =
   | Float_arith of float_bitwidth * binary_float_arith_op
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
-  | Atomic_exchange
-  | Atomic_fetch_and_add
+  | Atomic_exchange of Block_access_field_kind.t
+  | Atomic_int_arith of binary_int_atomic_op
+  | Poke of Flambda_kind.Standard_int_or_float.t
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
-  | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_set_kind.t * array_accessor_width
+  | Array_set of Array_kind.t * Array_set_kind.t
+      (** Unarized array update, for mutable arrays.  See [Array_load] above
+          for more details on the unarization. *)
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Atomic_compare_and_set
+  | Atomic_compare_and_set of Block_access_field_kind.t
+  | Atomic_compare_exchange of Block_access_field_kind.t
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =
@@ -491,6 +547,8 @@ include Contains_names.S with type t := t
 include Contains_ids.S with type t := t
 
 val args : t -> Simple.t list
+
+val map_args : (Simple.t -> Simple.t) -> t -> t
 
 (** Simpler version (e.g. for [Inlining_cost]), where only the actual primitive
     matters, not the arguments. *)
@@ -522,6 +580,7 @@ val args_kind_of_ternary_primitive :
 type arg_kinds =
   | Variadic_mixed of Flambda_kind.Mixed_block_shape.t
   | Variadic_all_of_kind of Flambda_kind.t
+  | Variadic_unboxed_product of Flambda_kind.t list
 
 val args_kind_of_variadic_primitive : variadic_primitive -> arg_kinds
 

@@ -125,7 +125,8 @@ let decompose_singleton_debuginfo dbg =
           Debuginfo.print_compact_extended dbg
     in
     let demangled_name =
-      Debuginfo.Scoped_location.string_of_scopes dinfo_scopes
+      Debuginfo.Scoped_location.string_of_scopes ~include_zero_alloc:false
+        dinfo_scopes
       |> Misc.remove_double_underscores
     in
     match compilation_unit with

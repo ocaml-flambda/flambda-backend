@@ -10,5 +10,6 @@ val instrument_fundecl :
 val requires_prologue_poll :
   future_funcnames:Misc.Stdlib.String.Set.t ->
   fun_name:string ->
-  Cfg_with_layout.t ->
+  optimistic_prologue_poll_instr_id:int ->
+  Cfg.t ->
   bool

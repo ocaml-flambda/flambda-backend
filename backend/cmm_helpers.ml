@@ -368,6 +368,8 @@ let rec lsl_int c1 c2 dbg =
     add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
   | _, _ -> Cop (Clsl, [c1; c2], dbg)
 
+let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+
 let is_power2 n = n = 1 lsl Misc.log2 n
 
 and mult_power2 c n dbg = lsl_int c (Cconst_int (Misc.log2 n, dbg)) dbg
@@ -406,10 +408,16 @@ let ignore_low_bit_int = function
   | c -> c
 
 let lsr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
+  match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
+  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
+    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
+    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
+  | c1, Cconst_int (n, _) when n > 0 ->
+    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
   | _ -> Cop (Clsr, [c1; c2], dbg)
+
+let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
 let asr_int c1 c2 dbg =
   match c2 with
@@ -750,7 +758,8 @@ let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
   bind "divisor" c2 (fun c2 ->
       bind "dividend" c1 (fun c1 ->
           let c = mkop c1 c2 is_safe dbg in
-          if Arch.division_crashes_on_overflow && bi <> Primitive.Pint32
+          if Arch.division_crashes_on_overflow
+             && bi <> Primitive.Unboxed_int32
              && not (is_different_from (-1) c2)
           then
             Cifthenelse
@@ -793,9 +802,10 @@ let box_float32 dbg mode exp =
 
 let unbox_float32 dbg =
   map_tail ~kind:Any (function
-    | Cop (Calloc _, [Cconst_natint (hdr, _); _ops; c], _)
-      when Nativeint.equal hdr boxedfloat32_header
-           || Nativeint.equal hdr boxedfloat32_local_header ->
+    | Cop (Calloc _, [Cconst_natint (hdr, _); Cconst_symbol (sym, _); c], _)
+      when (Nativeint.equal hdr boxedfloat32_header
+           || Nativeint.equal hdr boxedfloat32_local_header)
+           && String.equal sym.sym_name caml_float32_ops ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
@@ -949,11 +959,9 @@ let get_header ptr dbg =
       dbg )
 
 let get_header_masked ptr dbg =
-  if Config.reserved_header_bits > 0
-  then
-    let header_mask = (1 lsl (64 - Config.reserved_header_bits)) - 1 in
-    Cop (Cand, [get_header ptr dbg; Cconst_int (header_mask, dbg)], dbg)
-  else get_header ptr dbg
+  match Config.reserved_header_bits with
+  | 0 -> get_header ptr dbg
+  | bits -> lsr_const (lsl_const (get_header ptr dbg) bits dbg) bits dbg
 
 let tag_offset = if big_endian then -1 else -size_int
 
@@ -972,8 +980,7 @@ let get_tag ptr dbg =
         [Cop (Cadda, [ptr; Cconst_int (tag_offset, dbg)], dbg)],
         dbg )
 
-let get_size ptr dbg =
-  Cop (Clsr, [get_header_masked ptr dbg; Cconst_int (10, dbg)], dbg)
+let get_size ptr dbg = lsr_const (get_header_masked ptr dbg) 10 dbg
 
 (* Array indexing *)
 
@@ -985,20 +992,7 @@ let wordsize_shift = 9
 
 let numfloat_shift = 9 + log2_size_float - log2_size_addr
 
-let is_addr_array_hdr hdr dbg =
-  Cop
-    ( Ccmpi Cne,
-      [Cop (Cand, [hdr; Cconst_int (255, dbg)], dbg); floatarray_tag dbg],
-      dbg )
-
-let addr_array_length_shifted hdr dbg =
-  Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
-
-let float_array_length_shifted hdr dbg =
-  Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg)
-
-let lsl_const c n dbg =
-  if n = 0 then c else Cop (Clsl, [c; Cconst_int (n, dbg)], dbg)
+let addr_array_length_shifted hdr dbg = lsr_const hdr wordsize_shift dbg
 
 (* Produces a pointer to the element of the array [ptr] on the position [ofs]
    with the given element [log2size] log2 element size.
@@ -1094,6 +1088,10 @@ let custom_ops_unboxed_nativeint_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
+let custom_ops_unboxed_vec128_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_vec128_array_ops", Debuginfo.none)
+
 let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
     ~elements_per_word =
   (* Checking custom_ops is needed to determine if the array contains an odd or
@@ -1145,6 +1143,14 @@ let unboxed_int64_or_nativeint_array_length arr dbg =
   in
   tag_int res dbg
 
+let unboxed_vec128_array_length arr dbg =
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int (lsr_int res (int ~dbg 1) dbg) dbg
+
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
 
@@ -1156,6 +1162,33 @@ let unboxed_mutable_float_array_ref arr ofs dbg =
 
 let unboxed_immutable_float_array_ref arr ofs dbg =
   Cop (mk_load_immut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
+
+let unboxed_mutable_float32_unboxed_product_array_ref arr ~array_index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          Cop
+            ( mk_load_mut (Single { reg = Float32 }),
+              [array_indexing log2_size_addr arr index dbg],
+              dbg )))
+
+(* CR mshinwell/mslater: if we're writing zeros to the top 32 bits of float32
+   product fields, should we do the same for mixed block record fields? *)
+
+let unboxed_mutable_float32_unboxed_product_array_set arr ~array_index
+    ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              Csequence
+                ( Cop
+                    ( Cstore (Word_int, Assignment),
+                      [ array_indexing log2_size_addr arr index dbg;
+                        Cconst_int (0, dbg) ],
+                      dbg ),
+                  Cop
+                    ( Cstore (Single { reg = Float32 }, Assignment),
+                      [array_indexing log2_size_addr arr index dbg; new_value],
+                      dbg ) ))))
 
 let unboxed_float_array_ref (mutability : Asttypes.mutable_flag) ~block:arr
     ~index:ofs dbg =
@@ -1282,18 +1315,41 @@ let unboxed_int32_array_ref =
      [Thirtytwo_signed] load. *)
   unboxed_packed_array_ref ~memory_chunk:Thirtytwo_signed ~elements_per_word:2
 
+let unboxed_mutable_int32_unboxed_product_array_ref arr ~array_index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          sign_extend_32 dbg
+            (Cop
+               ( mk_load_mut Thirtytwo_signed,
+                 [array_indexing log2_size_addr arr index dbg],
+                 dbg ))))
+
+let unboxed_mutable_int32_unboxed_product_array_set arr ~array_index ~new_value
+    dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let new_value = sign_extend_32 dbg new_value in
+              Cop
+                ( Cstore (Word_int, Assignment),
+                  [array_indexing log2_size_addr arr index dbg; new_value],
+                  dbg ))))
+
 let unboxed_float32_array_ref =
   unboxed_packed_array_ref
     ~memory_chunk:(Single { reg = Float32 })
     ~elements_per_word:2
 
-let unboxed_int64_or_nativeint_array_ref arr index dbg =
+let unboxed_int64_or_nativeint_array_ref ~has_custom_ops arr ~array_index dbg =
   bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
+      bind "index" array_index (fun index ->
           let index =
-            (* Need to skip the custom_operations field. 2 not 1 since we are
-               manipulating a tagged int. *)
-            add_int index (int ~dbg 2) dbg
+            if has_custom_ops
+            then
+              (* Need to skip the custom_operations field. 2 not 1 since we are
+                 manipulating a tagged int. *)
+              add_int index (int ~dbg 2) dbg
+            else index
           in
           int_array_ref arr index dbg))
 
@@ -1320,13 +1376,17 @@ let unboxed_float32_array_set =
     ~memory_chunk:(Single { reg = Float32 })
     ~elements_per_word:2
 
-let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
+let unboxed_int64_or_nativeint_array_set ~has_custom_ops arr ~index ~new_value
+    dbg =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           bind "new_value" new_value (fun new_value ->
               let index =
-                (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
-                add_int index (int ~dbg 2) dbg
+                if has_custom_ops
+                then
+                  (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
+                  add_int index (int ~dbg 2) dbg
+                else index
               in
               int_array_set arr index new_value dbg)))
 
@@ -1415,6 +1475,32 @@ let setfield_unboxed_float32 arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
+(* Getters and setters for unboxed vec128 fields *)
+
+let get_field_unboxed_vec128 mutability ~block ~index_in_words dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let memory_chunk = Onetwentyeight_unaligned in
+  let field_address = array_indexing log2_size_addr block index_in_words dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let field_address = array_indexing log2_size_addr arr index_in_words dbg in
+  return_unit dbg
+    (Cop
+       ( Cstore (Onetwentyeight_unaligned, Assignment),
+         [field_address; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)
@@ -1477,7 +1563,7 @@ module Extended_machtype_component = struct
   type t =
     | Val
     | Addr
-    | Tagged_int
+    | Val_and_int
     | Any_int
     | Float
     | Vec128
@@ -1491,12 +1577,13 @@ module Extended_machtype_component = struct
     | Float -> Float
     | Vec128 -> Vec128
     | Float32 -> Float32
+    | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
 
   let to_machtype_component t : machtype_component =
     match t with
     | Val -> Val
     | Addr -> Addr
-    | Tagged_int | Any_int -> Int
+    | Val_and_int | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
     | Float32 -> Float32
@@ -1505,7 +1592,7 @@ module Extended_machtype_component = struct
     match t with
     | Val -> Val
     | Addr -> Addr
-    | Tagged_int -> Val
+    | Val_and_int -> Val
     | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
@@ -1517,7 +1604,7 @@ module Extended_machtype = struct
 
   let typ_val = [| Extended_machtype_component.Val |]
 
-  let typ_tagged_int = [| Extended_machtype_component.Tagged_int |]
+  let typ_tagged_int = [| Extended_machtype_component.Val_and_int |]
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
@@ -1543,13 +1630,13 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float Pfloat64 -> typ_float
-    | Punboxed_float Pfloat32 -> typ_float32
-    | Punboxed_vector (Pvec128 _) -> typ_vec128
+    | Punboxed_float Unboxed_float64 -> typ_float
+    | Punboxed_float Unboxed_float32 -> typ_float32
+    | Punboxed_vector Unboxed_vec128 -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
-    | Pvalue Pintval -> typ_tagged_int
+    | Pvalue { raw_kind = Pintval; _ } -> typ_tagged_int
     | Pvalue _ -> typ_val
     | Punboxed_product fields -> Array.concat (List.map of_layout fields)
 end
@@ -1571,6 +1658,7 @@ let machtype_identifier t =
     | Float32 -> 'S'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
+    | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
   in
   String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
@@ -1684,15 +1772,11 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
            fields and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
-      match Config.runtime5, block_kind with
-      | true, Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
-      | false, Regular_block -> "caml_alloc", [wordsize; tag]
-      | true, Mixed_block { scannable_prefix } ->
+      match block_kind with
+      | Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | Mixed_block { scannable_prefix } ->
         Mixed_block_support.assert_mixed_block_support ();
         "caml_alloc_mixed_shr_check_gc", [wordsize; tag; scannable_prefix]
-      | false, Mixed_block { scannable_prefix } ->
-        Mixed_block_support.assert_mixed_block_support ();
-        "caml_alloc_mixed", [wordsize; tag; scannable_prefix]
     in
     Clet
       ( VP.create id,
@@ -1882,13 +1966,25 @@ let rec low_63 dbg e =
   | _ -> e
 
 (* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
-   just tag_int. Similarly, untag_int then sign_extend_63 should simplify to
-   untag_int. *)
+   just tag_int. *)
 let sign_extend_63 dbg e =
   check_64_bit_target "sign_extend_63";
-  let e = low_63 dbg e in
-  Cop
-    (Casr, [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)], dbg)
+  match e with
+  | Cop (Casr, [_; Cconst_int (n, _)], _) when n > 0 && n < 64 ->
+    (* [asr] by a positive constant is sign-preserving. However:
+
+       - Some architectures treat the shift length modulo the word size.
+
+       - OCaml does not define behavior of shifts by more than the word size.
+
+       So we don't make the simplification for shifts of length 64 or more. *)
+    e
+  | _ ->
+    let e = low_63 dbg e in
+    Cop
+      ( Casr,
+        [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
+        dbg )
 
 (* zero_extend_32 zero-extends values from 32 bits to the word size. *)
 let zero_extend_32 dbg e =
@@ -1933,21 +2029,21 @@ let xor_int e1 e2 dbg = Cop (Cxor, [e1; e2], dbg)
 let operations_boxed_int (bi : Primitive.boxed_integer) =
   let sym_name =
     match bi with
-    | Pnativeint -> caml_nativeint_ops
-    | Pint32 -> caml_int32_ops
-    | Pint64 -> caml_int64_ops
+    | Boxed_nativeint -> caml_nativeint_ops
+    | Boxed_int32 -> caml_int32_ops
+    | Boxed_int64 -> caml_int64_ops
   in
   global_symbol sym_name
 
 let alloc_header_boxed_int (bi : Primitive.boxed_integer) mode dbg =
   match bi with
-  | Pnativeint -> alloc_boxedintnat_header mode dbg
-  | Pint32 -> alloc_boxedint32_header mode dbg
-  | Pint64 -> alloc_boxedint64_header mode dbg
+  | Boxed_nativeint -> alloc_boxedintnat_header mode dbg
+  | Boxed_int32 -> alloc_boxedint32_header mode dbg
+  | Boxed_int64 -> alloc_boxedint64_header mode dbg
 
 let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
   let arg' =
-    if bi = Primitive.Pint32
+    if bi = Primitive.Boxed_int32
     then
       if big_endian
       then Cop (Clsl, [arg; Cconst_int (32, dbg)], dbg)
@@ -1963,24 +2059,24 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
 
 let alloc_matches_boxed_int bi ~hdr ~ops =
   match (bi : Primitive.boxed_integer), hdr, ops with
-  | Pnativeint, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
+  | Boxed_nativeint, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
     (Nativeint.equal hdr boxedintnat_header
     || Nativeint.equal hdr boxedintnat_local_header)
     && String.equal sym.sym_name caml_nativeint_ops
-  | Pint32, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
+  | Boxed_int32, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
     (Nativeint.equal hdr boxedint32_header
     || Nativeint.equal hdr boxedint32_local_header)
     && String.equal sym.sym_name caml_int32_ops
-  | Pint64, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
+  | Boxed_int64, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
     (Nativeint.equal hdr boxedint64_header
     || Nativeint.equal hdr boxedint64_local_header)
     && String.equal sym.sym_name caml_int64_ops
-  | (Pnativeint | Pint32 | Pint64), _, _ -> false
+  | (Boxed_nativeint | Boxed_int32 | Boxed_int64), _, _ -> false
 
 let unbox_int dbg bi =
   let default arg =
     let memory_chunk =
-      if bi = Primitive.Pint32 then Thirtytwo_signed else Word_int
+      if bi = Primitive.Boxed_int32 then Thirtytwo_signed else Word_int
     in
     Cop
       ( mk_load_immut memory_chunk,
@@ -1992,12 +2088,12 @@ let unbox_int dbg bi =
         ( Calloc _,
           [hdr; ops; Cop (Clsl, [contents; Cconst_int (32, _)], _dbg')],
           _dbg )
-      when bi = Primitive.Pint32 && big_endian
+      when bi = Primitive.Boxed_int32 && big_endian
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
       sign_extend_32 dbg contents
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
-      when bi = Primitive.Pint32 && (not big_endian)
+      when bi = Primitive.Boxed_int32 && (not big_endian)
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
       sign_extend_32 dbg contents
@@ -2006,17 +2102,17 @@ let unbox_int dbg bi =
       contents
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name, bi with
-      | Some (Const_nativeint n), Primitive.Pnativeint ->
+      | Some (Const_nativeint n), Primitive.Boxed_nativeint ->
         natint_const_untagged dbg n
-      | Some (Const_int32 n), Primitive.Pint32 ->
+      | Some (Const_int32 n), Primitive.Boxed_int32 ->
         natint_const_untagged dbg (Nativeint.of_int32 n)
-      | Some (Const_int64 n), Primitive.Pint64 ->
+      | Some (Const_int64 n), Primitive.Boxed_int64 ->
         natint_const_untagged dbg (Int64.to_nativeint n)
       | _ -> default cmm)
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
-  if bi = Primitive.Pint32 then zero_extend_32 dbg arg else arg
+  if bi = Primitive.Unboxed_int32 then zero_extend_32 dbg arg else arg
 
 let unaligned_load_16 ptr idx dbg =
   if Arch.allow_unaligned_access
@@ -3003,6 +3099,7 @@ let machtype_stored_size t =
     (fun cur c ->
       match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
       | Val | Int -> cur + 1
       | Float -> cur + ints_per_float
       | Float32 ->
@@ -3016,6 +3113,7 @@ let machtype_non_scanned_size t =
     (fun cur c ->
       match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
       | Val -> cur
       | Int -> cur + 1
       | Float -> cur + ints_per_float
@@ -3027,6 +3125,9 @@ let machtype_non_scanned_size t =
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l
 
+let tuple_field exp ~component_tys n dbg =
+  Cop (Ctuple_field (n, component_tys), [exp], dbg)
+
 let value_slot_given_machtype vs =
   let non_scanned, scanned =
     List.partition
@@ -3034,6 +3135,7 @@ let value_slot_given_machtype vs =
         match (c : machtype_component) with
         | Int | Float | Float32 | Vec128 -> true
         | Val -> false
+        | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
         | Addr -> assert false)
       vs
   in
@@ -3061,6 +3163,7 @@ let read_from_closure_given_machtype t clos base_offset dbg =
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),
             load Onetwentyeight_unaligned non_scanned_pos )
         | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
+        | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
         | Addr -> Misc.fatal_error "[Addr] cannot be read")
       (base_offset, base_offset + machtype_non_scanned_size t)
       (Array.to_list t)
@@ -3233,35 +3336,9 @@ let raise_prim raise_kind arg dbg =
 
 let negint arg dbg = Cop (Csubi, [Cconst_int (2, dbg); arg], dbg)
 
-let arraylength kind arg dbg =
+let addr_array_length arg dbg =
   let hdr = get_header_masked arg dbg in
-  match (kind : Lambda.array_kind) with
-  | Pgenarray ->
-    let len =
-      if wordsize_shift = numfloat_shift
-      then Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
-      else
-        bind "header" hdr (fun hdr ->
-            Cifthenelse
-              ( is_addr_array_hdr hdr dbg,
-                dbg,
-                Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg),
-                dbg,
-                Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg),
-                dbg,
-                Any ))
-    in
-    Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
-  | Paddrarray | Pintarray ->
-    Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Pfloatarray | Punboxedfloatarray Pfloat64 ->
-    (* Note: we only support 64 bit targets now, so this is ok for
-       Punboxedfloatarray *)
-    Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Punboxedfloatarray Pfloat32 -> unboxed_float32_array_length arg dbg
-  | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
-    unboxed_int64_or_nativeint_array_length arg dbg
-  | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
+  Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
@@ -3269,20 +3346,20 @@ let arraylength kind arg dbg =
 
 let bbswap bi arg dbg =
   let bitwidth : Cmm.bswap_bitwidth =
-    match (bi : Primitive.boxed_integer) with
-    | Pnativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
-    | Pint32 -> Thirtytwo
-    | Pint64 -> Sixtyfour
+    match (bi : Primitive.unboxed_integer) with
+    | Unboxed_nativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
+    | Unboxed_int32 -> Thirtytwo
+    | Unboxed_int64 -> Sixtyfour
   in
   let op = Cbswap { bitwidth } in
-  if (bi = Primitive.Pint64 && size_int = 4)
+  if (bi = Primitive.Unboxed_int64 && size_int = 4)
      || not (Proc.operation_supported op)
   then
     let prim, tyarg =
-      match (bi : Primitive.boxed_integer) with
-      | Pnativeint -> "nativeint", XInt
-      | Pint32 -> "int32", XInt32
-      | Pint64 -> "int64", XInt64
+      match (bi : Primitive.unboxed_integer) with
+      | Unboxed_nativeint -> "nativeint", XInt
+      | Unboxed_int32 -> "int32", XInt32
+      | Unboxed_int64 -> "int64", XInt64
     in
     Cop
       ( Cextcall
@@ -4080,16 +4157,6 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
 
-let kind_of_layout (layout : Lambda.layout) =
-  match layout with
-  | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
-  | Pvalue (Pboxedintval bi) -> Boxed_integer bi
-  | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
-  | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
-  | Punboxed_product _ ->
-    Any
-
 (* Atomics *)
 
 let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =
@@ -4098,7 +4165,7 @@ let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =
   in
   Cop (mk_load_atomic memory_chunk, [atomic], dbg)
 
-let atomic_exchange ~dbg atomic new_value =
+let atomic_exchange_extcall ~dbg atomic ~new_value =
   Cop
     ( Cextcall
         { func = "caml_atomic_exchange";
@@ -4113,25 +4180,65 @@ let atomic_exchange ~dbg atomic new_value =
       [atomic; new_value],
       dbg )
 
-let atomic_fetch_and_add ~dbg atomic i =
-  Cop
-    ( Cextcall
-        { func = "caml_atomic_fetch_add";
-          builtin = false;
-          returns = true;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects;
-          ty = typ_int;
-          ty_args = [];
-          alloc = false
-        },
-      [atomic; i],
-      dbg )
+let atomic_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic
+    ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Exchange; size = Word } in
+    if Proc.operation_supported op
+    then Cop (op, [new_value; atomic], dbg)
+    else atomic_exchange_extcall ~dbg atomic ~new_value
+  | Pointer -> atomic_exchange_extcall ~dbg atomic ~new_value
 
-let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
+let atomic_arith ~dbg ~op ~untag ~ext_name atomic i =
+  let i = if untag then decr_int i dbg else i in
+  let op = Catomic { op; size = Word } in
+  if Proc.operation_supported op
+  then (* input is a tagged integer *)
+    Cop (op, [i; atomic], dbg)
+  else
+    Cop
+      ( Cextcall
+          { func = ext_name;
+            builtin = false;
+            returns = true;
+            effects = Arbitrary_effects;
+            coeffects = Has_coeffects;
+            ty = typ_int;
+            ty_args = [];
+            alloc = false
+          },
+        [atomic; i],
+        dbg )
+
+let atomic_fetch_and_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Fetch_and_add
+    ~ext_name:"caml_atomic_fetch_add" atomic i
+
+let atomic_add ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Add ~ext_name:"caml_atomic_add" atomic i
+  |> return_unit dbg
+
+let atomic_sub ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Sub ~ext_name:"caml_atomic_sub" atomic i
+  |> return_unit dbg
+
+let atomic_land ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Land ~ext_name:"caml_atomic_land" atomic i
+  |> return_unit dbg
+
+let atomic_lor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:false ~op:Lor ~ext_name:"caml_atomic_lor" atomic i
+  |> return_unit dbg
+
+let atomic_lxor ~dbg atomic i =
+  atomic_arith ~dbg ~untag:true ~op:Lxor ~ext_name:"caml_atomic_lxor" atomic i
+  |> return_unit dbg
+
+let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
   Cop
     ( Cextcall
-        { func = "caml_atomic_cas";
+        { func = "caml_atomic_compare_set";
           builtin = false;
           returns = true;
           effects = Arbitrary_effects;
@@ -4142,6 +4249,45 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
         },
       [atomic; old_value; new_value],
       dbg )
+
+let atomic_compare_and_set ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
+    atomic ~old_value ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Compare_set; size = Word } in
+    if Proc.operation_supported op
+    then
+      (* Use a bind to ensure [tag_int] gets optimised. *)
+      bind "res"
+        (Cop (op, [old_value; new_value; atomic], dbg))
+        (fun a2 -> tag_int a2 dbg)
+    else atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
+  | Pointer -> atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value
+
+let atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_compare_exchange";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_val;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; old_value; new_value],
+      dbg )
+
+let atomic_compare_exchange ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
+    atomic ~old_value ~new_value =
+  match imm_or_ptr with
+  | Immediate ->
+    let op = Catomic { op = Compare_exchange; size = Word } in
+    if Proc.operation_supported op
+    then Cop (op, [old_value; new_value; atomic], dbg)
+    else atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value
+  | Pointer -> atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value
 
 type even_or_odd =
   | Even
@@ -4252,6 +4398,20 @@ let allocate_unboxed_int64_array =
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
 
+let allocate_unboxed_vec128_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
+  let header =
+    let size =
+      1 (* custom_ops field *) + (ints_per_vec128 * List.length elements)
+    in
+    match mode with
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
+  in
+  Cop
+    ( Calloc mode,
+      Cconst_natint (header, dbg) :: custom_ops_unboxed_vec128_array :: elements,
+      dbg )
+
 (* Drop internal optional arguments from exported interface *)
 let block_header x y = block_header x y
 
@@ -4260,7 +4420,7 @@ let dls_get ~dbg = Cop (Cdls_get, [], dbg)
 let perform ~dbg eff =
   let cont =
     make_alloc dbg ~tag:Runtimetags.cont_tag
-      [int_const dbg 0]
+      [int_const dbg 0; int_const dbg 0]
       ~mode:Cmm.Alloc_mode.Heap
   in
   (* Rc_normal means "allow tailcalls". Preventing them here by using Rc_nontail

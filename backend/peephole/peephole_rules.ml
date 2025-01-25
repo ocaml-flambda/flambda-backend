@@ -6,6 +6,37 @@ module U = Peephole_utils
 
 (** Logical condition for simplifying the following case:
     {|
+    mov ..., x
+    mov ..., x
+    |}
+
+    In this case, the first instruction should be removed *)
+
+let remove_overwritten_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
+  match U.get_cells cell 2 with
+  | [fst; snd] -> (
+    let fst_val = DLL.value fst in
+    let snd_val = DLL.value snd in
+    match fst_val.desc with
+    | Op (Spill | Reload) -> (
+      (* We only consider the removal of spill and reload instructions because a
+         move from/to an arbitrary memory location could fail because of memory
+         protection. *)
+      let fst_dst = fst_val.res.(0) in
+      match snd_val.desc with
+      | Op (Move | Spill | Reload) ->
+        let snd_dst = snd_val.res.(0) in
+        if U.are_equal_regs fst_dst snd_dst
+        then (
+          DLL.delete_curr fst;
+          Some (U.prev_at_most U.go_back_const fst))
+        else None
+      | _ -> None)
+    | _ -> None)
+  | _ -> None
+
+(** Logical condition for simplifying the following case:
+    {|
     mov x, y
     mov y, x
     |}
@@ -46,19 +77,23 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
    Where <op 1> and <op 2> can be any two binary operators that are associative and commutative
    and const1 and const2 are immediate values. *)
 
-let are_compatible op1 op2 imm1 imm2 =
-  match (op1 : Mach.integer_operation), (op2 : Mach.integer_operation) with
+let are_compatible op1 op2 imm1 imm2 :
+    (Simple_operation.integer_operation * int) option =
+  match
+    ( (op1 : Simple_operation.integer_operation),
+      (op2 : Simple_operation.integer_operation) )
+  with
   (* Folding two bitwise operations such as (AND, OR, XOR) should never produce
      an overflow so we assert this conditon. *)
-  | Mach.Iand, Mach.Iand ->
+  | Iand, Iand ->
     assert (U.amd64_imm32_within_bounds imm1 imm2 ( land ));
-    Some (Mach.Iand, imm1 land imm2)
+    Some (Iand, imm1 land imm2)
   | Ior, Ior ->
     assert (U.amd64_imm32_within_bounds imm1 imm2 ( lor ));
-    Some (Mach.Ior, imm1 lor imm2)
+    Some (Ior, imm1 lor imm2)
   | Ixor, Ixor ->
     assert (U.amd64_imm32_within_bounds imm1 imm2 ( lxor ));
-    Some (Mach.Ixor, imm1 lxor imm2)
+    Some (Ixor, imm1 lxor imm2)
   (* For the following three cases we have the issue that in some situations,
      one or both immediate values could be out of bounds, but the result might
      be within bounds (e.g. imm1 = -4 and imm2 = 65, their sum being 61). This
@@ -68,19 +103,19 @@ let are_compatible op1 op2 imm1 imm2 =
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
     then (
       U.bitwise_shift_assert imm1 imm2;
-      Some (Mach.Ilsl, imm1 + imm2))
+      Some (Ilsl, imm1 + imm2))
     else None
   | Ilsr, Ilsr ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
     then (
       U.bitwise_shift_assert imm1 imm2;
-      Some (Mach.Ilsr, imm1 + imm2))
+      Some (Ilsr, imm1 + imm2))
     else None
   | Iasr, Iasr ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
     then (
       U.bitwise_shift_assert imm1 imm2;
-      Some (Mach.Iasr, imm1 + imm2))
+      Some (Iasr, imm1 + imm2))
     else None
   (* for the amd64 instruction set the `ADD` `SUB` `MUL` opperations take at
      most an imm32 as the second argument, so we need to check for overflows on
@@ -91,54 +126,54 @@ let are_compatible op1 op2 imm1 imm2 =
   | Iadd, Iadd ->
     if Misc.no_overflow_add imm1 imm2
        && U.amd64_imm32_within_bounds imm1 imm2 ( + )
-    then Some (Mach.Iadd, imm1 + imm2)
+    then Some (Iadd, imm1 + imm2)
     else None
   | Iadd, Isub ->
     if imm1 >= imm2
     then
       if Misc.no_overflow_sub imm1 imm2
          && U.amd64_imm32_within_bounds imm1 imm2 ( - )
-      then Some (Mach.Iadd, imm1 - imm2)
+      then Some (Iadd, imm1 - imm2)
       else None
     else if Misc.no_overflow_sub imm2 imm1
             && U.amd64_imm32_within_bounds imm2 imm1 ( - )
-    then Some (Mach.Isub, imm2 - imm1)
+    then Some (Isub, imm2 - imm1)
     else None
   | Isub, Isub ->
     if Misc.no_overflow_add imm1 imm2
        && U.amd64_imm32_within_bounds imm1 imm2 ( + )
-    then Some (Mach.Isub, imm1 + imm2)
+    then Some (Isub, imm1 + imm2)
     else None
   | Isub, Iadd ->
     if imm1 >= imm2
     then
       if Misc.no_overflow_sub imm1 imm2
          && U.amd64_imm32_within_bounds imm1 imm2 ( - )
-      then Some (Mach.Isub, imm1 - imm2)
+      then Some (Isub, imm1 - imm2)
       else None
     else if Misc.no_overflow_sub imm2 imm1
             && U.amd64_imm32_within_bounds imm2 imm1 ( - )
-    then Some (Mach.Iadd, imm2 - imm1)
+    then Some (Iadd, imm2 - imm1)
     else None
   | Ilsl, Imul ->
     if imm1 >= 0 && imm1 < 31
        && Misc.no_overflow_mul (1 lsl imm1) imm2
        && U.amd64_imm32_within_bounds (1 lsl imm1) imm2 ( * )
-    then Some (Mach.Imul, (1 lsl imm1) * imm2)
+    then Some (Imul, (1 lsl imm1) * imm2)
     else None
   | Imul, Ilsl ->
     if imm2 >= 0 && imm2 < 31
        && Misc.no_overflow_mul imm1 (1 lsl imm2)
        && U.amd64_imm32_within_bounds imm1 (1 lsl imm2) ( * )
-    then Some (Mach.Imul, imm1 * (1 lsl imm2))
+    then Some (Imul, imm1 * (1 lsl imm2))
     else None
   | Imul, Imul ->
     if Misc.no_overflow_mul imm1 imm2
        && U.amd64_imm32_within_bounds imm1 imm2 ( * )
-    then Some (Mach.Imul, imm1 * imm2)
+    then Some (Imul, imm1 * imm2)
     else None
   (* CR-soon gtulba-lecu: check this last case | Imod, Imod -> if imm1 mod imm2
-     = 0 then Some (Mach.Imod, imm2) else None
+     = 0 then Some (Imod, imm2) else None
 
      The integer modulo imm2 group is a subgroup of the integer modulo imm1 iff
      imm2 divides imm1
@@ -194,6 +229,9 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
   | _ -> None
 
 let apply cell =
-  match remove_useless_mov cell with
-  | None -> ( match fold_intop_imm cell with None -> None | res -> res)
+  match remove_overwritten_mov cell with
+  | None -> (
+    match remove_useless_mov cell with
+    | None -> ( match fold_intop_imm cell with None -> None | res -> res)
+    | res -> res)
   | res -> res

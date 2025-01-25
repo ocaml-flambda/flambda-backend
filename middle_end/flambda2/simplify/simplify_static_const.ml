@@ -196,6 +196,9 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Immutable_nativeint_array fields ->
     rebuild_naked_number_array dacc ~bind_result_sym KS.naked_nativeint
       T.this_naked_nativeint RSC.create_immutable_nativeint_array ~fields
+  | Immutable_vec128_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_vec128
+      T.this_naked_vec128 RSC.create_immutable_vec128_array ~fields
   | Immutable_value_array fields ->
     let fields_with_tys =
       List.map
@@ -295,11 +298,37 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
      and for some reason the type of the closure is either not available or does
      not have a more precise code ID.
 
-     I suspect we will eventually need to deal with this in a more principled
-     way (maybe by making offset constraints part of the required fields to
-     create code, similar to the free names), but for now we're relying on the
-     fact that Closure_conversion never produces such examples, and Simplify
-     only has a single round. *)
+     We don't want to keep old code alive for two reasons. First, as it is not
+     simplified it will often be noticeably slower than its newer versions.
+     Second, it can contain value slot projections that we never registered in
+     the accumulators, so we might remove the associated value slots. The last
+     issue is critical: if the value slots are removed, their projections will
+     be compiled to Invalid, which will trigger at runtime.
+
+     To solve this, for now we track these old code IDs in the accumulator and
+     demote any direct calls to them. That ensures that we don't keep any use of
+     non-simplified code. We could also change the slot offsets data to include
+     projections in addition to sets of closures; this piece of data is always
+     computed (during closure conversion for old code IDs) so by using the
+     additional info we could make more accurate decisions on which value slots
+     can be removed. *)
+  let dacc =
+    let old_code_ids =
+      Code_id.Map.fold
+        (fun code_id code old_code_ids ->
+          if Code.stub code
+          then old_code_ids
+          else
+            match Code.newer_version_of code with
+            | None ->
+              if Code_id.is_imported code_id
+              then old_code_ids
+              else Code_id.Set.add code_id old_code_ids
+            | Some _ -> old_code_ids)
+        all_code Code_id.Set.empty
+    in
+    DA.add_code_ids_never_simplified dacc ~old_code_ids
+  in
   let bound_static', static_consts', dacc =
     Static_const_group.match_against_bound_static static_consts bound_static
       ~init:([], [], dacc)

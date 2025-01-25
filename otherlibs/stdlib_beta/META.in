@@ -1,0 +1,8 @@
+# @configure_input@
+
+version = "@VERSION@"
+description = "Beta extensions"
+archive(byte) = "stdlib_beta.cma"
+archive(native) = "stdlib_beta.cmxa"
+plugin(byte) = "stdlib_beta.cma"
+plugin(native) = "stdlib_beta.cmxs"

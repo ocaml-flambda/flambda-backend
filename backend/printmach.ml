@@ -19,74 +19,13 @@ open Format
 open Cmm
 open Reg
 open Mach
+open Simple_operation
 open Interval
 
 module V = Backend_var
 
-let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
-  match loc with
-  | Unknown -> unknown ppf
-  | Reg r ->
-      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name typ r))
-  | Stack(Local s) ->
-      wrap_out ppf (fun ppf ->
-        fprintf ppf "s[%s:%i]" (Proc.stack_class_tag (Proc.stack_slot_class typ)) s)
-  | Stack(Incoming s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "par[%i]" s)
-  | Stack(Outgoing s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "arg[%i]" s)
-  | Stack(Domainstate s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
-let reg ppf r =
-  if not (Reg.anonymous r) then fprintf ppf "%s:" (Reg.name r);
-  fprintf ppf "%s"
-    (match (r.typ : machtype_component) with
-    | Val -> "V"
-    | Addr -> "A"
-    | Int -> "I"
-    | Float -> "F"
-    | Vec128 -> "X"
-    | Float32 -> "S");
-  fprintf ppf "/%i" r.stamp;
-  loc
-    ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
-    ~unknown:(fun _ -> ()) ppf r.loc r.typ
-
-let regs' ?(print_reg = reg) ppf v =
-  let reg = print_reg in
-  match Array.length v with
-  | 0 -> ()
-  | 1 -> reg ppf v.(0)
-  | n -> reg ppf v.(0);
-         for i = 1 to n-1 do fprintf ppf " %a" reg v.(i) done
-
-let regs ppf v = regs' ppf v
-
-let regset ppf s =
-  let first = ref true in
-  Reg.Set.iter
-    (fun r ->
-      if !first then begin first := false; fprintf ppf "%a" reg r end
-      else fprintf ppf "@ %a" reg r)
-    s
-
-let regsetaddr' ?(print_reg = reg) ppf s =
-  let reg = print_reg in
-  let first = ref true in
-  Reg.Set.iter
-    (fun r ->
-      if !first then begin first := false; fprintf ppf "%a" reg r end
-      else fprintf ppf "@ %a" reg r;
-      match r.typ with
-      | Val -> fprintf ppf "*"
-      | Addr -> fprintf ppf "!"
-      | _ -> ())
-    s
-
-let regsetaddr ppf s = regsetaddr' ppf s
-
-let trap_stack ppf (ts : Mach.trap_stack) =
+let trap_stack ppf (ts : Simple_operation.trap_stack) =
   let has_specific = function
     | Uncaught -> false
     | Specific_trap _ -> true
@@ -99,65 +38,11 @@ let trap_stack ppf (ts : Mach.trap_stack) =
     Format.fprintf ppf "<%a>" p ts
   end else ()
 
-let intcomp = function
-  | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
-  | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
+let test tst ppf arg = Simple_operation.format_test ~print_reg:Printreg.reg tst ppf arg
 
-let is_unary_op = function
-  | Iclz _
-  | Ictz _
-  | Ipopcnt -> true
-  | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
-  | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-  | Icomp _
-    -> false
-
-let intop = function
-  | Iadd -> " + "
-  | Isub -> " - "
-  | Imul -> " * "
-  | Imulh { signed } -> " *h "^(if signed then "" else "u")
-  | Idiv -> " div "
-  | Imod -> " mod "
-  | Iand -> " & "
-  | Ior ->  " | "
-  | Ixor -> " ^ "
-  | Ilsl -> " << "
-  | Ilsr -> " >>u "
-  | Iasr -> " >>s "
-  | Iclz { arg_is_non_zero; } -> Printf.sprintf "clz %B " arg_is_non_zero
-  | Ictz { arg_is_non_zero; } -> Printf.sprintf "ctz %B " arg_is_non_zero
-  | Ipopcnt -> "popcnt "
-  | Icomp cmp -> intcomp cmp
-
-let floatop ppf op =
-  match op with
-  | Iaddf -> fprintf ppf "+."
-  | Isubf -> fprintf ppf "-."
-  | Imulf -> fprintf ppf "*."
-  | Idivf -> fprintf ppf "/."
-  | Iabsf -> fprintf ppf "abs"
-  | Inegf -> fprintf ppf "neg"
-  | Icompf cmp -> fprintf ppf "%s" (Printcmm.float_comparison cmp)
-
-let test' ?(print_reg = reg) tst ppf arg =
+let operation' ?(print_reg = Printreg.reg) op arg ppf res =
   let reg = print_reg in
-  match tst with
-  | Itruetest -> reg ppf arg.(0)
-  | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
-  | Iinttest cmp -> fprintf ppf "%a%s%a" reg arg.(0) (intcomp cmp) reg arg.(1)
-  | Iinttest_imm(cmp, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intcomp cmp) n
-  | Ifloattest (_, cmp) ->
-      fprintf ppf "%a %s %a"
-       reg arg.(0) (Printcmm.float_comparison cmp) reg arg.(1)
-  | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
-  | Ioddtest -> fprintf ppf "%a & 1 == 1" reg arg.(0)
-
-let test tst ppf arg = test' tst ppf arg
-
-let operation' ?(print_reg = reg) op arg ppf res =
-  let reg = print_reg in
-  let regs = regs' ~print_reg in
+  let regs = Printreg.regs' ~print_reg in
   if Array.length res > 0 then fprintf ppf "%a := " regs res;
   match op with
   | Imove -> regs ppf arg
@@ -199,28 +84,40 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ialloc { bytes = n; mode = Alloc_mode.Local } ->
     fprintf ppf "alloc_local %i" n;
   | Iintop(op) ->
-      if is_unary_op op then begin
+      if Simple_operation.is_unary_integer_operation op then begin
         assert (Array.length arg = 1);
-        fprintf ppf "%s%a" (intop op) reg arg.(0)
+        fprintf ppf "%s%a" (Simple_operation.string_of_integer_operation op) reg arg.(0)
       end else begin
         assert (Array.length arg = 2);
-        fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
+        fprintf ppf "%a%s%a" reg arg.(0) (Simple_operation.string_of_integer_operation op) reg arg.(1)
       end
-  | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
-  | Iintop_atomic {op = Compare_and_swap; size; addr} ->
-    fprintf ppf "lock cas %s[%a] ?%a %a"
+  | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (Simple_operation.string_of_integer_operation op) n
+  | Iintop_atomic {op = Compare_set; size; addr} ->
+    fprintf ppf "lock compare_set %s[%a] ?%a %a"
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 2))
       reg arg.(0) reg arg.(1)
-  | Iintop_atomic {op = Fetch_and_add; size; addr} ->
-    fprintf ppf "lock %s[%a] += %a"
+  | Iintop_atomic {op = Compare_exchange; size; addr} ->
+    fprintf ppf "lock compare_exchange %s[%a] ?%a %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 2))
+      reg arg.(0) reg arg.(1)
+  | Iintop_atomic {op = Exchange; size; addr} ->
+    fprintf ppf "lock exchange %s[%a] %a"
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
+  | Iintop_atomic {op = (Fetch_and_add | Add | Sub | Land | Lor | Lxor) as op; size; addr} ->
+    fprintf ppf "lock %s[%a] %s %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr)
+      (Array.sub arg 1 (Array.length arg - 1))
+      (Printcmm.atomic_op op)
+      reg arg.(0)
   | Ifloatop (_, (Icompf _ | Iaddf | Isubf | Imulf | Idivf as op)) ->
-    fprintf ppf "%a %a %a" reg arg.(0) floatop op reg arg.(1)
+    fprintf ppf "%a %a %a" reg arg.(0) Simple_operation.format_float_operation op reg arg.(1)
   | Ifloatop (_, (Inegf | Iabsf as op)) ->
-    fprintf ppf "%a %a" floatop op reg arg.(0)
+    fprintf ppf "%a %a" Simple_operation.format_float_operation op reg arg.(0)
   | Icsel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
@@ -245,7 +142,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
       (match return_label with
       | None -> ()
       | Some return_label ->
-        fprintf ppf " returning to L%d" return_label)
+        fprintf ppf " returning to L%a" Label.format return_label)
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
@@ -254,8 +151,8 @@ let operation op arg ppf res = operation' op arg ppf res
 
 let rec instr ppf i =
   if !Clflags.dump_live then begin
-    fprintf ppf "@[<1>{%a" regsetaddr i.live;
-    if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" regs i.arg;
+    fprintf ppf "@[<1>{%a" Printreg.regsetaddr i.live;
+    if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" Printreg.regs i.arg;
     fprintf ppf "}@]@,"
   end;
   if !Flambda_backend_flags.davail then begin
@@ -272,15 +169,15 @@ let rec instr ppf i =
     then (
       if Option.equal RAS.equal (Some i.available_before) i.available_across
       then
-        fprintf ppf "@[<1>AB=AA={%a}@]@," (RAS.print ~print_reg:reg)
+        fprintf ppf "@[<1>AB=AA={%a}@]@," (RAS.print ~print_reg:Printreg.reg)
           i.available_before
       else (
-        fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg)
+        fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:Printreg.reg)
           i.available_before;
         begin match i.available_across with
         | None -> ()
         | Some available_across ->
-          fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
+          fprintf ppf ",AA={%a}" (RAS.print ~print_reg:Printreg.reg) available_across
         end;
         fprintf ppf "@]@,"
       )
@@ -291,7 +188,7 @@ let rec instr ppf i =
   | Iop op ->
       operation op i.arg ppf i.res
   | Ireturn traps ->
-      fprintf ppf "return%a %a" Printcmm.trap_action_list traps regs i.arg
+      fprintf ppf "return%a %a" Printcmm.trap_action_list traps Printreg.regs i.arg
   | Iifthenelse(tst, ifso, ifnot) ->
       fprintf ppf "@[<v 2>if %a then@,%a" (test tst) i.arg instr ifso;
       begin match ifnot.desc with
@@ -300,7 +197,7 @@ let rec instr ppf i =
       end;
       fprintf ppf "@;<0 -2>endif@]"
   | Iswitch(index, cases) ->
-      fprintf ppf "switch %a" reg i.arg.(0);
+      fprintf ppf "switch %a" Printreg.reg i.arg.(0);
       for i = 0 to Array.length cases - 1 do
         fprintf ppf "@,@[<v 2>@[";
         for j = 0 to Array.length index - 1 do
@@ -330,7 +227,7 @@ let rec instr ppf i =
       fprintf ppf "@[<v 2>try@,%a@;<0 -2>with(%d)%a@,%a@;<0 -2>endtry@]"
              instr body exn_cont trap_stack ts instr handler
   | Iraise k ->
-      fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
+      fprintf ppf "%s %a" (Lambda.raise_kind k) Printreg.reg i.arg.(0)
   end;
   if not (Debuginfo.is_none i.dbg) && !Clflags.locations then
     fprintf ppf "%s" (Debuginfo.to_string i.dbg);
@@ -346,7 +243,7 @@ let fundecl ppf f =
     else
       " " ^ Debuginfo.to_string f.fun_dbg in
   fprintf ppf "@[<v 2>%s(%a)%s%a@,%a@]"
-    f.fun_name regs f.fun_args dbg
+    f.fun_name Printreg.regs f.fun_args dbg
     Printcmm.print_codegen_options f.fun_codegen_options
     instr f.fun_body
 
@@ -356,9 +253,9 @@ let phase msg ppf f =
 let interference ppf r =
   let interf ppf =
    List.iter
-    (fun r -> fprintf ppf "@ %a" reg r)
+    (fun r -> fprintf ppf "@ %a" Printreg.reg r)
     r.interf in
-  fprintf ppf "@[<2>%a:%t@]@." reg r interf
+  fprintf ppf "@[<2>%a:%t@]@." Printreg.reg r interf
 
 let interferences ppf () =
   fprintf ppf "*** Interferences@.";
@@ -369,7 +266,7 @@ let interval ppf i =
     List.iter
       (fun r -> fprintf ppf "@ [%d;%d]" r.rbegin r.rend)
       i.ranges in
-  fprintf ppf "@[<2>%a:%t@]@." reg i.reg interv
+  fprintf ppf "@[<2>%a:%t@]@." Printreg.reg i.reg interv
 
 let intervals ppf () =
   fprintf ppf "*** Intervals@.";
@@ -379,9 +276,9 @@ let intervals ppf () =
 let preference ppf r =
   let prefs ppf =
     List.iter
-      (fun (r, w) -> fprintf ppf "@ %a weight %i" reg r w)
+      (fun (r, w) -> fprintf ppf "@ %a weight %i" Printreg.reg r w)
       r.prefer in
-  fprintf ppf "@[<2>%a: %t@]@." reg r prefs
+  fprintf ppf "@[<2>%a: %t@]@." Printreg.reg r prefs
 
 let preferences ppf () =
   fprintf ppf "*** Preferences@.";

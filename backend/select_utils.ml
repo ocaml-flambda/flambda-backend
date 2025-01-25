@@ -16,6 +16,8 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Cmm
@@ -25,7 +27,7 @@ module VP = Backend_var.With_provenance
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of Mach.trap_stack
+  | Reachable of Simple_operation.trap_stack
 
 type 'a static_handler =
   { regs : Reg.t array list;
@@ -40,7 +42,7 @@ type 'a environment =
     static_exceptions : 'a static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
-    trap_stack : Mach.trap_stack
+    trap_stack : Simple_operation.trap_stack
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -77,16 +79,17 @@ let env_set_trap_stack env trap_stack = { env with trap_stack }
 
 let rec combine_traps trap_stack = function
   | [] -> trap_stack
-  | Push t :: l -> combine_traps (Mach.Specific_trap (t, trap_stack)) l
+  | Push t :: l ->
+    combine_traps (Simple_operation.Specific_trap (t, trap_stack)) l
   | Pop _ :: l -> (
-    match (trap_stack : Mach.trap_stack) with
+    match (trap_stack : Simple_operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
     | Specific_trap (_, ts) -> combine_traps ts l)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
-    | Mach.Uncaught -> Format.fprintf ppf "T"
-    | Mach.Specific_trap (lbl, ts) ->
+    | Simple_operation.Uncaught -> Format.fprintf ppf "T"
+    | Simple_operation.Specific_trap (lbl, ts) ->
       Format.fprintf ppf "%d::%a" lbl print_traps ts
   in
   Format.fprintf ppf "(%a)" print_traps traps
@@ -98,7 +101,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if prev_traps <> traps
+    if Stdlib.( <> ) prev_traps traps
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
@@ -121,8 +124,8 @@ let trap_stack_is_empty env =
 
 let pop_all_traps env =
   let rec pop_all acc = function
-    | Mach.Uncaught -> acc
-    | Mach.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
+    | Simple_operation.Uncaught -> acc
+    | Simple_operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
   in
   pop_all [] env.trap_stack
 
@@ -132,7 +135,8 @@ let env_empty =
     trap_stack = Uncaught
   }
 
-let select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag = function
+let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
+    = function
   | Immutable -> Immutable
   | Mutable -> Mutable
 
@@ -152,7 +156,10 @@ let oper_result_type = function
   | Cstore (_c, _) -> typ_void
   | Cdls_get -> typ_val
   | Cprefetch _ -> typ_void
-  | Catomic _ -> typ_int
+  | Catomic
+      { op = Fetch_and_add | Compare_set | Exchange | Compare_exchange; _ } ->
+    typ_int
+  | Catomic { op = Add | Sub | Land | Lor | Lxor; _ } -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor | Clsl
   | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _ | Ccmpi _ | Ccmpa _
   | Ccmpf _ ->
@@ -204,15 +211,22 @@ let oper_result_type = function
 (* Infer the size in bytes of the result of an expression whose evaluation may
    be deferred (cf. [emit_parts]). *)
 
+(* [size_component] is placed here and not in [Cmm] to avoid cyclic
+   dependencies, because it uses [Arch]. *)
 let size_component : machtype_component -> int = function
   | Val | Addr -> Arch.size_addr
-  | Int -> Arch.size_int
+  | Int ->
+    assert (Int.equal Arch.size_int Arch.size_addr);
+    Arch.size_int
   | Float -> Arch.size_float
   | Float32 ->
     (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
        Note that packed float32# arrays are handled via a separate path. *)
     Arch.size_float
   | Vec128 -> Arch.size_vec128
+  | Valx2 ->
+    assert (Int.equal (Arch.size_addr * 2) Arch.size_vec128);
+    Arch.size_vec128
 
 let size_machtype mty =
   let size = ref 0 in
@@ -252,8 +266,10 @@ let size_expr (env : _ environment) exp =
 (* Swap the two arguments of an integer comparison *)
 
 let swap_intcomp = function
-  | Mach.Isigned cmp -> Mach.Isigned (swap_integer_comparison cmp)
-  | Mach.Iunsigned cmp -> Mach.Iunsigned (swap_integer_comparison cmp)
+  | Simple_operation.Isigned cmp ->
+    Simple_operation.Isigned (swap_integer_comparison cmp)
+  | Simple_operation.Iunsigned cmp ->
+    Simple_operation.Iunsigned (swap_integer_comparison cmp)
 
 (* Naming of registers *)
 
@@ -274,95 +290,6 @@ let name_regs id rv =
       rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id;
       rv.(i).Reg.part <- Some i
     done
-
-let maybe_emit_naming_op env ~bound_name seq regs =
-  match bound_name with
-  | None -> ()
-  | Some bound_name ->
-    let provenance = VP.provenance bound_name in
-    if Option.is_some provenance
-    then
-      let bound_name = VP.var bound_name in
-      let naming_op =
-        Mach.Iname_for_debugger
-          { ident = bound_name;
-            provenance;
-            which_parameter = None;
-            is_assignment = false;
-            regs
-          }
-      in
-      seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]
-
-(* "Join" two instruction sequences, making sure they return their results in
-   the same registers. *)
-
-let join env opt_r1 seq1 opt_r2 seq2 ~bound_name =
-  let maybe_emit_naming_op = maybe_emit_naming_op env ~bound_name in
-  match opt_r1, opt_r2 with
-  | None, _ -> opt_r2
-  | _, None -> opt_r1
-  | Some r1, Some r2 ->
-    let l1 = Array.length r1 in
-    assert (l1 = Array.length r2);
-    let r = Array.make l1 Reg.dummy in
-    for i = 0 to l1 - 1 do
-      if Reg.anonymous r1.(i) && Cmm.ge_component r1.(i).Reg.typ r2.(i).Reg.typ
-      then (
-        r.(i) <- r1.(i);
-        seq2#insert_move env r2.(i) r1.(i);
-        maybe_emit_naming_op seq2 [| r1.(i) |])
-      else if Reg.anonymous r2.(i)
-              && Cmm.ge_component r2.(i).Reg.typ r1.(i).Reg.typ
-      then (
-        r.(i) <- r2.(i);
-        seq1#insert_move env r1.(i) r2.(i);
-        maybe_emit_naming_op seq1 [| r2.(i) |])
-      else
-        let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
-        r.(i) <- Reg.create typ;
-        seq1#insert_move env r1.(i) r.(i);
-        maybe_emit_naming_op seq1 [| r.(i) |];
-        seq2#insert_move env r2.(i) r.(i);
-        maybe_emit_naming_op seq2 [| r.(i) |]
-    done;
-    Some r
-
-(* Same, for N branches *)
-
-let join_array env rs ~bound_name =
-  let maybe_emit_naming_op = maybe_emit_naming_op env ~bound_name in
-  let some_res = ref None in
-  for i = 0 to Array.length rs - 1 do
-    let r, _ = rs.(i) in
-    match r with
-    | None -> ()
-    | Some r -> (
-      match !some_res with
-      | None -> some_res := Some (r, Array.map (fun r -> r.Reg.typ) r)
-      | Some (r', types) ->
-        let types =
-          Array.map2 (fun r typ -> Cmm.lub_component r.Reg.typ typ) r types
-        in
-        some_res := Some (r', types))
-  done;
-  match !some_res with
-  | None -> None
-  | Some (template, types) ->
-    let size_res = Array.length template in
-    let res = Array.make size_res Reg.dummy in
-    for i = 0 to size_res - 1 do
-      res.(i) <- Reg.create types.(i)
-    done;
-    for i = 0 to Array.length rs - 1 do
-      let r, s = rs.(i) in
-      match r with
-      | None -> ()
-      | Some r ->
-        s#insert_moves env r res;
-        maybe_emit_naming_op s res
-    done;
-    Some res
 
 (* Name of function being compiled *)
 let current_function_name = ref ""
@@ -585,7 +512,7 @@ class virtual ['env, 'op, 'instr] common_selector =
     (* Says whether an integer constant is a suitable immediate argument for the
        given integer operation *)
 
-    method is_immediate (op : Mach.integer_operation) n =
+    method is_immediate (op : Simple_operation.integer_operation) n =
       match op with
       | Ilsl | Ilsr | Iasr -> n >= 0 && n < Arch.size_int * 8
       | _ -> false
@@ -593,7 +520,8 @@ class virtual ['env, 'op, 'instr] common_selector =
     (* Says whether an integer constant is a suitable immediate argument for the
        given integer test *)
 
-    method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
+    method virtual is_immediate_test
+        : Simple_operation.integer_comparison -> int -> bool
 
     (* Selection of addressing modes *)
 
@@ -607,8 +535,8 @@ class virtual ['env, 'op, 'instr] common_selector =
 
     (* Instruction selection for conditionals *)
 
-    method select_condition (arg : Cmm.expression) : Mach.test * Cmm.expression
-        =
+    method select_condition (arg : Cmm.expression)
+        : Simple_operation.test * Cmm.expression =
       match arg with
       | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
         when self#is_immediate_test (Isigned cmp) n ->
@@ -823,7 +751,9 @@ class virtual ['env, 'op, 'instr] common_selector =
     method emit_extcall_args env ty_args args =
       let args = self#emit_tuple_not_flattened env args in
       let ty_args =
-        if ty_args = [] then List.map (fun _ -> XInt) args else ty_args
+        match ty_args with
+        | [] -> List.map (fun _ -> XInt) args
+        | _ :: _ -> ty_args
       in
       let locs, stack_ofs = Proc.loc_external_arguments ty_args in
       let ty_args = Array.of_list ty_args in
@@ -864,6 +794,8 @@ class virtual ['env, 'op, 'instr] common_selector =
                        (big)array operations are handled separately via cmm. *)
                     Onetwentyeight_unaligned
                   | Val | Addr | Int -> Word_val
+                  | Valx2 ->
+                    Misc.fatal_error "Unexpected machtype_component Valx2"
                 in
                 self#insert_debug env
                   (self#make_store kind !a false)

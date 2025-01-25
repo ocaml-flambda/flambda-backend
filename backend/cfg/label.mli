@@ -25,10 +25,29 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = int
+type t
+
+val none : t
+
+val entry_label : t
 
 include Identifiable.S with type t := t
+
+val new_label : unit -> t
+
+val set_label : t -> unit
+
+val cur_label : unit -> t
+
+val reset : unit -> unit
+
+val to_int : t -> int
+
+(** [of_int_unsafe] is used for testing and ocamlfdo.  *)
+val of_int_unsafe : int -> t
 
 val equal : t -> t -> bool
 
 val to_string : t -> string
+
+val format : Format.formatter -> t -> unit

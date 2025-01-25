@@ -24,6 +24,8 @@ val regalloc_validate : bool ref
 
 val vectorize : bool ref
 val dump_vectorize : bool ref
+val default_vectorize_max_block_size : int
+val vectorize_max_block_size : int ref
 
 val cfg_selection : bool ref
 
@@ -114,6 +116,7 @@ module Flambda2 : sig
     val join_depth : int
     val function_result_types : function_result_types
     val meet_algorithm : meet_algorithm
+    val enable_reaper : bool
 
     val unicode : bool
   end
@@ -130,6 +133,7 @@ module Flambda2 : sig
     join_depth : int;
     function_result_types : function_result_types;
     meet_algorithm : meet_algorithm;
+    enable_reaper : bool;
 
     unicode : bool;
   }
@@ -145,6 +149,7 @@ module Flambda2 : sig
   val backend_cse_at_toplevel : bool or_default ref
   val cse_depth : int or_default ref
   val join_depth : int or_default ref
+  val enable_reaper : bool or_default ref
 
   val unicode : bool or_default ref
 
@@ -157,6 +162,8 @@ module Flambda2 : sig
     val slot_offsets : bool ref
     val freshen : bool ref
     val flow : bool ref
+    val simplify : bool ref
+    val reaper : bool ref
   end
 
   module Expert : sig
@@ -169,6 +176,7 @@ module Flambda2 : sig
       val can_inline_recursive_functions : bool
       val max_function_simplify_run : int
       val shorten_symbol_names : bool
+      val cont_lifting_budget : int
     end
 
     type flags = {
@@ -180,6 +188,7 @@ module Flambda2 : sig
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
       shorten_symbol_names : bool;
+      cont_lifting_budget : int;
     }
 
     val default_for_opt_level : opt_level or_default -> flags
@@ -192,6 +201,7 @@ module Flambda2 : sig
     val can_inline_recursive_functions : bool or_default ref
     val max_function_simplify_run : int or_default ref
     val shorten_symbol_names : bool or_default ref
+    val cont_lifting_budget : int or_default ref
   end
 
   module Debug : sig

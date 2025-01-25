@@ -160,8 +160,7 @@ end
 
 module Field = struct
   let unboxing_prim bak ~block ~index =
-    let field_const = Simple.const (Const.tagged_immediate index) in
-    P.Binary (Block_load (bak, Immutable), block, field_const)
+    P.Unary (Block_load { kind = bak; mut = Immutable; field = index }, block)
 
   let unboxer ~poison_const bak ~index =
     { var_name = "field_at_use";
@@ -182,7 +181,10 @@ module Closure_field = struct
 
   let unboxer function_slot value_slot =
     { var_name = "closure_field_at_use";
-      poison_const = Const.const_zero;
+      poison_const =
+        Const.of_int_of_kind
+          (Flambda_kind.With_subkind.kind (Value_slot.kind value_slot))
+          0;
       unboxing_prim =
         (fun closure -> unboxing_prim function_slot ~closure value_slot);
       prove_simple =

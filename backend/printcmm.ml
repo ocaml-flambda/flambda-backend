@@ -37,6 +37,7 @@ let machtype_component ppf (ty : machtype_component) =
   | Float -> fprintf ppf "float"
   | Vec128 -> fprintf ppf "vec128"
   | Float32 -> fprintf ppf "float32"
+  | Valx2 -> fprintf ppf "valx2"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -95,6 +96,14 @@ let float_comparison = function
   | CFge -> ">="
   | CFnge -> "!>="
 
+let vec128_name = function
+  | Int8x16 -> "int8x16"
+  | Int16x8 -> "int16x8"
+  | Int32x4 -> "int32x4"
+  | Int64x2 -> "int64x2"
+  | Float32x4 -> "float32x4"
+  | Float64x2 -> "float64x2"
+
 let chunk = function
   | Byte_unsigned -> "unsigned int8"
   | Byte_signed -> "signed int8"
@@ -122,8 +131,15 @@ let temporal_locality = function
   | High -> "high"
 
 let atomic_op = function
-  | Fetch_and_add -> "fetch_and_add"
-  | Compare_and_swap -> "compare_and_swap"
+  | Fetch_and_add -> "xadd"
+  | Add -> "+="
+  | Sub -> "-="
+  | Land -> "&="
+  | Lor -> "|="
+  | Lxor -> "^="
+  | Exchange -> "exchange"
+  | Compare_set -> "compare_set"
+  | Compare_exchange -> "compare_exchange"
 
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
@@ -195,8 +211,8 @@ let static_cast : Cmm.static_cast -> string = function
   | Float_of_int Float32 -> "int->float32"
   | Float32_of_float -> "float->float32"
   | Float_of_float32 -> "float32->float"
-  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
-  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
+  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (vec128_name ty)
+  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (vec128_name ty)
 
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d

@@ -44,7 +44,7 @@ module type Code_metadata_accessors_result_type = sig
 
   val result_types : 'a t -> Result_types.t Or_unknown_or_bottom.t
 
-  val result_mode : 'a t -> Lambda.alloc_mode
+  val result_mode : 'a t -> Lambda.locality_mode
 
   val stub : 'a t -> bool
 
@@ -79,6 +79,8 @@ module type Code_metadata_accessors_result_type = sig
   val relative_history : 'a t -> Inlining_history.Relative.t
 
   val loopify : 'a t -> Loopify_attribute.t
+
+  val function_slot_size : 'a t -> int
 end
 
 module Code_metadata_accessors : functor (X : Metadata_view_type) ->
@@ -94,7 +96,7 @@ type 'a create_type =
   first_complex_local_param:int ->
   result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
-  result_mode:Lambda.alloc_mode ->
+  result_mode:Lambda.locality_mode ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
@@ -123,6 +125,8 @@ val with_code_id : Code_id.t -> t -> t
 val with_newer_version_of : Code_id.t option -> t -> t
 
 val with_cost_metrics : Cost_metrics.t -> t -> t
+
+val with_is_my_closure_used : bool -> t -> t
 
 val print : Format.formatter -> t -> unit
 

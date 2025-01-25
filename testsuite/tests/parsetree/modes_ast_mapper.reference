@@ -1,0 +1,12 @@
+modes: local [File "_none_", line 1, characters 7-13]
+------------------------------
+modes: unique [File "_none_", line 1, characters 4-11]
+modes: local [File "_none_", line 1, characters 15-21]
+modes: unique [File "_none_", line 1, characters 4-11]
+------------------------------
+modes: local [File "_none_", line 1, characters 4-10]
+modes: local [File "_none_", line 1, characters 4-10]
+------------------------------
+modes: foo [File "_none_", line 1, characters 42-45]
+modalities: bar [File "_none_", line 1, characters 49-52] hello [File "_none_", line 1, characters 53-58]
+------------------------------

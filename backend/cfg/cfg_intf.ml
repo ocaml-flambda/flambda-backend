@@ -50,54 +50,6 @@ module S = struct
           enabled_at_init : bool
         }
 
-  type operation =
-    | Move
-    | Spill
-    | Reload
-    | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
-    | Const_float32 of int32
-    | Const_float of int64
-    | Const_symbol of Cmm.symbol
-    | Const_vec128 of Cmm.vec128_bits
-    | Stackoffset of int
-    | Load of
-        { memory_chunk : Cmm.memory_chunk;
-          addressing_mode : Arch.addressing_mode;
-          mutability : Mach.mutable_flag;
-          is_atomic : bool
-        }
-    | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
-    | Intop of Mach.integer_operation
-    | Intop_imm of Mach.integer_operation * int
-    | Intop_atomic of
-        { op : Cmm.atomic_op;
-          size : Cmm.atomic_bitwidth;
-          addr : Arch.addressing_mode
-        }
-    | Floatop of Mach.float_width * Mach.float_operation
-    | Csel of Mach.test
-    | Reinterpret_cast of Cmm.reinterpret_cast
-    | Static_cast of Cmm.static_cast
-    | Probe_is_enabled of { name : string }
-    | Opaque
-    | Begin_region
-    | End_region
-    | Specific of Arch.specific_operation
-    | Name_for_debugger of
-        { ident : Ident.t;
-          which_parameter : int option;
-          provenance : Backend_var.Provenance.t option;
-          is_assignment : bool;
-          regs : Reg.t array
-        }
-    | Dls_get
-    | Poll
-    | Alloc of
-        { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo;
-          mode : Cmm.Alloc_mode.t
-        }
-
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)
       ifnot : Label.t  (** if test is false goto [ifnot] label *)
@@ -153,7 +105,7 @@ module S = struct
 
   (* [basic] instruction cannot raise *)
   type basic =
-    | Op of operation
+    | Op of Operation.t
     | Reloadretaddr
         (** This instruction loads the return address from a predefined hidden
             address (e.g. bottom of the current frame) and stores it in a
@@ -194,6 +146,7 @@ module S = struct
     | Tailcall_self of { destination : Label.t }
     | Tailcall_func of func_call_operation
     | Call_no_return of external_call_operation
+      (* CR mshinwell: [Call_no_return] should have "external" in the name *)
     | Call of func_call_operation with_label_after
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after

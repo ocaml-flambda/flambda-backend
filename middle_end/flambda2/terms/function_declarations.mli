@@ -23,7 +23,10 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 type code_id_in_function_declaration =
-  | Deleted of { function_slot_size : int }
+  | Deleted of
+      { function_slot_size : int;
+        dbg : Debuginfo.t
+      }
   | Code_id of Code_id.t
 
 val empty : t

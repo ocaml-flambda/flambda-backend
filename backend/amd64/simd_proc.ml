@@ -122,3 +122,16 @@ let register_behavior = function
   | SSSE3 op -> register_behavior_ssse3 op
   | SSE41 op -> register_behavior_sse41 op
   | SSE42 op -> register_behavior_sse42 op
+
+module Mem = struct
+  let register_behavior_sse (op : Simd.Mem.sse_operation) =
+    match op with Add_f32 | Sub_f32 | Mul_f32 | Div_f32 -> R_RM_to_fst
+
+  let register_behavior_sse2 (op : Simd.Mem.sse2_operation) =
+    match op with Add_f64 | Sub_f64 | Mul_f64 | Div_f64 -> R_RM_to_fst
+
+  let register_behavior (op : Simd.Mem.operation) =
+    match op with
+    | SSE op -> register_behavior_sse op
+    | SSE2 op -> register_behavior_sse2 op
+end

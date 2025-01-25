@@ -321,19 +321,12 @@ let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
       { elt with apply_cont_args })
 
 let get_block_and_constant_field ~block ~field =
-  Simple.pattern_match field
-    ~name:(fun _ ~coercion:_ -> None)
-    ~const:(fun const ->
-      Simple.pattern_match' block
-        ~const:(fun _ -> None)
-        ~symbol:(fun _ ~coercion:_ -> None)
-        ~var:(fun var ~coercion:_ ->
-          let field =
-            match[@ocaml.warning "-4"] Reg_width_const.descr const with
-            | Tagged_immediate i -> Targetint_31_63.to_int i
-            | _ -> assert false
-          in
-          Some (var, field)))
+  Simple.pattern_match' block
+    ~const:(fun _ -> None)
+    ~symbol:(fun _ ~coercion:_ -> None)
+    ~var:(fun var ~coercion:_ ->
+      let field = Targetint_31_63.to_int field in
+      Some (var, field))
 
 let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
     ~simplified_defining_expr t =
@@ -373,7 +366,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
                ~prim:(Get_tag v) t)
             Name_occurrences.empty
         | None -> record_var_bindings t free_names)
-      | Binary (Block_load (bak, mut), block, field) -> (
+      | Unary (Block_load { kind = bak; mut; field }, block) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
           record_var_bindings
@@ -382,7 +375,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
                t)
             Name_occurrences.empty
         | None -> record_var_bindings t free_names)
-      | Ternary (Block_set (bak, _), block, field, value) -> (
+      | Binary (Block_set { kind = bak; field; _ }, block, value) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
           record_ref_named rewrite_id ~bound_to:var ~original_prim
@@ -441,15 +434,29 @@ let extend_args_with_extra_args (t : T.Acc.t) =
     Continuation.Map.map
       (fun (elt : T.Continuation_info.t) ->
         let apply_cont_args =
-          Continuation.Map.mapi
+          Continuation.Map.filter_map
             (fun cont rewrite_ids ->
-              match Continuation.Map.find cont t.extra with
-              | exception Not_found -> rewrite_ids
-              | epa ->
-                let extra_args = EPA.extra_args epa in
-                Apply_cont_rewrite_id.Map.filter_map
-                  (add_extra_args_to_call ~extra_args)
-                  rewrite_ids)
+              let rewrite_ids =
+                match Continuation.Map.find cont t.extra with
+                | exception Not_found -> rewrite_ids
+                | epa ->
+                  let extra_args = EPA.extra_args epa in
+                  Apply_cont_rewrite_id.Map.filter_map
+                    (add_extra_args_to_call ~extra_args)
+                    rewrite_ids
+              in
+              (* We must not leave an empty [Apply_cont_rewrite_id] map here.
+                 Indeed, not having any actual continuation arguments will let
+                 flow analysis find a dominator for parameters of [cont] that we
+                 do not have access to. Since we then only look at which
+                 continuation can call which to know which arguments to add,
+                 this causes the ‌adding of the extra parameters to assume we
+                 need access to that dominator since it looks like we can call
+                 [cont], but since neither we nor any of our callers have access
+                 to it, trying to add the dominator crashes the compiler. *)
+              if Apply_cont_rewrite_id.Map.is_empty rewrite_ids
+              then None
+              else Some rewrite_ids)
             elt.apply_cont_args
         in
         { elt with apply_cont_args })

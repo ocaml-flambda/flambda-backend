@@ -6,7 +6,7 @@ module List = ListLabels
 module Array = ArrayLabels
 
 module CSE_utils_numbering = CSE_utils.Make (struct
-  type t = Cfg.operation
+  type t = Operation.t
 end)
 
 open CSE_utils
@@ -64,7 +64,7 @@ let insert_move :
 
 class cse_generic =
   object (self)
-    method class_of_operation : Cfg.operation -> op_class =
+    method class_of_operation : Operation.t -> op_class =
       function
       | Move | Spill | Reload -> assert false (* treated specially *)
       | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
@@ -93,7 +93,7 @@ class cse_generic =
       | Begin_region | End_region -> Op_other
       | Dls_get -> Op_load Mutable
 
-    method is_cheap_operation : Cfg.operation -> bool =
+    method is_cheap_operation : Operation.t -> bool =
       function Const_int _ -> true | _ -> false
     [@@warning "-4"]
 
@@ -236,7 +236,8 @@ class cse_generic =
           let numbering, block = Queue.take to_visit in
           if not (Label.Set.mem block.start !visited)
           then (
-            if debug then Format.eprintf "[cse] visiting %d\n%!" block.start;
+            if debug
+            then Format.eprintf "[cse] visiting %a\n%!" Label.format block.start;
             visited := Label.Set.add block.start !visited;
             let numbering = self#cse_body state numbering block.body in
             let numbering = self#cse_terminator numbering block.terminator in
@@ -258,8 +259,8 @@ class cse_generic =
                 in
                 if debug
                 then
-                  Format.eprintf "[cse] successor %d to_add=%B %d\n%!"
-                    successor_label to_add
+                  Format.eprintf "[cse] successor %a to_add=%B %d\n%!"
+                    Label.format successor_label to_add
                     (Label.Set.cardinal successor_block.predecessors);
                 if to_add then Queue.add (numbering, successor_block) to_visit)
               successor_labels)

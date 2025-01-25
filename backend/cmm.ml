@@ -20,9 +20,14 @@ type machtype_component = Cmx_format.machtype_component =
   | Float
   | Vec128
   | Float32
+  | Valx2
 
 type machtype = machtype_component array
 
+(* Note: To_cmm_expr.translate_apply0 relies on non-void
+   [machtype_component]s being singleton arrays. *)
+(* CR mshinwell/xclerc: Maybe this should be a variant type instead, or an
+   option. *)
 let typ_void = ([||] : machtype_component array)
 let typ_val = [|Val|]
 let typ_addr = [|Addr|]
@@ -33,7 +38,7 @@ let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float32     Float     Vec128
+      Addr     Float32     Float     Vec128   Valx2
        ^
        |
       Val
@@ -46,6 +51,7 @@ let typ_vec128 = [|Vec128|]
   then the result is treated as a derived pointer into the heap (i.e. [Addr]).
   (Such a result may not be live across any call site or a fatal compiler
   error will result.)
+  The order is used only in selection, Valx2 is generated after selection.
 *)
 
 let lub_component comp1 comp2 =
@@ -71,6 +77,8 @@ let lub_component comp1 comp2 =
     Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
+  | Valx2, _ | _, Valx2 ->
+    Misc.fatal_errorf "Unexpected machtype_component Valx2"
 
 let ge_component comp1 comp2 =
   match comp1, comp2 with
@@ -94,6 +102,8 @@ let ge_component comp1 comp2 =
   | Float, Float32 ->
     Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
+  | Valx2, _ | _, Valx2 ->
+    Misc.fatal_error "Unexpected machtype_component Valx2"
 
 type exttype =
   | XInt
@@ -130,22 +140,11 @@ let negate_float_comparison = Lambda.negate_float_comparison
 
 let swap_float_comparison = Lambda.swap_float_comparison
 
-type label = int
+type label = Label.t
 
-let init_label = 99
-
-let label_counter = ref init_label
-
-let set_label l =
-  if (l < !label_counter) then begin
-    Misc.fatal_errorf "Cannot set label counter to %d, it must be >= %d"
-      l !label_counter ()
-  end;
-  label_counter := l
-
-let cur_label () = !label_counter
-
-let new_label() = incr label_counter; !label_counter
+let new_label = Label.new_label
+let set_label = Label.set_label
+let cur_label = Label.cur_label
 
 type static_label = Lambda.static_label
 
@@ -157,7 +156,16 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_and_add | Compare_and_swap
+type atomic_op =
+  | Fetch_and_add
+  | Add
+  | Sub
+  | Land
+  | Lor
+  | Lxor
+  | Exchange
+  | Compare_set
+  | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 
@@ -184,6 +192,14 @@ type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 type initialization_or_assignment =
   | Initialization
   | Assignment
+
+type vec128_type =
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
 
 type float_width =
   | Float64
@@ -219,8 +235,8 @@ type static_cast =
   | Int_of_float of float_width
   | Float_of_float32
   | Float32_of_float
-  | V128_of_scalar of Primitive.vec128_type
-  | Scalar_of_v128 of Primitive.vec128_type
+  | V128_of_scalar of vec128_type
+  | Scalar_of_v128 of vec128_type
 
 module Alloc_mode = struct
   type t = Heap | Local
@@ -382,19 +398,11 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-let width_in_bytes (memory_chunk : memory_chunk) : int =
-  match memory_chunk with
-  | Byte_unsigned | Byte_signed -> 1
-  | Sixteen_unsigned | Sixteen_signed -> 2
-  | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
-  | Word_int | Word_val | Double -> 8
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
-
 let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)
 
 let reset () =
-  label_counter := init_label
+  Label.reset ()
 
 let iter_shallow_tail f = function
   | Clet(_, _, body) | Cphantom_let (_, _, body) | Clet_mut(_, _, _, body) ->
@@ -572,12 +580,14 @@ let equal_machtype_component (left : machtype_component) (right : machtype_compo
   | Float, Float -> true
   | Vec128, Vec128 -> true
   | Float32, Float32 -> true
-  | Val, (Addr | Int | Float | Vec128 | Float32)
-  | Addr, (Val | Int | Float | Vec128 | Float32)
-  | Int, (Val | Addr | Float | Vec128 | Float32)
-  | Float, (Val | Addr | Int | Vec128 | Float32)
-  | Vec128, (Val | Addr | Int | Float | Float32)
-  | Float32, (Val | Addr | Int | Float | Vec128) ->
+  | Valx2, Valx2 -> true
+  | Valx2, (Val | Addr | Int | Float | Vec128 | Float32)
+  | Val, (Addr | Int | Float | Vec128 | Float32 | Valx2)
+  | Addr, (Val | Int | Float | Vec128 | Float32 | Valx2)
+  | Int, (Val | Addr | Float | Vec128 | Float32 | Valx2)
+  | Float, (Val | Addr | Int | Vec128 | Float32 | Valx2)
+  | Vec128, (Val | Addr | Int | Float | Float32 | Valx2)
+  | Float32, (Val | Addr | Int | Float | Vec128 | Valx2) ->
     false
 
 let equal_exttype left right =
@@ -595,6 +605,16 @@ let equal_exttype left right =
   | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32)
   | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
+
+let equal_vec128_type v1 v2 =
+  match v1, v2 with
+  | Int8x16, Int8x16 -> true
+  | Int16x8, Int16x8 -> true
+  | Int32x4, Int32x4 -> true
+  | Int64x2, Int64x2 -> true
+  | Float32x4, Float32x4 -> true
+  | Float64x2, Float64x2 -> true
+  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ -> false
 
 let equal_float_width left right =
   match left, right with
@@ -625,8 +645,8 @@ let equal_static_cast (left : static_cast) (right : static_cast) =
   | Float_of_float32, Float_of_float32 -> true
   | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
   | Int_of_float f1, Int_of_float f2 -> equal_float_width f1 f2
-  | Scalar_of_v128 v1, Scalar_of_v128 v2 -> Primitive.equal_vec128_type v1 v2
-  | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Scalar_of_v128 v1, Scalar_of_v128 v2 -> equal_vec128_type v1 v2
+  | V128_of_scalar v1, V128_of_scalar v2 -> equal_vec128_type v1 v2
   | (Float32_of_float | Float_of_float32 |
      Float_of_int _ | Int_of_float _ |
      Scalar_of_v128 _ | V128_of_scalar _), _ -> false
@@ -732,3 +752,8 @@ let equal_integer_comparison left right =
     false
 
 let caml_flambda2_invalid = "caml_flambda2_invalid"
+
+let is_val (m: machtype_component) =
+  match m with
+  | Val -> true
+  | Addr | Int | Float | Vec128 | Float32 | Valx2 -> false

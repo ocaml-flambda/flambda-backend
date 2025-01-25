@@ -35,7 +35,7 @@ type basic_instruction_list =
   basic instruction Flambda_backend_utils.Doubly_linked_list.t
 
 type basic_block =
-  { start : Label.t;
+  { mutable start : Label.t;
     body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
@@ -192,17 +192,17 @@ val can_raise_terminator : terminator -> bool
 
 val is_pure_terminator : terminator -> bool
 
-val is_pure_basic : basic -> bool
+val is_never_terminator : terminator -> bool
 
-val is_pure_operation : operation -> bool
+val is_return_terminator : terminator -> bool
+
+val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
 val set_stack_offset : 'a instruction -> int -> unit
 
 val string_of_irc_work_list : irc_work_list -> string
-
-val dump_operation : Format.formatter -> operation -> unit
 
 val dump_basic : Format.formatter -> basic -> unit
 
@@ -223,3 +223,17 @@ val make_instruction :
   ?available_across:Reg_availability_set.t option ->
   unit ->
   'a instruction
+
+(* CR mshinwell: consolidate with [make_instruction] and tidy up ID interface *)
+val make_instr :
+  'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a instruction
+
+(** These IDs are also used by [make_instr] *)
+val next_instr_id : unit -> int
+
+val reset_next_instr_id : unit -> unit
+
+val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block
+
+(** "Contains calls" in the traditional sense as used in upstream [Selectgen]. *)
+val basic_block_contains_calls : basic_block -> bool

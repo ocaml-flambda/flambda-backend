@@ -76,8 +76,8 @@ let assign_blocks_to_section t labels name =
       match Hashtbl.find_opt t.sections label with
       | Some new_name ->
         Misc.fatal_errorf
-          "Cannot add %d->%s section mapping, already have %d->%s" label name
-          label new_name ()
+          "Cannot add %a->%s section mapping, already have %a->%s" Label.format
+          label name Label.format label new_name ()
       | None -> Hashtbl.replace t.sections label name)
     labels
 
@@ -130,16 +130,21 @@ let dump ppf t ~msg =
   fprintf ppf "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
-    fprintf ppf "\n%d:\n" label;
-    DLL.iter ~f:(fprintf ppf "%a\n" Cfg.print_basic) block.body;
-    Cfg.print_terminator ppf block.terminator;
+    fprintf ppf "\n%a:\n" Label.format label;
+    let pp_with_id ppf ~pp (instr : _ Cfg.instruction) =
+      fprintf ppf "(id:%d) %a\n" instr.id pp instr
+    in
+    DLL.iter ~f:(pp_with_id ppf ~pp:Cfg.print_basic) block.body;
+    pp_with_id ppf ~pp:Cfg.print_terminator block.terminator;
     fprintf ppf "\npredecessors:";
-    Label.Set.iter (fprintf ppf " %d") block.predecessors;
+    Label.Set.iter (fprintf ppf " %a" Label.format) block.predecessors;
     fprintf ppf "\nsuccessors:";
-    Label.Set.iter (fprintf ppf " %d")
+    Label.Set.iter
+      (fprintf ppf " %a" Label.format)
       (Cfg.successor_labels ~normal:true ~exn:false block);
     fprintf ppf "\nexn-successors:";
-    Label.Set.iter (fprintf ppf " %d")
+    Label.Set.iter
+      (fprintf ppf " %a" Label.format)
       (Cfg.successor_labels ~normal:false ~exn:true block);
     fprintf ppf "\n"
   in
@@ -197,7 +202,8 @@ let with_escape_ppf f ppf =
 
 let print_dot ?(show_instr = true) ?(show_exn = true)
     ?(annotate_instr = [Cfg.print_instruction]) ?annotate_block
-    ?annotate_block_end ?annotate_succ ppf t =
+    ?annotate_block_end ?(annotate_succ : (Label.t -> Label.t -> string) option)
+    ppf t =
   let ppf =
     (* Change space indent into tabs because spaces are rendered by [dot]
        command and tabs not. *)
@@ -217,18 +223,20 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
         print_cell ~align:Left (with_escape_ppf (fun ppf -> f ppf i)) ppf)
       annotate_instr
   in
-  let annotate_block label =
+  let annotate_block (label : Label.t) : string =
     match annotate_block with
     | None -> ""
     | Some f -> Printf.sprintf " %s" (f label)
   in
-  let annotate_succ l1 l2 =
+  let annotate_succ (l1 : Label.t) (l2 : Label.t) : string =
     match annotate_succ with
     | None -> ""
     | Some f -> Printf.sprintf " label=\"%s\"" (f l1 l2)
   in
   let print_block_dot label (block : Cfg.basic_block) index =
-    let name l = Printf.sprintf "\".L%d\"" l in
+    let name (l : Label.t) : string =
+      Printf.sprintf "\".L%s\"" (Label.to_string l)
+    in
     let show_index = Option.value index ~default:(-1) in
     Format.fprintf ppf
       "\n\
@@ -238,7 +246,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
       (name label)
       (print_row
          (print_cell ~col_span:col_count ~align:Center
-            (Format.dprintf ".L%d:I%d:S%d%s%s%s" label show_index
+            (Format.dprintf ".L%a:I%d:S%d%s%s%s" Label.format label show_index
                (DLL.length block.body)
                (if block.stack_offset > 0
                then ":T" ^ string_of_int block.stack_offset
@@ -252,7 +260,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
             (Format.dprintf "preds: %a"
                (Format.pp_print_seq
                   ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ", ")
-                  Format.pp_print_int)
+                  Label.format)
                (Label.Set.to_seq block.predecessors))))
         ppf;
       let print_id_and_ls_order :

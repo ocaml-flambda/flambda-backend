@@ -152,7 +152,7 @@ end = struct
         (function
           | None -> Some (Name.Map.singleton elt coercion_to_canonical)
           | Some elts ->
-            if Flambda_features.check_invariants ()
+            if Flambda_features.check_light_invariants ()
             then assert (not (Name.Map.mem elt elts));
             Some (Name.Map.add elt coercion_to_canonical elts))
         t.aliases
@@ -245,6 +245,9 @@ module Alias_set = struct
     }
 
   let empty = { const = None; names = Name.Map.empty }
+
+  let is_empty { const; names } =
+    Option.is_none const && Name.Map.is_empty names
 
   let create_aliases_of_element ~element:_ ~canonical_element
       ~coercion_from_canonical_to_element ~alias_names_with_coercions_to_element
@@ -643,7 +646,7 @@ let add_alias_between_canonical_elements ~binding_time_resolver
     let aliases_of_to_be_demoted =
       get_aliases_of_canonical_element t ~canonical_element:to_be_demoted
     in
-    if Flambda_features.check_invariants ()
+    if Flambda_features.check_light_invariants ()
     then
       Simple.pattern_match canonical_element
         ~const:(fun _ -> ())
@@ -805,7 +808,7 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       (Simple.coercion element2_with_coercion)
       ~then_:(Coercion.inverse (Simple.coercion element1_with_coercion))
   in
-  if Flambda_features.check_invariants ()
+  if Flambda_features.check_light_invariants ()
   then (
     if Simple.equal canonical_element1 canonical_element2
     then
@@ -1028,3 +1031,37 @@ let get_canonical_ignoring_name_mode t name =
   | Alias_of_canonical { canonical_element; coercion_to_canonical } ->
     let coercion_from_canonical = Coercion.inverse coercion_to_canonical in
     Simple.apply_coercion_exn canonical_element coercion_from_canonical
+
+let add_alias_set ~binding_time_resolver ~binding_times_and_modes t name aliases
+    =
+  (* CR vlaviron: when we get rid of coercions we should be able to have more
+     efficient implementations *)
+  let canonical = get_canonical_ignoring_name_mode t name in
+  let add_alias (t, canonical_element1) elt =
+    if Simple.equal
+         (Simple.without_coercion canonical_element1)
+         (Simple.without_coercion elt)
+    then t, canonical_element1
+    else
+      match
+        add ~binding_time_resolver ~binding_times_and_modes t
+          ~canonical_element1 ~canonical_element2:elt
+      with
+      | Bottom -> Misc.fatal_error "Discovered Bottom during alias join"
+      | Ok { t; canonical_element; alias_of_demoted_element = _ } ->
+        t, canonical_element
+  in
+  let ({ const; names } : Alias_set.t) = aliases in
+  let acc =
+    match const with
+    | None -> t, canonical
+    | Some c -> add_alias (t, canonical) (Simple.const c)
+  in
+  let t, _ =
+    Name.Map.fold
+      (fun name coercion (t, canonical) ->
+        let elt = get_canonical_ignoring_name_mode t name in
+        add_alias (t, canonical) (Simple.apply_coercion_exn elt coercion))
+      names acc
+  in
+  t

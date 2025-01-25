@@ -1,4 +1,3 @@
-# 2 "backend/amd64/reload.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -127,6 +126,7 @@ method! reload_operation op arg res =
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
   | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
+  | Ispecific(Isimd_mem (op,_)) -> Simd_reload.Mem.reload_operation self#makereg op arg res
   | Iconst_int n ->
       if n <= 0x7FFFFFFFn && n >= -0x80000000n
       then (arg, res)
@@ -191,7 +191,7 @@ method! reload_operation op arg res =
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
                | Ipause
                | Ilfence | Isfence | Imfence
-               | Iprefetch _ | Ibswap _)
+               | Icldemote _ | Iprefetch _ | Ibswap _)
   | Imove|Ispill|Ireload|Iconst_float _|Iconst_float32 _|Iconst_vec128 _
   | Icall_ind|Icall_imm _|Ifloatop (_,(Icompf _|Inegf|Iabsf))
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _

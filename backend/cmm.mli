@@ -22,6 +22,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Float
   | Vec128
   | Float32
+  | Valx2
 
 (* - [Val] denotes a valid OCaml value: either a pointer to the beginning
      of a heap block, an infix pointer if it is preceded by the correct
@@ -97,7 +98,7 @@ type float_comparison = Lambda.float_comparison =
 val negate_float_comparison: float_comparison -> float_comparison
 val swap_float_comparison: float_comparison -> float_comparison
 
-type label = int
+type label = Label.t
 val new_label: unit -> label
 val set_label: label -> unit
 val cur_label: unit -> label
@@ -110,7 +111,16 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_and_add | Compare_and_swap
+type atomic_op =
+  | Fetch_and_add
+  | Add
+  | Sub
+  | Land
+  | Lor
+  | Lxor
+  | Exchange
+  | Compare_set
+  | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 
@@ -162,6 +172,14 @@ type float_width =
   | Float64
   | Float32
 
+type vec128_type =
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -199,8 +217,8 @@ type static_cast =
   | Int_of_float of float_width
   | Float_of_float32
   | Float32_of_float
-  | V128_of_scalar of Primitive.vec128_type
-  | Scalar_of_v128 of Primitive.vec128_type
+  | V128_of_scalar of vec128_type
+  | Scalar_of_v128 of vec128_type
 
 module Alloc_mode : sig
   type t = Heap | Local
@@ -381,10 +399,8 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-val width_in_bytes : memory_chunk -> int
-
 val ccatch :
-     label * (Backend_var.With_provenance.t * machtype) list
+     Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
        * expression * expression * Debuginfo.t * kind_for_unboxing
        * bool
   -> expression
@@ -426,3 +442,4 @@ val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 
 val caml_flambda2_invalid : string
+val is_val : machtype_component -> bool

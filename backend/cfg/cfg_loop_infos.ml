@@ -100,7 +100,8 @@ let compute_loop_depths cfg header_map =
     Label.Map.update label
       (function
         | None ->
-          fatal "Cfg_loop_infos.compute_loop_depths: unknown label %d" label
+          fatal "Cfg_loop_infos.compute_loop_depths: unknown label %a"
+            Label.format label
         | Some depth -> Some (succ depth))
       map
   in
@@ -135,12 +136,16 @@ let build : Cfg.t -> Cfg_dominators.t -> t =
     Format.eprintf "*** Cfg_loop_infos.build for %S\n" cfg.Cfg.fun_name;
     Format.eprintf "back edges:\n";
     EdgeSet.iter
-      (fun { Edge.src; dst } -> Format.eprintf "- %d -> %d\n" src dst)
+      (fun { Edge.src; dst } ->
+        Format.eprintf "- %a -> %a\n" Label.format src Label.format dst)
       back_edges;
     EdgeMap.iter
       (fun { Edge.src; dst } labels ->
-        Format.eprintf "loop for back edge %d -> %d:\n" src dst;
-        Label.Set.iter (Format.eprintf "- %d:\n") labels)
+        Format.eprintf "loop for back edge %a -> %a:\n" Label.format src
+          Label.format dst;
+        Label.Set.iter (Format.eprintf "- %a:\n" Label.format) labels)
       loops;
-    Label.Map.iter (Format.eprintf "loop depth for %d is %d\n") loop_depths);
+    Label.Map.iter
+      (Format.eprintf "loop depth for %a is %d\n" Label.format)
+      loop_depths);
   { back_edges; loops; header_map; loop_depths }

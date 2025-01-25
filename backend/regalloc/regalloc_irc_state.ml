@@ -69,7 +69,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
            | Reg color -> Some color
            | Unknown | Stack _ ->
              fatal "precolored register %a is not an hardware register"
-               Printmach.reg reg);
+               Printreg.reg reg);
       reg.Reg.irc_alias <- None;
       reg.Reg.interf <- [];
       reg.Reg.degree <- Degree.infinite)
@@ -466,19 +466,19 @@ let[@inline] rec find_alias state reg =
   if reg.Reg.irc_work_list = Reg.Coalesced
   then
     match reg.Reg.irc_alias with
-    | None -> fatal "register %a has no alias" Printmach.reg reg
+    | None -> fatal "register %a has no alias" Printreg.reg reg
     | Some reg' -> find_alias state reg'
   else reg
 
 let[@inline] add_alias _state v u =
   (* We should never generate moves between registers of different types.
      Bit-casting operations have specific instructions. *)
-  if not (Reg.types_are_compatible v u)
+  if not (Proc.types_are_compatible v u)
   then
     fatal
       "trying to create an alias between %a and %a but they have incompatible \
        types"
-      Printmach.reg v Printmach.reg u;
+      Printreg.reg v Printreg.reg u;
   v.Reg.irc_alias <- Some u
 
 let[@inline] stack_slots state = state.stack_slots
@@ -521,7 +521,7 @@ let[@inline] check_set_and_field_consistency_reg (work_list, set, field_value) =
     (fun reg ->
       if reg.Reg.irc_work_list <> field_value
       then
-        fatal "register %a is in %s but its field equals %S" Printmach.reg reg
+        fatal "register %a is in %s but its field equals %S" Printreg.reg reg
           work_list
           (Reg.string_of_irc_work_list reg.Reg.irc_work_list))
     set
@@ -541,7 +541,7 @@ let[@inline] check_inter_has_no_duplicates (reg : Reg.t) : unit =
   let l = reg.Reg.interf in
   let s = Reg.Set.of_list l in
   if List.length l <> Reg.Set.cardinal s
-  then fatal "interf list for %a is not a set" Printmach.reg reg
+  then fatal "interf list for %a is not a set" Printreg.reg reg
 
 let reg_set_of_doubly_linked_list (l : Reg.t Doubly_linked_list.t) : Reg.Set.t =
   Doubly_linked_list.fold_right l ~init:Reg.Set.empty ~f:Reg.Set.add
@@ -629,7 +629,7 @@ let[@inline] invariant state =
       (fun u ->
         let degree = u.Reg.degree in
         if degree = Degree.infinite
-        then fatal "invariant: infinite degree for %a" Printmach.reg u
+        then fatal "invariant: infinite degree for %a" Printreg.reg u
         else
           let adj_list = Reg.Set.of_list (adj_list state u) in
           let cardinal =
@@ -638,20 +638,19 @@ let[@inline] invariant state =
           if not (Int.equal degree cardinal)
           then (
             List.iter u.Reg.interf ~f:(fun r ->
-                log ~indent:0 "%a <- interf[%a]" Printmach.reg r Printmach.reg u);
+                log ~indent:0 "%a <- interf[%a]" Printreg.reg r Printreg.reg u);
             Reg.Set.iter
               (fun r ->
-                log ~indent:0 "%a <- adj_list[%a]" Printmach.reg r Printmach.reg
-                  u)
+                log ~indent:0 "%a <- adj_list[%a]" Printreg.reg r Printreg.reg u)
               adj_list;
             Reg.Set.iter
               (fun r ->
-                log ~indent:0 "%a <- work_lists_or_precolored[%a]" Printmach.reg
-                  r Printmach.reg u)
+                log ~indent:0 "%a <- work_lists_or_precolored[%a]" Printreg.reg
+                  r Printreg.reg u)
               (Reg.Set.inter adj_list work_lists_or_precolored);
             fatal
               "invariant expected degree for %a to be %d but got %d\n\
-              \ (#adj_list=%d, #work_lists_or_precolored=%d)" Printmach.reg u
+              \ (#adj_list=%d, #work_lists_or_precolored=%d)" Printreg.reg u
               cardinal degree
               (Reg.Set.cardinal adj_list)
               (Reg.Set.cardinal work_lists_or_precolored)))

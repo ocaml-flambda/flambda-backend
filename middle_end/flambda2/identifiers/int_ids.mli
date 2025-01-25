@@ -45,6 +45,8 @@ module Const : sig
 
   val const_int : Targetint_31_63.t -> t
 
+  val const_null : t
+
   (** [naked_immediate] is similar to [naked_nativeint], but represents integers
       of width [n - 1] bits, where [n] is the native machine width. (By
       contrast, [naked_nativeint] represents integers of width [n] bits.) *)
@@ -74,6 +76,7 @@ module Const : sig
       | Naked_int64 of Int64.t
       | Naked_nativeint of Targetint_32_64.t
       | Naked_vec128 of Vector_types.Vec128.Bit_pattern.t
+      | Null
 
     include Container_types.S with type t := t
   end
@@ -250,6 +253,27 @@ module Code_id_or_symbol : sig
 
   val pattern_match :
     t -> code_id:(Code_id.t -> 'a) -> symbol:(Symbol.t -> 'a) -> 'a
+end
+
+module Code_id_or_name : sig
+  type t = private Table_by_int_id.Id.t
+
+  include Container_types.S with type t := t
+
+  val code_id : Code_id.t -> t
+
+  val name : Name.t -> t
+
+  val var : Variable.t -> t
+
+  val symbol : Symbol.t -> t
+
+  val pattern_match :
+    t ->
+    code_id:(Code_id.t -> 'a) ->
+    var:(Variable.t -> 'a) ->
+    symbol:(Symbol.t -> 'a) ->
+    'a
 end
 
 val initialise : unit -> unit

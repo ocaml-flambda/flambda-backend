@@ -27,35 +27,52 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module List = ListLabels
 
-type t =
-  { by_scope : Simple.t EP.Map.t Scope.Map.t;
-    combined : Simple.t EP.Map.t
-  }
+module T0 : sig
+  type t = private
+    { by_scope : Simple.t EP.Map.t Scope.Map.t;
+      combined : Simple.t EP.Map.t
+    }
 
-let [@ocamlformat "disable"] print ppf { by_scope; combined; } =
-  Format.fprintf ppf "@[<hov 1>(\
-      @[<hov 1>(by_scope@ %a)@]@ \
-      @[<hov 1>(combined@ %a)@]\
-      @]"
-    (Scope.Map.print (EP.Map.print Simple.print)) by_scope
-    (EP.Map.print Simple.print) combined
+  val print : Format.formatter -> t -> unit
 
-let empty = { by_scope = Scope.Map.empty; combined = EP.Map.empty }
+  val empty : t
 
-let add t prim ~bound_to scope =
-  match EP.Map.find prim t.combined with
-  | exception Not_found ->
-    let level =
-      match Scope.Map.find scope t.by_scope with
-      | exception Not_found -> EP.Map.singleton prim bound_to
-      | level -> EP.Map.add prim bound_to level
-    in
-    let by_scope = Scope.Map.add (* replace *) scope level t.by_scope in
-    let combined = EP.Map.add prim bound_to t.combined in
-    { by_scope; combined }
-  | _bound_to -> t
+  val add : t -> EP.t -> bound_to:Simple.t -> Scope.t -> t
 
-let find t prim = EP.Map.find_opt prim t.combined
+  val find : t -> EP.t -> Simple.t option
+end = struct
+  type t =
+    { by_scope : Simple.t EP.Map.t Scope.Map.t;
+      combined : Simple.t EP.Map.t
+    }
+
+  let [@ocamlformat "disable"] print ppf { by_scope; combined; } =
+    Format.fprintf ppf "@[<hov 1>(\
+        @[<hov 1>(by_scope@ %a)@]@ \
+        @[<hov 1>(combined@ %a)@]\
+        @]"
+      (Scope.Map.print (EP.Map.print Simple.print)) by_scope
+      (EP.Map.print Simple.print) combined
+
+  let empty = { by_scope = Scope.Map.empty; combined = EP.Map.empty }
+
+  let add t prim ~bound_to scope =
+    match EP.Map.find prim t.combined with
+    | exception Not_found ->
+      let level =
+        match Scope.Map.find scope t.by_scope with
+        | exception Not_found -> EP.Map.singleton prim bound_to
+        | level -> EP.Map.add prim bound_to level
+      in
+      let by_scope = Scope.Map.add (* replace *) scope level t.by_scope in
+      let combined = EP.Map.add prim bound_to t.combined in
+      { by_scope; combined }
+    | _bound_to -> t
+
+  let find t prim = EP.Map.find_opt prim t.combined
+end
+
+include T0
 
 module Rhs_kind : sig
   type t =
@@ -243,7 +260,7 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
       let prim_result_kind = P.result_kind' (EP.to_primitive prim) in
       let var = Variable.create "cse_param" in
       let extra_param =
-        BP.create var (K.With_subkind.create prim_result_kind Anything)
+        BP.create var (K.With_subkind.anything prim_result_kind)
       in
       let bound_to = RI.Map.map Rhs_kind.bound_to bound_to_map in
       let cse = EP.Map.add prim (Simple.var var) cse in
@@ -278,12 +295,27 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
       in
       cse, extra_bindings, extra_equations, allowed
 
-let cut_cse_environment { by_scope; _ } ~scope_at_fork =
+let cut_cse_environment ({ by_scope; _ } as t) ~scope_at_fork =
   (* This extracts those CSE equations that arose between the fork point and
      each use of the continuation in question. *)
   let _, _, levels = Scope.Map.split scope_at_fork by_scope in
   Scope.Map.fold
-    (fun _scope equations result -> EP.Map.disjoint_union equations result)
+    (fun scope equations result ->
+      try EP.Map.disjoint_union equations result
+      with Invalid_argument _ as exn ->
+        Format.eprintf
+          "cut_cse_environment failed:@ \n\
+           t = %a@ \n\
+           scope_at_fork = %a@ \n\
+           scope = %a@ \n\
+           equations = %a@ \n\
+           result=%a@ \n\n"
+          print t Scope.print scope_at_fork Scope.print scope
+          (EP.Map.print Simple.print)
+          equations
+          (EP.Map.print Simple.print)
+          result;
+        raise exn)
     levels EP.Map.empty
 
 module Join_result = struct

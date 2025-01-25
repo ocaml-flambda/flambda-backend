@@ -225,6 +225,8 @@ module Typing_env : sig
 
   val free_names_transitive : t -> flambda_type -> Name_occurrences.t
 
+  val bump_current_level_scope : t -> t
+
   module Alias_set : sig
     type t
 
@@ -406,6 +408,8 @@ val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
 
+val this_naked_vec128 : Vector_types.Vec128.Bit_pattern.t -> t
+
 val this_rec_info : Rec_info_expr.t -> t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> t
@@ -454,6 +458,8 @@ val tag_immediate : t -> t
 val is_int_for_scrutinee : scrutinee:Simple.t -> t
 
 val get_tag_for_block : block:Simple.t -> t
+
+val is_null : scrutinee:Simple.t -> t
 
 val any_block : t
 
@@ -647,8 +653,12 @@ val prove_unique_fully_constructed_immutable_heap_block :
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 
-val meet_is_naked_number_array :
-  Typing_env.t -> t -> Flambda_kind.Naked_number_kind.t -> bool meet_shortcut
+(* Returns the result of [Is_flat_float_array] *)
+val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
+
+(* Checks that it is an unboxed array of the corresponding kind *)
+val meet_is_non_empty_naked_number_array :
+  Flambda_kind.Naked_number_kind.t -> Typing_env.t -> t -> unit meet_shortcut
 
 val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
@@ -688,10 +698,7 @@ val prove_single_closures_entry :
 
 val meet_strings : Typing_env.t -> t -> String_info.Set.t meet_shortcut
 
-val prove_strings :
-  Typing_env.t ->
-  t ->
-  (Alloc_mode.For_types.t * String_info.Set.t) proof_of_property
+val prove_strings : Typing_env.t -> t -> String_info.Set.t proof_of_property
 
 (** Attempt to show that the provided type describes the tagged version of a
     unique naked immediate [Simple].
@@ -776,6 +783,8 @@ type to_lift = private
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
+  | Immutable_vec128_array of
+      { fields : Vector_types.Vec128.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 

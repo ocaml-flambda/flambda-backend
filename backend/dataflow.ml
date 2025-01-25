@@ -41,7 +41,7 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
   and set_lbl n x =
     Hashtbl.replace lbls n x in
 
-  let exn_from_trap_stack (trap_stack : Mach.trap_stack) =
+  let exn_from_trap_stack (trap_stack : Simple_operation.trap_stack) =
     match trap_stack with
     | Uncaught -> exnescape
     | Specific_trap (lbl, _) -> get_lbl lbl

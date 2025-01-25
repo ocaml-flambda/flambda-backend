@@ -80,6 +80,27 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                                             };
                                         }
                                         :: l
+                                  | Tpat_record_unboxed_product (lab_list, flag)
+                                    ->
+                                      let nlab_list =
+                                        List.filter
+                                          (fun (_, ld, _) ->
+                                            ld.lbl_name = cons_to_rem)
+                                          lab_list
+                                      in
+                                      if nlab_list = [] then l
+                                      else
+                                        {
+                                          val_case with
+                                          c_lhs =
+                                            {
+                                              val_case.c_lhs with
+                                              pat_desc =
+                                                Tpat_record_unboxed_product
+                                                  (nlab_list, flag);
+                                            };
+                                        }
+                                        :: l
                                   | _ ->
                                       Tast_mapper.default.case mapper val_case
                                       :: l)
@@ -124,6 +145,28 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                                                comp_case.c_lhs with
                                                pat_desc =
                                                  Tpat_record (nlab_list, flag);
+                                             };
+                                       }
+                                       :: l
+                                 | Tpat_record_unboxed_product (lab_list, flag)
+                                   ->
+                                     let nlab_list =
+                                       List.filter
+                                         (fun (_, ld, _) ->
+                                           ld.lbl_name = cons_to_rem)
+                                         lab_list
+                                     in
+                                     if nlab_list = [] then l
+                                     else
+                                       {
+                                         comp_case with
+                                         c_lhs =
+                                           as_computation_pattern
+                                             {
+                                               comp_case.c_lhs with
+                                               pat_desc =
+                                                 Tpat_record_unboxed_product
+                                                   (nlab_list, flag);
                                              };
                                        }
                                        :: l

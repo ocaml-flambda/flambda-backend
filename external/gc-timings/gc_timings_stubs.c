@@ -15,7 +15,7 @@
 #include <time.h>
 #endif
 
-/* [time_counter] is extracted from ocaml/runtime/eventlog.c */
+/* [time_counter] is extracted from runtime/eventlog.c */
 int64_t time_counter(void)
 {
 #ifdef _WIN32

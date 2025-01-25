@@ -1,20 +1,19 @@
 SHELL = /usr/bin/env bash
 include Makefile.config
-include ocaml/Makefile.config
 export ARCH
 
-boot_ocamlc = ocaml/main_native.exe
+boot_ocamlc = main_native.exe
 boot_ocamlopt = boot_ocamlopt.exe
-boot_ocamlmklib = ocaml/tools/ocamlmklib.exe
-boot_ocamldep = ocaml/tools/ocamldep.exe
-boot_ocamlobjinfo = tools/flambda_backend_objinfo.exe
-ocamldir = ocaml
+boot_ocamlmklib = tools/ocamlmklib.exe
+boot_ocamldep = tools/ocamldep.exe
+boot_ocamlobjinfo = tools/objinfo.exe
+ocamldir = .
 toplevels_installed = top opttop
 
 $(ocamldir)/duneconf/jst-extra.inc:
 	echo > $@
 
-include ocaml/Makefile.common-jst
+include Makefile.common-jst
 
 .PHONY: ci
 ifeq ($(coverage),yes)
@@ -36,7 +35,7 @@ ci-coverage: boot-runtest coverage
 # 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
 .PHONY: minimizer
-minimizer: _build/_bootinstall
+minimizer: runtime-stdlib
 	cp chamelon/dune.jst chamelon/dune
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
@@ -88,7 +87,7 @@ promote:
 
 .PHONY: fmt
 fmt:
-	ocamlformat -i $$(find . \( -name "*.ml" -or -name "*.mli" \))
+	find . \( -name "*.ml" -or -name "*.mli" \) | xargs -P $$(nproc 2>/dev/null || echo 1) -n 20 ocamlformat -i
 
 .PHONY: check-fmt
 check-fmt:

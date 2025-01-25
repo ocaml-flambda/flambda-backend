@@ -375,6 +375,7 @@ let const c : Fexpr.const =
   | Naked_vec128 bits ->
     Naked_vec128 (Vector_types.Vec128.Bit_pattern.to_bits bits)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
+  | Null -> Misc.fatal_error "null not supported in fexpr"
 
 let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =
   match d with Finite d -> Depth d | Infinity -> Infinity
@@ -421,7 +422,8 @@ let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
   Flambda_kind.is_value (Flambda_kind.With_subkind.kind k)
   && not (Flambda_kind.With_subkind.has_useful_subkind_info k)
 
-let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
+let rec subkind (k : Flambda_kind.With_subkind.Non_null_value_subkind.t) :
+    Fexpr.subkind =
   match k with
   | Anything -> Anything
   | Boxed_float32 -> Boxed_float32
@@ -438,10 +440,10 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
   | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
-  | Unboxed_nativeint_array ->
+  | Unboxed_nativeint_array | Unboxed_vec128_array | Unboxed_product_array ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
-       implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128/unboxed \
+       product arrays not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -457,7 +459,8 @@ and variant_subkind consts non_consts : Fexpr.subkind =
 and kind_with_subkind (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind =
   match Flambda_kind.With_subkind.kind k with
-  | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))
+  | Value ->
+    Value (subkind (Flambda_kind.With_subkind.non_null_value_subkind k))
   | Naked_number nnk -> Naked_number nnk
   | Region -> Region
   | Rec_info -> Rec_info
@@ -530,39 +533,6 @@ let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
 
-let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
-  match op with
-  | Array_length ak -> Array_length ak
-  | Box_number (bk, alloc) ->
-    Box_number (bk, alloc_mode_for_allocations env alloc)
-  | Tag_immediate -> Tag_immediate
-  | Get_tag -> Get_tag
-  | End_region { ghost } -> End_region { ghost }
-  | End_try_region { ghost } -> End_try_region { ghost }
-  | Int_arith (i, o) -> Int_arith (i, o)
-  | Is_flat_float_array -> Is_flat_float_array
-  | Is_int _ -> Is_int (* CR vlaviron: discuss *)
-  | Num_conv { src; dst } -> Num_conv { src; dst }
-  | Opaque_identity _ -> Opaque_identity
-  | Unbox_number bk -> Unbox_number bk
-  | Untag_immediate -> Untag_immediate
-  | Project_value_slot { project_from; value_slot } ->
-    let project_from = Env.translate_function_slot env project_from in
-    let value_slot = Env.translate_value_slot env value_slot in
-    Project_value_slot { project_from; value_slot }
-  | Project_function_slot { move_from; move_to } ->
-    let move_from = Env.translate_function_slot env move_from in
-    let move_to = Env.translate_function_slot env move_to in
-    Project_function_slot { move_from; move_to }
-  | String_length string_or_bytes -> String_length string_or_bytes
-  | Boolean_not -> Boolean_not
-  | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
-  | Get_header | Atomic_load _ ->
-    Misc.fatal_errorf "TODO: Unary primitive: %a"
-      Flambda_primitive.Without_args.print
-      (Flambda_primitive.Without_args.Unary op)
-
 let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
     Fexpr.block_access_kind =
   let size (s : _ Or_unknown.t) =
@@ -582,12 +552,50 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
     Naked_floats { size }
   | Mixed _ -> Misc.fatal_error "Mixed blocks not supported in fexpr"
 
-let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
+let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
+  | Block_load { kind; mut; field } ->
+    let kind = block_access_kind kind in
+    Block_load { kind; mut; field }
+  | Array_length ak -> Array_length ak
+  | Box_number (bk, alloc) ->
+    Box_number (bk, alloc_mode_for_allocations env alloc)
+  | Tag_immediate -> Tag_immediate
+  | Get_tag -> Get_tag
+  | End_region { ghost } -> End_region { ghost }
+  | End_try_region { ghost } -> End_try_region { ghost }
+  | Int_arith (i, o) -> Int_arith (i, o)
+  | Is_flat_float_array -> Is_flat_float_array
+  | Is_int _ -> Is_int (* CR vlaviron: discuss *)
+  | Is_null -> Misc.fatal_error "null not implemented in fexpr"
+  | Num_conv { src; dst } -> Num_conv { src; dst }
+  | Opaque_identity _ -> Opaque_identity
+  | Unbox_number bk -> Unbox_number bk
+  | Untag_immediate -> Untag_immediate
+  | Project_value_slot { project_from; value_slot } ->
+    let project_from = Env.translate_function_slot env project_from in
+    let value_slot = Env.translate_value_slot env value_slot in
+    Project_value_slot { project_from; value_slot }
+  | Project_function_slot { move_from; move_to } ->
+    let move_from = Env.translate_function_slot env move_from in
+    let move_to = Env.translate_function_slot env move_to in
+    Project_function_slot { move_from; move_to }
+  | String_length string_or_bytes -> String_length string_or_bytes
+  | Boolean_not -> Boolean_not
+  | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
+  | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
+  | Get_header | Atomic_load _ | Peek _ ->
+    Misc.fatal_errorf "TODO: Unary primitive: %a"
+      Flambda_primitive.Without_args.print
+      (Flambda_primitive.Without_args.Unary op)
+
+let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
+  match op with
+  | Block_set { kind; init; field } ->
+    let kind = block_access_kind kind in
+    let init = init_or_assign env init in
+    Block_set { kind; init; field }
   | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
-  | Block_load (access_kind, mutability) ->
-    let access_kind = block_access_kind access_kind in
-    Block_load (access_kind, mutability)
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
   | Int_arith
@@ -601,20 +609,43 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Float_comp (w, c) -> Infix (Float_comp (w, c))
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
-  | Bigarray_load _ | Atomic_exchange | Atomic_fetch_and_add ->
+  | Bigarray_load _ | Atomic_exchange _ | Atomic_int_arith _ | Poke _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
+let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
+  function
+  | Immediates -> Immediates
+  | Naked_floats -> Naked_floats
+  | Values -> Values
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s | Unboxed_product _ ->
+    Misc.fatal_error
+      "fexpr support for unboxed float32/int32/64/nativeint/unboxed product \
+       arrays not yet implemented"
+
+let fexpr_of_array_set_kind env
+    (array_set_kind : Flambda_primitive.Array_set_kind.t) : Fexpr.array_set_kind
+    =
+  match array_set_kind with
+  | Immediates -> Immediates
+  | Naked_floats -> Naked_floats
+  | Values ia -> Values (init_or_assign env ia)
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
+    Misc.fatal_error
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
+
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, width) ->
-    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
-    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
-    Array_set (ak, width, init_or_assign env ia)
-  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
+  | Array_set (ak, ask) ->
+    let ak = fexpr_of_array_kind ak in
+    let ask = fexpr_of_array_set_kind env ask in
+    Array_set (ak, ask)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
-  | Bigarray_set _ | Atomic_compare_and_set ->
+  | Bigarray_set _ | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
@@ -635,7 +666,7 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   | Nullary op -> Nullary (nullop env op)
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, arg1, arg2) ->
-    Binary (binop op, simple env arg1, simple env arg2)
+    Binary (binop env op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
     Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
   | Variadic (op, args) -> Variadic (varop env op, List.map (simple env) args)
@@ -723,10 +754,11 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
   | Immutable_value_array elements ->
     Immutable_value_array (List.map (field_of_block env) elements)
   | Immutable_float32_array _ | Immutable_int32_array _
-  | Immutable_int64_array _ | Immutable_nativeint_array _ ->
+  | Immutable_int64_array _ | Immutable_nativeint_array _
+  | Immutable_vec128_array _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
-       implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
   | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

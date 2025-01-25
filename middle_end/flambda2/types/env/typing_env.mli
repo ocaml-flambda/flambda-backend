@@ -95,8 +95,17 @@ module Join_env : sig
   val already_joining : t -> Simple.t -> Simple.t -> bool
 end
 
+type 'a meet_return_value =
+  | Left_input
+  | Right_input
+  | Both_inputs
+  | New_result of 'a
+
 type meet_type_new =
-  t -> Type_grammar.t -> Type_grammar.t -> (Type_grammar.t * t) Or_bottom.t
+  t ->
+  Type_grammar.t ->
+  Type_grammar.t ->
+  (Type_grammar.t meet_return_value * t) Or_bottom.t
 
 type meet_type_old =
   Meet_env.t ->
@@ -226,3 +235,7 @@ val cut : t -> cut_after:Scope.t -> Typing_env_level.t
 val cut_as_extension : t -> cut_after:Scope.t -> Typing_env_extension.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t
+
+val bump_current_level_scope : t -> t
+
+val compute_joined_aliases : t -> Name.Set.t -> t list -> t

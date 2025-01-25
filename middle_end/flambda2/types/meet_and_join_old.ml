@@ -179,10 +179,15 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
     | Some simple2 -> (
       match meet_expanded_head env expanded1 expanded2 with
       | Left_head_unchanged ->
+        let ty =
+          if ET.is_bottom expanded1
+          then MTC.bottom kind
+          else TG.alias_type_of kind simple2
+        in
         let env_extension =
           add_equation simple2 (ET.to_type expanded1) TEE.empty
         in
-        TG.alias_type_of kind simple2, env_extension
+        ty, env_extension
       | Right_head_unchanged -> TG.alias_type_of kind simple2, TEE.empty
       | New_head (expanded, env_extension) ->
         (* It makes things easier (to check if the result of [meet] was bottom)
@@ -214,10 +219,15 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
       match meet_expanded_head env expanded1 expanded2 with
       | Left_head_unchanged -> TG.alias_type_of kind simple1, TEE.empty
       | Right_head_unchanged ->
+        let ty =
+          if ET.is_bottom expanded2
+          then MTC.bottom kind
+          else TG.alias_type_of kind simple1
+        in
         let env_extension =
           add_equation simple1 (ET.to_type expanded2) TEE.empty
         in
-        TG.alias_type_of kind simple1, env_extension
+        ty, env_extension
       | New_head (expanded, env_extension) ->
         let ty =
           if ET.is_bottom expanded
@@ -335,23 +345,60 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
     assert false
 
 and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
-    (head2 : TG.head_of_kind_value) : _ Or_bottom.t =
+    (head2 : TG.head_of_kind_value) :
+    (TG.head_of_kind_value * TEE.t) Or_bottom.t =
+  let non_null_result : _ Or_bottom.t =
+    match head1.non_null, head2.non_null with
+    | Bottom, _ | _, Bottom -> Bottom
+    | Unknown, non_null | non_null, Unknown -> Ok (non_null, TEE.empty)
+    | Ok non_null1, Ok non_null2 ->
+      let<+ non_null, env_extension =
+        meet_head_of_kind_value_non_null env non_null1 non_null2
+      in
+      Or_unknown_or_bottom.Ok non_null, env_extension
+  in
+  let is_null : TG.is_null =
+    match head1.is_null, head2.is_null with
+    | Not_null, _ | _, Not_null -> Not_null
+    | Maybe_null, Maybe_null -> Maybe_null
+  in
+  match non_null_result, is_null with
+  | Bottom, Maybe_null -> Ok ({ non_null = Bottom; is_null }, TEE.empty)
+  | Bottom, Not_null -> Bottom
+  | Ok (non_null, env_extension), Not_null ->
+    Ok ({ non_null; is_null }, env_extension)
+  | Ok (non_null, _env_extension), Maybe_null ->
+    Ok ({ non_null; is_null }, TEE.empty)
+
+and meet_head_of_kind_value_non_null env
+    (head1 : TG.head_of_kind_value_non_null)
+    (head2 : TG.head_of_kind_value_non_null) : _ Or_bottom.t =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = _;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = _;
+          is_unique = is_unique2
+        } ) ->
     let<+ blocks, immediates, env_extension =
       meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    ( TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates,
+    ( TG.Head_of_kind_value_non_null.create_variant ~is_unique ~blocks
+        ~immediates ~extensions:No_extensions,
       env_extension )
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
+    TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode, TEE.empty
   | ( Variant { blocks; _ },
       (Mutable_block { alloc_mode = alloc_mode_mut } as mut_block) )
   | ( (Mutable_block { alloc_mode = alloc_mode_mut } as mut_block),
@@ -360,31 +407,37 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     | Unknown -> Ok (mut_block, TEE.empty)
     | Known { alloc_mode = alloc_mode_immut; _ } ->
       let<+ alloc_mode = meet_alloc_mode alloc_mode_mut alloc_mode_immut in
-      TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty)
+      TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode, TEE.empty)
   | Boxed_float32 (n1, alloc_mode1), Boxed_float32 (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_float32 n alloc_mode, env_extension
+    ( TG.Head_of_kind_value_non_null.create_boxed_float32 n alloc_mode,
+      env_extension )
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_float n alloc_mode, env_extension
+    ( TG.Head_of_kind_value_non_null.create_boxed_float n alloc_mode,
+      env_extension )
   | Boxed_int32 (n1, alloc_mode1), Boxed_int32 (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_int32 n alloc_mode, env_extension
+    ( TG.Head_of_kind_value_non_null.create_boxed_int32 n alloc_mode,
+      env_extension )
   | Boxed_int64 (n1, alloc_mode1), Boxed_int64 (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_int64 n alloc_mode, env_extension
+    ( TG.Head_of_kind_value_non_null.create_boxed_int64 n alloc_mode,
+      env_extension )
   | Boxed_nativeint (n1, alloc_mode1), Boxed_nativeint (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode, env_extension
+    ( TG.Head_of_kind_value_non_null.create_boxed_nativeint n alloc_mode,
+      env_extension )
   | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_vec128 n alloc_mode, env_extension
+    ( TG.Head_of_kind_value_non_null.create_boxed_vec128 n alloc_mode,
+      env_extension )
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -392,13 +445,14 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let<+ by_function_slot, env_extension =
       meet_row_like_for_closures env by_function_slot1 by_function_slot2
     in
-    ( TG.Head_of_kind_value.create_closures by_function_slot alloc_mode,
+    ( TG.Head_of_kind_value_non_null.create_closures by_function_slot alloc_mode,
       env_extension )
   | String strs1, String strs2 ->
     let strs = String_info.Set.inter strs1 strs2 in
     if String_info.Set.is_empty strs
     then Bottom
-    else Or_bottom.Ok (TG.Head_of_kind_value.create_string strs, TEE.empty)
+    else
+      Or_bottom.Ok (TG.Head_of_kind_value_non_null.create_string strs, TEE.empty)
   | ( Array
         { element_kind = element_kind1;
           length = length1;
@@ -422,8 +476,8 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
        length type with the constant 0 (only the empty array can have element
        kind Bottom). *)
     let<+ env_extension = meet_env_extension env env_extension env_extension' in
-    ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
-        contents alloc_mode,
+    ( TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+        ~length contents alloc_mode,
       env_extension )
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
       | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
@@ -575,7 +629,28 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
       TG.Head_of_kind_naked_immediate.create_get_tag ty, env_extension
     | Unknown ->
       Ok (TG.Head_of_kind_naked_immediate.create_get_tag ty, TEE.empty))
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) ->
+  | Is_null ty, Naked_immediates is_null | Naked_immediates is_null, Is_null ty
+    -> (
+    match I.Set.elements is_null with
+    | [] -> Bottom
+    | [is_null] -> (
+      let shape =
+        if I.equal is_null I.zero
+        then Some TG.any_non_null_value
+        else if I.equal is_null I.one
+        then Some TG.null
+        else None
+      in
+      match shape with
+      | Some shape ->
+        let<+ ty, env_extension = meet env ty shape in
+        TG.Head_of_kind_naked_immediate.create_is_null ty, env_extension
+      | None -> Bottom)
+    | _ :: _ :: _ ->
+      (* Note: we're potentially losing precision because the set could end up
+         not containing either 0 or 1 or both, but this should be uncommon. *)
+      Ok (TG.Head_of_kind_naked_immediate.create_is_null ty, TEE.empty))
+  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
     (* We can't return Bottom, as it would be unsound, so we need to either do
        the actual meet with Naked_immediates, or just give up and return one of
        the arguments. N.B. Also see comment in meet_and_join_new.ml *)
@@ -1242,45 +1317,78 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
 
 and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
+  let non_null : _ Or_unknown_or_bottom.t =
+    match head1.non_null, head2.non_null with
+    | Unknown, _ | _, Unknown -> Unknown
+    | Bottom, non_null | non_null, Bottom -> non_null
+    | Ok non_null1, Ok non_null2 -> (
+      match join_head_of_kind_value_non_null env non_null1 non_null2 with
+      | Unknown -> Unknown
+      | Known non_null -> Ok non_null)
+  in
+  let is_null : TG.is_null =
+    match head1.is_null, head2.is_null with
+    | Maybe_null, _ | _, Maybe_null -> Maybe_null
+    | Not_null, Not_null -> Not_null
+  in
+  match non_null, is_null with
+  | Unknown, Maybe_null -> Unknown
+  | (Unknown | Bottom | Ok _), (Maybe_null | Not_null) ->
+    Known { non_null; is_null }
+
+and join_head_of_kind_value_non_null env
+    (head1 : TG.head_of_kind_value_non_null)
+    (head2 : TG.head_of_kind_value_non_null) :
+    TG.head_of_kind_value_non_null Or_unknown.t =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = _;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = _;
+          is_unique = is_unique2
+        } ) ->
     let>+ blocks, immediates =
       join_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+    TG.Head_of_kind_value_non_null.create_variant ~is_unique ~blocks ~immediates
+      ~extensions:No_extensions
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    Known (TG.Head_of_kind_value.create_mutable_block alloc_mode)
+    Known (TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode)
   | Boxed_float32 (n1, alloc_mode1), Boxed_float32 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_float32 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_float32 n alloc_mode
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_float n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_float n alloc_mode
   | Boxed_int32 (n1, alloc_mode1), Boxed_int32 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_int32 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_int32 n alloc_mode
   | Boxed_int64 (n1, alloc_mode1), Boxed_int64 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_int64 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_int64 n alloc_mode
   | Boxed_nativeint (n1, alloc_mode1), Boxed_nativeint (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_nativeint n alloc_mode
   | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_vec128 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_vec128 n alloc_mode
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -1288,10 +1396,12 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
       join_row_like_for_closures env by_function_slot1 by_function_slot2
     in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    Known (TG.Head_of_kind_value.create_closures by_function_slot alloc_mode)
+    Known
+      (TG.Head_of_kind_value_non_null.create_closures by_function_slot
+         alloc_mode)
   | String strs1, String strs2 ->
     let strs = String_info.Set.union strs1 strs2 in
-    Known (TG.Head_of_kind_value.create_string strs)
+    Known (TG.Head_of_kind_value_non_null.create_string strs)
   | ( Array
         { element_kind = element_kind1;
           length = length1;
@@ -1311,8 +1421,8 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
         ~joined_element_kind:element_kind
     in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
-      contents alloc_mode
+    TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+      ~length contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
       | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
       | Closures _ | String _ | Array _ ),
@@ -1384,6 +1494,9 @@ and join_head_of_kind_naked_immediate env
   | Get_tag ty1, Get_tag ty2 ->
     let>+ ty = join env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_get_tag ty
+  | Is_null ty1, Is_null ty2 ->
+    let>+ ty = join env ty1 ty2 in
+    TG.Head_of_kind_naked_immediate.create_is_null ty
   (* From now on: Irregular cases *)
   (* CR vlaviron: There could be improvements based on reduction (trying to
      reduce the is_int and get_tag cases to naked_immediate sets, then joining
@@ -1407,7 +1520,23 @@ and join_head_of_kind_naked_immediate env
     if I.Set.is_empty tags
     then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
     else Unknown
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
+  | Is_null ty, Naked_immediates is_null | Naked_immediates is_null, Is_null ty
+    -> (
+    if I.Set.is_empty is_null
+    then Known (TG.Head_of_kind_naked_immediate.create_is_null ty)
+    else
+      (* Slightly better than Unknown *)
+      let head =
+        TG.Head_of_kind_naked_immediate.create_naked_immediates
+          (I.Set.add I.zero (I.Set.add I.one is_null))
+      in
+      match head with
+      | Ok head -> Known head
+      | Bottom ->
+        Misc.fatal_error
+          "Did not expect [Bottom] from [create_naked_immediates]")
+  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
+    Unknown
 
 and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =
   Known (TG.Head_of_kind_naked_float32.union t1 t2)

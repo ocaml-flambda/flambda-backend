@@ -817,10 +817,10 @@ let simplify_direct_function_call ~simplify_expr dacc apply
                 result_arity_of_application)
         then
           Misc.fatal_errorf
-            "Wrong return arity for direct OCaml function call\n\
-            \     (expected %a, found  %a):@ %a" Flambda_arity.print
-            result_arity Flambda_arity.print result_arity_of_application
-            Apply.print apply;
+            "Wrong return arity for direct OCaml function call@ (expected %a, \
+             found %a):@ %a"
+            Flambda_arity.print result_arity Flambda_arity.print
+            result_arity_of_application Apply.print apply;
         simplify_direct_full_application ~simplify_expr dacc apply
           (Some function_decl) ~params_arity ~result_arity ~result_types
           ~down_to_up ~coming_from_indirect ~callee's_code_metadata)
@@ -915,11 +915,13 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       Call_kind.indirect_function_call_unknown_arity apply_alloc_mode
     | Indirect_known_arity ->
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
-    | Direct _code_id ->
-      (* Some types have regressed in precision. Since this used to be a direct
-         call, however, we know the function's arity even though we don't know
-         which function it is. *)
-      Call_kind.indirect_function_call_known_arity apply_alloc_mode
+    | Direct code_id ->
+      (* Keep the code ID if it corresponds to a simplified function, otherwise
+         demote it to avoid keeping non-simplified code alive. Keep the
+         function's arity as it is never allowed to change. *)
+      if Code_id.Set.mem code_id (DA.code_ids_never_simplified dacc)
+      then Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      else Call_kind.direct_function_call code_id apply_alloc_mode
   in
   let apply = Apply_expr.with_call_kind apply call_kind in
   let dacc =

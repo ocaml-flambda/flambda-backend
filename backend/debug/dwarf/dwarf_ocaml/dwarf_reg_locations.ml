@@ -26,7 +26,7 @@ let reg_location_description (reg : Reg.t) ~(offset : Stack_reg_offset.t option)
   else
     match reg.loc with
     | Unknown ->
-      Misc.fatal_errorf "Register without location: %a" Printmach.reg reg
+      Misc.fatal_errorf "Register without location: %a" Printreg.reg reg
     | Reg n -> (
       let dwarf_reg_number =
         let reg_class = Proc.register_class reg in
@@ -60,14 +60,14 @@ let reg_location_description (reg : Reg.t) ~(offset : Stack_reg_offset.t option)
         Misc.fatal_errorf
           "Register %a assigned to stack but no offset from CFA or domainstate \
            pointer provided"
-          Printmach.reg reg
+          Printreg.reg reg
       | Some offset -> (
         match offset with
         | Bytes_relative_to_cfa offset_in_bytes ->
           if offset_in_bytes mod Arch.size_addr <> 0
           then
             Misc.fatal_errorf "Misaligned stack slot at offset %d (reg %a)"
-              offset_in_bytes Printmach.reg reg;
+              offset_in_bytes Printreg.reg reg;
           let offset_in_words =
             Targetint.of_int_exn (offset_in_bytes / Arch.size_addr)
           in
@@ -85,7 +85,7 @@ let reg_location_description (reg : Reg.t) ~(offset : Stack_reg_offset.t option)
           then
             Misc.fatal_errorf
               "Misaligned domainstate slot at offset %d (reg %a)"
-              offset_in_bytes Printmach.reg reg;
+              offset_in_bytes Printreg.reg reg;
           let offset_in_words =
             Targetint.of_int_exn (offset_in_bytes / Arch.size_addr)
           in

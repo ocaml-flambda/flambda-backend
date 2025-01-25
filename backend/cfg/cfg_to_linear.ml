@@ -108,8 +108,10 @@ let cross_section cfg_with_layout src dst =
     match src_section, dst_section with
     | None, None -> false
     | Some src_name, Some dst_name -> not (String.equal src_name dst_name)
-    | Some _, None -> Misc.fatal_errorf "Missing section for %d" dst
-    | None, Some _ -> Misc.fatal_errorf "Missing section for %d" src
+    | Some _, None ->
+      Misc.fatal_errorf "Missing section for %a" Label.format dst
+    | None, Some _ ->
+      Misc.fatal_errorf "Missing section for %a" Label.format src
   else false
 
 let linearize_terminator cfg_with_layout (func : string) start
@@ -150,18 +152,18 @@ let linearize_terminator cfg_with_layout (func : string) start
     match terminator.desc with
     | Return -> [L.Lreturn], None
     | Raise kind -> [L.Lraise kind], None
-    | Tailcall_func Indirect -> [L.Lop Itailcall_ind], None
+    | Tailcall_func Indirect -> [L.Lcall_op Ltailcall_ind], None
     | Tailcall_func (Direct func_symbol) ->
-      [L.Lop (Itailcall_imm { func = func_symbol })], None
+      [L.Lcall_op (Ltailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
-      ( [ L.Lop
-            (Itailcall_imm { func = { sym_name = func; sym_global = Local } })
+      ( [ L.Lcall_op
+            (Ltailcall_imm { func = { sym_name = func; sym_global = Local } })
         ],
         Some destination )
     | Call_no_return { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
       single
-        (L.Lop
-           (Iextcall
+        (L.Lcall_op
+           (Lextcall
               { func = func_symbol;
                 alloc;
                 ty_args;
@@ -170,17 +172,17 @@ let linearize_terminator cfg_with_layout (func : string) start
                 stack_ofs
               }))
     | Call { op; label_after } ->
-      let op : Mach.operation =
+      let op : Linear.call_operation =
         match op with
-        | Indirect -> Icall_ind
-        | Direct func_symbol -> Icall_imm { func = func_symbol }
+        | Indirect -> Lcall_ind
+        | Direct func_symbol -> Lcall_imm { func = func_symbol }
       in
-      branch_or_fallthrough [L.Lop op] label_after, None
+      branch_or_fallthrough [L.Lcall_op op] label_after, None
     | Prim { op; label_after } ->
-      let op : Mach.operation =
+      let op : Linear.call_operation =
         match op with
         | External { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
-          Iextcall
+          Lextcall
             { func = func_symbol;
               alloc;
               ty_args;
@@ -189,11 +191,11 @@ let linearize_terminator cfg_with_layout (func : string) start
               stack_ofs
             }
         | Probe { name; handler_code_sym; enabled_at_init } ->
-          Iprobe { name; handler_code_sym; enabled_at_init }
+          Lprobe { name; handler_code_sym; enabled_at_init }
       in
-      branch_or_fallthrough [L.Lop op] label_after, None
+      branch_or_fallthrough [L.Lcall_op op] label_after, None
     | Specific_can_raise { op; label_after } ->
-      branch_or_fallthrough [L.Lop (Ispecific op)] label_after, None
+      branch_or_fallthrough [L.Lop (Specific op)] label_after, None
     | Switch labels -> single (L.Lswitch labels)
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
     | Always label -> branch_or_fallthrough [] label, None
@@ -231,12 +233,14 @@ let linearize_terminator cfg_with_layout (func : string) start
               (* arbitrary choice (also see CR above) *)
               Label.Set.min_elt successor_labels
           | [lbl] ->
-            Printf.eprintf "One success label must be last: %d\n" lbl;
+            Printf.eprintf "One success label must be last: %s\n"
+              (Label.to_string lbl);
             (* CR-someday gyorsh: fail for safety, until we see a case that
                exhibits this behavior.. This behavior should not be possible
                with the current cfg construction. *)
             Misc.fatal_errorf
-              "Illegal branch: one successor label must be last %d" lbl ()
+              "Illegal branch: one successor label must be last %a" Label.format
+              lbl ()
           | _ ->
             Misc.fatal_error
               "Illegal branch: more than one successor label that must be last"
@@ -296,13 +300,13 @@ let linearize_terminator cfg_with_layout (func : string) start
                 in
                 let comp =
                   match is_signed with
-                  | true -> Mach.Isigned cond
-                  | false -> Mach.Iunsigned cond
+                  | true -> Simple_operation.Isigned cond
+                  | false -> Simple_operation.Iunsigned cond
                 in
                 let test =
                   match imm with
-                  | None -> Mach.Iinttest comp
-                  | Some n -> Mach.Iinttest_imm (comp, n)
+                  | None -> Simple_operation.Iinttest comp
+                  | Some n -> Simple_operation.Iinttest_imm (comp, n)
                 in
                 L.Lcondbranch (test, lbl) :: acc)
               cond_successor_labels init,
@@ -373,7 +377,7 @@ let run cfg_with_layout =
   DLL.iter_right_cell layout ~f:(fun cell ->
       let label = DLL.value cell in
       if not (Label.Tbl.mem cfg.blocks label)
-      then Misc.fatal_errorf "Unknown block labelled %d\n" label;
+      then Misc.fatal_errorf "Unknown block labelled %a\n" Label.format label;
       let block = Label.Tbl.find cfg.blocks label in
       assert (Label.equal label block.start);
       let body =

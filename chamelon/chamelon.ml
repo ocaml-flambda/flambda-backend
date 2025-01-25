@@ -7,27 +7,43 @@ open Cmt_format
 
 (* ______ COMMAND SETUP ______ *)
 let usage_msg =
-  "minimize <file1> [<file2>] ... -c \"<command>\" [-m <minimizers>] [-e \
-   <error>] [-t <typing command>] [-o <output>]"
+  Format.asprintf
+    "usage: %s <file1> [<file2>] ... -c \"<command>\" [-m <minimizers>] [-x \
+     <minimizers>] [-e <error>] [[-t <typing command>] | [--cmt <cmt file>]] \
+     [-i | [-o <output>]]"
+    (Filename.basename Sys.executable_name)
 
 let input_files = ref []
 let arg_minimizers = ref ""
+let exclude_minimizers = ref ""
 let command = ref ""
 let typing_command = ref ""
+let cmt_files = ref []
 let output_file = ref ""
 let test = ref false
 let anon_fun filename = input_files := filename :: !input_files
+let list_minimizers = ref false
+let inplace = ref false
 
 let spec_list =
   [
     ("-c", Arg.Set_string command, "Set command");
     ("-m", Arg.Set_string arg_minimizers, "Set minimizers");
+    ("-x", Arg.Set_string exclude_minimizers, "Exclude minimizers");
     ("-e", Arg.Set_string Utils.error_str, "Set error to preserve");
     ( "-t",
       Arg.Set_string typing_command,
       "Set command to use to generate cmt file" );
     ("-o", Arg.Set_string output_file, "Set output file/folder");
     ("--test", Arg.Set test, "Run only first iteration of minimizer");
+    ("-l", Arg.Set list_minimizers, "List available minimizers");
+    ( "--cmt",
+      Arg.String (fun s -> cmt_files := s :: !cmt_files),
+      "Set cmt files to use (incompatible with -t)" );
+    ( "--inplace",
+      Arg.Set inplace,
+      "Minimize file in place (incompatible with -o); in that case, command \
+       should include the input file" );
   ]
 
 let () = Arg.parse spec_list anon_fun usage_msg
@@ -85,14 +101,22 @@ let default_iteration =
   ]
 
 let minimizers_to_run =
-  List.map
+  let minimizer_names =
+    if !arg_minimizers = "" then default_iteration
+    else String.split_on_char ',' !arg_minimizers
+  in
+  let to_exclude =
+    if !exclude_minimizers = "" then []
+    else String.split_on_char ',' !exclude_minimizers
+  in
+  List.filter_map
     (fun name ->
-      try Smap.find name all_minimizers
-      with Not_found ->
-        Format.eprintf "Minimizer %S not found@." name;
-        exit 1)
-    (if !arg_minimizers = "" then default_iteration
-    else String.split_on_char ',' !arg_minimizers)
+      match Smap.find name all_minimizers with
+      | minimizer -> if List.mem name to_exclude then None else Some minimizer
+      | exception Not_found ->
+          Format.eprintf "Minimizer %S not found@." name;
+          exit 1)
+    minimizer_names
 
 (* ______ ONE FILE MINIMIZATION ______ *)
 
@@ -114,19 +138,38 @@ let one_file_minimize c (map : structure Smap.t) file : structure Smap.t * bool
       (map, false) minimizers_to_run)
 
 let main () =
+  (* LIST MINIMIZERS *)
+  if !list_minimizers then (
+    Format.printf "@[<v 2>Available minimizers:@ @[<v>%a@]@]@."
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf (name, _) ->
+           Format.pp_print_string ppf name))
+      (Smap.bindings all_minimizers);
+    exit 0);
   (* PARSING COMMAND AND READING FILES*)
+  if !command = "" then (
+    Format.eprintf "No command provided (hint: `-c` argument is mandatory).@.";
+    Arg.usage spec_list usage_msg;
+    exit 2);
   let file_names = List.rev !input_files in
-  let cmt_command =
-    if !typing_command = "" then !command else !typing_command
+  let cmt_infos =
+    if !cmt_files = [] then
+      let cmt_command =
+        if !typing_command = "" then !command else !typing_command
+      in
+      generate_cmt cmt_command file_names
+    else if !typing_command = "" then List.rev_map read_cmt !cmt_files
+    else (
+      Format.eprintf "Options --cmt and -t are incompatible.@.";
+      exit 2)
   in
-  let cmt_infos = generate_cmt cmt_command file_names in
   let file_strs =
     List.map (fun cmt_info -> extract_cmt cmt_info.cmt_annots) cmt_infos
   in
 
   (* CHECKING ERROR PRESENCE *)
   let c =
-    List.fold_left (fun c output -> c ^ " " ^ output) !command file_names
+    if !inplace then !command
+    else List.fold_left (fun c output -> c ^ " " ^ output) !command file_names
   in
   if not (raise_error c) then (
     Format.eprintf "This command does not raise the error %S. @."
@@ -138,10 +181,14 @@ let main () =
     let input = List.hd file_names in
     let output_file =
       if !output_file = "" then
-        String.sub input 0 (String.length input - 3) ^ "_min.ml"
+        if !inplace then input
+        else String.sub input 0 (String.length input - 3) ^ "_min.ml"
+      else if !inplace then (
+        Format.eprintf "Options -i and -o are incompatible@.";
+        exit 2)
       else !output_file
     in
-    let c = !command ^ " " ^ output_file in
+    let c = if !inplace then !command else !command ^ " " ^ output_file in
     let input_str = ref (List.hd file_strs) in
     update_single output_file !input_str;
     let has_changed = ref true in
@@ -158,7 +205,12 @@ let main () =
         output_file Remdef.minimizer c
     in
     input_str := Smap.find output_file a)
-  else
+  else (
+    if !inplace then (
+      Format.eprintf
+        "Multi-file minimization is incompatible with inplace minimization for \
+         now@.";
+      exit 2);
     (* MULTIFILE MINIMIZATION *)
     let output_dir =
       if !output_file = "" then "minimized_res" else !output_file
@@ -202,6 +254,6 @@ let main () =
       nmap := a;
       has_changed := b
     done;
-    Sys.chdir ".."
+    Sys.chdir "..")
 
 let _ = main ()

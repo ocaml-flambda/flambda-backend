@@ -99,7 +99,7 @@ let dwarf_for_fundecl t fundecl ~fun_end_label =
     in
     Dwarf_concrete_instances.for_fundecl ~get_file_id:t.get_file_id t.state
       fundecl
-      ~fun_end_label:(Asm_label.create_int Text fun_end_label)
+      ~fun_end_label:(Asm_label.create_int Text (fun_end_label |> Label.to_int))
       available_ranges_vars inlined_frame_ranges;
     { fun_end_label; fundecl }
 

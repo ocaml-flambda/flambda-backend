@@ -1,4 +1,3 @@
-# 2 "asmcomp/arm64/arch.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -37,7 +36,7 @@ type addressing_mode =
 
 (* Specific operations *)
 
-type cmm_label = int
+type cmm_label = Label.t
   (* Do not introduce a dependency to Cmm *)
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
@@ -116,14 +115,15 @@ val operation_allocates : specific_operation -> bool
 
 val operation_can_raise : specific_operation -> bool
 
+val isomorphic_specific_operation : specific_operation -> specific_operation -> bool
+
 (* See `amd64/arch.mli`. *)
+val equal_addressing_mode_without_displ : addressing_mode -> addressing_mode -> bool
 
-val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
-
-val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option
-
-val addressing_offset_in_bytes : addressing_mode -> addressing_mode -> int option
-
-val can_cross_loads_or_stores : specific_operation -> bool
-
-val may_break_alloc_freshness : specific_operation -> bool
+val addressing_offset_in_bytes
+  : addressing_mode
+  -> addressing_mode
+  -> arg_offset_in_bytes:('a -> 'a -> int option)
+  -> 'a array
+  -> 'a array
+  -> int option

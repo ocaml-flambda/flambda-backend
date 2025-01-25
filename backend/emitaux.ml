@@ -116,7 +116,7 @@ type frame_debuginfo =
   | Dbg_other of Debuginfo.t
 
 type frame_descr =
-  { fd_lbl : int; (* Return address *)
+  { fd_lbl : Label.t; (* Return address *)
     fd_frame_size : int; (* Size of stack frame *)
     fd_live_offset : int list; (* Offsets/regs of live addresses *)
     fd_debuginfo : frame_debuginfo; (* Location, if any *)
@@ -143,6 +143,11 @@ let is_long n =
   if n > 0x3FFF_FFFF then raise (Error (Stack_frame_way_too_large n));
   n >= !Flambda_backend_flags.long_frames_threshold
 
+let is_long_stack_index n =
+  let is_reg n = n land 1 = 1 in
+  (* allows negative reg offsets in runtime4 *)
+  if is_reg n && not Config.runtime5 then false else is_long n
+
 let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
   assert (frame_size land 3 = 0);
   let fd_long =
@@ -150,7 +155,7 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
     (* The checks below are redundant (if they fail, then frame size check above
        should have failed), but they make the safety of [emit_frame] clear. *)
     || is_long (List.length live_offset)
-    || List.exists is_long live_offset
+    || List.exists is_long_stack_index live_offset
   in
   if fd_long && not !Flambda_backend_flags.allow_long_frames
   then raise (Error (Stack_frame_too_large frame_size));
@@ -164,15 +169,15 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
        :: !frame_descriptors
 
 type emit_frame_actions =
-  { efa_code_label : int -> unit;
-    efa_data_label : int -> unit;
+  { efa_code_label : Label.t -> unit;
+    efa_data_label : Label.t -> unit;
     efa_8 : int -> unit;
     efa_16 : int -> unit;
     efa_32 : int32 -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
-    efa_label_rel : int -> int32 -> unit;
-    efa_def_label : int -> unit;
+    efa_label_rel : Label.t -> int32 -> unit;
+    efa_def_label : Label.t -> unit;
     efa_string : string -> unit
   }
 
@@ -326,7 +331,10 @@ let emit_frames a =
     a.efa_def_label lbl;
     let rec emit rs d rest =
       let open Debuginfo in
-      let defname = Scoped_location.string_of_scopes d.dinfo_scopes in
+      let defname =
+        Scoped_location.string_of_scopes ~include_zero_alloc:false
+          d.dinfo_scopes
+      in
       let char_end = d.dinfo_char_end + d.dinfo_start_bol - d.dinfo_end_bol in
       let is_fully_packable =
         d.dinfo_line <= 0xFFF
@@ -521,7 +529,8 @@ module Dwarf_helpers = struct
       let (module Asm_directives : Asm_targets.Asm_directives_intf.S) =
         asm_directives
       in
-      Asm_targets.Asm_label.initialize ~new_label:Cmm.new_label;
+      Asm_targets.Asm_label.initialize ~new_label:(fun () ->
+          Cmm.new_label () |> Label.to_int);
       Asm_directives.initialize ();
       let unit_name =
         (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
@@ -605,12 +614,13 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
       let s = fs + trap_size in
       loop i.next s (max s max_fs) nontail_flag
     | Lpoptrap -> loop i.next (fs - trap_size) max_fs nontail_flag
-    | Lop (Istackoffset n) ->
+    | Lop (Stackoffset n) ->
       let s = fs + n in
       loop i.next s (max s max_fs) nontail_flag
-    | Lop (Icall_ind | Icall_imm _) -> loop i.next fs max_fs true
-    | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _
-    | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
+    | Lcall_op (Lcall_ind | Lcall_imm _) -> loop i.next fs max_fs true
+    | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn | Llabel _
+    | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
+    | Lraise _ ->
       loop i.next fs max_fs nontail_flag
     | Lstackcheck _ ->
       (* should not be already present *)

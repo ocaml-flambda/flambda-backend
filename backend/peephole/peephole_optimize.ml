@@ -27,7 +27,7 @@ let peephole_optimize_cfg cfg_with_layout =
   if !Flambda_backend_flags.cfg_peephole_optimize
   then
     Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout)
-      ~f:(fun (_ : int) block ->
+      ~f:(fun (_ : Label.t) block ->
         Option.iter
           (optimize_body (termination_cond_const * DLL.length block.body))
           (DLL.hd_cell block.body));

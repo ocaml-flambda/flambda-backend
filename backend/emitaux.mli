@@ -66,7 +66,7 @@ type frame_debuginfo =
   | Dbg_other of Debuginfo.t
 
 val record_frame_descr :
-  label:int ->
+  label:Label.t ->
   (* Return address *)
   frame_size:int ->
   (* Size of stack frame *)
@@ -77,15 +77,15 @@ val record_frame_descr :
   unit
 
 type emit_frame_actions =
-  { efa_code_label : int -> unit;
-    efa_data_label : int -> unit;
+  { efa_code_label : Label.t -> unit;
+    efa_data_label : Label.t -> unit;
     efa_8 : int -> unit;
     efa_16 : int -> unit;
     efa_32 : int32 -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
-    efa_label_rel : int -> int32 -> unit;
-    efa_def_label : int -> unit;
+    efa_label_rel : Label.t -> int32 -> unit;
+    efa_def_label : Label.t -> unit;
     efa_string : string -> unit
   }
 

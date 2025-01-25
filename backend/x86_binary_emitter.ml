@@ -1623,29 +1623,25 @@ let emit_LEA b dst src =
       Format.eprintf "lea src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
 
-let emit_lock_cmpxchg b dst src =
+let emit_lock_op ~ops b dst src =
   let rex, rm, reg = match (dst, src) with
   | ((Mem _ | Mem64_RIP _) as rm), Reg64 reg ->
     rexw, rm, rd_of_reg64 reg
   | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
     no_rex, rm, rd_of_reg64 reg
   | _ ->
-    Misc.fatal_errorf "lock cmpxchg src=%a dst=%a@." print_old_arg src print_old_arg dst
+    Misc.fatal_errorf "lock op src=%a dst=%a@." print_old_arg src print_old_arg dst
   in
   buf_int8 b 0xF0;
-  emit_mod_rm_reg b rex [ 0x0F; 0xB1 ] rm reg
+  emit_mod_rm_reg b rex ops rm reg
 
-let emit_lock_xadd b dst src =
-  let rex, rm, reg = match (dst, src) with
-  | ((Mem _ | Mem64_RIP _) as rm), Reg64 reg ->
-    rexw, rm, rd_of_reg64 reg
-  | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
-    no_rex, rm, rd_of_reg64 reg
-  | _ ->
-    Misc.fatal_errorf "lock cmpxchg src=%a dst=%a@." print_old_arg src print_old_arg dst
-  in
-  buf_int8 b 0xF0;
-  emit_mod_rm_reg b rex [ 0x0F; 0xC1 ] rm reg
+let emit_lock_cmpxchg = emit_lock_op ~ops:[ 0x0F; 0xB1 ]
+let emit_lock_xadd = emit_lock_op ~ops:[ 0x0F; 0xC1 ]
+let emit_lock_add = emit_lock_op ~ops:[ 0x01 ]
+let emit_lock_sub = emit_lock_op ~ops:[ 0x29 ]
+let emit_lock_and = emit_lock_op ~ops:[ 0x21 ]
+let emit_lock_or = emit_lock_op ~ops:[ 0x09 ]
+let emit_lock_xor = emit_lock_op ~ops:[ 0x31 ]
 
 let emit_stack_reg b opcode dst =
   match dst with
@@ -1725,6 +1721,8 @@ let rd_of_prefetch_hint = function
   | T0 -> 1
   | T1 -> 2
   | T2 -> 3
+
+let emit_cldemote b rm = emit_mod_rm_reg b no_rex [ 0x0F; 0x1C ] rm 0
 
 let emit_prefetch b ~is_write ~hint rm =
   match (is_write, hint, rm) with
@@ -1870,6 +1868,7 @@ let assemble_instr b loc = function
   | BSR (src, dst) -> emit_bsr b ~dst ~src
   | BSWAP arg -> emit_BSWAP b arg
   | CALL dst -> emit_call b dst
+  | CLDEMOTE rm -> emit_cldemote b rm
   | CVTSI2SS (src, dst) -> emit_CVTSI2SS b dst src
   | CVTSI2SD (src, dst) -> emit_CVTSI2SD b dst src
   | CVTSD2SI (src, dst) -> emit_CVTSD2SI b dst src
@@ -1897,6 +1896,11 @@ let assemble_instr b loc = function
   | LEA (src, dst) -> emit_LEA b dst src
   | LOCK_CMPXCHG (src, dst) -> emit_lock_cmpxchg b dst src
   | LOCK_XADD (src, dst) -> emit_lock_xadd b dst src
+  | LOCK_ADD (src, dst) -> emit_lock_add b dst src
+  | LOCK_SUB (src, dst) -> emit_lock_sub b dst src
+  | LOCK_AND (src, dst) -> emit_lock_and b dst src
+  | LOCK_OR (src, dst) -> emit_lock_or b dst src
+  | LOCK_XOR (src, dst) -> emit_lock_xor b dst src
   | MAXSD (src, dst) -> emit_maxsd b ~dst ~src
   | MINSD (src, dst) -> emit_minsd b ~dst ~src
   | MOV (src, dst) -> emit_MOV b dst src

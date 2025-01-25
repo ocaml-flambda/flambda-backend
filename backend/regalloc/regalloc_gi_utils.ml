@@ -519,7 +519,7 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
   if gi_debug && Lazy.force gi_verbose
   then
     iter_cfg_layout cfg_with_layout ~f:(fun block ->
-        log ~indent:2 "(block %d)" block.start;
+        log ~indent:2 "(block %a)" Label.format block.start;
         log_body_and_terminator ~indent:2 block.body block.terminator liveness);
   past_ranges
 
@@ -554,7 +554,7 @@ module Hardware_register = struct
     }
 
   let print_assigned ppf { pseudo_reg; interval; evictable } =
-    Format.fprintf ppf "%a %a (evitable=%B)" Printmach.reg pseudo_reg
+    Format.fprintf ppf "%a %a (evitable=%B)" Printreg.reg pseudo_reg
       Interval.print interval evictable
 
   type t =
@@ -596,14 +596,16 @@ module Hardware_registers = struct
               assigned = []
             }))
 
-  let of_reg (t : t) (reg : Reg.t) : Hardware_register.t =
+  let of_reg (t : t) (reg : Reg.t) : Hardware_register.t option =
     match reg.loc with
     | Reg reg_index ->
       let reg_class : int = Proc.register_class reg in
       let reg_index_in_class : int =
         reg_index - Proc.first_available_register.(reg_class)
       in
-      t.(reg_class).(reg_index_in_class)
+      if reg_index_in_class < Array.length t.(reg_class)
+      then Some t.(reg_class).(reg_index_in_class)
+      else None
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 
@@ -686,7 +688,7 @@ module Hardware_registers = struct
                   let overlap = Interval.overlap interval itv in
                   if gi_debug
                   then
-                    log ~indent:5 "%a is assigned / overlap=%B" Printmach.reg
+                    log ~indent:5 "%a is assigned / overlap=%B" Printreg.reg
                       pseudo_reg overlap;
                   overlap)
             in

@@ -1,4 +1,4 @@
-let $camlTests6__first_const21 = Block 0 () in
+let $camlTests6__first_const25 = Block 0 () in
 let code rec size(24)
       f_0 (x : imm tagged)
         my_closure my_region my_ghost_region my_depth
@@ -22,16 +22,18 @@ let code rec size(24)
            cont k (Paddint))
 in
 (let `region` = %begin_region in
+ let ghost_region = %begin_ghost_region in
  (let f = closure f_0 @f in
   apply direct(f_0) unroll(10) (f : _ -> imm tagged) (3) -> k2 * error)
    where k2 (region_return : imm tagged) =
      let `unit` = %end_region `region` in
+     let unit_1 = %end_ghost_region ghost_region in
      cont k1 (region_return))
   where k1 (n : imm tagged) =
     let Pmakeblock = %Block 0 (n) in
     cont k (Pmakeblock)
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(1) (module_block, 0) in
+    let field_0 = %block_load tag(0) size(1) (0) module_block in
     let $camlTests6 = Block 0 (field_0) in
     cont done ($camlTests6)
 ===>
