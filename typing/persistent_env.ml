@@ -654,12 +654,6 @@ and acknowledge_pers_name penv check global_name import ~allow_excess_args =
   let pn =
     match Hashtbl.find_opt persistent_names canonical_global_name with
     | Some pn ->
-        (* No need to call [remember_global]: it will have been called before
-           with [global]. This does cause any entry for our approximate
-           [global_name] to linger, but it doesn't do any damage and will get
-           substituted away eventually. *)
-        (* CR-someday lmaurer: Allow the tracking of bound globals to deal with
-           multiple different names being bound to the same global. *)
         pn
     | None ->
         acknowledge_new_pers_name penv check canonical_global_name global import
@@ -667,9 +661,10 @@ and acknowledge_pers_name penv check global_name import ~allow_excess_args =
   if not (Global_module.Name.equal global_name canonical_global_name) then
     (* Just remember that both names point here. Note that we don't call
        [remember_global], since it will already have been called by
-       [acknowledge_new_pers_name] (either just now or earlier). This lets
-       the approximate global name linger in the cache of bound globals, but
-       it doesn't do any damage and will get substituted away eventually. *)
+       [acknowledge_new_pers_name] (either just now or earlier). This is
+       annoying in the case that there were _visible_ excess arguments, since
+       the approximation will just stay in [penv.globals], but it doesn't do
+       any damage and at some point it will be substituted away. *)
     (* CR-someday lmaurer: Modify [remember_global] so that it can remember
        multiple global names mapped to the same global. Only likely to be
        relevant if there are _a lot_ of bound globals. *)
