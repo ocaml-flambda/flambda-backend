@@ -4238,7 +4238,7 @@ let atomic_lxor ~dbg atomic i =
 let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
   Cop
     ( Cextcall
-        { func = "caml_atomic_compare_set";
+        { func = "caml_atomic_cas";
           builtin = false;
           returns = true;
           effects = Arbitrary_effects;
