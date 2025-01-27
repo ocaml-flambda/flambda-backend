@@ -157,10 +157,10 @@ module Data = struct
   (* CR-soon mslater/tdelvecchio: copying the backtrace at each reraise can cause quadratic
      behavior when propagating the exception through nested handlers. This should use a
      new reraise-with-current-backtrace primitive that doesn't do the copy. *)
-  let[@inline] reraise_encapsulated password exn =
+  let reraise_encapsulated password exn =
     raise_with_backtrace (Encapsulated (Password.name password, unsafe_mk exn)) (get_raw_backtrace ())
 
-  let[@inline] reraise_encapsulated_shared password exn =
+  let reraise_encapsulated_shared password exn =
     raise_with_backtrace (Encapsulated (Password.Shared.name password, unsafe_mk exn)) (get_raw_backtrace ())
 
   let[@inline] map pw f t =
