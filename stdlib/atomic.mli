@@ -49,7 +49,7 @@ val make_contended : 'a -> 'a t
 val get : 'a t -> 'a
 
 (** Set a new value for the atomic reference. *)
-external set : 'a t -> 'a -> unit = "%atomic_exchange"
+external set : 'a t -> 'a -> unit = "%atomic_set"
 
 (** Set a new value for the atomic reference, and return the current value. *)
 external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
