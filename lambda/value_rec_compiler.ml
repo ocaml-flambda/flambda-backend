@@ -350,6 +350,7 @@ let compute_static_size lam =
     | Pbbswap _
     | Pint_as_pointer _
     | Patomic_load _
+    | Patomic_set _
     | Patomic_exchange _
     | Patomic_compare_exchange _
     | Patomic_compare_set _

@@ -913,6 +913,10 @@ let primitive ppf = function
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_load_imm"
         | Pointer -> fprintf ppf "atomic_load_ptr")
+  | Patomic_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_set_imm"
+        | Pointer -> fprintf ppf "atomic_set_ptr")
   | Patomic_exchange {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_exchange_imm"
@@ -1109,6 +1113,10 @@ let name_of_primitive = function
       (match immediate_or_pointer with
         | Immediate -> "atomic_load_imm"
         | Pointer -> "atomic_load_ptr")
+  | Patomic_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_set_imm"
+        | Pointer -> "atomic_set_ptr")
   | Patomic_exchange {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> "atomic_exchange_imm"

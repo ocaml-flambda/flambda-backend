@@ -17,6 +17,7 @@ type !'a t
 external make : 'a -> 'a t = "%makemutable"
 external make_contended : 'a -> 'a t = "caml_atomic_make_contended"
 external get : 'a t -> 'a = "%atomic_load"
+external set : 'a t -> 'a -> unit = "%atomic_set"
 external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
 external compare_and_set : 'a t -> 'a -> 'a -> bool = "%atomic_cas"
 external compare_exchange : 'a t -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
@@ -27,8 +28,5 @@ external logand : int t -> int -> unit = "%atomic_land"
 external logor : int t -> int -> unit = "%atomic_lor"
 external logxor : int t -> int -> unit = "%atomic_lxor"
 
-external ignore : 'a -> unit = "%ignore"
-
-let set r x = ignore (exchange r x)
 let incr r = add r 1
 let decr r = sub r 1

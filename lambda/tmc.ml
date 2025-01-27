@@ -905,7 +905,7 @@ let rec choice ctx t =
     | Patomic_exchange _ | Patomic_compare_exchange _
     | Patomic_compare_set _ | Patomic_fetch_add
     | Patomic_add | Patomic_sub | Patomic_land
-    | Patomic_lor | Patomic_lxor | Patomic_load _
+    | Patomic_lor | Patomic_lxor | Patomic_load _ | Patomic_set _
     | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
     | Punbox_vector _ | Pbox_vector (_, _)

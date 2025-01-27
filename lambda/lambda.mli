@@ -309,6 +309,7 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
