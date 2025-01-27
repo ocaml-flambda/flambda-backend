@@ -73,14 +73,13 @@
    copy;
 
    set flg_alias_deps = "-w -53";
-   (* Need to turn off the fallback inlining heuristic because it marks all
-      instantiating functors as [@inline never] in classic mode *)
-   set flg = "\
-     $flg_alias_deps -no-alias-deps \
-     -no-flambda2-expert-fallback-inlining-heuristic \
-   ";
+   set flg = "$flg_alias_deps -no-alias-deps";
    set flg_int_iface = "$flg -w -49";
    set flg_instance = "-H instances -w -24 -w -58";
+
+   (* Need to turn off the fallback inlining heuristic because it marks all
+   instantiating functors as [@inline never] in classic mode *)
+   ocamlopt_flags = "-no-flambda2-expert-fallback-inlining-heuristic";
 
    flags = "$flg_int_iface";
    module = "p/p__.ml";
