@@ -3271,12 +3271,14 @@ and mcomp_row type_pairs env row1 row2 =
 
 and mcomp_unsafe_mode_crossing umc1 umc2 =
   match umc1, umc2 with
-  | Some _, None | None, None -> ()
-  | None, Some { modal_upper_bounds = mub } ->
-    if not Mode.Alloc.Const.(le max mub) then raise Incompatible
+  | None, None -> ()
+  | Some _, None -> raise Incompatible
+  | None, Some _ -> raise Incompatible
   | Some ({ modal_upper_bounds = mub1 }),
     Some ({ modal_upper_bounds = mub2 }) ->
-    if not (Mode.Alloc.Const.le mub1 mub2) then raise Incompatible
+    if (Mode.Alloc.Const.le mub1 mub2 && Mode.Alloc.Const.le mub2 mub1)
+    then ()
+    else raise Incompatible
 
 and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
   try
