@@ -866,30 +866,6 @@ module Jkind_desc = struct
   let add_nullability_crossing t =
     { t with nullability_upper_bound = Nullability.min }
 
-  let add_portability_and_contention_crossing ~from t =
-    let new_portability =
-      Portability.Const.meet t.modes_upper_bounds.portability
-        from.modes_upper_bounds.portability
-    in
-    let new_contention =
-      Contention.Const.meet t.modes_upper_bounds.contention
-        from.modes_upper_bounds.contention
-    in
-    let added_crossings =
-      (not
-         (Portability.Const.le t.modes_upper_bounds.portability new_portability))
-      || not
-           (Contention.Const.le t.modes_upper_bounds.contention new_contention)
-    in
-    ( { t with
-        modes_upper_bounds =
-          { t.modes_upper_bounds with
-            portability = new_portability;
-            contention = new_contention
-          }
-      },
-      added_crossings )
-
   let unsafely_set_upper_bounds t ~from =
     { t with modes_upper_bounds = from.modes_upper_bounds }
 
@@ -1071,12 +1047,6 @@ end
 
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
-
-let add_portability_and_contention_crossing ~from t =
-  let jkind, added_crossings =
-    Jkind_desc.add_portability_and_contention_crossing ~from:from.jkind t.jkind
-  in
-  { t with jkind }, added_crossings
 
 let unsafely_set_upper_bounds ~from t =
   { t with

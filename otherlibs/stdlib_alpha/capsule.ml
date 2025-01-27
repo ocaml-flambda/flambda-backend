@@ -304,7 +304,6 @@ module Mutex = struct
     }
   [@@unsafe_allow_any_mode_crossing]
 
-  (*  *)
   type packed : value mod portable uncontended = P : 'k t -> packed
   [@@unsafe_allow_any_mode_crossing
     "CR: illegal mode crossing on the current version of the compiler, but \
