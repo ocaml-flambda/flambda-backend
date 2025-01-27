@@ -890,10 +890,10 @@ let extract_concrete_typedecl_protected env ty =
 let extract_concrete_record (type rep) (record_form : rep record_form) env ty
     : (rep record_extraction_result) =
   match record_form, extract_concrete_typedecl_protected env ty with
-  | Legacy, Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
+  | Legacy, Typedecl(p0, p, {type_kind=Type_record (fields, repres, _)}) ->
     Record_type (p0, p, fields, repres)
   | Unboxed_product,
-    Typedecl(p0, p, {type_kind=Type_record_unboxed_product (fields, repres)}) ->
+    Typedecl(p0, p, {type_kind=Type_record_unboxed_product (fields, repres, _)}) ->
     Record_type (p0, p, fields, repres)
   | Legacy, Typedecl(_, _, {type_kind=Type_record_unboxed_product _})
   | Unboxed_product, Typedecl(_, _, {type_kind=Type_record _}) ->
@@ -908,7 +908,7 @@ type variant_extraction_result =
 
 let extract_concrete_variant env ty =
   match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _)}) ->
+  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _, _)}) ->
     Variant_type (p0, p, cstrs)
   | Typedecl(p0, p, {type_kind=Type_open}) ->
     Variant_type (p0, p, [])

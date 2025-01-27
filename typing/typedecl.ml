@@ -146,6 +146,7 @@ type error =
       ; expected: Path.t
       }
   | Non_abstract_reexport of Path.t
+  | Unsafe_mode_crossing_on_invalid_type_kind
 
 open Typedtree
 
@@ -910,7 +911,7 @@ let transl_declaration env sdecl (id, uid) =
             ),
             Jkind.Builtin.value ~why:Boxed_variant
         in
-          Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
+          Ttype_variant tcstrs, Type_variant (cstrs, rep, None), jkind
       | Ptype_record lbls ->
           let lbls, lbls' =
             (* CR layouts: we forbid [@@unboxed] records from being
@@ -931,7 +932,7 @@ let transl_declaration env sdecl (id, uid) =
               Record_boxed (Array.make (List.length lbls) Jkind.Sort.Const.void),
               Jkind.Builtin.value ~why:Boxed_record
           in
-          Ttype_record lbls, Type_record(lbls', rep), jkind
+          Ttype_record lbls, Type_record(lbls', rep, None), jkind
       | Ptype_record_unboxed_product lbls ->
           Language_extension.assert_enabled ~loc:sdecl.ptype_loc Layouts
             Language_extension.Stable;
@@ -947,7 +948,7 @@ let transl_declaration env sdecl (id, uid) =
           in
           let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
           Ttype_record_unboxed_product lbls,
-          Type_record_unboxed_product(lbls', Record_unboxed_product), jkind
+          Type_record_unboxed_product(lbls', Record_unboxed_product, None), jkind
       | Ptype_open ->
         Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
       in
@@ -1036,10 +1037,10 @@ let transl_declaration env sdecl (id, uid) =
     let typ_shape =
       let uid = decl.typ_type.type_uid in
       match decl.typ_type.type_kind with
-      | Type_variant (cstrs, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Type_record (labels, _) ->
+      | Type_variant (cstrs, _, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
+      | Type_record (labels, _, _) ->
         Shape.str ~uid (shape_map_labels labels)
-      | Type_record_unboxed_product (labels, _) ->
+      | Type_record_unboxed_product (labels, _, _) ->
         Shape.str ~uid (shape_map_unboxed_labels labels)
       | Type_abstract _ | Type_open -> Shape.leaf uid
     in
@@ -1121,7 +1122,7 @@ let check_constraints env sdecl (_, decl) =
      can't introduce new variables in the kind. *)
   | Type_variant _ when
     Builtin_attributes.has_or_null_reexport decl.type_attributes -> ()
-  | Type_variant (l, _rep) ->
+  | Type_variant (l, _rep, _umc) ->
       let find_pl = function
           Ptype_variant pl -> pl
       | Ptype_record _ | Ptype_record_unboxed_product _ | Ptype_abstract
@@ -1158,7 +1159,7 @@ let check_constraints env sdecl (_, decl) =
           | _ ->
               () )
         l
-  | Type_record (l, _) ->
+  | Type_record (l, _, _) ->
       let find_pl = function
         | Ptype_record pl -> pl
         | Ptype_record_unboxed_product _ | Ptype_variant _ | Ptype_abstract
@@ -1167,7 +1168,7 @@ let check_constraints env sdecl (_, decl) =
       in
       let pl = find_pl sdecl.ptype_kind in
       check_constraints_labels env visited l pl
-  | Type_record_unboxed_product (l, _) ->
+  | Type_record_unboxed_product (l, _, _) ->
       let find_pl = function
         | Ptype_record_unboxed_product pl -> pl
         | Ptype_record _ | Ptype_variant _ | Ptype_abstract | Ptype_open ->
@@ -1529,7 +1530,7 @@ let update_constructor_representation
 
    This function is an important part
    of correctness, as it also checks that the jkind computed from a kind
-   is consistent (i.e. a subjkind of) any jkind annotation.
+   is consistent with (i.e. a subjkind of) any jkind annotation.
    See Note [Default jkinds in transl_declaration].
 *)
 let update_decl_jkind env dpath decl =
@@ -1737,14 +1738,14 @@ let update_decl_jkind env dpath decl =
     | Type_open ->
       let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
-    | Type_record (lbls, rep) ->
+    | Type_record (lbls, rep, umc) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
-      { decl with type_kind = Type_record (lbls, rep);
+      { decl with type_kind = Type_record (lbls, rep, umc);
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
-    | Type_record_unboxed_product (lbls, rep) ->
+    | Type_record_unboxed_product (lbls, rep, umc) ->
         begin match rep with
         | Record_unboxed_product ->
           let lbls, jkinds =
@@ -1761,31 +1762,76 @@ let update_decl_jkind env dpath decl =
           let type_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
           let type_jkind, type_has_illegal_crossings =
             add_crossings type_jkind in
-          { decl with type_kind = Type_record_unboxed_product (lbls, rep);
+          { decl with type_kind = Type_record_unboxed_product (lbls, rep, umc);
                       type_jkind;
                       type_has_illegal_crossings },
           type_jkind
         end
-    | Type_variant (cstrs, rep) ->
+    | Type_variant (cstrs, rep, umc) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
-      { decl with type_kind = Type_variant (cstrs, rep);
+      { decl with type_kind = Type_variant (cstrs, rep, umc);
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
   in
+
+  let allow_any_crossing =
+    Builtin_attributes.has_unsafe_allow_any_mode_crossing decl.type_attributes
+  in
+
+  (* Check that the attribute is valid, if set (unconditionally, for consistency). *)
+  if allow_any_crossing then begin
+    match decl.type_kind with
+    | Type_abstract _ | Type_open ->
+      raise(Error(decl.type_loc, Unsafe_mode_crossing_on_invalid_type_kind))
+    | _ -> ()
+  end;
 
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
     (* CR layouts v2.8: Consider making a function that doesn't compute
        histories for this use-case, which doesn't need it. *)
-    begin match Jkind.sub_jkind_l new_jkind decl.type_jkind with
-    | Ok _ -> ()
+    begin match Jkind.sub_jkind_l ~allow_any_crossing new_jkind decl.type_jkind with
+    | Ok _ ->
+      (* If the user is asking us to allow any crossing, we use the modal bounds from
+         the annotation rather than the modal bounds inferred from the type_kind.
+         However, we /only/ take the modal bounds, not the layout - because we still
+         want to be able to eg locally use a type declared as layout [any] as [value]
+         if that's its actual layout! *)
+      let type_jkind =
+        Jkind.unsafely_set_upper_bounds ~from:decl.type_jkind
+          new_decl.type_jkind
+      in
+      if allow_any_crossing then
+        let umc =
+          Some { modal_upper_bounds = Jkind.get_modal_upper_bounds type_jkind }
+        in
+        let type_kind =
+          match new_decl.type_kind with
+          | Type_abstract _ | Type_open -> assert false (* Checked above *)
+          | Type_record (lbls, rep, _) ->
+            Type_record (lbls, rep, umc)
+          | Type_record_unboxed_product (lbls, rep, _) ->
+            Type_record_unboxed_product (lbls, rep, umc)
+          | Type_variant (cs, rep, _) ->
+            Type_variant (cs, rep, umc)
+        in
+        { new_decl with
+          type_jkind;
+          type_kind;
+          (* If the attribute to allow any crossing is set, we unconditionally set
+             [type_has_illegal_crossings], even if the attribute was set unnecessarily,
+             just because it's simpler than tracking whether the attribute was used to
+             allow something unsafe. The only outcome this should cause is that the kind
+             gets printed unconditionally, which is probably fine (?). *)
+          type_has_illegal_crossings = true }
+      else new_decl
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
-    end;
-  new_decl
+    end
+  else new_decl
 
 let update_decls_jkind_reason decls =
   List.map
@@ -2641,7 +2687,7 @@ let transl_extension_constructor ~scope env type_path type_params
               List.iter2 (Ctype.unify env) decl.type_params tl;
               let lbls =
                 match decl.type_kind with
-                | Type_record (lbls, Record_inlined _) -> lbls
+                | Type_record (lbls, Record_inlined _, _) -> lbls
                 | _ -> assert false
               in
               Types.Cstr_record lbls
@@ -3767,7 +3813,7 @@ let report_error ppf = function
   | Unbound_type_var (ty, decl) ->
       fprintf ppf "@[A type variable is unbound in this type declaration";
       begin match decl.type_kind, decl.type_manifest with
-      | Type_variant (tl, _rep), _ ->
+      | Type_variant (tl, _rep, _), _ ->
           explain_unbound_gen ppf ty tl (fun c ->
               let tl = tys_of_constr_args c.Types.cd_args in
               Btype.newgenty (Ttuple (List.map (fun t -> None, t) tl))
@@ -3776,10 +3822,10 @@ let report_error ppf = function
               fprintf ppf
                 "%a of %a" Printtyp.ident c.Types.cd_id
                 Printtyp.constructor_arguments c.Types.cd_args)
-      | Type_record (tl, _), _ ->
+      | Type_record (tl, _, _), _ ->
           explain_unbound ppf ty tl (fun l -> l.Types.ld_type)
             "field" (fun l -> Ident.name l.Types.ld_id ^ ": ")
-      | Type_record_unboxed_product (tl, _), _ ->
+      | Type_record_unboxed_product (tl, _, _), _ ->
           explain_unbound ppf ty tl (fun l -> l.Types.ld_type)
             "unboxed record field" (fun l -> Ident.name l.Types.ld_id ^ ": ")
       | Type_abstract _, Some ty' ->
@@ -4107,6 +4153,10 @@ let report_error ppf = function
       "@[Invalid reexport declaration.\
          @ Type %s must not define an explicit representation.@]"
       (Path.name definition)
+  | Unsafe_mode_crossing_on_invalid_type_kind ->
+    fprintf ppf
+      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.\
+       @ Only records, unboxed products, and variants are supported.@]"
 
 let () =
   Location.register_error_of_exn

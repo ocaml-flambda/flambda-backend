@@ -326,7 +326,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
       match decl.type_kind with
         Type_abstract _ | Type_open ->
           compute_variance_type env ~check rloc decl mn
-      | Type_variant (tll,_rep) ->
+      | Type_variant (tll,_rep, _umc) ->
           if List.for_all (fun c -> c.Types.cd_res = None) tll then
             compute_variance_type env ~check rloc decl
               (mn @ List.flatten (List.map (fun c -> for_constr c.Types.cd_args)
@@ -351,11 +351,11 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
                 List.fold_left (List.map2 Variance.union) vari rem
             | _ -> assert false
           end
-      | Type_record (ftl, _) ->
+      | Type_record (ftl, _, _) ->
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)
-      | Type_record_unboxed_product (ftl, _) ->
+      | Type_record_unboxed_product (ftl, _, _) ->
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)

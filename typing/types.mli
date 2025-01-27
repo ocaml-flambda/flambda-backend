@@ -549,11 +549,17 @@ type type_declaration =
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
+and unsafe_mode_crossing =
+  { modal_upper_bounds : Mode.Alloc.Const.t }
+
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
-  | Type_record of 'lbl list  * record_representation
-  | Type_record_unboxed_product of 'lbl_flat list * record_unboxed_product_representation
-  | Type_variant of 'cstr list * variant_representation
+  | Type_record of 'lbl list * record_representation * unsafe_mode_crossing option
+  | Type_record_unboxed_product of
+      'lbl_flat list *
+      record_unboxed_product_representation *
+      unsafe_mode_crossing option
+  | Type_variant of 'cstr list * variant_representation * unsafe_mode_crossing option
   | Type_open
 
 (* CR layouts: after removing the void translation from lambda, we could get rid of
