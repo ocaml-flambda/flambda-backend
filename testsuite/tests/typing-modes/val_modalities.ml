@@ -256,7 +256,7 @@ module Inclusion_match : sig module M : sig val x : int ref end end
 (* [foo] closes over [M.x] instead of [M]. This is better ergonomics. *)
 module Close_over_value = struct
   module M = struct
-    let x @ portable uncontended = "hello"
+    let x @ portable uncontended = fun x -> x
   end
   let (foo @ portable) () =
     let _ = M.x in
@@ -265,7 +265,7 @@ end
 [%%expect{|
 module Close_over_value :
   sig
-    module M : sig val x : string @@ portable end
+    module M : sig val x : 'a -> 'a @@ portable end
     val foo : unit -> unit
   end
 |}]
@@ -299,7 +299,7 @@ Error: This value is "contended" but expected to be "uncontended".
 
 module Close_over_value_comonadic = struct
   module M = struct
-    let x @ nonportable = "hello"
+    let x @ nonportable = fun x -> x
   end
   let (foo @ portable) () =
     let _ = M.x in
@@ -944,7 +944,6 @@ Line 2, characters 25-26:
 Error: The value "m" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
-(* CR zqian: this mode crossing should work *)
 module M : sig
   val x : int
 end = struct
@@ -956,8 +955,5 @@ let (foo @ portable) () =
   ()
 [%%expect{|
 module M : sig val x : int end
-Line 8, characters 10-13:
-8 |   let _ = M.x in
-              ^^^
-Error: The value "M.x" is nonportable, so cannot be used inside a function that is portable.
+val foo : unit -> unit = <fun>
 |}]

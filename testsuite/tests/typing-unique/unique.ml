@@ -133,7 +133,7 @@ val f : unit -> unit = <fun>
 
 (* The following is bad, because k is once and cannot be used more than once*)
 let f () =
-  let once_ k = "foo" in
+  let once_ k = fun x -> x in
   for i = 1 to 5 do
     k
   done
