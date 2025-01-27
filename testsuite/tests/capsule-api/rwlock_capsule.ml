@@ -1,6 +1,6 @@
 (* TEST
  include stdlib_alpha;
- flags = "-extension-universe alpha -allow-illegal-crossing";
+ flags = "-extension-universe alpha";
  runtime5;
  { bytecode; }
  { native; }
@@ -19,10 +19,11 @@ type ('a, 'k) _data : value mod portable uncontended = ('a, 'k) Capsule.Data.t
 type _packed :  value mod portable uncontended = Capsule.Rwlock.packed
 
 (* CR: without [with] syntax and mode crossing inference, we need to depend on
-  [allow-illegal-crossing] to determine that 'a myref crosses portabilility.
-  This only holds when 'a also crosses portability *)
+   [@@unsafe_allow_any_mode_crossing] to determine that 'a myref crosses portabilility.
+   This only holds when 'a also crosses portability *)
 
 type 'a myref : value mod portable = { mutable v : 'a}
+[@@unsafe_allow_any_mode_crossing]
 
 
 module RwCell = struct

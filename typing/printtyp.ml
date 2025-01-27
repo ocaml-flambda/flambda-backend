@@ -1985,7 +1985,7 @@ let tree_of_type_decl id decl =
      Note [When to print jkind annotations] *)
   let is_value = Jkind.is_value_for_printing decl.type_jkind in
   let otype_jkind =
-    match ty, is_value, decl.type_has_illegal_crossings with
+    match ty, is_value, unsafe_mode_crossing with
     | (Otyp_abstract, false, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
@@ -2447,7 +2447,6 @@ let dummy =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.internal_not_actually_unique;
-    type_has_illegal_crossings = false;
   }
 
 (** we hide items being defined from short-path to avoid shortening

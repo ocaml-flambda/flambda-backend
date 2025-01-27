@@ -180,6 +180,7 @@ module Mutex : sig
         the capsule ['k] using {!create_with_mutex}. *)
 
     type packed : value mod portable uncontended = P : 'k t -> packed
+    [@@unsafe_allow_any_mode_crossing]
     (** [packed] is the type of a mutex for some unknown capsule.
         Unpacking one provides a ['k Mutex.t] together with a fresh
         existential type brand for ['k]. *)
@@ -219,6 +220,7 @@ module Rwlock : sig
         the capsule ['k] using {!create_with_rwlock} *)
 
     type packed : value mod portable uncontended = P : 'k t -> packed
+    [@@unsafe_allow_any_mode_crossing]
     (** [packed] is the type of a reader-writer lock for some unknown capsule.
         Unpacking one provides a ['k Rwlock.t] together with a fresh existential type
         brand for ['k]. *)
