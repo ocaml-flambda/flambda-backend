@@ -1809,7 +1809,7 @@ let update_decl_jkind env dpath decl =
           Some { modal_upper_bounds = Jkind.get_modal_upper_bounds type_jkind }
         in
         let type_kind =
-          match decl.type_kind with
+          match new_decl.type_kind with
           | Type_abstract _ | Type_open -> assert false (* Checked above *)
           | Type_record (lbls, rep, _) ->
             Type_record (lbls, rep, umc)

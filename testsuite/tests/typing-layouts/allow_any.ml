@@ -289,3 +289,25 @@ Error: Signature mismatch:
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their mod-bounds are not equal
 |}]
+
+module A : sig
+  type t : value mod external_ global portable many uncontended unique
+end = struct
+  type t = int
+end
+
+module B = struct
+  type t : value mod portable uncontended = { a : A.t }
+  [@@unsafe_allow_any_mode_crossing]
+
+  let a t = t.a
+end
+[%%expect{|
+module A : sig type t : immediate end
+module B :
+  sig
+    type t : value mod uncontended portable = { a : A.t; }
+    [@@unsafe_allow_any_mode_crossing]
+    val a : t -> A.t
+  end
+|}]
