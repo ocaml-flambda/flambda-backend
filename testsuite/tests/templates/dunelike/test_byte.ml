@@ -73,7 +73,12 @@
    copy;
 
    set flg_alias_deps = "-w -53";
-   set flg = "$flg_alias_deps -no-alias-deps";
+   (* Need to turn off the fallback inlining heuristic because it marks all
+      instantiating functors as [@inline never] in classic mode *)
+   set flg = "\
+     $flg_alias_deps -no-alias-deps \
+     -no-flambda2-expert-fallback-inlining-heuristic \
+   ";
    set flg_int_iface = "$flg -w -49";
    set flg_instance = "-H instances -w -24 -w -58";
 
