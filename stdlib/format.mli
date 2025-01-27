@@ -508,7 +508,8 @@ coupled variables, margin and maximum indentation limit.
 
 *)
 
-type geometry = { max_indent:int; margin: int}
+type geometry : value mod portable uncontended = { max_indent:int; margin: int}
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** @since 4.08 *)
 
 val check_geometry: geometry -> bool
