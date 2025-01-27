@@ -881,3 +881,17 @@ end
 [%%expect{|
 module M : sig type 'a t : immutable_data end
 |}]
+
+(* Some recursive types *)
+
+type 'a my_list : immutable_data with 'a = [] | ( :: ) of 'a * 'a my_list
+[%%expect{|
+type 'a my_list = [] | (::) of 'a * 'a my_list
+|}]
+
+type 'a my_list : immutable_data with 'a = [] | ( :: ) of 'a * 'a foo
+and 'a foo = 'a my_list
+[%%expect{|
+type 'a my_list = [] | (::) of 'a * 'a foo
+and 'a foo = 'a my_list
+|}]

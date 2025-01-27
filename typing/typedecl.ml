@@ -1640,7 +1640,7 @@ let update_constructor_representation
    is consistent (i.e. a subjkind of) any jkind annotation.
    See Note [Default jkinds in transl_declaration].
 *)
-let update_decl_jkind env dpath decl =
+let update_decl_jkind env dpath id decl shape =
   let open struct
     (* For tracking what types appear in record blocks. *)
     type element_repr_summary =
@@ -1829,8 +1829,6 @@ let update_decl_jkind env dpath decl =
       assert false
   in
 
-  let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
-
   let add_crossings jkind =
     match !Clflags.allow_illegal_crossing with
     | true -> Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind
@@ -1848,6 +1846,7 @@ let update_decl_jkind env dpath decl =
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      let type_jkind = Jkind.mark_best type_jkind in
       { decl with type_kind = Type_record (lbls, rep);
                   type_jkind;
                   type_has_illegal_crossings },
@@ -1883,6 +1882,7 @@ let update_decl_jkind env dpath decl =
           in
           let type_jkind, type_has_illegal_crossings =
             add_crossings type_jkind in
+          let type_jkind = Jkind.mark_best type_jkind in
           { decl with type_kind = Type_record_unboxed_product (lbls, rep);
                       type_jkind;
                       type_has_illegal_crossings },
@@ -1894,15 +1894,21 @@ let update_decl_jkind env dpath decl =
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      let type_jkind = Jkind.mark_best type_jkind in
       { decl with type_kind = Type_variant (cstrs, rep);
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
   in
 
+
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then begin
+    (* Add the decl to a temporary env, so that normalization can look up the kind of the
+       type itself. *)
+    let env = add_type ~check:true ~shape id new_decl env in
+    let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
     let type_equal = Ctype.type_equal env in
     match
       (* CR layouts v2.8: Consider making a function that doesn't compute
@@ -1932,10 +1938,12 @@ let update_decls_jkind_reason env decls =
     )
     decls
 
-let update_decls_jkind env decls =
-  List.map
-    (fun (id, decl) -> (id, update_decl_jkind env (Pident id) decl))
+let update_decls_jkind env shapes decls =
+  List.map2
+    (fun (id, decl) shape ->
+       (id, update_decl_jkind env (Pident id) id decl shape))
     decls
+    shapes
 
 
 (* Note: Well-foundedness for OCaml types
@@ -2552,12 +2560,12 @@ let transl_type_decl env rec_flag sdecl_list =
   (* Add type properties to declarations *)
   let decls, new_env =
     try
-      let (decls, new_env) =
+      let decls, new_env =
         decls
         |> name_recursion_decls sdecl_list
         |> Typedecl_variance.update_decls env sdecl_list
         |> Typedecl_separability.update_decls env
-        |> update_decls_jkind new_env
+        |> update_decls_jkind new_env shapes
         |> normalize_decls new_env shapes
       in
       update_decls_jkind_reason new_env decls, new_env
