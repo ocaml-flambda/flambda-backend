@@ -1161,6 +1161,10 @@ class virtual selector_generic =
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
       let cfg =
+        (* note: we set `fun_contains_calls` to `true` here, but will compute
+           its proper value below, after possibly removing the prologue poll
+           instruction. It is not very satisfactory, but as noted in the CR
+           below, we should revisit the way we handle polling points. *)
         Cfg.create ~fun_name:f.Cmm.fun_name.sym_name ~fun_args:loc_arg
           ~fun_codegen_options:
             (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
