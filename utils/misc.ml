@@ -1739,5 +1739,5 @@ module Nonempty_list = struct
     Format.pp_print_list ?pp_sep f ppf (to_list t)
 
   let (@) (x :: xs) (y :: ys) =
-    x :: List.(x :: (xs @ (y :: ys)))
+    x :: List.(xs @ (y :: ys))
 end
