@@ -4447,7 +4447,7 @@ let report_error ppf = function
      For now, I just included the filename.
   *)
   | No_unboxed_version p ->
-      fprintf ppf "@[%a@ has no unboxed version. (typedecl.ml) @]"
+      fprintf ppf "@[%a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p
 
 let () =
