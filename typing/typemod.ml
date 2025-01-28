@@ -776,8 +776,10 @@ let merge_constraint initial_env loc sg lid constr =
         begin match
           tdecl.type_unboxed_version, sig_decl.type_unboxed_version with
         | None, None -> ()
-        | Some tdecl_unboxed, Some sig_decl_unboxed ->
-          constrain_jkind tdecl_unboxed sig_decl_unboxed.type_jkind
+        | Some _tdecl_unboxed, Some _sig_decl_unboxed ->
+          (* CR rtjoa:  *)
+          assert false
+          (* constrain_jkind tdecl_unboxed sig_decl_unboxed.type_jkind *)
         | _ ->
           (* If only one of [tdecl] and [sig_decl] have an unboxed version, then
              the above check should have failed, as the unboxed version is
@@ -942,6 +944,33 @@ let merge_constraint initial_env loc sg lid constr =
           Subst.signature Make_local sub sg
       | None -> sg
     in
+    (* CR rtjoa: implement DFS algo *)
+    (* let bot_env = Env.add_signature sg initial_env in *)
+    (* CR rtjoa: The implementation of Mtype.expand_to (called above) performs
+       some intermediate computation on env (add_modtype_lazy and
+       add_module_declaration_lazy). Do we want to use this intermediate env? I
+       think it's probably not necessary, since [initial_env] is used_below? *)
+    (* let rec visit = *)
+    (* let _env, sg =
+     *   List.fold_left_map (fun env item ->
+     *     match item with
+     *     | Sig_module _ | Sig_modtype _ | Sig_value _ | Sig_typext _
+     *     | Sig_class _ | Sig_class_type _ ->
+     *       env, item
+     *     | Sig_type (id, td, rs, priv) ->
+     *       let td =
+     *         match
+     *           Typedecl.derive_unboxed_version
+     *             (fun path -> Env.find_type path env)
+     *             td
+     *         with
+     *         | Some utd -> { td with type_unboxed_version = Some utd }
+     *         | None -> td
+     *       in
+     *       (* CR rtjoa: try tests check:true *)
+     *       Env.add_type ~check:false id td env, Sig_type (id, td, rs, priv)
+     *   ) initial_env sg
+     * in *)
     check_well_formed_module initial_env loc "this instantiated signature"
       (Mty_signature sg);
     (tcstr, sg)

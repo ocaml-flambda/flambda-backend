@@ -3647,47 +3647,39 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     Location.deprecated loc "spurious use of private";
   let type_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
   let type_unboxed_version =
-    match sig_decl.type_unboxed_version with
-    | None -> None
-    | Some sig_decl_unboxed ->
-      let type_kind, type_jkind =
-        (* CR rtjoa: understand *)
-        if arity_ok then
-          sig_decl_unboxed.type_kind, sig_decl_unboxed.type_jkind
-        else
-          Type_abstract Definition, sig_decl_unboxed.type_jkind
-      in
-      (* CR rtjoa: maybe this should all use the derive helper function? *)
-      let man = match get_desc man with
-        | Tconstr (path, args, _) ->
-          (* CR rtjoa: will this give good errors if the derived unboxed version
-             doesn't exist, or has a different number of args? *)
-          Ctype.newconstr
-            (Path.unboxed_version path) args
-        | _ ->
-          (* CR rtjoa: this is reachable. but an error, because only
-             tconstr can have a derived unboxed version *)
-          assert false
-      in
-      Some
-        { type_params = params;
-        type_arity = arity;
-        type_kind;
-        type_jkind;
-        type_private = priv;
-        type_manifest = Some man;
-        type_variance = [];
-        type_separability = Types.Separability.default_signature ~arity;
-        type_is_newtype = false;
-        type_expansion_scope = Btype.lowest_level;
-        type_loc = loc;
-        type_attributes = [];
-        type_unboxed_default = false;
-        type_uid;
-        type_has_illegal_crossings = false;
-        type_unboxed_version = None;
-        type_is_unboxed_version = true;
-      }
+    match get_desc man with
+    | Tconstr (path, _, _) ->
+      begin match Env.find_type path outer_env with
+      | { type_unboxed_version = Some decl ; _ } ->
+        let man = Ctype.newconstr (Path.unboxed_version path) params in
+        let type_kind = Type_abstract Definition in
+        let type_jkind = decl.type_jkind in
+        Some
+          { type_params = params;
+          type_arity = arity;
+          type_kind;
+          type_jkind;
+          type_private = priv;
+          type_manifest = Some man;
+          type_variance = [];
+          type_separability = Types.Separability.default_signature ~arity;
+          type_is_newtype = false;
+          type_expansion_scope = Btype.lowest_level;
+          type_loc = loc;
+          type_attributes = [];
+          type_unboxed_default = false;
+          type_uid;
+          type_has_illegal_crossings = false;
+          type_unboxed_version = None;
+          type_is_unboxed_version = true;
+        }
+      | { type_unboxed_version = None ; _ } ->
+        None
+      | exception Not_found ->
+        (* If [man] was translated already, this should be unreachable *)
+        Misc.fatal_error "Typedecl.transl_with_constraint"
+      end
+    | _ -> None
   in
   let type_kind, type_unboxed_default, type_jkind =
     if arity_ok then
