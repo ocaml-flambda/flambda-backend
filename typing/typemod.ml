@@ -692,6 +692,8 @@ let merge_constraint initial_env loc sg lid constr =
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
             type_has_illegal_crossings = false;
+            type_unboxed_version = None;
+            type_is_unboxed_version = false;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =

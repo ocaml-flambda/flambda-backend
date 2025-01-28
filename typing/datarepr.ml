@@ -91,6 +91,8 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_unboxed_default = false;
           type_uid = Uid.mk ~current_unit;
           type_has_illegal_crossings = false;
+          type_unboxed_version = None;
+          type_is_unboxed_version = false;
         }
       in
       existentials,

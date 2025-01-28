@@ -545,6 +545,18 @@ type type_declaration =
     (* true iff the type definition has illegal crossings of the portability and
        contention axes *)
     (* CR layouts v2.8: remove type_has_illegal_crossings *)
+    type_unboxed_version : type_declaration option;
+    (* stores the unboxed version of this type. this is always [Some] for
+       predefined types with unboxed versions (e.g. [float]) and boxed records.
+       for aliases of types with unboxed versions, this may be [None] even
+       though the alias has an unboxed version;
+       [Env.find_type_unboxed_version_data] will follow aliases.
+
+       as an optimization, many aliases do store their unboxed versions, but
+       not always: e.g. they don't when the type they alias gains an unboxed
+       version through [with type] substition.
+    *)
+    type_is_unboxed_version : bool;
   }
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
