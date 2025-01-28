@@ -1367,7 +1367,7 @@ let rec find_type_data path env =
               let cda = find_extension_full p env in
               type_of_cstr path cda.cda_description
           | Punboxed_ty ->
-              find_type_unboxed_version_data p env
+              find_type_unboxed_version_data p env Path.Set.empty
         end
     end
 and find_cstr path name env =
@@ -1378,7 +1378,9 @@ and find_cstr path name env =
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open ->
       raise Not_found
-and find_type_unboxed_version_data path env =
+and find_type_unboxed_version_data path env seen =
+  if Path.Set.mem path seen then raise Not_found else
+  let seen = Path.Set.add path seen in
   let tda = find_type_data path env in
   let decl = tda.tda_declaration in
   let tda_declaration =
@@ -1427,7 +1429,7 @@ and find_type_unboxed_version_data path env =
             begin match path with
             | Pextra_ty (_, Punboxed_ty) -> `No_unboxed_version
             | _ ->
-            begin match find_type_unboxed_version_data path env with
+            begin match find_type_unboxed_version_data path env seen with
             | exception Not_found -> `No_unboxed_version
             | { tda_declaration = ud } ->
               (* CR layouts v11: we'll have to update type_jkind once we have
@@ -3813,7 +3815,7 @@ let lookup_type ~errors ~use ~loc lid env =
     (* To get the hash version, look up without the hash, then look for the
        unboxed version *)
     let path, _ = lookup_type_full ~errors ~use ~loc lid env in
-    match find_type_unboxed_version_data path env with
+    match find_type_unboxed_version_data path env Path.Set.empty with
     | tda ->
       Path.unboxed_version path, tda.tda_declaration
     | exception Not_found ->
