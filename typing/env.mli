@@ -677,7 +677,3 @@ type address_head =
 val address_head : address -> address_head
 
 val sharedness_hint : Format.formatter -> shared_context -> unit
-
-(* CR rtjoa: move *)
-(* val derive_unboxed_version : (Path.t -> Types.type_declaration) ->
- * Types.type_declaration -> Types.type_declaration option *)

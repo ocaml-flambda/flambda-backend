@@ -1106,6 +1106,7 @@ let derive_unboxed_version find_type decl =
               ld_modalities = ld.ld_modalities;
               ld_sort = Jkind.Sort.Const.void;
               ld_type = ld.ld_type;
+                (* CR rtjoa: need to subst when we instantiate new params*)
               ld_loc = ld.ld_loc;
               ld_attributes = [];
               ld_uid = ld.ld_uid;
@@ -1458,7 +1459,6 @@ let check_kind_coherence env loc dpath decl =
     end
   | _ -> ()
 
-(* CR rtjoa: consider updating? *)
 let check_coherence env loc dpath decl =
   check_kind_coherence env loc dpath decl;
   begin match decl.type_unboxed_version with
@@ -3130,7 +3130,6 @@ let get_native_repr_attribute attrs ~global_repr =
 let is_upstream_compatible_non_value_unbox env ty =
   (* CR layouts v2.5: This needs to be updated when we support unboxed
      types with arbitrary names suffixed with "#" *)
-  (* CR rtjoa:  *)
   match get_desc (Ctype.expand_head_opt env ty) with
   | Tconstr (path, _, _) ->
     List.exists

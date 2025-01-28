@@ -1343,7 +1343,6 @@ let type_of_cstr path = function
   | _ -> assert false
 
 let rec find_type_data path env seen =
-  (* CR rtjoa: local constraints? *)
   match Path.Map.find path env.local_constraints with
   | decl ->
     {

@@ -306,7 +306,6 @@ let rec sig_make_manifest sg =
   | (Sig_value _ | Sig_class _ | Sig_class_type _) as t :: rem ->
     t :: sig_make_manifest rem
   | Sig_type (id,decl,rs,vis) :: rem ->
-    (* CR rtjoa: probably update *)
     let decl_make_manifest path decl =
       match decl.type_manifest, decl.type_private, decl.type_kind with
         Some _, Public, _ -> decl
