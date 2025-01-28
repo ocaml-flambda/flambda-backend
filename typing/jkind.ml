@@ -1518,7 +1518,14 @@ module Jkind_desc = struct
         in
         match Loop_control.check ctl ty with
         | Stop ->
-          (* out of fuel, so assume ty has max kind along all relevant axes. *)
+          (* out of fuel. It's important that normalization is deterministic, and it's not
+             deterministic on which type we run out of fuel. So if we run out of fuel on
+             any type, we need to assume that all types have max bounds. So we assume max
+             bounds along any relevant axes to the original kind, not just the remaining
+             bounds. *)
+          (* CR layouts v2.8: I'm not convinced that it is deterministic whether we hit
+             stop, so there may be a bug hiding here. But this is at least good enough to
+             bootstrap and pass the tests. *)
           let all_relevant_axes =
             List.fold_left
               (fun acc
@@ -2769,44 +2776,30 @@ end
 
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
    kind polymorphism design. *)
-let sub_jkind_l :
-    type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
-    jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
-    Types.jkind_l ->
-    Types.jkind_l ->
-    (Types.jkind_l, Violation.t) result =
- fun ~type_equal ~jkind_of_type sub super ->
+let sub_jkind_l ~type_equal ~jkind_of_type sub super =
+  (* This function implements the "SUB" judgement from kind-inference.md. *)
   let open Misc.Stdlib.Monad.Result.Syntax in
   let best_sub = normalize ~mode:Require_best ~jkind_of_type sub in
-  let make_error () =
-    Error
-      (Violation.of_
-         (Not_a_subjkind
-            ( best_sub,
-              super )))
+  let require_le le_result =
+    match Misc.Le_result.is_le le_result with
+    | true -> Ok ()
+    | false ->
+      (* When we report an error, we want to show the best-normalized version of sub, but
+         the original super. When this check fails, it is usually the case that the super
+         was written by the user and the sub was inferred. Thus, we should display the
+         user-written jkind, but simplify the inferred one, since the inferred one is
+         probably overly complex. *)
+      (* CR layouts v2.8: It would be useful report to the user why this
+         violation occurred, specifically which axes the violation is along. *)
+      Error (Violation.of_ (Not_a_subjkind (best_sub, super)))
   in
   let* () =
     (* Validate layouts *)
-    match
-      Misc.Le_result.is_le (Layout.sub best_sub.jkind.layout super.jkind.layout)
-    with
-    | true -> Ok ()
-    | false -> make_error ()
+    require_le (Layout.sub best_sub.jkind.layout super.jkind.layout)
   in
   let best_super =
     (* MB_EXPAND_R *)
     normalize ~mode:Require_best ~jkind_of_type super
-  in
-  let* () =
-    (* todo: remove this? I'm not sure this is necessary *)
-    (* MB_MODE *)
-    match
-      Misc.Le_result.is_le
-        (Bounds.less_or_equal best_sub.jkind.mod_bounds
-           best_super.jkind.mod_bounds)
-    with
-    | true -> Ok ()
-    | false -> make_error ()
   in
   let paired_up_with_bounds, only_left =
     (* Pair up the with bounds based on types. It's important that each type that appears
@@ -2814,6 +2807,14 @@ let sub_jkind_l :
        paired_up_with_bounds. Types that appear on just the left side must have entries in
        only_left, but there can be multiple entries. (Types that appear on just the right
        can be dropped.) *)
+    (* CR layouts v2.8: I'm not so sure that the above comment isn't slightly too
+       aggressive. While it correctly reflects the implementation, I believe it is a
+       stronger condition than necessary. Actually what we want to ensure is that for each
+       with-bound that appears on the left, we match it to all right with-bounds with a
+       matching type. So it is ok for there to be multiple pairs with the same key type,
+       as long as the info on the right reflects all with-bounds for the type from the
+       right side. Loosening this restriction may make [With_bound_pairing.pair_up]
+       simpler and/or more efficient. *)
     With_bound_pairing.pair_up ~type_equal
       (With_bounds.to_with_bounds_types best_sub.jkind.with_bounds)
       (With_bounds.to_with_bounds_types best_super.jkind.with_bounds)
@@ -2842,43 +2843,21 @@ let sub_jkind_l :
   in
   (* Check that norm-not-best(left.mod_bounds with left_only) <= norm-best(right).mod_bounds *)
   let* () =
+    (* MB_MODE and MB_EXPAND_L *)
     let sub_highest_bounds =
       get_upper_bounds ~jkind_of_type
-        { best_sub with jkind = { best_sub.jkind with with_bounds = left_remainders } }
+        { best_sub with
+          jkind = { best_sub.jkind with with_bounds = left_remainders }
+        }
     in
     let super_lowest_bounds = best_super.jkind.mod_bounds in
-    match Bounds.le sub_highest_bounds super_lowest_bounds with
-    | true -> Ok ()
-    | false ->
-      (* let print_jkind ppf jkind =
-        Jkind_desc.Debug_printers.t ppf jkind ~print_type_expr:(fun _ _ -> ())
-      in
-      print_newline ();
-      print_endline "Starting";
-      Format.printf "sub: %a\n" print_jkind sub.jkind;
-      Format.printf "super: %a\n" print_jkind super.jkind;
-      Format.printf "best sub: %a\n" print_jkind best_sub.jkind;
-      Format.printf "best super: %a\n" print_jkind best_super.jkind;
-      Format.printf "# paired: %d\n" (List.length paired_up_with_bounds);
-      Format.printf "# left-only: %d\n" (List.length only_left);
-      Format.printf "leftovers: %a\n" print_jkind
-        { best_sub.jkind with
-          with_bounds =
-            List.map
-              (fun (ty, (Left_only left : With_bound_pairing.left_only)) ->
-                ty, left)
-              only_left
-            |> With_bounds.of_list
-        };
-      Format.printf "sub highest: %a\n" Bounds.debug_print sub_highest_bounds;
-      Format.printf "super lowest: %a\n" Bounds.debug_print super_lowest_bounds; *)
-      make_error ()
+    require_le (Bounds.less_or_equal sub_highest_bounds super_lowest_bounds)
   in
   Ok
     { best_sub with
       history =
-        combine_histories ~type_equal ~jkind_of_type Subjkind (Pack_jkind best_sub)
-          (Pack_jkind super)
+        combine_histories ~type_equal ~jkind_of_type Subjkind
+          (Pack_jkind best_sub) (Pack_jkind super)
     }
 
 let is_void_defaulting = function
