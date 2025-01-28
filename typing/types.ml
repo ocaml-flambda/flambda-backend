@@ -133,7 +133,7 @@ and 'd with_bounds =
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
-    upper_bounds : Jkind_bounds.t;
+    mod_bounds : Jkind_bounds.t;
     with_bounds : 'd with_bounds
   }
   constraint 'd = 'l * 'r
