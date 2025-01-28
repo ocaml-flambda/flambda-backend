@@ -30,6 +30,7 @@ type out_ident =
   | Oide_apply of out_ident * out_ident
   | Oide_dot of out_ident * string
   | Oide_ident of out_name
+  | Oide_hash of out_ident
 
 type out_string =
   | Ostr_string

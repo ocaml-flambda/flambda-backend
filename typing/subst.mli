@@ -33,10 +33,10 @@ type t
 
 val identity: t
 
-val add_type: Ident.t -> Path.t -> t -> t
-val add_type_path: Path.t -> Path.t -> t -> t
+val add_type: Ident.t -> Path.t -> has_unboxed_version:bool -> t -> t
+val add_type_path: Path.t -> Path.t -> has_unboxed_version:bool -> t -> t
 val add_type_function:
-  Path.t -> params:type_expr list -> body:type_expr -> t -> t
+  Path.t -> params:type_expr list -> body:type_expr -> has_unboxed_version:bool -> t -> t
 val add_module: Ident.t -> Path.t -> t -> t
 val add_module_path: Path.t -> Path.t -> t -> t
 val add_modtype: Ident.t -> module_type -> t -> t

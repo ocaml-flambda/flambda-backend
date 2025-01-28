@@ -59,14 +59,38 @@ let identity =
     last_compose = None;
   }
 
-let add_type_path id p s =
-  { s with types = Path.Map.add id (Path p) s.types; last_compose = None }
-let add_type id p s = add_type_path (Pident id) p s
+let add_type_path id p ~has_unboxed_version s =
+  let types = Path.Map.add id (Path p) s.types in
+  let types =
+    if has_unboxed_version then
+      Path.Map.add
+        (Path.unboxed_version id) (Path (Path.unboxed_version p)) types
+    else
+      types
+  in
+  { s with types; last_compose = None }
 
-let add_type_function id ~params ~body s =
-  { s with types = Path.Map.add id (Type_function { params; body }) s.types;
-    last_compose = None
-  }
+let add_type id p ~has_unboxed_version s =
+  add_type_path (Pident id) p ~has_unboxed_version s
+
+let add_type_function id ~params ~body ~has_unboxed_version s =
+  let types = Path.Map.add id (Type_function { params; body }) s.types in
+  let types =
+    if has_unboxed_version then
+      let body =
+        match get_desc body with
+        | Tconstr (path, args, _) ->
+          newty3 ~level:(get_level body) ~scope:(get_scope body)
+            (Tconstr(Path.unboxed_version path, args, ref Mnil))
+        | _ ->
+          fatal_error "Subst.add_type_function"
+      in
+      Path.Map.add
+        (Path.unboxed_version id) (Type_function { params; body }) types
+    else
+      types
+  in
+  { s with types; last_compose = None }
 
 let add_module_path id p s =
   { s with modules = Path.Map.add id p s.modules; last_compose = None }
@@ -249,7 +273,8 @@ let rec type_path s path =
         fatal_error "Subst.type_path"
      | Pextra_ty (p, extra) ->
          match extra with
-         | Pcstr_ty _ -> Pextra_ty (type_path s p, extra)
+         | Pcstr_ty _ | Punboxed_ty ->
+           Pextra_ty (type_path s p, extra)
          | Pext_ty -> Pextra_ty (value_path s p, extra)
 
 let to_subst_by_type_function s p =
@@ -529,7 +554,7 @@ let constructor_declaration copy_scope s c =
     cd_uid = c.cd_uid;
   }
 
-let type_declaration' copy_scope s decl =
+let rec type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
@@ -570,6 +595,9 @@ let type_declaration' copy_scope s decl =
     type_attributes = attrs s decl.type_attributes;
     type_unboxed_default = decl.type_unboxed_default;
     type_uid = decl.type_uid;
+    type_unboxed_version =
+      Option.map (type_declaration' copy_scope s) decl.type_unboxed_version;
+    type_is_unboxed_version = decl.type_is_unboxed_version;
   }
 
 let type_declaration s decl =
@@ -742,8 +770,9 @@ let rename_bound_idents scoping s sg =
     | [] -> sg, s
     | Sig_type(id, td, rs, vis) :: rest ->
         let id' = rename id in
+        let has_unboxed_version = Option.is_some td.type_unboxed_version in
         rename_bound_idents
-          (add_type id (Pident id') s)
+          (add_type id (Pident id') ~has_unboxed_version s)
           (Sig_type(id', td, rs, vis) :: sg)
           rest
     | Sig_module(id, pres, md, rs, vis) :: rest ->
@@ -762,14 +791,14 @@ let rename_bound_idents scoping s sg =
         (* cheat and pretend they are types cf. PR#6650 *)
         let id' = rename id in
         rename_bound_idents
-          (add_type id (Pident id') s)
+          (add_type id (Pident id') ~has_unboxed_version:false s)
           (Sig_class(id', cd, rs, vis) :: sg)
           rest
     | Sig_class_type(id, ctd, rs, vis) :: rest ->
         (* cheat and pretend they are types cf. PR#6650 *)
         let id' = rename id in
         rename_bound_idents
-          (add_type id (Pident id') s)
+          (add_type id (Pident id') ~has_unboxed_version:false s)
           (Sig_class_type(id', ctd, rs, vis) :: sg)
           rest
     | Sig_value(id, vd, vis) :: rest ->
