@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Run-time support for objects and classes.
@@ -44,7 +46,7 @@ val set_methods : table -> label array -> unit
 val narrow : table -> string array -> string array -> string array -> unit
 val widen : table -> unit
 val add_initializer : table -> (obj -> unit) -> unit
-val dummy_table : table
+val dummy_table : table @@ nonportable
 val create_table : string array -> table
 val init_class : table -> unit
 val inherits :
@@ -145,7 +147,7 @@ type params =
     mutable retry_count : int;
     mutable bucket_small_size : int }
 
-val params : params
+val params : params @@ nonportable
 
 (** {1 Statistics} *)
 

@@ -47,7 +47,7 @@ let with_open_gen flags perm s f =
   with_open (Stdlib.open_out_gen flags perm) s f
 
 external unsafe_output_bigarray :
-  t -> _ Bigarray.Array1.t -> int -> int -> unit
+  t -> _ Bigarray.Array1.t -> int -> int -> unit @@ portable
   = "caml_ml_output_bigarray"
 
 let seek = Stdlib.LargeFile.seek_out
@@ -70,10 +70,10 @@ let output_bigarray oc buf ofs len =
 
 let set_binary_mode = Stdlib.set_binary_mode_out
 
-external is_binary_mode : out_channel -> bool = "caml_ml_is_binary_mode"
+external is_binary_mode : out_channel -> bool @@ portable = "caml_ml_is_binary_mode"
 
-external set_buffered : t -> bool -> unit = "caml_ml_set_buffered"
+external set_buffered : t -> bool -> unit @@ portable = "caml_ml_set_buffered"
 
-external is_buffered : t -> bool = "caml_ml_is_buffered"
+external is_buffered : t -> bool @@ portable = "caml_ml_is_buffered"
 
-external isatty : t -> bool = "caml_sys_isatty"
+external isatty : t -> bool @@ portable = "caml_sys_isatty"

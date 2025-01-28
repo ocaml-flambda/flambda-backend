@@ -15,32 +15,32 @@ module C = Char
 - : char = 'B'
 module C' :
   sig
-    external code : char -> int = "%identity"
-    val chr : int -> char
-    val escaped : char -> string
-    val lowercase_ascii : char -> char
-    val uppercase_ascii : char -> char
+    external code : char -> int @@ portable = "%identity"
+    val chr : int -> char @@ portable
+    val escaped : char -> string @@ portable
+    val lowercase_ascii : char -> char @@ portable
+    val uppercase_ascii : char -> char @@ portable
     type t = char
-    val compare : t -> t -> int
-    val equal : t -> t -> bool
-    val seeded_hash : int -> t -> int
-    val hash : t -> int
-    external unsafe_chr : int -> char = "%identity"
+    val compare : t -> t -> int @@ portable
+    val equal : t -> t -> bool @@ portable
+    val seeded_hash : int -> t -> int @@ portable
+    val hash : t -> int @@ portable
+    external unsafe_chr : int -> char @@ portable = "%identity"
   end
 - : char = 'B'
 module C3 :
   sig
-    external code : char -> int = "%identity"
-    val chr : int -> char
-    val escaped : char -> string
-    val lowercase_ascii : char -> char
-    val uppercase_ascii : char -> char
+    external code : char -> int @@ portable = "%identity"
+    val chr : int -> char @@ portable
+    val escaped : char -> string @@ portable
+    val lowercase_ascii : char -> char @@ portable
+    val uppercase_ascii : char -> char @@ portable
     type t = char
-    val compare : t -> t -> int
-    val equal : t -> t -> bool
-    val seeded_hash : int -> t -> int
-    val hash : t -> int
-    external unsafe_chr : int -> char = "%identity"
+    val compare : t -> t -> int @@ portable
+    val equal : t -> t -> bool @@ portable
+    val seeded_hash : int -> t -> int @@ portable
+    val hash : t -> int @@ portable
+    external unsafe_chr : int -> char @@ portable = "%identity"
   end
 - : char = 'B'
 |}];;
@@ -59,31 +59,31 @@ C4.chr 66;;
 module F :
   functor (X : sig end) ->
     sig
-      external code : char -> int = "%identity"
-      val chr : int -> char
-      val escaped : char -> string
-      val lowercase_ascii : char -> char
-      val uppercase_ascii : char -> char
+      external code : char -> int @@ portable = "%identity"
+      val chr : int -> char @@ portable
+      val escaped : char -> string @@ portable
+      val lowercase_ascii : char -> char @@ portable
+      val uppercase_ascii : char -> char @@ portable
       type t = char
-      val compare : t -> t -> int
-      val equal : t -> t -> bool
-      val seeded_hash : int -> t -> int
-      val hash : t -> int
-      external unsafe_chr : int -> char = "%identity"
+      val compare : t -> t -> int @@ portable
+      val equal : t -> t -> bool @@ portable
+      val seeded_hash : int -> t -> int @@ portable
+      val hash : t -> int @@ portable
+      external unsafe_chr : int -> char @@ portable = "%identity"
     end
 module C4 :
   sig
-    external code : char -> int = "%identity"
-    val chr : int -> char
-    val escaped : char -> string
-    val lowercase_ascii : char -> char
-    val uppercase_ascii : char -> char
+    external code : char -> int @@ portable = "%identity"
+    val chr : int -> char @@ portable
+    val escaped : char -> string @@ portable
+    val lowercase_ascii : char -> char @@ portable
+    val uppercase_ascii : char -> char @@ portable
     type t = char
-    val compare : t -> t -> int
-    val equal : t -> t -> bool
-    val seeded_hash : int -> t -> int
-    val hash : t -> int
-    external unsafe_chr : int -> char = "%identity"
+    val compare : t -> t -> int @@ portable
+    val equal : t -> t -> bool @@ portable
+    val seeded_hash : int -> t -> int @@ portable
+    val hash : t -> int @@ portable
+    external unsafe_chr : int -> char @@ portable = "%identity"
   end
 - : char = 'B'
 |}];;
@@ -220,47 +220,47 @@ include C;;
 module type Complex =
   sig
     type t = Complex.t = { re : float; im : float; }
-    val zero : t
-    val one : t
-    val i : t
-    val neg : t -> t
-    val conj : t -> t
-    val add : t -> t -> t
-    val sub : t -> t -> t
-    val mul : t -> t -> t
-    val inv : t -> t
-    val div : t -> t -> t
-    val sqrt : t -> t
-    val norm2 : t -> float
-    val norm : t -> float
-    val arg : t -> float
-    val polar : float -> float -> t
-    val exp : t -> t
-    val log : t -> t
-    val pow : t -> t -> t
+    val zero : t @@ portable
+    val one : t @@ portable
+    val i : t @@ portable
+    val neg : t -> t @@ portable
+    val conj : t -> t @@ portable
+    val add : t -> t -> t @@ portable
+    val sub : t -> t -> t @@ portable
+    val mul : t -> t -> t @@ portable
+    val inv : t -> t @@ portable
+    val div : t -> t -> t @@ portable
+    val sqrt : t -> t @@ portable
+    val norm2 : t -> float @@ portable
+    val norm : t -> float @@ portable
+    val arg : t -> float @@ portable
+    val polar : float -> float -> t @@ portable
+    val exp : t -> t @@ portable
+    val log : t -> t @@ portable
+    val pow : t -> t -> t @@ portable
   end
 module M : sig module C : Complex end
 module C = Complex
 - : float = 1.
 type t = Complex.t = { re : float; im : float; }
-val zero : t = {re = 0.; im = 0.}
-val one : t = {re = 1.; im = 0.}
-val i : t = {re = 0.; im = 1.}
-val neg : t -> t = <fun>
-val conj : t -> t = <fun>
-val add : t -> t -> t = <fun>
-val sub : t -> t -> t = <fun>
-val mul : t -> t -> t = <fun>
-val inv : t -> t = <fun>
-val div : t -> t -> t = <fun>
-val sqrt : t -> t = <fun>
-val norm2 : t -> float = <fun>
-val norm : t -> float = <fun>
-val arg : t -> float = <fun>
-val polar : float -> float -> t = <fun>
-val exp : t -> t = <fun>
-val log : t -> t = <fun>
-val pow : t -> t -> t = <fun>
+val zero : t @@ portable = {re = 0.; im = 0.}
+val one : t @@ portable = {re = 1.; im = 0.}
+val i : t @@ portable = {re = 0.; im = 1.}
+val neg : t -> t @@ portable = <fun>
+val conj : t -> t @@ portable = <fun>
+val add : t -> t -> t @@ portable = <fun>
+val sub : t -> t -> t @@ portable = <fun>
+val mul : t -> t -> t @@ portable = <fun>
+val inv : t -> t @@ portable = <fun>
+val div : t -> t -> t @@ portable = <fun>
+val sqrt : t -> t @@ portable = <fun>
+val norm2 : t -> float @@ portable = <fun>
+val norm : t -> float @@ portable = <fun>
+val arg : t -> float @@ portable = <fun>
+val polar : float -> float -> t @@ portable = <fun>
+val exp : t -> t @@ portable = <fun>
+val log : t -> t @@ portable = <fun>
+val pow : t -> t -> t @@ portable = <fun>
 |}];;
 
 module F(X:sig module C = Char end) = struct module C = X.C end;;

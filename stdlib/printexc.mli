@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Facilities for printing exceptions and inspecting current call stack. *)
@@ -39,7 +41,7 @@ val print: ('a -> 'b) -> 'a -> 'b
    The typical use is to catch and report exceptions that
    escape a function application. *)
 
-val catch: ('a -> 'b) -> 'a -> 'b
+val catch: ('a -> 'b) -> 'a -> 'b @@ nonportable
 [@@ocaml.deprecated "This function is no longer needed."]
 (** [Printexc.catch fn x] is similar to {!Printexc.print}, but
    aborts the program with exit code 2 after printing the
@@ -86,7 +88,8 @@ val backtrace_status: unit -> bool
     @since 3.11
 *)
 
-val register_printer: (exn -> string option) -> unit
+val register_printer: (exn -> string option) -> unit @@ nonportable
+[@@alert unsafe_multidomain "Use [Printexc.Safe.register_printer]."]
 (** [Printexc.register_printer fn] registers [fn] as an exception
     printer.  The printer should return [None] or raise an exception
     if it does not know how to convert the passed exception, and [Some
@@ -175,7 +178,7 @@ val raw_backtrace_to_string: raw_backtrace -> string
     @since 4.01
 *)
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a
+external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable
   = "%raise_with_backtrace"
 (** Reraise the exception using the given raw_backtrace for the
     origin of the exception
@@ -203,7 +206,8 @@ val default_uncaught_exception_handler: exn -> raw_backtrace -> unit
     @since 4.11
 *)
 
-val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
+val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit @@ nonportable
+[@@alert unsafe_multidomain "Use [Printexc.Safe.set_uncaught_exception_handler]."]
 (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
     for uncaught exceptions. The default handler is
     {!Printexc.default_uncaught_exception_handler}.
@@ -414,6 +418,23 @@ val exn_slot_name: exn -> string
 
     @since 4.02
 *)
+
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  val register_printer: (exn -> string option) @ portable -> unit
+  (** Like {!register_printer}, but is safe to use in the presence of multiple domains.
+
+      The provided closure must be [portable] as exception printers may be called from
+      any domain, not just the one that it's registered on. *)
+
+  val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) @ portable -> unit
+  (** Like {!set_uncaught_exception_handler}, but is safe to use in the presence of
+      multiple domains.
+
+      The provided closure must be [portable] as exception handlers may be called from
+      any domain, not just the one that it's registered on. *)
+end
 
 (**/**)
 
