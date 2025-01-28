@@ -1507,6 +1507,9 @@ module Format_history = struct
     | Concrete_legacy_creation concrete ->
       format_concrete_legacy_creation_reason ppf concrete
     | Primitive id -> fprintf ppf "it is the primitive type %s" (Ident.name id)
+    | Unboxed_primitive id ->
+      fprintf ppf "it is unboxed version of the primitive type %s"
+        (Ident.name id)
     | Imported ->
       fprintf ppf "of %s requirements from an imported definition"
         layout_or_kind
@@ -2001,6 +2004,7 @@ module Debug_printers = struct
       fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
         concrete
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.name id)
+    | Unboxed_primitive id -> fprintf ppf "Unboxed_primitive %s" (Ident.name id)
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position

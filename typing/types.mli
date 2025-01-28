@@ -541,6 +541,8 @@ type type_declaration =
     type_unboxed_default: bool;
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
+    type_unboxed_version : type_declaration option;
+    type_is_unboxed_version : bool;
   }
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind

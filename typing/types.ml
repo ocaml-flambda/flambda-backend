@@ -269,6 +269,8 @@ type type_declaration =
     type_attributes: Parsetree.attributes;
     type_unboxed_default: bool;
     type_uid: Uid.t;
+    type_unboxed_version : type_declaration option;
+    type_is_unboxed_version : bool;
  }
 
 and type_decl_kind =

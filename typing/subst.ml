@@ -213,7 +213,8 @@ let rec type_path s path =
         fatal_error "Subst.type_path"
      | Pextra_ty (p, extra) ->
          match extra with
-         | Pcstr_ty _ -> Pextra_ty (type_path s p, extra)
+         | Pcstr_ty _ | Punboxed_ty
+           -> Pextra_ty (type_path s p, extra)
          | Pext_ty -> Pextra_ty (value_path s p, extra)
 
 let to_subst_by_type_function s p =
@@ -493,7 +494,7 @@ let constructor_declaration copy_scope s c =
     cd_uid = c.cd_uid;
   }
 
-let type_declaration' copy_scope s decl =
+let rec type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
@@ -531,6 +532,9 @@ let type_declaration' copy_scope s decl =
     type_attributes = attrs s decl.type_attributes;
     type_unboxed_default = decl.type_unboxed_default;
     type_uid = decl.type_uid;
+    type_unboxed_version =
+      Option.map (type_declaration' copy_scope s) decl.type_unboxed_version;
+    type_is_unboxed_version = decl.type_is_unboxed_version;
   }
 
 let type_declaration s decl =

@@ -1402,6 +1402,8 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin jkind =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    type_unboxed_version = None;
+    type_is_unboxed_version = false;
   }
 
 let existential_name name_counter ty =
@@ -4276,9 +4278,11 @@ let unify_pairs env ty1 ty2 pairs =
 let unify env ty1 ty2 =
   unify_pairs env ty1 ty2 []
 
-let unify_delaying_jkind_checks env ty1 ty2 =
+let unify_delaying_jkind_checks env ty_pairs =
   delay_jkind_checks_in (fun () ->
-    unify_pairs env ty1 ty2 [])
+    List.iter (fun (ty1, ty2) ->
+      unify_pairs env ty1 ty2 [])
+      ty_pairs)
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =
@@ -6784,7 +6788,7 @@ let nondep_type env id ty =
 let () = nondep_type' := nondep_type
 
 (* Preserve sharing inside type declarations. *)
-let nondep_type_decl env mid is_covariant decl =
+let rec nondep_type_decl env mid is_covariant decl =
   try
     let params = List.map (nondep_type_rec env mid) decl.type_params in
     let tk =
@@ -6808,6 +6812,10 @@ let nondep_type_decl env mid is_covariant decl =
       | Some ty when Btype.has_constr_row ty -> Private
       | _ -> priv
     in
+    let type_unboxed_version =
+      Option.map
+        (nondep_type_decl env mid is_covariant) decl.type_unboxed_version
+    in
     { type_params = params;
       type_arity = decl.type_arity;
       type_kind = tk;
@@ -6822,6 +6830,8 @@ let nondep_type_decl env mid is_covariant decl =
       type_attributes = decl.type_attributes;
       type_unboxed_default = decl.type_unboxed_default;
       type_uid = decl.type_uid;
+      type_unboxed_version;
+      type_is_unboxed_version = false;
     }
   with Nondep_cannot_erase _ as exn ->
     clear_hash ();
