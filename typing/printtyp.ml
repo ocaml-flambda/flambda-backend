@@ -49,9 +49,8 @@ module Style = Misc.Style
 
    In this case, there is no way to know the jkind without the annotation.
 
-   (* CR layouts v2.8: remove this case *)
-   (C1.2) The type has illegal mode crossings. In this case, the jkind is overridden by
-   the user rather than being inferred from the definition.
+   (C1.2) The type has unsafe mode crossings. In this case, the jkind is overridden by the
+   user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
    [type ('a : <<this one>>) t = ...].
@@ -1985,12 +1984,12 @@ let tree_of_type_decl id decl =
      Note [When to print jkind annotations] *)
   let is_value = Jkind.is_value_for_printing decl.type_jkind in
   let otype_jkind =
-    match ty, is_value, decl.type_has_illegal_crossings with
+    match ty, is_value, unsafe_mode_crossing with
     | (Otyp_abstract, false, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
-        (* type_has_illegal_crossings corresponds to C1.2 *)
+        (* unsafe_mode_crossing corresponds to C1.2 *)
         Some (out_jkind_of_desc (Jkind.get decl.type_jkind))
     | _ -> None (* other cases have no jkind annotation *)
   in
@@ -2447,7 +2446,6 @@ let dummy =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.internal_not_actually_unique;
-    type_has_illegal_crossings = false;
   }
 
 (** we hide items being defined from short-path to avoid shortening

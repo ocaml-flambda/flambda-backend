@@ -302,10 +302,12 @@ module Mutex = struct
     ; mutex : M.t
     ; mutable poisoned : bool
     }
+  [@@unsafe_allow_any_mode_crossing]
 
-  (* CR: illegal mode crossing on the current version of the compiler,
-     but should be legal. *)
   type packed : value mod portable uncontended = P : 'k t -> packed
+  [@@unsafe_allow_any_mode_crossing
+    "CR layouts v2.8: illegal mode crossing on the current version of the compiler, but \
+     should be legal."]
 
   let[@inline] name t = t.name
 
@@ -357,8 +359,12 @@ module Rwlock = struct
     ; rwlock : Rw.t
     ; mutable poisoned : bool
     }
+  [@@unsafe_allow_any_mode_crossing]
 
   type packed : value mod portable uncontended = P : 'k t -> packed
+  [@@unsafe_allow_any_mode_crossing
+    "CR layouts v2.8: This can go away once we have proper mode crossing \
+     inference for GADT constructors "]
 
   exception Poisoned
 
