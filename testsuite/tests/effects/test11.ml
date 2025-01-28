@@ -1,5 +1,7 @@
 (* TEST
- skip;
+   runtime5;
+   { bytecode; }
+   { native; }
 *)
 
 (* Tests RESUMETERM with extra_args != 0 in bytecode,
