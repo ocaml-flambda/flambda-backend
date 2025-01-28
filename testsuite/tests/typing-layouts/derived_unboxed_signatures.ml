@@ -373,8 +373,11 @@ Error:
          because of the definition of t at line 1, characters 0-29.
 |}]
 
-(***************************)
-(* Module type substitution*)
+(****************************)
+(* Module type substitution *)
+
+(* CR rtjoa: fix module type substitution *)
+
 
 (* with module type *)
 
@@ -440,6 +443,8 @@ Error: "M.M.t" has no unboxed version.
 
 (***********************)
 (* Package constraints *)
+
+(* CR rtjoa: fix package constraints *)
 
 (* Unboxed number *)
 
