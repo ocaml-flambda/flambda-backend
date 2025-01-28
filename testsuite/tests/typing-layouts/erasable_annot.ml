@@ -402,6 +402,86 @@ Error: Don't know how to untag this type. Only "int"
        and other immediate types can be untagged.
 |}];;
 
+(* Aliases *)
+
+type ('a : any) int64' = int64
+type int32' = int32
+type float' = float
+type 'a nativeint' = nativeint
+type nativeint'' = int nativeint'
+[%%expect{|
+type ('a : any) int64' = int64
+type int32' = int32
+type float' = float
+type 'a nativeint' = nativeint
+type nativeint'' = int nativeint'
+|}]
+
+external f_1 : int -> bool -> int int64'# = "foo" "bar";;
+[%%expect{|
+Line 1, characters 30-41:
+1 | external f_1 : int -> bool -> int int64'# = "foo" "bar";;
+                                  ^^^^^^^^^^^
+Warning 187 [incompatible-with-upstream]: [@unboxed] attribute must be added to external declaration
+argument type with layout bits64 for upstream compatibility.
+
+external f_1 : int -> bool -> (int int64'# [@unboxed]) = "foo" "bar"
+|}];;
+
+external f_2 : int32'# -> bool -> int = "foo" "bar";;
+[%%expect{|
+Line 1, characters 15-22:
+1 | external f_2 : int32'# -> bool -> int = "foo" "bar";;
+                   ^^^^^^^
+Warning 187 [incompatible-with-upstream]: [@unboxed] attribute must be added to external declaration
+argument type with layout bits32 for upstream compatibility.
+
+external f_2 : (int32'# [@unboxed]) -> bool -> int = "foo" "bar"
+|}];;
+
+external f_3 : (float'#[@unboxed]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+external f_3 : (float'# [@unboxed]) -> bool -> string = "foo" "bar"
+|}];;
+
+external f_4 : string -> (nativeint''#[@unboxed])  = "foo" "bar";;
+[%%expect{|
+external f_4 : string -> (nativeint''# [@unboxed]) = "foo" "bar"
+|}];;
+
+external f_4b : string -> (int nativeint'#[@unboxed])  = "foo" "bar";;
+[%%expect{|
+external f_4b : string -> (int nativeint'# [@unboxed]) = "foo" "bar"
+|}];;
+
+external f_5 : int64 -> string int64'#  = "foo" "bar" [@@unboxed];;
+[%%expect{|
+external f_5 : int64 -> string int64'# = "foo" "bar" [@@unboxed]
+|}];;
+
+external f_5b : int64 -> (string int64'# [@unboxed])  = "foo" "bar";;
+[%%expect{|
+external f_5b : int64 -> (string int64'# [@unboxed]) = "foo" "bar"
+|}];;
+
+external f_6 : (int32'[@untagged]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 16-22:
+1 | external f_6 : (int32'[@untagged]) -> bool -> string  = "foo" "bar";;
+                    ^^^^^^
+Error: Don't know how to untag this type. Only "int"
+       and other immediate types can be untagged.
+|}];;
+
+external f_7 : string -> (int64# int64'#[@untagged])  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 26-40:
+1 | external f_7 : string -> (int64# int64'#[@untagged])  = "foo" "bar";;
+                              ^^^^^^^^^^^^^^
+Error: Don't know how to untag this type. Only "int"
+       and other immediate types can be untagged.
+|}];;
+
 (* With [@layout_poly] *)
 
 external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"

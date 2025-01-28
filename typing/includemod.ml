@@ -390,7 +390,7 @@ let pair_components subst sig1_comps sig2 =
       | (id1, item1, pos1) ->
         let new_subst =
           match item2 with
-            Sig_type _ ->
+          | Sig_type _ ->
               Subst.add_type id2 (Path.Pident id1) subst
           | Sig_module _ ->
               Subst.add_module id2 (Path.Pident id1) subst

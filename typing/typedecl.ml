@@ -147,6 +147,7 @@ type error =
       }
   | Non_abstract_reexport of Path.t
   | Unsafe_mode_crossing_on_invalid_type_kind
+  | No_unboxed_version of Path.t
 
 open Typedtree
 
@@ -271,15 +272,16 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       ~default:any
       sdecl
   in
-  let abstract_source, type_manifest =
+  let abstract_source, type_manifest, unboxed_type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
     (* Make a manifest with an unrestricted type variable. This type variable
        essentially collects constraints that arise from the usage of the
        type being constructed. Nothing is gained by using the jkind from
        an annotation here, and doing so with separated left- and right-jkinds
        is hard to do. *)
-    | None, _ | Some _, None -> Definition, Some (Ctype.newvar any)
-    | Some _, Some reason -> reason, None
+    | None, _ | Some _, None ->
+      Definition, Some (Ctype.newvar any), Some (Ctype.newvar any)
+    | Some _, Some reason -> reason, None, None
 in
   let type_params =
     List.map (fun (param, _) ->
@@ -287,6 +289,26 @@ in
         let jkind = get_type_param_jkind path param in
         Btype.newgenvar ?name jkind)
       sdecl.ptype_params
+  in
+  (* In the temporary environment, all types get an unboxed version.
+     See Note [Typechecking unboxed versions of types]. *)
+  let type_unboxed_version =
+    Some { type_params;
+      type_arity = arity;
+      type_kind = Type_abstract abstract_source;
+      type_jkind;
+      type_private = sdecl.ptype_private;
+      type_manifest = unboxed_type_manifest;
+      type_variance = Variance.unknown_signature ~injective:false ~arity;
+      type_separability = Types.Separability.default_signature ~arity;
+      type_is_newtype = false;
+      type_expansion_scope = Btype.lowest_level;
+      type_loc = sdecl.ptype_loc;
+      type_attributes = sdecl.ptype_attributes;
+      type_unboxed_default = false;
+      type_uid = Uid.unboxed_version uid;
+      type_unboxed_version = None;
+    }
   in
   let decl =
     { type_params;
@@ -303,6 +325,7 @@ in
       type_attributes = sdecl.ptype_attributes;
       type_unboxed_default = false;
       type_uid = uid;
+      type_unboxed_version;
     }
   in
   add_type ~check:true id decl env
@@ -335,13 +358,27 @@ in
 let update_type temp_env env id loc =
   let path = Path.Pident id in
   let decl = Env.find_type path temp_env in
-  match decl.type_manifest with None -> assert false
-  | Some ty ->
-      try
-        Ctype.(unify_delaying_jkind_checks env
-                 (newconstr path decl.type_params) ty)
-      with Ctype.Unify err ->
-        raise (Error(loc, Type_clash (env, err)))
+  try
+    let checks =
+      match decl.type_manifest with
+      | Some ty ->
+        Ctype.unify_delaying_jkind_checks
+          env (Ctype.newconstr path decl.type_params) ty
+      | None -> Misc.fatal_error "Typedecl.update_type"
+    in
+    match decl.type_unboxed_version with
+    | None ->
+      checks
+    | Some { type_manifest = Some ty; type_params; _ } ->
+      let checks_from_unboxed_version =
+        Ctype.unify_delaying_jkind_checks env
+          (Ctype.newconstr (Path.unboxed_version path) type_params) ty
+      in
+      checks @ checks_from_unboxed_version
+    | Some { type_manifest = None; _ } ->
+      Misc.fatal_error "Typedecl.update_type"
+  with Ctype.Unify err ->
+    raise (Error(loc, Type_clash (env, err)))
 
 (* Determine if a type's values are represented by floats at run-time. *)
 (* CR layouts v2.5: Should we check for unboxed float here? Is a record with all
@@ -974,6 +1011,9 @@ let transl_declaration env sdecl (id, uid) =
         type_attributes = sdecl.ptype_attributes;
         type_unboxed_default = unboxed_default;
         type_uid = uid;
+        type_unboxed_version = None;
+        (* Unboxed versions are computed after all declarations have been
+           translated, in [derive_unboxed_versions] *)
       } in
   (* Check constraints *)
     List.iter
@@ -1020,9 +1060,62 @@ let transl_declaration env sdecl (id, uid) =
     decl, typ_shape
   end
 
+(* Record declarations with representation [Record_unboxed] get an implicit
+   unboxed record stored in [type_unboxed_version]. If that record is also an
+   alias, so is its stored unboxed version. E.g. [type t = r = { i : int }]'s
+   unboxed version gets kind [#{ i : int}] and manifest [r#].
+
+   Note that all aliases of types with unboxed versions, with an abstract kind,
+   also have unboxed versions, but these aren't stored in
+   [type_unboxed_version].
+*)
+let gets_unboxed_version decl =
+  (* CR-soon layouts v7.2: update for implicit unboxed records *)
+  ignore decl;
+  false
+let derive_unboxed_version env unboxed_versions_in_group decl =
+  (* CR-soon layouts v7.2: update for implicit unboxed records *)
+  ignore env;
+  ignore unboxed_versions_in_group;
+  ignore decl;
+  None
+
+let derive_unboxed_versions decls env =
+  let unboxed_versions_in_group =
+    Path.Set.of_list
+      (List.filter_map
+         (fun (id, d) ->
+            if gets_unboxed_version d then Some (Path.Pident id) else None)
+        decls)
+  in
+  List.map
+    (fun (id, d) ->
+       let type_unboxed_version =
+         derive_unboxed_version env unboxed_versions_in_group d
+       in
+       id, { d with type_unboxed_version })
+    decls
+
+(* Float and [@@unboxed] records are typechecked as boxed records until
+   [update_decls_jkind], so their unboxed versions need to be removed
+   afterwards.
+
+   Returns new decls and paths whose unboxed versions got removed. *)
+let remove_unboxed_versions decls =
+  List.fold_left_map
+    (fun removed (id, d) ->
+      match Option.is_some d.type_unboxed_version, gets_unboxed_version d with
+      | false, false | true, true -> removed, (id, d)
+      | true, false ->
+        Path.Set.add (Pident id) removed,
+        (id, { d with type_unboxed_version = None })
+      | false, true -> Misc.fatal_error "Typedecl.remove_unboxed_versions")
+    Path.Set.empty decls
+
 (* Generalize a type declaration *)
 
-let generalize_decl decl =
+let rec generalize_decl decl =
+  Option.iter generalize_decl (decl.type_unboxed_version);
   List.iter Ctype.generalize decl.type_params;
   Btype.iter_type_expr_kind Ctype.generalize decl.type_kind;
   begin match decl.type_manifest with
@@ -1196,13 +1289,13 @@ let check_kind_coherence env loc dpath decl =
             | exception Ctype.Equality err ->
                 Some (Includecore.Constraint err)
             | () ->
-                Includecore.type_declarations ~loc ~equality:true env
-                  ~mark:true
-                  (Path.last path)
-                  decl'
-                  dpath
-                  (Subst.type_declaration
-                     (Subst.add_type_path dpath path Subst.identity) decl)
+              Includecore.type_declarations ~loc ~equality:true env
+                ~mark:true
+                (Path.last path)
+                decl'
+                dpath
+                (Subst.type_declaration
+                    (Subst.add_type_path dpath path Subst.identity) decl)
           end
         in
         if err <> None then
@@ -1216,6 +1309,10 @@ let check_kind_coherence env loc dpath decl =
 
 let check_coherence env loc dpath decl =
   check_kind_coherence env loc dpath decl;
+  begin match decl.type_unboxed_version with
+  | Some decl' ->
+    check_kind_coherence env loc (Path.unboxed_version dpath) decl'
+  | None -> () end;
   narrow_to_manifest_jkind env loc decl
 
 let check_abbrev env sdecl (id, decl) =
@@ -1498,7 +1595,14 @@ let update_constructor_representation
    is consistent with (i.e. a subjkind of) any jkind annotation.
    See Note [Default jkinds in transl_declaration].
 *)
-let update_decl_jkind env dpath decl =
+let rec update_decl_jkind env dpath decl =
+  let type_unboxed_version =
+    Option.map
+      (fun d ->
+        update_decl_jkind env (Path.unboxed_version dpath) d)
+      decl.type_unboxed_version
+  in
+  let decl = { decl with type_unboxed_version } in
   let open struct
     (* For tracking what types appear in record blocks. *)
     type element_repr_summary =
@@ -1800,6 +1904,35 @@ let update_decls_jkind env decls =
     (fun (id, decl) -> (id, update_decl_jkind env (Pident id) decl))
     decls
 
+let check_unboxed_paths decls ~unboxed_version_banned =
+  (* We iterate on all subexpressions of the declaration to check "in depth"
+     that no non-existent unboxed version is used. *)
+  let open Btype in
+  let checked =
+    (* [checked] remembers the types that the iterator already
+        checked, to avoid looping on cyclic types. *)
+    ref TypeSet.empty
+  in
+  let check_ty loc ty =
+    match get_desc ty with
+    | Tconstr(Pextra_ty (path, Punboxed_ty), _, _)
+      when unboxed_version_banned path ->
+        raise (Error (loc, No_unboxed_version path))
+    | _ -> ()
+  in
+  let check_decl d =
+    let it =
+      {type_iterators with it_type_expr =
+        (fun self ty ->
+          if not (TypeSet.mem ty !checked) then begin
+            check_ty d.type_loc ty;
+            checked := TypeSet.add ty !checked;
+            self.it_do_type_expr self ty
+          end)}
+    in
+    it.it_type_declaration it (Ctype.generic_instance_declaration d)
+  in
+  List.iter (fun (_, d) -> check_decl d) decls
 
 (* Note: Well-foundedness for OCaml types
 
@@ -2151,7 +2284,13 @@ let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
 let check_unboxed_recursion_decl ~abs_env env loc path decl to_check =
   let decl = Ctype.generic_instance_declaration decl in
   let ty = Btype.newgenty (Tconstr (path, decl.type_params, ref Mnil)) in
-  check_unboxed_recursion ~abs_env env loc (Path.name path) ty to_check
+  check_unboxed_recursion ~abs_env env loc (Path.name path) ty to_check;
+  match decl.type_unboxed_version with
+  | None -> ()
+  | Some decl ->
+      let path = Path.unboxed_version path in
+      let ty = Btype.newgenty (Tconstr (path, decl.type_params, ref Mnil)) in
+      check_unboxed_recursion ~abs_env env loc (Path.name path) ty to_check
 
 (* Check for non-regular abbreviations; an abbreviation
    [type 'a t = ...] is non-regular if the expansion of [...]
@@ -2391,10 +2530,12 @@ let transl_type_decl env rec_flag sdecl_list =
          enviroment. *)
       let tdecls =
         List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
-      let decls, shapes =
-        List.map (fun (tdecl, shape) ->
-          (tdecl.typ_id, tdecl.typ_type), shape) tdecls
-        |> List.split
+      let tdecls, shapes = List.split tdecls in
+      let decls = List.map (fun d -> (d.typ_id, d.typ_type)) tdecls in
+      let decls = derive_unboxed_versions decls env in
+      let tdecls =
+        List.map2
+          (fun tdecl (_, decl) -> { tdecl with typ_type = decl }) tdecls decls
       in
       current_slot := None;
       (* Check for duplicates *)
@@ -2428,19 +2569,27 @@ let transl_type_decl env rec_flag sdecl_list =
     List.fold_left2
       (enter_type ~abstract_abbrevs:Rec_check_regularity rec_flag)
       env sdecl_list ids_list in
+  check_unboxed_paths decls
+    ~unboxed_version_banned:(fun path ->
+       match Env.find_type (Path.unboxed_version path) new_env with
+        | _ -> false | exception Not_found -> true);
   List.iter (fun (id, decl) ->
     check_well_founded_manifest ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id) decl)
     decls;
   let to_check =
-    function Path.Pident id -> List.mem_assoc id id_loc_list | _ -> false in
+    function
+    | Path.Pident id | Path.Pextra_ty (Path.Pident id, Punboxed_ty) ->
+      List.mem_assoc id id_loc_list
+    | _ -> false
+  in
   List.iter (fun (id, decl) ->
     check_well_founded_decl ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id)
       decl to_check)
     decls;
-  List.iter (fun (tdecl, _shape) ->
-    check_abbrev_regularity ~abs_env new_env id_loc_list to_check tdecl) tdecls;
+  List.iter
+    (check_abbrev_regularity ~abs_env new_env id_loc_list to_check) tdecls;
   List.iter (fun (id, decl) ->
     check_unboxed_recursion_decl ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id)
@@ -2487,7 +2636,7 @@ let transl_type_decl env rec_flag sdecl_list =
      check_constraints will succeed via mutation, be backtracked, and then
      perhaps a sort variable gets defaulted to value. Bad bad.) *)
   List.iter2
-    (fun sdecl (tdecl, _shape) ->
+    (fun sdecl tdecl ->
       let decl = tdecl.typ_type in
        match Ctype.closed_type_decl decl with
          Some ty -> raise(Error(sdecl.ptype_loc, Unbound_type_var(ty,decl)))
@@ -2510,6 +2659,10 @@ let transl_type_decl env rec_flag sdecl_list =
     | Typedecl_separability.Error (loc, err) ->
         raise (Error (loc, Separability err))
   in
+  let removed, decls = remove_unboxed_versions decls in
+  if not (Path.Set.is_empty removed) then
+    check_unboxed_paths decls
+      ~unboxed_version_banned:(fun p -> Path.Set.mem p removed);
   (* Check re-exportation, updating [type_jkind] from the manifest *)
   let decls = List.map2 (check_abbrev new_env) sdecl_list decls in
   (* Compute the final environment with variance and immediacy *)
@@ -2517,7 +2670,7 @@ let transl_type_decl env rec_flag sdecl_list =
   (* Keep original declaration *)
   let final_decls =
     List.map2
-      (fun (tdecl, _shape) (_id2, decl) ->
+      (fun tdecl (_id2, decl) ->
         { tdecl with typ_type = decl }
       ) tdecls decls
   in
@@ -3423,6 +3576,44 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
+  let type_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+  let type_unboxed_version =
+    match get_desc man with
+    | Tconstr (path, args, _) ->
+      begin match Env.find_type path sig_env with
+      | { type_unboxed_version = Some decl ; _ } ->
+        let man = Ctype.newconstr (Path.unboxed_version path) args in
+        let type_kind =
+          match sig_decl.type_unboxed_version, arity_ok with
+          | Some { type_kind ; _ }, true -> type_kind
+          | None, _ | _, false -> Type_abstract Definition
+        in
+        let type_jkind = decl.type_jkind in
+        Some {
+          type_params = params;
+          type_arity = arity;
+          type_kind;
+          type_jkind;
+          type_private = priv;
+          type_manifest = Some man;
+          type_variance = [];
+          type_separability = Types.Separability.default_signature ~arity;
+          type_is_newtype = false;
+          type_expansion_scope = Btype.lowest_level;
+          type_loc = loc;
+          type_attributes = decl.type_attributes;
+          type_unboxed_default = false;
+          type_uid = Uid.unboxed_version type_uid;
+          type_unboxed_version = None;
+        }
+      | { type_unboxed_version = None ; _ } ->
+        None
+      | exception Not_found ->
+        (* If [man] was translated already, this should be unreachable *)
+        Misc.fatal_error "Typedecl.transl_with_constraint"
+      end
+    | _ -> None
+  in
   let type_kind, type_unboxed_default, type_jkind =
     if arity_ok then
       sig_decl.type_kind,
@@ -3445,7 +3636,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_loc = loc;
       type_attributes = sdecl.ptype_attributes;
       type_unboxed_default;
-      type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+      type_uid;
+      type_unboxed_version;
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -3455,9 +3647,10 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   end;
   let new_sig_decl = name_recursion sdecl id new_sig_decl in
   let new_type_variance =
-    let required = Typedecl_variance.variance_of_sdecl sdecl in
+    let required = Typedecl_variance.variance_of_params sdecl.ptype_params in
     try
-      Typedecl_variance.compute_decl env ~check:(Some id) new_sig_decl required
+      Typedecl_variance.compute_decl env ~check:(Some (id, false)) new_sig_decl
+        required
     with Typedecl_variance.Error (loc, err) ->
       raise (Error (loc, Variance err)) in
   let new_type_separability =
@@ -3483,8 +3676,33 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_attributes = new_sig_decl.type_attributes;
       type_uid = new_sig_decl.type_uid;
 
+      (* For every recomputed field added below, consider if we also must
+         recompute it for the unboxed version. *)
       type_variance = new_type_variance;
       type_separability = new_type_separability;
+      type_unboxed_version =
+        Option.map (fun d ->
+          let type_variance =
+            let required =
+              Typedecl_variance.variance_of_params sdecl.ptype_params in
+            try
+              Typedecl_variance.compute_decl env ~check:(Some (id, true))
+                d required
+            with Typedecl_variance.Error (loc, err) ->
+              raise (Error (loc, Variance err))
+          in
+          let type_separability =
+            try
+              Typedecl_separability.compute_decl env d
+            with Typedecl_separability.Error (loc, err) ->
+              raise (Error (loc, Separability err))
+          in
+          {
+            d with
+            type_variance;
+            type_separability;
+          })
+        new_sig_decl.type_unboxed_version
     } in
   {
     typ_id = id;
@@ -3523,6 +3741,7 @@ let transl_package_constraint ~loc ty =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    type_unboxed_version = None;
   }
 
 (* Approximate a type declaration: just make all types abstract *)
@@ -3545,6 +3764,24 @@ let abstract_type_decl ~injective ~jkind ~params =
       type_attributes = [];
       type_unboxed_default = false;
       type_uid = Uid.internal_not_actually_unique;
+      type_unboxed_version =
+        Some {
+          type_params = params;
+          type_arity = arity;
+          type_kind = Type_abstract Definition;
+          type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+          type_private = Public;
+          type_manifest = None;
+          type_variance = Variance.unknown_signature ~injective ~arity;
+          type_separability = Types.Separability.default_signature ~arity;
+          type_is_newtype = false;
+          type_expansion_scope = Btype.lowest_level;
+          type_loc = Location.none;
+          type_attributes = [];
+          type_unboxed_default = false;
+          type_uid = Uid.internal_not_actually_unique;
+          type_unboxed_version = None;
+        };
     }
   end
 
@@ -3878,12 +4115,22 @@ let report_error ppf = function
            Printtyp.prepare_for_printing [ variable ];
            Printtyp.Naming_context.reset ();
            begin match context with
-           | Type_declaration (id, decl) ->
+           | Type_declaration { id ; decl ; unboxed_version } ->
+               let pre, post =
+                 if unboxed_version then
+                   (* Unexpected; errors in the unboxed version should have also
+                      been present and reported first for the boxed version. *)
+                   "In the unboxed version of the definition",
+                 "@ Please report this error to the Jane Street compilers team."
+                 else
+                   "In the definition", ""
+               in
                Printtyp.add_type_declaration_to_preparation id decl;
-               fprintf ppf "@[<v>%s@;<1 2>%a@;"
-                 "In the definition"
+               fprintf ppf "@[<v>%s@;<1 2>%a@;%s"
+                 pre
                  (Style.as_inline_code @@ Printtyp.prepared_type_declaration id)
                  decl
+                 post
            | Gadt_constructor c ->
                Printtyp.add_constructor_to_preparation c;
                fprintf ppf "@[<v>%s@;<1 2>%a@;"
@@ -4147,6 +4394,9 @@ let report_error ppf = function
     fprintf ppf
       "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.\
        @ Only records, unboxed products, and variants are supported.@]"
+  | No_unboxed_version p ->
+      fprintf ppf "@[The type %a@ has no unboxed version.@]"
+        (Style.as_inline_code Printtyp.path) p
 
 let () =
   Location.register_error_of_exn

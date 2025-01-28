@@ -37,12 +37,12 @@ let () =
 
 (* Unboxed *)
 
-type int8x16 = int8x16#
-type int16x8 = int16x8#
-type int32x4 = int32x4#
-type int64x2 = int64x2#
-type float32x4 = float32x4#
-type float64x2 = float64x2#
+type nonrec int8x16 = int8x16#
+type nonrec int16x8 = int16x8#
+type nonrec int32x4 = int32x4#
+type nonrec int64x2 = int64x2#
+type nonrec float32x4 = float32x4#
+type nonrec float64x2 = float64x2#
 
 external int64x2_of_int64s : int64 -> int64 -> int64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
 external int64x2_low_int64 : int64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
@@ -188,7 +188,7 @@ let () =
   check v 11L 14L
 ;;
 
-type record2 = { imm0 : int; str1 : string; a : int64x2# }
+type record2 = { imm0 : int; str1 : string; a : int64x2 }
 
 let copy_via_weak x =
   let weak = Weak.create 1 in
