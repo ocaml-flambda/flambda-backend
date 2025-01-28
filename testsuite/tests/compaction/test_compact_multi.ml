@@ -1,5 +1,5 @@
 (* TEST
- flags += "-alert -unsafe_parallelism";
+ flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  {
    runtime4;
    skip;
@@ -45,4 +45,3 @@ let () =
   Atomic.set release true;
   (* join the domains *)
   Array.iter Domain.join domains
-
