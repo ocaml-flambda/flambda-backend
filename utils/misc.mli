@@ -211,6 +211,11 @@ module Stdlib : sig
         that appear only in the left list, [right_only] on those elements
         that appear only in the right list, and [both] on those elements that
         appear in both. *)
+
+    val find_and_drop : f:('a -> bool) -> 'a list -> ('a * 'a list) option
+    (** [find_and_drop ~f l] finds the first element [e] of [l] such that [f e] is [true].
+        If there is such an element, it returns [e], along with [l] after removing [e].
+        Otherwise, it returns [None]. *)
   end
 
 (** {2 Extensions to the Option module} *)

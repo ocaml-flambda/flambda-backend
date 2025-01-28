@@ -258,11 +258,14 @@ and jkind_history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
+and 'a best_effort_type_map
+and 'a best_effort_nonempty_type_map
+
 (** The types within the with-bounds of a jkind *)
-and with_bounds_types
+and with_bounds_types = With_bounds_type_info.t best_effort_type_map
 
 (** The types within the with-bounds of a jkind; guaranteed to be non-empty. *)
-and nonempty_with_bounds_types
+and nonempty_with_bounds_types = With_bounds_type_info.t best_effort_nonempty_type_map
 
 and 'd with_bounds =
   | No_with_bounds : ('l * 'r) with_bounds
@@ -310,36 +313,35 @@ and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
 
 (** This module provides the interface to construct, query, and destruct
     [with_bounds_types] and [nonempty_with_bounds_types]. Under the hood this is a
-    [Stdlib.Map] from [type_expr] to [With_bounds_type_info.t]
+    [Stdlib.Map] with [type_expr] as the key.
 *)
-module With_bounds_types : sig
-  type info := With_bounds_type_info.t
-  type t := with_bounds_types
+module Best_effort_type_map : sig
+  type 'a t = 'a best_effort_type_map
 
-  val empty : t
-  val is_empty : t -> bool
-  val to_seq : t -> (type_expr * info) Seq.t
-  val of_list : (type_expr * info) list -> t
-  val map : (info -> info) -> t -> t
+  val empty : 'a t
+  val is_empty : 'a t -> bool
+  val to_seq : 'a t -> (type_expr * 'a) Seq.t
+  val of_list : (type_expr * 'a) list -> 'a t
+  val map : ('a -> 'a) -> 'a t -> 'a t
   val merge
-    : (type_expr -> info option -> info option -> info option) ->
-    t -> t -> t
-  val update : type_expr -> (info option -> info option) -> t -> t
+    : (type_expr -> 'a option -> 'b option -> 'c option) ->
+    'a t -> 'b t -> 'c t
+  val update : type_expr -> ('a option -> 'a option) -> 'a t -> 'a t
 
   (** A guaranteed non-empty set of with-bounds types *)
   module Non_empty : sig
-    type maybe_empty := t
-    type t = nonempty_with_bounds_types
+    type 'a maybe_empty := 'a t
+    type 'a t = 'a best_effort_nonempty_type_map
 
-    val of_maybe_empty : maybe_empty -> t option
-    val to_maybe_empty : t -> maybe_empty
-    val singleton : type_expr -> info -> t
-    val to_seq : t -> (type_expr * info) Seq.t
-    val map : (info -> info) -> t -> t
+    val of_maybe_empty : 'a maybe_empty -> 'a t option
+    val to_maybe_empty : 'a t -> 'a maybe_empty
+    val singleton : type_expr -> 'a -> 'a t
+    val to_seq : 'a t -> (type_expr * 'a) Seq.t
+    val map : ('a -> 'a) -> 'a t -> 'a t
     val merge
-      : (type_expr -> info option -> info option -> info option) ->
-      t -> t -> t
-    val update : type_expr -> (info option -> info option) -> t -> t
+      : (type_expr -> 'a option -> 'a option -> 'a option) ->
+      'a t -> 'a t -> 'a t
+    val update : type_expr -> ('a option -> 'a option) -> 'a t -> 'a t
   end
 end
 

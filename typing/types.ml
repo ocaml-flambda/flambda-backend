@@ -47,7 +47,7 @@ end
    A safe interface, without [Obj], is defined later as [With_bounds_types]. This module
    should not be used outside of that module.
 *)
-module With_bounds_type_map_unsafe = struct
+module Best_effort_type_map_unsafe = struct
   (* Defined later, after [type_expr]. *)
   let compare_type_expr =
     ref (fun _ _ ->
@@ -143,8 +143,10 @@ and jkind_history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
-and with_bounds_types =
-  With_bounds_type_info.t With_bounds_type_map_unsafe.t
+and 'a best_effort_type_map = 'a Best_effort_type_map_unsafe.t
+and 'a best_effort_nonempty_type_map = 'a Best_effort_type_map_unsafe.t
+
+and with_bounds_types = With_bounds_type_info.t best_effort_type_map
 and nonempty_with_bounds_types = with_bounds_types
 
 and 'd with_bounds =
@@ -1074,44 +1076,44 @@ let rec best_effort_compare_type_expr te1 te2 =
     | _, _ -> rank te1 - rank te2
 
 let () =
-  With_bounds_type_map_unsafe.compare_type_expr :=
+  Best_effort_type_map_unsafe.compare_type_expr :=
     (fun obj1 obj2 ->
        best_effort_compare_type_expr
          (Obj.obj obj1 : type_expr)
          (Obj.obj obj2 : type_expr))
 
-module With_bounds_types : sig
+module Best_effort_type_map : sig
   (* Note that only the initially needed bits of [Stdlib.Map.S] are exposed here; feel
      free to expose more functions if you need them! *)
-  type info := With_bounds_type_info.t
-  type t := with_bounds_types
+  type 'a t = 'a best_effort_type_map
 
-  val empty : t
-  val is_empty : t -> bool
-  val to_seq : t -> (type_expr * info) Seq.t
-  val of_list : (type_expr * info) list -> t
-  val update : type_expr -> (info option -> info option) -> t -> t
+  val empty : 'a t
+  val is_empty : 'a t -> bool
+  val to_seq : 'a t -> (type_expr * 'a) Seq.t
+  val of_list : (type_expr * 'a) list -> 'a t
+  val map : ('a -> 'a) -> 'a t -> 'a t
   val merge
-    : (type_expr -> info option -> info option -> info option) ->
-    t -> t -> t
-  val map : (info -> info) -> t -> t
+    : (type_expr -> 'a option -> 'b option -> 'c option) ->
+    'a t -> 'b t -> 'c t
+  val update : type_expr -> ('a option -> 'a option) -> 'a t -> 'a t
 
+  (** A guaranteed non-empty set of with-bounds types *)
   module Non_empty : sig
-    type maybe_empty := t
-    type t = nonempty_with_bounds_types
+    type 'a maybe_empty := 'a t
+    type 'a t = 'a best_effort_nonempty_type_map
 
-    val of_maybe_empty : maybe_empty -> t option
-    val to_maybe_empty : t -> maybe_empty
-    val singleton : type_expr -> info -> t
-    val update : type_expr -> (info option -> info option) -> t -> t
+    val of_maybe_empty : 'a maybe_empty -> 'a t option
+    val to_maybe_empty : 'a t -> 'a maybe_empty
+    val singleton : type_expr -> 'a -> 'a t
+    val to_seq : 'a t -> (type_expr * 'a) Seq.t
+    val map : ('a -> 'a) -> 'a t -> 'a t
     val merge
-      : (type_expr -> info option -> info option -> info option) ->
-      t -> t -> t
-    val to_seq : t -> (type_expr * info) Seq.t
-    val map : (info -> info) -> t -> t
+      : (type_expr -> 'a option -> 'a option -> 'a option) ->
+      'a t -> 'a t -> 'a t
+    val update : type_expr -> ('a option -> 'a option) -> 'a t -> 'a t
   end
 end = struct
-  module U = With_bounds_type_map_unsafe
+  module U = Best_effort_type_map_unsafe
   include U
 
   let to_seq t = to_seq t |> Seq.map (fun (ty, ti) -> ((Obj.obj ty : type_expr), ti))
@@ -1124,7 +1126,7 @@ end = struct
   let merge f = merge (fun ty -> f (Obj.obj ty : type_expr))
 
   module Non_empty = struct
-    type t = nonempty_with_bounds_types
+    type 'a t = 'a best_effort_nonempty_type_map
     let of_maybe_empty t = if is_empty t then None else Some t
     let to_maybe_empty = Fun.id
     let singleton ty ti = add (Obj.repr ty) ti empty

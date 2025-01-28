@@ -352,9 +352,6 @@ module With_bounds = struct
       let open Format in
       fprintf ppf "@[{ relevant_axes = %a }]" Axis_set.print relevant_axes
 
-    let is_on_axis (type a) ~(axis : a Axis.t) { relevant_axes } =
-      Axis_set.mem relevant_axes axis
-
     let make_irrelevant { relevant_axes } ~axis =
       { relevant_axes = Axis_set.remove relevant_axes axis }
 
@@ -362,10 +359,22 @@ module With_bounds = struct
       { relevant_axes = Axis_set.union axes1 axes2 }
   end
 
+  let to_with_bounds_types = function
+    | No_with_bounds -> Best_effort_type_map.empty
+    | With_bounds bounds -> Best_effort_type_map.Non_empty.to_maybe_empty bounds
+
   let to_list : type d. d with_bounds -> _ = function
     | No_with_bounds -> []
     | With_bounds tys ->
-      tys |> With_bounds_types.Non_empty.to_seq |> List.of_seq
+      tys |> Best_effort_type_map.Non_empty.to_seq |> List.of_seq
+
+  let of_list list =
+    match
+      Best_effort_type_map.of_list list
+      |> Best_effort_type_map.Non_empty.of_maybe_empty
+    with
+    | None -> No_with_bounds
+    | Some bounds -> With_bounds bounds
 
   open Allowance
 
@@ -400,25 +409,18 @@ module With_bounds = struct
     | No_with_bounds -> No_with_bounds
     | With_bounds tys ->
       With_bounds
-        (tys |> With_bounds_types.Non_empty.to_seq
+        (tys |> Best_effort_type_map.Non_empty.to_seq
         |> Seq.map (fun (ty, ti) -> f ty, ti)
-        |> List.of_seq |> With_bounds_types.of_list
-        |> With_bounds_types.Non_empty.of_maybe_empty |> Option.get)
-
-  let types_on_axis (type l r a) ~(axis : a Jkind_axis.Axis.t) : (l * r) t -> _
-      = function
-    | No_with_bounds -> []
-    | With_bounds tys ->
-      tys |> With_bounds_types.Non_empty.to_seq
-      |> Seq.filter_map (fun (te, ti) ->
-             if Type_info.is_on_axis ~axis ti then Some te else None)
-      |> List.of_seq
+        |> List.of_seq |> Best_effort_type_map.of_list
+        |> Best_effort_type_map.Non_empty.of_maybe_empty |> Option.get)
 
   let make_irrelevant (type l r) ~axis : (l * r) t -> (l * r) t = function
     | No_with_bounds -> No_with_bounds
     | With_bounds ts ->
       With_bounds
-        (With_bounds_types.Non_empty.map (Type_info.make_irrelevant ~axis) ts)
+        (Best_effort_type_map.Non_empty.map
+           (Type_info.make_irrelevant ~axis)
+           ts)
 
   let debug_print (type l r) ~print_type_expr ppf : (l * r) t -> _ =
     let open Format in
@@ -430,10 +432,10 @@ module With_bounds = struct
            ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
            (fun ppf (ty, ti) ->
              fprintf ppf "@[(%a, %a)]" print_type_expr ty Type_info.print ti))
-        (With_bounds_types.Non_empty.to_seq tys)
+        (Best_effort_type_map.Non_empty.to_seq tys)
 
   let join_bounds =
-    With_bounds_types.Non_empty.merge (fun _ ti1 ti2 ->
+    Best_effort_type_map.Non_empty.merge (fun _ ti1 ti2 ->
         match ti1, ti2 with
         | None, None -> None
         | Some ti, None -> Some ti
@@ -458,7 +460,7 @@ module With_bounds = struct
     match bag1, bag2 with No_with_bounds, No_with_bounds -> No_with_bounds
 
   let add_bound type_expr type_info tys =
-    With_bounds_types.Non_empty.update type_expr
+    Best_effort_type_map.Non_empty.update type_expr
       (function
         | None -> Some type_info | Some ti -> Some (Type_info.join ti type_info))
       tys
@@ -466,7 +468,7 @@ module With_bounds = struct
   let add type_expr type_info bounds =
     match bounds with
     | No_with_bounds ->
-      With_bounds (With_bounds_types.Non_empty.singleton type_expr type_info)
+      With_bounds (Best_effort_type_map.Non_empty.singleton type_expr type_info)
     | With_bounds bounds -> With_bounds (add_bound type_expr type_info bounds)
 
   let add_modality ~relevant_for_nullability ~modality ~type_expr
@@ -503,7 +505,8 @@ module With_bounds = struct
     match t with
     | No_with_bounds ->
       With_bounds
-        (With_bounds_types.Non_empty.singleton type_expr { relevant_axes })
+        (Best_effort_type_map.Non_empty.singleton type_expr
+           ({ relevant_axes } : With_bounds_type_info.t))
     | With_bounds tys -> With_bounds (add_bound type_expr { relevant_axes } tys)
 end
 
@@ -1501,7 +1504,7 @@ module Jkind_desc = struct
             match bs with
             | [] -> No_with_bounds
             | _ ->
-              With_bounds (With_bounds_types.of_list bs |> Obj.magic)
+              With_bounds (Best_effort_type_map.of_list bs |> Obj.magic)
               |> Obj.magic ))
         | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
         | Continue ctl_after_unpacking_b -> (
@@ -1950,9 +1953,25 @@ let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
 
 let extract_layout jk = jk.jkind.layout
 
+let get_upper_bounds ~jkind_of_type jk =
+  let jk = normalize ~mode:Ignore_best ~jkind_of_type jk in
+  (match jk.jkind.with_bounds with
+  | No_with_bounds -> ()
+  | With_bounds _ ->
+    Misc.fatal_errorf
+      "Expected no with-bounds after normalizing without requiring best. If \
+       you see this error, please contact the Jane Street compiler team.");
+  jk.jkind.mod_bounds
+
 let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
     Alloc.Const.t =
   let jk = normalize ~mode:Ignore_best ~jkind_of_type jk in
+  (match jk.jkind.with_bounds with
+  | No_with_bounds -> ()
+  | With_bounds _ ->
+    Misc.fatal_errorf
+      "Expected no with-bounds after normalizing without requiring best. If \
+       you see this error, please contact the Jane Street compiler team.");
   let get axis = Bounds.get jk.jkind.mod_bounds ~axis in
   { areality = get (Modal (Comonadic Areality));
     linearity = get (Modal (Comonadic Linearity));
@@ -2593,70 +2612,186 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
   | Sub -> Ok ()
   | _ -> Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
+(** See comment at usage in sub_jkind_l for explanation of what this function does *)
+let pair_up_with_bounds ~type_equal lefts rights =
+  (* Since type_equal calls are expensive and this function is called a lot, we try to
+     minimize the number of type_equal calls. This is helped by using
+     Best_effort_type_map, but we care about duplicates, so we must do some additional
+     comparisons beyond that. *)
+  let open struct
+    type pairing =
+      | Pair of With_bounds_type_info.t * With_bounds_type_info.t
+      | Left_only of With_bounds_type_info.t
+      | Right_only of With_bounds_type_info.t
+  end in
+  (* be_merged may contain duplicate types, since Best_effort_type_map does not guarantee
+     that two semantically equal types compare as equal *)
+  let be_merged =
+    Best_effort_type_map.merge
+      (fun _ left right ->
+        match left, right with
+        | Some left, Some right -> Some (Pair (left, right))
+        | Some left, None -> Some (Left_only left)
+        | None, Some right -> Some (Right_only right)
+        | None, None -> None)
+      lefts rights
+    |> Best_effort_type_map.to_seq
+  in
+  (* pairs has no duplicate types within it, and no type in pairs appears in be_left or
+     be_right. But there can be duplicates within be_left and be_right, as well as between
+     be_left and be_right *)
+  let pairs, be_left_only, be_right_only =
+    let step (pairs_so_far, lefts_so_far, rights_so_far) (ty, pairing) =
+      (* loop invariant: pairs_so_far has no dups, and any type in pairs_so_far does not
+         appear in lefts_so_far or rights_so_far *)
+      match pairing with
+      | Pair (left, right) ->
+        let is_ty (ty', _) = type_equal ty ty' in
+        let ( dup_pair,
+              pairs_so_far,
+              dup_lefts,
+              lefts_so_far,
+              dup_rights,
+              rights_so_far ) =
+          (* Since there are no duplicates within pairs_so_far, we know that there is at
+             most 1 instance of ty in pairs_so_far, so we can stop once we find one
+             instance. *)
+          match Misc.Stdlib.List.find_and_drop ~f:is_ty pairs_so_far with
+          | Some (dup_pair, pairs_so_far) ->
+            (* Since pairs_so_far contains ty, we know that lefts_so_far and rights_so_far
+               don't. So we don't need to scan them for duplicates. *)
+            Some dup_pair, pairs_so_far, [], lefts_so_far, [], rights_so_far
+          | None ->
+            (* lefts_so_far and rights_so_far may have duplicate elements, so we must scan
+               the entire list *)
+            let dup_lefts, lefts_so_far = List.partition is_ty lefts_so_far in
+            let dup_rights, rights_so_far =
+              List.partition is_ty rights_so_far
+            in
+            ( None,
+              pairs_so_far,
+              dup_lefts,
+              lefts_so_far,
+              dup_rights,
+              rights_so_far )
+        in
+        let merged_pair =
+          let rec merge_pairings (left, right) dup_pairs dup_lefts dup_rights =
+            let merge = With_bounds.Type_info.join in
+            match dup_pairs, dup_lefts, dup_rights with
+            | None, [], [] -> left, right
+            | Some (_, (incoming_left, incoming_right)), _, _ ->
+              merge_pairings
+                (merge left incoming_left, merge right incoming_right)
+                None dup_lefts dup_rights
+            | _, (_, incoming_left) :: rest_dup_lefts, _ ->
+              merge_pairings
+                (merge left incoming_left, right)
+                dup_pairs rest_dup_lefts dup_rights
+            | _, _, (_, incoming_right) :: rest_dup_rights ->
+              merge_pairings
+                (left, merge right incoming_right)
+                dup_pairs dup_lefts rest_dup_rights
+          in
+          merge_pairings (left, right) dup_pair dup_lefts dup_rights
+        in
+        (ty, merged_pair) :: pairs_so_far, lefts_so_far, rights_so_far
+      | Left_only left ->
+        pairs_so_far, (ty, left) :: lefts_so_far, rights_so_far
+      | Right_only right ->
+        pairs_so_far, lefts_so_far, (ty, right) :: rights_so_far
+    in
+    Seq.fold_left step ([], [], []) be_merged
+  in
+  let pairs, be_left_only =
+    (* For each element in be_right, find all elements in be_left that it can pair with
+       and merge them together. This maintains the invariant that pairs contains no
+       duplicates, and that be_left_only contains no types that appear in pairs.
+       (but be_left_only may still contain duplicates) *)
+    let merge_right (pairs_so_far, lefts_so_far) (ty, right) =
+      let dup_lefts, new_lefts_so_far =
+        List.partition (fun (ty', _) -> type_equal ty ty') lefts_so_far
+      in
+      match dup_lefts with
+      | [] -> pairs_so_far, lefts_so_far
+      | (_, first_dup_left) :: rest_dup_lefts ->
+        let left =
+          List.fold_left
+            (fun a (_, b) -> With_bounds.Type_info.join a b)
+            first_dup_left rest_dup_lefts
+        in
+        (ty, (left, right)) :: pairs_so_far, new_lefts_so_far
+    in
+    List.fold_left merge_right (pairs, be_left_only) be_right_only
+  in
+  pairs, be_left_only
+
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
    kind polymorphism design. *)
-let sub_jkind_l ~type_equal ~jkind_of_type sub super =
-  (* CR layouts v2.8: Do something better than just comparing for equality. *)
-  (* We can't use other functions, because they insist that we only compare
-     lr-jkinds for equality, not just l-jkinds. *)
-  let layouts =
-    Misc.Le_result.is_le (Layout.sub sub.jkind.layout super.jkind.layout)
+let sub_jkind_l :
+    type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
+    jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
+    Types.jkind_l ->
+    Types.jkind_l ->
+    (Types.jkind_l, Violation.t) result =
+ fun ~type_equal ~jkind_of_type sub super ->
+  let open Misc.Stdlib.Monad.Result.Syntax in
+  let make_error () = Error (Violation.of_ (Not_a_subjkind (sub, super))) in
+  let best_super =
+    (* MB_EXPAND_R *)
+    normalize ~mode:Require_best ~jkind_of_type super
   in
-  let sub = normalize ~mode:Require_best ~jkind_of_type sub in
-  (* CR aspsmith: this weird double-normalization is poorly explained because it will go
-     away (soon) once we get better subsumption *)
-  let sub_not_best = lazy (normalize ~mode:Ignore_best ~jkind_of_type sub) in
-  let super =
-    normalize ~mode:Require_best ~jkind_of_type (super |> disallow_right)
+  let* () =
+    (* MB_MODE *)
+    match
+      Bounds.less_or_equal sub.jkind.mod_bounds best_super.jkind.mod_bounds
+    with
+    | Less | Equal -> Ok ()
+    | Not_le -> make_error ()
   in
-  let bounds =
-    List.for_all
-      (fun (Axis.Pack axis) ->
-        let (module Bound_ops) = Axis.get axis in
-        let bound1 = Bounds.get ~axis sub.jkind.mod_bounds in
-        let bound2 = Bounds.get ~axis super.jkind.mod_bounds in
-        let with_bounds1 =
-          With_bounds.types_on_axis ~axis sub.jkind.with_bounds
-        in
-        (* If bound1 is min and has no with-bounds, we're good. *)
-        (Bound_ops.le bound1 Bound_ops.min && List.length with_bounds1 = 0)
-        (* If bound2 is max, we're good. *)
-        || Bound_ops.le Bound_ops.max bound2
-        (* Otherwise, try harder. *)
-        ||
-        (* Maybe an individual axis has the right shape on the right;
-           try this again before doing the stupid equality check. *)
-        match With_bounds.types_on_axis ~axis super.jkind.with_bounds with
-        | [] -> (
-          let sub_not_best = Lazy.force sub_not_best in
-          match
-            With_bounds.types_on_axis ~axis sub_not_best.jkind.with_bounds
-          with
-          | [] ->
-            let bound1 = Bounds.get ~axis sub_not_best.jkind.mod_bounds in
-            Bound_ops.less_or_equal bound1 bound2 |> Misc.Le_result.is_le
-          | _ :: _ -> false)
-        | with_bounds2 ->
-          let with_bounds1 =
-            With_bounds.types_on_axis ~axis sub.jkind.with_bounds
-          in
-          let modifiers = Bound_ops.equal bound1 bound2 in
-          let with_bounds =
-            List.compare_lengths with_bounds1 with_bounds2 = 0
-            && List.for_all2 type_equal with_bounds1 with_bounds2
-          in
-          modifiers && with_bounds)
-      Axis.all
+  let paired_up_with_bounds, only_left =
+    (* Pair up the with bounds based on types. It's important that each type that appears
+       in both the left and right with-bounds has exactly one entry in
+       paired_up_with_bounds. Types that appear on just the left side must have entries in
+       only_left, but there can be multiple entries. (Types that appear on just the right
+       can be dropped.) *)
+    pair_up_with_bounds ~type_equal
+      (With_bounds.to_with_bounds_types sub.jkind.with_bounds)
+      (With_bounds.to_with_bounds_types best_super.jkind.with_bounds)
   in
-  if layouts && bounds
-  then
-    Ok
-      { sub with
-        history =
-          combine_histories ~type_equal ~jkind_of_type Subjkind (Pack_jkind sub)
-            (Pack_jkind super)
-      }
-  else Error (Violation.of_ (Not_a_subjkind (sub, super)))
+  let* () =
+    (* MB_WITH *)
+    let rec validate_bound_pairs = function
+      | [] -> Ok ()
+      | ( _,
+          ((left : With_bounds_type_info.t), (right : With_bounds_type_info.t))
+        )
+        :: rest -> (
+        match Axis_set.is_subset right.relevant_axes left.relevant_axes with
+        | true -> validate_bound_pairs rest
+        | false -> make_error ())
+    in
+    validate_bound_pairs paired_up_with_bounds
+  in
+  (* Check that norm-not-best(left.mod_bounds with left_only) <= norm-best(right).mod_bounds *)
+  let* () =
+    let sub_highest_bounds =
+      get_upper_bounds ~jkind_of_type
+        { sub with
+          jkind = { sub.jkind with with_bounds = With_bounds.of_list only_left }
+        }
+    in
+    let super_lowest_bounds = best_super.jkind.mod_bounds in
+    match Bounds.le sub_highest_bounds super_lowest_bounds with
+    | true -> Ok ()
+    | false -> make_error ()
+  in
+  Ok
+    { sub with
+      history =
+        combine_histories ~type_equal ~jkind_of_type Subjkind (Pack_jkind sub)
+          (Pack_jkind super)
+    }
 
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s

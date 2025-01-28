@@ -293,6 +293,18 @@ module Stdlib = struct
         ~left_only:(fun () a -> left_only a)
         ~right_only:(fun () b -> right_only b)
         ~both:(fun () a b -> both a b)
+
+    let find_and_drop ~f l =
+      let rec find seen_rev = function
+        | [] -> None
+        | hd :: tl ->
+          (match f hd with
+           | true -> Some (hd, seen_rev, tl)
+           | false -> find (hd :: seen_rev) tl)
+      in
+      match find [] l with
+      | Some (e, prefix_rev, suffix) -> Some (e, (List.rev prefix_rev) @ suffix)
+      | None -> None
   end
 
   module Option = struct
