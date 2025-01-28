@@ -321,15 +321,8 @@ Error: This value is "aliased" but expected to be "unique".
 
 (***********************************************************************)
 type 'a t : immutable_data with 'a = { head : 'a; tail : 'a t option }
-(* CR layouts v2.8: This should work once we get proper subsumption. *)
 [%%expect {|
-Line 1, characters 0-70:
-1 | type 'a t : immutable_data with 'a = { head : 'a; tail : 'a t option }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of immutable_data
-         because of the annotation on the declaration of the type t.
+type 'a t = { head : 'a; tail : 'a t option; }
 |}]
 
 type 'a t = { head : 'a; tail : 'a t option }
@@ -516,8 +509,15 @@ Error: This value is "contended" but expected to be "uncontended".
 
 (***********************************************************************)
 type 'a t : immutable_data = Flat | Nested of 'a t t
+(* CR layouts v2.8: This should work once we get proper subsumption. *)
 [%%expect {|
-type 'a t = Flat | Nested of 'a t t
+Line 1, characters 0-52:
+1 | type 'a t : immutable_data = Flat | Nested of 'a t t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of immutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
@@ -552,8 +552,15 @@ Error:
 |}]
 
 type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
+(* CR layouts v2.8: This should work once we get proper subsumption. *)
 [%%expect {|
-type ('a : immutable_data) t = Flat | Nested of 'a t t
+Line 1, characters 0-71:
+1 | type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of immutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t
