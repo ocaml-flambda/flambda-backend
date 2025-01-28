@@ -436,6 +436,7 @@ val filter_non_loaded_persistent : (Ident.t -> bool) -> t -> t
 val add_signature: signature -> t -> t
 val add_signature_lazy: Subst.Lazy.signature_item list -> t -> t
 
+
 (* Insertion of all fields of a signature, relative to the given path.
    Used to implement open. Returns None if the path refers to a functor,
    not a structure. *)
@@ -676,3 +677,7 @@ type address_head =
 val address_head : address -> address_head
 
 val sharedness_hint : Format.formatter -> shared_context -> unit
+
+(* CR rtjoa: move *)
+(* val derive_unboxed_version : (Path.t -> Types.type_declaration) ->
+ * Types.type_declaration -> Types.type_declaration option *)

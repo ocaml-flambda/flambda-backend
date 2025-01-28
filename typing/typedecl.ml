@@ -2044,12 +2044,14 @@ let check_unboxed_versions_exist env loc decl =
      (fun self ty ->
        if TypeSet.mem ty !checked then () else begin
          begin match get_desc ty with
-         | Tconstr(Pextra_ty (path, Punboxed_ty), _, _) ->
-            begin match Env.find_type path env with
-            | { type_unboxed_version = None; _ } ->
-              raise (Error (loc, No_unboxed_version path))
-            | { type_unboxed_version = Some _; _ } -> ()
-            end
+         | Tconstr((Pextra_ty (path', Punboxed_ty) as path), _, _) ->
+           begin
+            try
+              ignore (Env.find_type path env)
+            with
+              | Not_found ->
+                raise (Error (loc, No_unboxed_version path'))
+           end
          | _ -> ()
          end;
          checked := TypeSet.add ty !checked;

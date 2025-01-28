@@ -187,6 +187,3 @@ type error =
 exception Error of Location.t * error
 
 val report_error: formatter -> error -> unit
-
-val derive_unboxed_version : (Path.t -> Types.type_declaration) ->
-Types.type_declaration -> Types.type_declaration option

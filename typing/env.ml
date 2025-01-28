@@ -1367,28 +1367,7 @@ let rec find_type_data path env =
               let cda = find_extension_full p env in
               type_of_cstr path cda.cda_description
           | Punboxed_ty ->
-              let tda = find_type_data p env in
-              match tda.tda_declaration.type_unboxed_version with
-              | None -> raise Not_found
-              | Some tda_declaration ->
-                let descrs =
-                  match tda_declaration.type_kind with
-                  | Type_abstract r -> Type_abstract r
-                  | Type_record_unboxed_product (_, repr) ->
-                    let lbls =
-                      Datarepr.unboxed_labels_of_type path tda_declaration
-                      |> List.map snd
-                    in
-                    Type_record_unboxed_product (lbls, repr)
-                  | Type_open | Type_record _ | Type_variant _ ->
-                    Misc.fatal_error
-                      "Env.find_type_data: unexpected unboxed version kind"
-                in
-                {
-                  tda_declaration;
-                  tda_descriptions = descrs;
-                  tda_shape = tda.tda_shape
-                }
+              find_type_unboxed_version_data p env
         end
     end
 and find_cstr path name env =
@@ -1399,8 +1378,122 @@ and find_cstr path name env =
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open ->
       raise Not_found
-
-
+and find_type_unboxed_version_data path env =
+  let tda = find_type_data path env in
+  let decl = tda.tda_declaration in
+  let tda_declaration =
+    match decl.type_unboxed_version with
+    | Some ud -> ud
+    | None ->
+      let unboxed_kind_jkind =
+        match decl.type_kind with
+        | Type_abstract a ->
+          `Abstract_kind a
+        | Type_record_unboxed_product _ | Type_variant _
+        | Type_open
+        | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
+                          | Record_ufloat | Record_mixed _))->
+          `No_unboxed_version
+        | Type_record (lbls, Record_boxed _) ->
+          let lbls_unboxed =
+            (* CR rtjoa: Need warning scope? *)
+            List.map
+              (fun (ld : Types.label_declaration) ->
+                  (* CR rtjoa: same id ok? *)
+                  { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
+                  ld_mutable = Immutable;
+                  ld_modalities = ld.ld_modalities;
+                  ld_sort = Jkind.Sort.Const.void;
+                  ld_type = ld.ld_type;
+                  ld_loc = ld.ld_loc;
+                  ld_attributes = [];
+                  ld_uid = ld.ld_uid;
+                })
+              lbls
+          in
+          let jkind_ls =
+            List.map (fun _ -> Jkind.Builtin.any ~why:Initial_typedecl_env) lbls
+          in
+          let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
+          let kind = Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product) in
+          `Unboxed_kind_jkind (kind, jkind)
+      in
+      let unboxed_manifest =
+        match decl.type_manifest with
+        | None -> `No_manifest
+        | Some ty ->
+          match get_desc ty with
+          | Tconstr (path, args, _) ->
+            begin match path with
+            | Pextra_ty (_, Punboxed_ty) -> `No_unboxed_version
+            | _ ->
+            begin match find_type_unboxed_version_data path env with
+            | exception Not_found -> `No_unboxed_version
+            | { tda_declaration = ud } ->
+              (* CR layouts v11: we'll have to update type_jkind once we have
+                  [layout_of] layouts *)
+              `Unboxed_manifest_jkind
+                (Btype.newgenty (Tconstr (Path.unboxed_version path, args, ref Mnil)),
+                  ud.type_jkind)
+            end
+            end
+          | _ ->
+            `No_unboxed_version
+      in
+      let unboxed_kind_jkind_manifest =
+        match unboxed_kind_jkind, unboxed_manifest with
+        | `No_unboxed_version, _ | _, `No_unboxed_version
+        | `Abstract_kind _, `No_manifest -> None
+        | `Unboxed_kind_jkind (kind, jkind), `No_manifest ->
+          Some (kind, jkind, None)
+        | `Abstract_kind a, `Unboxed_manifest_jkind (ty, jkind) ->
+          Some (Type_abstract a, jkind, Some ty)
+        | `Unboxed_kind_jkind (kind, jkind), `Unboxed_manifest_jkind (ty, _jkind) ->
+          (* CR rtjoa: the below comment not true after refactoring *)
+          (* [check_coherence] will make sure [jkind] and [_jkind] align *)
+          Some (kind, jkind, Some ty)
+      in
+      match unboxed_kind_jkind_manifest with
+      | None -> raise Not_found
+      | Some (kind, jkind, manifest) ->
+        {
+          type_params = decl.type_params;
+          type_arity = decl.type_arity;
+          type_kind = kind;
+          type_jkind = jkind;
+          type_private = decl.type_private;
+          type_manifest = manifest;
+          type_variance = Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
+          type_separability = Types.Separability.default_signature ~arity:decl.type_arity;
+          type_is_newtype = false;
+          type_expansion_scope = Btype.lowest_level;
+          type_loc = decl.type_loc;
+          type_attributes = [];
+          type_unboxed_default = false;
+          type_uid = decl.type_uid;
+          type_has_illegal_crossings = false;
+          type_unboxed_version = None;
+          type_is_unboxed_version = true;
+        }
+  in
+  let descrs =
+    match tda_declaration.type_kind with
+    | Type_abstract r -> Type_abstract r
+    | Type_record_unboxed_product (_, repr) ->
+      let lbls =
+        Datarepr.unboxed_labels_of_type (Path.unboxed_version path) tda_declaration
+        |> List.map snd
+      in
+      Type_record_unboxed_product (lbls, repr)
+    | Type_open | Type_record _ | Type_variant _ ->
+      Misc.fatal_error
+        "Env.find_type_data: unexpected unboxed version kind"
+  in
+  {
+    tda_declaration;
+    tda_descriptions = descrs;
+    tda_shape = tda.tda_shape
+  }
 
 let find_modtype_lazy path env =
   match path with
@@ -3719,11 +3812,11 @@ let lookup_type ~errors ~use ~loc lid env =
   | Some lid ->
     (* To get the hash version, look up without the hash, then look for the
        unboxed version *)
-    let path, tda = lookup_type_full ~errors ~use ~loc lid env in
-    match tda.tda_declaration.type_unboxed_version with
-    | Some decl ->
-      Path.unboxed_version path, decl
-    | None ->
+    let path, _ = lookup_type_full ~errors ~use ~loc lid env in
+    match find_type_unboxed_version_data path env with
+    | tda ->
+      Path.unboxed_version path, tda.tda_declaration
+    | exception Not_found ->
       may_lookup_error errors loc env (No_unboxed_version lid)
 
 let lookup_modtype_lazy ~errors ~use ~loc lid env =
