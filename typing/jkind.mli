@@ -524,8 +524,17 @@ val get_annotation : 'd Types.jkind -> Parsetree.jkind_annotation option
 (*********************************)
 (* normalization *)
 
+type 'd normalize_mode =
+  | Require_best : ('l * disallowed) normalize_mode
+      (** Normalize a jkind without losing any precision. That is, keep any with-bounds
+          if the kind of the type is not best (a stronger kind may be found). *)
+  | Ignore_best : ('l * 'r) normalize_mode
+      (** Normalize a left jkind, conservatively rounding up. That is, if the kind of a
+          type is not best, use the not-best kind. The resulting jkind will have no
+          with-bounds. *)
+
 val normalize :
-  require_best:bool ->
+  mode:(allowed * disallowed) normalize_mode ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   Types.jkind_l ->
   Types.jkind_l
