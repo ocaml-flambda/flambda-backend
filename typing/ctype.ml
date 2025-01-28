@@ -1402,6 +1402,8 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin jkind =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    type_unboxed_version = None;
+    type_is_unboxed_version = false;
   }
 
 let existential_name name_counter ty =
@@ -1501,11 +1503,29 @@ let map_kind f = function
 let instance_declaration decl =
   For_copy.with_scope (fun copy_scope ->
     let copy = copy ~keep_names:true copy_scope in
+<<<<<<< HEAD
     {decl with type_params = List.map copy decl.type_params;
      type_manifest = Option.map copy decl.type_manifest;
      type_kind = map_kind copy decl.type_kind;
      type_jkind = Jkind.map_type_expr copy decl.type_jkind;
     }
+||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
+    {decl with type_params = List.map copy decl.type_params;
+     type_manifest = Option.map copy decl.type_manifest;
+     type_kind = map_kind copy decl.type_kind;
+    }
+=======
+    let rec instance decl =
+      {
+        decl with
+        type_params = List.map copy decl.type_params;
+        type_manifest = Option.map copy decl.type_manifest;
+        type_kind = map_kind copy decl.type_kind;
+        type_unboxed_version = Option.map instance decl.type_unboxed_version;
+      }
+    in
+    instance decl
+>>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
   )
 
 let generic_instance_declaration decl =
@@ -4359,9 +4379,11 @@ let unify_pairs env ty1 ty2 pairs =
 let unify env ty1 ty2 =
   unify_pairs env ty1 ty2 []
 
-let unify_delaying_jkind_checks env ty1 ty2 =
+let unify_delaying_jkind_checks env ty_pairs =
   delay_jkind_checks_in (fun () ->
-    unify_pairs env ty1 ty2 [])
+    List.iter (fun (ty1, ty2) ->
+      unify_pairs env ty1 ty2 [])
+      ty_pairs)
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =
@@ -6891,7 +6913,7 @@ let nondep_type env id ty =
 let () = nondep_type' := nondep_type
 
 (* Preserve sharing inside type declarations. *)
-let nondep_type_decl env mid is_covariant decl =
+let rec nondep_type_decl env mid is_covariant decl =
   try
     let params = List.map (nondep_type_rec env mid) decl.type_params in
     let tk =
@@ -6922,6 +6944,10 @@ let nondep_type_decl env mid is_covariant decl =
       | Some ty when Btype.has_constr_row ty -> Private
       | _ -> priv
     in
+    let type_unboxed_version =
+      Option.map
+        (nondep_type_decl env mid is_covariant) decl.type_unboxed_version
+    in
     { type_params = params;
       type_arity = decl.type_arity;
       type_kind = tk;
@@ -6936,6 +6962,8 @@ let nondep_type_decl env mid is_covariant decl =
       type_attributes = decl.type_attributes;
       type_unboxed_default = decl.type_unboxed_default;
       type_uid = decl.type_uid;
+      type_unboxed_version;
+      type_is_unboxed_version = false;
     }
   with Nondep_cannot_erase _ as exn ->
     clear_hash ();

@@ -297,13 +297,15 @@ let check_recmod_typedecls env decls =
 let check_type_decl env sg loc id row_id newdecl decl =
   let fresh_id = Ident.rename id in
   let path = Pident fresh_id in
-  let sub = Subst.add_type id path Subst.identity in
+  let sub = Subst.add_type id path Subst.identity
+    ~has_unboxed_version:(Option.is_some newdecl.type_unboxed_version) in
   let fresh_row_id, sub =
     match row_id with
     | None -> None, sub
     | Some id ->
       let fresh_row_id = Some (Ident.rename id) in
-      let sub = Subst.add_type id (Pident fresh_id) sub in
+      let sub =
+        Subst.add_type id (Pident fresh_id) sub ~has_unboxed_version:false in
       fresh_row_id, sub
   in
   let newdecl = Subst.type_declaration sub newdecl in
@@ -331,7 +333,10 @@ let rec iter_path_apply p ~f =
      iter_path_apply p1 ~f;
      iter_path_apply p2 ~f;
      f p1 p2 (* after recursing, so we know both paths are well typed *)
-  | Pextra_ty _ -> assert false
+  | Pextra_ty (p, t) ->
+     match t with
+     | Punboxed_ty -> iter_path_apply p ~f
+     | Pcstr_ty _ | Pext_ty -> assert false
 
 let path_is_strict_prefix =
   let rec list_is_strict_prefix l ~prefix =
@@ -691,6 +696,8 @@ let merge_constraint initial_env loc sg lid constr =
             type_attributes = [];
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+            type_unboxed_version = None;
+            type_is_unboxed_version = false;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -865,20 +872,26 @@ let merge_constraint initial_env loc sg lid constr =
               | With_typesubst sdecl -> sdecl
               | _ -> assert false
             in
+            let has_unboxed_version =
+              Option.is_some tdecl.typ_type.type_unboxed_version in
             match type_decl_is_alias sdecl with
             | Some lid ->
                 let replacement, _ =
                   try Env.find_type_by_name lid.txt initial_env
                   with Not_found -> assert false
                 in
-                fun s path -> Subst.add_type_path path replacement s
+                fun s path ->
+                  Subst.add_type_path path replacement s
+                    ~has_unboxed_version
             | None ->
                 let body = Option.get tdecl.typ_type.type_manifest in
                 let params = tdecl.typ_type.type_params in
                 if params_are_constrained params
                 then raise(Error(loc, initial_env,
                                 With_cannot_remove_constrained_type));
-                fun s path -> Subst.add_type_function path ~params ~body s
+                fun s path ->
+                  Subst.add_type_function path ~params ~body s
+                    ~has_unboxed_version
           in
           let sub = Subst.change_locs Subst.identity loc in
           let sub = List.fold_left how_to_extend_subst sub !real_ids in
@@ -1828,13 +1841,16 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           if params_are_constrained params
           then raise(Error(loc, env, With_cannot_remove_constrained_type));
           let info =
-              let subst =
-                Subst.add_type_function (Pident td.typ_id)
-                  ~params
-                  ~body:(Option.get td.typ_type.type_manifest)
-                  Subst.identity
-              in
-              Some (`Substituted_away subst)
+            let has_unboxed_version =
+              Option.is_some td.typ_type.type_unboxed_version in
+            let subst =
+              Subst.add_type_function (Pident td.typ_id)
+                ~params
+                ~body:(Option.get td.typ_type.type_manifest)
+                ~has_unboxed_version
+                Subst.identity
+            in
+            Some (`Substituted_away subst)
           in
           Signature_names.check_type ?info names td.typ_loc td.typ_id
         ) decls;

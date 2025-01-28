@@ -805,6 +805,7 @@ type lookup_error =
       Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | No_unboxed_version of Longident.t
   | Error_from_persistent_env of Persistent_env.error
 
 type error =
@@ -1369,7 +1370,7 @@ let type_of_cstr path = function
       end
   | _ -> assert false
 
-let rec find_type_data path env =
+let rec find_type_data path env seen =
   match Path.Map.find path env.local_constraints with
   | decl ->
     {
@@ -1392,18 +1393,84 @@ let rec find_type_data path env =
           | Pext_ty ->
               let cda = find_extension_full p env in
               type_of_cstr path cda.cda_description
+          | Punboxed_ty ->
+              find_type_unboxed_version_data p env seen
         end
     end
 and find_cstr path name env =
-  let tda = find_type_data path env in
+  let tda = find_type_data path env Path.Set.empty in
   match tda.tda_descriptions with
   | Type_variant (cstrs, _, _) ->
       List.find (fun cstr -> cstr.cstr_name = name) cstrs
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open ->
       raise Not_found
-
-
+and find_type_unboxed_version_data path env seen =
+  if Path.Set.mem path seen then raise Not_found else
+  let seen = Path.Set.add path seen in
+  let tda = find_type_data path env seen in
+  let decl = tda.tda_declaration in
+  let tda_declaration =
+    match decl.type_unboxed_version with
+    | Some ud -> ud
+    | None ->
+      (* If there's no stored unboxed version, then we must follow aliases. We
+         only follow this alias if the kind is abstract (we could follow all
+         aliases, but this gives better errors when typechecking mutually
+         recursive typedecls). *)
+      let decl_path, decl_args =
+        (match decl.type_kind with
+        | Type_record_unboxed_product _ | Type_variant _ | Type_open
+        | Type_record _ ->
+          raise Not_found
+        | Type_abstract _ -> ());
+        match decl.type_manifest with
+        | Some ty ->
+          begin match get_desc ty with
+          | Tconstr (path, args, _) -> path, args
+          | _ -> raise Not_found end
+        | None -> raise Not_found
+      in
+      match find_type_unboxed_version_data decl_path env seen with
+      | { tda_declaration = ud } ->
+        let man =
+          Btype.newgenty
+            (Tconstr (Path.unboxed_version decl_path, decl_args, ref Mnil)) in
+        let jkind = ud.type_jkind in
+        {
+          type_params = decl.type_params;
+          type_arity = decl.type_arity;
+          type_kind = decl.type_kind;
+          type_jkind = jkind;
+          type_private = decl.type_private;
+          type_manifest = Some man;
+          type_variance =
+            Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
+          type_separability =
+            Types.Separability.default_signature ~arity:decl.type_arity;
+          type_is_newtype = false;
+          type_expansion_scope = Btype.lowest_level;
+          type_loc = decl.type_loc;
+          type_attributes = [];
+          type_unboxed_default = false;
+          type_uid = decl.type_uid;
+          type_unboxed_version = None;
+          type_is_unboxed_version = true;
+        }
+  in
+  let descrs =
+    match tda_declaration.type_kind with
+    | Type_abstract r -> Type_abstract r
+    | Type_record_unboxed_product _
+    | Type_open | Type_record _ | Type_variant _ ->
+      Misc.fatal_error
+        "Env.find_type_data: unexpected unboxed version kind"
+  in
+  {
+    tda_declaration;
+    tda_descriptions = descrs;
+    tda_shape = tda.tda_shape
+  }
 
 let find_modtype_lazy path env =
   match path with
@@ -1451,9 +1518,9 @@ let find_ident_label record_form id env =
   TycompTbl.find_same id (env_labels record_form env)
 
 let find_type p env =
-  (find_type_data p env).tda_declaration
+  (find_type_data p env Path.Set.empty).tda_declaration
 let find_type_descrs p env =
-  (find_type_data p env).tda_descriptions
+  (find_type_data p env Path.Set.empty).tda_descriptions
 
 let rec find_module_address path env =
   match path with
@@ -1907,16 +1974,17 @@ let prefix_idents root prefixing_sub sg =
         ((item, p) :: items_and_paths) prefixing_sub rem
     | Sig_type(id, td, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
+      let has_unboxed_version = Option.is_some td.type_unboxed_version in
       prefix_idents root
         ((Sig_type(id, td, rs, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version prefixing_sub)
         rem
     | Sig_typext(id, ec, es, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       (* we extend the substitution in case of an inlined record *)
       prefix_idents root
         ((Sig_typext(id, ec, es, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version:false prefixing_sub)
         rem
     | Sig_module(id, pres, md, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
@@ -1935,13 +2003,13 @@ let prefix_idents root prefixing_sub sg =
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
         ((Sig_class(id, cd, rs, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version:false prefixing_sub)
         rem
     | Sig_class_type(id, ctd, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
         ((Sig_class_type(id, ctd, rs, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version:false prefixing_sub)
         rem
   in
   let sg = Subst.Lazy.force_signature_once sg in
@@ -2309,8 +2377,7 @@ and store_type ~check id info shape env =
     check_usage loc id info.type_uid
       (fun s -> Warnings.Unused_type_declaration s)
       !type_declarations;
-  let descrs, env =
-    let path = Pident id in
+  let store_decl path info env =
     match info.type_kind with
     | Type_variant (_,repr,umc) ->
         let constructors = Datarepr.constructors_of_type path info
@@ -2338,6 +2405,15 @@ and store_type ~check id info shape env =
           env labels
     | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
+  in
+  let descrs, env = store_decl (Pident id) info env in
+  let env =
+    match info.type_unboxed_version with
+    | Some info ->
+      let path = Path.unboxed_version (Pident id) in
+      let _, env = store_decl path info env in
+      env
+    | None -> env
   in
   let tda =
     { tda_declaration = info;
@@ -3678,9 +3754,39 @@ let lookup_type_full ~errors ~use ~loc lid env =
   | Ldot(l, s) -> lookup_dot_type ~errors ~use ~loc l s env
   | Lapply _ -> assert false
 
+let string_without_hash s =
+  if String.ends_with ~suffix:"#" s then
+    Some (String.sub s 0 (String.length s - 1))
+  else
+    None
+
+let lid_without_hash = function
+  | Lident s -> begin
+      match string_without_hash s with
+      | Some s -> Some (Lident s)
+      | None -> None
+      end
+  | Ldot(l, s) -> begin
+      match string_without_hash s with
+      | Some s -> Some (Ldot(l, s))
+      | None -> None
+      end
+  | Lapply _ -> None
+
 let lookup_type ~errors ~use ~loc lid env =
-  let (path, tda) = lookup_type_full ~errors ~use ~loc lid env in
-  path, tda.tda_declaration
+  match lid_without_hash lid with
+  | None ->
+    let path, tda = lookup_type_full ~errors ~use ~loc lid env in
+    path, tda.tda_declaration
+  | Some lid ->
+    (* To get the hash version, look up without the hash, then look for the
+       unboxed version *)
+    let path, _ = lookup_type_full ~errors ~use ~loc lid env in
+    match find_type_unboxed_version_data path env Path.Set.empty with
+    | tda ->
+      Path.unboxed_version path, tda.tda_declaration
+    | exception Not_found ->
+      may_lookup_error errors loc env (No_unboxed_version lid)
 
 let lookup_modtype_lazy ~errors ~use ~loc lid env =
   match lid with
@@ -4468,8 +4574,19 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "@[%a must have a type of layout value because it is \
                    captured by an object.@ %a@]"
         (Style.as_inline_code !print_longident) lid
+<<<<<<< HEAD
         (fun v -> Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ) v) err
+||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+=======
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+  | No_unboxed_version lid ->
+      fprintf ppf "@[%a has no unboxed version.@]"
+        (Style.as_inline_code !print_longident) lid
+>>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
 
