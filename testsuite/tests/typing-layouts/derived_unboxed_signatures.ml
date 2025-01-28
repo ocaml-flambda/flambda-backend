@@ -3,6 +3,8 @@
  expect;
 *)
 
+(* CR rtjoa: Do all these tests with type parameters *)
+
 (*************)
 (* Shadowing *)
 
@@ -89,6 +91,115 @@ module Check_constraints : functor (M : S) -> sig val f : t# -> M.t# end
 (*******************************)
 (* With type subst constraints *)
 
+(* Unboxed number #-type *)
+
+type t = float
+module type S = sig
+  type t_to_replace = float
+  type th = t_to_replace#
+end with type t_to_replace := t
+[%%expect{|
+type t = float
+module type S = sig type th = t# end
+|}]
+
+module F (M : S) = struct
+  let f : M.th -> float# = fun x -> x
+  let g : M.th -> t# = fun x -> x
+end
+[%%expect{|
+module F :
+  functor (M : S) -> sig val f : M.th -> float# val g : M.th -> t# end
+|}]
+
+module Bad (M : S) = struct
+  type bad = M.t_to_replace#
+end
+[%%expect{|
+Line 2, characters 13-28:
+2 |   type bad = M.t_to_replace#
+                 ^^^^^^^^^^^^^^^
+Error: Unbound type constructor "M.t_to_replace"
+|}]
+
+module type Bad = sig
+  type t = float
+end with type t := float#
+[%%expect{|
+Lines 1-3, characters 18-25:
+1 | ..................sig
+2 |   type t = float
+3 | end with type t := float#
+Error: In this "with" constraint, the new definition of "t"
+       does not match its original definition in the constrained signature:
+       Type declarations do not match:
+         type t = float#
+       is not included in
+         type t = float
+       The type "float#" is not equal to the type "float"
+|}]
+
+module type S = sig
+  type t : float64
+  type fu = t
+end with type t := float#
+[%%expect{|
+module type S = sig type fu = float# end
+|}]
+
+module type Bad = sig
+  type t
+end with type t := float#
+[%%expect{|
+Line 3, characters 9-25:
+3 | end with type t := float#
+             ^^^^^^^^^^^^^^^^
+Error: The layout of type "float#" is float64
+         because it is unboxed version of the primitive type float.
+       But the layout of type "float#" must be a sublayout of value
+         because of the definition of t at line 2, characters 2-8.
+|}]
+
+module type Bad = sig
+  type t = int32#
+end with type t := float#
+[%%expect{|
+Lines 1-3, characters 18-25:
+1 | ..................sig
+2 |   type t = int32#
+3 | end with type t := float#
+Error: In this "with" constraint, the new definition of "t"
+       does not match its original definition in the constrained signature:
+       Type declarations do not match:
+         type t = float#
+       is not included in
+         type t = int32#
+       The type "float#" is not equal to the type "int32#"
+|}]
+
+module F (M : S) = struct
+  let f : M.th -> float# = fun x -> x
+  let g : M.th -> t# = fun x -> x
+end
+[%%expect{|
+Line 2, characters 10-14:
+2 |   let f : M.th -> float# = fun x -> x
+              ^^^^
+Error: Unbound type constructor "M.th"
+|}]
+
+module Bad (M : S) = struct
+  type bad = M.t_to_replace#
+end
+[%%expect{|
+Line 2, characters 13-28:
+2 |   type bad = M.t_to_replace#
+                 ^^^^^^^^^^^^^^^
+Error: Unbound type constructor "M.t_to_replace"
+|}]
+
+(* Implicit unboxed record #-type *)
+
 type t = { i : int ; j : string }
 
 module type S = sig
@@ -110,7 +221,7 @@ end
 module CheckSubsted : functor (M : S) -> sig val f : t# -> M.ru end
 |}]
 
-module CheckCantAccessOldGhost(M : S) = struct
+module Bad(M : S) = struct
   type bad = t_to_replace#
 end
 [%%expect{|
