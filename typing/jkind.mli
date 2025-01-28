@@ -648,7 +648,7 @@ val sub_jkind_l :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   Types.jkind_l ->
   Types.jkind_l ->
-  (Types.jkind_l, Violation.t) result
+  (unit, Violation.t) result
 
 (** "round up" a [jkind_l] to a [jkind_r] such that the input is less than the
     output. *)

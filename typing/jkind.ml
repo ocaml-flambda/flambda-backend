@@ -368,14 +368,6 @@ module With_bounds = struct
     | With_bounds tys ->
       tys |> Best_effort_type_map.Non_empty.to_seq |> List.of_seq
 
-  let of_list list =
-    match
-      Best_effort_type_map.of_list list
-      |> Best_effort_type_map.Non_empty.of_maybe_empty
-    with
-    | None -> No_with_bounds
-    | Some bounds -> With_bounds bounds
-
   open Allowance
 
   include Magic_allow_disallow (struct
@@ -1378,9 +1370,11 @@ module Jkind_desc = struct
     | Require_best : ('l * disallowed) normalize_mode
     | Ignore_best : ('l * 'r) normalize_mode
 
-  let normalize (type l1 r1 l2 r2) ~jkind_of_type
-      ~(mode : (l2 * r2) normalize_mode) (t : (l1 * r1) jkind_desc) :
-      (l2 * r2) jkind_desc =
+  let map_normalize (type l1 r1 l2 r2) ~jkind_of_type
+      ~(mode : (l2 * r2) normalize_mode)
+      ~(map_type_info :
+         type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
+      (t : (l1 * r1) jkind_desc) : (l2 * r2) jkind_desc =
     (* Sadly, it seems hard (impossible?) to be sure to expand all types
        here without using a fuel parameter to stop infinite regress. Here
        is a nasty case:
@@ -1478,84 +1472,95 @@ module Jkind_desc = struct
         Bounds.t * (l2 * r2) with_bounds = function
       (* early cutoff *)
       | _ when Bounds.le Bounds.max bounds_so_far ->
+        (* CR layouts v2.8: we can do better by early-terminating on a per-axis basis *)
         bounds_so_far, No_with_bounds
       | [] -> bounds_so_far, No_with_bounds
       | (ty, ti) :: bs -> (
-        let join_bounds b1 b2 ~relevant_axes =
-          Bounds.Map2.f
-            { f =
-                (fun (type a) ~(axis : a Axis.t) b1 b2 ->
-                  if Axis_set.mem relevant_axes axis
-                  then
-                    let (module Bound_ops) = Axis.get axis in
-                    Bound_ops.join b1 b2
-                  else b1)
-            }
-            b1 b2
-        in
-        let join_relevant_axes bound =
-          join_bounds bounds_so_far bound ~relevant_axes:ti.relevant_axes
-        in
-        let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
-            Bounds.t * (l2 * r2) with_bounds =
-          match quality, mode with
-          | Best, _ | Not_best, Ignore_best ->
-            let bounds_so_far = join_relevant_axes b_upper_bounds in
-            (* Descend into the with-bounds of each of our with-bounds types'
-                with-bounds *)
-            let bounds_so_far, nested_with_bounds =
-              loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
+        let ti = map_type_info ty ti in
+        match Axis_set.is_empty ti.relevant_axes with
+        | true -> loop ctl bounds_so_far bs
+        | false -> (
+          let join_bounds b1 b2 ~relevant_axes =
+            Bounds.Map2.f
+              { f =
+                  (fun (type a) ~(axis : a Axis.t) b1 b2 ->
+                    if Axis_set.mem relevant_axes axis
+                    then
+                      let (module Bound_ops) = Axis.get axis in
+                      Bound_ops.join b1 b2
+                    else b1)
+              }
+              b1 b2
+          in
+          let join_relevant_axes bound =
+            join_bounds bounds_so_far bound ~relevant_axes:ti.relevant_axes
+          in
+          let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
+              Bounds.t * (l2 * r2) with_bounds =
+            match quality, mode with
+            | Best, _ | Not_best, Ignore_best ->
+              let bounds_so_far = join_relevant_axes b_upper_bounds in
+              (* Descend into the with-bounds of each of our with-bounds types'
+                  with-bounds *)
+              let bounds_so_far, nested_with_bounds =
+                loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
+              in
+              (* CR: which ctl to use?
+                 (* Use *original* ctl here, so we don't fall over on
+                     a record with 20 lists with different payloads. *)
+              *)
+              let bounds, bs' = loop new_ctl bounds_so_far bs in
+              bounds, With_bounds.join nested_with_bounds bs'
+            | Not_best, Require_best ->
+              let bounds_so_far, bs' = loop new_ctl bounds_so_far bs in
+              bounds_so_far, With_bounds.add ty ti bs'
+          in
+          match Loop_control.check ctl ty with
+          | Stop ->
+            (* out of fuel. It's important that normalization is deterministic, and it's not
+               deterministic on which type we run out of fuel. So if we run out of fuel on
+               any type, we need to assume that all types have max bounds. So we assume max
+               bounds along any relevant axes to the original kind, not just the remaining
+               bounds. *)
+            (* CR layouts v2.8: I'm not convinced that it is deterministic whether we hit
+               stop, so there may be a bug hiding here. But this is at least good enough to
+               bootstrap and pass the tests. *)
+            let all_relevant_axes =
+              List.fold_left
+                (fun acc
+                     ( _,
+                       ({ relevant_axes = incoming } : With_bounds_type_info.t)
+                     ) -> Axis_set.union acc incoming)
+                Axis_set.empty
+                (With_bounds.to_list t.with_bounds)
             in
-            (* CR: which ctl to use?
-               (* Use *original* ctl here, so we don't fall over on
-                   a record with 20 lists with different payloads. *)
-            *)
-            let bounds, bs' = loop new_ctl bounds_so_far bs in
-            bounds, With_bounds.join nested_with_bounds bs'
-          | Not_best, Require_best ->
-            let bounds_so_far, bs' = loop new_ctl bounds_so_far bs in
-            bounds_so_far, With_bounds.add ty ti bs'
-        in
-        match Loop_control.check ctl ty with
-        | Stop ->
-          (* out of fuel. It's important that normalization is deterministic, and it's not
-             deterministic on which type we run out of fuel. So if we run out of fuel on
-             any type, we need to assume that all types have max bounds. So we assume max
-             bounds along any relevant axes to the original kind, not just the remaining
-             bounds. *)
-          (* CR layouts v2.8: I'm not convinced that it is deterministic whether we hit
-             stop, so there may be a bug hiding here. But this is at least good enough to
-             bootstrap and pass the tests. *)
-          let all_relevant_axes =
-            List.fold_left
-              (fun acc
-                   (_, ({ relevant_axes = incoming } : With_bounds_type_info.t)) ->
-                Axis_set.union acc incoming)
-              Axis_set.empty
-              (With_bounds.to_list t.with_bounds)
-          in
-          let worst_bounds =
-            join_bounds t.mod_bounds Bounds.max
-              ~relevant_axes:all_relevant_axes
-          in
-          worst_bounds, No_with_bounds
-        | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
-        | Continue ctl_after_unpacking_b -> (
-          match jkind_of_type ty with
-          | Some b_jkind ->
-            found_jkind_for_ty ctl_after_unpacking_b b_jkind.jkind.mod_bounds
-              b_jkind.jkind.with_bounds b_jkind.quality
-          | None ->
-            (* kind of b is not principally known, so we treat it as having the max
-               bound (only along the axes we care about for this type!) *)
-            found_jkind_for_ty ctl_after_unpacking_b Bounds.max No_with_bounds
-              Not_best))
+            let worst_bounds =
+              join_bounds t.mod_bounds Bounds.max
+                ~relevant_axes:all_relevant_axes
+            in
+            worst_bounds, No_with_bounds
+          | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
+          | Continue ctl_after_unpacking_b -> (
+            match jkind_of_type ty with
+            | Some b_jkind ->
+              found_jkind_for_ty ctl_after_unpacking_b b_jkind.jkind.mod_bounds
+                b_jkind.jkind.with_bounds b_jkind.quality
+            | None ->
+              (* kind of b is not principally known, so we treat it as having the max
+                 bound (only along the axes we care about for this type!) *)
+              found_jkind_for_ty ctl_after_unpacking_b Bounds.max No_with_bounds
+                Not_best)))
     in
     let mod_bounds, with_bounds =
       loop Loop_control.starting t.mod_bounds
         (With_bounds.to_list t.with_bounds)
     in
     { t with mod_bounds; with_bounds }
+
+  let normalize (type l1 r1 l2 r2) ~jkind_of_type
+      ~(mode : (l2 * r2) normalize_mode) (t : (l1 * r1) jkind_desc) :
+      (l2 * r2) jkind_desc =
+    map_normalize ~jkind_of_type ~mode ~map_type_info:(fun _ ti -> ti) t
 
   let sub (type l r) ~type_equal:_ ~jkind_of_type
       (sub : (allowed * r) jkind_desc)
@@ -1985,16 +1990,6 @@ let sort_of_jkind (t : jkind_l) : sort =
 let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
 
 let extract_layout jk = jk.jkind.layout
-
-let get_upper_bounds ~jkind_of_type jk =
-  let jk = normalize ~mode:Ignore_best ~jkind_of_type jk in
-  (match jk.jkind.with_bounds with
-  | No_with_bounds -> ()
-  | With_bounds _ ->
-    Misc.fatal_errorf
-      "Expected no with-bounds after normalizing without requiring best. If \
-       you see this error, please contact the Jane Street compiler team.");
-  jk.jkind.mod_bounds
 
 let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
     Alloc.Const.t =
@@ -2645,133 +2640,30 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
   | Sub -> Ok ()
   | _ -> Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
-module With_bound_pairing = struct
-  type _ t =
-    | Both : With_bounds_type_info.t * With_bounds_type_info.t -> [> `both] t
-    | Left_only : With_bounds_type_info.t -> [> `left_only] t
-    | Right_only : With_bounds_type_info.t -> [> `right_only] t
+module Type_map : sig
+  (* CR layouts v2.8: it may be better to deduplicate on creation? It would mean that
+     we can avoid iterating over the entire list if a best-effort lookup in the map if
+     there is a match. *)
+  type 'a t
 
-  type both = [`both] t
+  val of_best_effort_type_map : 'a Best_effort_type_map.t -> 'a t
 
-  type left_only = [`left_only] t
+  (** All entries corresponding the the type are guaranteed to be found. This is an O(n)
+         operation *)
+  val find :
+    'a t -> type_expr -> type_equal:(type_expr -> type_expr -> bool) -> 'a list
+end = struct
+  type 'a t = 'a Best_effort_type_map.t
 
-  type right_only = [`right_only] t
+  let of_best_effort_type_map t = t
 
-  (** See comment at usage in sub_jkind_l for explanation of what this function does *)
-  let pair_up ~type_equal lefts rights =
-    (* Since type_equal calls are expensive and this function is called a lot, we try to
-       minimize the number of type_equal calls. This is helped by using
-       Best_effort_type_map, but we care about duplicates, so we must do some additional
-       comparisons beyond that. *)
-    (* be_merged may contain duplicate types, since Best_effort_type_map does not guarantee
-       that two semantically equal types compare as equal *)
-    let be_merged =
-      Best_effort_type_map.merge
-        (fun _ left right ->
-          match left, right with
-          | Some left, Some right -> Some (Both (left, right))
-          | Some left, None -> Some (Left_only left)
-          | None, Some right -> Some (Right_only right)
-          | None, None -> None)
-        lefts rights
-      |> Best_effort_type_map.to_seq
-    in
-    (* pairs has no duplicate types within it, and no type in pairs appears in be_left or
-       be_right. But there can be duplicates within be_left and be_right, as well as between
-       be_left and be_right *)
-    let pairs, be_left_only, be_right_only =
-      let step (pairs_so_far, lefts_so_far, rights_so_far) (ty, pairing) =
-        (* loop invariant: pairs_so_far has no dups, and any type in pairs_so_far does not
-           appear in lefts_so_far or rights_so_far *)
-        match pairing with
-        | Both (left, right) ->
-          let is_ty (ty', _) = type_equal ty ty' in
-          let ( dup_pair,
-                pairs_so_far,
-                dup_lefts,
-                lefts_so_far,
-                dup_rights,
-                rights_so_far ) =
-            (* Since there are no duplicates within pairs_so_far, we know that there is at
-               most 1 instance of ty in pairs_so_far, so we can stop once we find one
-               instance. *)
-            match Misc.Stdlib.List.find_and_drop ~f:is_ty pairs_so_far with
-            | Some (dup_pair, pairs_so_far) ->
-              (* Since pairs_so_far contains ty, we know that lefts_so_far and rights_so_far
-                 don't. So we don't need to scan them for duplicates. *)
-              Some dup_pair, pairs_so_far, [], lefts_so_far, [], rights_so_far
-            | None ->
-              (* lefts_so_far and rights_so_far may have duplicate elements, so we must scan
-                 the entire list *)
-              let dup_lefts, lefts_so_far = List.partition is_ty lefts_so_far in
-              let dup_rights, rights_so_far =
-                List.partition is_ty rights_so_far
-              in
-              ( None,
-                pairs_so_far,
-                dup_lefts,
-                lefts_so_far,
-                dup_rights,
-                rights_so_far )
-          in
-          let merged_pair =
-            let rec merge_pairings (Both (left, right) : both) dup_pairs
-                dup_lefts dup_rights =
-              let merge = With_bounds.Type_info.join in
-              match dup_pairs, dup_lefts, dup_rights with
-              | None, [], [] -> Both (left, right)
-              | Some (_, (Both (incoming_left, incoming_right) : both)), _, _ ->
-                merge_pairings
-                  (Both (merge left incoming_left, merge right incoming_right))
-                  None dup_lefts dup_rights
-              | ( _,
-                  (_, (Left_only incoming_left : left_only)) :: rest_dup_lefts,
-                  _ ) ->
-                merge_pairings
-                  (Both (merge left incoming_left, right))
-                  dup_pairs rest_dup_lefts dup_rights
-              | ( _,
-                  _,
-                  (_, (Right_only incoming_right : right_only))
-                  :: rest_dup_rights ) ->
-                merge_pairings
-                  (Both (left, merge right incoming_right))
-                  dup_pairs dup_lefts rest_dup_rights
-            in
-            merge_pairings (Both (left, right)) dup_pair dup_lefts dup_rights
-          in
-          (ty, merged_pair) :: pairs_so_far, lefts_so_far, rights_so_far
-        | Left_only _ as left ->
-          pairs_so_far, (ty, left) :: lefts_so_far, rights_so_far
-        | Right_only _ as right ->
-          pairs_so_far, lefts_so_far, (ty, right) :: rights_so_far
-      in
-      Seq.fold_left step ([], [], []) be_merged
-    in
-    let pairs, be_left_only =
-      (* For each element in be_right, find all elements in be_left that it can pair with
-         and merge them together. This maintains the invariant that pairs contains no
-         duplicates, and that be_left_only contains no types that appear in pairs.
-         (but be_left_only may still contain duplicates) *)
-      let merge_right (pairs_so_far, lefts_so_far)
-          (ty, (Right_only right : right_only)) =
-        let dup_lefts, new_lefts_so_far =
-          List.partition (fun (ty', _) -> type_equal ty ty') lefts_so_far
-        in
-        match dup_lefts with
-        | [] -> pairs_so_far, lefts_so_far
-        | (_, Left_only first_dup_left) :: rest_dup_lefts ->
-          let left =
-            List.fold_left
-              (fun a (_, (Left_only b : left_only)) ->
-                With_bounds.Type_info.join a b)
-              first_dup_left rest_dup_lefts
-          in
-          (ty, Both (left, right)) :: pairs_so_far, new_lefts_so_far
-      in
-      List.fold_left merge_right (pairs, be_left_only) be_right_only
-    in
-    pairs, be_left_only
+  let find t ty ~type_equal =
+    (* CR layouts v2.8: maybe it's worth memoizing using a Best_effort_type_map.t? *)
+    Best_effort_type_map.to_seq t
+    |> Seq.fold_left
+         (fun acc (ty2, data) ->
+           match type_equal ty ty2 with true -> data :: acc | false -> acc)
+         []
 end
 
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
@@ -2779,7 +2671,6 @@ end
 let sub_jkind_l ~type_equal ~jkind_of_type sub super =
   (* This function implements the "SUB" judgement from kind-inference.md. *)
   let open Misc.Stdlib.Monad.Result.Syntax in
-  let best_sub = normalize ~mode:Require_best ~jkind_of_type sub in
   let require_le le_result =
     match Misc.Le_result.is_le le_result with
     | true -> Ok ()
@@ -2791,74 +2682,58 @@ let sub_jkind_l ~type_equal ~jkind_of_type sub super =
          probably overly complex. *)
       (* CR layouts v2.8: It would be useful report to the user why this
          violation occurred, specifically which axes the violation is along. *)
+      let best_sub = normalize ~mode:Require_best ~jkind_of_type sub in
       Error (Violation.of_ (Not_a_subjkind (best_sub, super)))
   in
   let* () =
     (* Validate layouts *)
-    require_le (Layout.sub best_sub.jkind.layout super.jkind.layout)
+    require_le (Layout.sub sub.jkind.layout super.jkind.layout)
   in
   let best_super =
     (* MB_EXPAND_R *)
     normalize ~mode:Require_best ~jkind_of_type super
   in
-  let paired_up_with_bounds, only_left =
-    (* Pair up the with bounds based on types. It's important that each type that appears
-       in both the left and right with-bounds has exactly one entry in
-       paired_up_with_bounds. Types that appear on just the left side must have entries in
-       only_left, but there can be multiple entries. (Types that appear on just the right
-       can be dropped.) *)
-    (* CR layouts v2.8: I'm not so sure that the above comment isn't slightly too
-       aggressive. While it correctly reflects the implementation, I believe it is a
-       stronger condition than necessary. Actually what we want to ensure is that for each
-       with-bound that appears on the left, we match it to all right with-bounds with a
-       matching type. So it is ok for there to be multiple pairs with the same key type,
-       as long as the info on the right reflects all with-bounds for the type from the
-       right side. Loosening this restriction may make [With_bound_pairing.pair_up]
-       simpler and/or more efficient. *)
-    With_bound_pairing.pair_up ~type_equal
-      (With_bounds.to_with_bounds_types best_sub.jkind.with_bounds)
+  let right_bounds =
+    Type_map.of_best_effort_type_map
       (With_bounds.to_with_bounds_types best_super.jkind.with_bounds)
   in
-  let left_remainders =
-    (* MB_WITH *)
-    let rec get_remainders_from_pairs left_remainders = function
-      | [] -> left_remainders
-      | (ty, (Both (left, right) : With_bound_pairing.both)) :: rest ->
-        let left_remainder =
-          Axis_set.diff left.relevant_axes right.relevant_axes
+  let irrelevant_axes =
+    Axis_set.of_bool_collection
+    @@ Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
+           (* If the upper_bound is max on the right, then that axis is irrelevant - the
+              left will always satisfy the right along that axis. This is an optimization,
+              not necessary for correctness *)
+           let (module Axis_ops) = Axis.get axis in
+           let bound = Bounds.get ~axis best_super.jkind.mod_bounds in
+           Axis_ops.le Axis_ops.max bound)
+  in
+  let ({ layout = _;
+         mod_bounds = sub_upper_bounds;
+         with_bounds = No_with_bounds
+       }
+        : (_ * allowed) jkind_desc) =
+    (* CR layouts v2.8: don't expand along bounds where the upper bound is max on the
+       right. Normalization *)
+    (* MB_EXPAND_L *)
+    Jkind_desc.map_normalize ~jkind_of_type ~mode:Ignore_best
+      ~map_type_info:(fun ty { relevant_axes = left_relevant_axes } ->
+        let right_relevant_axes =
+          Type_map.find right_bounds ty ~type_equal
+          |> List.fold_left
+               (fun acc (ti : With_bounds_type_info.t) ->
+                 Axis_set.union acc ti.relevant_axes)
+               irrelevant_axes
         in
-        get_remainders_from_pairs
-          (With_bounds.add ty
-             { relevant_axes = left_remainder }
-             left_remainders)
-          rest
-    in
-    let remainders_from_left_only =
-      List.map
-        (fun (ty, (Left_only left : With_bound_pairing.left_only)) -> ty, left)
-        only_left
-      |> With_bounds.of_list
-    in
-    get_remainders_from_pairs remainders_from_left_only paired_up_with_bounds
+        (* MB_WITH : drop types from the left that appear on the right *)
+        { relevant_axes = Axis_set.diff left_relevant_axes right_relevant_axes })
+      sub.jkind
   in
-  (* Check that norm-not-best(left.mod_bounds with left_only) <= norm-best(right).mod_bounds *)
   let* () =
-    (* MB_MODE and MB_EXPAND_L *)
-    let sub_highest_bounds =
-      get_upper_bounds ~jkind_of_type
-        { best_sub with
-          jkind = { best_sub.jkind with with_bounds = left_remainders }
-        }
-    in
-    let super_lowest_bounds = best_super.jkind.mod_bounds in
-    require_le (Bounds.less_or_equal sub_highest_bounds super_lowest_bounds)
+    (* MB_MODE : verify that the remaining upper_bounds from sub are <= super's bounds *)
+    let super_lower_bounds = best_super.jkind.mod_bounds in
+    require_le (Bounds.less_or_equal sub_upper_bounds super_lower_bounds)
   in
-  Ok
-    { best_sub with
-      history =
-        combine_histories ~type_equal ~jkind_of_type Subjkind
-          (Pack_jkind best_sub) (Pack_jkind super)
-    }
+  Ok ()
 
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s

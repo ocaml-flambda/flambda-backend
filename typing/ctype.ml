@@ -6989,7 +6989,7 @@ let check_decl_jkind env decl jkind =
   let type_equal = type_equal env in
   let jkind_of_type ty = Some (type_jkind_purely env ty) in
   match Jkind.sub_jkind_l ~type_equal ~jkind_of_type decl.type_jkind jkind with
-  | Ok _ -> Ok ()
+  | Ok () -> Ok ()
   | Error _ as err ->
     match decl.type_manifest with
     | None -> err
@@ -6998,7 +6998,7 @@ let check_decl_jkind env decl jkind =
          think not. *)
       let ty_jkind = type_jkind env ty in
       match Jkind.sub_jkind_l ~type_equal ~jkind_of_type ty_jkind jkind with
-      | Ok _ -> Ok ()
+      | Ok () -> Ok ()
       | Error _ as err -> err
 
 let constrain_decl_jkind env decl jkind =

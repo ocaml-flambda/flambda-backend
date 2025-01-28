@@ -1291,7 +1291,7 @@ let narrow_to_manifest_jkind env loc decl =
           Jkind.sub_jkind_l ~type_equal ~jkind_of_type
             manifest_jkind decl.type_jkind
         with
-        | Ok _ -> ()
+        | Ok () -> ()
         | Error v -> raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
       end
     | Some type_jkind -> begin
@@ -1318,7 +1318,7 @@ let check_kind_coherence env loc dpath decl =
         begin match Jkind.sub_jkind_l
                       ~type_equal ~jkind_of_type jkind' decl.type_jkind
         with
-        | Ok _ -> ()
+        | Ok () -> ()
         | Error v ->
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
         end
@@ -1915,7 +1915,7 @@ let update_decl_jkind env dpath id decl shape =
          histories for this use-case, which doesn't need it. *)
       Jkind.sub_jkind_l ~type_equal ~jkind_of_type new_jkind decl.type_jkind
     with
-    | Ok _ -> ()
+    | Ok () -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
     end;
