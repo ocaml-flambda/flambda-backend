@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-alert -unsafe_multidomain";
    runtime5;
    native;
    bytecode;
