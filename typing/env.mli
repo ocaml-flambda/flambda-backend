@@ -167,7 +167,7 @@ val mark_extension_used:
 type label_usage =
     Projection | Mutation | Construct | Exported_private | Exported
 val mark_label_used:
-    _ record_form -> label_usage -> label_declaration -> unit
+    label_usage -> label_declaration -> unit
 
 (* Lookup by long identifiers *)
 
