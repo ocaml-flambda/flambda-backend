@@ -15,7 +15,7 @@ end
 module type S = sig type t = { i : int; } end
 |}]
 
-(* Shadowing a boxed record type also shadows the ghost unboxed record type... *)
+(* Shadowing a boxed record type also shadows the ghost unboxed record type *)
 module type Shadowed = sig
   include S
   type t
@@ -68,24 +68,24 @@ module type S' =
   sig type t = t' = { i : int; } val dummy : int val f : t# -> t# end
 |}]
 
-(* Check that the constraint was added (we can't check this by printing because
-   t# is hidden) *)
 type t = { i : int ; j : int }
 
-module type S = sig
-  type t = { i : int ; j : int }
-end
-with type t = t
 
-(* This compiles if the constraints were added *)
-module Check_constraints(M:S) = struct
+(* Check that the constraint was added (we can't check this by printing because
+   t# is hidden) *)
+module Check_constraints
+  (M: sig
+        type t = { i : int ; j : int }
+      end with type t = t) =
+struct
   let f : t -> M.t = fun x -> x
   let f : t# -> M.t# = fun x -> x
 end
 [%%expect{|
 type t = { i : int; j : int; }
-module type S = sig type t = t = { i : int; j : int; } end
-module Check_constraints : functor (M : S) -> sig val f : t# -> M.t# end
+module Check_constraints :
+  functor (M : sig type t = t = { i : int; j : int; } end) ->
+    sig val f : t# -> M.t# end
 |}]
 
 (*******************************)
@@ -371,4 +371,139 @@ Error:
          because it is an unboxed record.
        But the layout of q must be a sublayout of value & float64
          because of the definition of t at line 1, characters 0-29.
+|}]
+
+(***************************)
+(* Module type substitution*)
+
+(* with module type *)
+
+module type S = sig
+  module type x
+  module M:x
+end
+with module type x = sig type t = float end
+[%%expect{|
+module type S = sig module type x = sig type t = float end module M : x end
+|}]
+
+module F (M : S) = struct
+  let id : M.M.t# -> float# = fun x -> x
+end
+[%%expect{|
+Line 2, characters 11-17:
+2 |   let id : M.M.t# -> float# = fun x -> x
+               ^^^^^^
+Error: "M.M.t" has no unboxed version.
+|}]
+
+
+type r = { i : int }
+
+module type S = sig
+  module type x
+  module M:x
+end
+with module type x = sig type t = r end
+[%%expect{|
+type r = { i : int; }
+module type S = sig module type x = sig type t = r end module M : x end
+|}]
+
+module F (M : S) = struct
+  let id : M.M.t# -> r# = fun x -> x
+end
+[%%expect{|
+module F : functor (M : S) -> sig val id : M.M.t# -> r# end
+|}]
+
+(* with module type, destructive *)
+
+module type S = sig
+  module type x
+  module M:x
+end
+with module type x := sig type t = float end
+[%%expect{|
+module type S = sig module M : sig type t = float end end
+|}]
+
+module F (M : S) = struct
+  let id : M.M.t# -> float# = fun x -> x
+end
+[%%expect{|
+Line 2, characters 11-17:
+2 |   let id : M.M.t# -> float# = fun x -> x
+               ^^^^^^
+Error: "M.M.t" has no unboxed version.
+|}]
+
+(***********************)
+(* Package constraints *)
+
+(* Unboxed number *)
+
+module type S = sig
+  type t
+end
+
+type m = (module S with type t = float)
+
+module F (X : sig val x : m end) = struct
+  module M = (val X.x)
+  type t = M.t#
+end
+[%%expect{|
+module type S = sig type t end
+type m = (module S with type t = float)
+Line 9, characters 11-15:
+9 |   type t = M.t#
+               ^^^^
+Error: "M.t" has no unboxed version.
+|}]
+
+
+(* Unboxed record *)
+
+module type S = sig
+  type t
+end
+
+type r = { i : int }
+
+type m = (module S with type t = r)
+
+module F (X : sig val x : m end) = struct
+  module M = (val X.x)
+  let id : M.t# -> r# = fun x -> x
+end
+[%%expect{|
+module type S = sig type t end
+type r = { i : int; }
+type m = (module S with type t = r)
+module F :
+  functor (X : sig val x : m end) ->
+    sig module M : sig type t = r end val id : M.t# -> r# end
+|}]
+
+
+(* Failing - no unboxed version *)
+
+module type S = sig
+  type t
+end
+
+type m = (module S with type t = int)
+
+module F (X : sig val x : m end) = struct
+  module M = (val X.x)
+  type t = M.t#
+end
+[%%expect{|
+module type S = sig type t end
+type m = (module S with type t = int)
+Line 9, characters 11-15:
+9 |   type t = M.t#
+               ^^^^
+Error: "M.t" has no unboxed version.
 |}]

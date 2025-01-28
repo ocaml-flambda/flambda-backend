@@ -35,14 +35,17 @@ type float
 |}]
 
 type bad = float#
-
-(* But it's still accessible via the alias *)
-type u2 = t#
 [%%expect{|
 Line 1, characters 11-17:
 1 | type bad = float#
                ^^^^^^
 Error: "float" has no unboxed version.
+|}]
+
+(* But it's still accessible via the alias *)
+type u2 = t#
+[%%expect{|
+type u2 = t#
 |}]
 
 module M = struct
@@ -108,7 +111,7 @@ and s = t#
 Line 2, characters 0-10:
 2 | and s = t#
     ^^^^^^^^^^
-Error: "t" has no unboxed version. (typedecl.ml)
+Error: "t" has no unboxed version.
 |}]
 
 type t = s#
@@ -117,7 +120,7 @@ and s = t#
 Line 1, characters 0-11:
 1 | type t = s#
     ^^^^^^^^^^^
-Error: "s" has no unboxed version. (typedecl.ml)
+Error: "s" has no unboxed version.
 |}]
 
 type t = s#
@@ -213,19 +216,7 @@ Error: The definition of "t#" is recursive without boxing:
          "s#" contains "t#"
 |}]
 
-(* Many cases from the [recursive.ml] test to try... *)
-
-(* Do we give a type a hash type in enter type based on manifest, kind or both?
-   I think we give it if *either* has a hash type, in order for both of the
-   following to give good errors:
-
-     type a = { i : int }
-     type b = a = { i : int } [@@unboxed]
-     and s = b#
-
-     type a = { i : int } [@@unboxed]
-     type b = a = { i : int }
-     and s = b#
+(*
 
    (Also consider if there are other variations than boxed/unboxed versions of
    records, consider abstravct types with unboxed versions (only possible with
@@ -289,4 +280,73 @@ and t = a = { i : int }
 [%%expect{|
 type a = { i : int; }
 and t = a = { i : int; }
+|}]
+
+
+(* Recursive definitions with boxed record and its implicit version *)
+module M : sig
+  type t_u : value & float64
+end = struct
+  type t_u = t#
+  and t = { s : string ; f : float# }
+end
+[%%expect{|
+module M : sig type t_u : value & float64 end
+|}]
+
+type t = { s : s# }
+and s = { t : t }
+[%%expect{|
+type t = { s : s#; }
+and s = { t : t; }
+|}]
+
+(* Implicit unboxed record in module *)
+module M = struct
+  type t = { i : int }
+end
+[%%expect{|
+module M : sig type t = { i : int; } end
+|}]
+
+let x = M.(#{ i = 1 })
+[%%expect{|
+val x : M.t# = #{i = 1}
+|}]
+
+
+(* Make sure we complain about mismatched kinds before mismatched existence of
+   unboxed versions *)
+type a = { i : int }
+and b = a = { i : int } [@@unboxed]
+[%%expect{|
+Line 2, characters 0-35:
+2 | and b = a = { i : int } [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "a"
+       Their internal representations differ:
+       this definition uses unboxed representation.
+|}]
+
+(* Check the below have sensible errors *)
+type a = { i : int }
+type b = a = { i : int } [@@unboxed]
+and s = b#
+[%%expect{|
+type a = { i : int; }
+Line 3, characters 0-10:
+3 | and s = b#
+    ^^^^^^^^^^
+Error: "b" has no unboxed version.
+|}]
+
+type a = { i : int } [@@unboxed]
+type b = a = { i : int }
+and s = b#
+[%%expect{|
+type a = { i : int; } [@@unboxed]
+Line 3, characters 0-10:
+3 | and s = b#
+    ^^^^^^^^^^
+Error: "b" has no unboxed version.
 |}]
