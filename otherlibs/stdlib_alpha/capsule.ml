@@ -306,7 +306,7 @@ module Mutex = struct
 
   type packed : value mod portable uncontended = P : 'k t -> packed
   [@@unsafe_allow_any_mode_crossing
-    "CR: illegal mode crossing on the current version of the compiler, but \
+    "CR layouts v2.8: illegal mode crossing on the current version of the compiler, but \
      should be legal."]
 
   let name t = t.name
