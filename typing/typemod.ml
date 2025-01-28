@@ -773,19 +773,6 @@ let merge_constraint initial_env loc sg lid constr =
         in
         constrain_jkind tdecl sig_decl.type_jkind;
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
-        begin match
-          tdecl.type_unboxed_version, sig_decl.type_unboxed_version with
-        | None, None -> ()
-        | Some _tdecl_unboxed, Some _sig_decl_unboxed ->
-          (* CR rtjoa:  *)
-          assert false
-          (* constrain_jkind tdecl_unboxed sig_decl_unboxed.type_jkind *)
-        | _ ->
-          (* If only one of [tdecl] and [sig_decl] have an unboxed version, then
-             the above check should have failed, as the unboxed version is
-             implied by the kind/manifest. *)
-          Misc.fatal_error "Typemod.merge_constraint"
-        end;
         let tdecl = { tdecl with type_manifest = None } in
         return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
           (Pident id, lid, None)
@@ -2459,7 +2446,6 @@ let check_recmodule_inclusion env bindings =
 let rec package_constraints_sig env loc sg constrs =
   List.map
     (function
-      (* CR rtjoa: consider updating *)
       | Sig_type (id, ({type_params=[]} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in

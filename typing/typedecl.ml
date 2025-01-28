@@ -3749,7 +3749,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_variance = new_type_variance;
       type_separability = new_type_separability;
       type_has_illegal_crossings = false;
-      (* CR rtjoa: with constraint *)
       type_unboxed_version =
         Option.map (fun d -> {
           d with
@@ -3798,7 +3797,6 @@ let transl_package_constraint ~loc ty =
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     type_has_illegal_crossings = false;
-    (* CR rtjoa: package constraint *)
     type_unboxed_version = None;
     type_is_unboxed_version = false;
   }
@@ -4443,9 +4441,6 @@ let report_error ppf = function
       "@[Invalid reexport declaration.\
          @ Type %s must not define an explicit representation.@]"
       (Path.name definition)
-  (* CR rtjoa: Should this be distinguishable from Env.No_unboxed_version?
-     For now, I just included the filename.
-  *)
   | No_unboxed_version p ->
       fprintf ppf "@[%a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p

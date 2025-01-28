@@ -1342,7 +1342,7 @@ let type_of_cstr path = function
       end
   | _ -> assert false
 
-let rec find_type_data path env =
+let rec find_type_data path env seen =
   (* CR rtjoa: local constraints? *)
   match Path.Map.find path env.local_constraints with
   | decl ->
@@ -1367,11 +1367,11 @@ let rec find_type_data path env =
               let cda = find_extension_full p env in
               type_of_cstr path cda.cda_description
           | Punboxed_ty ->
-              find_type_unboxed_version_data p env Path.Set.empty
+              find_type_unboxed_version_data p env seen
         end
     end
 and find_cstr path name env =
-  let tda = find_type_data path env in
+  let tda = find_type_data path env Path.Set.empty in
   match tda.tda_descriptions with
   | Type_variant (cstrs, _) ->
       List.find (fun cstr -> cstr.cstr_name = name) cstrs
@@ -1381,90 +1381,43 @@ and find_cstr path name env =
 and find_type_unboxed_version_data path env seen =
   if Path.Set.mem path seen then raise Not_found else
   let seen = Path.Set.add path seen in
-  let tda = find_type_data path env in
+  let tda = find_type_data path env seen in
   let decl = tda.tda_declaration in
   let tda_declaration =
     match decl.type_unboxed_version with
     | Some ud -> ud
     | None ->
-      let unboxed_kind_jkind =
-        match decl.type_kind with
-        | Type_abstract a ->
-          `Abstract_kind a
-        | Type_record_unboxed_product _ | Type_variant _
-        | Type_open
-        | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                          | Record_ufloat | Record_mixed _))->
-          `No_unboxed_version
-        | Type_record (lbls, Record_boxed _) ->
-          let lbls_unboxed =
-            (* CR rtjoa: Need warning scope? *)
-            List.map
-              (fun (ld : Types.label_declaration) ->
-                  (* CR rtjoa: same id ok? *)
-                  { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
-                  ld_mutable = Immutable;
-                  ld_modalities = ld.ld_modalities;
-                  ld_sort = Jkind.Sort.Const.void;
-                  ld_type = ld.ld_type;
-                  ld_loc = ld.ld_loc;
-                  ld_attributes = [];
-                  ld_uid = ld.ld_uid;
-                })
-              lbls
-          in
-          let jkind_ls =
-            List.map (fun _ -> Jkind.Builtin.any ~why:Initial_typedecl_env) lbls
-          in
-          let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
-          let kind = Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product) in
-          `Unboxed_kind_jkind (kind, jkind)
-      in
-      let unboxed_manifest =
+      (* If there's stored unboxed version (for builtins, records, and some
+         aliases), then we can only get an unboxed version from an alias.
+
+         Checking this and failing early gives better errors during typechecking.
+
+      *)
+      let decl_path, decl_args =
+        (match decl.type_kind with
+        | Type_record_unboxed_product _ | Type_variant _ | Type_open
+        | Type_record _ ->
+          raise Not_found
+        | Type_abstract _ -> ());
         match decl.type_manifest with
-        | None -> `No_manifest
         | Some ty ->
-          match get_desc ty with
-          | Tconstr (path, args, _) ->
-            begin match path with
-            | Pextra_ty (_, Punboxed_ty) -> `No_unboxed_version
-            | _ ->
-            begin match find_type_unboxed_version_data path env seen with
-            | exception Not_found -> `No_unboxed_version
-            | { tda_declaration = ud } ->
-              (* CR layouts v11: we'll have to update type_jkind once we have
-                  [layout_of] layouts *)
-              `Unboxed_manifest_jkind
-                (Btype.newgenty (Tconstr (Path.unboxed_version path, args, ref Mnil)),
-                  ud.type_jkind)
-            end
-            end
-          | _ ->
-            `No_unboxed_version
+          begin match get_desc ty with
+          | Tconstr (path, args, _) -> path, args
+          | _ -> raise Not_found end
+        | None -> raise Not_found
       in
-      let unboxed_kind_jkind_manifest =
-        match unboxed_kind_jkind, unboxed_manifest with
-        | `No_unboxed_version, _ | _, `No_unboxed_version
-        | `Abstract_kind _, `No_manifest -> None
-        | `Unboxed_kind_jkind (kind, jkind), `No_manifest ->
-          Some (kind, jkind, None)
-        | `Abstract_kind a, `Unboxed_manifest_jkind (ty, jkind) ->
-          Some (Type_abstract a, jkind, Some ty)
-        | `Unboxed_kind_jkind (kind, jkind), `Unboxed_manifest_jkind (ty, _jkind) ->
-          (* CR rtjoa: the below comment not true after refactoring *)
-          (* [check_coherence] will make sure [jkind] and [_jkind] align *)
-          Some (kind, jkind, Some ty)
-      in
-      match unboxed_kind_jkind_manifest with
-      | None -> raise Not_found
-      | Some (kind, jkind, manifest) ->
+      match find_type_unboxed_version_data decl_path env seen with
+      | { tda_declaration = ud } ->
+        (* CR rtjoa: figure out params and args *)
+        let man = Btype.newgenty (Tconstr (Path.unboxed_version decl_path, decl_args, ref Mnil)) in
+        let jkind = ud.type_jkind in
         {
           type_params = decl.type_params;
           type_arity = decl.type_arity;
-          type_kind = kind;
+          type_kind = decl.type_kind;
           type_jkind = jkind;
           type_private = decl.type_private;
-          type_manifest = manifest;
+          type_manifest = Some man;
           type_variance = Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
           type_separability = Types.Separability.default_signature ~arity:decl.type_arity;
           type_is_newtype = false;
@@ -1543,9 +1496,9 @@ let find_ident_label record_form id env =
   TycompTbl.find_same id (env_labels record_form env)
 
 let find_type p env =
-  (find_type_data p env).tda_declaration
+  (find_type_data p env Path.Set.empty ).tda_declaration
 let find_type_descrs p env =
-  (find_type_data p env).tda_descriptions
+  (find_type_data p env Path.Set.empty).tda_descriptions
 
 let rec find_module_address path env =
   match path with
