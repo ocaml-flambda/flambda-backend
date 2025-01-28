@@ -3,6 +3,68 @@
  expect;
 *)
 
+(*******************)
+(* Type parameters *)
+
+type 'a r = { a : 'a }
+and intr = int r
+let bad : type a. a r -> intr = fun x -> x
+[%%expect{|
+type 'a r = { a : 'a; }
+and intr = int r
+Line 3, characters 41-42:
+3 | let bad : type a. a r -> intr = fun x -> x
+                                             ^
+Error: This expression has type "a r" but an expression was expected of type
+         "intr" = "int r"
+       Type "a" is not compatible with type "int"
+|}]
+
+type bad = (int, int) t#
+and 'a t = { i : 'a }
+[%%expect{|
+Line 1, characters 11-24:
+1 | type bad = (int, int) t#
+               ^^^^^^^^^^^^^
+Error: The type constructor "t#" expects 1 argument(s),
+       but is here applied to 2 argument(s)
+|}]
+
+type bad = t#
+and 'a t = { i : 'a }
+[%%expect{|
+Line 1, characters 11-13:
+1 | type bad = t#
+               ^^
+Error: The type constructor "t#" expects 1 argument(s),
+       but is here applied to 0 argument(s)
+|}]
+
+
+type 'a t = { s : int }
+and 'a s = 'a t#
+[%%expect{|
+type 'a t = { s : int; }
+and 'a s = 'a t#
+|}]
+
+type 'a r = { a : int }
+module type S = sig
+  type 'a t = { a : 'a }
+end with type 'a t = 'a r
+[%%expect{|
+type 'a r = { a : int; }
+Line 4, characters 9-25:
+4 | end with type 'a t = 'a r
+             ^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "'a r"
+       Fields do not match:
+         "a : int;"
+       is not the same as:
+         "a : 'a;"
+       The type "int" is not equal to the type "'a"
+|}]
+
 (* Non-existent #-type *)
 type bad = a#
 [%%expect{|
