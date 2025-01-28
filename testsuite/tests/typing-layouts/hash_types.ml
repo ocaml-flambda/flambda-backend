@@ -12,11 +12,6 @@ Line 1, characters 11-13:
 Error: Unbound type constructor "a"
 |}]
 
-type t = float#
-[%%expect{|
-type t = float#
-|}]
-
 type t = float
 [%%expect{|
 type t = float
@@ -66,25 +61,6 @@ type float = t
 type float = t
 |}]
 
-module type S = sig
-  type t = float
-  type u = t#
-end with type t := float
-[%%expect{|
-module type S = sig type u = float# end
-|}]
-
-module S : sig
-  type t = float
-  type u = t#
-  val f : u -> t#
-end with type u := float# = struct
-  type t = float
-  let f x = x
-end
-[%%expect{|
-module S : sig type t = float val f : float# -> t# end
-|}]
 
 type 'a t = float
 type s = int t#
@@ -216,33 +192,7 @@ Error: The definition of "t#" is recursive without boxing:
          "s#" contains "t#"
 |}]
 
-(*
 
-   (Also consider if there are other variations than boxed/unboxed versions of
-   records, consider abstravct types with unboxed versions (only possible with
-   [boxes]). A further challenge: float records; we need to type these to
-   determine whether or not to give them dummy unboxed versions. Maybe we give
-   all records dummy unboxed versions, then have a check at the end that it's
-   [Record_boxed]?)
-
-   Also... these dummy declarations need to have good-enough jkinds for
-   typechecking. E.g. products need the right arity (remember the
-   product-of-[any]s hack.)
-
-   Another tricky case:
-   (Maybe not necessary for exactly this case, but it's worth thinking about
-   what dummy jkind [s] has)
-
-   type t = { i : int ; j : int }
-
-   type s = t
-   and m = s# = #{ i : int ; j : int }
-
-   (It's fine if we disallow this, I think.)
-
-   Also need to check that unused type error are eliminated by using the hash
-   version.
-*)
 
 module M = struct
   type t = {x:int}
@@ -349,4 +299,87 @@ Line 3, characters 0-10:
 3 | and s = b#
     ^^^^^^^^^^
 Error: "b" has no unboxed version.
+|}]
+
+(**********************************)
+(* Implicit unboxed records kinds *)
+
+type t = { i : int }
+type s = t# = #{ i : int }
+[%%expect{|
+type t = { i : int; }
+type s = t# = #{ i : int; }
+|}]
+
+(* Implicit unboxed records get the same modalities as the boxed records, which
+   are affected by field mutability. *)
+
+(* CR layouts v7.2: once global implies unyielding, remove
+   "unyielding" below *)
+type 'a t = { mutable s : string ; a : 'a @@ global }
+type 'a s = 'a t# = #{
+  s : string @@ global many aliased unyielding;
+  a : 'a @@ global
+}
+[%%expect{|
+type 'a t = { mutable s : string; global_ a : 'a; }
+type 'a s = 'a t# = #{ global_ s : string @@ many aliased; global_ a : 'a; }
+|}]
+
+(* Modality mismatch *)
+type t = { mutable s : string }
+type bad = t# = #{ s : string }
+[%%expect{|
+type t = { mutable s : string; }
+Line 2, characters 0-31:
+2 | type bad = t# = #{ s : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "t#"
+       Fields do not match:
+         "global_ s : string @@ many aliased;"
+       is not the same as:
+         "s : string;"
+       This is empty and the original is aliased.
+|}]
+
+(* This errors (as it also does for the analogous test for boxed records, see
+   below) *)
+type t = { i : int ; j : int }
+type s = t
+type u = s# = #{ i : int ; j : int }
+[%%expect{|
+type t = { i : int; j : int; }
+type s = t
+Line 3, characters 0-36:
+3 | type u = s# = #{ i : int ; j : int }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "s#"
+       The original is abstract, but this is an unboxed record.
+|}]
+
+type t = { i : int ; j : int }
+type s = t
+type u = s = { i : int ; j : int }
+[%%expect{|
+type t = { i : int; j : int; }
+type s = t
+Line 3, characters 0-34:
+3 | type u = s = { i : int ; j : int }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "s"
+       The original is abstract, but this is a record.
+|}]
+
+(******************************************************************)
+(* Unboxed records can shadow labels for implicit unboxed records *)
+
+type t = { a : int }
+type u = #{ a : bool }
+let f x = x.a
+let g x = x.#a
+[%%expect{|
+type t = { a : int; }
+type u = #{ a : bool; }
+val f : t -> int = <fun>
+val g : u -> bool = <fun>
 |}]
