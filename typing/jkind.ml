@@ -414,6 +414,11 @@ module With_bounds = struct
         |> List.of_seq |> Best_effort_type_map.of_list
         |> Best_effort_type_map.Non_empty.of_maybe_empty |> Option.get)
 
+  let _map_info (type l r) f : (l * r) t -> (l * r) t = function
+    | No_with_bounds -> No_with_bounds
+    | With_bounds bounds ->
+      With_bounds (Best_effort_type_map.Non_empty.map f bounds)
+
   let make_irrelevant (type l r) ~axis : (l * r) t -> (l * r) t = function
     | No_with_bounds -> No_with_bounds
     | With_bounds ts ->
@@ -599,6 +604,21 @@ module Bounds = struct
             Bound_ops.equal)
       }
       ~combine:( && )
+
+  let _max_axes (t : t) =
+    (* CR layouts v2.8: find a more general way to do this *)
+    Axis_set.of_bool_collection
+      { locality = Mode.Locality.Const.le Mode.Locality.Const.max t.locality;
+        linearity = Mode.Linearity.Const.le Mode.Linearity.Const.max t.linearity;
+        uniqueness =
+          Mode.Uniqueness.Const.le Mode.Uniqueness.Const.max t.uniqueness;
+        portability =
+          Mode.Portability.Const.le Mode.Portability.Const.max t.portability;
+        contention =
+          Mode.Contention.Const.le Mode.Contention.Const.max t.contention;
+        externality = Externality.le Externality.max t.externality;
+        nullability = Nullability.le Nullability.max t.nullability
+      }
 end
 
 module Layout_and_axes = struct
@@ -1508,7 +1528,7 @@ module Jkind_desc = struct
               (With_bounds.to_list t.with_bounds)
           in
           let worst_bounds =
-            join_bounds t.upper_bounds Bounds.max
+            join_bounds t.mod_bounds Bounds.max
               ~relevant_axes:all_relevant_axes
           in
           worst_bounds, No_with_bounds
@@ -2758,17 +2778,28 @@ let sub_jkind_l :
  fun ~type_equal ~jkind_of_type sub super ->
   let open Misc.Stdlib.Monad.Result.Syntax in
   let make_error () = Error (Violation.of_ (Not_a_subjkind (sub, super))) in
+  let* () =
+    (* Validate layouts *)
+    match
+      Misc.Le_result.is_le (Layout.sub sub.jkind.layout super.jkind.layout)
+    with
+    | true -> Ok ()
+    | false -> make_error ()
+  in
   let best_super =
     (* MB_EXPAND_R *)
     normalize ~mode:Require_best ~jkind_of_type super
   in
   let* () =
+    (* todo: remove this? I'm not sure this is necessary *)
     (* MB_MODE *)
     match
-      Bounds.less_or_equal sub.jkind.mod_bounds best_super.jkind.mod_bounds
+      Misc.Le_result.is_le
+        (Bounds.less_or_equal sub.jkind.mod_bounds
+           best_super.jkind.mod_bounds)
     with
-    | Less | Equal -> Ok ()
-    | Not_le -> make_error ()
+    | true -> Ok ()
+    | false -> make_error ()
   in
   let paired_up_with_bounds, only_left =
     (* Pair up the with bounds based on types. It's important that each type that appears
@@ -2780,16 +2811,20 @@ let sub_jkind_l :
       (With_bounds.to_with_bounds_types sub.jkind.with_bounds)
       (With_bounds.to_with_bounds_types best_super.jkind.with_bounds)
   in
-  let* () =
+  let only_left =
     (* MB_WITH *)
-    let rec validate_bound_pairs = function
-      | [] -> Ok ()
-      | (_, (Both (left, right) : With_bound_pairing.both)) :: rest -> (
-        match Axis_set.is_subset right.relevant_axes left.relevant_axes with
-        | true -> validate_bound_pairs rest
-        | false -> make_error ())
+    let rec loop left_remainders = function
+      | [] -> left_remainders
+      | (ty, (Both (left, right) : With_bound_pairing.both)) :: rest ->
+        let left_remainder =
+          Axis_set.diff left.relevant_axes right.relevant_axes
+        in
+        loop
+          ((ty, With_bound_pairing.Left_only { relevant_axes = left_remainder })
+          :: left_remainders)
+          rest
     in
-    validate_bound_pairs paired_up_with_bounds
+    loop only_left paired_up_with_bounds
   in
   (* Check that norm-not-best(left.mod_bounds with left_only) <= norm-best(right).mod_bounds *)
   let* () =

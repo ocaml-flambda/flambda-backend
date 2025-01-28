@@ -188,6 +188,8 @@ module Axis_set : sig
 
   val empty : t
 
+  val is_empty : t -> bool
+
   val add : t -> _ Axis.t -> t
 
   val remove : t -> _ Axis.t -> t
@@ -198,11 +200,15 @@ module Axis_set : sig
 
   val intersection : t -> t -> t
 
+  val diff : t -> t -> t
+
   val is_subset : t -> t -> bool
 
   val complement : t -> t
 
   val to_list : t -> Axis.packed list
+
+  val of_bool_collection : bool Axis_collection.t -> t
 
   val print : Format.formatter -> t -> unit
 end

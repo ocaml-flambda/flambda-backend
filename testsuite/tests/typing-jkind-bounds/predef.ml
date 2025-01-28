@@ -132,7 +132,7 @@ Error: This value escapes its region.
 
 (* ref *)
 type t : mutable_data = int ref
-type 'a t : mutable_data with 'a @@ global many = 'a ref
+type 'a t : mutable_data with 'a = 'a ref
 type ('a : mutable_data) t : mutable_data = 'a list
 [%%expect {|
 type t = int ref

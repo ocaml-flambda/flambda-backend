@@ -460,12 +460,18 @@ module Axis_set = struct
     Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
         Axis_collection.get ~axis t1 && Axis_collection.get ~axis t2)
 
+  let diff t1 t2 =
+    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
+        Axis_collection.get ~axis t1 && not (Axis_collection.get ~axis t2))
+
   let is_subset t1 t2 =
     Axis_collection.fold
       ~f:(fun ~axis:(Pack axis) t1_on_axis ->
         let t2_on_axis = Axis_collection.get ~axis t2 in
         (not t1_on_axis) || t2_on_axis)
       ~combine:( && ) t1
+
+  let is_empty t = is_subset t empty
 
   let complement t = Axis_collection.map ~f:not t
 
@@ -474,6 +480,8 @@ module Axis_set = struct
       ~f:(fun ~axis t_on_axis ->
         match t_on_axis with true -> [axis] | false -> [])
       ~combine:( @ ) t
+
+  let of_bool_collection t = t
 
   let print ppf t =
     Format.pp_print_list
