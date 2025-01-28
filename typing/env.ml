@@ -1407,7 +1407,6 @@ and find_type_unboxed_version_data path env seen =
       in
       match find_type_unboxed_version_data decl_path env seen with
       | { tda_declaration = ud } ->
-        (* CR rtjoa: figure out params and args *)
         let man = Btype.newgenty (Tconstr (Path.unboxed_version decl_path, decl_args, ref Mnil)) in
         let jkind = ud.type_jkind in
         {

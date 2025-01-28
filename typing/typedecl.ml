@@ -1036,8 +1036,9 @@ let transl_declaration env sdecl (id, uid) =
         type_unboxed_default = unboxed_default;
         type_uid = uid;
         type_has_illegal_crossings = false;
-        (* CR rtjoa: comment *)
         type_unboxed_version = None;
+        (* Unboxed versions are computed after all declarations have been
+           translated, in [add_unboxed_versions] *)
         type_is_unboxed_version = false;
       } in
   (* Check constraints *)
@@ -1097,16 +1098,13 @@ let derive_unboxed_version find_type decl =
       `No_unboxed_version
     | Type_record (lbls, Record_boxed _) ->
       let lbls_unboxed =
-        (* CR rtjoa: Need warning scope? *)
         List.map
           (fun (ld : Types.label_declaration) ->
-              (* CR rtjoa: same id ok? *)
               { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
               ld_mutable = Immutable;
               ld_modalities = ld.ld_modalities;
               ld_sort = Jkind.Sort.Const.void;
               ld_type = ld.ld_type;
-                (* CR rtjoa: need to subst when we instantiate new params*)
               ld_loc = ld.ld_loc;
               ld_attributes = [];
               ld_uid = ld.ld_uid;
