@@ -23,7 +23,8 @@ type _packed :  value mod portable uncontended = Capsule.Rwlock.packed
    This only holds when 'a also crosses portability *)
 
 type 'a myref : value mod portable = { mutable v : 'a}
-[@@unsafe_allow_any_mode_crossing]
+[@@unsafe_allow_any_mode_crossing
+  "CR layouts v2.8: This can go away once we have with-kinds"]
 
 
 module RwCell = struct

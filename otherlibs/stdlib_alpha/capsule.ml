@@ -362,7 +362,9 @@ module Rwlock = struct
   [@@unsafe_allow_any_mode_crossing]
 
   type packed : value mod portable uncontended = P : 'k t -> packed
-  [@@unsafe_allow_any_mode_crossing]
+  [@@unsafe_allow_any_mode_crossing
+    "CR layouts v2.8: This can go away once we have proper mode crossing \
+     inference for GADT constructors "]
 
   exception Poisoned
 
