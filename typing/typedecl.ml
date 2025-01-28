@@ -1106,15 +1106,85 @@ let transl_declaration env sdecl (id, uid) =
    [type_unboxed_version].
 *)
 let gets_unboxed_version decl =
-  (* CR-soon layouts v7.2: update for implicit unboxed records *)
-  ignore decl;
-  false
+  match decl.type_kind with
+  | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
+  | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
+                    | Record_ufloat | Record_mixed _), _)->
+    false
+  | Type_record (_, Record_boxed _, _) ->
+    true
 let derive_unboxed_version env unboxed_versions_in_group decl =
-  (* CR-soon layouts v7.2: update for implicit unboxed records *)
-  ignore env;
-  ignore unboxed_versions_in_group;
-  ignore decl;
-  None
+  match decl.type_kind with
+  | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
+  | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
+                    | Record_ufloat | Record_mixed _), _)->
+    None
+  | Type_record (lbls, Record_boxed _, umc) ->
+    let keep_attribute a =
+      (* If we keep [@deprecated_mutable], then a record that aliases
+         a record with a [@deprecated_mutable] label will cause two alerts,
+         if both have unboxed versions (because the unboxed version is a second
+         alias). *)
+      not (Builtin_attributes.attr_equals_builtin a "deprecated_mutable")
+    in
+    let lbls_unboxed =
+      List.map
+        (fun (ld : Types.label_declaration) ->
+            { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
+            ld_mutable = Immutable;
+            ld_modalities = ld.ld_modalities;
+              (* Inherit modalities from the boxed version. Note that these
+                  are affected by the mutability of the boxed label, even
+                  though the unboxed version is always immutable. *)
+            ld_sort = Jkind.Sort.Const.void;
+            ld_type = ld.ld_type;
+            ld_loc = ld.ld_loc;
+            ld_attributes = List.filter keep_attribute ld.ld_attributes;
+              (* Copy label attributes to the unboxed version *)
+            ld_uid = Uid.unboxed_version ld.ld_uid;
+          })
+        lbls
+    in
+    (* CR layouts v11: update type_jkind once we have [layout_of] layouts *)
+    let jkind =
+      Jkind.Builtin.product_of_sorts ~why:Unboxed_record (List.length lbls) in
+    let kind =
+      Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product, umc)
+    in
+    let type_manifest =
+      let has_unboxed_version path =
+        Path.Set.mem path unboxed_versions_in_group ||
+        try Option.is_some (Env.find_type path env).type_unboxed_version with
+        | Not_found -> Misc.fatal_error "Typedecl.derive_unboxed_version"
+      in
+      match decl.type_manifest with
+      | None -> None
+      | Some ty ->
+        match get_desc ty with
+        | Tconstr (path, args, _) when has_unboxed_version path ->
+          Some (Ctype.newconstr (Path.unboxed_version path) args)
+        | _ -> None
+    in
+    Some
+      {
+        type_params = decl.type_params;
+        type_arity = decl.type_arity;
+        type_kind = kind;
+        type_jkind = jkind;
+        type_private = decl.type_private;
+        type_manifest;
+        type_variance =
+          Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
+        type_separability =
+          Types.Separability.default_signature ~arity:decl.type_arity;
+        type_is_newtype = false;
+        type_expansion_scope = Btype.lowest_level;
+        type_loc = decl.type_loc;
+        type_attributes = decl.type_attributes;
+        type_unboxed_default = false;
+        type_uid = Uid.unboxed_version decl.type_uid;
+        type_unboxed_version = None;
+      }
 
 let derive_unboxed_versions decls env =
   let unboxed_versions_in_group =
