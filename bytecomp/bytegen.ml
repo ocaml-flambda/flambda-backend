@@ -660,7 +660,7 @@ let comp_primitive stack_info p sz args =
   | Patomic_set _
   | Patomic_exchange _ -> Kccall("caml_atomic_exchange", 2)
   | Patomic_compare_exchange _ -> Kccall("caml_atomic_compare_exchange", 3)
-  | Patomic_compare_set _ -> Kccall("caml_atomic_compare_set", 3)
+  | Patomic_compare_set _ -> Kccall("caml_atomic_cas", 3)
   | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
   | Patomic_add -> Kccall("caml_atomic_add", 2)
   | Patomic_sub -> Kccall("caml_atomic_sub", 2)
