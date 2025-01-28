@@ -1160,14 +1160,11 @@ class virtual selector_generic =
       in
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
-      let fun_contains_calls =
-        Sub_cfg.exists_basic_blocks body ~f:Cfg.basic_block_contains_calls
-      in
       let cfg =
         Cfg.create ~fun_name:f.Cmm.fun_name.sym_name ~fun_args:loc_arg
           ~fun_codegen_options:
             (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
-          ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls
+          ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls:true
           ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
           ~fun_poll:f.Cmm.fun_poll
       in
@@ -1222,6 +1219,10 @@ class virtual selector_generic =
          `Cfg.register_predecessors_for_all_blocks`. *)
       Cfgize_utils.Stack_offset_and_exn.update_cfg cfg;
       Cfg.register_predecessors_for_all_blocks cfg;
+      let fun_contains_calls =
+        Sub_cfg.exists_basic_blocks body ~f:Cfg.basic_block_contains_calls
+      in
+      let cfg = { cfg with fun_contains_calls } in
       let cfg_with_layout =
         Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false
           ~new_labels:Label.Set.empty
