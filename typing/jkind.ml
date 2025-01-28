@@ -1344,8 +1344,7 @@ module Jkind_desc = struct
     in
     let { with_bounds; mod_bounds; _ } = to_ in
     let upper_bounds, with_bounds, added1 =
-      add_crossing ~axis:(Modal (Comonadic Portability)) mod_bounds
-        with_bounds
+      add_crossing ~axis:(Modal (Comonadic Portability)) mod_bounds with_bounds
     in
     let mod_bounds, with_bounds, added2 =
       add_crossing ~axis:(Modal (Monadic Contention)) upper_bounds with_bounds
