@@ -581,6 +581,10 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
        [get_unboxed_type_representation], but doesn't indicate whether the type
        was fully expanded or not. *)
 
+val contained_without_boxing : Env.t -> type_expr -> type_expr list
+    (* Return all types that are directly contained without boxing
+      (or "without indirection" or "flatly") *)
+
 (* Given the row from a variant type, determine if it is immediate.  Currently
    just checks that all constructors have no arguments, doesn't consider
    void. *)

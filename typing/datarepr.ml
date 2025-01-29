@@ -75,7 +75,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
         {
           type_params;
           type_arity = arity;
-          type_kind = Type_record (lbls, rep);
+          type_kind = Type_record (lbls, rep, None);
           type_jkind = jkind;
           type_private = priv;
           type_manifest = None;
@@ -87,7 +87,6 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_attributes = [];
           type_unboxed_default = false;
           type_uid = Uid.mk ~current_unit;
-          type_has_illegal_crossings = false;
         }
       in
       existentials,
@@ -126,6 +125,12 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       end
     | Variant_unboxed, ([] | _ :: _) ->
       Misc.fatal_error "Multiple or 0 constructors in [@@unboxed] variant"
+    | Variant_with_null, _ ->
+      (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
+         users to write their own null constructors. *)
+      (* CR layouts v3.3: generalize to [any]. *)
+      [| Constructor_uniform_value, [| |]
+       ; Constructor_uniform_value, [| Jkind.Sort.Const.value |] |]
   in
   let all_void sorts = Array.for_all Jkind.Sort.Const.(equal void) sorts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
@@ -152,7 +157,11 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       then const_tag, 1 + const_tag, nonconst_tag
       else nonconst_tag, const_tag, 1 + nonconst_tag
     in
-    let cstr_tag = Ordinary {src_index; runtime_tag} in
+    let cstr_tag =
+      match rep, cstr_constant with
+      | Variant_with_null, true -> Null
+      | _, _ ->  Ordinary {src_index; runtime_tag}
+    in
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
@@ -270,6 +279,7 @@ let find_constr ~constant tag cstrs =
       (function
         | ({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_) ->
           tag' = tag && cstr_constant = constant
+        | ({cstr_tag=Null; cstr_constant}, _) -> tag = -1 && cstr_constant = constant
         | ({cstr_tag=Extension _},_) -> false)
       cstrs
   with
@@ -280,14 +290,14 @@ let find_constr_by_tag ~constant tag cstrlist =
 
 let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
-  | Type_variant (cstrs,rep) ->
+  | Type_variant (cstrs, rep, _) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open -> []
 
 let labels_of_type ty_path decl =
   match decl.type_kind with
-  | Type_record(labels, rep) ->
+  | Type_record(labels, rep, _) ->
       label_descrs Legacy (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
   | Type_record_unboxed_product _
@@ -295,7 +305,7 @@ let labels_of_type ty_path decl =
 
 let unboxed_labels_of_type ty_path decl =
   match decl.type_kind with
-  | Type_record_unboxed_product(labels, rep) ->
+  | Type_record_unboxed_product(labels, rep, _) ->
       label_descrs Unboxed_product (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
   | Type_record _

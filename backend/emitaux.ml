@@ -143,6 +143,11 @@ let is_long n =
   if n > 0x3FFF_FFFF then raise (Error (Stack_frame_way_too_large n));
   n >= !Flambda_backend_flags.long_frames_threshold
 
+let is_long_stack_index n =
+  let is_reg n = n land 1 = 1 in
+  (* allows negative reg offsets in runtime4 *)
+  if is_reg n && not Config.runtime5 then false else is_long n
+
 let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
   assert (frame_size land 3 = 0);
   let fd_long =
@@ -150,7 +155,7 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
     (* The checks below are redundant (if they fail, then frame size check above
        should have failed), but they make the safety of [emit_frame] clear. *)
     || is_long (List.length live_offset)
-    || List.exists is_long live_offset
+    || List.exists is_long_stack_index live_offset
   in
   if fd_long && not !Flambda_backend_flags.allow_long_frames
   then raise (Error (Stack_frame_too_large frame_size));

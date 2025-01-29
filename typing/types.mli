@@ -643,19 +643,21 @@ type type_declaration =
     type_unboxed_default: bool;
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
-    type_has_illegal_crossings: bool;
-    (* true iff the type definition has illegal crossings of the portability and
-       contention axes *)
-    (* CR layouts v2.8: remove type_has_illegal_crossings *)
   }
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
+and unsafe_mode_crossing =
+  { modal_upper_bounds : Mode.Alloc.Const.t }
+
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
-  | Type_record of 'lbl list  * record_representation
-  | Type_record_unboxed_product of 'lbl_flat list * record_unboxed_product_representation
-  | Type_variant of 'cstr list * variant_representation
+  | Type_record of 'lbl list * record_representation * unsafe_mode_crossing option
+  | Type_record_unboxed_product of
+      'lbl_flat list *
+      record_unboxed_product_representation *
+      unsafe_mode_crossing option
+  | Type_variant of 'cstr list * variant_representation * unsafe_mode_crossing option
   | Type_open
 
 (* CR layouts: after removing the void translation from lambda, we could get rid of
@@ -672,6 +674,7 @@ and ('lbl, 'lbl_flat, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t
+        | Null (* Null pointer *)
 
 (* A mixed product contains a possibly-empty prefix of values followed by a
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
@@ -736,6 +739,11 @@ and variant_representation =
      [Constructor_mixed] if the inlined record has any unboxed fields.
   *)
   | Variant_extensible
+  | Variant_with_null
+  (* CR layouts v3.5: A custom variant representation for ['a or_null].
+     Eventually, it should likely be merged into [Variant_unboxed], with
+     [Variant_unboxed] allowing either one ordinary constructor, or one
+     ordinary non-null and one [Null] constructor. *)
 
 and constructor_representation =
   | Constructor_uniform_value

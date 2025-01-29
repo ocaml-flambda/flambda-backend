@@ -102,8 +102,6 @@ val name : t -> string
 val is_reg : t -> bool
 val is_stack :  t -> bool
 
-val size_of_contents_in_bytes : t -> int
-
 module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
 module Tbl: Hashtbl.S with type key = t
@@ -124,7 +122,6 @@ val mark_visited : t -> unit
 val is_visited : t -> bool
 val clear_visited_marks : unit -> unit
 
-val types_are_compatible : t -> t -> bool
 val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool
 val same : t -> t -> bool

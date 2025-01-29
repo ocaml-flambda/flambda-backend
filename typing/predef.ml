@@ -253,7 +253,6 @@ let mk_add_type add_type =
        type_attributes = [];
        type_unboxed_default = false;
        type_uid = Uid.of_predef_id type_ident;
-       type_has_illegal_crossings = false;
       }
     in
     add_type type_ident decl env
@@ -290,7 +289,6 @@ let mk_add_type1 add_type type_ident
       type_attributes = [];
       type_unboxed_default = false;
       type_uid = Uid.of_predef_id type_ident;
-       type_has_illegal_crossings = false;
     }
   in
   add_type type_ident decl env
@@ -340,8 +338,10 @@ let variant constrs =
     in
     Constructor_uniform_value, sorts
   in
-  Type_variant (constrs,
-                Variant_boxed (Misc.Stdlib.Array.of_list_map mk_elt constrs))
+  Type_variant (
+    constrs,
+    Variant_boxed (Misc.Stdlib.Array.of_list_map mk_elt constrs),
+    None)
 
 let unrestricted tvar ca_sort =
   {ca_type=tvar;
@@ -444,7 +444,8 @@ let build_initial_env add_type add_extension empty_env =
          in
          Type_record (
            labels,
-           (Record_boxed (List.map (fun label -> label.ld_sort) labels |> Array.of_list))
+           (Record_boxed (List.map (fun label -> label.ld_sort) labels |> Array.of_list)),
+           None
          )
        )
        (* CR layouts v2.8: Possibly remove this -- and simplify [mk_add_type] --
@@ -517,8 +518,11 @@ let add_small_number_beta_extension_types add_type env =
   |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
 
 let or_null_kind tvar =
-  variant [cstr ident_null [];
-           cstr ident_this [unrestricted tvar or_null_argument_sort]]
+  let cstrs =
+    [ cstr ident_null [];
+      cstr ident_this [unrestricted tvar or_null_argument_sort]]
+  in
+  Type_variant (cstrs, Variant_with_null, None)
 
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in

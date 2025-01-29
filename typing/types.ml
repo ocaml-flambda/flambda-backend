@@ -343,23 +343,28 @@ type type_declaration =
     type_attributes: Parsetree.attributes;
     type_unboxed_default: bool;
     type_uid: Uid.t;
-    type_has_illegal_crossings: bool;
  }
 
 and type_decl_kind =
   (label_declaration, label_declaration, constructor_declaration) type_kind
 
+and unsafe_mode_crossing =
+  { modal_upper_bounds : Mode.Alloc.Const.t }
+
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
-  | Type_record of 'lbl list * record_representation
+  | Type_record of 'lbl list * record_representation * unsafe_mode_crossing option
   | Type_record_unboxed_product of
-      'lbl_flat list * record_unboxed_product_representation
-  | Type_variant of 'cstr list * variant_representation
+      'lbl_flat list *
+      record_unboxed_product_representation *
+      unsafe_mode_crossing option
+  | Type_variant of 'cstr list * variant_representation * unsafe_mode_crossing option
   | Type_open
 
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
         | Extension of Path.t
+        | Null
 
 and type_origin =
     Definition
@@ -398,6 +403,7 @@ and variant_representation =
   | Variant_boxed of (constructor_representation *
                       Jkind_types.Sort.Const.t array) array
   | Variant_extensible
+  | Variant_with_null
 
 and constructor_representation =
   | Constructor_uniform_value
@@ -680,15 +686,19 @@ let equal_tag t1 t2 =
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     i2 = i1 (* If i1 = i2, the runtime_tags will also be equal *)
   | Extension path1, Extension path2 -> Path.same path1 path2
-  | (Ordinary _ | Extension _), _ -> false
+  | Null, Null -> true
+  | (Ordinary _ | Extension _ | Null), _ -> false
 
 let compare_tag t1 t2 =
   match (t1, t2) with
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     Int.compare i1 i2
   | Extension path1, Extension path2 -> Path.compare path1 path2
-  | Ordinary _, Extension _ -> -1
-  | Extension _, Ordinary _ -> 1
+  | Null, Null -> 0
+  | Ordinary _, (Extension _ | Null) -> -1
+  | (Extension _ | Null), Ordinary _ -> 1
+  | Extension _, Null -> -1
+  | Null, Extension _ -> 1
 
 let equal_flat_element e1 e2 =
   match e1, e2 with
@@ -743,7 +753,8 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
         cstrs_and_sorts2
   | Variant_extensible, Variant_extensible ->
       true
-  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+  | Variant_with_null, Variant_with_null -> true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible | Variant_with_null), _ ->
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
@@ -814,20 +825,19 @@ let record_form_to_string (type rep) (record_form : rep record_form) =
 
 let find_unboxed_type decl =
   match decl.type_kind with
-    Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
+    Type_record ([{ld_type = arg; _}], Record_unboxed, _)
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed), _)
   | Type_record_unboxed_product
-                ([{ld_type = arg; _}], Record_unboxed_product)
-  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
-  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+                ([{ld_type = arg; _}], Record_unboxed_product, _)
+  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed, _)
+  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}], Variant_unboxed, _) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
-                    | Record_mixed _))
-  | Type_record_unboxed_product (_, Record_unboxed_product)
+                    | Record_mixed _), _)
+  | Type_record_unboxed_product (_, Record_unboxed_product, _)
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
-                     | Variant_extensible ))
+                     | Variant_extensible | Variant_with_null), _)
   | Type_abstract _ | Type_open ->
     None
 

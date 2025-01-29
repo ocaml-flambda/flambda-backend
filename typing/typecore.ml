@@ -300,7 +300,8 @@ let error_of_filter_arrow_failure ~explanation ~first ty_fun
 
 let type_module =
   ref ((fun _env _md -> assert false) :
-       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t)
+       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t *
+        Env.locks)
 
 (* Forward declaration, to be filled in by Typemod.type_open *)
 
@@ -551,6 +552,9 @@ let mode_lazy expected_mode =
     (* The thunk is evaluated only once, so we only require it to be [once],
        even if the [lazy] is [many]. *)
     |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
+    (* The thunk is evaluated only when the [lazy] is [uncontended], so we only require it
+       to be [nonportable], even if the [lazy] is [portable]. *)
+    |> Value.join_with (Comonadic Portability) Portability.Const.Nonportable
   in
   {expected_mode with locality_context = Some Lazy }, closure_mode
 
@@ -886,10 +890,10 @@ let extract_concrete_typedecl_protected env ty =
 let extract_concrete_record (type rep) (record_form : rep record_form) env ty
     : (rep record_extraction_result) =
   match record_form, extract_concrete_typedecl_protected env ty with
-  | Legacy, Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
+  | Legacy, Typedecl(p0, p, {type_kind=Type_record (fields, repres, _)}) ->
     Record_type (p0, p, fields, repres)
   | Unboxed_product,
-    Typedecl(p0, p, {type_kind=Type_record_unboxed_product (fields, repres)}) ->
+    Typedecl(p0, p, {type_kind=Type_record_unboxed_product (fields, repres, _)}) ->
     Record_type (p0, p, fields, repres)
   | Legacy, Typedecl(_, _, {type_kind=Type_record_unboxed_product _})
   | Unboxed_product, Typedecl(_, _, {type_kind=Type_record _}) ->
@@ -904,7 +908,7 @@ type variant_extraction_result =
 
 let extract_concrete_variant env ty =
   match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _)}) ->
+  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _, _)}) ->
     Variant_type (p0, p, cstrs)
   | Typedecl(p0, p, {type_kind=Type_open}) ->
     Variant_type (p0, p, [])
@@ -1276,7 +1280,7 @@ let add_module_variables env module_variables =
          Here, on the other hand, we're calling [type_module] outside the
          raised level, so there's no extra step to take.
       *)
-      let modl, md_shape =
+      let modl, md_shape, locks =
         !type_module env
           Ast_helper.(
             Mod.unpack ~loc:mv_loc
@@ -1294,7 +1298,9 @@ let add_module_variables env module_variables =
           md_loc = mv_name.loc;
           md_uid = mv_uid; }
       in
-      Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md env
+      Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md
+        (* the [locks] is always empty, but typecore doesn't need to know *)
+        ~locks env
     end
   ) env module_variables_as_list
 
@@ -3014,7 +3020,7 @@ and type_pat_aux
   | Ppat_record(lid_sp_list, closed) ->
       type_record_pat Legacy lid_sp_list closed
   | Ppat_record_unboxed_product(lid_sp_list, closed) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       type_record_pat Unboxed_product lid_sp_list closed
   | Ppat_array (mut, spl) ->
       let mut =
@@ -5420,7 +5426,9 @@ and type_expect_
             (rep : rep) =
         match record_form with
         | Legacy -> begin match rep with
-          | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
+          | Record_unboxed
+          | Record_inlined (_, _, (Variant_unboxed | Variant_with_null))
+            -> false
           | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _
           | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
             -> true
@@ -6004,7 +6012,7 @@ and type_expect_
   | Pexp_record(lid_sexp_list, opt_sexp) ->
       type_expect_record ~overwrite Legacy lid_sexp_list opt_sexp
   | Pexp_record_unboxed_product(lid_sexp_list, opt_sexp) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       type_expect_record ~overwrite Unboxed_product lid_sexp_list opt_sexp
   | Pexp_field(srecord, lid) ->
       let (record, rmode, label, _) =
@@ -6056,7 +6064,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_unboxed_field(srecord, lid) ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       let (record, rmode, label, _) =
         type_label_access Unboxed_product env srecord Env.Projection lid
       in
@@ -6404,7 +6412,7 @@ and type_expect_
         with_local_level begin fun () ->
           let modl, pres, id, new_env =
             Typetexp.TyVarEnv.with_local_scope begin fun () ->
-              let modl, md_shape = !type_module env smodl in
+              let modl, md_shape, locks = !type_module env smodl in
               Mtype.lower_nongen lv modl.mod_type;
               let pres =
                 match modl.mod_type with
@@ -6425,7 +6433,7 @@ and type_expect_
                 | Some name ->
                     let id, env =
                       Env.enter_module_declaration
-                        ~scope ~shape:md_shape name pres md env
+                        ~scope ~shape:md_shape name pres md ~locks env
                     in
                     Some id, env
               in
@@ -8419,7 +8427,7 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
   in
   let (argument_mode, alloc_mode) =
     match constr.cstr_repr with
-    | Variant_unboxed -> expected_mode, None
+    | Variant_unboxed | Variant_with_null -> expected_mode, None
     | Variant_boxed _ when constr.cstr_constant -> expected_mode, None
     | Variant_boxed _ | Variant_extensible ->
        let alloc_mode, argument_mode = register_allocation expected_mode in
@@ -8456,6 +8464,8 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
         raise(Error(loc, env, Private_constructor (constr, ty_res)))
     | Variant_boxed _ | Variant_unboxed ->
         raise (Error(loc, env, Private_type ty_res));
+    | Variant_with_null -> assert false
+      (* [Variant_with_null] can't be made private due to [or_null_reexport]. *)
     end;
   (* NOTE: shouldn't we call "re" on this final expression? -- AF *)
   { texp with
@@ -10814,6 +10824,7 @@ let report_error ~loc env = function
         | Error (Monadic Contention, _ ) ->
           contention_hint fail_reason submode_reason contention_context
         | Error (Comonadic Portability, _ ) -> []
+        | Error (Comonadic Yielding, _) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with

@@ -587,19 +587,14 @@ CAMLexport value caml_alloc_shr_no_track_noexc (mlsize_t wosize, tag_t tag)
    free it.  In both cases, you pass as argument the size (in bytes)
    of the block being allocated or freed.
 */
-CAMLexport void caml_alloc_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_alloc_dependent_memory (value v, mlsize_t nbytes)
 {
-  caml_dependent_size += nbytes / sizeof (value);
-  caml_dependent_allocated += nbytes / sizeof (value);
+  /* No-op for now */
 }
 
-CAMLexport void caml_free_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_free_dependent_memory (value v, mlsize_t nbytes)
 {
-  if (caml_dependent_size < nbytes / sizeof (value)){
-    caml_dependent_size = 0;
-  }else{
-    caml_dependent_size -= nbytes / sizeof (value);
-  }
+  /* No-op for now */
 }
 
 /* Use this function to tell the major GC to speed up when you use

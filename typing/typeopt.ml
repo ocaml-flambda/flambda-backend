@@ -511,22 +511,22 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
            in the case of @@unboxed variant and records, due to the precondition
            of [value_kind]. *)
         match decl.type_kind with
-        | Type_variant (cstrs, rep) ->
+        | Type_variant (cstrs, rep, _) ->
           fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
             (fun () -> value_kind_variant env ~loc ~visited ~depth
                          ~num_nodes_visited cstrs rep)
-        | Type_record (labels, rep) ->
+        | Type_record (labels, rep, _) ->
           let depth = depth + 1 in
           fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
-        | Type_record_unboxed_product ([{ld_type}], Record_unboxed_product) ->
+        | Type_record_unboxed_product ([{ld_type}], Record_unboxed_product, _) ->
           let depth = depth + 1 in
           fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
             (fun () ->
                value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type)
         | Type_record_unboxed_product (([] | _::_::_),
-                                       Record_unboxed_product) ->
+                                       Record_unboxed_product, _) ->
           Misc.fatal_error
             "Typeopt.value_kind: non-unary unboxed record can't have kind value"
         | Type_abstract _ ->
@@ -563,6 +563,15 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       (cstrs : Types.constructor_declaration list) rep =
   match rep with
   | Variant_extensible -> assert false
+  | Variant_with_null -> begin
+    match cstrs with
+    | [_; {cd_args=Cstr_tuple [{ca_type=ty}]}] ->
+      let num_nodes_visited, kind =
+        value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+      in
+      num_nodes_visited + 1, { kind with nullable = Nullable }
+    | _ -> assert false
+    end
   | Variant_unboxed -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
@@ -704,6 +713,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
       | [] | _ :: _ :: _ -> assert false
     end
+  | Record_inlined (_, _, Variant_with_null) -> assert false
   | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
   | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
       let is_mutable =
@@ -783,6 +793,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_mixed _ ->
             [0, fields]
           | Record_unboxed -> assert false
+          | Record_inlined (Null, _, _) -> assert false
         in
         (num_nodes_visited, mk_nn (Pvariant { consts = []; non_consts }))
     end

@@ -20,6 +20,7 @@
 #include "caml/finalise.h"
 #include "caml/gc.h"
 #include "caml/gc_ctrl.h"
+#include "caml/gc_stats.h"
 #include "caml/major_gc.h"
 #include "caml/minor_gc.h"
 #include "caml/shared_heap.h"
@@ -52,7 +53,9 @@ extern uintnat caml_custom_minor_max_bsz; /* see custom.c */
 extern uintnat caml_minor_heap_max_wsz;   /* see domain.c */
 extern uintnat caml_custom_work_max_multiplier; /* see major_gc.c */
 extern uintnat caml_prelinking_in_use;    /* see startup_nat.c */
+extern uintnat caml_compaction_algorithm; /* see shared_heap.c */
 extern uintnat caml_compact_unmap;        /* see shared_heap.c */
+extern uintnat caml_pool_min_chunk_bsz;  /* see shared_heap.c */
 
 CAMLprim value caml_gc_quick_stat(value v)
 {
@@ -252,6 +255,7 @@ static value gc_major_exn(int force_compaction)
   caml_gc_log ("Major GC cycle requested");
   caml_empty_minor_heaps_once();
   caml_finish_major_cycle(force_compaction);
+  caml_reset_major_pacing();
   value exn = caml_process_pending_actions_exn();
   CAML_EV_END(EV_EXPLICIT_GC_MAJOR);
   return exn;
@@ -274,6 +278,7 @@ static value gc_full_major_exn(void)
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
     caml_finish_major_cycle(0);
+    caml_reset_major_pacing();
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
@@ -310,6 +315,7 @@ CAMLprim value caml_gc_compaction(value v)
      why this needs three iterations. */
   for (i = 0; i < 3; i++) {
     caml_finish_major_cycle(i == 2);
+    caml_reset_major_pacing();
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
@@ -358,7 +364,10 @@ void caml_init_gc (void)
   #ifdef NATIVE_CODE
   caml_init_frame_descriptors();
   #endif
-  caml_init_domains(caml_params->init_minor_heap_wsz);
+  caml_init_domains(caml_params->max_domains,
+                    caml_params->init_minor_heap_wsz);
+  caml_init_gc_stats(caml_params->max_domains);
+
 /*
   caml_major_heap_increment = major_incr;
   caml_percent_free = norm_pfree (percent_fr);
@@ -402,16 +411,6 @@ CAMLprim value caml_runtime_variant (value unit)
 
 extern int caml_parser_trace;
 
-CAMLprim value caml_runtime_parameters (value unit)
-{
-#define F_Z ARCH_INTNAT_PRINTF_FORMAT
-#define F_S ARCH_SIZET_PRINTF_FORMAT
-
-  CAMLassert (unit == Val_unit);
-  /* TODO KC */
-  return caml_alloc_sprintf ("caml_runtime_parameters not implemented: %d", 0);
-}
-
 /* Control runtime warnings */
 
 CAMLprim value caml_ml_enable_runtime_warnings(value vbool)
@@ -434,7 +433,9 @@ struct gc_tweak {
 static struct gc_tweak gc_tweaks[] = {
   { "custom_work_max_multiplier", &caml_custom_work_max_multiplier, 0 },
   { "prelinking_in_use", &caml_prelinking_in_use, 0 },
+  { "compaction", &caml_compaction_algorithm, 0 },
   { "compact_unmap", &caml_compact_unmap, 0 },
+  { "pool_min_chunk_size", &caml_pool_min_chunk_bsz, 0 },
 };
 enum {N_GC_TWEAKS = sizeof(gc_tweaks)/sizeof(gc_tweaks[0])};
 
@@ -498,4 +499,88 @@ CAMLprim value caml_gc_tweak_list_active(value unit)
     }
   }
   CAMLreturn(list);
+}
+
+#define F_Z ARCH_INTNAT_PRINTF_FORMAT
+
+/* Return the OCAMLRUNPARAMS form of any GC tweaks. Returns NULL if
+ * none are set, or if we can't allocate. */
+
+char *format_gc_tweaks(void)
+{
+  size_t len = 0;
+  for (size_t i = 0; i < N_GC_TWEAKS; i++) {
+    uintnat val = *gc_tweaks[i].ptr;
+    if (val != gc_tweaks[i].initial_value) {
+      len += (2 /* ',X' */
+              + strlen(gc_tweaks[i].name)+1 /* 'tweak_name=' */);
+      do { /* Count digits. We're not in any great hurry. */
+        val /= 10;
+        ++ len;
+      } while(val);
+    }
+  }
+  if (!len) { /* no gc_tweaks */
+    return NULL;
+  }
+  ++ len; /* trailing NUL */
+  char *buf = malloc(len);
+  if (!buf) {
+    goto fail_alloc;
+  }
+  char *p = buf;
+
+  for (size_t i = 0; i < N_GC_TWEAKS; i++) {
+    uintnat val = *gc_tweaks[i].ptr;
+    if (val != gc_tweaks[i].initial_value) {
+      int item_len = snprintf(p, len, ",X%s=%"F_Z"u",
+                              gc_tweaks[i].name, val);
+      if (item_len >= len) {
+         /* surprise truncation: could be a race; just stop trying. */
+        goto fail_truncate;
+      }
+      p += item_len;
+      len -= item_len;
+    }
+  }
+  return buf;
+
+fail_truncate:
+  free(buf);
+fail_alloc:
+  return NULL;
+}
+
+CAMLprim value caml_runtime_parameters (value unit)
+{
+  CAMLassert (unit == Val_unit);
+  char *tweaks = format_gc_tweaks();
+  char *no_tweaks = "";
+  value res = caml_alloc_sprintf
+      ("b=%d,c=%"F_Z"u,e=%"F_Z"u,i=%"F_Z"u,j=%"F_Z"u,"
+       "l=%"F_Z"u,M=%"F_Z"u,m=%"F_Z"u,n=%"F_Z"u,"
+       "o=%"F_Z"u,p=%"F_Z"u,s=%"F_Z"u,t=%"F_Z"u,v=%"F_Z"u,V=%"F_Z"u,W=%"F_Z"u%s",
+       /* b */ (int) Caml_state->backtrace_active,
+       /* c */ caml_params->cleanup_on_exit,
+       /* e */ caml_params->runtime_events_log_wsize,
+       /* i */ caml_params->init_main_stack_wsz,
+       /* j */ caml_params->init_thread_stack_wsz, /* check: new ? */
+       /* l */ caml_max_stack_wsize,
+       /* M */ caml_custom_major_ratio,
+       /* m */ caml_custom_minor_ratio,
+       /* n */ caml_custom_minor_max_bsz,
+       /* o */ caml_percent_free,
+       /* p */ caml_params->parser_trace,
+       /* R */ /* missing */
+       /* s */ caml_minor_heap_max_wsz,
+       /* t */ caml_params->trace_level,
+       /* v */ caml_verb_gc,
+       /* V */ caml_params->verify_heap,
+       /* W */ caml_runtime_warnings,
+       /* X */ tweaks ? tweaks : no_tweaks
+       );
+  if (tweaks) {
+    free(tweaks);
+  }
+  return res;
 }

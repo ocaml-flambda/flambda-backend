@@ -208,6 +208,7 @@ let pic_code = ref (match Config.architecture with (* -fPIC *)
                      | _       -> false)
 
 let runtime_variant = ref ""
+let ocamlrunparam = ref ""
 
 let with_runtime = ref true         (* -with-runtime *)
 
@@ -222,7 +223,6 @@ let afl_inst_ratio = ref 100           (* -afl-inst-ratio *)
 
 let function_sections = ref false      (* -function-sections *)
 let probes = ref Config.probes         (* -probes *)
-let allow_illegal_crossing = ref false (* -allow_illegal_crossing *)
 let simplify_rounds = ref None        (* -rounds *)
 let default_simplify_rounds = ref 1        (* -rounds *)
 let rounds () =

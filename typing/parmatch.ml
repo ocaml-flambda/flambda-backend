@@ -923,7 +923,7 @@ let should_extend ext env = match ext with
   | (p,_)::_ ->
       let open Patterns.Head in
       begin match p.pat_desc with
-      | Construct {cstr_tag=Ordinary _} ->
+      | Construct {cstr_tag=Ordinary _ | Null} ->
           let path = get_constructor_type_path p.pat_type p.pat_env in
           Path.same path ext
       | Construct {cstr_tag=Extension _} -> false
@@ -959,18 +959,18 @@ let pats_of_type env ty =
   | Typedecl (_, path, {type_kind = Type_variant _ | Type_record _
                                     | Type_record_unboxed_product _ }) ->
       begin match Env.find_type_descrs path env with
-      | Type_variant (cstrs,_) when List.length cstrs <= 1 ||
+      | Type_variant (cstrs,_,_) when List.length cstrs <= 1 ||
         (* Only explode when all constructors are GADTs *)
         List.for_all (fun cd -> cd.cstr_generalized) cstrs ->
           List.map (pat_of_constr (make_pat Tpat_any ty env)) cstrs
-      | Type_record (labels, _) ->
+      | Type_record (labels, _,_) ->
           let fields =
             List.map (fun ld ->
               mknoloc (Longident.Lident ld.lbl_name), ld, omega)
               labels
           in
           [make_pat (Tpat_record (fields, Closed)) ty env]
-      | Type_record_unboxed_product (labels, _) ->
+      | Type_record_unboxed_product (labels, _,_) ->
           let fields =
             List.map (fun ld ->
               mknoloc (Longident.Lident ld.lbl_name), ld, omega)
@@ -993,7 +993,7 @@ let get_variant_constructors env ty =
   match Ctype.extract_concrete_typedecl env ty with
   | Typedecl (_, path, {type_kind = Type_variant _}) ->
       begin match Env.find_type_descrs path env with
-      | Type_variant (cstrs,_) -> cstrs
+      | Type_variant (cstrs,_,_) -> cstrs
       | _ -> fatal_error "Parmatch.get_variant_constructors"
       end
   | _ -> fatal_error "Parmatch.get_variant_constructors"
@@ -2129,7 +2129,7 @@ let extendable_path path =
     Path.same path Predef.path_option)
 
 let rec collect_paths_from_pat r p = match p.pat_desc with
-| Tpat_construct(_, {cstr_tag=Ordinary _}, ps, _) ->
+| Tpat_construct(_, {cstr_tag=Ordinary _ | Null}, ps, _) ->
     let path = get_constructor_type_path p.pat_type p.pat_env in
     List.fold_left
       collect_paths_from_pat

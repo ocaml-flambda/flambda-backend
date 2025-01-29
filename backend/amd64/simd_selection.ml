@@ -439,12 +439,13 @@ let select_operation_cfg op args =
   select_simd_instr op args
   |> Option.map (fun (op, args) -> Operation.Specific (Isimd op), args)
 
-let pseudoregs_for_operation op arg res =
+let pseudoregs_for_operation (register_behavior : Simd_proc.register_behavior)
+    arg res =
   let rax = Proc.phys_reg Int 0 in
   let rcx = Proc.phys_reg Int 5 in
   let rdx = Proc.phys_reg Int 4 in
   let xmm0v () = Proc.phys_reg Vec128 100 in
-  match Simd_proc.register_behavior op with
+  match register_behavior with
   | R_to_R | RM_to_R | R_to_RM | R_RM_to_R -> arg, res
   | R_to_fst ->
     (* arg.(0) and res.(0) must be the same *)
@@ -474,12 +475,25 @@ let vector_width_in_bits = 128
 
 (* CR-soon gyorsh: [vectorize_operation] is too long, refactor / split up. *)
 let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
-    ~arg_count ~res_count (cfg_ops : Operation.t list) :
+    ~arg_count ~res_count ~alignment_in_bytes (cfg_ops : Operation.t list) :
     Vectorize_utils.Vectorized_instruction.t list option =
   (* Assumes cfg_ops are isomorphic *)
   let width_in_bits = Vectorize_utils.Width_in_bits.to_int width_type in
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
+  let vector_width_in_bytes = vector_width_in_bits / 8 in
+  let is_aligned_to_vector_width () =
+    match alignment_in_bytes with
+    | None -> Misc.fatal_error "Unexpected memory operation"
+    | Some alignment_in_bytes ->
+      alignment_in_bytes mod vector_width_in_bytes = 0
+      && alignment_in_bytes / vector_width_in_bytes > 1
+  in
+  let vec128_chunk () : Cmm.memory_chunk =
+    if is_aligned_to_vector_width ()
+    then Onetwentyeight_aligned
+    else Onetwentyeight_unaligned
+  in
   let same_width memory_chunk =
     Vectorize_utils.Width_in_bits.equal width_type
       (Vectorize_utils.Width_in_bits.of_memory_chunk memory_chunk)
@@ -491,7 +505,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           ~res_count operation ]
   in
   let create_const_vec consts =
-    let highs, lows = Misc.Stdlib.List.split_at (length / 2) consts in
+    let lows, highs = Misc.Stdlib.List.split_at (length / 2) consts in
     let pack_int64 nums =
       let mask =
         Int64.shift_right_logical Int64.minus_one (64 - width_in_bits)
@@ -589,13 +603,14 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       let sse_op =
         match width_type with
         | W128 -> assert false
-        | W64 -> assert false
-        | W32 -> SRA_i32
-        | W16 -> SRA_i16
-        | W8 -> assert false
+        | W64 -> None
+        | W32 -> Some SRA_i32
+        | W16 -> Some SRA_i16
+        | W8 -> None
       in
-      Operation.Specific (Isimd (SSE2 sse_op))
-      |> make_default ~arg_count ~res_count
+      Option.bind sse_op (fun sse_op ->
+          Operation.Specific (Isimd (SSE2 sse_op))
+          |> make_default ~arg_count ~res_count)
     | Icomp (Isigned intcomp) -> (
       match intcomp with
       | Ceq ->
@@ -649,7 +664,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       assert (arg_count = num_args_addressing && res_count = 1);
       let operation =
         Operation.Load
-          { memory_chunk = Onetwentyeight_unaligned;
+          { memory_chunk = vec128_chunk ();
             addressing_mode;
             mutability;
             is_atomic
@@ -669,8 +684,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       let num_args_addressing = Arch.num_args_addressing addressing_mode in
       assert (arg_count = num_args_addressing + 1 && res_count = 0);
       let operation =
-        Operation.Store
-          (Onetwentyeight_unaligned, addressing_mode, is_assignment)
+        Operation.Store (vec128_chunk (), addressing_mode, is_assignment)
       in
       Some
         [ { operation;
@@ -702,9 +716,9 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       then (
         assert (arg_count = 1 && res_count = 1);
         const_instruction.results.(0)
-          <- Vectorize_utils.Vectorized_instruction.New 0;
+          <- Vectorize_utils.Vectorized_instruction.New_Vec128 0;
         intop_instruction.arguments.(1)
-          <- Vectorize_utils.Vectorized_instruction.New 0;
+          <- Vectorize_utils.Vectorized_instruction.New_Vec128 0;
         Some [const_instruction; intop_instruction])
       else None
     | _ -> None)
@@ -724,7 +738,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
             | Ibased _ -> None, None)
           | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
           | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence
-          | Imfence | Ipause | Isimd _ | Iprefetch _ | Icldemote _ ->
+          | Imfence | Ipause | Isimd _ | Isimd_mem _ | Iprefetch _ | Icldemote _
+            ->
             assert false)
         | Move | Load _ | Store _ | Intop _ | Intop_imm _ | Alloc _
         | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
@@ -775,8 +790,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           (* reg + displ *)
           Some
             [ make_move (Argument 0) (Result 0);
-              make_const (New 0) displs;
-              make_binary_operation (Result 0) (New 0) (Result 0) add ]
+              make_const (New_Vec128 0) displs;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) add ]
         | None -> None)
       | Iindexed2 _ -> (
         match add_op with
@@ -787,8 +802,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           Some
             [ make_move (Argument 0) (Result 0);
               make_binary_operation (Result 0) (Argument 1) (Result 0) add;
-              make_const (New 0) displs;
-              make_binary_operation (Result 0) (New 0) (Result 0) add ]
+              make_const (New_Vec128 0) displs;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) add ]
         | None -> None)
       | Iscaled _ -> (
         match add_op, mul_op with
@@ -799,10 +814,10 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           (* reg * scale + displ *)
           Some
             [ make_move (Argument 0) (Result 0);
-              make_const (New 0) scales;
-              make_binary_operation (Result 0) (New 0) (Result 0) mul;
-              make_const (New 1) displs;
-              make_binary_operation (Result 0) (New 1) (Result 0) add ]
+              make_const (New_Vec128 0) scales;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) mul;
+              make_const (New_Vec128 1) displs;
+              make_binary_operation (Result 0) (New_Vec128 1) (Result 0) add ]
         | _ -> None)
       | Iindexed2scaled _ -> (
         match add_op, mul_op with
@@ -813,11 +828,11 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           (* reg + reg * scale + displ *)
           Some
             [ make_move (Argument 1) (Result 0);
-              make_const (New 0) scales;
-              make_binary_operation (Result 0) (New 0) (Result 0) mul;
+              make_const (New_Vec128 0) scales;
+              make_binary_operation (Result 0) (New_Vec128 0) (Result 0) mul;
               make_binary_operation (Result 0) (Argument 0) (Result 0) add;
-              make_const (New 1) displs;
-              make_binary_operation (Result 0) (New 1) (Result 0) add ]
+              make_const (New_Vec128 1) displs;
+              make_binary_operation (Result 0) (New_Vec128 1) (Result 0) add ]
         | _ -> None)
       | Ibased _ -> None)
     | Isextend32 -> (
@@ -842,9 +857,124 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       | W32 -> None (* See previous comment *)
       | W16 -> None
       | W8 -> None)
-    | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Irdtsc
-    | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Iprefetch _
-    | Icldemote _ ->
+    | Istore_int (_n, addressing_mode, is_assignment) -> (
+      if not (Vectorize_utils.Width_in_bits.equal width_type W64)
+      then None
+      else
+        let extract_store_int_imm (op : Operation.t) =
+          match op with
+          | Specific (Istore_int (n, _addr, _is_assign)) -> Int64.of_nativeint n
+          | Specific
+              ( Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _
+              | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _
+              | Isimd_mem _ | Ilea _ | Ibswap _ | Isextend32 | Izextend32 )
+          | Intop_imm _ | Move | Load _ | Store _ | Intop _ | Alloc _
+          | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
+          | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
+          | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
+          | Probe_is_enabled _ | Opaque | Begin_region | End_region
+          | Name_for_debugger _ | Dls_get | Poll ->
+            assert false
+        in
+        let consts = List.map extract_store_int_imm cfg_ops in
+        match create_const_vec consts with
+        | None -> None
+        | Some [const_instruction] ->
+          let num_args_addressing = Arch.num_args_addressing addressing_mode in
+          assert (arg_count = num_args_addressing);
+          assert (res_count = 0);
+          assert (Array.length const_instruction.results = 1);
+          let new_reg = Vectorize_utils.Vectorized_instruction.New_Vec128 0 in
+          const_instruction.results.(0) <- new_reg;
+          let address_args =
+            Array.init num_args_addressing (fun i ->
+                Vectorize_utils.Vectorized_instruction.Original i)
+          in
+          let store_operation =
+            Operation.Store
+              (Onetwentyeight_unaligned, addressing_mode, is_assignment)
+          in
+          let store_instruction : Vectorize_utils.Vectorized_instruction.t =
+            { operation = store_operation;
+              arguments = Array.append [| new_reg |] address_args;
+              results = [||]
+            }
+          in
+          Some [const_instruction; store_instruction]
+        | Some _ -> None)
+    | Ifloatarithmem (float_width, float_op, addressing_mode) ->
+      let float_width_in_bits : Vectorize_utils.Width_in_bits.t =
+        match float_width with Float64 -> W64 | Float32 -> W32
+      in
+      assert (Vectorize_utils.Width_in_bits.equal float_width_in_bits width_type);
+      let num_args_addressing = Arch.num_args_addressing addressing_mode in
+      assert (arg_count = 1 + num_args_addressing);
+      assert (res_count = 1);
+      let results = [| Vectorize_utils.Vectorized_instruction.Result 0 |] in
+      let address_args =
+        Array.init num_args_addressing (fun i ->
+            Vectorize_utils.Vectorized_instruction.Original (i + 1))
+      in
+      if is_aligned_to_vector_width ()
+      then
+        let sse_op : Simd.Mem.operation =
+          match float_width, float_op with
+          | Float64, Ifloatadd -> SSE2 Add_f64
+          | Float64, Ifloatsub -> SSE2 Sub_f64
+          | Float64, Ifloatmul -> SSE2 Mul_f64
+          | Float64, Ifloatdiv -> SSE2 Div_f64
+          | Float32, Ifloatadd -> SSE Add_f32
+          | Float32, Ifloatsub -> SSE Sub_f32
+          | Float32, Ifloatmul -> SSE Mul_f32
+          | Float32, Ifloatdiv -> SSE Div_f32
+        in
+        Some
+          [ { operation =
+                Operation.Specific (Isimd_mem (sse_op, addressing_mode));
+              arguments = Array.append results address_args;
+              results
+            } ]
+      else
+        (* Emit a load followed by an arithmetic operation, effectively
+           reverting the decision from Arch.selection. It will probably not be
+           beneficial with 128-bit accesses. *)
+        let sse_op : Simd.operation =
+          match float_width, float_op with
+          | Float64, Ifloatadd -> SSE2 Add_f64
+          | Float64, Ifloatsub -> SSE2 Sub_f64
+          | Float64, Ifloatmul -> SSE2 Mul_f64
+          | Float64, Ifloatdiv -> SSE2 Div_f64
+          | Float32, Ifloatadd -> SSE Add_f32
+          | Float32, Ifloatsub -> SSE Sub_f32
+          | Float32, Ifloatmul -> SSE Mul_f32
+          | Float32, Ifloatdiv -> SSE Div_f32
+        in
+        let new_reg =
+          [| Vectorize_utils.Vectorized_instruction.New_Vec128 0 |]
+        in
+        let load : Vectorize_utils.Vectorized_instruction.t =
+          { operation =
+              Operation.Load
+                { memory_chunk = vec128_chunk ();
+                  addressing_mode;
+                  mutability = Mutable;
+                  is_atomic = false
+                };
+            arguments = address_args;
+            results = new_reg
+          }
+        in
+        let arith : Vectorize_utils.Vectorized_instruction.t =
+          { operation = Operation.Specific (Isimd sse_op);
+            arguments = Array.append results new_reg;
+            results
+          }
+        in
+        Some [load; arith]
+    | Isimd_mem _ ->
+      Misc.fatal_error "Unexpected simd operation with memory arguments"
+    | Ioffset_loc _ | Ibswap _ | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence
+    | Ipause | Isimd _ | Iprefetch _ | Icldemote _ ->
       None)
   | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
   | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _

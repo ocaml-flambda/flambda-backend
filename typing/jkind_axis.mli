@@ -76,6 +76,7 @@ module Axis_collection : sig
       uniqueness : 'a;
       portability : 'a;
       contention : 'a;
+      yielding : 'a;
       externality : 'a;
       nullability : 'a
     }
@@ -102,6 +103,7 @@ module Axis_collection : sig
         uniqueness : Mode.Uniqueness.Const.t T.t;
         portability : Mode.Portability.Const.t T.t;
         contention : Mode.Contention.Const.t T.t;
+        yielding : Mode.Yielding.Const.t T.t;
         externality : Externality.t T.t;
         nullability : Nullability.t T.t
       }

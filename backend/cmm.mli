@@ -22,6 +22,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Float
   | Vec128
   | Float32
+  | Valx2
 
 (* - [Val] denotes a valid OCaml value: either a pointer to the beginning
      of a heap block, an infix pointer if it is preceded by the correct
@@ -110,7 +111,16 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_and_add | Compare_and_swap
+type atomic_op =
+  | Fetch_and_add
+  | Add
+  | Sub
+  | Land
+  | Lor
+  | Lxor
+  | Exchange
+  | Compare_set
+  | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 

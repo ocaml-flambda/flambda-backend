@@ -349,6 +349,16 @@ let sourcefile_for_dwarf ~named_startup_file filename =
   if named_startup_file then filename
   else ".startup"
 
+let emit_ocamlrunparam ~ppf_dump =
+  Asmgen.compile_phrase ~ppf_dump
+    (Cmm.Cdata [
+      Cmm.Cdefine_symbol {
+        sym_name = "caml_ocamlrunparam";
+        sym_global = Global
+      };
+      Cmm.Cstring (!Clflags.ocamlrunparam ^ "\000")
+    ])
+
 let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_gen =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   let startup_comp_unit =
@@ -361,6 +371,7 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   let name_list =
     List.flatten (List.map (fun u -> u.defines) units) in
+  emit_ocamlrunparam ~ppf_dump;
   List.iter compile_phrase (Cmm_helpers.entry_point name_list);
   List.iter compile_phrase
     (* Emit the GC roots table, for dynlink. *)
@@ -414,6 +425,7 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
     ~sourcefile:sourcefile_for_dwarf;
   Emit.begin_assembly unix;
+  emit_ocamlrunparam ~ppf_dump;
   List.iter compile_phrase
     (Cmm_helpers.emit_gc_roots_table ~symbols:[]
       (Generic_fns.compile ~shared:true genfns));

@@ -1,4 +1,3 @@
-# 2 "backend/amd64/CSE.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -21,6 +20,12 @@ open Arch
 open Mach
 open CSE_utils
 
+let of_simd_class (cl : Simd.operation_class)  =
+  match cl with
+  | Pure -> Op_pure
+  | Load { is_mutable = true } -> Op_load Mutable
+  | Load { is_mutable = false } -> Op_load Immutable
+
 class cse = object
 
 inherit CSEgen.cse_generic as super
@@ -37,9 +42,9 @@ method! class_of_operation op =
     | Irdtsc | Irdpmc
     | Ilfence | Isfence | Imfence -> Op_other
     | Isimd op ->
-      begin match Simd.class_of_operation op with
-      | Pure -> Op_pure
-      end
+      of_simd_class (Simd.class_of_operation op)
+    | Isimd_mem (op,_addr) ->
+      of_simd_class (Simd.Mem.class_of_operation op)
     | Ipause
     | Icldemote _
     | Iprefetch _ -> Op_other
@@ -81,9 +86,9 @@ class cfg_cse = object
     | Irdtsc | Irdpmc
     | Ilfence | Isfence | Imfence -> Op_other
     | Isimd op ->
-      begin match Simd.class_of_operation op with
-      | Pure -> Op_pure
-      end
+      of_simd_class (Simd.class_of_operation op)
+    | Isimd_mem (op,_addr) ->
+      of_simd_class (Simd.Mem.class_of_operation op)
     | Ipause
     | Icldemote _
     | Iprefetch _ -> Op_other

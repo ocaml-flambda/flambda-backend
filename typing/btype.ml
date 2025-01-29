@@ -338,16 +338,16 @@ let map_type_expr_cstr_args f = function
 
 let iter_type_expr_kind f = function
   | Type_abstract _ -> ()
-  | Type_variant (cstrs, _) ->
+  | Type_variant (cstrs, _, _) ->
       List.iter
         (fun cd ->
            iter_type_expr_cstr_args f cd.cd_args;
            Option.iter f cd.cd_res
         )
         cstrs
-  | Type_record(lbls, _) ->
+  | Type_record(lbls, _, _) ->
       List.iter (fun d -> f d.ld_type) lbls
-  | Type_record_unboxed_product(lbls, _) ->
+  | Type_record_unboxed_product(lbls, _, _) ->
       List.iter (fun d -> f d.ld_type) lbls
   | Type_open ->
       ()

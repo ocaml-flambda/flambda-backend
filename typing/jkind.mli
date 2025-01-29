@@ -336,17 +336,13 @@ val add_with_bounds :
 (** Does this jkind have with-bounds? *)
 val has_with_bounds : Types.jkind_l -> bool
 
-(** Take an existing [t] and add an ability to mode-cross along the portability and
-    contention axes, if [from] crosses the respective axes. Return the new jkind,
-    along with a boolean of whether illegal crossing was added *)
-val add_portability_and_contention_crossing :
-  from:'d Types.jkind ->
-  (allowed * 'r) Types.jkind ->
-  (allowed * 'r) Types.jkind * bool
-
 (** Mark the given jkind as {ibest}, meaning we can never learn any more information about
     it that will cause it to become lower in the preorder of kinds*)
 val mark_best : ('l * 'r) Types.jkind -> ('l * disallowed) Types.jkind
+
+(** Forcibly change the modal upper bounds of a [t] based on the modal upper bounds of
+    [from]. *)
+val unsafely_set_mod_bounds : from:'d Types.jkind -> 'd Types.jkind -> 'd Types.jkind
 
 (******************************)
 (* construction *)
@@ -606,6 +602,7 @@ val intersection_or_error :
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
 val sub :
+  ?allow_any_crossing:bool ->
   type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   Types.jkind_l ->
@@ -644,6 +641,7 @@ val sub_or_error :
     CR layouts v2.8: Implement this properly.
 *)
 val sub_jkind_l :
+  ?allow_any_crossing:bool ->
   type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   Types.jkind_l ->

@@ -1,4 +1,4 @@
-(**************************************************************************)
+(*************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
@@ -152,6 +152,7 @@ module Axis = struct
       Pack (Modal (Comonadic Linearity));
       Pack (Modal (Monadic Contention));
       Pack (Modal (Comonadic Portability));
+      Pack (Modal (Comonadic Yielding));
       Pack (Nonmodal Externality);
       Pack (Nonmodal Nullability) ]
 
@@ -166,6 +167,7 @@ module Axis = struct
     | Modal (Monadic Uniqueness) -> true
     | Modal (Comonadic Portability) -> true
     | Modal (Monadic Contention) -> true
+    | Modal (Comonadic Yielding) -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
 end
@@ -181,6 +183,7 @@ module Axis_collection = struct
       uniqueness : 'a;
       portability : 'a;
       contention : 'a;
+      yielding : 'a;
       externality : 'a;
       nullability : 'a
     }
@@ -191,6 +194,7 @@ module Axis_collection = struct
       uniqueness = f ~axis:(Pack (Modal (Monadic Uniqueness)));
       portability = f ~axis:(Pack (Modal (Comonadic Portability)));
       contention = f ~axis:(Pack (Modal (Monadic Contention)));
+      yielding = f ~axis:(Pack (Modal (Comonadic Yielding)));
       externality = f ~axis:(Pack (Nonmodal Externality));
       nullability = f ~axis:(Pack (Nonmodal Nullability))
     }
@@ -202,6 +206,7 @@ module Axis_collection = struct
     | Modal (Monadic Uniqueness) -> t.uniqueness
     | Modal (Comonadic Portability) -> t.portability
     | Modal (Monadic Contention) -> t.contention
+    | Modal (Comonadic Yielding) -> t.yielding
     | Nonmodal Externality -> t.externality
     | Nonmodal Nullability -> t.nullability
 
@@ -212,6 +217,7 @@ module Axis_collection = struct
     | Modal (Monadic Uniqueness) -> { t with uniqueness = value }
     | Modal (Comonadic Portability) -> { t with portability = value }
     | Modal (Monadic Contention) -> { t with contention = value }
+    | Modal (Comonadic Yielding) -> { t with yielding = value }
     | Nonmodal Externality -> { t with externality = value }
     | Nonmodal Nullability -> { t with nullability = value }
 
@@ -221,6 +227,7 @@ module Axis_collection = struct
         uniqueness;
         portability;
         contention;
+        yielding;
         externality;
         nullability
       } =
@@ -229,6 +236,7 @@ module Axis_collection = struct
       uniqueness = f ~axis:(Pack (Modal (Monadic Uniqueness))) uniqueness;
       portability = f ~axis:(Pack (Modal (Comonadic Portability))) portability;
       contention = f ~axis:(Pack (Modal (Monadic Contention))) contention;
+      yielding = f ~axis:(Pack (Modal (Comonadic Yielding))) yielding;
       externality = f ~axis:(Pack (Nonmodal Externality)) externality;
       nullability = f ~axis:(Pack (Nonmodal Nullability)) nullability
     }
@@ -260,6 +268,7 @@ module Axis_collection = struct
         uniqueness : Mode.Uniqueness.Const.t T.t;
         portability : Mode.Portability.Const.t T.t;
         contention : Mode.Contention.Const.t T.t;
+        yielding : Mode.Yielding.Const.t T.t;
         externality : Externality.t T.t;
         nullability : Nullability.t T.t
       }
@@ -271,6 +280,7 @@ module Axis_collection = struct
       | Modal (Monadic Uniqueness) -> values.uniqueness
       | Modal (Comonadic Portability) -> values.portability
       | Modal (Monadic Contention) -> values.contention
+      | Modal (Comonadic Yielding) -> values.yielding
       | Nonmodal Externality -> values.externality
       | Nonmodal Nullability -> values.nullability
 
@@ -281,6 +291,7 @@ module Axis_collection = struct
       | Modal (Monadic Uniqueness) -> { values with uniqueness = value }
       | Modal (Comonadic Portability) -> { values with portability = value }
       | Modal (Monadic Contention) -> { values with contention = value }
+      | Modal (Comonadic Yielding) -> { values with yielding = value }
       | Nonmodal Externality -> { values with externality = value }
       | Nonmodal Nullability -> { values with nullability = value }
 
@@ -297,6 +308,7 @@ module Axis_collection = struct
           let* linearity = f ~axis:Axis.(Modal (Comonadic Linearity)) in
           let* contention = f ~axis:Axis.(Modal (Monadic Contention)) in
           let* portability = f ~axis:Axis.(Modal (Comonadic Portability)) in
+          let* yielding = f ~axis:Axis.(Modal (Comonadic Yielding)) in
           let* externality = f ~axis:Axis.(Nonmodal Externality) in
           let* nullability = f ~axis:Axis.(Nonmodal Nullability) in
           M.return
@@ -305,6 +317,7 @@ module Axis_collection = struct
               linearity;
               contention;
               portability;
+              yielding;
               externality;
               nullability
             }

@@ -60,7 +60,7 @@ let structure : type_definition -> type_structure = fun def ->
   | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some ty ->
       let params =
         match def.type_kind with
-        | Type_variant ([{cd_res = Some ret_type}], _) ->
+        | Type_variant ([{cd_res = Some ret_type}], _, _) ->
             begin match get_desc ret_type with
             | Tconstr (_, tyl, _) -> tyl
             | _ -> assert false

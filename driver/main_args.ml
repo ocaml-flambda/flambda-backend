@@ -480,6 +480,11 @@ let mk_runtime_variant f =
   "-runtime-variant", Arg.String f,
   "<str>  Use the <str> variant of the run-time system"
 
+let mk_ocamlrunparam f =
+  "-ocamlrunparam", Arg.String f,
+  "<settings>  Use the given OCAMLRUNPARAM settings as the default (ignored \
+    except when linking an executable)"
+
 let mk_with_runtime f =
   "-with-runtime", Arg.Unit f,
   "Include the runtime system in the generated program (default)"
@@ -754,10 +759,6 @@ in
   \    allows a set of extensions, and every successive universe includes \n\
   \    the previous one."
 
-let mk_allow_illegal_crossing f =
-  "-allow-illegal-crossing", Arg.Unit f,
-  "Type declarations will not be checked along the portability or contention axes"
-
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
   "redirects any file(s) that would be outputted as a result of other flags\n\
@@ -955,7 +956,6 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
-  val _allow_illegal_crossing : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1050,6 +1050,7 @@ module type Compiler_options = sig
   val _no_principal : unit -> unit
   val _rectypes : unit -> unit
   val _runtime_variant : string -> unit
+  val _ocamlrunparam : string -> unit
   val _with_runtime : unit -> unit
   val _without_runtime : unit -> unit
   val _short_paths : unit -> unit
@@ -1243,7 +1244,6 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1375,7 +1375,6 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1470,7 +1469,6 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
@@ -1542,6 +1540,7 @@ struct
     mk_remove_unused_arguments F._remove_unused_arguments;
     mk_rounds F._rounds;
     mk_runtime_variant F._runtime_variant;
+    mk_ocamlrunparam F._ocamlrunparam;
     mk_with_runtime F._with_runtime;
     mk_without_runtime F._without_runtime;
     mk_S F._S;
@@ -1662,7 +1661,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1771,7 +1769,6 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1883,7 +1880,6 @@ module Default = struct
     let _no_extension s = Language_extension.(disable_of_string_exn s)
     let _extension_universe s =
       Language_extension.(set_universe_and_enable_all_of_string_exn s)
-    let _allow_illegal_crossing = set Clflags.allow_illegal_crossing
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -2091,6 +2087,7 @@ module Default = struct
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)
     let _runtime_variant s = runtime_variant := s
+    let _ocamlrunparam s = ocamlrunparam := s
     let _stop_after pass =
       let module P = Compiler_pass in
         match P.of_string pass with

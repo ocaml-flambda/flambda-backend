@@ -198,6 +198,7 @@ val shared : bool ref
 val dlcode : bool ref
 val pic_code : bool ref
 val runtime_variant : string ref
+val ocamlrunparam : string ref
 val with_runtime : bool ref
 val force_slash : bool ref
 val keep_docs : bool ref
@@ -226,7 +227,6 @@ val afl_instrument : bool ref
 val afl_inst_ratio : int ref
 val function_sections : bool ref
 val probes : bool ref
-val allow_illegal_crossing : bool ref
 
 val all_passes : string list ref
 val dumped_pass : string -> bool

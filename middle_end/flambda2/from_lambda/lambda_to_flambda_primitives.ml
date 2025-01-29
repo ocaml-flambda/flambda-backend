@@ -100,6 +100,16 @@ let standard_int_or_float_of_unboxed_integer (ubint : L.unboxed_integer) :
 let standard_int_or_float_of_boxed_integer bint =
   standard_int_or_float_of_unboxed_integer (Primitive.unboxed_integer bint)
 
+let standard_int_or_float_of_peek_or_poke (layout : L.peek_or_poke) :
+    K.Standard_int_or_float.t =
+  match layout with
+  | Ppp_tagged_immediate -> Tagged_immediate
+  | Ppp_unboxed_float32 -> Naked_float32
+  | Ppp_unboxed_float -> Naked_float
+  | Ppp_unboxed_int32 -> Naked_int32
+  | Ppp_unboxed_int64 -> Naked_int64
+  | Ppp_unboxed_nativeint -> Naked_nativeint
+
 let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
   match i_or_p with L.Immediate -> Immediate | L.Pointer -> Any_value
 
@@ -1363,6 +1373,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Values (tag, shape), mutability, mode), args)]
   | Pmake_unboxed_product layouts, _ ->
+    (* CR mshinwell: this should check the unarized lengths of [layouts] and
+       [args] (like [Parray_element_size_in_bytes] below) *)
     if List.compare_lengths layouts args <> 0
     then
       Misc.fatal_errorf "Pmake_unboxed_product: expected %d arguments, got %d"
@@ -1392,6 +1404,26 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       |> Array.to_list
     in
     List.map (fun arg : H.expr_primitive -> Simple arg) projected_args
+  | Parray_element_size_in_bytes array_kind, [_witness] ->
+    (* This is implemented as a unary primitive, but from our point of view it's
+       actually nullary. *)
+    let num_bytes =
+      match array_kind with
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> 8
+      | Punboxedfloatarray Unboxed_float32 ->
+        (* float32# arrays are packed *)
+        4
+      | Punboxedfloatarray Unboxed_float64 -> 8
+      | Punboxedintarray Unboxed_int32 ->
+        (* int32# arrays are packed *)
+        4
+      | Punboxedintarray (Unboxed_int64 | Unboxed_nativeint) -> 8
+      | Punboxedvectorarray Unboxed_vec128 -> 16
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        (* All elements of unboxed product arrays are currently 8 bytes wide. *)
+        L.count_initializers_array_kind array_kind * 8
+    in
+    [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1496,8 +1528,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (* CR layouts v5.9: support this *)
           Misc.fatal_error "Mixed blocks extensible variants are not supported")
       | Record_inlined (Extension _, _, _)
-      | Record_inlined (Ordinary _, _, (Variant_unboxed | Variant_extensible))
-      | Record_unboxed ->
+      | Record_inlined
+          ( Ordinary _,
+            _,
+            (Variant_unboxed | Variant_extensible | Variant_with_null) )
+      | Record_unboxed
+      | Record_inlined (Null, _, _) ->
         Misc.fatal_errorf "Cannot handle record kind for Pduprecord: %a"
           Printlambda.primitive prim
     in
@@ -2346,14 +2382,39 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Unary
         ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
           atomic ) ]
-  | Patomic_exchange, [[atomic]; [new_value]] ->
-    [Binary (Atomic_exchange, atomic, new_value)]
-  | Patomic_compare_exchange, [[atomic]; [old_value]; [new_value]] ->
-    [Ternary (Atomic_compare_exchange, atomic, old_value, new_value)]
-  | Patomic_cas, [[atomic]; [old_value]; [new_value]] ->
-    [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
+  | Patomic_set { immediate_or_pointer }, [[atomic]; [new_value]] ->
+    [ Binary
+        ( Atomic_set (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          new_value ) ]
+  | Patomic_exchange { immediate_or_pointer }, [[atomic]; [new_value]] ->
+    [ Binary
+        ( Atomic_exchange (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          new_value ) ]
+  | ( Patomic_compare_exchange { immediate_or_pointer },
+      [[atomic]; [old_value]; [new_value]] ) ->
+    [ Ternary
+        ( Atomic_compare_exchange
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
+  | ( Patomic_compare_set { immediate_or_pointer },
+      [[atomic]; [old_value]; [new_value]] ) ->
+    [ Ternary
+        ( Atomic_compare_and_set
+            (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          old_value,
+          new_value ) ]
   | Patomic_fetch_add, [[atomic]; [i]] ->
-    [Binary (Atomic_fetch_and_add, atomic, i)]
+    [Binary (Atomic_int_arith Fetch_add, atomic, i)]
+  | Patomic_add, [[atomic]; [i]] -> [Binary (Atomic_int_arith Add, atomic, i)]
+  | Patomic_sub, [[atomic]; [i]] -> [Binary (Atomic_int_arith Sub, atomic, i)]
+  | Patomic_land, [[atomic]; [i]] -> [Binary (Atomic_int_arith And, atomic, i)]
+  | Patomic_lor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Or, atomic, i)]
+  | Patomic_lxor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Xor, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
   | Ppoll, _ -> [Nullary Poll]
   | Preinterpret_unboxed_int64_as_tagged_int63, [[i]] ->
@@ -2370,6 +2431,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
          targets";
     [Unary (Reinterpret_64_bit_word Tagged_int63_as_unboxed_int64, i)]
+  | Ppeek layout, [[ptr]] ->
+    let kind = standard_int_or_float_of_peek_or_poke layout in
+    [Unary (Peek kind, ptr)]
+  | Ppoke layout, [[ptr]; [new_value]] ->
+    let kind = standard_int_or_float_of_peek_or_poke layout in
+    [Binary (Poke kind, ptr, new_value)]
   | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),
@@ -2401,7 +2468,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
-      | Preinterpret_tagged_int63_as_unboxed_int64 ),
+      | Preinterpret_tagged_int63_as_unboxed_int64
+      | Parray_element_size_in_bytes _ | Ppeek _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -2443,8 +2511,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Pgcscannableproductarray_ref _ | Pgcignorableproductarray_ref _ ),
             _,
             _ )
-      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
-      | Patomic_fetch_add ),
+      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+      | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
+      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -2473,8 +2542,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_cas
-      | Patomic_compare_exchange ),
+      | Punboxed_nativeint_array_set_128 _ | Patomic_compare_set _
+      | Patomic_compare_exchange _ ),
       ( []
       | [_]
       | [_; _]

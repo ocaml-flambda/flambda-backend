@@ -125,6 +125,7 @@ type error =
   | Unboxed_mutable_label
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
+  | Unboxed_recursion of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
@@ -182,6 +183,7 @@ type error =
       }
   | Non_abstract_reexport of Path.t
   | Illegal_baggage of jkind_l
+  | Unsafe_mode_crossing_on_invalid_type_kind
 
 exception Error of Location.t * error
 

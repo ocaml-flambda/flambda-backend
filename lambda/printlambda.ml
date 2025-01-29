@@ -478,6 +478,15 @@ let field_read_semantics ppf sem =
   | Reads_agree -> ()
   | Reads_vary -> fprintf ppf "_mut"
 
+let peek_or_poke ppf (pp : peek_or_poke) =
+  match pp with
+  | Ppp_tagged_immediate -> fprintf ppf "tagged_immediate"
+  | Ppp_unboxed_float32 -> fprintf ppf "unboxed_float32"
+  | Ppp_unboxed_float -> fprintf ppf "unboxed_float"
+  | Ppp_unboxed_int32 -> fprintf ppf "unboxed_int32"
+  | Ppp_unboxed_int64 -> fprintf ppf "unboxed_int64"
+  | Ppp_unboxed_nativeint -> fprintf ppf "unboxed_nativeint"
+
 let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
@@ -609,6 +618,8 @@ let primitive ppf = function
       fprintf ppf "unboxed_product_field %d #(%a)" n
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
         layouts
+  | Parray_element_size_in_bytes ak ->
+      fprintf ppf "array_element_size_in_bytes (%s)" (array_kind ak)
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -902,10 +913,28 @@ let primitive ppf = function
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_load_imm"
         | Pointer -> fprintf ppf "atomic_load_ptr")
-  | Patomic_exchange -> fprintf ppf "atomic_exchange"
-  | Patomic_compare_exchange -> fprintf ppf "atomic_compare_exchange"
-  | Patomic_cas -> fprintf ppf "atomic_cas"
+  | Patomic_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_set_imm"
+        | Pointer -> fprintf ppf "atomic_set_ptr")
+  | Patomic_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_exchange_imm"
+        | Pointer -> fprintf ppf "atomic_exchange_ptr")
+  | Patomic_compare_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_compare_exchange_imm"
+        | Pointer -> fprintf ppf "atomic_compare_exchange_ptr")
+  | Patomic_compare_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_compare_set_imm"
+        | Pointer -> fprintf ppf "atomic_compare_set_ptr")
   | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
+  | Patomic_add -> fprintf ppf "atomic_add"
+  | Patomic_sub -> fprintf ppf "atomic_sub"
+  | Patomic_land -> fprintf ppf "atomic_land"
+  | Patomic_lor -> fprintf ppf "atomic_lor"
+  | Patomic_lxor -> fprintf ppf "atomic_lxor"
   | Popaque _ -> fprintf ppf "opaque"
   | Pdls_get -> fprintf ppf "dls_get"
   | Ppoll -> fprintf ppf "poll"
@@ -928,6 +957,12 @@ let primitive ppf = function
       fprintf ppf "reinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       fprintf ppf "reinterpret_unboxed_int64_as_tagged_int63"
+  | Ppeek layout ->
+      fprintf ppf "(peek@ %a)"
+        peek_or_poke layout
+  | Ppoke layout ->
+      fprintf ppf "(poke@ %a)"
+        peek_or_poke layout
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -953,6 +988,7 @@ let name_of_primitive = function
   | Pduprecord _ -> "Pduprecord"
   | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
   | Punboxed_product_field _ -> "Punboxed_product_field"
+  | Parray_element_size_in_bytes _ -> "Parray_element_size_in_bytes"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"
   | Psequand -> "Psequand"
@@ -1077,10 +1113,28 @@ let name_of_primitive = function
       (match immediate_or_pointer with
         | Immediate -> "atomic_load_imm"
         | Pointer -> "atomic_load_ptr")
-  | Patomic_exchange -> "Patomic_exchange"
-  | Patomic_compare_exchange -> "Patomic_compare_exchange"
-  | Patomic_cas -> "Patomic_cas"
+  | Patomic_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_set_imm"
+        | Pointer -> "atomic_set_ptr")
+  | Patomic_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_exchange_imm"
+        | Pointer -> "atomic_exchange_ptr")
+  | Patomic_compare_exchange {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_compare_exchange_imm"
+        | Pointer -> "atomic_compare_exchange_ptr")
+  | Patomic_compare_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_compare_set_imm"
+        | Pointer -> "atomic_compare_set_ptr")
   | Patomic_fetch_add -> "Patomic_fetch_add"
+  | Patomic_add -> "Patomic_add"
+  | Patomic_sub -> "Patomic_sub"
+  | Patomic_land -> "Patomic_land"
+  | Patomic_lor -> "Patomic_lor"
+  | Patomic_lxor -> "Patomic_lxor"
   | Popaque _ -> "Popaque"
   | Prunstack -> "Prunstack"
   | Presume -> "Presume"
@@ -1104,6 +1158,8 @@ let name_of_primitive = function
       "Preinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       "Preinterpret_unboxed_int64_as_tagged_int63"
+  | Ppeek _ -> "Ppeek"
+  | Ppoke _ -> "Ppoke"
 
 let zero_alloc_attribute ppf check =
   match check with

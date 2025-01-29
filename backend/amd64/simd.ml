@@ -18,7 +18,9 @@
 
 open Format
 
-type operation_class = Pure
+type operation_class =
+  | Pure
+  | Load of { is_mutable : bool }
 
 type float_condition = X86_ast.float_condition =
   | EQf
@@ -1002,4 +1004,83 @@ let class_of_operation op =
   | SSE41 op -> class_of_operation_sse41 op
   | SSE42 op -> class_of_operation_sse42 op
 
-let is_pure op = match class_of_operation op with Pure -> true
+let is_pure op =
+  match class_of_operation op with Pure -> true | Load _ -> true
+
+module Mem = struct
+  (** Initial support for some operations with memory arguments.
+      Requires 16-byte aligned memory. *)
+
+  type sse_operation =
+    | Add_f32
+    | Sub_f32
+    | Mul_f32
+    | Div_f32
+
+  type sse2_operation =
+    | Add_f64
+    | Sub_f64
+    | Mul_f64
+    | Div_f64
+
+  type operation =
+    | SSE of sse_operation
+    | SSE2 of sse2_operation
+
+  let class_of_operation_sse (op : sse_operation) =
+    match op with
+    | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 -> Load { is_mutable = true }
+
+  let class_of_operation_sse2 (op : sse2_operation) =
+    match op with
+    | Add_f64 | Sub_f64 | Mul_f64 | Div_f64 -> Load { is_mutable = true }
+
+  let class_of_operation (op : operation) =
+    match op with
+    | SSE op -> class_of_operation_sse op
+    | SSE2 op -> class_of_operation_sse2 op
+
+  let op_name_sse (op : sse_operation) =
+    match op with
+    | Add_f32 -> "add_f32"
+    | Sub_f32 -> "sub_f32"
+    | Mul_f32 -> "mul_f32"
+    | Div_f32 -> "div_f32"
+
+  let op_name_sse2 (op : sse2_operation) =
+    match op with
+    | Add_f64 -> "add_f64"
+    | Sub_f64 -> "sub_f64"
+    | Mul_f64 -> "mul_f64"
+    | Div_f64 -> "div_f64"
+
+  let print_operation printreg printaddr (op : operation) ppf arg =
+    let addr_args = Array.sub arg 1 (Array.length arg - 1) in
+    let op_name =
+      match op with SSE op -> op_name_sse op | SSE2 op -> op_name_sse2 op
+    in
+    fprintf ppf "%s %a [%a]" op_name printreg arg.(0) printaddr addr_args
+
+  let is_pure op =
+    match class_of_operation op with Pure -> true | Load _ -> true
+
+  let equal_operation_sse2 (l : sse2_operation) (r : sse2_operation) =
+    match l, r with
+    | Add_f64, Add_f64 | Sub_f64, Sub_f64 | Mul_f64, Mul_f64 | Div_f64, Div_f64
+      ->
+      true
+    | (Add_f64 | Sub_f64 | Mul_f64 | Div_f64), _ -> false
+
+  let equal_operation_sse (l : sse_operation) (r : sse_operation) =
+    match l, r with
+    | Add_f32, Add_f32 | Sub_f32, Sub_f32 | Mul_f32, Mul_f32 | Div_f32, Div_f32
+      ->
+      true
+    | (Add_f32 | Sub_f32 | Mul_f32 | Div_f32), _ -> false
+
+  let equal_operation (l : operation) (r : operation) =
+    match l, r with
+    | SSE l, SSE r -> equal_operation_sse l r
+    | SSE2 l, SSE2 r -> equal_operation_sse2 l r
+    | (SSE _ | SSE2 _), _ -> false
+end

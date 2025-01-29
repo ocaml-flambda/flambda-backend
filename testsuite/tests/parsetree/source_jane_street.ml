@@ -166,7 +166,8 @@ end
 let x () = #( M.Null, M.This "hi" )
 
 [%%expect{|
-module M : sig type 'a t = 'a or_null = Null | This of 'a end
+module M :
+  sig type 'a t = 'a or_null = Null | This of 'a [@@or_null_reexport] end
 val x : unit -> #('a M.t * string M.t) = <fun>
 |}]
 
@@ -793,9 +794,9 @@ let (~x:x0, ~s, ~(y:int), ..) : (x:int * s:string * y:int * string) =
    (~x: 1, ~s: "a", ~y: 2, "ignore me")
 
 [%%expect{|
-val x0 : int @@ portable = 1
-val s : string @@ portable = "a"
-val y : int @@ portable = 2
+val x0 : int = 1
+val s : string = "a"
+val y : int = 2
 |}]
 
 module M : sig
@@ -834,9 +835,9 @@ val foo :
   ('a : value_or_null) ('b : value_or_null).
     'a -> (unit -> 'b) -> (unit -> 'b) -> 'b =
   <fun>
-val x : int @@ portable = 1
+val x : int = 1
 val y : int = 2
-val x : int @@ portable = 1
+val x : int = 1
 val y : int = 2
 val f : (foo:int * bar:int) -> int = <fun>
 val f : (x:int * int) -> int = <fun>

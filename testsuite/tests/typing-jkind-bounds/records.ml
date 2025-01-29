@@ -107,7 +107,7 @@ type ('a : value mod uncontended portable, 'b : value mod portable) t = {
 }
 type ('a : value mod many) t = { x : 'a; }
 type t = { x : int; }
-type ('a : mutable_data) t = { mutable x : 'a; }
+type ('a : value mod many portable) t = { mutable x : 'a; }
 type 'a t = { x : 'a; }
 |}]
 

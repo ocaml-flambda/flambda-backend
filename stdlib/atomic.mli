@@ -49,26 +49,41 @@ val make_contended : 'a -> 'a t
 val get : 'a t -> 'a
 
 (** Set a new value for the atomic reference. *)
-val set : 'a t -> 'a -> unit
+external set : 'a t -> 'a -> unit = "%atomic_set"
 
 (** Set a new value for the atomic reference, and return the current value. *)
-val exchange : 'a t -> 'a -> 'a
+external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-val compare_and_set : 'a t -> 'a -> 'a -> bool
+external compare_and_set : 'a t -> 'a -> 'a -> bool = "%atomic_cas"
 
 (** [compare_exchange r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the comparison
     and the set occur atomically. Returns the previous value. *)
-val compare_exchange : 'a t -> 'a -> 'a -> 'a
+external compare_exchange : 'a t -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
 val fetch_and_add : int t -> int -> int
+
+(** [add r i] atomically adds [i] onto [r]. *)
+val add : int t -> int -> unit
+
+(** [sub r i] atomically subtracts [i] onto [r]. *)
+val sub : int t -> int -> unit
+
+(** [logand r i] atomically bitwise-ands [i] onto [r]. *)
+val logand : int t -> int -> unit
+
+(** [logor r i] atomically bitwise-ors [i] onto [r]. *)
+val logor : int t -> int -> unit
+
+(** [logxor r i] atomically bitwise-xors [i] onto [r]. *)
+val logxor : int t -> int -> unit
 
 (** [incr r] atomically increments the value of [r] by [1]. *)
 val incr : int t -> unit
