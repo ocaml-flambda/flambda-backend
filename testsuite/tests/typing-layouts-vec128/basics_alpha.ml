@@ -137,7 +137,7 @@ Line 1, characters 26-27:
 Error: This expression has type "int64x2#"
        but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -161,7 +161,7 @@ Line 1, characters 18-26:
                       ^^^^^^^^
 Error: Tuple element types must have layout value.
        The layout of "int64x2#" is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of "int64x2#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -288,7 +288,7 @@ Line 1, characters 31-39:
                                    ^^^^^^^^
 Error: This type signature for "x" is not a value type.
        The layout of type int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of type int64x2# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -330,7 +330,7 @@ Line 1, characters 29-30:
 Error: This expression has type "int64x2#"
        but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -408,7 +408,7 @@ Line 1, characters 20-36:
 Error: This expression has type "int64x2#"
        but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -618,7 +618,7 @@ Line 1, characters 26-45:
 Error: The method "x" has type "int64x2#" but is expected to have type
          "('a : value)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -630,7 +630,7 @@ Line 1, characters 26-42:
                               ^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
