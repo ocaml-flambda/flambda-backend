@@ -15,6 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Dynamic arrays.
 
     The {!Array} module provide arrays of fixed length. {!Dynarray}

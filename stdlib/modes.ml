@@ -1,12 +1,10 @@
-# 2 "camlinternalMod.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*          Xavier Leroy, projet Cristal, INRIA Rocquencourt              *)
+(*                 Thomas Del Vecchio, Jane Street, New York              *)
 (*                                                                        *)
-(*   Copyright 2004 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
+(*   Copyright 2024 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,20 +12,22 @@
 (*                                                                        *)
 (**************************************************************************)
 
-@@ portable
+module Global = struct
+  type 'a t = { global : 'a @@ global } [@@unboxed]
+end
 
-open! Stdlib
+module Portable = struct
+  type 'a t : value mod portable = { portable : 'a @@ portable } [@@unboxed]
+  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+end
 
-(** Run-time support for recursive modules.
-    All functions in this module are for system use only, not for the
-    casual user. *)
+module Contended = struct
+  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
+  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+end
 
-type shape =
-  | Function
-  | Lazy
-  | Class
-  | Module of shape array
-  | Value of Obj.t
-
-val init_mod: string * int * int -> shape -> Obj.t
-val update_mod: shape -> Obj.t -> Obj.t -> unit
+module Portended = struct
+  type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended }
+  [@@unboxed]
+  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+end

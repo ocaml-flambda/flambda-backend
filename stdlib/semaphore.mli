@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Semaphores
@@ -45,7 +47,7 @@ open! Stdlib
 
 module Counting : sig
 
-type t
+type t : value mod portable uncontended
 (** The type of counting semaphores. *)
 
 val make : int -> t
@@ -111,7 +113,7 @@ end
 
 module Binary : sig
 
-type t
+type t : value mod portable uncontended
 (** The type of binary semaphores. *)
 
 val make : bool -> t

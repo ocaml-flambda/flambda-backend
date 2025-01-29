@@ -93,13 +93,13 @@ type error =
 
 exception Unix_error of error * string * string
 
-let _ = Callback.register_exception "Unix.Unix_error"
+let _ = Callback.Safe.register_exception "Unix.Unix_error"
                                     (Unix_error(E2BIG, "", ""))
 
 external error_message : error -> string = "caml_unix_error_message"
 
 let () =
-  Printexc.register_printer
+  Printexc.Safe.register_printer
     (function
       | Unix_error (e, s, s') ->
           let msg = match e with

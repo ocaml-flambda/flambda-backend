@@ -1,5 +1,5 @@
 (* TEST
- flags += "-alert -unsafe_parallelism";
+ flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  runtime5;
  { bytecode; }
  { native; }
@@ -18,4 +18,3 @@ let go () =
 let () =
   Array.init num_domains (fun _ -> Domain.spawn go)
   |> Array.iter Domain.join
-
