@@ -1259,3 +1259,26 @@ Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
 
 |}]
+
+(************)
+(* call_pos *)
+
+let f ~(x : [%call_pos]) () = x;;
+
+[%%expect{|
+val f : x:[%call_pos] -> unit -> lexing_position = <fun>
+|}]
+
+type t = x:[%call_pos] -> int
+
+[%%expect{|
+type t = x:[%call_pos] -> int
+|}]
+
+let f g here = g ~(here : [%call_pos])
+
+[%%expect{|
+val f :
+  ('a : value_or_null). (here:[%call_pos] -> 'a) -> lexing_position -> 'a =
+  <fun>
+|}]
