@@ -262,7 +262,8 @@ module type T = S with type 'a t = 'b constraint 'a = < m : 'b >;;
 [%%expect{|
 module type S =
   sig type 'a t = 'a constraint 'a = < m : r > and r = < m : r > t end
-Uncaught exception: Stack overflow
+>> Fatal error: Typedecl.transl_with_constraint
+Uncaught exception: Misc.Fatal_error
 
 |}]
 
