@@ -58,6 +58,12 @@ val meet_naked_floats :
   Type_grammar.t ->
   Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
 
+val meet_naked_int8s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int8.Set.t meet_shortcut
+
+val meet_naked_int16s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int16.Set.t meet_shortcut
+
 val meet_naked_int32s :
   Typing_env.t -> Type_grammar.t -> Numeric_types.Int32.Set.t meet_shortcut
 
@@ -91,6 +97,8 @@ type boxed_or_tagged_number = private
 
 val prove_is_a_boxed_or_tagged_number :
   Typing_env.t -> Type_grammar.t -> boxed_or_tagged_number proof_of_property
+
+val prove_nothing : Typing_env.t -> Type_grammar.t -> _ proof_of_property
 
 val prove_is_a_tagged_immediate :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
