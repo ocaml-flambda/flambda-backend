@@ -24,6 +24,8 @@ let unknown (kind : K.t) =
   | Naked_number Naked_immediate -> TG.any_naked_immediate
   | Naked_number Naked_float32 -> TG.any_naked_float32
   | Naked_number Naked_float -> TG.any_naked_float
+  | Naked_number Naked_int8 -> TG.any_naked_int8
+  | Naked_number Naked_int16 -> TG.any_naked_int16
   | Naked_number Naked_int32 -> TG.any_naked_int32
   | Naked_number Naked_int64 -> TG.any_naked_int64
   | Naked_number Naked_nativeint -> TG.any_naked_nativeint
@@ -42,6 +44,8 @@ let bottom (kind : K.t) =
   | Naked_number Naked_immediate -> TG.bottom_naked_immediate
   | Naked_number Naked_float32 -> TG.bottom_naked_float32
   | Naked_number Naked_float -> TG.bottom_naked_float
+  | Naked_number Naked_int8 -> TG.bottom_naked_int8
+  | Naked_number Naked_int16 -> TG.bottom_naked_int16
   | Naked_number Naked_int32 -> TG.bottom_naked_int32
   | Naked_number Naked_int64 -> TG.bottom_naked_int64
   | Naked_number Naked_nativeint -> TG.bottom_naked_nativeint
@@ -56,6 +60,10 @@ let these_naked_immediates is = TG.these_naked_immediates is
 let these_naked_float32s fs = TG.these_naked_float32s fs
 
 let these_naked_floats fs = TG.these_naked_floats fs
+
+let these_naked_int8s is = TG.these_naked_int8s is
+
+let these_naked_int16s is = TG.these_naked_int16s is
 
 let these_naked_int32s is = TG.these_naked_int32s is
 
@@ -372,6 +380,8 @@ let type_for_const const =
   | Tagged_immediate i -> TG.this_tagged_immediate i
   | Naked_float32 f -> TG.this_naked_float32 f
   | Naked_float f -> TG.this_naked_float f
+  | Naked_int8 n -> TG.this_naked_int8 n
+  | Naked_int16 n -> TG.this_naked_int16 n
   | Naked_int32 n -> TG.this_naked_int32 n
   | Naked_int64 n -> TG.this_naked_int64 n
   | Naked_nativeint n -> TG.this_naked_nativeint n
@@ -411,6 +421,8 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
   | Naked_number Naked_immediate -> TG.any_naked_immediate
   | Naked_number Naked_float32 -> TG.any_naked_float32
   | Naked_number Naked_float -> TG.any_naked_float
+  | Naked_number Naked_int8 -> TG.any_naked_int8
+  | Naked_number Naked_int16 -> TG.any_naked_int16
   | Naked_number Naked_int32 -> TG.any_naked_int32
   | Naked_number Naked_int64 -> TG.any_naked_int64
   | Naked_number Naked_nativeint -> TG.any_naked_nativeint
