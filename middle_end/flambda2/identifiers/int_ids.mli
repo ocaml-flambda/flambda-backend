@@ -58,6 +58,10 @@ module Const : sig
 
   val naked_float : Numeric_types.Float_by_bit_pattern.t -> t
 
+  val naked_int8 : Numeric_types.Int8.t -> t
+
+  val naked_int16 : Numeric_types.Int16.t -> t
+
   val naked_int32 : Int32.t -> t
 
   val naked_int64 : Int64.t -> t
@@ -72,6 +76,8 @@ module Const : sig
       | Tagged_immediate of Targetint_31_63.t
       | Naked_float32 of Numeric_types.Float32_by_bit_pattern.t
       | Naked_float of Numeric_types.Float_by_bit_pattern.t
+      | Naked_int8 of Numeric_types.Int8.t
+      | Naked_int16 of Numeric_types.Int16.t
       | Naked_int32 of Int32.t
       | Naked_int64 of Int64.t
       | Naked_nativeint of Targetint_32_64.t

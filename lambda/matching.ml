@@ -107,7 +107,8 @@ let dbg = false
 let sort_check_not_void loc sort =
   let rec contains_void : Jkind.Sort.Const.t -> bool = function
     | Base Void -> true
-    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) -> false
+    | Base (Value | Float64 | Float32 | Word | Bits8 | Bits16 | Bits32 | Bits64
+           | Vec128) -> false
     | Product [] ->
       Misc.fatal_error "nil in sort_check_not_void"
     | Product ss -> List.exists contains_void ss
@@ -2374,7 +2375,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word as non_float ->
+                  | Imm | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Vec128 | Word as non_float ->
                       flat_read_non_float non_float
                   | Float_boxed ->
                       (* TODO: could optimise to Alloc_local sometimes *)

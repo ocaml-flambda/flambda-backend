@@ -53,9 +53,9 @@ let unbox_number ~dbg kind arg =
   | Naked_float -> C.unbox_float dbg arg
   | Naked_float32 -> C.unbox_float32 dbg arg
   | Naked_vec128 -> C.unbox_vec128 dbg arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = K.Boxable_number.primitive_kind kind in
-    C.unbox_int dbg primitive_kind arg
+  | Naked_int32 -> C.unbox_int dbg Boxed_int32 arg
+  | Naked_int64 -> C.unbox_int dbg Boxed_int64 arg
+  | Naked_nativeint -> C.unbox_int dbg Boxed_nativeint arg
 
 let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
@@ -63,9 +63,9 @@ let box_number ~dbg kind alloc_mode arg =
   | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = K.Boxable_number.primitive_kind kind in
-    C.box_int_gen dbg primitive_kind alloc_mode arg
+  | Naked_int32 -> C.box_int_gen dbg Boxed_int32 alloc_mode arg
+  | Naked_int64 -> C.box_int_gen dbg Boxed_int64 alloc_mode arg
+  | Naked_nativeint -> C.box_int_gen dbg Boxed_nativeint alloc_mode arg
 
 (* Block creation and access. For these functions, [index] is a tagged
    integer. *)
@@ -100,6 +100,8 @@ let mixed_block_kinds shape =
         | Tagged_immediate -> KS.tagged_immediate
         | Naked_float -> KS.naked_float
         | Naked_float32 -> KS.naked_float32
+        | Naked_int8 -> KS.naked_int8
+        | Naked_int16 -> KS.naked_int16
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
         | Naked_vec128 -> KS.naked_vec128
@@ -131,6 +133,8 @@ let memory_chunk_of_flat_suffix_element :
   | Tagged_immediate -> Word_int
   | Naked_float -> Double
   | Naked_float32 -> Single { reg = Float32 }
+  | Naked_int8 -> Byte_signed
+  | Naked_int16 -> Sixteen_signed
   | Naked_int32 -> Thirtytwo_signed
   | Naked_vec128 -> Onetwentyeight_unaligned
   | Naked_int64 | Naked_nativeint -> Word_int
@@ -527,6 +531,8 @@ let integral_of_standard_int : K.Standard_int.t -> C.Scalar_type.Integral.t =
     Untagged (C.Scalar_type.Integer.create_exn ~bit_width ~signedness:Signed)
   in
   function
+  | Naked_int8 -> untagged_int 8
+  | Naked_int16 -> untagged_int 16
   | Naked_int32 -> untagged_int 32
   | Naked_int64 -> untagged_int 64
   | Naked_nativeint -> Untagged C.Scalar_type.Integer.nativeint
@@ -541,6 +547,8 @@ let numeric_of_standard_int_or_float :
       (Untagged (C.Scalar_type.Integer.create_exn ~bit_width ~signedness:Signed))
   in
   function
+  | Naked_int8 -> untagged_int 8
+  | Naked_int16 -> untagged_int 16
   | Naked_int32 -> untagged_int 32
   | Naked_int64 -> untagged_int 64
   | Naked_nativeint -> Integral (Untagged C.Scalar_type.Integer.nativeint)
@@ -577,6 +585,11 @@ let unary_int_arith_primitive _env dbg kind op arg =
          arises from the [Pbswap16] Lambda primitive. That operation does not
          affect the sign of the resulting value. *)
       C.bswap16 arg dbg
+    | Naked_int8 -> arg
+    | Naked_int16 ->
+      (* Byte swaps of small integers need a sign-extension in order to match
+         the Lambda semantics (where the swap might affect the sign). *)
+      C.sign_extend (C.bbswap Unboxed_int16 arg dbg) ~bits:16 ~dbg
     | Naked_int32 ->
       C.sign_extend (C.bbswap Unboxed_int32 arg dbg) ~bits:32 ~dbg
     | Naked_int64 ->

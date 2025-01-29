@@ -886,7 +886,7 @@ end = struct
               Value_slot.print value_slot
           | Naked_number
               ( Naked_immediate | Naked_float | Naked_float32 | Naked_int32
-              | Naked_int64 | Naked_nativeint ) ->
+              | Naked_int16 | Naked_int8 | Naked_int64 | Naked_nativeint ) ->
             1, true
           (* flambda2 only supports 64-bit targets for now, so naked numbers can
              only be of size 1 *)

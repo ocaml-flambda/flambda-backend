@@ -284,6 +284,8 @@ end
 module Unary_int_arith_tagged_immediate =
   Unary_int_arith (A.For_tagged_immediates)
 module Unary_int_arith_naked_immediate = Unary_int_arith (A.For_naked_immediates)
+module Unary_int_arith_naked_int8 = Unary_int_arith (A.For_int8s)
+module Unary_int_arith_naked_int16 = Unary_int_arith (A.For_int16s)
 module Unary_int_arith_naked_int32 = Unary_int_arith (A.For_int32s)
 module Unary_int_arith_naked_int64 = Unary_int_arith (A.For_int64s)
 module Unary_int_arith_naked_nativeint = Unary_int_arith (A.For_nativeints)
@@ -357,6 +359,24 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
             let these = T.these_naked_floats
           end) in
           M.result
+        | Naked_int8 ->
+          let module M = For_kind [@inlined hint] (struct
+            module Result_num = Numeric_types.Int8
+
+            let num_to_result_num = Num.to_naked_int8
+
+            let these = T.these_naked_int8s
+          end) in
+          M.result
+        | Naked_int16 ->
+          let module M = For_kind [@inlined hint] (struct
+            module Result_num = Numeric_types.Int16
+
+            let num_to_result_num = Num.to_naked_int16
+
+            let these = T.these_naked_int16s
+          end) in
+          M.result
         | Naked_int32 ->
           let module M = For_kind [@inlined hint] (struct
             module Result_num = Int32
@@ -396,6 +416,8 @@ module Simplify_int_conv_naked_immediate =
   Make_simplify_int_conv (A.For_naked_immediates)
 module Simplify_int_conv_naked_float = Make_simplify_int_conv (A.For_floats)
 module Simplify_int_conv_naked_float32 = Make_simplify_int_conv (A.For_float32s)
+module Simplify_int_conv_naked_int8 = Make_simplify_int_conv (A.For_int8s)
+module Simplify_int_conv_naked_int16 = Make_simplify_int_conv (A.For_int16s)
 module Simplify_int_conv_naked_int32 = Make_simplify_int_conv (A.For_int32s)
 module Simplify_int_conv_naked_int64 = Make_simplify_int_conv (A.For_int64s)
 module Simplify_int_conv_naked_nativeint =
@@ -929,6 +951,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       match kind with
       | Tagged_immediate -> Unary_int_arith_tagged_immediate.simplify op
       | Naked_immediate -> Unary_int_arith_naked_immediate.simplify op
+      | Naked_int8 -> Unary_int_arith_naked_int8.simplify op
+      | Naked_int16 -> Unary_int_arith_naked_int16.simplify op
       | Naked_int32 -> Unary_int_arith_naked_int32.simplify op
       | Naked_int64 -> Unary_int_arith_naked_int64.simplify op
       | Naked_nativeint -> Unary_int_arith_naked_nativeint.simplify op)
@@ -940,6 +964,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       | Naked_immediate -> Simplify_int_conv_naked_immediate.simplify ~dst
       | Naked_float32 -> Simplify_int_conv_naked_float32.simplify ~dst
       | Naked_float -> Simplify_int_conv_naked_float.simplify ~dst
+      | Naked_int8 -> Simplify_int_conv_naked_int8.simplify ~dst
+      | Naked_int16 -> Simplify_int_conv_naked_int16.simplify ~dst
       | Naked_int32 -> Simplify_int_conv_naked_int32.simplify ~dst
       | Naked_int64 -> Simplify_int_conv_naked_int64.simplify ~dst
       | Naked_nativeint -> Simplify_int_conv_naked_nativeint.simplify ~dst)

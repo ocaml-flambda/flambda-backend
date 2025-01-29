@@ -347,6 +347,8 @@ and flat_element =
   | Float_boxed
   | Float64
   | Float32
+  | Bits8
+  | Bits16
   | Bits32
   | Bits64
   | Vec128
@@ -670,33 +672,8 @@ let compare_tag t1 t2 =
   | Extension _, Null -> -1
   | Null, Extension _ -> 1
 
-let equal_flat_element e1 e2 =
-  match e1, e2 with
-  | Imm, Imm | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed
-  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
-    -> true
-  | (Imm | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64 | Vec128), _
-    -> false
-
-let compare_flat_element e1 e2 =
-  match e1, e2 with
-  | Imm, Imm | Float_boxed, Float_boxed | Float64, Float64 | Float32, Float32
-  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
-    -> 0
-  | Imm, _ -> -1
-  | _, Imm -> 1
-  | Float_boxed, _ -> -1
-  | _, Float_boxed -> 1
-  | Float64, _ -> -1
-  | _, Float64 -> 1
-  | Float32, _ -> -1
-  | _, Float32 -> 1
-  | Word, _ -> -1
-  | _, Word -> 1
-  | Bits32, _ -> -1
-  | _, Bits32 -> 1
-  | Vec128, _ -> -1
-  | _, Vec128 -> 1
+let equal_flat_element = (Stdlib.(=) : flat_element -> flat_element -> bool)
+let compare_flat_element = (Stdlib.compare : flat_element -> flat_element -> int)
 
 let equal_mixed_product_shape r1 r2 = r1 == r2 ||
   (* Warning 9 alerts us if we add another field *)
@@ -856,6 +833,8 @@ let flat_element_to_string = function
   | Float_boxed -> "Float_boxed"
   | Float32 -> "Float32"
   | Float64 -> "Float64"
+  | Bits8 -> "Bits8"
+  | Bits16 -> "Bits16"
   | Bits32 -> "Bits32"
   | Bits64 -> "Bits64"
   | Vec128 -> "Vec128"
@@ -866,6 +845,8 @@ let flat_element_to_lowercase_string = function
   | Float_boxed -> "float"
   | Float32 -> "float32"
   | Float64 -> "float64"
+  | Bits8 -> "bits8"
+  | Bits16 -> "bits16"
   | Bits32 -> "bits32"
   | Bits64 -> "bits64"
   | Vec128 -> "vec128"

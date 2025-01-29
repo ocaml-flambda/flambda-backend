@@ -340,6 +340,10 @@ val any_naked_float32 : t
 
 val any_naked_float : t
 
+val any_naked_int8 : t
+
+val any_naked_int16 : t
+
 val any_naked_int32 : t
 
 val any_naked_int64 : t
@@ -394,6 +398,10 @@ val this_naked_float32 : Numeric_types.Float32_by_bit_pattern.t -> t
 
 val this_naked_float : Numeric_types.Float_by_bit_pattern.t -> t
 
+val this_naked_int8 : Numeric_types.Int8.t -> t
+
+val this_naked_int16 : Numeric_types.Int16.t -> t
+
 val this_naked_int32 : Numeric_types.Int32.t -> t
 
 val this_naked_int64 : Numeric_types.Int64.t -> t
@@ -410,6 +418,10 @@ val these_naked_float32s : Numeric_types.Float32_by_bit_pattern.Set.t -> t
 
 val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
 
+val these_naked_int8s : Numeric_types.Int8.Set.t -> t
+
+val these_naked_int16s : Numeric_types.Int16.Set.t -> t
+
 val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 
 val these_naked_int64s : Numeric_types.Int64.Set.t -> t
@@ -420,6 +432,10 @@ val boxed_float32_alias_to :
   naked_float32:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
+
+val tagged_int8_alias_to : naked_int8:Variable.t -> t
+
+val tagged_int16_alias_to : naked_int16:Variable.t -> t
 
 val boxed_int32_alias_to : naked_int32:Variable.t -> Alloc_mode.For_types.t -> t
 
@@ -580,6 +596,12 @@ val meet_naked_float32s :
 val meet_naked_floats :
   Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
 
+val meet_naked_int8s :
+  Typing_env.t -> t -> Numeric_types.Int8.Set.t meet_shortcut
+
+val meet_naked_int16s :
+  Typing_env.t -> t -> Numeric_types.Int16.Set.t meet_shortcut
+
 val meet_naked_int32s :
   Typing_env.t -> t -> Numeric_types.Int32.Set.t meet_shortcut
 
@@ -614,6 +636,8 @@ type boxed_or_tagged_number = private
 
 val prove_is_a_boxed_or_tagged_number :
   Typing_env.t -> t -> boxed_or_tagged_number proof_of_property
+
+val prove_nothing : Typing_env.t -> t -> _ proof_of_property
 
 val prove_is_a_tagged_immediate : Typing_env.t -> t -> unit proof_of_property
 
