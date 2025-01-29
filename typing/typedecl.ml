@@ -1233,9 +1233,18 @@ let check_constraints env sdecl (_, decl) =
    immediate, we should check the manifest is immediate). Also, update the
    resulting jkind to match the manifest. *)
 let narrow_to_manifest_jkind env loc decl =
-  match decl.type_manifest with
-  | None -> decl
-  | Some ty ->
+  match decl.type_manifest, decl.type_kind with
+  | None, _ -> decl
+  | Some _, (Type_record _ | Type_record_unboxed_product _ | Type_variant _ | Type_open)
+    when not (Builtin_attributes.has_or_null_reexport decl.type_attributes) 
+    ->
+    (* If there's both a manifest and a kind, there's no reason to check that the jkind
+       of the manifest matches the annotation. This is because the manifest's jkind is
+       exactly the kind's jkind, which has already been checked against the annotation.
+       The annotation has also been narrowed based on the kind's jkind, so there's no
+       reason to update the jkind either. *)
+    decl
+  | Some ty, _ ->
     (* CR layouts v2.8: Remove this use of [type_jkind_purely], which is slow
        and effectful. But we cannot do so easily, sadly. I tried using
        [estimate_type_jkind] here instead, but this runs aground with mutually

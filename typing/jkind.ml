@@ -1336,11 +1336,22 @@ module Jkind_desc = struct
     | Require_best : ('l * disallowed) normalize_mode
     | Ignore_best : ('l * 'r) normalize_mode
 
+  module Fuel_result = struct
+    type t =
+      | Ran_out_of_fuel
+      | Had_enough_fuel
+
+    let both a b =
+      match a, b with
+      | Ran_out_of_fuel, _ | _, Ran_out_of_fuel -> Ran_out_of_fuel
+      | Had_enough_fuel, Had_enough_fuel -> Had_enough_fuel
+  end
+
   let map_normalize (type l1 r1 l2 r2) ~jkind_of_type
       ~(mode : (l2 * r2) normalize_mode)
       ~(map_type_info :
          type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
-      (t : (l1 * r1) jkind_desc) : (l2 * r2) jkind_desc =
+      (t : (l1 * r1) jkind_desc) : (l2 * r2) jkind_desc * Fuel_result.t =
     (* Sadly, it seems hard (impossible?) to be sure to expand all types
        here without using a fuel parameter to stop infinite regress. Here
        is a nasty case:
@@ -1435,12 +1446,12 @@ module Jkind_desc = struct
     end in
     let rec loop ctl bounds_so_far :
         (type_expr * With_bounds_type_info.t) list ->
-        Bounds.t * (l2 * r2) with_bounds = function
+        Bounds.t * (l2 * r2) with_bounds * Fuel_result.t = function
       (* early cutoff *)
       | _ when Bounds.le Bounds.max bounds_so_far ->
         (* CR layouts v2.8: we can do better by early-terminating on a per-axis basis *)
-        bounds_so_far, No_with_bounds
-      | [] -> bounds_so_far, No_with_bounds
+        bounds_so_far, No_with_bounds, Had_enough_fuel
+      | [] -> bounds_so_far, No_with_bounds, Had_enough_fuel
       | (ty, ti) :: bs -> (
         let ti = map_type_info ty ti in
         match Axis_set.is_empty ti.relevant_axes with
@@ -1462,24 +1473,28 @@ module Jkind_desc = struct
             join_bounds bounds_so_far bound ~relevant_axes:ti.relevant_axes
           in
           let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
-              Bounds.t * (l2 * r2) with_bounds =
+              Bounds.t * (l2 * r2) with_bounds * Fuel_result.t =
             match quality, mode with
             | Best, _ | Not_best, Ignore_best ->
               let bounds_so_far = join_relevant_axes b_upper_bounds in
               (* Descend into the with-bounds of each of our with-bounds types'
                   with-bounds *)
-              let bounds_so_far, nested_with_bounds =
+              let bounds_so_far, nested_with_bounds, fuel_result1 =
                 loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
               in
               (* CR: which ctl to use?
                  (* Use *original* ctl here, so we don't fall over on
                      a record with 20 lists with different payloads. *)
               *)
-              let bounds, bs' = loop new_ctl bounds_so_far bs in
-              bounds, With_bounds.join nested_with_bounds bs'
+              let bounds, bs', fuel_result2 = loop new_ctl bounds_so_far bs in
+              ( bounds,
+                With_bounds.join nested_with_bounds bs',
+                Fuel_result.both fuel_result1 fuel_result2 )
             | Not_best, Require_best ->
-              let bounds_so_far, bs' = loop new_ctl bounds_so_far bs in
-              bounds_so_far, With_bounds.add ty ti bs'
+              let bounds_so_far, bs', fuel_result =
+                loop new_ctl bounds_so_far bs
+              in
+              bounds_so_far, With_bounds.add ty ti bs', fuel_result
           in
           match Loop_control.check ctl ty with
           | Stop ->
@@ -1504,7 +1519,7 @@ module Jkind_desc = struct
               join_bounds t.mod_bounds Bounds.max
                 ~relevant_axes:all_relevant_axes
             in
-            worst_bounds, No_with_bounds
+            worst_bounds, No_with_bounds, Ran_out_of_fuel
           | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
           | Continue ctl_after_unpacking_b -> (
             match jkind_of_type ty with
@@ -1517,22 +1532,20 @@ module Jkind_desc = struct
               found_jkind_for_ty ctl_after_unpacking_b Bounds.max No_with_bounds
                 Not_best)))
     in
-    let mod_bounds, with_bounds =
+    let mod_bounds, with_bounds, ran_out_of_fuel =
       loop Loop_control.starting t.mod_bounds
         (With_bounds.to_list t.with_bounds)
     in
-    { t with mod_bounds; with_bounds }
+    { t with mod_bounds; with_bounds }, ran_out_of_fuel
 
-  let normalize (type l1 r1 l2 r2) ~jkind_of_type
-      ~(mode : (l2 * r2) normalize_mode) (t : (l1 * r1) jkind_desc) :
-      (l2 * r2) jkind_desc =
+  let normalize ~jkind_of_type ~mode t =
     map_normalize ~jkind_of_type ~mode ~map_type_info:(fun _ ti -> ti) t
 
   let sub (type l r) ?(allow_any_crossing = false) ~type_equal:_ ~jkind_of_type
       (sub : (allowed * r) jkind_desc)
       ({ layout = lay2; mod_bounds = bounds2; with_bounds = No_with_bounds } :
         (l * allowed) jkind_desc) =
-    let { layout = lay1; mod_bounds = bounds1; with_bounds = _ } =
+    let { layout = lay1; mod_bounds = bounds1; with_bounds = _ }, _ =
       normalize ~mode:Ignore_best ~jkind_of_type sub
     in
     let layout = Layout.sub lay1 lay2 in
@@ -1929,9 +1942,15 @@ type 'd normalize_mode = 'd Jkind_desc.normalize_mode =
   | Require_best : ('l * disallowed) normalize_mode
   | Ignore_best : ('l * 'r) normalize_mode
 
-let[@inline] normalize (type l r) ~(mode : (l * r) normalize_mode)
-    ~jkind_of_type t =
-  { t with jkind = Jkind_desc.normalize ~jkind_of_type ~mode t.jkind }
+let[@inline] normalize ~mode ~jkind_of_type t =
+  let jkind, fuel_result = Jkind_desc.normalize ~jkind_of_type ~mode t.jkind in
+  { t with
+    jkind;
+    quality =
+      (match t.quality, fuel_result with
+      | Not_best, _ | _, Ran_out_of_fuel -> Not_best
+      | Best, Had_enough_fuel -> Best)
+  }
 
 let get_layout_defaulting_to_value { jkind = { layout; _ }; _ } =
   Layout.default_to_value_and_get layout
@@ -1959,14 +1978,12 @@ let extract_layout jk = jk.jkind.layout
 
 let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
     Alloc.Const.t =
-  let jk = normalize ~mode:Ignore_best ~jkind_of_type jk in
-  (match jk.jkind.with_bounds with
-  | No_with_bounds -> ()
-  | With_bounds _ ->
-    Misc.fatal_errorf
-      "Expected no with-bounds after normalizing without requiring best. If \
-       you see this error, please contact the Jane Street compiler team.");
-  let get axis = Bounds.get jk.jkind.mod_bounds ~axis in
+  let ( ({ layout = _; with_bounds = No_with_bounds; mod_bounds } :
+          (_, Allowance.right_only) layout_and_axes),
+        _ ) =
+    Jkind_desc.normalize ~mode:Ignore_best ~jkind_of_type jk.jkind
+  in
+  let get axis = Bounds.get mod_bounds ~axis in
   { areality = get (Modal (Comonadic Areality));
     linearity = get (Modal (Comonadic Linearity));
     uniqueness = get (Modal (Monadic Uniqueness));
@@ -1976,8 +1993,12 @@ let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
   }
 
 let get_externality_upper_bound ~jkind_of_type jk =
-  let jk = normalize ~mode:Ignore_best ~jkind_of_type jk in
-  Bounds.get jk.jkind.mod_bounds ~axis:(Nonmodal Externality)
+  let ( ({ layout = _; with_bounds = No_with_bounds; mod_bounds } :
+          (_, Allowance.right_only) layout_and_axes),
+        _ ) =
+    Jkind_desc.normalize ~mode:Ignore_best ~jkind_of_type jk.jkind
+  in
+  Bounds.get mod_bounds ~axis:(Nonmodal Externality)
 
 let set_externality_upper_bound jk externality_upper_bound =
   { jk with
@@ -2680,11 +2701,12 @@ let sub_jkind_l ?(allow_any_crossing = false) ~type_equal ~jkind_of_type sub sup
         let bound = Bounds.get ~axis best_super.jkind.mod_bounds in
         Axis_ops.le Axis_ops.max bound)
     in
-    let ({ layout = _;
-           mod_bounds = sub_upper_bounds;
-           with_bounds = No_with_bounds
-         }
-         : (_ * allowed) jkind_desc) =
+    let ( ({ layout = _;
+             mod_bounds = sub_upper_bounds;
+             with_bounds = No_with_bounds
+           } :
+             (_ * allowed) jkind_desc),
+          _ ) =
       (* CR layouts v2.8: don't expand along bounds where the upper bound is max on the
          right. Normalization *)
       (* MB_EXPAND_L *)

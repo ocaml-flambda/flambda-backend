@@ -12,14 +12,18 @@ module Or_null = struct
 end
 
 [%%expect{|
-Lines 2-4, characters 2-16:
-2 | ..type ('a : value) t : value_or_null = 'a or_null =
-3 |     | Null
-4 |     | This of 'a
-Error: This variant or record definition does not match that of type
-         "'a or_null"
-       Their internal representations differ:
-       the original definition has a null constructor.
+module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
+|}]
+
+module Or_null = struct
+  type ('a : value) t : value mod non_null = 'a or_null =
+    | Null
+    | This of 'a
+end
+
+(* CR layouts v2.8: this is unsound. FIX!!! *)
+[%%expect{|
+module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
 |}]
 
 module Or_null = struct
