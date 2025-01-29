@@ -8036,10 +8036,14 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
       let arg =
         type_expect env expected_mode sarg (mk_expected ty_arg_mono)
       in
-      if is_optional lbl then
-        (* CR layouts v5: relax value requirement *)
-        unify_exp env arg
-          (type_option(newvar Predef.option_argument_jkind));
+      (match lbl with
+       | Labelled _ | Nolabel -> ()
+       | Optional _ ->
+           (* CR layouts v5: relax value requirement *)
+           unify_exp env arg
+             (type_option(newvar Predef.option_argument_jkind))
+       | Position _ ->
+           unify_exp env arg (instance Predef.type_lexing_position));
       (lbl, Arg (arg, mode_arg, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
@@ -8164,11 +8168,7 @@ and type_application env app_loc expected_mode position_and_mode
       let ty_ret, mode_ret, args, position_and_mode =
         with_local_level_if_principal begin fun () ->
           let sargs = List.map
-            (* Application will never contain Position labels, so no need to pass
-               argument type here. When checking against the function type,
-               Labelled arguments will be matched up to Position parameters
-               based on label names *)
-            (fun (label, e) -> Typetexp.transl_label label None, e) sargs
+            (fun (label, e) -> Typetexp.transl_label_from_expr label e) sargs
           in
           let ty_ret, mode_ret, untyped_args =
             collect_apply_args env funct ignore_labels ty (instance ty)
