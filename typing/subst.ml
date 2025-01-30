@@ -370,11 +370,15 @@ let rec typexp copy_scope s ty =
       else match desc with
       | Tconstr (p, args, _abbrev) ->
          let args = List.map (typexp copy_scope s) args in
-         begin match Path.Map.find p s.types with
-         | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
-         | Path _ -> Tconstr(type_path s p, args, ref Mnil)
-         | Type_function { params; body } ->
-            Tlink (apply_type_function params args body)
+         begin match p with
+         | Pextra_ty (p, Punboxed_ty) ->
+           Tconstr(Path.unboxed_version (type_path s p), args, ref Mnil)
+         | _ ->
+           match Path.Map.find p s.types with
+           | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
+           | Path _ -> Tconstr(type_path s p, args, ref Mnil)
+           | Type_function { params; body } ->
+               Tlink (apply_type_function params args body)
          end
       | Tpackage(p, fl) ->
           Tpackage(modtype_path s p,
