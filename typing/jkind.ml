@@ -1641,7 +1641,10 @@ let of_const (type l r) ~annotation ~why ~(quality : (l * r) jkind_quality)
 
 let of_builtin ~why Const.Builtin.{ jkind; name } =
   jkind |> Layout_and_axes.allow_left |> Layout_and_axes.disallow_right
-  |> of_const ~annotation:(mk_annot name) ~why ~quality:Best
+  |> of_const ~annotation:(mk_annot name)
+       ~why
+         (* The [Best] is OK here because this function is used only in Predef. *)
+       ~quality:Best
 
 let of_annotated_const ~context ~annotation ~const ~const_loc =
   let context = Context_with_transl.get_context context in
@@ -2468,7 +2471,7 @@ let intersection_or_error ~type_equal ~jkind_of_type ~reason t1 t2 =
           combine_histories ~type_equal ~jkind_of_type reason (Pack_jkind t1)
             (Pack_jkind t2);
         has_warned = t1.has_warned || t2.has_warned;
-        quality = Not_best
+        quality = Not_best (* As required by the fact that this is a [jkind_r] *)
       }
 
 let round_up (type l r) ~type_equal ~jkind_of_type (t : (allowed * r) jkind) :
@@ -2481,7 +2484,7 @@ let round_up (type l r) ~type_equal ~jkind_of_type (t : (allowed * r) jkind) :
   in
   { t with
     jkind = { t.jkind with mod_bounds; with_bounds = No_with_bounds };
-    quality = Not_best
+    quality = Not_best (* As required by the fact that this is a [jkind_r] *)
   }
 
 let map_type_expr f t = { t with jkind = Jkind_desc.map_type_expr f t.jkind }

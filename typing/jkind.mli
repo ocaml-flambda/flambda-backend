@@ -344,8 +344,8 @@ val add_with_bounds :
 (** Does this jkind have with-bounds? *)
 val has_with_bounds : Types.jkind_l -> bool
 
-(** Mark the given jkind as {ibest}, meaning we can never learn any more information about
-    it that will cause it to become lower in the preorder of kinds*)
+(** Mark the given jkind as {i best}, meaning we can never learn any more information
+    about it that will cause it to become lower in the preorder of kinds*)
 val mark_best : ('l * 'r) Types.jkind -> ('l * disallowed) Types.jkind
 
 (******************************)
@@ -378,6 +378,8 @@ val of_const :
   'd Const.t ->
   'd Types.jkind
 
+(** Construct a jkind from a builtin kind, at quality [Best]. Should only be used in
+    predef. *)
 val of_builtin :
   why:History.creation_reason ->
   Const.Builtin.t ->
