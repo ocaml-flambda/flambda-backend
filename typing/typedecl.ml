@@ -308,6 +308,7 @@ in
       type_uid = uid;
       type_unboxed_version = None;
       type_is_unboxed_version = true;
+      type_has_illegal_crossings = false;
     }
   in
   let decl =
@@ -1114,9 +1115,9 @@ let derive_unboxed_version find_type decl =
     | Type_record_unboxed_product _ | Type_variant _
     | Type_open
     | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                      | Record_ufloat | Record_mixed _), _)->
+                      | Record_ufloat | Record_mixed _))->
       `No_unboxed_version
-    | Type_record (lbls, Record_boxed _, umc) ->
+    | Type_record (lbls, Record_boxed _) ->
       let lbls_unboxed =
         List.map
           (fun (ld : Types.label_declaration) ->
@@ -1141,7 +1142,7 @@ let derive_unboxed_version find_type decl =
       in
       let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
       let kind =
-        Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product, umc)
+        Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product)
       in
       `Unboxed_kind_jkind (kind, jkind)
   in
@@ -1203,6 +1204,7 @@ let derive_unboxed_version find_type decl =
       type_uid = decl.type_uid;
       type_unboxed_version = None;
       type_is_unboxed_version = true;
+      type_has_illegal_crossings = decl.type_has_illegal_crossings;
     }
 
 (* Note [Typechecking unboxed versions of types]
@@ -3754,6 +3756,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
               as using the boxed version. *)
           type_unboxed_version = None;
           type_is_unboxed_version = true;
+          type_has_illegal_crossings = false;
         }
       | { type_unboxed_version = None ; _ } ->
         None
@@ -3919,6 +3922,7 @@ let abstract_type_decl ~injective ~jkind ~params =
           type_uid = Uid.internal_not_actually_unique;
           type_unboxed_version = None;
           type_is_unboxed_version = true;
+          type_has_illegal_crossings = false;
         };
       type_is_unboxed_version = false;
     }

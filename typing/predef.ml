@@ -251,6 +251,7 @@ let mk_add_type add_type
         type_uid;
         type_unboxed_version = None;
         type_is_unboxed_version = true;
+        type_has_illegal_crossings = false;
       }
   in
   let decl =

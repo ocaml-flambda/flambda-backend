@@ -1416,18 +1416,19 @@ and find_type_unboxed_version_data path env seen =
           type_uid = decl.type_uid;
           type_unboxed_version = None;
           type_is_unboxed_version = true;
+          type_has_illegal_crossings = decl.type_has_illegal_crossings;
         }
   in
   let descrs =
     match tda_declaration.type_kind with
     | Type_abstract r -> Type_abstract r
-    | Type_record_unboxed_product (_, repr, umc) ->
+    | Type_record_unboxed_product (_, repr) ->
       let lbls =
         Datarepr.unboxed_labels_of_type
           (Path.unboxed_version path) tda_declaration
         |> List.map snd
       in
-      Type_record_unboxed_product (lbls, repr, umc)
+      Type_record_unboxed_product (lbls, repr)
     | Type_open | Type_record _ | Type_variant _ ->
       Misc.fatal_error
         "Env.find_type_data: unexpected unboxed version kind"
