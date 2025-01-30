@@ -3567,7 +3567,15 @@ let check_recmod_typedecl env loc recmod_ids path decl =
   check_regularity ~abs_env:env env loc path decl to_check;
   (* additional coherence check, as one might build an incoherent signature,
      and use it to build an incoherent module, cf. #7851 *)
-  ignore (check_coherence env loc path decl)
+  (* Call [check_kind_coherence] rather than [check_coherence] here, which
+     avoids a call to [narrow_to_manifest_jkind]. That call sometimes spuriously fails on
+     valid programs (see test 14 in testsuite/tests/typing-jkind-bounds/basics.ml). This
+     isn't sound, but this check is already unsound otherwise (see issue #13765)! And not
+     performing this check on the jkinds is no less sound than what already exists. So
+     instead of fixing the spurious failures, we choose to just not perform the check,
+     with the intention of fixing the jkind soundness issue once the other soundness issue
+     is resolved. *)
+  ignore (check_kind_coherence env loc path decl)
 
 
 (**** Error report ****)

@@ -1603,15 +1603,7 @@ end = struct
   type 'a t = 'a Gadt_option.t
 end
 [%%expect {|
-Lines 5-9, characters 0-3:
-5 | and Also_gadt_option : sig
-6 |   type 'a t = 'a Gadt_option.t
-7 | end = struct
-8 |   type 'a t = 'a Gadt_option.t
-9 | end
-Error: The kind of type "'a Gadt_option.t" is immutable_data
-         because it's a boxed variant type.
-       But the kind of type "'a Gadt_option.t" must be a subkind of
-         immutable_data
-         because it's a boxed variant type.
+module rec Gadt_option :
+  sig type 'a t = T : 'a option -> 'a t [@@unboxed] end
+and Also_gadt_option : sig type 'a t = 'a Gadt_option.t end
 |}]
