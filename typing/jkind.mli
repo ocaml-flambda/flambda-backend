@@ -371,6 +371,7 @@ val of_new_legacy_sort_var :
 val of_new_legacy_sort :
   why:History.concrete_legacy_creation_reason -> 'd Types.jkind
 
+(** Construct a jkind from a constant jkind, at quality [Not_best] *)
 val of_const :
   annotation:Parsetree.jkind_annotation option ->
   why:History.creation_reason ->
@@ -378,8 +379,7 @@ val of_const :
   'd Const.t ->
   'd Types.jkind
 
-(** Construct a jkind from a builtin kind, at quality [Best]. Should only be used in
-    predef. *)
+(** Construct a jkind from a builtin kind, at quality [Best]. *)
 val of_builtin :
   why:History.creation_reason ->
   Const.Builtin.t ->
@@ -402,7 +402,7 @@ val of_annotation_option_default :
     attributes, and [of_type_decl] needs to look in two different places on the
     [type_declaration] to account for these two alternatives.
 
-    Returns the jkind and the user-written annotation.
+    Returns the jkind (at quality [Not_best]) and the user-written annotation.
 
     Raises if a disallowed or unknown jkind is present.
 *)
@@ -413,7 +413,8 @@ val of_type_decl :
   (Types.jkind_l * Parsetree.jkind_annotation option) option
 
 (** Find a jkind from a type declaration in the same way as [of_type_decl],
-    defaulting to ~default.
+    defaulting to ~default. Returns a jkind at quality [Not_best]; call [mark_best] to
+    mark it as [Best].
 
     Raises if a disallowed or unknown jkind is present.
 *)
