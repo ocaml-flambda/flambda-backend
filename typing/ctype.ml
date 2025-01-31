@@ -1662,22 +1662,37 @@ let instance_label ~fixed lbl =
     (vars, ty_arg, ty_res)
   )
 
-let prim_mode mvar = function
-  | Primitive.Prim_global, _ -> Locality.allow_right Locality.global
-  | Primitive.Prim_local, _ -> Locality.allow_right Locality.local
+(* CR dkalinichenko: we must vary yieldingness together with locality to get
+   sane behavior around defaults. Remove once we have mode polymorphism. *)
+let prim_mode mvar mvar' = function
+  | Primitive.Prim_global, _ ->
+    Locality.allow_right Locality.global,
+    Yielding.allow_right Yielding.unyielding
+  | Primitive.Prim_local, _ ->
+    Locality.allow_right Locality.local,
+    Yielding.allow_right Yielding.yielding
   | Primitive.Prim_poly, _ ->
-    match mvar with
-    | Some mvar -> mvar
-    | None -> assert false
+    match mvar, mvar' with
+    | Some mvar, Some mvar' -> mvar, mvar'
+    | None, _ | _, None -> assert false
 
-(** Returns a new mode variable whose locality is the given locality, while
-    all other axes are from the given [m]. This function is too specific to be
-    put in [mode.ml] *)
-let with_locality locality m =
+(** Returns a new mode variable whose locality is the given locality and
+    whose yieldingness is the given yieldingness, while all other axes are
+    from the given [m]. This function is too specific to be put in [mode.ml] *)
+let with_locality_and_yielding (locality, yielding) m =
   let m' = Alloc.newvar () in
   Locality.equate_exn (Alloc.proj (Comonadic Areality) m') locality;
-  Alloc.submode_exn m' (Alloc.join_with (Comonadic Areality) Locality.Const.max m);
-  Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
+  Yielding.equate_exn (Alloc.proj (Comonadic Yielding) m') yielding;
+  Alloc.submode_exn m'
+    (Alloc.join_with
+      (Comonadic Yielding)
+      Yielding.Const.max
+      (Alloc.join_with (Comonadic Areality) Locality.Const.max m));
+  Alloc.submode_exn
+    (Alloc.meet_with
+      (Comonadic Areality)
+      Locality.Const.min
+      (Alloc.meet_with (Comonadic Yielding) Yielding.Const.min m)) m';
   m'
 
 let curry_mode alloc arg : Alloc.Const.t =
@@ -1701,10 +1716,12 @@ let curry_mode alloc arg : Alloc.Const.t =
     of the return of a function). *)
   {acc with uniqueness=Uniqueness.Const.Aliased}
 
-let rec instance_prim_locals locals mvar macc finalret ty =
+let rec instance_prim_locals locals mvar_l mvar_y macc (loc, yld) ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
-     let marg = with_locality  (prim_mode (Some mvar) l) marg in
+     let marg = with_locality_and_yielding
+      (prim_mode (Some mvar_l) (Some mvar_y) l) marg
+     in
      let macc =
        Alloc.join [
         Alloc.disallow_right mret;
@@ -1714,12 +1731,12 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      in
      let mret =
        match locals with
-       | [] -> with_locality finalret mret
+       | [] -> with_locality_and_yielding (loc, yld) mret
        | _ :: _ ->
           let mret', _ = Alloc.newvar_above macc in (* curried arrow *)
           mret'
      in
-     let ret = instance_prim_locals locals mvar macc finalret ret in
+     let ret = instance_prim_locals locals mvar_l mvar_y macc (loc, yld) ret in
      newty2 ~level:(get_level ty) (Tarrow ((lbl,marg,mret),arg,ret, commu))
   | _ :: _, _ -> assert false
   | [], _ ->
@@ -1796,11 +1813,12 @@ let instance_prim_mode (desc : Primitive.description) ty =
   let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
-    let mode = Locality.newvar () in
-    let finalret = prim_mode (Some mode) desc.prim_native_repr_res in
+    let mode_l = Locality.newvar () in
+    let mode_y = Yielding.newvar () in
+    let finalret = prim_mode (Some mode_l) (Some mode_y) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
-      mode (Alloc.disallow_right Alloc.legacy) finalret ty,
-    Some mode
+      mode_l mode_y (Alloc.disallow_right Alloc.legacy) finalret ty,
+    Some mode_l
   else
     ty, None
 

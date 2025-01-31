@@ -153,7 +153,27 @@ let transl_modifier_annots annots =
     Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
   in
   let empty_modifiers = Transled_modifiers.empty in
-  List.fold_left step empty_modifiers annots
+  let modifiers = List.fold_left step empty_modifiers annots in
+  (* Since [yielding] is the default mode in presence of [local],
+     the [global] modifier must also apply [unyielding] unless specified. *)
+  match Transled_modifiers.get ~axis:(Modal (Comonadic Yielding)) modifiers,
+    Transled_modifiers.get ~axis:(Modal (Comonadic Areality)) modifiers with
+  | None, Some { txt = Locality.Const.Global; _ } ->
+    Transled_modifiers.set ~axis:(Modal (Comonadic Yielding))
+      modifiers (Some { txt = Yielding.Const.Unyielding; loc = Location.none })
+  | _, _ -> modifiers
+
+
+let default_mode_annots (annots : Alloc.Const.Option.t) =
+  (* Unlike all other modes, [yielding] has a different default
+     depending on whether [areality] is [Global] or [Local]. *)
+  let yielding =
+    match annots.yielding, annots.areality with
+    | (Some _ as y), _ | y, None -> y
+    | None, Some Locality.Const.Global -> Some Yielding.Const.Unyielding
+    | None, Some Locality.Const.Local -> Some Yielding.Const.Yielding
+  in
+  { annots with yielding }
 
 let transl_mode_annots annots : Alloc.Const.Option.t =
   let step modifiers_so_far annot =
@@ -172,13 +192,14 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
   in
   let empty_modifiers = Transled_modifiers.empty in
   let modes = List.fold_left step empty_modifiers annots in
-  { areality = Option.map get_txt modes.locality;
-    linearity = Option.map get_txt modes.linearity;
-    uniqueness = Option.map get_txt modes.uniqueness;
-    portability = Option.map get_txt modes.portability;
-    contention = Option.map get_txt modes.contention;
-    yielding = Option.map get_txt modes.yielding
-  }
+  default_mode_annots
+    { areality = Option.map get_txt modes.locality;
+      linearity = Option.map get_txt modes.linearity;
+      uniqueness = Option.map get_txt modes.uniqueness;
+      portability = Option.map get_txt modes.portability;
+      contention = Option.map get_txt modes.contention;
+      yielding = Option.map get_txt modes.yielding
+    }
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   let print_to_string_opt print a = Option.map (Format.asprintf "%a" print) a in
@@ -195,7 +216,15 @@ let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   let contention =
     print_to_string_opt Mode.Contention.Const.print modes.contention
   in
-  let yielding = print_to_string_opt Mode.Yielding.Const.print modes.yielding in
+  let yielding =
+    (* Since [yielding] has non-standard defaults, we special-case
+       whether we want to print it here. *)
+    match modes.yielding, modes.areality with
+    | Some Yielding.Const.Yielding, Some Locality.Const.Local
+    | Some Yielding.Const.Unyielding, Some Locality.Const.Global ->
+      None
+    | _, _ -> print_to_string_opt Mode.Yielding.Const.print modes.yielding
+  in
   List.filter_map
     (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
     [areality; uniqueness; linearity; portability; contention; yielding]
@@ -269,9 +298,37 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
     then monadic
     else monadic @ comonadic
 
+(* Since [yielding] is the default mode in presence of [local],
+   the [global] modality must also apply [unyielding] unless specified. *)
+let default_modalities (modalities : Modality.t list) =
+  let areality =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Areality, Meet_with a) ->
+          Some (a : Regionality.Const.t)
+        | _ -> None)
+      modalities
+  in
+  let yielding =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Yielding, Meet_with y) ->
+          Some (y : Yielding.Const.t)
+        | _ -> None)
+      modalities
+  in
+  let extra =
+    match areality, yielding with
+    | Some Global, None ->
+      [Modality.Atom (Comonadic Yielding, Meet_with Yielding.Const.Unyielding)]
+    | _, _ -> []
+  in
+  modalities @ extra
+
 let transl_modalities ~maturity mut attrs modalities =
   let mut_modalities = mutable_implied_modalities mut attrs in
   let modalities = List.map (transl_modality ~maturity) modalities in
+  let modalities = default_modalities modalities in
   (* mut_modalities is applied before explicit modalities *)
   Modality.Value.Const.id
   |> List.fold_right
@@ -285,9 +342,38 @@ let transl_modalities ~maturity mut attrs modalities =
        (fun atom m -> Modality.Value.Const.compose ~then_:atom m)
        modalities
 
+let untransl_yielding l =
+  let areality =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Areality, Meet_with a) ->
+          Some (a : Regionality.Const.t)
+        | _ -> None)
+      l
+  in
+  let yielding =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Yielding, Meet_with y) ->
+          Some (y : Yielding.Const.t)
+        | _ -> None)
+      l
+  in
+  match areality, yielding with
+  | Some Global, Some Unyielding | Some Local, Some Yielding -> []
+  | _, Some yld -> [Modality.Atom (Comonadic Yielding, Meet_with yld)]
+  | _, None -> []
+
 let untransl_modalities mut attrs t =
   let l = Modality.Value.Const.to_list t in
-  let l = List.filter (fun a -> not @@ Modality.is_id a) l in
+  let l =
+    untransl_yielding l
+    @ List.filter
+        (function
+          | Modality.Atom (Comonadic Yielding, _) -> false
+          | a -> not (Modality.is_id a))
+        l
+  in
   let mut_modalities = mutable_implied_modalities mut attrs in
   (* polymorphic equality suffices for now. *)
   let l = List.filter (fun x -> not @@ List.mem x mut_modalities) l in

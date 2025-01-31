@@ -1715,6 +1715,10 @@ module Yielding = struct
 
   include Common (Obj)
 
+  let yielding = of_const Yielding
+
+  let unyielding = of_const Unyielding
+
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_floor
