@@ -899,8 +899,7 @@ let transl_declaration env sdecl (id, uid) =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
         let rep, jkind =
           if unbox then
-            Variant_unboxed,
-            (Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type |> Jkind.mark_best)
+            Variant_unboxed, Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
           else
             (* We mark all arg sorts "void" here.  They are updated later,
                after the circular type checks make it safe to check sorts.
@@ -919,8 +918,7 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, sorts)
                 (Array.of_list cstrs)
             ),
-            (Jkind.Builtin.value ~why:Boxed_variant
-             |> Jkind.mark_best)
+            Jkind.Builtin.value ~why:Boxed_variant
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep, None), jkind
       | Ptype_record lbls ->
@@ -931,15 +929,14 @@ let transl_declaration env sdecl (id, uid) =
           let rep, jkind =
             if unbox then
               Record_unboxed,
-              (Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
-               |> Jkind.mark_best)
+              (Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type)
             else
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
                [Record_mixed].  Those cases are fixed up after we can get
                accurate sorts for the fields, in [update_decl_jkind]. *)
               Record_boxed (Array.make (List.length lbls) Jkind.Sort.Const.void),
-              (Jkind.Builtin.value ~why:Boxed_record |> Jkind.mark_best)
+              Jkind.Builtin.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep, None), jkind
       | Ptype_record_unboxed_product lbls ->
@@ -959,8 +956,7 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_record_unboxed_product lbls,
           Type_record_unboxed_product(lbls', Record_unboxed_product, None), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, (Jkind.Builtin.value ~why:Extensible_variant
-                                |> Jkind.mark_best)
+        Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -1799,10 +1795,7 @@ let update_decl_jkind env dpath decl =
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
-      let type_jkind =
-        Jkind.Builtin.value ~why:Extensible_variant
-        |> Jkind.mark_best
-      in
+      let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep, umc) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
