@@ -287,6 +287,10 @@ module type S = sig
         with module Const := Const
          and type error := error
          and type 'd t = (Const.t, 'd) mode_comonadic
+
+    val yielding : lr
+
+    val unyielding : lr
   end
 
   type 'a comonadic_with =
