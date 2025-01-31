@@ -348,6 +348,9 @@ val has_with_bounds : Types.jkind_l -> bool
     about it that will cause it to become lower in the preorder of kinds*)
 val mark_best : ('l * 'r) Types.jkind -> ('l * disallowed) Types.jkind
 
+(** Is the given kind best? *)
+val is_best : ('l * disallowed) Types.jkind -> bool
+
 (******************************)
 (* construction *)
 

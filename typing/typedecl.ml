@@ -956,7 +956,8 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_record_unboxed_product lbls,
           Type_record_unboxed_product(lbls', Record_unboxed_product, None), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
+        Ttype_open, Type_open,
+        (Jkind.Builtin.value ~why:Extensible_variant |> Jkind.mark_best)
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -1793,9 +1794,16 @@ let update_decl_jkind env dpath decl =
   in
 
   let new_decl, new_jkind = match decl.type_kind with
-    | Type_abstract _ -> decl, decl.type_jkind
+    | Type_abstract _ ->
+      (* Abstract types should never have quality=best, but let's double check that here
+         just to be safe *)
+      assert (not (Jkind.is_best decl.type_jkind));
+      decl, decl.type_jkind
     | Type_open ->
-      let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
+      let type_jkind =
+        Jkind.Builtin.value ~why:Extensible_variant
+        |> Jkind.mark_best
+      in
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep, umc) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
