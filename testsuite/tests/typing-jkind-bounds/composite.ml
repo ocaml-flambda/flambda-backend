@@ -442,6 +442,12 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (***********************************************************************)
+type t : immutable_data = int list list list list
+[%%expect {|
+type t = int list list list list
+|}]
+
+(***********************************************************************)
 type t : immutable_data = int list list list list list list list list list list list list list list list list list list list list list list list list
 (* CR layouts v2.8: fix this *)
 [%%expect {|

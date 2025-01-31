@@ -1389,7 +1389,7 @@ module Jkind_desc = struct
         | Skip (* skip reducing this type, but otherwise continue *)
         | Continue of t (* continue, with a new [t] *)
 
-      let initial_fuel_per_ty = 10
+      let initial_fuel_per_ty = 2
 
       let starting =
         { tuple_fuel = initial_fuel_per_ty; constr = Path.Map.empty }
