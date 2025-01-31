@@ -41,6 +41,19 @@ end
 [%%expect{|
 module M :
   sig type t = { x : int; } module N : sig type s = t = { x : int; } end end
+Line 8, characters 24-25:
+8 |   let g (r : M.t#) = r.#x
+                            ^
+Warning 40 [name-out-of-scope]: x was selected from type M.t#.
+It is not visible in the current scope, and will not
+be selected if the type becomes unknown.
+
+Line 8, characters 24-25:
+8 |   let g (r : M.t#) = r.#x
+                            ^
+Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
+it will not compile with OCaml 4.00 or earlier.
+
 module OK : sig val f : M.t -> int val g : M.t# -> int end
 |}]
 
@@ -69,8 +82,22 @@ end;;
 Line 3, characters 21-22:
 3 |   let f1 (r:t#) = r.#x (* ok *)
                          ^
+Warning 40 [name-out-of-scope]: x was selected from type M1.t#.
+It is not visible in the current scope, and will not
+be selected if the type becomes unknown.
+
+Line 3, characters 21-22:
+3 |   let f1 (r:t#) = r.#x (* ok *)
+                         ^
 Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
+
+Line 4, characters 39-40:
+4 |   let f2 r = ignore_product (r:t#); r.#x (* non principal *)
+                                           ^
+Warning 40 [name-out-of-scope]: x was selected from type M1.t#.
+It is not visible in the current scope, and will not
+be selected if the type becomes unknown.
 
 Line 4, characters 39-40:
 4 |   let f2 r = ignore_product (r:t#); r.#x (* non principal *)
@@ -90,6 +117,13 @@ Line 7, characters 22-23:
 Warning 42 [disambiguated-name]: this use of y relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
 
+Line 7, characters 17-24:
+7 |     match r with #{x; y} -> y + y (* ok *)
+                     ^^^^^^^
+Warning 40 [name-out-of-scope]: this unboxed record of type M1.t# contains fields that are
+not visible in the current scope: x y.
+They will not be selected if the type becomes unknown.
+
 Line 7, characters 19-20:
 7 |     match r with #{x; y} -> y + y (* ok *)
                        ^
@@ -101,8 +135,22 @@ module OK :
 Line 3, characters 21-22:
 3 |   let f1 (r:t#) = r.#x (* ok *)
                          ^
+Warning 40 [name-out-of-scope]: x was selected from type M1.t#.
+It is not visible in the current scope, and will not
+be selected if the type becomes unknown.
+
+Line 3, characters 21-22:
+3 |   let f1 (r:t#) = r.#x (* ok *)
+                         ^
 Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
+
+Line 4, characters 39-40:
+4 |   let f2 r = ignore_product (r:t#); r.#x (* non principal *)
+                                           ^
+Warning 40 [name-out-of-scope]: x was selected from type M1.t#.
+It is not visible in the current scope, and will not
+be selected if the type becomes unknown.
 
 Line 4, characters 39-40:
 4 |   let f2 r = ignore_product (r:t#); r.#x (* non principal *)
@@ -127,6 +175,13 @@ Line 7, characters 22-23:
 Warning 42 [disambiguated-name]: this use of y relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
 
+Line 7, characters 17-24:
+7 |     match r with #{x; y} -> y + y (* ok *)
+                     ^^^^^^^
+Warning 40 [name-out-of-scope]: this unboxed record of type M1.t# contains fields that are
+not visible in the current scope: x y.
+They will not be selected if the type becomes unknown.
+
 Line 7, characters 19-20:
 7 |     match r with #{x; y} -> y + y (* ok *)
                        ^
@@ -141,17 +196,11 @@ module F1 = struct
   let f r = match r with #{x; y} -> y + y
 end;; (* fails *)
 [%%expect{|
-Line 3, characters 25-32:
+Line 3, characters 27-28:
 3 |   let f r = match r with #{x; y} -> y + y
-                             ^^^^^^^
-Warning 41 [ambiguous-name]: these field labels belong to several types: M1.u# M1.t#
-The first one was selected. Please disambiguate if this is wrong.
-
-Line 3, characters 36-37:
-3 |   let f r = match r with #{x; y} -> y + y
-                                        ^
-Error: This expression has type "bool" but an expression was expected of type
-         "int"
+                               ^
+Error: Unbound unboxed record field "x"
+Hint: There is a boxed record field with this name.
 |}]
 
 module F2 = struct
@@ -173,6 +222,13 @@ Line 6, characters 12-13:
                 ^
 Warning 42 [disambiguated-name]: this use of y relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
+
+Line 6, characters 7-14:
+6 |        #{x; y} -> y + y
+           ^^^^^^^
+Warning 40 [name-out-of-scope]: this unboxed record of type M1.t# contains fields that are
+not visible in the current scope: x y.
+They will not be selected if the type becomes unknown.
 
 Line 6, characters 9-10:
 6 |        #{x; y} -> y + y
@@ -198,6 +254,13 @@ Line 6, characters 7-14:
            ^^^^^^^
 Warning 18 [not-principal]: this type-based unboxed record disambiguation is not principal.
 
+Line 6, characters 7-14:
+6 |        #{x; y} -> y + y
+           ^^^^^^^
+Warning 40 [name-out-of-scope]: this unboxed record of type M1.t# contains fields that are
+not visible in the current scope: x y.
+They will not be selected if the type becomes unknown.
+
 Line 6, characters 9-10:
 6 |        #{x; y} -> y + y
              ^
@@ -219,10 +282,8 @@ let f (r:M.t#) = r.#M.x;; (* ok *)
 Line 1, characters 20-23:
 1 | let f (r:M.t#) = r.#M.x;; (* ok *)
                         ^^^
-Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-val f : M.t# -> int = <fun>
+Error: Unbound unboxed record field "M.x"
+Hint: There is a boxed record field with this name.
 |}]
 let f (r:M.t#) = r.#x;; (* warning *)
 [%%expect{|
@@ -280,8 +341,20 @@ end;;
 Line 4, characters 22-23:
 4 |   let f (r:M.t#) = r.#x
                           ^
+Warning 40 [name-out-of-scope]: x was selected from type M.t#.
+It is not visible in the current scope, and will not
+be selected if the type becomes unknown.
+
+Line 4, characters 22-23:
+4 |   let f (r:M.t#) = r.#x
+                          ^
 Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
+
+Line 2, characters 2-8:
+2 |   open M
+      ^^^^^^
+Warning 33 [unused-open]: unused open M.
 
 Line 3, characters 2-8:
 3 |   open N
@@ -309,6 +382,24 @@ module OK = struct
   let f (r:M.t#) = r.#x
 end;;
 [%%expect{|
+Line 3, characters 22-23:
+3 |   let f (r:M.t#) = r.#x
+                          ^
+Warning 40 [name-out-of-scope]: x was selected from type M.t#.
+It is not visible in the current scope, and will not
+be selected if the type becomes unknown.
+
+Line 3, characters 22-23:
+3 |   let f (r:M.t#) = r.#x
+                          ^
+Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
+it will not compile with OCaml 4.00 or earlier.
+
+Line 2, characters 2-10:
+2 |   open M.N
+      ^^^^^^^^
+Warning 33 [unused-open]: unused open M.N.
+
 module OK : sig val f : M.t# -> int end
 |}]
 
@@ -332,17 +423,8 @@ end;; (* ok *)
 Line 3, characters 10-11:
 3 |   let f #{x;z} = x,z
               ^
-Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-Line 3, characters 8-14:
-3 |   let f #{x;z} = x,z
-            ^^^^^^
-Warning 9 [missing-record-field-pattern]: the following labels are not bound in this unboxed record pattern:
-y
-Either bind these labels explicitly or add '; _' to the pattern.
-
-module OK : sig val f : M.u# -> bool * char end
+Error: Unbound unboxed record field "x"
+Hint: There is a boxed record field with this name.
 |}]
 module F3 = struct
   open M
@@ -352,13 +434,8 @@ end;; (* fail for missing label *)
 Line 3, characters 12-13:
 3 |   let r = #{x=true;z='z'}
                 ^
-Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-Line 3, characters 10-25:
-3 |   let r = #{x=true;z='z'}
-              ^^^^^^^^^^^^^^^
-Error: Some unboxed record fields are undefined: "y"
+Error: Unbound unboxed record field "x"
+Hint: There is a boxed record field with this name.
 |}]
 
 module OK = struct
@@ -412,11 +489,11 @@ module N : sig type bar = { x : int; y : int; } end
 |}]
 let r = #{ M.x = 3; N.y = 4; };; (* error: different definitions *)
 [%%expect{|
-Line 1, characters 20-23:
+Line 1, characters 11-14:
 1 | let r = #{ M.x = 3; N.y = 4; };; (* error: different definitions *)
-                        ^^^
-Error: The unboxed record field "N.y" belongs to the type "N.bar#"
-       but is mixed here with fields of type "M.foo#"
+               ^^^
+Error: Unbound unboxed record field "M.x"
+Hint: There is a boxed record field with this name.
 |}]
 
 module MN = struct include M include N end
@@ -435,23 +512,11 @@ module NM :
 |}]
 let r = #{MN.x = 3; NM.y = 4};; (* error: type would change with order *)
 [%%expect{|
-Line 1, characters 8-29:
+Line 1, characters 10-14:
 1 | let r = #{MN.x = 3; NM.y = 4};; (* error: type would change with order *)
-            ^^^^^^^^^^^^^^^^^^^^^
-Warning 41 [ambiguous-name]: x belongs to several types: MN.bar# MN.foo#
-The first one was selected. Please disambiguate if this is wrong.
-
-Line 1, characters 8-29:
-1 | let r = #{MN.x = 3; NM.y = 4};; (* error: type would change with order *)
-            ^^^^^^^^^^^^^^^^^^^^^
-Warning 41 [ambiguous-name]: y belongs to several types: NM.foo# NM.bar#
-The first one was selected. Please disambiguate if this is wrong.
-
-Line 1, characters 20-24:
-1 | let r = #{MN.x = 3; NM.y = 4};; (* error: type would change with order *)
-                        ^^^^
-Error: The unboxed record field "NM.y" belongs to the type "NM.foo#" = "M.foo#"
-       but is mixed here with fields of type "MN.bar#" = "N.bar#"
+              ^^^^
+Error: Unbound unboxed record field "MN.x"
+Hint: There is a boxed record field with this name.
 |}]
 
 (* Lpw25 *)
@@ -522,20 +587,8 @@ end;;
 Line 3, characters 15-16:
 3 |   let r () = #{x=1; y=2}
                    ^
-Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-Line 3, characters 20-21:
-3 |   let r () = #{x=1; y=2}
-                        ^
-Warning 42 [disambiguated-name]: this use of y relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
-Line 4, characters 24-25:
-4 |   let r () : other# = #{x=1; y=2}
-                            ^
-Error: This unboxed record expression is expected to have type "M.other#"
-       There is no unboxed record field "x" within type "M.other#"
+Error: Unbound unboxed record field "x"
+Hint: There is a boxed record field with this name.
 |}]
 
 module A = struct type t = {x: int} end
@@ -549,9 +602,8 @@ let f (r : B.t#) = r.#A.x;; (* fail *)
 Line 1, characters 22-25:
 1 | let f (r : B.t#) = r.#A.x;; (* fail *)
                           ^^^
-Error: The unboxed record field "A.x" belongs to the unboxed record type "A.t#"
-       but a unboxed record field was expected belonging to the unboxed record type
-         "B.t#"
+Error: Unbound unboxed record field "A.x"
+Hint: There is a boxed record field with this name.
 |}]
 
 (* Spellchecking *)
@@ -579,12 +631,6 @@ module Shadow1 = struct
   let y : t# = #{x = 0}
 end;;
 [%%expect{|
-Line 7, characters 17-18:
-7 |   let y : t# = #{x = 0}
-                     ^
-Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
-it will not compile with OCaml 4.00 or earlier.
-
 Line 6, characters 2-8:
 6 |   open M  (* this open is unused, it isn't reported as shadowing 'x' *)
       ^^^^^^
@@ -606,23 +652,11 @@ module Shadow2 = struct
   let y = #{x = ""}
 end;;
 [%%expect{|
-Line 6, characters 2-8:
-6 |   open M  (* this open shadows label 'x' *)
-      ^^^^^^
-Warning 44 [open-shadow-identifier]: this open statement shadows the unboxed label identifier x (which is later used)
-
-Line 7, characters 10-19:
+Line 7, characters 16-18:
 7 |   let y = #{x = ""}
-              ^^^^^^^^^
-Warning 41 [ambiguous-name]: these field labels belong to several types: M.s# t#
-The first one was selected. Please disambiguate if this is wrong.
-
-module Shadow2 :
-  sig
-    type t = { x : int; }
-    module M : sig type s = { x : string; } end
-    val y : M.s#
-  end
+                    ^^
+Error: This expression has type "string" but an expression was expected of type
+         "int"
 |}]
 
 (* PR#6235 *)
@@ -709,9 +743,8 @@ type u = { a : int; }
 Line 5, characters 13-16:
 5 | let _ = ( #{ M.x=0 } : u# );;
                  ^^^
-Error: The unboxed record field "M.x" belongs to the unboxed record type "M.t#"
-       but a unboxed record field was expected belonging to the unboxed record type
-         "u#"
+Error: Unbound unboxed record field "M.x"
+Hint: There is a boxed record field with this name.
 |}]
 
 (* PR#8747 *)

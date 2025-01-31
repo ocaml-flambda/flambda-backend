@@ -63,9 +63,11 @@ let f #{M.x; y} = x+y;;
 let r () = #{M.x=1; y=2};;
 let z () = f (r ());;
 [%%expect{|
-val f : M.t# -> int = <fun>
-val r : unit -> M.t# = <fun>
-val z : unit -> int = <fun>
+Line 1, characters 8-11:
+1 | let f #{M.x; y} = x+y;;
+            ^^^
+Error: Unbound unboxed record field "M.x"
+Hint: There is a boxed record field with this name.
 |}];;
 
 (* messages *)
