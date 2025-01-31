@@ -1510,10 +1510,7 @@ let mk_annot name =
 let mark_best (type l r) (t : (l * r) Types.jkind) =
   { (disallow_right t) with quality = Best }
 
-let is_best t =
-  match t.quality with
-  | Best -> true
-  | Not_best -> false
+let is_best t = match t.quality with Best -> true | Not_best -> false
 
 module Builtin = struct
   let any_dummy_jkind =
