@@ -493,6 +493,23 @@ let f ~(x1 @ many)
 
 [%%expect{|
 val f :
+  ('b : value_or_null) ('c : value_or_null) ('d : value_or_null) 'e.
+    x1:'b ->
+    x2:local_ string -> local_
+    (x3:local_ (string -> string) ->
+     x4:local_ ('a. 'a -> 'a) ->
+     x5:local_ 'c ->
+     x6:local_ bool ->
+     x7:local_ bool ->
+     x8:local_ unit ->
+     string ->
+     local_ 'd -> local_
+     'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
+     int array * string * (int -> local_ (int -> int) @ unyielding) *
+     (int -> local_ (int -> int) @ unyielding) @ contended) @ unyielding =
+  <fun>
+|}, Principal{|
+val f :
   x1:'b ->
   x2:local_ string ->
   x3:local_ (string -> string) ->
@@ -504,8 +521,8 @@ val f :
   string ->
   local_ 'd -> local_
   'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
-  int array * string * (int -> local_ (int -> int)) *
-  (int -> local_ (int -> int)) @ contended = <fun>
+  int array * string * (int -> local_ (int -> int) @ unyielding) *
+  (int -> local_ (int -> int) @ unyielding) @ contended = <fun>
 |}]
 
 let f1 (_ @ local) = ()
@@ -585,7 +602,14 @@ Error: This value escapes its region.
 let f2 (x @ local) (f @ once) : t2 = exclave_ { x; f }
 
 [%%expect{|
-val f2 : local_ float -> (float -> float) @ once -> local_ t2 @ once = <fun>
+val f2 :
+  local_ float -> local_
+  ((float -> float) @ once -> local_ t2 @ once unyielding) @ unyielding =
+  <fun>
+|}, Principal{|
+val f2 :
+  local_ float -> (float -> float) @ once -> local_ t2 @ once unyielding =
+  <fun>
 |}]
 
 
