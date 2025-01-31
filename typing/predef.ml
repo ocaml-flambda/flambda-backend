@@ -528,6 +528,9 @@ let or_null_kind tvar =
   in
   Type_variant (cstrs, Variant_with_null, None)
 
+let or_null_jkind =
+  Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null) |> Jkind.mark_best
+
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
   env
@@ -543,7 +546,7 @@ let add_or_null add_type env =
      In the future, we will track separability in the jkind system. *)
   (* CR layouts v2.8: Add baggage and more mode crossing here. *)
   ~kind:or_null_kind
-  ~jkind:(fun _ -> Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null) |> Jkind.mark_best)
+  ~jkind:(fun _ -> or_null_jkind)
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

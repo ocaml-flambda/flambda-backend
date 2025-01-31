@@ -837,12 +837,7 @@ let transl_declaration env sdecl (id, uid) =
               { definition = path; expected = Predef.path_or_null }))
           in
           let type_kind = Predef.or_null_kind param in
-          let jkind =
-            Jkind.Builtin.value_or_null ~why:(Primitive Predef.ident_or_null)
-            (* Even though this type is abstract, it's actually a reexport of ['a
-               or_null], which has a best kind *)
-            |> Jkind.mark_best
-          in
+          let jkind = Predef.or_null_jkind in
           Ttype_abstract, type_kind, jkind
       | (Ptype_variant _ | Ptype_record _ | Ptype_record_unboxed_product _
         | Ptype_open)
