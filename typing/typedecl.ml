@@ -929,7 +929,7 @@ let transl_declaration env sdecl (id, uid) =
           let rep, jkind =
             if unbox then
               Record_unboxed,
-              (Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type)
+              Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
             else
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
@@ -2465,8 +2465,17 @@ let add_types_to_env decls shapes env =
       add_type ~check:true ~shape id decl env)
     decls shapes env
 
+let mark_decl_jkind_best decl =
+  match decl.type_kind with
+  | Type_abstract _ | Type_open -> decl
+  | Type_record (_, _) | Type_record_unboxed_product (_, _) | Type_variant (_, _) ->
+    { decl with type_jkind = Jkind.mark_best decl.type_jkind }
+
 (* Normalize the jkinds in a list of (potentially mutually recursive) type declarations *)
-let normalize_decls env shapes decls =
+let normalize_decl_jkinds env shapes decls =
+  (* Mark the jkinds in each decl as best (as we have now added all the information we
+     need to to mark them best) *)
+  let decls = List.map (fun (id, decl) -> (id, mark_decl_jkind_best decl)) decls in
   (* Add the types, with non-normalized kinds, to the environment to start, so that eg
      types can look up their own (potentially non-normalized) kinds *)
   let env = add_types_to_env decls shapes env in
@@ -2677,7 +2686,7 @@ let transl_type_decl env rec_flag sdecl_list =
         |> Typedecl_variance.update_decls env sdecl_list
         |> Typedecl_separability.update_decls env
         |> update_decls_jkind new_env shapes
-        |> normalize_decls new_env shapes
+        |> normalize_decl_jkinds new_env shapes
       in
       update_decls_jkind_reason new_env decls, new_env
     with
