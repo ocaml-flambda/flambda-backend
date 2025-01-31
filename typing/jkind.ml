@@ -2471,7 +2471,8 @@ let intersection_or_error ~type_equal ~jkind_of_type ~reason t1 t2 =
           combine_histories ~type_equal ~jkind_of_type reason (Pack_jkind t1)
             (Pack_jkind t2);
         has_warned = t1.has_warned || t2.has_warned;
-        quality = Not_best (* As required by the fact that this is a [jkind_r] *)
+        quality =
+          Not_best (* As required by the fact that this is a [jkind_r] *)
       }
 
 let round_up (type l r) ~type_equal ~jkind_of_type (t : (allowed * r) jkind) :
