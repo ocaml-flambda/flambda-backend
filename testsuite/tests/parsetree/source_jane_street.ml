@@ -493,20 +493,19 @@ let f ~(x1 @ many)
 
 [%%expect{|
 val f :
-  ('b : value_or_null) ('c : value_or_null) ('d : value_or_null) 'e.
-    x1:'b ->
-    x2:local_ string -> local_
-    (x3:local_ (string -> string) ->
-     x4:local_ ('a. 'a -> 'a) ->
-     x5:local_ 'c ->
-     x6:local_ bool ->
-     x7:local_ bool ->
-     x8:local_ unit ->
-     string ->
-     local_ 'd -> local_
-     'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
-     int array * string * (int -> local_ (int -> int) @ unyielding) *
-     (int -> local_ (int -> int) @ unyielding) @ contended) @ unyielding =
+  x1:'b ->
+  x2:local_ string -> local_
+  (x3:local_ (string -> string) ->
+   x4:local_ ('a. 'a -> 'a) ->
+   x5:local_ 'c ->
+   x6:local_ bool ->
+   x7:local_ bool ->
+   x8:local_ unit ->
+   string ->
+   local_ 'd -> local_
+   'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
+   int array * string * (int -> local_ (int -> int) @ unyielding) *
+   (int -> local_ (int -> int) @ unyielding) @ contended) @ unyielding =
   <fun>
 |}, Principal{|
 val f :

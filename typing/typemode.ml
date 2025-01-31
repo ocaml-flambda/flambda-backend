@@ -156,13 +156,14 @@ let transl_modifier_annots annots =
   let modifiers = List.fold_left step empty_modifiers annots in
   (* Since [yielding] is the default mode in presence of [local],
      the [global] modifier must also apply [unyielding] unless specified. *)
-  match Transled_modifiers.get ~axis:(Modal (Comonadic Yielding)) modifiers,
-    Transled_modifiers.get ~axis:(Modal (Comonadic Areality)) modifiers with
+  match
+    ( Transled_modifiers.get ~axis:(Modal (Comonadic Yielding)) modifiers,
+      Transled_modifiers.get ~axis:(Modal (Comonadic Areality)) modifiers )
+  with
   | None, Some { txt = Locality.Const.Global; _ } ->
-    Transled_modifiers.set ~axis:(Modal (Comonadic Yielding))
-      modifiers (Some { txt = Yielding.Const.Unyielding; loc = Location.none })
+    Transled_modifiers.set ~axis:(Modal (Comonadic Yielding)) modifiers
+      (Some { txt = Yielding.Const.Unyielding; loc = Location.none })
   | _, _ -> modifiers
-
 
 let default_mode_annots (annots : Alloc.Const.Option.t) =
   (* Unlike all other modes, [yielding] has a different default
