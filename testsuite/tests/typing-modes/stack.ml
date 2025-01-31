@@ -202,7 +202,7 @@ Error: This value escapes its region.
 
 let f () = exclave_ stack_ (3, 5)
 [%%expect{|
-val f : unit -> local_ int * int = <fun>
+val f : unit -> local_ int * int @ unyielding = <fun>
 |}]
 
 let f () =
