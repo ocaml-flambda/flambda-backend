@@ -524,9 +524,6 @@ let or_null_kind tvar =
 let or_null_jkind =
   Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null)
 
-let or_null_jkind =
-  Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null)
-
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
   env
