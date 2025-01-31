@@ -1590,7 +1590,6 @@ module Builtin = struct
       { layout; mod_bounds = Mod_bounds.max; with_bounds = No_with_bounds }
     in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
-    |> mark_best
 end
 
 let add_nullability_crossing t =
