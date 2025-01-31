@@ -442,24 +442,28 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (***********************************************************************)
-type t : immutable_data = int list list list list list list list list list list list list
+type t : immutable_data = int list list list list list list list list list list list list list list list list list list list list list list list list
 (* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 0-89:
-1 | type t : immutable_data = int list list list list list list list list list list list list
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-149:
+1 | type t : immutable_data = int list list list list list list list list list list list list list list list list list list list list list list list list
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "int list list list list list list list list list list
-                        list list" is immutable_data
+                        list list list list list list list list list list
+                        list list list list" is immutable_data
          because it's a boxed variant type.
        But the kind of type "int list list list list list list list list list
-                            list list list" must be a subkind of
+                            list list list list list list list list list list
+                            list list list list list" must be a subkind of
          immutable_data
-         because of the definition of t at line 1, characters 0-89.
+         because of the definition of t at line 1, characters 0-149.
 |}]
 
-type t = int list list list list list list list list list list list list
+type t = int list list list list list list list list list list list list list list list list list list list list list list list list
 [%%expect {|
-type t = int list list list list list list list list list list list list
+type t =
+    int list list list list list list list list list list list list list list
+    list list list list list list list list list list
 |}]
 
 let foo (t : t @@ contended) = use_uncontended t
