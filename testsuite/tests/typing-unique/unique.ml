@@ -367,7 +367,7 @@ val ul : local_ 'a @ unique -> local_ 'a = <fun>
 
 let ul_ret x = exclave_ unique_ x
 [%%expect{|
-val ul_ret : 'a @ unique -> local_ 'a = <fun>
+val ul_ret : 'a @ unique -> local_ 'a @ unyielding = <fun>
 |}]
 
 let rec foo =
