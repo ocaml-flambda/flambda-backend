@@ -282,7 +282,7 @@ let mk_add_type1 add_type type_ident
     {type_params = [param];
       type_arity = 1;
       type_kind = kind param;
-      type_jkind = jkind param;
+      type_jkind = Jkind.mark_best (jkind param);
       type_loc = Location.none;
       type_private = Asttypes.Public;
       type_manifest = None;
@@ -370,8 +370,7 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.Builtin.mutable_data ~why:(Primitive ident_array) |>
          Jkind.add_with_bounds
            ~modality:Mode.Modality.Value.Const.id
-           ~type_expr:param |>
-         Jkind.mark_best)
+           ~type_expr:param)
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -381,8 +380,7 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.Builtin.immutable_data ~why:(Primitive ident_iarray) |>
          Jkind.add_with_bounds
            ~modality:Mode.Modality.Value.Const.id
-           ~type_expr:param |>
-         Jkind.mark_best)
+           ~type_expr:param)
   |> add_type ident_bool
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:Jkind.Const.Builtin.immediate
@@ -402,7 +400,7 @@ let build_initial_env add_type add_extension empty_env =
           It might also cross portability, linearity, uniqueness subject to its
           parameter. But I'm also fine not doing that for now (and wait until
           users complains).  *)
-       ~jkind:(fun _ -> Jkind.Builtin.value ~why:(Primitive ident_lazy_t) |> Jkind.mark_best)
+       ~jkind:(fun _ -> Jkind.Builtin.value ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -423,8 +421,7 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.Builtin.immutable_data ~why:Boxed_variant |>
          Jkind.add_with_bounds
            ~modality:Mode.Modality.Value.Const.id
-           ~type_expr:param |>
-         Jkind.mark_best)
+           ~type_expr:param)
   |> add_type_with_jkind ident_lexing_position
        ~kind:(
          let lbl (field, field_type) =
@@ -529,7 +526,7 @@ let or_null_kind tvar =
   Type_variant (cstrs, Variant_with_null, None)
 
 let or_null_jkind =
-  Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null) |> Jkind.mark_best
+  Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null)
 
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
