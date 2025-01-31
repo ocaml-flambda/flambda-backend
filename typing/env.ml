@@ -1915,16 +1915,17 @@ let prefix_idents root prefixing_sub sg =
         ((item, p) :: items_and_paths) prefixing_sub rem
     | Sig_type(id, td, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
+      let has_unboxed_version = Option.is_some td.type_unboxed_version in
       prefix_idents root
         ((Sig_type(id, td, rs, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version prefixing_sub)
         rem
     | Sig_typext(id, ec, es, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       (* we extend the substitution in case of an inlined record *)
       prefix_idents root
         ((Sig_typext(id, ec, es, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version:false prefixing_sub)
         rem
     | Sig_module(id, pres, md, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
@@ -1943,13 +1944,13 @@ let prefix_idents root prefixing_sub sg =
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
         ((Sig_class(id, cd, rs, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version:false prefixing_sub)
         rem
     | Sig_class_type(id, ctd, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
         ((Sig_class_type(id, ctd, rs, vis), p) :: items_and_paths)
-        (Subst.add_type id p prefixing_sub)
+        (Subst.add_type id p ~has_unboxed_version:false prefixing_sub)
         rem
   in
   let sg = Subst.Lazy.force_signature_once sg in

@@ -1510,13 +1510,16 @@ let check_kind_coherence env loc dpath decl =
             | exception Ctype.Equality err ->
                 Some (Includecore.Constraint err)
             | () ->
-                Includecore.type_declarations ~loc ~equality:true env
-                  ~mark:true
-                  (Path.last path)
-                  decl'
-                  dpath
-                  (Subst.type_declaration
-                     (Subst.add_type_path dpath path Subst.identity) decl)
+              let has_unboxed_version =
+                Option.is_some decl.type_unboxed_version in
+              Includecore.type_declarations ~loc ~equality:true env
+                ~mark:true
+                (Path.last path)
+                decl'
+                dpath
+                (Subst.type_declaration
+                    (Subst.add_type_path dpath path Subst.identity
+                      ~has_unboxed_version) decl)
           end
         in
         if err <> None then
