@@ -100,13 +100,14 @@ let transl_modifier_annots annots =
   let modifiers = List.fold_left step empty_modifiers annots in
   (* Since [yielding] is the default mode in presence of [local],
      the [global] modifier must also apply [unyielding] unless specified. *)
-  match Opt_axis_collection.get ~axis:(Modal Yielding) modifiers,
-    Opt_axis_collection.get ~axis:(Modal Locality) modifiers with
+  match
+    ( Opt_axis_collection.get ~axis:(Modal Yielding) modifiers,
+      Opt_axis_collection.get ~axis:(Modal Locality) modifiers )
+  with
   | None, Some Global ->
-    Opt_axis_collection.set ~axis:(Modal Yielding)
-      modifiers (Some Yielding.Const.Unyielding)
+    Opt_axis_collection.set ~axis:(Modal Yielding) modifiers
+      (Some Yielding.Const.Unyielding)
   | _, _ -> modifiers
-
 
 let default_mode_annots (annots : Alloc.Const.Option.t) =
   (* Unlike all other modes, [yielding] has a different default
