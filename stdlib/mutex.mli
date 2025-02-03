@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Locks for mutual exclusion.
 
    Mutexes (mutual-exclusion locks) are used to implement critical sections
@@ -26,7 +28,7 @@
    ]}
 *)
 
-type t
+type t : value mod portable uncontended
 (** The type of mutexes. *)
 
 val create : unit -> t

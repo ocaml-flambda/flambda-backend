@@ -1006,13 +1006,17 @@ and print_out_type_decl kwd ppf td =
         print_private td.otype_private
         !out_type ty
   in
-  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t%t@]"
+  let print_out_attrs ppf =
+    List.iter (fun a -> fprintf ppf "@ [@@@@%s]" a.oattr_name)
+  in
+  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t%t@]%a"
     print_name_params
     print_out_jkind_annot td.otype_jkind
     print_out_tkind ty
     print_constraints
     print_unboxed
     print_or_null_reexport
+    print_out_attrs td.otype_attributes
 
 and print_simple_out_gf_type ppf (ty, gf) =
   let m_legacy, m_new = partition_modalities gf in

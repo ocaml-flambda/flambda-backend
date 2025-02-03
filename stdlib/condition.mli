@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (**Condition variables.
@@ -141,7 +143,7 @@ open! Stdlib
    that would be a problematic situation,
    known as a {i deadlock}. *)
 
-type t
+type t : value mod portable uncontended
 (** The type of condition variables. *)
 
 val create : unit -> t

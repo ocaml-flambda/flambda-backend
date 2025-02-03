@@ -137,8 +137,8 @@ let atomic_op = function
   | Land -> "&="
   | Lor -> "|="
   | Lxor -> "^="
-  | Compare_and_swap -> "compare_and_swap"
   | Exchange -> "exchange"
+  | Compare_set -> "compare_set"
   | Compare_exchange -> "compare_exchange"
 
 let phantom_defining_expr ppf defining_expr =

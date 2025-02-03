@@ -277,7 +277,7 @@ val walk_locks : loc:Location.t -> env:t -> item:lock_item -> lid:Longident.t ->
 
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * actual_mode
+  Path.t * value_description * Mode.Value.l * locks
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration

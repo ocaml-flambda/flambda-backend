@@ -4254,7 +4254,7 @@ let atomic_compare_and_set ~dbg (imm_or_ptr : Lambda.immediate_or_pointer)
     atomic ~old_value ~new_value =
   match imm_or_ptr with
   | Immediate ->
-    let op = Catomic { op = Compare_and_swap; size = Word } in
+    let op = Catomic { op = Compare_set; size = Word } in
     if Proc.operation_supported op
     then
       (* Use a bind to ensure [tag_int] gets optimised. *)

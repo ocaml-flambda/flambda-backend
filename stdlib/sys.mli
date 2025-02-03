@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** System interface.
@@ -129,7 +131,7 @@ external readdir : string -> string array = "caml_sys_read_directory"
    in any specific order; they are not, in particular, guaranteed to
    appear in alphabetical order. *)
 
-val interactive : bool ref
+val interactive : bool ref @@ nonportable
 [@@alert unsynchronized_access
     "The interactive status is a mutable global state."
 ]
@@ -143,10 +145,11 @@ val os_type : string
 -  ["Win32"] (for MS-Windows, OCaml compiled with MSVC++ or MinGW-w64),
 -  ["Cygwin"] (for MS-Windows, OCaml compiled with Cygwin). *)
 
-type backend_type =
+type backend_type : value mod portable uncontended =
   | Native
   | Bytecode
   | Other of string (**)
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** Currently, the official distribution only supports [Native] and
     [Bytecode], but it can be other backends with alternative
     compilers, for example, javascript.
@@ -242,10 +245,11 @@ external poll_actions : unit -> unit = "%poll"
 (** {1 Signal handling} *)
 
 
-type signal_behavior =
+type signal_behavior : value mod uncontended =
     Signal_default
   | Signal_ignore
   | Signal_handle of (int -> unit)   (** *)
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** What to do when receiving a signal:
    - [Signal_default]: take the default behavior
      (usually: abort the program)
@@ -254,14 +258,16 @@ type signal_behavior =
    number as argument. *)
 
 external signal :
-  int -> signal_behavior -> signal_behavior = "caml_install_signal_handler"
+  int -> signal_behavior -> signal_behavior @@ nonportable = "caml_install_signal_handler"
+[@@alert unsafe_multidomain "Use [Sys.Safe.signal]."]
 (** Set the behavior of the system on receipt of a given signal.  The
    first argument is the signal number.  Return the behavior
    previously associated with the signal. If the signal number is
    invalid (or not available on your system), an [Invalid_argument]
    exception is raised. *)
 
-val set_signal : int -> signal_behavior -> unit
+val set_signal : int -> signal_behavior -> unit @@ nonportable
+[@@alert unsafe_multidomain "Use [Sys.Safe.set_signal]."]
 (** Same as {!Sys.signal} but return value is ignored. *)
 
 
@@ -413,12 +419,13 @@ type extra_prefix = Plus | Tilde
 type extra_info = extra_prefix * string
 (** @since 4.14 *)
 
-type ocaml_release_info = {
+type ocaml_release_info : value mod portable uncontended = {
   major : int;
   minor : int;
   patchlevel : int;
   extra : extra_info option
 }
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** @since 4.14 *)
 
 val ocaml_release : ocaml_release_info
@@ -487,4 +494,22 @@ module Immediate64 : sig
       | Non_immediate : Non_immediate.t repr
     val repr : t repr
   end
+end
+
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  external signal :
+    int -> signal_behavior @ portable -> signal_behavior @ portable
+    = "caml_install_signal_handler"
+  (** Like {!signal}, but is safe to call in the presence of multiple domains.
+
+      The provided [signal_behavior] must be [portable] as it is shared between all
+      domains. *)
+
+  val set_signal : int -> signal_behavior @ portable -> unit
+  (** Like {!set_signal}, but is safe to call in the presence of multiple domains.
+
+      The provided [signal_behavior] must be [portable] as it is shared between all
+      domains. *)
 end

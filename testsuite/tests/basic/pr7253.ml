@@ -1,4 +1,6 @@
-(* TEST *)
+(* TEST
+ flags = "-alert -unsafe_multidomain";
+*)
 
 (* MPR#7253: "at_exit functions get called twice if a callback raises
    and prevents earlier handlers to execute." *)

@@ -691,7 +691,6 @@ let merge_constraint initial_env loc sg lid constr =
             type_attributes = [];
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-            type_has_illegal_crossings = false;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -1042,7 +1041,7 @@ let apply_pmd_modalities env sig_modalities pmd_modalities mty =
     match pmd_modalities with
     | [] -> sig_modalities
     | _ :: _ ->
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] pmd_modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable [] pmd_modalities
   in
   (*
   Workaround for pmd_modalities
@@ -1248,7 +1247,7 @@ and approx_sig_items env ssg=
                 | [] -> sg
                 | _ ->
                   let modalities =
-                    Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+                    Typemode.transl_modalities ~maturity:Stable Immutable [] moda
                   in
                   let recursive =
                     not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
@@ -1750,7 +1749,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
   let names = Signature_names.create () in
 
   let sig_modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] psg_modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable [] psg_modalities
   in
 
   let transl_include ~loc env sig_acc sincl modalities =
@@ -1776,7 +1775,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
       match modalities with
       | [] -> sig_modalities
       | _ ->
-        Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        Typemode.transl_modalities ~maturity:Stable Immutable [] modalities
     in
     let sg =
       if not @@ Mode.Modality.Value.Const.is_id modalities then
@@ -2563,7 +2562,7 @@ let simplify_app_summary app_view = match app_view.arg with
     | false, None   -> Includemod.Error.Anonymous, mty
 
 let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
-  if Language_extension.(is_at_least Mode Alpha) then begin
+  if Language_extension.(is_at_least Mode Stable) then begin
     (* Values are packed into a structure at modes weaker than they actually
       are. This is to allow our legacy zapping behavior. For example:
 

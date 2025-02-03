@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Operations on internal representations of values.
@@ -28,6 +30,8 @@ type raw_data = nativeint  (* @since 4.12 *)
 external repr : 'a -> t = "%obj_magic"
 external obj : t -> 'a = "%obj_magic"
 external magic : 'a -> 'b = "%obj_magic"
+external magic_portable : 'a -> 'a @ portable = "%identity"
+external magic_uncontended : 'a @ contended -> 'a = "%identity"
 val is_block : t -> bool
 external is_int : t -> bool = "%obj_is_int"
 external tag : t -> int = "caml_obj_tag" [@@noalloc]

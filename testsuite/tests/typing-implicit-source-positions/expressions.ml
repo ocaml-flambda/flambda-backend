@@ -27,6 +27,60 @@ let _ = f ~call_pos:[%src_pos] () ;;
 {pos_fname = ""; pos_lnum = 2; pos_bol = 438; pos_cnum = 458}
 |}]
 
+(* passing an argment explicitly as call_pos *)
+let wrap x f g h ~here =
+  match x with
+  | `F -> f ~here
+  | `G -> g ~(here : [%call_pos]) ()
+  | `H -> h ~h_arg:(here : [%call_pos]) ()
+;;
+
+[%%expect{|
+val wrap :
+  [< `F | `G | `H ] ->
+  (here:lexing_position -> 'a) ->
+  (here:[%call_pos] -> unit -> 'a) ->
+  (h_arg:[%call_pos] -> unit -> 'a) -> here:lexing_position -> 'a = <fun>
+|}]
+
+let _ = wrap `G (fun ~here:_ -> assert false)
+                (fun ~(here:[%call_pos]) () -> here)
+                (fun ~h_arg:(_ : [%call_pos]) () -> assert false)
+                ~here:[%src_pos]
+[%%expect{|
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 4; pos_bol = 1164; pos_cnum = 1186}
+|}]
+
+(* call_pos type annotations not permitted anywhere other than labelled arg
+   position *)
+let error1 x = (x : [%call_pos])
+
+[%%expect{|
+Line 1, characters 22-30:
+1 | let error1 x = (x : [%call_pos])
+                          ^^^^^^^^
+Error: [%call_pos] can only exist as the type of a labelled argument
+|}]
+
+let error2 f x = f (x : [%call_pos])
+
+[%%expect{|
+Line 1, characters 24-35:
+1 | let error2 f x = f (x : [%call_pos])
+                            ^^^^^^^^^^^
+Error: A position argument must not be unlabelled.
+|}]
+
+let error3 f x = f ?x:(x : [%call_pos])
+
+[%%expect{|
+Line 1, characters 27-38:
+1 | let error3 f x = f ?x:(x : [%call_pos])
+                               ^^^^^^^^^^^
+Error: A position argument must not be optional.
+|}]
+
 (* TEST
  expect;
 *)

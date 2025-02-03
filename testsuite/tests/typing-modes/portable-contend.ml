@@ -284,7 +284,7 @@ val foo : unit -> unit = <fun>
 
 (* Closing over nonportable forces nonportable. *)
 let foo () =
-    let r @ nonportable = best_bytes () in
+    let r @ nonportable = fun x -> x in
     let bar () = let _ = r in () in
     let _ @ portable = bar in
     ()

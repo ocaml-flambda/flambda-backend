@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension mode_alpha";
+ flags = "-extension mode";
  expect;
 *)
 
@@ -62,7 +62,7 @@ module M = struct
     let x @ contended = "hello"
 end
 [%%expect{|
-module M : sig val x : string @@ portable contended end
+module M : sig val x : string @@ contended end
 |}]
 
 (* Testing the defaulting behaviour.
@@ -162,7 +162,7 @@ Error: Signature mismatch:
 (* CR zqian: add tests when this becomes testable. *)
 
 (* When module doesn't have signature, the values' modes/modalities are still
-   flexible. *)
+   flexible. However, using the values will constrain the modes/modalities. *)
 module Without_inclusion = struct
     module M = struct
         let x @ portable = fun x -> x
@@ -256,7 +256,7 @@ module Inclusion_match : sig module M : sig val x : int ref end end
 (* [foo] closes over [M.x] instead of [M]. This is better ergonomics. *)
 module Close_over_value = struct
   module M = struct
-    let x @ portable uncontended = "hello"
+    let x @ portable uncontended = fun x -> x
   end
   let (foo @ portable) () =
     let _ = M.x in
@@ -265,8 +265,8 @@ end
 [%%expect{|
 module Close_over_value :
   sig
-    module M : sig val x : string @@ portable end
-    val foo : unit -> unit @@ portable
+    module M : sig val x : 'a -> 'a @@ portable end
+    val foo : unit -> unit
   end
 |}]
 
@@ -299,7 +299,7 @@ Error: This value is "contended" but expected to be "uncontended".
 
 module Close_over_value_comonadic = struct
   module M = struct
-    let x @ nonportable = "hello"
+    let x @ nonportable = fun x -> x
   end
   let (foo @ portable) () =
     let _ = M.x in
@@ -418,7 +418,7 @@ module N : sig
   module type S_plain = S with module M = Plain
 end = struct
   module Plain = struct
-    let f x = x+1
+    let (f @ nonportable) x = x+1
   end
 
   module type S_plain = S with module M = Plain
@@ -428,7 +428,7 @@ module type S = sig module M : sig val f : int -> int end end
 Lines 13-19, characters 6-3:
 13 | ......struct
 14 |   module Plain = struct
-15 |     let f x = x+1
+15 |     let (f @ nonportable) x = x+1
 16 |   end
 17 |
 18 |   module type S_plain = S with module M = Plain
@@ -854,7 +854,7 @@ module M_portable = struct
     end
 [%%expect{|
 module M_nonportable : sig val f : unit -> unit end
-module M_portable : sig val f : unit -> unit @@ portable end
+module M_portable : sig val f : unit -> unit end
 |}]
 
 let (foo @ portable) () =
@@ -944,7 +944,6 @@ Line 2, characters 25-26:
 Error: The value "m" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
-(* CR zqian: this mode crossing should work *)
 module M : sig
   val x : int
 end = struct
@@ -956,8 +955,5 @@ let (foo @ portable) () =
   ()
 [%%expect{|
 module M : sig val x : int end
-Line 8, characters 10-13:
-8 |   let _ = M.x in
-              ^^^
-Error: The value "M.x" is nonportable, so cannot be used inside a function that is portable.
+val foo : unit -> unit = <fun>
 |}]

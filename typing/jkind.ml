@@ -866,29 +866,8 @@ module Jkind_desc = struct
   let add_nullability_crossing t =
     { t with nullability_upper_bound = Nullability.min }
 
-  let add_portability_and_contention_crossing ~from t =
-    let new_portability =
-      Portability.Const.meet t.modes_upper_bounds.portability
-        from.modes_upper_bounds.portability
-    in
-    let new_contention =
-      Contention.Const.meet t.modes_upper_bounds.contention
-        from.modes_upper_bounds.contention
-    in
-    let added_crossings =
-      (not
-         (Portability.Const.le t.modes_upper_bounds.portability new_portability))
-      || not
-           (Contention.Const.le t.modes_upper_bounds.contention new_contention)
-    in
-    ( { t with
-        modes_upper_bounds =
-          { t.modes_upper_bounds with
-            portability = new_portability;
-            contention = new_contention
-          }
-      },
-      added_crossings )
+  let unsafely_set_upper_bounds t ~from =
+    { t with modes_upper_bounds = from.modes_upper_bounds }
 
   let max = of_const Const.max
 
@@ -908,7 +887,8 @@ module Jkind_desc = struct
     && Externality.equal ext1 ext2
     && Nullability.equal null1 null2
 
-  let sub t1 t2 = Layout_and_axes.sub Layout.sub t1 t2
+  let sub ?allow_any_crossing t1 t2 =
+    Layout_and_axes.sub ?allow_any_crossing Layout.sub t1 t2
 
   let intersection
       { layout = lay1;
@@ -1068,11 +1048,10 @@ end
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
-let add_portability_and_contention_crossing ~from t =
-  let jkind, added_crossings =
-    Jkind_desc.add_portability_and_contention_crossing ~from:from.jkind t.jkind
-  in
-  { t with jkind }, added_crossings
+let unsafely_set_upper_bounds ~from t =
+  { t with
+    jkind = Jkind_desc.unsafely_set_upper_bounds t.jkind ~from:from.jkind
+  }
 
 (******************************)
 (* construction *)
@@ -1814,7 +1793,8 @@ let has_intersection_l_l t1 t2 =
   has_intersection (terrible_relax_l t1) (terrible_relax_l t2)
 
 (* this is hammered on; it must be fast! *)
-let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
+let check_sub ?allow_any_crossing sub super =
+  Jkind_desc.sub ?allow_any_crossing sub.jkind super.jkind
 
 let sub sub super = Misc.Le_result.is_le (check_sub sub super)
 
@@ -1837,9 +1817,9 @@ let sub_or_error t1 t2 =
 
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
    kind polymorphism design. *)
-let sub_jkind_l sub super =
+let sub_jkind_l ?allow_any_crossing sub super =
   let super = terrible_relax_l super in
-  match check_sub sub super with
+  match check_sub ?allow_any_crossing sub super with
   | Less | Equal ->
     Ok { sub with history = combine_histories Subjkind (Pack sub) (Pack super) }
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))

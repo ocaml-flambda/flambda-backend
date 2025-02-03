@@ -1,3 +1,5 @@
+@@ portable
+
 (** Supporting functions for list comprehensions *)
 
 (** Backwards snoc lists that can be spine-local but element-global.  This

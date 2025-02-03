@@ -1,5 +1,6 @@
 (* TEST
  include systhreads;
+ flags = "-alert -unsafe_multidomain";
  readonly_files = "sigint.c";
  hassysthreads;
  libunix; (* excludes mingw32/64 and msvc32/64 *)

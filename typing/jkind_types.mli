@@ -142,6 +142,7 @@ module Layout_and_axes : sig
   val try_allow_r : ('layout, 'l * 'r) t -> ('layout, 'l * allowed) t option
 
   val sub :
+    ?allow_any_crossing:bool ->
     ('layout -> 'layout -> Misc.Le_result.t) ->
     ('layout, allowed * 'r) t ->
     ('layout, 'l * allowed) t ->
