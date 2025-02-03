@@ -139,6 +139,7 @@ type binding =
 type 'a pers_struct_info = {
   ps_name_info: pers_name;
   ps_binding: binding;
+  ps_canonical : bool;
   ps_val : 'a;
 }
 
@@ -296,7 +297,8 @@ let without_cmis penv f x =
   res
 
 let fold {persistent_structures; _} f x =
-  Hashtbl.fold (fun name ps x -> f name ps.ps_val x)
+  Hashtbl.fold
+    (fun name ps x -> if ps.ps_canonical then f name ps.ps_val x else x)
     persistent_structures x
 
 (* Reading persistent structures from .cmi files *)
@@ -856,6 +858,7 @@ let acknowledge_new_pers_struct penv modname pers_name val_of_pers_sig =
     { ps_name_info = pers_name;
       ps_binding = binding;
       ps_val = pm;
+      ps_canonical = true;
     }
   in
   Hashtbl.add persistent_structures modname ps;
@@ -874,7 +877,7 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
           val_of_pers_sig
   in
   if not (Global_module.Name.equal modname canonical_modname) then
-    Hashtbl.add persistent_structures modname ps;
+    Hashtbl.add persistent_structures modname { ps with ps_canonical = false };
   ps
 
 let read_pers_struct penv check modname cmi =
@@ -1017,7 +1020,12 @@ let runtime_parameter_bindings {persistent_structures; _} =
         (fun ps ->
            match ps.ps_binding with
            | Runtime_parameter local_ident ->
-               Some (ps.ps_name_info.pn_global, local_ident)
+               if ps.ps_canonical then
+                 Some (ps.ps_name_info.pn_global, local_ident)
+               else
+                 (* This is a forward from a non-canonical name, not an entry we
+                    need to keep *)
+                 None
            | Constant _ -> None)
   |> List.of_seq
 
