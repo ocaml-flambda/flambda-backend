@@ -7035,7 +7035,7 @@ and type_ident env ?(recarg=Rejected) lid =
   (* There can be locks between the definition and a use of a value. For
   example, if a function closes over a value, there will be Closure_lock between
   the value's definition and the value's use in the function. Walking the locks
-  will constrain the function and the value's modes accrodingly.
+  will constrain the function and the value's modes accordingly.
 
   Note that the value could be from a module, and we have choices to make:
   - We can walk the locks using the module's mode. That means the closures are
