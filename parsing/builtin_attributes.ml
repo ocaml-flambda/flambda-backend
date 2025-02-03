@@ -593,17 +593,18 @@ let parse_attribute_with_ident_payload attr ~name ~f =
     | None -> ())
 
 let zero_alloc_attribute (attr : Parsetree.attribute)  =
+  let module A = Zero_alloc_annotations in
   parse_attribute_with_ident_payload attr
     ~name:"zero_alloc" ~f:(function
-      | "check" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_default
-      | "check_opt" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_opt_only
-      | "check_all" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_all
-      | "check_none" -> Clflags.zero_alloc_check := Zero_alloc_annotations.No_check
-      | "all" ->
-        Clflags.zero_alloc_check_assert_all := true
+      | "check" -> Clflags.zero_alloc_check := A.Check.Check_default
+      | "check_opt" -> Clflags.zero_alloc_check := A.Check.Check_opt_only
+      | "check_all" -> Clflags.zero_alloc_check := A.Check.Check_all
+      | "check_none" -> Clflags.zero_alloc_check := A.Check.No_check
+      | "all" -> Clflags.zero_alloc_assert := A.Assert.Assert_all
+      | "all_opt" -> Clflags.zero_alloc_assert := A.Assert.Assert_all_opt
       | _ ->
         warn_payload attr.attr_loc attr.attr_name.txt
-          "Only 'all', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
+          "Only 'all', 'all_opt', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
 
 let attribute_with_ignored_payload name attr =
   when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () -> ())
