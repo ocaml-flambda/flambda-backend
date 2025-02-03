@@ -1014,7 +1014,12 @@ end = struct
                 }
             in
             let first_memory_arg_index =
-              match op with Compare_and_swap -> 2 | Fetch_and_add -> 1
+              match op with
+              | Compare_set -> 2
+              | Fetch_and_add -> 1
+              | Add | Sub | Land | Lor | Lxor -> 1
+              | Exchange -> 1
+              | Compare_exchange -> 2
             in
             create ~first_memory_arg_index desc
           | Specific s -> Vectorize_specific.memory_access s

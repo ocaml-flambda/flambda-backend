@@ -897,10 +897,20 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%get_header" -> Primitive (Pget_header mode, 1)
     | "%atomic_load" ->
         Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)
-    | "%atomic_exchange" -> Primitive (Patomic_exchange, 2)
-    | "%atomic_compare_exchange" -> Primitive (Patomic_compare_exchange, 3)
-    | "%atomic_cas" -> Primitive (Patomic_cas, 3)
+    | "%atomic_set" ->
+        Primitive (Patomic_set {immediate_or_pointer=Pointer}, 2)
+    | "%atomic_exchange" ->
+        Primitive (Patomic_exchange {immediate_or_pointer=Pointer}, 2)
+    | "%atomic_compare_exchange" ->
+        Primitive (Patomic_compare_exchange {immediate_or_pointer=Pointer}, 3)
+    | "%atomic_cas" ->
+        Primitive (Patomic_compare_set {immediate_or_pointer=Pointer}, 3)
     | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
+    | "%atomic_add" -> Primitive (Patomic_add, 2)
+    | "%atomic_sub" -> Primitive (Patomic_sub, 2)
+    | "%atomic_land" -> Primitive (Patomic_land, 2)
+    | "%atomic_lor" -> Primitive (Patomic_lor, 2)
+    | "%atomic_lxor" -> Primitive (Patomic_lxor, 2)
     | "%runstack" ->
       if runtime5 then Primitive (Prunstack, 3) else Unsupported Prunstack
     | "%reperform" ->
@@ -1369,6 +1379,46 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         | None -> Pointer
         | Some (_p1, rhs) -> maybe_pointer_type env rhs in
       Some (Primitive (Patomic_load {immediate_or_pointer = is_int}, arity))
+    end
+  | Primitive (Patomic_set { immediate_or_pointer = Pointer },
+               arity), [_; p2] -> begin
+      match maybe_pointer_type env p2 with
+      | Pointer -> None
+      | Immediate ->
+        Some
+          (Primitive
+             (Patomic_set
+                {immediate_or_pointer = Immediate}, arity))
+    end
+  | Primitive (Patomic_exchange { immediate_or_pointer = Pointer },
+               arity), [_; p2] -> begin
+      match maybe_pointer_type env p2 with
+      | Pointer -> None
+      | Immediate ->
+          Some
+            (Primitive
+               (Patomic_exchange
+                  {immediate_or_pointer = Immediate}, arity))
+    end
+  | Primitive (Patomic_compare_exchange { immediate_or_pointer = Pointer },
+               arity), [_; p2; p3] -> begin
+      match maybe_pointer_type env p2, maybe_pointer_type env p3 with
+      | Pointer, _ | _, Pointer -> None
+      | Immediate, Immediate ->
+          Some
+            (Primitive
+               (Patomic_compare_exchange
+                  {immediate_or_pointer = Immediate}, arity))
+    end
+  | Primitive (Patomic_compare_set { immediate_or_pointer = Pointer },
+               arity), [_; p2; p3] -> begin
+      match maybe_pointer_type env p2, maybe_pointer_type env p3 with
+      | Pointer, _ | _, Pointer -> None
+      | Immediate, Immediate ->
+          Some
+            (Primitive
+               (Patomic_compare_set
+                  {immediate_or_pointer = Immediate}, arity))
     end
   | Comparison(comp, Compare_generic), p1 :: _ ->
     if (has_constant_constructor
@@ -1898,8 +1948,9 @@ let lambda_primitive_needs_event_after = function
   | Parrayblit _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
-  | Patomic_exchange | Patomic_compare_exchange
-  | Patomic_cas | Patomic_fetch_add | Patomic_load _
+  | Patomic_exchange _ | Patomic_compare_exchange _
+  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+  | Patomic_land | Patomic_lor | Patomic_lxor | Patomic_load _ | Patomic_set _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _

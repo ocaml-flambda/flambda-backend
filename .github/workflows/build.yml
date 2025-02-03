@@ -282,23 +282,25 @@ jobs:
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
 
-    - uses: actions/upload-artifact@v4
-      if: ${{ failure() }} && matrix.os != 'macos-latest'
-      with:
-        name: cores-${{ github.sha }}
-        path: /cores
-
-    - uses: actions/upload-artifact@v4
-      if: ${{ failure() }} && matrix.os != 'macos-latest'
-      with:
-        name: _build-${{ github.sha }}
-        path: $GITHUB_WORKSPACE/_build
-
-    - uses: actions/upload-artifact@v4
-      if: ${{ failure() }} && matrix.os != 'macos-latest'
-      with:
-        name: _runtest-${{ github.sha }}
-        path: $GITHUB_WORKSPACE/_runtest
+# CR-soon xclerc for xclerc: re-enable the "upload-artifact" action
+# (they are failing @4 because the names are not unique)
+#    - uses: actions/upload-artifact@v4
+#      if: ${{ failure() }} && matrix.os != 'macos-latest'
+#      with:
+#        name: cores-${{ github.sha }}
+#        path: /cores
+#
+#    - uses: actions/upload-artifact@v4
+#      if: ${{ failure() }} && matrix.os != 'macos-latest'
+#      with:
+#        name: _build-${{ github.sha }}
+#        path: $GITHUB_WORKSPACE/_build
+#
+#    - uses: actions/upload-artifact@v4
+#      if: ${{ failure() }} && matrix.os != 'macos-latest'
+#      with:
+#        name: _runtest-${{ github.sha }}
+#        path: $GITHUB_WORKSPACE/_runtest
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}

@@ -31,6 +31,7 @@ type compilation_unit_or_inferred =
 let with_info ~native ~tool_name ~source_file ~output_prefix
       ~compilation_unit ~dump_ext k =
   Compmisc.init_path ();
+  Compmisc.init_parameters ();
   let target = Unit_info.make ~source_file output_prefix in
   let compilation_unit =
     match compilation_unit with

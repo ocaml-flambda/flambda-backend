@@ -450,7 +450,7 @@ module Analyser =
       match type_kind with
         Types.Type_abstract _ ->
           Odoc_type.Type_abstract
-      | Types.Type_variant (l,_) ->
+      | Types.Type_variant (l,_,_) ->
           let f {Types.cd_id=constructor_name;cd_args;cd_res=ret_type;cd_attributes} =
             let constructor_name = Ident.name constructor_name in
             let comment_opt =
@@ -481,10 +481,10 @@ module Analyser =
           in
           Odoc_type.Type_variant (List.map f l)
 
-      | Types.Type_record (l, _) ->
+      | Types.Type_record (l, _, _) ->
           Odoc_type.Type_record (List.map (get_field env name_comment_list) l)
 
-      | Types.Type_record_unboxed_product (_, _) -> assert false
+      | Types.Type_record_unboxed_product (_, _, _) -> assert false
 
       | Types.Type_open ->
           Odoc_type.Type_open

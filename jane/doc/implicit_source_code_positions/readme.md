@@ -50,6 +50,20 @@ let require_does_raise_helper ~(outer_call_pos : [%call_pos]) f =
   require_does_raise ~here:outer_call_pos f
 ```
 
+At callsites, you can specify that an argument is `[%call_pos]` to help type inference
+infer the right type for a function. Usually this is only relevant in higher-order
+functions:
+
+```ocaml
+let wrap_function b f g ~here =
+  if b
+  then f ~(here : [%call_pos]) ()
+  else g ~(here : [%call_pos]) ()
+```
+
+Without the `[%call_pos]` annotations above, `f` and `g` would be inferred to take a labeled
+argument `~here`, not a `[%call_pos]` argument `~here`.
+
 Type checking / how does this work?
 -----------------------------------
 You can think of `[%call_pos]` as an optional parameter. It is type checked and behaves in

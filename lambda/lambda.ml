@@ -311,10 +311,16 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
+  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -1945,10 +1951,16 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Ppoll ->
     Some alloc_heap
   | Patomic_load _
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
+  | Patomic_set _
+  | Patomic_exchange _
+  | Patomic_compare_exchange _
+  | Patomic_compare_set _
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Parray_element_size_in_bytes _
@@ -2113,8 +2125,10 @@ let primitive_can_raise prim =
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
-  | Patomic_exchange | Patomic_compare_exchange
-  | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
+  | Patomic_exchange _ | Patomic_compare_exchange _
+  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add
+  | Patomic_sub | Patomic_land | Patomic_lor
+  | Patomic_lxor | Patomic_load _ | Patomic_set _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
@@ -2345,11 +2359,19 @@ let primitive_result_layout (p : primitive) =
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
   | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
-  | Patomic_exchange
-  | Patomic_compare_exchange
-  | Patomic_cas
-  | Patomic_fetch_add
+  | Patomic_set _ -> layout_unit
+  | Patomic_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_exchange { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_compare_exchange { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_compare_set _
+  | Patomic_fetch_add -> layout_int
   | Pdls_get -> layout_any_value
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int

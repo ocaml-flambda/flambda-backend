@@ -111,7 +111,16 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_and_add | Compare_and_swap
+type atomic_op =
+  | Fetch_and_add
+  | Add
+  | Sub
+  | Land
+  | Lor
+  | Lxor
+  | Exchange
+  | Compare_set
+  | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 

@@ -661,17 +661,28 @@ let transl_label (label : Parsetree.arg_label)
   | Optional l, _ -> Optional l
   | Nolabel, _ -> Nolabel
 
+(* Parallel to [transl_label_from_expr]. *)
 let transl_label_from_pat (label : Parsetree.arg_label)
     (pat : Parsetree.pattern) =
-  let label, inner_pat = match pat with
-  | {ppat_desc = Ppat_constraint (inner_pat, ty, _); _} ->
-      (* If the argument is a constraint, translate the label using the
-          type information. Otherwise, it can't be a Position argument, so
-          we don't care about the argument type *)
-      transl_label label ty, inner_pat
+  match pat with
+  (* We should only strip off the constraint node if the label translates
+     to Position, as this means the type annotation is [%call_pos] and
+     nothing more. *)
+  | {ppat_desc = Ppat_constraint (inner_pat, ty, []); _} ->
+      let label = transl_label label ty in
+      let pat = if Btype.is_position label then inner_pat else pat in
+      label, pat
   | _ -> transl_label label None, pat
-  in
-  label, if Btype.is_position label then inner_pat else pat
+
+(* Parallel to [transl_label_from_pat]. *)
+let transl_label_from_expr (label : Parsetree.arg_label)
+    (expr : Parsetree.expression) =
+  match expr with
+  | {pexp_desc = Pexp_constraint (inner_expr, ty, []); _} ->
+      let label = transl_label label ty in
+      let expr = if Btype.is_position label then inner_expr else expr in
+      label, expr
+  | _ -> transl_label label None, expr
 
 let enrich_with_attributes attrs annotation_context =
   match Builtin_attributes.error_message_attr attrs with

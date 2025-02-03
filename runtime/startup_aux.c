@@ -76,6 +76,7 @@ static void init_startup_params(void)
   params.init_main_stack_wsz = init_main_stack_wsz;
   params.init_thread_stack_wsz = 0;
   params.init_max_stack_wsz = Max_stack_def;
+  params.max_domains = Max_domains_def;
   params.runtime_events_log_wsize = Default_runtime_events_log_wsize;
 
 #ifdef DEBUG
@@ -118,6 +119,7 @@ static void parse_ocamlrunparam(char_os* opt)
       switch (*opt++){
       case 'b': scanmult (opt, &params.backtrace_enabled); break;
       case 'c': scanmult (opt, &params.cleanup_on_exit); break;
+      case 'd': scanmult (opt, &params.max_domains); break;
       case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
       case 'i': scanmult (opt, &params.init_main_stack_wsz); break;
       case 'j': scanmult (opt, &params.init_thread_stack_wsz); break;
@@ -164,6 +166,15 @@ static void parse_ocamlrunparam(char_os* opt)
         if (*opt++ == ',') break;
       }
     }
+  }
+
+  /* Validate */
+  if (params.max_domains < 1) {
+    caml_fatal_error("OCAMLRUNPARAM: max_domains(d) must be at least 1");
+  }
+  if (params.max_domains > Max_domains_max) {
+    caml_fatal_error("OCAMLRUNPARAM: max_domains(d) is too large. "
+                     "The maximum value is %d.", Max_domains_max);
   }
 }
 

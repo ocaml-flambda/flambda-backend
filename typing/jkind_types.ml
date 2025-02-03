@@ -563,7 +563,7 @@ module Layout_and_axes = struct
   (* Once we have more interesting mode stuff, this won't be trivial. *)
   let try_allow_r ({ layout = _; _ } as t) = Some t
 
-  let sub sub_layout
+  let sub ?(allow_any_crossing = false) sub_layout
       { layout = lay1;
         modes_upper_bounds = modes1;
         externality_upper_bound = ext1;
@@ -574,9 +574,12 @@ module Layout_and_axes = struct
         externality_upper_bound = ext2;
         nullability_upper_bound = null2
       } =
+    let modes : Misc.Le_result.t =
+      if allow_any_crossing then Equal else Modes.less_or_equal modes1 modes2
+    in
     Misc.Le_result.combine_list
       [ sub_layout lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
+        modes;
         Externality.less_or_equal ext1 ext2;
         Nullability.less_or_equal null1 null2 ]
     [@@inline]

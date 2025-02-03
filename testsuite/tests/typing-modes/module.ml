@@ -1,4 +1,5 @@
 (* TEST
+    flags+="-extension mode";
    expect;
 *)
 
@@ -180,3 +181,82 @@ val foo : unit -> unit = <fun>
 |}]
 
 (* Pmty_alias is not testable *)
+
+(* module alias *)
+module type S = sig
+    val foo : 'a -> 'a
+    val baz : 'a -> 'a @@ portable
+end
+
+module M : S = struct
+    let foo = fun x -> x
+    let baz = fun x -> x
+end
+[%%expect{|
+module type S = sig val foo : 'a -> 'a val baz : 'a -> 'a @@ portable end
+module M : S
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    M.baz ();
+    N.baz ()
+[%%expect{|
+val bar : unit -> unit = <fun>
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    N.foo ()
+[%%expect{|
+Line 3, characters 4-9:
+3 |     N.foo ()
+        ^^^^^
+Error: The value "N.foo" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    M.foo ()
+[%%expect{|
+Line 3, characters 4-9:
+3 |     M.foo ()
+        ^^^^^
+Error: The value "M.foo" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* chained aliases. Creating alias of alias is fine. *)
+let (bar @ portable) () =
+    let module N = M in
+    let module N' = N in
+    M.baz ();
+    N.baz ();
+    N'.baz ()
+[%%expect{|
+val bar : unit -> unit = <fun>
+|}]
+
+(* locks are accumulated and not lost *)
+let (bar @ portable) () =
+    let module N = M in
+    let module N' = N in
+    N'.foo ()
+[%%expect{|
+Line 4, characters 4-10:
+4 |     N'.foo ()
+        ^^^^^^
+Error: The value "N'.foo" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* module aliases in structures still walk locks. *)
+let (bar @ portable) () =
+    let module N = struct
+        module L = M
+    end in
+    N.L.foo ()
+[%%expect{|
+Line 3, characters 19-20:
+3 |         module L = M
+                       ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]

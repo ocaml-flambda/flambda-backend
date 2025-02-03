@@ -55,6 +55,18 @@ let init_path ?(auto_include=auto_include) ?(dir="") () =
   Load_path.init ~auto_include ~visible ~hidden;
   Env.reset_cache ~preserve_persistent_env:false
 
+(* Read any [-parameters] flags. Important to do this before [initial_env ()]
+   because someone might [-open] a parameterised module *)
+let init_parameters () =
+  let param_names = !Clflags.parameters in
+  List.iter
+    (fun param_name ->
+        (* We don't (yet!) support parameterised parameters *)
+        let param = Global_module.Name.create_no_args param_name in
+        Env.register_parameter param
+    )
+    param_names
+
 (* Return the initial environment in which compilation proceeds. *)
 
 (* Note: do not do init_path() in initial_env, this breaks

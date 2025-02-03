@@ -83,6 +83,13 @@ val transl_label_from_pat :
         Parsetree.arg_label -> Parsetree.pattern
         -> Types.arg_label * Parsetree.pattern
 
+(** Like [transl_label_from_pat], but with special handling for expressions
+    [(E : [%call_pos])] instead of for patterns.
+*)
+val transl_label_from_expr :
+  Parsetree.arg_label -> Parsetree.expression
+  -> Types.arg_label * Parsetree.expression
+
 (* Note about [new_var_jkind]
 
    This is exposed as an option because the same initialization doesn't work in all

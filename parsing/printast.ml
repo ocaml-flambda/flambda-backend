@@ -575,7 +575,9 @@ and type_declaration i ppf x =
   type_kind (i+1) ppf x.ptype_kind;
   line i ppf "ptype_private = %a\n" fmt_private_flag x.ptype_private;
   line i ppf "ptype_manifest =\n";
-  option (i+1) core_type ppf x.ptype_manifest
+  option (i+1) core_type ppf x.ptype_manifest;
+  line i ppf "ptype_jkind_annotation =\n";
+  option (i+1) jkind_annotation ppf x.ptype_jkind_annotation
 
 and attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.attr_name.txt;

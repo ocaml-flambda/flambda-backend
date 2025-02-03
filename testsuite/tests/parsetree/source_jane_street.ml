@@ -794,9 +794,9 @@ let (~x:x0, ~s, ~(y:int), ..) : (x:int * s:string * y:int * string) =
    (~x: 1, ~s: "a", ~y: 2, "ignore me")
 
 [%%expect{|
-val x0 : int @@ portable = 1
-val s : string @@ portable = "a"
-val y : int @@ portable = 2
+val x0 : int = 1
+val s : string = "a"
+val y : int = 2
 |}]
 
 module M : sig
@@ -835,9 +835,9 @@ val foo :
   ('a : value_or_null) ('b : value_or_null).
     'a -> (unit -> 'b) -> (unit -> 'b) -> 'b =
   <fun>
-val x : int @@ portable = 1
+val x : int = 1
 val y : int = 2
-val x : int @@ portable = 1
+val x : int = 1
 val y : int = 2
 val f : (foo:int * bar:int) -> int = <fun>
 val f : (x:int * int) -> int = <fun>
@@ -1258,4 +1258,27 @@ Line 2, characters 19-43:
 Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
 
+|}]
+
+(************)
+(* call_pos *)
+
+let f ~(x : [%call_pos]) () = x;;
+
+[%%expect{|
+val f : x:[%call_pos] -> unit -> lexing_position = <fun>
+|}]
+
+type t = x:[%call_pos] -> int
+
+[%%expect{|
+type t = x:[%call_pos] -> int
+|}]
+
+let f g here = g ~(here : [%call_pos])
+
+[%%expect{|
+val f :
+  ('a : value_or_null). (here:[%call_pos] -> 'a) -> lexing_position -> 'a =
+  <fun>
 |}]

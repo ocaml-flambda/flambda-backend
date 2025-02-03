@@ -125,11 +125,11 @@ val f : int -> int -> int = <fun>
 - : unit = ()
 |}]
 
-let _ = raise Exit 3;;
+let _ = (raise Exit) 3;;
 [%%expect {|
-Line 1, characters 19-20:
-1 | let _ = raise Exit 3;;
-                       ^
+Line 1, characters 21-22:
+1 | let _ = (raise Exit) 3;;
+                         ^
 Warning 20 [ignored-extra-argument]: this argument will not be used by the function.
 
 Exception: Stdlib.Exit.

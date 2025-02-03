@@ -694,7 +694,7 @@ let closed_type_decl decl =
     begin match decl.type_kind with
       Type_abstract _ ->
         ()
-    | Type_variant (v, _rep) ->
+    | Type_variant (v, _rep, _) ->
         List.iter
           (fun {cd_args; cd_res; _} ->
             match cd_res with
@@ -712,9 +712,9 @@ let closed_type_decl decl =
             | None -> List.iter close_type (tys_of_constr_args cd_args)
           )
           v
-    | Type_record(r, _rep) ->
+    | Type_record(r, _rep, _) ->
         List.iter (fun l -> close_type l.ld_type) r
-    | Type_record_unboxed_product(r, _rep) ->
+    | Type_record_unboxed_product(r, _rep, _) ->
         List.iter (fun l -> close_type l.ld_type) r
     | Type_open -> ()
     end;
@@ -1402,7 +1402,6 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin jkind =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-    type_has_illegal_crossings = false;
   }
 
 let existential_name name_counter ty =
@@ -1469,7 +1468,7 @@ let instance_parameterized_type ?keep_names sch_args sch =
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
 let map_kind f = function
   | (Type_abstract _ | Type_open) as k -> k
-  | Type_variant (cl, rep) ->
+  | Type_variant (cl, rep, mc) ->
       Type_variant (
         List.map
           (fun c ->
@@ -1477,19 +1476,19 @@ let map_kind f = function
               cd_args = map_type_expr_cstr_args f c.cd_args;
               cd_res = Option.map f c.cd_res
              })
-          cl, rep)
-  | Type_record (fl, rr) ->
+          cl, rep, mc)
+  | Type_record (fl, rr, mc) ->
       Type_record (
         List.map
           (fun l ->
              {l with ld_type = f l.ld_type}
-          ) fl, rr)
-  | Type_record_unboxed_product (fl, rr) ->
+          ) fl, rr, mc)
+  | Type_record_unboxed_product (fl, rr, mc) ->
       Type_record_unboxed_product (
         List.map
           (fun l ->
              {l with ld_type = f l.ld_type}
-          ) fl, rr)
+          ) fl, rr, mc)
 
 
 let instance_declaration decl =
@@ -2099,14 +2098,14 @@ let unbox_once env ty =
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
         Stepped (apply ty2)
       | None -> begin match decl.type_kind with
-        | Type_record_unboxed_product ([_], Record_unboxed_product) ->
+        | Type_record_unboxed_product ([_], Record_unboxed_product, _) ->
           (* [find_unboxed_type] would have returned [Some] *)
           Misc.fatal_error "Ctype.unbox_once"
         | Type_record_unboxed_product
-            ((_::_::_ as lbls), Record_unboxed_product) ->
+            ((_::_::_ as lbls), Record_unboxed_product, _) ->
           Stepped_record_unboxed_product
             (List.map (fun ld -> apply ld.ld_type) lbls)
-        | Type_record_unboxed_product ([], _) ->
+        | Type_record_unboxed_product ([], _, _) ->
           Misc.fatal_error "Ctype.unboxed_once: fieldless record"
         | Type_abstract _ | Type_record _ | Type_variant _ | Type_open ->
           Final_result
@@ -3269,6 +3268,17 @@ and mcomp_row type_pairs env row1 row2 =
       | _ -> ())
     pairs
 
+and mcomp_unsafe_mode_crossing umc1 umc2 =
+  match umc1, umc2 with
+  | None, None -> ()
+  | Some _, None -> raise Incompatible
+  | None, Some _ -> raise Incompatible
+  | Some ({ modal_upper_bounds = mub1 }),
+    Some ({ modal_upper_bounds = mub2 }) ->
+    if (Mode.Alloc.Const.le mub1 mub2 && Mode.Alloc.Const.le mub2 mub1)
+    then ()
+    else raise Incompatible
+
 and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
   try
     let decl = Env.find_type p1 env in
@@ -3289,19 +3299,22 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
       raise Incompatible
     else
       match decl.type_kind, decl'.type_kind with
-      | Type_record (lst,r), Type_record (lst',r')
+      | Type_record (lst,r,umc), Type_record (lst',r',umc')
         when equal_record_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
-          mcomp_record_description type_pairs env lst lst'
-      | Type_record_unboxed_product (lst,r),
-        Type_record_unboxed_product (lst',r')
+          mcomp_record_description type_pairs env lst lst';
+          mcomp_unsafe_mode_crossing umc umc'
+      | Type_record_unboxed_product (lst,r,umc),
+        Type_record_unboxed_product (lst',r',umc')
         when equal_record_unboxed_product_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
-          mcomp_record_description type_pairs env lst lst'
-      | Type_variant (v1,r), Type_variant (v2,r')
+          mcomp_record_description type_pairs env lst lst';
+          mcomp_unsafe_mode_crossing umc umc'
+      | Type_variant (v1,r,umc), Type_variant (v2,r',umc')
         when equal_variant_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
-          mcomp_variant_description type_pairs env v1 v2
+          mcomp_variant_description type_pairs env v1 v2;
+          mcomp_unsafe_mode_crossing umc umc'
       | Type_open, Type_open ->
           mcomp_list type_pairs env tl1 tl2
       | Type_abstract _, Type_abstract _ -> check_jkinds ()
@@ -6809,7 +6822,6 @@ let nondep_type_decl env mid is_covariant decl =
       type_attributes = decl.type_attributes;
       type_unboxed_default = decl.type_unboxed_default;
       type_uid = decl.type_uid;
-      type_has_illegal_crossings = decl.type_has_illegal_crossings;
     }
   with Nondep_cannot_erase _ as exn ->
     clear_hash ();

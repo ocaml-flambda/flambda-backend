@@ -15,6 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Memory management control and statistics; finalised values. *)
@@ -376,7 +378,9 @@ external get_minor_free : unit -> int = "caml_get_minor_free"
 
     @since 4.03 *)
 
-val finalise : ('a -> unit) -> 'a -> unit
+(* CR runtime5: We need finalisers registered on the primary domain to only ever
+   run on the primary domain. *)
+val finalise : ('a -> unit) -> 'a -> unit @@ nonportable
 (** [finalise f v] registers [f] as a finalisation function for [v].
    [v] must be heap-allocated.  [f] will be called with [v] as
    argument at some point between the first time [v] becomes unreachable
@@ -442,7 +446,7 @@ val finalise : ('a -> unit) -> 'a -> unit
    heap-allocated and non-constant except when the length argument is [0].
 *)
 
-val finalise_last : (unit -> unit) -> 'a -> unit
+val finalise_last : (unit -> unit) -> 'a -> unit @@ nonportable
 (** same as {!finalise} except the value is not given as argument. So
     you can't use the given value for the computation of the
     finalisation function. The benefit is that the function is called
@@ -462,12 +466,12 @@ val finalise_release : unit -> unit
     GC that it can launch the next finalisation function without waiting
     for the current one to return. *)
 
-type alarm
+type alarm : value mod portable uncontended
 (** An alarm is a piece of data that calls a user function at the end of
    major GC cycle.  The following functions are provided to create
    and delete alarms. *)
 
-val create_alarm : (unit -> unit) -> alarm
+val create_alarm : (unit -> unit) -> alarm @@ nonportable
 (** [create_alarm f] will arrange for [f] to be called at the end of
    major GC cycles, not caused by [f] itself, starting with the
    current cycle or the next one. [f] will run on the same domain that
@@ -505,6 +509,41 @@ val eventlog_pause : unit -> unit
 val eventlog_resume : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  val finalise :
+    ('a @ portable contended -> unit) @ portable -> 'a @ portable contended -> unit
+  (** Like {!finalise}, but can be called on any domain. In the presence of multiple
+      domains it should be assumed that any particular finaliser may be executed in any
+      of the domains.
+
+      The provided closure must be [portable] as it may run on any domain. It must take
+      its argument [contended] as the domain it's finalised on may not be the same capsule
+      that has uncontended access to it.
+
+      The provided value must be [portable] as it may have been created inside a capsule,
+      in which case it needs to cross a capsule boundary to be finalised. *)
+
+  val finalise_last : (unit -> unit) @ portable -> 'a -> unit
+  (** Like {!finalise_last}, but can be called on any domain. In the presence of multiple
+      domains it should be assumed that any particular finaliser may be executed in any
+      of the domains.
+
+      The provided closure must be [portable] as it may run on any domain.
+
+      The provided value may be [nonportable] as it is not passed to the provided closure.
+  *)
+
+  val create_alarm : (unit -> unit) @ portable -> alarm
+  (** Like {!create_alarm}, but can be called on any domain and in particular from within
+      any capsule.
+
+      The provided closure must be [portable] as it might close over data from the current
+      capsule, but will be called on the current domain, regardless of whether the current
+      domain still has uncontended access to the original capsule. *)
+end
+
 (** [Memprof] is a profiling engine which randomly samples allocated
    memory words. Every allocated word has a probability of being
    sampled equal to a configurable sampling rate. Once a block is
@@ -528,8 +567,8 @@ val eventlog_resume : unit -> unit
     similar in most regards.)
 
    *)
-module Memprof :
-  sig
+module (Memprof @ nonportable) :
+  sig @@ portable
     type t
     (** the type of a profile *)
 
@@ -580,6 +619,7 @@ module Memprof :
       ?callstack_size:int ->
       ('minor, 'major) tracker ->
       t
+      @@ nonportable
     (** Start a profile with the given parameters. Raises an exception
        if a profile is already sampling in the current domain.
 
@@ -642,6 +682,34 @@ module Memprof :
        prevents any more callbacks for it. Raises an exception if
        called on a profile which has not been stopped.
        *)
+
+    (** Submodule containing non-backwards-compatible functions which enforce thread
+        safety via modes. *)
+    module Safe : sig
+      val start :
+        sampling_rate:float ->
+        ?callstack_size:int ->
+        ('minor, 'major) tracker @ portable ->
+        t
+      (** Like {!start}, but can be called from any domain.
+
+          The provided [tracker] must be [portable] as the contained callbacks are
+          registered with the current domain, but may close over data contained in the
+          current capsule which may later move to a different domain. *)
+
+      val start' :
+        Domain.Safe.DLS.Access.t ->
+        sampling_rate:float ->
+        ?callstack_size:int ->
+        ('minor, 'major) tracker ->
+        t
+      (** Like {!start}, but can be called from any domain.
+
+          An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a
+          witness that the closures contained in the [tracker] do not close over any
+          data from the current capsule in an unsafe way. See {!Domain.Safe.DLS.Access}
+          for more details. *)
+    end
 end
 
 
@@ -653,7 +721,7 @@ end
 
         OCAMLRUNPARAM='Xfoo=42'
     *)
-module Tweak : sig
+module (Tweak @ nonportable) : sig
   (** Change a parameter.
       Raises Invalid_argument if no such parameter exists *)
   val set : string -> int -> unit
