@@ -143,7 +143,7 @@ let mk_zero_alloc_check f =
 let mk_zero_alloc_assert f =
   let annotations = Zero_alloc_annotations.Assert.(List.map to_string all) in
   "-zero-alloc-assert", Arg.Symbol (annotations, f),
-  " Add zero_alloc annotations."^Zero_alloc_annotations.Assert.doc
+  " Add zero_alloc annotations to all functions."^Zero_alloc_annotations.Assert.doc
 
 let mk_dzero_alloc f =
   "-dzero-alloc", Arg.Unit f, " (undocumented)"
