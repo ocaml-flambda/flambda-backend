@@ -3616,11 +3616,6 @@ module Head_of_kind_naked_nativeint =
 module Head_of_kind_naked_vec128 =
   Make_head_of_kind_naked_number (Vector_types.Vec128.Bit_pattern)
 
-let recover_const_alias_of_simple simple =
-  Simple.pattern_match simple
-    ~const:(fun const -> Some const)
-    ~name:(fun _ ~coercion:_ -> None)
-
 let rec recover_const_alias t : RWC.t option =
   match t with
   | Value ty -> (
@@ -3639,7 +3634,7 @@ let rec recover_const_alias t : RWC.t option =
                   | Boxed_nativeint _ | String _ | Closures _ | Array _ ) )
           }) ->
       None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok
         (No_alias
           { is_null = Not_null;
@@ -3670,7 +3665,7 @@ let rec recover_const_alias t : RWC.t option =
     match TD.descr ty with
     | Unknown | Bottom | Ok (No_alias (Is_int _ | Get_tag _ | Is_null _)) ->
       None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias (Naked_immediates is)) -> (
       match Targetint_31_63.Set.get_singleton is with
       | Some i -> Some (RWC.naked_immediate i)
@@ -3678,7 +3673,7 @@ let rec recover_const_alias t : RWC.t option =
   | Naked_float32 ty -> (
     match TD.descr ty with
     | Unknown | Bottom -> None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias fs) -> (
       match Float32.Set.get_singleton fs with
       | Some f -> Some (RWC.naked_float32 f)
@@ -3686,7 +3681,7 @@ let rec recover_const_alias t : RWC.t option =
   | Naked_float ty -> (
     match TD.descr ty with
     | Unknown | Bottom -> None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias fs) -> (
       match Float.Set.get_singleton fs with
       | Some f -> Some (RWC.naked_float f)
@@ -3694,7 +3689,7 @@ let rec recover_const_alias t : RWC.t option =
   | Naked_int32 ty -> (
     match TD.descr ty with
     | Unknown | Bottom -> None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias is) -> (
       match Int32.Set.get_singleton is with
       | Some f -> Some (RWC.naked_int32 f)
@@ -3702,7 +3697,7 @@ let rec recover_const_alias t : RWC.t option =
   | Naked_int64 ty -> (
     match TD.descr ty with
     | Unknown | Bottom -> None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias is) -> (
       match Int64.Set.get_singleton is with
       | Some f -> Some (RWC.naked_int64 f)
@@ -3710,7 +3705,7 @@ let rec recover_const_alias t : RWC.t option =
   | Naked_nativeint ty -> (
     match TD.descr ty with
     | Unknown | Bottom -> None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias is) -> (
       match Targetint_32_64.Set.get_singleton is with
       | Some f -> Some (RWC.naked_nativeint f)
@@ -3718,7 +3713,7 @@ let rec recover_const_alias t : RWC.t option =
   | Naked_vec128 ty -> (
     match TD.descr ty with
     | Unknown | Bottom -> None
-    | Ok (Equals simple) -> recover_const_alias_of_simple simple
+    | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias is) -> (
       match Vec128.Set.get_singleton is with
       | Some f -> Some (RWC.naked_vec128 f)

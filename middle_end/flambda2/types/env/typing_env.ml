@@ -840,7 +840,7 @@ and replace_equation_or_add_alias_to_const t name ty =
     | Bottom ->
       Misc.fatal_error "Unexpected bottom while adding alias to constant.")
 
-and add_non_alias_equation ~original_name ~raise_on_bottom t simple ty
+and add_non_alias_equation ~original_name ~raise_on_bottom t lhs rhs_ty
     ~(meet_type : meet_type) =
   (* Beware: if we're about to add the equation on a name which is different
      from the one that the caller passed in, then we need to make sure that the
@@ -848,11 +848,14 @@ and add_non_alias_equation ~original_name ~raise_on_bottom t simple ty
      necessitates calling [meet].
 
      For example, suppose [p] is defined earlier than [x], with [p] of type
-     [Unknown] and [x] of type [ty]. If the caller says that the best type of
-     [p] is now to be "= x", then this function will add an equation on [x]
-     rather than [p], due to the definition ordering. However we should not just
-     say that [x] has type "= p", as that would forget any existing information
-     about [x]. Instead we should say that [x] has type "(= p) meet ty".
+     [ty1] and [x] of type [ty2]. If the caller says that the best type of [p]
+     is now to be "= x", then we will instead add a type "= p" on [x], and
+     demote [x] to [p], due to the definition ordering. However we also need to
+     record the information that [p] has type [ty1 meet ty2], otherwise the type
+     [ty2] would be lost.
+
+     Note that with the new meet, we always call [meet], so that we don't depend
+     on the caller giving us "the best type of [p]".
 
      Note also that [p] and [x] may have different name modes! *)
   let[@inline always] name eqn_name ty =
@@ -884,24 +887,25 @@ and add_non_alias_equation ~original_name ~raise_on_bottom t simple ty
           in
           replace_equation_or_add_alias_to_const t eqn_name meet_ty)
   in
-  pattern_match_equation simple ty ~name ~const:(fun const ty ->
-      (* If we are applying an alias-to-constant type to a name, the constant
-         becomes canonical and we need to apply the type to the constant
-         instead. This merely reduces to checking that the type is compatible
-         (e.g. if we are adding [x : (= 0)] in a context where [x : { 1, 2 }]
-         holds). *)
-      let existing_ty = MTC.type_for_const const in
-      match meet_type with
-      | New meet_type_new -> (
-        match meet_type_new t ty existing_ty with
-        | Bottom -> if raise_on_bottom then raise Bottom_equation else t
-        | Ok (_, env) -> env)
-      | Old meet_type_old -> (
-        let env = Meet_env.create t in
-        match meet_type_old env ty existing_ty with
-        | Bottom -> t
-        | Ok (_, env_extension) ->
-          add_env_extension ~raise_on_bottom t env_extension ~meet_type))
+  let[@inline always] const const ty =
+    (* If we are applying an alias-to-constant type to a name, the constant
+       becomes canonical and we need to apply the type to the constant instead.
+       This merely reduces to checking that the type is compatible (e.g. if we
+       are adding [x : (= 0)] in a context where [x : { 1, 2 }] holds). *)
+    let existing_ty = MTC.type_for_const const in
+    match meet_type with
+    | New meet_type_new -> (
+      match meet_type_new t ty existing_ty with
+      | Bottom -> if raise_on_bottom then raise Bottom_equation else t
+      | Ok (_, env) -> env)
+    | Old meet_type_old -> (
+      let env = Meet_env.create t in
+      match meet_type_old env ty existing_ty with
+      | Bottom -> t
+      | Ok (_, env_extension) ->
+        add_env_extension ~raise_on_bottom t env_extension ~meet_type)
+  in
+  pattern_match_equation lhs rhs_ty ~name ~const
 
 and orient_and_add_equation ~raise_on_bottom t name ty ~meet_type =
   (if Flambda_features.check_light_invariants ()
@@ -968,9 +972,9 @@ and orient_and_add_equation ~raise_on_bottom t name ty ~meet_type =
         with
         | Ok { canonical_element; alias_of_demoted_element; t = aliases } ->
           let t = with_aliases t ~aliases in
-          (* We need to change the demoted alias's type to point to the new
-             canonical element, and move the existing type of the demoted
-             element to the new canonical element. *)
+          (* If we are demoting [x] to [p], we need to add the type "= p" to
+             [x]. However, we also need to add the current type of [x] to [p],
+             otherwise that information would be lost. *)
           let existing_ty =
             Simple.pattern_match alias_of_demoted_element
               ~const:MTC.type_for_const ~name:(fun name ~coercion ->
