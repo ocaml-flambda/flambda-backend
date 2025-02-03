@@ -722,6 +722,65 @@ Error: Mode annotations on modules are not supported yet.
 |}]
 
 (**********)
+(* stack *)
+
+let f x = stack_ (ref x)
+
+[%%expect{|
+Line 1, characters 17-24:
+1 | let f x = stack_ (ref x)
+                     ^^^^^^^
+Error: This expression is not an allocation site.
+|}]
+
+type t = { a : int }
+let f a =
+  let y = stack_ { a } in
+  y.a
+
+[%%expect{|
+type t = { a : int; }
+val f : int -> int = <fun>
+|}]
+
+let apply ~(f @ local) x = f x [@nontail]
+let double1 y = apply ~f:(stack_ fun x -> x + y) y [@nontail]
+let double2 y = apply ~f:(stack_ function x -> x + y) y [@nontail]
+
+[%%expect{|
+val apply :
+  ('a : value_or_null) ('b : value_or_null). f:local_ ('a -> 'b) -> 'a -> 'b =
+  <fun>
+val double1 : int -> int = <fun>
+val double2 : int -> int = <fun>
+|}]
+
+let make_tuple x y z = stack_ (x, y), z
+[%%expect{|
+Line 1, characters 23-36:
+1 | let make_tuple x y z = stack_ (x, y), z
+                           ^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
+type u = A of unit | C of int | B of int * int | D
+
+let create_us () =
+  let a = stack_ A () in
+  let b = stack_ B (1, 2) in
+  let c = stack_ C 3 in
+  let d = stack_ D in
+  ()
+
+[%%expect{|
+type u = A of unit | C of int | B of int * int | D
+Line 7, characters 17-18:
+7 |   let d = stack_ D in
+                     ^
+Error: This expression is not an allocation site.
+|}]
+
+(**********)
 (* unique *)
 
 (* No syntax; the unique extension just enables the uniqueness checker. *)
