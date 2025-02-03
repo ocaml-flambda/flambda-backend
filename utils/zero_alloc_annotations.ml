@@ -90,6 +90,6 @@ module Assert = struct
     "\n\
     \    The argument specifies which annotations to use: \n\
     \      \"all\" is equivalent to adding [@@@zero_alloc all]\n\
-    \      \"all_opt\" is equiveintended to adding [@@@zero_alloc all_opt]\n\
+    \      \"all_opt\" is equivalent to adding [@@@zero_alloc all_opt]\n\
     \      \"default\" does not add any attributes."
 end
