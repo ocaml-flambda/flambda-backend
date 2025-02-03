@@ -7044,7 +7044,19 @@ and type_ident env ?(recarg=Rejected) lid =
   closing over the value.
 
   We pick the second for better ergonomics. It could be dangerous as it doesn't
-  reflect the real runtime behaviour. With the current set-up, it is sound. *)
+  reflect the real runtime behaviour. With the current set-up, it is sound:
+
+  - Locality: Modules are always global (the strongest mode), so it's fine.
+  - Linearity: Modules are always many (the strongest mode), so it's fine.
+  - Portability: Closing over a nonportable module only to extract a portable
+  value is fine.
+  - Yielding: Modules are always unyielding (the strongest mode), so it's fine.
+  - All monadic axes: values are in a module via some join_with_m modality.
+  Meanwhile, walking locks causes the mode to go through several join_with_m
+  where [m] is the mode of a closure lock. Since join is commutative and
+  associative, the order of which we apply those join does not matter.
+  *)
+  (* CR modes: codify the above per-axis argument. *)
   let actual_mode =
     Env.walk_locks ~loc:lid.loc ~env ~item:Value ~lid:lid.txt mode
       (Some desc.val_type) locks
