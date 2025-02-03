@@ -311,7 +311,11 @@ and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
 
 (** This module provides the interface to construct, query, and destruct
     [with_bounds_types] and [nonempty_with_bounds_types]. Under the hood this is a
-    [Stdlib.Map] from [type_expr] to [With_bounds_type_info.t]
+    [Stdlib.Map] from [type_expr] to [With_bounds_type_info.t], using a "best-effort"
+    semantic comparison on [type_expr] to provide the mapping. This "best-effort"ness
+    means that two semantically equal (according to [Ctype.eqtype]) types might have
+    distinct keys in the map - but two semantically {i inequal} types are guaranteed never
+    to occupy the same key.
 *)
 module With_bounds_types : sig
   type info := With_bounds_type_info.t
