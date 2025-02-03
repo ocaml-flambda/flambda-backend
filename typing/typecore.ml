@@ -7021,10 +7021,51 @@ and type_constraint_expect
   ret, ty, exp_extra
 
 and type_ident env ?(recarg=Rejected) lid =
-  let path, desc, actual_mode = Env.lookup_value ~loc:lid.loc lid.txt env in
-  (* Mode crossing here is needed only because of the strange behaviour of
-  [type_let] - it checks the LHS before RHS. Had it checks the RHS before LHS,
-  identifiers would be mode crossed when being added to the environment. *)
+  let path, desc, mode, locks = Env.lookup_value ~loc:lid.loc lid.txt env in
+  (* We cross modes when typing [Ppat_ident], before adding new variables into
+  the environment. Therefore, one might think all values in the environment are
+  already mode-crossed. That is not true for several reasons:
+  - [type_let] checks the LHS and adds bound variables to the environment
+  without the type information from the RHS.
+  - The identifer is [M.x], whose signature might not reflect mode crossing.
+
+  Therefore, we need to cross modes upon look-up. Ideally that should be done in
+  [Env], but that is difficult due to cyclic dependency between jkind and env. *)
+  let mode = mode_cross_left_value env desc.val_type mode in
+  (* There can be locks between the definition and a use of a value. For
+  example, if a function closes over a value, there will be Closure_lock between
+  the value's definition and the value's use in the function. Walking the locks
+  will constrain the function and the value's modes accordingly.
+
+  Note that the value could be from a module, and we have choices to make:
+  - We can walk the locks using the module's mode. That means the closures are
+  closing over the module.
+  - We can walk the locks using the value's mode. That means the closures are
+  closing over the value.
+
+  We pick the second for better ergonomics. It could be dangerous as it doesn't
+  reflect the real runtime behaviour. With the current set-up, it is sound:
+
+  - Locality: Modules are always global (the strongest mode), so it's fine.
+  - Linearity: Modules are always many (the strongest mode), so it's fine.
+  - Portability: Closing over a nonportable module only to extract a portable
+  value is fine.
+  - Yielding: Modules are always unyielding (the strongest mode), so it's fine.
+  - All monadic axes: values are in a module via some join_with_m modality.
+  Meanwhile, walking locks causes the mode to go through several join_with_m
+  where [m] is the mode of a closure lock. Since join is commutative and
+  associative, the order of which we apply those join does not matter.
+  *)
+  (* CR modes: codify the above per-axis argument. *)
+  let actual_mode =
+    Env.walk_locks ~loc:lid.loc ~env ~item:Value ~lid:lid.txt mode
+      (Some desc.val_type) locks
+  in
+  (* We need to cross again, because the monadic fragment might have been
+  weakened by the locks. Ideally, the first crossing only deals with comonadic,
+  and the second only deals with monadic. *)
+  (* CR layouts: allow to cross comonadic fragment and monadic fragment
+     separately. *)
   let actual_mode = actual_mode_cross_left env desc.val_type actual_mode in
   let is_recarg =
     match get_desc desc.val_type with
@@ -9929,7 +9970,7 @@ let type_expression env jkind sexp =
       Pexp_ident lid ->
         let loc = sexp.pexp_loc in
         (* Special case for keeping type variables when looking-up a variable *)
-        let (_path, desc, _actual_mode) =
+        let (_path, desc, _, _) =
           Env.lookup_value ~use:false ~loc lid.txt env
         in
         {exp with exp_type = desc.val_type}

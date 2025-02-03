@@ -3631,27 +3631,9 @@ let lookup_value ~errors ~use ~loc lid env =
   let path, locks, vda =
     lookup_value_lazy ~errors ~use ~loc lid env
   in
-  (* There can be locks between the definition and a use of a value. For
-  example, if a function closes over a value, there will be Closure_lock between
-  the value's definition and the value's use in the function. Walking the locks
-  will constrain the function and the value's modes accrodingly.
-
-  Here, we apply the modalities to acquire the mode of the value at the
-  definition site, using which we walk the locks. That means the surrounding
-  closure would be closing over the value instead of the module. The latter can
-  be achieved by walking the locks before apply modalities.
-
-  Our route provides better ergonomics, but is dangerous as it doesn't reflect
-  the real runtime behaviour. With the current set-up, it is sound. *)
   let vd, mode = normalize_vda_mode vda in
   let vd = Subst.Lazy.force_value_description vd in
-  let vmode =
-    if use then
-      walk_locks ~errors ~loc ~env ~item:Value ~lid mode (Some vd.val_type) locks
-    else
-      mode_default mode
-  in
-  path, vd, vmode
+  path, vd, mode, locks
 
 let lookup_type_full ~errors ~use ~loc lid env =
   match lid with
@@ -3766,7 +3748,7 @@ let find_module_by_name lid env =
 
 let find_value_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, desc, _ = lookup_value ~errors:false ~use:false ~loc lid env in
+  let path, desc, _, _ = lookup_value ~errors:false ~use:false ~loc lid env in
   path, desc
 
 let find_type_by_name lid env =
