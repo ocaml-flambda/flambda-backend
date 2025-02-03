@@ -840,22 +840,31 @@ and replace_equation_or_add_alias_to_const t name ty =
     | Bottom ->
       Misc.fatal_error "Unexpected bottom while adding alias to constant.")
 
-and add_non_alias_equation ~original_name ~raise_on_bottom t lhs rhs_ty
+and add_non_alias_equation ~original_name ~raise_on_bottom t lhs_simple rhs_ty
     ~(meet_type : meet_type) =
-  (* Beware: if we're about to add the equation on a name which is different
-     from the one that the caller passed in, then we need to make sure that the
-     type we assign to that name is the most precise available. This
-     necessitates calling [meet].
+  (* We are about to add a non-alias type on a canonical *simple*. This type
+     might have been provided by the caller of [add_equation], or it might come
+     from an existing equation. In either case, we need to call [meet] with the
+     existing type in order to ensure that we record the most precise type
+     available.
 
      For example, suppose [p] is defined earlier than [x], with [p] of type
-     [ty1] and [x] of type [ty2]. If the caller says that the best type of [p]
-     is now to be "= x", then we will instead add a type "= p" on [x], and
-     demote [x] to [p], due to the definition ordering. However we also need to
-     record the information that [p] has type [ty1 meet ty2], otherwise the type
-     [ty2] would be lost.
+     [ty1] and [x] of type [ty2]. If the caller says that the type of [p] is now
+     to be "= x", then we will instead add a type "= p" on [x] and demote [x] to
+     [p], due to the definition ordering. We then need to record the information
+     that [p] now has type [ty1 meet ty2], otherwise the type [ty2] would be
+     lost.
 
-     Note that with the new meet, we always call [meet], so that we don't depend
-     on the caller giving us "the best type of [p]".
+     If instead we say that the type of [p] is to be "= c", where [c] is a
+     constant, we will add the type "= c" to [p] and demote [p] to [c]. We have
+     no type to record for [c], however we still need to check that [c] is
+     compatible with the previous type of [p].
+
+     Note that, when using the old meet, we only call [meet] if the canonical
+     name after orienting the equation is different from the original name given
+     by the caller. In the situation where the names are the same, we assume
+     that the caller already took care of only giving a type that is more
+     precise than the existing one.
 
      Note also that [p] and [x] may have different name modes! *)
   let[@inline always] name eqn_name ty =
@@ -905,7 +914,7 @@ and add_non_alias_equation ~original_name ~raise_on_bottom t lhs rhs_ty
       | Ok (_, env_extension) ->
         add_env_extension ~raise_on_bottom t env_extension ~meet_type)
   in
-  pattern_match_equation lhs rhs_ty ~name ~const
+  pattern_match_equation lhs_simple rhs_ty ~name ~const
 
 and orient_and_add_equation ~raise_on_bottom t name ty ~meet_type =
   (if Flambda_features.check_light_invariants ()
