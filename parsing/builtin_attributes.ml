@@ -604,7 +604,7 @@ let zero_alloc_attribute (attr : Parsetree.attribute)  =
       | "all_opt" -> Clflags.zero_alloc_assert := A.Assert.Assert_all_opt
       | _ ->
         warn_payload attr.attr_loc attr.attr_name.txt
-          "Only 'all', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
+          "Only 'all', 'all_opt', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
 
 let attribute_with_ignored_payload name attr =
   when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () -> ())
