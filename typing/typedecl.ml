@@ -1114,37 +1114,8 @@ let derive_unboxed_version find_type decl =
       `Abstract_kind a
     | Type_record_unboxed_product _ | Type_variant _
     | Type_open
-    | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                      | Record_ufloat | Record_mixed _))->
+    | Type_record _ ->
       `No_unboxed_version
-    | Type_record (lbls, Record_boxed _) ->
-      let lbls_unboxed =
-        List.map
-          (fun (ld : Types.label_declaration) ->
-              { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
-              ld_mutable = Immutable;
-              ld_modalities = ld.ld_modalities;
-                (* Inherit modalities from the boxed version. Note that these
-                   are affected by the mutability of the boxed label, even
-                   though the unboxed version is always immutable. *)
-              ld_sort = Jkind.Sort.Const.void;
-              ld_type = ld.ld_type;
-              ld_loc = ld.ld_loc;
-              ld_attributes = [];
-              ld_uid = ld.ld_uid;
-                (* Use the same uid as the boxed version so we don't get
-                   label usage warnings when we only use the unboxed label. *)
-            })
-          lbls
-      in
-      let jkind_ls =
-        List.map (fun _ -> Jkind.Builtin.any ~why:Initial_typedecl_env) lbls
-      in
-      let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
-      let kind =
-        Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product)
-      in
-      `Unboxed_kind_jkind (kind, jkind)
   in
   let unboxed_manifest =
     match decl.type_manifest with
@@ -1174,13 +1145,8 @@ let derive_unboxed_version find_type decl =
     match unboxed_kind_jkind, unboxed_manifest with
     | `No_unboxed_version, _ | _, `No_unboxed_version
     | `Abstract_kind _, `No_manifest -> None
-    | `Unboxed_kind_jkind (kind, jkind), `No_manifest ->
-      Some (kind, jkind, None)
     | `Abstract_kind a, `Unboxed_manifest_jkind (ty, jkind) ->
       Some (Type_abstract a, jkind, Some ty)
-    | `Unboxed_kind_jkind (kind, jkind), `Unboxed_manifest_jkind (ty, _jkind) ->
-      (* [check_coherence] will make sure [jkind] and [_jkind] align *)
-      Some (kind, jkind, Some ty)
   in
   match unboxed_kind_jkind_manifest with
   | None -> None
