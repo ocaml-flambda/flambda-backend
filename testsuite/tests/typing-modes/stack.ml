@@ -17,13 +17,54 @@ Line 1, characters 12-31:
 Error: This value escapes its region.
 |}]
 
-let f = ref (stack_ ((fun x -> x) : _ @@ global ))
+let f = ref (stack_ (42, 42))
 [%%expect{|
-Line 1, characters 20-49:
-1 | let f = ref (stack_ ((fun x -> x) : _ @@ global ))
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 12-29:
+1 | let f = ref (stack_ (42, 42))
+                ^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
+let f () =
+  let g = stack_ ((42, 42) : _ @@ global ) in
+  ()
+[%%expect{|
+Line 2, characters 17-42:
+2 |   let g = stack_ ((42, 42) : _ @@ global ) in
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This allocation cannot be on the stack.
 |}]
+
+let f () =
+  let g = ref (stack_ ((42, 42) : _ @@ global )) in
+  ()
+[%%expect{|
+Line 2, characters 22-47:
+2 |   let g = ref (stack_ ((42, 42) : _ @@ global )) in
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This allocation cannot be on the stack.
+|}]
+
+let f () =
+  let g = stack_ (fun x y -> x : 'a -> 'a -> 'a) in
+  ()
+[%%expect{|
+Line 2, characters 17-48:
+2 |   let g = stack_ (fun x y -> x : 'a -> 'a -> 'a) in
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This allocation cannot be on the stack.
+|}]
+
+let f () =
+  let g = ref (stack_ (fun x y -> x : 'a -> 'a -> 'a)) in
+  ()
+[%%expect{|
+Line 2, characters 22-53:
+2 |   let g = ref (stack_ (fun x y -> x : 'a -> 'a -> 'a)) in
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This allocation cannot be on the stack.
+|}]
+
 
 let f = ref (stack_ (2, 3))
 [%%expect{|
