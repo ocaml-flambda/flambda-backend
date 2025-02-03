@@ -107,6 +107,11 @@ let[@inline always] must_be_name t =
     ~name:(fun name ~coercion -> Some (name, coercion))
     ~const:(fun _ -> None)
 
+let[@inline always] must_be_const t =
+  pattern_match t
+    ~const:(fun const -> Some const)
+    ~name:(fun _ ~coercion:_ -> None)
+
 let free_names_with_mode t mode =
   pattern_match t
     ~name:(fun name ~coercion ->
