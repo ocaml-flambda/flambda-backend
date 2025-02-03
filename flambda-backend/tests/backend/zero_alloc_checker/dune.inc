@@ -1138,7 +1138,7 @@
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets fail27.output.corrected)
  (deps (:ml fail27.ml) filter.sh)
  (action
@@ -1152,12 +1152,12 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (deps fail27.output fail27.output.corrected)
  (action (diff fail27.output fail27.output.corrected)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets fail27_opt.output.corrected)
  (deps (:ml fail27_opt.ml) filter.sh)
  (action
@@ -1171,12 +1171,12 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (deps fail27_opt.output fail27_opt.output.corrected)
  (action (diff fail27_opt.output fail27_opt.output.corrected)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets fail27_default.output.corrected)
  (deps (:ml fail27_default.ml) filter.sh)
  (action
@@ -1190,12 +1190,12 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (deps fail27_default.output fail27_default.output.corrected)
  (action (diff fail27_default.output fail27_default.output.corrected)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets fail28.output.corrected)
  (deps (:ml fail28.ml) filter.sh)
  (action
@@ -1209,12 +1209,12 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (deps fail28.output fail28.output.corrected)
  (action (diff fail28.output fail28.output.corrected)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets fail28_opt.output.corrected)
  (deps (:ml fail28_opt.ml) filter.sh)
  (action
@@ -1228,6 +1228,6 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (deps fail28_opt.output fail28_opt.output.corrected)
  (action (diff fail28_opt.output fail28_opt.output.corrected)))
