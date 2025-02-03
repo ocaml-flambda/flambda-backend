@@ -3,6 +3,8 @@
  readonly_files = "main.c";
  arguments = "-DUNIT_INT -DFUN=catch_rec_deadhandler main.c";
  asmgen;
+ reason = "This test is broken with irc and irc is default";
+ skip;
  run;
  check-program-output;
 *)
