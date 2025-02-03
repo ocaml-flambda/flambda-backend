@@ -56,13 +56,6 @@ type error =
         expected : Global_module.Name.t;
         actual : Global_module.Name.t;
       }
-  | Inconsistent_global_name_resolution of {
-      name: Global_module.Name.t;
-      old_global : Global_module.With_precision.t;
-      new_global : Global_module.With_precision.t;
-      first_mentioned_by : Global_module.Name.t;
-      now_mentioned_by : Global_module.Name.t;
-    }
   | Unbound_module_as_argument_value of
       { instance: Global_module.Name.t;
         value: Global_module.Name.t;
@@ -92,9 +85,15 @@ type can_load_cmis =
   | Can_load_cmis
   | Cannot_load_cmis of Lazy_backtrack.log
 
+(* Whether a global name was first encountered in this module or by importing
+   from somewhere else *)
+type global_name_mentioned_by =
+  | Current
+  | Other of Global_module.Name.t
+
 type global_name_info = {
   gn_global : Global_module.With_precision.t;
-  gn_mentioned_by : Global_module.Name.t; (* For error reporting *)
+  gn_mentioned_by : global_name_mentioned_by; (* For error reporting *)
 }
 
 (* Data relating directly to a .cmi - does not depend on arguments *)
@@ -402,15 +401,6 @@ let find_import ~allow_hidden penv ~check modname =
           acknowledge_import penv ~check modname psig
 
 let remember_global { globals; _ } global ~precision ~mentioned_by =
-  let mentioned_by =
-    match mentioned_by with
-    | `Other global_module -> global_module
-    | `Current ->
-        (* This leaves off the prefix, but we're only using this for reporting
-           what should be internal errors *)
-        CU.get_current_or_dummy ()
-        |> CU.to_global_name_without_prefix
-  in
   let global_name = Global_module.to_name global in
   match Hashtbl.find globals global_name with
   | exception Not_found ->
@@ -425,24 +415,35 @@ let remember_global { globals; _ } global ~precision ~mentioned_by =
         Global_module.With_precision.meet old_global new_global
       with
       | Ok updated_global ->
-        if not (old_global == updated_global) then
-          Hashtbl.replace globals global_name
-            { gn_global = updated_global;
-              gn_mentioned_by = first_mentioned_by }
+          if not (old_global == updated_global) then
+            Hashtbl.replace globals global_name
+              { gn_global = updated_global;
+                gn_mentioned_by = first_mentioned_by }
       | Error Inconsistent ->
-          error (Inconsistent_global_name_resolution {
-              name = global_name;
-              old_global;
-              new_global;
-              first_mentioned_by;
-              now_mentioned_by = mentioned_by;
-            })
+          let pp_mentioned_by ppf = function
+            | Current ->
+                Format.fprintf ppf "this compilation unit"
+            | Other modname ->
+                Style.as_inline_code Global_module.Name.print ppf modname
+          in
+          Misc.fatal_errorf
+            "@[<hov>The name %a@ was bound to %a@ by %a@ \
+             but it is instead bound to %a@ by %a.@]"
+            (Style.as_inline_code Global_module.Name.print) global_name
+            (Style.as_inline_code Global_module.With_precision.print) old_global
+            pp_mentioned_by first_mentioned_by
+            (Style.as_inline_code Global_module.With_precision.print) new_global
+            pp_mentioned_by mentioned_by
 
 let rec approximate_global_by_name penv global_name =
   let { param_imports; _ } = penv in
   (* We're not looking up this global's .cmi, so we can't know its parameters
-     exactly. So we can only assume that every parameter that it's not already
-     getting an argument for is a hidden argument. *)
+     exactly. Therefore we don't know what the hidden arguments in the
+     elaborated [Global_module.t] should be. However, we know that each hidden
+     argument is (a) not a visible argument and (b) a parameter of the importing
+     module (subset rule). Therefore it is a sound overapproximation to take as
+     a hidden argument each known parameter that isn't the name of a visible
+     argument. *)
   let ({ head; args = visible_args } : Global_module.Name.t) = global_name in
   let params_not_being_passed, visible_args =
     List.fold_left_map
@@ -466,7 +467,7 @@ let rec approximate_global_by_name penv global_name =
          ({ param; value = arg_of_param param } : _ Global_module.Argument.t))
   in
   let global = Global_module.create_exn head visible_args ~hidden_args in
-  remember_global penv global ~precision:Approximate ~mentioned_by:`Current;
+  remember_global penv global ~precision:Approximate ~mentioned_by:Current;
   global
 
 let current_unit_is_aux name ~allow_args =
@@ -692,7 +693,7 @@ and acknowledge_new_pers_name penv check global_name global import =
   Array.iter
     (fun (bound_global, precision) ->
        remember_global penv bound_global ~precision
-         ~mentioned_by:(`Other global_name))
+         ~mentioned_by:(Other global_name))
     sign.bound_globals;
   let pn = { pn_import = import;
              pn_global = global;
@@ -701,7 +702,7 @@ and acknowledge_new_pers_name penv check global_name global import =
            } in
   if check then check_consistency penv import;
   Hashtbl.add persistent_names global_name pn;
-  remember_global penv global ~precision:Exact ~mentioned_by:`Current;
+  remember_global penv global ~precision:Exact ~mentioned_by:Current;
   pn
 
 and find_pers_name ~allow_hidden penv ~check name ~allow_excess_args =
@@ -942,7 +943,6 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
         | Imported_module_has_no_such_parameter _ -> assert false
         | Not_compiled_as_argument _ -> assert false
         | Argument_type_mismatch _ -> assert false
-        | Inconsistent_global_name_resolution _ -> assert false
         | Unbound_module_as_argument_value _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
@@ -1210,18 +1210,6 @@ let report_error ppf =
         (Style.as_inline_code Global_module.Name.print) actual
         (Style.as_inline_code Location.print_filename) filename
         Global_module.Name.print expected
-  | Inconsistent_global_name_resolution
-      { name; old_global; new_global; first_mentioned_by; now_mentioned_by } ->
-      (* This isn't something users should see, so the odd "(approx)" in the
-         output should be fine. *)
-      fprintf ppf
-        "@[<hov>The name %a@ was bound to %a@ by %a@ \
-         but it is instead bound to %a@ by %a.@]"
-        (Style.as_inline_code Global_module.Name.print) name
-        (Style.as_inline_code Global_module.With_precision.print) old_global
-        (Style.as_inline_code Global_module.Name.print) first_mentioned_by
-        (Style.as_inline_code Global_module.With_precision.print) new_global
-        (Style.as_inline_code Global_module.Name.print) now_mentioned_by
   | Unbound_module_as_argument_value { instance; value } ->
       fprintf ppf
         "@[<hov>Unbound module %a@ in instance %a@]"

@@ -53,13 +53,6 @@ type error =
         expected : Global_module.Name.t;
         actual : Global_module.Name.t;
       }
-  | Inconsistent_global_name_resolution of
-      { name : Global_module.Name.t;
-        old_global : Global_module.With_precision.t;
-        new_global : Global_module.With_precision.t;
-        first_mentioned_by : Global_module.Name.t;
-        now_mentioned_by : Global_module.Name.t;
-      }
   | Unbound_module_as_argument_value of
       { instance : Global_module.Name.t; value : Global_module.Name.t; }
 
