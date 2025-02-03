@@ -68,7 +68,7 @@ end = struct
   let liveness t id =
     Cfg_with_infos.(liveness_find (Lazy.force t.cfg_with_infos) id).before
 
-  let extra_debug = true
+  let extra_debug = false
 
   let dump_if c t =
     if c && !Flambda_backend_flags.dump_vectorize
