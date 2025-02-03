@@ -3616,12 +3616,16 @@ module Head_of_kind_naked_nativeint =
 module Head_of_kind_naked_vec128 =
   Make_head_of_kind_naked_number (Vector_types.Vec128.Bit_pattern)
 
-let rec recover_some_aliases t =
+let recover_const_alias_of_simple simple =
+  Simple.pattern_match simple
+    ~const:(fun const -> Some const)
+    ~name:(fun _ ~coercion:_ -> None)
+
+let rec recover_const_alias t : RWC.t option =
   match t with
   | Value ty -> (
     match TD.descr ty with
     | Unknown | Bottom
-    | Ok (Equals _)
     (* CR vlaviron: Recover null aliases *)
     | Ok (No_alias { is_null = Maybe_null; _ })
     | Ok
@@ -3634,7 +3638,8 @@ let rec recover_some_aliases t =
                   | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
                   | Boxed_nativeint _ | String _ | Closures _ | Array _ ) )
           }) ->
-      t
+      None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok
         (No_alias
           { is_null = Not_null;
@@ -3642,87 +3647,80 @@ let rec recover_some_aliases t =
               Ok (Variant { immediates; blocks; extensions = _; is_unique = _ })
           }) -> (
       match blocks with
-      | Unknown -> t
+      | Unknown -> None
       | Known blocks -> (
         if not (Row_like_for_blocks.is_bottom blocks)
-        then t
+        then None
         else
           match immediates with
-          | Unknown -> t
+          | Unknown -> None
           | Known immediates -> (
-            let t' = recover_some_aliases immediates in
-            match t' with
-            | Naked_immediate ty -> (
-              match TD.descr ty with
-              | Ok (Equals alias) ->
-                Simple.pattern_match' alias
-                  ~var:(fun _ ~coercion:_ -> t)
-                  ~symbol:(fun _ ~coercion:_ -> t)
-                  ~const:(fun const ->
-                    match Reg_width_const.descr const with
-                    | Naked_immediate i -> this_tagged_immediate i
-                    | Tagged_immediate _ | Naked_float _ | Naked_float32 _
-                    | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-                    | Naked_vec128 _ | Null ->
-                      Misc.fatal_errorf
-                        "Immediates case returned wrong kind of constant:@ %a"
-                        Reg_width_const.print const)
-              | Unknown | Bottom | Ok (No_alias _) -> t)
-            | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-            | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-            | Region _ ->
-              Misc.fatal_errorf "Immediates case returned wrong kind:@ %a" print
-                t' ()))))
+            match recover_const_alias immediates with
+            | None -> None
+            | Some const -> (
+              match RWC.descr const with
+              | Naked_immediate i -> Some (RWC.tagged_immediate i)
+              | Tagged_immediate _ | Naked_float _ | Naked_float32 _
+              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+              | Naked_vec128 _ | Null ->
+                Misc.fatal_errorf
+                  "Immediates case returned wrong kind of constant:@ %a"
+                  Reg_width_const.print const)))))
   | Naked_immediate ty -> (
     match TD.descr ty with
-    | Unknown | Bottom
-    | Ok (Equals _)
-    | Ok (No_alias (Is_int _ | Get_tag _ | Is_null _)) ->
-      t
+    | Unknown | Bottom | Ok (No_alias (Is_int _ | Get_tag _ | Is_null _)) ->
+      None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok (No_alias (Naked_immediates is)) -> (
       match Targetint_31_63.Set.get_singleton is with
-      | Some i -> this_naked_immediate i
-      | None -> t))
+      | Some i -> Some (RWC.naked_immediate i)
+      | None -> None))
   | Naked_float32 ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (Equals _) -> t
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok (No_alias fs) -> (
       match Float32.Set.get_singleton fs with
-      | Some f -> this_naked_float32 f
-      | None -> t))
+      | Some f -> Some (RWC.naked_float32 f)
+      | None -> None))
   | Naked_float ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (Equals _) -> t
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok (No_alias fs) -> (
       match Float.Set.get_singleton fs with
-      | Some f -> this_naked_float f
-      | None -> t))
+      | Some f -> Some (RWC.naked_float f)
+      | None -> None))
   | Naked_int32 ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (Equals _) -> t
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok (No_alias is) -> (
       match Int32.Set.get_singleton is with
-      | Some f -> this_naked_int32 f
-      | None -> t))
+      | Some f -> Some (RWC.naked_int32 f)
+      | None -> None))
   | Naked_int64 ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (Equals _) -> t
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok (No_alias is) -> (
       match Int64.Set.get_singleton is with
-      | Some f -> this_naked_int64 f
-      | None -> t))
+      | Some f -> Some (RWC.naked_int64 f)
+      | None -> None))
   | Naked_nativeint ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (Equals _) -> t
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok (No_alias is) -> (
       match Targetint_32_64.Set.get_singleton is with
-      | Some f -> this_naked_nativeint f
-      | None -> t))
+      | Some f -> Some (RWC.naked_nativeint f)
+      | None -> None))
   | Naked_vec128 ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (Equals _) -> t
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> recover_const_alias_of_simple simple
     | Ok (No_alias is) -> (
       match Vec128.Set.get_singleton is with
-      | Some f -> this_naked_vec128 f
-      | None -> t))
-  | Rec_info _ | Region _ -> t
+      | Some f -> Some (RWC.naked_vec128 f)
+      | None -> None))
+  | Rec_info _ | Region _ -> None
