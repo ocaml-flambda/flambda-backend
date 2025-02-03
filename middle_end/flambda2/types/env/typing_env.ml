@@ -840,7 +840,7 @@ and replace_equation_or_add_alias_to_const t name ty =
     | Bottom ->
       Misc.fatal_error "Unexpected bottom while adding alias to constant.")
 
-and add_oriented_equation ~original_name ~raise_on_bottom t simple ty
+and add_non_alias_equation ~original_name ~raise_on_bottom t simple ty
     ~(meet_type : meet_type) =
   (* Beware: if we're about to add the equation on a name which is different
      from the one that the caller passed in, then we need to make sure that the
@@ -989,7 +989,7 @@ and orient_and_add_equation ~raise_on_bottom t name ty ~meet_type =
   match inputs with
   | None -> t
   | Some (simple, t, ty) ->
-    add_oriented_equation ~original_name:name ~raise_on_bottom t simple ty
+    add_non_alias_equation ~original_name:name ~raise_on_bottom t simple ty
       ~meet_type
 
 and[@inline always] add_equation ~raise_on_bottom t name ty ~meet_type =
