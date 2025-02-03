@@ -1772,7 +1772,7 @@ let for_boxed_variant cstrs =
        (* CR layouts v2.8: This is sad, but I don't know how to account for
           existentials in the with_bounds. See doc named "Existential
           with_bounds". *)
-    then Builtin.value ~why:Boxed_variant |> mark_best
+    then Builtin.value ~why:Boxed_variant
     else
       let base =
         (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
