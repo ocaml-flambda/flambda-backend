@@ -1048,21 +1048,26 @@ let rec best_effort_compare_type_expr te1 te2 =
       match ty.desc with
       (* Types which must be compared by id *)
       | Tvar _
+      | Tunivar _
       | Tobject (_, _)
       | Tfield (_, _, _, _)
       | Tnil
-      | Tlink _
-      | Tsubst (_, _)
       | Tvariant _
       | Tpackage (_, _)
       | Tarrow (_, _, _, _)
-        -> -ty.id
+        ->
+        (* This negation is important! We want all these types to compare strictly /less/
+           than the structural ones - the easiest way to make that happen is to make the
+           id negative, and ensure the ranks of all the other variants are positive *)
+        -ty.id
       (* Types which we know how to compare structurally*)
       | Ttuple _ -> 2
       | Tunboxed_tuple _ -> 3
-      | Tunivar _ -> 4
       | Tconstr (_, _, _) -> 5
       | Tpoly (_, _) -> 6
+      (* Types we should never see *)
+      | Tlink _
+      | Tsubst (_, _) -> Misc.fatal_error "Tlink or TSubst encountered in With_bounds_types"
     in
     match te1.desc, te2.desc with
     | Ttuple elts1, Ttuple elts2
