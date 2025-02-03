@@ -369,54 +369,44 @@ let compare { dbg = dbg1; assume_zero_alloc = a1; }
   let res = Dbg.compare dbg1 dbg2 in
   if res <> 0 then res else ZA.Assume_info.compare a1 a2
 
-let print_item ~include_dir ppf item =
-  let file = item.dinfo_file in
-  let file =
-    match item.dinfo_dir with
-    | None -> file
-    | Some dir -> if include_dir then Filename.concat dir file else file
-  in
+let print_item ppf item =
   Format.fprintf ppf "%a:%i"
-    Location.print_filename file
+    Location.print_filename item.dinfo_file
     item.dinfo_line;
   if item.dinfo_char_start >= 0 then begin
     Format.fprintf ppf ",%i--%i" item.dinfo_char_start item.dinfo_char_end
   end
 
-let rec print ~sep ~fs_prefix ~include_dir ~include_uid
-          ~include_fs ~include_scope ppf t =
+let rec print_compact ppf t =
+  match t with
+  | [] -> ()
+  | [item] -> print_item ppf item
+  | item::t ->
+    print_item ppf item;
+    Format.fprintf ppf ";";
+    print_compact ppf t
+
+let print_compact ppf { dbg; } = print_compact ppf dbg
+
+let rec print_compact_extended ppf t =
   let print_item item =
-    print_item ~include_dir ppf item;
+    print_item ppf item;
     (match item.dinfo_uid with
     | None -> ()
-    | Some uid ->
-      if include_uid then Format.fprintf ppf "[%s]" uid);
-    if include_scope then
-      Format.fprintf ppf "[%s]"
-        (Scoped_location.string_of_scopes ~include_zero_alloc:false
-           item.dinfo_scopes);
+    | Some uid -> Format.fprintf ppf "[%s]" uid);
     (match item.dinfo_function_symbol with
     | None -> ()
-    | Some function_symbol ->
-      if include_fs then Format.fprintf ppf "[%s%s]" fs_prefix function_symbol)
+    | Some function_symbol -> Format.fprintf ppf "[FS=%s]" function_symbol)
   in
   match t with
   | [] -> ()
   | [item] -> print_item item
   | item::t ->
     print_item item;
-    Format.fprintf ppf "%s" sep;
-    print ~sep ~fs_prefix ~include_dir ~include_uid ~include_fs ~include_scope ppf t
+    Format.fprintf ppf ";";
+    print_compact_extended ppf t
 
-let[@inline always] print_with_defaults ~include_uid ~include_fs ppf dbg =
-  print ~sep:";" ~fs_prefix:"FS=" ~include_uid ~include_fs ~include_dir:false
-    ~include_scope:false ppf dbg
-
-let print_compact_extended ppf { dbg; } =
-  print_with_defaults ~include_uid:true ~include_fs:true ppf dbg
-
-let print_compact ppf { dbg; } =
-  print_with_defaults ~include_uid:false ~include_fs:false ppf dbg
+let print_compact_extended ppf { dbg; } = print_compact_extended ppf dbg
 
 let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2 } =
@@ -436,3 +426,4 @@ let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; }
 let assume_zero_alloc t = t.assume_zero_alloc
 
 let get_dbg t = t.dbg
+
