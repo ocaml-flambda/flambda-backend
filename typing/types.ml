@@ -1066,8 +1066,8 @@ let rec best_effort_compare_type_expr te1 te2 =
       | Tconstr (_, _, _) -> 5
       | Tpoly (_, _) -> 6
       (* Types we should never see *)
-      | Tlink _
-      | Tsubst (_, _) -> Misc.fatal_error "Tlink or TSubst encountered in With_bounds_types"
+      | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
+      | Tsubst (_, _) -> Misc.fatal_error "TSubst encountered in With_bounds_types"
     in
     match te1.desc, te2.desc with
     | Ttuple elts1, Ttuple elts2
