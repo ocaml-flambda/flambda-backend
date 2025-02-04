@@ -2704,20 +2704,3 @@ let meet_shape env t ~shape : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
   else match meet env t shape with Bottom -> Bottom | Ok (_, env) -> Ok env
-
-let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
-  if TE.is_bottom env
-  then Bottom
-  else
-    let scope = TE.current_scope env in
-    let scoped_env = TE.increment_scope env in
-    match TE.add_env_extension_strict scoped_env ext1 ~meet_type with
-    | Bottom -> Bottom
-    | Ok scoped_env -> (
-      match TE.add_env_extension_strict scoped_env ext2 ~meet_type with
-      | Bottom -> Bottom
-      | Ok scoped_env ->
-        let env_extension =
-          TEL.as_extension_without_bindings (TE.cut scoped_env ~cut_after:scope)
-        in
-        Ok env_extension)
