@@ -13,6 +13,7 @@
 (**************************************************************************)
 
 module Handler_index : sig
+  @@ portable
 
   type ('es1, 'es2) t : immediate
   (** [(es1, es2) t] represents an index into the effect list [es2]. [es1]
@@ -66,6 +67,7 @@ end = struct
 end
 
 module Raw_handler : sig
+  @@ portable
 
   type ('e, 'es) t : immediate
   (** [(e, es) t] is a handler for the effect [e], which must be an element
@@ -115,6 +117,7 @@ end = struct
 end
 
 module Handler : sig
+  @@ portable
 
   type 'e t' = private ..
   (** [e t] is a handler for the effect [e]. *)
@@ -297,6 +300,7 @@ end = struct
 end
 
 module Mapping : sig
+  @@ portable
 
   type 'es t
   (** [es t] represents a mutable mapping of handlers selected from
@@ -309,7 +313,7 @@ module Mapping : sig
   (** [lookup h t] looks up handler [h] in mapping [t] and returns the
       corresponding handler. *)
 
-  val empty : unit t
+  val empty : unit -> unit t
   (** [empty] is the mapping out of the empty list. *)
 
   val create : local_ 'es Handler.List.t -> 'es t
@@ -330,7 +334,7 @@ end = struct
 
   type element
 
-  let uninitialized : element = Obj.magic (-1)
+  let uninitialized () : element = Obj.magic (-1)
 
   type 'es1 t = element array
 
@@ -338,10 +342,10 @@ end = struct
     let elt = Array.unsafe_get t (Raw_handler.to_int h) in
     (Obj.magic elt : e Handler.t)
 
-  let empty = [||]
+  let empty () = [||]
 
   let make (type es) (idx : (unit, es) Handler_index.t) : es t =
-    Array.make (Handler_index.to_int idx) uninitialized
+    Array.make (Handler_index.to_int idx) (uninitialized ())
 
   let set_element (type e esr es) (t : es t)
       (idx : (e * esr, es) Handler_index.t) (local_ h : e Handler.t) =
@@ -390,27 +394,27 @@ type ('a, 'e) op
 
 type ('a, 'e) perform = ('a, 'e) op * 'e Handler.t'
 
-external perform : ('a, 'e) perform -> 'a = "%perform"
+external perform : ('a, 'e) perform -> 'a @@ portable = "%perform"
 
 type (-'a, +'b) stack : immediate
 
 type last_fiber : immediate
 
-external resume : ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b = "%resume"
-external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b = "%runstack"
+external resume : ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b @@ portable = "%resume"
+external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b @@ portable = "%runstack"
 
 type (-'a, +'b) cont
 
-external take_cont_noexc : ('a, 'b) cont -> ('a, 'b) stack =
+external take_cont_noexc : ('a, 'b) cont -> ('a, 'b) stack @@ portable =
   "caml_continuation_use_noexc" [@@noalloc]
 
 external get_cont_callstack :
-  ('a, 'b) cont -> int -> Printexc.raw_backtrace =
+  ('a, 'b) cont -> int -> Printexc.raw_backtrace @@ portable =
   "caml_get_continuation_callstack"
 
-external cont_last_fiber : ('a, 'b) cont -> last_fiber = "%field1"
+external cont_last_fiber : ('a, 'b) cont -> last_fiber @@ portable = "%field1"
 external cont_set_last_fiber :
-  ('a, 'b) cont -> last_fiber -> unit = "%setfield1"
+  ('a, 'b) cont -> last_fiber -> unit @@ portable = "%setfield1"
 
 type 'b effc =
   { effc : 'o 'e. ('o, 'e) perform -> ('o, 'b) cont -> last_fiber -> 'b }
@@ -420,7 +424,7 @@ external alloc_stack :
   ('a -> 'b) ->
   (exn -> 'b) ->
   'b effc ->
-  ('a, 'b) stack = "caml_alloc_stack"
+  ('a, 'b) stack @@ portable = "caml_alloc_stack"
 
 type (+'a, 'es) r =
   | Val : global_ 'a -> ('a, 'es) r
@@ -435,7 +439,7 @@ let valuec v = Val v
 let exnc e = Exn e
 
 external reperform :
-  ('a, 'e) perform -> ('a, 'b) cont -> last_fiber -> 'b = "%reperform"
+  ('a, 'e) perform -> ('a, 'b) cont -> last_fiber -> 'b @@ portable = "%reperform"
 
 let alloc_cont
     (type a b h e es)
@@ -531,18 +535,16 @@ let fiber (type a b e)
   let module H = Handler.Create(Effs) in
   let handler : (e, e * unit) Raw_handler.t = Raw_handler.zero in
   let handler : e Handler.t = { h = H.C handler } in
-  let mapping = Mapping.empty in
+  let mapping = Mapping.empty () in
   let cont = alloc_cont (module H) f handler in
   Cont { cont; mapping }
 
 let fiber_with (type a b e es) (local_ l : es Handler.List.Length.t)
     (f : local_ (e * es) Handler.List.t -> a -> b) =
-  let module Effs = struct
+  let module H = Handler.Create(struct
       type nonrec e = e
       type nonrec es = es
-    end
-  in
-  let module H = Handler.Create(Effs) in
+    end) in
   let handler : (e, e * es) Raw_handler.t = Raw_handler.zero in
   let handlers : (e * es) Handler.List.t =
     { h = H.C handler } :: H.initial ~length:l
@@ -561,7 +563,7 @@ let run (type a e) (f : local_ e Handler.t -> a) =
   let handler : (e, e * unit) Raw_handler.t = Raw_handler.zero in
   let handler : e Handler.t = { h =  H.C handler } in
   let res = run_stack (module H) f handler in
-  handle Mapping.empty res
+  handle (Mapping.empty ()) res
 
 let run_with (type a e es) (local_ hs : es Handler.List.t)
     (f : local_ (e * es) Handler.List.t -> a) =
@@ -578,6 +580,39 @@ let run_with (type a e es) (local_ hs : es Handler.List.t)
   let mapping = Mapping.create hs in
   let res = run_stack (module H) f handlers in
   handle mapping res
+
+module type Aux = sig
+  val fiber : 'a 'b 'e . ('e Handler.t @ local -> 'a -> 'b)
+    -> ('a, 'b, 'e, unit) continuation
+
+  val fiber_with : 'a 'b 'e 'es . 'es Handler.List.Length.t @ local
+    -> (('e * 'es) Handler.List.t @ local -> 'a -> 'b)
+    -> ('a, 'b, 'e, 'es) continuation
+
+  val run : 'a 'e . ('e Handler.t @ local -> 'a)
+    -> ('a, 'e, unit) res
+
+  val run_with : 'a 'e 'es . 'es Handler.List.t @ local
+    -> (('e * 'es) Handler.List.t @ local -> 'a)
+    -> ('a, 'e, 'es) res
+end
+
+module type PortableAux = sig include Aux @@ portable end
+let magic_aux (aux : (module Aux)) : (module PortableAux) = Obj.magic aux
+
+(* CR dkalinichenko: [fiber], [fiber_wth], [run] and [run_with] are not
+   [portable] because they use first-class modules, even though it's safe
+   to declare them [portable] becuase the first-class module is created locally.
+   
+   Since they are polymorphic, they can't just be [Obj.magic_portable]ed either
+   due to the value restriction. I ended up packing them into a first class module
+   and [Obj.magic]ing it: *)
+include (val (magic_aux (module struct
+  let fiber = fiber
+  let fiber_with = fiber_with
+  let run = run
+  let run_with = run_with
+end)))
 
 module Continuation = struct
 
@@ -612,6 +647,7 @@ let discontinue_with_backtrace (type a b es)
   (Obj.magic res : b)
 
 module type S = sig
+  @@ portable
 
   type ('o, 'e) ops
 
@@ -711,6 +747,7 @@ module type S = sig
 end
 
 module type S1 = sig
+  @@ portable
 
   type ('o, 'p, 'e) ops
 
@@ -810,6 +847,7 @@ module type S1 = sig
 end
 
 module type S2 = sig
+  @@ portable
 
   type ('o, 'p, 'q, 'e) ops
 

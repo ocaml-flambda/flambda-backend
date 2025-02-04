@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Effects.
 
     @since 5.0 *)
@@ -150,6 +152,7 @@ val discontinue_with_backtrace :
 
 (** The signature for effects with no type parameters *)
 module type S = sig
+  @@ portable
 
   type t
   (** [t] represents the effect. It only appears as the argument to
@@ -161,6 +164,7 @@ module type S = sig
       with [t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type eff := t
 
@@ -305,6 +309,7 @@ end
 
 (** The signature for effects with one type parameter *)
 module type S1 = sig
+  @@ portable
 
   type 'p t
   (** ['p t] represents the effect. It only appears as the argument to
@@ -316,6 +321,7 @@ module type S1 = sig
       with ['p t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type 'p eff := 'p t
 
@@ -450,6 +456,7 @@ end
 
 (** The signature for effects with two type parameters *)
 module type S2 = sig
+  @@ portable
 
   type ('p, 'q) t
   (** [('p, 'q) t] represents the effect. It only appears as the argument to
@@ -461,6 +468,7 @@ module type S2 = sig
       with [('p, 'q) t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type ('p, 'q) eff := ('p, 'q) t
 
