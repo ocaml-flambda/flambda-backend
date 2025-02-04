@@ -965,7 +965,7 @@ let parse_zero_alloc_attribute ~in_signature ~on_application ~default_arity attr
           let no_other_payload = List.compare_length_with rest 0 = 0 in
           if is_zero_alloc_check_enabled ~opt:true && no_other_payload then
             (if on_application then
-               (* Treat is if there is no attribute.
+               (* Treat as if there is no attribute.
                   Check is not allowed on applications. *)
                Default_zero_alloc
              else
