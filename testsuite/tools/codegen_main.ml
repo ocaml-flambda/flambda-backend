@@ -74,7 +74,6 @@ let main() =
      "-dprefer", Arg.Set dump_prefer, "";
      "-dalloc", Arg.Set dump_regalloc, "";
      "-dreload", Arg.Set dump_reload, "";
-     "-dscheduling", Arg.Set dump_scheduling, "";
      "-dlinear", Arg.Set dump_linear, "";
      "-dtimings", Arg.Unit (fun () -> profile_columns := [ `Time ]), "";
      "-dcounters", Arg.Unit (fun () -> profile_columns := [ `Counters ]), "";
