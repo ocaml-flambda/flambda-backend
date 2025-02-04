@@ -10,7 +10,7 @@ type t = |
 
 let f (x:t) = match x with _ -> .
 [%%expect{|
-val f : t -> 'a = <fun>
+val f : ('a : value_or_null). t -> 'a = <fun>
 |}];;
 
 type m = A of t | B of int * t | C of {g:t}
@@ -22,7 +22,7 @@ let g (x:m) =
   match x with
   | A _ | B _ | C _ -> .
 [%%expect{|
-val g : m -> 'a = <fun>
+val g : ('a : value_or_null). m -> 'a = <fun>
 |}]
 
 let f : t option -> int = function None -> 3

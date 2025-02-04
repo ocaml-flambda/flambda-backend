@@ -406,8 +406,8 @@ module SSMap :
     val of_seq : (key * 'a) Seq.t -> 'a t
     type data = string
     type map = data t
-    val of_t : 'a -> 'a
-    val to_t : 'a -> 'a
+    val of_t : ('a : value_or_null). 'a -> 'a
+    val to_t : ('a : value_or_null). 'a -> 'a
   end
 |}];;
 

@@ -415,7 +415,7 @@ Error: This value is "once" but expected to be "many".
 let unique (unique_ x) = x
 
 [%%expect{|
-val unique : 'a @ unique -> 'a = <fun>
+val unique : ('a : value_or_null). 'a @ unique -> 'a = <fun>
 |}]
 
 let string_unshare = let x : string = "hello" in ignore x; unique x
@@ -687,8 +687,10 @@ let weaken_immutable_data : 'a -> 'a @ contended once nonportable =
 
 let take_strong_immutable_data (x @ uncontended many portable) = ()
 [%%expect{|
-val weaken_immutable_data : 'a -> 'a @ once contended = <fun>
-val take_strong_immutable_data : 'a @ portable -> unit = <fun>
+val weaken_immutable_data : ('a : value_or_null). 'a -> 'a @ once contended =
+  <fun>
+val take_strong_immutable_data : ('a : value_or_null). 'a @ portable -> unit =
+  <fun>
 |}]
 
 let weaken_mutable_data : 'a -> 'a @ once nonportable =
@@ -696,8 +698,9 @@ let weaken_mutable_data : 'a -> 'a @ once nonportable =
 
 let take_strong_mutable_data (x @ many portable) = ()
 [%%expect{|
-val weaken_mutable_data : 'a -> 'a @ once = <fun>
-val take_strong_mutable_data : 'a @ portable -> unit = <fun>
+val weaken_mutable_data : ('a : value_or_null). 'a -> 'a @ once = <fun>
+val take_strong_mutable_data : ('a : value_or_null). 'a @ portable -> unit =
+  <fun>
 |}]
 
 (* mode crossing on the right *)

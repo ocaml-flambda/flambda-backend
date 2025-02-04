@@ -266,7 +266,8 @@ let[@tail_mod_cons] rec effects f = function
               (apply effects_dps block 1 f (field_imm 1 param) tailcall)))
           (setfield_ptr(heap-init)_computed dst offset 0))))
   (apply (field_imm 1 (global Toploop!)) "effects" effects))
-val effects : ('a -> 'b) -> ('a * 'a) list -> 'b list = <fun>
+val effects :
+  ('a : value_or_null) 'b. ('a -> 'b) -> ('a * 'a) list -> 'b list = <fun>
 |}]
 
 (* Check the case where several constructors

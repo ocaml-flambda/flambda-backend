@@ -52,14 +52,14 @@ module M : sig val v : (#c as 'a) -> 'a end
 
 let id = let module M = struct end in fun x -> x;;
 [%%expect{|
-val id : 'a -> 'a = <fun>
+val id : ('a : value_or_null). 'a -> 'a = <fun>
 |}];;
 
 (* PR#4511 *)
 
 let ko = let module M = struct end in fun _ -> ();;
 [%%expect{|
-val ko : 'a -> unit = <fun>
+val ko : ('a : value_or_null). 'a -> unit = <fun>
 |}];;
 
 (* PR#5993 *)

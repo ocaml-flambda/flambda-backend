@@ -209,7 +209,7 @@ end
 module All_annotations_correctly_used :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t
-    val graft : 'a -> 'b
+    val graft : ('a : value_or_null) ('b : value_or_null). 'a -> 'b
     val map : ('a -> 'b) -> 'a t -> 'b t
   end
 |}]
@@ -276,7 +276,7 @@ Warning 51 [wrong-tailcall-expectation]: expected tailcall
 module All_annotations_flipped :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t
-    val graft : 'a -> 'b
+    val graft : ('a : value_or_null) ('b : value_or_null). 'a -> 'b
     val map_wrong : ('a -> 'b) -> 'a t -> 'b t
   end
 |}]

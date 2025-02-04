@@ -19,8 +19,11 @@ let foo xy k_good k_bad =
    | exception Odd -> k_bad ()
 [%%expect{|
 exception Odd
-val x_must_be_even : (x:int * 'a) -> x:int * 'a = <fun>
-val foo : (x:int * 'a) -> (unit -> 'b) -> (unit -> 'b) -> 'b = <fun>
+val x_must_be_even : ('a : value_or_null). (x:int * 'a) -> x:int * 'a = <fun>
+val foo :
+  ('a : value_or_null) ('b : value_or_null).
+    (x:int * 'a) -> (unit -> 'b) -> (unit -> 'b) -> 'b =
+  <fun>
 |}]
 
 (* Test correctness *)
@@ -194,7 +197,9 @@ val xy_id : (y:int * x:int) -> xy = <fun>
 
 let swap (~x, ~y) = ~y, ~x
 [%%expect{|
-val swap : (x:'a * y:'b) -> y:'b * x:'a = <fun>
+val swap :
+  ('a : value_or_null) ('b : value_or_null). (x:'a * y:'b) -> y:'b * x:'a =
+  <fun>
 |}]
 
 let swap (~y, ~x : xy) = ~y, ~x
@@ -407,7 +412,10 @@ Error: This pattern was expected to match values of type
 (* Nested pattern *)
 let f (z, (~y, ~x)) = x, y, z
 [%%expect{|
-val f : 'a * (y:'b * x:'c) -> 'c * 'b * 'a = <fun>
+val f :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    'a * (y:'b * x:'c) -> 'c * 'b * 'a =
+  <fun>
 |}]
 
 (* Non-principally known patterns *)

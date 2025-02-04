@@ -90,7 +90,7 @@ module type S = sig type nonrec t = Set.Make(Bool).t end
 
 let hd _ = ();;
 [%%expect{|
-val hd : 'a -> unit = <fun>
+val hd : ('a : value_or_null). 'a -> unit = <fun>
 |}]
 
 open (List : sig val map : ('a -> 'b) -> 'a list -> 'b list end);;

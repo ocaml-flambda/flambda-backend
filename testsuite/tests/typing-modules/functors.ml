@@ -217,7 +217,11 @@ Error: This application of the functor "F" is ill-typed.
 module Ord = struct type t = unit let compare _ _ = 0 end
 module M = Map.Make(Ord)(Ord)
 [%%expect {|
-module Ord : sig type t = unit val compare : 'a -> 'b -> int end
+module Ord :
+  sig
+    type t = unit
+    val compare : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> int
+  end
 Line 2, characters 11-29:
 2 | module M = Map.Make(Ord)(Ord)
                ^^^^^^^^^^^^^^^^^^
@@ -227,7 +231,12 @@ Error: This application of the functor "Map.Make" is ill-typed.
        do not match these parameters:
          functor (Ord : Map.OrderedType) -> ...
        1. The following extra argument is provided
-              Ord : sig type t = unit val compare : 'a -> 'b -> int end
+              Ord :
+              sig
+                type t = unit
+                val compare :
+                  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> int
+              end
        2. Module Ord matches the expected module type Map.OrderedType
 |}]
 
@@ -1830,7 +1839,7 @@ Error: This application of the functor "F" is ill-typed.
           Lines 9-12, characters 0-3:
             Definition of module "A/1"
        2. Modules do not match:
-            $S2 : sig val f : 'a -> 'a end
+            $S2 : sig val f : ('a : value_or_null). 'a -> 'a end
           is not included in
             $T2 = sig type 'a t val f : 'a A/2.t -> 'a t end
 |}]
@@ -1978,11 +1987,11 @@ Error: This application of the functor "H" is ill-typed.
           Line 5, characters 0-32:
             Definition of module "X/1"
        2. Modules do not match:
-            $S2 : sig val f : 'a -> 'a end
+            $S2 : sig val f : ('a : value_or_null). 'a -> 'a end
           is not included in
             $T2 = sig val f : 'a X/2.s -> 'a end
           Values do not match:
-            val f : 'a -> 'a
+            val f : ('a : value_or_null). 'a -> 'a
           is not included in
             val f : 'a X.s -> 'a
           The type "'a X.s -> 'a X.s" is not compatible with the type
