@@ -471,36 +471,50 @@ let[@inline always] n_way_join_head_of_kind_naked_number ~union env (t1, _) ts :
   Known (List.fold_left (fun t1 (_, t2) -> union t1 t2) t1 ts), env
 
 let generic_merge_map_known :
-      'index 'value 'map 'maps.
+      'index 'value 'map 'maps 'other.
       filter_map:
         (('index -> 'value Join_env.join_arg list -> 'value option) ->
         'maps ->
         'map) ->
       map:((_ -> _ Join_env.join_arg list) -> 'map -> 'maps) ->
-      merge:(_ -> 'maps -> 'map -> 'maps) ->
+      merge:
+        ((_ ->
+         'value Join_env.join_arg list option ->
+         'value option ->
+         'value Join_env.join_arg list option) ->
+        'maps ->
+        'map ->
+        'maps) ->
       bottom:'map ->
+      other:('other -> 'value) ->
       (Join_env.t ->
       'value Join_env.join_arg list ->
       ('value * Join_env.t) Or_bottom.t) ->
       Join_env.t ->
-      'map Join_env.join_arg list ->
+      ('map * 'other Or_bottom.t) Join_env.join_arg list ->
       'map * Join_env.t =
- fun ~filter_map ~map ~merge ~bottom n_way_join env maps ->
+ fun ~filter_map ~map ~merge ~bottom ~other n_way_join env maps ->
   match maps with
   | [] -> bottom, env
-  | (id1, map1) :: maps ->
-    let maps =
+  | (id1, (map1, other1)) :: maps ->
+    let add_other acc id other_or_bottom =
+      match (other_or_bottom : 'other Or_bottom.t) with
+      | Bottom -> acc
+      | Ok known -> (id, other known) :: acc
+    in
+    let maps, _ =
       List.fold_left
-        (fun maps (id2, map2) ->
-          merge
-            (fun _ vals_opt val2_opt ->
-              match vals_opt, val2_opt with
-              | None, None -> None
-              | None, Some val2 -> Some [id2, val2]
-              | Some _, None -> vals_opt
-              | Some vals, Some val2 -> Some ((id2, val2) :: vals))
-            maps map2)
-        (map (fun val1 -> [id1, val1]) map1)
+        (fun (maps, others) (id2, (map2, other2)) ->
+          ( merge
+              (fun _ vals_opt val2_opt ->
+                match vals_opt, val2_opt with
+                | None, None -> None
+                | None, Some val2 -> Some ((id2, val2) :: others)
+                | Some vals, None -> Some (add_other vals id2 other2)
+                | Some vals, Some val2 -> Some ((id2, val2) :: vals))
+              maps map2,
+            add_other others id2 other2 ))
+        (map (fun val1 -> [id1, val1]) map1, add_other [] id1 other1)
         maps
     in
     let env_ref = ref env in
@@ -2248,10 +2262,15 @@ and n_way_join_row_like :
          * Join_env.t)
          Or_bottom.t) ->
         Join_env.t ->
-        'known Join_env.join_arg list ->
+        ('known * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t)
+        Join_env.join_arg
+        list ->
         'known * Join_env.t) ->
       Join_env.t ->
-      known:'known Join_env.join_arg list ->
+      known:
+        ('known * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t)
+        Join_env.join_arg
+        list ->
       other:
         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t
         Join_env.join_arg
@@ -2299,10 +2318,8 @@ and n_way_join_row_like :
                     | Known i2' -> inter_index i1' i2')
                   i1' is))))
   in
-  let n_way_join_case join_env
-      (cases :
-        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Join_env.join_arg list)
-      : _ n_way_join_result Or_bottom.t =
+  let n_way_join_case join_env (cases : _ Join_env.join_arg list) :
+      _ n_way_join_result Or_bottom.t =
     let index =
       n_way_join_index (List.map (fun (_, case) -> case.TG.index) cases)
     in
@@ -2322,18 +2339,13 @@ and n_way_join_row_like :
         ( Known (TG.Row_like_case.create ~maps_to ~index ~env_extension),
           join_env )
   in
-  let n_way_join_knowns join_env cases :
-      ('lattice, 'shape, 'maps_to) TG.Row_like_case.t n_way_join_result
-      Or_bottom.t =
+  let n_way_join_knowns join_env cases : _ n_way_join_result Or_bottom.t =
     let exception Unknown_result in
     try
       let cases =
         List.map
           (fun (id, case) ->
-            match
-              (case
-                : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t)
-            with
+            match (case : _ Or_unknown.t) with
             | Unknown -> raise Unknown_result
             | Known case -> id, case)
           cases
@@ -2342,16 +2354,11 @@ and n_way_join_row_like :
     with Unknown_result -> Ok (Unknown, join_env)
   in
   let known, join_env = merge_map_known n_way_join_knowns join_env known in
-  let other :
-      ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t
-      n_way_join_result =
+  let other : _ Or_bottom.t n_way_join_result =
     let others =
       List.fold_left
         (fun acc (id, other) ->
-          match
-            (other
-              : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t)
-          with
+          match (other : _ Or_bottom.t) with
           | Bottom -> acc
           | Ok other -> (id, other) :: acc)
         [] other
@@ -2377,12 +2384,12 @@ and n_way_join_row_like_for_blocks env
           match acc with
           | Bottom ->
             Ok
-              ( [id, row_like.known_tags],
+              ( [id, (row_like.known_tags, row_like.other_tags)],
                 [id, row_like.other_tags],
                 row_like.alloc_mode )
           | Ok (known, other, alloc_mode) ->
             Ok
-              ( (id, row_like.known_tags) :: known,
+              ( (id, (row_like.known_tags, row_like.other_tags)) :: known,
                 (id, row_like.other_tags) :: other,
                 join_alloc_mode alloc_mode row_like.alloc_mode ))
       Or_bottom.Bottom row_like_for_blocks
@@ -2400,7 +2407,7 @@ and n_way_join_row_like_for_blocks env
     in
     let merge_map_known =
       generic_merge_map_known ~filter_map:Tag.Map.filter_map ~map:Tag.Map.map
-        ~merge:Tag.Map.merge ~bottom:Tag.Map.empty
+        ~merge:Tag.Map.merge ~bottom:Tag.Map.empty ~other:Or_unknown.known
     in
     map_join_result
       (n_way_join_row_like ~n_way_join_maps_to:n_way_join_int_indexed_product
@@ -2420,14 +2427,15 @@ and n_way_join_row_like_for_closures env
       List.fold_left
         (fun (known, other)
              (id2, { TG.known_closures = known2; TG.other_closures = other2 }) ->
-          (id2, known2) :: known, (id2, other2) :: other)
-        ([id1, known1], [id1, other1])
+          (id2, (known2, other2)) :: known, (id2, other2) :: other)
+        ([id1, (known1, other1)], [id1, other1])
         other_closures
   in
   let merge_map_known join_case env knowns =
     generic_merge_map_known ~filter_map:Function_slot.Map.filter_map
       ~map:Function_slot.Map.map ~merge:Function_slot.Map.merge
       ~bottom:Function_slot.Map.empty
+      ~other:(fun case -> case)
       (fun env cases ->
         let cases =
           List.map (fun (id, case) -> id, Or_unknown.known case) cases
