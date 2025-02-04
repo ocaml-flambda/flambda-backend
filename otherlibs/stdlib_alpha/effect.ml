@@ -122,7 +122,7 @@ module Handler : sig
   type 'e t' = private ..
   (** [e t] is a handler for the effect [e]. *)
 
-  type 'e t = { global_ h : 'e t' } [@@unboxed]
+  type 'e t = { h : 'e t' @@ global aliased } [@@unboxed]
   (** Heap-allocated handler. *)
 
   type _ t' += Dummy : 'a t'
@@ -193,7 +193,7 @@ end = struct
   type 'e t' = ..
   (** [e t] is a handler for the effect [e]. *)
 
-  type 'e t = { global_ h : 'e t' } [@@unboxed]
+  type 'e t = { h : 'e t' @@ global aliased } [@@unboxed]
   (** Heap-allocated handler. *)
 
   type _ t' += Dummy : 'a t'
@@ -427,10 +427,10 @@ external alloc_stack :
   ('a, 'b) stack @@ portable = "caml_alloc_stack"
 
 type (+'a, 'es) r =
-  | Val : global_ 'a -> ('a, 'es) r
-  | Exn : global_ exn -> ('a, 'es) r
+  | Val : 'a @@ global aliased -> ('a, 'es) r
+  | Exn : exn @@ global aliased -> ('a, 'es) r
   | Op :
-      global_ ('o, 'e) op
+      ('o, 'e) op @@ global aliased
       * ('e, 'es) Raw_handler.t
       * ('o, ('a, 'es) r) cont
       * last_fiber -> ('a, 'es) r
@@ -483,14 +483,14 @@ let run_stack
 type (-'a, +'b, 'e, 'es) continuation =
   Cont :
     { cont : ('a, ('b, 'e * 'es) r) cont;
-      global_ mapping : 'es Mapping.t; }
+      mapping : 'es Mapping.t @@ global aliased; }
     -> ('a, 'b, 'e, 'es) continuation
 
 type ('a, 'e, 'es) res =
-  | Value : global_ 'a -> ('a, 'e, 'es) res
-  | Exception : global_ exn -> ('a, 'e, 'es) res
+  | Value : 'a @@ global aliased -> ('a, 'e, 'es) res
+  | Exception : exn @@ global aliased -> ('a, 'e, 'es) res
   | Operation :
-      global_ ('o, 'e) op
+      ('o, 'e) op @@ global aliased
       * ('o, 'a, 'e, 'es) continuation
       -> ('a, 'e, 'es) res
 
@@ -658,10 +658,10 @@ module type S = sig
     type eff := t
 
     type ('a, 'es) t =
-      | Value : global_ 'a -> ('a, 'es) t
-      | Exception : global_ exn -> ('a, 'es) t
+      | Value : 'a @@ global aliased -> ('a, 'es) t
+      | Exception : exn @@ global aliased -> ('a, 'es) t
       | Operation :
-          global_ ('o, eff) ops
+          ('o, eff) ops @@ global aliased
           * ('o, ('a, 'es) t, 'es) Continuation.t
           -> ('a, 'es) t
 
@@ -676,20 +676,20 @@ module type S = sig
 
     module Portable : sig
       type ('a, 'es) t = 
-        | Value : 'a @@ global -> ('a, 'es) t
-        | Exception : exn @@ global -> ('a, 'es) t
+        | Value : 'a @@ global aliased -> ('a, 'es) t
+        | Exception : exn @@ global aliased -> ('a, 'es) t
         | Operation :
-            ('o, eff) ops @@ global
+            ('o, eff) ops @@ global aliased
             * ('o, ('a, 'es) t, 'es) Continuation.t @@ portable
             -> ('a, 'es) t
     end
   end
 
   type ('a, 'es) result = ('a, 'es) Result.t =
-    | Value : global_ 'a -> ('a, 'es) result
-    | Exception : global_ exn -> ('a, 'es) result
+    | Value : 'a @@ global aliased -> ('a, 'es) result
+    | Exception : exn @@ global aliased -> ('a, 'es) result
     | Operation :
-        global_ ('o, t) ops
+        ('o, t) ops @@ global aliased
         * ('o, ('a, 'es) result, 'es) Continuation.t
         -> ('a, 'es) result
 
@@ -758,10 +758,10 @@ module type S1 = sig
     type 'p eff := 'p t
 
     type ('a, 'p, 'es) t =
-      | Value : global_ 'a -> ('a, 'p, 'es) t
-      | Exception : global_ exn -> ('a, 'p, 'es) t
+      | Value : 'a @@ global aliased -> ('a, 'p, 'es) t
+      | Exception : exn @@ global aliased -> ('a, 'p, 'es) t
       | Operation :
-          global_ ('o, 'p, 'p eff) ops
+          ('o, 'p, 'p eff) ops @@ global aliased
           * ('o, ('a, 'p, 'es) t, 'es) Continuation.t
           -> ('a, 'p, 'es) t
 
@@ -776,20 +776,20 @@ module type S1 = sig
 
     module Portable : sig
       type ('a, 'p, 'es) t =
-        | Value : 'a @@ global -> ('a, 'p, 'es) t
-        | Exception : exn @@ global -> ('a, 'p, 'es) t
+        | Value : 'a @@ global aliased -> ('a, 'p, 'es) t
+        | Exception : exn @@ global aliased -> ('a, 'p, 'es) t
         | Operation :
-            ('o, 'p, 'p eff) ops @@ global
+            ('o, 'p, 'p eff) ops @@ global aliased
             * ('o, ('a, 'p, 'es) t, 'es) Continuation.t @@ portable
             -> ('a, 'p, 'es) t
     end
   end
 
   type ('a, 'p, 'es) result = ('a, 'p, 'es) Result.t =
-    | Value : global_ 'a -> ('a, 'p, 'es) result
-    | Exception : global_ exn -> ('a, 'p, 'es) result
+    | Value : 'a @@ global aliased -> ('a, 'p, 'es) result
+    | Exception : exn @@ global aliased -> ('a, 'p, 'es) result
     | Operation :
-        global_ ('o, 'p, 'p t) ops
+        ('o, 'p, 'p t) ops @@ global aliased
         * ('o, ('a, 'p, 'es) result, 'es) Continuation.t
         -> ('a, 'p, 'es) result
 
@@ -858,10 +858,10 @@ module type S2 = sig
     type ('p, 'q) eff := ('p, 'q) t
 
     type ('a, 'p, 'q, 'es) t =
-      | Value : global_ 'a -> ('a, 'p, 'q, 'es) t
-      | Exception : global_ exn -> ('a, 'p, 'q, 'es) t
+      | Value : 'a @@ global aliased -> ('a, 'p, 'q, 'es) t
+      | Exception : exn @@ global aliased -> ('a, 'p, 'q, 'es) t
       | Operation :
-          global_ ('o, 'p, 'q, ('p, 'q) eff) ops
+          ('o, 'p, 'q, ('p, 'q) eff) ops @@ global aliased
           * ('o, ('a, 'p, 'q, 'es) t, 'es) Continuation.t
           -> ('a, 'p, 'q, 'es) t
 
@@ -876,20 +876,20 @@ module type S2 = sig
 
     module Portable : sig
       type ('a, 'p, 'q, 'es) t =
-        | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
-        | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+        | Value : 'a @@ global aliased -> ('a, 'p, 'q, 'es) t
+        | Exception : exn @@ global aliased -> ('a, 'p, 'q, 'es) t
         | Operation :
-            ('o, 'p, 'q, ('p, 'q) eff) ops @@ global
+            ('o, 'p, 'q, ('p, 'q) eff) ops @@ global aliased
             * ('o, ('a, 'p, 'q, 'es) t, 'es) Continuation.t @@ portable
             -> ('a, 'p, 'q, 'es) t
     end
   end
 
   type ('a, 'p, 'q, 'es) result = ('a, 'p, 'q, 'es) Result.t =
-    | Value : global_ 'a -> ('a, 'p, 'q, 'es) result
-    | Exception : global_ exn -> ('a, 'p, 'q, 'es) result
+    | Value : 'a @@ global aliased -> ('a, 'p, 'q, 'es) result
+    | Exception : exn @@ global aliased -> ('a, 'p, 'q, 'es) result
     | Operation :
-        global_ ('o, 'p, 'q, ('p, 'q) t) ops
+        ('o, 'p, 'q, ('p, 'q) t) ops @@ global aliased
         * ('o, ('a, 'p, 'q, 'es) result, 'es) Continuation.t
         -> ('a, 'p, 'q, 'es) result
 
@@ -998,10 +998,10 @@ module Make_rec (Ops : Operations_rec)
     type eff = t
 
     type ('e, 'es) t =
-    | Value : global_ 'a -> ('a, 'es) t
-    | Exception : global_ exn -> ('a, 'es) t
+    | Value : 'a @@ global aliased -> ('a, 'es) t
+    | Exception : exn @@ global aliased -> ('a, 'es) t
     | Operation :
-        global_ ('o, eff) Ops.t
+        ('o, eff) Ops.t @@ global aliased
         * ('o, ('a, 'es) t, 'es) Continuation.t
         -> ('a, 'es) t
 
@@ -1017,20 +1017,20 @@ module Make_rec (Ops : Operations_rec)
 
     module Portable = struct
       type ('a, 'es) t =
-        | Value : 'a @@ global -> ('a, 'es) t
-        | Exception : exn @@ global -> ('a, 'es) t
+        | Value : 'a @@ global aliased -> ('a, 'es) t
+        | Exception : exn @@ global aliased -> ('a, 'es) t
         | Operation :
-            ('o, eff) Ops.t @@ global
+            ('o, eff) Ops.t @@ global aliased
             * ('o, ('a, 'es) t, 'es) Continuation.t @@ portable
             -> ('a, 'es) t
     end
   end
 
   type ('a, 'es) result = ('a, 'es) Result.t =
-    | Value : global_ 'a -> ('a, 'es) result
-    | Exception : global_ exn -> ('a, 'es) result
+    | Value : 'a @@ global aliased -> ('a, 'es) result
+    | Exception : exn @@ global aliased -> ('a, 'es) result
     | Operation :
-        global_ ('o, t) Ops.t
+        ('o, t) Ops.t @@ global aliased
         * ('o, ('a, 'es) result, 'es) Continuation.t
         -> ('a, 'es) result
 
@@ -1108,10 +1108,10 @@ module Make1_rec (Ops : Operations1_rec)
     type 'p eff = 'p t
 
     type ('a, 'p, 'es) t =
-      | Value : global_ 'a -> ('a, 'p, 'es) t
-      | Exception : global_ exn -> ('a, 'p, 'es) t
+      | Value : 'a @@ global aliased -> ('a, 'p, 'es) t
+      | Exception : exn @@ global aliased -> ('a, 'p, 'es) t
       | Operation :
-          global_ ('o, 'p, 'p eff) Ops.t
+          ('o, 'p, 'p eff) Ops.t @@ global aliased
           * ('o, ('a, 'p, 'es) t, 'es) Continuation.t
           -> ('a, 'p, 'es) t
 
@@ -1130,20 +1130,20 @@ module Make1_rec (Ops : Operations1_rec)
 
     module Portable = struct
       type ('a, 'p, 'es) t =
-        | Value : 'a @@ global -> ('a, 'p, 'es) t
-        | Exception : exn @@ global -> ('a, 'p, 'es) t
+        | Value : 'a @@ global aliased -> ('a, 'p, 'es) t
+        | Exception : exn @@ global aliased -> ('a, 'p, 'es) t
         | Operation :
-            ('o, 'p, 'p eff) Ops.t @@ global
+            ('o, 'p, 'p eff) Ops.t @@ global aliased
             * ('o, ('a, 'p, 'es) t, 'es) Continuation.t @@ portable
             -> ('a, 'p, 'es) t
     end
   end
 
   type ('a, 'p, 'es) result = ('a, 'p, 'es) Result.t =
-    | Value : global_ 'a -> ('a, 'p, 'es) result
-    | Exception : global_ exn -> ('a, 'p, 'es) result
+    | Value : 'a @@ global aliased -> ('a, 'p, 'es) result
+    | Exception : exn @@ global aliased -> ('a, 'p, 'es) result
     | Operation :
-        global_ ('o, 'p, 'p t) Ops.t
+        ('o, 'p, 'p t) Ops.t @@ global aliased
         * ('o, ('a, 'p, 'es) result, 'es) Continuation.t
         -> ('a, 'p, 'es) result
 
@@ -1217,10 +1217,10 @@ module Make2_rec (Ops : Operations2_rec)
     type ('p, 'q) eff = ('p, 'q) t
 
     type ('a, 'p, 'q, 'es) t =
-      | Value : global_ 'a -> ('a, 'p, 'q, 'es) t
-      | Exception : global_ exn -> ('a, 'p, 'q, 'es) t
+      | Value : 'a @@ global aliased -> ('a, 'p, 'q, 'es) t
+      | Exception : exn @@ global aliased -> ('a, 'p, 'q, 'es) t
       | Operation :
-          global_ ('o, 'p, 'q, ('p, 'q) eff) Ops.t
+          ('o, 'p, 'q, ('p, 'q) eff) Ops.t @@ global aliased
           * ('o, ('a, 'p, 'q, 'es) t, 'es) Continuation.t
           -> ('a, 'p, 'q, 'es) t
 
@@ -1239,20 +1239,20 @@ module Make2_rec (Ops : Operations2_rec)
 
     module Portable = struct
       type ('a, 'p, 'q, 'es) t =
-        | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
-        | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+        | Value : 'a @@ global aliased -> ('a, 'p, 'q, 'es) t
+        | Exception : exn @@ global aliased -> ('a, 'p, 'q, 'es) t
         | Operation :
-            ('o, 'p, 'q, ('p, 'q) eff) Ops.t @@ global
+            ('o, 'p, 'q, ('p, 'q) eff) Ops.t @@ global aliased
             * ('o, ('a, 'p, 'q, 'es) t, 'es) Continuation.t @@ portable
             -> ('a, 'p, 'q, 'es) t
     end
   end
 
   type ('a, 'p, 'q, 'es) result = ('a, 'p, 'q, 'es) Result.t =
-    | Value : global_ 'a -> ('a, 'p, 'q, 'es) result
-    | Exception : global_ exn -> ('a, 'p, 'q, 'es) result
+    | Value : 'a @@ global aliased -> ('a, 'p, 'q, 'es) result
+    | Exception : exn @@ global aliased -> ('a, 'p, 'q, 'es) result
     | Operation :
-        global_ ('o, 'p, 'q, ('p, 'q) t) Ops.t
+        ('o, 'p, 'q, ('p, 'q) t) Ops.t @@ global aliased
         * ('o, ('a, 'p, 'q, 'es) result, 'es) Continuation.t
         -> ('a, 'p, 'q, 'es) result
 
