@@ -1623,9 +1623,9 @@ end = struct
       | Alloc_block_kind_boxed_int bi ->
         pp
           (match bi with
-          | Pnativeint -> "boxed_nativeint"
-          | Pint32 -> "boxed_int32"
-          | Pint64 -> "boxed_int64")
+          | Boxed_nativeint -> "boxed_nativeint"
+          | Boxed_int32 -> "boxed_int32"
+          | Boxed_int64 -> "boxed_int64")
       | Alloc_block_kind_float_array -> pp "unboxed_float64_array"
       | Alloc_block_kind_float32_u_array -> pp "unboxed_float32_array"
       | Alloc_block_kind_int32_u_array -> pp "unboxed_int32_array"

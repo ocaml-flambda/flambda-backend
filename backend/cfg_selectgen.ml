@@ -223,7 +223,7 @@ class virtual selector_generic =
         | _ -> basic_op (Store (chunk, addr, is_assign)), [arg2; eloc]
         (* Inversion addr/datum in Istore *))
       | Cdls_get -> basic_op Dls_get, args
-      | Calloc (mode, alloc_block_kind), _ ->
+      | Calloc (mode, alloc_block_kind) ->
         let placeholder_for_alloc_block_kind =
           { alloc_words = 0; alloc_block_kind; alloc_dbg = Debuginfo.none }
         in
@@ -500,14 +500,14 @@ class virtual selector_generic =
             sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label;
             ret rd)
           else None
-        | Basic (Op (Alloc { bytes = _; mode })) ->
+        | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
           let rd = self#regs_for typ_val in
           let bytes = Select_utils.size_expr env (Ctuple new_args) in
           let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
           let op =
             Operation.Alloc
               { bytes = alloc_words * Arch.size_addr;
-                dbginfo = [{ alloc_words; alloc_dbg = dbg }];
+                dbginfo = [{ placeholder with alloc_words; alloc_dbg = dbg }];
                 mode
               }
           in
