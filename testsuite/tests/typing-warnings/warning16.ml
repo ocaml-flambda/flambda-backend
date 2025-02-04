@@ -18,7 +18,7 @@ Line 1, characters 9-10:
              ^
 Warning 16 [unerasable-optional-argument]: this optional argument cannot be erased.
 
-val foo : ?x:'a -> y:'b -> unit = <fun>
+val foo : 'a ('b : value_or_null). ?x:'a -> y:'b -> unit = <fun>
 |}]
 
 let foo ?x () = ()
@@ -28,7 +28,7 @@ val foo : ?x:'a -> unit -> unit = <fun>
 
 let foo ?x ~y () = ()
 [%%expect{|
-val foo : ?x:'a -> y:'b -> unit -> unit = <fun>
+val foo : 'a ('b : value_or_null). ?x:'a -> y:'b -> unit -> unit = <fun>
 |}]
 
 class bar ?x = object end

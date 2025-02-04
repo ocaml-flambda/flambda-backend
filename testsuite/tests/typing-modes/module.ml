@@ -22,10 +22,10 @@ module F (X : S) = struct
     let x = X.x
 end
 [%%expect{|
-val portable_use : 'a @ portable -> unit = <fun>
+val portable_use : ('a : value_or_null). 'a @ portable -> unit = <fun>
 module type S = sig val x : 'a -> unit end
 module type SL = sig type 'a t end
-module M : sig type 'a t = int val x : 'a -> unit end
+module M : sig type 'a t = int val x : ('a : value_or_null). 'a -> unit end
 module F : functor (X : S) -> sig type t = int val x : 'a -> unit end
 |}]
 

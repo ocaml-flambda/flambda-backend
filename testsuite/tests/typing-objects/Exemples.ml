@@ -713,7 +713,9 @@ let rec fold_right f (l : 'a #link option) accu =
   | Some l ->
       f l#x (fold_right f l#next accu);;
 [%%expect{|
-val fold_right : ('a -> 'b -> 'b) -> 'a #link option -> 'b -> 'b = <fun>
+val fold_right :
+  'a ('b : value_or_null). ('a -> 'b -> 'b) -> 'a #link option -> 'b -> 'b =
+  <fun>
 |}];;
 
 (*******************************************************************)

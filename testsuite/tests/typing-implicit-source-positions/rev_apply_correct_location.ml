@@ -6,7 +6,8 @@ let f ~(here : [%call_pos]) x = here, x
 
 [%%expect
   {|
-val f : here:[%call_pos] -> 'a -> lexing_position * 'a = <fun>
+val f : ('a : value_or_null). here:[%call_pos] -> 'a -> lexing_position * 'a =
+  <fun>
 |}]
 
 let result = () |> f |> f
@@ -15,8 +16,8 @@ let result = () |> f |> f
 [%%expect
   {|
 val result : lexing_position * (lexing_position * unit) =
-  ({pos_fname = ""; pos_lnum = 1; pos_bol = 145; pos_cnum = 169},
-   ({pos_fname = ""; pos_lnum = 1; pos_bol = 145; pos_cnum = 164}, ()))
+  ({pos_fname = ""; pos_lnum = 1; pos_bol = 169; pos_cnum = 193},
+   ({pos_fname = ""; pos_lnum = 1; pos_bol = 169; pos_cnum = 188}, ()))
 |}]
 
 class ['a] c : here:[%call_pos] -> 'a -> object
@@ -39,7 +40,7 @@ let first_here = fst (snd obj#here)#here
 [%%expect{|
 val obj : unit c c = <obj>
 val second_here : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 710; pos_cnum = 736}
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 946; pos_cnum = 972}
 val first_here : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 710; pos_cnum = 727}
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 946; pos_cnum = 963}
 |}]

@@ -15,12 +15,12 @@ Hint: Did you mean "`A_name"?
 
 let f (x:'id_arg) = x;;
 [%%expect{|
-val f : 'id_arg -> 'id_arg = <fun>
+val f : ('id_arg : value_or_null). 'id_arg -> 'id_arg = <fun>
 |}];;
 
 let f (x:'Id_arg) = x;;
 [%%expect{|
-val f : 'Id_arg -> 'Id_arg = <fun>
+val f : ('Id_arg : value_or_null). 'Id_arg -> 'Id_arg = <fun>
 |}];;
 
 (* GPR#1204, GPR#1329 *)

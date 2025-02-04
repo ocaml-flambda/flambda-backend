@@ -1864,8 +1864,10 @@ external blit_scannable :
   #(int * float * string) array ->
   int -> #(int * float * string) array -> int -> int -> unit = "%arrayblit"
 val blit_scannable_app :
-  #(int * float * string) array ->
-  'a -> #(int * float * string) array -> int -> int -> unit = <fun>
+  ('a : value_or_null).
+    #(int * float * string) array ->
+    'a -> #(int * float * string) array -> int -> int -> unit =
+  <fun>
 external blit_ignorable :
   #(float# * int * int64# * bool) array ->
   int -> #(float# * int * int64# * bool) array -> int -> int -> unit

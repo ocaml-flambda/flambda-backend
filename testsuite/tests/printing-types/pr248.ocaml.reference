@@ -1,4 +1,4 @@
-val f : 'a -> 'b -> 'b = <fun>
+val f : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'b = <fun>
 val blah : '_weak1 -> '_weak1 = <fun>
 val splash : unit -> '_weak1 = <fun>
 val blurp : '_weak2 -> '_weak2 = <fun>

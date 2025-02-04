@@ -375,7 +375,7 @@ let id_value x = x;;
 val make_t_word : unit -> t_word = <fun>
 val make_t_word_id : ('a : word). unit -> 'a t_word_id = <fun>
 val make_nativeintu : unit -> nativeint# = <fun>
-val id_value : 'a -> 'a = <fun>
+val id_value : ('a : value_or_null). 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_word ());;

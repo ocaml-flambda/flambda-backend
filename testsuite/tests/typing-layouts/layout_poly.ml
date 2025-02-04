@@ -658,7 +658,7 @@ let id' x = id x
 
 [%%expect{|
 external id : ('a : any). 'a t -> int = "%array_length" [@@layout_poly]
-val id' : 'a t -> int = <fun>
+val id' : ('a : value_or_null). 'a t -> int = <fun>
 |}]
 
 external id : ('a : any). 'a t -> int = "%identity"

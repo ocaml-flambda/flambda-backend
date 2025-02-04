@@ -18,9 +18,9 @@ let flip_coin () = true
 [%%expect{|
 type t = Con of { field : int list; }
 val free : t @ unique -> unit = <fun>
-val free_field : 'a @ unique -> unit = <fun>
+val free_field : ('a : value_or_null). 'a @ unique -> unit = <fun>
 val store : t -> unit = <fun>
-val store_field : 'a -> unit = <fun>
+val store_field : ('a : value_or_null). 'a -> unit = <fun>
 val flip_coin : unit -> bool = <fun>
 |}]
 
@@ -160,8 +160,10 @@ end
 [%%expect{|
 module Unique_array :
   sig
-    val set : 'a @ unique -> int -> 'b -> 'a @ unique
-    val size : 'a -> int
+    val set :
+      ('a : value_or_null) ('b : value_or_null).
+        'a @ unique -> int -> 'b -> 'a @ unique
+    val size : ('a : value_or_null). 'a -> int
   end
 |}]
 
@@ -199,7 +201,7 @@ let set_all_zero arr =
   let size, arr = size arr in
   loop size arr
 [%%expect{|
-val set_all_zero : 'a @ unique -> 'a = <fun>
+val set_all_zero : ('a : value_or_null). 'a @ unique -> 'a = <fun>
 |}]
 
 (****************)
@@ -215,9 +217,9 @@ let flip_coin () = true
 [%%expect{|
 type t = { field1 : t; field2 : t; }
 val free : t @ unique -> unit = <fun>
-val free_field : 'a @ unique -> unit = <fun>
+val free_field : ('a : value_or_null). 'a @ unique -> unit = <fun>
 val store : t -> unit = <fun>
-val store_field : 'a -> unit = <fun>
+val store_field : ('a : value_or_null). 'a -> unit = <fun>
 val flip_coin : unit -> bool = <fun>
 |}]
 
@@ -264,7 +266,7 @@ val okay : t @ unique -> unit = <fun>
 
 let id : 'a @ unique -> 'a @ unique = fun t -> t
 [%%expect{|
-val id : 'a @ unique -> 'a @ unique = <fun>
+val id : ('a : value_or_null). 'a @ unique -> 'a @ unique = <fun>
 |}]
 
 let bad r =
@@ -305,14 +307,19 @@ let check_tuple x y z =
     | p, q, r -> free p
   in m, y, y
 [%%expect{|
-val check_tuple : t @ unique -> 'a -> 'b -> unit * 'a * 'a = <fun>
+val check_tuple :
+  ('a : value_or_null) ('b : value_or_null).
+    t @ unique -> 'a -> 'b -> unit * 'a * 'a =
+  <fun>
 |}]
 
 let okay x y z =
   match x, y, z with
   | p, q, r -> free x.field1; free p.field2
 [%%expect{|
-val okay : t @ unique -> 'a -> 'b -> unit = <fun>
+val okay :
+  ('a : value_or_null) ('b : value_or_null). t @ unique -> 'a -> 'b -> unit =
+  <fun>
 |}]
 
 let bad x y z =

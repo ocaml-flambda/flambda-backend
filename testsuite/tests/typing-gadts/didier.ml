@@ -106,7 +106,7 @@ let g (type t) (x : t) (tag : t ty) =
   | Int -> x > 0
 ;;
 [%%expect{|
-val id : 'a -> 'a = <fun>
+val id : ('a : value_or_null). 'a -> 'a = <fun>
 val idb1 : bool -> bool = <fun>
 val idb2 : bool -> bool = <fun>
 val idb3 : bool -> bool = <fun>
