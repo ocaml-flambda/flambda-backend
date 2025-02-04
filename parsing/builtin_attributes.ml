@@ -963,21 +963,26 @@ let parse_zero_alloc_attribute ~in_signature ~on_application ~default_arity attr
            parse rest)
         else
           let no_other_payload = List.compare_length_with rest 0 = 0 in
-          if is_zero_alloc_check_enabled ~opt:true && no_other_payload then
-            (if on_application then
-               (* Treat as if there is no attribute.
-                  Check is not allowed on applications. *)
-               Default_zero_alloc
-             else
-               (* Treat [@zero_alloc assume_unless_opt] as [@zero_alloc],
-                  forcing the function to be checked.
-                  Setting [opt = false] to satisfy [@zero_alloc]
-                  and not only [@zero_alloc opt] on the corresponding signatures. *)
-               empty arity)
-          else
-            (* Treat "assume_unless_opt" as "assume".
-               Reuse standard parsing for better error messages. *)
-            parse payload
+          if no_other_payload then (
+            if is_zero_alloc_check_enabled ~opt:true then
+              (if on_application then
+                 (* Treat as if there is no attribute.
+                    Check is not allowed on applications. *)
+                 Default_zero_alloc
+               else
+                 (* Treat [@zero_alloc assume_unless_opt] as [@zero_alloc],
+                    forcing the function to be checked.
+                    Setting [opt = false] to satisfy [@zero_alloc]
+                    and not only [@zero_alloc opt] on the corresponding signatures. *)
+                 empty arity)
+            else
+              (* Treat "assume_unless_opt" as "assume".
+                 Reuse standard parsing for better error messages. *)
+              parse payload)
+          else (
+            (* No support for other payloads with "assume_unless_opt". *)
+            warn ();
+            Default_zero_alloc)
 
 
 let get_zero_alloc_attribute ~in_signature ~on_application ~default_arity l =
