@@ -462,6 +462,12 @@ val log2: int -> int
        (** [log2 n] returns [s] such that [n = 1 lsl s]
            if [n] is a power of 2*)
 
+val log2_nativeint: nativeint -> int
+(** [log2_nativeint n] computes [floor (log2 n)] when [ n > 0 ].
+    If [n] is also a power of 2, the result [s] satisfies
+    [n = Nativeint.shift_left 1n s]
+*)
+
 val align: int -> int -> int
        (** [align n a] rounds [n] upwards to a multiple of [a]
            (a power of 2). *)

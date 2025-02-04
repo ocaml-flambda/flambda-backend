@@ -115,7 +115,7 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
      not. There is no need to wrap other return arities. *)
   let maybe_sign_extend kind dbg cmm =
     match Flambda_kind.With_subkind.kind kind with
-    | Naked_number Naked_int32 -> C.sign_extend_32 dbg cmm
+    | Naked_number Naked_int32 -> C.sign_extend ~bits:32 ~dbg cmm
     | Naked_number
         ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
         | Naked_vec128 | Naked_float32 )
@@ -169,7 +169,10 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
          https://github.com/ARM-software/abi-aa/releases/download/2024Q3/aapcs64.pdf
 
          and figure out what happens for mixed int/float struct returns (it
-         looks like the floats may be returned in int regs) *)
+         looks like the floats may be returned in int regs)
+
+         jvanburen: that seems to be what clang does:
+         https://godbolt.org/z/snzEoME9h *)
       (match Target_system.architecture () with
       | X86_64 -> ()
       | AArch64 ->

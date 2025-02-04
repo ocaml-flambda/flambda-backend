@@ -126,70 +126,69 @@ let make_block ~dbg kind alloc_mode args =
     let tag = Tag.Scannable.to_int tag in
     C.make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks
 
+let memory_chunk_of_flat_suffix_element :
+    K.flat_suffix_element -> Cmm.memory_chunk = function
+  | Tagged_immediate -> Word_int
+  | Naked_float -> Double
+  | Naked_float32 -> Single { reg = Float32 }
+  | Naked_int32 -> Thirtytwo_signed
+  | Naked_vec128 -> Onetwentyeight_unaligned
+  | Naked_int64 | Naked_nativeint -> Word_int
+
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~field =
   let mutability = Mutability.to_asttypes mutability in
   let field = Targetint_31_63.to_int field in
-  let load_func, offset =
-    match kind with
-    | Mixed { field_kind = Value_prefix Any_value; _ }
-    | Values { field_kind = Any_value; _ } ->
-      C.get_field_computed Pointer, field
-    | Mixed { field_kind = Value_prefix Immediate; _ }
-    | Values { field_kind = Immediate; _ } ->
-      C.get_field_computed Immediate, field
-    | Naked_floats _ -> C.unboxed_float_array_ref, field
-    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
-      let func =
-        (* CR-someday mslater: make these functions consistent *)
-        match field_kind with
-        | Tagged_immediate -> C.get_field_computed Immediate
-        | Naked_float -> C.unboxed_float_array_ref
-        | Naked_float32 -> C.get_field_unboxed_float32
-        | Naked_int32 -> C.get_field_unboxed_int32
-        | Naked_vec128 ->
-          fun mut ~block ~index dbg ->
-            C.get_field_unboxed_vec128 mut ~block ~index_in_words:index dbg
-        | Naked_int64 | Naked_nativeint ->
-          C.get_field_unboxed_int64_or_nativeint
-      in
-      let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
-      func, offset
+  let get_field_computed immediate_or_pointer =
+    let index = C.int_const dbg field in
+    C.get_field_computed immediate_or_pointer mutability ~block ~index dbg
   in
-  let index = C.int_const dbg offset in
-  load_func mutability ~block ~index dbg
+  let get_field_unboxed memory_chunk ~offset_in_words =
+    let index_in_words = C.int_const dbg offset_in_words in
+    C.get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words
+  in
+  match kind with
+  | Mixed { field_kind = Value_prefix Any_value; _ }
+  | Values { field_kind = Any_value; _ } ->
+    get_field_computed Pointer
+  | Mixed { field_kind = Value_prefix Immediate; _ }
+  | Values { field_kind = Immediate; _ } ->
+    get_field_computed Immediate
+  | Naked_floats _ -> get_field_unboxed Double ~offset_in_words:field
+  | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+    get_field_unboxed
+      (memory_chunk_of_flat_suffix_element field_kind)
+      ~offset_in_words:
+        (Flambda_kind.Mixed_block_shape.offset_in_words shape field)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~field ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
   let field = Targetint_31_63.to_int field in
-  let set_func, offset =
-    match kind with
-    | Mixed { field_kind = Value_prefix Any_value; _ }
-    | Values { field_kind = Any_value; _ } ->
-      C.setfield_computed Pointer init_or_assign, field
-    | Mixed { field_kind = Value_prefix Immediate; _ }
-    | Values { field_kind = Immediate; _ } ->
-      C.setfield_computed Immediate init_or_assign, field
-    | Naked_floats _ -> C.float_array_set, field
-    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
-      let func =
-        (* CR-someday mslater: make these functions consistent *)
-        match field_kind with
-        | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
-        | Naked_float -> C.float_array_set
-        | Naked_float32 -> C.setfield_unboxed_float32
-        | Naked_int32 -> C.setfield_unboxed_int32
-        | Naked_vec128 ->
-          fun arr index_in_words newval dbg ->
-            C.setfield_unboxed_vec128 arr ~index_in_words newval dbg
-        | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint
-      in
-      let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
-      func, offset
+  let setfield_computed is_ptr =
+    let index = C.int_const dbg field in
+    C.return_unit dbg
+      (C.setfield_computed is_ptr init_or_assign block index new_value dbg)
   in
-  let index = C.int_const dbg offset in
-  C.return_unit dbg (set_func block index new_value dbg)
+  match kind with
+  | Mixed { field_kind = Value_prefix Any_value; _ }
+  | Values { field_kind = Any_value; _ } ->
+    setfield_computed Pointer
+  | Mixed { field_kind = Value_prefix Immediate; _ }
+  | Values { field_kind = Immediate; _ } ->
+    setfield_computed Immediate
+  | Naked_floats _ ->
+    let index = C.int_const dbg field in
+    C.float_array_set block index new_value dbg
+  | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+    let index_in_words =
+      Flambda_kind.Mixed_block_shape.offset_in_words shape field
+    in
+    C.set_field_unboxed ~dbg
+      (memory_chunk_of_flat_suffix_element field_kind)
+      block
+      ~index_in_words:(C.int_const dbg index_in_words)
+      new_value
 
 (* Array creation and access. For these functions, [index] is a tagged
    integer. *)
@@ -463,7 +462,8 @@ let string_like_load_aux ~dbg width ~str ~index =
   match (width : P.string_accessor_width) with
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
-  | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
+  | Thirty_two ->
+    C.sign_extend ~bits:32 ~dbg (C.unaligned_load_32 str index dbg)
   | Single -> C.unaligned_load_f32 str index dbg
   | Sixty_four -> C.unaligned_load_64 str index dbg
   | One_twenty_eight { aligned = true } -> C.aligned_load_128 str index dbg
@@ -536,16 +536,18 @@ let unary_int_arith_primitive _env dbg kind op arg =
     C.bswap16 arg dbg
   (* Negation needs a sign-extension for 32-bit and 63-bit values *)
   | Naked_immediate, Neg ->
-    C.sign_extend_63 dbg (C.sub_int (C.int ~dbg 0) (C.low_63 dbg arg) dbg)
+    C.sign_extend ~bits:63 ~dbg
+      (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits:63 ~dbg arg) dbg)
   | Naked_int32, Neg ->
-    C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) (C.low_32 dbg arg) dbg)
+    C.sign_extend ~bits:32 ~dbg
+      (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits:32 ~dbg arg) dbg)
   (* General case *)
   | (Naked_int64 | Naked_nativeint), Neg -> C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension in
      order to match the Lambda semantics (where the swap might affect the
      sign). *)
   | Naked_int32, Swap_byte_endianness ->
-    C.sign_extend_32 dbg (C.bbswap Unboxed_int32 arg dbg)
+    C.sign_extend ~bits:32 ~dbg (C.bbswap Unboxed_int32 arg dbg)
   | Naked_int64, Swap_byte_endianness -> C.bbswap Unboxed_int64 arg dbg
   | Naked_nativeint, Swap_byte_endianness -> C.bbswap Unboxed_nativeint arg dbg
 
@@ -576,12 +578,12 @@ let arithmetic_conversion dbg src dst arg =
      instead. (Beware of the optimizations / pattern matching in the helpers
      though.) *)
   | Tagged_immediate, Naked_int32 ->
-    None, C.sign_extend_32 dbg (C.untag_int arg dbg)
+    None, C.sign_extend ~bits:32 ~dbg (C.untag_int arg dbg)
   | Tagged_immediate, Naked_immediate ->
-    None, C.sign_extend_63 dbg (C.untag_int arg dbg)
+    None, C.sign_extend ~bits:63 ~dbg (C.untag_int arg dbg)
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Naked_int32
     ->
-    None, C.sign_extend_32 dbg arg
+    None, C.sign_extend ~bits:32 ~dbg arg
   (* No-op conversions *)
   | Tagged_immediate, Tagged_immediate
   | Naked_int32, (Naked_int64 | Naked_nativeint | Naked_immediate)
@@ -600,9 +602,9 @@ let arithmetic_conversion dbg src dst arg =
   | Naked_float32, (Naked_int64 | Naked_nativeint) ->
     None, C.int_of_float32 ~dbg arg
   | Naked_float32, Naked_int32 ->
-    None, C.sign_extend_32 dbg (C.int_of_float32 ~dbg arg)
+    None, C.sign_extend ~bits:32 ~dbg (C.int_of_float32 ~dbg arg)
   | Naked_float32, Naked_immediate ->
-    None, C.sign_extend_63 dbg (C.int_of_float32 ~dbg arg)
+    None, C.sign_extend ~bits:63 ~dbg (C.int_of_float32 ~dbg arg)
     (* Int-Float conversions *)
   | Tagged_immediate, Naked_float ->
     None, C.float_of_int ~dbg (C.untag_int arg dbg)
@@ -614,9 +616,9 @@ let arithmetic_conversion dbg src dst arg =
   | Naked_float, (Naked_int64 | Naked_nativeint) ->
     None, C.int_of_float ~dbg arg
   | Naked_float, Naked_int32 ->
-    None, C.sign_extend_32 dbg (C.int_of_float ~dbg arg)
+    None, C.sign_extend ~bits:32 ~dbg (C.int_of_float ~dbg arg)
   | Naked_float, Naked_immediate ->
-    None, C.sign_extend_63 dbg (C.int_of_float ~dbg arg)
+    None, C.sign_extend ~bits:63 ~dbg (C.int_of_float ~dbg arg)
 
 let phys_equal _env dbg op x y =
   match (op : P.equality_comparison) with
@@ -632,8 +634,8 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     | Add -> C.add_int_caml x y dbg
     | Sub -> C.sub_int_caml x y dbg
     | Mul -> C.mul_int_caml x y dbg
-    | Div -> C.div_int_caml Unsafe x y dbg
-    | Mod -> C.mod_int_caml Unsafe x y dbg
+    | Div -> C.div_int_caml x y dbg
+    | Mod -> C.mod_int_caml x y dbg
     | And -> C.and_int_caml x y dbg
     | Or -> C.or_int_caml x y dbg
     | Xor -> C.xor_int_caml x y dbg)
@@ -644,8 +646,10 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
        avoid unnecessary sign extensions, e.g. when chaining additions together.
        Also see comment below about [C.low_32] in the [Div] and [Mod] cases. *)
     let sign_extend_32_can_delay_overflow f =
-      C.sign_extend_32 dbg (f (C.low_32 dbg x) (C.low_32 dbg y) dbg)
+      C.sign_extend ~bits:32 ~dbg
+        (f (C.low_bits ~bits:32 ~dbg x) (C.low_bits ~bits:32 ~dbg y) dbg)
     in
+    let dividend_cannot_be_min_int = C.arch_bits > 32 in
     match op with
     | Add -> sign_extend_32_can_delay_overflow C.add_int
     | Sub -> sign_extend_32_can_delay_overflow C.sub_int
@@ -672,12 +676,17 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
          if it doesn't support operations on 32-bit physical registers. There
          was a prototype developed of this but it was quite complicated and
          didn't get merged.) *)
-      C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y Unboxed_int32 dbg)
-    | Mod -> C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y Unboxed_int32 dbg))
+      C.sign_extend ~bits:32 ~dbg
+        (C.div_int x y ~dividend_cannot_be_min_int dbg)
+    | Mod ->
+      C.sign_extend ~bits:32 ~dbg
+        (C.mod_int x y ~dividend_cannot_be_min_int dbg))
   | Naked_immediate -> (
     let sign_extend_63_can_delay_overflow f =
-      C.sign_extend_63 dbg (f (C.low_63 dbg x) (C.low_63 dbg y) dbg)
+      C.sign_extend ~bits:63 ~dbg
+        (f (C.low_bits ~bits:63 ~dbg x) (C.low_bits ~bits:63 ~dbg y) dbg)
     in
+    let dividend_cannot_be_min_int = C.arch_bits > 63 in
     match op with
     | Add -> sign_extend_63_can_delay_overflow C.add_int
     | Sub -> sign_extend_63_can_delay_overflow C.sub_int
@@ -685,16 +694,14 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     | Xor -> sign_extend_63_can_delay_overflow C.xor_int
     | And -> sign_extend_63_can_delay_overflow C.and_int
     | Or -> sign_extend_63_can_delay_overflow C.or_int
-    | Div -> C.sign_extend_63 dbg (C.safe_div_bi Unsafe x y Unboxed_int64 dbg)
-    | Mod -> C.sign_extend_63 dbg (C.safe_mod_bi Unsafe x y Unboxed_int64 dbg))
+    | Div ->
+      C.sign_extend ~bits:63 ~dbg
+        (C.div_int x y dbg ~dividend_cannot_be_min_int)
+    | Mod ->
+      C.sign_extend ~bits:63 ~dbg
+        (C.mod_int x y dbg ~dividend_cannot_be_min_int))
   | Naked_int64 | Naked_nativeint -> (
     (* Machine-width integers, no sign extension required. *)
-    let width : Primitive.unboxed_integer =
-      match kind with
-      | Naked_int64 -> Unboxed_int64
-      | Naked_nativeint -> Unboxed_nativeint
-      | Naked_int32 | Naked_immediate | Tagged_immediate -> assert false
-    in
     match op with
     | Add -> C.add_int x y dbg
     | Sub -> C.sub_int x y dbg
@@ -702,8 +709,8 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     | And -> C.and_int x y dbg
     | Or -> C.or_int x y dbg
     | Xor -> C.xor_int x y dbg
-    | Div -> C.safe_div_bi Unsafe x y width dbg
-    | Mod -> C.safe_mod_bi Unsafe x y width dbg)
+    | Div -> C.div_int x y dbg
+    | Mod -> C.mod_int x y dbg)
 
 let binary_int_shift_primitive _env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.int_shift_op) with
@@ -714,26 +721,28 @@ let binary_int_shift_primitive _env dbg kind op x y =
   | Tagged_immediate, Asr -> C.asr_int_caml_raw ~dbg x y
   (* See comments on [binary_int_arity_primitive], above, about sign extension
      and use of [C.low_32]. *)
-  | Naked_int32, Lsl -> C.sign_extend_32 dbg (C.lsl_int (C.low_32 dbg x) y dbg)
+  | Naked_int32, Lsl ->
+    C.sign_extend ~bits:32 ~dbg (C.lsl_int (C.low_bits ~bits:32 ~dbg x) y dbg)
   | Naked_int32, Lsr ->
     (* Ensure that the top half of the register is cleared, as some of those
        bits are likely to get shifted into the result. *)
-    let arg = C.zero_extend_32 dbg x in
-    C.sign_extend_32 dbg (C.lsr_int arg y dbg)
-  | Naked_int32, Asr -> C.sign_extend_32 dbg (C.asr_int x y dbg)
+    let arg = C.zero_extend ~bits:32 ~dbg x in
+    C.sign_extend ~bits:32 ~dbg (C.lsr_int arg y dbg)
+  | Naked_int32, Asr -> C.sign_extend ~bits:32 ~dbg (C.asr_int x y dbg)
   | Naked_immediate, Lsl ->
-    C.sign_extend_63 dbg (C.lsl_int (C.low_63 dbg x) y dbg)
+    C.sign_extend ~bits:63 ~dbg (C.lsl_int (C.low_bits ~bits:63 ~dbg x) y dbg)
   | Naked_immediate, Lsr ->
     (* Same comment as in the [Naked_int32] case above re. zero extension. *)
-    let arg = C.zero_extend_63 dbg x in
-    C.sign_extend_63 dbg (C.lsr_int arg y dbg)
-  | Naked_immediate, Asr -> C.sign_extend_63 dbg (C.asr_int x y dbg)
+    let arg = C.zero_extend ~bits:63 ~dbg x in
+    C.sign_extend ~bits:63 ~dbg (C.lsr_int arg y dbg)
+  | Naked_immediate, Asr -> C.sign_extend ~bits:63 ~dbg (C.asr_int x y dbg)
   (* Naked ints *)
   | (Naked_int64 | Naked_nativeint), Lsl -> C.lsl_int x y dbg
   | (Naked_int64 | Naked_nativeint), Lsr -> C.lsr_int x y dbg
   | (Naked_int64 | Naked_nativeint), Asr -> C.asr_int x y dbg
 
 let binary_int_comp_primitive _env dbg kind cmp x y =
+  let ignore_low_bit_int = C.ignore_low_bits ~bits:1 ~dbg in
   match
     ( (kind : Flambda_kind.Standard_int.t),
       (cmp : P.signed_or_unsigned P.comparison) )
@@ -748,14 +757,14 @@ let binary_int_comp_primitive _env dbg kind cmp x y =
 
      See middle_end/flambda2/z3/comparisons.smt2 for a Z3 script to prove
      this. *)
-  | Tagged_immediate, Lt Signed -> C.lt ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Le Signed -> C.le ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Gt Signed -> C.gt ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Ge Signed -> C.ge ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Lt Unsigned -> C.ult ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Le Unsigned -> C.ule ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Gt Unsigned -> C.ugt ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Ge Unsigned -> C.uge ~dbg x (C.ignore_low_bit_int y)
+  | Tagged_immediate, Lt Signed -> C.lt ~dbg x (ignore_low_bit_int y)
+  | Tagged_immediate, Le Signed -> C.le ~dbg (ignore_low_bit_int x) y
+  | Tagged_immediate, Gt Signed -> C.gt ~dbg (ignore_low_bit_int x) y
+  | Tagged_immediate, Ge Signed -> C.ge ~dbg x (ignore_low_bit_int y)
+  | Tagged_immediate, Lt Unsigned -> C.ult ~dbg x (ignore_low_bit_int y)
+  | Tagged_immediate, Le Unsigned -> C.ule ~dbg (ignore_low_bit_int x) y
+  | Tagged_immediate, Gt Unsigned -> C.ugt ~dbg (ignore_low_bit_int x) y
+  | Tagged_immediate, Ge Unsigned -> C.uge ~dbg x (ignore_low_bit_int y)
   (* Naked integers. *)
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Lt Signed
     ->
