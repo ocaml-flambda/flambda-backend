@@ -16,7 +16,7 @@ Line 1, characters 16-17:
                     ^
 Warning 44 [open-shadow-identifier]: this open statement shadows the value identifier f (which is later used)
 
-val g : (unit -> 'a) -> int = <fun>
+val g : ('a : value_or_null). (unit -> 'a) -> int = <fun>
 |}]
 
 (* regression test for #12494

@@ -5,7 +5,9 @@ Fille
 let ( let+ ) ~(call_pos : [%call_pos]) a f = f (call_pos, a);;
 [%%expect{|
 val ( let+ ) :
-  call_pos:[%call_pos] -> 'a -> (lexing_position * 'a -> 'b) -> 'b = <fun>
+  ('a : value_or_null) ('b : value_or_null).
+    call_pos:[%call_pos] -> 'a -> (lexing_position * 'a -> 'b) -> 'b =
+  <fun>
 |}]
 
 (* Would be nice to add support for implicit position parameters and (also maybe optional
@@ -30,7 +32,10 @@ let _ =
   call_pos
 
 [%%expect{|
-val ( let* ) : ?call_pos:int -> 'a -> (int * 'a -> 'b) -> 'b = <fun>
+val ( let* ) :
+  ('a : value_or_null) ('b : value_or_null).
+    ?call_pos:int -> 'a -> (int * 'a -> 'b) -> 'b =
+  <fun>
 Line 4, characters 2-6:
 4 |   let* (call_pos, a) = 1 in
       ^^^^
@@ -46,9 +51,11 @@ let _ =
 
 [%%expect{|
 val ( >>| ) :
-  call_pos:[%call_pos] -> 'a -> (lexing_position * 'a -> 'b) -> 'b = <fun>
+  ('a : value_or_null) ('b : value_or_null).
+    call_pos:[%call_pos] -> 'a -> (lexing_position * 'a -> 'b) -> 'b =
+  <fun>
 - : lexing_position =
-{pos_fname = ""; pos_lnum = 3; pos_bol = 1140; pos_cnum = 1144}
+{pos_fname = ""; pos_lnum = 3; pos_bol = 1240; pos_cnum = 1244}
 |}]
 
 (* TEST

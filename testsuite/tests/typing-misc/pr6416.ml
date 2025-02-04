@@ -178,11 +178,11 @@ Line 5, characters 5-41:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig type a = B val f : a/2 -> 'a -> a/1 end
+         sig type a = B val f : ('a : value_or_null). a/2 -> 'a -> a/1 end
        is not included in
          sig val f : a -> (module a) -> a end
        Values do not match:
-         val f : a/2 -> 'a -> a/1
+         val f : ('a : value_or_null). a/2 -> 'a -> a/1
        is not included in
          val f : a/2 -> (module a) -> a/2
        The type "a/2 -> (module a) -> a/1" is not compatible with the type

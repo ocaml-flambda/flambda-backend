@@ -79,7 +79,8 @@ Line 2, characters 33-36:
                                      ^^^
 Alert deprecated: cho
 
-val f : 'a * int * 'b -> int = <fun>
+val f : ('a : value_or_null) ('b : value_or_null). 'a * int * 'b -> int =
+  <fun>
 |}]
 
 class c (_, (foo [@deprecated] : int)) =

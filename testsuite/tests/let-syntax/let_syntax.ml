@@ -16,13 +16,17 @@ module Id = struct
 
 end;;
 [%%expect{|
-val id : 'a -> 'a = <fun>
-val apply : 'a -> ('a -> 'b) -> 'b = <fun>
-val pair : 'a -> 'b -> 'a * 'b = <fun>
+val id : ('a : value_or_null). 'a -> 'a = <fun>
+val apply : ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b =
+  <fun>
+val pair : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'a * 'b =
+  <fun>
 module Id :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+    val ( and+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'a * 'b
   end
 |}];;
 
@@ -153,7 +157,11 @@ module And_unbound = struct
   let (let+) = Id.(let+)
 end;;
 [%%expect{|
-module And_unbound : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
+module And_unbound :
+  sig
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+  end
 |}];;
 
 let and_unbound =
@@ -175,7 +183,8 @@ module Ill_typed_1 = struct
 
 end;;
 [%%expect{|
-module Ill_typed_1 : sig val ( let+ ) : bool -> (bool -> 'a) -> 'a end
+module Ill_typed_1 :
+  sig val ( let+ ) : ('a : value_or_null). bool -> (bool -> 'a) -> 'a end
 |}];;
 
 let ill_typed_1 =
@@ -200,7 +209,8 @@ end;;
 [%%expect{|
 module Ill_typed_2 :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
     val ( and+ ) : float -> float -> float * float
   end
 |}];;
@@ -250,7 +260,11 @@ module Ill_typed_4 = struct
 end;;
 [%%expect{|
 module Ill_typed_4 :
-  sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b val ( and+ ) : bool -> bool end
+  sig
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+    val ( and+ ) : bool -> bool
+  end
 |}];;
 
 let ill_typed_4 =
@@ -277,8 +291,9 @@ end;;
 [%%expect{|
 module Ill_typed_5 :
   sig
-    val ( let+ ) : bool -> 'a -> bool
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) : ('a : value_or_null). bool -> 'a -> bool
+    val ( and+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'a * 'b
   end
 |}];;
 
@@ -307,8 +322,9 @@ end;;
 [%%expect{|
 module Ill_typed_6 :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : int -> 'a -> int * 'a
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+    val ( and+ ) : ('a : value_or_null). int -> 'a -> int * 'a
   end
 |}];;
 
@@ -337,8 +353,9 @@ end;;
 [%%expect{|
 module Ill_typed_7 :
   sig
-    val ( let+ ) : (int -> 'a) -> int -> 'a
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) : ('a : value_or_null). (int -> 'a) -> int -> 'a
+    val ( and+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'a * 'b
   end
 |}];;
 
@@ -534,7 +551,8 @@ module Let_principal = struct
 end;;
 [%%expect{|
 module A : sig type t = A end
-module Let_principal : sig val ( let+ ) : A.t -> (A.t -> 'a) -> 'a end
+module Let_principal :
+  sig val ( let+ ) : ('a : value_or_null). A.t -> (A.t -> 'a) -> 'a end
 |}];;
 
 let let_principal =
@@ -554,8 +572,9 @@ end;;
 [%%expect{|
 module And_principal :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : A.t -> 'a -> A.t * 'a
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+    val ( and+ ) : ('a : value_or_null). A.t -> 'a -> A.t * 'a
   end
 |}];;
 
@@ -573,7 +592,11 @@ module Let_not_principal = struct
   let ( let+ ) = apply
 end;;
 [%%expect{|
-module Let_not_principal : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
+module Let_not_principal :
+  sig
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+  end
 |}];;
 
 let let_not_principal =
@@ -599,8 +622,9 @@ end;;
 [%%expect{|
 module And_not_principal :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'a -> 'a * 'a
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+    val ( and+ ) : ('a : value_or_null). 'a -> 'a -> 'a * 'a
   end
 |}];;
 
@@ -626,7 +650,11 @@ module Let_not_propagated = struct
   let ( let+ ) = apply
 end;;
 [%%expect{|
-module Let_not_propagated : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
+module Let_not_propagated :
+  sig
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+  end
 |}];;
 
 let let_not_propagated : A.t =
@@ -656,9 +684,12 @@ module Side_effects_ordering :
     val r : string list ref
     val msg : string -> unit
     val output : unit -> string list
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
-    val ( and++ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+    val ( and+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'a * 'b
+    val ( and++ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'a * 'b
   end
 |}];;
 
@@ -687,8 +718,10 @@ module GADT_ordering :
   sig
     type point = { x : int; y : int; }
     type _ is_point = Is_point : point is_point
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b
+    val ( and+ ) :
+      ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'a * 'b
   end
 |}];;
 

@@ -560,7 +560,7 @@ Line 1, characters 12-18:
                 ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val f : 'a -> 'a = <fun>
+val f : ('a : value_or_null). 'a -> 'a = <fun>
 |}]
 
 let f = fun (type unused) x -> x
@@ -570,7 +570,7 @@ Line 1, characters 18-24:
                       ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val f : 'a -> 'a = <fun>
+val f : ('a : value_or_null). 'a -> 'a = <fun>
 |}]
 
 let f (type used unused) (x : used) = x

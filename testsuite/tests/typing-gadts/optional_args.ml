@@ -14,7 +14,7 @@ let apply (_ : unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun () : a -> ())
 
 [%%expect{|
-val apply : (unit -> 'a) -> 'a = <fun>
+val apply : ('a : value_or_null). (unit -> 'a) -> 'a = <fun>
 val go : (unit, 'a) refl -> 'a = <fun>
 |}]
 
@@ -22,7 +22,7 @@ let apply (_ : x:unit -> unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun ~x:_ () : a -> ())
 
 [%%expect{|
-val apply : (x:unit -> unit -> 'a) -> 'a = <fun>
+val apply : ('a : value_or_null). (x:unit -> unit -> 'a) -> 'a = <fun>
 val go : (unit, 'a) refl -> 'a = <fun>
 |}]
 
@@ -30,7 +30,7 @@ let apply (_ : ?x:unit -> unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun ?x:_ () : a -> ())
 
 [%%expect{|
-val apply : (?x:unit -> unit -> 'a) -> 'a = <fun>
+val apply : ('a : value_or_null). (?x:unit -> unit -> 'a) -> 'a = <fun>
 Line 2, characters 42-71:
 2 | let go (type a) (Refl : (unit, a) refl) = apply (fun ?x:_ () : a -> ())
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -44,7 +44,7 @@ let apply (_ : unit -> x:unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun () ~x:_ : a -> ())
 
 [%%expect{|
-val apply : (unit -> x:unit -> 'a) -> 'a = <fun>
+val apply : ('a : value_or_null). (unit -> x:unit -> 'a) -> 'a = <fun>
 val go : (unit, 'a) refl -> 'a = <fun>
 |}]
 
@@ -52,7 +52,7 @@ let apply (_ : unit -> ?x:unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun () ?x:_ : a -> ())
 
 [%%expect{|
-val apply : (unit -> ?x:unit -> 'a) -> 'a = <fun>
+val apply : ('a : value_or_null). (unit -> ?x:unit -> 'a) -> 'a = <fun>
 Line 2, characters 59-60:
 2 | let go (type a) (Refl : (unit, a) refl) = apply (fun () ?x:_ : a -> ())
                                                                ^

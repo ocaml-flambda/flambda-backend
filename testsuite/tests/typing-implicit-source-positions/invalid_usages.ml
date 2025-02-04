@@ -29,7 +29,9 @@ Error: [%call_pos] can only exist as the type of a labelled argument
 
 let apply f = f ~call_pos:Lexing.dummy_pos () ;;
 [%%expect {|
-val apply : (call_pos:Lexing.position -> unit -> 'a) -> 'a = <fun>
+val apply :
+  ('a : value_or_null). (call_pos:Lexing.position -> unit -> 'a) -> 'a =
+  <fun>
 |}]
 
 let g = fun ~(call_pos:[%call_pos]) () -> ()

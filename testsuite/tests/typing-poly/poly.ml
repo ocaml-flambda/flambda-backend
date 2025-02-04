@@ -32,7 +32,7 @@ let id x = x;;
 let {id} = id { id };;
 [%%expect {|
 type id = { id : 'a. 'a -> 'a; }
-val id : 'a -> 'a = <fun>
+val id : ('a : value_or_null). 'a -> 'a = <fun>
 val id : 'a -> 'a = <fun>
 |}];;
 
@@ -755,7 +755,7 @@ let append (l : 'a #olist) (l' : 'b #olist) =
   l#fold ~init:l' ~f:(fun x acc -> acc#cons x)
 ;;
 [%%expect {|
-val id : 'a -> 'a = <fun>
+val id : ('a : value_or_null). 'a -> 'a = <fun>
 class c : object method id : 'a -> 'a end
 class c' : object method id : 'a -> 'a end
 class d :
@@ -841,10 +841,12 @@ Error: This field value has type "'b option ref" which is less general than
 let f (x: <m:'a.<p: 'a * 'b> as 'b>) (y : 'b) = ();;
 let f (x: <m:'a. 'a * (<p:int*'b> as 'b)>) (y : 'b) = ();;
 [%%expect {|
-val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit = <fun>
+val f : ('b : value_or_null). < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit =
+  <fun>
 val f : < m : 'a. 'a * (< p : int * 'b > as 'b) > -> 'b -> unit = <fun>
 |}, Principal{|
-val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit = <fun>
+val f : ('b : value_or_null). < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit =
+  <fun>
 val f :
   < m : 'a. 'a * (< p : int * 'b > as 'b) > ->
   (< p : int * 'c > as 'c) -> unit = <fun>
@@ -1280,7 +1282,9 @@ fun x -> (f x).(0)#m;; (* Warning 18 *)
 [%%expect {|
 val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > = <fun>
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > = <fun>
+val f :
+  ('b : value_or_null). < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > =
+  <fun>
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
 val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array = <fun>
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
@@ -1292,7 +1296,9 @@ Line 2, characters 9-16:
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > = <fun>
+val f :
+  ('b : value_or_null). < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > =
+  <fun>
 Line 4, characters 9-20:
 4 | fun x -> (f (x,x))#m;; (* Warning 18 *)
              ^^^^^^^^^^^
@@ -1469,7 +1475,7 @@ end;;
 module Polux :
   sig
     type 'par t = 'par
-    val ident : 'a -> 'a
+    val ident : ('a : value_or_null). 'a -> 'a
     class alias : object method alias : 'a t -> 'a end
     val f : < m : 'a. 'a t > -> < m : 'a. 'a >
   end
@@ -1511,7 +1517,7 @@ let using_match b =
   f 0,f
 ;;
 [%%expect {|
-val using_match : bool -> int * ('a -> 'a) = <fun>
+val using_match : ('a : value_or_null). bool -> int * ('a -> 'a) = <fun>
 |}];;
 
 match (fun x -> x), fun x -> x with x, y -> x, y;;
@@ -1623,7 +1629,9 @@ let rec f1 o c x =
 type 'a t = V1 of 'a
 type ('c, 't) pvariant = [ `V of 'c * 't t ]
 class ['c] clss : object method mthod : 'c -> 't t -> ('c, 't) pvariant end
-val f2 : 'a -> 'b -> 'c t -> 'c t = <fun>
+val f2 :
+  ('a : value_or_null) ('b : value_or_null) 'c. 'a -> 'b -> 'c t -> 'c t =
+  <fun>
 val f1 :
   < mthod : 't. 'a -> 't t -> [< `V of 'a * 't t ]; .. > ->
   'a -> 'b t -> 'b t = <fun>
@@ -1825,7 +1833,7 @@ let id x = x;;
 [%%expect{|
 type 'a t = 'a constraint 'a = 'b list
 type 'a s = 'a list
-val id : 'a -> 'a = <fun>
+val id : ('a : value_or_null). 'a -> 'a = <fun>
 |}]
 
 let x : [ `Foo of _ s | `Foo of 'a t ] = id (`Foo []);;
@@ -2007,7 +2015,8 @@ val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 
 let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
+val discrepancy :
+  'a ('b : value_or_null). < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
 |}]
 
 
@@ -2107,7 +2116,8 @@ val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 
 let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
+val discrepancy :
+  'a ('b : value_or_null). < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
 |}]
 
 
@@ -2207,7 +2217,8 @@ val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 
 let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
+val discrepancy :
+  'a ('b : value_or_null). < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
 |}]
 
 

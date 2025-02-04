@@ -113,7 +113,7 @@ let f : type a. a Middle.is_int -> a -> int = fun Middle.Is_int x -> x
 let g : bool Middle.is_int -> 'a = function _ -> .
 [%%expect{|
 val f : 'a Middle.is_int -> 'a -> int = <fun>
-val g : bool Middle.is_int -> 'a = <fun>
+val g : ('a : value_or_null). bool Middle.is_int -> 'a = <fun>
 |}]
 
 let f (x: Middle.u) = x

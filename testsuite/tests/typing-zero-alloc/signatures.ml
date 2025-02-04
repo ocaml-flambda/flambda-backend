@@ -1012,7 +1012,11 @@ module M_infer2'''' : sig
   val[@zero_alloc opt] g : int -> int
 end = M_infer2 (* 4 *)
 [%%expect{|
-module M_infer2 : sig val f : 'a -> 'a val g : 'a -> 'a end
+module M_infer2 :
+  sig
+    val f : ('a : value_or_null). 'a -> 'a
+    val g : ('a : value_or_null). 'a -> 'a
+  end
 module M_infer2' :
   sig
     val f : int -> int [@@zero_alloc opt]
@@ -1042,8 +1046,8 @@ module type S = module type of M_infer2
 [%%expect{|
 module type S =
   sig
-    val f : 'a -> 'a [@@zero_alloc strict]
-    val g : 'a -> 'a [@@zero_alloc]
+    val f : ('a : value_or_null). 'a -> 'a [@@zero_alloc strict]
+    val g : ('a : value_or_null). 'a -> 'a [@@zero_alloc]
   end
 |}]
 

@@ -34,20 +34,22 @@ let measure_arity f =
 [%%expect{|
 type t = int lazy_t
 val measure_arity :
-  ('a lazy_t -> 'b lazy_t -> 'c lazy_t -> 'd lazy_t -> 'e) -> int = <fun>
+  'a 'b 'c 'd ('e : value_or_null).
+    ('a lazy_t -> 'b lazy_t -> 'c lazy_t -> 'd lazy_t -> 'e) -> int =
+  <fun>
 |}];;
 
 let unary (lazy _ : t) = assert false;;
 let arity = measure_arity unary;;
 [%%expect{|
-val unary : t -> 'a = <fun>
+val unary : ('a : value_or_null). t -> 'a = <fun>
 val arity : int = 1
 |}];;
 
 let fun_lambda = fun (lazy _ : t) (lazy _ : t) -> assert false;;
 let arity = measure_arity fun_lambda;;
 [%%expect{|
-val fun_lambda : t -> t -> 'a = <fun>
+val fun_lambda : ('a : value_or_null). t -> t -> 'a = <fun>
 val arity : int = 2
 |}];;
 
@@ -55,7 +57,7 @@ let nested_arity = fun (lazy _ : t) -> fun (lazy _ : t) -> assert false;;
 let arity1 = measure_arity nested_arity;;
 let arity2 = measure_arity (nested_arity (lazy 0));;
 [%%expect{|
-val nested_arity : t -> t -> 'a = <fun>
+val nested_arity : ('a : value_or_null). t -> t -> 'a = <fun>
 val arity1 : int = 1
 val arity2 : int = 1
 |}];;
@@ -64,7 +66,8 @@ let fun_lambda_with_function_body =
   fun (lazy _ : t) (lazy _ : t) -> function (lazy _ : t) -> assert false;;
 let arity = measure_arity fun_lambda_with_function_body;;
 [%%expect{|
-val fun_lambda_with_function_body : t -> t -> t -> 'a = <fun>
+val fun_lambda_with_function_body : ('a : value_or_null). t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -72,7 +75,8 @@ let function_body_single_case (lazy _ : t) (lazy _ : t) = function
   | (lazy _ : t) -> assert false;;
 let arity = measure_arity function_body_single_case;;
 [%%expect{|
-val function_body_single_case : t -> t -> t -> 'a = <fun>
+val function_body_single_case : ('a : value_or_null). t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -80,7 +84,8 @@ let function_body_constraint (lazy _ : t) (lazy _ : t) : _ = function
   | (lazy _ : t) -> assert false;;
 let arity = measure_arity function_body_constraint;;
 [%%expect{|
-val function_body_constraint : t -> t -> t -> 'a = <fun>
+val function_body_constraint : ('a : value_or_null). t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -89,7 +94,8 @@ let function_body_multiple_cases (lazy _ : t) (lazy _ : t) = function
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false);;
 let arity = measure_arity function_body_multiple_cases;;
 [%%expect{|
-val function_body_multiple_cases : t -> t -> t -> t -> 'a = <fun>
+val function_body_multiple_cases :
+  ('a : value_or_null). t -> t -> t -> t -> 'a = <fun>
 val arity : int = 3
 |}];;
 
@@ -99,7 +105,8 @@ let function_body_constraint_multiple_cases (lazy _ : t) (lazy _ : t) : _ =
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false)
 let arity = measure_arity function_body_constraint_multiple_cases
 [%%expect{|
-val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a = <fun>
+val function_body_constraint_multiple_cases :
+  ('a : value_or_null). t -> t -> t -> t -> 'a = <fun>
 val arity : int = 3
 |}];;
 
@@ -108,7 +115,8 @@ let function_body_coercion (lazy _ : t) (lazy _ : t) :> _ = function
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false)
 let arity = measure_arity function_body_coercion
 [%%expect{|
-val function_body_coercion : t -> t -> t -> t -> 'a = <fun>
+val function_body_coercion : ('a : value_or_null). t -> t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -118,7 +126,8 @@ let function_body_coercion_constraint (lazy _ : t) (lazy _ : t) : _ :> _ =
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false)
 let arity = measure_arity function_body_coercion_constraint
 [%%expect{|
-val function_body_coercion_constraint : t -> t -> t -> t -> 'a = <fun>
+val function_body_coercion_constraint :
+  ('a : value_or_null). t -> t -> t -> t -> 'a = <fun>
 val arity : int = 3
 |}];;
 
@@ -130,7 +139,8 @@ let partial_application (lazy _ : t) (lazy _ : t) = function
 let arity1 = measure_arity partial_application
 let arity2 = measure_arity (partial_application (lazy 0))
 [%%expect{|
-val partial_application : t -> t -> t -> t -> 'a = <fun>
+val partial_application : ('a : value_or_null). t -> t -> t -> t -> 'a =
+  <fun>
 val arity1 : int = 3
 val arity2 : int = 2
 |}];;
@@ -149,7 +159,7 @@ let arity4 = measure_arity f4
 val f1 : t -> t -> 'a = <fun>
 val f2 : t -> t -> 'a = <fun>
 val f3 : t -> t -> 'a = <fun>
-val f4 : t -> t -> 'a = <fun>
+val f4 : ('a : value_or_null). t -> t -> 'a = <fun>
 val arity1 : int = 2
 val arity2 : int = 2
 val arity3 : int = 2
@@ -183,14 +193,14 @@ val measure_arity : (t -> t -> t -> t -> 'a) -> int = <fun>
 let unary A = assert false;;
 let arity = measure_arity unary;;
 [%%expect{|
-val unary : t -> 'a = <fun>
+val unary : ('a : value_or_null). t -> 'a = <fun>
 val arity : int = 1
 |}];;
 
 let fun_lambda = fun A A -> assert false;;
 let arity = measure_arity fun_lambda;;
 [%%expect{|
-val fun_lambda : t -> t -> 'a = <fun>
+val fun_lambda : ('a : value_or_null). t -> t -> 'a = <fun>
 val arity : int = 2
 |}];;
 
@@ -198,7 +208,7 @@ let nested_arity = fun A -> fun A -> assert false;;
 let arity1 = measure_arity nested_arity;;
 let arity2 = measure_arity (nested_arity A);;
 [%%expect{|
-val nested_arity : t -> t -> 'a = <fun>
+val nested_arity : ('a : value_or_null). t -> t -> 'a = <fun>
 val arity1 : int = 1
 val arity2 : int = 1
 |}];;
@@ -207,7 +217,8 @@ let fun_lambda_with_function_body =
   fun A A -> function A -> assert false;;
 let arity = measure_arity fun_lambda_with_function_body;;
 [%%expect{|
-val fun_lambda_with_function_body : t -> t -> t -> 'a = <fun>
+val fun_lambda_with_function_body : ('a : value_or_null). t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -215,7 +226,8 @@ let function_body_single_case A A = function
   | A -> assert false;;
 let arity = measure_arity function_body_single_case;;
 [%%expect{|
-val function_body_single_case : t -> t -> t -> 'a = <fun>
+val function_body_single_case : ('a : value_or_null). t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -223,7 +235,8 @@ let function_body_constraint A A : _ = function
   | A -> assert false;;
 let arity = measure_arity function_body_constraint;;
 [%%expect{|
-val function_body_constraint : t -> t -> t -> 'a = <fun>
+val function_body_constraint : ('a : value_or_null). t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -232,7 +245,8 @@ let function_body_multiple_cases A A = function
   | A -> (fun A -> assert false);;
 let arity = measure_arity function_body_multiple_cases;;
 [%%expect{|
-val function_body_multiple_cases : t -> t -> t -> t -> 'a = <fun>
+val function_body_multiple_cases :
+  ('a : value_or_null). t -> t -> t -> t -> 'a = <fun>
 val arity : int = 3
 |}];;
 
@@ -241,7 +255,8 @@ let function_body_constraint_multiple_cases A A : _ = function
   | A -> (fun A -> assert false)
 let arity = measure_arity function_body_constraint_multiple_cases
 [%%expect{|
-val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a = <fun>
+val function_body_constraint_multiple_cases :
+  ('a : value_or_null). t -> t -> t -> t -> 'a = <fun>
 val arity : int = 3
 |}];;
 
@@ -250,7 +265,8 @@ let function_body_coercion A A :> _ = function
   | A -> (fun A -> assert false)
 let arity = measure_arity function_body_coercion
 [%%expect{|
-val function_body_coercion : t -> t -> t -> t -> 'a = <fun>
+val function_body_coercion : ('a : value_or_null). t -> t -> t -> t -> 'a =
+  <fun>
 val arity : int = 3
 |}];;
 
@@ -259,7 +275,8 @@ let function_body_coercion_constraint A A : _ :> _ = function
   | A -> (fun A -> assert false)
 let arity = measure_arity function_body_coercion_constraint
 [%%expect{|
-val function_body_coercion_constraint : t -> t -> t -> t -> 'a = <fun>
+val function_body_coercion_constraint :
+  ('a : value_or_null). t -> t -> t -> t -> 'a = <fun>
 val arity : int = 3
 |}];;
 
@@ -271,7 +288,8 @@ let partial_application A A = function
 let arity1 = measure_arity partial_application
 let arity2 = measure_arity (partial_application A)
 [%%expect{|
-val partial_application : t -> t -> t -> t -> 'a = <fun>
+val partial_application : ('a : value_or_null). t -> t -> t -> t -> 'a =
+  <fun>
 val arity1 : int = 3
 val arity2 : int = 2
 |}];;
@@ -289,7 +307,7 @@ let arity4 = measure_arity f4
 val f1 : t -> t -> 'a = <fun>
 val f2 : t -> t -> 'a = <fun>
 val f3 : t -> t -> 'a = <fun>
-val f4 : t -> t -> 'a = <fun>
+val f4 : ('a : value_or_null). t -> t -> 'a = <fun>
 val arity1 : int = 2
 val arity2 : int = 2
 val arity3 : int = 2

@@ -199,11 +199,15 @@ let not_ambiguous__several_orpats = function
 ;;
 [%%expect {|
 val not_ambiguous__several_orpats :
-  [> `A of
-       [> `B of 'a * 'b option * 'c option ] *
-       [> `C of 'a * 'd option * 'e option ] *
-       [> `D1 of 'f * 'a * 'g option * 'h | `D2 of 'i * 'a * 'j * 'k option ]
-  ] -> unit = <fun>
+  'a 'b 'c 'd 'e ('f : value_or_null) 'g ('h : value_or_null)
+    ('i : value_or_null) ('j : value_or_null) 'k.
+    [> `A of
+         [> `B of 'a * 'b option * 'c option ] *
+         [> `C of 'a * 'd option * 'e option ] *
+         [> `D1 of 'f * 'a * 'g option * 'h | `D2 of 'i * 'a * 'j * 'k option
+         ] ] ->
+    unit =
+  <fun>
 |}]
 
 let ambiguous__first_orpat = function
@@ -281,7 +285,8 @@ let not_ambiguous__as_var p = function
   | _ -> ()
 ;;
 [%%expect {|
-val not_ambiguous__as_var : ('a list * 'b -> bool) -> 'a list * 'b -> unit =
+val not_ambiguous__as_var :
+  'a ('b : value_or_null). ('a list * 'b -> bool) -> 'a list * 'b -> unit =
   <fun>
 |}]
 
@@ -291,7 +296,8 @@ let not_ambiguous__var_as p = function
 ;;
 [%%expect {|
 val not_ambiguous__var_as :
-  ('a list * 'b -> bool) -> ('a list * 'b) * 'c option * 'd option -> unit =
+  'a ('b : value_or_null) 'c 'd.
+    ('a list * 'b -> bool) -> ('a list * 'b) * 'c option * 'd option -> unit =
   <fun>
 |}]
 

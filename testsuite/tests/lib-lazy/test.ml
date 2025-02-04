@@ -10,7 +10,9 @@ let logger () =
   let log v = log := v :: !log in
   log, show_log
 [%%expect{|
-val logger : unit -> ('a -> unit) * ('b -> 'a list * 'b) = <fun>
+val logger :
+  'a ('b : value_or_null). unit -> ('a -> unit) * ('b -> 'a list * 'b) =
+  <fun>
 |}]
 
 let _ =

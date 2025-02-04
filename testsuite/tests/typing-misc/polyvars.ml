@@ -115,8 +115,9 @@ let f x (g : [< `Foo]) =
   revapply y (fun ((`Bar i), _) -> i);;
 (* f : 'a -> [< `Foo ] -> 'a *)
 [%%expect{|
-val revapply : 'a -> ('a -> 'b) -> 'b = <fun>
-val f : 'a -> [< `Foo ] -> 'a = <fun>
+val revapply :
+  ('a : value_or_null) ('b : value_or_null). 'a -> ('a -> 'b) -> 'b = <fun>
+val f : ('a : value_or_null). 'a -> [< `Foo ] -> 'a = <fun>
 |}];;
 
 (* PR#6124 *)

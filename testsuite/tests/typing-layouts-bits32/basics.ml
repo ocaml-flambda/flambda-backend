@@ -389,7 +389,7 @@ let id_value x = x;;
 val make_t_bits32 : unit -> t_bits32 = <fun>
 val make_t_bits32_id : ('a : bits32). unit -> 'a t_bits32_id = <fun>
 val make_int32u : unit -> int32# = <fun>
-val id_value : 'a -> 'a = <fun>
+val id_value : ('a : value_or_null). 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_bits32 ());;
