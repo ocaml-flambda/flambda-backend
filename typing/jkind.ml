@@ -1850,11 +1850,7 @@ let is_value_for_printing
     Layout.Const.equal const value.layout
     && Modes.equal modes_upper_bounds value.modes_upper_bounds
     && Externality.equal externality_upper_bound value.externality_upper_bound
-    &&
-    if (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-       Language_extension.(is_at_least Layouts Alpha)
-    then Nullability.equal nullability_upper_bound Nullability.Non_null
-    else true
+    && Nullability.equal nullability_upper_bound Nullability.Non_null
   | None -> false
 
 (*********************************)
