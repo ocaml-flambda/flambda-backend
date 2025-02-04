@@ -308,7 +308,10 @@ module Builtin : sig
       Precondition: both input lists are the same length.
 
       This returns an [jkind_l] simply as a matter of convenience; it can be
-      generalized if need be.  *)
+      generalized if need be.
+
+      The resulting jkind has quality [Best], because all the components of the product
+      are represented in the with-bounds. *)
   val product :
     jkind_of_first_type:(unit -> Types.jkind_l) ->
     jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
@@ -317,9 +320,9 @@ module Builtin : sig
     Sort.t Layout.t list ->
     Types.jkind_l
 
-  (** Build a jkind of unboxed products, given only an arity. This jkind
-      will not mode-cross, even though unboxed products generally should.
-      This is useful when creating an initial jkind in Typedecl. *)
+  (** Build a jkind of unboxed products, given only an arity. This jkind will not
+      mode-cross (and has kind [Not_best] accordingly), even though unboxed products
+      generally should. This is useful when creating an initial jkind in Typedecl. *)
   val product_of_sorts :
     why:History.product_creation_reason -> int -> Types.jkind_l
 end

@@ -1576,6 +1576,9 @@ module Builtin = struct
         layouts
     in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
+    (* [mark_best] is correct here because the with-bounds of a product jkind include all
+       the components of the product. Accordingly, looking through the product, by one
+       step, never loses any information. *)
     |> mark_best
 
   let product_of_sorts ~why arity =
@@ -1587,6 +1590,9 @@ module Builtin = struct
       { layout; mod_bounds = Mod_bounds.max; with_bounds = No_with_bounds }
     in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
+  (* We do not [mark_best] here because the resulting jkind is used (only) in the middle of
+     type-checking mutually recursive type declarations. See Note [Default jkind in
+     transl_declaration] for more commentary on why we don't want [Best] jkinds there. *)
 end
 
 let add_nullability_crossing t =
