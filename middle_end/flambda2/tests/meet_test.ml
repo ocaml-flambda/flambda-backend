@@ -7,7 +7,6 @@ open Flambda2_term_basics
 module K = Flambda_kind
 module T = Flambda2_types
 module TE = T.Typing_env
-module TEE = T.Typing_env_extension
 
 let create_env () =
   let resolver _ = None in
@@ -42,9 +41,8 @@ let test_meet_chains_two_vars () =
     new_type_for_var2;
   match T.meet env first_type_for_var2 new_type_for_var2 with
   | Bottom -> assert false
-  | Ok (meet_ty, env_extension) ->
-    Format.eprintf "Env extension:@ %a\n%!" TEE.print env_extension;
-    let env = TE.add_env_extension env env_extension in
+  | Ok (meet_ty, env) ->
+    Format.eprintf "Extended env:@ %a\n%!" TE.print env;
     let env = TE.add_equation env (Name.var var2) meet_ty in
     Format.eprintf "Final situation:@ %a\n%!" TE.print env
 
@@ -81,9 +79,8 @@ let test_meet_chains_three_vars () =
     new_type_for_var3;
   match T.meet env first_type_for_var3 new_type_for_var3 with
   | Bottom -> assert false
-  | Ok (meet_ty, env_extension) ->
-    Format.eprintf "Env extension:@ %a\n%!" TEE.print env_extension;
-    let env = TE.add_env_extension env env_extension in
+  | Ok (meet_ty, env) ->
+    Format.eprintf "Extended env:@ %a\n%!" TE.print env;
     let env = TE.add_equation env (Name.var var3) meet_ty in
     Format.eprintf "Final situation:@ %a\n%!" TE.print env
 
@@ -127,20 +124,20 @@ let meet_variants_don't_lose_aliases () =
   in
   match T.meet env ty1 ty2 with
   | Bottom -> assert false
-  | Ok (meet_ty, env_extension) -> (
+  | Ok (meet_ty, env) -> (
     Format.eprintf "@[<hov 2>Meet:@ %a@ /\\@ %a =>@ %a +@ %a@]@." T.print ty1
-      T.print ty2 T.print meet_ty TEE.print env_extension;
+      T.print ty2 T.print meet_ty TE.print env;
     (* Env extension should be empty *)
     let env = TE.add_equation env (Name.var v_variant) meet_ty in
     let t_get_tag = T.get_tag_for_block ~block:(Simple.var v_variant) in
     let t_tag_1 = T.this_naked_immediate Targetint_31_63.one in
     match T.meet env t_get_tag t_tag_1 with
     | Bottom -> assert false
-    | Ok (tag_meet_ty, tag_meet_env_extension) ->
+    | Ok (tag_meet_ty, tag_meet_env) ->
       Format.eprintf "t_get_tag: %a@.t_tag: %a@." T.print t_get_tag T.print
         t_tag_1;
-      Format.eprintf "@[<hov 2>meet:@ %a@]@.@[<hov 2>env_extension:@ %a@]@."
-        T.print tag_meet_ty TEE.print tag_meet_env_extension)
+      Format.eprintf "@[<hov 2>meet:@ %a@]@.@[<hov 2>env:@ %a@]@." T.print
+        tag_meet_ty TE.print tag_meet_env)
 
 let test_meet_two_blocks () =
   let define env v =
@@ -183,10 +180,8 @@ let test_meet_two_blocks () =
         (T.alias_type_of K.value (Simple.var b2))
     with
     | Bottom -> assert false
-    | Ok (t, tee) ->
-      Format.eprintf "Res:@ %a@.%a@." T.print t TEE.print tee;
-      let env = TE.add_env_extension env tee in
-      Format.eprintf "Env:@.%a@.@." TE.print env
+    | Ok (t, env) ->
+      Format.eprintf "Res:@ %a@.Env:@.%a@.@." T.print t TE.print env
   in
   f block1 block2;
   f block2 block1

@@ -19,7 +19,7 @@ val meet :
   Typing_env.t ->
   Type_grammar.t ->
   Type_grammar.t ->
-  (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
+  (Type_grammar.t * Typing_env.t) Or_bottom.t
 
 (** Least upper bound of two types. *)
 val join :
@@ -33,9 +33,7 @@ val meet_shape :
   Typing_env.t ->
   Type_grammar.t ->
   shape:Type_grammar.t ->
-  result_var:Bound_var.t ->
-  result_kind:Flambda_kind.t ->
-  Typing_env_extension.t Or_bottom.t
+  Typing_env.t Or_bottom.t
 
 val meet_env_extension :
   Typing_env.t ->

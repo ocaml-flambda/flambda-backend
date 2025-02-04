@@ -6,7 +6,6 @@ open Flambda2_numbers
 open Flambda2_term_basics
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
-module TEE = Flambda2_types.Typing_env_extension
 
 let _test_recursive_meet () =
   let env =
@@ -54,8 +53,9 @@ let _test_recursive_meet () =
   in
   Format.eprintf "Environment: %a@." TE.print env;
   match T.meet env ty1 ty2 with
-  | Ok (ty, ext) ->
-    Format.eprintf "Result type: %a@.Extension:@ %a@." T.print ty TEE.print ext
+  | Ok (ty, env) ->
+    Format.eprintf "Result type: %a@.New environment:@ %a@." T.print ty TE.print
+      env
   | Bottom -> Format.eprintf "Bottom@."
 
 let _test_bottom_detection () =
@@ -87,8 +87,9 @@ let _test_bottom_detection () =
   in
   Format.eprintf "Environment: %a@." TE.print env;
   match T.meet env ty1 ty2 with
-  | Ok (ty, ext) ->
-    Format.eprintf "Result type: %a@.Extension:@ %a@." T.print ty TEE.print ext
+  | Ok (ty, env) ->
+    Format.eprintf "Result type: %a@.New environment:@ %a@." T.print ty TE.print
+      env
   | Bottom -> Format.eprintf "Bottom@."
 
 let _test_bottom_recursive () =
@@ -127,8 +128,9 @@ let _test_bottom_recursive () =
   in
   Format.eprintf "Environment: %a@." TE.print env;
   match T.meet env (alias n_x) ty_cell1 with
-  | Ok (ty, ext) ->
-    Format.eprintf "Result type: %a@.Extension:@ %a@." T.print ty TEE.print ext
+  | Ok (ty, env) ->
+    Format.eprintf "Result type: %a@.New environment:@ %a@." T.print ty TE.print
+      env
   | Bottom ->
     let[@inline never] [@local never] breakpoint () = () in
     breakpoint ();
@@ -176,8 +178,9 @@ let test_double_recursion () =
   let env = TE.add_equation env n_z ty_z in
   Format.eprintf "Environment: %a@." TE.print env;
   match T.meet env (alias n_x) (alias n_y) with
-  | Ok (ty, ext) ->
-    Format.eprintf "Result type: %a@.Extension:@ %a@." T.print ty TEE.print ext
+  | Ok (ty, env) ->
+    Format.eprintf "Result type: %a@.New environment:@ %a@." T.print ty TE.print
+      env
   | Bottom -> Format.eprintf "Bottom@."
 
 let _ =
