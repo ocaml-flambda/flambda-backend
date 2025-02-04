@@ -389,16 +389,6 @@ let mark_parameters_as_toplevel t params =
   in
   { t with variables_defined_at_toplevel }
 
-let define_variable_and_extend_typing_environment t var kind env_extension =
-  let t = (define_variable [@inlined hint]) t var kind in
-  let typing_env = TE.add_env_extension t.typing_env env_extension in
-  { t with typing_env }
-
-let add_variable_and_extend_typing_environment t var ty env_extension =
-  let t = (add_variable [@inlined hint]) t var ty in
-  let typing_env = TE.add_env_extension t.typing_env env_extension in
-  { t with typing_env }
-
 let extend_typing_environment t env_extension =
   (* There doesn't seem any need to augment [t.variables_defined_at_toplevel]
      here for the existential variables, since they will have [In_types]

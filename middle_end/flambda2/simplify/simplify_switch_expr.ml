@@ -542,8 +542,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
   let shape = T.this_naked_immediate arm in
   match T.meet typing_env_at_use scrutinee_ty shape with
   | Bottom -> arms, dacc
-  | Ok (_meet_ty, env_extension) ->
-    let env_at_use = TE.add_env_extension typing_env_at_use env_extension in
+  | Ok (_meet_ty, env_at_use) ->
     let denv_at_use = DE.with_typing_env (DA.denv dacc) env_at_use in
     let args = AC.args action in
     let use_kind =

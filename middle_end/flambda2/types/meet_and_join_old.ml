@@ -1913,11 +1913,9 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
   in
   TEE.from_map equations
 
-let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
+let meet_shape env t ~shape : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
   else
-    let result = Bound_name.create_var result_var in
-    let env = TE.add_definition env result result_kind in
     let<+ _meet_ty, env_extension = meet (Meet_env.create env) t shape in
     env_extension

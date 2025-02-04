@@ -177,8 +177,7 @@ and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
       "Context is meet of type: %a@\nwith shape: %a@\nin env: @\n%a@." T.print
       param_type T.print shape TE.print tenv;
     raise exn
-  | Ok (_, env_extension) ->
-    let tenv = TE.add_env_extension tenv env_extension in
+  | Ok (_, tenv) ->
     let fields =
       List.map2
         (fun epa var_type : U.field_decision ->
