@@ -1045,7 +1045,7 @@ let rec best_effort_compare_type_expr te1 te2 =
   if te1 == te2 || repr te1 == repr te2 then 0
   else
     let rank ty =
-      match ty.desc with
+      match get_desc ty with
       (* Types which must be compared by id *)
       | Tvar _
       | Tunivar _
@@ -1069,7 +1069,7 @@ let rec best_effort_compare_type_expr te1 te2 =
       | Tlink _
       | Tsubst (_, _) -> Misc.fatal_error "Tlink or TSubst encountered in With_bounds_types"
     in
-    match te1.desc, te2.desc with
+    match get_desc te1, get_desc te2 with
     | Ttuple elts1, Ttuple elts2
     | Tunboxed_tuple elts1, Tunboxed_tuple elts2 ->
       List.compare
