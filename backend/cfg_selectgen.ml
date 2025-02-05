@@ -516,6 +516,10 @@ class virtual selector_generic =
           self#emit_stores env dbg new_args rd;
           Select_utils.set_traps_for_raise env;
           ret rd
+        | Basic (Op (Alloc { bytes = _; mode = _; dbginfo })) ->
+          Misc.fatal_errorf
+            "Selection Alloc: expected a single placehold in dbginfo, found %d"
+            (List.length dbginfo)
         | Basic (Op op) ->
           let r1 = self#emit_tuple env new_args in
           let rd = self#regs_for ty in
