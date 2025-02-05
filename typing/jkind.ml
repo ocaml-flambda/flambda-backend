@@ -1835,7 +1835,7 @@ let is_max jkind = sub Builtin.any_dummy_jkind jkind
 let has_layout_any jkind =
   match jkind.jkind.layout with Any -> true | _ -> false
 
-let is_value_for_printing
+let is_value_for_printing ~ignore_null
     { jkind =
         { layout;
           modes_upper_bounds;
@@ -1850,11 +1850,9 @@ let is_value_for_printing
     Layout.Const.equal const value.layout
     && Modes.equal modes_upper_bounds value.modes_upper_bounds
     && Externality.equal externality_upper_bound value.externality_upper_bound
-    &&
-    if (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-       Language_extension.(is_at_least Layouts Alpha)
-    then Nullability.equal nullability_upper_bound Nullability.Non_null
-    else true
+    && (ignore_null
+       || Nullability.equal nullability_upper_bound
+            value.nullability_upper_bound)
   | None -> false
 
 (*********************************)
