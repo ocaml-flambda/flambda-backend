@@ -325,6 +325,7 @@ module With_bounds_types : sig
   val is_empty : t -> bool
   val to_seq : t -> (type_expr * info) Seq.t
   val of_list : (type_expr * info) list -> t
+  val of_seq : (type_expr * info) Seq.t -> t
   val map : (info -> info) -> t -> t
   val merge
     : (type_expr -> info option -> info option -> info option) ->

@@ -1105,6 +1105,7 @@ module With_bounds_types : sig
   val is_empty : t -> bool
   val to_seq : t -> (type_expr * info) Seq.t
   val of_list : (type_expr * info) list -> t
+  val of_seq : (type_expr * info) Seq.t -> t
   val update : type_expr -> (info option -> info option) -> t -> t
   val merge
     : (type_expr -> info option -> info option -> info option) ->
@@ -1130,11 +1131,11 @@ end = struct
   include U
 
   let to_seq t = to_seq t |> Seq.map (fun (ty, ti) -> ((Obj.obj ty : type_expr), ti))
-  let of_list xs =
-    xs |>
-    List.to_seq |>
+  let of_seq s =
+    s |>
     Seq.map (fun (ty, ti) -> (Obj.repr ty, ti)) |>
     of_seq
+  let of_list xs = xs |> List.to_seq |> of_seq
   let update ty = update (Obj.repr ty)
   let merge f = merge (fun ty -> f (Obj.obj ty : type_expr))
 

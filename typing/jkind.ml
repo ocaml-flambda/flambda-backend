@@ -404,7 +404,7 @@ module With_bounds = struct
       With_bounds
         (tys |> With_bounds_types.Non_empty.to_seq
         |> Seq.map (fun (ty, ti) -> f ty, ti)
-        |> List.of_seq |> With_bounds_types.of_list
+        |> With_bounds_types.of_seq
         |> With_bounds_types.Non_empty.of_maybe_empty |> Option.get)
 
   let types_on_axis (type l r a) ~(axis : a Jkind_axis.Axis.t) : (l * r) t -> _
