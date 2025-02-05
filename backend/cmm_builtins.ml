@@ -550,7 +550,7 @@ let transl_builtin name args dbg typ_res =
     shift32 asr_int arg count dbg
   | "caml_int32_shift_right_logical_by_int32_unboxed" ->
     let arg, count = two_args name args in
-    let arg = zero_extend_32 dbg arg in
+    let arg = zero_extend ~bits:32 ~dbg arg in
     shift32 lsr_int arg count dbg
   | "caml_nativeint_shift_left_by_nativeint_unboxed"
   | "caml_int64_shift_left_by_int64_unboxed" ->
