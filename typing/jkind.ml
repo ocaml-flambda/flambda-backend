@@ -1039,11 +1039,11 @@ module Const = struct
               match axis with
               | Monadic monadic ->
                 Atom
-                  (axis, Join_with (Mode.Value.Monadic.Const.min_axis monadic))
+                  (axis, Join_with (Mode.Value.Monadic.Const.max_axis monadic))
               | Comonadic comonadic ->
                 Atom
                   ( axis,
-                    Meet_with (Mode.Value.Comonadic.Const.max_axis comonadic) )
+                    Meet_with (Mode.Value.Comonadic.Const.min_axis comonadic) )
             in
             Modality.Value.Const.compose acc ~then_
           | Nonmodal _ ->
