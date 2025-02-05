@@ -479,33 +479,28 @@ module With_bounds = struct
   let add ~relevant_for_nullability ~modality ~type_expr (t : (allowed * 'r) t)
       : (allowed * 'r) t =
     let relevant_axes =
-      List.fold_left
-        (fun acc (Pack axis : Jkind_axis.Axis.packed) ->
-          let is_relevant =
-            match axis with
-            | Modal axis -> (
-              let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-              let modality = Mode.Modality.Value.Const.proj axis modality in
-              let is_constant = Mode.Modality.is_constant modality in
-              let is_id = Mode.Modality.is_id modality in
-              match is_constant, is_id with
-              | true, _ -> false
-              | _, true -> true
-              | false, false ->
-                Misc.fatal_errorf
-                  "Don't yet know how to interpret non-constant, non-identity \
-                   modalities, but got %a along axis %a.\n\n\
-                   If you see this error, please contant the Jane Street \
-                   compiler team."
-                  Mode.Modality.print modality Value.print_axis axis)
-            | Nonmodal Externality -> true
-            | Nonmodal Nullability -> (
-              match relevant_for_nullability with
-              | `Relevant -> true
-              | `Irrelevant -> false)
-          in
-          if is_relevant then Axis_set.add acc axis else acc)
-        Jkind_axis.Axis_set.empty Jkind_axis.Axis.all
+      Jkind_axis.Axis_set.create ~f:(fun ~axis:(Pack axis) ->
+          match axis with
+          | Modal axis -> (
+            let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
+            let modality = Mode.Modality.Value.Const.proj axis modality in
+            let is_constant = Mode.Modality.is_constant modality in
+            let is_id = Mode.Modality.is_id modality in
+            match is_constant, is_id with
+            | true, _ -> false
+            | _, true -> true
+            | false, false ->
+              Misc.fatal_errorf
+                "Don't yet know how to interpret non-constant, non-identity \
+                 modalities, but got %a along axis %a.\n\n\
+                 If you see this error, please contant the Jane Street \
+                 compiler team."
+                Mode.Modality.print modality Value.print_axis axis)
+          | Nonmodal Externality -> true
+          | Nonmodal Nullability -> (
+            match relevant_for_nullability with
+            | `Relevant -> true
+            | `Irrelevant -> false))
     in
     match t with
     | No_with_bounds ->

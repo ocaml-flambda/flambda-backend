@@ -468,6 +468,8 @@ module Axis_set = struct
 
   let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
 
+  let create ~f = Axis_collection.create ~f
+
   let add t axis = Axis_collection.set ~axis t true
 
   let remove t axis = Axis_collection.set ~axis t false

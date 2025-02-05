@@ -190,6 +190,8 @@ module Axis_set : sig
 
   val empty : t
 
+  val create : f:(axis:Axis.packed -> bool) -> t
+
   val add : t -> _ Axis.t -> t
 
   val remove : t -> _ Axis.t -> t
