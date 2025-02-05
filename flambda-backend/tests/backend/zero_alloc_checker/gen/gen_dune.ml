@@ -23,9 +23,11 @@ let () =
     Buffer.output_buffer Out_channel.stdout buf
   in
   let print_cmi_target name =
+    let name_cmi =  (Filename.chop_extension name)^".cmi" in
     let subst = function
       | "enabled_if" -> enabled_if
       | "name" -> name
+      | "name_cmi" -> name_cmi
       | _ -> "assert false"
     in
     Buffer.clear buf;
@@ -33,10 +35,10 @@ let () =
     {|
 (rule
  (alias runtest)
- (deps ${name}.ml)
- (target ${name}.cmi)
+ (deps ${name})
+ (target ${name_cmi})
  ${enabled_if}
- (action (run %{bin:ocamlopt.opt} ${name}.ml -g -c -opaque -stop-after typing -O3 -warn-error +a)))
+ (action (run %{bin:ocamlopt.opt} ${name} -g -c -opaque -stop-after typing -O3 -warn-error +a)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -165,12 +167,12 @@ let () =
     ~extra_dep:None ~exit_code:2 "test_all_opt3";
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_arity";
-  print_cmi_target "stop_after_typing";
+  print_cmi_target "stop_after_typing.ml";
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_signatures_functors";
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_signatures_first_class_modules";
-  print_cmi_target "test_signatures_separate_a";
+  print_cmi_target "test_signatures_separate_a.ml";
   print_test_expected_output ~cutoff:default_cutoff
     ~output:"test_signatures_separate.output"
     ~extra_dep:(Some "test_signatures_separate_a.cmi")
@@ -215,4 +217,10 @@ let () =
   print_test_expected_output ~extra_flags:"-zero-alloc-assert default -zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail27_default";
     print_test_expected_output ~extra_flags:"-zero-alloc-check default" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail28";
   print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail28_opt";
+  print_cmi_target "fail29.mli";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "fail29.cmi") ~exit_code:2 "fail29";
+  print_cmi_target "fail29_opt.mli";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "fail29_opt.cmi") ~exit_code:2 "fail29_opt";
+  print_cmi_target "fail29_opt2.mli";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_flags:"-zero-alloc-check all" ~extra_dep:(Some "fail29_opt2.cmi") ~exit_code:2 "fail29_opt2";
   ()

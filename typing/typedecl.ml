@@ -3208,6 +3208,35 @@ let error_if_containing_unexpected_jkind prim cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
   unexpected_layout_any_check prim cty ty
 
+(* [@@@zero_alloc assert all] in signatures uses the apparent arity of each
+   declaration just by looking at the number of arrows in the type.  If the type
+   is an alias to an arrow type, the apparent arity is zero, and the item won't
+   get any zero alloc checking.  This is probably not the user's intent, so we
+   give a warning in that case.  *)
+let check_for_hidden_arrow env loc ty =
+  match !Clflags.zero_alloc_assert with
+  | Assert_all | Assert_all_opt ->
+    let check () =
+      begin match get_desc (Ctype.expand_head env ty) with
+      | Tarrow _ ->
+        let attr =
+          match !Clflags.zero_alloc_assert with
+          | Assert_all -> "all"
+          | Assert_all_opt -> "all_opt"
+          | Assert_default -> assert false
+        in
+        Location.prerr_warning loc (Warnings.Zero_alloc_all_hidden_arrow attr)
+      | _ -> ()
+      end
+    in
+    if !Clflags.principal || Env.has_local_constraints env then
+      let snap = Btype.snapshot () in
+      check ();
+      Btype.backtrack snap
+    else
+      check()
+  | Assert_default -> ()
+
 (* Translate a value declaration *)
 let transl_value_decl env loc ~sig_modalities valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
@@ -3243,14 +3272,32 @@ let transl_value_decl env loc ~sig_modalities valdecl =
       in
       let zero_alloc =
         match zero_alloc with
-        | Default_zero_alloc -> Zero_alloc.default
+        | Default_zero_alloc ->
+          (* We fabricate a "Check" attribute if a top-level annotation
+             specifies that all functions should be checked for zero alloc. *)
+          if default_arity = 0 then begin
+            check_for_hidden_arrow env loc ty;
+            Zero_alloc.default
+          end else
+            let create_const ~opt =
+              Zero_alloc.create_const
+                (Check { strict = false;
+                         arity = default_arity;
+                         loc;
+                         opt })
+            in
+            (match !Clflags.zero_alloc_assert with
+             | Assert_default -> Zero_alloc.default
+             | Assert_all -> create_const ~opt:false
+             | Assert_all_opt -> create_const ~opt:true)
+        | Ignore_assert_all -> Zero_alloc.ignore_assert_all
         | Check za ->
           if default_arity = 0 && za.arity <= 0 then
             raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
           if za.arity <= 0 then
             raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
           Zero_alloc.create_const zero_alloc
-        | Assume _ | Ignore_assert_all ->
+        | Assume _ ->
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       in
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;

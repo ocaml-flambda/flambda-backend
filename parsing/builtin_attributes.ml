@@ -592,19 +592,33 @@ let parse_attribute_with_ident_payload attr ~name ~f =
     | Some i -> f i
     | None -> ())
 
-let zero_alloc_attribute (attr : Parsetree.attribute)  =
+let zero_alloc_attribute ~in_signature (attr : Parsetree.attribute)  =
   let module A = Zero_alloc_annotations in
+  let msg =
+    if in_signature then
+      "Only 'all' and 'all_opt' are supported"
+    else
+      "Only 'all', 'all_opt', 'check', 'check_opt', 'check_all', and 'check_none' are supported"
+  in
+  let warn () =
+    warn_payload attr.attr_loc attr.attr_name.txt msg
+  in
+  let set_if_not_in_sig r v =
+    if not in_signature then
+      r := v
+    else
+      warn ()
+  in
   parse_attribute_with_ident_payload attr
     ~name:"zero_alloc" ~f:(function
-      | "check" -> Clflags.zero_alloc_check := A.Check.Check_default
-      | "check_opt" -> Clflags.zero_alloc_check := A.Check.Check_opt_only
-      | "check_all" -> Clflags.zero_alloc_check := A.Check.Check_all
-      | "check_none" -> Clflags.zero_alloc_check := A.Check.No_check
+      | "check" -> set_if_not_in_sig Clflags.zero_alloc_check A.Check.Check_default
+      | "check_opt" -> set_if_not_in_sig Clflags.zero_alloc_check A.Check.Check_opt_only
+      | "check_all" -> set_if_not_in_sig Clflags.zero_alloc_check A.Check.Check_all
+      | "check_none" -> set_if_not_in_sig Clflags.zero_alloc_check A.Check.No_check
       | "all" -> Clflags.zero_alloc_assert := A.Assert.Assert_all
       | "all_opt" -> Clflags.zero_alloc_assert := A.Assert.Assert_all_opt
       | _ ->
-        warn_payload attr.attr_loc attr.attr_name.txt
-          "Only 'all', 'all_opt', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
+        warn ())
 
 let attribute_with_ignored_payload name attr =
   when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () -> ())
@@ -621,6 +635,7 @@ let parse_standard_interface_attributes attr =
   principal_attribute attr;
   noprincipal_attribute attr;
   nolabels_attribute attr;
+  zero_alloc_attribute ~in_signature:true attr;
   unsafe_allow_any_mode_crossing_attribute attr
 
 let parse_standard_implementation_attributes attr =
@@ -632,7 +647,7 @@ let parse_standard_implementation_attributes attr =
   afl_inst_ratio_attribute attr;
   flambda_o3_attribute attr;
   flambda_oclassic_attribute attr;
-  zero_alloc_attribute attr;
+  zero_alloc_attribute ~in_signature:false attr;
   unsafe_allow_any_mode_crossing_attribute attr
 
 let has_no_mutable_implied_modalities attrs =
