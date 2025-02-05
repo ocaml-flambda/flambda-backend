@@ -309,6 +309,45 @@ and jkind_r = (disallowed * allowed) jkind  (* the jkind expected of a type *)
 and jkind_lr = (allowed * allowed) jkind    (* the jkind of a variable *)
 and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
 
+(** This module provides the interface to construct, query, and destruct
+    [with_bounds_types] and [nonempty_with_bounds_types]. Under the hood this is a
+    [Stdlib.Map] from [type_expr] to [With_bounds_type_info.t], using a "best-effort"
+    semantic comparison on [type_expr] to provide the mapping. This "best-effort"ness
+    means that two semantically equal (according to [Ctype.eqtype]) types might have
+    distinct keys in the map - but two semantically {i inequal} types are guaranteed never
+    to occupy the same key.
+*)
+module With_bounds_types : sig
+  type info := With_bounds_type_info.t
+  type t := with_bounds_types
+
+  val empty : t
+  val is_empty : t -> bool
+  val to_seq : t -> (type_expr * info) Seq.t
+  val of_list : (type_expr * info) list -> t
+  val map : (info -> info) -> t -> t
+  val merge
+    : (type_expr -> info option -> info option -> info option) ->
+    t -> t -> t
+  val update : type_expr -> (info option -> info option) -> t -> t
+
+  (** A guaranteed non-empty set of with-bounds types *)
+  module Non_empty : sig
+    type maybe_empty := t
+    type t = nonempty_with_bounds_types
+
+    val of_maybe_empty : maybe_empty -> t option
+    val to_maybe_empty : t -> maybe_empty
+    val singleton : type_expr -> info -> t
+    val to_seq : t -> (type_expr * info) Seq.t
+    val map : (info -> info) -> t -> t
+    val merge
+      : (type_expr -> info option -> info option -> info option) ->
+      t -> t -> t
+    val update : type_expr -> (info option -> info option) -> t -> t
+  end
+end
+
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable
 val commu_var: unit -> commutable
@@ -369,45 +408,6 @@ module Transient_expr : sig
 end
 
 val create_expr: type_desc -> level: int -> scope: int -> id: int -> type_expr
-
-(** This module provides the interface to construct, query, and destruct
-    [with_bounds_types] and [nonempty_with_bounds_types]. Under the hood this is a
-    [Stdlib.Map] from [type_expr] to [With_bounds_type_info.t], using a "best-effort"
-    semantic comparison on [type_expr] to provide the mapping. This "best-effort"ness
-    means that two semantically equal (according to [Ctype.eqtype]) types might have
-    distinct keys in the map - but two semantically {i inequal} types are guaranteed never
-    to occupy the same key.
-*)
-module With_bounds_types : sig
-  type info := With_bounds_type_info.t
-  type t := with_bounds_types
-
-  val empty : t
-  val is_empty : t -> bool
-  val to_seq : t -> (transient_expr * info) Seq.t
-  val of_list : (transient_expr * info) list -> t
-  val map : (info -> info) -> t -> t
-  val merge
-    : (transient_expr -> info option -> info option -> info option) ->
-    t -> t -> t
-  val update : transient_expr -> (info option -> info option) -> t -> t
-
-  (** A guaranteed non-empty set of with-bounds types *)
-  module Non_empty : sig
-    type maybe_empty := t
-    type t = nonempty_with_bounds_types
-
-    val of_maybe_empty : maybe_empty -> t option
-    val to_maybe_empty : t -> maybe_empty
-    val singleton : transient_expr -> info -> t
-    val to_seq : t -> (transient_expr * info) Seq.t
-    val map : (info -> info) -> t -> t
-    val merge
-      : (transient_expr -> info option -> info option -> info option) ->
-      t -> t -> t
-    val update : transient_expr -> (info option -> info option) -> t -> t
-  end
-end
 
 (** Functions and definitions moved from Btype *)
 

@@ -403,8 +403,7 @@ module With_bounds = struct
     | With_bounds tys ->
       With_bounds
         (tys |> With_bounds_types.Non_empty.to_seq
-        |> Seq.map (fun (ty, ti) ->
-               Transient_expr.repr (f (Transient_expr.type_expr ty)), ti)
+        |> Seq.map (fun (ty, ti) -> f ty, ti)
         |> List.of_seq |> With_bounds_types.of_list
         |> With_bounds_types.Non_empty.of_maybe_empty |> Option.get)
 
@@ -426,9 +425,7 @@ module With_bounds = struct
         (pp_print_seq
            ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
            (fun ppf (ty, ti) ->
-             fprintf ppf "@[(%a, %a)]" print_type_expr
-               (Transient_expr.type_expr ty)
-               Type_info.print ti))
+             fprintf ppf "@[(%a, %a)]" print_type_expr ty Type_info.print ti))
         (With_bounds_types.Non_empty.to_seq tys)
 
   let join_bounds =
@@ -505,12 +502,8 @@ module With_bounds = struct
     match t with
     | No_with_bounds ->
       With_bounds
-        (With_bounds_types.Non_empty.singleton
-           (Transient_expr.repr type_expr)
-           { relevant_axes })
-    | With_bounds tys ->
-      With_bounds
-        (add_bound (Transient_expr.repr type_expr) { relevant_axes } tys)
+        (With_bounds_types.Non_empty.singleton type_expr { relevant_axes })
+    | With_bounds tys -> With_bounds (add_bound type_expr { relevant_axes } tys)
 end
 
 module Mod_bounds = struct
@@ -1070,7 +1063,7 @@ module Const = struct
       let printable_with_bounds =
         List.map
           (fun (type_expr, ({ relevant_axes } : With_bounds_type_info.t)) ->
-            ( !outcometree_of_type_scheme (Transient_expr.type_expr type_expr),
+            ( !outcometree_of_type_scheme type_expr,
               !outcometree_of_modalities_new
                 Types.Immutable []
                 (modality_from_relevant_axes relevant_axes) ))
@@ -1431,8 +1424,8 @@ module Jkind_desc = struct
           Misc.fatal_error "Tlink or Tsubst in With_bounds.reduce"
     end in
     let rec loop ctl bounds_so_far :
-        (transient_expr * With_bounds_type_info.t) list ->
-        Mod_Bounds.t * with_bounds_types = function
+        (type_expr * With_bounds_type_info.t) list ->
+        Mod_bounds.t * with_bounds_types = function
       (* early cutoff *)
       | _ when Mod_bounds.le Mod_bounds.max bounds_so_far ->
         bounds_so_far, With_bounds_types.empty
@@ -1453,13 +1446,13 @@ module Jkind_desc = struct
             }
             bounds_so_far bound
         in
-        match Loop_control.check ctl (Transient_expr.type_expr ty) with
+        match Loop_control.check ctl ty with
         | Stop ->
           (* out of fuel *)
           join_respecting_omit Mod_bounds.max, With_bounds_types.of_list bs
         | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
         | Continue ctl_after_unpacking_b -> (
-          match jkind_of_type (Transient_expr.type_expr ty) with
+          match jkind_of_type ty with
           | Some b_jkind ->
             if (match b_jkind.quality with Not_best -> false | Best -> true)
                || not require_best
@@ -2681,12 +2674,7 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
              let modifiers = Bound_ops.equal bound1 bound2 in
              let with_bounds =
                List.compare_lengths with_bounds1 with_bounds2 = 0
-               && List.for_all2
-                    (fun ty1 ty2 ->
-                      type_equal
-                        (Transient_expr.type_expr ty1)
-                        (Transient_expr.type_expr ty2))
-                    with_bounds1 with_bounds2
+               && List.for_all2 type_equal with_bounds1 with_bounds2
              in
              modifiers && with_bounds)
          Axis.all
