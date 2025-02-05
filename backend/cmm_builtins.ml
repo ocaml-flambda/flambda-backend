@@ -60,6 +60,19 @@ let int_of_value arg dbg = Cop (Creinterpret_cast Int_of_value, [arg], dbg)
 
 let value_of_int arg dbg = Cop (Creinterpret_cast Value_of_int, [arg], dbg)
 
+let shift32 make_op arg count dbg =
+  assert (size_int = 8);
+  let mask = 32 - 1 in
+  let count =
+    match count with
+    | Cconst_int (n, _) -> Cconst_int (n land mask, dbg)
+    | Cconst_natint (n, _) ->
+      Cconst_int
+        (Nativeint.to_int (Nativeint.logand n (Nativeint.of_int mask)), dbg)
+    | _ -> Cop (Cand, [count; Cconst_int (mask, dbg)], dbg)
+  in
+  Some (make_op arg count dbg)
+
 (* Untagging of a negative value shifts in an extra bit. The following code
    clears the shifted sign bit of an untagged int. This straightline code is
    faster on most targets than conditional code for checking whether the
@@ -529,6 +542,28 @@ let transl_builtin name args dbg typ_res =
         | Cconst_int (0, _) -> ifnot
         | Cconst_int (1, _) -> ifso
         | _ -> Cop (op, [cond; ifso; ifnot], dbg))
+  | "caml_int32_shift_left_by_int32_unboxed" ->
+    let arg, count = two_args name args in
+    shift32 lsl_int arg count dbg
+  | "caml_int32_shift_right_by_int32_unboxed" ->
+    let arg, count = two_args name args in
+    shift32 asr_int arg count dbg
+  | "caml_int32_shift_right_logical_by_int32_unboxed" ->
+    let arg, count = two_args name args in
+    let arg = zero_extend ~bits:32 ~dbg arg in
+    shift32 lsr_int arg count dbg
+  | "caml_nativeint_shift_left_by_nativeint_unboxed"
+  | "caml_int64_shift_left_by_int64_unboxed" ->
+    let arg, count = two_args name args in
+    Some (lsl_int arg count dbg)
+  | "caml_nativeint_shift_right_by_nativeint_unboxed"
+  | "caml_int64_shift_right_by_int64_unboxed" ->
+    let arg, count = two_args name args in
+    Some (asr_int arg count dbg)
+  | "caml_nativeint_shift_right_logical_by_nativeint_unboxed"
+  | "caml_int64_shift_right_logical_by_int64_unboxed" ->
+    let arg, count = two_args name args in
+    Some (lsr_int arg count dbg)
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
