@@ -111,9 +111,9 @@ let sub_const_const_exn za1 za2 =
        error. It's essential for the soundness of the way we (will, in the next
        PR) use zero_alloc in signatures that the apparent arity of the type in
        the signature matches the syntactic arity of the function.
-     - [ignore] is erased from structure items when computing their signature,
-       so we don't need to consider it here.
-     *)
+     - [ignore] is erased from structure items when computing their signature.
+       On signatures, [ignore] is interpreted as "top" for the inclusion check.
+       This interpretation is the same as erasing [ignore]. *)
   let open Builtin_attributes in
   (* abstract domain check *)
   let abstract_value za =
