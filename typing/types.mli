@@ -68,7 +68,8 @@ val is_mutable : mutability -> bool
     Note on mutability: TBD.
  *)
 
-module Jkind_bounds :
+(** The mod-bounds of a jkind *)
+module Jkind_mod_bounds :
   module type of Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
 
 type type_expr
@@ -270,7 +271,7 @@ and 'd with_bounds =
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
-    mod_bounds : Jkind_bounds.t;
+    mod_bounds : Jkind_mod_bounds.t;
     with_bounds : 'd with_bounds
   }
   constraint 'd = 'l * 'r

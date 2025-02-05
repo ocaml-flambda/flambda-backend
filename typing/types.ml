@@ -28,7 +28,7 @@ let is_mutable = function
 
 (* Type expressions for the core language *)
 
-module Jkind_bounds =
+module Jkind_mod_bounds =
   Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
 
 type transient_expr =
@@ -133,7 +133,7 @@ and 'd with_bounds =
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
-    mod_bounds : Jkind_bounds.t;
+    mod_bounds : Jkind_mod_bounds.t;
     with_bounds : 'd with_bounds
   }
   constraint 'd = 'l * 'r
