@@ -1563,7 +1563,90 @@ module type S_all =
   end
 |}]
 
-(* zero_alloc ignore with module inclusion *)
+(* [@@@zero_alloc all] and [@@@zero_alloc all_opt] in signatures:
+   module inclusion check*)
+module type S_all = sig
+  [@@@zero_alloc all]
+  val f : int -> int
+end
+
+module type S_all_opt = sig
+  [@@@zero_alloc all_opt]
+  val f : int -> int
+end
+
+module type S = sig
+  [@@@zero_alloc all]
+  val f : int -> int
+end
+
+(* This should be accepted *)
+module F (X : S_all) : S = X
+[%%expect{|
+module type S_all = sig val f : int -> int [@@zero_alloc] end
+module type S_all_opt = sig val f : int -> int [@@zero_alloc opt] end
+module type S = sig val f : int -> int [@@zero_alloc] end
+module F : functor (X : S_all) -> S
+|}]
+
+(* This should be rejected *)
+module F (X : S_all_opt) : S = X
+[%%expect{|
+Line 1, characters 31-32:
+1 | module F (X : S_all_opt) : S = X
+                                   ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : int -> int [@@zero_alloc opt] end
+       is not included in
+         S
+       Values do not match:
+         val f : int -> int [@@zero_alloc opt]
+       is not included in
+         val f : int -> int [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
+
+
+(* [@@@zero_alloc all] and [@@@zero_alloc all_opt] in signatures that only declare
+   non-function values: module inclusion check *)
+module type S_all = sig
+  [@@@zero_alloc all]
+  type t
+  val f : t
+end
+
+module type S_all_opt = sig
+  [@@@zero_alloc all_opt]
+  type t
+  val f : t
+end
+
+module type S = sig
+  [@@@zero_alloc all]
+  type t
+  val f : t
+end
+
+(* This should be accepted: [@@@zero_alloc ..] attributes are not explicitly considered by
+   [include_mod] for modules that declare only non-function values and therefore both examples
+   below are accepted. *)
+module F (X : S_all) : S = X
+[%%expect{|
+module type S_all = sig type t val f : t end
+module type S_all_opt = sig type t val f : t end
+module type S = sig type t val f : t end
+module F : functor (X : S_all) -> S
+|}]
+
+module F (X : S_all_opt) : S = X
+[%%expect{|
+module F : functor (X : S_all_opt) -> S
+|}]
+
+
+(* [@zero_alloc ignore]: module inclusion check *)
 module type S_all = sig
   [@@@zero_alloc all]
 
@@ -1575,10 +1658,29 @@ module type S_all_ignored = sig
 
   val[@zero_alloc ignore] f_warn_one_arg : int -> int
 end
-[%%expect{| |}]
 
 (* This should be rejected *)
 module F (X : S_all_ignored) : S_all = X
+[%%expect{|
+module type S_all = sig val f_warn_one_arg : int -> int [@@zero_alloc] end
+module type S_all_ignored = sig val f_warn_one_arg : int -> int end
+Line 14, characters 39-40:
+14 | module F (X : S_all_ignored) : S_all = X
+                                            ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f_warn_one_arg : int -> int end
+       is not included in
+         S_all
+       Values do not match:
+         val f_warn_one_arg : int -> int
+       is not included in
+         val f_warn_one_arg : int -> int [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
 
 (* This should be accepted *)
-module F (X : S_all) : S_all_ignores = X
+module F (X : S_all) : S_all_ignored = X
+[%%expect{|
+module F : functor (X : S_all) -> S_all_ignored
+|}]
