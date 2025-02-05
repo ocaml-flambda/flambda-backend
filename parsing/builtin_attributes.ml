@@ -883,7 +883,7 @@ let zero_alloc_lookup_table =
                 never_raises = false;
                 arity; loc; });
     (["assume_unless_opt"],
-     fun arity loc ->
+     fun arity loc _ ->
        (* same as "assume" *)
        Assume { strict = false; never_returns_normally = false;
                 never_raises = false;
@@ -987,9 +987,10 @@ let parse_zero_alloc_attribute ~in_signature ~on_application ~default_arity attr
                 signatures";
              default_arity, payload)
       in
-      let _, payload = List.split payload in  (* ? *)
+      let _, payload = List.split payload in
       let parse p =
-        parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity custom_error_message) p
+        let empty = empty arity custom_error_message in
+        parse_zero_alloc_payload ~loc ~arity ~custom_error_message ~warn ~empty p
       in
       match filter_assume_unless_opt payload with
       | None -> parse payload
@@ -1013,7 +1014,7 @@ let parse_zero_alloc_attribute ~in_signature ~on_application ~default_arity attr
                     forcing the function to be checked.
                     Setting [opt = false] to satisfy [@zero_alloc]
                     and not only [@zero_alloc opt] on the corresponding signatures. *)
-                 empty arity)
+                 empty arity custom_error_message)
             else
               (* Treat "assume_unless_opt" as "assume".
                  Reuse standard parsing for better error messages. *)
