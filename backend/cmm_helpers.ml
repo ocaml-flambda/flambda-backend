@@ -1044,10 +1044,7 @@ let array_indexing ?elide_asan_check ?typ memory_access log2size ptr ofs dbg =
   if Address_sanitizer.is_enabled ()
      && log2size <= Address_sanitizer.max_supported_log2size
      && Option.is_none elide_asan_check
-  then
-    Csequence
-      ( Address_sanitizer.check memory_access ~log2size field_address dbg,
-        field_address )
+  then Address_sanitizer.check memory_access ~log2size field_address dbg
   else field_address
 
 (* CR Gbury: this conversion int -> nativeint is potentially unsafe when
