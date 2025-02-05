@@ -206,6 +206,7 @@ type item = {
   dinfo_scopes: Scoped_location.scopes;
   dinfo_uid: string option;
   dinfo_function_symbol: string option;
+  dinfo_dir: string option;
 }
 
 let item_with_uid_and_function_symbol item ~dinfo_uid ~dinfo_function_symbol =
@@ -235,6 +236,8 @@ module Dbg = struct
        let c = Int.compare d1.dinfo_end_bol d2.dinfo_end_bol in
        if c <> 0 then c else
        let c = Int.compare d1.dinfo_end_line d2.dinfo_end_line in
+       if c <> 0 then c else
+       let c = Option.compare String.compare d1.dinfo_dir d2.dinfo_dir in
        if c <> 0 then c else
        loop ds1 ds2
     in
@@ -320,6 +323,7 @@ let item_from_location ~scopes loc =
     dinfo_scopes = scopes;
     dinfo_uid = None;
     dinfo_function_symbol = None;
+    dinfo_dir = !Clflags.directory;
   }
 
 let from_location = function
