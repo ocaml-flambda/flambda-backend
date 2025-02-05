@@ -758,6 +758,10 @@ let mk_allow_illegal_crossing f =
   "-allow-illegal-crossing", Arg.Unit f,
   "Type declarations will not be checked along the portability or contention axes"
 
+let mk_infer_with_bounds f =
+  "-infer-with-bounds", Arg.Unit f,
+  "Infer with-bounds on kinds for type declarations. May impact performance."
+
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
   "redirects any file(s) that would be outputted as a result of other flags\n\
@@ -956,6 +960,7 @@ module type Common_options = sig
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
   val _allow_illegal_crossing : unit -> unit
+  val _infer_with_bounds : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1244,6 +1249,7 @@ struct
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
     mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1376,6 +1382,7 @@ struct
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
     mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1471,6 +1478,7 @@ struct
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
     mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
@@ -1663,6 +1671,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
     mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1772,6 +1781,7 @@ struct
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
     mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1884,6 +1894,7 @@ module Default = struct
     let _extension_universe s =
       Language_extension.(set_universe_and_enable_all_of_string_exn s)
     let _allow_illegal_crossing = set Clflags.allow_illegal_crossing
+    let _infer_with_bounds = set Clflags.infer_with_bounds
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include

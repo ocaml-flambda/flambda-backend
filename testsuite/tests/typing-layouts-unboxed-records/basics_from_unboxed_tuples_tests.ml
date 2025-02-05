@@ -985,7 +985,7 @@ Line 1, characters 19-27:
 1 | type should_fail = string t needs_any_mod_global
                        ^^^^^^^^
 Error: This type "string t" should be an instance of type "('a : any mod global)"
-       The kind of string t is immediate & immediate
+       The kind of string t is value & value
          because of the definition of t at line 2, characters 0-47.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
@@ -1003,7 +1003,8 @@ Line 4, characters 9-17:
              ^^^^^^^^
 Error: This type "s_record" should be an instance of type
          "('a : any mod external_)"
-       The kind of s_record is immediate & immediate & immediate
+       The kind of s_record is
+         immutable_data & immutable_data & immutable_data
          because of the definition of s_record at line 3, characters 0-51.
        But the kind of s_record must be a subkind of any mod external_
          because of the definition of t at line 1, characters 0-31.

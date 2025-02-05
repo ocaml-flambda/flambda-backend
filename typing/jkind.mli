@@ -314,6 +314,7 @@ module Builtin : sig
       generalized if need be.  *)
   val product :
     jkind_of_first_type:(unit -> jkind_l) ->
+    jkind_of_type:(Types.type_expr -> jkind_l) ->
     why:History.product_creation_reason ->
     Types.type_expr list ->
     Sort.t Layout.t list ->
@@ -420,6 +421,7 @@ val for_boxed_record : Types.label_declaration list -> jkind_l
     unboxed record must match that of the single field. *)
 val for_unboxed_record :
   jkind_of_first_type:(unit -> jkind_l) ->
+  jkind_of_type:(Types.type_expr -> jkind_l) ->
   Types.label_declaration list ->
   jkind_l
 

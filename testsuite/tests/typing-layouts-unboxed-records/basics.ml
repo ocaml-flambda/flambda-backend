@@ -436,15 +436,13 @@ and 'a t_imm = 'a t_immediate_id
 and ('a : float64, 'b : immediate, 'ptr) t =
   #{ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 [%%expect{|
-type ('a : float64) t_float = 'a t_float64_id
-and ('a : immediate) t_imm = 'a t_immediate_id
-and ('a : float64, 'b : immediate, 'ptr) t = #{
-  ptr : 'ptr;
-  x : 'a;
-  y : 'a t_float;
-  z : 'b;
-  w : 'b t_imm;
-}
+Lines 3-4, characters 0-61:
+3 | and ('a : float64, 'b : immediate, 'ptr) t =
+4 |   #{ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
+Error: The layout of type "t" is value & float64 & any & value & any
+         because it is an unboxed record.
+       But the layout of type "t" must be representable
+         because it is an unboxed record.
 |}];;
 
 (* We don't yet have syntax for setting an unboxed record field.
@@ -760,34 +758,7 @@ Line 1, characters 0-61:
 1 | type q : any mod portable = #{ x : int -> int; y : int -> q }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "q" is
-         value_or_null mod global with int -> int
-int -> q
-                           unique with int -> int
-int -> q
-                           many with int -> int
-int -> q
-                           uncontended with int -> int
-int -> q
-                           portable with int -> int
-int -> q
-                           external_ with int -> int
-int -> q
-                           non_null with int -> int
-int -> q
-         & value_or_null mod global with int -> int
-int -> q
-                             unique with int -> int
-int -> q
-                             many with int -> int
-int -> q
-                             uncontended with int -> int
-int -> q
-                             portable with int -> int
-int -> q
-                             external_ with int -> int
-int -> q
-                             non_null with int -> int
-int -> q
+         value mod unique uncontended & value mod unique uncontended
          because it is an unboxed record.
        But the kind of type "q" must be a subkind of
          value_or_null mod portable & value_or_null mod portable

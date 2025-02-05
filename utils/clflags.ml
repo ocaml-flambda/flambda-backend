@@ -223,6 +223,7 @@ let afl_inst_ratio = ref 100           (* -afl-inst-ratio *)
 let function_sections = ref false      (* -function-sections *)
 let probes = ref Config.probes         (* -probes *)
 let allow_illegal_crossing = ref false (* -allow_illegal_crossing *)
+let infer_with_bounds = ref false       (* -infer-with-bounds *)
 let simplify_rounds = ref None        (* -rounds *)
 let default_simplify_rounds = ref 1        (* -rounds *)
 let rounds () =

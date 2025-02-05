@@ -26,7 +26,8 @@
    -bin-annot
    -nostdlib
    -safe-string
-   -strict-formats))
+   -strict-formats
+   -infer-with-bounds))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (preprocess

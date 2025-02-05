@@ -2192,7 +2192,9 @@ let rec estimate_type_jkind ~expand_component env ty =
         just to throw most of it away will go away once we get [layout_of]. *)
      let jkinds = List.map (estimate_type_jkind ~expand_component env) tys in
      let layouts = List.map Jkind.extract_layout jkinds in
-     Jkind.Builtin.product ~jkind_of_first_type:(fun () ->
+     Jkind.Builtin.product
+       ~jkind_of_type:(estimate_type_jkind ~expand_component env)
+       ~jkind_of_first_type:(fun () ->
        match jkinds with
          | first_jkind :: _ -> first_jkind
          | _ -> Misc.fatal_error

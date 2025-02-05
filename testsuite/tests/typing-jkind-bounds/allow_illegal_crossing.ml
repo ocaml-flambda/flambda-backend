@@ -1,6 +1,6 @@
 (* TEST
  {
-   flags = "-allow-illegal-crossing";
+   flags = "-allow-illegal-crossing -infer-with-bounds";
    expect;
  }
 *)
