@@ -2173,6 +2173,11 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
+(* forward declarations *)
+let type_equal' = ref (fun _ _ _ -> Misc.fatal_error "type_equal")
+let type_jkind_purely_if_principal' =
+  ref (fun _ _ -> Misc.fatal_error "type_jkind_purely_if_principal")
+
 (* We parameterize [estimate_type_jkind] by a function
    [expand_component] because some callers want expansion of types and others
    don't. *)
@@ -2223,7 +2228,19 @@ let rec estimate_type_jkind ~expand_component env ty =
      then Jkind.Builtin.value ~why:Polymorphic_variant
      else Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
   | Tunivar { jkind } -> Jkind.disallow_right jkind
-  | Tpoly (ty, _) -> estimate_type_jkind ~expand_component env ty
+  | Tpoly (ty, _) ->
+    let type_equal = !type_equal' env in
+    let jkind_of_type = !type_jkind_purely_if_principal' env in
+    estimate_type_jkind ~expand_component env ty |>
+    (* The jkind of [ty] might mention the variables bound in this [Tpoly]
+       node, and so just returning it here would be wrong. Instead, we need
+       to eliminate these variables. For now, we just [round_up] to eliminate
+       _all_ with-bounds. We can imagine doing better, just rounding up those
+       variables bound in this [Tpoly]. *)
+    (* CR layouts v2.8: Consider doing better -- but only once we can write
+       down a test case that cares. *)
+    Jkind.round_up ~type_equal ~jkind_of_type |>
+    Jkind.disallow_right
   | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
 let type_jkind env ty =
@@ -2249,13 +2266,11 @@ let type_jkind_purely_if_principal env ty =
   match is_principal ty with
   | true -> Some (type_jkind_purely env ty)
   | false -> None
+let () = type_jkind_purely_if_principal' := type_jkind_purely_if_principal
 
 let estimate_type_jkind = estimate_type_jkind ~expand_component:Fun.id
 
 (**** checking jkind relationships ****)
-
-(* forward declaration *)
-let type_equal' = ref (fun _ _ _ -> Misc.fatal_error "type_equal")
 
 (* The ~fixed argument controls what effects this may have on `ty`.  If false,
    then we will update the jkind of type variables to make the check true, if
