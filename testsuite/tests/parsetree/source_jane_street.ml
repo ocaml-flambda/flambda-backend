@@ -35,9 +35,9 @@ let f y (type (a : immediate)) (x : a) = x;;
 let f y (type (a : immediate) (b : immediate)) (x : a) = x;;
 
 [%%expect{|
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : 'b ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : 'b ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : 'b ('a : immediate). 'b -> 'a -> 'a = <fun>
 |}]
 
 let f y (type a : immediate) = y;;
@@ -46,10 +46,10 @@ let f y (type (a : immediate) (b : immediate)) = y;;
 let f y (type (a : immediate) (b : immediate) c) = y;;
 
 [%%expect{|
-val f : ('a : value_or_null). 'a -> 'a = <fun>
-val f : ('a : value_or_null). 'a -> 'a = <fun>
-val f : ('a : value_or_null). 'a -> 'a = <fun>
-val f : ('a : value_or_null). 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
 |}]
 
 (* Just newtypes, no value parameters *)
@@ -157,7 +157,7 @@ let f xs = match xs with
 
 [%%expect{|
 type t = #(int * float#)
-val f : ('a : value_or_null). #('a * float#) -> #('a * float#) = <fun>
+val f : #('a * float#) -> #('a * float#) = <fun>
 |}]
 
 module M = struct
@@ -289,12 +289,10 @@ let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
 
 [%%expect{|
 val f :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    local_ 'a @ unique ->
-    y:local_ 'b @ once ->
-    z:'c @ once unique ->
-    ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit =
-  <fun>
+  local_ 'a @ unique ->
+  y:local_ 'b @ once ->
+  z:'c @ once unique ->
+  ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit = <fun>
 |}]
 
 (* bindings *)
@@ -447,28 +445,26 @@ let f ~(x1 @ many)
 
 [%%expect{|
 val f :
-  ('b : value_or_null) ('c : value_or_null) ('d : value_or_null) 'e.
-    x1:'b ->
-    x2:local_ string ->
-    x3:local_ (string -> string) ->
-    x4:local_ ('a. 'a -> 'a) ->
-    x5:local_ 'c ->
-    x6:local_ bool ->
-    x7:local_ bool ->
-    x8:local_ unit ->
-    string ->
-    local_ 'd -> local_
-    'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
-    int array * string * (int -> local_ (int -> int)) *
-    (int -> local_ (int -> int)) @ contended =
-  <fun>
+  x1:'b ->
+  x2:local_ string ->
+  x3:local_ (string -> string) ->
+  x4:local_ ('a. 'a -> 'a) ->
+  x5:local_ 'c ->
+  x6:local_ bool ->
+  x7:local_ bool ->
+  x8:local_ unit ->
+  string ->
+  local_ 'd -> local_
+  'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
+  int array * string * (int -> local_ (int -> int)) *
+  (int -> local_ (int -> int)) @ contended = <fun>
 |}]
 
 let f1 (_ @ local) = ()
 let f2 () = let x @ local = [1; 2; 3] in f1 x [@nontail]
 
 [%%expect{|
-val f1 : ('a : value_or_null). local_ 'a -> unit = <fun>
+val f1 : local_ 'a -> unit = <fun>
 val f2 : unit -> unit = <fun>
 |}]
 
@@ -748,9 +744,7 @@ let double1 y = apply ~f:(stack_ fun x -> x + y) y [@nontail]
 let double2 y = apply ~f:(stack_ function x -> x + y) y [@nontail]
 
 [%%expect{|
-val apply :
-  ('a : value_or_null) ('b : value_or_null). f:local_ ('a -> 'b) -> 'a -> 'b =
-  <fun>
+val apply : f:local_ ('a -> 'b) -> 'a -> 'b = <fun>
 val double1 : int -> int = <fun>
 val double2 : int -> int = <fun>
 |}]
@@ -839,8 +833,7 @@ let (x : ((x:int * y:int) [@test.attr])) = (~x:1, ~y:2)
 [%%expect{|
 val z : int = 4
 val punned : int = 5
-val x_must_be_even : ('a : value_or_null) ('b : value_or_null). 'a -> 'b =
-  <fun>
+val x_must_be_even : 'a -> 'b = <fun>
 exception Odd
 val x : x:int * y:int = (~x:1, ~y:2)
 val x : x:int * y:int = (~x:1, ~y:2)
@@ -890,10 +883,7 @@ let f = fun (~foo, ~bar:bar) -> foo * 10 + bar
 let f ((~(x:int),y) : (x:int * int)) : int = x + y
 
 [%%expect{|
-val foo :
-  ('a : value_or_null) ('b : value_or_null).
-    'a -> (unit -> 'b) -> (unit -> 'b) -> 'b =
-  <fun>
+val foo : 'a -> (unit -> 'b) -> (unit -> 'b) -> 'b = <fun>
 val x : int = 1
 val y : int = 2
 val x : int = 1
@@ -1337,7 +1327,5 @@ type t = x:[%call_pos] -> int
 let f g here = g ~(here : [%call_pos])
 
 [%%expect{|
-val f :
-  ('a : value_or_null). (here:[%call_pos] -> 'a) -> lexing_position -> 'a =
-  <fun>
+val f : (here:[%call_pos] -> 'a) -> lexing_position -> 'a = <fun>
 |}]
