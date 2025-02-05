@@ -33,7 +33,7 @@ module Witness = struct
   type kind =
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Cmm.alloc_dbginfo
         }
     | Indirect_call
     | Indirect_tailcall
@@ -1612,9 +1612,40 @@ end = struct
       if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
       then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
     in
+    let pp_alloc_block_kind ppf k =
+      let pp s = Format.fprintf ppf " for %s" s in
+      match (k : Cmm.alloc_block_kind) with
+      | Alloc_block_kind_other -> ()
+      | Alloc_block_kind_closure -> pp "closure"
+      | Alloc_block_kind_float -> pp "float"
+      | Alloc_block_kind_float32 -> pp "float32"
+      | Alloc_block_kind_vec128 -> pp "vec128"
+      | Alloc_block_kind_boxed_int bi ->
+        pp
+          (match bi with
+          | Boxed_nativeint -> "boxed_nativeint"
+          | Boxed_int32 -> "boxed_int32"
+          | Boxed_int64 -> "boxed_int64")
+      | Alloc_block_kind_float_array -> pp "unboxed_float64_array"
+      | Alloc_block_kind_float32_u_array -> pp "unboxed_float32_array"
+      | Alloc_block_kind_int32_u_array -> pp "unboxed_int32_array"
+      | Alloc_block_kind_int64_u_array -> pp "unboxed_int64_array"
+      | Alloc_block_kind_vec128_u_array -> pp "unboxed_vec128_array"
+    in
+    let pp_alloc_dbginfo_item (item : Cmm.alloc_dbginfo_item) =
+      let pp_alloc ppf =
+        Format.fprintf ppf "allocate %d words%a%a" item.alloc_words
+          pp_alloc_block_kind item.alloc_block_kind pp_inlined_dbg
+          item.alloc_dbg
+      in
+      let aloc = Debuginfo.to_location item.alloc_dbg in
+      Location.mkloc pp_alloc aloc
+    in
     let print_comballoc dbg =
       match dbg with
-      | [] | [_] -> "", []
+      | [] -> "", []
+      | [item] ->
+        Format.asprintf "%a" pp_alloc_block_kind item.Cmm.alloc_block_kind, []
       | alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
@@ -1624,17 +1655,7 @@ end = struct
           Printf.sprintf " combining %d allocations below"
             (List.length alloc_dbginfo)
         in
-        let details =
-          List.map
-            (fun (item : Debuginfo.alloc_dbginfo_item) ->
-              let pp_alloc ppf =
-                Format.fprintf ppf "allocate %d words%a" item.alloc_words
-                  pp_inlined_dbg item.alloc_dbg
-              in
-              let aloc = Debuginfo.to_location item.alloc_dbg in
-              Location.mkloc pp_alloc aloc)
-            alloc_dbginfo
-        in
+        let details = List.map pp_alloc_dbginfo_item alloc_dbginfo in
         msg, details
     in
     let print_witness (w : Witness.t) ~component =
