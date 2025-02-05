@@ -108,7 +108,7 @@ script = "some-directory\\
    is interpreted as the OCaml string "some-directory\\ foo".
    *)
 and string acc = parse
-  | [^ '\\' '"' ]+
+  | [^ '\\' '"' '\010' ]+
     { string (acc ^ Lexing.lexeme lexbuf) lexbuf }
   | '\\' newline blank* ('\\' (blank as blank))?
     { let space =
