@@ -16,7 +16,7 @@
 
 type t =
   { continuations : Continuation_in_env.t Continuation.Map.t;
-    continuation_aliases : Continuation.t Continuation.Map.t;
+    continuation_shortcuts : Continuation_shortcut.t Continuation.Map.t;
     apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t;
     (* this [are_rebuilding_terms] is **only** used for printing *)
     are_rebuilding_terms : Are_rebuilding_terms.t
@@ -24,22 +24,24 @@ type t =
 
 let create are_rebuilding_terms =
   { continuations = Continuation.Map.empty;
-    continuation_aliases = Continuation.Map.empty;
+    continuation_shortcuts = Continuation.Map.empty;
     apply_cont_rewrites = Continuation.Map.empty;
     are_rebuilding_terms
   }
 
 let [@ocamlformat "disable"] print ppf
-    { continuations; continuation_aliases;
-      apply_cont_rewrites; are_rebuilding_terms } =
+    { continuations;
+      apply_cont_rewrites; are_rebuilding_terms ;
+      continuation_shortcuts } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(continuations@ %a)@]@ \
-      @[<hov 1>(continuation_aliases@ %a)@]@ \
+      @[<hov 1>(continuation_shortcuts@ %a)@]@ \
       @[<hov 1>(apply_cont_rewrites@ %a)@]\
       )@]"
     (Continuation.Map.print (Continuation_in_env.print are_rebuilding_terms))
     continuations
-    (Continuation.Map.print Continuation.print) continuation_aliases
+    (Continuation.Map.print Continuation_shortcut.print)
+    continuation_shortcuts
     (Continuation.Map.print Apply_cont_rewrite.print)
     apply_cont_rewrites
 
@@ -52,33 +54,23 @@ let find_continuation t cont =
 
 let mem_continuation t cont = Continuation.Map.mem cont t.continuations
 
-let check_alias_transitivity t cont alias_for =
+let check_shortcut_transitivity t cont shortcut_to =
   if Flambda_features.check_invariants ()
-     && Continuation.Map.mem alias_for t.continuation_aliases
+     && Continuation.Map.mem shortcut_to t.continuation_shortcuts
   then
     Misc.fatal_errorf
-      "@[<hov 2>The continuation alias map does not represent thetransitive \
-       closure of alias equations on continuations:@ %a, alias for %a, is \
-       already bound in %a@]"
-      Continuation.print alias_for Continuation.print cont print t
+      "@[<hov 2>The continuation shortcut map does not represent the \
+       transitive closure of shortcut equations on continuations:@ %a, \
+       shortcut for %a, is already bound in %a@]"
+      Continuation.print shortcut_to Continuation.print cont print t
 
-let resolve_continuation_aliases t cont =
-  match Continuation.Map.find cont t.continuation_aliases with
-  | exception Not_found -> cont
-  | alias_for ->
-    check_alias_transitivity t cont alias_for;
-    alias_for
-
-let resolve_exn_continuation_aliases t exn_cont =
-  let cont = Exn_continuation.exn_handler exn_cont in
-  match Continuation.Map.find cont t.continuation_aliases with
-  | exception Not_found -> exn_cont
-  | alias_for ->
-    check_alias_transitivity t cont alias_for;
-    Exn_continuation.with_exn_handler exn_cont alias_for
-
-let continuation_arity t cont =
-  find_continuation t cont |> Continuation_in_env.arity
+let find_continuation_shortcut t cont =
+  match Continuation.Map.find cont t.continuation_shortcuts with
+  | exception Not_found -> None
+  | shortcut_to ->
+    check_shortcut_transitivity t cont
+      (Continuation_shortcut.continuation shortcut_to);
+    Some shortcut_to
 
 let add_continuation0 t cont cont_in_env =
   let continuations = Continuation.Map.add cont cont_in_env t.continuations in
@@ -94,26 +86,27 @@ let add_non_inlinable_continuation t cont ~params ~handler =
 let add_invalid_continuation t cont arity =
   add_continuation0 t cont (Invalid { arity })
 
-let add_continuation_alias t cont arity ~alias_for =
-  let alias_for = resolve_continuation_aliases t alias_for in
-  let alias_for_arity = continuation_arity t alias_for in
-  if not (Flambda_arity.equal_ignoring_subkinds arity alias_for_arity)
+let add_continuation_shortcut t cont ~params ~shortcut_to ~args =
+  if Continuation.Map.mem shortcut_to t.continuation_shortcuts
   then
     Misc.fatal_errorf
-      "%a (arity %a) cannot be an alias for %a (arity %a) since the two \
-       continuations differ in arity"
-      Continuation.print cont Flambda_arity.print arity Continuation.print
-      alias_for Flambda_arity.print alias_for_arity;
-  if Continuation.Map.mem cont t.continuation_aliases
-  then
+      "Cannot add continuation shortcut %a (as shortcut to %a); the target \
+       continuation is itself a shortcut"
+      Continuation.print cont Continuation.print shortcut_to;
+  match Continuation.Map.find cont t.continuation_shortcuts with
+  | existing_shortcut ->
     Misc.fatal_errorf
-      "Cannot add continuation alias %a (as alias for %a); the continuation is \
-       already deemed to be an alias"
-      Continuation.print cont Continuation.print alias_for;
-  let continuation_aliases =
-    Continuation.Map.add cont alias_for t.continuation_aliases
-  in
-  { t with continuation_aliases }
+      "Cannot add continuation shortcut %a (as shortcut to%a); the source \
+       continuation is already deemed to be a shortcut (to %a)"
+      Continuation.print cont Continuation.print shortcut_to Continuation.print
+      (Continuation_shortcut.continuation existing_shortcut)
+  | exception Not_found ->
+    let continuation_shortcuts =
+      Continuation.Map.add cont
+        (Continuation_shortcut.create ~params shortcut_to args)
+        t.continuation_shortcuts
+    in
+    { t with continuation_shortcuts }
 
 let add_linearly_used_inlinable_continuation t cont ~params ~handler
     ~free_names_of_handler ~cost_metrics_of_handler =
