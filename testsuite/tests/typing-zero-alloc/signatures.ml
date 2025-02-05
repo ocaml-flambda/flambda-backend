@@ -1562,3 +1562,23 @@ module type S_all =
     val f_no_warn_5 : M_aliases.t_two_args [@@zero_alloc arity 45]
   end
 |}]
+
+(* zero_alloc ignore with module inclusion *)
+module type S_all = sig
+  [@@@zero_alloc all]
+
+  val f_warn_one_arg : int -> int
+end
+
+module type S_all_ignored = sig
+  [@@@zero_alloc all]
+
+  val[@zero_alloc ignore] f_warn_one_arg : int -> int
+end
+[%%expect{| |}]
+
+(* This should be rejected *)
+module F (X : S_all_ignored) : S_all = X
+
+(* This should be accepted *)
+module F (X : S_all) : S_all_ignores = X
