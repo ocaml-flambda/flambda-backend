@@ -1069,6 +1069,8 @@ let rec best_effort_compare_type_expr te1 te2 =
       | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
       | Tsubst (_, _) -> Misc.fatal_error "TSubst encountered in With_bounds_types"
     in
+    let te1 = repr te1 in
+    let te2 = repr te2 in
     match te1.desc, te2.desc with
     | Ttuple elts1, Ttuple elts2
     | Tunboxed_tuple elts1, Tunboxed_tuple elts2 ->
@@ -1103,11 +1105,11 @@ module With_bounds_types : sig
 
   val empty : t
   val is_empty : t -> bool
-  val to_seq : t -> (type_expr * info) Seq.t
-  val of_list : (type_expr * info) list -> t
-  val update : type_expr -> (info option -> info option) -> t -> t
+  val to_seq : t -> (transient_expr * info) Seq.t
+  val of_list : (transient_expr * info) list -> t
+  val update : transient_expr -> (info option -> info option) -> t -> t
   val merge
-    : (type_expr -> info option -> info option -> info option) ->
+    : (transient_expr -> info option -> info option -> info option) ->
     t -> t -> t
   val map : (info -> info) -> t -> t
 
@@ -1117,12 +1119,12 @@ module With_bounds_types : sig
 
     val of_maybe_empty : maybe_empty -> t option
     val to_maybe_empty : t -> maybe_empty
-    val singleton : type_expr -> info -> t
-    val update : type_expr -> (info option -> info option) -> t -> t
+    val singleton : transient_expr -> info -> t
+    val update : transient_expr -> (info option -> info option) -> t -> t
     val merge
-      : (type_expr -> info option -> info option -> info option) ->
+      : (transient_expr -> info option -> info option -> info option) ->
       t -> t -> t
-    val to_seq : t -> (type_expr * info) Seq.t
+    val to_seq : t -> (transient_expr * info) Seq.t
     val map : (info -> info) -> t -> t
   end
 end = struct
