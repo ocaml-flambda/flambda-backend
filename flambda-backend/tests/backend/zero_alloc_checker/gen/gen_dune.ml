@@ -223,4 +223,10 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "fail29_opt.cmi") ~exit_code:2 "fail29_opt";
   print_cmi_target "fail29_opt2.mli";
   print_test_expected_output ~cutoff:default_cutoff ~extra_flags:"-zero-alloc-check all" ~extra_dep:(Some "fail29_opt2.cmi") ~exit_code:2 "fail29_opt2";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_unless_opt";
+  print_test "test_assume_unless_opt.ml";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check default" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_assume_unless_opt_sig";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_unless_opt_sig2";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check default" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_unless_opt_on_call";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_unless_opt_on_call2";
   ()

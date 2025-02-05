@@ -3268,6 +3268,7 @@ let transl_value_decl env loc ~sig_modalities valdecl =
       in
       let zero_alloc =
         Builtin_attributes.get_zero_alloc_attribute ~in_signature:true
+          ~on_application:false
           ~default_arity valdecl.pval_attributes
       in
       let zero_alloc =

@@ -1309,3 +1309,104 @@
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (deps fail29_opt2.output fail29_opt2.output.corrected)
  (action (diff fail29_opt2.output fail29_opt2.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (targets test_assume_unless_opt.output.corrected)
+ (deps (:ml test_assume_unless_opt.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (deps test_assume_unless_opt.output test_assume_unless_opt.output.corrected)
+ (action (diff test_assume_unless_opt.output test_assume_unless_opt.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (deps test_assume_unless_opt.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (targets test_assume_unless_opt_sig.output.corrected)
+ (deps (:ml test_assume_unless_opt_sig.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_sig.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (deps test_assume_unless_opt_sig.output test_assume_unless_opt_sig.output.corrected)
+ (action (diff test_assume_unless_opt_sig.output test_assume_unless_opt_sig.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (targets test_assume_unless_opt_sig2.output.corrected)
+ (deps (:ml test_assume_unless_opt_sig2.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_sig2.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (deps test_assume_unless_opt_sig2.output test_assume_unless_opt_sig2.output.corrected)
+ (action (diff test_assume_unless_opt_sig2.output test_assume_unless_opt_sig2.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (targets test_assume_unless_opt_on_call.output.corrected)
+ (deps (:ml test_assume_unless_opt_on_call.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_on_call.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (deps test_assume_unless_opt_on_call.output test_assume_unless_opt_on_call.output.corrected)
+ (action (diff test_assume_unless_opt_on_call.output test_assume_unless_opt_on_call.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (targets test_assume_unless_opt_on_call2.output.corrected)
+ (deps (:ml test_assume_unless_opt_on_call2.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_on_call2.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (deps test_assume_unless_opt_on_call2.output test_assume_unless_opt_on_call2.output.corrected)
+ (action (diff test_assume_unless_opt_on_call2.output test_assume_unless_opt_on_call2.output.corrected)))
