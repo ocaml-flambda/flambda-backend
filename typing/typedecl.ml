@@ -1811,6 +1811,8 @@ let update_decl_jkind env dpath id decl shape =
         (* It's unlikely we'll ever be able to give better kinds than [value] to
            extensible variants, so we're not worried about backwards compatibility if we
            mark them as best here, and we want to be able to normalize them away *)
+        (* See Note [Quality of jkinds during inference] for more information about when
+           we mark jkinds as best *)
         |> Jkind.mark_best
       in
       { decl with type_jkind }, type_jkind
@@ -1843,6 +1845,8 @@ let update_decl_jkind env dpath id decl shape =
                          for non-singleton record.")
               lbls
           in
+          (* See Note [Quality of jkinds during inference] for more information about when we
+             mark jkinds as best *)
           let type_jkind = Jkind.mark_best type_jkind in
           { decl with type_kind = Type_record_unboxed_product (lbls, rep, umc);
                       type_jkind },
@@ -1850,6 +1854,8 @@ let update_decl_jkind env dpath id decl shape =
         end
     | Type_variant (cstrs, rep, umc) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
+      (* See Note [Quality of jkinds during inference] for more information about when we
+         mark jkinds as best *)
       let type_jkind = Jkind.mark_best type_jkind in
       { decl with type_kind = Type_variant (cstrs, rep, umc);
                   type_jkind },
@@ -2467,6 +2473,21 @@ let add_types_to_env decls shapes env =
     (fun (id, decl) shape env ->
       add_type ~check:true ~shape id decl env)
     decls shapes env
+
+
+(* Note [Quality of jkinds during inference]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   We're careful during inference of jkinds for type declarations not to ever call
+   [Jkind.mark_best] on a jkind before we've added all the various pieces of information
+   to the jkind (the full layout, and all the with-bounds). Early in translation, we give
+   "dummy" kinds to types, without any with bounds, and have been careful not to mark
+   these as having a [Best] quality. Later on, in [update_decls_jkind], once we've learned
+   everything there is to know about a type declaration, we mark the new kind as [Best].
+   It's important to do this /before/ [normalize_decl_jkinds], so that mutually recursive
+   type declarations can look up each others' (best, though perhaps not normalized!)
+   jkind.
+*)
 
 (* Normalize the jkinds in a list of (potentially mutually recursive) type declarations *)
 let normalize_decl_jkinds env shapes decls =
