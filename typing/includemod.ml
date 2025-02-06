@@ -27,7 +27,7 @@ type pos =
 
 type modes = Includecore.mmodes =
   | All
-  | Legacy
+  | Legacy of Env.held_locks option
 
 module Error = struct
 
@@ -139,6 +139,17 @@ let mark_positive = function
 (* All functions "blah env x1 x2" check that x1 is included in x2,
    i.e. that x1 is the type of an implementation that fulfills the
    specification x2. If not, Error is raised with a backtrace of the error. *)
+
+let walk_locks ~env ~item = function
+  | All | Legacy None -> ()
+  | Legacy (Some held_locks) ->
+      ignore (Env.walk_locks ~env ~item Mode.Value.(legacy |> disallow_right)
+        None held_locks)
+
+let append_ldot s = function
+  | (All | Legacy None) as t -> t
+  | Legacy (Some (locks, lid, loc)) ->
+      Legacy (Some (locks, Ldot (lid, s), loc))
 
 (* Inclusion between value descriptions *)
 
@@ -530,6 +541,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
   in
   match mty1, mty2 with
   | _ when shallow_modtypes env subst mty1 mty2 ->
+    walk_locks ~env ~item:Module modes;
     Ok (Tcoerce_none, orig_shape)
 
   | (Mty_alias p1, _) when not (is_alias mty2) -> begin
@@ -560,6 +572,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
       end
 
   | Mty_functor (param1, res1), Mty_functor (param2, res2) ->
+      walk_locks ~env ~item:Module modes;
       let cc_arg, env, subst =
         functor_param ~in_eq ~loc env ~mark:(negate_mark mark)
           subst param1 param2
@@ -579,7 +592,8 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
             var, Shape.app orig_shape ~arg:shape_var
       in
       let cc_res =
-        modtypes ~in_eq ~loc env ~mark subst res1 res2 res_shape ~modes:Legacy
+        modtypes ~in_eq ~loc env ~mark subst res1 res2 res_shape
+          ~modes:(Legacy None)
       in
       begin match cc_arg, cc_res with
       | Ok Tcoerce_none, Ok (Tcoerce_none, final_res_shape) ->
@@ -677,8 +691,8 @@ and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
       let arg2' = Subst.Lazy.modtype Keep subst arg2 in
       let cc_arg =
         match
-          modtypes ~in_eq ~loc env ~mark Subst.identity ~modes:Legacy arg2' arg1
-                Shape.dummy_mod
+          modtypes ~in_eq ~loc env ~mark Subst.identity arg2' arg1
+                Shape.dummy_mod ~modes:(Legacy None)
         with
         | Ok (cc, _) -> Ok cc
         | Error err -> Error (Error.Mismatch err)
@@ -785,6 +799,7 @@ and signature_components :
       let id, item, shape_map, present_at_runtime =
         match sigi1, sigi2 with
         | Sig_value(id1, valdecl1, _) ,Sig_value(_id2, valdecl2, _) ->
+            let mmodes = append_ldot (Ident.name id1) mmodes in
             let item =
               value_descriptions ~loc env ~mark subst id1 ~mmodes
                 (Subst.Lazy.force_value_description valdecl1)
@@ -817,6 +832,7 @@ and signature_components :
             id1, item, shape_map, true
         | Sig_module(id1, pres1, mty1, _, _), Sig_module(_, pres2, mty2, _, _)
           -> begin
+              let mmodes = append_ldot (Ident.name id1) mmodes in
               let orig_shape =
                 Shape.(proj orig_shape (Item.module_ id1))
               in
@@ -858,6 +874,7 @@ and signature_components :
             let item = mark_error_as_unrecoverable item in
             id1, item, shape_map, false
         | Sig_class(id1, decl1, _, _), Sig_class(_id2, decl2, _, _) ->
+            walk_locks ~env ~item:Class (append_ldot (Ident.name id1) mmodes);
             let item =
               class_declarations env subst decl1 decl2
             in
@@ -984,7 +1001,7 @@ let include_functor_signatures ~loc env ~mark subst sig1 sig2 mod_shape =
   let _, _, comps1 = build_component_table (fun _pos name -> name) sig1 in
   let paired, unpaired, subst = pair_components subst comps1 sig2 in
   let d = signature_components ~in_eq:false ~loc ~mark env subst mod_shape
-            Shape.Map.empty ~mmodes:Legacy
+            Shape.Map.empty ~mmodes:(Legacy None)
             (List.rev paired)
   in
   let open Sign_diff in
@@ -1009,10 +1026,10 @@ let signatures ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
   let sig2 = Subst.Lazy.of_signature sig2 in
   signatures ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape
 
-let modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape =
+let modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 shape =
   let mty1 = Subst.Lazy.of_modtype mty1 in
   let mty2 = Subst.Lazy.of_modtype mty2 in
-  modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape
+  modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 shape
 
 let strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
   subst mty1 path1 mty2 shape =
@@ -1039,7 +1056,7 @@ exception Apply_error of {
 let check_modtype_inclusion_raw ~loc env mty1 path1 mty2 =
   let aliasable = can_alias env path1 in
   strengthened_modtypes ~in_eq:false ~loc ~aliasable env ~mark:Mark_both
-    Subst.identity ~modes:Legacy mty1 path1 mty2 Shape.dummy_mod
+    Subst.identity ~modes:(Legacy None) mty1 path1 mty2 Shape.dummy_mod
   |> Result.map fst
 
 let check_modtype_inclusion ~loc env mty1 path1 mty2 =
@@ -1077,7 +1094,7 @@ let compunit0
     ~comparison env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
   match
     signatures ~in_eq:false ~loc:(Location.in_file impl_name) env ~mark
-      Subst.identity ~modes:Legacy impl_sig intf_sig unit_shape
+      Subst.identity ~modes:(Legacy None) impl_sig intf_sig unit_shape
   with Result.Error reasons ->
     let diff = Error.diff impl_name intf_name reasons in
     let cdiff =
@@ -1293,7 +1310,8 @@ module Functor_app_diff = struct
             | ( Anonymous | Named _ | Empty_struct ), Named (_, param) ->
                 match
                   modtypes ~in_eq:false ~loc state.env ~mark:Mark_neither
-                    state.subst ~modes:Legacy arg_mty param Shape.dummy_mod
+                    state.subst ~modes:(Legacy None) arg_mty param
+                    Shape.dummy_mod
                 with
                 | Error mty -> Result.Error (Error.Mismatch mty)
                 | Ok (cc, _) -> Ok cc

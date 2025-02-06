@@ -341,6 +341,8 @@ type lock =
 
 type locks = lock list
 
+type held_locks = locks * Longident.t * Location.t
+
 let locks_empty = []
 
 let locks_is_empty l = l = locks_empty
@@ -3781,7 +3783,7 @@ let find_cltype_index id env = find_index_tbl id env.cltypes
 
 (* Ordinary lookup functions *)
 
-let walk_locks ~loc ~env ~item ~lid mode ty locks =
+let walk_locks ~env ~item mode ty (locks, lid, loc) =
   walk_locks ~errors:true ~loc ~env ~item ~lid mode ty locks
 
 let lookup_module_path ?(use=true) ~loc ~load lid env =
@@ -4216,8 +4218,12 @@ let sharedness_hint ppf : shared_context -> _ = function
 
 let print_lock_item ppf (item, lid) =
   match item with
-  | Module -> fprintf ppf "Modules are"
-  | Class -> fprintf ppf "Classes are"
+  | Module ->
+      fprintf ppf "%a is a module, and modules are always"
+        (Style.as_inline_code !print_longident) lid
+  | Class ->
+      fprintf ppf "%a is a class, and classes are always"
+        (Style.as_inline_code !print_longident) lid
   | Value -> fprintf ppf "The value %a is"
       (Style.as_inline_code !print_longident) lid
 

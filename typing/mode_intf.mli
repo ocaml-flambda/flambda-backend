@@ -645,6 +645,9 @@ module type S = sig
       (** Asserts the given modality is a const modality, and returns it. *)
       val to_const_exn : t -> Const.t
 
+      (** Checks if the given modality is a const modality *)
+      val to_const_opt : t -> Const.t option
+
       (** Inject a constant modality. *)
       val of_const : Const.t -> t
 

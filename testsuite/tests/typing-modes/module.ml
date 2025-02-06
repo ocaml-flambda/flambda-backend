@@ -229,5 +229,5 @@ let (bar @ portable) () =
 Line 3, characters 19-20:
 3 |         module L = M
                        ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Error: "M" is a module, and modules are always nonportable, so cannot be used inside a function that is portable.
 |}]

@@ -206,6 +206,11 @@ type shared_context =
 
 type locks
 
+type held_locks = locks * Longident.t * Location.t
+(** Sometimes we get the locks for a structure [M], but either want to walk them
+later, or walk them for something else. The [Longident.t] and [Location.t]
+points to what we actually want to walk. *)
+
 val locks_empty : locks
 
 val locks_is_empty : locks -> bool
@@ -272,8 +277,8 @@ type actual_mode = {
     locks and constrains [mode] and [ty]. Return the access mode of the value allowed by
     the locks. [ty] is optional as the function works on modules and classes as well, for
     which [ty] should be [None]. *)
-val walk_locks : loc:Location.t -> env:t -> item:lock_item -> lid:Longident.t ->
-  Mode.Value.l -> type_expr option -> locks -> actual_mode
+val walk_locks : env:t -> item:lock_item -> Mode.Value.l -> type_expr option ->
+  held_locks -> actual_mode
 
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->

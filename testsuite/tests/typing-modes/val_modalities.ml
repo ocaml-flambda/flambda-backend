@@ -901,7 +901,6 @@ let () =
 [%%expect{|
 |}]
 
-(* CR zqian: finer treatment of closing over module ident with expected type. *)
 module type Int_nonportable = sig
   val x : int
 end
@@ -993,10 +992,7 @@ let (bar @ portable) () =
     let k = (module M : Func_portable) in
     k
 [%%expect{|
-Line 2, characters 20-21:
-2 |     let k = (module M : Func_portable) in
-                        ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+val bar : unit -> (module Func_portable) = <fun>
 |}]
 
 (* Pmod_apply *)
@@ -1005,10 +1001,7 @@ let (bar @ portable) () =
   let module _ = F(M) in
   ()
 [%%expect{|
-Line 3, characters 19-20:
-3 |   let module _ = F(M) in
-                       ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+val bar : unit -> unit = <fun>
 |}]
 
 (* Pmod_constraint *)
@@ -1018,10 +1011,7 @@ let (bar @ portable) () =
   end in
   ()
 [%%expect{|
-Line 3, characters 16-17:
-3 |     module N = (M : Func_portable)
-                    ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+val bar : unit -> unit = <fun>
 |}]
 
 (* We will now only use Pmod_pack as example; Pmod_apply and Pexp_constraint are
@@ -1033,7 +1023,7 @@ let (bar @ portable) () =
 Line 2, characters 18-19:
 2 |   let k = (module M : Func_nonportable) in
                       ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Error: The value "M.baz" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* closing over M.x crosses modes *)
@@ -1041,10 +1031,7 @@ let (bar @ portable) () =
   let _ = (module M : Int_nonportable) in
   ()
 [%%expect{|
-Line 2, characters 18-19:
-2 |   let _ = (module M : Int_nonportable) in
-                      ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+val bar : unit -> unit = <fun>
 |}]
 
 (* If module types are shallow_equal, we still close over the module, even if closing things
@@ -1059,7 +1046,7 @@ module M_Func_portable : Func_portable
 Line 4, characters 18-33:
 4 |   let k = (module M_Func_portable : Func_portable) in
                       ^^^^^^^^^^^^^^^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Error: "M_Func_portable" is a module, and modules are always nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* Closing over a module in a module. *)
@@ -1070,7 +1057,7 @@ let (bar @ portable) () =
 Line 2, characters 18-20:
 2 |   let k = (module M' : Module) in
                       ^^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Error: The value "M'.M.baz" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 module type S'_Func_portable = sig module M : Func_portable end
@@ -1080,10 +1067,7 @@ let (bar @ portable) () =
   k
 [%%expect{|
 module type S'_Func_portable = sig module M : Func_portable end
-Line 4, characters 18-20:
-4 |   let k = (module M' : S'_Func_portable) in
-                      ^^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+val bar : unit -> (module S'_Func_portable) = <fun>
 |}]
 
 (* closing over a functor is still closing over the functor *)
@@ -1098,7 +1082,7 @@ module F : functor (X : sig end) -> sig end
 Line 4, characters 18-19:
 4 |   let k = (module F : F) in
                       ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Error: "F" is a module, and modules are always nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* closing over class in structure is still prevented *)
@@ -1109,7 +1093,7 @@ let (bar @ portable) () =
 Line 2, characters 18-19:
 2 |   let k = (module M : Class) in
                       ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Error: "M.cla" is a class, and classes are always nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* Pmod_unpack requires type equality instead of inclusion, so for a closing-over
