@@ -24,7 +24,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     | Stack_nil : ('y, nil) stack
     | Stack_cons :
         'a Iterator.t
-        * 'a option ref
+        * 'a option Named_ref.t
         * ('y, 'a -> 's) continuation
         * ('y, 's) stack
         -> ('y, 'a -> 's) stack
@@ -44,7 +44,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     | Dispatch : ('a, 'y, 'b -> 's) instruction
     | Open :
         'b Iterator.t
-        * 'b option ref
+        * 'b option Named_ref.t
         * ('a, 'y, 'b -> 's) instruction
         * ('a, 'y, 'b -> 's) instruction
         -> ('a, 'y, 's) instruction
@@ -58,6 +58,27 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         'y Option_ref.hlist * ('a, 'y Constant.hlist, 's) instruction
         -> ('a, 'y Constant.hlist, 's) instruction
 
+  let pp_instruction pp_act ff instr =
+    let rec pp_instruction : type y s. _ -> (_, y, s) instruction -> unit = fun ff instr ->
+    match instr with
+    | Advance -> Format.fprintf ff "advance"
+    | Up instr -> Format.fprintf ff "up;@ %a" pp_instruction instr
+    | Dispatch -> Format.fprintf ff "dispatch"
+    | Open (iterator, var, instr1, instr2) ->
+      Format.fprintf ff "@[<v 2>@[<hov 2>open (%a : %a) [@;<1 0>%a@;<1 -2>]@] {@;<1 0>%a@;<1 -2>}@]"
+        Named_ref.pp_name var
+        Iterator.print_name iterator
+        pp_instruction instr2
+        pp_instruction instr1
+    | Action (a, instr) -> Format.fprintf ff "%a;@ %a" pp_act a pp_instruction instr
+    | Call (_f, l, instr) ->
+      Format.fprintf ff "<call> (%a);@ %a"
+        Option_ref.pp_name_hlist l pp_instruction instr
+    | Yield (l, instr) ->
+      Format.fprintf ff "yield (%a);@ %a"
+        Option_ref.pp_name_hlist l pp_instruction instr
+   in pp_instruction ff instr
+
   let rec exhausted : type y. (y, nil) continuation =
    fun Stack_nil ->
     Suspension { stack = Stack_nil; continuation = exhausted }, None
@@ -67,7 +88,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     match Iterator.current iterator with
     | Some current_key ->
       Iterator.accept iterator;
-      cell := Some current_key;
+      cell.contents <- Some current_key;
       level (Stack_cons (iterator, cell, level, stack))
     | None -> advance stack
 
@@ -132,7 +153,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
 
   let rec refs : type s. s Iterator.hlist -> s Option_ref.hlist = function
     | [] -> []
-    | _ :: iterators -> ref None :: refs iterators
+    | _ :: iterators -> { contents = None; printed_name = "_" } :: refs iterators
 
   type erev = Erev : 's Iterator.hlist * 's Option_ref.hlist -> erev
 

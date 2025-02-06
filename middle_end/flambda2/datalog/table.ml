@@ -65,6 +65,8 @@ module Id = struct
 
   let is_trie { is_trie; _ } = is_trie
 
+  let name { name; _ } = name
+
   type ('k, 'v) poly = Id : ('t, 'k, 'v) t -> ('k, 'v) poly
 
   let print ppf t = Format.fprintf ppf "%s" t.name
@@ -99,10 +101,10 @@ module Id = struct
     | Some Equal -> t
     | None -> Misc.fatal_error "Inconsistent type for uid."
 
-  let create_iterator { is_trie; default_value; _ } =
-    let handler = ref (Trie.empty is_trie) in
-    let out = ref default_value in
-    let iterator = Trie.Iterator.create is_trie handler out in
+  let create_iterator { is_trie; default_value; name; _ } =
+    let handler : _ Named_ref.t = { contents = (Trie.empty is_trie); printed_name = name } in
+    let out : _ Named_ref.t = { contents = default_value; printed_name = name ^ "." ^ string_of_int (Trie.trie_depth is_trie - 1) } in
+    let iterator = Trie.Iterator.create is_trie name handler out in
     handler, iterator, out
 end
 
@@ -110,9 +112,9 @@ module Cursor = Virtual_machine.Make (Trie.Iterator)
 
 let iter id f table =
   let input_ref, it, out_ref = Id.create_iterator id in
-  input_ref := table;
+  input_ref.contents <- table;
   let cursor = Cursor.iterator it in
-  Cursor.iter (fun keys -> f keys !out_ref) cursor
+  Cursor.iter (fun keys -> f keys out_ref.contents) cursor
 
 let print id ?(pp_sep = Format.pp_print_cut) pp_row ppf table =
   let first = ref true in

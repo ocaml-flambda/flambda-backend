@@ -29,6 +29,8 @@ module type Iterator = sig
   val equal_key : 'a t -> 'a -> 'a -> bool
 
   val compare_key : 'a t -> 'a -> 'a -> int
+
+  val print_name : Format.formatter -> 'a t -> unit
 end
 
 module Join (Iterator : Iterator) : sig
@@ -44,6 +46,13 @@ end = struct
   include Heterogenous_list.Make (struct
     type nonrec 'a t = 'a t
   end)
+
+  let print_name ff { iterators; _ } =
+    for i = 0 to Array.length iterators - 2 do
+      Iterator.print_name ff iterators.(i);
+      Format.pp_print_string ff " |><| "
+    done;
+    Iterator.print_name ff iterators.(Array.length iterators - 1)
 
   let current (type a) ({ iterators; at_end } : a t) : a option =
     if at_end

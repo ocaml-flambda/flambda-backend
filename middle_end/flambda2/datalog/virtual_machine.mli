@@ -56,6 +56,8 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       - The ['s] type parameter represents the stack of the virtual machine. *)
   type ('a, 'y, 's) instruction
 
+  val pp_instruction : (Format.formatter -> 'a -> unit) -> Format.formatter -> ('a, 'y, 's) instruction -> unit
+
   (** [advance] is a terminating instruction.
 
       If the stack is empty, the iteration is finished. Otherwise, advance the
@@ -84,7 +86,7 @@ module Make (Iterator : Leapfrog.Iterator) : sig
   *)
   val open_ :
     'i Iterator.t ->
-    'i option ref ->
+    'i option Named_ref.t ->
     ('a, 'y, 'i -> 's) instruction ->
     ('a, 'y, 'i -> 's) instruction ->
     ('a, 'y, 's) instruction

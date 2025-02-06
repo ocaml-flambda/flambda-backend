@@ -16,14 +16,14 @@
 open Heterogenous_list
 
 type action =
-  | Bind_iterator : 'a option ref * 'a Trie.Iterator.t -> action
-  | Unless : ('t, 'k, 'v) Trie.is_trie * 't ref * 'k Option_ref.hlist -> action
+  | Bind_iterator : 'a option Named_ref.t * 'a Trie.Iterator.t -> action
+  | Unless : ('t, 'k, 'v) Trie.is_trie * 't Named_ref.t * 'k Option_ref.hlist -> action
 
 let bind_iterator var iterator = Bind_iterator (var, iterator)
 
 let unless id cell args = Unless (Table.Id.is_trie id, cell, args)
 
-type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't ref -> binder
+type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't Named_ref.t -> binder
 
 type actions = { mutable rev_actions : action list }
 
@@ -31,6 +31,10 @@ let create_actions () = { rev_actions = [] }
 
 let add_action actions action =
   actions.rev_actions <- action :: actions.rev_actions
+
+let pp_action ff = function
+  | Bind_iterator (x, _it) -> Format.fprintf ff "%a := <it>" Named_ref.pp_name x
+  | Unless (_, t, l) -> Format.fprintf ff "advance_if (%a(%a))" Named_ref.pp_name t Option_ref.pp_name_hlist l
 
 module Order : sig
   type t
@@ -60,7 +64,7 @@ module Level = struct
       order : Order.t;
       actions : actions;
       mutable iterators : 'a Trie.Iterator.t list;
-      mutable output : 'a option ref option
+      mutable output : 'a option Named_ref.t option
     }
 
   let print ppf { name; order; _ } =
@@ -72,7 +76,7 @@ module Level = struct
   let use_output level =
     match level.output with
     | None ->
-      let output = ref None in
+      let output : _ Named_ref.t = { contents = None; printed_name = level.name } in
       level.output <- Some output;
       output
     | Some output -> output
@@ -139,7 +143,7 @@ let add_iterator context id =
   iterators
 
 let add_naive_binder context id =
-  let handler = ref (Trie.empty (Table.Id.is_trie id)) in
+  let handler : _ Named_ref.t = { contents = (Trie.empty (Table.Id.is_trie id)) ; printed_name = Table.Id.name id } in
   add_binder context.naive_binders (Bind_table (id, handler));
   handler
 
@@ -153,11 +157,12 @@ type 'v t =
 
 type 'a cursor = 'a t
 
-let print ppf { cursor_binders; _ } =
-  Format.fprintf ppf "@[<hov 1>(%a)@]"
+let print ppf { cursor_binders; instruction; _ } =
+  Format.fprintf ppf "@[<hov 1>(%a)@]@ %a"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space
        (fun ppf (Bind_table (table_id, _)) -> Table.Id.print ppf table_id))
     cursor_binders
+    (VM.pp_instruction pp_action) instruction
 
 let apply_actions actions instruction =
   (* Note: we must preserve the order of [Bind_iterator] actions in order to
@@ -186,10 +191,10 @@ let rec open_rev_vars :
         Level.print var
     | _ -> (
       let instruction = apply_actions var.actions instruction in
-      let cell =
+      let cell : _ Named_ref.t =
         (* If we do not need the output (we usually do), write it to a dummy
            [ref] for simplicity. *)
-        match var.output with Some output -> output | None -> ref None
+        match var.output with Some output -> output | None -> { contents = None; printed_name = var.name }
       in
       match vars with
       | [] ->
@@ -246,7 +251,7 @@ let bind_table (Bind_table (id, handler)) database =
   if Trie.is_empty (Table.Id.is_trie id) table
   then false
   else (
-    handler := Table.Map.get id database;
+    handler.contents <- Table.Map.get id database;
     true)
 
 let bind_table_list binders database =
@@ -255,7 +260,7 @@ let bind_table_list binders database =
 let evaluate op =
   match op with
   | Bind_iterator (value, it) -> (
-    let value = Option.get !value in
+    let value = Option.get value.contents in
     Trie.Iterator.init it;
     Trie.Iterator.seek it value;
     match Trie.Iterator.current it with
@@ -264,7 +269,7 @@ let evaluate op =
       Virtual_machine.Accept
     | None | Some _ -> Virtual_machine.Skip)
   | Unless (is_trie, cell, args) ->
-    if Option.is_some (Trie.find_opt is_trie (Option_ref.get args) !cell)
+    if Option.is_some (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
     then Virtual_machine.Skip
     else Virtual_machine.Accept
 

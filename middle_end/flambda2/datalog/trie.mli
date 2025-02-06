@@ -19,6 +19,8 @@ open Heterogenous_list
     of type ['k Constant.hlist] to values of type ['v]. *)
 type ('t, 'k, 'v) is_trie
 
+val trie_depth : ('t, 'k, 'v) is_trie -> int
+
 val patricia_tree_is_trie : ('v Patricia_tree.map, int -> nil, 'v) is_trie
 
 val patricia_tree_of_trie :
@@ -49,7 +51,7 @@ val find_opt : ('t, 'k, 'v) is_trie -> 'k Constant.hlist -> 't -> 'v option
 module Iterator : sig
   include Leapfrog.Iterator
 
-  (** [create is_trie input output] creates a trie iterator.
+  (** [create is_trie name input output] creates a trie iterator.
 
       The [input] reference is used to initialize the first iterator when [init]
       is called.
@@ -57,5 +59,5 @@ module Iterator : sig
       The [output] reference is set to the corresponding value when [accept] is
       called on the last iterator.
   *)
-  val create : ('m, 'k, 'v) is_trie -> 'm ref -> 'v ref -> 'k hlist
+  val create : ('m, 'k, 'v) is_trie -> string -> 'm Named_ref.t -> 'v Named_ref.t -> 'k hlist
 end

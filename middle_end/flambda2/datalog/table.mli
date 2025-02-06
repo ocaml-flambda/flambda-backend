@@ -26,6 +26,8 @@ module Id : sig
 
   val uid : ('t, 'k, 'v) t -> int
 
+  val name : ('t, 'k, 'v) t -> string
+
   (* Will raise [Misc.Fatal_error] if the two [Id.t]s do not have the same
      [uid]. *)
   val provably_equal_keys_exn :
@@ -54,7 +56,7 @@ module Id : sig
     ('t, 'k, 'v) t
 
   val create_iterator :
-    ('t, 'k, 'v) t -> 't ref * 'k Trie.Iterator.hlist * 'v ref
+    ('t, 'k, 'v) t -> 't Named_ref.t * 'k Trie.Iterator.hlist * 'v Named_ref.t
 end
 
 module Map : sig

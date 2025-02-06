@@ -17,9 +17,9 @@ open Heterogenous_list
 
 type action
 
-val bind_iterator : 'a option ref -> 'a Trie.Iterator.t -> action
+val bind_iterator : 'a option Named_ref.t -> 'a Trie.Iterator.t -> action
 
-val unless : ('t, 'k, 'v) Table.Id.t -> 't ref -> 'k Option_ref.hlist -> action
+val unless : ('t, 'k, 'v) Table.Id.t -> 't Named_ref.t -> 'k Option_ref.hlist -> action
 
 type actions
 
@@ -43,7 +43,7 @@ module Level : sig
       {b Note}: This reference is set to any new value found prior to executing
       the associated actions, if any, and can thus be used in actions for this
       level or levels of later orders. *)
-  val use_output : 'a t -> 'a option ref
+  val use_output : 'a t -> 'a option Named_ref.t
 
   (** Actions to execute immediately after a value is found at this level. *)
   val actions : 'a t -> actions
@@ -64,7 +64,7 @@ val add_new_level : context -> string -> 'a Level.t
 
 val add_iterator : context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.hlist
 
-val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't ref
+val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't Named_ref.t
 
 (** Initial actions are always executed when iterating over a cursor, before
     opening the first level. *)
