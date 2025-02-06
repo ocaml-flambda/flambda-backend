@@ -1,7 +1,14 @@
 (* TEST
- include runtime_events;
- reason = "CR OCaml 5 domains";
- skip;
+ {
+   runtime4;
+   skip;
+ }{
+   include runtime_events;
+   runtime5;
+   flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
+   { bytecode; }
+   { native; }
+ }
 *)
 open Runtime_events
 
