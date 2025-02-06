@@ -1035,7 +1035,7 @@ let compare_type t1 t2 = compare (get_id t1) (get_id t2)
    saying but it also needs to expose a total order.
 
    Someday, it's probably desirable to merge this, and make it compatible, with
-   [Ctype.eq_type], though that seems quite hard.
+   [Ctype.eqtype], though that seems quite hard.
 *)
 let rec best_effort_compare_type_expr te1 te2 =
   if te1 == te2 || repr te1 == repr te2 then 0
