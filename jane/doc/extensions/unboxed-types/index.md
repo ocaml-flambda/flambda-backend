@@ -40,6 +40,7 @@ by a *type*. The type system knows about a collection of fixed *base* layouts:
 * `value_or_null` is a superlayout of `value` including normal OCaml values
   and null pointers. Unless `-extension-universe alpha` is set, it is displayed
   as `value` and can't be used in jkind annotations.
+
 * `any_non_null` is a sublayout of `any` forbidding null pointers. Unless
   `-extension-universe alpha` is set, it is displayed as `any`.
   Additionally, `any` jkind annotations are interpreted as `any_non_null` for
@@ -219,6 +220,12 @@ modules in the `janestreet_shims` library.)
   types that involve unboxed numbers will lead to inscrutable type errors, and other ppxs
   (such as e.g. `match%optional`) will fall over when given unboxed numbers. These
   failures will lead to hard-to-understand errors from the compiler, never unsafe code.
+
+## Unboxed options
+
+We now have `type 'a or_null : value_or_null`, the type of unboxed options.
+It has constructors `Null` and `This v`. See the
+[`or_null` proposal](../../proposals/unboxed-types/null.md) for more details.
 
 # Unboxed products
 
