@@ -1605,7 +1605,7 @@ let update_constructor_representation
    is consistent with (i.e. a subjkind of) any jkind annotation.
    See Note [Default jkinds in transl_declaration].
 *)
-let update_decl_jkind env dpath id decl shape =
+let update_decl_jkind env id decl shape =
   let open struct
     (* For tracking what types appear in record blocks. *)
     type element_repr_summary =
@@ -1928,8 +1928,8 @@ let update_decl_jkind env dpath id decl shape =
           type_kind; }
       else new_decl
     | Error err ->
-      raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
-  end
+      raise(Error(decl.type_loc, Jkind_mismatch_of_path (Pident id, err)))
+    end
   else new_decl
 
 let update_decls_jkind_reason env decls =
@@ -1952,7 +1952,7 @@ let update_decls_jkind_reason env decls =
 let update_decls_jkind env shapes decls =
   List.map2
     (fun (id, decl) shape ->
-       (id, update_decl_jkind env (Pident id) id decl shape))
+       (id, update_decl_jkind env id decl shape))
     decls
     shapes
 
