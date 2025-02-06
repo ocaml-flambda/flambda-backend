@@ -273,3 +273,18 @@ end
 [%%expect{|
 module Option2 : sig type 'a my_option = Nothing | Just of 'a end
 |}]
+
+module rec Foo : Optionish = Foo
+[%%expect{|
+module rec Foo : Define_with_kinds.Optionish
+|}]
+
+type 'a my_option2 = 'a Optionish2.my_option =
+  | Nothing
+  | Just of 'a
+[%%expect{|
+type 'a my_option2 =
+  'a Define_with_kinds.Optionish2.my_option =
+    Nothing
+  | Just of 'a
+|}]
