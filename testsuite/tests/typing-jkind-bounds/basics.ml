@@ -1659,7 +1659,11 @@ type extensible = ..
 |}]
 
 (* Since the kind is [best], it should normalize away *)
-type t : value = { x : int; y : extensible }
+module M : sig
+  type t : immediate with extensible
+end = struct
+  type t
+end
 [%%expect{|
-type t = { x : int; y : extensible; }
+module M : sig type t end
 |}]
