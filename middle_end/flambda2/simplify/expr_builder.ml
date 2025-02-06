@@ -679,6 +679,21 @@ type rewrite_apply_cont_result =
 
 let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 
+let apply_continuation_shortcuts uenv apply_cont =
+  (* CR gbury: when rewriting shortcuts, we may lose some information that was
+     in the kinds of the continuation being rewritten (e.g. is the continuation
+     bein rewritten had more kind/sub-kind information on its parameters than
+     its shortcut). We should think of a way to preserve that information. *)
+  match
+    UE.find_continuation_shortcut uenv (Apply_cont.continuation apply_cont)
+  with
+  | None -> apply_cont
+  | Some shortcut ->
+    let cont, args =
+      UE.apply_continuation_shortcut shortcut (Apply_cont.args apply_cont)
+    in
+    Apply_cont.with_continuation_and_args apply_cont cont ~args
+
 let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
@@ -686,18 +701,7 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
   | Invalid -> Invalid { message = "" }
   | Ok (extra_lets, args) -> (
     let apply_cont = Apply_cont.update_args apply_cont ~args in
-    let apply_cont =
-      match
-        UE.find_continuation_shortcut (UA.uenv uacc)
-          (Apply_cont.continuation apply_cont)
-      with
-      | None -> apply_cont
-      | Some shortcut ->
-        let cont, args =
-          UE.apply_continuation_shortcut shortcut (Apply_cont.args apply_cont)
-        in
-        Apply_cont.with_continuation_and_args apply_cont cont ~args
-    in
+    let apply_cont = apply_continuation_shortcuts (UA.uenv uacc) apply_cont in
     match extra_lets with
     | [] -> Apply_cont apply_cont
     | _ :: _ ->
@@ -740,16 +744,8 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
        [Continuation] since we would need a wrapper anyways. *)
     match cont_or_apply_cont with
     | Continuation cont -> This_continuation cont
-    | Apply_cont apply_cont -> (
-      let cont = Apply_cont.continuation apply_cont in
-      match UE.find_continuation_shortcut (UA.uenv uacc) cont with
-      | None -> This_continuation cont
-      | Some shortcut ->
-        let cont, args =
-          UE.apply_continuation_shortcut shortcut (Apply_cont.args apply_cont)
-        in
-        Apply_cont (Apply_cont.with_continuation_and_args apply_cont cont ~args)
-      )
+    | Apply_cont apply_cont ->
+      Apply_cont (apply_continuation_shortcuts uenv apply_cont)
   in
   match UE.find_apply_cont_rewrite uenv cont with
   | None -> shortcut_this_continuation_if_possible ()
