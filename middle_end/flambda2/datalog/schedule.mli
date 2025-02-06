@@ -13,6 +13,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
+type builder
+
+val create_builder : unit -> builder
+
+type 'a rule_fn
+
+val call_rule_fn : 'a rule_fn -> 'a Heterogenous_list.Constant.hlist -> unit
+
+val add_rule : builder -> ('t, 'k, unit) Table.Id.t -> 'k rule_fn
+
 type stats
 
 val create_stats : unit -> stats
@@ -21,7 +31,7 @@ val print_stats : Format.formatter -> stats -> unit
 
 type rule
 
-val create_rule : ('t, 'k, unit) Table.Id.t -> 'k Cursor.t -> rule
+val build : builder -> Heterogenous_list.nil Cursor.t -> rule
 
 type t
 

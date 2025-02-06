@@ -58,7 +58,7 @@ let concat is_trie ~earlier:t1 ~later:t2 =
 
 module Id = struct
   type ('t, 'k, 'v) t =
-    { id : 't Type.Id.t;
+    { id : ('t * 'k) Type.Id.t;
       name : string;
       is_trie : ('t, 'k, 'v) Trie.is_trie;
       print_keys :
@@ -75,6 +75,18 @@ module Id = struct
   let hash { id; _ } = Hashtbl.hash (Type.Id.uid id)
 
   let equal { id = id1; _ } { id = id2; _ } = Type.Id.uid id1 = Type.Id.uid id2
+
+  let[@inline] provably_equal_keys_exn (type a k v a' k' v') (r1 : (a, k, v) t)
+      (r2 : (a', k', v') t) : (k, k') Type.eq =
+    match Type.Id.provably_equal r1.id r2.id with
+    | Some Equal -> Equal
+    | None -> Misc.fatal_error "Inconsistent type for uid."
+
+  let[@inline] provably_equal_exn (type a k v a' k' v') (r1 : (a, k, v) t)
+      (r2 : (a', k', v') t) : (a, a') Type.eq =
+    match Type.Id.provably_equal r1.id r2.id with
+    | Some Equal -> Equal
+    | None -> Misc.fatal_error "Inconsistent type for uid."
 
   let compare { id = id1; _ } { id = id2; _ } =
     compare (Type.Id.uid id1) (Type.Id.uid id2)

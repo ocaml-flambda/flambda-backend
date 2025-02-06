@@ -13,10 +13,25 @@
 (*                                                                        *)
 (**************************************************************************)
 
+type 'a incremental =
+  { current : 'a;
+    difference : 'a
+  }
+
+type binder =
+  | Binder :
+      { table_id : ('t, 'k, 'v) Table.Id.t;
+        initial : 't incremental ref;
+        current : 't incremental ref
+      }
+      -> binder
+
+let print_binder ppf (Binder { table_id; _ }) = Table.Id.print ppf table_id
+
 type rule =
   | Rule :
-      { cursor : 'k Cursor.t;
-        table_id : ('t, 'k, unit) Table.Id.t;
+      { cursor : Heterogenous_list.nil Cursor.t;
+        binders : binder list;
         rule_id : int
       }
       -> rule
@@ -28,93 +43,104 @@ let fresh_rule_id =
     incr cnt;
     !cnt
 
-let create_rule tid cursor =
-  Rule { table_id = tid; cursor; rule_id = fresh_rule_id () }
+type stats = (int, rule * float) Hashtbl.t
 
-type 'a incremental =
-  { current : 'a;
-    difference : 'a
-  }
-
-type table = Table : (_, _, _) Table.Id.t -> table
-
-module IdHash = Hashtbl.Make (struct
-  type t = table
-
-  let equal (Table t1) (Table t2) = Table.Id.equal t1 t2
-
-  let hash (Table t) = Table.Id.hash t
-end)
-
-type stats = (int, rule * float) Hashtbl.t IdHash.t
-
-let create_stats () = IdHash.create 17
-
-let get_rules_table ~stats (Rule { table_id; _ }) =
-  try IdHash.find stats (Table table_id)
-  with Not_found ->
-    let table = Hashtbl.create 17 in
-    IdHash.replace stats (Table table_id) table;
-    table
+let create_stats () = Hashtbl.create 17
 
 let add_timing ~stats (Rule { rule_id; _ } as rule) time =
-  let rules_table = get_rules_table ~stats rule in
-  Hashtbl.replace rules_table rule_id
-    ( rule,
-      time +. try snd (Hashtbl.find rules_table rule_id) with Not_found -> -0.
-    )
+  Hashtbl.replace stats rule_id
+    (rule, time +. try snd (Hashtbl.find stats rule_id) with Not_found -> -0.)
 
 let print_stats ppf stats =
   Format.fprintf ppf "@[<v>";
-  IdHash.iter
-    (fun (Table tid) rules ->
-      Format.fprintf ppf "  @[<v>%a:@ " Table.Id.print tid;
-      Hashtbl.iter
-        (fun _ (Rule { cursor; _ }, time) ->
-          Format.fprintf ppf "@[%a: %f@]@ " Cursor.print cursor time)
-        rules;
-      Format.fprintf ppf "@]@ ")
+  Hashtbl.iter
+    (fun _ (Rule { cursor; binders; _ }, time) ->
+      Format.fprintf ppf "@[@[@[%a@]@ :- %a@]:@ %f@]@ "
+        (Format.pp_print_list
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
+           print_binder)
+        binders Cursor.print cursor time)
     stats;
   Format.fprintf ppf "@]"
 
 let incremental ~difference ~current = { current; difference }
 
-let run_rule_incremental ?stats ~previous ~diff ~current incremental_db
-    (Rule { table_id; cursor; _ } as rule) =
-  let is_trie = Table.Id.is_trie table_id in
-  let incremental_table =
-    incremental
-      ~current:(Table.Map.get table_id incremental_db.current)
-      ~difference:(Table.Map.get table_id incremental_db.difference)
+type builder = { tables : (int, binder) Hashtbl.t }
+
+let create_builder () = { tables = Hashtbl.create 17 }
+
+type 'k rule_fn = 'k Heterogenous_list.Constant.hlist -> unit
+
+let call_rule_fn f args = f args
+
+let find_or_create_ref (type t k v) { tables } (table_id : (t, k, v) Table.Id.t)
+    : t incremental ref =
+  let uid = Table.Id.uid table_id in
+  match Hashtbl.find_opt tables uid with
+  | None ->
+    let empty = Trie.empty (Table.Id.is_trie table_id) in
+    let initial = ref (incremental ~difference:empty ~current:empty) in
+    let current = ref !initial in
+    Hashtbl.replace tables uid (Binder { table_id; initial; current });
+    current
+  | Some (Binder { table_id = other_table_id; initial = _; current }) ->
+    let Equal = Table.Id.provably_equal_exn other_table_id table_id in
+    current
+
+let add_rule builder tid : _ rule_fn =
+  let is_trie = Table.Id.is_trie tid in
+  let table_ref = find_or_create_ref builder tid in
+  fun keys ->
+    let incremental_table = !table_ref in
+    match Trie.find_opt is_trie keys incremental_table.current with
+    | Some _ -> ()
+    | None ->
+      table_ref
+        := incremental
+             ~current:
+               (Trie.add_or_replace is_trie keys () incremental_table.current)
+             ~difference:
+               (Trie.add_or_replace is_trie keys () incremental_table.difference)
+
+let build builder cursor =
+  let binders =
+    Hashtbl.fold (fun _ binder binders -> binder :: binders) builder.tables []
   in
+  Rule { cursor; binders; rule_id = fresh_rule_id () }
+
+let run_rule_incremental ?stats ~previous ~diff ~current incremental_db
+    (Rule { binders; cursor; _ } as rule) =
+  List.iter
+    (fun (Binder { table_id; initial; current }) ->
+      let table =
+        incremental
+          ~current:(Table.Map.get table_id incremental_db.current)
+          ~difference:(Table.Map.get table_id incremental_db.difference)
+      in
+      initial := table;
+      current := table)
+    binders;
   let time0 = Sys.time () in
-  let incremental_table' =
-    Cursor.seminaive_fold cursor ~previous ~diff ~current
-      (fun keys incremental_table ->
-        match Trie.find_opt is_trie keys incremental_table.current with
-        | Some _ -> incremental_table
-        | None ->
-          incremental
-            ~current:
-              (Trie.add_or_replace is_trie keys () incremental_table.current)
-            ~difference:
-              (Trie.add_or_replace is_trie keys () incremental_table.difference))
-      incremental_table
+  let () =
+    Cursor.seminaive_fold cursor ~previous ~diff ~current (fun [] () -> ()) ()
   in
   let time1 = Sys.time () in
   let seminaive_time = time1 -. time0 in
   Option.iter (fun stats -> add_timing ~stats rule seminaive_time) stats;
-  let set_if_changed db ~before ~after =
+  let set_if_changed db table_id ~before ~after =
     if after == before then db else Table.Map.set table_id after db
   in
-  incremental
-    ~current:
-      (set_if_changed incremental_db.current ~before:incremental_table.current
-         ~after:incremental_table'.current)
-    ~difference:
-      (set_if_changed incremental_db.difference
-         ~before:incremental_table.difference
-         ~after:incremental_table'.difference)
+  List.fold_left
+    (fun incremental_db (Binder { table_id; initial; current }) ->
+      let initial = !initial and current = !current in
+      incremental
+        ~current:
+          (set_if_changed incremental_db.current table_id
+             ~before:initial.current ~after:current.current)
+        ~difference:
+          (set_if_changed incremental_db.difference table_id
+             ~before:initial.difference ~after:current.difference))
+    incremental_db binders
 
 type t =
   | Saturate of rule list

@@ -106,6 +106,18 @@ module Make (Iterator : Leapfrog.Iterator) : sig
     ('x, 'y Heterogenous_list.Constant.hlist, 's) instruction ->
     ('x, 'y Heterogenous_list.Constant.hlist, 's) instruction
 
+  (** [call f rs k] calls [f] with the values of the references in [rs] as a
+      heterogeneous list of values, then executes the instruction [k].
+
+      {b Note}: The references in [rs] are intended to be the references
+      associated with levels in the stack at the point the [call] instruction
+      is executed, and {b must not} be [None] at that point. *)
+  val call :
+    ('a Heterogenous_list.Constant.hlist -> unit) ->
+    'a Heterogenous_list.Option_ref.hlist ->
+    ('x, 'y, 's) instruction ->
+    ('x, 'y, 's) instruction
+
   type 'a t
 
   (** [iterator] is a convenience function for creating a virtual machine that

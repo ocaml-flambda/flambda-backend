@@ -49,6 +49,11 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         * ('a, 'y, 'b -> 's) instruction
         -> ('a, 'y, 's) instruction
     | Action : 'a * ('a, 'y, 's) instruction -> ('a, 'y, 's) instruction
+    | Call :
+        ('b Constant.hlist -> unit)
+        * 'b Option_ref.hlist
+        * ('a, 'y, 's) instruction
+        -> ('a, 'y, 's) instruction
     | Yield :
         'y Option_ref.hlist * ('a, 'y Constant.hlist, 's) instruction
         -> ('a, 'y Constant.hlist, 's) instruction
@@ -99,6 +104,9 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         match (evaluate [@inlined hint]) op with
         | Accept -> execute k stack
         | Skip -> advance stack)
+      | Call (f, rs, k) ->
+        f (Option_ref.get rs);
+        execute k stack
       | Yield (rs, k) ->
         Suspension { stack; continuation = execute k }, Some (Option_ref.get rs)
     in
@@ -116,9 +124,11 @@ module Make (Iterator : Leapfrog.Iterator) = struct
 
   let open_ i cell a dispatch = Open (i, cell, a, dispatch)
 
-  let action a i = Action (a, i)
+  let action a k = Action (a, k)
 
-  let yield y i = Yield (y, i)
+  let yield y k = Yield (y, k)
+
+  let call f y k = Call (f, y, k)
 
   let rec refs : type s. s Iterator.hlist -> s Option_ref.hlist = function
     | [] -> []

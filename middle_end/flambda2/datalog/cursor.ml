@@ -108,7 +108,7 @@ let add_new_level levels name =
   level
 
 module Join_iterator = Leapfrog.Join (Trie.Iterator)
-module Cursor = Virtual_machine.Make (Join_iterator)
+module VM = Virtual_machine.Make (Join_iterator)
 
 type binders = { mutable rev_binders : binder list }
 
@@ -148,7 +148,7 @@ let initial_actions { actions; _ } = actions
 type 'v t =
   { cursor_binders : binder list;
     cursor_naive_binders : binder list;
-    instruction : (action, 'v Constant.hlist, nil) Cursor.instruction
+    instruction : (action, 'v Constant.hlist, nil) VM.instruction
   }
 
 type 'a cursor = 'a t
@@ -164,7 +164,7 @@ let apply_actions actions instruction =
      initialize iterators in the correct order. Otherwise, we would miscompile
      [P (x, x, x)] (we would initialize the 3rd argument before the 2nd). *)
   List.fold_left
-    (fun instruction action -> Cursor.action action instruction)
+    (fun instruction action -> VM.action action instruction)
     instruction actions.rev_actions
 
 (* NB: the variables must be passed in reverse order, i.e. deepest variable
@@ -172,8 +172,8 @@ let apply_actions actions instruction =
 let rec open_rev_vars :
     type a s y.
     (a -> s) Level.hlist ->
-    (action, y, a -> s) Cursor.instruction ->
-    (action, y, nil) Cursor.instruction =
+    (action, y, a -> s) VM.instruction ->
+    (action, y, nil) VM.instruction =
  fun vars instruction ->
   match vars with
   | var :: vars -> (
@@ -193,36 +193,48 @@ let rec open_rev_vars :
       in
       match vars with
       | [] ->
-        Cursor.open_
+        VM.open_
           (Join_iterator.create var.iterators)
-          cell instruction Cursor.dispatch
+          cell instruction VM.dispatch
       | _ :: _ as vars ->
         open_rev_vars vars
-          (Cursor.open_
+          (VM.open_
              (Join_iterator.create var.iterators)
-             cell instruction Cursor.dispatch)))
+             cell instruction VM.dispatch)))
 
 (* Optimisation: if we do not use the output from the last variable, we only
    need the first matching value of that variable.
 
    NB: the variables must be passed in reverse order, i.e. deepest variable
    first. *)
-let rec pop_rev_vars :
-    type s. s Level.hlist -> (action, 'y, s) Cursor.instruction = function
-  | [] -> Cursor.advance
+let rec pop_rev_vars : type s. s Level.hlist -> (action, 'y, s) VM.instruction =
+  function
+  | [] -> VM.advance
   | var :: vars -> (
-    match var.output with
-    | None -> Cursor.up (pop_rev_vars vars)
-    | _ -> Cursor.advance)
+    match var.output with None -> VM.up (pop_rev_vars vars) | _ -> VM.advance)
 
-let create context output =
+type call =
+  | Call :
+      { func : 'a Constant.hlist -> unit;
+        args : 'a Option_ref.hlist
+      }
+      -> call
+
+let create_call func args = Call { func; args }
+
+let create ?(calls = []) context output =
   let { levels; actions; binders; naive_binders } = context in
   let (Level_list rev_levels) = levels.rev_levels in
-  let instruction : (_, _, nil) Cursor.instruction =
+  let make k =
+    (* Make sure to compute calls in the provided order. *)
+    List.fold_right
+      (fun (Call { func; args }) k -> VM.call func args k)
+      calls (VM.yield output k)
+  in
+  let instruction : (_, _, nil) VM.instruction =
     match rev_levels with
-    | [] -> Cursor.yield output @@ pop_rev_vars rev_levels
-    | _ :: _ ->
-      open_rev_vars rev_levels @@ Cursor.yield output @@ pop_rev_vars rev_levels
+    | [] -> make @@ pop_rev_vars rev_levels
+    | _ :: _ -> open_rev_vars rev_levels @@ make @@ pop_rev_vars rev_levels
   in
   let instruction = apply_actions actions instruction in
   { cursor_binders = binders.rev_binders;
@@ -260,12 +272,12 @@ let evaluate op =
 let naive_fold cursor db f acc =
   bind_table_list cursor.cursor_binders db;
   bind_table_list cursor.cursor_naive_binders db;
-  Cursor.fold f (Cursor.create ~evaluate cursor.instruction) acc
+  VM.fold f (VM.create ~evaluate cursor.instruction) acc
 
 let naive_iter cursor db f =
   bind_table_list cursor.cursor_binders db;
   bind_table_list cursor.cursor_naive_binders db;
-  Cursor.iter f (Cursor.create ~evaluate cursor.instruction)
+  VM.iter f (VM.create ~evaluate cursor.instruction)
 
 (* Seminaive evaluation iterates over all the {b new} tuples in the [diff]
    database that are not in the [previous] database.
@@ -280,7 +292,7 @@ let[@inline] seminaive_fold cursor ~previous ~diff ~current f acc =
     | binder :: binders ->
       let acc =
         if bind_table binder diff
-        then Cursor.fold f (Cursor.create ~evaluate cursor.instruction) acc
+        then VM.fold f (VM.create ~evaluate cursor.instruction) acc
         else acc
       in
       if bind_table binder previous then loop binders acc else acc
@@ -295,8 +307,8 @@ module With_parameters = struct
 
   let without_parameters { parameters = []; cursor } = cursor
 
-  let create ~parameters context output =
-    { cursor = create context output; parameters }
+  let create ?calls ~parameters context output =
+    { cursor = create ?calls context output; parameters }
 
   let naive_fold { parameters; cursor } ps db f acc =
     Option_ref.set parameters ps;

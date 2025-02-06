@@ -76,7 +76,11 @@ type 'a cursor = 'a t
 
 val print : Format.formatter -> 'a t -> unit
 
-val create : context -> 'v Option_ref.hlist -> 'v t
+type call
+
+val create_call : ('a Constant.hlist -> unit) -> 'a Option_ref.hlist -> call
+
+val create : ?calls:call list -> context -> 'v Option_ref.hlist -> 'v t
 
 val naive_fold :
   'v t -> Table.Map.t -> ('v Constant.hlist -> 'a -> 'a) -> 'a -> 'a
@@ -98,6 +102,7 @@ module With_parameters : sig
   val without_parameters : (nil, 'v) t -> 'v cursor
 
   val create :
+    ?calls:call list ->
     parameters:'p Option_ref.hlist ->
     context ->
     'v Option_ref.hlist ->

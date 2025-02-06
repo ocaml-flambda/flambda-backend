@@ -13,12 +13,30 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Type : sig
+  type (_, _) eq = Equal : ('a, 'a) eq
+end
+
 module Id : sig
   type ('t, 'k, 'v) t
 
   val print : Format.formatter -> ('t, 'k, 'v) t -> unit
 
   val hash : ('t, 'k, 'v) t -> int
+
+  val uid : ('t, 'k, 'v) t -> int
+
+  (* Will raise [Misc.Fatal_error] if the two [Id.t]s do not have the same
+     [uid]. *)
+  val provably_equal_keys_exn :
+    ('t1, 'k1, 'v1) t -> ('t2, 'k2, 'v2) t -> ('k1, 'k2) Type.eq
+
+  val provably_equal_exn :
+    ('t1, 'k1, 'v1) t -> ('t2, 'k2, 'v2) t -> ('t1, 't2) Type.eq
+
+  (* Will raise [Misc.Fatal_error] if the two [Id.t]s do not have the same
+     [uid]. *)
+  val cast_exn : ('t1, 'k1, 'v1) t -> ('t2, 'k2, 'v2) t -> 't1 -> 't2
 
   val equal : (_, _, _) t -> (_, _, _) t -> bool
 

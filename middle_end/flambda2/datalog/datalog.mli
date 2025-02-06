@@ -61,4 +61,11 @@ val unless_atom :
   ('p, 'a) program ->
   ('p, 'a) program
 
-val yield : 'v Term.hlist -> ('p, ('p, 'v) Cursor.With_parameters.t) program
+type callback
+
+val create_callback : ('a Constant.hlist -> unit) -> 'a Term.hlist -> callback
+
+val yield :
+  ?callbacks:callback list ->
+  'v Term.hlist ->
+  ('p, ('p, 'v) Cursor.With_parameters.t) program

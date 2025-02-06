@@ -158,8 +158,23 @@ let unless_atom id args k info =
   Cursor.add_action post_level (Cursor.unless id r refs);
   k info
 
-let yield output (info : _ context) =
+type callback =
+  | Callback :
+      { func : 'a Constant.hlist -> unit;
+        args : 'a Term.hlist
+      }
+      -> callback
+
+let create_callback func args = Callback { func; args }
+
+let yield ?(callbacks = []) output (info : _ context) =
   let output = compile_terms output in
-  Cursor.With_parameters.create
+  let calls =
+    List.map
+      (fun (Callback { func; args }) ->
+        Cursor.create_call func (compile_terms args))
+      callbacks
+  in
+  Cursor.With_parameters.create ~calls
     ~parameters:(Parameter.to_refs info.parameters)
     info.context output

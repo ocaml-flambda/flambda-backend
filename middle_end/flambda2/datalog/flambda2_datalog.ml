@@ -239,10 +239,30 @@ module Datalog = struct
 
   type atom = Atom : ('t, 'k, unit) Table.Id.t * 'k Term.hlist -> atom
 
-  let deduce (`Atom (Atom (tid, args))) =
-    Datalog.map_program (yield args) (fun cursor ->
+  type deduction =
+    [ `Atom of atom
+    | `And of deduction list ]
+
+  let and_ atoms = `And atoms
+
+  let deduce (atoms : deduction) =
+    let rec fold f atoms acc =
+      match atoms with
+      | `Atom atom -> f atom acc
+      | `And atoms ->
+        List.fold_left (fun acc atoms -> fold f atoms acc) acc atoms
+    in
+    let builder = Schedule.create_builder () in
+    let callbacks =
+      fold
+        (fun (Atom (tid, args)) callbacks ->
+          let fn = Schedule.add_rule builder tid in
+          create_callback (Schedule.call_rule_fn fn) args :: callbacks)
+        atoms []
+    in
+    map_program (yield ~callbacks []) (fun cursor ->
         let cursor = Cursor.With_parameters.without_parameters cursor in
-        Schedule.create_rule tid cursor)
+        Schedule.build builder cursor)
 
   type hypothesis =
     [ `Atom of atom
