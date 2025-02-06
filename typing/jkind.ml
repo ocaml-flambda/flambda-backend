@@ -1445,7 +1445,7 @@ module Jkind_desc = struct
         | Stop ->
           (* out of fuel *)
           join_respecting_omit Mod_bounds.max, With_bounds_types.of_list bs
-        | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
+        | Skip -> loop ctl bounds_so_far bs (* skip [ty] *)
         | Continue ctl_after_unpacking_b -> (
           match jkind_of_type ty with
           | Some b_jkind ->
