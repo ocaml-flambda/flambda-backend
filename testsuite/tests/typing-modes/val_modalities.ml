@@ -901,59 +901,257 @@ let () =
 [%%expect{|
 |}]
 
-(* CR zqian: finer treatment of packing and unpacking *)
-module type Empty = sig end
+(* CR zqian: finer treatment of closing over module ident with expected type. *)
+module type Int_nonportable = sig
+  val x : int
+end
+
+module type Func_portable = sig
+  val foo : 'a -> 'a @@ portable
+end
+
+module type Func_nonportable = sig
+  val baz : 'a -> 'a
+end
+
+module type Class = sig
+  class cla : object end
+end
+
 
 module type S = sig
-  val foo : 'a -> 'a
-  val baz : 'a -> 'a @@ portable
+  include Int_nonportable
+  include Func_portable
+  include Func_nonportable
+  include Class
+end
+
+module type Module = sig
+  module M : sig include S end (* to prevent shallow_equal *)
+end
+
+module type S' = sig
+  include S
+  include Module
 end
 
 module M : S = struct
+  let x = 42
   let foo = fun x -> x
   let baz = fun x -> x
+  class cla = object end
 end
 [%%expect{|
-module type Empty = sig end
-module type S = sig val foo : 'a -> 'a val baz : 'a -> 'a @@ portable end
+module type Int_nonportable = sig val x : int end
+module type Func_portable = sig val foo : 'a -> 'a @@ portable end
+module type Func_nonportable = sig val baz : 'a -> 'a end
+module type Class = sig class cla : object  end end
+module type S =
+  sig
+    val x : int
+    val foo : 'a -> 'a @@ portable
+    val baz : 'a -> 'a
+    class cla : object  end
+  end
+module type Module =
+  sig
+    module M :
+      sig
+        val x : int
+        val foo : 'a -> 'a @@ portable
+        val baz : 'a -> 'a
+        class cla : object  end
+      end
+  end
+module type S' =
+  sig
+    val x : int
+    val foo : 'a -> 'a @@ portable
+    val baz : 'a -> 'a
+    class cla : object  end
+    module M :
+      sig
+        val x : int
+        val foo : 'a -> 'a @@ portable
+        val baz : 'a -> 'a
+        class cla : object  end
+      end
+  end
 module M : S
 |}]
 
+module M' : S' = struct
+  include M
+  module M = M
+end
+[%%expect{|
+module M' : S'
+|}]
+
+(* Pexp_pack *)
 let (bar @ portable) () =
-    let m = (module M : Empty) in
-    ()
+    let k = (module M : Func_portable) in
+    k
 [%%expect{|
 Line 2, characters 20-21:
-2 |     let m = (module M : Empty) in
+2 |     let k = (module M : Func_portable) in
                         ^
 Error: Modules are nonportable, so cannot be used inside a function that is portable.
 |}]
 
-let m = (module M : S)
+(* Pmod_apply *)
+let (bar @ portable) () =
+  let module F (X : Func_portable) = struct end in
+  let module _ = F(M) in
+  ()
 [%%expect{|
-val m : (module S) = <module>
+Line 3, characters 19-20:
+3 |   let module _ = F(M) in
+                       ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* Pmod_constraint *)
+let (bar @ portable) () =
+  let module _ = struct
+    module N = (M : Func_portable)
+  end in
+  ()
+[%%expect{|
+Line 3, characters 16-17:
+3 |     module N = (M : Func_portable)
+                    ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* We will now only use Pmod_pack as example; Pmod_apply and Pexp_constraint are
+   similiar *)
+let (bar @ portable) () =
+  let k = (module M : Func_nonportable) in
+  k
+[%%expect{|
+Line 2, characters 18-19:
+2 |   let k = (module M : Func_nonportable) in
+                      ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* closing over M.x crosses modes *)
+let (bar @ portable) () =
+  let _ = (module M : Int_nonportable) in
+  ()
+[%%expect{|
+Line 2, characters 18-19:
+2 |   let _ = (module M : Int_nonportable) in
+                      ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* If module types are shallow_equal, we still close over the module, even if closing things
+  inside would be better *)
+module M_Func_portable : Func_portable = M
+
+let (bar @ portable) () =
+  let k = (module M_Func_portable : Func_portable) in
+  k
+[%%expect{|
+module M_Func_portable : Func_portable
+Line 4, characters 18-33:
+4 |   let k = (module M_Func_portable : Func_portable) in
+                      ^^^^^^^^^^^^^^^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* Closing over a module in a module. *)
+let (bar @ portable) () =
+  let k = (module M' : Module) in
+  k
+[%%expect{|
+Line 2, characters 18-20:
+2 |   let k = (module M' : Module) in
+                      ^^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+module type S'_Func_portable = sig module M : Func_portable end
+
+let (bar @ portable) () =
+  let k = (module M' : S'_Func_portable) in
+  k
+[%%expect{|
+module type S'_Func_portable = sig module M : Func_portable end
+Line 4, characters 18-20:
+4 |   let k = (module M' : S'_Func_portable) in
+                      ^^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* closing over a functor is still closing over the functor *)
+module type F = sig end -> sig end
+module F (X : sig end) = struct end
+let (bar @ portable) () =
+  let k = (module F : F) in
+  k
+[%%expect{|
+module type F = sig end -> sig end
+module F : functor (X : sig end) -> sig end
+Line 4, characters 18-19:
+4 |   let k = (module F : F) in
+                      ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* closing over class in structure is still prevented *)
+let (bar @ portable) () =
+  let k = (module M : Class) in
+  k
+[%%expect{|
+Line 2, characters 18-19:
+2 |   let k = (module M : Class) in
+                      ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* Pmod_unpack requires type equality instead of inclusion, so for a closing-over
+to succeed, either the module type can cross modes, or the first class module is
+already at good modes. *)
+(* CR modes: support the following *)
+let m = (module M : Func_portable)
+[%%expect{|
+val m : (module Func_portable) = <module>
 |}]
 
 let (bar @ portable) () =
-    let module M' = (val m : Empty) in
+    let module M' = (val m : Func_portable) in
     ()
 [%%expect{|
 Line 2, characters 25-26:
-2 |     let module M' = (val m : Empty) in
+2 |     let module M' = (val m : Func_portable) in
                              ^
 Error: The value "m" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
-module M : sig
-  val x : int
-end = struct
-  let x = 42
-end
-
+(* closing over values from modules crosses modes *)
 let (foo @ portable) () =
   let _ = M.x in
   ()
 [%%expect{|
-module M : sig val x : int end
 val foo : unit -> unit = <fun>
+|}]
+
+(* Using F(X).t does not close over F or M *)
+module F(X : sig
+end) = struct
+  type t = string
+end
+
+module X = struct end
+
+let (f @ portable) () =
+  let _ : F(X).t = "hello" in
+  ()
+[%%expect{|
+module F : functor (X : sig end) -> sig type t = string end
+module X : sig end
+val f : unit -> unit = <fun>
 |}]
