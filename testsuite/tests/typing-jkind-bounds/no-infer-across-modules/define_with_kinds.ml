@@ -12,7 +12,7 @@ and 'a rec2 =
   | Foo2 of 'a rec1 * int
   | Bar2 of 'a
 
-type ('a : value & value) unboxed_rec = #{ x : 'a ; y : string }
+type ('a : value & value) unboxed_record = #{ x : 'a ; y : string }
 
 module type Optionish = sig
   type 'a my_option =

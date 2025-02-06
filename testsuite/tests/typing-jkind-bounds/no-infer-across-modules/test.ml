@@ -216,40 +216,40 @@ Error: This value is "contended" but expected to be "uncontended".
 let use_uncontended_three_values : ('a : (value & value) & value) @ uncontended -> unit = fun _ -> ()
 let use_portable_three_values : ('a : (value & value) & value) @ portable -> unit = fun _ -> ()
 
-let foo (t : #(int * int) unboxed_rec @@ contended) = use_uncontended_three_values t
+let foo (t : #(int * int) unboxed_record @@ contended) = use_uncontended_three_values t
 [%%expect{|
 val use_uncontended_three_values : ('a : (value & value) & value). 'a -> unit =
   <fun>
 val use_portable_three_values :
   ('a : (value & value) & value). 'a @ portable -> unit = <fun>
-val foo : #(int * int) Define_with_kinds.unboxed_rec @ contended -> unit =
+val foo : #(int * int) Define_with_kinds.unboxed_record @ contended -> unit =
   <fun>
 |}]
 
-let foo (t : #(int my_ref * int) unboxed_rec @@ contended) = use_uncontended_three_values t
+let foo (t : #(int my_ref * int) unboxed_record @@ contended) = use_uncontended_three_values t
 [%%expect{|
-Line 1, characters 90-91:
-1 | let foo (t : #(int my_ref * int) unboxed_rec @@ contended) = use_uncontended_three_values t
-                                                                                              ^
+Line 1, characters 93-94:
+1 | let foo (t : #(int my_ref * int) unboxed_record @@ contended) = use_uncontended_three_values t
+                                                                                                 ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo (t : #((int -> int) * int) unboxed_rec @@ nonportable) = use_portable_three_values t
+let foo (t : #((int -> int) * int) unboxed_record @@ nonportable) = use_portable_three_values t
 [%%expect{|
-Line 1, characters 91-92:
-1 | let foo (t : #((int -> int) * int) unboxed_rec @@ nonportable) = use_portable_three_values t
-                                                                                               ^
+Line 1, characters 94-95:
+1 | let foo (t : #((int -> int) * int) unboxed_record @@ nonportable) = use_portable_three_values t
+                                                                                                  ^
 Error: This value is "nonportable" but expected to be "portable".
 |}, Principal{|
-Line 1, characters 91-92:
-1 | let foo (t : #((int -> int) * int) unboxed_rec @@ nonportable) = use_portable_three_values t
-                                                                                               ^
+Line 1, characters 94-95:
+1 | let foo (t : #((int -> int) * int) unboxed_record @@ nonportable) = use_portable_three_values t
+                                                                                                  ^
 Error: This expression has type
-         "#((int -> int) * int) Define_with_kinds.unboxed_rec"
+         "#((int -> int) * int) Define_with_kinds.unboxed_record"
        but an expression was expected of type "('a : (value & value) & value)"
-       The kind of #((int -> int) * int) Define_with_kinds.unboxed_rec is
+       The kind of #((int -> int) * int) Define_with_kinds.unboxed_record is
          (immediate & immediate) & immediate.
-       But the kind of #((int -> int) * int) Define_with_kinds.unboxed_rec must be a subkind of
+       But the kind of #((int -> int) * int) Define_with_kinds.unboxed_record must be a subkind of
          (value & value) & value
          because of the definition of use_portable_three_values at line 2, characters 84-95.
 |}]
