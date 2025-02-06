@@ -14,6 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* Represents [cont params -> continuation args] *)
 type continuation_shortcut =
   { params : Bound_parameters.t;
     continuation : Continuation.t;
@@ -41,8 +42,10 @@ let apply_continuation_shortcut { params; continuation; args } shortcut_args =
       args )
 
 let print_continuation_shortcut ppf { params; continuation; args } =
-  Format.fprintf ppf "\\%a -> %a(%a)" Bound_parameters.print params
-    Continuation.print continuation
+  Format.fprintf ppf
+    "@[<hov 1>(@[<hov 1>(params@ %a)@]@ @[<hov 1>(continuation@ %a)@]@ @[<hov \
+     1>(args@ %a)@])@]"
+    Bound_parameters.print params Continuation.print continuation
     (Format.pp_print_list
        ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
        Simple.print)
@@ -92,9 +95,9 @@ let check_shortcut_transitivity t cont shortcut_to =
      && Continuation.Map.mem shortcut_to t.continuation_shortcuts
   then
     Misc.fatal_errorf
-      "@[<hov 2>The continuation alias map does not represent the transitive \
-       closure of alias equations on continuations:@ %a, alias for %a, is \
-       already bound in %a@]"
+      "@[<hov 2>The continuation shortcut map does not represent the \
+       transitive closure of shortcut equations on continuations:@ %a, \
+       shortcut for %a, is already bound in %a@]"
       Continuation.print shortcut_to Continuation.print cont print t
 
 let find_continuation_shortcut t cont =
