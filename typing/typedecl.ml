@@ -2473,26 +2473,23 @@ let normalize_decl_jkinds env shapes decls =
   (* Add the types, with non-normalized kinds, to the environment to start, so that eg
      types can look up their own (potentially non-normalized) kinds *)
   let env = add_types_to_env decls shapes env in
-  let (decls, env) =
-    List.fold_left2
-      (fun (decls, env) (id, decl) shape ->
-         let normalized_jkind =
-           Jkind.normalize
-             ~require_best:true
-             ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
-             decl.type_jkind
-         in
-         let decl = { decl with type_jkind = normalized_jkind } in
-         (* Add the decl with the normalized kind back to the environment, so that later
-            kinds don't have to normalize this kind if they mention this type in their
-            with-bounds *)
-         let env = add_type ~check:false ~shape:shape id decl env in
-         ((id, decl) :: decls), env)
-      ([], env)
-      decls
-      shapes
-  in
-  List.rev decls, env
+  Misc.Stdlib.List.fold_left_map2
+    (fun env (id, decl) shape ->
+       let normalized_jkind =
+         Jkind.normalize
+           ~require_best:true
+           ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
+           decl.type_jkind
+       in
+       let decl = { decl with type_jkind = normalized_jkind } in
+       (* Add the decl with the normalized kind back to the environment, so that later
+          kinds don't have to normalize this kind if they mention this type in their
+          with-bounds *)
+       let env = add_type ~check:false ~shape:shape id decl env in
+       env, (id, decl))
+    env
+    decls
+    shapes
 
 (* Translate a set of type declarations, mutually recursive or not *)
 let transl_type_decl env rec_flag sdecl_list =
@@ -2672,9 +2669,9 @@ let transl_type_decl env rec_flag sdecl_list =
   (* Check that constraints are enforced *)
   List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Add type properties to declarations *)
-  let decls, new_env =
+  let new_env, decls =
     try
-      let decls, new_env =
+      let new_env, decls =
         decls
         |> name_recursion_decls sdecl_list
         |> Typedecl_variance.update_decls env sdecl_list
@@ -2682,7 +2679,7 @@ let transl_type_decl env rec_flag sdecl_list =
         |> update_decls_jkind new_env shapes
         |> normalize_decl_jkinds new_env shapes
       in
-      update_decls_jkind_reason new_env decls, new_env
+      new_env, update_decls_jkind_reason new_env decls
     with
     | Typedecl_variance.Error (loc, err) ->
         raise (Error (loc, Variance err))
