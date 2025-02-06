@@ -1268,7 +1268,7 @@ module Jkind_desc = struct
         let upper_bounds =
           List.fold_right
             (fun ty bounds ->
-               Bounds.add_baggage ~deep_only:false ~baggage:ty bounds)
+              Bounds.add_baggage ~deep_only:false ~baggage:ty bounds)
             tys
             (Bounds.min |> Bounds.disallow_right)
         in
