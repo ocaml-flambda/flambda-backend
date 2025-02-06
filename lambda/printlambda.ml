@@ -1168,9 +1168,12 @@ let zero_alloc_attribute ppf check =
     fprintf ppf "assume_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {strict; loc = _; } ->
-    fprintf ppf "assert_zero_alloc%s@ "
+  | Check {strict; loc = _; custom_error_msg; } ->
+    fprintf ppf "assert_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
+      (match custom_error_msg with
+       | None -> ""
+       | Some msg -> Printf.sprintf " customer_error_message %S" msg)
 
 let function_attribute ppf t =
   if t.is_a_functor then
