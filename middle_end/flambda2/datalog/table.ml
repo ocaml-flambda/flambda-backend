@@ -42,10 +42,7 @@ module Type = struct
       end)
 
     let[@inline] uid (type a) ((module A) : a t) : int =
-      (* NB: [Obj.Extension_constructor.of_val] does a bunch of checks; we could
-         just do [let slot : extension_constructor = Obj.magic A.Id] here *)
-      let slot = Obj.Extension_constructor.of_val A.Id in
-      Obj.Extension_constructor.id slot
+      Obj.Extension_constructor.id [%extension_constructor A.Id]
 
     let provably_equal (type a b) ((module A) : a t) ((module B) : b t) :
         (a, b) eq option =
