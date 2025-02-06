@@ -833,9 +833,10 @@ let parse_optional_id_payload txt loc ~empty cases payload =
       | Some r -> Ok r
       | None -> warn ()
 
-(* Looks for `custom_error_message string_literal` in payload. If present, this returns `n`
-   and an updated payload with `arity n` removed. Preserves the order of
-   the payload. *)
+(* Looks for `custom_error_message msg` in payload.
+   If present, this returns `msg` and an updated payload
+   with `customer_error_message msg` removed.
+   Preserves the order of the payload. *)
 let filter_custom_error_message payload =
   let rec find_msg acc payload =
     match payload with
