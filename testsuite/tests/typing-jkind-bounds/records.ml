@@ -1,5 +1,6 @@
 (* TEST
-    expect;
+   flags = "-infer-with-bounds";
+   expect;
 *)
 
 let use_global : 'a @ global -> unit = fun _ -> ()

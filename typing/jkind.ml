@@ -1227,7 +1227,7 @@ module Jkind_desc = struct
     let immediate = of_const Const.Builtin.immediate.jkind
   end
 
-  let product ~jkind_of_first_type tys layouts =
+  let product ~jkind_of_first_type ~jkind_of_type tys layouts =
     (* CR layouts v2.8: We can probably drop this special case once we
        have proper subsumption. The general algorithm gets the right
        jkind, but the subsumption check fails because it can't recognize
@@ -1235,15 +1235,35 @@ module Jkind_desc = struct
     match layouts with
     | [_] -> (jkind_of_first_type ()).jkind
     | _ ->
-      let layout = Layout.product layouts in
-      let upper_bounds =
-        List.fold_right
-          (fun ty bounds ->
-            Bounds.add_baggage ~deep_only:false ~baggage:ty bounds)
-          tys
-          (Bounds.min |> Bounds.disallow_right)
-      in
-      { layout; upper_bounds }
+      if !Clflags.infer_with_bounds
+      then
+        let layout = Layout.product layouts in
+        let upper_bounds =
+          List.fold_right
+            (fun ty bounds ->
+              Bounds.add_baggage ~deep_only:false ~baggage:ty bounds)
+            tys
+            (Bounds.min |> Bounds.disallow_right)
+        in
+        { layout; upper_bounds }
+      else
+        let folder (layouts, bounds) ty =
+          let { jkind = { layout; upper_bounds };
+                annotation = _;
+                history = _;
+                has_warned = _
+              } =
+            jkind_of_type ty
+          in
+          layout :: layouts, Bounds.join bounds upper_bounds
+        in
+        let layouts, upper_bounds =
+          List.fold_left folder ([], Bounds.min |> Bounds.disallow_right) tys
+        in
+        let layouts = List.rev layouts in
+        { layout = Layout.Product layouts;
+          upper_bounds = Bounds.disallow_right upper_bounds
+        }
 
   let get t = Layout_and_axes.map Layout.get t
 
@@ -1318,8 +1338,10 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
 
-  let product ~jkind_of_first_type ~why tys layouts =
-    let desc = Jkind_desc.product ~jkind_of_first_type tys layouts in
+  let product ~jkind_of_first_type ~jkind_of_type ~why tys layouts =
+    let desc =
+      Jkind_desc.product ~jkind_of_first_type ~jkind_of_type tys layouts
+    in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
 
   let product_of_sorts ~why arity =
@@ -1440,16 +1462,18 @@ let add_labels_as_baggage lbls jkind =
 let for_boxed_record lbls =
   if all_void_labels lbls
   then Builtin.immediate ~why:Empty_record
-  else
+  else if !Clflags.infer_with_bounds
+  then
     let is_mutable = has_mutable_label lbls in
     let base =
       (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
         ~why:Boxed_record
     in
     add_labels_as_baggage lbls base
+  else Builtin.value ~why:Boxed_record
 
 (* CR layouts v2.8: This should take modalities into account. *)
-let for_unboxed_record ~jkind_of_first_type lbls =
+let for_unboxed_record ~jkind_of_first_type ~jkind_of_type lbls =
   let open Types in
   let tys = List.map (fun lbl -> lbl.ld_type) lbls in
   let layouts =
@@ -1457,7 +1481,8 @@ let for_unboxed_record ~jkind_of_first_type lbls =
       (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
       lbls
   in
-  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys layouts
+  Builtin.product ~jkind_of_first_type ~jkind_of_type ~why:Unboxed_record tys
+    layouts
 
 (* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =
@@ -1470,7 +1495,8 @@ let for_boxed_variant cstrs =
          | Cstr_record lbls -> all_void_labels lbls)
        cstrs
   then Builtin.immediate ~why:Enumeration
-  else
+  else if !Clflags.infer_with_bounds
+  then
     let is_mutable =
       List.exists
         (fun cstr ->
@@ -1503,6 +1529,7 @@ let for_boxed_variant cstrs =
         | Cstr_record lbls -> add_labels_as_baggage lbls jkind
       in
       List.fold_right add_cstr_args cstrs base
+  else Builtin.value ~why:Boxed_variant
 
 let for_arrow =
   fresh_jkind

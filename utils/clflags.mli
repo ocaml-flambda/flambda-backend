@@ -226,6 +226,7 @@ val afl_instrument : bool ref
 val afl_inst_ratio : int ref
 val function_sections : bool ref
 val probes : bool ref
+val infer_with_bounds : bool ref
 
 val all_passes : string list ref
 val dumped_pass : string -> bool

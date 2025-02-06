@@ -1,5 +1,6 @@
 (* TEST
-    expect;
+   flags = "-infer-with-bounds";
+   expect;
 *)
 
 (* Test that "with" syntax isn't allowed in locations that expect a right-kind *)
