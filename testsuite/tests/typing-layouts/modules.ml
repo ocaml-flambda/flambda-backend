@@ -4,7 +4,7 @@
  {
    expect;
  }{
-   flags += "-extension layouts_beta";
+   flags += " -extension layouts_beta";
    expect;
  }
 *)
