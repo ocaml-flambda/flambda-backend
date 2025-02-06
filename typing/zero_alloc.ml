@@ -187,7 +187,7 @@ let sub_var_const_exn v c =
         let msg =
           if b then msg1 else Some (String.concat "\n" [m1; m2])
         in
-        msg, b
+        msg, not b
     in
     if strict <> strict1 || opt <> opt1 || msg_changed then begin
       !log_change (desc, v);
