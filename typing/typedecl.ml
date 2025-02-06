@@ -1208,7 +1208,7 @@ let narrow_to_manifest_jkind env loc decl =
     ->
     (* If there's both a manifest and a kind, there's no reason to check that the jkind
        of the manifest matches the annotation. This is because the manifest's jkind is
-       exactly the kind's jkind, which has already been checked against the annotation.
+       exactly the kind's jkind, which has already been checked against the annotation in [update_decl_jkind].
        The annotation has also been narrowed based on the kind's jkind, so there's no
        reason to update the jkind either. *)
     decl
