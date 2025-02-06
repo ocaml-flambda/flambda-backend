@@ -45,14 +45,20 @@ let debug_printer ppf t =
     | Check _ -> "Check"
     | Assume _ -> "Assume"
   in
+  let pp_custom ppf c =
+    match c with
+    | None -> Format.fprintf ppf "None"
+    | Some msg -> Format.fprintf ppf "%S" msg
+  in
   match t with
   | Const c -> Format.fprintf ppf "Const %s" (head c)
   | Var v ->
     let print_desc ppf desc =
       match desc with
       | None -> Format.fprintf ppf "None"
-      | Some desc ->
-        Format.fprintf ppf "{ strict = %b; opt = %b }" desc.strict desc.opt
+      | Some { strict; opt; custom_error_msg; } ->
+        Format.fprintf ppf "{ strict = %b; opt = %b; custom_error_message = %a}" strict opt
+          pp_custom custom_error_msg
     in
     Format.fprintf ppf "Var { arity = %d; desc = %a }" v.arity print_desc v.desc
 
