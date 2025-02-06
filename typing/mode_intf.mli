@@ -578,7 +578,7 @@ module type S = sig
         val to_list : t -> atom list
 
         (** Builds up a modality from a list of [atom], by composing each atom with
-            identity. *)
+            identity. The modalities are applied left to right. *)
         val of_list : atom list -> t
 
         (** Project out the [atom] for the given axis in the given modality. *)
