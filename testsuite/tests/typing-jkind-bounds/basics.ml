@@ -1648,3 +1648,18 @@ Error: This expression has type "int t" but an expression was expected of type
        But the kind of int t must be a subkind of value mod portable
          because of the definition of require_portable at line 2, characters 21-57.
 |}]
+
+(*********************************)
+(* Test 15: extensible variants *)
+
+(* The best kind an extensible variant can get is [value] *)
+type extensible : value = ..
+[%%expect{|
+type extensible = ..
+|}]
+
+(* Since the kind is [best], it should normalize away *)
+type t : value = { x : int; y : extensible }
+[%%expect{|
+type t = { x : int; y : extensible; }
+|}]

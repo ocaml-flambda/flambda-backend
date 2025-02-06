@@ -2470,8 +2470,9 @@ let add_types_to_env decls shapes env =
 
 let mark_decl_jkind_best decl =
   match decl.type_kind with
-  | Type_abstract _ | Type_open -> decl
-  | Type_record (_, _, _) | Type_record_unboxed_product (_, _, _) | Type_variant (_, _, _) ->
+  | Type_abstract _ -> decl
+  | Type_record (_, _, _) | Type_record_unboxed_product (_, _, _)
+  | Type_variant (_, _, _) | Type_open ->
     { decl with type_jkind = Jkind.mark_best decl.type_jkind }
 
 (* Normalize the jkinds in a list of (potentially mutually recursive) type declarations *)
