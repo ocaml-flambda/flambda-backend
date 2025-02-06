@@ -163,32 +163,32 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~field ~new_value =
-  let init_or_assign = P.Init_or_assign.to_lambda init in
-  let field = Targetint_31_63.to_int field in
-  let setfield_computed is_ptr =
-    let index = C.int_const dbg field in
-    C.return_unit dbg
-      (C.setfield_computed is_ptr init_or_assign block index new_value dbg)
-  in
-  match kind with
-  | Mixed { field_kind = Value_prefix Any_value; _ }
-  | Values { field_kind = Any_value; _ } ->
-    setfield_computed Pointer
-  | Mixed { field_kind = Value_prefix Immediate; _ }
-  | Values { field_kind = Immediate; _ } ->
-    setfield_computed Immediate
-  | Naked_floats _ ->
-    let index = C.int_const dbg field in
-    C.float_array_set block index new_value dbg
-  | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
-    let index_in_words =
-      Flambda_kind.Mixed_block_shape.offset_in_words shape field
-    in
-    C.set_field_unboxed ~dbg
-      (memory_chunk_of_flat_suffix_element field_kind)
-      block
-      ~index_in_words:(C.int_const dbg index_in_words)
-      new_value
+  C.return_unit dbg
+    (let init_or_assign = P.Init_or_assign.to_lambda init in
+     let field = Targetint_31_63.to_int field in
+     let setfield_computed is_ptr =
+       let index = C.int_const dbg field in
+       C.setfield_computed is_ptr init_or_assign block index new_value dbg
+     in
+     match kind with
+     | Mixed { field_kind = Value_prefix Any_value; _ }
+     | Values { field_kind = Any_value; _ } ->
+       setfield_computed Pointer
+     | Mixed { field_kind = Value_prefix Immediate; _ }
+     | Values { field_kind = Immediate; _ } ->
+       setfield_computed Immediate
+     | Naked_floats _ ->
+       let index = C.int_const dbg field in
+       C.float_array_set block index new_value dbg
+     | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+       let index_in_words =
+         Flambda_kind.Mixed_block_shape.offset_in_words shape field
+       in
+       C.set_field_unboxed ~dbg
+         (memory_chunk_of_flat_suffix_element field_kind)
+         block
+         ~index_in_words:(C.int_const dbg index_in_words)
+         new_value)
 
 (* Array creation and access. For these functions, [index] is a tagged
    integer. *)
