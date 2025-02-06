@@ -896,3 +896,10 @@ and 'a foo = 'a my_list
 type 'a my_list = [] | (::) of 'a * 'a foo
 and 'a foo = 'a my_list
 |}]
+
+type 'a t1 : immutable_data with 'a = Base of 'a | T2 of 'a t2
+and 'a t2 : immutable_data with 'a = Base of 'a | T1 of 'a t1
+[%%expect{|
+type 'a t1 = Base of 'a | T2 of 'a t2
+and 'a t2 = Base of 'a | T1 of 'a t1
+|}]
