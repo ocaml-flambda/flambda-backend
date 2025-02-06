@@ -2641,6 +2641,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       in
       md, shape, Env.locks_empty
   | Pmod_functor(arg_opt, sbody) ->
+      let newenv = Env.add_escape_lock Module env in
+      let newenv = Env.add_share_lock Module newenv in
       let t_arg, ty_arg, newenv, funct_shape_param, funct_body =
         match arg_opt with
         | Unit ->
@@ -2664,15 +2666,13 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
               let id = Ident.create_scoped ~scope name in
               let shape = Shape.var md_uid id in
               let newenv = Env.add_module_declaration
-                ~shape ~arg:true ~check:true id Mp_present arg_md env
+                ~shape ~arg:true ~check:true id Mp_present arg_md newenv
               in
               Some id, newenv, id
           in
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv,
           var, true
       in
-      let newenv = Env.add_escape_lock Module newenv in
-      let newenv = Env.add_share_lock Module newenv in
       let body, body_shape = type_module true funct_body None newenv sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);
