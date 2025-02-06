@@ -1719,6 +1719,11 @@ module T1 = struct
 
   module M'' : S2 = M1
 end
+(* The signature for [M1] below shows the inferred attribute but for some
+   reason it doesn't print the associated custom_error_message.
+   We ahve a copy of this test in the backend test directory to confirm
+   that the combined "foo\nbar" is propagate correctly and printed by the
+   zero_alloc checker as part of the user error message. *)
 [%%expect{|
 module T1 :
   sig
