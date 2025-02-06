@@ -749,8 +749,6 @@ and cltype_data =
   { cltda_declaration : class_type_declaration;
     cltda_shape : Shape.t }
 
-let mda_mode = Mode.Value.legacy |> Mode.Value.disallow_right
-
 let clda_mode = Mode.Value.legacy |> Mode.Value.disallow_right
 
 let cm_mode = Mode.Value.legacy |> Mode.Value.disallow_right
@@ -965,14 +963,14 @@ let check_functor_application =
   (* to be filled by Includemod *)
   ref ((fun ~errors:_ ~loc:_
          ~lid_whole_app:_  ~f0_path:_ ~args:_
-         ~arg_path:_ ~arg_mty:_ ~arg_mode:_ ~param_mty:_
+         ~arg_path:_ ~arg_mty:_ ~param_mty:_
          _env
          -> assert false) :
          errors:bool -> loc:Location.t ->
        lid_whole_app:Longident.t ->
-       f0_path:Path.t -> args:(Path.t * Types.module_type * Mode.Value.l) list ->
-       arg_path:Path.t -> arg_mty:module_type -> arg_mode:Mode.Value.l ->
-       param_mty:module_type -> t -> unit)
+       f0_path:Path.t -> args:(Path.t * Types.module_type) list ->
+       arg_path:Path.t -> arg_mty:module_type -> param_mty:module_type ->
+       t -> unit)
 
 let scrape_alias =
   (* to be filled with Mtype.scrape_alias *)
@@ -1239,12 +1237,12 @@ let modtype_of_functor_appl fcomp p1 p2 =
 let check_functor_appl
     ~errors ~loc ~lid_whole_app ~f0_path ~args
     ~f_comp
-    ~arg_path ~arg_mty ~arg_mode ~param_mty
+    ~arg_path ~arg_mty ~param_mty
     env =
   if not (Hashtbl.mem f_comp.fcomp_cache arg_path) then
     !check_functor_application
       ~errors ~loc ~lid_whole_app ~f0_path ~args
-      ~arg_path ~arg_mty ~arg_mode ~param_mty
+      ~arg_path ~arg_mty ~param_mty
       env
 
 (* Lookup by identifier *)
@@ -3261,43 +3259,42 @@ and lookup_all_args ~errors ~use ~loc lid0 env =
     | Lident _ | Ldot _ as f_lid ->
         (f_lid, args)
     | Lapply (f_lid, arg_lid) ->
-        let arg_path, arg_md, arg_vmode =
-          lookup_module ~errors ~use ~lock:false ~loc arg_lid env
-        in
-        loop_lid_arg ((f_lid,arg_path,arg_md.md_type,arg_vmode)::args) f_lid
+        (* This path is only for F(M).t, for which we don't walk the locks, and
+        the module remains at legacy, which we don't need to specify at runtime. *)
+        let arg_path, arg_md, _ = lookup_module ~errors ~use ~loc arg_lid env in
+        loop_lid_arg ((f_lid,arg_path,arg_md.md_type)::args) f_lid
   in
   loop_lid_arg [] lid0
 
 and lookup_apply ~errors ~use ~loc lid0 env =
   let f0_lid, args0 = lookup_all_args ~errors ~use ~loc lid0 env in
-  let args_for_errors = List.map (fun (_,p,mty,vmode) -> (p,mty,vmode.mode)) args0 in
+  let args_for_errors = List.map (fun (_,p,mty) -> (p,mty)) args0 in
   let f0_path, _, f0_comp =
     lookup_module_components ~errors ~use ~loc f0_lid env
   in
-  let check_one_apply ~errors ~loc ~f_lid ~f_comp ~arg_path ~arg_mty ~arg_mode
-    env =
+  let check_one_apply ~errors ~loc ~f_lid ~f_comp ~arg_path ~arg_mty env =
     let f_comp, param_mty =
       get_functor_components ~errors ~loc f_lid env f_comp
     in
     check_functor_appl
       ~errors ~loc ~lid_whole_app:lid0
       ~f0_path ~args:args_for_errors ~f_comp
-      ~arg_path ~arg_mty ~arg_mode:arg_mode.mode ~param_mty
+      ~arg_path ~arg_mty ~param_mty
       env;
     arg_path, f_comp
   in
   let rec check_apply ~path:f_path ~comp:f_comp = function
     | [] -> invalid_arg "Env.lookup_apply: empty argument list"
-    | [ f_lid, arg_path, arg_mty, arg_mode ] ->
+    | [ f_lid, arg_path, arg_mty ] ->
         let arg_path, comps =
           check_one_apply ~errors ~loc ~f_lid ~f_comp
-            ~arg_path ~arg_mty ~arg_mode env
+            ~arg_path ~arg_mty env
         in
         f_path, comps, arg_path
-    | (f_lid, arg_path, arg_mty, arg_mode) :: args ->
+    | (f_lid, arg_path, arg_mty) :: args ->
         let arg_path, f_comp =
           check_one_apply ~errors ~loc ~f_lid ~f_comp
-            ~arg_path ~arg_mty ~arg_mode env
+            ~arg_path ~arg_mty env
         in
         let comp =
           !components_of_functor_appl' ~loc ~f_path ~f_comp ~arg:arg_path env
@@ -3307,29 +3304,20 @@ and lookup_apply ~errors ~use ~loc lid0 env =
   in
   check_apply ~path:f0_path ~comp:f0_comp args0
 
-and lookup_module ~errors ~use ~lock ~loc lid env =
-  let path, locks, md =
-    match lid with
-    | Lident s ->
-        let path, locks, data = lookup_ident_module Load ~errors ~use ~loc s env in
-        let md = Subst.Lazy.force_module_decl data.mda_declaration in
-        path, locks, md
-    | Ldot(l, s) ->
-        let path, locks, data = lookup_dot_module ~errors ~use ~loc l s env in
-        let md = Subst.Lazy.force_module_decl data.mda_declaration in
-        path, locks, md
-    | Lapply _ as lid ->
-        let path_f, comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
-        let md = md (modtype_of_functor_appl comp_f path_f path_arg) in
-        Papply(path_f, path_arg), [], md
-  in
-  let vmode =
-    if lock then
-      walk_locks ~errors ~loc ~env ~item:Module ~lid mda_mode None locks
-    else
-      mode_default mda_mode
-  in
-  path, md, vmode
+and lookup_module ~errors ~use ~loc lid env =
+  match lid with
+  | Lident s ->
+      let path, locks, data = lookup_ident_module Load ~errors ~use ~loc s env in
+      let md = Subst.Lazy.force_module_decl data.mda_declaration in
+      path, md, locks
+  | Ldot(l, s) ->
+      let path, locks, data = lookup_dot_module ~errors ~use ~loc l s env in
+      let md = Subst.Lazy.force_module_decl data.mda_declaration in
+      path, md, locks
+  | Lapply _ as lid ->
+      let path_f, comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
+      let md = md (modtype_of_functor_appl comp_f path_f path_arg) in
+      Papply(path_f, path_arg), md, locks_empty
 
 and lookup_dot_module ~errors ~use ~loc l s env =
   let p, locks, comps = lookup_structure_components ~errors ~use ~loc l env in
@@ -3741,9 +3729,7 @@ let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
 
 let find_module_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, desc, _ =
-    lookup_module ~errors:false ~use:false ~lock:false ~loc lid env
-  in
+  let path, desc, _ = lookup_module ~errors:false ~use:false ~loc lid env in
   path, desc
 
 let find_value_by_name lid env =
@@ -3804,9 +3790,8 @@ let lookup_module_path ?(use=true) ~loc ~load lid env =
 let lookup_module_instance_path ?(use=true) ~loc ~load lid env =
   lookup_module_instance_path ~errors:true ~use ~loc ~load lid env
 
-let lookup_module ?(use=true) ?(lock=use) ~loc lid env =
-  let path, desc, vmode = lookup_module ~errors:true ~use ~lock ~loc lid env in
-  path, desc, vmode.mode
+let lookup_module ?(use=true) ~loc lid env =
+  lookup_module ~errors:true ~use ~loc lid env
 
 let lookup_value ?(use=true) ~loc lid env =
   lookup_value ~errors:true ~use ~loc lid env

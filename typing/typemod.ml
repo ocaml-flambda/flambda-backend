@@ -1717,10 +1717,10 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
     | Pwith_type (l,decl) ->l , With_type decl
     | Pwith_typesubst (l,decl) ->l , With_typesubst decl
     | Pwith_module (l,l') ->
-        let path, md, _ = Env.lookup_module ~lock:false ~loc l'.txt env in
+        let path, md, _ = Env.lookup_module ~loc l'.txt env in
         l , With_module {lid=l';path;md; remove_aliases}
     | Pwith_modsubst (l,l') ->
-        let path, md', _ = Env.lookup_module ~lock:false ~loc l'.txt env in
+        let path, md', _ = Env.lookup_module ~loc l'.txt env in
         l , With_modsubst (l',path,md')
     | Pwith_modtype (l,smty) ->
         let mty = transl_modtype env smty in
@@ -1913,8 +1913,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
     | Psig_modsubst pms ->
         let scope = Ctype.create_scope () in
         let path, md, _ =
-          Env.lookup_module ~loc:pms.pms_manifest.loc ~lock:false
-            pms.pms_manifest.txt env
+          Env.lookup_module ~loc:pms.pms_manifest.loc pms.pms_manifest.txt env
         in
         let aliasable = not (Env.is_functor_arg path env) in
         let md =
@@ -3520,9 +3519,7 @@ let type_module_type_of env smod =
   let tmty =
     match smod.pmod_desc with
     | Pmod_ident lid -> (* turn off strengthening in this case *)
-        let path, md, _ =
-          Env.lookup_module ~lock:false ~loc:smod.pmod_loc lid.txt env
-        in
+        let path, md, _ = Env.lookup_module ~loc:smod.pmod_loc lid.txt env in
           { mod_desc = Tmod_ident (path, lid);
             mod_type = md.md_type;
             mod_env = env;
