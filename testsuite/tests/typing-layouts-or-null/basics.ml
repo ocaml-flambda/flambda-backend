@@ -133,7 +133,7 @@ type ('a : bits64) id_bits64 = 'a
 [%%expect{|
 type ('a : any) id_any = 'a
 type ('a : any_non_null) id_any_non_null = 'a
-type ('a : value_or_null) id_value_or_null = 'a
+type 'a id_value_or_null = 'a
 type 'a id_value = 'a
 type ('a : bits64) id_bits64 = 'a
 |}]

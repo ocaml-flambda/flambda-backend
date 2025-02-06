@@ -556,7 +556,7 @@ val has_layout_any : ('l * allowed) t -> bool
 (** Checks whether a jkind is [value]. This really should require a [jkind_lr],
     but it works on any [jkind], because it's used in printing and is somewhat
     unprincipled. *)
-val is_value_for_printing : 'd t -> bool
+val is_value_for_printing : ignore_null:bool -> 'd t -> bool
 
 (*********************************)
 (* debugging *)

@@ -470,14 +470,10 @@ type ('k, 'v) tree =
       value : 'v @@ many aliased; right : ('k, 'v) tree;
     }
   | Leaf
-val fold :
-  'a 'b ('c : value_or_null).
-    ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c =
-  <fun>
+val fold : ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c = <fun>
 val work :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    insert:(int -> bool -> 'a -> 'a) ->
-    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c =
+  insert:(int -> bool -> 'a -> 'a) ->
+  fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c =
   <fun>
 Line 85, characters 16-71:
 85 |                 balance_right (Node { t with right = ins k v t.right }) [@nontail]
@@ -505,9 +501,7 @@ module Make_Okasaki :
   functor (Ord : Map.OrderedType) ->
     sig
       type 'a t = (Ord.t, 'a) tree
-      val fold :
-        'a 'b ('c : value_or_null).
-          ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+      val fold : ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
       val balance_left : ('a, 'b) tree -> ('a, 'b) tree
       val balance_right : ('a, 'b) tree -> ('a, 'b) tree
       val ins : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree

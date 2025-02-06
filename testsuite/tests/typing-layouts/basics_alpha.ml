@@ -1451,7 +1451,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
+val ( let* ) : t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1477,8 +1477,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1504,8 +1503,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1531,8 +1529,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
+val ( let* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> t_float64 = <fun>
 |}]
 
@@ -1562,9 +1559,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) : ('a : value_or_null). 'a -> t_float64 -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> t_float64 -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1594,9 +1590,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1626,9 +1621,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : float64) ('b : value_or_null). 'a -> 'b -> unit = <fun>
-val ( and* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
+val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1665,12 +1659,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    'a -> 'b -> 'c =
-  <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> 'c = <fun>
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^

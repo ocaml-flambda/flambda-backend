@@ -10,7 +10,7 @@ let use_uncontended : 'a @ uncontended -> 'a = fun x -> x
 type t : value mod uncontended = { mutable contents : string }
 [%%expect{|
 val use_as_value : 'a -> 'a = <fun>
-val use_uncontended : ('a : value_or_null). 'a -> 'a = <fun>
+val use_uncontended : 'a -> 'a = <fun>
 Line 5, characters 0-62:
 5 | type t : value mod uncontended = { mutable contents : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

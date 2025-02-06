@@ -1368,7 +1368,11 @@ let rec out_jkind_of_desc (desc : 'd Jkind.Desc.t) =
 let out_jkind_option_of_jkind jkind =
   let desc = Jkind.get jkind in
   let elide =
-    Jkind.is_value_for_printing jkind (* C2.1 *)
+    (* CR layouts: We ignore nullability here to avoid needlessly printing
+       ['a : value_or_null] when it's not relevant (most cases).
+       Unfortunately, this makes error messages really confusing, because
+       we don't consider jkind annotations. *)
+    Jkind.is_value_for_printing ~ignore_null:true jkind (* C2.1 *)
     || (match desc.layout with
         | Sort (Var _) -> not !Clflags.verbose_types (* X1 *)
         | _ -> false)
@@ -1982,7 +1986,7 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let is_value = Jkind.is_value_for_printing decl.type_jkind in
+  let is_value = Jkind.is_value_for_printing ~ignore_null:false decl.type_jkind in
   let otype_jkind =
     match ty, is_value, unsafe_mode_crossing with
     | (Otyp_abstract, false, _) | (_, _, true) ->
