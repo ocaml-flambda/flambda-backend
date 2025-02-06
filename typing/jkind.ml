@@ -1416,7 +1416,7 @@ module Jkind_desc = struct
              do not have with_bounds *)
           Continue t
         | Tlink _ | Tsubst _ ->
-          Misc.fatal_error "Tlink or Tsubst in With_bounds.reduce"
+          Misc.fatal_error "Tlink or Tsubst in normalize"
     end in
     let rec loop ctl bounds_so_far :
         (type_expr * With_bounds_type_info.t) list ->
