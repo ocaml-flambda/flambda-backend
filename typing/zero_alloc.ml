@@ -163,7 +163,7 @@ let sub_const_const_exn za1 za2 =
   | None, None -> ()
 
 let sub_var_const_exn v c =
-  (* This can only fail due to an arity  mismatch. We have a linear order and can
+  (* This can only fail due to an arity mismatch. We have a linear order and can
      always constrain the var lower to make the sub succeed. *)
   match v, c with
   | _, (Default_zero_alloc | Ignore_assert_all | Assume _) -> assert false
