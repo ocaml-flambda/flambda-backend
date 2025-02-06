@@ -1698,3 +1698,43 @@ module F (X : S_all) : S_all_ignored = X
 [%%expect{|
 module F : functor (X : S_all) -> S_all_ignored
 |}]
+
+
+(* [@zero_alloc custom_error_message "string"] in signatures: module inclusion
+   results in concatenated messages. *)
+
+module type S1 = sig
+  val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "foo"]
+end
+
+module type S2 = sig
+  val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "bar"]
+end
+
+module M = struct
+  let f x = (x,x)
+end
+
+module M' : S1 = M
+
+module M'' : S2 = M
+
+(* If there is a zero_alloc annotation on the structure (with or without a custom
+   error message), throw away the custom message string from the signature. *)
+
+module M = struct
+  let[@zero_alloc] f x = (x,x)
+end
+
+module M' : S1 = M
+
+module M'' : S2 = M
+
+module M = struct
+  let[@zero_alloc custom_error_message "use this, throw the others away"] f x =
+    (x,x)
+end
+
+module M' : S1 = M
+
+module M'' : S2 = M
