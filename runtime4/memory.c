@@ -287,9 +287,14 @@ char *caml_alloc_for_heap (asize_t request)
 #else
     uintnat size = Round_mmap_size (sizeof (heap_chunk_head) + request);
     void *block;
+    #ifdef WITH_ADDRESS_SANITIZER
+    block = aligned_alloc (Heap_page_size, size);
+    if (block == NULL) return NULL;
+    #else
     block = mmap (NULL, size, PROT_READ | PROT_WRITE,
                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     if (block == MAP_FAILED) return NULL;
+    #endif
     mem = (char *) block + sizeof (heap_chunk_head);
     Chunk_size (mem) = size - sizeof (heap_chunk_head);
     Chunk_block (mem) = block;
@@ -320,7 +325,11 @@ void caml_free_for_heap (char *mem)
 {
   if (caml_use_huge_pages){
 #ifdef HAS_HUGE_PAGES
+    #ifdef WITH_ADDRESS_SANITIZER
+    free (Chunk_block (mem));
+    #else
     munmap (Chunk_block (mem), Chunk_size (mem) + sizeof (heap_chunk_head));
+    #endif
 #else
     CAMLassert (0);
 #endif
@@ -1175,4 +1184,23 @@ __asan_default_options(void) {
          "halt_on_error=false,"
          "detect_stack_use_after_return=false";
 }
+
+#define CREATE_ASAN_REPORT_WRAPPER(memory_access, size) \
+void __asan_report_ ## memory_access ## size ## _noabort(const void* addr); \
+CAMLexport void __attribute__((preserve_all)) caml_asan_report_ ## memory_access ## size ## _noabort(const void* addr) { \
+  return __asan_report_ ## memory_access ## size ## _noabort(addr); \
+}
+
+CREATE_ASAN_REPORT_WRAPPER(load, 1)
+CREATE_ASAN_REPORT_WRAPPER(load, 2)
+CREATE_ASAN_REPORT_WRAPPER(load, 4)
+CREATE_ASAN_REPORT_WRAPPER(load, 8)
+CREATE_ASAN_REPORT_WRAPPER(load, 16)
+CREATE_ASAN_REPORT_WRAPPER(store, 1)
+CREATE_ASAN_REPORT_WRAPPER(store, 2)
+CREATE_ASAN_REPORT_WRAPPER(store, 4)
+CREATE_ASAN_REPORT_WRAPPER(store, 8)
+CREATE_ASAN_REPORT_WRAPPER(store, 16)
+
+#undef CREATE_ASAN_REPORT_WRAPPER
 #endif

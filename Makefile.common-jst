@@ -48,6 +48,8 @@ define dune_main_context
     (OCAMLLIB ("$(CURDIR)/_build/runtime_stdlib_install/lib/ocaml_runtime_stdlib")))
   (env (_
     (flags (:standard -warn-error +A -alert -unsafe_multidomain))
+    ; We never want to build the compiler itself with AddressSanitizer enabled.
+    (ocamlopt_flags (:standard -fno-asan))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 

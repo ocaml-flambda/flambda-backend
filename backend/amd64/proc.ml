@@ -504,6 +504,27 @@ let destroyed_at_alloc_or_poll =
 let destroyed_at_pushtrap =
   [| r11 |]
 
+let destroyed_at_large_memory_op =
+  if Config.with_address_sanitizer then
+    [| r11 |]
+  else
+    [||]
+;;
+
+let destroyed_at_small_memory_op =
+  if Config.with_address_sanitizer then
+    [| r10; r11 |]
+  else
+    [||]
+;;
+
+let destroyed_at_single_float64_store =
+  if Config.with_address_sanitizer then
+    Array.append destroyed_at_small_memory_op (destroy_xmm 15)
+  else
+    (destroy_xmm 15)
+;;
+
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
@@ -532,7 +553,18 @@ let destroyed_at_oper = function
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single { reg = Float64 }, _, _))
-        -> destroy_xmm 15
+        -> destroyed_at_single_float64_store
+  | Iop(Istore( (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single { reg = Float32 } ), _, _))
+  | Iop(Iload { memory_chunk =
+                (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single _); _})
+  | Iop(Ispecific (Ifloatarithmem (Float32, _, _)))
+              -> destroyed_at_small_memory_op
+  | Iop(Istore( (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ), _, _))
+  | Iop(Iload { memory_chunk =
+                (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ); _})
+  | Iop(Ispecific( Istore_int _))
+  | Iop(Ispecific (Ifloatarithmem (Float64, _, _)))
+                -> destroyed_at_large_memory_op
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
@@ -547,24 +579,19 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isimd_mem (op,_))) ->
     destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
-                 | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                 | Ipause | Icldemote _ | Iprefetch _
-                 | Ifloatarithmem (_, _, _) | Ibswap _))
+                 | Ioffset_loc (_, _)
+                 | Ipause | Icldemote _ | Iprefetch _ | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
                    | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_))
   | Iop(Iintop_atomic _)
-  | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-               | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Single { reg = Float32 } | Double
-               | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
   | Iop(Imove | Ispill | Ireload | Ifloatop _
        | Icsel _
        | Ireinterpret_cast _ | Istatic_cast _
        | Iconst_int _ | Iconst_float32 _ | Iconst_float _
        | Iconst_symbol _ | Iconst_vec128 _
-       | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload _
+       | Itailcall_ind | Itailcall_imm _ | Istackoffset _
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
@@ -590,7 +617,18 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
   | Op(Store(Single { reg = Float64 }, _, _)) ->
-    destroy_xmm 15
+    destroyed_at_single_float64_store
+  | Op (Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single { reg = Float32 } ), _, _))
+  | Op (Load { memory_chunk =
+               (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single _); _ })
+  | Op(Specific (Ifloatarithmem (Float32, _, _))) ->
+    destroyed_at_small_memory_op
+  | Op(Store( (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ), _, _))
+  | Op(Load { memory_chunk =
+                (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ); _})
+  | Op(Specific (Istore_int _))
+  | Op(Specific (Ifloatarithmem (Float64, _, _))) ->
+    destroyed_at_large_memory_op
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
@@ -606,11 +644,6 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
        | Const_vec128 _
        | Stackoffset _
-       | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
-                         | Sixteen_signed | Thirtytwo_unsigned
-                         | Thirtytwo_signed | Word_int | Word_val
-                         | Double | Single { reg = Float32 }
-                         | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _)
        | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
@@ -624,8 +657,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Opaque
        | Begin_region
        | End_region
-       | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
-                  | Ifloatarithmem _ | Ibswap _
+       | Specific (Ilea _ | Ioffset_loc _ | Ibswap _
                   | Isextend32 | Izextend32 | Ipause | Icldemote _
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)

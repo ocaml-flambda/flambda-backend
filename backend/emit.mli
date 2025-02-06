@@ -19,4 +19,5 @@ val fundecl: Linear.fundecl -> unit
 val data: Cmm.data_item list -> unit
 val begin_assembly: (module Compiler_owee.Unix_intf.S) -> unit
 val end_assembly: unit -> unit
+val command_line_options : (string * Arg.spec * string) list
 
