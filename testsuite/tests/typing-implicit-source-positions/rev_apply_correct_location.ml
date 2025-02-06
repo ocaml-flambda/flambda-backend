@@ -40,7 +40,7 @@ let first_here = fst (snd obj#here)#here
 [%%expect{|
 val obj : unit c c = <obj>
 val second_here : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 946; pos_cnum = 972}
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 734; pos_cnum = 760}
 val first_here : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 946; pos_cnum = 963}
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 734; pos_cnum = 751}
 |}]
