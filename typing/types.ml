@@ -145,14 +145,10 @@ and jkind_history =
 
 and with_bounds_types =
   With_bounds_type_info.t With_bounds_type_map_unsafe.t
-and nonempty_with_bounds_types = with_bounds_types
 
 and 'd with_bounds =
   | No_with_bounds : ('l * 'r) with_bounds
-  (* There must always be at least one type. *)
-  | With_bounds :
-      nonempty_with_bounds_types
-      -> ('l * Allowance.disallowed) with_bounds
+  | With_bounds : with_bounds_types -> ('l * Allowance.disallowed) with_bounds
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
@@ -1106,26 +1102,12 @@ module With_bounds_types : sig
   val to_seq : t -> (type_expr * info) Seq.t
   val of_list : (type_expr * info) list -> t
   val of_seq : (type_expr * info) Seq.t -> t
+  val singleton : type_expr -> info -> t
   val update : type_expr -> (info option -> info option) -> t -> t
   val merge
     : (type_expr -> info option -> info option -> info option) ->
     t -> t -> t
   val map : (info -> info) -> t -> t
-
-  module Non_empty : sig
-    type maybe_empty := t
-    type t = nonempty_with_bounds_types
-
-    val of_maybe_empty : maybe_empty -> t option
-    val to_maybe_empty : t -> maybe_empty
-    val singleton : type_expr -> info -> t
-    val update : type_expr -> (info option -> info option) -> t -> t
-    val merge
-      : (type_expr -> info option -> info option -> info option) ->
-      t -> t -> t
-    val to_seq : t -> (type_expr * info) Seq.t
-    val map : (info -> info) -> t -> t
-  end
 end = struct
   module U = With_bounds_type_map_unsafe
   include U
@@ -1135,20 +1117,10 @@ end = struct
     s |>
     Seq.map (fun (ty, ti) -> (Obj.repr ty, ti)) |>
     of_seq
+  let singleton ty i = add (Obj.repr ty) i empty
   let of_list xs = xs |> List.to_seq |> of_seq
   let update ty = update (Obj.repr ty)
   let merge f = merge (fun ty -> f (Obj.obj ty : type_expr))
-
-  module Non_empty = struct
-    type t = nonempty_with_bounds_types
-    let of_maybe_empty t = if is_empty t then None else Some t
-    let to_maybe_empty = Fun.id
-    let singleton ty ti = add (Obj.repr ty) ti empty
-    let update = update
-    let merge = merge
-    let to_seq = to_seq
-    let map = map
-  end
 end
 
 (* Constructor and accessors for [row_desc] *)

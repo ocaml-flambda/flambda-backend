@@ -360,14 +360,11 @@ module With_bounds = struct
   end
 
   let of_with_bounds_types tys =
-    match With_bounds_types.Non_empty.of_maybe_empty tys with
-    | None -> No_with_bounds
-    | Some tys -> With_bounds tys
+    if With_bounds_types.is_empty tys then No_with_bounds else With_bounds tys
 
   let to_list : type d. d with_bounds -> _ = function
     | No_with_bounds -> []
-    | With_bounds tys ->
-      tys |> With_bounds_types.Non_empty.to_seq |> List.of_seq
+    | With_bounds tys -> tys |> With_bounds_types.to_seq |> List.of_seq
 
   open Allowance
 
@@ -402,16 +399,15 @@ module With_bounds = struct
     | No_with_bounds -> No_with_bounds
     | With_bounds tys ->
       With_bounds
-        (tys |> With_bounds_types.Non_empty.to_seq
+        (tys |> With_bounds_types.to_seq
         |> Seq.map (fun (ty, ti) -> f ty, ti)
-        |> With_bounds_types.of_seq
-        |> With_bounds_types.Non_empty.of_maybe_empty |> Option.get)
+        |> With_bounds_types.of_seq)
 
   let types_on_axis (type l r a) ~(axis : a Jkind_axis.Axis.t) : (l * r) t -> _
       = function
     | No_with_bounds -> []
     | With_bounds tys ->
-      tys |> With_bounds_types.Non_empty.to_seq
+      tys |> With_bounds_types.to_seq
       |> Seq.filter_map (fun (te, ti) ->
              if Type_info.is_on_axis ~axis ti then Some te else None)
       |> List.of_seq
@@ -426,10 +422,10 @@ module With_bounds = struct
            ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
            (fun ppf (ty, ti) ->
              fprintf ppf "@[(%a, %a)]" print_type_expr ty Type_info.print ti))
-        (With_bounds_types.Non_empty.to_seq tys)
+        (With_bounds_types.to_seq tys)
 
   let join_bounds =
-    With_bounds_types.Non_empty.merge (fun _ ti1 ti2 ->
+    With_bounds_types.merge (fun _ ti1 ti2 ->
         match ti1, ti2 with
         | None, None -> None
         | Some ti, None -> Some ti
@@ -462,7 +458,7 @@ module With_bounds = struct
     match bag1, bag2 with No_with_bounds, No_with_bounds -> No_with_bounds
 
   let add_bound type_expr type_info tys =
-    With_bounds_types.Non_empty.update type_expr
+    With_bounds_types.update type_expr
       (function
         | None -> Some type_info | Some ti -> Some (Type_info.join ti type_info))
       tys
@@ -501,8 +497,7 @@ module With_bounds = struct
     in
     match t with
     | No_with_bounds ->
-      With_bounds
-        (With_bounds_types.Non_empty.singleton type_expr { relevant_axes })
+      With_bounds (With_bounds_types.singleton type_expr { relevant_axes })
     | With_bounds tys -> With_bounds (add_bound type_expr { relevant_axes } tys)
 end
 
