@@ -939,7 +939,7 @@ void caml_free_stack (struct stack_info* stack)
     stack->exception_ptr =
       (void*)(cache[stack->cache_bucket]);
     cache[stack->cache_bucket] = stack;
-#ifdef DEBUG
+#if defined(DEBUG) && defined(STACK_CHECKS_ENABLED)
     memset(Stack_base(stack), 0x42,
            (Stack_high(stack)-Stack_base(stack))*sizeof(value));
 #endif
