@@ -464,7 +464,7 @@ module Axis_set = struct
   (* each axis is true or false to indicate membership  *)
   type t = bool Axis_collection.t
 
-  (* TODO: this could be represented with a unit8 since there's only 7 possible members *)
+  (* TODO: this could be represented with a uint8 since there's only 7 possible members *)
 
   let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
 
