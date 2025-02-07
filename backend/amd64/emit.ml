@@ -1400,7 +1400,13 @@ end = struct
     | _ -> I.lea src dest
   ;;
 
-  let report_asan_error memory_access memory_chunk_size address =
+  let[@inline always] is_stack_16_byte_aligned () =
+    (* Yes, sadly this does result in materially better assembly than [(stack_offset mod 16) <> 0]
+       https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
+    (!stack_offset land 15) = 0
+  ;;
+
+  let report_asan_error address memory_chunk_size memory_access =
     let asan_report_function =
       let index =
         ((Memory_chunk_size.to_bytes_log2 memory_chunk_size) lsl 1) + match memory_access with Load -> 0 | Store -> 1
@@ -1423,18 +1429,32 @@ end = struct
            [__asan_report_load_n_noabort], but we don't support this yet. *)
         assert false
     in
+    let need_to_align_stack = not (is_stack_16_byte_aligned ()) in
+    if need_to_align_stack then (
+      (* [push rdi] is a single-byte instruction, as opposed to something like [push 0]
+         which is a 2-byte instruction. *)
+      push rdi
+    );
+    (* CR ksvetlitski for ksvetlitski: This is incorrect; some of [address]'s
+       component registers may have already been clobbered at this point.
+       I'll fix this in the next commit. *)
     mov_address address rdi;
-    I.call asan_report_function
+    I.call asan_report_function;
+    if need_to_align_stack then (
+      pop rdi
+    )
   ;;
 
-  let[@inline always] uses_destroyed_registers = function
-    | Reg8L (R11 | R10 | RDI)
-    | Reg16 (R11 | R10 | RDI)
-    | Reg32 (R11 | R10 | RDI)
-    | Reg64 (R11 | R10 | RDI)
-    | Mem { base = Some (R11 | R10 | RDI); _ }
-    | Mem { idx = R11 | R10 | RDI; _ } ->
-      true
+  let[@inline always] uses_register register = function
+    | Reg8L register'
+    | Reg16 register'
+    | Reg32 register'
+    | Reg64 register' ->
+      register == register'
+    | Mem { idx = register'; base = None; scale; _ } ->
+      scale <> 0 && register == register'
+    | Mem { idx = register'; base = Some register''; _ } ->
+      register == register' || register == register''
     | _ -> false
   ;;
 
@@ -1442,36 +1462,51 @@ end = struct
      [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping].
      I'd recommend reading that first for reference before touching this function. *)
   let emit_sanitize ?(dependencies = [||]) address (memory_chunk : memory_chunk) (memory_access : memory_access) =
-    let need_to_save_registers =
-      uses_destroyed_registers address
-      || Array.exists uses_destroyed_registers dependencies
+    let[@inline always] need_to_save_register register =
+       uses_register register address || Array.exists (uses_register register) dependencies
     in
-    if need_to_save_registers
-    then (
-      push r10;
-      push r11;
-      push rdi;
-      (* We need the extra push to keep the stack 16-byte aligned *)
-      push rdi
-    );
-    assert (!stack_offset mod 16 = 0);
-    let asan_check_succeded_label = new_label () in
     let memory_chunk_size = Memory_chunk_size.of_memory_chunk memory_chunk in
-    mov_address address r11;
-    (* These constants come from
-       [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
-    I.shr (int 3) r11;
-    let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
+    let need_to_save_r11 = need_to_save_register R11 in
+    if need_to_save_r11 then (
+      push r11
+    );
+    let need_to_save_r10 =
+      match memory_chunk_size with
+      | I64 | I128 -> false
+      | I8 | I16 | I32 -> need_to_save_register R10
+    in
+    if need_to_save_r10 then (
+      push r10
+    );
+    let asan_check_succeded_label = new_label () in
     let () =
       match memory_chunk_size with
       | I64 | I128 -> (
+        mov_address address r11;
+        (* These constants come from
+           [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
+        I.shr (int 3) r11;
+        let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
         I.cmp (int 0) shadow_address;
         I.je (label asan_check_succeded_label);
         (* There is no slow-path check for word-sized and larger accesses *)
-        (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-        report_asan_error memory_access memory_chunk_size address
       )
       | I8 | I16 | I32 -> (
+        mov_address address r11;
+        (* This is pretty subtle, but it's crucial that we emit
+           [I.mov r11 r10] exactly here because it's possible for
+           either/both of [r10]/[r11] to be a component of [address].
+           The above [mov_address address r11] is always safe because
+           even if [r11] is on both sides of the instruction, the right
+           thing happens. The [I.mov r11 r10] below is always safe because
+           this is just a register-to-register [mov], so we don't have to
+           worry about the possibility that one of the component registers
+           in [address] has changed. *)
+        I.mov r11 r10;
+        (* These constants come from
+           [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
+        I.shr (int 3) r11;
+        let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
         I.movzx shadow_address r11;
         I.test (Reg8L R11) (Reg8L R11);
         I.je (label asan_check_succeded_label);
@@ -1480,7 +1515,6 @@ end = struct
            last_accessed_byte = (address & 7) + kAccessSize - 1;
            ```
         *)
-        mov_address address r10;
         I.and_ (int 7) r10;
         let () =
           match memory_chunk_size with
@@ -1493,19 +1527,24 @@ end = struct
         (* [ return (last_accessed_byte >= shadow_value) ] *)
         I.cmp (Reg8L R11) (Reg8L R10);
         I.jl (label asan_check_succeded_label);
-        (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-        report_asan_error memory_access memory_chunk_size address
-      );
+      )
     in
+    let need_to_save_rdi = need_to_save_register RDI in
+    if need_to_save_rdi then (
+      push rdi
+    );
+    (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
+    report_asan_error address memory_chunk_size memory_access;
+    if need_to_save_rdi then (
+      pop rdi
+    );
     def_label asan_check_succeded_label;
-    if need_to_save_registers
-    then (
-      pop rdi;
-      pop rdi;
-      pop r11;
+    if need_to_save_r10 then (
       pop r10
     );
-    assert (!stack_offset mod 16 = 0)
+    if need_to_save_r11 then (
+      pop r11;
+    )
   ;;
 
   let is_asan_enabled = ref Config.with_address_sanitizer
