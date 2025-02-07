@@ -1,5 +1,6 @@
 (* TEST
  readonly_files = "\
+   bad_use_util_wrongly.ml bad_use_util_wrongly.reference \
    basic.ml basic.mli basic__.ml \
    export_fancy_q_impl.ml export_fancy_q_impl.mli export_fancy_q_impl__.ml \
    fancy.ml fancy.mli flourish.ml flourish.mli ornament.ml ornament.mli fancy__.ml \
@@ -278,6 +279,21 @@
    module = "util/util.mli util/util.ml";
    ocamlc.byte;
 
+   {
+     flags = "$flg -I p -I p_int -I util";
+     module = "bad_use_util_wrongly.ml";
+     ocamlc_byte_exit_status = "2";
+     compiler_output = "bad_use_util_wrongly.output";
+     ocamlc.byte;
+
+     compiler_reference = "bad_use_util_wrongly.reference";
+     check-ocamlc.byte-output;
+   }
+
+ (* Unindenting since we're really just resuming the main sequence of events and
+    I'm not going to indent all that *)
+
+ {
    set flg_util_p_int = "$flg_instance -I util -I p -I p_int";
 
    flags = "$flg_util_p_int -instantiate";
@@ -424,7 +440,7 @@
 
    reference = "test_byte.reference";
    check-program-output;
- }
+ }}
 *)
 
 let () =
