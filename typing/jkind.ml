@@ -606,13 +606,14 @@ module Bounds = struct
             Bound.simple Bound_ops.max)
       }
 
-  let simple ~locality ~linearity ~uniqueness ~portability ~contention
+  let simple ~locality ~linearity ~uniqueness ~portability ~contention ~yielding
       ~externality ~nullability =
     { locality = Bound.simple locality;
       linearity = Bound.simple linearity;
       uniqueness = Bound.simple uniqueness;
       portability = Bound.simple portability;
       contention = Bound.simple contention;
+      yielding = Bound.simple yielding;
       externality = Bound.simple externality;
       nullability = Bound.simple nullability
     }
@@ -1177,22 +1178,22 @@ module Jkind_desc = struct
     }
 
   let unsafely_set_upper_bounds t ~from =
-    { t with modes_upper_bounds = from.modes_upper_bounds }
+    { t with upper_bounds = from.upper_bounds }
+
+  let add_baggage ~deep_only ~baggage t =
+    { t with
+      upper_bounds = Bounds.add_baggage ~deep_only ~baggage t.upper_bounds
+    }
 
   let max = of_const Const.max
 
   let equate_or_equal ~allow_mutation t1 t2 =
     Layout_and_axes.equal (Layout.equate_or_equal ~allow_mutation) t1 t2
 
-  let sub ~type_equal ~jkind_of_type ?(allow_any_crossing = false)
-      { layout = lay1; upper_bounds = bounds1 }
+  let sub ~type_equal ~jkind_of_type { layout = lay1; upper_bounds = bounds1 }
       { layout = lay2; upper_bounds = bounds2 } =
-    let layouts = Layout.sub lay1 lay2 in
-    if allow_any_crossing
-    then layouts
-    else
-      Misc.Le_result.combine layouts
-        (Bounds.less_or_equal ~type_equal ~jkind_of_type bounds1 bounds2)
+    Misc.Le_result.combine (Layout.sub lay1 lay2)
+      (Bounds.less_or_equal ~type_equal ~jkind_of_type bounds1 bounds2)
 
   let intersection { layout = lay1; upper_bounds = bounds1 }
       { layout = lay2; upper_bounds = bounds2 } =
@@ -1516,7 +1517,13 @@ let for_arrow =
     ~annotation:None ~why:(Value_creation Arrow)
 
 let for_object =
-  let ({ linearity; areality = locality; uniqueness; portability; contention }
+  let ({ linearity;
+         areality = locality;
+         uniqueness;
+         portability;
+         contention;
+         yielding
+       }
         : Mode.Alloc.Const.t) =
     (* The crossing of objects are based on the fact that they are
        produced/defined/allocated at legacy, which applies to only the
@@ -1530,7 +1537,7 @@ let for_object =
     { layout = Sort (Base Value);
       upper_bounds =
         Bounds.simple ~linearity ~locality ~uniqueness ~portability ~contention
-          ~externality:Externality.max ~nullability:Non_null
+          ~yielding ~externality:Externality.max ~nullability:Non_null
     }
     ~annotation:None ~why:(Value_creation Object)
 
@@ -1577,7 +1584,10 @@ let get_modal_upper_bounds ~type_equal ~jkind_of_type jk : Alloc.Const.t =
         bounds.portability;
     contention =
       Bound.reduce ~axis:(Modal Contention) ~type_equal ~jkind_of_type
-        bounds.contention
+        bounds.contention;
+    yielding =
+      Bound.reduce ~axis:(Modal Yielding) ~type_equal ~jkind_of_type
+        bounds.yielding
   }
 
 let get_externality_upper_bound ~type_equal ~jkind_of_type jk =
@@ -2191,8 +2201,8 @@ let round_up ~type_equal ~jkind_of_type t =
 let map_type_expr f t = { t with jkind = Jkind_desc.map_type_expr f t.jkind }
 
 (* this is hammered on; it must be fast! *)
-let check_sub ~jkind_of_type ?allow_any_crossing sub super =
-  Jkind_desc.sub ~jkind_of_type ?allow_any_crossing sub.jkind super.jkind
+let check_sub ~jkind_of_type sub super =
+  Jkind_desc.sub ~jkind_of_type sub.jkind super.jkind
 
 let sub ~type_equal ~jkind_of_type sub super =
   Misc.Le_result.is_le (check_sub ~type_equal ~jkind_of_type sub super)
@@ -2216,7 +2226,8 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
 
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
    kind polymorphism design. *)
-let sub_jkind_l ~type_equal ~jkind_of_type ?allow_any_crossing sub super =
+let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
+    super =
   (* CR layouts v2.8: Do something better than just comparing for equality. *)
   (* We can't use other functions, because they insist that we only compare
      lr-jkinds for equality, not just l-jkinds. *)
@@ -2224,37 +2235,38 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?allow_any_crossing sub super =
     Misc.Le_result.is_le (Layout.sub sub.jkind.layout super.jkind.layout)
   in
   let bounds =
-    Bounds.Fold2.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) (bound1 : _ Bound.t)
-               (bound2 : _ Bound.t) ->
-            let (module Bound_ops) = Axis.get axis in
-            (* If bound1 is min and has no baggage, we're good. *)
-            Bound_ops.le bound1.modifier Bound_ops.min
-            && not (Baggage.has_baggage bound1.baggage)
-            (* If bound2 is max, we're good. *)
-            || Bound_ops.le Bound_ops.max bound2.modifier
-            (* Otherwise, try harder. *)
-            ||
-            (* Maybe an individual axis has the right shape on the right;
-               try this before doing the stupid equality check. *)
-            match Bound.try_allow_r bound2 with
-            | Some bound2 ->
-              Misc.Le_result.is_le
-                (Bound.less_or_equal ~axis ~type_equal ~jkind_of_type bound1
-                   bound2)
-            | None ->
-              let baggage1 = Baggage.as_list bound1.baggage in
-              let baggage2 = Baggage.as_list bound2.baggage in
-              let modifiers = Bound_ops.le bound1.modifier bound2.modifier in
-              let baggages =
-                (* Check lengths first to avoid unnecessary `type_equal`. *)
-                List.compare_lengths baggage1 baggage2 = 0
-                && List.for_all2 type_equal baggage1 baggage2
-              in
-              modifiers && baggages)
-      }
-      ~combine:( && ) sub.jkind.upper_bounds super.jkind.upper_bounds
+    allow_any_crossing
+    || Bounds.Fold2.f
+         { f =
+             (fun (type axis) ~(axis : axis Axis.t) (bound1 : _ Bound.t)
+                  (bound2 : _ Bound.t) ->
+               let (module Bound_ops) = Axis.get axis in
+               (* If bound1 is min and has no baggage, we're good. *)
+               Bound_ops.le bound1.modifier Bound_ops.min
+               && not (Baggage.has_baggage bound1.baggage)
+               (* If bound2 is max, we're good. *)
+               || Bound_ops.le Bound_ops.max bound2.modifier
+               (* Otherwise, try harder. *)
+               ||
+               (* Maybe an individual axis has the right shape on the right;
+                  try this before doing the stupid equality check. *)
+               match Bound.try_allow_r bound2 with
+               | Some bound2 ->
+                 Misc.Le_result.is_le
+                   (Bound.less_or_equal ~axis ~type_equal ~jkind_of_type bound1
+                      bound2)
+               | None ->
+                 let baggage1 = Baggage.as_list bound1.baggage in
+                 let baggage2 = Baggage.as_list bound2.baggage in
+                 let modifiers = Bound_ops.le bound1.modifier bound2.modifier in
+                 let baggages =
+                   (* Check lengths first to avoid unnecessary `type_equal`. *)
+                   List.compare_lengths baggage1 baggage2 = 0
+                   && List.for_all2 type_equal baggage1 baggage2
+                 in
+                 modifiers && baggages)
+         }
+         ~combine:( && ) sub.jkind.upper_bounds super.jkind.upper_bounds
   in
   if layouts && bounds
   then
@@ -2291,8 +2303,7 @@ let is_value_for_printing ~ignore_null { jkind; _ } =
     let values = [value] in
     let values =
       if ignore_null
-      then values
-      else
+      then
         { value with
           upper_bounds =
             { value.upper_bounds with
@@ -2300,6 +2311,7 @@ let is_value_for_printing ~ignore_null { jkind; _ } =
             }
         }
         :: values
+      else values
     in
     List.exists (fun v -> Const.no_baggage_and_equal const v) values
 

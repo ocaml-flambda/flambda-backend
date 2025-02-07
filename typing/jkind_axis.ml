@@ -183,6 +183,7 @@ module Axis = struct
     | Modal Uniqueness -> true
     | Modal Portability -> true
     | Modal Contention -> true
+    | Modal Yielding -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
 end
@@ -241,6 +242,7 @@ module Axis_collection (T : Axed) = struct
         let* linearity = f ~axis:Axis.(Modal Linearity) in
         let* contention = f ~axis:Axis.(Modal Contention) in
         let* portability = f ~axis:Axis.(Modal Portability) in
+        let* yielding = f ~axis:Axis.(Modal Yielding) in
         let* externality = f ~axis:Axis.(Nonmodal Externality) in
         let* nullability = f ~axis:Axis.(Nonmodal Nullability) in
         M.return
@@ -249,6 +251,7 @@ module Axis_collection (T : Axed) = struct
             linearity;
             contention;
             portability;
+            yielding;
             externality;
             nullability
           }
@@ -326,6 +329,7 @@ module Axis_collection (T : Axed) = struct
           uniqueness;
           portability;
           contention;
+          yielding;
           externality;
           nullability
         } ~combine =

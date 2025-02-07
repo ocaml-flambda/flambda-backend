@@ -1877,12 +1877,12 @@ let update_decl_jkind env dpath decl =
 
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
-  if new_jkind != decl.type_jkind then
+  if new_jkind != decl.type_jkind then begin
     (* CR layouts v2.8: Consider making a function that doesn't compute
        histories for this use-case, which doesn't need it. *)
-    begin
-      let type_equal = Ctype.type_equal env in
-      match Jkind.sub_jkind_l ~type_equal ~jkind_of_type ~allow_any_crossing new_jkind decl.type_jkind with
+    let type_equal = Ctype.type_equal env in
+    let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
+    match Jkind.sub_jkind_l ~type_equal ~jkind_of_type ~allow_any_crossing new_jkind decl.type_jkind with
     | Ok _ ->
       (* If the user is asking us to allow any crossing, we use the modal bounds from
          the annotation rather than the modal bounds inferred from the type_kind.
@@ -1895,7 +1895,9 @@ let update_decl_jkind env dpath decl =
       in
       if allow_any_crossing then
         let umc =
-          Some { modal_upper_bounds = Jkind.get_modal_upper_bounds type_jkind }
+          Some { modal_upper_bounds =
+                   Jkind.get_modal_upper_bounds
+                     ~type_equal ~jkind_of_type type_jkind }
         in
         let type_kind =
           match new_decl.type_kind with
@@ -1913,7 +1915,7 @@ let update_decl_jkind env dpath decl =
       else new_decl
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
-    end
+  end
   else new_decl
 
 let update_decls_jkind_reason env decls =

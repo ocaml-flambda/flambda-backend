@@ -19,18 +19,30 @@
 
 type t : value = #{ t : t }
 [%%expect{|
-type t = #{ t : t; }
+Line 1, characters 0-27:
+1 | type t : value = #{ t : t }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t" is recursive without boxing:
+         "t" contains "t"
 |}]
 
 type t : float64 = #{ t : t }
 [%%expect{|
-type t = #{ t : t; }
+Line 1, characters 0-29:
+1 | type t : float64 = #{ t : t }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t" is recursive without boxing:
+         "t" contains "t"
 |}]
 
 
 type t : value = #{ t : t }
 [%%expect{|
-type t = #{ t : t; }
+Line 1, characters 0-27:
+1 | type t : value = #{ t : t }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t" is recursive without boxing:
+         "t" contains "t"
 |}]
 
 (* CR layouts v7.2: Once we support unboxed records with elements of kind [any],
@@ -42,30 +54,40 @@ type bad = #{ bad : bad ; i : int}
 Line 1, characters 0-34:
 1 | type bad = #{ bad : bad ; i : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type "bad" is (value & value) & value
-         because it is an unboxed record.
-       But the layout of type "bad" must be a sublayout of value & value
-         because it is an unboxed record.
+Error: The definition of "bad" is recursive without boxing:
+         "bad" contains "bad"
 |}]
 
 (* It might be nice to reject, but it seems harmless to accept. *)
 type bad = #{ bad : bad }
 [%%expect{|
-type bad = #{ bad : bad; }
+Line 1, characters 0-25:
+1 | type bad = #{ bad : bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "bad" contains "bad"
 |}]
 
 (* It might be nice to reject, but it seems harmless to accept. *)
 type a_bad = #{ b_bad : b_bad }
 and b_bad = #{ a_bad : a_bad }
 [%%expect{|
-type a_bad = #{ b_bad : b_bad; }
-and b_bad = #{ a_bad : a_bad; }
+Line 1, characters 0-31:
+1 | type a_bad = #{ b_bad : b_bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "a_bad" is recursive without boxing:
+         "a_bad" contains "b_bad",
+         "b_bad" contains "a_bad"
 |}]
 
 (* It might be nice to reject, but it seems harmless to accept. *)
 type bad : any = #{ bad : bad }
 [%%expect{|
-type bad = #{ bad : bad; }
+Line 1, characters 0-31:
+1 | type bad : any = #{ bad : bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "bad" contains "bad"
 |}]
 
 type 'a id = #{ a : 'a }
@@ -86,10 +108,8 @@ type 'a bad = #{ bad : 'a bad ; u : 'a}
 Line 1, characters 0-39:
 1 | type 'a bad = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type "bad" is (value & value) & value
-         because it is an unboxed record.
-       But the layout of type "bad" must be a sublayout of value & value
-         because it is an unboxed record.
+Error: The definition of "bad" is recursive without boxing:
+         "'a bad" contains "'a bad"
 |}]
 
 type 'a bad = { bad : 'a bad ; u : 'a}
@@ -105,8 +125,6 @@ type bad : float64 = #{ bad : bad ; i : int}
 Line 1, characters 0-44:
 1 | type bad : float64 = #{ bad : bad ; i : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type "bad" is float64 & value
-         because it is an unboxed record.
-       But the layout of type "bad" must be a sublayout of float64
-         because of the annotation on the declaration of the type bad.
+Error: The definition of "bad" is recursive without boxing:
+         "bad" contains "bad"
 |}]

@@ -105,21 +105,6 @@ Lines 8-10, characters 35-7:
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string ref @@ portable contended end
-       is not included in
-         sig val x : string ref end
-       Values do not match:
-         val x : string ref @@ portable contended
-       is not included in
-         val x : string ref
-       The second is uncontended and the first is contended.
-|}, Principal{|
-Lines 8-10, characters 35-7:
- 8 | ...................................struct
- 9 |         let x @ contended = ref "hello"
-10 |     end
-Error: Signature mismatch:
-       Modules do not match:
          sig val x : string ref @@ contended end
        is not included in
          sig val x : string ref end
@@ -145,33 +130,6 @@ module Module_type_nested = struct
     end
 end
 [%%expect{|
-Lines 8-13, characters 35-7:
- 8 | ...................................struct
- 9 |         let x @ nonportable = fun t -> t
-10 |         module N = struct
-11 |             let y @ contended = ref "hello"
-12 |         end
-13 |     end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           val x : 'a -> 'a
-           module N : sig val y : string ref @@ portable contended end
-         end
-       is not included in
-         sig val x : 'a -> 'a module N : sig val y : string ref end end
-       In module "N":
-       Modules do not match:
-         sig val y : string ref @@ portable contended end
-       is not included in
-         sig val y : string ref end
-       In module "N":
-       Values do not match:
-         val y : string ref @@ portable contended
-       is not included in
-         val y : string ref
-       The second is uncontended and the first is contended.
-|}, Principal{|
 Lines 8-13, characters 35-7:
  8 | ...................................struct
  9 |         let x @ nonportable = fun t -> t
@@ -237,21 +195,6 @@ module Inclusion_fail = struct
     end
 end
 [%%expect{|
-Lines 4-6, characters 10-7:
-4 | ..........struct
-5 |         let x @ contended = ref "hello"
-6 |     end
-Error: Signature mismatch:
-       Modules do not match:
-         sig val x : string ref @@ portable contended end
-       is not included in
-         sig val x : string ref end
-       Values do not match:
-         val x : string ref @@ portable contended
-       is not included in
-         val x : string ref
-       The second is uncontended and the first is contended.
-|}, Principal{|
 Lines 4-6, characters 10-7:
 4 | ..........struct
 5 |         let x @ contended = ref "hello"
