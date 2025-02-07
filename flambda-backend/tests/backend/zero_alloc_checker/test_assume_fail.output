@@ -8,22 +8,38 @@ File "test_assume_fail.ml", line 12, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.foo' (camlTest_assume_fail.foo'_HIDE_STAMP).
 
 File "test_assume_fail.ml", line 12, characters 33-39:
-Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53;printf.ml:48,18--43;printf.ml:46,2--31)
+Error: called function may allocate on a path to exceptional return (indirect call)
+inlined from
+repo/root/relative/dir/test_assume_fail.ml:9,25--53[Test_assume_fail.bar'][camlTest_assume_fail.bar'_HIDE_STAMP]
+repo/root/relative/dir/test_assume_fail.ml:12,33--39[Test_assume_fail.foo']
 
 File "test_assume_fail.ml", line 12, characters 33-39:
-Error: called function may allocate on a path to exceptional return (indirect call) (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53)
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP)
+inlined from
+stdlib/printf.ml:46,2--31[Stdlib.Printf.ksprintf][camlStdlib.Printf.ksprintf_HIDE_STAMP]
+stdlib/printf.ml:48,18--43[Stdlib.Printf.sprintf][camlStdlib.Printf.sprintf_HIDE_STAMP]
+repo/root/relative/dir/test_assume_fail.ml:9,25--53[Test_assume_fail.bar'][camlTest_assume_fail.bar'_HIDE_STAMP]
+repo/root/relative/dir/test_assume_fail.ml:12,33--39[Test_assume_fail.foo']
 
 File "test_assume_fail.ml", line 16, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.test48 (camlTest_assume_fail.test48_HIDE_STAMP).
 
 File "test_assume_fail.ml", line 17, characters 2-55:
-Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_assume_fail.ml:17,2--55;test_assume_fail.ml:14,54--77;printf.ml:48,18--43;printf.ml:46,2--31)
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP)
+inlined from
+stdlib/printf.ml:46,2--31[Stdlib.Printf.ksprintf][camlStdlib.Printf.ksprintf_HIDE_STAMP]
+stdlib/printf.ml:48,18--43[Stdlib.Printf.sprintf][camlStdlib.Printf.sprintf_HIDE_STAMP]
+repo/root/relative/dir/test_assume_fail.ml:14,54--77[Test_assume_fail.test46][camlTest_assume_fail.test46_HIDE_STAMP]
+repo/root/relative/dir/test_assume_fail.ml:17,2--55[Test_assume_fail.test48]
 
 File "test_assume_fail.ml", line 34, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.test51 (camlTest_assume_fail.test51_HIDE_STAMP).
 
 File "test_assume_fail.ml", line 34, characters 35-43:
-Error: allocation of 24 bytes on a path to diverge (test_assume_fail.ml:34,35--43;test_assume_fail.ml:32,74--80)
+Error: allocation of 24 bytes on a path to diverge
+inlined from
+repo/root/relative/dir/test_assume_fail.ml:32,74--80[Test_assume_fail.test50][camlTest_assume_fail.test50_HIDE_STAMP]
+repo/root/relative/dir/test_assume_fail.ml:34,35--43[Test_assume_fail.test51]
 
 File "test_assume_fail.ml", line 38, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.test53 (camlTest_assume_fail.test53_HIDE_STAMP).
