@@ -1102,7 +1102,8 @@ let rec check_constraints_rec env loc visited ty =
           let violation =
             Jkind.Violation.of_
               (Not_a_subjkind (Jkind.disallow_right original_jkind,
-                               Jkind.disallow_left inferred_jkind))
+                               Jkind.disallow_left inferred_jkind,
+                               []))
           in
           raise (Error(loc, Jkind_mismatch_due_to_bad_inference
                             (ty, violation, Check_constraints)))
@@ -1892,12 +1893,14 @@ let update_decl_jkind env id decl =
   match
     Jkind.Layout.sub new_decl.type_jkind.jkind.layout decl.type_jkind.jkind.layout
   with
-  | Not_le ->
+  | Not_le reason ->
     raise (Error (
       decl.type_loc,
       Jkind_mismatch_of_path (
         Pident id,
-        Jkind.Violation.of_ (Not_a_subjkind (new_decl.type_jkind, decl.type_jkind)))))
+        Jkind.Violation.of_ (
+          Not_a_subjkind (
+            new_decl.type_jkind, decl.type_jkind, Nonempty_list.to_list reason)))))
   | Less | Equal -> new_decl
 
 let update_decls_jkind_reason env decls =

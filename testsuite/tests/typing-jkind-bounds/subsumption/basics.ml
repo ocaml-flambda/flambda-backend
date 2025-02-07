@@ -79,19 +79,8 @@ end
 
 module type T = S with type ('a, 'b) t = ('a, 'b) t
 [%%expect {|
-type ('a, 'b) t
-  : immutable_data
-  with 'a @@ global aliased
-
-  with 'b @@ global aliased
-module type S =
-  sig
-    type ('a, 'b) t
-      : immutable_data
-      with 'a @@ global aliased
-
-      with 'b @@ global aliased
-  end
+type ('a, 'b) t : immutable_data with 'a with 'b
+module type S = sig type ('a, 'b) t : immutable_data with 'a with 'b end
 module type T = sig type ('a, 'b) t = ('a, 'b) t end
 |}]
 
@@ -101,14 +90,7 @@ end = struct
   type ('a, 'b) t : immutable_data with 'b
 end
 [%%expect {|
-module M :
-  sig
-    type ('a, 'b) t
-      : immutable_data
-      with 'a @@ global aliased
-
-      with 'b @@ global aliased
-  end
+module M : sig type ('a, 'b) t : immutable_data with 'a with 'b end
 |}]
 
 module M : sig
@@ -123,47 +105,30 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig
-           type ('a, 'b) t
-             : immutable_data
-             with 'a @@ global aliased
-
-             with 'b @@ global aliased
-         end
+         sig type ('a, 'b) t : immutable_data with 'a with 'b end
        is not included in
-         sig type ('a, 'b) t : immutable_data with 'a @@ global aliased end
+         sig type ('a, 'b) t : immutable_data with 'a end
        Type declarations do not match:
-         type ('a, 'b) t
-           : immutable_data
-           with 'a @@ global aliased
-
-           with 'b @@ global aliased
+         type ('a, 'b) t : immutable_data with 'a with 'b
        is not included in
-         type ('a, 'b) t : immutable_data with 'a @@ global aliased
-       The kind of the first is immutable_data with 'a @@ global aliased
-         with 'b @@ global aliased
+         type ('a, 'b) t : immutable_data with 'a
+       The kind of the first is immutable_data with 'a with 'b
          because of the definition of t at line 4, characters 2-50.
-       But the kind of the first must be a subkind of immutable_data
-         with 'a @@ global aliased
+       But the kind of the first must be a subkind of immutable_data with 'a
          because of the definition of t at line 2, characters 2-42.
 |}]
 
 type ('a, 'b) u : immutable_data with 'b with 'a
 type ('a, 'b) t : immutable_data with 'a = ('a, 'b) u
 [%%expect {|
-type ('a, 'b) u
-  : immutable_data
-  with 'a @@ global aliased
-
-  with 'b @@ global aliased
+type ('a, 'b) u : immutable_data with 'a with 'b
 Line 2, characters 0-53:
 2 | type ('a, 'b) t : immutable_data with 'a = ('a, 'b) u
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "('a, 'b) u" is immutable_data
-         with 'a @@ global aliased with 'b @@ global aliased
+Error: The kind of type "('a, 'b) u" is immutable_data with 'a with 'b
          because of the definition of u at line 1, characters 0-48.
        But the kind of type "('a, 'b) u" must be a subkind of immutable_data
-         with 'a @@ global aliased
+         with 'a
          because of the definition of t at line 2, characters 0-53.
 |}]
 
@@ -175,21 +140,15 @@ end
 
 module type T = S with type ('a, 'b) t = ('a, 'b) t
 [%%expect {|
-type ('a, 'b) t
-  : immutable_data
-  with 'a @@ global aliased
-
-  with 'b @@ global aliased
-module type S =
-  sig type ('a, 'b) t : immutable_data with 'a @@ global aliased end
+type ('a, 'b) t : immutable_data with 'a with 'b
+module type S = sig type ('a, 'b) t : immutable_data with 'a end
 Line 7, characters 23-51:
 7 | module type T = S with type ('a, 'b) t = ('a, 'b) t
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "('a, 'b) t" is immutable_data
-         with 'a @@ global aliased with 'b @@ global aliased
+Error: The kind of type "('a, 'b) t" is immutable_data with 'a with 'b
          because of the definition of t at line 1, characters 0-48.
        But the kind of type "('a, 'b) t" must be a subkind of immutable_data
-         with 'a @@ global aliased
+         with 'a
          because of the definition of t at line 4, characters 2-42.
 |}]
 
@@ -199,8 +158,7 @@ end = struct
   type 'a t : immutable_data with 'a ref
 end
 [%%expect {|
-module M :
-  sig type 'a t : mutable_data with 'a @@ global aliased contended end
+module M : sig type 'a t : mutable_data with 'a end
 |}]
 
 module M : sig
@@ -216,21 +174,22 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : mutable_data with 'a @@ global aliased contended end
+         sig type 'a t : mutable_data with 'a end
        is not included in
-         sig
-           type 'a t : mutable_data with 'a @@ global many aliased contended
-         end
+         sig type 'a t : mutable_data with 'a @@ many end
        Type declarations do not match:
-         type 'a t : mutable_data with 'a @@ global aliased contended
+         type 'a t : mutable_data with 'a
        is not included in
-         type 'a t : mutable_data with 'a @@ global many aliased contended
-       The kind of the first is mutable_data
-         with 'a @@ global aliased contended
+         type 'a t : mutable_data with 'a @@ many
+       The kind of the first is mutable_data with 'a
          because of the definition of t at line 4, characters 2-34.
        But the kind of the first must be a subkind of mutable_data
-         with 'a @@ global many aliased contended
+         with 'a @@ many
          because of the definition of t at line 2, characters 2-40.
+
+       The first mode-crosses less than the second along:
+         linearity: mod many with 'a ≰ mod many
+         yielding: mod unyielding with 'a ≰ mod unyielding
 |}]
 
 module M : sig
@@ -239,8 +198,7 @@ end = struct
   type 'a t : mutable_data with 'a @@ many unyielding
 end
 [%%expect {|
-module M :
-  sig type 'a t : mutable_data with 'a @@ global many aliased contended end
+module M : sig type 'a t : mutable_data with 'a @@ many end
 |}]
 
 (* CR layouts v2.8: 'a u's kind should get normalized to just immutable_data *)
@@ -251,7 +209,7 @@ end
 [%%expect {|
 module M :
   sig
-    type ('a : immutable_data) u : immutable_data with 'a @@ global aliased
+    type ('a : immutable_data) u : immutable_data with 'a
     type ('a : immutable_data) t = 'a u
   end
 |}]
@@ -274,7 +232,7 @@ type t : value mod portable with u
 type q : value mod portable with t = { x : t }
 [%%expect {|
 type u
-type t : value mod portable with u @@ global many aliased contended
+type t : value mod portable with u
 type q = { x : t; }
 |}]
 
@@ -284,8 +242,8 @@ type v : value mod portable with t
 type q : value mod portable with t = { x : v }
 [%%expect {|
 type u
-type t : value mod portable with u @@ global many aliased contended
-type v : value mod portable with t @@ global many aliased contended
+type t : value mod portable with u
+type v : value mod portable with t
 type q = { x : v; }
 |}]
 
@@ -299,7 +257,7 @@ type t = private u
 Line 3, characters 0-46:
 3 | type v : immutable_data with u = { value : t }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "v" is immutable_data with t @@ global aliased
+Error: The kind of type "v" is immutable_data with t
          because it's a boxed record type.
        But the kind of type "v" must be a subkind of immutable_data with u
          because of the annotation on the declaration of the type v.
@@ -321,7 +279,7 @@ Line 2, characters 0-44:
 Error: The kind of type "[ `foo of t ]" is value
          because it's a polymorphic variant type.
        But the kind of type "[ `foo of t ]" must be a subkind of immutable_data
-         with t @@ global aliased
+         with t
          because of the definition of u at line 2, characters 0-44.
 |}]
 
@@ -357,12 +315,12 @@ type t1
 type t2
 module M :
   sig
-    type a : immutable_data with t2 @@ global aliased
-    type b : immutable_data with t1 @@ global aliased
+    type a : immutable_data with t2
+    type b : immutable_data with t1
     val eq : (a, b) eq
   end
 >> Fatal error: Abstract kind with [with]: immutable_data
-with t1 @@ global aliased
+with t1
 Uncaught exception: Misc.Fatal_error
 
 |}]
@@ -382,14 +340,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t = 'a end
        is not included in
-         sig type 'a t : immutable_data with 'a @@ global aliased end
+         sig type 'a t : immutable_data with 'a end
        Type declarations do not match:
          type 'a t = 'a
        is not included in
-         type 'a t : immutable_data with 'a @@ global aliased
+         type 'a t : immutable_data with 'a
        The kind of the first is value
          because of the definition of t at line 2, characters 2-36.
-       But the kind of the first must be a subkind of immutable_data
-         with 'a @@ global aliased
+       But the kind of the first must be a subkind of immutable_data with 'a
          because of the definition of t at line 2, characters 2-36.
 |}]

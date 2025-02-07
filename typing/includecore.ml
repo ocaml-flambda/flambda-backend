@@ -1467,7 +1467,8 @@ let type_declarations ?(equality = false) ~loc env ~mark name
      Some (Parameter_jkind
              (ty, Jkind.Violation.of_
                     (Not_a_subjkind (Jkind.disallow_right original_jkind,
-                                     Jkind.disallow_left inferred_jkind))))
+                                     Jkind.disallow_left inferred_jkind,
+                                     []))))
   | All_good ->
   let abstr = Btype.type_kind_is_abstract decl2 && decl2.type_manifest = None in
   let need_variance =
