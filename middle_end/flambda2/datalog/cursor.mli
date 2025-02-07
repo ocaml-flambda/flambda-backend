@@ -87,12 +87,11 @@ val naive_fold :
 
 val naive_iter : 'v t -> Table.Map.t -> ('v Constant.hlist -> unit) -> unit
 
-val seminaive_iter :
+val seminaive_run :
   'v t ->
   previous:Table.Map.t ->
   diff:Table.Map.t ->
   current:Table.Map.t ->
-  ('v Constant.hlist -> unit) ->
   unit
 
 module With_parameters : sig
@@ -122,12 +121,11 @@ module With_parameters : sig
     ('v Constant.hlist -> unit) ->
     unit
 
-  val seminaive_iter :
+  val seminaive_run :
     ('p, 'v) t ->
     'p Constant.hlist ->
     previous:Table.Map.t ->
     diff:Table.Map.t ->
     current:Table.Map.t ->
-    ('v Constant.hlist -> unit) ->
     unit
 end

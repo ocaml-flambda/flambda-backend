@@ -152,7 +152,8 @@ let initial_actions { actions; _ } = actions
 type 'v t =
   { cursor_binders : binder list;
     cursor_naive_binders : binder list;
-    instruction : (action, 'v Constant.hlist, nil) VM.instruction
+    instruction : (action, nil) VM.instruction;
+    callback : ('v Constant.hlist -> unit) ref
   }
 
 type 'a cursor = 'a t
@@ -175,10 +176,10 @@ let apply_actions actions instruction =
 (* NB: the variables must be passed in reverse order, i.e. deepest variable
    first. *)
 let rec open_rev_vars :
-    type a s y.
+    type a s.
     (a -> s) Level.hlist ->
-    (action, y, a -> s) VM.instruction ->
-    (action, y, nil) VM.instruction =
+    (action, a -> s) VM.instruction ->
+    (action, nil) VM.instruction =
  fun vars instruction ->
   match vars with
   | var :: vars -> (
@@ -212,7 +213,7 @@ let rec open_rev_vars :
 
    NB: the variables must be passed in reverse order, i.e. deepest variable
    first. *)
-let rec pop_rev_vars : type s. s Level.hlist -> (action, 'y, s) VM.instruction =
+let rec pop_rev_vars : type s. s Level.hlist -> (action, s) VM.instruction =
   function
   | [] -> VM.advance
   | var :: vars -> (
@@ -230,12 +231,17 @@ let create_call func args = Call { func; args }
 let create ?(calls = []) ?output context =
   let { levels; actions; binders; naive_binders } = context in
   let (Level_list rev_levels) = levels.rev_levels in
+  let callback = ref ignore in
   let make k =
-    let k = match output with None -> k | Some output -> VM.yield output k in
+    let k =
+      match output with
+      | None -> k
+      | Some output -> VM.call (fun args -> !callback args) output k
+    in
     (* Make sure to compute calls in the provided order. *)
     List.fold_right (fun (Call { func; args }) k -> VM.call func args k) calls k
   in
-  let instruction : (_, _, nil) VM.instruction =
+  let instruction : (_, nil) VM.instruction =
     match rev_levels with
     | [] -> make @@ pop_rev_vars rev_levels
     | _ :: _ -> open_rev_vars rev_levels @@ make @@ pop_rev_vars rev_levels
@@ -243,7 +249,8 @@ let create ?(calls = []) ?output context =
   let instruction = apply_actions actions instruction in
   { cursor_binders = binders.rev_binders;
     cursor_naive_binders = naive_binders.rev_binders;
-    instruction
+    instruction;
+    callback
   }
 
 let bind_table (Bind_table (id, handler)) database =
@@ -273,21 +280,23 @@ let evaluate op =
     then Virtual_machine.Skip
     else Virtual_machine.Accept
 
-let naive_fold cursor db f acc =
-  bind_table_list cursor.cursor_binders db;
-  bind_table_list cursor.cursor_naive_binders db;
-  VM.fold f (VM.create ~evaluate cursor.instruction) acc
-
 let naive_iter cursor db f =
   bind_table_list cursor.cursor_binders db;
   bind_table_list cursor.cursor_naive_binders db;
-  VM.iter f (VM.create ~evaluate cursor.instruction)
+  cursor.callback := f;
+  VM.run (VM.create ~evaluate cursor.instruction);
+  cursor.callback := ignore
+
+let naive_fold cursor db f acc =
+  let acc = ref acc in
+  naive_iter cursor db (fun args -> acc := f args !acc);
+  !acc
 
 (* Seminaive evaluation iterates over all the {b new} tuples in the [diff]
    database that are not in the [previous] database.
 
    [current] must be equal to [concat ~earlier:previous ~later:diff]. *)
-let[@inline] seminaive_iter cursor ~previous ~diff ~current f =
+let[@inline] seminaive_run cursor ~previous ~diff ~current =
   bind_table_list cursor.cursor_binders current;
   bind_table_list cursor.cursor_naive_binders current;
   let rec loop binders =
@@ -295,7 +304,7 @@ let[@inline] seminaive_iter cursor ~previous ~diff ~current f =
     | [] -> ()
     | binder :: binders ->
       if bind_table binder diff
-      then VM.iter f (VM.create ~evaluate cursor.instruction);
+      then VM.run (VM.create ~evaluate cursor.instruction);
       if bind_table binder previous then loop binders
   in
   loop cursor.cursor_binders
@@ -319,7 +328,7 @@ module With_parameters = struct
     Option_ref.set parameters ps;
     naive_iter cursor db f
 
-  let seminaive_iter { parameters; cursor } ps ~previous ~diff ~current f =
+  let seminaive_run { parameters; cursor } ps ~previous ~diff ~current =
     Option_ref.set parameters ps;
-    seminaive_iter ~previous ~diff ~current cursor f
+    seminaive_run ~previous ~diff ~current cursor
 end

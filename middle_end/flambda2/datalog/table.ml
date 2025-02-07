@@ -108,13 +108,12 @@ module Id = struct
     handler, iterator, out
 end
 
-module Cursor = Virtual_machine.Make (Trie.Iterator)
+module VM = Virtual_machine.Make (Trie.Iterator)
 
 let iter id f table =
   let input_ref, it, out_ref = Id.create_iterator id in
   input_ref.contents <- table;
-  let cursor = Cursor.iterator it in
-  Cursor.iter (fun keys -> f keys out_ref.contents) cursor
+  VM.iter (fun keys -> f keys out_ref.contents) (VM.iterator it)
 
 let print id ?(pp_sep = Format.pp_print_cut) pp_row ppf table =
   let first = ref true in

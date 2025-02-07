@@ -54,15 +54,19 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       virtual machine (in [fold] or [iter]).
 
       - The ['s] type parameter represents the stack of the virtual machine. *)
-  type ('a, 'y, 's) instruction
+  type ('a, 's) instruction
 
-  val pp_instruction : (Format.formatter -> 'a -> unit) -> Format.formatter -> ('a, 'y, 's) instruction -> unit
+  val pp_instruction :
+    (Format.formatter -> 'a -> unit) ->
+    Format.formatter ->
+    ('a, 's) instruction ->
+    unit
 
   (** [advance] is a terminating instruction.
 
       If the stack is empty, the iteration is finished. Otherwise, advance the
       iterator at the current level, then call [dispatch]. *)
-  val advance : ('a, 'y, 's) instruction
+  val advance : ('a, 's) instruction
 
   (** [dispatch] is a terminating instruction on non-empty stacks.
 
@@ -72,11 +76,11 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       Otherwise, store the value of the current level in the corresponding
       reference and execute the instruction associated with the current level.
   *)
-  val dispatch : ('a, 'y, _ -> 's) instruction
+  val dispatch : ('a, _ -> 's) instruction
 
   (** [up k] moves back to the previous level in the stack, then executes
       [k] at that level. *)
-  val up : ('a, 'y, 's) instruction -> ('a, 'y, _ -> 's) instruction
+  val up : ('a, 's) instruction -> ('a, _ -> 's) instruction
 
   (** [open iterator cell each_value k] initializes a new level.
 
@@ -87,26 +91,15 @@ module Make (Iterator : Leapfrog.Iterator) : sig
   val open_ :
     'i Iterator.t ->
     'i option Named_ref.t ->
-    ('a, 'y, 'i -> 's) instruction ->
-    ('a, 'y, 'i -> 's) instruction ->
-    ('a, 'y, 's) instruction
+    ('a, 'i -> 's) instruction ->
+    ('a, 'i -> 's) instruction ->
+    ('a, 's) instruction
 
   (** [action action k] executes the action [action] then the instruction [k].
 
       Actions are user-defined and evaluated with the [evaluate] argument to
       [create]. *)
-  val action : 'a -> ('a, 'y, 's) instruction -> ('a, 'y, 's) instruction
-
-  (** [yield rs k] outputs the value of the references in [rs] as a heterogenous
-      list of values, then executes the instruction [k].
-
-      {b Note}: The references in [rs] are intended to be the references
-      associated with levels in the stack at the point the [yield] instruction
-      is executed, and {b must not} be [None] at that point. *)
-  val yield :
-    'y Heterogenous_list.Option_ref.hlist ->
-    ('x, 'y Heterogenous_list.Constant.hlist, 's) instruction ->
-    ('x, 'y Heterogenous_list.Constant.hlist, 's) instruction
+  val action : 'a -> ('a, 's) instruction -> ('a, 's) instruction
 
   (** [call f rs k] calls [f] with the values of the references in [rs] as a
       heterogeneous list of values, then executes the instruction [k].
@@ -117,21 +110,22 @@ module Make (Iterator : Leapfrog.Iterator) : sig
   val call :
     ('a Heterogenous_list.Constant.hlist -> unit) ->
     'a Heterogenous_list.Option_ref.hlist ->
-    ('x, 'y, 's) instruction ->
-    ('x, 'y, 's) instruction
+    ('x, 's) instruction ->
+    ('x, 's) instruction
 
-  type 'a t
+  type t
+
+  val create :
+    evaluate:('a -> outcome) -> ('a, Heterogenous_list.nil) instruction -> t
+
+  val run : t -> unit
+
+  type 'a iterator
 
   (** [iterator] is a convenience function for creating a virtual machine that
       iterates over all the values of an iterator heterogenous list. *)
-  val iterator : 's Iterator.hlist -> 's Heterogenous_list.Constant.hlist t
+  val iterator : 's Iterator.hlist -> 's iterator
 
-  val create :
-    evaluate:('a -> outcome) ->
-    ('a, 'y, Heterogenous_list.nil) instruction ->
-    'y t
-
-  val fold : ('y -> 'a -> 'a) -> 'y t -> 'a -> 'a
-
-  val iter : ('y -> unit) -> 'y t -> unit
+  val iter :
+    ('y Heterogenous_list.Constant.hlist -> unit) -> 'y iterator -> unit
 end

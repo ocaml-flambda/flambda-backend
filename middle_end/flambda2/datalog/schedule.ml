@@ -121,7 +121,7 @@ let run_rule_incremental ?stats ~previous ~diff ~current incremental_db
       current := table)
     binders;
   let time0 = Sys.time () in
-  Cursor.seminaive_iter cursor ~previous ~diff ~current (fun _ -> ());
+  Cursor.seminaive_run cursor ~previous ~diff ~current;
   let time1 = Sys.time () in
   let seminaive_time = time1 -. time0 in
   Option.iter (fun stats -> add_timing ~stats rule seminaive_time) stats;
