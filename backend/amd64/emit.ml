@@ -1444,61 +1444,39 @@ end = struct
     );
     assert (!stack_offset mod 16 = 0);
     let asan_check_succeded_label = new_label () in
-    (* Place [shadow_value] in [r11].
-       ```
-       byte *shadow_address = MemToShadow(address);
-       byte shadow_value = *shadow_address;
-       ```
-    *)
-    let () =
-      mov_address address r11;
-      (* These constants come from
-         [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
-      I.shr (int 3) r11;
-      I.movzx (mem64 BYTE 0x7FFF8000 R11) r11
-    in
-    (* ```
-       if (shadow_value) {
-         ...
-       }
-       asan_check_succeded_label: ...
-       ```
-    *)
-    let () =
-      I.test (Reg8L R11) (Reg8L R11);
-      I.je (label asan_check_succeded_label)
-    in
     let log2_size = memory_chunk_size_log2 memory_chunk in
-    (* ```
-       if (SlowPathCheck(shadow_value, address, kAccessSize)) {
-         ...
-       }
-       ```
-    *)
-    let () =
-      if log2_size >= 3
-      then (
-        (* There is no slow-path check for word-sized and larger accesses *)
-        (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-        report_asan_error memory_access log2_size address
-      ) else (
-        (* Place [last_accessed_byte] in [r10].
-           ```
-           last_accessed_byte = (address & 7) + kAccessSize - 1;
-           ```
-        *)
-        let () =
-          mov_address address r10;
-          I.and_ (int 7) r10;
-          if log2_size <> 0 then I.add (int ((1 lsl log2_size) - 1)) r10
-        in
-        (* [ return (last_accessed_byte >= shadow_value) ] *)
-        I.cmp (Reg8L R11) (Reg8L R10);
-        I.jl (label asan_check_succeded_label);
-        (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-        report_asan_error memory_access log2_size address
-      )
-    in
+    mov_address address r11;
+    (* These constants come from
+       [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
+    I.shr (int 3) r11;
+    let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
+    if log2_size >= 3
+    then (
+      I.cmp (int 0) shadow_address;
+      I.je (label asan_check_succeded_label);
+      (* There is no slow-path check for word-sized and larger accesses *)
+      (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
+      report_asan_error memory_access log2_size address
+    ) else (
+      I.movzx shadow_address r11;
+      I.test (Reg8L R11) (Reg8L R11);
+      I.je (label asan_check_succeded_label);
+      (* Begin the [SlowPathCheck]. Place [last_accessed_byte] in [r10].
+         ```
+         last_accessed_byte = (address & 7) + kAccessSize - 1;
+         ```
+      *)
+      mov_address address r10;
+      I.and_ (int 7) r10;
+      if log2_size <> 0 then (
+        I.add (int ((1 lsl log2_size) - 1)) r10
+      );
+      (* [ return (last_accessed_byte >= shadow_value) ] *)
+      I.cmp (Reg8L R11) (Reg8L R10);
+      I.jl (label asan_check_succeded_label);
+      (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
+      report_asan_error memory_access log2_size address
+    );
     def_label asan_check_succeded_label;
     if need_to_save_registers
     then (
