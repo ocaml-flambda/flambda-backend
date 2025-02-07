@@ -1401,48 +1401,32 @@ end = struct
   ;;
 
   let[@inline always] is_stack_16_byte_aligned () =
-    (* Yes, sadly this does result in materially better assembly than [(stack_offset mod 16) <> 0]
+    (* Yes, sadly this does result in materially better assembly than [(!stack_offset mod 16) = 0]
        https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
     (!stack_offset land 15) = 0
   ;;
 
-  let report_asan_error address memory_chunk_size memory_access =
-    let asan_report_function =
-      let index =
-        ((Memory_chunk_size.to_bytes_log2 memory_chunk_size) lsl 1) + match memory_access with Load -> 0 | Store -> 1
-      in
-      (* We take extra care to structure our code such that these are statically
-         allocated as manifest constants in a flat array. *)
-      match index with
-      | 0 -> Sym "caml_asan_report_load1_noabort"
-      | 1 -> Sym "caml_asan_report_store1_noabort"
-      | 2 -> Sym "caml_asan_report_load2_noabort"
-      | 3 -> Sym "caml_asan_report_store2_noabort"
-      | 4 -> Sym "caml_asan_report_load4_noabort"
-      | 5 -> Sym "caml_asan_report_store4_noabort"
-      | 6 -> Sym "caml_asan_report_load8_noabort"
-      | 7 -> Sym "caml_asan_report_store8_noabort"
-      | 8 -> Sym "caml_asan_report_load16_noabort"
-      | 9 -> Sym "caml_asan_report_store16_noabort"
-      | _ ->
-        (* Larger loads and stores can be reported using
-           [__asan_report_load_n_noabort], but we don't support this yet. *)
-        assert false
+  let asan_report_function memory_chunk_size memory_access =
+    let index =
+      ((Memory_chunk_size.to_bytes_log2 memory_chunk_size) lsl 1) + match memory_access with Load -> 0 | Store -> 1
     in
-    let need_to_align_stack = not (is_stack_16_byte_aligned ()) in
-    if need_to_align_stack then (
-      (* [push rdi] is a single-byte instruction, as opposed to something like [push 0]
-         which is a 2-byte instruction. *)
-      push rdi
-    );
-    (* CR ksvetlitski for ksvetlitski: This is incorrect; some of [address]'s
-       component registers may have already been clobbered at this point.
-       I'll fix this in the next commit. *)
-    mov_address address rdi;
-    I.call asan_report_function;
-    if need_to_align_stack then (
-      pop rdi
-    )
+    (* We take extra care to structure our code such that these are statically
+       allocated as manifest constants in a flat array. *)
+    match index with
+    | 0 -> Sym "caml_asan_report_load1_noabort"
+    | 1 -> Sym "caml_asan_report_store1_noabort"
+    | 2 -> Sym "caml_asan_report_load2_noabort"
+    | 3 -> Sym "caml_asan_report_store2_noabort"
+    | 4 -> Sym "caml_asan_report_load4_noabort"
+    | 5 -> Sym "caml_asan_report_store4_noabort"
+    | 6 -> Sym "caml_asan_report_load8_noabort"
+    | 7 -> Sym "caml_asan_report_store8_noabort"
+    | 8 -> Sym "caml_asan_report_load16_noabort"
+    | 9 -> Sym "caml_asan_report_store16_noabort"
+    | _ ->
+      (* Larger loads and stores can be reported using
+         [__asan_report_load_n_noabort], but we don't support this yet. *)
+      assert false
   ;;
 
   let[@inline always] uses_register register = function
@@ -1466,6 +1450,15 @@ end = struct
        uses_register register address || Array.exists (uses_register register) dependencies
     in
     let memory_chunk_size = Memory_chunk_size.of_memory_chunk memory_chunk in
+    (* -------- Begin prologue -------- *)
+    let need_to_save_rdi = need_to_save_register RDI in
+    if need_to_save_rdi then (
+      push rdi
+    );
+    (* For the remainder of this function [rdi] will hold [address]. It's vital
+       that we do this now before we change the contents of any other registers,
+       because we don't want to clobber any of [address]'s component registers. *)
+    mov_address address rdi;
     let need_to_save_r11 = need_to_save_register R11 in
     if need_to_save_r11 then (
       push r11
@@ -1478,35 +1471,21 @@ end = struct
     if need_to_save_r10 then (
       push r10
     );
+    (* -------- End prologue -------- *)
     let asan_check_succeded_label = new_label () in
+    I.mov rdi r11;
+    (* These constants come from
+       [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
+    I.shr (int 3) r11;
+    let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
     let () =
       match memory_chunk_size with
       | I64 | I128 -> (
-        mov_address address r11;
-        (* These constants come from
-           [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
-        I.shr (int 3) r11;
-        let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
         I.cmp (int 0) shadow_address;
         I.je (label asan_check_succeded_label);
         (* There is no slow-path check for word-sized and larger accesses *)
       )
       | I8 | I16 | I32 -> (
-        mov_address address r11;
-        (* This is pretty subtle, but it's crucial that we emit
-           [I.mov r11 r10] exactly here because it's possible for
-           either/both of [r10]/[r11] to be a component of [address].
-           The above [mov_address address r11] is always safe because
-           even if [r11] is on both sides of the instruction, the right
-           thing happens. The [I.mov r11 r10] below is always safe because
-           this is just a register-to-register [mov], so we don't have to
-           worry about the possibility that one of the component registers
-           in [address] has changed. *)
-        I.mov r11 r10;
-        (* These constants come from
-           [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
-        I.shr (int 3) r11;
-        let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
         I.movzx shadow_address r11;
         I.test (Reg8L R11) (Reg8L R11);
         I.je (label asan_check_succeded_label);
@@ -1515,6 +1494,7 @@ end = struct
            last_accessed_byte = (address & 7) + kAccessSize - 1;
            ```
         *)
+        I.mov rdi r10;
         I.and_ (int 7) r10;
         let () =
           match memory_chunk_size with
@@ -1529,22 +1509,29 @@ end = struct
         I.jl (label asan_check_succeded_label);
       )
     in
-    let need_to_save_rdi = need_to_save_register RDI in
-    if need_to_save_rdi then (
-      push rdi
-    );
     (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-    report_asan_error address memory_chunk_size memory_access;
-    if need_to_save_rdi then (
-      pop rdi
-    );
+    let () =
+      let need_to_align_stack = not (is_stack_16_byte_aligned ()) in
+      if need_to_align_stack then (
+        (* [push rax] is a single-byte instruction, as opposed to something like [push 0]
+           which is a 2-byte instruction. *)
+        push rax
+      );
+      I.call (asan_report_function memory_chunk_size memory_access);
+      if need_to_align_stack then (
+        pop rax
+      )
+    in
     def_label asan_check_succeded_label;
     if need_to_save_r10 then (
       pop r10
     );
     if need_to_save_r11 then (
       pop r11;
-    )
+    );
+    if need_to_save_rdi then (
+      pop rdi
+    );
   ;;
 
   let is_asan_enabled = ref Config.with_address_sanitizer

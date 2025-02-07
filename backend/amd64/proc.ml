@@ -209,6 +209,7 @@ let gc_regs_offset reg =
 
 
 let rax = phys_reg Int 0
+let rdi = phys_reg Int 2
 let rdx = phys_reg Int 4
 let rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
@@ -506,14 +507,14 @@ let destroyed_at_pushtrap =
 
 let destroyed_at_large_memory_op =
   if Config.with_address_sanitizer then
-    [| r11 |]
+    [| rdi; r11 |]
   else
     [||]
 ;;
 
 let destroyed_at_small_memory_op =
   if Config.with_address_sanitizer then
-    [| r10; r11 |]
+    [| rdi; r10; r11 |]
   else
     [||]
 ;;
