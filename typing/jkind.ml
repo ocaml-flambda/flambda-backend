@@ -1415,8 +1415,7 @@ module Jkind_desc = struct
           (* these cases either cannot be infinitely recursive or their jkinds
              do not have with_bounds *)
           Continue t
-        | Tlink _ | Tsubst _ ->
-          Misc.fatal_error "Tlink or Tsubst in normalize"
+        | Tlink _ | Tsubst _ -> Misc.fatal_error "Tlink or Tsubst in normalize"
     end in
     let rec loop ctl bounds_so_far :
         (type_expr * With_bounds_type_info.t) list ->
@@ -1941,7 +1940,8 @@ let for_object =
 
 let[@inline] normalize ~require_best ~jkind_of_type t =
   { (disallow_right t) with
-    jkind = Jkind_desc.normalize ~require_best ~jkind_of_type t.jkind
+    jkind = Jkind_desc.normalize ~require_best ~jkind_of_type t.jkind;
+    quality = (match require_best with true -> t.quality | false -> Not_best)
   }
 
 let get_layout_defaulting_to_value { jkind = { layout; _ }; _ } =
