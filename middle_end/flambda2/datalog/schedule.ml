@@ -55,7 +55,7 @@ let print_stats ppf stats =
   Format.fprintf ppf "@[<v>";
   Hashtbl.iter
     (fun _ (Rule { cursor; binders; _ }, time) ->
-      Format.fprintf ppf "@[@[@[%a@]@ :- %a@]:@ %f@]@ "
+      Format.fprintf ppf "@[@[@[%a@]@ :- %a@]@,: %f@]@ "
         (Format.pp_print_list
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
            print_binder)

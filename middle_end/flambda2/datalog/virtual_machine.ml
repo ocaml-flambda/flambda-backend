@@ -50,7 +50,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     let pp_initiator ppf depth =
       if depth > 0 then Format.pp_print_space ppf ()
     in
-    let pp_terminator ppf = Format.fprintf ppf "@;<1 -2>}@]" in
+    let pp_terminator ppf = Format.fprintf ppf "@]" in
     let rec pp_terminators ppf depth =
       if depth > 0
       then (
@@ -64,11 +64,11 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         (* Default terminator *)
         pp_terminators ff depth
       | Up instr ->
-        Format.fprintf ff "%abreak;%t%a" pp_initiator depth pp_terminator
+        Format.fprintf ff "%abreak%t%a" pp_initiator depth pp_terminator
           pp_instruction
           (instr, depth - 1)
       | Open (iterator, var, instr1, Dispatch) ->
-        Format.fprintf ff "%a@[<v 2>@[<hov 2>for (%a : %a)@] {%a" pp_initiator
+        Format.fprintf ff "%a@[<v 2>@[<hov 2>for %a in %a:@]%a" pp_initiator
           depth Named_ref.pp_name var Iterator.print_name iterator
           pp_instruction
           (instr1, depth + 1)
@@ -81,10 +81,10 @@ module Make (Iterator : Leapfrog.Iterator) = struct
           pp_instruction (instr2, 0) pp_instruction
           (instr1, depth + 1)
       | Action (a, instr) ->
-        Format.fprintf ff "%a@[<v 2>%a;@]%a" pp_initiator depth pp_act a
+        Format.fprintf ff "%a@[<v 2>%a@]%a" pp_initiator depth pp_act a
           pp_instruction (instr, depth)
       | Call (_f, l, instr) ->
-        Format.fprintf ff "%a<call> (%a);%a" pp_initiator depth
+        Format.fprintf ff "%a<call> (%a)%a" pp_initiator depth
           Option_ref.pp_name_hlist l pp_instruction (instr, depth)
     in
     pp_instruction ff (instr, 0)

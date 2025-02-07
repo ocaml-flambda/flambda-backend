@@ -37,7 +37,7 @@ let add_action actions action =
 let pp_action ff = function
   | Bind_iterator (x, _it) -> Format.fprintf ff "%a := <it>" Named_ref.pp_name x
   | Unless (_, t, l) ->
-    Format.fprintf ff "if (%a(%a))@ continue" Named_ref.pp_name t
+    Format.fprintf ff "if %a(%a):@ continue" Named_ref.pp_name t
       Option_ref.pp_name_hlist l
 
 module Order : sig
