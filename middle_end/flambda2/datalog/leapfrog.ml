@@ -50,7 +50,7 @@ end = struct
   let print_name ff { iterators; _ } =
     for i = 0 to Array.length iterators - 2 do
       Iterator.print_name ff iterators.(i);
-      Format.pp_print_string ff " |><| "
+      Format.pp_print_string ff " ⨝ "
     done;
     Iterator.print_name ff iterators.(Array.length iterators - 1)
 
