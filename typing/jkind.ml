@@ -1941,7 +1941,10 @@ let for_object =
 let[@inline] normalize ~require_best ~jkind_of_type t =
   { (disallow_right t) with
     jkind = Jkind_desc.normalize ~require_best ~jkind_of_type t.jkind;
-    quality = (match require_best with true -> t.quality | false -> Not_best)
+    quality =
+      (match require_best with
+      | true -> Quality.disallow_right t.quality
+      | false -> Not_best)
   }
 
 let get_layout_defaulting_to_value { jkind = { layout; _ }; _ } =
