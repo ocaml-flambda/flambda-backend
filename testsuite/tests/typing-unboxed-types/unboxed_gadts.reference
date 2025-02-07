@@ -1,0 +1,31 @@
+int_gadt: I #(1, 2) 
+Test 1, zero_snd int_gadt: I #(1, 0) 
+Test 2, swap int_gadt: I #(2, 1) 
+Test 3, swap (zero_snd int_gadt): I #(0, 1) 
+Test 4, apply_twice swap int_gadt: I #(1, 2) 
+Test 5, add_int_gadt (zero_snd int_gadt): I #(2, 2) 
+
+ok_value: Ok 42
+error_value: Error hi
+Test 6, add_one: Ok 43
+Test 7, double: Ok 84
+Test 8, apply_twice add_one: Ok 44
+Test 9, apply_twice double: Ok 168
+Test 10, add_n 0: Ok 42
+Test 11, add_n 100: Ok 142
+Test 12, double error_value (no-op): Error hi
+
+ok_value: Ok #(3.14, _)
+error_value: Error #(42, foo)
+Test 13, increment_float: Ok #(4.14, _)
+Test 14, append_error: Error #(42, foobar)
+Test 15, double_int: Error #(84, foo)
+Test 16, apply_twice increment_float: Ok #(5.14, _)
+Test 17, add_n 0: Ok #(3.14, _)
+Test 18, add_n 100: Ok #(103.14, _)
+Test 19, add_n 0 to error_value (no-op): Error #(42, foo)
+Test 20, add_n 100 to error_value (no-op): Error #(42, foo)
+Test 21, append_error to ok_value (no-op): Ok #(3.14, _)
+Test 22, (ok_exn error_value) raises: pass
+Test 23, (error_exn (append_error ok_value)) raises: pass
+

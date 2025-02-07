@@ -561,3 +561,124 @@ type ('a, 'kind) tree =
   | Inner : { mutable parent : 'a node; } -> ('a, [ `inner ]) tree
 and 'a node = Node : ('a, 'b) tree -> 'a node [@@unboxed]
 |}];;
+
+(*******************************)
+(* [@@unboxed] non-value GADTs *)
+
+module Result = struct
+  type ('a, 'b) t = Ok of 'a | Error of 'b
+end
+[%%expect{|
+module Result : sig type ('a, 'b) t = Ok of 'a | Error of 'b end
+|}]
+
+module Result_u : sig
+  type ('a, 'b) t : immediate & value
+
+  val to_result : ('a, 'b) t -> ('a, 'b) Result.t
+  val of_result : ('a, 'b) Result.t -> ('a, 'b) t
+end = struct
+  type ('a, 'b, 'c) tag =
+    | Ok : ('a, 'b, 'a) tag
+    | Error : ('a, 'b, 'b) tag
+
+  type ('a, 'b) t =
+    | T : #(('a, 'b, 'c) tag * 'c) -> ('a, 'b) t [@@unboxed]
+
+  let to_result (type a) (type b) (T #(tag, x) : (a, b) t) : (a, b) Result.t =
+    match tag with
+    | Ok -> Ok x
+    | Error -> Error x
+
+  let of_result = function
+    | Result.Ok x -> T #(Ok, x)
+    | Result.Error x -> T #(Error, x)
+end
+[%%expect{|
+module Result_u :
+  sig
+    type ('a, 'b) t : value & value
+    val to_result : ('a, 'b) t -> ('a, 'b) Result.t
+    val of_result : ('a, 'b) Result.t -> ('a, 'b) t
+  end
+|}]
+
+module Result_u_VV : sig
+  type ('a : value & value, 'b : value & value) t : immediate & (value & value)
+  val ok_exn : ('a, 'b) t -> 'a
+  val error_exn : ('a, 'b) t -> 'b
+  val ok : 'a -> ('a, _) t
+  val error : 'b -> (_, 'b) t
+end = struct
+  type ('a : (value & value), 'b : (value & value), 'c : (value & value)) tag =
+    | Ok : ('a, 'b, 'a) tag
+    | Error : ('a, 'b, 'b) tag
+
+  type ('a : value & value, 'b : value & value) t =
+    | T : #(('a, 'b, 'c) tag * 'c) -> ('a, 'b) t [@@unboxed]
+
+  let ok_exn (type a : value & value) (type b : value & value)
+        (T #(tag, x) : (a, b) t) : a =
+    match tag with
+    | Ok -> x
+    | Error -> assert false
+
+  let error_exn (type a : value & value) (type b : value & value)
+        (T #(tag, x) : (a, b) t) : b =
+    match tag with
+    | Ok -> assert false
+    | Error -> x
+
+  let ok x = T #(Ok, x)
+  let error x = T #(Error, x)
+end
+[%%expect{|
+module Result_u_VV :
+  sig
+    type ('a : value & value, 'b : value & value) t : value & (value & value)
+    val ok_exn : ('a : value & value) ('b : value & value). ('a, 'b) t -> 'a
+    val error_exn :
+      ('a : value & value) ('b : value & value). ('a, 'b) t -> 'b
+    val ok : ('a : value & value) ('b : value & value). 'a -> ('a, 'b) t
+    val error : ('b : value & value) ('a : value & value). 'b -> ('a, 'b) t
+  end
+|}]
+
+(*******************************************************************)
+(* Cases where GADT type equalities imply that kinds doesn't match *)
+
+type ('a : value & value, 'b : float64, 'c : float64) tag =
+  | Ok : ('a, 'b, 'a) tag
+  | Error : ('a, 'b, 'b) tag
+[%%expect{|
+Line 2, characters 18-20:
+2 |   | Ok : ('a, 'b, 'a) tag
+                      ^^
+Error: This type "('a : value & value)" should be an instance of type
+         "('b : float64)"
+       The layout of 'a is value & value
+         because of the annotation on 'a in the declaration of the type tag.
+       But the layout of 'a must overlap with float64
+         because of the annotation on 'c in the declaration of the type tag.
+|}]
+
+type ('a : value & value, 'b : value & value, 'c) tag =
+  | Ok : ('a, 'b, 'a) tag
+  | Error : ('a, 'b, 'b) tag
+[%%expect{|
+Line 2, characters 9-25:
+2 |   | Ok : ('a, 'b, 'a) tag
+             ^^^^^^^^^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a is value
+           because it instantiates an unannotated type parameter of tag,
+           chosen to have layout value.
+         But the layout of 'a must overlap with value & value
+           because of the annotation on 'a in the declaration of the type tag.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
