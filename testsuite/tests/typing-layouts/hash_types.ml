@@ -548,7 +548,6 @@ module Check_constraints :
     sig val f : t# -> M.t# end
 |}]
 
-
 module type S = sig
   type t = float
   type u = t#
@@ -557,6 +556,19 @@ end with type t := float
 module type S = sig type u = float# end
 |}]
 
+(* Make sure that [with type] doesn't remove an existing kind *)
+type orig = { i : int }
+module Config : sig
+  type t = { i : int }
+end with type t = orig = struct
+  type t = orig = { i : int }
+end
+type t = Config.t = { i : int }
+[%%expect{|
+type orig = { i : int; }
+module Config : sig type t = orig = { i : int; } end
+type t = Config.t = { i : int; }
+|}]
 
 (*******************************)
 (* With type subst constraints *)
