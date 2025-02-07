@@ -2187,7 +2187,7 @@ let tree_of_value_description id decl =
   let attrs =
     match Zero_alloc.get decl.val_zero_alloc with
     | Default_zero_alloc | Ignore_assert_all -> []
-    | Check { strict; opt; arity; _ } ->
+    | Check { strict; opt; arity; custom_error_msg; loc = _; } ->
       [{ oattr_name =
            String.concat ""
              ["zero_alloc";
@@ -2195,6 +2195,9 @@ let tree_of_value_description id decl =
               if opt then " opt" else "";
               if arity = apparent_arity then "" else
                 Printf.sprintf " arity %d" arity;
+              match custom_error_msg with
+              | None -> ""
+              | Some msg -> Printf.sprintf " custom_error_message %S" msg
              ] }]
     | Assume { strict; never_returns_normally; arity; _ } ->
       [{ oattr_name =

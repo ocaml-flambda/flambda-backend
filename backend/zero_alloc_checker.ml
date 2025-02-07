@@ -1402,6 +1402,8 @@ module Annotation : sig
 
   val get_loc : t -> Location.t
 
+  val get_custom_error_msg : t -> string option
+
   val find : Cmm.codegen_option list -> string -> Debuginfo.t -> t option
 
   val of_cfg : Cfg.codegen_option list -> string -> Debuginfo.t -> t option
@@ -1443,14 +1445,23 @@ end = struct
       assume : bool;
       never_returns_normally : bool;
       never_raises : bool;
-      loc : Location.t
+      loc : Location.t;
           (** Source location of the annotation, used for error messages. *)
+      custom_error_msg : string option
     }
 
   let get_loc t = t.loc
 
+  let get_custom_error_msg t = t.custom_error_msg
+
   let expected_value
-      { strict; never_returns_normally; never_raises; assume = _; loc = _ } =
+      { strict;
+        never_returns_normally;
+        never_raises;
+        assume = _;
+        loc = _;
+        custom_error_msg = _
+      } =
     Value.of_annotation ~strict ~never_returns_normally ~never_raises
 
   let valid t v =
@@ -1472,13 +1483,14 @@ end = struct
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1487,7 +1499,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
         codegen_options
@@ -1504,13 +1517,14 @@ end = struct
       List.filter_map
         (fun (c : Cfg.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1519,7 +1533,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE -> None)
         codegen_options
@@ -1599,9 +1614,12 @@ end = struct
         |> String.concat ","
       in
       Format.fprintf ppf
-        "Annotation check for zero_alloc%s failed on function %s (%s)"
+        "Annotation check for zero_alloc%s failed on function %s (%s).%s"
         (if Annotation.is_strict t.a then " strict" else "")
         scoped_name t.fun_name
+        (match Annotation.get_custom_error_msg t.a with
+        | None -> ""
+        | Some msg -> "\n" ^ msg)
     in
     Location.error_of_printer ~loc print_annotated_fun ()
 

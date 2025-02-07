@@ -1,0 +1,40 @@
+File "test_custom_error_msg_sig.ml", line 2, characters 21-30:
+Error: Annotation check for zero_alloc failed on function Test_custom_error_msg_sig.expected_to_fail (camlTest_custom_error_msg_sig.expected_to_fail_HIDE_STAMP).
+BOO
+
+File "test_custom_error_msg_sig.ml", line 2, characters 25-30:
+Error: allocation of 24 bytes
+
+File "test_custom_error_msg_sig.ml", line 5, characters 20-29:
+Error: Annotation check for zero_alloc failed on function Test_custom_error_msg_sig.check_me_in_opt (camlTest_custom_error_msg_sig.check_me_in_opt_HIDE_STAMP).
+BOO
+
+File "test_custom_error_msg_sig.ml", line 5, characters 24-29:
+Error: allocation of 24 bytes
+
+File "test_custom_error_msg_sig.ml", line 7, characters 3-13:
+Error: Annotation check for zero_alloc failed on function Test_custom_error_msg_sig.mismatched_error_msg (camlTest_custom_error_msg_sig.mismatched_error_msg_HIDE_STAMP).
+BOOM
+
+File "test_custom_error_msg_sig.ml", line 6, characters 29-34:
+Error: allocation of 24 bytes
+
+File "test_custom_error_msg_sig.ml", line 10, characters 3-13:
+Error: Annotation check for zero_alloc failed on function Test_custom_error_msg_sig.mismatched_error_msg2 (camlTest_custom_error_msg_sig.mismatched_error_msg2_HIDE_STAMP).
+
+File "test_custom_error_msg_sig.ml", line 9, characters 30-35:
+Error: allocation of 24 bytes
+
+File "test_custom_error_msg_sig.ml", line 13, characters 3-13:
+Error: Annotation check for zero_alloc failed on function Test_custom_error_msg_sig.mismatched_error_msg3 (camlTest_custom_error_msg_sig.mismatched_error_msg3_HIDE_STAMP).
+BOOM
+
+File "test_custom_error_msg_sig.ml", line 12, characters 30-35:
+Error: allocation of 24 bytes
+
+File "test_custom_error_msg_sig.ml", line 16, characters 3-13:
+Error: Annotation check for zero_alloc failed on function Test_custom_error_msg_sig.matched_error_msg (camlTest_custom_error_msg_sig.matched_error_msg_HIDE_STAMP).
+BOO
+
+File "test_custom_error_msg_sig.ml", line 15, characters 26-31:
+Error: allocation of 24 bytes

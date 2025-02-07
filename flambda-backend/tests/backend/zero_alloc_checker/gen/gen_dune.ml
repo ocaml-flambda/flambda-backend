@@ -229,4 +229,24 @@ let () =
   print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_unless_opt_sig2";
   print_test_expected_output ~extra_flags:"-zero-alloc-check default" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_unless_opt_on_call";
   print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_unless_opt_on_call2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_custom_error_msg.output"
+    ~extra_dep:None
+    ~extra_flags:"-zero-alloc-check default"
+    ~exit_code:2 "test_custom_error_msg";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_custom_error_msg.opt.output"
+    ~extra_dep:None
+    ~extra_flags:"-zero-alloc-check all"
+    ~exit_code:2 "test_custom_error_msg";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_custom_error_msg_sig.output"
+    ~extra_dep:(Some "test_custom_error_msg_sig.mli")
+    ~extra_flags:"-zero-alloc-check default"
+    ~exit_code:2 "test_custom_error_msg_sig";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_custom_error_msg_sig.opt.output"
+    ~extra_dep:(Some "test_custom_error_msg_sig.mli")
+    ~extra_flags:"-zero-alloc-check all"
+    ~exit_code:2 "test_custom_error_msg_sig";
   ()

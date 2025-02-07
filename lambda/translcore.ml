@@ -1773,15 +1773,15 @@ and transl_function ~in_new_scope ~scopes e params body
        | Assert_default -> Default_zero_alloc
        | Assert_all ->
          if Builtin_attributes.is_zero_alloc_check_enabled ~opt:false
-         then Check { strict = false; loc = e.exp_loc }
+         then Check { strict = false; loc = e.exp_loc; custom_error_msg = None; }
          else Default_zero_alloc
        | Assert_all_opt ->
          if Builtin_attributes.is_zero_alloc_check_enabled ~opt:true
-         then Check { strict = false; loc = e.exp_loc }
+         then Check { strict = false; loc = e.exp_loc; custom_error_msg = None; }
          else Default_zero_alloc)
-    | Check { strict; opt; arity = _; loc } ->
+    | Check { strict; opt; arity = _; loc; custom_error_msg; } ->
       if Builtin_attributes.is_zero_alloc_check_enabled ~opt
-      then Check { strict; loc }
+      then Check { strict; loc; custom_error_msg }
       else Default_zero_alloc
     | Assume { strict; never_returns_normally; never_raises; loc; arity = _; } ->
       Assume { strict; never_returns_normally; never_raises; loc }

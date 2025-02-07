@@ -1698,3 +1698,108 @@ module F (X : S_all) : S_all_ignored = X
 [%%expect{|
 module F : functor (X : S_all) -> S_all_ignored
 |}]
+
+
+(* [@zero_alloc custom_error_message "string"] in signatures: module inclusion
+   results in concatenated messages. *)
+module T1 = struct
+  module type S1 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "foo"]
+  end
+
+  module type S2 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "bar"]
+  end
+
+  module M1 = struct
+    let f x = (x,x)
+  end
+
+  module M' : S1 = M1
+
+  module M'' : S2 = M1
+end
+(* The signature for [M1] below shows the inferred attribute but for some
+   reason it doesn't print the associated custom_error_message.
+   We ahve a copy of this test in the backend test directory to confirm
+   that the combined "foo\nbar" is propagate correctly and printed by the
+   zero_alloc checker as part of the user error message. *)
+[%%expect{|
+module T1 :
+  sig
+    module type S1 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "foo"] end
+    module type S2 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "bar"] end
+    module M1 : sig val f : 'a -> 'a * 'a [@@zero_alloc] end
+    module M' : S1
+    module M'' : S2
+  end
+|}]
+
+(* If there is a zero_alloc annotation on the structure (with or without a custom
+   error message), throw away the custom message string from the signature. *)
+module T2 = struct
+  module type S1 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "foo"]
+  end
+
+  module type S2 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "bar"]
+  end
+
+  module M2 = struct
+    let[@zero_alloc] f x = (x,x)
+  end
+
+  module M' : S1 = M2
+
+  module M'' : S2 = M2
+end
+[%%expect{|
+module T2 :
+  sig
+    module type S1 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "foo"] end
+    module type S2 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "bar"] end
+    module M2 : sig val f : 'a -> 'a * 'a [@@zero_alloc] end
+    module M' : S1
+    module M'' : S2
+  end
+|}]
+
+module T3 = struct
+  module type S1 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "foo"]
+  end
+
+  module type S2 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "bar"]
+  end
+
+  module M3 = struct
+    let[@zero_alloc custom_error_message "use this, throw the others away"] f x =
+      (x,x)
+  end
+
+  module M' : S1 = M3
+
+  module M'' : S2 = M3
+end
+[%%expect{|
+module T3 :
+  sig
+    module type S1 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "foo"] end
+    module type S2 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "bar"] end
+    module M3 :
+      sig
+        val f : 'a -> 'a * 'a
+          [@@zero_alloc custom_error_message "use this, throw the others away"]
+      end
+    module M' : S1
+    module M'' : S2
+  end
+|}]

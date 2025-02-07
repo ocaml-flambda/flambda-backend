@@ -428,9 +428,12 @@ let codegen_option = function
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
       (if never_raises then "_never_raises" else "")
-  | Check_zero_alloc { strict; loc = _ } ->
-    Printf.sprintf "assert_zero_alloc%s"
+  | Check_zero_alloc { strict; loc = _; custom_error_msg; } ->
+    Printf.sprintf "assert_zero_alloc%s%s"
       (if strict then "_strict" else "")
+      (match custom_error_msg with
+       | None -> ""
+       | Some msg -> Printf.sprintf " customer_error_message %S" msg)
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

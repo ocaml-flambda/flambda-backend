@@ -1,5 +1,5 @@
 File "fail29_opt.ml", line 19, characters 5-15:
-Error: Annotation check for zero_alloc strict failed on function Fail29_opt.check_me_strict (camlFail29_opt.check_me_strict_HIDE_STAMP)
+Error: Annotation check for zero_alloc strict failed on function Fail29_opt.check_me_strict (camlFail29_opt.check_me_strict_HIDE_STAMP).
 
 File "fail29_opt.ml", line 21, characters 22-60:
 Error: called function may allocate on a path to exceptional return (indirect call)
