@@ -1037,6 +1037,11 @@ let compare_type t1 t2 = compare (get_id t1) (get_id t2)
    Someday, it's probably desirable to merge this, and make it compatible, with
    [Ctype.eqtype], though that seems quite hard.
 *)
+(* CR layouts v2.8: this will likely loop infinitely on rectypes *)
+(* CR layouts v2.8: this whole approach is probably /quite/ wrong, since type_expr is
+   fundamentally mutable, and using mutable things in the keys of maps is a recipe for
+   disaster. We haven't found a way that this can break /yet/, but it is likely that one
+   exists. We should rethink this whole approach soon. *)
 let rec best_effort_compare_type_expr te1 te2 =
   if te1 == te2 || repr te1 == repr te2 then 0
   else
@@ -1051,10 +1056,12 @@ let rec best_effort_compare_type_expr te1 te2 =
       | Tvariant _
       | Tpackage (_, _)
       | Tarrow (_, _, _, _)
-          (* NOTE: we can actually see Tsubst here in certain cases, eg during
+          (* CR layouts v3.8: we can actually see Tsubst here in certain cases, eg during
              [Ctype.copy] when copying the types inside of with_bounds. We also can't
              compare Tsubst structurally, because the Tsubsts that are created in
-             Ctype.copy are cyclic (?). So the best we can do here is compare by id. *)
+             Ctype.copy are cyclic (?). So the best we can do here is compare by id.
+             this is almost definitely wrong, primarily because of the mutability - we
+             should fix that. *)
       | Tsubst (_, _)
         ->
         (* This negation is important! We want all these types to compare strictly /less/
