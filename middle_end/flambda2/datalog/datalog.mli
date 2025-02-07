@@ -65,7 +65,6 @@ type callback
 
 val create_callback : ('a Constant.hlist -> unit) -> 'a Term.hlist -> callback
 
-val yield :
-  ?callbacks:callback list ->
-  'v Term.hlist ->
-  ('p, ('p, 'v) Cursor.With_parameters.t) program
+val yield : 'v Term.hlist -> ('p, ('p, 'v) Cursor.With_parameters.t) program
+
+val execute : callback list -> ('p, ('p, 'v) Cursor.With_parameters.t) program

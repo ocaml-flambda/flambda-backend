@@ -260,7 +260,7 @@ module Datalog = struct
           create_callback (Schedule.call_rule_fn fn) args :: callbacks)
         atoms []
     in
-    map_program (yield ~callbacks []) (fun cursor ->
+    map_program (execute callbacks) (fun cursor ->
         let cursor = Cursor.With_parameters.without_parameters cursor in
         Schedule.build builder cursor)
 

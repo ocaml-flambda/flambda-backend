@@ -30,7 +30,7 @@ let print_binder ppf (Binder { table_id; _ }) = Table.Id.print ppf table_id
 
 type rule =
   | Rule :
-      { cursor : Heterogenous_list.nil Cursor.t;
+      { cursor : 'a Cursor.t;
         binders : binder list;
         rule_id : int
       }
@@ -121,9 +121,7 @@ let run_rule_incremental ?stats ~previous ~diff ~current incremental_db
       current := table)
     binders;
   let time0 = Sys.time () in
-  let () =
-    Cursor.seminaive_fold cursor ~previous ~diff ~current (fun [] () -> ()) ()
-  in
+  Cursor.seminaive_iter cursor ~previous ~diff ~current (fun _ -> ());
   let time1 = Sys.time () in
   let seminaive_time = time1 -. time0 in
   Option.iter (fun stats -> add_timing ~stats rule seminaive_time) stats;

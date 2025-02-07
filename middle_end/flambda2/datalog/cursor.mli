@@ -80,21 +80,20 @@ type call
 
 val create_call : ('a Constant.hlist -> unit) -> 'a Option_ref.hlist -> call
 
-val create : ?calls:call list -> context -> 'v Option_ref.hlist -> 'v t
+val create : ?calls:call list -> ?output:'v Option_ref.hlist -> context -> 'v t
 
 val naive_fold :
   'v t -> Table.Map.t -> ('v Constant.hlist -> 'a -> 'a) -> 'a -> 'a
 
 val naive_iter : 'v t -> Table.Map.t -> ('v Constant.hlist -> unit) -> unit
 
-val seminaive_fold :
+val seminaive_iter :
   'v t ->
   previous:Table.Map.t ->
   diff:Table.Map.t ->
   current:Table.Map.t ->
-  ('v Constant.hlist -> 'a -> 'a) ->
-  'a ->
-  'a
+  ('v Constant.hlist -> unit) ->
+  unit
 
 module With_parameters : sig
   type ('p, 'v) t
@@ -102,10 +101,10 @@ module With_parameters : sig
   val without_parameters : (nil, 'v) t -> 'v cursor
 
   val create :
-    ?calls:call list ->
     parameters:'p Option_ref.hlist ->
+    ?calls:call list ->
+    ?output:'v Option_ref.hlist ->
     context ->
-    'v Option_ref.hlist ->
     ('p, 'v) t
 
   val naive_fold :
@@ -123,13 +122,12 @@ module With_parameters : sig
     ('v Constant.hlist -> unit) ->
     unit
 
-  val seminaive_fold :
+  val seminaive_iter :
     ('p, 'v) t ->
     'p Constant.hlist ->
     previous:Table.Map.t ->
     diff:Table.Map.t ->
     current:Table.Map.t ->
-    ('v Constant.hlist -> 'a -> 'a) ->
-    'a ->
-    'a
+    ('v Constant.hlist -> unit) ->
+    unit
 end

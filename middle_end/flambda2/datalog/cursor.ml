@@ -222,14 +222,13 @@ type call =
 
 let create_call func args = Call { func; args }
 
-let create ?(calls = []) context output =
+let create ?(calls = []) ?output context =
   let { levels; actions; binders; naive_binders } = context in
   let (Level_list rev_levels) = levels.rev_levels in
   let make k =
+    let k = match output with None -> k | Some output -> VM.yield output k in
     (* Make sure to compute calls in the provided order. *)
-    List.fold_right
-      (fun (Call { func; args }) k -> VM.call func args k)
-      calls (VM.yield output k)
+    List.fold_right (fun (Call { func; args }) k -> VM.call func args k) calls k
   in
   let instruction : (_, _, nil) VM.instruction =
     match rev_levels with
@@ -283,21 +282,18 @@ let naive_iter cursor db f =
    database that are not in the [previous] database.
 
    [current] must be equal to [concat ~earlier:previous ~later:diff]. *)
-let[@inline] seminaive_fold cursor ~previous ~diff ~current f acc =
+let[@inline] seminaive_iter cursor ~previous ~diff ~current f =
   bind_table_list cursor.cursor_binders current;
   bind_table_list cursor.cursor_naive_binders current;
-  let rec loop binders acc =
+  let rec loop binders =
     match binders with
-    | [] -> acc
+    | [] -> ()
     | binder :: binders ->
-      let acc =
-        if bind_table binder diff
-        then VM.fold f (VM.create ~evaluate cursor.instruction) acc
-        else acc
-      in
-      if bind_table binder previous then loop binders acc else acc
+      if bind_table binder diff
+      then VM.iter f (VM.create ~evaluate cursor.instruction);
+      if bind_table binder previous then loop binders
   in
-  loop cursor.cursor_binders acc
+  loop cursor.cursor_binders
 
 module With_parameters = struct
   type nonrec ('p, 'v) t =
@@ -307,8 +303,8 @@ module With_parameters = struct
 
   let without_parameters { parameters = []; cursor } = cursor
 
-  let create ?calls ~parameters context output =
-    { cursor = create ?calls context output; parameters }
+  let create ~parameters ?calls ?output context =
+    { cursor = create ?calls ?output context; parameters }
 
   let naive_fold { parameters; cursor } ps db f acc =
     Option_ref.set parameters ps;
@@ -318,7 +314,7 @@ module With_parameters = struct
     Option_ref.set parameters ps;
     naive_iter cursor db f
 
-  let seminaive_fold { parameters; cursor } ps ~previous ~diff ~current f acc =
+  let seminaive_iter { parameters; cursor } ps ~previous ~diff ~current f =
     Option_ref.set parameters ps;
-    seminaive_fold ~previous ~diff ~current cursor f acc
+    seminaive_iter ~previous ~diff ~current cursor f
 end

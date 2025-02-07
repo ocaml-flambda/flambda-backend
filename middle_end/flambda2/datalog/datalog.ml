@@ -167,8 +167,13 @@ type callback =
 
 let create_callback func args = Callback { func; args }
 
-let yield ?(callbacks = []) output (info : _ context) =
+let yield output (info : _ context) =
   let output = compile_terms output in
+  Cursor.With_parameters.create
+    ~parameters:(Parameter.to_refs info.parameters)
+    info.context ~output
+
+let execute callbacks (info : _ context) =
   let calls =
     List.map
       (fun (Callback { func; args }) ->
@@ -177,4 +182,4 @@ let yield ?(callbacks = []) output (info : _ context) =
   in
   Cursor.With_parameters.create ~calls
     ~parameters:(Parameter.to_refs info.parameters)
-    info.context output
+    info.context

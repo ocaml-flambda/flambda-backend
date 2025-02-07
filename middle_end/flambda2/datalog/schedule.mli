@@ -31,7 +31,7 @@ val print_stats : Format.formatter -> stats -> unit
 
 type rule
 
-val build : builder -> Heterogenous_list.nil Cursor.t -> rule
+val build : builder -> 'a Cursor.t -> rule
 
 type t
 

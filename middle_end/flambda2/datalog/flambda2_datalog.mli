@@ -487,15 +487,8 @@ module Datalog : sig
 
   val where : hypothesis list -> ('p, 'a) program -> ('p, 'a) program
 
-  type callback
-
-  val create_callback : ('a Constant.hlist -> unit) -> 'a Term.hlist -> callback
-
   (** [yield args] is a query program that outputs the tuple [args]. *)
-  val yield :
-    ?callbacks:callback list ->
-    'v Term.hlist ->
-    ('p, ('p, 'v) Cursor.with_parameters) program
+  val yield : 'v Term.hlist -> ('p, ('p, 'v) Cursor.with_parameters) program
 
   type deduction =
     [ `Atom of atom
