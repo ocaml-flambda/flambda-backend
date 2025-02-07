@@ -1,3 +1,5 @@
+(* Parameters: (none) *)
+
 type t = int
 
 let create () = 1

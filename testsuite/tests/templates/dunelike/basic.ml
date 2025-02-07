@@ -1,3 +1,5 @@
+(* Parameters: P *)
+
 type t = P.t
 
 let create t = t

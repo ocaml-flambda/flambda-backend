@@ -1,3 +1,5 @@
+(* Parameters: (none) *)
+
 let run () =
   let basic_int = Basic_int.create 4 in
   let basic_string = Basic_string.create "sixteen" in

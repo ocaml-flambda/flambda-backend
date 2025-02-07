@@ -1,3 +1,5 @@
+(* Parameters: P, Q *)
+
 type t
 
 val create : P.t -> t

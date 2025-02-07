@@ -1,3 +1,5 @@
+(* Parameters: (none) *)
+
 type t = string
 
 val create : unit -> t

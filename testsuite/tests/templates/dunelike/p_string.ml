@@ -1,3 +1,5 @@
+(* Parameters: (none) *)
+
 type t = string
 
 let create () = "*"

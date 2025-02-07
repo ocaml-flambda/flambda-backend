@@ -1,3 +1,5 @@
+(* Parameters: P, Q *)
+
 module Flourish = Flourish
 module Ornament = Ornament
 

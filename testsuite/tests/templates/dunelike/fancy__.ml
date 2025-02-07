@@ -1,3 +1,4 @@
+(* Parameters: P, Q *)
 
 module No_direct_access_to_fancy = struct
   module Fancy = No_such_module

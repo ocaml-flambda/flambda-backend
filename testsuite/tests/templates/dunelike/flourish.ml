@@ -1,3 +1,5 @@
+(* Parameters: P, Q *)
+
 type t = P.t * P.t
 
 let create p = p, P.frob (P.create ())

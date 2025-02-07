@@ -1,3 +1,5 @@
+(* Parameters: (none) *)
+
 let run () =
   let fancy_int =
     Fancy_int.create 4
