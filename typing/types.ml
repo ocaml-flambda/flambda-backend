@@ -1092,6 +1092,8 @@ let rec best_effort_compare_type_expr te1 te2 =
       then List.compare best_effort_compare_type_expr args1 args2
       else p
     | Tpoly (t1, ts1), Tpoly (t2, ts2) ->
+      (* NOTE: this is mostly broken according to the semantics of type_expr, but probably
+         fine for the particular "best-effort" comparison we want. *)
       List.compare best_effort_compare_type_expr (t1 :: ts1) (t2 :: ts2)
     | _, _ -> rank te1 - rank te2
 
