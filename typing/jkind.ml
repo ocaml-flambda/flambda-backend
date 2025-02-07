@@ -594,6 +594,12 @@ module Mod_bounds = struct
             Bound_ops.equal)
       }
       ~combine:( && )
+
+  let for_arrow =
+    simple ~linearity:Linearity.Const.max ~locality:Locality.Const.max
+      ~uniqueness:Uniqueness.Const.min ~portability:Portability.Const.max
+      ~contention:Contention.Const.min ~yielding:Yielding.Const.max
+      ~externality:Externality.max ~nullability:Nullability.Non_null
 end
 
 module Layout_and_axes = struct
@@ -1319,11 +1325,18 @@ module Jkind_desc = struct
     { t with mod_bounds = from.mod_bounds; with_bounds = No_with_bounds }
 
   let add_with_bounds ~relevant_for_nullability ~type_expr ~modality t =
-    { t with
-      with_bounds =
-        With_bounds.add ~relevant_for_nullability ~type_expr ~modality
-          t.with_bounds
-    }
+    match Types.get_desc type_expr with
+    | Tarrow (_, _, _, _) ->
+      (* Optimization: all arrow types have the same (with-bound-free) jkind, so we can just
+         eagerly do a join on the mod-bounds here rather than having to add them to our with
+         bounds only to be normalized away later. *)
+      { t with mod_bounds = Mod_bounds.join t.mod_bounds Mod_bounds.for_arrow }
+    | _ ->
+      { t with
+        with_bounds =
+          With_bounds.add ~relevant_for_nullability ~type_expr ~modality
+            t.with_bounds
+      }
 
   let max = of_const Const.max
 
@@ -1909,12 +1922,7 @@ let for_boxed_variant cstrs =
 let for_arrow =
   fresh_jkind
     { layout = Sort (Base Value);
-      mod_bounds =
-        Mod_bounds.simple ~linearity:Linearity.Const.max
-          ~locality:Locality.Const.max ~uniqueness:Uniqueness.Const.min
-          ~portability:Portability.Const.max ~contention:Contention.Const.min
-          ~yielding:Yielding.Const.max ~externality:Externality.max
-          ~nullability:Nullability.Non_null;
+      mod_bounds = Mod_bounds.for_arrow;
       with_bounds = No_with_bounds
     }
     ~annotation:None ~why:(Value_creation Arrow)
