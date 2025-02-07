@@ -1206,11 +1206,10 @@ let narrow_to_manifest_jkind env loc decl =
   | Some _, (Type_record _ | Type_record_unboxed_product _ | Type_variant _ | Type_open)
     when not (Builtin_attributes.has_or_null_reexport decl.type_attributes)
     ->
-    (* If there's both a manifest and a kind, there's no reason to check that the jkind
-       of the manifest matches the annotation. This is because the manifest's jkind is
-       exactly the kind's jkind, which has already been checked against the annotation in [update_decl_jkind].
-       The annotation has also been narrowed based on the kind's jkind, so there's no
-       reason to update the jkind either. *)
+    (* If there's both a manifest and a non-abstract kind, there's no reason to check that
+       the jkind of the manifest matches the annotation ([decl.type_jkind]). This is
+       because the manifest's jkind is exactly the kind's jkind, and we've already checked
+       and updated [type_jkind] based on the kind. *)
     decl
   | Some ty, _ ->
     (* CR layouts v2.8: Remove this use of [type_jkind_purely], which is slow
