@@ -1051,6 +1051,11 @@ let rec best_effort_compare_type_expr te1 te2 =
       | Tvariant _
       | Tpackage (_, _)
       | Tarrow (_, _, _, _)
+          (* NOTE: we can actually see Tsubst here in certain cases, eg during
+             [Ctype.copy] when copying the types inside of with_bounds. We also can't
+             compare Tsubst structurally, because the Tsubsts that are created in
+             Ctype.copy are cyclic (?). So the best we can do here is compare by id. *)
+      | Tsubst (_, _)
         ->
         (* This negation is important! We want all these types to compare strictly /less/
            than the structural ones - the easiest way to make that happen is to make the
@@ -1062,8 +1067,7 @@ let rec best_effort_compare_type_expr te1 te2 =
       | Tconstr (_, _, _) -> 5
       | Tpoly (_, _) -> 6
       (* Types we should never see *)
-      | Tlink _
-      | Tsubst (_, _) -> Misc.fatal_error "Tlink or TSubst encountered in With_bounds_types"
+      | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
     in
     match get_desc te1, get_desc te2 with
     | Ttuple elts1, Ttuple elts2
