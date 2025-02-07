@@ -64,6 +64,10 @@ let pass_dump_cfg_if ppf flag message c =
   then fprintf ppf "*** %s@.%a@." message (Cfg_with_layout.dump ~msg:"") c;
   c
 
+let should_vectorize () =
+  !Flambda_backend_flags.vectorize
+  && not (Flambda2_ui.Flambda_features.classic_mode ())
+
 let start_from_emit = ref true
 
 let should_save_before_emit () =
@@ -445,7 +449,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                   let cfg_with_infos =
                     cfg_with_layout
                     ++ (fun cfg_with_layout ->
-                         match !Flambda_backend_flags.vectorize with
+                         match should_vectorize () with
                          | false -> cfg_with_layout
                          | true ->
                            cfg_with_layout
