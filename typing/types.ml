@@ -35,31 +35,6 @@ module With_bounds_type_info = struct
   type t = {relevant_axes : Jkind_axis.Axis_set.t } [@@unboxed]
 end
 
-
-(* A map from [type_expr] to ['a], specifically defined with a (best-effort) semantic
-   comparison function on types to be used in the with-bounds of a jkind.
-
-   This module is defined using [Obj] and a top-level ref to break the circular dependency
-   between with-bounds and type_expr. The alternative to this approach would be mutually
-   recursive modules, but this approach creates a smaller diff with upstream and makes
-   rebasing easier.
-
-   A safe interface, without [Obj], is defined later as [With_bounds_types]. This module
-   should not be used outside of that module.
-*)
-module With_bounds_type_map_unsafe = struct
-  (* Defined later, after [type_expr]. *)
-  let compare_type_expr =
-    ref (fun _ _ ->
-      failwith "With_bounds_type_map_unsafe.compare_type_expr was never set")
-
-  include Map.Make (struct
-      type t = Obj.t
-
-      let compare x y = !compare_type_expr x y
-  end)
-end
-
 type transient_expr =
   { mutable desc: type_desc;
     mutable level: int;
@@ -143,8 +118,8 @@ and jkind_history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
-and with_bounds_types =
-  With_bounds_type_info.t With_bounds_type_map_unsafe.t
+(* See [With_bounds_types] for more information on this abstract type. *)
+and with_bounds_types
 
 and 'd with_bounds =
   | No_with_bounds : ('l * 'r) with_bounds
@@ -1097,13 +1072,14 @@ let rec best_effort_compare_type_expr te1 te2 =
       List.compare best_effort_compare_type_expr (t1 :: ts1) (t2 :: ts2)
     | _, _ -> rank te1 - rank te2
 
-let () =
-  With_bounds_type_map_unsafe.compare_type_expr :=
-    (fun obj1 obj2 ->
-       best_effort_compare_type_expr
-         (Obj.obj obj1 : type_expr)
-         (Obj.obj obj2 : type_expr))
+(* A map from [type_expr] to ['a], specifically defined with a (best-effort) semantic
+   comparison function on types to be used in the with-bounds of a jkind.
 
+   This module is defined internally to be equal (via two uses of [Obj.magic]) to the
+   abstract type [with_bound_types] to break the circular dependency between with-bounds
+   and type_expr. The alternative to this approach would be mutually recursive modules,
+   but this approach creates a smaller diff with upstream and makes rebasing easier.
+*)
 module With_bounds_types : sig
   (* Note that only the initially needed bits of [Stdlib.Map.S] are exposed here; feel
      free to expose more functions if you need them! *)
@@ -1122,18 +1098,27 @@ module With_bounds_types : sig
     t -> t -> t
   val map : (info -> info) -> t -> t
 end = struct
-  module U = With_bounds_type_map_unsafe
-  include U
+  module M = Map.Make(struct
+      type t = type_expr
 
-  let to_seq t = to_seq t |> Seq.map (fun (ty, ti) -> ((Obj.obj ty : type_expr), ti))
-  let of_seq s =
-    s |>
-    Seq.map (fun (ty, ti) -> (Obj.repr ty, ti)) |>
-    of_seq
-  let singleton ty i = add (Obj.repr ty) i empty
-  let of_list xs = xs |> List.to_seq |> of_seq
-  let update ty = update (Obj.repr ty)
-  let merge f = merge (fun ty -> f (Obj.obj ty : type_expr))
+      let compare = best_effort_compare_type_expr
+    end)
+  include M
+
+  type map = With_bounds_type_info.t M.t
+
+  let of_map : map -> with_bounds_types = Obj.magic
+  let to_map : with_bounds_types -> map = Obj.magic
+
+  let empty = empty |> of_map
+  let is_empty t = t |> to_map |> is_empty
+  let to_seq t = t |> to_map |> to_seq
+  let of_seq s = of_seq s |> of_map
+  let of_list l = l |> List.to_seq |> of_seq
+  let singleton ty i = add ty i (to_map empty) |> of_map
+  let update te f t = update te f (to_map t) |> of_map
+  let merge f t1 t2 = merge f (to_map t1) (to_map t2) |> of_map
+  let map f t = map f (to_map t) |> of_map
 end
 
 (* Constructor and accessors for [row_desc] *)
