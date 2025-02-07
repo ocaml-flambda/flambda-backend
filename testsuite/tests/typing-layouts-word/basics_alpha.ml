@@ -212,14 +212,9 @@ type t5_2' = { y : string; x : t_word };;
 type t5_2' = { y : string; x : t_word; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_word } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-24:
-1 | type t5_3 = { x : t_word } [@@unboxed];;
-                  ^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       [@@unboxed] records may not yet contain types of this layout.
+type t5_3 = { x : t_word; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_word;;
@@ -252,11 +247,7 @@ Error: Expected all flat constructor arguments after non-value argument, "
 
 type t5_6 = A of t_word [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-23:
-1 | type t5_6 = A of t_word [@@unboxed];;
-                ^^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_word [@@unboxed]
 |}];;
 
 (****************************************************)

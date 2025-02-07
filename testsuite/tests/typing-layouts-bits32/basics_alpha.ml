@@ -212,14 +212,9 @@ type t5_2' = { y : string; x : t_bits32 };;
 type t5_2' = { y : string; x : t_bits32; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_bits32 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-26:
-1 | type t5_3 = { x : t_bits32 } [@@unboxed];;
-                  ^^^^^^^^^^^^
-Error: Type "t_bits32" has layout "bits32".
-       [@@unboxed] records may not yet contain types of this layout.
+type t5_3 = { x : t_bits32; } [@@unboxed]
 |}];;
 
 
@@ -253,11 +248,7 @@ Error: Expected all flat constructor arguments after non-value argument, "
 
 type t5_6 = A of t_bits32 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-25:
-1 | type t5_6 = A of t_bits32 [@@unboxed];;
-                ^^^^^^^^^^^^^
-Error: Type "t_bits32" has layout "bits32".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_bits32 [@@unboxed]
 |}];;
 
 (****************************************************)
