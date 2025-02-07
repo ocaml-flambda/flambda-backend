@@ -1383,10 +1383,6 @@ module Jkind_desc = struct
        iterating down the list.)
     *)
     (* CR reisenberg: document seen_args *)
-    (* CR layouts v2.8: This would seem to eliminate the possibility of
-       mode-crossing for types like rose trees. There's a good chance
-       normalization will fix this. Once we have normalization, let's try this
-       out. *)
     let module Loop_control = struct
       type t =
         { tuple_fuel : int;
