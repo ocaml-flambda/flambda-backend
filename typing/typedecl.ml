@@ -3737,7 +3737,11 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       begin match Env.find_type path outer_env with
       | { type_unboxed_version = Some decl ; _ } ->
         let man = Ctype.newconstr (Path.unboxed_version path) params in
-        let type_kind = Type_abstract Definition in
+        let type_kind =
+          match sig_decl.type_unboxed_version, arity_ok with
+          | Some { type_kind ; _ }, true -> type_kind
+          | None, _ | _, false -> Type_abstract Definition
+        in
         let type_jkind = decl.type_jkind in
         Some {
           type_params = params;

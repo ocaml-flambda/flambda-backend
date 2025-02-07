@@ -1853,14 +1853,16 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           if params_are_constrained params
           then raise(Error(loc, env, With_cannot_remove_constrained_type));
           let info =
-              let subst =
-                Subst.add_type_function (Pident td.typ_id)
-                  ~params
-                  ~body:(Option.get td.typ_type.type_manifest)
-                  ~has_unboxed_version:(Option.is_some td.typ_type.type_unboxed_version)
-                  Subst.identity
-              in
-              Some (`Substituted_away subst)
+            let has_unboxed_version =
+              Option.is_some td.typ_type.type_unboxed_version in
+            let subst =
+              Subst.add_type_function (Pident td.typ_id)
+                ~params
+                ~body:(Option.get td.typ_type.type_manifest)
+                ~has_unboxed_version
+                Subst.identity
+            in
+            Some (`Substituted_away subst)
           in
           Signature_names.check_type ?info names td.typ_loc td.typ_id
         ) decls;
