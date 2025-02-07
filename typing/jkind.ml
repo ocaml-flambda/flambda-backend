@@ -624,8 +624,14 @@ module Layout_and_axes = struct
     { t with with_bounds = With_bounds.map_type_expr f t.with_bounds }
 
   let equal eq_layout
-      { layout = lay1; mod_bounds = mod_bounds1; with_bounds = _ }
-      { layout = lay2; mod_bounds = mod_bounds2; with_bounds = _ } =
+      { layout = lay1;
+        mod_bounds = mod_bounds1;
+        with_bounds = (No_with_bounds : (allowed * allowed) with_bounds)
+      }
+      { layout = lay2;
+        mod_bounds = mod_bounds2;
+        with_bounds = (No_with_bounds : (allowed * allowed) with_bounds)
+      } =
     eq_layout lay1 lay2 && Mod_bounds.equal mod_bounds1 mod_bounds2
 
   let try_allow_l :
