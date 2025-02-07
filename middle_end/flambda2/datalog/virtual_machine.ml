@@ -76,7 +76,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
           pp_instruction
           (instr1, depth + 1)
       | Seek (var, iterator, instr) ->
-        Format.fprintf ff "%a@[<v 2>@[<hov 2>if %a in %a:@]%a" pp_initiator
+        Format.fprintf ff "%a@[<v 2>@[<hov 2>for _ in {%a} ⨝ %a:@]%a" pp_initiator
           depth Named_ref.pp_name var Iterator.print_name iterator
           pp_instruction
           (instr, depth + 1)
