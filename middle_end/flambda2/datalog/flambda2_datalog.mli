@@ -254,6 +254,8 @@ module Datalog : sig
     (** Cursors yielding values of type ['v Constant.hlist]. *)
     type 'v t = (nil, 'v) with_parameters
 
+    val print : Format.formatter -> ('p, 'v) with_parameters -> unit
+
     (** [Cursor.create vars f] creates a low-level [Cursor.t] from a high-level
         query, expressed as a conjunction of atoms.
 

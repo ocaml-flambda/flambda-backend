@@ -78,6 +78,12 @@ module Make (Iterator : Leapfrog.Iterator) : sig
   *)
   val dispatch : ('a, _ -> 's) instruction
 
+  val seek :
+    'a option Named_ref.t ->
+    'a Iterator.t ->
+    ('b, 's) instruction ->
+    ('b, 's) instruction
+
   (** [up k] moves back to the previous level in the stack, then executes
       [k] at that level. *)
   val up : ('a, 's) instruction -> ('a, _ -> 's) instruction

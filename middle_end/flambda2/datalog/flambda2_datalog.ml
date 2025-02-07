@@ -286,6 +286,8 @@ module Datalog = struct
 
     type 'v t = (nil, 'v) with_parameters
 
+    let print = Cursor.With_parameters.print
+
     let create variables f =
       compile variables @@ fun variables ->
       where (f variables) @@ yield variables

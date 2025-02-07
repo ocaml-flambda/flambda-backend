@@ -35,6 +35,9 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     | Advance : ('a, 's) instruction
     | Up : ('x, 's) instruction -> ('x, 'a -> 's) instruction
     | Dispatch : ('a, 'b -> 's) instruction
+    | Seek :
+        'b option Named_ref.t * 'b Iterator.t * ('a, 's) instruction
+        -> ('a, 's) instruction
     | Open :
         'b Iterator.t
         * 'b option Named_ref.t
@@ -72,6 +75,11 @@ module Make (Iterator : Leapfrog.Iterator) = struct
           depth Named_ref.pp_name var Iterator.print_name iterator
           pp_instruction
           (instr1, depth + 1)
+      | Seek (var, iterator, instr) ->
+        Format.fprintf ff "%a@[<v 2>@[<hov 2>if %a in %a:@]%a" pp_initiator
+          depth Named_ref.pp_name var Iterator.print_name iterator
+          pp_instruction
+          (instr, depth + 1)
       | Dispatch ->
         Format.fprintf ff "%adispatch%a" pp_initiator depth pp_terminators depth
       | Open (iterator, var, instr1, instr2) ->
@@ -90,13 +98,13 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     pp_instruction ff (instr, 0)
 
   let[@inline always] dispatch ~advance (stack : (_ -> _) stack) =
-    let (Stack_cons (iterator, cell, level, stack)) = stack in
+    let (Stack_cons (iterator, cell, level, next_stack)) = stack in
     match Iterator.current iterator with
     | Some current_key ->
       Iterator.accept iterator;
       cell.contents <- Some current_key;
-      level (Stack_cons (iterator, cell, level, stack))
-    | None -> advance stack
+      level stack
+    | None -> advance next_stack
 
   let[@loop] rec advance : type s. s continuation =
    fun stack ->
@@ -119,6 +127,15 @@ module Make (Iterator : Leapfrog.Iterator) = struct
       | Open (iterator, cell, for_each, k) ->
         Iterator.init iterator;
         execute k (Stack_cons (iterator, cell, execute for_each, stack))
+      | Seek (key_ref, iterator, k) -> (
+        let key = Option.get (Named_ref.( ! ) key_ref) in
+        Iterator.init iterator;
+        Iterator.seek iterator key;
+        match Iterator.current iterator with
+        | Some current_key when Iterator.equal_key iterator current_key key ->
+          Iterator.accept iterator;
+          execute k stack
+        | None | Some _ -> advance stack)
       | Dispatch -> dispatch ~advance stack
       | Action (op, k) -> (
         match (evaluate [@inlined hint]) op with
@@ -140,6 +157,8 @@ module Make (Iterator : Leapfrog.Iterator) = struct
   let up i = Up i
 
   let dispatch = Dispatch
+
+  let seek r it k = Seek (r, it, k)
 
   let open_ i cell a dispatch = Open (i, cell, a, dispatch)
 

@@ -15,15 +15,18 @@
 
 open Heterogenous_list
 
-type action =
-  | Bind_iterator : 'a option Named_ref.t * 'a Trie.Iterator.t -> action
+type vm_action =
   | Unless :
       ('t, 'k, 'v) Trie.is_trie * 't Named_ref.t * 'k Option_ref.hlist
-      -> action
+      -> vm_action
+
+type action =
+  | Bind_iterator : 'a option Named_ref.t * 'a Trie.Iterator.t -> action
+  | VM_action : vm_action -> action
 
 let bind_iterator var iterator = Bind_iterator (var, iterator)
 
-let unless id cell args = Unless (Table.Id.is_trie id, cell, args)
+let unless id cell args = VM_action (Unless (Table.Id.is_trie id, cell, args))
 
 type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't Named_ref.t -> binder
 
@@ -34,8 +37,7 @@ let create_actions () = { rev_actions = [] }
 let add_action actions action =
   actions.rev_actions <- action :: actions.rev_actions
 
-let pp_action ff = function
-  | Bind_iterator (x, _it) -> Format.fprintf ff "%a := <it>" Named_ref.pp_name x
+let pp_cursor_action ff = function
   | Unless (_, t, l) ->
     Format.fprintf ff "if %a(%a):@ continue" Named_ref.pp_name t
       Option_ref.pp_name_hlist l
@@ -162,7 +164,7 @@ let initial_actions { actions; _ } = actions
 type 'v t =
   { cursor_binders : binder list;
     cursor_naive_binders : binder list;
-    instruction : (action, nil) VM.instruction;
+    instruction : (vm_action, nil) VM.instruction;
     callback : ('v Constant.hlist -> unit) ref
   }
 
@@ -173,7 +175,7 @@ let print ppf { cursor_binders; instruction; _ } =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space
        (fun ppf (Bind_table (table_id, _)) -> Table.Id.print ppf table_id))
     cursor_binders
-    (VM.pp_instruction pp_action)
+    (VM.pp_instruction pp_cursor_action)
     instruction
 
 let apply_actions actions instruction =
@@ -181,7 +183,11 @@ let apply_actions actions instruction =
      initialize iterators in the correct order. Otherwise, we would miscompile
      [P (x, x, x)] (we would initialize the 3rd argument before the 2nd). *)
   List.fold_left
-    (fun instruction action -> VM.action action instruction)
+    (fun instruction action ->
+      match action with
+      | Bind_iterator (var, iterator) ->
+        VM.seek var (Join_iterator.create [iterator]) instruction
+      | VM_action action -> VM.action action instruction)
     instruction actions.rev_actions
 
 (* NB: the variables must be passed in reverse order, i.e. deepest variable
@@ -189,8 +195,8 @@ let apply_actions actions instruction =
 let rec open_rev_vars :
     type a s.
     (a -> s) Level.hlist ->
-    (action, a -> s) VM.instruction ->
-    (action, nil) VM.instruction =
+    (vm_action, a -> s) VM.instruction ->
+    (vm_action, nil) VM.instruction =
  fun vars instruction ->
   match vars with
   | var :: vars -> (
@@ -226,7 +232,7 @@ let rec open_rev_vars :
 
    NB: the variables must be passed in reverse order, i.e. deepest variable
    first. *)
-let rec pop_rev_vars : type s. s Level.hlist -> (action, s) VM.instruction =
+let rec pop_rev_vars : type s. s Level.hlist -> (vm_action, s) VM.instruction =
   function
   | [] -> VM.advance
   | var :: vars -> (
@@ -277,17 +283,7 @@ let bind_table (Bind_table (id, handler)) database =
 let bind_table_list binders database =
   List.iter (fun binder -> ignore @@ bind_table binder database) binders
 
-let evaluate op =
-  match op with
-  | Bind_iterator (value, it) -> (
-    let value = Option.get value.contents in
-    Trie.Iterator.init it;
-    Trie.Iterator.seek it value;
-    match Trie.Iterator.current it with
-    | Some found when Trie.Iterator.equal_key it found value ->
-      Trie.Iterator.accept it;
-      Virtual_machine.Accept
-    | None | Some _ -> Virtual_machine.Skip)
+let evaluate = function
   | Unless (is_trie, cell, args) ->
     if Option.is_some
          (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
@@ -328,6 +324,8 @@ module With_parameters = struct
     { parameters : 'p Option_ref.hlist;
       cursor : 'v t
     }
+
+  let print ppf { cursor; _ } = print ppf cursor
 
   let without_parameters { parameters = []; cursor } = cursor
 

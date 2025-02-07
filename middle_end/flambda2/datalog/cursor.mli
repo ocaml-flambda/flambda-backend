@@ -19,7 +19,8 @@ type action
 
 val bind_iterator : 'a option Named_ref.t -> 'a Trie.Iterator.t -> action
 
-val unless : ('t, 'k, 'v) Table.Id.t -> 't Named_ref.t -> 'k Option_ref.hlist -> action
+val unless :
+  ('t, 'k, 'v) Table.Id.t -> 't Named_ref.t -> 'k Option_ref.hlist -> action
 
 type actions
 
@@ -96,6 +97,8 @@ val seminaive_run :
 
 module With_parameters : sig
   type ('p, 'v) t
+
+  val print : Format.formatter -> ('p, 'v) t -> unit
 
   val without_parameters : (nil, 'v) t -> 'v cursor
 
