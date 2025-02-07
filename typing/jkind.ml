@@ -1466,8 +1466,14 @@ module Jkind_desc = struct
                 loop ctl_after_unpacking_b bounds_so_far
                   (With_bounds.to_list b_jkind.jkind.with_bounds)
               in
-              (* Use *original* ctl here, so we don't fall over on
-                  a record with 20 lists with different payloads. *)
+              (* CR layouts v2.8: we use [ctl_after_unpacking_b] here, not [ctl], to avoid
+                 big quadratic stack growth for very widely recursive types. This is sad,
+                 since it prevents us from mode crossing a record with 20 lists with
+                 different payloads, but less sad than a stack overflow of the compiler
+                 during type declaration checking.
+
+                 Ideally, this whole problem goes away once we rethink fuel.
+              *)
               let bounds, bs' = loop ctl_after_unpacking_b bounds_so_far bs in
               bounds, With_bounds.join_bounds_maybe_empty nested_with_bounds bs'
             else
