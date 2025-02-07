@@ -47,27 +47,47 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         -> ('a, 's) instruction
 
   let pp_instruction pp_act ff instr =
-    let rec pp_instruction : type s. _ -> (_, s) instruction -> unit =
-     fun ff instr ->
+    let pp_initiator ppf depth =
+      if depth > 0 then Format.pp_print_space ppf ()
+    in
+    let pp_terminator ppf = Format.fprintf ppf "@;<1 -2>}@]" in
+    let rec pp_terminators ppf depth =
+      if depth > 0
+      then (
+        pp_terminator ppf;
+        pp_terminators ppf (depth - 1))
+    in
+    let rec pp_instruction : type s. _ -> (_, s) instruction * int -> unit =
+     fun ff (instr, depth) ->
       match instr with
-      | Advance -> Format.fprintf ff "advance"
-      | Up instr -> Format.fprintf ff "up;@ %a" pp_instruction instr
-      | Dispatch -> Format.fprintf ff "dispatch"
+      | Advance ->
+        (* Default terminator *)
+        pp_terminators ff depth
+      | Up instr ->
+        Format.fprintf ff "%abreak;%t%a" pp_initiator depth pp_terminator
+          pp_instruction
+          (instr, depth - 1)
+      | Open (iterator, var, instr1, Dispatch) ->
+        Format.fprintf ff "%a@[<v 2>@[<hov 2>for (%a : %a)@] {%a" pp_initiator
+          depth Named_ref.pp_name var Iterator.print_name iterator
+          pp_instruction
+          (instr1, depth + 1)
+      | Dispatch ->
+        Format.fprintf ff "%adispatch%a" pp_initiator depth pp_terminators depth
       | Open (iterator, var, instr1, instr2) ->
         Format.fprintf ff
-          "@[<v 2>@[<hov 2>open (%a : %a) [@;\
-           <1 0>%a@;\
-           <1 -2>]@] {@;\
-           <1 0>%a@;\
-           <1 -2>}@]" Named_ref.pp_name var Iterator.print_name iterator
-          pp_instruction instr2 pp_instruction instr1
+          "%a@[<v 2>@[<hov 2>open (%a : %a) [@;<1 0>%a@;<1 -2>]@] {%a"
+          pp_initiator depth Named_ref.pp_name var Iterator.print_name iterator
+          pp_instruction (instr2, 0) pp_instruction
+          (instr1, depth + 1)
       | Action (a, instr) ->
-        Format.fprintf ff "%a;@ %a" pp_act a pp_instruction instr
+        Format.fprintf ff "%a@[<v 2>%a;@]%a" pp_initiator depth pp_act a
+          pp_instruction (instr, depth)
       | Call (_f, l, instr) ->
-        Format.fprintf ff "<call> (%a);@ %a" Option_ref.pp_name_hlist l
-          pp_instruction instr
+        Format.fprintf ff "%a<call> (%a);%a" pp_initiator depth
+          Option_ref.pp_name_hlist l pp_instruction (instr, depth)
     in
-    pp_instruction ff instr
+    pp_instruction ff (instr, 0)
 
   let[@inline always] dispatch ~advance (stack : (_ -> _) stack) =
     let (Stack_cons (iterator, cell, level, stack)) = stack in

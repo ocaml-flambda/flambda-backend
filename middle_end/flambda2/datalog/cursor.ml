@@ -17,7 +17,9 @@ open Heterogenous_list
 
 type action =
   | Bind_iterator : 'a option Named_ref.t * 'a Trie.Iterator.t -> action
-  | Unless : ('t, 'k, 'v) Trie.is_trie * 't Named_ref.t * 'k Option_ref.hlist -> action
+  | Unless :
+      ('t, 'k, 'v) Trie.is_trie * 't Named_ref.t * 'k Option_ref.hlist
+      -> action
 
 let bind_iterator var iterator = Bind_iterator (var, iterator)
 
@@ -34,7 +36,9 @@ let add_action actions action =
 
 let pp_action ff = function
   | Bind_iterator (x, _it) -> Format.fprintf ff "%a := <it>" Named_ref.pp_name x
-  | Unless (_, t, l) -> Format.fprintf ff "advance_if (%a(%a))" Named_ref.pp_name t Option_ref.pp_name_hlist l
+  | Unless (_, t, l) ->
+    Format.fprintf ff "if (%a(%a))@ continue" Named_ref.pp_name t
+      Option_ref.pp_name_hlist l
 
 module Order : sig
   type t
@@ -76,7 +80,9 @@ module Level = struct
   let use_output level =
     match level.output with
     | None ->
-      let output : _ Named_ref.t = { contents = None; printed_name = level.name } in
+      let output : _ Named_ref.t =
+        { contents = None; printed_name = level.name }
+      in
       level.output <- Some output;
       output
     | Some output -> output
@@ -143,7 +149,11 @@ let add_iterator context id =
   iterators
 
 let add_naive_binder context id =
-  let handler : _ Named_ref.t = { contents = (Trie.empty (Table.Id.is_trie id)) ; printed_name = Table.Id.name id } in
+  let handler : _ Named_ref.t =
+    { contents = Trie.empty (Table.Id.is_trie id);
+      printed_name = Table.Id.name id
+    }
+  in
   add_binder context.naive_binders (Bind_table (id, handler));
   handler
 
@@ -163,7 +173,8 @@ let print ppf { cursor_binders; instruction; _ } =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space
        (fun ppf (Bind_table (table_id, _)) -> Table.Id.print ppf table_id))
     cursor_binders
-    (VM.pp_instruction pp_action) instruction
+    (VM.pp_instruction pp_action)
+    instruction
 
 let apply_actions actions instruction =
   (* Note: we must preserve the order of [Bind_iterator] actions in order to
@@ -195,7 +206,9 @@ let rec open_rev_vars :
       let cell : _ Named_ref.t =
         (* If we do not need the output (we usually do), write it to a dummy
            [ref] for simplicity. *)
-        match var.output with Some output -> output | None -> { contents = None; printed_name = var.name }
+        match var.output with
+        | Some output -> output
+        | None -> { contents = None; printed_name = "_" }
       in
       match vars with
       | [] ->
@@ -276,7 +289,8 @@ let evaluate op =
       Virtual_machine.Accept
     | None | Some _ -> Virtual_machine.Skip)
   | Unless (is_trie, cell, args) ->
-    if Option.is_some (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
+    if Option.is_some
+         (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
     then Virtual_machine.Skip
     else Virtual_machine.Accept
 
