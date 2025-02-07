@@ -1373,13 +1373,25 @@ module Address_sanitizer : sig
 end = struct
   type memory_access = Load | Store
 
-  let memory_chunk_size_log2 = function
-    | Byte_unsigned | Byte_signed -> 0
-    | Sixteen_unsigned | Sixteen_signed -> 1
-    | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 2
-    | Word_int | Word_val | Double -> 3
-    | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 4
-  ;;
+  module Memory_chunk_size = struct
+    type t =
+      | I8
+      | I16
+      | I32
+      | I64
+      | I128
+
+    let of_memory_chunk = function
+      | Byte_unsigned | Byte_signed -> I8
+      | Sixteen_unsigned | Sixteen_signed -> I16
+      | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> I32
+      | Word_int | Word_val | Double -> I64
+      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> I128
+    ;;
+
+    external to_bytes_log2 : t -> int = "%identity"
+    let to_bytes t = 1 lsl (to_bytes_log2 t)
+  end
 
   let mov_address src dest =
     match src with
@@ -1388,10 +1400,10 @@ end = struct
     | _ -> I.lea src dest
   ;;
 
-  let report_asan_error memory_access log2_size address =
+  let report_asan_error memory_access memory_chunk_size address =
     let asan_report_function =
       let index =
-        (log2_size lsl 1) + match memory_access with Load -> 0 | Store -> 1
+        ((Memory_chunk_size.to_bytes_log2 memory_chunk_size) lsl 1) + match memory_access with Load -> 0 | Store -> 1
       in
       (* We take extra care to structure our code such that these are statically
          allocated as manifest constants in a flat array. *)
@@ -1444,39 +1456,47 @@ end = struct
     );
     assert (!stack_offset mod 16 = 0);
     let asan_check_succeded_label = new_label () in
-    let log2_size = memory_chunk_size_log2 memory_chunk in
+    let memory_chunk_size = Memory_chunk_size.of_memory_chunk memory_chunk in
     mov_address address r11;
     (* These constants come from
        [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
     I.shr (int 3) r11;
     let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
-    if log2_size >= 3
-    then (
-      I.cmp (int 0) shadow_address;
-      I.je (label asan_check_succeded_label);
-      (* There is no slow-path check for word-sized and larger accesses *)
-      (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-      report_asan_error memory_access log2_size address
-    ) else (
-      I.movzx shadow_address r11;
-      I.test (Reg8L R11) (Reg8L R11);
-      I.je (label asan_check_succeded_label);
-      (* Begin the [SlowPathCheck]. Place [last_accessed_byte] in [r10].
-         ```
-         last_accessed_byte = (address & 7) + kAccessSize - 1;
-         ```
-      *)
-      mov_address address r10;
-      I.and_ (int 7) r10;
-      if log2_size <> 0 then (
-        I.add (int ((1 lsl log2_size) - 1)) r10
+    let () =
+      match memory_chunk_size with
+      | I64 | I128 -> (
+        I.cmp (int 0) shadow_address;
+        I.je (label asan_check_succeded_label);
+        (* There is no slow-path check for word-sized and larger accesses *)
+        (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
+        report_asan_error memory_access memory_chunk_size address
+      )
+      | I8 | I16 | I32 -> (
+        I.movzx shadow_address r11;
+        I.test (Reg8L R11) (Reg8L R11);
+        I.je (label asan_check_succeded_label);
+        (* Begin the [SlowPathCheck]. Place [last_accessed_byte] in [r10].
+           ```
+           last_accessed_byte = (address & 7) + kAccessSize - 1;
+           ```
+        *)
+        mov_address address r10;
+        I.and_ (int 7) r10;
+        let () =
+          match memory_chunk_size with
+          | I8 -> ()
+          | I16 -> I.inc r10
+          | I32 | I64 | I128 ->
+            let offset = (Memory_chunk_size.to_bytes memory_chunk_size) - 1 in
+            I.add (int offset) r10
+        in
+        (* [ return (last_accessed_byte >= shadow_value) ] *)
+        I.cmp (Reg8L R11) (Reg8L R10);
+        I.jl (label asan_check_succeded_label);
+        (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
+        report_asan_error memory_access memory_chunk_size address
       );
-      (* [ return (last_accessed_byte >= shadow_value) ] *)
-      I.cmp (Reg8L R11) (Reg8L R10);
-      I.jl (label asan_check_succeded_label);
-      (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-      report_asan_error memory_access log2_size address
-    );
+    in
     def_label asan_check_succeded_label;
     if need_to_save_registers
     then (
