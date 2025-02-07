@@ -1381,6 +1381,13 @@ end = struct
     | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 4
   ;;
 
+  let mov_address src dest =
+    match src with
+    | Mem { scale = 1; base = None; sym = None; displ = 0; idx; arch = _; typ = _ }
+        -> I.mov (Reg64 idx) dest
+    | _ -> I.lea src dest
+  ;;
+
   let report_asan_error memory_access log2_size address =
     let asan_report_function =
       let index =
@@ -1404,7 +1411,7 @@ end = struct
            [__asan_report_load_n_noabort], but we don't support this yet. *)
         assert false
     in
-    I.lea address rdi;
+    mov_address address rdi;
     I.call asan_report_function
   ;;
 
@@ -1444,7 +1451,7 @@ end = struct
        ```
     *)
     let () =
-      I.lea address r11;
+      mov_address address r11;
       (* These constants come from
          [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
       I.shr (int 3) r11;
@@ -1481,7 +1488,7 @@ end = struct
            ```
         *)
         let () =
-          I.lea address r10;
+          mov_address address r10;
           I.and_ (int 7) r10;
           if log2_size <> 0 then I.add (int ((1 lsl log2_size) - 1)) r10
         in
