@@ -206,14 +206,9 @@ type t5_1 = { x : t_float64 };;
 type t5_1 = { x : t_float64; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_float64 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-27:
-1 | type t5_3 = { x : t_float64 } [@@unboxed];;
-                  ^^^^^^^^^^^^^
-Error: Type "t_float64" has layout "float64".
-       [@@unboxed] records may not yet contain types of this layout.
+type t5_3 = { x : t_float64; } [@@unboxed]
 |}];;
 
 (* all-float64 constructor args are also allowed, as are some constructors that
@@ -232,20 +227,12 @@ type t5_5 = A of int * t_float64
 
 type t5_6 = A of t_float64 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-26:
-1 | type t5_6 = A of t_float64 [@@unboxed];;
-                ^^^^^^^^^^^^^^
-Error: Type "t_float64" has layout "float64".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_float64 [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_float64 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-34:
-1 | type t5_6_1 = A of { x : t_float64 } [@@unboxed];;
-                         ^^^^^^^^^^^^^
-Error: Type "t_float64" has layout "float64".
-       [@@unboxed] inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_float64; } [@@unboxed]
 |}];;
 
 type ('a : float64) t5_7 = A of int
