@@ -24,7 +24,7 @@ let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 let vectorize = ref true                 (* -[no-]vectorize *)
 let dump_vectorize = ref false          (* -dvectorize *)
 
-let default_vectorize_max_block_size = 100
+let default_vectorize_max_block_size = 1000
 let vectorize_max_block_size =
   ref default_vectorize_max_block_size (* -vectorize-max-block-size *)
 
