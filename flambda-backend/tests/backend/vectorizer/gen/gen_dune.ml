@@ -176,3 +176,14 @@ let () =
   (* can't vectorize *)
   print_test ~filter_exit_code:1 "test_register_compatible";
   ()
+
+let () =
+  (* test that vectorizer is disabled in classic mode *)
+  let enabled_if = enabled_if_main in
+  let name = "test1" in
+  let name' = name ^ "_classic" in
+  copy_file ~enabled_if (name |> impl) (name' |> impl);
+  copy_file ~enabled_if (name |> intf) (name' |> intf);
+  compile ~enabled_if ~extra_flags:"-Oclassic -vectorize" name';
+  filter_dump ~enabled_if ~exit_code:1 name';
+  ()
