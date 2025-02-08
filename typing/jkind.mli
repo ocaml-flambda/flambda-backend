@@ -63,7 +63,8 @@ end
 module Sort : sig
   include
     Jkind_intf.Sort
-      with type base = Jkind_types.Sort.base
+      with type t = Jkind_types.Sort.t
+       and type base = Jkind_types.Sort.base
        and type Const.t = Jkind_types.Sort.Const.t
 
   module Flat : sig
@@ -95,6 +96,8 @@ module Layout : sig
   end
 
   val of_const : Const.t -> Sort.t t
+
+  val sub : Sort.t t -> Sort.t t -> Misc.Le_result.t
 end
 
 (** A Jkind.t is a full description of the runtime representation of values
