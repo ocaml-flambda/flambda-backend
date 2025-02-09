@@ -418,29 +418,13 @@ let set_private_row env loc p decl =
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-let check_representable ~why ~allow_unboxed env loc kloc typ =
+let check_representable ~why env loc kloc typ =
   match Ctype.type_sort ~why ~fixed:false env typ with
-  (* CR layouts v5: This is a convenient place to rule out non-value types in
-      structures that don't support them yet. (A callsite passes
-      [~allow_unboxed:true] to indicate that non-value types are allowed.)
-      When we support mixed blocks everywhere, this [check_representable]
-      will have outlived its usefulness and we can delete it.
-  *)
-  (* CR layouts v2.5: This rules out non-value types in [@@unboxed] types. No
-      real need to rule that out - I just haven't had time to write tests for it
-      yet. *)
-  | Ok s -> begin
-    if not allow_unboxed then
-      match Jkind.Sort.default_to_value_and_get s with
-      | Base (Void | Value) -> ()
-      | Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128)
-      | Product _ as const ->
-        raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
-    end
+  | Ok _ -> ()
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
 let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
-      ~allow_unboxed env univars closed lbls kloc =
+      env univars closed lbls kloc =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
   List.iter
@@ -481,7 +465,7 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
          let ty = ld.ld_type.ctyp_type in
          let ty = match get_desc ty with Tpoly(t,[]) -> t | _ -> ty in
          check_representable ~why:(Label_declaration ld.ld_id)
-          ~allow_unboxed env ld.ld_loc kloc ty;
+           env ld.ld_loc kloc ty;
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_modalities = ld.ld_modalities;
@@ -496,8 +480,7 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
       lbls in
   lbls, lbls'
 
-let transl_types_gf ~new_var_jkind ~allow_unboxed
-  env loc univars closed cal kloc =
+let transl_types_gf ~new_var_jkind env loc univars closed cal kloc =
   let mk arg =
     let cty =
       transl_simple_type ~new_var_jkind env ?univars ~closed
@@ -511,7 +494,7 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
   in
   let tyl_gfl = List.map mk cal in
   let tyl_gfl' = List.mapi (fun idx (ca : Typedtree.constructor_argument) ->
-    check_representable ~why:(Constructor_declaration idx) ~allow_unboxed
+    check_representable ~why:(Constructor_declaration idx)
       env loc kloc ca.ca_type.ctyp_type;
     {
       Types.ca_modalities = ca.ca_modalities;
@@ -527,19 +510,14 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
   env loc univars closed = function
   | Pcstr_tuple l ->
       let flds, flds' =
-        (* CR layouts: we forbid [@@unboxed] variants from being
-           non-value, see comment in [check_representable]. *)
-        transl_types_gf ~new_var_jkind ~allow_unboxed:(not unboxed)
+        transl_types_gf ~new_var_jkind
           env loc univars closed l (Cstr_tuple { unboxed })
       in
       Types.Cstr_tuple flds', Cstr_tuple flds
   | Pcstr_record l ->
       let lbls, lbls' =
-        (* CR layouts: we forbid [@@unboxed] variants from being
-           non-value, see comment in [check_representable]. *)
         transl_labels ~record_form:Legacy ~new_var_jkind
-          ~allow_unboxed:(not unboxed) env univars closed l
-          (Inlined_record { unboxed })
+          env univars closed l (Inlined_record { unboxed })
       in
       Types.Cstr_record lbls',
       Cstr_record lbls
@@ -913,11 +891,8 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_variant tcstrs, Type_variant (cstrs, rep, None), jkind
       | Ptype_record lbls ->
           let lbls, lbls' =
-            (* CR layouts: we forbid [@@unboxed] records from being
-               non-value, see comment in [check_representable]. *)
             transl_labels ~record_form:Legacy ~new_var_jkind:Any
-              ~allow_unboxed:(not unbox) env None true lbls
-              (Record { unboxed = unbox })
+              env None true lbls (Record { unboxed = unbox })
           in
           let rep, jkind =
             if unbox then
@@ -937,7 +912,7 @@ let transl_declaration env sdecl (id, uid) =
             Language_extension.Stable;
           let lbls, lbls' =
             transl_labels ~record_form:Unboxed_product ~new_var_jkind:Any
-              ~allow_unboxed:true env None true lbls Record_unboxed_product
+              env None true lbls Record_unboxed_product
           in
           (* The jkinds below, and the ones in [lbls], are dummy jkinds which
              are replaced and made to correspond to each other in

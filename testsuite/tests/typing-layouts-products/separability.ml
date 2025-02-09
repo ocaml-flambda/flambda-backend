@@ -81,11 +81,17 @@ and bad = F : 'a r -> bad [@@unboxed]
 Line 2, characters 0-35:
 2 | and 'a r = #{ a : 'a ; v : t_void }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a r is any & any
-         because it is an unboxed record.
-       But the layout of 'a r must be a sublayout of value
-         because it's the type of a constructor field.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a r is any & any
+           because it is an unboxed record.
+         But the layout of 'a r must be representable
+           because it's the type of a constructor field.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
 
 type t_void : void
@@ -95,9 +101,45 @@ and bad = F : { x : 'a r } -> bad [@@unboxed]
 Line 2, characters 0-35:
 2 | and 'a r = #{ a : 'a ; v : t_void }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a r is any & any
-         because it is an unboxed record.
-       But the layout of 'a r must be a sublayout of value
-         because it is the type of record field x.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a r/2 is any & any
+           because it is an unboxed record.
+         But the layout of 'a r/2 must be representable
+           because it is the type of record field x.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+type t_void : void
+and ('a : value) r = #{ a : 'a ; v : t_void }
+and bad = F : 'a r -> bad [@@unboxed]
+[%%expect{|
+Line 2, characters 0-45:
+2 | and ('a : value) r = #{ a : 'a ; v : t_void }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a r/3 is any & any
+           because it is an unboxed record.
+         But the layout of 'a r/3 must be a sublayout of value & void
+           because it's the type of a constructor field.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+(* CR layouts v12: Double-check this is safe when we add [void]. *)
+type t_void : void
+and 'a r : value & any = #{ a : 'a ; v : t_void }
+and bad = F : { x : 'a r } -> bad [@@unboxed]
+[%%expect{|
+type t_void : void
+and 'a r = #{ a : 'a; v : t_void; }
+and bad = F : { x : 'a r; } -> bad [@@unboxed]
 |}]
