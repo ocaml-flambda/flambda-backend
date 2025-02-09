@@ -1,12 +1,12 @@
 (* TEST
- reference = "${test_source_directory}/unboxed_gadts.reference";
+ reference = "${test_source_directory}/atat_unboxed_gadts.reference";
  include stdlib_upstream_compatible;
  flambda2;
  {
    ocamlc_byte_exit_status = "2";
    setup-ocamlc.byte-build-env;
    flags = "-extension-universe no_extensions";
-   compiler_reference = "${test_source_directory}/unboxed_gadts_disabled.compilers.reference";
+   compiler_reference = "${test_source_directory}/atat_unboxed_gadts_disabled.compilers.reference";
    ocamlc.byte;
    check-ocamlc.byte-output;
  } {

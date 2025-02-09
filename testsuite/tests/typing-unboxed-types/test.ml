@@ -647,6 +647,7 @@ module Result_u_VV :
 (*******************************************************************)
 (* Cases where GADT type equalities imply that kinds doesn't match *)
 
+(* 'c cannot be both [value & value] and [float64] *)
 type ('a : value & value, 'b : float64, 'c : float64) tag =
   | Ok : ('a, 'b, 'a) tag
   | Error : ('a, 'b, 'b) tag
@@ -662,6 +663,7 @@ Error: This type "('a : value & value)" should be an instance of type
          because of the annotation on 'c in the declaration of the type tag.
 |}]
 
+(* 'c defaults to [value], 'a and 'b require that it's [value & value] *)
 type ('a : value & value, 'b : value & value, 'c) tag =
   | Ok : ('a, 'b, 'a) tag
   | Error : ('a, 'b, 'b) tag
@@ -681,4 +683,14 @@ Error: Layout mismatch in final type declaration consistency check.
            because of the annotation on 'a in the declaration of the type tag.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
+|}]
+
+(* Good case, where kinds line up *)
+type ('a : value & value, 'b : value & value, 'c : value & value) tag =
+  | Ok : ('a, 'b, 'a) tag
+  | Error : ('a, 'b, 'b) tag
+[%%expect{|
+type ('a : value & value, 'b : value & value, 'c : value & value) tag =
+    Ok : ('a : value & value) ('b : value & value). ('a, 'b, 'a) tag
+  | Error : ('a : value & value) ('b : value & value). ('a, 'b, 'b) tag
 |}]
