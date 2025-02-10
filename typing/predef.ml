@@ -218,7 +218,12 @@ let option_argument_sort = Jkind.Sort.Const.value
 let option_argument_jkind = Jkind.Builtin.value ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
-let list_jkind = Jkind.Builtin.value ~why:Boxed_variant
+(* CR layouts v2.8: Simplify this once we have a real subsumption check. *)
+let list_jkind param =
+  Jkind.add_baggage ~baggage:param
+    (Jkind.add_baggage ~baggage:(type_list param)
+       (Jkind.Builtin.immutable_data ~why:Boxed_variant))
+
 let list_sort = Jkind.Sort.Const.value
 let list_argument_sort = Jkind.Sort.Const.value
 let list_argument_jkind = Jkind.Builtin.value ~why:(
@@ -226,37 +231,40 @@ let list_argument_jkind = Jkind.Builtin.value ~why:(
 
 let or_null_argument_sort = Jkind.Sort.Const.value
 
-let mk_add_type add_type
+let mk_add_type add_type =
+  let add_type_with_jkind
       ?manifest type_ident
       ?(kind=Type_abstract Definition)
-      ?jkind
+      ~jkind
       env =
-  let type_jkind = match jkind with
-    | None -> Jkind.Builtin.value ~why:(Primitive type_ident)
-    | Some k -> Jkind.of_builtin ~why:(Primitive type_ident) k
+    let decl =
+      {type_params = [];
+       type_arity = 0;
+       type_kind = kind;
+       type_jkind = jkind;
+       type_loc = Location.none;
+       type_private = Asttypes.Public;
+       type_manifest = manifest;
+       type_variance = [];
+       type_separability = [];
+       type_is_newtype = false;
+       type_expansion_scope = lowest_level;
+       type_attributes = [];
+       type_unboxed_default = false;
+       type_uid = Uid.of_predef_id type_ident;
+      }
+    in
+    add_type type_ident decl env
   in
-  let decl =
-    {type_params = [];
-     type_arity = 0;
-     type_kind = kind;
-     type_jkind;
-     type_loc = Location.none;
-     type_private = Asttypes.Public;
-     type_manifest = manifest;
-     type_variance = [];
-     type_separability = [];
-     type_is_newtype = false;
-     type_expansion_scope = lowest_level;
-     type_attributes = [];
-     type_unboxed_default = false;
-     type_uid = Uid.of_predef_id type_ident;
-    }
+  let add_type ?manifest type_ident ?kind ~jkind env =
+    let jkind = Jkind.of_builtin ~why:(Primitive type_ident) jkind in
+    add_type_with_jkind ?manifest type_ident ?kind ~jkind env
   in
-  add_type type_ident decl env
+  add_type_with_jkind, add_type
 
 let mk_add_type1 add_type type_ident
       ?(kind=fun _ -> Type_abstract Definition)
-      ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
+      ~jkind
       ?(param_jkind=Jkind.Builtin.value ~why:(
         Type_argument {
           parent_path = Path.Pident type_ident;
@@ -269,7 +277,7 @@ let mk_add_type1 add_type type_ident
     {type_params = [param];
       type_arity = 1;
       type_kind = kind param;
-      type_jkind = jkind;
+      type_jkind = jkind param;
       type_loc = Location.none;
       type_private = Asttypes.Public;
       type_manifest = None;
@@ -343,7 +351,7 @@ let unrestricted tvar ca_sort =
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
 let build_initial_env add_type add_extension empty_env =
-  let add_type = mk_add_type add_type
+  let add_type_with_jkind, add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
   and add_extension = mk_add_extension add_extension in
   empty_env
@@ -353,17 +361,23 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
+       ~jkind:(fun param ->
+         Jkind.add_baggage ~baggage:param
+           (Jkind.Builtin.mutable_data ~why:(Primitive ident_array)))
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
+       ~jkind:(fun param ->
+         Jkind.add_baggage ~baggage:param
+           (Jkind.Builtin.immutable_data ~why:(Primitive ident_iarray)))
   |> add_type ident_bool
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.value
-  |> add_type ident_extension_constructor
+  |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.value
   |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
@@ -372,6 +386,12 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
+       (* CR layouts v2.8: Can [lazy_t] mode-cross at all? According to Zesen:
+          It can at least cross locality, because it's always heap-allocated.
+          It might also cross portability, linearity, uniqueness subject to its
+          parameter. But I'm also fine not doing that for now (and wait until
+          users complains).  *)
+       ~jkind:(fun _ -> Jkind.Builtin.value ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -388,8 +408,10 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(fun tvar ->
          variant [cstr ident_none [];
                   cstr ident_some [unrestricted tvar option_argument_sort]])
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
-  |> add_type ident_lexing_position
+       ~jkind:(fun param ->
+         Jkind.add_baggage ~baggage:param
+           (Jkind.Builtin.immutable_data ~why:Boxed_variant))
+  |> add_type_with_jkind ident_lexing_position
        ~kind:(
          let lbl (field, field_type) =
            let id = Ident.create_predef field in
@@ -416,7 +438,15 @@ let build_initial_env add_type add_extension empty_env =
            None
          )
        )
-       ~jkind:Jkind.Const.Builtin.immutable_data
+       (* CR layouts v2.8: Possibly remove this -- and simplify [mk_add_type] --
+          when we have a better jkind subsumption check. *)
+       ~jkind:Jkind.(
+         of_builtin Const.Builtin.immutable_data
+           ~why:(Primitive ident_lexing_position) |>
+         add_baggage ~baggage:type_int |>
+         add_baggage ~baggage:type_int |>
+         add_baggage ~baggage:type_int |>
+         add_baggage ~baggage:type_string)
   |> add_type ident_string ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_float ~jkind:Jkind.Const.Builtin.float64
   |> add_type ident_unboxed_nativeint ~jkind:Jkind.Const.Builtin.word
@@ -450,7 +480,7 @@ let build_initial_env add_type add_extension empty_env =
        Jkind.Sort.Const.value]
 
 let add_simd_stable_extension_types add_type env =
-  let add_type = mk_add_type add_type in
+  let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_int8x16 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_int16x8 ~jkind:Jkind.Const.Builtin.immutable_data
@@ -466,13 +496,13 @@ let add_simd_stable_extension_types add_type env =
   |> add_type ident_unboxed_float64x2 ~jkind:Jkind.Const.Builtin.vec128
 
 let add_small_number_extension_types add_type env =
-  let add_type = mk_add_type add_type in
+  let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_float32 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_float32 ~jkind:Jkind.Const.Builtin.float32
 
 let add_small_number_beta_extension_types add_type env =
-  let add_type = mk_add_type add_type in
+  let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_int8 ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
@@ -497,8 +527,9 @@ let add_or_null add_type env =
      For now, we mark the type argument as [Separability.Ind] to permit
      the most argument types, and forbid arrays from accepting [or_null]s.
      In the future, we will track separability in the jkind system. *)
+  (* CR layouts v2.8: Add baggage and more mode crossing here. *)
   ~kind:or_null_kind
-  ~jkind:(Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null))
+  ~jkind:(fun _ -> Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null))
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

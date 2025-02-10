@@ -12,29 +12,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** The common interface for jkind axes *)
-module type Axis_s = sig
-  type t
-
-  val max : t
-
-  val min : t
-
-  val equal : t -> t -> bool
+(** Re-export *)
+module type Axis_ops = sig
+  include Mode_intf.Lattice
 
   val less_or_equal : t -> t -> Misc.Le_result.t
 
-  val le : t -> t -> bool
-
-  val meet : t -> t -> t
-
-  val join : t -> t -> t
-
-  val print : Format.formatter -> t -> unit
+  val equal : t -> t -> bool
 end
-
-(** Adapt a [Lattice] to be an [Axis_s] *)
-module Of_lattice (L : Mode_intf.Lattice) : Axis_s with type t = L.t
 
 (** The jkind axis of Externality *)
 module Externality : sig
@@ -43,7 +28,7 @@ module Externality : sig
     | External64
     | Internal
 
-  include Axis_s with type t := t
+  include Axis_ops with type t := t
 end
 
 (** The jkind axis of nullability *)
@@ -52,7 +37,7 @@ module Nullability : sig
     | Non_null
     | Maybe_null
 
-  include Axis_s with type t := t
+  include Axis_ops with type t := t
 end
 
 module Axis : sig
@@ -83,36 +68,152 @@ module Axis : sig
   (* CR zqian: push ['a t] into the module to avoid first-class module. *)
 
   (** Given a jkind axis, get its interface *)
-  val get : 'a t -> (module Axis_s with type t = 'a)
+  val get : 'a t -> (module Axis_ops with type t = 'a)
 
   val all : packed list
 
   val name : _ t -> string
+
+  (** Is this a modal axis? Includes externality, because that will one
+      day be modal (it is a deep property). *)
+  val is_modal : _ t -> bool
+end
+
+(** [Axed] describes a type that is parameterized by axis. *)
+module type Axed = sig
+  type (+'type_expr, 'd, 'axis) t constraint 'd = 'l * 'r
 end
 
 (** A collection with one item for each jkind axis.
-    [T] parametizes what element is being held for each axis. *)
-module Axis_collection (T : Misc.T1) : sig
-  type t =
-    { locality : Mode.Locality.Const.t T.t;
-      linearity : Mode.Linearity.Const.t T.t;
-      uniqueness : Mode.Uniqueness.Const.t T.t;
-      portability : Mode.Portability.Const.t T.t;
-      contention : Mode.Contention.Const.t T.t;
-      yielding : Mode.Yielding.Const.t T.t;
-      externality : Externality.t T.t;
-      nullability : Nullability.t T.t
+    [T] parametrizes what element is being held for each axis. *)
+module Axis_collection (T : Axed) : sig
+  (** [t] is parameterized over 'type_expr to enable usages in
+        [jkind_types.mli].  It is tempting to make those usages instead push the
+        [`type_expr] into the functor arg [T], but this leads to issues at
+        usages of [Jkind.t] in [types.mli] due to recursive definitions. *)
+  type (+'type_expr, 'd) t =
+    { locality : ('type_expr, 'd, Mode.Locality.Const.t) T.t;
+      linearity : ('type_expr, 'd, Mode.Linearity.Const.t) T.t;
+      uniqueness : ('type_expr, 'd, Mode.Uniqueness.Const.t) T.t;
+      portability : ('type_expr, 'd, Mode.Portability.Const.t) T.t;
+      contention : ('type_expr, 'd, Mode.Contention.Const.t) T.t;
+      yielding : ('type_expr, 'd, Mode.Yielding.Const.t) T.t;
+      externality : ('type_expr, 'd, Externality.t) T.t;
+      nullability : ('type_expr, 'd, Nullability.t) T.t
     }
 
-  val get : axis:'a Axis.t -> t -> 'a T.t
+  val get : axis:'a Axis.t -> ('type_expr, 'd) t -> ('type_expr, 'd, 'a) T.t
 
-  val set : axis:'a Axis.t -> t -> 'a T.t -> t
-
-  module Create_f : sig
-    (** This record type is used to pass a polymorphic function to [create] *)
-    type t = { f : 'a. axis:'a Axis.t -> 'a T.t }
-  end
+  val set :
+    axis:'a Axis.t ->
+    ('type_expr, 'd) t ->
+    ('type_expr, 'd, 'a) T.t ->
+    ('type_expr, 'd) t
 
   (** Create an axis collection by applying the function on each axis *)
-  val create : Create_f.t -> t
+  module Create : sig
+    module Monadic (M : Misc.Stdlib.Monad.S) : sig
+      type ('type_expr, 'd) f =
+        { f : 'axis. axis:'axis Axis.t -> ('type_expr, 'd, 'axis) T.t M.t }
+      [@@unboxed]
+
+      val f : ('type_expr, 'd) f -> ('type_expr, 'd) t M.t
+    end
+
+    (** This record type is used to pass a polymorphic function to [create] *)
+    type ('type_expr, 'd) f =
+      ('type_expr, 'd) Monadic(Misc.Stdlib.Monad.Identity).f
+
+    val f : ('type_expr, 'd) f -> ('type_expr, 'd) t
+  end
+
+  (** Map an operation over all the bounds *)
+  module Map : sig
+    module Monadic (M : Misc.Stdlib.Monad.S) : sig
+      type ('type_expr, 'd1, 'd2) f =
+        { f :
+            'axis.
+            axis:'axis Axis.t ->
+            ('type_expr, 'd1, 'axis) T.t ->
+            ('type_expr, 'd2, 'axis) T.t M.t
+        }
+      [@@unboxed]
+
+      val f :
+        ('type_expr, 'd1, 'd2) f ->
+        ('type_expr, 'd1) t ->
+        ('type_expr, 'd2) t M.t
+    end
+
+    type ('type_expr, 'd1, 'd2) f =
+      ('type_expr, 'd1, 'd2) Monadic(Misc.Stdlib.Monad.Identity).f
+
+    val f :
+      ('type_expr, 'd1, 'd2) f -> ('type_expr, 'd1) t -> ('type_expr, 'd2) t
+  end
+
+  (** Map an operation over two sets of bounds *)
+  module Map2 : sig
+    module Monadic (M : Misc.Stdlib.Monad.S) : sig
+      type ('type_expr, 'd1, 'd2, 'd3) f =
+        { f :
+            'axis.
+            axis:'axis Axis.t ->
+            ('type_expr, 'd1, 'axis) T.t ->
+            ('type_expr, 'd2, 'axis) T.t ->
+            ('type_expr, 'd3, 'axis) T.t M.t
+        }
+      [@@unboxed]
+
+      val f :
+        ('type_expr, 'd1, 'd2, 'd3) f ->
+        ('type_expr, 'd1) t ->
+        ('type_expr, 'd2) t ->
+        ('type_expr, 'd3) t M.t
+    end
+
+    type ('type_expr, 'd1, 'd2, 'd3) f =
+      ('type_expr, 'd1, 'd2, 'd3) Monadic(Misc.Stdlib.Monad.Identity).f
+
+    val f :
+      ('type_expr, 'd1, 'd2, 'd3) f ->
+      ('type_expr, 'd1) t ->
+      ('type_expr, 'd2) t ->
+      ('type_expr, 'd3) t
+  end
+
+  (** Fold an operation over the bounds to a summary value *)
+  module Fold : sig
+    type ('type_expr, 'd, 'r) f =
+      { f : 'axis. axis:'axis Axis.t -> ('type_expr, 'd, 'axis) T.t -> 'r }
+    [@@unboxed]
+
+    (** [combine] should be associative. *)
+    val f :
+      ('type_expr, 'd, 'r) f ->
+      ('type_expr, 'd) t ->
+      combine:('r -> 'r -> 'r) ->
+      'r
+  end
+
+  (** Fold an operation over two sets of bounds to a summary value *)
+  module Fold2 : sig
+    type ('type_expr, 'd1, 'd2, 'r) f =
+      { f :
+          'axis.
+          axis:'axis Axis.t ->
+          ('type_expr, 'd1, 'axis) T.t ->
+          ('type_expr, 'd2, 'axis) T.t ->
+          'r
+      }
+    [@@unboxed]
+
+    (** [combine] should be associative. *)
+    val f :
+      ('type_expr, 'd1, 'd2, 'r) f ->
+      ('type_expr, 'd1) t ->
+      ('type_expr, 'd2) t ->
+      combine:('r -> 'r -> 'r) ->
+      'r
+  end
 end

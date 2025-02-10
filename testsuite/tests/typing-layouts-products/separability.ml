@@ -78,68 +78,51 @@ type t_void : void
 and 'a r = #{ a : 'a ; v : t_void }
 and bad = F : 'a r -> bad [@@unboxed]
 [%%expect{|
-Line 2, characters 0-35:
-2 | and 'a r = #{ a : 'a ; v : t_void }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a r is any & any
-           because it is an unboxed record.
-         But the layout of 'a r must be representable
-           because it's the type of a constructor field.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Line 3, characters 0-37:
+3 | and bad = F : 'a r -> bad [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "bad" is value_or_null & void
+         because it is an unboxed record.
+       But the kind of type "bad" must be a subkind of value & void
+         because it's an [@@unboxed] type,
+         chosen to have kind value & void.
 |}]
 
 type t_void : void
 and 'a r = #{ a : 'a ; v : t_void }
 and bad = F : { x : 'a r } -> bad [@@unboxed]
 [%%expect{|
-Line 2, characters 0-35:
-2 | and 'a r = #{ a : 'a ; v : t_void }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a r/2 is any & any
-           because it is an unboxed record.
-         But the layout of 'a r/2 must be representable
-           because it is the type of record field x.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Line 3, characters 0-45:
+3 | and bad = F : { x : 'a r } -> bad [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "bad" is value_or_null & void
+         because it is an unboxed record.
+       But the kind of type "bad" must be a subkind of value & void
+         because it's an [@@unboxed] type,
+         chosen to have kind value & void.
 |}]
 
 type t_void : void
 and ('a : value) r = #{ a : 'a ; v : t_void }
 and bad = F : 'a r -> bad [@@unboxed]
 [%%expect{|
-Line 2, characters 0-45:
-2 | and ('a : value) r = #{ a : 'a ; v : t_void }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a r/3 is any & any
-           because it is an unboxed record.
-         But the layout of 'a r/3 must be a sublayout of value & void
-           because it's the type of a constructor field.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Line 3, characters 0-37:
+3 | and bad = F : 'a r -> bad [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "bad" is value_or_null & void
+         because it is an unboxed record.
+       But the kind of type "bad" must be a subkind of value & void
+         because it's an [@@unboxed] type,
+         chosen to have kind value & void.
 |}]
 
 (* CR layouts v12: Double-check this is safe when we add [void]. *)
+(* CR reisenberg: eek! *)
 type t_void : void
 and 'a r : value & any = #{ a : 'a ; v : t_void }
 and bad = F : { x : 'a r } -> bad [@@unboxed]
 [%%expect{|
-type t_void : void
-and 'a r = #{ a : 'a; v : t_void; }
-and bad = F : { x : 'a r; } -> bad [@@unboxed]
+>> Fatal error: Jkind.sort_of_jkind
+Uncaught exception: Misc.Fatal_error
+
 |}]
