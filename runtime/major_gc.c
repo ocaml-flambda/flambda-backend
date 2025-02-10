@@ -1774,7 +1774,7 @@ static void major_collection_slice(intnat howmuch,
                                    int force_compaction)
 {
   caml_domain_state* domain_state = Caml_state;
-  intnat sweep_work = 0, mark_work = 0;
+  uintnat sweep_work=0, mark_work=0, ephe_sweep_work=0, ephe_mark_work=0;
   uintnat blocks_marked_before = domain_state->stat_blocks_marked;
   uintnat saved_ephe_cycle;
   uintnat saved_major_cycle = caml_major_cycles_completed;
@@ -1865,6 +1865,7 @@ mark_again:
         goto mark_again;
     }
 
+    /* TODO measure and account for the work of updating finalisers */
     if (caml_gc_phase == Phase_sweep_ephe &&
         get_major_slice_work(mode) > 0 &&
         caml_final_update_last(domain_state)) {
@@ -1890,6 +1891,7 @@ mark_again:
                (budget = get_major_slice_work(mode)) > 0) {
           intnat left = ephe_mark(budget, saved_ephe_cycle, EPHE_MARK_DEFAULT);
           intnat work_done = budget - left;
+          ephe_mark_work += work_done;
           commit_major_slice_work (work_done);
 
           // FIXME: Can we delete this?
@@ -1949,6 +1951,7 @@ mark_again:
                (budget = get_major_slice_work(mode)) > 0) {
           intnat left = ephe_sweep (domain_state, budget);
           intnat work_done = budget - left;
+          ephe_sweep_work += work_done;
           commit_major_slice_work(work_done);
         }
 
@@ -1979,14 +1982,17 @@ mark_again:
   call_timing_hook(&caml_major_slice_end_hook);
   if (log_events) CAML_EV_END(EV_MAJOR_SLICE);
 
+#define F_U "%"ARCH_INTNAT_PRINTF_FORMAT"u"
+
   caml_gc_log
-    ("Major slice [%c%c%c]: %ld sweep, %ld mark (%lu blocks)",
-              collection_slice_mode_char(mode),
-              !caml_incoming_interrupts_queued() ? '.' : '*',
-              caml_gc_phase_char(may_access_gc_phase),
-              (long)sweep_work, (long)mark_work,
-              (unsigned long)(domain_state->stat_blocks_marked
-                                                      - blocks_marked_before));
+    ("Major slice [%c%c%c]: "F_U " sweep, "F_U" mark ("F_U" blocks), "
+     F_U" ephe mark, "F_U" ephe sweep",
+     collection_slice_mode_char(mode),
+     !caml_incoming_interrupts_queued() ? '.' : '*',
+     caml_gc_phase_char(may_access_gc_phase),
+     sweep_work, mark_work,
+     domain_state->stat_blocks_marked - blocks_marked_before,
+     ephe_mark_work, ephe_sweep_work);
 
   if (mode != Slice_opportunistic && is_complete_phase_sweep_ephe()) {
     /* To handle the case where multiple domains try to finish the major cycle
