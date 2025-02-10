@@ -926,7 +926,7 @@ module type S = sig
 end
 
 module type Module = sig
-  module M : sig include S end (* to prevent shallow_equal *)
+  module M : S
 end
 
 module type S' = sig
@@ -952,29 +952,14 @@ module type S =
     val baz : 'a -> 'a
     class cla : object  end
   end
-module type Module =
-  sig
-    module M :
-      sig
-        val x : int
-        val foo : 'a -> 'a @@ portable
-        val baz : 'a -> 'a
-        class cla : object  end
-      end
-  end
+module type Module = sig module M : S end
 module type S' =
   sig
     val x : int
     val foo : 'a -> 'a @@ portable
     val baz : 'a -> 'a
     class cla : object  end
-    module M :
-      sig
-        val x : int
-        val foo : 'a -> 'a @@ portable
-        val baz : 'a -> 'a
-        class cla : object  end
-      end
+    module M : S
   end
 module M : S
 |}]
@@ -1034,8 +1019,7 @@ let (bar @ portable) () =
 val bar : unit -> unit = <fun>
 |}]
 
-(* If module types are shallow_equal, we still close over the module, even if closing things
-  inside would be better *)
+(* If module types are shallow_equal, we still close over all the things inside the module *)
 module M_Func_portable : Func_portable = M
 
 let (bar @ portable) () =
@@ -1043,10 +1027,7 @@ let (bar @ portable) () =
   k
 [%%expect{|
 module M_Func_portable : Func_portable
-Line 4, characters 18-33:
-4 |   let k = (module M_Func_portable : Func_portable) in
-                      ^^^^^^^^^^^^^^^
-Error: "M_Func_portable" is a module, and modules are always nonportable, so cannot be used inside a function that is portable.
+val bar : unit -> (module Func_portable) = <fun>
 |}]
 
 (* Closing over a module in a module. *)
