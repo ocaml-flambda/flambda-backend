@@ -1119,9 +1119,8 @@ let check_simd_instr (register_behavior : Simd_proc.register_behavior) i =
   );
   ()
 
-let emit_simd_instr_with_memory_arg op i addressing_mode =
+let emit_simd_instr_with_memory_arg op i addr =
   check_simd_instr (Simd_proc.Mem.register_behavior op) i;
-  let addr = addressing addressing_mode VEC128 i 1 in
   match (op : Simd.Mem.operation) with
   | SSE2 Add_f64 -> I.addpd addr (res i 0)
   | SSE2 Sub_f64 -> I.subpd addr (res i 0)
@@ -1969,7 +1968,9 @@ let emit_instr ~first ~fallthrough i =
   | Lop (Specific (Isimd op)) ->
     emit_simd_instr op i
   | Lop (Specific (Isimd_mem (op, addressing_mode))) ->
-    emit_simd_instr_with_memory_arg op i addressing_mode
+    let address = addressing addressing_mode VEC128 i 1 in
+    Address_sanitizer.emit_sanitize ~dependencies:[| res i 0 |] ~address Onetwentyeight_unaligned Store;
+    emit_simd_instr_with_memory_arg op i address
   | Lop (Static_cast cast) ->
     emit_static_cast cast i
   | Lop (Reinterpret_cast cast) ->
