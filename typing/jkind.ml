@@ -1429,6 +1429,8 @@ module Jkind_desc = struct
         | Tvariant _ | Tunivar _ | Tpackage _ ->
           (* these cases either cannot be infinitely recursive or their jkinds
              do not have with_bounds *)
+          (* CR layouts v2.8: Some of these might get with-bounds someday. We
+             should double-check before we're done that they haven't. *)
           Continue t
         | Tlink _ | Tsubst _ -> Misc.fatal_error "Tlink or Tsubst in normalize"
     end in
