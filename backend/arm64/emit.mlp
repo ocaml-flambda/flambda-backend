@@ -30,6 +30,13 @@ open Simple_operation
 open Linear
 open Emitaux
 
+let command_line_options =
+  [ ( "-fno-asan",
+      Arg.Unit ignore,
+      "AddressSanitizer is currently only supported on X86-64; \
+       this flag does nothing on other architectures." ) ]
+;;
+
 (* Tradeoff between code size and code speed *)
 
 let fastcode_flag = ref true
