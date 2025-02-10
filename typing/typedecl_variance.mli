@@ -22,15 +22,17 @@ type surface_variance = bool * bool * bool
 val variance_of_params :
   (Parsetree.core_type * (Asttypes.variance * Asttypes.injectivity)) list ->
   surface_variance list
-val variance_of_sdecl :
-  Parsetree.type_declaration -> surface_variance list
 
 type prop = Variance.t list
 type req = surface_variance list
 val property : (Variance.t list, req) property
 
 type variance_variable_context =
-  | Type_declaration of Ident.t * type_declaration
+  | Type_declaration of {
+      id: Ident.t;
+      decl: type_declaration;
+      unboxed_version : bool
+    }
   | Gadt_constructor of constructor_declaration
   | Extension_constructor of Ident.t * extension_constructor
 
@@ -58,7 +60,9 @@ val check_variance_extension :
   Typedtree.extension_constructor -> req * Location.t -> unit
 
 val compute_decl :
-  Env.t -> check:Ident.t option -> type_declaration -> req -> prop
+  Env.t -> check:(Ident.t * bool) option ->
+  type_declaration -> req -> Variance.t list
+(* [check] is the decl ident and whether it's the unboxed version *)
 
 val update_decls :
   Env.t -> Parsetree.type_declaration list ->
