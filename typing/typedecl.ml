@@ -1876,7 +1876,7 @@ let update_decl_jkind env dpath decl =
            if that's its actual layout! *)
         let type_jkind =
           match
-            Jkind.unsafely_set_upper_bounds
+            Jkind.unsafely_set_mod_bounds
               ~from:decl.type_jkind
               new_decl.type_jkind
           with

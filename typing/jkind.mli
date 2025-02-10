@@ -324,11 +324,12 @@ end
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd Types.jkind -> 'd Types.jkind
 
-(** Forcibly change the modal upper bounds of a [t] based on the modal upper bounds of
+(** Forcibly change the mod-bounds of a [t] based on the mod-bounds of
     [from].
 
     Returns [Error ()] if [from] contains with-bounds. *)
-val unsafely_set_upper_bounds : from:'d t -> 'd t -> ('d t, unit) Result.t
+val unsafely_set_mod_bounds :
+  from:'d Types.jkind -> 'd Types.jkind -> ('d Types.jkind, unit) Result.t
 
 (** Take an existing [jkind_l] and add some with-bounds. *)
 val add_with_bounds :

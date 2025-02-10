@@ -1297,8 +1297,8 @@ module Jkind_desc = struct
   let add_nullability_crossing t =
     { t with mod_bounds = { t.mod_bounds with nullability = Nullability.min } }
 
-  let unsafely_set_upper_bounds t ~from =
-    { t with upper_bounds = from.upper_bounds; with_bounds = No_with_bounds }
+  let unsafely_set_mod_bounds t ~from =
+    { t with mod_bounds = from.mod_bounds; with_bounds = No_with_bounds }
 
   let add_with_bounds ~relevant_for_nullability ~type_expr ~modality t =
     { t with
@@ -1517,13 +1517,13 @@ end
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
-let unsafely_set_upper_bounds (type l r) ~(from : (l * r) t) t =
+let unsafely_set_mod_bounds (type l r) ~(from : (l * r) jkind) t =
   match from.jkind.with_bounds with
   | With_bounds _ -> Error ()
   | No_with_bounds ->
     Ok
       { t with
-        jkind = Jkind_desc.unsafely_set_upper_bounds t.jkind ~from:from.jkind
+        jkind = Jkind_desc.unsafely_set_mod_bounds t.jkind ~from:from.jkind
       }
 
 let add_with_bounds ~modality ~type_expr t =
