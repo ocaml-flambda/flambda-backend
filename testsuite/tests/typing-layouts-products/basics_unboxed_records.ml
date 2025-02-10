@@ -242,7 +242,7 @@ Line 2, characters 0-37:
 2 | and r_bad = #{ y : float#; z : s t2 }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of r_bad is any & any
+       The layout of r_bad is '_representable_layout_1 & '_representable_layout_2
          because it is an unboxed record.
        But the layout of r_bad must be a sublayout of value & float64 & value
          because of the definition of t1 at line 1, characters 0-38.
@@ -751,3 +751,19 @@ Error:
        But the layout of b must be representable
          because it's the type of a constructor field.
 |}]
+
+type q : any mod portable = #{ x : int -> int; y : int -> q }
+
+[%%expect{|
+Line 1, characters 0-61:
+1 | type q : any mod portable = #{ x : int -> int; y : int -> q }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "q" is
+         value mod unique uncontended & value mod unique uncontended
+         because it is an unboxed record.
+       But the kind of type "q" must be a subkind of
+         value_or_null mod portable & value_or_null mod portable
+         because of the annotation on the declaration of the type q.
+|}]
+(* CR layouts v2.8: That error message is incomprehensible without
+   with-bounds. *)

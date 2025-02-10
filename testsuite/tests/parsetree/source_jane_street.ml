@@ -1133,9 +1133,9 @@ end
    supported. *)
 
 [%%expect{|
-Line 11, characters 17-39:
-11 |   type 'a list : immutable_data with 'a
-                      ^^^^^^^^^^^^^^^^^^^^^^
+Line 13, characters 16-27:
+13 |   type 'a gel : kind_of_ 'a mod global
+                     ^^^^^^^^^^^
 Error: Unimplemented kind syntax
 |}]
 

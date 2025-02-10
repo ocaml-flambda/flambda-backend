@@ -70,10 +70,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let is_void_label lbl = Jkind.Sort.Const.(equal void lbl.ld_sort) in
-      let jkind =
-        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
-      in
+      let jkind = Jkind.for_boxed_record lbls in
       let tdecl =
         {
           type_params;

@@ -34,6 +34,7 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
+  val _infer_with_bounds : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit

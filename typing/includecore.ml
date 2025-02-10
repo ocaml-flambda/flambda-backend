@@ -54,15 +54,19 @@ type mmodes =
 (** Mode cross a right mode *)
 (* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
    there, too. *)
-let right_mode_cross_jkind jkind mode =
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+let right_mode_cross_jkind env jkind mode =
+  let type_equal = Ctype.type_equal env in
+  let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
+  let upper_bounds =
+    Jkind.get_modal_upper_bounds ~type_equal ~jkind_of_type jkind
+  in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   Value.imply upper_bounds mode
 
-let right_mode_cross env ty mode=
+let right_mode_cross env ty mode =
   if not (Ctype.is_principal ty) then mode else
   let jkind = Ctype.type_jkind_purely env ty in
-  right_mode_cross_jkind jkind mode
+  right_mode_cross_jkind env jkind mode
 
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
@@ -1378,15 +1382,22 @@ let type_declarations ?(equality = false) ~loc env ~mark name
       rep1 rep2
   in
   let err = match (decl1.type_kind, decl2.type_kind) with
-      (_, Type_abstract _) -> begin
-        (* Note that [decl2.type_jkind] is an upper bound. If it isn't tight, [decl2] must
-           have a manifest, which we're already checking for equality above. Similarly,
-           [decl1]'s kind may conservatively approximate its jkind, but [check_decl_jkind]
-           will expand its manifest. *)
-        match Ctype.check_decl_jkind env decl1 decl2.type_jkind  with
-        | Ok _ -> None
-        | Error v -> Some (Jkind v)
-      end
+      (_, Type_abstract _) ->
+        (* No need to check jkinds if decl2 has a manifest; we've already
+           checked for type equality, above. Oddly, this is not just an
+           optimization; unconditionally checking jkinds causes a failure
+           around recursive modules (test case: shapes/recmodules.ml).
+           Richard spent several hours trying to understand what was going
+           on there (after the substitution in [Typemod.check_recmodule_inclusion],
+           there was a type_declaration whose [type_jkind] didn't match its
+           [type_manifest]), but just skipping this check when there is a
+           manifest fixes the problem. *)
+        if Option.is_none decl2.type_manifest then
+          (* Note that [decl2.type_jkind] is an upper bound *)
+          match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
+           | Ok _ -> None
+           | Error v -> Some (Jkind v)
+        else None
     | (Type_variant (cstrs1, rep1, umc1), Type_variant (cstrs2, rep2, umc2)) -> begin
         if mark then begin
           let mark usage cstrs =
