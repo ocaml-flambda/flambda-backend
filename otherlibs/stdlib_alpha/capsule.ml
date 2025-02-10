@@ -314,11 +314,11 @@ module Mutex = struct
   exception Poisoned
 
   let[@inline] with_lock :
-    type k.
+    (type k.
     k t
     -> (k Password.t @ local -> 'a) @ local
-    -> 'a
-    @@ portable
+    -> 'a)
+    @ portable
     = fun t f ->
       M.lock t.mutex;
       match t.poisoned with
@@ -369,11 +369,11 @@ module Rwlock = struct
   exception Poisoned
 
   let[@inline] with_write_lock :
-    type k.
+    (type k.
     k t
     -> (k Password.t @ local -> 'a) @ local
-    -> 'a
-    @@ portable
+    -> 'a)
+    @ portable
     = fun t f ->
       Rw.lock_write t.rwlock;
       match t.poisoned with
@@ -395,10 +395,10 @@ module Rwlock = struct
           reraise exn
 
   let[@inline] with_read_lock :
-    'k t
+    ('k t
     -> ('k Password.Shared.t @ local -> 'a) @ local
-    -> 'a
-    @@ portable
+    -> 'a)
+    @ portable
     = fun t f ->
       Rw.lock_read t.rwlock;
       match t.poisoned with

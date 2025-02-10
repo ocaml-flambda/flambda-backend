@@ -3,11 +3,11 @@
 *)
 
 (* CR dkalinichenko: allow [yielding] at toplevel? *)
-let my_effect : unit -> unit @@ yielding = print_endline "Hello, world!"
+let my_effect : (unit -> unit) @ yielding = print_endline "Hello, world!"
 [%%expect{|
-Line 1, characters 4-72:
-1 | let my_effect : unit -> unit @@ yielding = print_endline "Hello, world!"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-73:
+1 | let my_effect : (unit -> unit) @ yielding = print_endline "Hello, world!"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value is "yielding" but expected to be "unyielding".
 |}]
 
@@ -18,7 +18,7 @@ let with_effect : ((string -> unit) @ local yielding -> 'a) -> 'a =
 
 [%%expect{|
 val storage : string ref = {contents = ""}
-val with_effect : (local_ (string -> unit) @ yielding -> 'a) -> 'a = <fun>
+val with_effect : ((string -> unit) @ local yielding -> 'a) -> 'a = <fun>
 |}]
 
 let () = with_effect (fun k -> k "Hello, world!")
@@ -36,7 +36,7 @@ let () = with_effect (fun k -> run_yielding k)
 let _ = !storage
 
 [%%expect{|
-val run_yielding : local_ (string -> unit) @ yielding -> unit = <fun>
+val run_yielding : (string -> unit) @ local yielding -> unit = <fun>
 - : string = "my string"
 |}]
 

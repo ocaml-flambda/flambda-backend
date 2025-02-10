@@ -17,7 +17,7 @@ type r = { mutable x : string; }
 val uncontended_use : 'a -> unit = <fun>
 |}]
 
-let share_use : 'a -> unit @@ portable = fun _ -> ()
+let share_use : ('a -> unit) @ portable = fun _ -> ()
 [%%expect{|
 val share_use : 'a -> unit = <fun>
 |}]
@@ -713,7 +713,7 @@ Error: Signature mismatch:
          val foo : 'a
        is not included in
          val foo : 'a @@ global many
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 (* Module declaration inclusion check inside a module type declaration inclusion
@@ -765,7 +765,7 @@ Error: Signature mismatch:
          val foo : 'a -> 'a
        is not included in
          val foo : 'a -> 'a @@ global many
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 (* functor type inclusion: the following two functor types are equivalent,

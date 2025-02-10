@@ -1353,7 +1353,7 @@ type _ t =
   | K : (_ : value mod global) t
 
 let f (type a : value) (x : a t) =
-  let y : a @@ local = assert false in
+  let y : a @ local = assert false in
   match x with
   | K -> y
 

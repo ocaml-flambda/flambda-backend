@@ -10,7 +10,7 @@ written type does. *)
 module M : sig
     val f : int @ nonportable -> int @ portable
 end = struct
-    let f (x @ portable) = (x : _ @@ nonportable)
+    let f (x @ portable) = (x : _ @ nonportable)
 end
 [%%expect{|
 module M : sig val f : int -> int @ portable end
@@ -21,12 +21,12 @@ written type does not. *)
 module M : sig
     val f : unit -> [`A | `B of 'a -> 'a] @ portable
 end = struct
-    let f () = (`A : _ @@ nonportable)
+    let f () = (`A : _ @ nonportable)
 end
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |     let f () = (`A : _ @@ nonportable)
+4 |     let f () = (`A : _ @ nonportable)
 5 | end
 Error: Signature mismatch:
        Modules do not match:
@@ -47,7 +47,7 @@ the written type does. *)
 module M : sig
     val f : [`A] @ nonportable -> unit
 end = struct
-    let f (x : [< `A | `B of string -> string] @@ portable) =
+    let f (x : [< `A | `B of string -> string] @ portable) =
         match x with
         | `A -> ()
         | `B f -> ()

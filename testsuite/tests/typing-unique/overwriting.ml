@@ -322,7 +322,7 @@ type moded_record = { a : (int -> int) option; b : int -> int @@ portable; }
 
 let update : moded_record @ unique once -> moded_record @ many =
   function mr ->
-    let many_fun : int -> int @@ many = function x -> x in
+    let many_fun : (int -> int) @ many = function x -> x in
     overwrite_ mr with { a = None; b = many_fun }
 [%%expect{|
 Line 4, characters 4-49:
@@ -335,7 +335,7 @@ Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Asser
 
 let update : moded_record @ unique once -> moded_record @ many =
   function mr ->
-    let once_fun : int -> int @@ once = function x -> x in
+    let once_fun : (int -> int) @ once = function x -> x in
     overwrite_ mr with { a = None; b = once_fun }
 [%%expect{|
 Line 4, characters 39-47:
@@ -367,7 +367,7 @@ Error: This value is "once" but expected to be "many".
 
 let update : moded_record @ unique nonportable -> moded_record @ portable =
   function mr ->
-    let portable_fun : int -> int @@ portable = function x -> x in
+    let portable_fun : (int -> int) @ portable = function x -> x in
     overwrite_ mr with { a = None; b = portable_fun }
 [%%expect{|
 Line 4, characters 4-53:
@@ -380,7 +380,7 @@ Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Asser
 
 let update : moded_record @ unique nonportable -> moded_record @ portable =
   function mr ->
-    let nonportable_fun : int -> int @@ nonportable = function x -> x in
+    let nonportable_fun : (int -> int) @ nonportable = function x -> x in
     overwrite_ mr with { a = None; b = nonportable_fun }
 [%%expect{|
 Line 4, characters 39-54:
@@ -391,8 +391,8 @@ Error: This value is "nonportable" but expected to be "portable".
 
 let update : moded_record @ unique nonportable -> moded_record @ portable =
   function mr ->
-    let portable_fun : int -> int @@ portable = function x -> x in
-    let nonportable_fun : int -> int @@ nonportable = function x -> x in
+    let portable_fun : (int -> int) @ portable = function x -> x in
+    let nonportable_fun : (int -> int) @ nonportable = function x -> x in
     overwrite_ mr with { a = Some nonportable_fun; b = portable_fun }
 [%%expect{|
 Line 5, characters 34-49:

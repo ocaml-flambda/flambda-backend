@@ -23,7 +23,7 @@ Error: The kind of type "t" is value
 (* On the other hand, if we set the attribute, we shouldn't get an error. *)
 type t : value mod uncontended = { mutable contents : string }
 [@@unsafe_allow_any_mode_crossing]
-let f (x : t @@ contended) = use_uncontended x
+let f (x : t @ contended) = use_uncontended x
 [%%expect{|
 type t : value mod uncontended = { mutable contents : string; }
 [@@unsafe_allow_any_mode_crossing]
@@ -61,7 +61,7 @@ end = struct
   type t : value mod uncontended = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 [%%expect{|
 module M : sig type t : value mod uncontended end
@@ -96,7 +96,7 @@ end = struct
   type t : value mod uncontended = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 module M2 : sig
   type t : value mod uncontended = M1.t = { mutable contents : string }
@@ -105,7 +105,7 @@ end = struct
   type t : value mod uncontended = M1.t = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 [%%expect{|
 module M1 :
@@ -128,7 +128,7 @@ end = struct
   type t  : value mod uncontended = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 [%%expect{|
 module Private :
@@ -162,9 +162,9 @@ end = struct
     | Mut of { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f1 (x : t1 @@ contended) = use_uncontended x
-  let f2 (x : t2 @@ contended) = use_uncontended x
-  let f3 (x : t3 @@ contended) = use_uncontended x
+  let f1 (x : t1 @ contended) = use_uncontended x
+  let f2 (x : t2 @ contended) = use_uncontended x
+  let f3 (x : t3 @ contended) = use_uncontended x
 end
 [%%expect{|
 module M :
