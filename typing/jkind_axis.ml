@@ -290,6 +290,28 @@ module Axis_collection (T : Axed) = struct
     let[@inline] f f bounds = Monadic_identity.f f bounds
   end
 
+  module Iter = struct
+    type ('type_expr, 'd) f =
+      { f : 'axis. axis:'axis Axis.t -> ('type_expr, 'd, 'axis) T.t -> unit }
+
+    let[@inline] f { f }
+        { locality;
+          linearity;
+          uniqueness;
+          portability;
+          contention;
+          externality;
+          nullability
+        } =
+      f ~axis:Axis.(Modal (Comonadic Areality)) locality;
+      f ~axis:Axis.(Modal (Monadic Uniqueness)) uniqueness;
+      f ~axis:Axis.(Modal (Comonadic Linearity)) linearity;
+      f ~axis:Axis.(Modal (Monadic Contention)) contention;
+      f ~axis:Axis.(Modal (Comonadic Portability)) portability;
+      f ~axis:Axis.(Nonmodal Externality) externality;
+      f ~axis:Axis.(Nonmodal Nullability) nullability
+  end
+
   module Map2 = struct
     module Monadic (M : Misc.Stdlib.Monad.S) = struct
       type ('type_expr, 'd1, 'd2, 'd3) f =

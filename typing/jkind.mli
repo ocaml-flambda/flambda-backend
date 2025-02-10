@@ -516,8 +516,16 @@ val get_annotation : 'd t -> Parsetree.jkind_annotation option
 (*********************************)
 (* pretty printing *)
 
-(** Call this before trying to print. *)
-val set_print_type_expr : (Format.formatter -> Types.type_expr -> unit) -> unit
+(** Call these before trying to print. *)
+val set_outcometree_of_type_scheme :
+  (Types.type_expr -> Outcometree.out_type) -> unit
+
+val set_outcometree_of_modalities_new :
+  (Types.mutability ->
+  Parsetree.attributes ->
+  Mode.Modality.Value.Const.t ->
+  Outcometree.out_mode_new list) ->
+  unit
 
 val format : Format.formatter -> 'd t -> unit
 

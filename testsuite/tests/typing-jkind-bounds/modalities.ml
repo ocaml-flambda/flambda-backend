@@ -96,34 +96,12 @@ Error: This expression has type "string t"
        but an expression was expected of type
          "('a : value mod global & value mod global)"
        The kind of string t is
-         value_or_null mod global unique with string
-string
-                           many with string
-string
-                           uncontended with string
-string
-                           portable with string
-string
-                           unyielding with string
-string
-                           external_ with string
-string
-                           non_null with string
-string
-         & value_or_null mod global unique with string
-string
-                             many with string
-string
-                             uncontended with string
-string
-                             portable with string
-string
-                             unyielding with string
-string
-                             external_ with string
-string
-                             non_null with string
-string
+         value_or_null mod global unique many uncontended portable unyielding
+                           external_ non_null
+         with string @@ global
+         & value_or_null mod global unique many uncontended portable
+                             unyielding external_ non_null
+         with string @@ global
          because of the definition of t at line 4, characters 0-51.
        But the kind of string t must be a subkind of
          value mod global & value mod global
@@ -150,36 +128,12 @@ Line 1, characters 65-66:
 Error: This expression has type "(string -> string) t"
        but an expression was expected of type "('a : value & value)"
        The kind of (string -> string) t is
-         value_or_null mod global
-                           unique with string -> string
-string -> string
-                           many with string -> string
-string -> string
-                           uncontended with string -> string
-string -> string
-                           portable with string -> string
-string -> string
-                           unyielding with string -> string
-string -> string
-                           external_ with string -> string
-string -> string
-                           non_null with string -> string
-string -> string
-         & value_or_null mod global
-                             unique with string -> string
-string -> string
-                             many with string -> string
-string -> string
-                             uncontended with string -> string
-string -> string
-                             portable with string -> string
-string -> string
-                             unyielding with string -> string
-string -> string
-                             external_ with string -> string
-string -> string
-                             non_null with string -> string
-string -> string
+         value_or_null mod global unique many uncontended portable unyielding
+                           external_ non_null
+         with string -> string @@ global
+         & value_or_null mod global unique many uncontended portable
+                             unyielding external_ non_null
+         with string -> string @@ global
          because of the definition of t at line 4, characters 0-51.
        But the kind of (string -> string) t must be a subkind of
          value & value
