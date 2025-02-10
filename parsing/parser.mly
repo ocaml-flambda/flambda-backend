@@ -3980,9 +3980,8 @@ jkind_desc:
       in
       Mod ($1, modes)
     }
-  (* CR layouts v2.8: The types should be separated by AND, not WITH *)
-  | jkind_annotation WITH core_type {
-      With ($1, $3)
+  | jkind_annotation WITH core_type optional_atat_modalities_expr {
+      With ($1, $3, $4)
     }
   | ident {
       Abbreviation $1

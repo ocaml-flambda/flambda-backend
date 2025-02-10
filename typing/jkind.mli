@@ -316,7 +316,7 @@ module Builtin : sig
     jkind_of_first_type:(unit -> jkind_l) ->
     jkind_of_type:(Types.type_expr -> jkind_l) ->
     why:History.product_creation_reason ->
-    Types.type_expr list ->
+    (Types.type_expr * Mode.Modality.Value.Const.t) list ->
     Sort.t Layout.t list ->
     jkind_l
 
@@ -333,8 +333,12 @@ val add_nullability_crossing : 'd t -> 'd t
     [from]. *)
 val unsafely_set_upper_bounds : from:'d t -> 'd t -> 'd t
 
-(** Take an existing [t] and add some baggage. *)
-val add_baggage : baggage:Types.type_expr -> jkind_l -> jkind_l
+(** Take an existing [jkind_l] and add some baggage. *)
+val add_baggage :
+  modality:Mode.Modality.Value.Const.t ->
+  baggage:Types.type_expr ->
+  jkind_l ->
+  jkind_l
 
 (** Does this jkind have baggage? *)
 val has_baggage : jkind_l -> bool

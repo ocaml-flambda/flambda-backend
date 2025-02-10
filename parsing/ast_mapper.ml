@@ -946,8 +946,8 @@ let default_mapper =
         | Abbreviation (s : string) -> Abbreviation s
         | Mod (t, mode_list) ->
           Mod (this.jkind_annotation this t, this.modes this mode_list)
-        | With (t, ty) ->
-          With (this.jkind_annotation this t, this.typ this ty)
+        | With (t, ty, modalities) ->
+          With (this.jkind_annotation this t, this.typ this ty, this.modalities this modalities)
         | Kind_of ty -> Kind_of (this.typ this ty)
         | Product ts -> Product (List.map (this.jkind_annotation this) ts)
       in

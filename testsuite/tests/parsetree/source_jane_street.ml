@@ -1109,9 +1109,31 @@ val inc : 'a with_idx -> 'a with_idx = <fun>
 (***************)
 (* Modal kinds *)
 
+(* supported *)
+type 'a list : immutable_data with 'a
+type ('a, 'b) either : immutable_data with 'a * 'b
+type 'a contended : immutable_data with 'a @@ contended
+type 'a contended_with_int : immutable_data with 'a @@ contended with int
+
+[%%expect{|
+type 'a list
+  : value mod many with 'a uncontended with 'a portable with 'a
+              unyielding with 'a
+type ('a, 'b) either
+  : value mod many with 'a * 'b uncontended with 'a * 'b
+              portable with 'a * 'b unyielding with 'a * 'b
+type 'a contended
+  : value mod many with 'a uncontended portable with 'a unyielding with 'a
+type 'a contended_with_int
+  : value mod many with int
+'a uncontended with int portable with int
+'a
+              unyielding with int
+'a
+|}]
+
+(* not yet supported *)
 module _ : sig
-  type 'a list : immutable_data with 'a
-  type ('a, 'b) either : immutable_data with 'a * 'b
   type 'a gel : kind_of_ 'a mod global
   type 'a t : _
   kind_abbrev_ immediate = value mod global unique many sync uncontended
@@ -1119,8 +1141,6 @@ module _ : sig
   kind_abbrev_ immutable = value mod uncontended
   kind_abbrev_ data = value mod sync many
 end = struct
-  type 'a list : immutable_data with 'a
-  type ('a, 'b) either : immutable_data with 'a * 'b
   type 'a gel : kind_of_ 'a mod global
   type 'a t : _
   kind_abbrev_ immediate = value mod global unique many sync uncontended
@@ -1133,9 +1153,9 @@ end
    supported. *)
 
 [%%expect{|
-Line 13, characters 16-27:
-13 |   type 'a gel : kind_of_ 'a mod global
-                     ^^^^^^^^^^^
+Line 9, characters 16-27:
+9 |   type 'a gel : kind_of_ 'a mod global
+                    ^^^^^^^^^^^
 Error: Unimplemented kind syntax
 |}]
 
