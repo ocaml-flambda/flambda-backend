@@ -1568,6 +1568,10 @@ module Yielding = struct
 
   include Common (Obj)
 
+  let yielding = of_const Yielding
+
+  let unyielding = of_const Unyielding
+
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_floor
@@ -2497,6 +2501,8 @@ module Modality = struct
             (let ax : _ Axis.t = Linearity in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Portability in
+             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
+            (let ax : _ Axis.t = Yielding in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
       let print ppf = function
