@@ -3978,10 +3978,10 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let type_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
   let type_unboxed_version =
     match get_desc man with
-    | Tconstr (path, _, _) ->
+    | Tconstr (path, args, _) ->
       begin match Env.find_type path outer_env with
       | { type_unboxed_version = Some decl ; _ } ->
-        let man = Ctype.newconstr (Path.unboxed_version path) params in
+        let man = Ctype.newconstr (Path.unboxed_version path) args in
         let type_kind =
           match sig_decl.type_unboxed_version, arity_ok with
           | Some { type_kind ; _ }, true -> type_kind
@@ -4051,9 +4051,10 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   end;
   let new_sig_decl = name_recursion sdecl id new_sig_decl in
   let new_type_variance =
-    let required = Typedecl_variance.variance_of_sdecl sdecl in
+    let required = Typedecl_variance.variance_of_params sdecl.ptype_params in
     try
-      Typedecl_variance.compute_decl env ~check:(Some id) new_sig_decl required
+      Typedecl_variance.compute_decl env ~check:(Some (id, false)) new_sig_decl
+        required
     with Typedecl_variance.Error (loc, err) ->
       raise (Error (loc, Variance err)) in
   let new_type_separability =
@@ -4078,17 +4079,35 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_loc = new_sig_decl.type_loc;
       type_attributes = new_sig_decl.type_attributes;
       type_uid = new_sig_decl.type_uid;
+      type_is_unboxed_version = new_sig_decl.type_is_unboxed_version;
 
+      (* For every recomputed field added below, consider if we also must
+         recompute it for the unboxed version. *)
       type_variance = new_type_variance;
       type_separability = new_type_separability;
       type_unboxed_version =
-        Option.map (fun d -> {
-          d with
-          type_variance = new_type_variance;
-          type_separability = new_type_separability;
-        }) new_sig_decl.type_unboxed_version
-        ;
-      type_is_unboxed_version = new_sig_decl.type_is_unboxed_version;
+        Option.map (fun d ->
+          let type_variance =
+            let required =
+              Typedecl_variance.variance_of_params sdecl.ptype_params in
+            try
+              Typedecl_variance.compute_decl env ~check:(Some (id, true))
+                d required
+            with Typedecl_variance.Error (loc, err) ->
+              raise (Error (loc, Variance err))
+          in
+          let type_separability =
+            try
+              Typedecl_separability.compute_decl env d
+            with Typedecl_separability.Error (loc, err) ->
+              raise (Error (loc, Separability err))
+          in
+          {
+            d with
+            type_variance;
+            type_separability;
+          })
+        new_sig_decl.type_unboxed_version
     } in
   {
     typ_id = id;
@@ -4520,12 +4539,22 @@ let report_error ppf = function
            Printtyp.prepare_for_printing [ variable ];
            Printtyp.Naming_context.reset ();
            begin match context with
-           | Type_declaration (id, decl) ->
+           | Type_declaration { id ; decl ; unboxed_version } ->
+               let pre, post =
+                 if unboxed_version then
+                   (* Unexpected; errors in the unboxed version should have also
+                      been present and reported first for the boxed version. *)
+                   "In the unboxed version of the definition",
+                 "@ Please report this error to the Jane Street compilers team."
+                 else
+                   "In the definition", ""
+               in
                Printtyp.add_type_declaration_to_preparation id decl;
-               fprintf ppf "@[<v>%s@;<1 2>%a@;"
-                 "In the definition"
+               fprintf ppf "@[<v>%s@;<1 2>%a@;%s"
+                 pre
                  (Style.as_inline_code @@ Printtyp.prepared_type_declaration id)
                  decl
+                 post
            | Gadt_constructor c ->
                Printtyp.add_constructor_to_preparation c;
                fprintf ppf "@[<v>%s@;<1 2>%a@;"
