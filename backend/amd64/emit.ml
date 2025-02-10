@@ -1978,8 +1978,26 @@ let emit_instr ~first ~fallthrough i =
   | Lop (Specific Ipause) ->
     I.pause ()
   | Lop (Specific (Icldemote addr)) ->
-    I.cldemote (addressing addr QWORD i 0)
+    let address = (addressing addr QWORD i 0) in
+    (* This isn't really a [Load] or a [Store], but it is
+       closer to [Store] semantically. *)
+    Address_sanitizer.emit_sanitize ~address Word_val Store;
+    I.cldemote address
   | Lop (Specific (Iprefetch { is_write; locality; addr; })) ->
+    let address = (addressing addr QWORD i 0) in
+    let memory_access : Address_sanitizer.memory_access =
+      if is_write then Store else Load
+    in
+    (* While it is *technically* legal to issue a prefetch to an invalid
+       address, it comes with a performance penalty. Quoting from the Intel
+       Optimization Reference Manual section 9.3.1:
+       > Prefetching to addresses that are not mapped to physical pages can
+         experience non-deterministic performance penalty. For example specifying
+         a NULL pointer (0L) as address for a prefetch can cause long delays.
+
+       On these grounds I would consider prefetching invalid addresses to usually be
+       a bug, and so we do sanitize such accesses. *)
+    Address_sanitizer.emit_sanitize ~address Word_val memory_access;
     let locality =
       match locality with
       | Nonlocal -> Nta
@@ -1987,7 +2005,7 @@ let emit_instr ~first ~fallthrough i =
       | Moderate -> T1
       | High -> T0
     in
-    I.prefetch is_write locality (addressing addr QWORD i 0)
+    I.prefetch is_write locality address
   | Lop(Begin_region) ->
       I.mov (domain_field Domainstate.Domain_local_sp) (res i 0)
   | Lop(End_region) ->
