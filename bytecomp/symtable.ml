@@ -310,7 +310,10 @@ let rec transl_const = function
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
         fields;
       Obj.repr res
-  | Const_null -> int_as_pointer 0
+  | Const_null ->
+    if float32_is_stage1 ()
+    then Misc.fatal_error "The stage one bytecode compiler should not produce null constants."
+    else int_as_pointer 0
 
 (* Build the initial table of globals *)
 

@@ -768,23 +768,29 @@ module Storer =
    cont = list of instructions to execute afterwards
    Result = list of instructions that evaluate exp, then perform cont. *)
 
-(* We cannot use the [float32] type in the compiler. *)
+(* CR dkalinichenko: this error happens because we run tests
+   under [flambda_backend/tests] with the stage 1 compiler instead of the
+   final compiler. Run them using the final compiler.*)
+(* We cannot use the [float32] or [or_null] types in the compiler. *)
 external float32_is_stage1 : unit -> bool = "caml_float32_is_stage1"
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
-let rec contains_float32s = function
-  | Const_base (Const_float32 _ | Const_unboxed_float32 _) -> true
-  | Const_block (_, fields) -> List.exists contains_float32s fields
+let rec contains_float32s_or_nulls = function
+  | Const_base (Const_float32 _ | Const_unboxed_float32 _)
+  | Const_null -> true
+  | Const_block (_, fields) -> List.exists contains_float32s_or_nulls fields
   | Const_mixed_block _ ->  Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
   | _ -> false
 
-let rec translate_float32s stack_info env cst sz cont =
+let rec translate_float32s_or_nulls stack_info env cst sz cont =
   match cst with
   | Const_base (Const_float32 f | Const_unboxed_float32 f) ->
     let i = float32_of_string f in
     Kconst (Const_base (Const_int32 (Obj.obj i))) ::
     Kccall("caml_float32_of_bits_bytecode", 1) :: cont
-  | Const_block (tag, fields) as cst when contains_float32s cst ->
+  | Const_null ->
+    Kconst (Const_base (Const_int 0)) :: Kccall("caml_int_as_pointer", 1) :: cont
+  | Const_block (tag, fields) as cst when contains_float32s_or_nulls cst ->
     let fields = List.map (fun field -> Lconst field) fields in
     let cont = Kmakeblock (List.length fields, tag) :: cont in
     comp_args stack_info env fields sz cont
@@ -813,7 +819,7 @@ and comp_expr stack_info env exp sz cont =
         | exception Not_found -> not_found ()
       end
   | Lconst cst when float32_is_stage1 () ->
-      translate_float32s stack_info env cst sz cont
+      translate_float32s_or_nulls stack_info env cst sz cont
   | Lconst cst ->
       Kconst cst :: cont
   | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
