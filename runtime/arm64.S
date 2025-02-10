@@ -568,7 +568,7 @@ L(caml_call_local_realloc):
         ldp     x29, x30, [sp], 16
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_call_gc)
+END_FUNCTION(caml_call_local_realloc)
 
 /* Call a C function from OCaml */
 /* Function to call is in ADDITIONAL_ARG */
