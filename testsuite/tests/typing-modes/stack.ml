@@ -16,11 +16,11 @@ Line 1, characters 12-31:
 Error: This value escapes its region.
 |}]
 
-let f = ref (stack_ ((fun x -> x) : _ @@ global ))
+let f = ref (stack_ ((fun x -> x) : _ @ global ))
 [%%expect{|
-Line 1, characters 20-49:
-1 | let f = ref (stack_ ((fun x -> x) : _ @@ global ))
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 20-48:
+1 | let f = ref (stack_ ((fun x -> x) : _ @ global ))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This allocation cannot be on the stack.
 |}]
 
