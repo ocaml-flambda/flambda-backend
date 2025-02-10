@@ -1362,7 +1362,6 @@ let emit_simd_instr op i =
   | SSE42 (Cmpistrz n) ->
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
 
-
 module Address_sanitizer : sig
   type memory_access = Load | Store
 
@@ -1390,25 +1389,35 @@ end = struct
     ;;
 
     external to_bytes_log2 : t -> int = "%identity"
-    let to_bytes t = 1 lsl (to_bytes_log2 t)
+
+    let to_bytes t = 1 lsl to_bytes_log2 t
   end
 
   let mov_address src dest =
     match src with
-    | Mem { scale = 1; base = None; sym = None; displ = 0; idx; arch = _; typ = _ }
-        -> I.mov (Reg64 idx) dest
+    | Mem
+        { scale = 1;
+          base = None;
+          sym = None;
+          displ = 0;
+          idx;
+          arch = _;
+          typ = _
+        } ->
+      I.mov (Reg64 idx) dest
     | _ -> I.lea src dest
   ;;
 
   let[@inline always] is_stack_16_byte_aligned () =
     (* Yes, sadly this does result in materially better assembly than [(!stack_offset mod 16) = 0]
        https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
-    (!stack_offset land 15) = 0
+    !stack_offset land 15 = 0
   ;;
 
   let asan_report_function memory_chunk_size memory_access =
     let index =
-      ((Memory_chunk_size.to_bytes_log2 memory_chunk_size) lsl 1) + match memory_access with Load -> 0 | Store -> 1
+      (Memory_chunk_size.to_bytes_log2 memory_chunk_size lsl 1)
+      + match memory_access with Load -> 0 | Store -> 1
     in
     (* We take extra care to structure our code such that these are statically
        allocated as manifest constants in a flat array. *)
@@ -1430,10 +1439,7 @@ end = struct
   ;;
 
   let[@inline always] uses_register register = function
-    | Reg8L register'
-    | Reg16 register'
-    | Reg32 register'
-    | Reg64 register' ->
+    | Reg8L register' | Reg16 register' | Reg32 register' | Reg64 register' ->
       register == register'
     | Mem { idx = register'; base = None; scale; _ } ->
       scale <> 0 && register == register'
@@ -1447,45 +1453,39 @@ end = struct
      I'd recommend reading that first for reference before touching this function. *)
   let emit_sanitize ?(dependencies = [||]) address (memory_chunk : memory_chunk) (memory_access : memory_access) =
     let[@inline always] need_to_save_register register =
-       uses_register register address || Array.exists (uses_register register) dependencies
+      uses_register register address
+      || Array.exists (uses_register register) dependencies
     in
     let memory_chunk_size = Memory_chunk_size.of_memory_chunk memory_chunk in
     (* -------- Begin prologue -------- *)
     let need_to_save_rdi = need_to_save_register RDI in
-    if need_to_save_rdi then (
-      push rdi
-    );
+    if need_to_save_rdi then push rdi;
     (* For the remainder of this function [rdi] will hold [address]. It's vital
        that we do this now before we change the contents of any other registers,
        because we don't want to clobber any of [address]'s component registers. *)
     mov_address address rdi;
     let need_to_save_r11 = need_to_save_register R11 in
-    if need_to_save_r11 then (
-      push r11
-    );
+    if need_to_save_r11 then push r11;
     let need_to_save_r10 =
       match memory_chunk_size with
       | I64 | I128 -> false
       | I8 | I16 | I32 -> need_to_save_register R10
     in
-    if need_to_save_r10 then (
-      push r10
-    );
+    if need_to_save_r10 then push r10;
     (* -------- End prologue -------- *)
     let asan_check_succeded_label = new_label () in
     I.mov rdi r11;
     (* These constants come from
        [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
     I.shr (int 3) r11;
-    let shadow_address = (mem64 BYTE 0x7FFF8000 R11) in
+    let shadow_address = mem64 BYTE 0x7FFF8000 R11 in
     let () =
       match memory_chunk_size with
-      | I64 | I128 -> (
+      | I64 | I128 ->
         I.cmp (int 0) shadow_address;
-        I.je (label asan_check_succeded_label);
+        I.je (label asan_check_succeded_label)
         (* There is no slow-path check for word-sized and larger accesses *)
-      )
-      | I8 | I16 | I32 -> (
+      | I8 | I16 | I32 ->
         I.movzx shadow_address r11;
         I.test (Reg8L R11) (Reg8L R11);
         I.je (label asan_check_succeded_label);
@@ -1501,13 +1501,12 @@ end = struct
           | I8 -> ()
           | I16 -> I.inc r10
           | I32 | I64 | I128 ->
-            let offset = (Memory_chunk_size.to_bytes memory_chunk_size) - 1 in
+            let offset = Memory_chunk_size.to_bytes memory_chunk_size - 1 in
             I.add (int offset) r10
         in
         (* [ return (last_accessed_byte >= shadow_value) ] *)
         I.cmp (Reg8L R11) (Reg8L R10);
-        I.jl (label asan_check_succeded_label);
-      )
+        I.jl (label asan_check_succeded_label)
     in
     (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
     let () =
@@ -1518,21 +1517,12 @@ end = struct
         push rax
       );
       I.call (asan_report_function memory_chunk_size memory_access);
-      if need_to_align_stack then (
-        pop rax
-      )
+      if need_to_align_stack then pop rax
     in
     def_label asan_check_succeded_label;
-    if need_to_save_r10 then (
-      pop r10
-    );
-    if need_to_save_r11 then (
-      pop r11;
-    );
-    if need_to_save_rdi then (
-      pop rdi
-    );
-  ;;
+    if need_to_save_r10 then pop r10;
+    if need_to_save_r11 then pop r11;
+    if need_to_save_rdi then pop rdi
 
   let is_asan_enabled = ref Config.with_address_sanitizer
 
