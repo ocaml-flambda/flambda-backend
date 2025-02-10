@@ -14,9 +14,7 @@ val use_uncontended : 'a -> 'a = <fun>
 Line 5, characters 0-62:
 5 | type t : value mod uncontended = { mutable contents : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is
-         value mod many with string portable with string
-                   unyielding with string
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod uncontended
          because of the annotation on the declaration of the type t.
