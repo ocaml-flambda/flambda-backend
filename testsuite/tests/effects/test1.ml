@@ -1,9 +1,11 @@
 (* TEST
- skip;
+  runtime5;
+  { bytecode; }
+  { native; }
 *)
 
-open Effect
-open Effect.Deep
+open Stdlib__Effect
+open Stdlib__Effect.Deep
 
 type _ t += E : unit t
 
