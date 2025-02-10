@@ -213,7 +213,7 @@ Error: The layout of type "a" is value
          because of the definition of b at line 2, characters 0-30.
 |}]
 
-type a : value mod global unique many uncontended portable external_
+type a : value mod global unique many uncontended portable external_ unyielding
 type b : value mod local aliased once contended nonportable internal = a
 [%%expect{|
 type a : immediate
@@ -1139,11 +1139,11 @@ Error: The kind of type "t" is value
 (***********************************************)
 (* Test 7: Inference with modality annotations *)
 
-type 'a t : value mod global portable uncontended many unique =
+type 'a t : value mod global portable uncontended many unique unyielding =
   { x : 'a @@ global portable uncontended many unique } [@@unboxed]
 [%%expect {|
 Lines 1-2, characters 0-67:
-1 | type 'a t : value mod global portable uncontended many unique =
+1 | type 'a t : value mod global portable uncontended many unique unyielding =
 2 |   { x : 'a @@ global portable uncontended many unique } [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
@@ -1154,11 +1154,11 @@ Error: The kind of type "t" is value
 |}]
 (* CR layouts v2.8: this should be accepted *)
 
-type 'a t : value mod global portable uncontended many unique =
+type 'a t : value mod global portable uncontended many unique unyielding =
   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
 [%%expect {|
 Lines 1-2, characters 0-66:
-1 | type 'a t : value mod global portable uncontended many unique =
+1 | type 'a t : value mod global portable uncontended many unique unyielding =
 2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
@@ -1252,7 +1252,7 @@ Error: The kind of type "t" is immutable_data
 type ('a : value mod unique) t = ('a : value mod global)
 type ('a : immediate) t = ('a : value)
 type ('a : value) t = ('a : immediate)
-type ('a : value mod external_ portable many) t = ('a : value mod uncontended global unique)
+type ('a : value mod external_ portable many unyielding) t = ('a : value mod uncontended global unique)
 type ('a : value) t = ('a : any)
 type ('a : value) t = ('a : value)
 type ('a : bits32 mod unique) t = ('a : any mod global)
@@ -1419,7 +1419,7 @@ Line 1, characters 40-50:
                                             ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod unique)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many unyielding
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod unique
          because of the annotation on the wildcard _ at line 1, characters 19-35.
@@ -1432,7 +1432,7 @@ Line 1, characters 42-52:
                                               ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod portable)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many unyielding
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod portable
          because of the annotation on the wildcard _ at line 1, characters 19-37.
@@ -1445,7 +1445,7 @@ Line 1, characters 45-55:
                                                  ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod uncontended)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many unyielding
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod uncontended
          because of the annotation on the wildcard _ at line 1, characters 19-40.
@@ -1458,7 +1458,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod external_)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many unyielding
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod external_
          because of the annotation on the wildcard _ at line 1, characters 19-38.

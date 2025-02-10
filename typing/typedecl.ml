@@ -1846,7 +1846,7 @@ let update_decl_jkind env dpath decl =
             Jkind.for_unboxed_record
               ~jkind_of_first_type:(fun () ->
                 match lbls with
-                | [lbl] -> Ctype.estimate_type_jkind env lbl.ld_type
+                | [lbl] -> Ctype.type_jkind env lbl.ld_type
                 | [] | _ :: _ :: _ -> Misc.fatal_error
                          "[for_unboxed_record] called [jkind_of_first_type] \
                          for non-singleton record.")

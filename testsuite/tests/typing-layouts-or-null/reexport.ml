@@ -16,23 +16,10 @@ Lines 2-4, characters 2-16:
 2 | ..type ('a : value) t : value_or_null = 'a or_null =
 3 |     | Null
 4 |     | This of 'a
-<<<<<<< HEAD
 Error: This variant or record definition does not match that of type
          "'a or_null"
        Their internal representations differ:
        the original definition has a null constructor.
-||||||| parent of bf5bf8a120 (Add with-kinds.)
-Error: The kind of type "'a or_null" is value_or_null
-         because it is the primitive value_or_null type or_null.
-       But the kind of type "'a or_null" must be a subkind of value
-         because of the definition of t at lines 2-4, characters 2-16.
-=======
-Error: The kind of type "'a or_null" is value_or_null
-         because it is the primitive value_or_null type or_null.
-       But the kind of type "'a or_null" must be a subkind of
-         value mod many with 'a uncontended with 'a portable with 'a
-         because of the definition of t at lines 2-4, characters 2-16.
->>>>>>> bf5bf8a120 (Add with-kinds.)
 |}]
 
 module Or_null = struct

@@ -111,7 +111,7 @@ type ('a : value mod uncontended portable, 'b : value mod portable) t =
   | Bar of 'b
 type ('a : value mod many) t = Foo of { x : 'a; }
 type t = Foo of int
-type ('a : mutable_data) t = Foo of { mutable x : 'a; } | Bar
+type ('a : value mod many portable) t = Foo of { mutable x : 'a; } | Bar
 type 'a t = Foo of 'a
 |}]
 

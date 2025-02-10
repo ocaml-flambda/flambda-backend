@@ -226,9 +226,9 @@ Line 1, characters 0-54:
 1 | type t6_wrong_inner_record = #{ i : int; i64 : int64 }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of t6_wrong_inner_record is any & any
+       The kind of t6_wrong_inner_record is value_or_null & bits64
          because it is an unboxed record.
-       But the layout of t6_wrong_inner_record must be a sublayout of
+       But the kind of t6_wrong_inner_record must be a subkind of
          value & bits64
          because of the annotation on 'a in the declaration of the type
                                       t6_wrong.
@@ -1892,7 +1892,7 @@ Line 1, characters 19-27:
 1 | type should_fail = string t needs_any_mod_global
                        ^^^^^^^^
 Error: This type "string t" should be an instance of type "('a : any mod global)"
-       The kind of string t is value & value
+       The kind of string t is immediate & immediate
          because of the definition of t at line 2, characters 0-47.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
@@ -1910,8 +1910,7 @@ Line 4, characters 9-17:
              ^^^^^^^^
 Error: This type "s_record" should be an instance of type
          "('a : any mod external_)"
-       The kind of s_record is
-         immutable_data & immutable_data & immutable_data
+       The kind of s_record is immediate & immediate & immediate
          because of the definition of s_record at line 3, characters 0-51.
        But the kind of s_record must be a subkind of any mod external_
          because of the definition of t at line 1, characters 0-31.

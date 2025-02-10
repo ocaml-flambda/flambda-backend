@@ -74,8 +74,10 @@ t2
                  uncontended with t1
 t2 portable with t1
 t2
-                 external_ with t1
-t2 non_null with t1
+                 unyielding with t1
+t2 external_ with t1
+t2
+                 non_null with t1
 t2
          & any mod global with t1
 t2 unique with t1
@@ -84,8 +86,10 @@ t2
                    uncontended with t1
 t2 portable with t1
 t2
-                   external_ with t1
-t2 non_null with t1
+                   unyielding with t1
+t2 external_ with t1
+t2
+                   non_null with t1
 t2
          because it is an unboxed tuple.
        But the kind of type "#(t1 * t2)" must be a subkind of any_non_null
@@ -109,8 +113,10 @@ t2
                  uncontended with t1
 t2 portable with t1
 t2
-                 external_ with t1
-t2 non_null with t1
+                 unyielding with t1
+t2 external_ with t1
+t2
+                 non_null with t1
 t2
          & any mod global with t1
 t2 unique with t1
@@ -119,8 +125,10 @@ t2
                    uncontended with t1
 t2 portable with t1
 t2
-                   external_ with t1
-t2 non_null with t1
+                   unyielding with t1
+t2 external_ with t1
+t2
+                   non_null with t1
 t2
          because it is an unboxed tuple.
        But the kind of type "#(t1 * t2)" must be a subkind of
@@ -145,8 +153,10 @@ t2
                  uncontended with t1
 t2 portable with t1
 t2
-                 external_ with t1
-t2 non_null with t1
+                 unyielding with t1
+t2 external_ with t1
+t2
+                 non_null with t1
 t2
          & any mod global with t1
 t2 unique with t1
@@ -155,8 +165,10 @@ t2
                    uncontended with t1
 t2 portable with t1
 t2
-                   external_ with t1
-t2 non_null with t1
+                   unyielding with t1
+t2 external_ with t1
+t2
+                   non_null with t1
 t2
          because it is an unboxed tuple.
        But the kind of type "#(t1 * t2)" must be a subkind of
