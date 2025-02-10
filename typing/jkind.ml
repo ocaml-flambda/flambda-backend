@@ -463,12 +463,6 @@ module With_bounds = struct
         | None -> Some type_info | Some ti -> Some (Type_info.join ti type_info))
       tys
 
-  let add_bound_maybe_empty type_expr type_info tys =
-    With_bounds_types.update type_expr
-      (function
-        | None -> Some type_info | Some ti -> Some (Type_info.join ti type_info))
-      tys
-
   let add ~relevant_for_nullability ~modality ~type_expr (t : (allowed * 'r) t)
       : (allowed * 'r) t =
     let relevant_axes =
@@ -699,6 +693,10 @@ module Quality = struct
     function
     | Not_best -> Some Not_best
     | Best -> None
+
+  let is_best : type l r. (l * r) jkind_quality -> bool = function
+    | Best -> true
+    | Not_best -> false
 end
 
 include Allowance.Magic_allow_disallow (struct
@@ -1465,8 +1463,7 @@ module Jkind_desc = struct
         | Continue ctl_after_unpacking_b -> (
           match jkind_of_type ty with
           | Some b_jkind ->
-            if (match b_jkind.quality with Not_best -> false | Best -> true)
-               || not require_best
+            if Quality.is_best b_jkind.quality || not require_best
             then
               let bounds_so_far =
                 join_respecting_omit b_jkind.jkind.mod_bounds
@@ -1488,8 +1485,11 @@ module Jkind_desc = struct
               let bounds, bs' = loop ctl_after_unpacking_b bounds_so_far bs in
               bounds, With_bounds.join_bounds_maybe_empty nested_with_bounds bs'
             else
-              (* Don't know the best kind for this type, so skip it, leaving it in the
-                 (normalized) with_bounds. *)
+              (* Don't know the best kind for this type! We want to either:
+
+                 - skip it, leaving it in the with_bounds, in the case of best normalization
+                 - round up along its relevant axes, in the case of not-best normalization
+              *)
               let bounds_so_far =
                 if require_best
                 then bounds_so_far
@@ -1498,7 +1498,8 @@ module Jkind_desc = struct
               let bounds_so_far, bs' =
                 loop ctl_after_unpacking_b bounds_so_far bs
               in
-              bounds_so_far, With_bounds.add_bound_maybe_empty ty ti bs'
+              ( bounds_so_far,
+                if require_best then With_bounds.add_bound ty ti bs' else bs' )
           | None ->
             (* kind of b is not principally known, so we treat it as having the max
                bound (only along the axes we care about for this type!) *)
@@ -1506,7 +1507,7 @@ module Jkind_desc = struct
             let bounds_so_far, bs' =
               loop ctl_after_unpacking_b bounds_so_far bs
             in
-            bounds_so_far, With_bounds.add_bound_maybe_empty ty ti bs'))
+            bounds_so_far, With_bounds.add_bound ty ti bs'))
     in
     let mod_bounds, with_bounds =
       loop Loop_control.starting t.mod_bounds
