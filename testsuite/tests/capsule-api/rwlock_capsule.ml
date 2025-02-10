@@ -83,8 +83,8 @@ let with_read_guarded x (f : 'k . 'k Capsule.Password.Shared.t @ local -> ('a, '
 ;;
 
 (* reading from myref with the expected modes *)
-let read_ref : ('a : value mod portable) .
-  ('a myref @ shared -> 'a @ portable contended) @@ portable = fun r -> r.v
+let read_ref : (('a : value mod portable) .
+  ('a myref @ shared -> 'a @ portable contended)) @ portable = fun r -> r.v
 
 (* writing to myref with the expected modes *)
  let write_ref : ('a : value mod portable contended) .

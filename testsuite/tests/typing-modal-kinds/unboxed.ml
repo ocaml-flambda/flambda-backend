@@ -41,14 +41,14 @@ type ('a : value & value) portended_vv = {
 |}]
 
 (* Unboxed records with modalities should cross regardless of what we put in them *)
-let foo (x : (int -> int) portable @@ nonportable) = use_portable x
-let foo (x : (int -> int) ref portable @@ nonportable) = use_portable x
-let foo (x : int ref contended @@ contended) = use_uncontended x
-let foo (x : (int -> int) ref contended @@ contended) = use_uncontended x
-let foo (x : (int -> int) ref portended @@ nonportable) =
+let foo (x : (int -> int) portable @ nonportable) = use_portable x
+let foo (x : (int -> int) ref portable @ nonportable) = use_portable x
+let foo (x : int ref contended @ contended) = use_uncontended x
+let foo (x : (int -> int) ref contended @ contended) = use_uncontended x
+let foo (x : (int -> int) ref portended @ nonportable) =
   use_uncontended x;
   use_portable x
-let foo (x : (int -> int) ref ref portended @@ nonportable) =
+let foo (x : (int -> int) ref ref portended @ nonportable) =
   use_uncontended x;
   use_portable x
 type test = (int -> int) portable require_portable
@@ -77,9 +77,9 @@ type test = (int -> int) ref ref portended require_portable
 |}]
 
 (* Modalities should propagate through arbitrary levels of nesting *)
-let foo (x : ((int -> int) portable portable portable) @@ nonportable) = use_portable x
-let foo (x : ((int -> int) portable ref portable ref portable) @@ nonportable) = use_portable x
-let foo (x : (((int -> int) ref) portable contended portable contended) @@ nonportable contended) =
+let foo (x : ((int -> int) portable portable portable) @ nonportable) = use_portable x
+let foo (x : ((int -> int) portable ref portable ref portable) @ nonportable) = use_portable x
+let foo (x : (((int -> int) ref) portable contended portable contended) @ nonportable contended) =
   use_uncontended x;
   use_portable x
 
@@ -102,13 +102,13 @@ type test =
 |}]
 
 (* Modalities should work in unboxed tuples and products too *)
-let foo (x : #(int ref contended * int ref contended) @@ contended) = use_uncontended_vv x
-let foo (x : #(int ref * int ref) contended_vv @@ contended) = use_uncontended_vv x
-let foo (x : #(int ref contended * int ref contended) contended_vv @@ contended) = use_uncontended_vv x
-let foo (x : #((int -> int) ref portended * (int -> int) ref portended) @@ nonportable contended) =
+let foo (x : #(int ref contended * int ref contended) @ contended) = use_uncontended_vv x
+let foo (x : #(int ref * int ref) contended_vv @ contended) = use_uncontended_vv x
+let foo (x : #(int ref contended * int ref contended) contended_vv @ contended) = use_uncontended_vv x
+let foo (x : #((int -> int) ref portended * (int -> int) ref portended) @ nonportable contended) =
   use_portable_vv x;
   use_uncontended_vv x
-let foo (x : #((int -> int) portable * int ref contended) portended_vv @@ contended) =
+let foo (x : #((int -> int) portable * int ref contended) portended_vv @ contended) =
   use_portable_vv x;
   use_uncontended_vv x
 [%%expect{|
@@ -128,62 +128,62 @@ val foo :
 
 (* [@@unboxed] variants, of all sorts *)
 type 'a portable = Portable of 'a @@ portable [@@unboxed]
-let foo (x : (int -> int) portable @@ nonportable) = use_portable x
+let foo (x : (int -> int) portable @ nonportable) = use_portable x
 [%%expect{|
 type 'a portable = Portable of 'a @@ portable [@@unboxed]
 val foo : (int -> int) portable -> unit = <fun>
 |}]
 
-let foo (x : int ref portable @@ contended) = use_uncontended x
+let foo (x : int ref portable @ contended) = use_uncontended x
 [%%expect{|
-Line 1, characters 62-63:
-1 | let foo (x : int ref portable @@ contended) = use_uncontended x
-                                                                  ^
+Line 1, characters 61-62:
+1 | let foo (x : int ref portable @ contended) = use_uncontended x
+                                                                 ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 type 'a portable = Portable of { portable : 'a @@ portable } [@@unboxed]
-let foo (x : (int -> int) portable @@ nonportable) = use_portable x
+let foo (x : (int -> int) portable @ nonportable) = use_portable x
 [%%expect{|
 type 'a portable = Portable of { portable : 'a @@ portable; } [@@unboxed]
 val foo : (int -> int) portable -> unit = <fun>
 |}]
 
-let foo (x : int ref portable @@ contended) = use_uncontended x
+let foo (x : int ref portable @ contended) = use_uncontended x
 [%%expect{|
-Line 1, characters 62-63:
-1 | let foo (x : int ref portable @@ contended) = use_uncontended x
-                                                                  ^
+Line 1, characters 61-62:
+1 | let foo (x : int ref portable @ contended) = use_uncontended x
+                                                                 ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 type 'a portable = Portable : 'a @@ portable -> 'a portable [@@unboxed]
-let foo (x : (int -> int) portable @@ nonportable) = use_portable x
+let foo (x : (int -> int) portable @ nonportable) = use_portable x
 [%%expect{|
 type 'a portable = Portable : 'a @@ portable -> 'a portable [@@unboxed]
 val foo : (int -> int) portable -> unit = <fun>
 |}]
 
-let foo (x : int ref portable @@ contended) = use_uncontended x
+let foo (x : int ref portable @ contended) = use_uncontended x
 [%%expect{|
-Line 1, characters 62-63:
-1 | let foo (x : int ref portable @@ contended) = use_uncontended x
-                                                                  ^
+Line 1, characters 61-62:
+1 | let foo (x : int ref portable @ contended) = use_uncontended x
+                                                                 ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 type 'a portable = Portable : { portable : 'a @@ portable } -> 'a portable [@@unboxed]
-let foo (x : (int -> int) portable @@ nonportable) = use_portable x
+let foo (x : (int -> int) portable @ nonportable) = use_portable x
 [%%expect{|
 type 'a portable = Portable : { portable : 'a @@ portable; } -> 'a portable [@@unboxed]
 val foo : (int -> int) portable -> unit = <fun>
 |}]
 
-let foo (x : int ref portable @@ contended) = use_uncontended x
+let foo (x : int ref portable @ contended) = use_uncontended x
 [%%expect{|
-Line 1, characters 62-63:
-1 | let foo (x : int ref portable @@ contended) = use_uncontended x
-                                                                  ^
+Line 1, characters 61-62:
+1 | let foo (x : int ref portable @ contended) = use_uncontended x
+                                                                 ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -195,14 +195,14 @@ type 'a t : value & value mod portable =
 type 'a t = #{ x : 'a @@ portable; y : 'a @@ portable; }
 |}]
 
-let f (x : (int -> int) t @@ nonportable) = use_portable_vv x
+let f (x : (int -> int) t @ nonportable) = use_portable_vv x
 
 [%%expect{|
 val f : (int -> int) t -> unit = <fun>
 |}, Principal{|
-Line 1, characters 60-61:
-1 | let f (x : (int -> int) t @@ nonportable) = use_portable_vv x
-                                                                ^
+Line 1, characters 59-60:
+1 | let f (x : (int -> int) t @ nonportable) = use_portable_vv x
+                                                               ^
 Error: This expression has type "(int -> int) t"
        but an expression was expected of type "('a : value & value)"
        The kind of (int -> int) t is

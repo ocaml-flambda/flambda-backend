@@ -321,25 +321,25 @@ Error: This function when partially applied returns a value which is "nonportabl
 (* CR modes: These three tests are in principle fine to allow (they don't cause a data
    race), since a is never used *)
 
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
+let foo : ('a @ contended portable -> (string -> string) @ portable) @ nonportable contended = fun a b -> best_bytes ()
 (* CR layouts v2.8: arrows should cross contention. *)
 [%%expect{|
-Line 1, characters 4-118:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-119:
+1 | let foo : ('a @ contended portable -> (string -> string) @ portable) @ nonportable contended = fun a b -> best_bytes ()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
+let foo : ('a @ contended portable -> (string -> string) @ portable) @ uncontended portable = fun a b -> best_bytes ()
 [%%expect{|
-Line 1, characters 104-114:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
-                                                                                                            ^^^^^^^^^^
+Line 1, characters 105-115:
+1 | let foo : ('a @ contended portable -> (string -> string) @ portable) @ uncontended portable = fun a b -> best_bytes ()
+                                                                                                             ^^^^^^^^^^
 Error: The value "best_bytes" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* immediates crosses portability and contention *)
-let foo (x : int @@ nonportable) (y : int @@ contended) =
+let foo (x : int @ nonportable) (y : int @ contended) =
     let _ @ portable = x in
     let _ @ uncontended = y in
     let _ @ shared = y in
@@ -348,7 +348,7 @@ let foo (x : int @@ nonportable) (y : int @@ contended) =
 val foo : int -> int @ contended -> unit = <fun>
 |}]
 
-let foo (x : int @@ shared) =
+let foo (x : int @ shared) =
     let _ @ uncontended = x in
     ()
 [%%expect{|
@@ -358,7 +358,7 @@ val foo : int @ shared -> unit = <fun>
 (* TESTING immutable array *)
 module Iarray = Stdlib_stable.Iarray
 
-let foo (r : int iarray @@ contended) = Iarray.get r 42
+let foo (r : int iarray @ contended) = Iarray.get r 42
 [%%expect{|
 module Iarray = Stdlib_stable.Iarray
 val foo : int iarray @ contended -> int = <fun>

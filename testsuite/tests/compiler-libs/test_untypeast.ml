@@ -79,14 +79,14 @@ run {| let foo : type a . a -> a = fun x -> x in foo |}
 
 (* CR: untypeast/pprintast are totally busted on programs with modes in value
    bindings. Fix this. *)
-run {| let foo : 'a -> 'a @@ portable = fun x -> x in foo |}
+run {| let foo : ('a -> 'a) @ portable = fun x -> x in foo |}
 
 [%%expect{|
->> Fatal error: Unrecognized mode portable - should not parse
-Exception: Misc.Fatal_error.
+- : string =
+"let (foo : 'a -> 'a) = ((fun x -> x : 'a -> 'a) : _ @ portable) in foo"
 |}];;
 
-run {| let foo : 'a . 'a -> 'a @@ portable = fun x -> x in foo |}
+run {| let foo : ('a . 'a -> 'a) @ portable = fun x -> x in foo |}
 
 [%%expect{|
 - : string = "let foo : ('a : value) . 'a -> 'a = fun x -> x in foo"

@@ -34,7 +34,7 @@ module Cell = struct
   let read (type a : value mod portable contended) (t : a t) : a =
     let (Mk (m, p)) = t in
     Capsule.Mutex.with_lock m (fun k ->
-      let read' : a myref -> a @ portable contended @@ portable = (fun r -> r.v) in
+      let read' : (a myref -> a @ portable contended) @ portable = (fun r -> r.v) in
       Capsule.Data.extract k read' p)
 
   let write (type a : value mod portable contended) (t : a t) (x : a) =

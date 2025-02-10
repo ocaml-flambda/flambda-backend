@@ -107,7 +107,7 @@ end = struct
 
   type 'k t = A.t
 
-  let[@inline] unsafe_mk () : _ @@ local = A.make Id.uninitialized
+  let[@inline] unsafe_mk () : _ @ local = A.make Id.uninitialized
   let[@inline] id t =
     (* Safe since [Password.t] is only ever accessible by 1 fiber. *)
     match A.get_unsync t with
@@ -131,7 +131,7 @@ end = struct
          | already_set_id -> already_set_id)
       | set_id -> set_id
 
-    let unsafe_mk () : _ @@ local unyielding = A.make Id.uninitialized
+    let unsafe_mk () : _ @ local unyielding = A.make Id.uninitialized
   end
 
   let[@inline] shared t = t
@@ -584,11 +584,11 @@ module Mutex = struct
   exception Poisoned
 
   let[@inline] with_lock :
-    type k.
+    (type k.
     k t
     -> (k Password.t @ local -> 'a) @ local
-    -> 'a
-    @@ portable
+    -> 'a)
+    @ portable
     = fun t f ->
       M.lock t.mutex;
       match t.poisoned with
@@ -646,11 +646,11 @@ module Rwlock = struct
   exception Poisoned
 
   let[@inline] with_write_lock :
-    type k.
+    (type k.
     k t
     -> (k Password.t @ local -> 'a) @ local
-    -> 'a
-    @@ portable
+    -> 'a)
+    @ portable
     = fun t f ->
       Rw.lock_write t.rwlock;
       match t.state with
@@ -678,11 +678,11 @@ module Rwlock = struct
           raise exn
 
   let[@inline] with_read_lock :
-    type k.
+    (type k.
     k t
     -> (k Password.Shared.t @ local unyielding -> 'a) @ local
-    -> 'a
-    @@ portable
+    -> 'a)
+    @ portable
     = fun t f ->
       Rw.lock_read t.rwlock;
       match t.state with

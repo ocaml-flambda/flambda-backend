@@ -330,156 +330,192 @@ val nums : 'a list = []
 (*********)
 (* Modes *)
 
-(* parameters *)
-let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
-      ?foo:(local_ unique_ once_ w = 1)
-      ?bar:(local_ w : int = 1) () = ();;
+(* parameters, in the order specified by [labeled_simple_pattern] in [parser.mly] *)
+let f ?(local_ x = 42)
+      ?(local_ x @ once portable = 42)
+      ?(local_ x : int @ once portable = 42)
+      ?(local_ x : ('a -> 'a) @ once portable = fun x -> x)
+      ?(local_ x : (('a : any) 'b . 'a) @ once portable = assert false)
+      ?(local_ x : (('a : any) 'b . 'a -> 'b) @ once portable = assert false)
 
+      ?x:(local_ (y, z) = 42)
+      ?x:(local_ (y, z) @ once portable = 42)
+      ?x:(local_ (y, z) : int @ once portable = 42)
+      ?x:(local_ (y, z) : ('a -> 'a) @ once portable = 42)
+      ?x:(local_ (y, z) : (('a : any) 'b . 'a) @ once portable = 42)
+      ?x:(local_ (y, z) : (('a : any) 'b . 'a -> 'b) @ once portable = 42)
+
+      ~(local_ x)
+      ~(local_ x @ once portable)
+      ~(local_ x : int @ once portable)
+      ~(local_ x : ('a -> 'a) @ once portable)
+      ~(local_ x : (('a : any) 'b . 'a) @ once portable)
+      ~(local_ x : (('a : any) 'b . 'a -> 'b) @ once portable)
+
+      ~x:(local_ (y, z))
+      ~x:(local_ (y, z) @ once portable)
+      ~x:(local_ (y, z) : int @ once portable)
+      ~x:(local_ (y, z) : ('a -> 'a) @ once portable)
+      ~x:(local_ (y, z) : (('a : any) 'b . 'a) @ once portable)
+      ~x:(local_ (y, z) : (('a : any) 'b . 'a -> 'b) @ once portable)
+
+      (local_ (y, z))
+      (local_ (y, z) @ once portable)
+      (local_ (y, z) : int @ once portable)
+      (local_ (y, z) : ('a -> 'a) @ once portable)
+      (local_ (y, z) : (('a : any) 'b . 'a) @ once portable)
+      (local_ (y, z) : (('a : any) 'b . 'a -> 'b) @ once portable)
+
+      = ();;
+
+(* This file is only about syntax - type error is fine *)
 [%%expect{|
-val f :
-  local_ 'a @ unique ->
-  y:local_ 'b @ once ->
-  z:'c @ once unique ->
-  ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit = <fun>
+Line 5, characters 8-55:
+5 |       ?(local_ x : (('a : any) 'b . 'a) @ once portable = assert false)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Optional parameters cannot be polymorphic
 |}]
 
-(* bindings *)
+(* bindings, in the order specified by [let_binding_body_no_punning] in [parser.mly] *)
 let g () =
-  let local_ unique_ f = () in
-  let unique_ once_ f : 'a . 'a -> 'a = fun x -> x in
-  let once_ local_ f x y = x + y in
-  let local_ unique_ once_ f : int -> int = fun z -> z + z in
-  let local_ f x: int -> int = x in
-  let local_ f x y : int -> int = fun z -> x + y + z in
+  let local_ f = 42 in
+  let local_ f a b @ once portable = 42 in
+  let local_ f a b : int @ once portable = 42 in
+  let local_ f a b : (int -> int) @ once portable = 42 in
 
-  let foo a b @ local = exclave_ "hello" in
-  let foo = fun a b @ local -> exclave_ "hello" in
-  let foo a b : int @@ local = 42 in
-  let foo = fun a b : int @@ local -> 42 in
-  ();;
+  let (f @ local unique) = 42 in
+  let (f @ local unique) a b @ once portable = 42 in
+  let (f @ local unique) a b : int @ once portable = 42 in
+  let (f @ local unique) a b : (int -> int) @ once portable = 42 in
+
+  let local_ a @ once portable = 42 in
+  let local_ a : int @ once portable = 42 in
+  let local_ a : (int -> int) @ once portable = 42 in
+
+  let local_ a : (('a : any) 'b. 'a) @ once portable = 42 in
+  let local_ a : (('a : any) 'b. 'a -> 'a) @ once portable = 42 in
+
+  let a : (type (a : any) b. int) @ once portable = 42 in
+  let a : (type (a : any) b. a -> b) @ once portable = 42 in
+
+  let (a, b) @ once portable = 42 in
+  let (a, b) : int @ once portable = 42 in
+  let (a, b) : (int -> int) @ once portable = 42 in
+
+  () ;;
 
 [%%expect{|
-Line 2, characters 21-22:
-2 |   let local_ unique_ f = () in
-                         ^
-Warning 26 [unused-var]: unused variable f.
-
-Line 3, characters 20-21:
-3 |   let unique_ once_ f : 'a . 'a -> 'a = fun x -> x in
-                        ^
-Warning 26 [unused-var]: unused variable f.
-
-Line 4, characters 19-20:
-4 |   let once_ local_ f x y = x + y in
-                       ^
-Warning 26 [unused-var]: unused variable f.
-
-Line 5, characters 27-28:
-5 |   let local_ unique_ once_ f : int -> int = fun z -> z + z in
-                               ^
-Warning 26 [unused-var]: unused variable f.
-
-Line 6, characters 13-14:
-6 |   let local_ f x: int -> int = x in
-                 ^
-Warning 26 [unused-var]: unused variable f.
-
-Line 7, characters 13-14:
-7 |   let local_ f x y : int -> int = fun z -> x + y + z in
-                 ^
-Warning 26 [unused-var]: unused variable f.
-
-Line 9, characters 6-9:
-9 |   let foo a b @ local = exclave_ "hello" in
-          ^^^
-Warning 26 [unused-var]: unused variable foo.
-
-Line 10, characters 6-9:
-10 |   let foo = fun a b @ local -> exclave_ "hello" in
-           ^^^
-Warning 26 [unused-var]: unused variable foo.
-
-Line 11, characters 6-9:
-11 |   let foo a b : int @@ local = 42 in
-           ^^^
-Warning 26 [unused-var]: unused variable foo.
-
-Line 12, characters 6-9:
-12 |   let foo = fun a b : int @@ local -> 42 in
-           ^^^
-Warning 26 [unused-var]: unused variable foo.
-
-val g : unit -> unit = <fun>
+Line 5, characters 52-54:
+5 |   let local_ f a b : (int -> int) @ once portable = 42 in
+                                                        ^^
+Error: This expression has type "int" but an expression was expected of type
+         "int -> int"
 |}]
 
 (* expressions *)
-let g () = exclave_ unique_
-  let f = unique_ once_ () in
-  let f x y = exclave_ once_ (x + y) in
-  local_ unique_ once_ ();;
+let g () = exclave_ local_
+  let f = (() : _ @ unique once) in
+  let f x y @ local unique = exclave_ local_ (x + y : _ @ once unique) in
+  local_ (() : _ @ unique once);;
 
 [%%expect{|
 Line 2, characters 6-7:
-2 |   let f = unique_ once_ () in
+2 |   let f = (() : _ @ unique once) in
           ^
 Warning 26 [unused-var]: unused variable f.
 
 Line 3, characters 6-7:
-3 |   let f x y = exclave_ once_ (x + y) in
+3 |   let f x y @ local unique = exclave_ local_ (x + y : _ @ once unique) in
           ^
 Warning 26 [unused-var]: unused variable f.
 
-val g : unit -> local_ unit @ once = <fun>
+val g : unit -> unit @ local once = <fun>
 |}]
 
-(* types *)
+(* type declarations *)
 type record =
-  { global_ field : int
+  { global_ field0 : int
+  ; field1 : int @@ global portable contended
+  ; global_ field2 : int @@ portable contended
   ; normal_field : int
   };;
 
 [%%expect{|
-type record = { global_ field : int; normal_field : int; }
+type record = {
+  global_ field0 : int;
+  field1 : int @@ global portable contended;
+  field2 : int @@ global portable contended;
+  normal_field : int;
+}
 |}]
 
+type 'a parameterized_record =
+  { global_ field0 : 'a
+  ; field1 : 'a @@ global portable contended
+  ; global_ field2 : 'a @@ portable contended
+  ; normal_field : 'a
+  };;
+
+type t =
+  | Foo of global_ int * int
+  | Foo1 of global_ int @@ portable contended * int
+  | Foo2 of global_ int * global_ int @@ portable contended
+  | Foo3 of global_ int * int @@ portable contended
+  | Foo4 of global_ (int * int) @@ portable contended
+
+[%%expect{|
 type 'a parameterized_record = {
-  mutable a: 'a ;
-  global_ c: 'a };;
-
-[%%expect{|
-type 'a parameterized_record = { mutable a : 'a; global_ c : 'a; }
+  global_ field0 : 'a;
+  field1 : 'a @@ global portable contended;
+  field2 : 'a @@ global portable contended;
+  normal_field : 'a;
+}
+type t =
+    Foo of global_ int * int
+  | Foo1 of int @@ global portable contended * int
+  | Foo2 of global_ int * int @@ global portable contended
+  | Foo3 of global_ int * int @@ portable contended
+  | Foo4 of (int * int) @@ global portable contended
 |}]
 
-type fn = local_ unique_ int -> local_ once_ int;;
-type nested_fn = (local_ unique_ int -> local_ once_ int) -> local_ unique_ once_ int;;
+(* arrow types *)
+type fn = local_ int @ portable contended -> local_ int @ portable contended ;;
+type nested_fn = (local_ int @ portable once -> local_ int @ portable once) @ portable once -> local_ int @ portable once;;
 type ('a, 'b) labeled_fn =
-  a:local_ unique_ 'a -> ?b:local_ once_ 'b -> unique_ once_ 'a -> (int -> once_ unique_ 'b);;
+  a:local_ unique_ 'a @ portable contended -> ?b:local_ once_ 'b @ portable contended ->  local_ 'a @ contended portable-> (int -> local_ 'b @ unique once) @ portable;;
+type typvar_fn =
+  a:local_ unique_ ('a 'b. 'a) @ portable contended -> unit
 
 [%%expect{|
-type fn = local_ int @ unique -> local_ int @ once
+type fn = int @ local portable contended -> int @ local portable contended
 type nested_fn =
-    (local_ int @ unique -> local_ int @ once) -> local_ int @ once unique
+    (int @ local once portable -> int @ local once portable) @ once
+    portable -> int @ local once portable
 type ('a, 'b) labeled_fn =
-    a:local_ 'a @ unique ->
-    ?b:local_ 'b @ once -> 'a @ once unique -> (int -> 'b @ once unique)
+    a:'a @ local unique portable contended ->
+    ?b:'b @ local once portable contended ->
+    'a @ local portable contended ->
+    (int -> 'b @ local unique once) @ portable
+type typvar_fn = a:('a. 'a) @ local unique portable contended -> unit
 |}]
 
 (* kitchen sink, with new @ syntax *)
 let f ~(x1 @ many)
-      ~(x2 : string @@ local)
-      ~(x3 : string -> string @@ local)
-      ~(x4 : 'a. 'a -> 'a @@ local)
+      ~(x2 : string @ local)
+      ~(x3 : (string -> string) @ local)
+      ~(x4 : ('a. 'a -> 'a) @ local)
+      ~(x9 : ('a. 'a) @ local)
       ~(local_ x5)
       ~x6:(local_ true | false @ many)
-      ~x7:(local_ true | false : bool @@ many)
+      ~x7:(local_ true | false : bool @ many)
       ~x8:(local_ ())
-      (_ : string @@ global)
+      (_ : string @ global)
       (_ @ local) =
   exclave_
   local_
   let x9 @ local = "hi" in
-  let x10 : string @@ global = "hi" in
-  let local_ x11 : int array @@ contended = [| |] in
+  let x10 : string @ global = "hi" in
+  let local_ x11 : int array @ contended = [| |] in
   (* This next line actually doesn't pass the round-trip test: the parser
      does not accept [local_] and [type] on the same let. This seems annoying
      to fix, and we're getting rid of [local_] someday anyway. *)
@@ -488,7 +524,7 @@ let f ~(x1 @ many)
   let (x14 @ local) y z = y + z in
   let (x15 @ local) y z : int = y + z in
   (* NO: let (x15 @ local) y z : int @@ local = y + z in *)
-  let _ = ("hi" : string @@ global) in
+  let _ = ("hi" : string @ global) in
   stack_ (x1, x2, x3, x4, x5, x9, x10, x11, (* x12, *) x13, x14, x15)
 
 [%%expect{|
@@ -497,15 +533,16 @@ val f :
   x2:local_ string ->
   x3:local_ (string -> string) ->
   x4:local_ ('a. 'a -> 'a) ->
+  x9:local_ ('a. 'a) ->
   x5:local_ 'c ->
   x6:local_ bool ->
   x7:local_ bool ->
   x8:local_ unit ->
   string ->
-  local_ 'd -> local_
+  local_ 'd ->
   'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
   int array * string * (int -> local_ (int -> int)) *
-  (int -> local_ (int -> int)) @ contended = <fun>
+  (int -> local_ (int -> int)) @ local contended = <fun>
 |}]
 
 let f1 (_ @ local) = ()
@@ -567,7 +604,7 @@ type t =
 type t = {
   global_ x : string;
   mutable y : float -> float;
-  global_ z : string @@ many;
+  z : string @@ global many;
 }
 type t1 = { mutable x : float; mutable f : float -> float; }
 type t2 = { mutable x : float; mutable f : float -> float; }
@@ -585,7 +622,7 @@ Error: This value escapes its region.
 let f2 (x @ local) (f @ once) : t2 = exclave_ { x; f }
 
 [%%expect{|
-val f2 : local_ float -> (float -> float) @ once -> local_ t2 @ once = <fun>
+val f2 : local_ float -> (float -> float) @ once -> t2 @ local once = <fun>
 |}]
 
 
@@ -619,47 +656,47 @@ module type S = sig end
 module M : sig end
 |}]
 
-module F (X : S @@ portable) = struct
+module F (X : S @ portable) = struct
 end
 [%%expect{|
-Line 1, characters 19-27:
-1 | module F (X : S @@ portable) = struct
-                       ^^^^^^^^
+Line 1, characters 18-26:
+1 | module F (X : S @ portable) = struct
+                      ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
-module F (_ : S @@ portable) = struct
+module F (_ : S @ portable) = struct
 end
 [%%expect{|
-Line 1, characters 19-27:
-1 | module F (_ : S @@ portable) = struct
-                       ^^^^^^^^
+Line 1, characters 18-26:
+1 | module F (_ : S @ portable) = struct
+                      ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
-module M' = (M : S @@ portable)
+module M' = (M : S @ portable)
 [%%expect{|
-Line 1, characters 22-30:
-1 | module M' = (M : S @@ portable)
-                          ^^^^^^^^
+Line 1, characters 21-29:
+1 | module M' = (M : S @ portable)
+                         ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
-module F (M : S @@ portable) : S @@ portable = struct
+module F (M : S @ portable) : S @ portable = struct
 end
 [%%expect{|
-Line 1, characters 19-27:
-1 | module F (M : S @@ portable) : S @@ portable = struct
-                       ^^^^^^^^
+Line 1, characters 18-26:
+1 | module F (M : S @ portable) : S @ portable = struct
+                      ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
-module F (M : S @@ portable) @ portable = struct
+module F (M : S @ portable) @ portable = struct
 end
 [%%expect{|
-Line 1, characters 19-27:
-1 | module F (M : S @@ portable) @ portable = struct
-                       ^^^^^^^^
+Line 1, characters 18-26:
+1 | module F (M : S @ portable) @ portable = struct
+                      ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
@@ -675,11 +712,11 @@ Line 1, characters 17-25:
 Error: Mode annotations on modules are not supported yet.
 |}]
 
-module M' = (M : S @@ portable)
+module M' = (M : S @ portable)
 [%%expect{|
-Line 1, characters 22-30:
-1 | module M' = (M : S @@ portable)
-                          ^^^^^^^^
+Line 1, characters 21-29:
+1 | module M' = (M : S @ portable)
+                         ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
@@ -691,19 +728,19 @@ Line 1, characters 11-19:
 Error: Mode annotations on modules are not supported yet.
 |}]
 
-module M : S @@ portable = struct end
+module M : S @ portable = struct end
 [%%expect{|
-Line 1, characters 16-24:
-1 | module M : S @@ portable = struct end
-                    ^^^^^^^^
+Line 1, characters 15-23:
+1 | module M : S @ portable = struct end
+                   ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
-module type S' = functor () (M : S @@ portable) (_ : S @@ portable) -> S @ portable
+module type S' = functor () (M : S @ portable) (_ : S @ portable) -> S @ portable
 [%%expect{|
-Line 1, characters 38-46:
-1 | module type S' = functor () (M : S @@ portable) (_ : S @@ portable) -> S @ portable
-                                          ^^^^^^^^
+Line 1, characters 37-45:
+1 | module type S' = functor () (M : S @ portable) (_ : S @ portable) -> S @ portable
+                                         ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
 
@@ -735,13 +772,14 @@ Error: Mode annotations on modules are not supported yet.
 
 module type T = sig
   module M : S @@ portable
-  module M = N @ portable
-  module (M @ portable) = N
-  module M0 (_ : S @@ portable) (X : S @@ portable) : S @@ portable
-  (* The above [@@ portable] is the return mode of the functor, not the modality on the
-  module declaration; To do that, one must write in the following ways. *)
-  module (M0 @ portable) (_ : S @@ portable) (X : S @@ portable) : S @@ portable
-  module M0 : functor (_ : S @@ portable) (X : S @@ portable) -> S @ portable @@ portable
+  module M = N @@ portable
+  module (M @@ portable) = N
+  module M0 (_ : S @ portable) (X : S @ portable) : S @ portable
+  (* The above last [@ portable] is the return mode of the functor, not the
+  modality on the module declaration; To do that, one must write in the
+  following ways. *)
+  module (M0 @@ portable) (_ : S @ portable) (X : S @ portable) : S @ portable
+  module M0 : functor (_ : S @ portable) (X : S @ portable) -> S @ portable @@ portable
 
   module M0 : S @ portable -> S @ portable -> S @ portable @@ portable
 
@@ -750,7 +788,7 @@ module type T = sig
 end
 [%%expect{|
 Line 3, characters 13-14:
-3 |   module M = N @ portable
+3 |   module M = N @@ portable
                  ^
 Error: Unbound module "N"
 |}]

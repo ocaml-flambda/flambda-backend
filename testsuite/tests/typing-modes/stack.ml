@@ -26,22 +26,22 @@ Error: This value escapes its region.
 |}]
 
 let f () =
-  let g = stack_ ((42, 42) : _ @@ global ) in
+  let g = stack_ ((42, 42) : _ @ global ) in
   ()
 [%%expect{|
-Line 2, characters 17-42:
-2 |   let g = stack_ ((42, 42) : _ @@ global ) in
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 17-41:
+2 |   let g = stack_ ((42, 42) : _ @ global ) in
+                     ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This allocation cannot be on the stack.
 |}]
 
 let f () =
-  let g = ref (stack_ ((42, 42) : _ @@ global )) in
+  let g = ref (stack_ ((42, 42) : _ @ global )) in
   ()
 [%%expect{|
-Line 2, characters 14-48:
-2 |   let g = ref (stack_ ((42, 42) : _ @@ global )) in
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 14-47:
+2 |   let g = ref (stack_ ((42, 42) : _ @ global )) in
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
