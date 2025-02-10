@@ -1366,7 +1366,7 @@ module Address_sanitizer : sig
   type memory_access = Load | Store
 
   (** Implements [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping]. *)
-  val emit_sanitize : ?dependencies:arg array -> arg -> memory_chunk -> memory_access -> unit
+  val emit_sanitize : ?dependencies:arg array -> address:arg -> memory_chunk -> memory_access -> unit
 
   val command_line_options : (string * Arg.spec * string) list
 end = struct
@@ -1451,7 +1451,7 @@ end = struct
   (* The C code snippets in the comments throughout this function refer to the implementation given in
      [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping].
      I'd recommend reading that first for reference before touching this function. *)
-  let emit_sanitize ?(dependencies = [||]) address (memory_chunk : memory_chunk) (memory_access : memory_access) =
+  let emit_sanitize ?(dependencies = [||]) ~address (memory_chunk : memory_chunk) (memory_access : memory_access) =
     let[@inline always] need_to_save_register register =
       uses_register register address
       || Array.exists (uses_register register) dependencies
@@ -1526,6 +1526,7 @@ end = struct
     if need_to_save_r10 then pop r10;
     if need_to_save_r11 then pop r11;
     if need_to_save_rdi then pop rdi
+  ;;
 
   let is_asan_enabled = ref Config.with_address_sanitizer
 
@@ -1536,13 +1537,13 @@ end = struct
          built with AddressSanitizer support enabled." ) ]
   ;;
 
-  let[@inline always] emit_sanitize ?dependencies address memory_chunk memory_access =
+  let[@inline always] emit_sanitize ?dependencies ~address memory_chunk memory_access =
     (* Checking [Config.with_address_sanitizer] is redundant, but we do it because
        it's a compile-time constant, so it enables the compiler to completely
        optimize-out the AddressSanitizer code when the compiler was configured
        without it. *)
     if Config.with_address_sanitizer && !is_asan_enabled
-    then emit_sanitize ?dependencies address memory_chunk memory_access
+    then emit_sanitize ?dependencies ~address memory_chunk memory_access
   ;;
 end
 
@@ -1685,7 +1686,7 @@ let emit_instr ~first ~fallthrough i =
       let dest = res i 0 in
       let[@inline always] load ?(dest=dest) data_type instruction =
         let address = (addressing addressing_mode data_type i 0) in
-        Address_sanitizer.emit_sanitize address memory_chunk Load;
+        Address_sanitizer.emit_sanitize ~address memory_chunk Load;
         instruction address dest
       in
       begin match memory_chunk with
@@ -1706,7 +1707,7 @@ let emit_instr ~first ~fallthrough i =
       let[@inline always] store data_type arg_func instruction =
         let address = (addressing addr data_type i 1) in
         let src = (arg_func i 0) in
-        Address_sanitizer.emit_sanitize ~dependencies:[|src|] address chunk Store;
+        Address_sanitizer.emit_sanitize ~dependencies:[|src|] ~address chunk Store;
         instruction src address
       in
       begin match chunk with
@@ -1720,7 +1721,7 @@ let emit_instr ~first ~fallthrough i =
           let src = (arg i 0) in
           I.cvtsd2ss src xmm15;
           let address = (addressing addr REAL4 i 1) in
-          Address_sanitizer.emit_sanitize ~dependencies:[|src; xmm15|] address chunk Store;
+          Address_sanitizer.emit_sanitize ~dependencies:[|src; xmm15|] ~address chunk Store;
           I.movss xmm15 address
       | Single { reg = Float32 } -> store REAL4 arg I.movss
       | Double -> store REAL8 arg I.movsd
@@ -1858,21 +1859,21 @@ let emit_instr ~first ~fallthrough i =
          that the backing memory for freshly allocated records is provided directly by the runtime
          and guaranteed to be safe to use. *)
       if is_modify then (
-        Address_sanitizer.emit_sanitize ~dependencies:[|src|] address Word_int Store;
+        Address_sanitizer.emit_sanitize ~dependencies:[|src|] ~address Word_int Store;
       );
       I.mov src address
   | Lop(Specific(Ioffset_loc(n, addr))) ->
       I.add (int n) (addressing addr QWORD i 0)
   | Lop(Specific(Ifloatarithmem(Float64, op, addr))) ->
-      let double_address = (addressing addr REAL8 i 1) in
+      let address = (addressing addr REAL8 i 1) in
       let dest = (res i 0) in
-      Address_sanitizer.emit_sanitize ~dependencies:[|dest|] double_address Double Load;
-      instr_for_floatarithmem Float64 op double_address dest
+      Address_sanitizer.emit_sanitize ~dependencies:[|dest|] ~address Double Load;
+      instr_for_floatarithmem Float64 op address dest
   | Lop(Specific(Ifloatarithmem(Float32, op, addr))) ->
-      let float_address = (addressing addr REAL4 i 1) in
+      let address = (addressing addr REAL4 i 1) in
       let dest = (res i 0) in
-      Address_sanitizer.emit_sanitize ~dependencies:[|dest|] float_address (Single {reg = Float32}) Load;
-      instr_for_floatarithmem Float32 op float_address dest
+      Address_sanitizer.emit_sanitize ~dependencies:[|dest|] ~address (Single {reg = Float32}) Load;
+      instr_for_floatarithmem Float32 op address dest
   | Lop(Specific(Ibswap { bitwidth = Sixteen })) ->
       I.xchg ah al;
       I.movzx (res16 i 0) (res i 0)
