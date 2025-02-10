@@ -8,8 +8,8 @@ let unique_use : 'a @ unique -> unit = fun _ -> ()
 
 let portable_use : 'a @ portable -> unit = fun _ -> ()
 [%%expect{|
-val unique_use : ('a : value_or_null). 'a @ unique -> unit = <fun>
-val portable_use : ('a : value_or_null). 'a @ portable -> unit = <fun>
+val unique_use : 'a @ unique -> unit = <fun>
+val portable_use : 'a @ portable -> unit = <fun>
 |}]
 
 (* There is a closure_lock of legacy around a class. We test for comonadic and

@@ -274,7 +274,7 @@ type _ t = Int : int t
 
 let f (x : bool t) = match x with _ -> . ;; (* ok *)
 [%%expect {|
-val f : ('a : value_or_null). bool t -> 'a = <fun>
+val f : bool t -> 'a = <fun>
 |}]
 
 

@@ -109,7 +109,7 @@ let test f =
   let start = Sys.time() in f ();
   (Sys.time() -. start);;
 [%%expect{|
-val test : ('a : value_or_null). (unit -> 'a) -> float = <fun>
+val test : (unit -> 'a) -> float = <fun>
 |}];;
 
 let test_foo () =

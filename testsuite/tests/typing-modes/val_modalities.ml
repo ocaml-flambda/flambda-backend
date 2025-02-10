@@ -14,17 +14,17 @@ type r = {
 let uncontended_use (_ @ uncontended) = ()
 [%%expect{|
 type r = { mutable x : string; }
-val uncontended_use : ('a : value_or_null). 'a -> unit = <fun>
+val uncontended_use : 'a -> unit = <fun>
 |}]
 
 let share_use : 'a -> unit @@ portable = fun _ -> ()
 [%%expect{|
-val share_use : ('a : value_or_null). 'a -> unit = <fun>
+val share_use : 'a -> unit = <fun>
 |}]
 
 let (portable_use @ portable) (_ @ portable) = ()
 [%%expect{|
-val portable_use : ('a : value_or_null). 'a @ portable -> unit = <fun>
+val portable_use : 'a @ portable -> unit = <fun>
 |}]
 
 (* The compiler building itself is a comprehensive test of legacy modules/values.
@@ -140,14 +140,11 @@ Lines 8-13, characters 35-7:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val x : ('a : value_or_null). 'a -> 'a
+           val x : 'a -> 'a
            module N : sig val y : string ref @@ contended end
          end
        is not included in
-         sig
-           val x : ('a : value_or_null). 'a -> 'a
-           module N : sig val y : string ref end
-         end
+         sig val x : 'a -> 'a module N : sig val y : string ref end end
        In module "N":
        Modules do not match:
          sig val y : string ref @@ contended end
@@ -174,9 +171,7 @@ module Without_inclusion = struct
 end
 [%%expect{|
 module Without_inclusion :
-  sig
-    module M : sig val x : ('a : value_or_null). 'a -> 'a @@ portable end
-  end
+  sig module M : sig val x : 'a -> 'a @@ portable end end
 |}]
 
 module Without_inclusion = struct
@@ -270,7 +265,7 @@ end
 [%%expect{|
 module Close_over_value :
   sig
-    module M : sig val x : ('a : value_or_null). 'a -> 'a @@ portable end
+    module M : sig val x : 'a -> 'a @@ portable end
     val foo : unit -> unit
   end
 |}]

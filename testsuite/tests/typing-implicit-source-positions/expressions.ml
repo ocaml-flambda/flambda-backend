@@ -37,12 +37,10 @@ let wrap x f g h ~here =
 
 [%%expect{|
 val wrap :
-  ('a : value_or_null).
-    [< `F | `G | `H ] ->
-    (here:lexing_position -> 'a) ->
-    (here:[%call_pos] -> unit -> 'a) ->
-    (h_arg:[%call_pos] -> unit -> 'a) -> here:lexing_position -> 'a =
-  <fun>
+  [< `F | `G | `H ] ->
+  (here:lexing_position -> 'a) ->
+  (here:[%call_pos] -> unit -> 'a) ->
+  (h_arg:[%call_pos] -> unit -> 'a) -> here:lexing_position -> 'a = <fun>
 |}]
 
 let _ = wrap `G (fun ~here:_ -> assert false)
@@ -51,7 +49,7 @@ let _ = wrap `G (fun ~here:_ -> assert false)
                 ~here:[%src_pos]
 [%%expect{|
 - : lexing_position =
-{pos_fname = ""; pos_lnum = 4; pos_bol = 1198; pos_cnum = 1220}
+{pos_fname = ""; pos_lnum = 4; pos_bol = 1164; pos_cnum = 1186}
 |}]
 
 (* call_pos type annotations not permitted anywhere other than labelled arg

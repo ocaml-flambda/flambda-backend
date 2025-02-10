@@ -149,5 +149,5 @@ module type T = sig type t end
 val type_of : 'x -> (module T with type t = 'x) = <fun>
 val f : (x:int -> y:int -> int) -> int = <fun>
 module E : sig type t = (x:int -> y:int -> int) -> int end
-val g : ('a : value_or_null). 'a -> E.t = <fun>
+val g : 'a -> E.t = <fun>
 |}]

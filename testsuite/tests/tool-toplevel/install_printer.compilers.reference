@@ -15,6 +15,6 @@ Unbound value name_that_does_not_exist.
 List.map has the wrong type for a printing function.
 Unbound value name_that_does_not_exist.
 List.map has the wrong type for a printing function.
-val non_installed_printer : ('a : value_or_null). 'a -> unit -> unit = <fun>
+val non_installed_printer : 'a -> unit -> unit = <fun>
 The printer named non_installed_printer is not installed.
 

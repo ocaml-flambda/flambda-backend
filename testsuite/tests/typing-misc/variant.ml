@@ -39,9 +39,7 @@ end;;
 module Make :
   functor (X : sig val f : [ `A ] -> unit end) ->
     sig
-      val make :
-        ('b : value_or_null) ('c : value_or_null).
-          (([< `A ] as 'a) -> 'b) -> ('a -> 'c) -> 'a -> 'c
+      val make : (([< `A ] as 'a) -> 'b) -> ('a -> 'c) -> 'a -> 'c
       val f : [ `A ] -> unit
     end
 |}]

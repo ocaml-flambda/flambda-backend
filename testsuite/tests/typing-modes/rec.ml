@@ -17,7 +17,7 @@ let te (local_ x) =
     use_portable foo;
     ()
 [%%expect{|
-val te : ('a : value_or_null). local_ 'a @ portable -> unit = <fun>
+val te : local_ 'a @ portable -> unit = <fun>
 |}]
 
 (* for mixed definitions, they will still share the same mode, but the locality
@@ -54,5 +54,5 @@ let te (x) =
     use_portable baz;
     ()
 [%%expect{|
-val te : ('a : value_or_null). 'a @ portable -> unit = <fun>
+val te : 'a @ portable -> unit = <fun>
 |}]

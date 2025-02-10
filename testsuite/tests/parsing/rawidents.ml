@@ -51,10 +51,8 @@ let f g ~\#let ?\#and ?(\#for = \#and) () =
   g ~\#let ?\#and ()
 [%%expect{|
 val f :
-  ('a : value_or_null) 'b ('c : value_or_null).
-    (\#let:'a -> ?\#and:'b -> unit -> 'c) ->
-    \#let:'a -> ?\#and:'b -> ?\#for:'b option -> unit -> 'c =
-  <fun>
+  (\#let:'a -> ?\#and:'b -> unit -> 'c) ->
+  \#let:'a -> ?\#and:'b -> ?\#for:'b option -> unit -> 'c = <fun>
 |}]
 
 
@@ -98,5 +96,5 @@ Error: Unbound value "\#let"
 
 let f ~\#let ?\#and () = 1
 [%%expect{|
-val f : ('a : value_or_null) 'b. \#let:'a -> ?\#and:'b -> unit -> int = <fun>
+val f : \#let:'a -> ?\#and:'b -> unit -> int = <fun>
 |}]

@@ -403,7 +403,7 @@ let id_value x = x;;
 val make_t_float64 : unit -> t_float64 = <fun>
 val make_t_float64_id : ('a : float64). unit -> 'a t_float64_id = <fun>
 val make_floatu : unit -> float# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val id_value : 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_float64 ());;

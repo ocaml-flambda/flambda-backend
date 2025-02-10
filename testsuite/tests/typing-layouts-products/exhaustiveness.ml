@@ -14,7 +14,7 @@ let f t t' =
   | #(B, _) -> false
 [%%expect{|
 type t = A | B
-val f : ('a : value_or_null). t -> 'a -> bool = <fun>
+val f : t -> 'a -> bool = <fun>
 |}]
 
 type t = A | B

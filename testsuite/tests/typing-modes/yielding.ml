@@ -18,9 +18,7 @@ let with_effect : ((string -> unit) @ local yielding -> 'a) -> 'a =
 
 [%%expect{|
 val storage : string ref = {contents = ""}
-val with_effect :
-  ('a : value_or_null). (local_ (string -> unit) @ yielding -> 'a) -> 'a =
-  <fun>
+val with_effect : (local_ (string -> unit) @ yielding -> 'a) -> 'a = <fun>
 |}]
 
 let () = with_effect (fun k -> k "Hello, world!")

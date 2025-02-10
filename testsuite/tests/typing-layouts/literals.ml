@@ -306,5 +306,5 @@ let () = f
 ;;
 
 [%%expect{|
-val f : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit = <fun>
+val f : 'a -> 'b -> unit = <fun>
 |}];;

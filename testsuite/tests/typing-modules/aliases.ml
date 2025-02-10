@@ -402,12 +402,7 @@ A1.empty = A.empty;;
 [%%expect{|
 module A :
   sig
-    module B :
-      sig
-        type t
-        val compare :
-          ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> int
-      end
+    module B : sig type t val compare : 'a -> 'b -> int end
     module S :
       sig
         type elt = B.t
@@ -797,7 +792,7 @@ module rec R : sig module M : sig val f : 'a -> 'a end end =
   struct module M = M end;;
 R.M.f 3;;
 [%%expect{|
-module M : sig val f : ('a : value_or_null). 'a -> 'a end
+module M : sig val f : 'a -> 'a end
 module rec R : sig module M : sig val f : 'a -> 'a end end
 - : int = 3
 |}];;

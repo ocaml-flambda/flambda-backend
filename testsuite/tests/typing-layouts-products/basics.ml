@@ -309,10 +309,7 @@ let f_mix_up_an_unboxed_tuple x =
   #(b, #(c, (f, e)), a, d)
 [%%expect{|
 val f_mix_up_an_unboxed_tuple :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
-    ('d : value_or_null) ('e : value_or_null) ('f : value_or_null).
-    #('a * 'b * #('c * #('d * 'e)) * 'f) ->
-    #('b * #('c * ('f * 'e)) * 'a * 'd) =
+  #('a * 'b * #('c * #('d * 'e)) * 'f) -> #('b * #('c * ('f * 'e)) * 'a * 'd) =
   <fun>
 |}]
 
@@ -323,13 +320,9 @@ let f_take_a_few_unboxed_tuples x1 x2 x3 x4 x5 =
   #(h, g, x4, e, d, x2, b, a)
 [%%expect{|
 val f_take_a_few_unboxed_tuples :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
-    ('d : value_or_null) ('e : value_or_null) ('f : value_or_null)
-    ('g : value_or_null) ('h : value_or_null).
-    #('a * 'b) ->
-    'c ->
-    #('d * 'e) ->
-    'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a) =
+  #('a * 'b) ->
+  'c ->
+  #('d * 'e) -> 'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a) =
   <fun>
 |}]
 

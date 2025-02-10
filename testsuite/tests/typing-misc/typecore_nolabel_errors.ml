@@ -14,8 +14,8 @@ let check f = f ()
 let f ~x = ()
 let () = check f;;
 [%%expect {|
-val check : ('a : value_or_null). (unit -> 'a) -> 'a = <fun>
-val f : ('a : value_or_null). x:'a -> unit = <fun>
+val check : (unit -> 'a) -> 'a = <fun>
+val f : x:'a -> unit = <fun>
 |}]
 
 let () = f ~y:1
@@ -30,10 +30,7 @@ This argument cannot be applied with label "~y"
 let f ?x ~a ?y ~z () = ()
 let g = f ?y:None ?x:None ~a:()
 [%%expect {|
-val f :
-  'a ('b : value_or_null) 'c ('d : value_or_null).
-    ?x:'a -> a:'b -> ?y:'c -> z:'d -> unit -> unit =
-  <fun>
+val f : ?x:'a -> a:'b -> ?y:'c -> z:'d -> unit -> unit = <fun>
 Line 2, characters 13-17:
 2 | let g = f ?y:None ?x:None ~a:()
                  ^^^^

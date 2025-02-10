@@ -4,7 +4,7 @@
 
 let use_portable : 'a @ portable -> unit = fun _ -> ()
 [%%expect{|
-val use_portable : ('a : value_or_null). 'a @ portable -> unit = <fun>
+val use_portable : 'a @ portable -> unit = <fun>
 |}]
 
 (* The thunk and the result are required to be global. This is only because we
@@ -60,7 +60,7 @@ let foo (x @ nonportable) =
     let l = lazy (let _ = x in ()) in
     use_portable l
 [%%expect{|
-val foo : ('a : value_or_null). 'a -> unit = <fun>
+val foo : 'a -> unit = <fun>
 |}]
 
 (* For the same reason, [portable] lazy can close over things at [uncontended]. *)
@@ -68,7 +68,7 @@ let foo (x @ uncontended) =
     let l @ portable = lazy ( let _x @ uncontended = x in ()) in
     use_portable l
 [%%expect{|
-val foo : ('a : value_or_null). 'a -> unit = <fun>
+val foo : 'a -> unit = <fun>
 |}]
 
 (* Portable lazy gives portable result *)
@@ -110,8 +110,8 @@ Error: This value is "contended" but expected to be "uncontended".
 let use_unique (_ @ unique) = ()
 let use_many (_ @ many) = ()
 [%%expect{|
-val use_unique : ('a : value_or_null). 'a @ unique -> unit = <fun>
-val use_many : ('a : value_or_null). 'a -> unit = <fun>
+val use_unique : 'a @ unique -> unit = <fun>
+val use_many : 'a -> unit = <fun>
 |}]
 
 let foo () =

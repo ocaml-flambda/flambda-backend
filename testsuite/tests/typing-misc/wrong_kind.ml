@@ -46,33 +46,29 @@ end;;
 module Constr :
   sig
     type t = A | B | C
-    val get : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t
+    val get : 'a -> 'b -> t
     val put : (unit -> t) -> unit
   end
 module Record :
   sig
     type t = { a : int; b : int; c : int; }
-    val get : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t
+    val get : 'a -> 'b -> t
     val put : (unit -> t) -> unit
   end
 module Bool :
   sig
     type t = true | false
-    val get : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t
+    val get : 'a -> 'b -> t
     val put : (unit -> t) -> unit
   end
 module List :
   sig
     type 'a t = [] | (::) of 'a * 'a t
-    val get : ('a : value_or_null) ('b : value_or_null) 'c. 'a -> 'b -> 'c t
+    val get : 'a -> 'b -> 'c t
     val put : (unit -> int t) -> unit
   end
 module Unit :
-  sig
-    type t = ()
-    val get : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t
-    val put : (unit -> t) -> unit
-  end
+  sig type t = () val get : 'a -> 'b -> t val put : (unit -> t) -> unit end
 |}]
 
 let () =

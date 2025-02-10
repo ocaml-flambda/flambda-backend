@@ -14,7 +14,7 @@ let g' (x : ' t') = x
 
 [%%expect {|
 val g : ' t' -> ' t' = <fun>
-val g' : (' t' : value_or_null). ' t' -> ' t' = <fun>
+val g' : ' t' -> ' t' = <fun>
 |}]
 
 let h (type a'bc) (x : a'bc) = x
@@ -23,7 +23,7 @@ let h' (x : ' a'bc) = x
 
 [%%expect {|
 val h : ' a'bc -> ' a'bc = <fun>
-val h' : (' a'bc : value_or_null). ' a'bc -> ' a'bc = <fun>
+val h' : ' a'bc -> ' a'bc = <fun>
 |}]
 
 let i (type fst snd) (x : fst) (y : snd) = (x, y)
