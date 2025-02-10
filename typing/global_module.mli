@@ -143,17 +143,17 @@ module With_precision : sig
 
   val equal : t -> t -> bool
 
-  type inconsistent = Inconsistent
+  exception Inconsistent
 
   (** Given two elaborated forms of the same name and their precision, reconcile
-      them. In any case, if the visible parts of the globals disagree, it is an
-      error (because they don't in fact elaborate the same [Name.t]). For the
-      hidden parts, we treat an exact [t] as requiring equality and an
+      them. In any case, if the visible parts of the globals disagree, raise
+      [Inconsistent] (because they don't in fact elaborate the same [Name.t]).
+      For the hidden parts, we treat an exact [t] as requiring equality and an
       approximate [t] as specifying an upper bound. Thus exact vs. exact checks
       for equality, exact vs. approximate checks the upper bound, and
       approximate vs. approximate takes the least upper bound (that is, the
       intersection). *)
-  val meet : t -> t -> (t, inconsistent) Result.t
+  val meet : t -> t -> t
 
   val print : Format.formatter -> t -> unit
 

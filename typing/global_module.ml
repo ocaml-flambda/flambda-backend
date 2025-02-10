@@ -19,11 +19,6 @@ module Argument = struct
       match cmp_param param1 param2 with
       | 0 -> cmp_value value1 value2
       | c -> c
-
-  let equal equal_param equal_value
-        ({ param = param1; value = value1 } as t1)
-        ({ param = param2; value = value2 } as t2) =
-    t1 == t2 || (equal_param param1 param2 && equal_value value1 value2)
 end
 
 let check_uniqueness_of_sorted l ~cmp =
@@ -340,82 +335,57 @@ module With_precision = struct
 
   let output = Misc.output_of_print print
 
-  let rec equal_visible_parts glob1 glob2 =
-    let equal_arg_lists =
-      List.equal (Argument.equal Name.equal equal_visible_parts)
+  exception Inconsistent
+
+  let meet_atom equal atom1 atom2 =
+    if not (equal atom1 atom2) then raise Inconsistent
+
+  let meet_approximate glob1 glob2 =
+    (* Compute the meet, assuming the visible parts are equal *)
+    let rec meet glob1 glob2 =
+      let visible_args_rev =
+        Misc.Stdlib.List.merge_fold glob1.visible_args glob2.visible_args
+          ~cmp:compare_arg_name
+          ~init:[]
+          ~left_only:(fun _ _ -> raise Inconsistent)
+          ~right_only:(fun _ _ -> raise Inconsistent)
+          ~both:(fun acc_rev arg1 arg2 -> meet_args arg1 arg2 :: acc_rev)
+      in
+      let hidden_args_rev =
+        (* Keep only the hidden arguments that appear in both lists *)
+        Misc.Stdlib.List.merge_fold glob1.hidden_args glob2.hidden_args
+          ~cmp:compare_arg_name
+          ~init:[]
+          ~left_only:(fun acc_rev _ -> acc_rev)
+          ~right_only:(fun acc_rev _ -> acc_rev)
+          ~both:(fun acc_rev arg1 arg2 -> meet_args arg1 arg2 :: acc_rev)
+      in
+      meet_atom String.equal glob1.head glob2.head;
+      let visible_args = List.rev visible_args_rev in
+      let hidden_args = List.rev hidden_args_rev in
+      create_exn glob1.head visible_args ~hidden_args
+    and meet_args (arg1 : _ Argument.t) (arg2 : _ Argument.t) =
+      meet_atom Name.equal arg1.param arg2.param;
+      let value = meet arg1.value arg2.value in
+      ({ param = arg1.param; value } : _ Argument.t)
     in
-    let equal_visible_args =
-      equal_arg_lists glob1.visible_args glob2.visible_args
-    in
-    String.equal glob1.head glob2.head && equal_visible_args
+    meet glob1 glob2
 
-  type inconsistent = Inconsistent
-
-  let meet_approximate glob1 glob2 : (t, inconsistent) Result.t =
-    match equal_visible_parts glob1 glob2 with
-    | false ->
-        Error Inconsistent
-    | true ->
-        (* Compute the meet, assuming the visible parts are equal *)
-        let rec meet glob1 glob2 =
-          let visible_args_rev =
-            Misc.Stdlib.List.merge_fold glob1.visible_args glob2.visible_args
-              ~cmp:compare_arg_name
-              ~init:[]
-              ~left_only:(fun _ _ -> assert false)
-              ~right_only:(fun _ _ -> assert false)
-              ~both:(fun acc_rev arg1 arg2 -> meet_args arg1 arg2 :: acc_rev)
-          in
-          let hidden_args_rev =
-            (* Keep only the hidden arguments that appear in both lists *)
-            Misc.Stdlib.List.merge_fold glob1.hidden_args glob2.hidden_args
-              ~cmp:compare_arg_name
-              ~init:[]
-              ~left_only:(fun acc_rev _ -> acc_rev)
-              ~right_only:(fun acc_rev _ -> acc_rev)
-              ~both:(fun acc_rev arg1 arg2 -> meet_args arg1 arg2 :: acc_rev)
-          in
-          assert (String.equal glob1.head glob2.head);
-          let visible_args = List.rev visible_args_rev in
-          let hidden_args = List.rev hidden_args_rev in
-          create_exn glob1.head visible_args ~hidden_args
-        and meet_args (arg1 : _ Argument.t) (arg2 : _ Argument.t) =
-          assert (Name.equal arg1.param arg2.param);
-          let value = meet arg1.value arg2.value in
-          ({ param = arg1.param; value } : _ Argument.t)
-        in
-        Ok (meet glob1 glob2, Approximate)
-
-  (* True if the exact name has a subset (possibly equal) of the
-     approximation's hidden arguments *)
-  let approximates ~exact ~approx =
-    let exception No in
-    equal_visible_parts exact approx
-    &&
-    match
-      Misc.Stdlib.List.merge_iter exact.hidden_args approx.hidden_args
-        ~cmp:compare_arg_name
-        ~left_only:(fun _ -> raise No)
-        ~right_only:(fun _ -> ())
-        ~both:(fun _ _ -> ())
-    with
-    | () -> true
-    | exception No -> false
-
-  let meet (t1 : t) (t2 : t) : (t, _) Result.t =
+  let meet (t1 : t) (t2 : t) : t =
     match t1, t2 with
     | (glob1, Approximate), (glob2, Approximate) ->
-        meet_approximate glob1 glob2
+        (meet_approximate glob1 glob2, Approximate)
     | (glob1, Exact), (glob2, Exact) ->
         begin match equal glob1 glob2 with
-        | true -> Ok t1
-        | false -> Error Inconsistent
+        | true -> t1
+        | false -> raise Inconsistent
         end
     | ((exact, Exact) as t_exact), (approx, Approximate)
     | (approx, Approximate), ((exact, Exact) as t_exact) ->
-        begin match approximates ~exact ~approx with
-        | true -> Ok t_exact
-        | false -> Error Inconsistent
+        let exact' = meet_approximate exact approx in
+        begin match equal exact exact' with
+        | true -> t_exact
+        | false -> raise Inconsistent
         end
 
   let equal (t1, prec1) (t2, prec2) =

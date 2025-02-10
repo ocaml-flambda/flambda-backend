@@ -416,12 +416,12 @@ let remember_global { globals; _ } global ~precision ~mentioned_by =
       match
         Global_module.With_precision.meet old_global new_global
       with
-      | Ok updated_global ->
+      | updated_global ->
           if not (old_global == updated_global) then
             Hashtbl.replace globals global_name
               { gn_global = updated_global;
                 gn_mentioned_by = first_mentioned_by }
-      | Error Inconsistent ->
+      | exception Global_module.With_precision.Inconsistent ->
           let pp_mentioned_by ppf = function
             | Current ->
                 Format.fprintf ppf "this compilation unit"
