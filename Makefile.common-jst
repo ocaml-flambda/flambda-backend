@@ -95,6 +95,10 @@ compiler: runtime-stdlib
           testsuite/lib/testing.cm{,x}a \
           $(ocamldir)/tools/dumpobj.bc
 
+# CR dkalinichenko: [runtest] is built using the main profile,
+# which uses the boot compiler. Use the final compiler for [runtest],
+# and implement [runtest-upstream-boot] for testing when the final compiler
+# itself is miscompiled.
 runtest: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_main)
 

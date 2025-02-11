@@ -339,7 +339,7 @@ CAMLprim value compiler_float32_format(value fmt, value arg)
 // They must be weak symbols with the same names as in runtime/ because the stage
 // two compiler will link against runtime/.
 
-CAMLweakdef value caml_float32_is_stage1(value v) {
+CAMLweakdef value caml_is_boot_compiler(value v) {
   (void)v;
   return Val_true;
 }
