@@ -207,12 +207,12 @@ module Const : sig
 
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
-  (** This returns [true] iff both types have no baggage and they are equal.
+  (** This returns [true] iff both types have no with-bounds and they are equal.
       Normally, we want an equality check to happen only on values that are
-      allowed on both the left and the right. But a type with no baggage is
+      allowed on both the left and the right. But a type with no with-bounds is
       allowed on the left and the right, so we test for that condition first
       before doing the proper equality check. *)
-  val no_baggage_and_equal : 'd1 t -> 'd2 t -> bool
+  val no_with_bounds_and_equal : 'd1 t -> 'd2 t -> bool
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
@@ -330,18 +330,20 @@ end
 val add_nullability_crossing : 'd t -> 'd t
 
 (** Forcibly change the modal upper bounds of a [t] based on the modal upper bounds of
-    [from]. *)
-val unsafely_set_upper_bounds : from:'d t -> 'd t -> 'd t
+    [from].
 
-(** Take an existing [jkind_l] and add some baggage. *)
-val add_baggage :
+    Returns [Error ()] if [from] contains with-bounds. *)
+val unsafely_set_upper_bounds : from:'d t -> 'd t -> ('d t, unit) Result.t
+
+(** Take an existing [jkind_l] and add some with-bounds. *)
+val add_with_bounds :
   modality:Mode.Modality.Value.Const.t ->
-  baggage:Types.type_expr ->
+  type_expr:Types.type_expr ->
   jkind_l ->
   jkind_l
 
-(** Does this jkind have baggage? *)
-val has_baggage : jkind_l -> bool
+(** Does this jkind have with-bounds? *)
+val has_with_bounds : jkind_l -> bool
 
 (******************************)
 (* construction *)

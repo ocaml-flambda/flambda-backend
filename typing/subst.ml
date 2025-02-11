@@ -111,7 +111,7 @@ let with_additional_action =
           | Some const ->
             let builtin =
               List.find_opt (fun (builtin, _) ->
-                  Jkind.Const.no_baggage_and_equal const builtin)
+                  Jkind.Const.no_with_bounds_and_equal const builtin)
                 builtins
             in
             begin match builtin with
