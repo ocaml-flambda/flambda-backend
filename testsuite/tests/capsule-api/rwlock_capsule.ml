@@ -18,14 +18,7 @@ type ('a, 'k) _data : value mod portable uncontended = ('a, 'k) Capsule.Data.t
 
 type _packed :  value mod portable uncontended = Capsule.Rwlock.packed
 
-(* CR: without [with] syntax and mode crossing inference, we need to depend on
-   [@@unsafe_allow_any_mode_crossing] to determine that 'a myref crosses portabilility.
-   This only holds when 'a also crosses portability *)
-
 type 'a myref : value mod portable = { mutable v : 'a}
-[@@unsafe_allow_any_mode_crossing
-  "CR layouts v2.8: This can go away once we have with-kinds"]
-
 
 module RwCell = struct
   type 'a t =

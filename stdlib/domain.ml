@@ -227,16 +227,12 @@ module Runtime_5 = struct
 
     let init () = create_dls ()
 
-    (* CR with-kinds: Remove [Key] wrapper. *)
-    type 'a key : value mod portable uncontended =
-        Key of (int * (Access.t -> 'a) Modes.Portable.t) [@@unboxed]
-    [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+    type 'a key = int * (Access.t -> 'a) Modes.Portable.t
 
     let key_counter = Atomic.Safe.make 0
 
-    type key_initializer : value mod portable uncontended =
+    type key_initializer =
         KI: 'a key * ('a -> (Access.t -> 'a) @ portable) @@ portable -> key_initializer
-    [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
     let parent_keys = Atomic.Safe.make ([] : key_initializer list)
 
@@ -247,7 +243,7 @@ module Runtime_5 = struct
 
     let new_key' ?split_from_parent init_orphan =
       let idx = Atomic.fetch_and_add key_counter 1 in
-      let k = Key (idx, { Modes.Portable.portable = init_orphan }) in
+      let k = idx, { Modes.Portable.portable = init_orphan } in
       begin match split_from_parent with
       | None -> ()
       | Some split -> add_parent_key (KI(k, split))
@@ -282,7 +278,7 @@ module Runtime_5 = struct
         else maybe_grow idx
       end
 
-    let set (type a) (_ : Access.t) (Key (idx, _init)) (x : a) =
+    let set (type a) (_ : Access.t) (idx, _init) (x : a) =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
       * [x], which may be a [float] and conclude that the [st] is a float array.
@@ -299,7 +295,7 @@ module Runtime_5 = struct
         true
       ) else false
 
-    let get (type a) access (Key (idx, init) : a key) : a =
+    let get (type a) access ((idx, init) : a key) : a =
       let st = maybe_grow idx in
       let obj = st.(idx) in
       if Obj_opt.is_some obj
@@ -329,15 +325,12 @@ module Runtime_5 = struct
         end
       end
 
-    type key_value : value mod portable uncontended =
-        KV : 'a key * (Access.t -> 'a) @@ portable -> key_value
-    [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+    type key_value = KV : 'a key * (Access.t -> 'a) @@ portable -> key_value
 
     let get_initial_keys access : key_value list =
       List.map
         (fun (KI (k, split)) -> KV (k, (split (get access k))))
-        (* CR with-kinds: Unnecessary magic. *)
-        (Obj.magic_uncontended (Atomic.Safe.get parent_keys))
+        (Atomic.Safe.get parent_keys)
 
     let set_initial_keys access (l: key_value list) =
       List.iter (fun (KV (k, v)) -> set access k (v access)) l
@@ -395,9 +388,7 @@ module Runtime_5 = struct
 
   let spawn' f =
     do_before_first_spawn ();
-    let pk = DLS.access (fun access -> DLS.get_initial_keys access
-      |> Obj.magic_portable (* CR with-kinds: Unnecessary magic. *))
-    in
+    let pk = DLS.access (fun access -> DLS.get_initial_keys access) in
 
     (* [term_sync] is used to synchronize with the joining domains *)
     let term_sync =
@@ -407,7 +398,6 @@ module Runtime_5 = struct
     in
 
     let body () =
-      let pk = Obj.magic_uncontended pk (* CR with-kinds: Unneccessary magic. *) in
       match
         DLS.create_dls ();
         let access = DLS.Access.Access in

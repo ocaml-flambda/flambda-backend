@@ -17,17 +17,13 @@ module Global = struct
 end
 
 module Portable = struct
-  type 'a t : value mod portable = { portable : 'a @@ portable } [@@unboxed]
-  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+  type 'a t = { portable : 'a @@ portable } [@@unboxed]
 end
 
 module Contended = struct
-  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
-  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+  type 'a t = { contended : 'a @@ contended } [@@unboxed]
 end
 
 module Portended = struct
-  type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended }
-  [@@unboxed]
-  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+  type 'a t = { portended : 'a @@ portable contended } [@@unboxed]
 end

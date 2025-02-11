@@ -149,7 +149,6 @@ type backend_type : value mod portable uncontended =
   | Native
   | Bytecode
   | Other of string (**)
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** Currently, the official distribution only supports [Native] and
     [Bytecode], but it can be other backends with alternative
     compilers, for example, javascript.
@@ -249,7 +248,6 @@ type signal_behavior : value mod uncontended =
     Signal_default
   | Signal_ignore
   | Signal_handle of (int -> unit)   (** *)
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** What to do when receiving a signal:
    - [Signal_default]: take the default behavior
      (usually: abort the program)
@@ -419,13 +417,12 @@ type extra_prefix = Plus | Tilde
 type extra_info = extra_prefix * string
 (** @since 4.14 *)
 
-type ocaml_release_info : value mod portable uncontended = {
+type ocaml_release_info = {
   major : int;
   minor : int;
   patchlevel : int;
   extra : extra_info option
 }
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** @since 4.14 *)
 
 val ocaml_release : ocaml_release_info

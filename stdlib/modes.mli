@@ -24,8 +24,7 @@ module Global : sig
 end
 
 module Portable : sig
-  type 'a t : value mod portable = { portable : 'a @@ portable } [@@unboxed]
-  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+  type 'a t = { portable : 'a @@ portable } [@@unboxed]
   (** Wraps values in the [portable] mode, even in a [nonportable] context.
       This additionally allows users to restrict a type that does not normally cross
       portability to only portable values so that the resulting type does cross
@@ -33,15 +32,13 @@ module Portable : sig
 end
 
 module Contended : sig
-  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
-  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+  type 'a t = { contended : 'a @@ contended } [@@unboxed]
   (** Wraps values in the [contended] mode, even in an [uncontended] context. *)
 end
 
 module Portended : sig
-  type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended }
+  type 'a t = { portended : 'a @@ portable contended }
   [@@unboxed]
-  [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
   (** Wraps values in the [portable contended] mode, even in a [nonportable uncontended]
       context. A ['a Portended.t] is equivalent to a ['a Portable.t Contended.t] and a
       ['a Contended.t Portable.t], but much more ergonomic to work with. *)
