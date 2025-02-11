@@ -1473,7 +1473,8 @@ module Jkind_desc = struct
           let { jkind = { layout; mod_bounds; with_bounds = _ };
                 annotation = _;
                 history = _;
-                has_warned = _
+                has_warned = _;
+                quality = _
               } =
             jkind_of_type ty
           in
