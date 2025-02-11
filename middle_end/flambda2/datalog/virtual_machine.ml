@@ -70,9 +70,19 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         (* Default terminator *)
         pp_terminators ff depth
       | Up instr ->
-        Format.fprintf ff "%abreak%t%a" pp_initiator depth pp_terminator
-          pp_instruction
-          (instr, depth - 1)
+        let rec print_breaks : type s. _ -> (_, s) instruction -> unit =
+         fun n instr ->
+          match instr with
+          | Up instr -> print_breaks (n + 1) instr
+          | Advance | Open _ | Seek _ | Dispatch | Action _ | Call _ ->
+            Format.fprintf ff "%a" pp_initiator depth;
+            if n > 1
+            then Format.fprintf ff "break %d" n
+            else Format.fprintf ff "break";
+            Format.fprintf ff "%t%a" pp_terminator pp_instruction
+              (instr, depth - n)
+        in
+        print_breaks 1 instr
       | Open (iterator, var, instr1, Dispatch) ->
         Format.fprintf ff "%a@[<v 2>@[<hov 2>for %a in %a:@]%a" pp_initiator
           depth Named_ref.pp_name var Iterator.print_name iterator
