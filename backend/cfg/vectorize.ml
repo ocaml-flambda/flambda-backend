@@ -1981,7 +1981,7 @@ module Computation : sig
   module Seed : sig
     type t
 
-    val from_block : Block.t -> Dependencies.t -> t list
+    val from_block : Block.t -> Dependencies.t Lazy.t -> t list
 
     val dump : Format.formatter -> t list -> unit
   end
@@ -2242,7 +2242,7 @@ end = struct
 
     val group : t -> Group.t
 
-    val from_block : Block.t -> Dependencies.t -> t list
+    val from_block : Block.t -> Dependencies.t Lazy.t -> t list
 
     val dump : Format.formatter -> t list -> unit
 
@@ -2354,7 +2354,7 @@ end = struct
                   "Seeds.from_block: instructions=\n(%a)\n"
                   (pp_print_list Instruction.print_id)
                   instructions);
-              match init ~width_in_bits instructions deps with
+              match init ~width_in_bits instructions (Lazy.force deps) with
               | None -> loop tl acc
               | Some t -> loop tl (t :: acc)))
       in
@@ -3148,41 +3148,46 @@ let maybe_vectorize block =
       !Flambda_backend_flags.vectorize_max_block_size;
     None)
   else
-    let deps = Dependencies.from_block block in
+    let deps = lazy (Dependencies.from_block block) in
     let seeds = Computation.Seed.from_block block deps in
     State.dump_debug state "%a@." Computation.Seed.dump seeds;
-    let computations =
-      List.filter_map (Computation.from_seed block deps) seeds
-    in
-    State.dump_debug state "%a@." (Computation.dump_all ~block) computations;
-    match Computation.select_and_join computations block deps with
-    | None -> None
-    | Some computation ->
-      let scoped_name =
-        State.fun_dbg state |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
-        |> List.map (fun dbg ->
-               Debuginfo.(
-                 Scoped_location.string_of_scopes ~include_zero_alloc:false
-                   dbg.dinfo_scopes))
-        |> String.concat ","
+    match seeds with
+    | [] -> None
+    | seeds -> (
+      (* [deps] has been forced *)
+      let deps = Lazy.force deps in
+      let computations =
+        List.filter_map (Computation.from_seed block deps) seeds
       in
-      State.dump state "**** Vectorize selected computation: %a (%s)\n"
-        Computation.dump_one_line_stat computation scoped_name;
-      State.dump_debug state "%a\n" (Computation.dump ~block) computation;
-      if State.extra_debug then validate computation block deps;
-      let dump_block msg block =
-        let size = DLL.length (Block.body block) in
-        State.dump state "Block %a in %s: %s body instruction count=%d\n"
-          Label.print (Block.start block) (State.fun_name state) msg size;
-        DLL.iter (Block.body block) ~f:(fun i ->
-            State.dump_debug state "%a\n" Instruction.print
-              (Instruction.basic i))
-      in
-      dump_block "before vectorize" block;
-      (* This is the only function that changes the [block]. *)
-      vectorize block computation;
-      dump_block "after vectorize" block;
-      Some computation
+      State.dump_debug state "%a@." (Computation.dump_all ~block) computations;
+      match Computation.select_and_join computations block deps with
+      | None -> None
+      | Some computation ->
+        let scoped_name =
+          State.fun_dbg state |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
+          |> List.map (fun dbg ->
+                 Debuginfo.(
+                   Scoped_location.string_of_scopes ~include_zero_alloc:false
+                     dbg.dinfo_scopes))
+          |> String.concat ","
+        in
+        State.dump state "**** Vectorize selected computation: %a (%s)\n"
+          Computation.dump_one_line_stat computation scoped_name;
+        State.dump_debug state "%a\n" (Computation.dump ~block) computation;
+        if State.extra_debug then validate computation block deps;
+        let dump_block msg block =
+          let size = DLL.length (Block.body block) in
+          State.dump state "Block %a in %s: %s body instruction count=%d\n"
+            Label.print (Block.start block) (State.fun_name state) msg size;
+          DLL.iter (Block.body block) ~f:(fun i ->
+              State.dump_debug state "%a\n" Instruction.print
+                (Instruction.basic i))
+        in
+        dump_block "before vectorize" block;
+        (* This is the only function that changes the [block]. *)
+        vectorize block computation;
+        dump_block "after vectorize" block;
+        Some computation)
 
 let cfg ppf_dump cl =
   let state = State.create ppf_dump cl in
