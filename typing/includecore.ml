@@ -155,7 +155,7 @@ let value_descriptions ~loc env name
       let mode1 =
         match close_over_coercion with
         | Some held_locks ->
-          (* Similiar to [Typecore.type_ident] *)
+          (* Cross modes according to RHS type as it tends to be by the user. *)
           let mode1 = left_mode_cross env vd2.val_type mode1 in
           let mode1 =
             Env.walk_locks ~env ~item:Value mode1 (Some vd1.val_type) held_locks

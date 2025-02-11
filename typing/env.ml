@@ -3228,6 +3228,7 @@ let rec lookup_module_components ~errors ~use ~loc lid env =
       let f_path, f_comp, arg = lookup_apply ~errors ~use ~loc lid env in
       let comps =
         !components_of_functor_appl' ~loc ~f_path ~f_comp ~arg env in
+      (* [Lapply] is for [F(M).t] so nothing is closed over. *)
       Papply (f_path, arg), locks_empty, comps
 
 and lookup_structure_components ~errors ~use ~loc ?(reason = Project) lid env =
@@ -3321,6 +3322,7 @@ and lookup_module ~errors ~use ~loc lid env =
   | Lapply _ as lid ->
       let path_f, comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
       let md = md (modtype_of_functor_appl comp_f path_f path_arg) in
+      (* [Lapply] is for [F(M).t] so nothing is closed over. *)
       Papply(path_f, path_arg), md, locks_empty
 
 and lookup_dot_module ~errors ~use ~loc l s env =
@@ -3592,6 +3594,7 @@ let lookup_module_path ~errors ~use ~loc ~load lid env =
       path, locks
   | Lapply _ as lid ->
       let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
+      (* [Lapply] is for [F(M).t] so nothing is closed over. *)
       Papply(path_f, path_arg), locks_empty
 
 let lookup_module_instance_path ~errors ~use ~loc ~load name env =

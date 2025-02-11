@@ -207,9 +207,9 @@ type shared_context =
 type locks
 
 type held_locks = locks * Longident.t * Location.t
-(** Sometimes we get the locks for a structure [M], but either want to walk them
-later, or walk them for something else. The [Longident.t] and [Location.t]
-points to what we actually want to walk. *)
+(** Sometimes we get the locks for something, but either want to walk them later, or
+walk them for something else. The [Longident.t] and [Location.t] are only for error
+messages, and point to the variable for which we actually want to walk the locks. *)
 
 val locks_empty : locks
 
