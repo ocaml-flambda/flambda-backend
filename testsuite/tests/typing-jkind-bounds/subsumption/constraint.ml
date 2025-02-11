@@ -54,7 +54,8 @@ end
 [%%expect{|
 module M :
   sig
-    type ('a, 'b) t : immutable_data with 'b * 'b constraint 'a = 'b * 'b
+    type ('a, 'b) t : immutable_data with 'b * 'b @@ global aliased
+      constraint 'a = 'b * 'b
   end
 |}]
 
@@ -66,7 +67,8 @@ end
 [%%expect{|
 module M :
   sig
-    type ('a, 'b) t : immutable_data with 'b * 'b constraint 'a = 'b * 'b
+    type ('a, 'b) t : immutable_data with 'b * 'b @@ global aliased
+      constraint 'a = 'b * 'b
   end
 |}]
 
@@ -123,7 +125,10 @@ end = struct
 end
 [%%expect {|
 module M :
-  sig type 'a t : immutable_data with 'b constraint 'a = 'b option end
+  sig
+    type 'a t : immutable_data with 'b @@ global aliased
+      constraint 'a = 'b option
+  end
 |}]
 
 module M : sig
@@ -140,14 +145,20 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t = Foo of 'a constraint 'a = 'b ref end
        is not included in
-         sig type 'a t : immutable_data with 'b constraint 'a = 'b ref end
+         sig
+           type 'a t : immutable_data with 'b @@ global aliased
+             constraint 'a = 'b ref
+         end
        Type declarations do not match:
          type 'a t = Foo of 'a constraint 'a = 'b ref
        is not included in
-         type 'a t : immutable_data with 'b constraint 'a = 'b ref
-       The kind of the first is mutable_data with 'b
+         type 'a t : immutable_data with 'b @@ global aliased
+           constraint 'a = 'b ref
+       The kind of the first is mutable_data
+         with 'b @@ global many aliased contended
          because of the definition of t at line 4, characters 2-46.
-       But the kind of the first must be a subkind of immutable_data with 'b
+       But the kind of the first must be a subkind of immutable_data
+         with 'b @@ global aliased
          because of the definition of t at line 2, characters 2-59.
 |}]
 
@@ -157,7 +168,11 @@ end = struct
   type 'a t = Foo of 'a constraint 'a = 'b ref
 end
 [%%expect {|
-module M : sig type 'a t : mutable_data with 'b constraint 'a = 'b ref end
+module M :
+  sig
+    type 'a t : mutable_data with 'b @@ global aliased contended
+      constraint 'a = 'b ref
+  end
 |}]
 
 module M : sig
@@ -176,7 +191,10 @@ end = struct
 end
 [%%expect {|
 module M :
-  sig type 'a t : immutable_data with 'b constraint 'a = 'b option end
+  sig
+    type 'a t : immutable_data with 'b @@ global aliased
+      constraint 'a = 'b option
+  end
 |}]
 
 module M : sig
@@ -198,7 +216,7 @@ Error: Signature mismatch:
          type 'a t = Foo of 'a constraint 'a = 'b list
        is not included in
          type 'a t : immutable_data constraint 'a = 'b list
-       The kind of the first is immutable_data with 'b
+       The kind of the first is immutable_data with 'b @@ global aliased
          because of the definition of t at line 4, characters 2-64.
        But the kind of the first must be a subkind of immutable_data
          because of the definition of t at line 2, characters 2-69.

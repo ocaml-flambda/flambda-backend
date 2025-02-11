@@ -19,14 +19,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t end
        is not included in
-         sig type 'a t : immutable_data with 'a end
+         sig type 'a t : immutable_data with 'a @@ global aliased end
        Type declarations do not match:
          type 'a t
        is not included in
-         type 'a t : immutable_data with 'a
+         type 'a t : immutable_data with 'a @@ global aliased
        The kind of the first is value
          because of the definition of t at line 4, characters 2-11.
-       But the kind of the first must be a subkind of immutable_data with 'a
+       But the kind of the first must be a subkind of immutable_data
+         with 'a @@ global aliased
          because of the definition of t at line 2, characters 2-36.
 |}]
 
@@ -48,15 +49,20 @@ Error: Signature mismatch:
        Modules do not match:
          sig type a type t end
        is not included in
-         sig type a type t : value mod portable with a end
+         sig
+           type a
+           type t
+             : value mod portable
+             with a @@ global many aliased contended
+         end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod portable with a
+         type t : value mod portable with a @@ global many aliased contended
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
        But the kind of the first must be a subkind of value mod portable
-         with a
+         with a @@ global many aliased contended
          because of the definition of t at line 3, characters 2-36.
 |}]
 
@@ -82,7 +88,7 @@ type ('a, 'b) eq = Eq : ('a, 'a) eq
 module M :
   sig
     type a
-    type t : value mod portable with a
+    type t : value mod portable with a @@ global many aliased contended
     val a_is_int : (a, int) eq
   end
 val f : M.t -> M.t @ portable = <fun>
@@ -101,7 +107,8 @@ Line 4, characters 0-36:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "u" is value
          because of the definition of u at line 3, characters 0-6.
-       But the kind of type "u" must be a subkind of value mod global with a
+       But the kind of type "u" must be a subkind of value mod global
+         with a @@ many portable aliased contended
          because of the definition of t at line 4, characters 0-36.
 |}]
 
@@ -118,7 +125,8 @@ Line 6, characters 25-35:
                              ^^^^^^^^^^
 Error: The kind of type "t" is value
          because of the definition of t at line 5, characters 2-8.
-       But the kind of type "t" must be a subkind of value mod global with M.t
+       But the kind of type "t" must be a subkind of value mod global
+         with M.t @@ many portable aliased contended
          because of the definition of t at line 3, characters 4-38.
 |}]
 
@@ -148,15 +156,21 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t : value mod portable end
        is not included in
-         sig type t : value mod uncontended portable with M.t end
+         sig
+           type t
+             : value mod uncontended portable
+             with M.t @@ global many aliased
+         end
        Type declarations do not match:
          type t : value mod portable
        is not included in
-         type t : value mod uncontended portable with M.t
+         type t
+           : value mod uncontended portable
+           with M.t @@ global many aliased
        The kind of the first is value mod portable
          because of the definition of t at line 13, characters 2-29.
        But the kind of the first must be a subkind of
-         value mod uncontended portable with M.t
+         value mod uncontended portable with M.t @@ global many aliased
          because of the definition of t at line 11, characters 2-50.
 |}]
 
@@ -188,15 +202,21 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t : value mod portable end
        is not included in
-         sig type t : value mod uncontended portable with M.u end
+         sig
+           type t
+             : value mod uncontended portable
+             with M.u @@ global many aliased
+         end
        Type declarations do not match:
          type t : value mod portable
        is not included in
-         type t : value mod uncontended portable with M.u
+         type t
+           : value mod uncontended portable
+           with M.u @@ global many aliased
        The kind of the first is value mod portable
          because of the definition of t at line 15, characters 2-29.
        But the kind of the first must be a subkind of
-         value mod uncontended portable with M.u
+         value mod uncontended portable with M.u @@ global many aliased
          because of the definition of t at line 13, characters 2-50.
 |}]
 
@@ -220,15 +240,18 @@ Error: Signature mismatch:
        is not included in
          sig
            type a = [ `a of string | `b ]
-           type t : value mod global with a
+           type t
+             : value mod global
+             with a @@ many portable aliased contended
          end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod global with a
+         type t : value mod global with a @@ many portable aliased contended
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
-       But the kind of the first must be a subkind of value mod global with a
+       But the kind of the first must be a subkind of value mod global
+         with a @@ many portable aliased contended
          because of the definition of t at line 3, characters 2-34.
 |}]
 
@@ -254,18 +277,22 @@ Error: Signature mismatch:
        is not included in
          sig
            type 'a u = 'a constraint 'a = [< `a of string | `b ]
-           type 'a t : value mod global with [< `a of string | `b ] u
+           type 'a t
+             : value mod global
+             with [< `a of string | `b ] u @@ many portable aliased contended
              constraint 'a = [< `a of string | `b ]
          end
        Type declarations do not match:
          type 'a t constraint 'a = [< `a of string | `b ]
        is not included in
-         type 'a t : value mod global with [< `a of string | `b ] u
+         type 'a t
+           : value mod global
+           with [< `a of string | `b ] u @@ many portable aliased contended
            constraint 'a = [< `a of string | `b ]
        The kind of the first is value
          because of the definition of t at line 6, characters 2-49.
        But the kind of the first must be a subkind of value mod global
-         with [< `a of string | `b ] u
+         with [< `a of string | `b ] u @@ many portable aliased contended
          because of the definition of t at line 3, characters 2-40.
 |}]
 
@@ -291,18 +318,22 @@ Error: Signature mismatch:
        is not included in
          sig
            type 'a u = 'a constraint 'a = [> `a of string | `b ]
-           type 'a t : value mod portable with [> `a of string | `b ] u
+           type 'a t
+             : value mod portable
+             with [> `a of string | `b ] u @@ global many aliased contended
              constraint 'a = [> `a of string | `b ]
          end
        Type declarations do not match:
          type 'a t constraint 'a = [> `a of string | `b ]
        is not included in
-         type 'a t : value mod portable with [> `a of string | `b ] u
+         type 'a t
+           : value mod portable
+           with [> `a of string | `b ] u @@ global many aliased contended
            constraint 'a = [> `a of string | `b ]
        The kind of the first is value
          because of the definition of t at line 6, characters 2-49.
        But the kind of the first must be a subkind of value mod portable
-         with [> `a of string | `b ] u
+         with [> `a of string | `b ] u @@ global many aliased contended
          because of the definition of t at line 3, characters 2-42.
 |}]
 
@@ -324,14 +355,20 @@ Error: Signature mismatch:
        Modules do not match:
          sig type a = < value : string > type t end
        is not included in
-         sig type a = < value : string > type t : value mod global with a end
+         sig
+           type a = < value : string >
+           type t
+             : value mod global
+             with a @@ many portable aliased contended
+         end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod global with a
+         type t : value mod global with a @@ many portable aliased contended
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
-       But the kind of the first must be a subkind of value mod global with a
+       But the kind of the first must be a subkind of value mod global
+         with a @@ many portable aliased contended
          because of the definition of t at line 3, characters 2-34.
 |}]
 
@@ -406,15 +443,22 @@ Error: Signature mismatch:
        Modules do not match:
          sig type a = int ref * int type t end
        is not included in
-         sig type a = int ref * int type t : value mod uncontended with a end
+         sig
+           type a = int ref * int
+           type t
+             : value mod uncontended
+             with a @@ global many portable aliased
+         end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod uncontended with a
+         type t
+           : value mod uncontended
+           with a @@ global many portable aliased
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
        But the kind of the first must be a subkind of value mod uncontended
-         with a
+         with a @@ global many portable aliased
          because of the definition of t at line 3, characters 2-39.
 |}]
 
@@ -471,16 +515,20 @@ Error: Signature mismatch:
        is not included in
          sig
            type a = { foo : 'a. 'a; } [@@unboxed]
-           type t : value mod uncontended with a
+           type t
+             : value mod uncontended
+             with a @@ global many portable aliased
          end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod uncontended with a
+         type t
+           : value mod uncontended
+           with a @@ global many portable aliased
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
        But the kind of the first must be a subkind of value mod uncontended
-         with a
+         with a @@ global many portable aliased
          because of the definition of t at line 3, characters 2-39.
 |}]
 
@@ -506,15 +554,19 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t end
        is not included in
-         sig type t : value mod portable with s end
+         sig
+           type t
+             : value mod portable
+             with s @@ global many aliased contended
+         end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod portable with s
+         type t : value mod portable with s @@ global many aliased contended
        The kind of the first is value
          because of the definition of t at line 8, characters 2-8.
        But the kind of the first must be a subkind of value mod portable
-         with s
+         with s @@ global many aliased contended
          because of the definition of t at line 6, characters 2-36.
 |}]
 
