@@ -330,7 +330,9 @@ end
 val add_nullability_crossing : 'd t -> 'd t
 
 (** Forcibly change the modal upper bounds of a [t] based on the modal upper bounds of
-    [from]. *)
+    [from].
+
+    Returns [Error ()] if [from] contains with-bounds. *)
 val unsafely_set_upper_bounds : from:'d t -> 'd t -> ('d t, unit) Result.t
 
 (** Take an existing [jkind_l] and add some with-bounds. *)
