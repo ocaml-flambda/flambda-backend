@@ -68,15 +68,17 @@ let right_mode_cross env ty mode =
   let jkind = Ctype.type_jkind_purely env ty in
   right_mode_cross_jkind env jkind mode
 
-let left_mode_cross_jkind jkind mode =
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+let left_mode_cross_jkind env jkind mode =
+  let type_equal = Ctype.type_equal env in
+  let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
+  let upper_bounds = Jkind.get_modal_upper_bounds ~type_equal ~jkind_of_type jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   Value.meet_const upper_bounds mode
 
 let left_mode_cross env ty mode=
   if not (Ctype.is_principal ty) then mode else
   let jkind = Ctype.type_jkind_purely env ty in
-  left_mode_cross_jkind jkind mode
+  left_mode_cross_jkind env jkind mode
 
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
