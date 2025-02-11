@@ -2320,7 +2320,9 @@ let constrain_type_jkind ~fixed env ty jkind =
     (* Just succeed if we're comparing against [any] *)
     if Jkind.is_max jkind then Ok () else
     if fuel < 0 then
-      Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind, [Constrain_ran_out_of_fuel])))
+      Error (
+        Jkind.Violation.of_ (
+          Not_a_subjkind (ty's_jkind, jkind, [Constrain_ran_out_of_fuel])))
     else
     match get_desc ty with
     (* The [ty's_jkind] we get here is an **r** jkind, necessary for

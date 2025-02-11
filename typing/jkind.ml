@@ -52,7 +52,7 @@ module Sub_result = struct
     match le_result with
     | Less -> Less
     | Equal -> Equal
-    | Not_le -> Not_le [failure_reason ()]
+    | Not_le -> Not_le (failure_reason ())
 
   let combine sr1 sr2 =
     match sr1, sr2 with
@@ -293,7 +293,7 @@ module Layout = struct
             (List.map2 (fun s1 t2 -> sub (Sort s1) t2) ss1 ts2))
     in
     Sub_result.of_le_result (sub t1 t2) ~failure_reason:(fun () ->
-        Layout_disagreement)
+        [Layout_disagreement])
 
   let rec intersection t1 t2 =
     (* pre-condition to [products]: [ts1] and [ts2] have the same length *)
@@ -454,7 +454,7 @@ module Mod_bounds = struct
           (fun (type axis) ~(axis : axis Axis.t) b1 b2 ->
             let (module Bound_ops) = Axis.get axis in
             Sub_result.of_le_result (Bound_ops.less_or_equal b1 b2)
-              ~failure_reason:(fun () -> Axis_disagreement (Pack axis)))
+              ~failure_reason:(fun () -> [Axis_disagreement (Pack axis)]))
       }
       ~combine:Sub_result.combine
 
@@ -481,7 +481,6 @@ module Mod_bounds = struct
       ~externality:Externality.max ~nullability:Nullability.Non_null
 end
 
-(*** Bounds, specialized to the real [type_expr] ***)
 module With_bounds = struct
   type 'd t = 'd Types.with_bounds constraint 'd = 'l * 'r
 
@@ -499,7 +498,12 @@ module With_bounds = struct
         ~type_info:{ relevant_axes = explicit_relevant_axes } =
       (* Axes that are max are implicitly relevant. ie, including or excluding an
          axis from the set of relevant axes is semantically equivalent if the mod-
-         bound on that axis is max *)
+         bound on that axis is max.
+
+         Note that this mostly matters because we mark axes as /not/ explicitly relevant
+         on types when the axis is max, for performance reasons - but we don't want to
+         print constant modalities for those axes!
+      *)
       let implicit_relevant_axes = Mod_bounds.get_max_axes mod_bounds in
       let relevant_axes =
         Axis_set.union explicit_relevant_axes implicit_relevant_axes

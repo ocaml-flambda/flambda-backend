@@ -91,7 +91,9 @@ module Sub_result : sig
     | Not_le of Sub_failure_reason.t Misc.Nonempty_list.t
 
   val of_le_result :
-    failure_reason:(unit -> Sub_failure_reason.t) -> Misc.Le_result.t -> t
+    failure_reason:(unit -> Sub_failure_reason.t Misc.Nonempty_list.t) ->
+    Misc.Le_result.t ->
+    t
 
   val combine : t -> t -> t
 
@@ -171,13 +173,6 @@ end
 (* errors *)
 
 module Violation : sig
-  module Sub_failure_reason : sig
-    type t = Sub_failure_reason.t =
-      | Axis_disagreement of Jkind_axis.Axis.packed
-      | Layout_disagreement
-      | Constrain_ran_out_of_fuel
-  end
-
   type violation =
     (* [Not_a_subjkind] allows l-jkinds on the right so that it can be used
        in [sub_jkind_l]. There is no downside to this, as the printing
@@ -659,9 +654,9 @@ val sub :
 
 type sub_or_intersect =
   | Sub  (** The first jkind is a subjkind of the second. *)
-  | Disjoint of Violation.Sub_failure_reason.t Misc.Nonempty_list.t
+  | Disjoint of Sub_failure_reason.t Misc.Nonempty_list.t
       (** The two jkinds have no common ground. *)
-  | Has_intersection of Violation.Sub_failure_reason.t Misc.Nonempty_list.t
+  | Has_intersection of Sub_failure_reason.t Misc.Nonempty_list.t
       (** The first jkind is not a subjkind of the second, but the two jkinds have an
           intersection: try harder. *)
 
