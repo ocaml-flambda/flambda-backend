@@ -72,6 +72,12 @@ val is_mutable : mutability -> bool
 module Jkind_mod_bounds :
   module type of Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
 
+(** Information tracked about an individual type within the with-bounds for a jkind *)
+module With_bounds_type_info : sig
+  (** The axes that the with-bound applies to *)
+  type t = { relevant_axes : Jkind_axis.Axis_set.t } [@@unboxed]
+end
+
 type type_expr
 type row_desc
 type row_field
@@ -253,21 +259,13 @@ and jkind_history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
-and relevant_for_nullability =
-  | Relevant_for_nullability
-  | Irrelevant_for_nullability
-
-and with_bounds_type =
-  { type_expr : type_expr;
-    modality : Mode.Modality.Value.Const.t;
-    relevant_for_nullability: relevant_for_nullability
-  }
+(** The types within the with-bounds of a jkind *)
+and with_bounds_types
 
 and 'd with_bounds =
   | No_with_bounds : ('l * 'r) with_bounds
-  | With_bounds :
-      with_bounds_type Misc.Nonempty_list.t
-      -> ('l * Allowance.disallowed) with_bounds
+  | With_bounds : with_bounds_types -> ('l * Allowance.disallowed) with_bounds
+  (** Invariant : there must always be at least one type in this set **)
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
@@ -308,6 +306,30 @@ and jkind_l = (allowed * disallowed) jkind  (* the jkind of an actual type *)
 and jkind_r = (disallowed * allowed) jkind  (* the jkind expected of a type *)
 and jkind_lr = (allowed * allowed) jkind    (* the jkind of a variable *)
 and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
+
+(** This module provides the interface to construct, query, and destruct
+    [with_bounds_types]. Under the hood this is a [Stdlib.Map] from [type_expr] to
+    [With_bounds_type_info.t], using a "best-effort" semantic comparison on [type_expr] to
+    provide the mapping. This "best-effort"ness means that two semantically equal
+    (according to [Ctype.eqtype]) types might have distinct keys in the map - but two
+    semantically {i inequal} types are guaranteed never to occupy the same key.
+*)
+module With_bounds_types : sig
+  type info := With_bounds_type_info.t
+  type t := with_bounds_types
+
+  val empty : t
+  val is_empty : t -> bool
+  val to_seq : t -> (type_expr * info) Seq.t
+  val of_list : (type_expr * info) list -> t
+  val of_seq : (type_expr * info) Seq.t -> t
+  val singleton : type_expr -> info -> t
+  val map : (info -> info) -> t -> t
+  val merge
+    : (type_expr -> info option -> info option -> info option) ->
+    t -> t -> t
+  val update : type_expr -> (info option -> info option) -> t -> t
+end
 
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable

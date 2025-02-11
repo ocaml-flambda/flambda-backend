@@ -40,18 +40,8 @@ type t = { z : u; }
 |}]
 
 type t_test = t require_portable
-(* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = t require_portable
-|}, Principal{|
-Line 1, characters 14-15:
-1 | type t_test = t require_portable
-                  ^
-Error: This type "t" should be an instance of type "('a : value mod portable)"
-       The kind of t is immutable_data
-         because of the definition of t at line 2, characters 0-35.
-       But the kind of t must be a subkind of value mod portable
-         because of the definition of require_portable at line 10, characters 0-47.
 |}]
 
 type t_test = t require_global
@@ -88,18 +78,8 @@ type t = { z : u; }
 |}]
 
 type t_test = t require_uncontended
-(* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = t require_uncontended
-|}, Principal{|
-Line 1, characters 14-15:
-1 | type t_test = t require_uncontended
-                  ^
-Error: This type "t" should be an instance of type "('a : value mod uncontended)"
-       The kind of t is immutable_data
-         because of the definition of t at line 2, characters 0-18.
-       But the kind of t must be a subkind of value mod uncontended
-         because of the definition of require_uncontended at line 9, characters 0-53.
 |}]
 
 type t_test = t require_unique
@@ -213,6 +193,50 @@ Line 1, characters 42-43:
 1 | let foo (t : int t @@ local) = use_global t [@nontail]
                                               ^
 Error: This value escapes its region.
+|}]
+
+(***********************************************************************)
+
+type 'a t : value mod uncontended with 'a =
+  { a : 'a
+  ; f1 : int -> int
+  ; f2 : int -> string
+  ; f3 : string -> int
+  ; f4 : int -> int
+  ; f5 : int -> int
+  ; f6 : int -> int
+  }
+[%%expect{|
+type 'a t = {
+  a : 'a;
+  f1 : int -> int;
+  f2 : int -> string;
+  f3 : string -> int;
+  f4 : int -> int;
+  f5 : int -> int;
+  f6 : int -> int;
+}
+|}]
+
+let foo (t : int t @@ contended) = use_uncontended t
+[%%expect{|
+val foo : int t @ contended -> unit = <fun>
+|}]
+
+let foo (t : int t @@ nonportable) = use_portable t
+[%%expect{|
+Line 1, characters 50-51:
+1 | let foo (t : int t @@ nonportable) = use_portable t
+                                                      ^
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
+let foo (t : int ref t @@ contended) = use_uncontended t
+[%%expect{|
+Line 1, characters 55-56:
+1 | let foo (t : int ref t @@ contended) = use_uncontended t
+                                                           ^
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 (***********************************************************************)
@@ -341,15 +365,8 @@ Error: This value is "aliased" but expected to be "unique".
 
 (***********************************************************************)
 type 'a t : immutable_data with 'a = { head : 'a; tail : 'a t option }
-(* CR layouts v2.8: This should work once we get proper subsumption. *)
 [%%expect {|
-Line 1, characters 0-70:
-1 | type 'a t : immutable_data with 'a = { head : 'a; tail : 'a t option }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of immutable_data
-         because of the annotation on the declaration of the type t.
+type 'a t = { head : 'a; tail : 'a t option; }
 |}]
 
 type 'a t = { head : 'a; tail : 'a t option }
@@ -469,24 +486,34 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (***********************************************************************)
-type t : immutable_data = int list list list list list list list list list list list list
-(* CR layouts v2.8: fix this *)
+type t : immutable_data = int list list list list
 [%%expect {|
-Line 1, characters 0-89:
-1 | type t : immutable_data = int list list list list list list list list list list list list
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int list list list list list list list list list list
-                        list list" is immutable_data
-         because it's a boxed variant type.
-       But the kind of type "int list list list list list list list list list
-                            list list list" must be a subkind of
-         immutable_data
-         because of the definition of t at line 1, characters 0-89.
+type t = int list list list list
 |}]
 
-type t = int list list list list list list list list list list list list
+(***********************************************************************)
+type t : immutable_data = int list list list list list list list list list list list list list list list list list list list list list list list list
+(* CR layouts v2.8: fix this *)
 [%%expect {|
-type t = int list list list list list list list list list list list list
+Line 1, characters 0-149:
+1 | type t : immutable_data = int list list list list list list list list list list list list list list list list list list list list list list list list
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "int list list list list list list list list list list
+                        list list list list list list list list list list
+                        list list list list" is immutable_data
+         because it's a boxed variant type.
+       But the kind of type "int list list list list list list list list list
+                            list list list list list list list list list list
+                            list list list list list" must be a subkind of
+         immutable_data
+         because of the definition of t at line 1, characters 0-149.
+|}]
+
+type t = int list list list list list list list list list list list list list list list list list list list list list list list list
+[%%expect {|
+type t =
+    int list list list list list list list list list list list list list list
+    list list list list list list list list list list
 |}]
 
 let foo (t : t @@ contended) = use_uncontended t
@@ -536,8 +563,15 @@ Error: This value is "contended" but expected to be "uncontended".
 
 (***********************************************************************)
 type 'a t : immutable_data = Flat | Nested of 'a t t
+(* CR layouts v2.8: This should work once we get proper subsumption. *)
 [%%expect {|
-type 'a t = Flat | Nested of 'a t t
+Line 1, characters 0-52:
+1 | type 'a t : immutable_data = Flat | Nested of 'a t t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of immutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
@@ -572,8 +606,15 @@ Error:
 |}]
 
 type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
+(* CR layouts v2.8: This should work once we get proper subsumption. *)
 [%%expect {|
-type ('a : immutable_data) t = Flat | Nested of 'a t t
+Line 1, characters 0-71:
+1 | type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of immutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t
@@ -754,4 +795,66 @@ Line 1, characters 44-45:
 1 | let foo (t : int t @@ aliased) = use_unique t
                                                 ^
 Error: This value is "aliased" but expected to be "unique".
+|}]
+
+(***********************************************************************)
+type 'a rose_tree = Node of 'a * 'a rose_tree list
+
+let f (x : int rose_tree @@ contended) = use_uncontended x
+[%%expect{|
+type 'a rose_tree = Node of 'a * 'a rose_tree list
+val f : int rose_tree @ contended -> unit = <fun>
+|}]
+
+let f (x : int ref rose_tree @@ contended) = use_uncontended x
+[%%expect{|
+Line 1, characters 61-62:
+1 | let f (x : int ref rose_tree @@ contended) = use_uncontended x
+                                                                 ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let f (x : int rose_tree @@ nonportable) = use_portable x
+[%%expect{|
+val f : int rose_tree -> unit = <fun>
+|}]
+
+let f (x : (int -> int) rose_tree @@ nonportable) = use_portable x
+[%%expect{|
+Line 1, characters 65-66:
+1 | let f (x : (int -> int) rose_tree @@ nonportable) = use_portable x
+                                                                     ^
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
+type 'a rose_tree2 =
+  | Empty
+  | Leaf of 'a
+  | Branch of 'a rose_tree2 list
+
+let f (x : int rose_tree2 @@ contended) = use_uncontended x
+[%%expect{|
+type 'a rose_tree2 = Empty | Leaf of 'a | Branch of 'a rose_tree2 list
+val f : int rose_tree2 @ contended -> unit = <fun>
+|}]
+
+let f (x : int ref rose_tree2 @@ contended) = use_uncontended x
+[%%expect{|
+Line 1, characters 62-63:
+1 | let f (x : int ref rose_tree2 @@ contended) = use_uncontended x
+                                                                  ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let f (x : int rose_tree2 @@ nonportable) = use_portable x
+[%%expect{|
+val f : int rose_tree2 -> unit = <fun>
+|}]
+
+let f (x : (int -> int) rose_tree2 @@ nonportable) = use_portable x
+[%%expect{|
+Line 1, characters 66-67:
+1 | let f (x : (int -> int) rose_tree2 @@ nonportable) = use_portable x
+                                                                      ^
+Error: This value is "nonportable" but expected to be "portable".
 |}]
