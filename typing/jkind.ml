@@ -2680,8 +2680,6 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
 
 let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
     super =
-  ignore allow_any_crossing;
-  (* XXX FIXME XXX FIXME *)
   (* This function implements the "SUB" judgement from kind-inference.md. *)
   let open Misc.Stdlib.Monad.Result.Syntax in
   let require_le le_result =
@@ -2702,69 +2700,71 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
     (* Validate layouts *)
     require_le (Layout.sub sub.jkind.layout super.jkind.layout)
   in
-  let best_super =
-    (* MB_EXPAND_R *)
-    normalize ~mode:Require_best ~jkind_of_type super
-  in
-  let right_bounds = With_bounds.to_best_eff_map best_super.jkind.with_bounds in
-  let axes_max_on_right =
-    (* If the upper_bound is max on the right, then that axis is irrelevant - the
-       left will always satisfy the right along that axis. This is an optimization,
-       not necessary for correctness *)
-    Mod_bounds.get_max_axes best_super.jkind.mod_bounds
-  in
-  let ( ({ layout = _;
-           mod_bounds = sub_upper_bounds;
-           with_bounds = No_with_bounds
-         } :
-          Allowance.right_only jkind_desc),
-        _ ) =
-    (* MB_EXPAND_L *)
-    (* Here we progressively expand types on the left.
+  match allow_any_crossing with
+  | true -> Ok ()
+  | false ->
+    let best_super =
+      (* MB_EXPAND_R *)
+      normalize ~mode:Require_best ~jkind_of_type super
+    in
+    let right_bounds =
+      With_bounds.to_best_eff_map best_super.jkind.with_bounds
+    in
+    let axes_max_on_right =
+      (* If the upper_bound is max on the right, then that axis is irrelevant - the
+         left will always satisfy the right along that axis. This is an optimization,
+         not necessary for correctness *)
+      Mod_bounds.get_max_axes best_super.jkind.mod_bounds
+    in
+    let ( ({ layout = _;
+             mod_bounds = sub_upper_bounds;
+             with_bounds = No_with_bounds
+           } :
+            Allowance.right_only jkind_desc),
+          _ ) =
+      (* MB_EXPAND_L *)
+      (* Here we progressively expand types on the left.
 
-       Every time we see a type [ty] on the left, we first look to see if [ty] occurs on the
-       right. If it does, then we can skip* [ty]. There is an * on skip because we can
-       actually only skip on a per-axis basis - if [ty] is relevant only along the
-       portability axis on the right, then [ty] is no longer relevant to portability on
-       the left, but it is still relevant to all other axes. So really, we subtract the
-       axes that are relevant to the right from the axes that are relevant to the left.
-       We can also skip [ty] on any axes that are max on the right since anything is
-       <= max. Hence, we can also subtract [axes_max_on_right].
+         Every time we see a type [ty] on the left, we first look to see if [ty] occurs on the
+         right. If it does, then we can skip* [ty]. There is an * on skip because we can
+         actually only skip on a per-axis basis - if [ty] is relevant only along the
+         portability axis on the right, then [ty] is no longer relevant to portability on
+         the left, but it is still relevant to all other axes. So really, we subtract the
+         axes that are relevant to the right from the axes that are relevant to the left.
+         We can also skip [ty] on any axes that are max on the right since anything is
+         <= max. Hence, we can also subtract [axes_max_on_right].
 
-       After finding which axes [ty] is relevant along, we lookup [ty]'s jkind and join it
-       with the [mod_bounds] along the relevant axes. *)
-    (* [Jkind_desc.map_normalize] handles the stepping, jkind lookups, and joining.
-       [map_type_info] handles looking for [ty] on the right and removing irrelevant axes. *)
-    Jkind_desc.map_normalize sub.jkind ~jkind_of_type ~mode:Ignore_best
-      ~map_type_info:(fun ty { relevant_axes = left_relevant_axes } ->
-        let right_relevant_axes =
-          (* Look for [ty] on the right. There may be multiple occurrences of it on the
-             right; if so, we union together the relevant axes. *)
-          right_bounds |> With_bounds_types.to_seq
-          (* CR layouts v2.8: maybe it's worth memoizing using a best-effort type map? *)
-          |> Seq.fold_left
-               (fun acc (ty2, data) ->
-                 match type_equal ty ty2 with
-                 | true -> data :: acc
-                 | false -> acc)
-               []
-          |> List.fold_left
-               (fun acc (ti : With_bounds_type_info.t) ->
-                 Axis_set.union acc ti.relevant_axes)
-               Axis_set.empty
-        in
-        let axes_to_drop =
-          Axis_set.union right_relevant_axes axes_max_on_right
-        in
-        (* MB_WITH : drop types from the left that appear on the right *)
-        { relevant_axes = Axis_set.diff left_relevant_axes axes_to_drop })
-  in
-  let* () =
-    (* MB_MODE : verify that the remaining upper_bounds from sub are <= super's bounds *)
-    let super_lower_bounds = best_super.jkind.mod_bounds in
-    require_le (Mod_bounds.less_or_equal sub_upper_bounds super_lower_bounds)
-  in
-  Ok ()
+         After finding which axes [ty] is relevant along, we lookup [ty]'s jkind and join it
+         with the [mod_bounds] along the relevant axes. *)
+      (* [Jkind_desc.map_normalize] handles the stepping, jkind lookups, and joining.
+         [map_type_info] handles looking for [ty] on the right and removing irrelevant axes. *)
+      Jkind_desc.map_normalize sub.jkind ~jkind_of_type ~mode:Ignore_best
+        ~map_type_info:(fun ty { relevant_axes = left_relevant_axes } ->
+          let right_relevant_axes =
+            (* Look for [ty] on the right. There may be multiple occurrences of it on the
+               right; if so, we union together the relevant axes. *)
+            right_bounds |> With_bounds_types.to_seq
+            (* CR layouts v2.8: maybe it's worth memoizing using a best-effort type map? *)
+            |> Seq.fold_left
+                 (fun acc (ty2, ti) ->
+                   match type_equal ty ty2 with
+                   | true ->
+                     Axis_set.union acc ti.With_bounds_type_info.relevant_axes
+                   | false -> acc)
+                 Axis_set.empty
+          in
+          let axes_to_drop =
+            Axis_set.union right_relevant_axes axes_max_on_right
+          in
+          (* MB_WITH : drop types from the left that appear on the right *)
+          { relevant_axes = Axis_set.diff left_relevant_axes axes_to_drop })
+    in
+    let* () =
+      (* MB_MODE : verify that the remaining upper_bounds from sub are <= super's bounds *)
+      let super_lower_bounds = best_super.jkind.mod_bounds in
+      require_le (Mod_bounds.less_or_equal sub_upper_bounds super_lower_bounds)
+    in
+    Ok ()
 
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
