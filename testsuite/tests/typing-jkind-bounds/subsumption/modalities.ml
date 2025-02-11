@@ -1,5 +1,5 @@
 (* TEST
-    flags = "-extension layouts_alpha";
+    flags = "-extension layouts_alpha -infer-with-bounds";
     expect;
 *)
 
@@ -126,7 +126,8 @@ end = struct
   type 'a t : immediate with 'a @@ aliased many contended global portable
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data mod global unique end
+module M :
+  sig type 'a t : value mod global unique many uncontended portable end
 |}]
 
 module M : sig

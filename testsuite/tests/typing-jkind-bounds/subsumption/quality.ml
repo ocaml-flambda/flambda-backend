@@ -1,5 +1,5 @@
 (* TEST
-    flags = "-extension layouts_alpha";
+    flags = "-extension layouts_alpha -infer-with-bounds";
     expect;
 *)
 
@@ -532,7 +532,7 @@ Error: Signature mismatch:
          because of the definition of t at line 3, characters 2-39.
 |}]
 
-module type S = sig 
+module type S = sig
   val nonportable_f : int -> int
 end
 type s = (module S)
@@ -613,14 +613,14 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t : value mod many end
        is not included in
-         sig type t : mutable_data end
+         sig type t : value mod many portable end
        Type declarations do not match:
          type t : value mod many
        is not included in
-         type t : mutable_data
+         type t : value mod many portable
        The kind of the first is value mod many
          because of the definition of t at line 5, characters 2-25.
-       But the kind of the first must be a subkind of mutable_data
+       But the kind of the first must be a subkind of value mod many portable
          because of the definition of t at line 3, characters 2-41.
 |}]
 
