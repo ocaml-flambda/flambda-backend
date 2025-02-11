@@ -1,13 +1,12 @@
 (* TEST
- flags = "-extension layouts_alpha";
- include stdlib_alpha;
+ include stdlib_stable;
  expect;
 *)
 
-module Or_null = Stdlib_alpha.Or_null
+module Or_null = Stdlib_stable.Or_null
 
 [%%expect{|
-module Or_null = Stdlib_alpha.Or_null
+module Or_null = Stdlib_stable.Or_null
 |}]
 
 let _ = Or_null.null
