@@ -42,7 +42,7 @@ let overwrite_shared (r : record_update) =
   let x = overwrite_ r with { x = "foo" } in
   x.x
 [%%expect{|
-val id : ('a : value_or_null). 'a -> 'a = <fun>
+val id : 'a -> 'a = <fun>
 Line 5, characters 21-22:
 5 |   let x = overwrite_ r with { x = "foo" } in
                          ^

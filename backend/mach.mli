@@ -41,7 +41,7 @@ type operation =
                is_atomic : bool }
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
                                  (* false = initialization, true = assignment *)
-  | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
+  | Ialloc of { bytes : int; dbginfo : Cmm.alloc_dbginfo;
                 mode: Cmm.Alloc_mode.t }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int

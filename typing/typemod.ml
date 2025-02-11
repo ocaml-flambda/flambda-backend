@@ -691,7 +691,6 @@ let merge_constraint initial_env loc sg lid constr =
             type_attributes = [];
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-            type_has_illegal_crossings = false;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -750,23 +749,12 @@ let merge_constraint initial_env loc sg lid constr =
            the declaration from the original signature.  Note that this is also
            checked in [check_type_decl], but there it is check, not constrain,
            which we need here to deal with type variables in package constraints
-           (see tests in [typing-modules/package_constraint.ml]).  *)
-        begin match
-          Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind
-        with
-        | Ok _-> ()
-        | Error v ->
-          (* This is morally part of the below [check_type_decl], so we give the
-             same error that would be given there for good error messages. *)
-          let err =
-            Includemod.Error.In_Type_declaration(
-              id, Type_declarations
-                    {got=tdecl;
-                     expected=sig_decl;
-                     symptom=Includecore.Jkind v})
-          in
-          raise Includemod.(Error(initial_env, err))
-        end;
+           (see tests in [typing-modules/package_constraint.ml]). Because the
+           check is repeated later -- and with better handling for errors -- we
+           just drop any error here. *)
+        ignore
+          (* CR layouts v2.8: Does this type_jkind need to be instantiated? *)
+          (Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind);
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
         let tdecl = { tdecl with type_manifest = None } in
         return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
@@ -3138,7 +3126,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
                            never_raises = _} ->
-                  Zero_alloc.create_const (Check { strict; arity; loc; opt = false })
+                  Zero_alloc.create_const
+                    (Check { strict; arity; loc; opt = false;
+                             custom_error_msg = None; })
                 | Ignore_assert_all -> Zero_alloc.default
               in
               let (first_loc, _, _) = List.hd id_info in

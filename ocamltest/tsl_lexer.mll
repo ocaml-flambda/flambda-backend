@@ -24,6 +24,13 @@ let has_comments = ref false
 
 let lexer_error message =
   failwith (Printf.sprintf "Tsl lexer: %s" message)
+
+let lexer_error_at pos message =
+  let file = pos.Lexing.pos_fname in
+  let line = pos.Lexing.pos_lnum in
+  let column = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
+  let message = Printf.sprintf "%s:%d:%d: %s" file line column message in
+  lexer_error message
 }
 
 let newline = ('\013'* '\010')
@@ -86,12 +93,7 @@ and token = parse
   | _
     {
       let pos = Lexing.lexeme_start_p lexbuf in
-      let file = pos.Lexing.pos_fname in
-      let line = pos.Lexing.pos_lnum in
-      let column = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
-      let message = Printf.sprintf "%s:%d:%d: unexpected character %s"
-        file line column (Lexing.lexeme lexbuf) in
-      lexer_error message
+      lexer_error_at pos ("unexpected character %s" ^ Lexing.lexeme lexbuf)
     }
   | eof
     { lexer_error "unexpected eof" }
@@ -106,7 +108,7 @@ script = "some-directory\\
    is interpreted as the OCaml string "some-directory\\ foo".
    *)
 and string acc = parse
-  | [^ '\\' '"' ]+
+  | [^ '\\' '"' '\010' ]+
     { string (acc ^ Lexing.lexeme lexbuf) lexbuf }
   | '\\' newline blank* ('\\' (blank as blank))?
     { let space =
@@ -117,6 +119,8 @@ and string acc = parse
     {string (acc ^ "\\") lexbuf}
   | '"'
     {acc}
+  | newline
+    {lexer_error_at (Lexing.lexeme_start_p lexbuf) "unescaped newline in string"}
 and comment = parse
   | "(*"
     {
@@ -132,12 +136,7 @@ and comment = parse
   | eof
     {
       let pos = List.hd !comment_start_pos in
-      let file = pos.Lexing.pos_fname in
-      let line = pos.Lexing.pos_lnum in
-      let column = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
-      let message = Printf.sprintf "%s:%d:%d: unterminated comment"
-        file line column in
-      lexer_error message
+      lexer_error_at pos "unterminated comment"
     }
   | _
     {

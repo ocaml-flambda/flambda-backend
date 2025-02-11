@@ -84,7 +84,7 @@ let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
     Jkind.Const.Builtin.all
-    |> List.map (fun (builtin : _ Jkind.Const.Builtin.t) ->
+    |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
           builtin.jkind,
           Jkind.of_const builtin.jkind
             ~annotation:(Some { pjkind_loc = Location.none;
@@ -111,7 +111,7 @@ let with_additional_action =
           | Some const ->
             let builtin =
               List.find_opt (fun (builtin, _) ->
-                  Jkind.Const.equal_after_all_inference_is_done const builtin)
+                  Jkind.Const.no_baggage_and_equal const builtin)
                 builtins
             in
             begin match builtin with
@@ -499,14 +499,14 @@ let type_declaration' copy_scope s decl =
     type_kind =
       begin match decl.type_kind with
         Type_abstract r -> Type_abstract r
-      | Type_variant (cstrs, rep) ->
+      | Type_variant (cstrs, rep, umc) ->
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
-                        rep)
-      | Type_record(lbls, rep) ->
-          Type_record (List.map (label_declaration copy_scope s) lbls, rep)
-      | Type_record_unboxed_product(lbls, rep) ->
+                        rep, umc)
+      | Type_record(lbls, rep, umc) ->
+          Type_record (List.map (label_declaration copy_scope s) lbls, rep, umc)
+      | Type_record_unboxed_product(lbls, rep, umc) ->
           Type_record_unboxed_product
-            (List.map (label_declaration copy_scope s) lbls, rep)
+            (List.map (label_declaration copy_scope s) lbls, rep, umc)
       | Type_open -> Type_open
       end;
     type_manifest =
@@ -517,10 +517,13 @@ let type_declaration' copy_scope s decl =
       end;
     type_jkind =
       begin
-        match s.additional_action with
-        | Prepare_for_saving { prepare_jkind } ->
+        let jkind =
+          match s.additional_action with
+          | Prepare_for_saving { prepare_jkind } ->
             prepare_jkind decl.type_loc decl.type_jkind
-        | Duplicate_variables | No_action -> decl.type_jkind
+          | Duplicate_variables | No_action -> decl.type_jkind
+        in
+        Jkind.map_type_expr (typexp copy_scope s decl.type_loc) jkind
       end;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
@@ -531,7 +534,6 @@ let type_declaration' copy_scope s decl =
     type_attributes = attrs s decl.type_attributes;
     type_unboxed_default = decl.type_unboxed_default;
     type_uid = decl.type_uid;
-    type_has_illegal_crossings = decl.type_has_illegal_crossings;
   }
 
 let type_declaration s decl =

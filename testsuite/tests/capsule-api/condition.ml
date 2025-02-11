@@ -1,6 +1,6 @@
 (* TEST
  include stdlib_alpha;
- flags = "-extension-universe alpha";
+ flags = "-extension-universe alpha -alert -unsafe_multidomain";
  runtime5;
  { bytecode; }
  { native; }

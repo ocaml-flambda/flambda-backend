@@ -248,10 +248,11 @@ end
 ```
 
 Unboxed records are defined, constructed, and matched on like normal records, but with
-a leading hash. For example:
+a leading hash. Fields are projected with `.#`. For example:
 ```ocaml
 type t = #{ f : float# ; s : string }
 let inc #{ f ; s } = #{ f = Float_u.add f #1.0 ; s }
+let get_s t = t.#s
 ```
 
 The field names of unboxed records occupy a different namespace from the
@@ -262,15 +263,15 @@ There are no limitations on the layouts of the elements of unboxed tuples, but t
 of unboxed records must be representable.
 
 *Limitations and future plans*:
-- Unboxed products may not currently placed in blocks.
+* Unboxed products may not currently placed in blocks.
   We plan to lift this restriction in the near future.
-- Unboxed record fields may not be mutable.
+* Unboxed record fields may not be mutable.
   We plan to allow mutating unboxed records within boxed records
   (the design will differ from boxed record mutability, as unboxed types don't have the
   same notion of identity).
-- Unboxed record fields must be representable.
+* Unboxed record fields must be representable.
   We plan to lift this restriction in the future.
-- We plan to add other types with unboxed product layouts (e.g., interior pointers).
+* We plan to add other types with unboxed product layouts (e.g., interior pointers).
 
 # The `any` layout
 

@@ -750,9 +750,25 @@ let invariant_for_new_equation (t : t) name ty =
       Misc.fatal_errorf "New equation@ %a@ =@ %a@ has unbound names@ (%a):@ %a"
         Name.print name TG.print ty Name_occurrences.print unbound_names print t)
 
+let pattern_match_equation ~name ~const simple ty =
+  (* We have [(coerce <bare_lhs> <coercion>) : <ty>]. Thus [<bare_lhs> : (coerce
+     <ty> <coercion>^-1)]. *)
+  let bare_lhs = Simple.without_coercion simple in
+  let coercion_from_bare_lhs_to_ty = Simple.coercion simple in
+  let coercion_from_ty_to_bare_lhs =
+    Coercion.inverse coercion_from_bare_lhs_to_ty
+  in
+  let ty = TG.apply_coercion ty coercion_from_ty_to_bare_lhs in
+  let name eqn_name ~coercion =
+    (* true by definition *)
+    assert (Coercion.is_id coercion);
+    name eqn_name ty
+  in
+  Simple.pattern_match bare_lhs ~name ~const:(fun c -> const c ty)
+
 exception Bottom_equation
 
-let rec add_equation0 (t : t) name ty =
+let rec replace_equation (t : t) name ty =
   (if Flambda_features.Debug.concrete_types_only_on_canonicals ()
   then
     let is_concrete =
@@ -804,7 +820,103 @@ let rec add_equation0 (t : t) name ty =
   in
   with_current_level t ~current_level
 
-and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
+and replace_equation_or_add_alias_to_const t name ty =
+  match TG.recover_const_alias ty with
+  | None -> replace_equation t name ty
+  | Some const -> (
+    match
+      Aliases.add ~binding_time_resolver:t.binding_time_resolver
+        ~binding_times_and_modes:(names_to_types t) (aliases t)
+        ~canonical_element1:(Simple.name name)
+        ~canonical_element2:(Simple.const const)
+    with
+    | Ok { canonical_element = _; alias_of_demoted_element; t = aliases } ->
+      if not (Simple.equal alias_of_demoted_element (Simple.name name))
+      then Misc.fatal_error "Unexpected demotion of constant.";
+      let t = with_aliases t ~aliases in
+      let kind = MTC.kind_for_const const in
+      let ty = TG.alias_type_of kind (Simple.const const) in
+      replace_equation t name ty
+    | Bottom ->
+      Misc.fatal_error "Unexpected bottom while adding alias to constant.")
+
+and add_non_alias_equation ~original_name ~raise_on_bottom t lhs_simple rhs_ty
+    ~(meet_type : meet_type) =
+  (* We are about to add a non-alias type on a canonical *simple*. This type
+     might have been provided by the caller of [add_equation], or it might come
+     from an existing equation. In either case, we need to call [meet] with the
+     existing type in order to ensure that we record the most precise type
+     available.
+
+     For example, suppose [p] is defined earlier than [x], with [p] of type
+     [ty1] and [x] of type [ty2]. If the caller says that the type of [p] is now
+     to be "= x", then we will instead add a type "= p" on [x] and demote [x] to
+     [p], due to the definition ordering. We then need to record the information
+     that [p] now has type [ty1 meet ty2], otherwise the type [ty2] would be
+     lost.
+
+     If instead we say that the type of [p] is to be "= c", where [c] is a
+     constant, we will add the type "= c" to [p] and demote [p] to [c]. We have
+     no type to record for [c], however we still need to check that [c] is
+     compatible with the previous type of [p].
+
+     Note that, when using the old meet, we only call [meet] if the canonical
+     name after orienting the equation is different from the original name given
+     by the caller. In the situation where the names are the same, we assume
+     that the caller already took care of only giving a type that is more
+     precise than the existing one.
+
+     Note also that [p] and [x] may have different name modes! *)
+  let[@inline always] name eqn_name ty =
+    match meet_type with
+    | New meet_type_new -> (
+      let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+      match meet_type_new t ty existing_ty with
+      | Bottom ->
+        if raise_on_bottom
+        then raise Bottom_equation
+        else replace_equation t eqn_name (MTC.bottom (TG.kind ty))
+      | Ok (meet_ty, env) -> (
+        match meet_ty with
+        | Left_input -> replace_equation_or_add_alias_to_const env eqn_name ty
+        | Right_input | Both_inputs -> env
+        | New_result ty' ->
+          replace_equation_or_add_alias_to_const env eqn_name ty'))
+    | Old meet_type_old -> (
+      if Name.equal original_name eqn_name
+      then replace_equation_or_add_alias_to_const t eqn_name ty
+      else
+        let env = Meet_env.create t in
+        let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+        match meet_type_old env ty existing_ty with
+        | Bottom -> replace_equation t eqn_name (MTC.bottom (TG.kind ty))
+        | Ok (meet_ty, env_extension) ->
+          let t =
+            add_env_extension ~raise_on_bottom t env_extension ~meet_type
+          in
+          replace_equation_or_add_alias_to_const t eqn_name meet_ty)
+  in
+  let[@inline always] const const ty =
+    (* If we are applying an alias-to-constant type to a name, the constant
+       becomes canonical and we need to apply the type to the constant instead.
+       This merely reduces to checking that the type is compatible (e.g. if we
+       are adding [x : (= 0)] in a context where [x : { 1, 2 }] holds). *)
+    let existing_ty = MTC.type_for_const const in
+    match meet_type with
+    | New meet_type_new -> (
+      match meet_type_new t ty existing_ty with
+      | Bottom -> if raise_on_bottom then raise Bottom_equation else t
+      | Ok (_, env) -> env)
+    | Old meet_type_old -> (
+      let env = Meet_env.create t in
+      match meet_type_old env ty existing_ty with
+      | Bottom -> t
+      | Ok (_, env_extension) ->
+        add_env_extension ~raise_on_bottom t env_extension ~meet_type)
+  in
+  pattern_match_equation lhs_simple rhs_ty ~name ~const
+
+and orient_and_add_equation ~raise_on_bottom t name ty ~meet_type =
   (if Flambda_features.check_light_invariants ()
   then
     let existing_ty = find t name None in
@@ -827,18 +939,17 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
               "Directly recursive equation@ %a = %a@ disallowed:@ %a" Name.print
               name TG.print ty print t)
         ~const:(fun _ -> ()));
-  let aliases = aliases t in
-  let find_canonical name =
-    Aliases.get_canonical_ignoring_name_mode aliases name
-  in
   let inputs =
+    let aliases = aliases t in
+    let find_canonical name =
+      Aliases.get_canonical_ignoring_name_mode aliases name
+    in
     match TG.get_alias_exn ty with
     | exception Not_found ->
       (* Equations giving concrete types may only be added to the canonical
          element as known by the relevant alias tracker (the actual canonical,
          ignoring any name modes). *)
-      let canonical = find_canonical name in
-      Some (canonical, t, ty)
+      Some (find_canonical name, t, ty)
     | alias_rhs -> (
       (* Forget where [name] and [alias_rhs] came from---our job is now to
          record that they're equal. In general, they have canonical expressions
@@ -870,72 +981,32 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
         with
         | Ok { canonical_element; alias_of_demoted_element; t = aliases } ->
           let t = with_aliases t ~aliases in
-          (* We need to change the demoted alias's type to point to the new
-             canonical element. *)
+          (* If we are demoting [x] to [p], we need to add the type "= p" to
+             [x]. However, we also need to add the current type of [x] to [p],
+             otherwise that information would be lost. *)
+          let existing_ty =
+            Simple.pattern_match alias_of_demoted_element
+              ~const:MTC.type_for_const ~name:(fun name ~coercion ->
+                TG.apply_coercion (find t name (Some kind)) coercion)
+          in
           let ty = TG.alias_type_of kind canonical_element in
-          Some (alias_of_demoted_element, t, ty)
+          let t =
+            pattern_match_equation alias_of_demoted_element ty
+              ~name:(fun name ty -> replace_equation t name ty)
+              ~const:(fun _ _ ->
+                Misc.fatal_error "Unexpected demotion of constant.")
+          in
+          Some (canonical_element, t, existing_ty)
         | Bottom -> if raise_on_bottom then raise Bottom_equation else None)
   in
   match inputs with
   | None -> t
   | Some (simple, t, ty) ->
-    (* We have [(coerce <bare_lhs> <coercion>) : <ty>]. Thus [<bare_lhs> :
-       (coerce <ty> <coercion>^-1)]. *)
-    let bare_lhs = Simple.without_coercion simple in
-    let coercion_from_bare_lhs_to_ty = Simple.coercion simple in
-    let coercion_from_ty_to_bare_lhs =
-      Coercion.inverse coercion_from_bare_lhs_to_ty
-    in
-    let ty = TG.apply_coercion ty coercion_from_ty_to_bare_lhs in
-    (* Beware: if we're about to add the equation on a name which is different
-       from the one that the caller passed in, then we need to make sure that
-       the type we assign to that name is the most precise available. This
-       necessitates calling [meet].
-
-       For example, suppose [p] is defined earlier than [x], with [p] of type
-       [Unknown] and [x] of type [ty]. If the caller says that the best type of
-       [p] is now to be "= x", then this function will add an equation on [x]
-       rather than [p], due to the definition ordering. However we should not
-       just say that [x] has type "= p", as that would forget any existing
-       information about [x]. Instead we should say that [x] has type "(= p)
-       meet ty".
-
-       Note also that [p] and [x] may have different name modes! *)
-    let[@inline always] name eqn_name ~coercion =
-      assert (Coercion.is_id coercion);
-      (* true by definition *)
-      match meet_type with
-      | New meet_type_new -> (
-        let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-        match meet_type_new t ty existing_ty with
-        | Bottom ->
-          if raise_on_bottom
-          then raise Bottom_equation
-          else add_equation0 t eqn_name (MTC.bottom (TG.kind ty))
-        | Ok (meet_ty, env) -> (
-          match meet_ty with
-          | Left_input -> add_equation0 env eqn_name ty
-          | Right_input | Both_inputs -> env
-          | New_result ty' -> add_equation0 env eqn_name ty'))
-      | Old meet_type_old -> (
-        if Name.equal name eqn_name
-        then add_equation0 t eqn_name ty
-        else
-          let env = Meet_env.create t in
-          let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-          match meet_type_old env ty existing_ty with
-          | Bottom -> add_equation0 t eqn_name (MTC.bottom (TG.kind ty))
-          | Ok (meet_ty, env_extension) ->
-            let t =
-              add_env_extension ~raise_on_bottom t env_extension ~meet_type
-            in
-            add_equation0 t eqn_name meet_ty)
-    in
-    Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
+    add_non_alias_equation ~original_name:name ~raise_on_bottom t simple ty
+      ~meet_type
 
 and[@inline always] add_equation ~raise_on_bottom t name ty ~meet_type =
-  let ty = TG.recover_some_aliases ty in
-  match add_equation1 ~raise_on_bottom t name ty ~meet_type with
+  match orient_and_add_equation ~raise_on_bottom t name ty ~meet_type with
   | exception Binding_time_resolver_failure ->
     (* Addition of aliases between names that are both in external compilation
        units failed, e.g. due to a missing .cmx file. Simply drop the

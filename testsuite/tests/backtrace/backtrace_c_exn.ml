@@ -33,7 +33,7 @@ let () =
 
 (* TEST
  modules = "backtrace_c_exn_.c";
- flags = "-g";
+ flags = "-g -alert -unsafe_multidomain";
  ocamlrunparam += ",b=1";
  {
    runtime4;

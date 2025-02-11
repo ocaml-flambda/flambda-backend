@@ -8,7 +8,7 @@ type ('a : value_or_null) id_value_or_null = 'a
 
 [%%expect{|
 type t_value_or_null : value_or_null
-type ('a : value_or_null) id_value_or_null = 'a
+type 'a id_value_or_null = 'a
 |}]
 
 (* Type parameters default to [value] and need
@@ -58,11 +58,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig val should_not_work : 'a -> unit end
        is not included in
-         sig val should_not_work : ('a : value_or_null). 'a -> unit end
+         sig val should_not_work : 'a -> unit end
        Values do not match:
          val should_not_work : 'a -> unit
        is not included in
-         val should_not_work : ('a : value_or_null). 'a -> unit
+         val should_not_work : 'a -> unit
        The type "'a -> unit" is not compatible with the type "'b -> unit"
        The kind of 'a is value_or_null
          because of the definition of should_not_work at line 6, characters 2-57.
@@ -82,11 +82,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t = 'a X.t end
        is not included in
-         sig type ('a : value_or_null) t end
+         sig type 'a t end
        Type declarations do not match:
          type 'a t = 'a X.t
        is not included in
-         type ('a : value_or_null) t
+         type 'a t
        The problem is in the kinds of a parameter:
        The kind of 'a is value_or_null
          because of the definition of t at line 1, characters 39-66.
@@ -159,11 +159,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig val f : 'a -> 'a end
        is not included in
-         sig val f : ('a : value_or_null). 'a -> 'a end
+         sig val f : 'a -> 'a end
        Values do not match:
          val f : 'a -> 'a
        is not included in
-         val f : ('a : value_or_null). 'a -> 'a
+         val f : 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
        The kind of 'a is value_or_null
          because of the definition of f at line 2, characters 2-40.
@@ -186,11 +186,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig val f : 'a -> 'a end
        is not included in
-         sig val f : ('a : value_or_null). 'a -> 'a end
+         sig val f : 'a -> 'a end
        Values do not match:
          val f : 'a -> 'a
        is not included in
-         val f : ('a : value_or_null). 'a -> 'a
+         val f : 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
        The kind of 'a is value_or_null
          because of the definition of f at line 2, characters 2-40.
@@ -214,11 +214,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig val f : 'a -> 'a end
        is not included in
-         sig val f : ('a : value_or_null). 'a -> 'a end
+         sig val f : 'a -> 'a end
        Values do not match:
          val f : 'a -> 'a
        is not included in
-         val f : ('a : value_or_null). 'a -> 'a
+         val f : 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
        The kind of 'a is value_or_null
          because of the definition of f at line 2, characters 2-41.
@@ -242,11 +242,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig val f : 'a -> 'a end
        is not included in
-         sig val f : ('a : value_or_null). 'a -> 'a end
+         sig val f : 'a -> 'a end
        Values do not match:
          val f : 'a -> 'a
        is not included in
-         val f : ('a : value_or_null). 'a -> 'a
+         val f : 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
        The kind of 'a is value_or_null
          because of the definition of f at line 2, characters 2-41.
@@ -271,11 +271,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig val f : 'a -> 'a end
        is not included in
-         sig val f : ('a : value_or_null). 'a -> 'a end
+         sig val f : 'a -> 'a end
        Values do not match:
          val f : 'a -> 'a
        is not included in
-         val f : ('a : value_or_null). 'a -> 'a
+         val f : 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
        The kind of 'a is value_or_null
          because of the definition of f at line 2, characters 2-41.
@@ -304,7 +304,7 @@ type (!'a : value_or_null) dummy
 type t = Packed : 'a dummy -> t
 
 [%%expect{|
-type (!'a : value_or_null) dummy
+type !'a dummy
 type t = Packed : 'a dummy -> t
 |}]
 
@@ -318,7 +318,7 @@ type t = Packed : 'a dummy -> t
 (* However, this works. *)
 type t = Packed : ('a : value_or_null). 'a dummy -> t
 [%%expect{|
-type t = Packed : ('a : value_or_null). 'a dummy -> t
+type t = Packed : 'a dummy -> t
 |}]
 
 (* Variables on the right side of constraints default to non-null.

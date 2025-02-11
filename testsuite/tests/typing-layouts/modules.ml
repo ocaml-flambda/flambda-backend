@@ -1,9 +1,10 @@
 (* TEST
  include stdlib_upstream_compatible;
+ flags = "-infer-with-bounds";
  {
    expect;
  }{
-   flags = "-extension layouts_beta";
+   flags += " -extension layouts_beta";
    expect;
  }
 *)
@@ -340,7 +341,7 @@ type ('a : value) t4_val
 type t4 = M4.s t4_val;;
 [%%expect {|
 module F4 : functor (X : sig type t end) -> sig type s = Foo of X.t end
-module M4 : sig type s end
+module M4 : sig type s : immutable_data end
 type 'a t4_val
 type t4 = M4.s t4_val
 |}]

@@ -70,15 +70,12 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let is_void_label lbl = Jkind.Sort.Const.(equal void lbl.ld_sort) in
-      let jkind =
-        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
-      in
+      let jkind = Jkind.for_boxed_record lbls in
       let tdecl =
         {
           type_params;
           type_arity = arity;
-          type_kind = Type_record (lbls, rep);
+          type_kind = Type_record (lbls, rep, None);
           type_jkind = jkind;
           type_private = priv;
           type_manifest = None;
@@ -90,7 +87,6 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_attributes = [];
           type_unboxed_default = false;
           type_uid = Uid.mk ~current_unit;
-          type_has_illegal_crossings = false;
         }
       in
       existentials,
@@ -294,14 +290,14 @@ let find_constr_by_tag ~constant tag cstrlist =
 
 let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
-  | Type_variant (cstrs,rep) ->
+  | Type_variant (cstrs, rep, _) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open -> []
 
 let labels_of_type ty_path decl =
   match decl.type_kind with
-  | Type_record(labels, rep) ->
+  | Type_record(labels, rep, _) ->
       label_descrs Legacy (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
   | Type_record_unboxed_product _
@@ -309,7 +305,7 @@ let labels_of_type ty_path decl =
 
 let unboxed_labels_of_type ty_path decl =
   match decl.type_kind with
-  | Type_record_unboxed_product(labels, rep) ->
+  | Type_record_unboxed_product(labels, rep, _) ->
       label_descrs Unboxed_product (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
   | Type_record _

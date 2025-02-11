@@ -1359,10 +1359,10 @@ let type_of_cstr path = function
         List.map snd (Datarepr.labels_of_type path decl)
       in
       begin match decl.type_kind with
-      | Type_record (_, repr) ->
+      | Type_record (_, repr, umc) ->
         {
           tda_declaration = decl;
-          tda_descriptions = Type_record (labels, repr);
+          tda_descriptions = Type_record (labels, repr, umc);
           tda_shape = Shape.leaf decl.type_uid;
         }
       | _ -> assert false
@@ -1397,7 +1397,7 @@ let rec find_type_data path env =
 and find_cstr path name env =
   let tda = find_type_data path env in
   match tda.tda_descriptions with
-  | Type_variant (cstrs, _) ->
+  | Type_variant (cstrs, _, _) ->
       List.find (fun cstr -> cstr.cstr_name = name) cstrs
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open ->
@@ -2034,7 +2034,7 @@ let rec components_of_module_maker
               (Subst.type_path sub (Path.Pident id));
             let descrs =
               match decl.type_kind with
-              | Type_variant (_,repr) ->
+              | Type_variant (_,repr,umc) ->
                   let cstrs = List.map snd
                     (Datarepr.constructors_of_type path final_decl
                         ~current_unit:(get_unit_name ()))
@@ -2050,8 +2050,8 @@ let rec components_of_module_maker
                       c.comp_constrs <-
                         add_to_tbl descr.cstr_name cda c.comp_constrs
                     ) cstrs;
-                 Type_variant (cstrs, repr)
-              | Type_record (_, repr) ->
+                 Type_variant (cstrs, repr, umc)
+              | Type_record (_, repr, umc) ->
                   let lbls = List.map snd
                     (Datarepr.labels_of_type path final_decl)
                   in
@@ -2060,8 +2060,8 @@ let rec components_of_module_maker
                       c.comp_labels <-
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
-                  Type_record (lbls, repr)
-              | Type_record_unboxed_product (_, repr) ->
+                  Type_record (lbls, repr, umc)
+              | Type_record_unboxed_product (_, repr, umc) ->
                   let (lbls : unboxed_label_description list) = List.map snd
                     (Datarepr.unboxed_labels_of_type path final_decl)
                   in
@@ -2070,7 +2070,7 @@ let rec components_of_module_maker
                       c.comp_unboxed_labels <-
                         add_to_tbl descr.lbl_name descr c.comp_unboxed_labels)
                     lbls;
-                  Type_record_unboxed_product (lbls, repr)
+                  Type_record_unboxed_product (lbls, repr, umc)
               | Type_abstract r -> Type_abstract r
               | Type_open -> Type_open
             in
@@ -2312,25 +2312,25 @@ and store_type ~check id info shape env =
   let descrs, env =
     let path = Pident id in
     match info.type_kind with
-    | Type_variant (_,repr) ->
+    | Type_variant (_,repr,umc) ->
         let constructors = Datarepr.constructors_of_type path info
                             ~current_unit:(get_unit_name ())
         in
-        Type_variant (List.map snd constructors, repr),
+        Type_variant (List.map snd constructors, repr, umc),
         List.fold_left
           (fun env (cstr_id, cstr) ->
             store_constructor ~check info id cstr_id cstr env)
           env constructors
-    | Type_record (_, repr) ->
+    | Type_record (_, repr, umc) ->
         let labels = Datarepr.labels_of_type path info in
-        Type_record (List.map snd labels, repr),
+        Type_record (List.map snd labels, repr, umc),
         List.fold_left
           (fun env (lbl_id, lbl) ->
             store_label ~record_form:Legacy ~check info id lbl_id lbl env)
           env labels
-    | Type_record_unboxed_product (_, repr) ->
+    | Type_record_unboxed_product (_, repr, umc) ->
         let labels = Datarepr.unboxed_labels_of_type path info in
-        Type_record_unboxed_product (List.map snd labels, repr),
+        Type_record_unboxed_product (List.map snd labels, repr, umc),
         List.fold_left
           (fun env (lbl_id, lbl) ->
              store_label ~record_form:Unboxed_product ~check info id lbl_id lbl
@@ -3673,27 +3673,9 @@ let lookup_value ~errors ~use ~loc lid env =
   let path, locks, vda =
     lookup_value_lazy ~errors ~use ~loc lid env
   in
-  (* There can be locks between the definition and a use of a value. For
-  example, if a function closes over a value, there will be Closure_lock between
-  the value's definition and the value's use in the function. Walking the locks
-  will constrain the function and the value's modes accrodingly.
-
-  Here, we apply the modalities to acquire the mode of the value at the
-  definition site, using which we walk the locks. That means the surrounding
-  closure would be closing over the value instead of the module. The latter can
-  be achieved by walking the locks before apply modalities.
-
-  Our route provides better ergonomics, but is dangerous as it doesn't reflect
-  the real runtime behaviour. With the current set-up, it is sound. *)
   let vd, mode = normalize_vda_mode vda in
   let vd = Subst.Lazy.force_value_description vd in
-  let vmode =
-    if use then
-      walk_locks ~errors ~loc ~env ~item:Value ~lid mode (Some vd.val_type) locks
-    else
-      mode_default mode
-  in
-  path, vd, vmode
+  path, vd, mode, locks
 
 let lookup_type_full ~errors ~use ~loc lid env =
   match lid with
@@ -3755,20 +3737,20 @@ let lookup_all_labels_from_type (type rep) ~use ~(record_form : rep record_form)
   match (find_type_descrs ty_path env, record_form) with
   | exception Not_found -> []
   | ((Type_variant _ | Type_abstract _ | Type_open), _) -> []
-  | (Type_record (lbls, _), Legacy) ->
+  | (Type_record (lbls, _, _), Legacy) ->
       List.map
         (fun lbl ->
            let use_fun () = use_label ~record_form ~use ~loc usage env lbl in
            (lbl, use_fun))
         lbls
-  | (Type_record_unboxed_product (lbls, _), Unboxed_product) ->
+  | (Type_record_unboxed_product (lbls, _, _), Unboxed_product) ->
       List.map
         (fun lbl ->
            let use_fun () = use_label ~record_form ~use ~loc usage env lbl in
            (lbl, use_fun))
         lbls
-  | (Type_record (_, _), Unboxed_product) -> []
-  | (Type_record_unboxed_product (_, _), Legacy) -> []
+  | (Type_record (_, _, _), Unboxed_product) -> []
+  | (Type_record_unboxed_product (_, _, _), Legacy) -> []
 
 let lookup_all_constructors ~errors ~use ~loc usage lid env =
   match lid with
@@ -3786,7 +3768,7 @@ let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
   | exception Not_found -> []
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open -> []
-  | Type_variant (cstrs, _) ->
+  | Type_variant (cstrs, _, _) ->
       List.map
         (fun cstr ->
            let use_fun () =
@@ -3808,7 +3790,7 @@ let find_module_by_name lid env =
 
 let find_value_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, desc, _ = lookup_value ~errors:false ~use:false ~loc lid env in
+  let path, desc, _, _ = lookup_value ~errors:false ~use:false ~loc lid env in
   path, desc
 
 let find_type_by_name lid env =

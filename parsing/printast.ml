@@ -506,10 +506,11 @@ and jkind_annotation i ppf (jkind : jkind_annotation) =
       line i ppf "Mod\n";
       jkind_annotation (i+1) ppf jkind;
       modes (i+1) ppf m
-  | With (jkind, type_) ->
+  | With (jkind, type_, modalities_) ->
       line i ppf "With\n";
       jkind_annotation (i+1) ppf jkind;
-      core_type (i+1) ppf type_
+      core_type (i+1) ppf type_;
+      modalities (i+1) ppf modalities_
   | Kind_of type_ ->
       line i ppf "Kind_of\n";
       core_type (i+1) ppf type_
@@ -575,7 +576,9 @@ and type_declaration i ppf x =
   type_kind (i+1) ppf x.ptype_kind;
   line i ppf "ptype_private = %a\n" fmt_private_flag x.ptype_private;
   line i ppf "ptype_manifest =\n";
-  option (i+1) core_type ppf x.ptype_manifest
+  option (i+1) core_type ppf x.ptype_manifest;
+  line i ppf "ptype_jkind_annotation =\n";
+  option (i+1) jkind_annotation ppf x.ptype_jkind_annotation
 
 and attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.attr_name.txt;

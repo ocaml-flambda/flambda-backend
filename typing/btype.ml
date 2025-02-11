@@ -48,6 +48,7 @@ module TypeHash = struct
   include TransientTypeHash
   let mem hash = wrap_repr (mem hash)
   let add hash = wrap_repr (add hash)
+  let replace hash = wrap_repr (replace hash)
   let remove hash = wrap_repr (remove hash)
   let find hash = wrap_repr (find hash)
   let find_opt hash = wrap_repr (find_opt hash)
@@ -337,16 +338,16 @@ let map_type_expr_cstr_args f = function
 
 let iter_type_expr_kind f = function
   | Type_abstract _ -> ()
-  | Type_variant (cstrs, _) ->
+  | Type_variant (cstrs, _, _) ->
       List.iter
         (fun cd ->
            iter_type_expr_cstr_args f cd.cd_args;
            Option.iter f cd.cd_res
         )
         cstrs
-  | Type_record(lbls, _) ->
+  | Type_record(lbls, _, _) ->
       List.iter (fun d -> f d.ld_type) lbls
-  | Type_record_unboxed_product(lbls, _) ->
+  | Type_record_unboxed_product(lbls, _, _) ->
       List.iter (fun d -> f d.ld_type) lbls
   | Type_open ->
       ()

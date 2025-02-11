@@ -309,6 +309,7 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
@@ -648,6 +649,7 @@ type zero_alloc_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                loc: Location.t;
+               custom_error_msg: string option;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;

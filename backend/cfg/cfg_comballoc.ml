@@ -9,7 +9,7 @@ type cell = Cfg.basic Cfg.instruction DLL.cell
    cell so that the instruction can be modified. *)
 type allocation =
   { bytes : int;
-    dbginfo : Debuginfo.alloc_dbginfo;
+    dbginfo : Cmm.alloc_dbginfo;
     mode : Cmm.Alloc_mode.t;
     cell : cell
   }

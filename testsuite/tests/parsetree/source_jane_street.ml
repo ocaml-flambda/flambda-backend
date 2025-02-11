@@ -35,9 +35,9 @@ let f y (type (a : immediate)) (x : a) = x;;
 let f y (type (a : immediate) (b : immediate)) (x : a) = x;;
 
 [%%expect{|
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : 'b ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : 'b ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : 'b ('a : immediate). 'b -> 'a -> 'a = <fun>
 |}]
 
 let f y (type a : immediate) = y;;
@@ -46,10 +46,10 @@ let f y (type (a : immediate) (b : immediate)) = y;;
 let f y (type (a : immediate) (b : immediate) c) = y;;
 
 [%%expect{|
-val f : ('a : value_or_null). 'a -> 'a = <fun>
-val f : ('a : value_or_null). 'a -> 'a = <fun>
-val f : ('a : value_or_null). 'a -> 'a = <fun>
-val f : ('a : value_or_null). 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
 |}]
 
 (* Just newtypes, no value parameters *)
@@ -157,7 +157,7 @@ let f xs = match xs with
 
 [%%expect{|
 type t = #(int * float#)
-val f : ('a : value_or_null). #('a * float#) -> #('a * float#) = <fun>
+val f : #('a * float#) -> #('a * float#) = <fun>
 |}]
 
 module M = struct
@@ -289,12 +289,10 @@ let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
 
 [%%expect{|
 val f :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    local_ 'a @ unique ->
-    y:local_ 'b @ once ->
-    z:'c @ once unique ->
-    ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit =
-  <fun>
+  local_ 'a @ unique ->
+  y:local_ 'b @ once ->
+  z:'c @ once unique ->
+  ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit = <fun>
 |}]
 
 (* bindings *)
@@ -447,28 +445,26 @@ let f ~(x1 @ many)
 
 [%%expect{|
 val f :
-  ('b : value_or_null) ('c : value_or_null) ('d : value_or_null) 'e.
-    x1:'b ->
-    x2:local_ string ->
-    x3:local_ (string -> string) ->
-    x4:local_ ('a. 'a -> 'a) ->
-    x5:local_ 'c ->
-    x6:local_ bool ->
-    x7:local_ bool ->
-    x8:local_ unit ->
-    string ->
-    local_ 'd -> local_
-    'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
-    int array * string * (int -> local_ (int -> int)) *
-    (int -> local_ (int -> int)) @ contended =
-  <fun>
+  x1:'b ->
+  x2:local_ string ->
+  x3:local_ (string -> string) ->
+  x4:local_ ('a. 'a -> 'a) ->
+  x5:local_ 'c ->
+  x6:local_ bool ->
+  x7:local_ bool ->
+  x8:local_ unit ->
+  string ->
+  local_ 'd -> local_
+  'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
+  int array * string * (int -> local_ (int -> int)) *
+  (int -> local_ (int -> int)) @ contended = <fun>
 |}]
 
 let f1 (_ @ local) = ()
 let f2 () = let x @ local = [1; 2; 3] in f1 x [@nontail]
 
 [%%expect{|
-val f1 : ('a : value_or_null). local_ 'a -> unit = <fun>
+val f1 : local_ 'a -> unit = <fun>
 val f2 : unit -> unit = <fun>
 |}]
 
@@ -722,6 +718,63 @@ Error: Mode annotations on modules are not supported yet.
 |}]
 
 (**********)
+(* stack *)
+
+let f x = stack_ (ref x)
+
+[%%expect{|
+Line 1, characters 17-24:
+1 | let f x = stack_ (ref x)
+                     ^^^^^^^
+Error: This expression is not an allocation site.
+|}]
+
+type t = { a : int }
+let f a =
+  let y = stack_ { a } in
+  y.a
+
+[%%expect{|
+type t = { a : int; }
+val f : int -> int = <fun>
+|}]
+
+let apply ~(f @ local) x = f x [@nontail]
+let double1 y = apply ~f:(stack_ fun x -> x + y) y [@nontail]
+let double2 y = apply ~f:(stack_ function x -> x + y) y [@nontail]
+
+[%%expect{|
+val apply : f:local_ ('a -> 'b) -> 'a -> 'b = <fun>
+val double1 : int -> int = <fun>
+val double2 : int -> int = <fun>
+|}]
+
+let make_tuple x y z = stack_ (x, y), z
+[%%expect{|
+Line 1, characters 23-36:
+1 | let make_tuple x y z = stack_ (x, y), z
+                           ^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
+type u = A of unit | C of int | B of int * int | D
+
+let create_us () =
+  let a = stack_ A () in
+  let b = stack_ B (1, 2) in
+  let c = stack_ C 3 in
+  let d = stack_ D in
+  ()
+
+[%%expect{|
+type u = A of unit | C of int | B of int * int | D
+Line 7, characters 17-18:
+7 |   let d = stack_ D in
+                     ^
+Error: This expression is not an allocation site.
+|}]
+
+(**********)
 (* unique *)
 
 (* No syntax; the unique extension just enables the uniqueness checker. *)
@@ -780,8 +833,7 @@ let (x : ((x:int * y:int) [@test.attr])) = (~x:1, ~y:2)
 [%%expect{|
 val z : int = 4
 val punned : int = 5
-val x_must_be_even : ('a : value_or_null) ('b : value_or_null). 'a -> 'b =
-  <fun>
+val x_must_be_even : 'a -> 'b = <fun>
 exception Odd
 val x : x:int * y:int = (~x:1, ~y:2)
 val x : x:int * y:int = (~x:1, ~y:2)
@@ -831,10 +883,7 @@ let f = fun (~foo, ~bar:bar) -> foo * 10 + bar
 let f ((~(x:int),y) : (x:int * int)) : int = x + y
 
 [%%expect{|
-val foo :
-  ('a : value_or_null) ('b : value_or_null).
-    'a -> (unit -> 'b) -> (unit -> 'b) -> 'b =
-  <fun>
+val foo : 'a -> (unit -> 'b) -> (unit -> 'b) -> 'b = <fun>
 val x : int = 1
 val y : int = 2
 val x : int = 1
@@ -1060,9 +1109,29 @@ val inc : 'a with_idx -> 'a with_idx = <fun>
 (***************)
 (* Modal kinds *)
 
+(* supported *)
+type 'a list : immutable_data with 'a
+type ('a, 'b) either : immutable_data with 'a * 'b
+type 'a contended : immutable_data with 'a @@ contended
+type 'a contended_with_int : immutable_data with 'a @@ contended with int
+
+[%%expect{|
+type 'a list : value mod many uncontended portable unyielding with 'a
+type ('a, 'b) either
+  : value mod many uncontended portable unyielding
+  with 'a * 'b
+type 'a contended
+  : value mod many uncontended portable unyielding
+  with 'a @@ contended
+type 'a contended_with_int
+  : value mod many uncontended portable unyielding
+  with 'a @@ contended
+
+  with int
+|}]
+
+(* not yet supported *)
 module _ : sig
-  type 'a list : immutable_data with 'a
-  type ('a, 'b) either : immutable_data with 'a * 'b
   type 'a gel : kind_of_ 'a mod global
   type 'a t : _
   kind_abbrev_ immediate = value mod global unique many sync uncontended
@@ -1070,8 +1139,6 @@ module _ : sig
   kind_abbrev_ immutable = value mod uncontended
   kind_abbrev_ data = value mod sync many
 end = struct
-  type 'a list : immutable_data with 'a
-  type ('a, 'b) either : immutable_data with 'a * 'b
   type 'a gel : kind_of_ 'a mod global
   type 'a t : _
   kind_abbrev_ immediate = value mod global unique many sync uncontended
@@ -1084,9 +1151,9 @@ end
    supported. *)
 
 [%%expect{|
-Line 11, characters 17-39:
-11 |   type 'a list : immutable_data with 'a
-                      ^^^^^^^^^^^^^^^^^^^^^^
+Line 9, characters 16-27:
+9 |   type 'a gel : kind_of_ 'a mod global
+                    ^^^^^^^^^^^
 Error: Unimplemented kind syntax
 |}]
 
@@ -1258,4 +1325,25 @@ Line 2, characters 19-43:
 Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
 
+|}]
+
+(************)
+(* call_pos *)
+
+let f ~(x : [%call_pos]) () = x;;
+
+[%%expect{|
+val f : x:[%call_pos] -> unit -> lexing_position = <fun>
+|}]
+
+type t = x:[%call_pos] -> int
+
+[%%expect{|
+type t = x:[%call_pos] -> int
+|}]
+
+let f g here = g ~(here : [%call_pos])
+
+[%%expect{|
+val f : (here:[%call_pos] -> 'a) -> lexing_position -> 'a = <fun>
 |}]

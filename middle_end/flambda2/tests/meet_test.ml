@@ -7,7 +7,6 @@ open Flambda2_term_basics
 module K = Flambda_kind
 module T = Flambda2_types
 module TE = T.Typing_env
-module TEE = T.Typing_env_extension
 
 let create_env () =
   let resolver _ = None in
@@ -42,9 +41,8 @@ let test_meet_chains_two_vars () =
     new_type_for_var2;
   match T.meet env first_type_for_var2 new_type_for_var2 with
   | Bottom -> assert false
-  | Ok (meet_ty, env_extension) ->
-    Format.eprintf "Env extension:@ %a\n%!" TEE.print env_extension;
-    let env = TE.add_env_extension env env_extension in
+  | Ok (meet_ty, env) ->
+    Format.eprintf "Extended env:@ %a\n%!" TE.print env;
     let env = TE.add_equation env (Name.var var2) meet_ty in
     Format.eprintf "Final situation:@ %a\n%!" TE.print env
 
@@ -81,9 +79,8 @@ let test_meet_chains_three_vars () =
     new_type_for_var3;
   match T.meet env first_type_for_var3 new_type_for_var3 with
   | Bottom -> assert false
-  | Ok (meet_ty, env_extension) ->
-    Format.eprintf "Env extension:@ %a\n%!" TEE.print env_extension;
-    let env = TE.add_env_extension env env_extension in
+  | Ok (meet_ty, env) ->
+    Format.eprintf "Extended env:@ %a\n%!" TE.print env;
     let env = TE.add_equation env (Name.var var3) meet_ty in
     Format.eprintf "Final situation:@ %a\n%!" TE.print env
 
@@ -127,20 +124,20 @@ let meet_variants_don't_lose_aliases () =
   in
   match T.meet env ty1 ty2 with
   | Bottom -> assert false
-  | Ok (meet_ty, env_extension) -> (
+  | Ok (meet_ty, env) -> (
     Format.eprintf "@[<hov 2>Meet:@ %a@ /\\@ %a =>@ %a +@ %a@]@." T.print ty1
-      T.print ty2 T.print meet_ty TEE.print env_extension;
+      T.print ty2 T.print meet_ty TE.print env;
     (* Env extension should be empty *)
     let env = TE.add_equation env (Name.var v_variant) meet_ty in
     let t_get_tag = T.get_tag_for_block ~block:(Simple.var v_variant) in
     let t_tag_1 = T.this_naked_immediate Targetint_31_63.one in
     match T.meet env t_get_tag t_tag_1 with
     | Bottom -> assert false
-    | Ok (tag_meet_ty, tag_meet_env_extension) ->
+    | Ok (tag_meet_ty, tag_meet_env) ->
       Format.eprintf "t_get_tag: %a@.t_tag: %a@." T.print t_get_tag T.print
         t_tag_1;
-      Format.eprintf "@[<hov 2>meet:@ %a@]@.@[<hov 2>env_extension:@ %a@]@."
-        T.print tag_meet_ty TEE.print tag_meet_env_extension)
+      Format.eprintf "@[<hov 2>meet:@ %a@]@.@[<hov 2>env:@ %a@]@." T.print
+        tag_meet_ty TE.print tag_meet_env)
 
 let test_meet_two_blocks () =
   let define env v =
@@ -183,13 +180,83 @@ let test_meet_two_blocks () =
         (T.alias_type_of K.value (Simple.var b2))
     with
     | Bottom -> assert false
-    | Ok (t, tee) ->
-      Format.eprintf "Res:@ %a@.%a@." T.print t TEE.print tee;
-      let env = TE.add_env_extension env tee in
-      Format.eprintf "Env:@.%a@.@." TE.print env
+    | Ok (t, env) ->
+      Format.eprintf "Res:@ %a@.Env:@.%a@.@." T.print t TE.print env
   in
   f block1 block2;
   f block2 block1
+
+let test_meet_recover_alias () =
+  (* This test checks that we properly discover alias types when adding
+     equations, even after a meet.
+
+     If we have:
+
+     x: (Variant (blocks {tag_0}) (tagged_imms ((= #0))))
+
+     and we add:
+
+     x: (Variant (blocks ⊥) (tagged_imms ⊤))
+
+     we should get:
+
+     x: (= 0) *)
+  let define env v =
+    let v' = Bound_var.create v Name_mode.normal in
+    TE.add_definition env (Bound_name.create_var v') K.value
+  in
+  let env = create_env () in
+  let x = Variable.create "x" in
+  let env = define env x in
+  let existing_ty =
+    T.variant Alloc_mode.For_types.heap
+      ~const_ctors:(T.this_naked_immediate Targetint_31_63.zero)
+      ~non_const_ctors:
+        (Tag.Scannable.Map.of_list
+           [Tag.Scannable.zero, (K.Block_shape.Scannable Value_only, [])])
+  in
+  Format.eprintf "@[<hov 2>first type:@ %a@]@." T.print existing_ty;
+  let env = TE.add_equation env (Name.var x) existing_ty in
+  Format.eprintf "@[<hov 2>second type:@ %a@]@." T.print T.any_tagged_immediate;
+  let env = TE.add_equation env (Name.var x) T.any_tagged_immediate in
+  let meet_ty = TE.find env (Name.var x) (Some K.value) in
+  (* CR bclement: we would like an assertion that [meet_ty] is [(= 0)] here, but
+     the required functions for this are not exposed. *)
+  Format.eprintf "@[<hov 2>after meet:@ %a@]@." T.print meet_ty
+
+let test_meet_bottom_after_alias () =
+  (* This test checks that we discover bottom if we meet an alias to a constant
+     with an incompatible type.
+
+     If we have:
+
+     x: { -1, 0, 1 }
+
+     and we add:
+
+     x: (= 3)
+
+     we should get:
+
+     ⊥ *)
+  let define env v =
+    let v' = Bound_var.create v Name_mode.normal in
+    TE.add_definition env (Bound_name.create_var v') K.value
+  in
+  let env = create_env () in
+  let x = Variable.create "x" in
+  let env = define env x in
+  let existing_ty =
+    T.these_tagged_immediates Targetint_31_63.zero_one_and_minus_one
+  in
+  Format.eprintf "@[<hov 2>first type:@ %a@]@." T.print existing_ty;
+  let env = TE.add_equation env (Name.var x) existing_ty in
+  let new_ty = T.alias_type_of K.value (Simple.const_int_of_kind K.value 3) in
+  Format.eprintf "@[<hov 2>second type:@ %a@]@." T.print new_ty;
+  let env = TE.add_equation env (Name.var x) new_ty in
+  let meet_ty = TE.find env (Name.var x) (Some K.value) in
+  Format.eprintf "@[<hov 2>after meet:@ %a@]@." T.print meet_ty;
+  assert (T.is_bottom env meet_ty)
 
 let () =
   let comp_unit = "Meet_test" |> Compilation_unit.of_string in
@@ -201,4 +268,10 @@ let () =
   Format.eprintf "@.MEET VARIANT@\n@.";
   meet_variants_don't_lose_aliases ();
   Format.eprintf "@.MEET TWO BLOCKS@\n@.";
-  test_meet_two_blocks ()
+  test_meet_two_blocks ();
+  (* The following tests require the advanced meet. *)
+  Flambda_backend_flags.(Flambda2.meet_algorithm := Set Advanced);
+  Format.eprintf "@.MEET ALIAS TO RECOVER @\n@.";
+  test_meet_recover_alias ();
+  Format.eprintf "@.MEET BOTTOM AFTER ALIAS@\n@.";
+  test_meet_bottom_after_alias ()

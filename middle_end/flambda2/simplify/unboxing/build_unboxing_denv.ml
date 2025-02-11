@@ -21,9 +21,7 @@ let add_equation_on_var denv var shape =
   let kind = T.kind shape in
   let var_type = T.alias_type_of kind (Simple.var var) in
   match T.meet (DE.typing_env denv) var_type shape with
-  | Ok (_ty, env_extension) ->
-    DE.map_typing_env denv ~f:(fun tenv ->
-        TE.add_env_extension tenv env_extension)
+  | Ok (_ty, typing_env) -> DE.with_typing_env denv typing_env
   | Bottom ->
     Misc.fatal_errorf "Meet failed whereas prove and meet previously succeeded"
 

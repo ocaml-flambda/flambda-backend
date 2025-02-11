@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Pretty-printing.
@@ -506,7 +508,8 @@ coupled variables, margin and maximum indentation limit.
 
 *)
 
-type geometry = { max_indent:int; margin: int}
+type geometry : value mod portable uncontended = { max_indent:int; margin: int}
+[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (** @since 4.08 *)
 
 val check_geometry: geometry -> bool
@@ -758,7 +761,7 @@ type stag += String_tag of tag
 *)
 
 val pp_open_stag : formatter -> stag -> unit
-val open_stag : stag -> unit
+val open_stag : stag -> unit @@ nonportable
 (** [pp_open_stag ppf t] opens the semantic tag named [t].
 
   The [print_open_stag] tag-printing function of the formatter is called with
@@ -816,7 +819,7 @@ val set_formatter_out_channel : Stdlib.out_channel -> unit
 val pp_set_formatter_output_functions :
   formatter -> (string -> int -> int -> unit) -> (unit -> unit) -> unit
 val set_formatter_output_functions :
-  (string -> int -> int -> unit) -> (unit -> unit) -> unit
+  (string -> int -> int -> unit) -> (unit -> unit) -> unit @@ nonportable
 (** [pp_set_formatter_output_functions ppf out flush] redirects the
   standard pretty-printer output functions to the functions [out] and
   [flush].
@@ -834,7 +837,7 @@ val set_formatter_output_functions :
 val pp_get_formatter_output_functions :
   formatter -> unit -> (string -> int -> int -> unit) * (unit -> unit)
 val get_formatter_output_functions :
-  unit -> (string -> int -> int -> unit) * (unit -> unit)
+  unit -> (string -> int -> int -> unit) * (unit -> unit) @@ nonportable
 (** Return the current output functions of the standard pretty-printer. *)
 
 (** {1:meaning Redefining formatter output} *)
@@ -881,7 +884,7 @@ type formatter_out_functions = {
 
 val pp_set_formatter_out_functions :
   formatter -> formatter_out_functions -> unit
-val set_formatter_out_functions : formatter_out_functions -> unit
+val set_formatter_out_functions : formatter_out_functions -> unit @@ nonportable
 (** [pp_set_formatter_out_functions ppf out_funs]
   Set all the pretty-printer output functions of [ppf] to those of
   argument [out_funs],
@@ -899,7 +902,7 @@ val set_formatter_out_functions : formatter_out_functions -> unit
 
 val pp_get_formatter_out_functions :
   formatter -> unit -> formatter_out_functions
-val get_formatter_out_functions : unit -> formatter_out_functions
+val get_formatter_out_functions : unit -> formatter_out_functions @@ nonportable
 (** Return the current output functions of the pretty-printer,
   including line splitting and indentation functions. Useful to record the
   current setting and restore it afterwards.
@@ -926,7 +929,7 @@ type formatter_stag_functions = {
 
 val pp_set_formatter_stag_functions :
   formatter -> formatter_stag_functions -> unit
-val set_formatter_stag_functions : formatter_stag_functions -> unit
+val set_formatter_stag_functions : formatter_stag_functions -> unit @@ nonportable
 (** [pp_set_formatter_stag_functions ppf tag_funs] changes the meaning of
   opening and closing semantic tag operations to use the functions in
   [tag_funs] when printing on [ppf].
@@ -948,7 +951,7 @@ val set_formatter_stag_functions : formatter_stag_functions -> unit
 
 val pp_get_formatter_stag_functions :
   formatter -> unit -> formatter_stag_functions
-val get_formatter_stag_functions : unit -> formatter_stag_functions
+val get_formatter_stag_functions : unit -> formatter_stag_functions @@ nonportable
 (** Return the current semantic tag operation functions of the standard
     pretty-printer.
 
@@ -980,7 +983,7 @@ val formatter_of_out_channel : out_channel -> formatter
 *)
 
 val synchronized_formatter_of_out_channel :
-  out_channel -> formatter Domain.DLS.key
+  out_channel -> formatter Domain.Safe.DLS.key
 [@@alert unstable][@@alert "-unstable"]
 (** [synchronized_formatter_of_out_channel oc] returns the key to the
     domain-local state that holds the domain-local formatter for writing to the
@@ -991,25 +994,25 @@ val synchronized_formatter_of_out_channel :
     is flushed, such as with {!print_flush}.
 *)
 
-val std_formatter : formatter
+val std_formatter : formatter @@ nonportable
 (** The initial domain's standard formatter to write to standard output.
 
   It is defined as {!formatter_of_out_channel} {!Stdlib.stdout}.
 *)
 
-val get_std_formatter : unit -> formatter
+val get_std_formatter : unit -> formatter @@ nonportable
 (** [get_std_formatter ()] returns the current domain's standard formatter used
     to write to standard output.
     @since 5.0
 *)
 
-val err_formatter : formatter
+val err_formatter : formatter @@ nonportable
 (** The initial domain's formatter to write to standard error.
 
   It is defined as {!formatter_of_out_channel} {!Stdlib.stderr}.
 *)
 
-val get_err_formatter : unit -> formatter
+val get_err_formatter : unit -> formatter @@ nonportable
 (** [get_err_formatter ()] returns the current domain's formatter used to write
    to standard error.
    @since 5.0
@@ -1022,21 +1025,21 @@ val formatter_of_buffer : Buffer.t -> formatter
   pending material into the buffer.
 *)
 
-val stdbuf : Buffer.t
+val stdbuf : Buffer.t @@ nonportable
 (** The initial domain's string buffer in which [str_formatter] writes. *)
 
-val get_stdbuf : unit -> Buffer.t
+val get_stdbuf : unit -> Buffer.t @@ nonportable
 (** [get_stdbuf ()] returns the current domain's string buffer in which the
     current domain's string formatter writes.
     @since 5.0 *)
 
-val str_formatter : formatter
+val str_formatter : formatter @@ nonportable
 (** The initial domain's formatter to output to the {!stdbuf} string buffer.
 
   [str_formatter] is defined as {!formatter_of_buffer} {!stdbuf}.
 *)
 
-val get_str_formatter : unit -> formatter
+val get_str_formatter : unit -> formatter @@ nonportable
 (** The current domain's formatter to output to the current domains string
     buffer.
     @since 5.0
@@ -1062,8 +1065,9 @@ val make_formatter :
 *)
 
 val make_synchronized_formatter :
-  (string -> int -> int -> unit) -> (unit -> unit) -> formatter Domain.DLS.key
-[@@alert unstable][@@alert "-unstable"]
+  (string -> int -> int -> unit) -> (unit -> unit) -> formatter Domain.Safe.DLS.key
+  @@ nonportable
+[@@alert unstable][@@alert "-unstable"][@@alert unsafe_multidomain "Use [Format.Safe.make_synchronized_formatter]."]
 (** [make_synchronized_formatter out flush] returns the key to the domain-local
     state that holds the domain-local formatter that outputs with function
     [out], and flushes with function [flush].
@@ -1346,7 +1350,7 @@ val fprintf : formatter -> ('a, formatter, unit) format -> 'a
 
 *)
 
-val printf : ('a, formatter, unit) format -> 'a
+val printf : ('a, formatter, unit) format -> 'a @@ nonportable
 (** Same as [fprintf] above, but output on [get_std_formatter ()].
 
     It is defined similarly to [fun fmt -> fprintf (get_std_formatter ()) fmt]
@@ -1356,7 +1360,7 @@ val printf : ('a, formatter, unit) format -> 'a
     the formatter is flushed, such as with {!print_flush}.
 *)
 
-val eprintf : ('a, formatter, unit) format -> 'a
+val eprintf : ('a, formatter, unit) format -> 'a @@ nonportable
 (** Same as [fprintf] above, but output on [get_err_formatter ()].
 
     It is defined similarly to [fun fmt -> fprintf (get_err_formatter ()) fmt]
@@ -1458,6 +1462,50 @@ val kasprintf : (string -> 'a) -> ('b, formatter, unit, 'a) format4 -> 'b
 
   @since 4.03
 *)
+
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  (** Like {!get_std_formatter}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [formatter] does not escape the current domain. This is necessary
+      as the [formatter] may contain functions which close over other data in the current
+      domain. *)
+  val get_std_formatter : Domain.Safe.DLS.Access.t -> formatter
+
+  (** Like {!get_err_formatter}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [formatter] does not escape the current domain. This is necessary
+      as the [formatter] may contain functions which close over other data in the current
+      domain. *)
+  val get_err_formatter : Domain.Safe.DLS.Access.t -> formatter
+
+  (** Like {!get_str_formatter}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [formatter] does not escape the current domain. This is necessary
+      as the [formatter] may contain functions which close over other data in the current
+      domain. *)
+  val get_str_formatter : Domain.Safe.DLS.Access.t -> formatter
+
+  (** Like {!get_stdbuf}, but can be called from any domain.
+
+      An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a witness
+      that the returned [Buffer.t] does not escape the current domain. This is necessary
+      as the [Buffer.t] is mutable data which is not safe to share between domains. *)
+  val get_stdbuf : Domain.Safe.DLS.Access.t -> Buffer.t
+
+  (** Like {!make_synchronized_formatter}, but can be called from any domain.
+
+      The provided closures must be [portable] as they will be called from other domains
+      that access the returned [Domain.Safe.DLS.key]. *)
+  val make_synchronized_formatter :
+    (string -> int -> int -> unit) @ portable
+    -> (unit -> unit) @ portable
+    -> formatter Domain.Safe.DLS.key
+end
 
 (** {1:examples Examples}
 

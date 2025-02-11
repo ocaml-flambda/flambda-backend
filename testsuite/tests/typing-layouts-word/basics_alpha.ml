@@ -212,14 +212,9 @@ type t5_2' = { y : string; x : t_word };;
 type t5_2' = { y : string; x : t_word; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_word } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-24:
-1 | type t5_3 = { x : t_word } [@@unboxed];;
-                  ^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       [@@unboxed] records may not yet contain types of this layout.
+type t5_3 = { x : t_word; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_word;;
@@ -252,11 +247,7 @@ Error: Expected all flat constructor arguments after non-value argument, "
 
 type t5_6 = A of t_word [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-23:
-1 | type t5_6 = A of t_word [@@unboxed];;
-                ^^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_word [@@unboxed]
 |}];;
 
 (****************************************************)
@@ -377,7 +368,7 @@ let id_value x = x;;
 val make_t_word : unit -> t_word = <fun>
 val make_t_word_id : ('a : word). unit -> 'a t_word_id = <fun>
 val make_nativeintu : unit -> nativeint# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val id_value : 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_word ());;

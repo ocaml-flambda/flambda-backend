@@ -233,7 +233,9 @@ expr:
                               coeffects=Has_coeffects;
                               ty_args=[];},
                      List.rev $4, debuginfo ())}
-  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Cmm.Alloc_mode.Heap, List.rev $3, debuginfo ()) }
+  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc (Cmm.Alloc_mode.Heap,
+                                               Cmm.Alloc_block_kind_other),
+                                       List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf Float64, [$3], debuginfo ()) }
   | LPAREN SUBF expr expr RPAREN { Cop(Csubf Float64, [$3; $4], debuginfo ()) }
   | LPAREN unaryop expr RPAREN { Cop($2, [$3], debuginfo ()) }

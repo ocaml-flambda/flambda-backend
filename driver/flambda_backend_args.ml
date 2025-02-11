@@ -135,10 +135,15 @@ let mk_heap_reduction_threshold f =
 ;;
 
 let mk_zero_alloc_check f =
-  let annotations = Zero_alloc_annotations.(List.map to_string all) in
+  let annotations = Zero_alloc_annotations.Check.(List.map to_string all) in
   "-zero-alloc-check", Arg.Symbol (annotations, f),
   " Check that annotated functions do not allocate \
-   and do not have indirect calls. "^Zero_alloc_annotations.doc
+   and do not have indirect calls. "^Zero_alloc_annotations.Check.doc
+
+let mk_zero_alloc_assert f =
+  let annotations = Zero_alloc_annotations.Assert.(List.map to_string all) in
+  "-zero-alloc-assert", Arg.Symbol (annotations, f),
+  " Add zero_alloc annotations to all functions."^Zero_alloc_annotations.Assert.doc
 
 let mk_dzero_alloc f =
   "-dzero-alloc", Arg.Unit f, " (undocumented)"
@@ -742,6 +747,7 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
+  val zero_alloc_assert : string -> unit
   val dzero_alloc : unit -> unit
   val disable_zero_alloc_checker : unit -> unit
   val disable_precise_zero_alloc_checker : unit -> unit
@@ -880,6 +886,7 @@ struct
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
+    mk_zero_alloc_assert F.zero_alloc_assert;
 
     mk_dzero_alloc F.dzero_alloc;
     mk_disable_zero_alloc_checker F.disable_zero_alloc_checker;
@@ -1064,10 +1071,16 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.heap_reduction_threshold := x
 
   let zero_alloc_check s =
-    match Zero_alloc_annotations.of_string s with
+    match Zero_alloc_annotations.Check.of_string s with
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some a ->
       Clflags.zero_alloc_check := a
+
+  let zero_alloc_assert s =
+    match Zero_alloc_annotations.Assert.of_string s with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some a ->
+      Clflags.zero_alloc_assert := a
 
   let dzero_alloc = set' Flambda_backend_flags.dump_zero_alloc
   let disable_zero_alloc_checker = set' Flambda_backend_flags.disable_zero_alloc_checker
@@ -1382,8 +1395,15 @@ module Extra_params = struct
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
-      (match Zero_alloc_annotations.of_string v with
+      (match Zero_alloc_annotations.Check.of_string v with
        | Some a -> Clflags.zero_alloc_check := a; true
+       | None ->
+         raise
+           (Arg.Bad
+              (Printf.sprintf "Unexpected value %s for %s" v name)))
+    | "zero-alloc-assert" ->
+      (match Zero_alloc_annotations.Assert.of_string v with
+       | Some a -> Clflags.zero_alloc_assert := a; true
        | None ->
          raise
            (Arg.Bad

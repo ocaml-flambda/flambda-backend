@@ -913,6 +913,10 @@ let primitive ppf = function
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_load_imm"
         | Pointer -> fprintf ppf "atomic_load_ptr")
+  | Patomic_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_set_imm"
+        | Pointer -> fprintf ppf "atomic_set_ptr")
   | Patomic_exchange {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_exchange_imm"
@@ -1109,6 +1113,10 @@ let name_of_primitive = function
       (match immediate_or_pointer with
         | Immediate -> "atomic_load_imm"
         | Pointer -> "atomic_load_ptr")
+  | Patomic_set {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_set_imm"
+        | Pointer -> "atomic_set_ptr")
   | Patomic_exchange {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> "atomic_exchange_imm"
@@ -1160,9 +1168,12 @@ let zero_alloc_attribute ppf check =
     fprintf ppf "assume_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {strict; loc = _; } ->
-    fprintf ppf "assert_zero_alloc%s@ "
+  | Check {strict; loc = _; custom_error_msg; } ->
+    fprintf ppf "assert_zero_alloc%s%s@ "
       (if strict then "_strict" else "")
+      (match custom_error_msg with
+       | None -> ""
+       | Some msg -> Printf.sprintf " customer_error_message %S" msg)
 
 let function_attribute ppf t =
   if t.is_a_functor then

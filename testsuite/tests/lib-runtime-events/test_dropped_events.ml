@@ -1,17 +1,18 @@
 (* TEST
- include runtime_events;
- include unix;
- set OCAMLRUNPARAM = "e=6";
- reason = "CR OCaml 5 domains";
- skip;
- hasunix;
  {
-   native;
+   runtime4;
+   skip;
  }{
-   bytecode;
+   include runtime_events;
+   runtime5;
+   flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
+   include unix;
+   set OCAMLRUNPARAM = "e=6";
+   hasunix;
+   { bytecode; }
+   { native; }
  }
 *)
-
 type Runtime_events.User.tag += Ev
 let ev = Runtime_events.User.register "ev" Ev Runtime_events.Type.int
 

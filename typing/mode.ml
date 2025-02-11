@@ -369,13 +369,13 @@ module Lattices = struct
 
     let meet (a0, a1) (b0, b1) = Uniqueness.meet a0 b0, Contention.meet a1 b1
 
+    let print ppf (a0, a1) =
+      Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
+
     let imply (a0, a1) (b0, b1) = Uniqueness.imply a0 b0, Contention.imply a1 b1
 
     let subtract (a0, a1) (b0, b1) =
       Uniqueness.subtract a0 b0, Contention.subtract a1 b1
-
-    let print ppf (a0, a1) =
-      Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
   end
 
   type 'areality comonadic_with =
@@ -607,7 +607,7 @@ module Lattices_mono = struct
 
     let print : type p r. _ -> (p, r) t -> unit =
      fun ppf -> function
-      | Areality -> Format.fprintf ppf "areality"
+      | Areality -> Format.fprintf ppf "locality"
       | Linearity -> Format.fprintf ppf "linearity"
       | Portability -> Format.fprintf ppf "portability"
       | Uniqueness -> Format.fprintf ppf "uniqueness"
@@ -1631,6 +1631,14 @@ module Comonadic_with (Areality : Areality) = struct
     let print_axis ax ppf a =
       let obj = proj_obj ax in
       C.print obj ppf a
+
+    let lattice_of_axis (type a) (axis : (t, a) Axis.t) :
+        (module Lattice with type t = a) =
+      match axis with
+      | Areality -> (module Areality.Const)
+      | Linearity -> (module Linearity.Const)
+      | Portability -> (module Portability.Const)
+      | Yielding -> (module Yielding.Const)
   end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
@@ -1729,6 +1737,12 @@ module Monadic = struct
     let le_axis ax a b =
       let obj = proj_obj ax in
       C.le obj b a
+
+    let lattice_of_axis (type a) (axis : (t, a) Axis.t) :
+        (module Lattice with type t = a) =
+      match axis with
+      | Uniqueness -> (module Uniqueness.Const)
+      | Contention -> (module Contention.Const)
   end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
@@ -1805,6 +1819,19 @@ module Value_with (Areality : Areality) = struct
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+  type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
+
+  let print_axis (type m a d) ppf (axis : (m, a, d) axis) =
+    match axis with
+    | Monadic ax -> Axis.print ppf ax
+    | Comonadic ax -> Axis.print ppf ax
+
+  let lattice_of_axis (type m a d) (axis : (m, a, d) axis) :
+      (module Lattice with type t = a) =
+    match axis with
+    | Comonadic ax -> Comonadic.Const.lattice_of_axis ax
+    | Monadic ax -> Monadic.Const.lattice_of_axis ax
+
   let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
     | Comonadic ax -> Comonadic.proj_obj ax
@@ -1843,6 +1870,9 @@ module Value_with (Areality : Areality) = struct
     { comonadic; monadic }
 
   module Const = struct
+    module Monadic = Monadic.Const
+    module Comonadic = Comonadic.Const
+
     type t =
       ( Areality.Const.t,
         Linearity.Const.t,
@@ -1851,9 +1881,6 @@ module Value_with (Areality : Areality) = struct
         Contention.Const.t,
         Yielding.Const.t )
       modes
-
-    module Monadic = Monadic.Const
-    module Comonadic = Comonadic.Const
 
     let min = merge { comonadic = Comonadic.min; monadic = Monadic.min }
 
@@ -1991,6 +2018,12 @@ module Value_with (Areality : Areality) = struct
     let max_axis : type m a d. (m, a, d) axis -> a = function
       | Comonadic ax -> Comonadic.max_axis ax
       | Monadic ax -> Monadic.max_axis ax
+
+    let is_max : type m a d. (m, a, d) axis -> a -> bool =
+     fun ax m -> le_axis ax (max_axis ax) m
+
+    let is_min : type m a d. (m, a, d) axis -> a -> bool =
+     fun ax m -> le_axis ax m (min_axis ax)
 
     let split = split
 
@@ -2250,6 +2283,17 @@ module Const = struct
     let areality = C.locality_as_regionality areality in
     { areality; linearity; portability; uniqueness; contention; yielding }
 
+  module Axis = struct
+    let alloc_as_value : type d. d Alloc.axis_packed -> d Value.axis_packed =
+      function
+      | P (Comonadic Areality) -> P (Comonadic Areality)
+      | P (Comonadic Linearity) -> P (Comonadic Linearity)
+      | P (Comonadic Portability) -> P (Comonadic Portability)
+      | P (Comonadic Yielding) -> P (Comonadic Yielding)
+      | P (Monadic Uniqueness) -> P (Monadic Uniqueness)
+      | P (Monadic Contention) -> P (Monadic Contention)
+  end
+
   let locality_as_regionality = C.locality_as_regionality
 end
 
@@ -2295,8 +2339,13 @@ module Modality = struct
 
   let is_id (Atom (ax, a)) =
     match a with
-    | Join_with c -> Value.Const.le_axis ax c (Value.Const.min_axis ax)
-    | Meet_with c -> Value.Const.le_axis ax (Value.Const.max_axis ax) c
+    | Join_with c -> Value.Const.is_min ax c
+    | Meet_with c -> Value.Const.is_max ax c
+
+  let is_constant (Atom (ax, a)) =
+    match a with
+    | Join_with c -> Value.Const.is_max ax c
+    | Meet_with c -> Value.Const.is_min ax c
 
   let print ppf = function
     | Atom (ax, Join_with c) ->
@@ -2354,6 +2403,9 @@ module Modality = struct
              Atom (Monadic ax, Join_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Contention in
              Atom (Monadic ax, Join_with (Axis.proj ax c))) ]
+
+      let proj ax = function
+        | Join_const c -> Atom (Monadic ax, Join_with (Axis.proj ax c))
 
       let print ppf = function
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
@@ -2499,6 +2551,9 @@ module Modality = struct
             (let ax : _ Axis.t = Portability in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
+      let proj ax = function
+        | Meet_const c -> Atom (Comonadic ax, Meet_with (Axis.proj ax c))
+
       let print ppf = function
         | Meet_const c -> Format.fprintf ppf "meet_const(%a)" Mode.Const.print c
     end
@@ -2641,6 +2696,11 @@ module Modality = struct
 
       let to_list { monadic; comonadic } =
         Comonadic.to_list comonadic @ Monadic.to_list monadic
+
+      let proj (type m a d) (ax : (m, a, d) Value.axis) { monadic; comonadic } =
+        match ax with
+        | Monadic ax -> Monadic.proj ax monadic
+        | Comonadic ax -> Comonadic.proj ax comonadic
     end
 
     type t = (Monadic.t, Comonadic.t) monadic_comonadic

@@ -2299,27 +2299,16 @@ let meet env ty1 ty2 : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
   else
-    let scope = TE.current_scope env in
-    let scoped_env = TE.increment_scope env in
-    match meet scoped_env ty1 ty2 with
+    match meet env ty1 ty2 with
     | Bottom _ -> Bottom
-    | Ok (r, scoped_env) ->
+    | Ok (r, env) ->
       let res_ty = extract_value r ty1 ty2 in
-      if TG.is_obviously_bottom res_ty
-      then Bottom
-      else
-        let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
-        Ok (res_ty, env_extension)
+      if TG.is_obviously_bottom res_ty then Bottom else Ok (res_ty, env)
 
-let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
+let meet_shape env t ~shape : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
-  else
-    let result = Bound_name.create_var result_var in
-    let env = TE.add_definition env result result_kind in
-    match meet env t shape with
-    | Bottom -> Bottom
-    | Ok (_, env_extension) -> Ok env_extension
+  else match meet env t shape with Bottom -> Bottom | Ok (_, env) -> Ok env
 
 let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
   if TE.is_bottom env

@@ -70,7 +70,7 @@ type t =
   | Poll
   | Alloc of
       { bytes : int;
-        dbginfo : Debuginfo.alloc_dbginfo;
+        dbginfo : Cmm.alloc_dbginfo;
         mode : Cmm.Alloc_mode.t
       }
 

@@ -758,3 +758,32 @@
  (enabled_if (= %{context_name} "main"))
  (action
    (diff test_register_compatible_vectorized.expected test_register_compatible_vectorized.output)))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (copy test1.ml test1_classic.ml)))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (copy test1.mli test1_classic.mli)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (targets test1_classic_runner.exe test1_classic.cmx.dump)
+ (deps test1_classic.mli test1_classic.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -Oclassic -vectorize -o test1_classic_runner.exe)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (target test1_classic.cmx.dump.output)
+ (deps ./filter.sh test1_classic.cmx.dump)
+ (action
+  (with-outputs-to
+   %{target}
+   (with-accepted-exit-codes 1
+    (run %{deps})))))

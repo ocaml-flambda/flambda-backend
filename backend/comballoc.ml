@@ -20,7 +20,7 @@ open Mach
 
 type pending_alloc =
   { reg: Reg.t;         (* register holding the result of the last allocation *)
-    dbginfos: Debuginfo.alloc_dbginfo;   (* debug info for each pending alloc *)
+    dbginfos: Cmm.alloc_dbginfo;   (* debug info for each pending alloc *)
     totalsz: int;                     (* amount to be allocated in this block *)
     mode: Cmm.Alloc_mode.t }                      (* heap or stack allocation *)
 

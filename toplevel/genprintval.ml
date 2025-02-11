@@ -412,7 +412,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 | {type_kind = Type_abstract _; type_manifest = Some body} ->
                     tree_of_val depth obj
                       (instantiate_type env decl.type_params ty_list body)
-                | {type_kind = Type_variant (constr_list,rep)} ->
+                | {type_kind = Type_variant (constr_list, rep, _)} ->
                   (* Here we work backwards from the actual runtime value to
                      find the appropriate `constructor_declaration` in
                      `constr_list`.  `Datarepr.find_constr_by_tag` does most
@@ -502,7 +502,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                                         (Out_name.create (Ident.name cd_id)),
                                       [ r ])
                     end
-                | {type_kind = Type_record(lbl_list, rep)} ->
+                | {type_kind = Type_record(lbl_list, rep, _)} ->
                     begin match check_depth depth obj ty with
                       Some x -> x
                     | None ->
@@ -539,7 +539,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           lbl_list pos obj rep
                     end
                 | {type_kind = Type_record_unboxed_product
-                                 (lbl_list, Record_unboxed_product)} ->
+                                 (lbl_list, Record_unboxed_product, _)} ->
                     begin match check_depth depth obj ty with
                       Some x -> x
                     | None ->

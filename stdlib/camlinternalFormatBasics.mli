@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (* No comments, OCaml stdlib internal use only. *)
 
 type padty = Left | Right | Zeros

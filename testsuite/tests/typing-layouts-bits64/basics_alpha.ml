@@ -212,14 +212,9 @@ type t5_2' = { y : string; x : t_bits64 };;
 type t5_2' = { y : string; x : t_bits64; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_bits64 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-26:
-1 | type t5_3 = { x : t_bits64 } [@@unboxed];;
-                  ^^^^^^^^^^^^
-Error: Type "t_bits64" has layout "bits64".
-       [@@unboxed] records may not yet contain types of this layout.
+type t5_3 = { x : t_bits64; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_bits64;;
@@ -253,11 +248,7 @@ Error: Expected all flat constructor arguments after non-value argument, "
 
 type t5_6 = A of t_bits64 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-25:
-1 | type t5_6 = A of t_bits64 [@@unboxed];;
-                ^^^^^^^^^^^^^
-Error: Type "t_bits64" has layout "bits64".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_bits64 [@@unboxed]
 |}];;
 
 (****************************************************)
@@ -378,7 +369,7 @@ let id_value x = x;;
 val make_t_bits64 : unit -> t_bits64 = <fun>
 val make_t_bits64_id : ('a : bits64). unit -> 'a t_bits64_id = <fun>
 val make_int64u : unit -> int64# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val id_value : 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_bits64 ());;

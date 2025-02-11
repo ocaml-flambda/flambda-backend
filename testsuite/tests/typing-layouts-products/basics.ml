@@ -226,9 +226,9 @@ Line 1, characters 0-54:
 1 | type t6_wrong_inner_record = #{ i : int; i64 : int64 }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of t6_wrong_inner_record is any & any
+       The kind of t6_wrong_inner_record is value_or_null & bits64
          because it is an unboxed record.
-       But the layout of t6_wrong_inner_record must be a sublayout of
+       But the kind of t6_wrong_inner_record must be a subkind of
          value & bits64
          because of the annotation on 'a in the declaration of the type
                                       t6_wrong.
@@ -1412,77 +1412,47 @@ Error: This expression has type "letrec_simple"
          because it's the type of the recursive variable _x.
 |}]
 
-(**********************************************************)
-(* Test 11: not allowed in [@@unboxed] declarations (yet) *)
+(************************************************)
+(* Test 11: allowed in [@@unboxed] declarations *)
 
 type ('a : value & value) t = A of 'a [@@unboxed]
 [%%expect{|
-Line 1, characters 30-37:
-1 | type ('a : value & value) t = A of 'a [@@unboxed]
-                                  ^^^^^^^
-Error: Type "'a" has layout "value & value".
-       Unboxed variants may not yet contain types of this layout.
+type ('a : value & value) t = A of 'a [@@unboxed]
 |}]
 
 type t = A of #(int * int) [@@unboxed]
 [%%expect{|
-Line 1, characters 9-26:
-1 | type t = A of #(int * int) [@@unboxed]
-             ^^^^^^^^^^^^^^^^^
-Error: Type "#(int * int)" has layout "value & value".
-       Unboxed variants may not yet contain types of this layout.
+type t = A of #(int * int) [@@unboxed]
 |}]
 
 type ('a : value & value) t = A of { x : 'a } [@@unboxed]
 [%%expect{|
-Line 1, characters 37-43:
-1 | type ('a : value & value) t = A of { x : 'a } [@@unboxed]
-                                         ^^^^^^
-Error: Type "'a" has layout "value & value".
-       [@@unboxed] inlined records may not yet contain types of this layout.
+type ('a : value & value) t = A of { x : 'a; } [@@unboxed]
 |}]
 
 type t = A of { x : #(int * int) } [@@unboxed]
 [%%expect{|
-Line 1, characters 16-32:
-1 | type t = A of { x : #(int * int) } [@@unboxed]
-                    ^^^^^^^^^^^^^^^^
-Error: Type "#(int * int)" has layout "value & value".
-       [@@unboxed] inlined records may not yet contain types of this layout.
+type t = A of { x : #(int * int); } [@@unboxed]
 |}]
 
 type unboxed_record = #{ i1 : int; i2 : int }
 type t = A of unboxed_record [@@unboxed]
 [%%expect{|
 type unboxed_record = #{ i1 : int; i2 : int; }
-Line 2, characters 9-28:
-2 | type t = A of unboxed_record [@@unboxed]
-             ^^^^^^^^^^^^^^^^^^^
-Error: Type "unboxed_record" has layout "value & value".
-       Unboxed variants may not yet contain types of this layout.
+type t = A of unboxed_record [@@unboxed]
 |}]
 
 type ('a : value & value) t = A of { x : 'a } [@@unboxed]
 [%%expect{|
-Line 1, characters 37-43:
-1 | type ('a : value & value) t = A of { x : 'a } [@@unboxed]
-                                         ^^^^^^
-Error: Type "'a" has layout "value & value".
-       [@@unboxed] inlined records may not yet contain types of this layout.
+type ('a : value & value) t = A of { x : 'a; } [@@unboxed]
 |}]
 
 type unboxed_inline_record = #{ i1 : int; i2 : int }
 type t = A of { x : unboxed_inline_record } [@@unboxed]
 [%%expect{|
 type unboxed_inline_record = #{ i1 : int; i2 : int; }
-Line 2, characters 16-41:
-2 | type t = A of { x : unboxed_inline_record } [@@unboxed]
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "unboxed_inline_record" has layout "value & value".
-       [@@unboxed] inlined records may not yet contain types of this layout.
+type t = A of { x : unboxed_inline_record; } [@@unboxed]
 |}]
-
-(* Unboxed records of kind value are allowed *)
 
 type unboxed_record = #{ i : int }
 type t = A of unboxed_record [@@unboxed]
@@ -1853,6 +1823,7 @@ Error: This type "string t" = "#(string u * string u)"
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
 |}]
+(* CR layouts v7.1: The appearance of [immediate] above is regrettable. *)
 
 type ('a : any mod external_) t
 
@@ -1871,7 +1842,7 @@ Error: This type "#(int * string * int)" should be an instance of type
          any mod external_
          because of the definition of t at line 1, characters 0-31.
 |}]
-(* CR layouts v7.1: The appearance of [immutable_data] above is regrettable. *)
+(* CR layouts v7.1: The appearance of [immediate] above is regrettable. *)
 
 type ('a : value) u = U of 'a [@@unboxed]
 type ('a : value) t = #{ u1 : 'a u; u2 : 'a u }

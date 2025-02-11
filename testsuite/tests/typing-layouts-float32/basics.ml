@@ -205,14 +205,9 @@ type t5_1 = { x : t_float32 };;
 type t5_1 = { x : t_float32; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_float32 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-27:
-1 | type t5_3 = { x : t_float32 } [@@unboxed];;
-                  ^^^^^^^^^^^^^
-Error: Type "t_float32" has layout "float32".
-       [@@unboxed] records may not yet contain types of this layout.
+type t5_3 = { x : t_float32; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_float32;;
@@ -227,20 +222,12 @@ type t5_5 = A of int * t_float32
 
 type t5_6 = A of t_float32 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-26:
-1 | type t5_6 = A of t_float32 [@@unboxed];;
-                ^^^^^^^^^^^^^^
-Error: Type "t_float32" has layout "float32".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_float32 [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_float32 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-34:
-1 | type t5_6_1 = A of { x : t_float32 } [@@unboxed];;
-                         ^^^^^^^^^^^^^
-Error: Type "t_float32" has layout "float32".
-       [@@unboxed] inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_float32; } [@@unboxed]
 |}];;
 
 type ('a : float32) t5_7 = A of int

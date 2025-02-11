@@ -514,6 +514,8 @@
                   []
                 Ptyp_package "M" (shortcut_ext_attr.ml[61,1304+20]..[61,1304+21])
                 []
+        ptype_jkind_annotation =
+          None
     ]
   structure_item (shortcut_ext_attr.ml[64,1353+0]..[67,1409+22])
     Pstr_module
@@ -601,6 +603,8 @@
                 core_type (shortcut_ext_attr.ml[79,1615+19]..[79,1615+22])
                   Ptyp_constr "int" (shortcut_ext_attr.ml[79,1615+19]..[79,1615+22])
                   []
+            ptype_jkind_annotation =
+              None
           type_declaration "t" (shortcut_ext_attr.ml[80,1638+10]..[80,1638+11]) (shortcut_ext_attr.ml[80,1638+0]..[80,1638+17])
             attribute "foo"
               []
@@ -616,6 +620,8 @@
                 core_type (shortcut_ext_attr.ml[80,1638+14]..[80,1638+17])
                   Ptyp_constr "int" (shortcut_ext_attr.ml[80,1638+14]..[80,1638+17])
                   []
+            ptype_jkind_annotation =
+              None
         ]
     ]
   structure_item (shortcut_ext_attr.ml[81,1656+0]..[81,1656+21]) ghost
@@ -831,6 +837,8 @@
                         core_type (shortcut_ext_attr.ml[101,2020+21]..[101,2020+24])
                           Ptyp_constr "int" (shortcut_ext_attr.ml[101,2020+21]..[101,2020+24])
                           []
+                    ptype_jkind_annotation =
+                      None
                   type_declaration "t'" (shortcut_ext_attr.ml[102,2045+12]..[102,2045+14]) (shortcut_ext_attr.ml[102,2045+2]..[102,2045+20])
                     attribute "foo"
                       []
@@ -846,6 +854,8 @@
                         core_type (shortcut_ext_attr.ml[102,2045+17]..[102,2045+20])
                           Ptyp_constr "int" (shortcut_ext_attr.ml[102,2045+17]..[102,2045+20])
                           []
+                    ptype_jkind_annotation =
+                      None
                 ]
             ]
           signature_item (shortcut_ext_attr.ml[103,2066+2]..[103,2066+23]) ghost

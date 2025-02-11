@@ -223,7 +223,14 @@ class virtual selector_generic =
         | _ -> basic_op (Store (chunk, addr, is_assign)), [arg2; eloc]
         (* Inversion addr/datum in Istore *))
       | Cdls_get -> basic_op Dls_get, args
-      | Calloc mode -> basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
+      | Calloc (mode, alloc_block_kind) ->
+        let placeholder_for_alloc_block_kind =
+          { alloc_words = 0; alloc_block_kind; alloc_dbg = Debuginfo.none }
+        in
+        ( basic_op
+            (Alloc
+               { bytes = 0; dbginfo = [placeholder_for_alloc_block_kind]; mode }),
+          args )
       | Cpoll -> basic_op Poll, args
       | Caddi -> self#select_arith_comm Simple_operation.Iadd args
       | Csubi -> self#select_arith Simple_operation.Isub args
@@ -493,14 +500,14 @@ class virtual selector_generic =
             sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label;
             ret rd)
           else None
-        | Basic (Op (Alloc { bytes = _; mode })) ->
+        | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
           let rd = self#regs_for typ_val in
           let bytes = Select_utils.size_expr env (Ctuple new_args) in
           let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
           let op =
             Operation.Alloc
               { bytes = alloc_words * Arch.size_addr;
-                dbginfo = [{ alloc_words; alloc_dbg = dbg }];
+                dbginfo = [{ placeholder with alloc_words; alloc_dbg = dbg }];
                 mode
               }
           in
@@ -509,6 +516,10 @@ class virtual selector_generic =
           self#emit_stores env dbg new_args rd;
           Select_utils.set_traps_for_raise env;
           ret rd
+        | Basic (Op (Alloc { bytes = _; mode = _; dbginfo })) ->
+          Misc.fatal_errorf
+            "Selection Alloc: expected a single placehold in dbginfo, found %d"
+            (List.length dbginfo)
         | Basic (Op op) ->
           let r1 = self#emit_tuple env new_args in
           let rd = self#regs_for ty in
@@ -1160,14 +1171,15 @@ class virtual selector_generic =
       in
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
-      let fun_contains_calls =
-        Sub_cfg.exists_basic_blocks body ~f:Cfg.basic_block_contains_calls
-      in
       let cfg =
+        (* note: we set `fun_contains_calls` to `true` here, but will compute
+           its proper value below, after possibly removing the prologue poll
+           instruction. It is not very satisfactory, but as noted in the CR
+           below, we should revisit the way we handle polling points. *)
         Cfg.create ~fun_name:f.Cmm.fun_name.sym_name ~fun_args:loc_arg
           ~fun_codegen_options:
             (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
-          ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls
+          ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls:true
           ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
           ~fun_poll:f.Cmm.fun_poll
       in
@@ -1222,6 +1234,10 @@ class virtual selector_generic =
          `Cfg.register_predecessors_for_all_blocks`. *)
       Cfgize_utils.Stack_offset_and_exn.update_cfg cfg;
       Cfg.register_predecessors_for_all_blocks cfg;
+      let fun_contains_calls =
+        Sub_cfg.exists_basic_blocks body ~f:Cfg.basic_block_contains_calls
+      in
+      let cfg = { cfg with fun_contains_calls } in
       let cfg_with_layout =
         Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false
           ~new_labels:Label.Set.empty

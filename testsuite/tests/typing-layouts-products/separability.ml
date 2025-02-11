@@ -78,26 +78,51 @@ type t_void : void
 and 'a r = #{ a : 'a ; v : t_void }
 and bad = F : 'a r -> bad [@@unboxed]
 [%%expect{|
-Line 2, characters 0-35:
-2 | and 'a r = #{ a : 'a ; v : t_void }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a r is any & any
+Line 3, characters 0-37:
+3 | and bad = F : 'a r -> bad [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "bad" is value_or_null & void
          because it is an unboxed record.
-       But the layout of 'a r must be a sublayout of value
-         because it's the type of a constructor field.
+       But the kind of type "bad" must be a subkind of value & void
+         because it's an [@@unboxed] type,
+         chosen to have kind value & void.
 |}]
 
 type t_void : void
 and 'a r = #{ a : 'a ; v : t_void }
 and bad = F : { x : 'a r } -> bad [@@unboxed]
 [%%expect{|
-Line 2, characters 0-35:
-2 | and 'a r = #{ a : 'a ; v : t_void }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a r is any & any
+Line 3, characters 0-45:
+3 | and bad = F : { x : 'a r } -> bad [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "bad" is value_or_null & void
          because it is an unboxed record.
-       But the layout of 'a r must be a sublayout of value
-         because it is the type of record field x.
+       But the kind of type "bad" must be a subkind of value & void
+         because it's an [@@unboxed] type,
+         chosen to have kind value & void.
+|}]
+
+type t_void : void
+and ('a : value) r = #{ a : 'a ; v : t_void }
+and bad = F : 'a r -> bad [@@unboxed]
+[%%expect{|
+Line 3, characters 0-37:
+3 | and bad = F : 'a r -> bad [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "bad" is value_or_null & void
+         because it is an unboxed record.
+       But the kind of type "bad" must be a subkind of value & void
+         because it's an [@@unboxed] type,
+         chosen to have kind value & void.
+|}]
+
+(* CR layouts v12: Double-check this is safe when we add [void]. *)
+(* CR reisenberg: eek! *)
+type t_void : void
+and 'a r : value & any = #{ a : 'a ; v : t_void }
+and bad = F : { x : 'a r } -> bad [@@unboxed]
+[%%expect{|
+>> Fatal error: Jkind.sort_of_jkind
+Uncaught exception: Misc.Fatal_error
+
 |}]
