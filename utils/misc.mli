@@ -1081,3 +1081,21 @@ type filepath = string
 type alerts = string Stdlib.String.Map.t
 
 val remove_double_underscores : string -> string
+
+(** Non-empty lists *)
+module Nonempty_list : sig
+  type nonrec 'a t = ( :: ) of 'a * 'a list
+
+  val to_list : 'a t -> 'a list
+  val of_list_opt : 'a list -> 'a t option
+  val map : ('a -> 'b) -> 'a t -> 'b t
+
+  val pp_print :
+    ?pp_sep:(Format.formatter -> unit -> unit) ->
+    (Format.formatter -> 'a -> unit) ->
+    Format.formatter ->
+    'a t ->
+    unit
+
+  val (@) : 'a t -> 'a t -> 'a t
+end

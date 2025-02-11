@@ -28,6 +28,9 @@ let is_mutable = function
 
 (* Type expressions for the core language *)
 
+module Jkind_mod_bounds =
+  Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
+
 type transient_expr =
   { mutable desc: type_desc;
     mutable level: int;
@@ -99,10 +102,59 @@ and _ commutable_gen =
   | Cunknown : [> `none] commutable_gen
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
 
-and 'd jkind = (type_expr, 'd) Jkind_types.t
+(* jkinds *)
+
+and jkind_history =
+  | Interact of
+      { reason : Jkind_intf.History.interact_reason;
+        jkind1 : jkind_desc_packed;
+        history1 : jkind_history;
+        jkind2 : jkind_desc_packed;
+        history2 : jkind_history
+      }
+  | Creation of Jkind_intf.History.creation_reason
+
+and relevant_for_nullability =
+  | Relevant_for_nullability
+  | Irrelevant_for_nullability
+
+and with_bounds_type =
+  { type_expr : type_expr;
+    modality : Mode.Modality.Value.Const.t;
+    relevant_for_nullability: relevant_for_nullability
+  }
+
+and 'd with_bounds =
+  | No_with_bounds : ('l * 'r) with_bounds
+  (* There must always be at least one type. *)
+  | With_bounds :
+      with_bounds_type Misc.Nonempty_list.t
+      -> ('l * Allowance.disallowed) with_bounds
+
+and ('layout, 'd) layout_and_axes =
+  { layout : 'layout;
+    mod_bounds : Jkind_mod_bounds.t;
+    with_bounds : 'd with_bounds
+  }
+  constraint 'd = 'l * 'r
+
+and 'd jkind_desc = (Jkind_types.Sort.t Jkind_types.Layout.t, 'd) layout_and_axes
+  constraint 'd = 'l * 'r
+
+and jkind_desc_packed = Pack_jkind_desc : ('l * 'r) jkind_desc -> jkind_desc_packed
+
+and 'd jkind =
+  { jkind : 'd jkind_desc;
+    annotation : Parsetree.jkind_annotation option;
+    history : jkind_history;
+    has_warned : bool
+  }
+  constraint 'd = 'l * 'r
+
 and jkind_l = (allowed * disallowed) jkind
 and jkind_r = (disallowed * allowed) jkind
 and jkind_lr = (allowed * allowed) jkind
+and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
 
 module TransientTypeOps = struct
   type t = type_expr

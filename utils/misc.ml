@@ -1726,3 +1726,21 @@ let remove_double_underscores s =
   in
   loop 0;
   Buffer.contents buf
+
+module Nonempty_list = struct
+  type nonrec 'a t = ( :: ) of 'a * 'a list
+
+  let to_list (x :: xs) : _ list = x :: xs
+
+  let of_list_opt : _ list -> _ t option = function
+    | [] -> None
+    | (x :: xs)-> Some (x :: xs)
+
+  let map f (x :: xs) = f x :: List.map f xs
+
+  let pp_print ?pp_sep f ppf t =
+    Format.pp_print_list ?pp_sep f ppf (to_list t)
+
+  let (@) (x :: xs) (y :: ys) =
+    x :: List.(xs @ (y :: ys))
+end
