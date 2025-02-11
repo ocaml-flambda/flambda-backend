@@ -896,7 +896,7 @@ CAMLprim value caml_unboxed_float32_vect_blit(value a1, value ofs1, value a2,
   return Val_unit;
 }
 
-CAMLprim value caml_float32_is_stage1(value v) {
+CAMLprim value caml_is_boot_compiler(value v) {
   (void)v;
   return Val_false;
 }

@@ -769,10 +769,10 @@ module Storer =
    Result = list of instructions that evaluate exp, then perform cont. *)
 
 (* CR dkalinichenko: this error happens because we run tests
-   under [flambda_backend/tests] with the stage 1 compiler instead of the
+   under [flambda_backend/tests] with the boot compiler instead of the
    final compiler. Run them using the final compiler.*)
 (* We cannot use the [float32] or [or_null] types in the compiler. *)
-external float32_is_stage1 : unit -> bool = "caml_float32_is_stage1"
+external is_boot_compiler : unit -> bool = "caml_is_boot_compiler"
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
 let rec contains_float32s_or_nulls = function
@@ -818,7 +818,7 @@ and comp_expr stack_info env exp sz cont =
           Koffsetclosure(pos - env_pos) :: cont
         | exception Not_found -> not_found ()
       end
-  | Lconst cst when float32_is_stage1 () ->
+  | Lconst cst when is_boot_compiler () ->
       translate_float32s_or_nulls stack_info env cst sz cont
   | Lconst cst ->
       Kconst cst :: cont
