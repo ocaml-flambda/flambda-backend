@@ -27,7 +27,7 @@ let nudge rng f =
         f
 
 let run (module Smallint : Int.S) ~min_int ~max_int =
-  let int_size = Smallint.int_size in
+  let int_size = Smallint.size in
   assert (0 < int_size && int_size <= Sys.int_size);
   assert (max_int = (1 lsl (int_size - 1)) - 1);
   assert (min_int = lnot max_int);

@@ -19,7 +19,7 @@
 
 include Stdlib.Int
 
-let int_size = Sys.int_size
+let size = Sys.int_size
 
 let[@inline available] of_int t = t
 
@@ -61,7 +61,7 @@ module type S = sig
   type t
 
   (** The number of bits in an integer of type {!t}. *)
-  val int_size : int
+  val size : int
 
   val zero : t
 
@@ -106,11 +106,11 @@ module type S = sig
   val abs : t -> t
 
   (** [max_int] is the greatest representable integer,
-      [2{^[int_size - 1]} - 1]. *)
+      [2{^[size - 1]} - 1]. *)
   val max_int : t
 
   (** [min_int] is the smallest representable integer,
-      [-2{^[int_size - 1]}]. *)
+      [-2{^[size - 1]}]. *)
   val min_int : t
 
   (** Bitwise logical and. *)
@@ -126,19 +126,19 @@ module type S = sig
   val lognot : t -> t
 
   (** [shift_left x n] shifts [x] to the left by [n] bits. The result
-      is unspecified if [n < 0] or [n >= ]{!int_size}. *)
+      is unspecified if [n < 0] or [n >= ]{!size}. *)
   val shift_left : t -> int -> t
 
   (** [shift_right x n] shifts [x] to the right by [n] bits. This is an
       arithmetic shift: the sign bit of [x] is replicated and inserted
       in the vacated bits. The result is unspecified if [n < 0] or
-      [n >=]{!int_size}. *)
+      [n >=]{!size}. *)
   val shift_right : t -> int -> t
 
   (** [shift_right x n] shifts [x] to the right by [n] bits. This is a
       logical shift: zeroes are inserted in the vacated bits regardless
       of the sign of [x]. The result is unspecified if [n < 0] or
-      [n >=]{!int_size}. *)
+      [n >=]{!size}. *)
   val shift_right_logical : t -> int -> t
 
   (** {1:preds Predicates and comparisons} *)
@@ -160,7 +160,7 @@ module type S = sig
 
   (** {1:convert Converting} *)
 
-  (** [to_int x] is [x] as an {!int}. If [int_size > Sys.int_size], the topmost
+  (** [to_int x] is [x] as an {!int}. If [size > Sys.int_size], the topmost
       bits will be lost in the conversion *)
   val to_int : t -> int
 
@@ -196,7 +196,7 @@ module Make
     (Container : S) (Spec : sig
       type t
 
-      val int_size : int
+      val size : int
 
       val inject : t -> Container.t
 
@@ -204,9 +204,9 @@ module Make
     end) : S with type t := Spec.t = struct
   include Spec
 
-  let () = assert (0 < int_size && int_size <= Container.int_size)
+  let () = assert (0 < size && size <= Container.size)
 
-  let unused_bits = Container.int_size - int_size
+  let unused_bits = Container.size - size
 
   let[@inline] sign_extend i =
     unchecked_project
