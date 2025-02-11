@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-w +198";
    expect;
 *)
 
@@ -46,14 +47,18 @@ Line 2, characters 2-40:
 Error: zero_alloc "assume" attributes are not supported in signatures
 |}]
 
-module type S_payloads_ignore = sig
-  val[@zero_alloc ignore] f : int -> int
+module type S_payloads_assume_unless_opt = sig
+  val[@zero_alloc assume_unless_opt] f : int -> int
 end
 [%%expect{|
-Line 2, characters 2-40:
-2 |   val[@zero_alloc ignore] f : int -> int
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: zero_alloc "ignore" attributes are not supported in signatures
+Line 2, characters 7-17:
+2 |   val[@zero_alloc assume_unless_opt] f : int -> int
+           ^^^^^^^^^^
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+The payload "assume_unless_opt" is not supported in signatures.
+
+module type S_payloads_assume_unless_opt =
+  sig val f : int -> int [@@zero_alloc] end
 |}]
 
 (******************************)
@@ -1442,4 +1447,359 @@ module type S_outer_strong = sig module M_inner = M_outer.M_inner end
 module type S_outer_subst =
   sig module M_inner : sig val f : unit -> unit end end
 module M : S_outer_subst
+|}]
+
+(**********************************************************)
+(* Test 18: Interaction of all with function type aliases *)
+
+(* Aliases for use below. *)
+module M_aliases = struct
+  type t_one_arg = int -> int
+  type t_two_args = int -> t_one_arg
+end
+[%%expect{|
+module M_aliases :
+  sig type t_one_arg = int -> int type t_two_args = int -> t_one_arg end
+|}]
+
+(* zero_alloc all *)
+module type S_all = sig
+  [@@@zero_alloc all]
+
+  (* No warning - these are syntactically functions. The second has a possibly
+     surprising arity, but any mismatch would be an error at the time of
+     comparing against the module. *)
+  val f_no_warn_1 : M_aliases.t_one_arg -> int
+  val f_no_warn_2 : int -> M_aliases.t_one_arg
+
+  (* These should warn - they aren't syntactically function types so would
+     get no attribute, but are function types after expanding. *)
+  val f_warn_one_arg : M_aliases.t_one_arg
+  val f_warn_two_args : M_aliases.t_two_args
+
+  (* These should not warn - they are resolved by having an explicit
+     attribute. (The arity doesn't have to match, that's handled by the module
+     inclusion check, we just want to check they aren't silently getting the
+     default no check. *)
+  val[@zero_alloc ignore] f_no_warn_3 : M_aliases.t_one_arg
+  val[@zero_alloc arity 1] f_no_warn_4 : M_aliases.t_one_arg
+  val[@zero_alloc arity 2] f_no_warn_5 : M_aliases.t_two_args
+  val[@zero_alloc arity 45] f_no_warn_5 : M_aliases.t_two_args
+end
+[%%expect{|
+Line 12, characters 2-42:
+12 |   val f_warn_one_arg : M_aliases.t_one_arg
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 198 [zero-alloc-all-hidden-arrow]: The type of this item is an
+alias of a function type, but the [@@@zero_alloc all] attribute for
+this signature does not apply to it because its type is not
+syntactically a function type. If it should be checked, use an
+explicit zero_alloc attribute with an arity. If not, use an explicit
+zero_alloc ignore attribute.
+
+Line 13, characters 2-44:
+13 |   val f_warn_two_args : M_aliases.t_two_args
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 198 [zero-alloc-all-hidden-arrow]: The type of this item is an
+alias of a function type, but the [@@@zero_alloc all] attribute for
+this signature does not apply to it because its type is not
+syntactically a function type. If it should be checked, use an
+explicit zero_alloc attribute with an arity. If not, use an explicit
+zero_alloc ignore attribute.
+
+module type S_all =
+  sig
+    val f_no_warn_1 : M_aliases.t_one_arg -> int [@@zero_alloc]
+    val f_no_warn_2 : int -> M_aliases.t_one_arg [@@zero_alloc]
+    val f_warn_one_arg : M_aliases.t_one_arg
+    val f_warn_two_args : M_aliases.t_two_args
+    val f_no_warn_3 : M_aliases.t_one_arg
+    val f_no_warn_4 : M_aliases.t_one_arg [@@zero_alloc arity 1]
+    val f_no_warn_5 : M_aliases.t_two_args [@@zero_alloc arity 45]
+  end
+|}]
+
+(* zero_alloc all_opt - should work the same as "all" (modulo the name in the
+   warning) *)
+module type S_all = sig
+  [@@@zero_alloc all_opt]
+
+  (* No warning - these are syntactically functions. The second has a possibly
+     surprising arity, but any mismatch would be an error at the time of
+     comparing against the module. *)
+  val f_no_warn_1 : M_aliases.t_one_arg -> int
+  val f_no_warn_2 : int -> M_aliases.t_one_arg
+
+  (* These should warn - they aren't syntactically function types so would
+     get no attribute, but are function types after expanding. *)
+  val f_warn_one_arg : M_aliases.t_one_arg
+  val f_warn_two_args : M_aliases.t_two_args
+
+  (* These should not warn - they are resolved by having an explicit
+     attribute. (The arity doesn't have to match, that's handled by the module
+     inclusion check, we just want to check they aren't silently getting the
+     default no check. *)
+  val[@zero_alloc ignore] f_no_warn_3 : M_aliases.t_one_arg
+  val[@zero_alloc arity 1] f_no_warn_4 : M_aliases.t_one_arg
+  val[@zero_alloc arity 2] f_no_warn_5 : M_aliases.t_two_args
+  val[@zero_alloc arity 45] f_no_warn_5 : M_aliases.t_two_args
+end
+[%%expect{|
+Line 12, characters 2-42:
+12 |   val f_warn_one_arg : M_aliases.t_one_arg
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 198 [zero-alloc-all-hidden-arrow]: The type of this item is an
+alias of a function type, but the [@@@zero_alloc all_opt] attribute for
+this signature does not apply to it because its type is not
+syntactically a function type. If it should be checked, use an
+explicit zero_alloc attribute with an arity. If not, use an explicit
+zero_alloc ignore attribute.
+
+Line 13, characters 2-44:
+13 |   val f_warn_two_args : M_aliases.t_two_args
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 198 [zero-alloc-all-hidden-arrow]: The type of this item is an
+alias of a function type, but the [@@@zero_alloc all_opt] attribute for
+this signature does not apply to it because its type is not
+syntactically a function type. If it should be checked, use an
+explicit zero_alloc attribute with an arity. If not, use an explicit
+zero_alloc ignore attribute.
+
+module type S_all =
+  sig
+    val f_no_warn_1 : M_aliases.t_one_arg -> int [@@zero_alloc opt]
+    val f_no_warn_2 : int -> M_aliases.t_one_arg [@@zero_alloc opt]
+    val f_warn_one_arg : M_aliases.t_one_arg
+    val f_warn_two_args : M_aliases.t_two_args
+    val f_no_warn_3 : M_aliases.t_one_arg
+    val f_no_warn_4 : M_aliases.t_one_arg [@@zero_alloc arity 1]
+    val f_no_warn_5 : M_aliases.t_two_args [@@zero_alloc arity 45]
+  end
+|}]
+
+(* [@@@zero_alloc all] and [@@@zero_alloc all_opt] in signatures:
+   module inclusion check*)
+module type S_all = sig
+  [@@@zero_alloc all]
+  val f : int -> int
+end
+
+module type S_all_opt = sig
+  [@@@zero_alloc all_opt]
+  val f : int -> int
+end
+
+module type S = sig
+  [@@@zero_alloc all]
+  val f : int -> int
+end
+
+(* This should be accepted *)
+module F (X : S_all) : S = X
+[%%expect{|
+module type S_all = sig val f : int -> int [@@zero_alloc] end
+module type S_all_opt = sig val f : int -> int [@@zero_alloc opt] end
+module type S = sig val f : int -> int [@@zero_alloc] end
+module F : functor (X : S_all) -> S
+|}]
+
+(* This should be rejected *)
+module F (X : S_all_opt) : S = X
+[%%expect{|
+Line 1, characters 31-32:
+1 | module F (X : S_all_opt) : S = X
+                                   ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : int -> int [@@zero_alloc opt] end
+       is not included in
+         S
+       Values do not match:
+         val f : int -> int [@@zero_alloc opt]
+       is not included in
+         val f : int -> int [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
+
+
+(* [@@@zero_alloc all] and [@@@zero_alloc all_opt] in signatures that only declare
+   non-function values: module inclusion check *)
+module type S_all = sig
+  [@@@zero_alloc all]
+  type t
+  val f : t
+end
+
+module type S_all_opt = sig
+  [@@@zero_alloc all_opt]
+  type t
+  val f : t
+end
+
+module type S = sig
+  [@@@zero_alloc all]
+  type t
+  val f : t
+end
+
+(* This should be accepted: [@@@zero_alloc ..] attributes are not explicitly considered by
+   [include_mod] for modules that declare only non-function values and therefore both examples
+   below are accepted. *)
+module F (X : S_all) : S = X
+[%%expect{|
+module type S_all = sig type t val f : t end
+module type S_all_opt = sig type t val f : t end
+module type S = sig type t val f : t end
+module F : functor (X : S_all) -> S
+|}]
+
+module F (X : S_all_opt) : S = X
+[%%expect{|
+module F : functor (X : S_all_opt) -> S
+|}]
+
+
+(* [@zero_alloc ignore]: module inclusion check *)
+module type S_all = sig
+  [@@@zero_alloc all]
+
+  val f_warn_one_arg : int -> int
+end
+
+module type S_all_ignored = sig
+  [@@@zero_alloc all]
+
+  val[@zero_alloc ignore] f_warn_one_arg : int -> int
+end
+
+(* This should be rejected *)
+module F (X : S_all_ignored) : S_all = X
+[%%expect{|
+module type S_all = sig val f_warn_one_arg : int -> int [@@zero_alloc] end
+module type S_all_ignored = sig val f_warn_one_arg : int -> int end
+Line 14, characters 39-40:
+14 | module F (X : S_all_ignored) : S_all = X
+                                            ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f_warn_one_arg : int -> int end
+       is not included in
+         S_all
+       Values do not match:
+         val f_warn_one_arg : int -> int
+       is not included in
+         val f_warn_one_arg : int -> int [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
+(* This should be accepted *)
+module F (X : S_all) : S_all_ignored = X
+[%%expect{|
+module F : functor (X : S_all) -> S_all_ignored
+|}]
+
+
+(* [@zero_alloc custom_error_message "string"] in signatures: module inclusion
+   results in concatenated messages. *)
+module T1 = struct
+  module type S1 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "foo"]
+  end
+
+  module type S2 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "bar"]
+  end
+
+  module M1 = struct
+    let f x = (x,x)
+  end
+
+  module M' : S1 = M1
+
+  module M'' : S2 = M1
+end
+(* The signature for [M1] below shows the inferred attribute but for some
+   reason it doesn't print the associated custom_error_message.
+   We ahve a copy of this test in the backend test directory to confirm
+   that the combined "foo\nbar" is propagate correctly and printed by the
+   zero_alloc checker as part of the user error message. *)
+[%%expect{|
+module T1 :
+  sig
+    module type S1 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "foo"] end
+    module type S2 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "bar"] end
+    module M1 : sig val f : 'a -> 'a * 'a [@@zero_alloc] end
+    module M' : S1
+    module M'' : S2
+  end
+|}]
+
+(* If there is a zero_alloc annotation on the structure (with or without a custom
+   error message), throw away the custom message string from the signature. *)
+module T2 = struct
+  module type S1 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "foo"]
+  end
+
+  module type S2 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "bar"]
+  end
+
+  module M2 = struct
+    let[@zero_alloc] f x = (x,x)
+  end
+
+  module M' : S1 = M2
+
+  module M'' : S2 = M2
+end
+[%%expect{|
+module T2 :
+  sig
+    module type S1 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "foo"] end
+    module type S2 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "bar"] end
+    module M2 : sig val f : 'a -> 'a * 'a [@@zero_alloc] end
+    module M' : S1
+    module M'' : S2
+  end
+|}]
+
+module T3 = struct
+  module type S1 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "foo"]
+  end
+
+  module type S2 = sig
+    val f : 'a -> ('a * 'a) [@@zero_alloc custom_error_message "bar"]
+  end
+
+  module M3 = struct
+    let[@zero_alloc custom_error_message "use this, throw the others away"] f x =
+      (x,x)
+  end
+
+  module M' : S1 = M3
+
+  module M'' : S2 = M3
+end
+[%%expect{|
+module T3 :
+  sig
+    module type S1 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "foo"] end
+    module type S2 =
+      sig val f : 'a -> 'a * 'a [@@zero_alloc custom_error_message "bar"] end
+    module M3 :
+      sig
+        val f : 'a -> 'a * 'a
+          [@@zero_alloc custom_error_message "use this, throw the others away"]
+      end
+    module M' : S1
+    module M'' : S2
+  end
 |}]

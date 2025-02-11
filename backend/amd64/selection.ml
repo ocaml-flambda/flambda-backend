@@ -26,12 +26,17 @@ let pseudoregs_for_operation op arg res =
   | Iintop (Iadd | Isub | Imul | Iand | Ior | Ixor)
   | Ifloatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
     [| res.(0); arg.(1) |], res
-  | Iintop_atomic { op = Compare_and_swap; size = _; addr = _ } ->
+  | Iintop_atomic { op = Compare_set; size = _; addr = _ } ->
     (* first arg must be rax *)
     let arg = Array.copy arg in
     arg.(0) <- rax;
     arg, res
-  | Iintop_atomic { op = Fetch_and_add; size = _; addr = _ } ->
+  | Iintop_atomic { op = Compare_exchange; size = _; addr = _ } ->
+    (* first arg must be rax, res.(0) must be rax. *)
+    let arg = Array.copy arg in
+    arg.(0) <- rax;
+    arg, [| rax |]
+  | Iintop_atomic { op = Exchange | Fetch_and_add; size = _; addr = _ } ->
     (* first arg must be the same as res.(0) *)
     let arg = Array.copy arg in
     arg.(0) <- res.(0);
@@ -80,7 +85,14 @@ let pseudoregs_for_operation op arg res =
        edx (high) and eax (low). Make it simple and force the argument in rcx,
        and rax and rdx clobbered *)
     [| rcx |], res
-  | Ispecific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
+  | Ispecific (Isimd op) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.register_behavior op)
+      arg res
+  | Ispecific (Isimd_mem (op, _addr)) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.Mem.register_behavior op)
+      arg res
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
@@ -88,6 +100,7 @@ let pseudoregs_for_operation op arg res =
     arg.(len - 1) <- res.(0);
     arg, res
   (* Other instructions are regular *)
+  | Iintop_atomic { op = Add | Sub | Land | Lor | Lxor; _ }
   | Iintop (Ipopcnt | Iclz _ | Ictz _ | Icomp _)
   | Iintop_imm ((Imulh _ | Idiv | Imod | Icomp _ | Ipopcnt | Iclz _ | Ictz _), _)
   | Ispecific

@@ -19,3 +19,12 @@
 let select_operation _ = None
 
 let pseudoregs_for_operation _ arg res = arg, res
+
+(* See `amd64/simd_selection.ml`. *)
+
+let vector_width_in_bits = 128
+
+let vectorize_operation _ ~arg_count:_ ~res_count:_ ~alignment_in_bytes:_
+    (_ : Operation.t list) :
+    Vectorize_utils.Vectorized_instruction.t list option =
+  None

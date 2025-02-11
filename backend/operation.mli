@@ -30,7 +30,6 @@
 
 (* CR-soon xclerc for xclerc: consider whether `Simple_operation` and
    `Operation` should be merged into a single module. *)
-
 type t =
   | Move
   | Spill
@@ -75,7 +74,7 @@ type t =
   | Poll
   | Alloc of
       { bytes : int;
-        dbginfo : Debuginfo.alloc_dbginfo;
+        dbginfo : Cmm.alloc_dbginfo;
         mode : Cmm.Alloc_mode.t
       }
 

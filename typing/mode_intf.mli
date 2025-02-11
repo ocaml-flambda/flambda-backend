@@ -263,7 +263,26 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_monadic
   end
 
-  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t
+  module Yielding : sig
+    module Const : sig
+      type t =
+        | Yielding
+        | Unyielding
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
+  end
+
+  type 'a comonadic_with = private
+    'a * Linearity.Const.t * Portability.Const.t * Yielding.Const.t
 
   type monadic = private Uniqueness.Const.t * Contention.Const.t
 
@@ -274,17 +293,26 @@ module type S = sig
       | Areality : ('a comonadic_with, 'a) t
       | Linearity : ('areality comonadic_with, Linearity.Const.t) t
       | Portability : ('areality comonadic_with, Portability.Const.t) t
+      | Yielding : ('areality comonadic_with, Yielding.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
       | Contention : (monadic, Contention.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
+
+    val eq : ('p, 'r0) t -> ('p, 'r1) t -> ('r0, 'r1) Misc.eq option
   end
 
   module type Mode := sig
     module Areality : Common
 
     module Monadic : sig
-      module Const : Lattice with type t = monadic
+      module Const : sig
+        include Lattice with type t = monadic
+
+        val max_axis : (t, 'a) Axis.t -> 'a
+
+        val min_axis : (t, 'a) Axis.t -> 'a
+      end
 
       include Common with module Const := Const
 
@@ -298,6 +326,10 @@ module type S = sig
         val eq : t -> t -> bool
 
         val print_axis : (t, 'a) Axis.t -> Format.formatter -> 'a -> unit
+
+        val max_axis : (t, 'a) Axis.t -> 'a
+
+        val min_axis : (t, 'a) Axis.t -> 'a
       end
 
       type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
@@ -317,12 +349,19 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-    type ('a, 'b, 'c, 'd, 'e) modes =
+    type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
+
+    val print_axis : Format.formatter -> ('m, 'a, 'd) axis -> unit
+
+    val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
+
+    type ('a, 'b, 'c, 'd, 'e, 'f) modes =
       { areality : 'a;
         linearity : 'b;
         uniqueness : 'c;
         portability : 'd;
-        contention : 'e
+        contention : 'e;
+        yielding : 'f
       }
 
     module Const : sig
@@ -333,7 +372,8 @@ module type S = sig
               Linearity.Const.t,
               Uniqueness.Const.t,
               Portability.Const.t,
-              Contention.Const.t )
+              Contention.Const.t,
+              Yielding.Const.t )
             modes
 
       module Option : sig
@@ -344,7 +384,8 @@ module type S = sig
             Linearity.Const.t option,
             Uniqueness.Const.t option,
             Portability.Const.t option,
-            Contention.Const.t option )
+            Contention.Const.t option,
+            Yielding.Const.t option )
           modes
 
         val none : t
@@ -432,6 +473,10 @@ module type S = sig
   module Const : sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
 
+    module Axis : sig
+      val alloc_as_value : 'd Alloc.axis_packed -> 'd Value.axis_packed
+    end
+
     val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
   end
 
@@ -471,6 +516,9 @@ module type S = sig
     (** Test if the given modality is the identity modality. *)
     val is_id : t -> bool
 
+    (** Test if the given modality is a constant modality. *)
+    val is_constant : t -> bool
+
     (** Printing for debugging *)
     val print : Format.formatter -> t -> unit
 
@@ -482,6 +530,19 @@ module type S = sig
 
       type nonrec equate_error = equate_step * error
 
+      (* In the following we have both [Const.t] and [t]. The former is parameterized by
+         constant modes and thus its behavior fully determined. It is what users read and
+         write on constructor arguments, record fields and value descriptions in signatures.
+
+         The latter is parameterized by variable modes and thus its behavior changes as the
+         variable modes change. It is used in module type inference: structures are inferred
+         to have a signature containing a list of value descriptions, each of which carries a
+         modality. This modality depends on the mode of the value, which is a variable.
+         Therefore, we parameterize the modality over the variable mode.
+
+         Utilities are provided to convert between [Const.t] and [t], such as [of_const],
+         [zap_to_id], [zap_to_floor], etc.. *)
+
       module Const : sig
         (** A modality that acts on [Value] modes. Conceptually it is a sequnce
             of [atom] that acts on individual axes. *)
@@ -489,6 +550,9 @@ module type S = sig
 
         (** The identity modality. *)
         val id : t
+
+        (** Test if the given modality is the identity modality. *)
+        val is_id : t -> bool
 
         (** Apply a modality on mode. *)
         val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
@@ -503,8 +567,12 @@ module type S = sig
         val singleton : atom -> t
 
         (** Returns the list of [atom] in the given modality. The list is
-            commutative. *)
+            commutative. Post-condition: each axis is represented in the
+            output list exactly once. *)
         val to_list : t -> atom list
+
+        (** Project out the [atom] for the given axis in the given modality. *)
+        val proj : ('m, 'a, 'd) Value.axis -> t -> atom
 
         (** [equate t0 t1] checks that [t0 = t1].
             Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
@@ -542,17 +610,27 @@ module type S = sig
 
       (** Given [md_mode] the mode of a module, and [mode] the mode of a value
       to be put in that module, return the inferred modality to be put on the
-      value description in the inferred module type. *)
-      val infer : md_mode:Value.lr -> mode:Value.l -> t
+      value description in the inferred module type.
+
+      The caller should ensure that for comonadic axes, [md_mode >= mode]. *)
+      val infer : md_mode:Value.lr -> mode:Value.lr -> t
 
       (* The following zapping functions possibly mutate a potentially inferred
          modality [m] to a constant modality [c]. The constant modality is
-         returned. [m <= c] holds, even after further mutations to [m]. *)
+         returned. The following coherence conditions hold:
+         - [m <= c] always holds, even after further mutations to [m].
+         - [c0 <= c1] always holds, where [c0] and [c1] are results of two
+            abitrary zappings of some [m], even after further mutations to [m].
+            Essentially that means [c0 = c1].
 
-      (** Returns a const modality weaker than the given modality. *)
+         NB: zapping an inferred modality will zap both [md_mode] and [mode] that
+         it contains. The caller is reponsible for correct zapping order.
+      *)
+
+      (** Zap an inferred modality towards identity modality. *)
       val zap_to_id : t -> Const.t
 
-      (** Returns a const modality lowest (strongest) possible. *)
+      (** Zap an inferred modality towards the lowest (strongest) modality. *)
       val zap_to_floor : t -> Const.t
 
       (** Asserts the given modality is a const modality, and returns it. *)

@@ -122,7 +122,7 @@ module Native = struct
 
   exception Register_dyn_global_duplicate
   let () =
-    Callback.register "Register_dyn_global_duplicate"
+    Callback.Safe.register "Register_dyn_global_duplicate"
       Register_dyn_global_duplicate
 
   let load ~filename ~priv =

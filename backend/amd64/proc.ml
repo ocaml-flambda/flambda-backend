@@ -1,4 +1,3 @@
-# 2 "backend/amd64/proc.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -102,7 +101,7 @@ let num_register_classes = 2
 let register_class r =
   match r.typ with
   | Val | Int | Addr -> 0
-  | Float | Float32 | Vec128 -> 1
+  | Float | Float32 | Vec128 | Valx2 -> 1
 
 let num_stack_slot_classes = 3
 
@@ -110,7 +109,16 @@ let stack_slot_class typ =
   match (typ : machtype_component) with
   | Val | Addr | Int -> 0
   | Float | Float32 -> 1
-  | Vec128 -> 2
+  | Vec128 | Valx2 -> 2
+
+let types_are_compatible left right =
+  match left.typ, right.typ with
+  | (Int | Val | Addr), (Int | Val | Addr)
+  | Float, Float
+  | Float32, Float32
+  | (Valx2 | Vec128), (Valx2 | Vec128) ->
+    true
+  | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
 
 let stack_class_tag c =
   match c with
@@ -128,7 +136,7 @@ let register_name ty r =
   match (ty : machtype_component) with
   | Int | Addr | Val ->
     int_reg_name.(r - first_available_register.(0))
-  | Float | Float32 | Vec128 ->
+  | Float | Float32 | Vec128 | Valx2 ->
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -165,7 +173,40 @@ let phys_reg ty n =
   | Int | Addr | Val -> hard_int_reg.(n)
   | Float -> hard_float_reg.(n - 100)
   | Float32 -> hard_float32_reg.(n - 100)
-  | Vec128 -> hard_vec128_reg.(n - 100)
+  | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
+
+let gc_regs_offset reg =
+  (* Given register [r], return the offset (the number of [value] slots,
+     not their size in bytes) of the register from the
+     [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
+  let r =
+    match reg.loc with
+    | Reg r -> r
+    | Stack _ | Unknown ->
+      Misc.fatal_errorf "Unexpected register location for %d" reg.stamp
+  in
+  let reg_class = register_class reg in
+  let index = (r - first_available_register.(reg_class)) in
+  match reg_class with
+  | 0 -> index
+  | 1 ->
+    let slot_size_in_vals = 2 in
+    assert (Arch.size_vec128 / Arch.size_int = slot_size_in_vals);
+    if Config.runtime5
+    then
+      (* xmm slots are above regular slots based at [gc_regs_bucket] *)
+      let num_regular_slots =
+        (* rbp is always spilled even without frame pointers *)
+        13
+      in
+      num_regular_slots + (index * slot_size_in_vals)
+    else
+      (* xmm slots are below [gc_regs] pointer *)
+      let num_xmm_slots = 16 in
+      let offset = Int.neg (num_xmm_slots * slot_size_in_vals) in
+      offset + (index * slot_size_in_vals)
+  | _ -> assert false
+
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
@@ -195,8 +236,15 @@ let word_addressed = false
 
 let size_domainstate_args = 64 * size_int
 
-let calling_conventions first_int last_int first_float last_float make_stack first_stack
-                        arg =
+let calling_conventions
+      ~first_int
+      ~last_int
+      ~step_int
+      ~first_float
+      ~last_float
+      ~make_stack
+      ~first_stack
+      arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let int = ref first_int in
   let float = ref first_float in
@@ -206,7 +254,7 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
     | Val | Int | Addr as ty ->
         if !int <= last_int then begin
           loc.(i) <- phys_reg ty !int;
-          incr int
+          int := !int + step_int
         end else begin
           loc.(i) <- stack_slot (make_stack !ofs) ty;
           ofs := !ofs + size_int
@@ -229,6 +277,8 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
         loc.(i) <- stack_slot (make_stack !ofs) Vec128;
         ofs := !ofs + size_vec128
       end
+    | Valx2 ->
+      Misc.fatal_error "Unexpected machtype_component Valx2"
     | Float32 ->
         if !float <= last_float then begin
           loc.(i) <- phys_reg Float32 !float;
@@ -253,18 +303,51 @@ let outgoing ofs =
 let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
 let loc_arguments arg =
-  calling_conventions 0 9 100 109 outgoing (- size_domainstate_args) arg
+  calling_conventions
+      ~first_int:0
+      ~last_int:9
+      ~step_int:1
+      ~first_float:100
+      ~last_float:109
+      ~make_stack:outgoing
+      ~first_stack:(- size_domainstate_args)
+      arg
+
 let loc_parameters arg =
   let (loc, _ofs) =
-    calling_conventions 0 9 100 109 incoming (- size_domainstate_args) arg
+    calling_conventions
+      ~first_int:0
+      ~last_int:9
+      ~step_int:1
+      ~first_float:100
+      ~last_float:109
+      ~make_stack:incoming
+      ~first_stack:(- size_domainstate_args)
+      arg
   in
   loc
 
 let loc_results_call res =
-  calling_conventions 0 9 100 109 outgoing (- size_domainstate_args) res
+  calling_conventions
+    ~first_int:0
+    ~last_int:9
+    ~step_int:1
+    ~first_float:100
+    ~last_float:109
+    ~make_stack:outgoing
+    ~first_stack:(- size_domainstate_args)
+    res
 let loc_results_return res =
   let (loc, _ofs) =
-    calling_conventions 0 9 100 109 incoming (- size_domainstate_args) res
+    calling_conventions
+      ~first_int:0
+      ~last_int:9
+      ~step_int:1
+      ~first_float:100
+      ~last_float:109
+      ~make_stack:incoming
+      ~first_stack:(- size_domainstate_args)
+      res
   in loc
 
 let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
@@ -273,7 +356,7 @@ let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
      first integer args in rdi, rsi, rdx, rcx, r8, r9
      first float args in xmm0 ... xmm7
      remaining args on stack
-     return value in rax or xmm0.
+     return value in rax and rdx for integers, and xmm0 and xmm1 for floats.
   C calling conventions under Win64:
      first integer args in rcx, rdx, r8, r9
      first float args in xmm0 ... xmm3
@@ -283,10 +366,30 @@ let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
      Return value in rax or xmm0. *)
 
 let loc_external_results res =
-  let (loc, _ofs) = calling_conventions 0 0 100 100 not_supported 0 res in loc
+  let (loc, _ofs) =
+    (* `~last_int:4 ~step_int:4` below is to get rdx as the second int register
+       (See https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf, pages 21 and 22) *)
+    calling_conventions
+      ~first_int:0
+      ~last_int:4
+      ~step_int:4
+      ~first_float:100
+      ~last_float:101
+      ~make_stack:not_supported
+      ~first_stack:0
+      res
+  in loc
 
 let unix_loc_external_arguments arg =
-  calling_conventions 2 7 100 107 outgoing 0 arg
+  calling_conventions
+    ~first_int:2
+    ~last_int:7
+    ~step_int:1
+    ~first_float:100
+    ~last_float:107
+    ~make_stack:outgoing
+    ~first_stack:0
+    arg
 
 let win64_int_external_arguments =
   [| 5 (*rcx*); 4 (*rdx*); 6 (*r8*); 7 (*r9*) |]
@@ -327,6 +430,8 @@ let win64_loc_external_arguments arg =
     | Vec128 ->
         (* CR mslater: (SIMD) win64 calling convention requires pass by reference *)
         Misc.fatal_error "SIMD external arguments are not supported on Win64"
+    | Valx2 ->
+      Misc.fatal_error "Unexpected machtype_component Valx2"
   done;
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
 
@@ -402,8 +507,8 @@ let destroyed_at_pushtrap =
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
-let destroyed_by_simd_op op =
-  match Simd_proc.register_behavior op with
+let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
+  match register_behavior with
   | R_RM_rax_rdx_to_xmm0
   | R_RM_to_xmm0 -> destroy_xmm 0
   | R_RM_rax_rdx_to_rcx
@@ -437,7 +542,10 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
-  | Iop(Ispecific(Isimd op)) -> destroyed_by_simd_op op
+  | Iop(Ispecific(Isimd op)) ->
+    destroyed_by_simd_op (Simd_proc.register_behavior op)
+  | Iop(Ispecific(Isimd_mem (op,_))) ->
+    destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause | Icldemote _ | Iprefetch _
@@ -490,7 +598,10 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
-  | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
+  | Op (Specific (Isimd op)) ->
+    destroyed_by_simd_op (Simd_proc.register_behavior op)
+  | Op (Specific (Isimd_mem (op,_))) ->
+    destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
        | Const_vec128 _
@@ -542,7 +653,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Call {op = Indirect | Direct _; _} -> all_phys_regs
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Ilfence | Isfence | Imfence
+                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Icldemote _ | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
@@ -572,7 +683,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     true
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Ilfence | Isfence | Imfence
+                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Icldemote _ | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
@@ -596,13 +707,29 @@ let safe_register_pressure = function
   | Ibeginregion | Iendregion | Idls_get
     -> if fp then 10 else 11
 
-let max_register_pressure =
+let max_register_pressure op =
   let consumes ~int ~float =
     if fp
     then [| 12 - int; 16 - float |]
     else [| 13 - int; 16 - float |]
-  in function
-    Iextcall _ ->
+  in
+  let simd_max_register_pressure (register_behavior : Simd_proc.register_behavior) =
+    (match register_behavior with
+     | R_RM_rax_rdx_to_xmm0
+     | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
+     | R_RM_rax_rdx_to_rcx
+     | R_RM_to_rcx -> consumes ~int:1 ~float:0
+     | R_to_fst
+     | R_to_R
+     | R_to_RM
+     | RM_to_R
+     | R_R_to_fst
+     | R_RM_to_fst
+     | R_RM_to_R
+     | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
+  in
+  match op with
+  | Iextcall _ ->
     if win64
       then consumes ~int:5 ~float:6
       else consumes ~int:9 ~float:16
@@ -616,19 +743,9 @@ let max_register_pressure =
   | Ifloatop ((Float64 | Float32), Icompf _) ->
     consumes ~int:0 ~float:1
   | Ispecific(Isimd op) ->
-    (match Simd_proc.register_behavior op with
-    | R_RM_rax_rdx_to_xmm0
-    | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
-    | R_RM_rax_rdx_to_rcx
-    | R_RM_to_rcx -> consumes ~int:1 ~float:0
-    | R_to_fst
-    | R_to_R
-    | R_to_RM
-    | RM_to_R
-    | R_R_to_fst
-    | R_RM_to_fst
-    | R_RM_to_R
-    | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
+    simd_max_register_pressure (Simd_proc.register_behavior op)
+  | Ispecific(Isimd_mem (op,_)) ->
+    simd_max_register_pressure (Simd_proc.Mem.register_behavior op)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr

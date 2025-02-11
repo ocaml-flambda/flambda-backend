@@ -104,14 +104,6 @@ and jkind_l = (allowed * disallowed) jkind
 and jkind_r = (disallowed * allowed) jkind
 and jkind_lr = (allowed * allowed) jkind
 
-(* jkind depends on types defined in this file, but Jkind.equal is required
-   here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
-   function. *)
-(** Corresponds to [Jkind.equal] *)
-let jkind_equal = ref (fun _ _ ->
-    failwith "jkind_equal should be set by jkind.ml")
-let set_jkind_equal f = jkind_equal := f
-
 module TransientTypeOps = struct
   type t = type_expr
   let compare t1 t2 = t1.id - t2.id
@@ -269,20 +261,28 @@ type type_declaration =
     type_attributes: Parsetree.attributes;
     type_unboxed_default: bool;
     type_uid: Uid.t;
-    type_has_illegal_crossings: bool;
  }
 
-and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+and type_decl_kind =
+  (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and ('lbl, 'cstr) type_kind =
+and unsafe_mode_crossing =
+  { modal_upper_bounds : Mode.Alloc.Const.t }
+
+and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
-  | Type_record of 'lbl list * record_representation
-  | Type_variant of 'cstr list * variant_representation
+  | Type_record of 'lbl list * record_representation * unsafe_mode_crossing option
+  | Type_record_unboxed_product of
+      'lbl_flat list *
+      record_unboxed_product_representation *
+      unsafe_mode_crossing option
+  | Type_variant of 'cstr list * variant_representation * unsafe_mode_crossing option
   | Type_open
 
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
         | Extension of Path.t
+        | Null
 
 and type_origin =
     Definition
@@ -308,16 +308,20 @@ and mixed_product_shape =
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * constructor_representation * variant_representation
-  | Record_boxed of (allowed * disallowed) jkind array
+  | Record_boxed of Jkind_types.Sort.Const.t array
   | Record_float
   | Record_ufloat
   | Record_mixed of mixed_product_shape
 
+and record_unboxed_product_representation =
+  | Record_unboxed_product
+
 and variant_representation =
   | Variant_unboxed
   | Variant_boxed of (constructor_representation *
-                      (allowed * disallowed) jkind array) array
+                      Jkind_types.Sort.Const.t array) array
   | Variant_extensible
+  | Variant_with_null
 
 and constructor_representation =
   | Constructor_uniform_value
@@ -329,7 +333,7 @@ and label_declaration =
     ld_mutable: mutability;
     ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
-    ld_jkind : jkind_l;
+    ld_sort: Jkind_types.Sort.Const.t;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -349,7 +353,7 @@ and constructor_argument =
   {
     ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
-    ca_jkind: jkind_l;
+    ca_sort: Jkind_types.Sort.Const.t;
     ca_loc: Location.t;
   }
 
@@ -600,7 +604,19 @@ let equal_tag t1 t2 =
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     i2 = i1 (* If i1 = i2, the runtime_tags will also be equal *)
   | Extension path1, Extension path2 -> Path.same path1 path2
-  | (Ordinary _ | Extension _), _ -> false
+  | Null, Null -> true
+  | (Ordinary _ | Extension _ | Null), _ -> false
+
+let compare_tag t1 t2 =
+  match (t1, t2) with
+  | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
+    Int.compare i1 i2
+  | Extension path1, Extension path2 -> Path.compare path1 path2
+  | Null, Null -> 0
+  | Ordinary _, (Extension _ | Null) -> -1
+  | (Extension _ | Null), Ordinary _ -> 1
+  | Extension _, Null -> -1
+  | Null, Extension _ -> 1
 
 let equal_flat_element e1 e2 =
   match e1, e2 with
@@ -646,15 +662,17 @@ let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->
       true
-  | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
-      Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
+  | Variant_boxed cstrs_and_sorts1, Variant_boxed cstrs_and_sorts2 ->
+      Misc.Stdlib.Array.equal (fun (cstr1, sorts1) (cstr2, sorts2) ->
           equal_constructor_representation cstr1 cstr2
-          && Misc.Stdlib.Array.equal !jkind_equal jkinds1 jkinds2)
-        cstrs_and_jkinds1
-        cstrs_and_jkinds2
+          && Misc.Stdlib.Array.equal Jkind_types.Sort.Const.equal
+               sorts1 sorts2)
+        cstrs_and_sorts1
+        cstrs_and_sorts2
   | Variant_extensible, Variant_extensible ->
       true
-  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+  | Variant_with_null, Variant_with_null -> true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible | Variant_with_null), _ ->
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
@@ -666,8 +684,8 @@ let equal_record_representation r1 r2 = match r1, r2 with
       ignore (cr1 : constructor_representation);
       ignore (cr2 : constructor_representation);
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
-  | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
+  | Record_boxed sorts1, Record_boxed sorts2 ->
+      Misc.Stdlib.Array.equal Jkind_types.Sort.Const.equal sorts1 sorts2
   | Record_float, Record_float ->
       true
   | Record_ufloat, Record_ufloat ->
@@ -676,6 +694,9 @@ let equal_record_representation r1 r2 = match r1, r2 with
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
     | Record_ufloat | Record_mixed _), _ ->
       false
+
+let equal_record_unboxed_product_representation r1 r2 = match r1, r2 with
+  | Record_unboxed_product, Record_unboxed_product -> true
 
 let may_equal_constr c1 c2 =
   c1.cstr_arity = c2.cstr_arity
@@ -686,19 +707,55 @@ let may_equal_constr c1 c2 =
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
+type 'a gen_label_description =
+  { lbl_name: string;                   (* Short name *)
+    lbl_res: type_expr;                 (* Type of the result *)
+    lbl_arg: type_expr;                 (* Type of the argument *)
+    lbl_mut: mutability;                (* Is this a mutable field? *)
+    lbl_modalities: Mode.Modality.Value.Const.t;(* Modalities on the field *)
+    lbl_sort: Jkind_types.Sort.Const.t; (* Sort of the argument *)
+    lbl_pos: int;                       (* Position in block *)
+    lbl_num: int;                       (* Position in type *)
+    lbl_all: 'a gen_label_description array;   (* All the labels in this type *)
+    lbl_repres: 'a;                     (* Representation for outer record *)
+    lbl_private: private_flag;          (* Read-only field? *)
+    lbl_loc: Location.t;
+    lbl_attributes: Parsetree.attributes;
+    lbl_uid: Uid.t;
+  }
+
+type label_description = record_representation gen_label_description
+
+type unboxed_label_description =
+  record_unboxed_product_representation gen_label_description
+
+type _ record_form =
+  | Legacy : record_representation record_form
+  | Unboxed_product : record_unboxed_product_representation record_form
+
+type record_form_packed =
+  | P : _ record_form -> record_form_packed
+
+let record_form_to_string (type rep) (record_form : rep record_form) =
+  match record_form with
+  | Legacy -> "record"
+  | Unboxed_product -> "unboxed record"
+
 let find_unboxed_type decl =
   match decl.type_kind with
-    Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
-  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
-  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+    Type_record ([{ld_type = arg; _}], Record_unboxed, _)
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed), _)
+  | Type_record_unboxed_product
+                ([{ld_type = arg; _}], Record_unboxed_product, _)
+  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed, _)
+  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}], Variant_unboxed, _) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
-                    | Record_mixed _))
+                    | Record_mixed _), _)
+  | Type_record_unboxed_product (_, Record_unboxed_product, _)
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
-                     | Variant_extensible ))
+                     | Variant_extensible | Variant_with_null), _)
   | Type_abstract _ | Type_open ->
     None
 
@@ -710,23 +767,6 @@ let item_visibility = function
   | Sig_modtype (_, _, vis)
   | Sig_class (_, _, _, vis)
   | Sig_class_type (_, _, _, vis) -> vis
-
-type label_description =
-  { lbl_name: string;                   (* Short name *)
-    lbl_res: type_expr;                 (* Type of the result *)
-    lbl_arg: type_expr;                 (* Type of the argument *)
-    lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_modalities: Mode.Modality.Value.Const.t;(* Modalities on the field *)
-    lbl_jkind : jkind_l;                (* Jkind of the argument *)
-    lbl_pos: int;                       (* Position in block *)
-    lbl_num: int;                       (* Position in type *)
-    lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for outer record *)
-    lbl_private: private_flag;          (* Read-only field? *)
-    lbl_loc: Location.t;
-    lbl_attributes: Parsetree.attributes;
-    lbl_uid: Uid.t;
-  }
 
 let lbl_pos_void = -1
 

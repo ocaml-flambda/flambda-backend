@@ -902,7 +902,10 @@ let rec choice ctx t =
     | Prunstack | Pperform | Presume | Preperform | Pdls_get
 
     (* we don't handle atomic primitives *)
-    | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
+    | Patomic_exchange _ | Patomic_compare_exchange _
+    | Patomic_compare_set _ | Patomic_fetch_add
+    | Patomic_add | Patomic_sub | Patomic_land
+    | Patomic_lor | Patomic_lxor | Patomic_load _ | Patomic_set _
     | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
     | Punbox_vector _ | Pbox_vector (_, _)
@@ -922,6 +925,7 @@ let rec choice ctx t =
 
     (* nor unboxed products *)
     | Pmake_unboxed_product _ | Punboxed_product_field _
+    | Parray_element_size_in_bytes _
 
     | Pobj_dup
     | Pobj_magic _
@@ -972,6 +976,7 @@ let rec choice ctx t =
     | Pint_as_pointer _
     | Psequand | Psequor
     | Ppoll
+    | Ppeek _ | Ppoke _
       ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))

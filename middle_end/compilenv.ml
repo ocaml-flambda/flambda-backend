@@ -54,8 +54,10 @@ let cache_zero_alloc_info c = Zero_alloc_info.merge c ~into:cached_zero_alloc_in
 let current_unit =
   { ui_unit = CU.dummy;
     ui_defines = [];
+    ui_arg_descr = None;
     ui_imports_cmi = [];
     ui_imports_cmx = [];
+    ui_format = Mb_struct { mb_size = -1 };
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_zero_alloc_info = Zero_alloc_info.create ();
@@ -69,8 +71,10 @@ let reset compilation_unit =
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
+  current_unit.ui_arg_descr <- None;
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
+  current_unit.ui_format <- Mb_struct { mb_size = -1 };
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
@@ -109,6 +113,8 @@ let read_unit_info filename =
     let ui = {
       ui_unit = uir.uir_unit;
       ui_defines = uir.uir_defines;
+      ui_format = uir.uir_format;
+      ui_arg_descr = uir.uir_arg_descr;
       ui_imports_cmi = uir.uir_imports_cmi |> Array.to_list;
       ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
       ui_generic_fns = uir.uir_generic_fns;
@@ -266,8 +272,10 @@ let write_unit_info info filename =
   let raw_info = {
     uir_unit = info.ui_unit;
     uir_defines = info.ui_defines;
+    uir_arg_descr = info.ui_arg_descr;
     uir_imports_cmi = Array.of_list info.ui_imports_cmi;
     uir_imports_cmx = Array.of_list info.ui_imports_cmx;
+    uir_format = info.ui_format;
     uir_generic_fns = info.ui_generic_fns;
     uir_export_info = raw_export_info;
     uir_zero_alloc_info = Zero_alloc_info.to_raw info.ui_zero_alloc_info;
@@ -285,8 +293,15 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename =
+let save_unit_info filename ~main_module_block_format ~arg_descr =
   current_unit.ui_imports_cmi <- Env.imports();
+  (* We could have [set_main_module_block_format] and [set_arg_descr] instead
+     of passing these in as arguments but, unlike most of the state that this
+     module keeps track of, they're not values that get accumulated over time,
+     they just get computed once. (Arguably we should remove [set_export_info]
+     by the same reasoning.) *)
+  current_unit.ui_arg_descr <- arg_descr;
+  current_unit.ui_format <- main_module_block_format;
   write_unit_info current_unit filename
 
 let new_const_symbol () =

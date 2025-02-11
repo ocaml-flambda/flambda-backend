@@ -236,19 +236,14 @@ CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
    free it.  In both cases, you pass as argument the size (in bytes)
    of the block being allocated or freed.
 */
-CAMLexport void caml_alloc_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_alloc_dependent_memory (value v, mlsize_t nbytes)
 {
-  Caml_state->dependent_size += nbytes / sizeof (value);
-  Caml_state->dependent_allocated += nbytes / sizeof (value);
+  /* No-op for now */
 }
 
-CAMLexport void caml_free_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_free_dependent_memory (value v, mlsize_t nbytes)
 {
-  if (Caml_state->dependent_size < nbytes / sizeof (value)){
-    Caml_state->dependent_size = 0;
-  }else{
-    Caml_state->dependent_size -= nbytes / sizeof (value);
-  }
+  /* No-op for now */
 }
 
 /* Use this function to tell the major GC to speed up when you use
@@ -376,16 +371,16 @@ CAMLprim value caml_atomic_exchange (value ref, value v)
   return ret;
 }
 
-CAMLprim value caml_atomic_cas (value ref, value oldv, value newv)
+CAMLprim value caml_atomic_compare_exchange (value ref, value oldv, value newv)
 {
   if (caml_domain_alone()) {
     value* p = Op_val(ref);
     if (*p == oldv) {
       *p = newv;
       write_barrier(ref, 0, oldv, newv);
-      return Val_int(1);
+      return oldv;
     } else {
-      return Val_int(0);
+      return *p;
     }
   } else {
     atomic_value* p = &Op_atomic_val(ref)[0];
@@ -393,10 +388,17 @@ CAMLprim value caml_atomic_cas (value ref, value oldv, value newv)
     atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
     if (cas_ret) {
       write_barrier(ref, 0, oldv, newv);
-      return Val_int(1);
-    } else {
-      return Val_int(0);
     }
+    return oldv;
+  }
+}
+
+CAMLprim value caml_atomic_cas (value ref, value oldv, value newv)
+{
+  if (caml_atomic_compare_exchange(ref, oldv, newv) == oldv) {
+    return Val_true;
+  } else {
+    return Val_false;
   }
 }
 
@@ -415,6 +417,81 @@ CAMLprim value caml_atomic_fetch_add (value ref, value incr)
     atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
   }
   return ret;
+}
+
+CAMLprim value caml_atomic_add (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) + Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_add(p, 2*Long_val(incr)); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_sub (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) - Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_sub(p, 2*Long_val(incr)); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_land (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) & Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_and(p, incr); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_lor (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) | Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_or(p, incr); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
+}
+
+CAMLprim value caml_atomic_lxor (value ref, value incr)
+{
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    *p = Val_long(Long_val(*p) ^ Long_val(incr));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    atomic_fetch_xor(p, 2*Long_val(incr)); /* ignore the result */
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return Val_unit;
 }
 
 CAMLexport int caml_is_stack (value v)
@@ -524,7 +601,8 @@ void caml_local_realloc(void)
   CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }
 
-CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_local_reserved(mlsize_t wosize, tag_t tag,
+  reserved_t reserved)
 {
 #if defined(NATIVE_CODE) && defined(STACK_ALLOCATION)
   intnat sp = Caml_state->local_sp;
@@ -534,19 +612,24 @@ CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
   if (sp < Caml_state->local_limit)
     caml_local_realloc();
   hp = (header_t*)((char*)Caml_state->local_top + sp);
-  *hp = Make_header(wosize, tag, NOT_MARKABLE);
+  *hp = Make_header_with_reserved(wosize, tag, NOT_MARKABLE, reserved);
   return Val_hp(hp);
 #else
   if (wosize <= Max_young_wosize) {
-    return caml_alloc_small(wosize, tag);
+    return caml_alloc_small_with_reserved(wosize, tag, reserved);
   } else {
     /* The return value is initialised directly using Field.
        This is invalid if it may create major -> minor pointers.
        So, perform a minor GC to prevent this. (See caml_make_vect) */
     caml_minor_collection();
-    return caml_alloc_shr(wosize, tag);
+    return caml_alloc_shr_reserved(wosize, tag, reserved);
   }
 #endif
+}
+
+CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_local_reserved(wosize, tag, 0);
 }
 
 CAMLprim value caml_local_stack_offset(value blk)

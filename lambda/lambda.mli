@@ -74,6 +74,10 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type has_initializer =
+  | With_initializer
+  | Uninitialized
+
 (* Tail calls can close their enclosing region early *)
 type region_close =
   | Rc_normal         (* do not close region, may TCO if in tail position *)
@@ -137,6 +141,7 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
+  | Parray_element_size_in_bytes of array_kind
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -172,21 +177,27 @@ type primitive =
   | Pmulfloat of boxed_float * locality_mode
   | Pdivfloat of boxed_float * locality_mode
   | Pfloatcomp of boxed_float * float_comparison
-  | Punboxed_float_comp of boxed_float * float_comparison
+  | Punboxed_float_comp of unboxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
-  | Pmakearray_dynamic of array_kind * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode * has_initializer
+  (** For [Pmakearray_dynamic], if the array kind specifies an unboxed
+      product, the float array optimization will never apply. *)
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
-  | Parrayblit of array_set_kind
+  | Parrayblit of {
+      src_mutability : mutable_flag;
+      dst_array_set_kind : array_set_kind;
+    }
   (** For [Parrayblit], we record the [array_set_kind] of the destination
       array. We check that the source array has the same shape, but do not
-      need to know anything about its locality. *)
+      need to know anything about its locality. We do however request the
+      mutability of the source array. *)
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -298,9 +309,16 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_cas
+  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -331,6 +349,8 @@ type primitive =
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
   | Pget_header of locality_mode
+  | Ppeek of peek_or_poke
+  | Ppoke of peek_or_poke
   (* Get the header of a block. This primitive is invalid if provided with an
      immediate value.
      Note: The GC color bits in the header are not reliable except for checking
@@ -347,8 +367,8 @@ type primitive =
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
-  | Unboxed_vector of Primitive.boxed_vector
-  | Unboxed_integer of Primitive.boxed_integer
+  | Unboxed_vector of boxed_vector
+  | Unboxed_integer of boxed_integer
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
@@ -446,9 +466,9 @@ and value_kind_non_null =
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float of boxed_float
-  | Punboxed_int of boxed_integer
-  | Punboxed_vector of boxed_vector
+  | Punboxed_float of unboxed_float
+  | Punboxed_int of unboxed_integer
+  | Punboxed_vector of unboxed_vector
   | Punboxed_product of layout list
   | Pbottom
 
@@ -488,21 +508,37 @@ and constructor_shape =
         flat_suffix : flat_element list;
       }
 
+and unboxed_float = Primitive.unboxed_float =
+  | Unboxed_float64
+  | Unboxed_float32
+
+and unboxed_integer = Primitive.unboxed_integer =
+  | Unboxed_int64
+  | Unboxed_nativeint
+  | Unboxed_int32
+
+and unboxed_vector = Primitive.unboxed_vector =
+  | Unboxed_vec128
+
 and boxed_float = Primitive.boxed_float =
-  | Pfloat64
-  | Pfloat32
+  | Boxed_float64
+  | Boxed_float32
 
 and boxed_integer = Primitive.boxed_integer =
-    Pnativeint | Pint32 | Pint64
+  | Boxed_int64
+  | Boxed_nativeint
+  | Boxed_int32
 
 and boxed_vector = Primitive.boxed_vector =
-  | Pvec128
+  | Boxed_vec128
 
-and unboxed_float = boxed_float
-
-and unboxed_integer = boxed_integer
-
-and unboxed_vector = boxed_vector
+and peek_or_poke =
+  | Ppp_tagged_immediate
+  | Ppp_unboxed_float32
+  | Ppp_unboxed_float
+  | Ppp_unboxed_int32
+  | Ppp_unboxed_int64
+  | Ppp_unboxed_nativeint
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -530,14 +566,6 @@ val equal_value_kind : value_kind -> value_kind -> bool
 val equal_layout : layout -> layout -> bool
 
 val compatible_layout : layout -> layout -> bool
-
-val equal_boxed_float : boxed_float -> boxed_float -> bool
-
-val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
-
-val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
-
-val compare_boxed_vector : boxed_vector -> boxed_vector -> int
 
 val print_boxed_vector : Format.formatter -> boxed_vector -> unit
 
@@ -621,6 +649,7 @@ type zero_alloc_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                loc: Location.t;
+               custom_error_msg: string option;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;
@@ -818,24 +847,93 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
+(* A description of a parameter to be passed to the runtime representation of a
+   parameterised module, namely a function (called the instantiating functor)
+   that produces an instance when invoked. [-instantiate] reads these as
+   instructions for creating lambda terms. *)
+type runtime_param =
+  | Rp_argument_block of Global_module.t  (* [Rp_argument_block P] means take
+                                             the argument being passed for the
+                                             parameter [P] and pass in its
+                                             argument block *)
+  | Rp_main_module_block of Global_module.t
+                                          (* [Rp_main_module_block M] means that
+                                             [M] is a parameterised module (not
+                                             itself a parameter) that this
+                                             module depends on and we should
+                                             pass in the main module block of
+                                             (the relevant instantiation of)
+                                             [M]. [M] must not be complete (if
+                                             it were, it would be a compile-time
+                                             constant and therefore not needed
+                                             as a parameter). *)
+  | Rp_unit                               (* The unit value (only used when
+                                             there are no other parameters) *)
+
+(* The structure of the main module block. A module with no parameters will be
+   compiled to an [Mb_struct] and a module with at least one parameter will be
+   compiled to an [Mb_instantiating_functor]. *)
+type main_module_block_format =
+  | Mb_struct of { mb_size : int }        (* A block with [mb_size] fields *)
+  | Mb_instantiating_functor of
+      { mb_runtime_params : runtime_param list;
+        mb_returned_size : int;
+      }
+                                          (* A block with exactly one field: a
+                                             function taking [mb_runtime_params]
+                                             and returning a block with
+                                             [mb_returned_size] fields *)
+
+(* The number of words in the main module block. *)
+val main_module_block_size : main_module_block_format -> int
+
 type program =
   { compilation_unit : Compilation_unit.t;
-    main_module_block_size : int;
+    main_module_block_format : main_module_block_format;
+    arg_block_idx : int option;         (* Index of argument block (see
+                                           [arg_descr]). If
+                                           [main_module_block_format] is
+                                           [Mb_struct], this is an index into
+                                           the main module block of the
+                                           compilation unit. For
+                                           [Mb_instantiating_functor], this is
+                                           an index into the module returned by
+                                           the instantiating functor. *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
     code : lambda }
-(* Lambda code for the middle-end.
+(* Lambda code for the middle-end. Here [mbf] is the value of the
+   [main_module_block_format] field.
    * In the closure case the code is a sequence of assignments to a
-     preallocated block of size [main_module_block_size] using
+     preallocated block of size [main_module_block_size mbf] using
      (Setfield(Getpredef(compilation_unit))). The size is used to preallocate
      the block.
    * In the flambda case the code is an expression returning a block
-     value of size [main_module_block_size]. The size is used to build
+     value of size [main_module_block_size mbf]. The size is used to build
      the module root as an initialize_symbol
      Initialize_symbol(module_name, 0,
-       [getfield 0; ...; getfield (main_module_block_size - 1)])
+       [getfield 0; ...; getfield (main_module_block_size mbf - 1)])
 *)
+
+(* Info for a compilation unit that implements a parameter (that is, was
+   compiled with [-as-argument-for]). Note that if the CU is itself
+   parameterised, this information (in particular [arg_block_idx]) describes
+   instances rather than the base CU gs. *)
+type arg_descr =
+  { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
+                                           [-as-argument-for P]) *)
+    arg_block_idx: int; }               (* The index within the main module
+                                           block of the _argument block_. If
+                                           this compilation unit is used as an
+                                           argument when instantiating,
+                                           [-instantiate] will pass the argument
+                                           block to the instantiating functor
+                                           (see [main_module_block_format]). The
+                                           argument block's signature is exactly
+                                           that of the parameter, which is in
+                                           general a supertype of this
+                                           compilation unit's signature. *)
 
 (* Sharing key *)
 val make_key: lambda -> lambda option
@@ -843,6 +941,8 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
+
+val of_bool : bool -> lambda
 
 val layout_unit : layout
 val layout_int : layout
@@ -858,8 +958,8 @@ val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
 val layout_boxed_float : boxed_float -> layout
-val layout_unboxed_float : boxed_float -> layout
-val layout_boxedint : boxed_integer -> layout
+val layout_unboxed_float : unboxed_float -> layout
+val layout_boxed_int : boxed_integer -> layout
 val layout_boxed_vector : boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a tuple *)
 val layout_tuple_element : layout
@@ -945,6 +1045,8 @@ val transl_module_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
+
+val transl_address : scoped_location -> Persistent_env.address -> lambda
 
 val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
 
@@ -1086,6 +1188,11 @@ val array_ref_kind : locality_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 
+(** Any mode information in the given [array_set_kind] is ignored.  Any mode
+    in the return value always comes from the [locality_mode] parameter. *)
+val array_ref_kind_of_array_set_kind
+  : array_set_kind -> locality_mode -> array_ref_kind
+
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool
 
@@ -1096,3 +1203,12 @@ val simple_prim_on_values
 -> arity:int
 -> alloc:bool
 -> external_call_description
+
+val try_to_find_location : lambda -> scoped_location
+val try_to_find_debuginfo : lambda -> Debuginfo.t
+
+val primitive_can_raise : primitive -> bool
+
+val count_initializers_array_kind : array_kind -> int
+val ignorable_product_element_kind_involves_int :
+  ignorable_product_element_kind -> bool

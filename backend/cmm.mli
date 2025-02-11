@@ -22,6 +22,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Float
   | Vec128
   | Float32
+  | Valx2
 
 (* - [Val] denotes a valid OCaml value: either a pointer to the beginning
      of a heap block, an infix pointer if it is preceded by the correct
@@ -110,7 +111,16 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_and_add | Compare_and_swap
+type atomic_op =
+  | Fetch_and_add
+  | Add
+  | Sub
+  | Land
+  | Lor
+  | Lxor
+  | Exchange
+  | Compare_set
+  | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 
@@ -219,6 +229,31 @@ module Alloc_mode : sig
   val is_heap  : t -> bool
 end
 
+type alloc_block_kind =
+  | Alloc_block_kind_other
+  | Alloc_block_kind_closure
+  | Alloc_block_kind_float
+  | Alloc_block_kind_float32
+  | Alloc_block_kind_vec128
+  | Alloc_block_kind_boxed_int of Primitive.boxed_integer
+  | Alloc_block_kind_float_array
+  | Alloc_block_kind_float32_u_array
+  | Alloc_block_kind_int32_u_array
+  | Alloc_block_kind_int64_u_array
+  | Alloc_block_kind_vec128_u_array
+
+type alloc_dbginfo_item =
+  { alloc_words : int;
+    alloc_block_kind : alloc_block_kind;
+    alloc_dbg : Debuginfo.t }
+(** Due to Comballoc, a single Ialloc instruction may combine several
+    unrelated allocations. Their Debuginfo.t (which may differ) are stored
+    as a list of alloc_dbginfo. This list is in order of increasing memory
+    address, which is the reverse of the original allocation order. Later
+    allocations are consed to the front of this list by Comballoc. *)
+
+type alloc_dbginfo = alloc_dbginfo_item list
+
 type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
@@ -240,7 +275,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Alloc_mode.t
+  | Calloc of Alloc_mode.t * alloc_block_kind
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool }  | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -352,7 +387,9 @@ type codegen_option =
   | Assume_zero_alloc of { strict: bool; never_returns_normally: bool;
                 never_raises: bool;
                 loc: Location.t }
-  | Check_zero_alloc of { strict: bool; loc: Location.t }
+  | Check_zero_alloc of { strict: bool; loc: Location.t;
+                          custom_error_msg : string option;
+                        }
 
 type fundecl =
   { fun_name: symbol;
@@ -388,8 +425,6 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
-
-val width_in_bytes : memory_chunk -> int
 
 val ccatch :
      Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
@@ -434,3 +469,4 @@ val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 
 val caml_flambda2_invalid : string
+val is_val : machtype_component -> bool

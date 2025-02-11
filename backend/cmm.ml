@@ -20,9 +20,14 @@ type machtype_component = Cmx_format.machtype_component =
   | Float
   | Vec128
   | Float32
+  | Valx2
 
 type machtype = machtype_component array
 
+(* Note: To_cmm_expr.translate_apply0 relies on non-void
+   [machtype_component]s being singleton arrays. *)
+(* CR mshinwell/xclerc: Maybe this should be a variant type instead, or an
+   option. *)
 let typ_void = ([||] : machtype_component array)
 let typ_val = [|Val|]
 let typ_addr = [|Addr|]
@@ -33,7 +38,7 @@ let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float32     Float     Vec128
+      Addr     Float32     Float     Vec128   Valx2
        ^
        |
       Val
@@ -46,6 +51,7 @@ let typ_vec128 = [|Vec128|]
   then the result is treated as a derived pointer into the heap (i.e. [Addr]).
   (Such a result may not be live across any call site or a fatal compiler
   error will result.)
+  The order is used only in selection, Valx2 is generated after selection.
 *)
 
 let lub_component comp1 comp2 =
@@ -71,6 +77,8 @@ let lub_component comp1 comp2 =
     Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
+  | Valx2, _ | _, Valx2 ->
+    Misc.fatal_errorf "Unexpected machtype_component Valx2"
 
 let ge_component comp1 comp2 =
   match comp1, comp2 with
@@ -94,6 +102,8 @@ let ge_component comp1 comp2 =
   | Float, Float32 ->
     Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
+  | Valx2, _ | _, Valx2 ->
+    Misc.fatal_error "Unexpected machtype_component Valx2"
 
 type exttype =
   | XInt
@@ -146,7 +156,16 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_and_add | Compare_and_swap
+type atomic_op =
+  | Fetch_and_add
+  | Add
+  | Sub
+  | Land
+  | Lor
+  | Lxor
+  | Exchange
+  | Compare_set
+  | Compare_exchange
 
 type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 
@@ -243,6 +262,25 @@ module Alloc_mode = struct
     | Local -> false
 end
 
+type alloc_block_kind =
+  | Alloc_block_kind_other
+  | Alloc_block_kind_closure
+  | Alloc_block_kind_float
+  | Alloc_block_kind_float32
+  | Alloc_block_kind_vec128
+  | Alloc_block_kind_boxed_int of Primitive.boxed_integer
+  | Alloc_block_kind_float_array
+  | Alloc_block_kind_float32_u_array
+  | Alloc_block_kind_int32_u_array
+  | Alloc_block_kind_int64_u_array
+  | Alloc_block_kind_vec128_u_array
+
+type alloc_dbginfo_item =
+  { alloc_words : int;
+    alloc_block_kind : alloc_block_kind;
+    alloc_dbg : Debuginfo.t }
+type alloc_dbginfo = alloc_dbginfo_item list
+
 type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
@@ -260,7 +298,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Alloc_mode.t
+  | Calloc of Alloc_mode.t * alloc_block_kind
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -349,7 +387,9 @@ type codegen_option =
   | Assume_zero_alloc of { strict: bool; never_returns_normally: bool;
                            never_raises: bool;
                            loc: Location.t }
-  | Check_zero_alloc of { strict: bool; loc : Location.t; }
+  | Check_zero_alloc of { strict: bool; loc : Location.t;
+                          custom_error_msg : string option;
+                        }
 
 type fundecl =
   { fun_name: symbol;
@@ -378,14 +418,6 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
-
-let width_in_bytes (memory_chunk : memory_chunk) : int =
-  match memory_chunk with
-  | Byte_unsigned | Byte_signed -> 1
-  | Sixteen_unsigned | Sixteen_signed -> 2
-  | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
-  | Word_int | Word_val | Double -> 8
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
 
 let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)
@@ -569,12 +601,14 @@ let equal_machtype_component (left : machtype_component) (right : machtype_compo
   | Float, Float -> true
   | Vec128, Vec128 -> true
   | Float32, Float32 -> true
-  | Val, (Addr | Int | Float | Vec128 | Float32)
-  | Addr, (Val | Int | Float | Vec128 | Float32)
-  | Int, (Val | Addr | Float | Vec128 | Float32)
-  | Float, (Val | Addr | Int | Vec128 | Float32)
-  | Vec128, (Val | Addr | Int | Float | Float32)
-  | Float32, (Val | Addr | Int | Float | Vec128) ->
+  | Valx2, Valx2 -> true
+  | Valx2, (Val | Addr | Int | Float | Vec128 | Float32)
+  | Val, (Addr | Int | Float | Vec128 | Float32 | Valx2)
+  | Addr, (Val | Int | Float | Vec128 | Float32 | Valx2)
+  | Int, (Val | Addr | Float | Vec128 | Float32 | Valx2)
+  | Float, (Val | Addr | Int | Vec128 | Float32 | Valx2)
+  | Vec128, (Val | Addr | Int | Float | Float32 | Valx2)
+  | Float32, (Val | Addr | Int | Float | Vec128 | Valx2) ->
     false
 
 let equal_exttype left right =
@@ -739,3 +773,8 @@ let equal_integer_comparison left right =
     false
 
 let caml_flambda2_invalid = "caml_flambda2_invalid"
+
+let is_val (m: machtype_component) =
+  match m with
+  | Val -> true
+  | Addr | Int | Float | Vec128 | Float32 | Valx2 -> false

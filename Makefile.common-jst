@@ -21,7 +21,7 @@ define dune_boot_context
   (name default)
   (profile dev)
   (env (_
-    (flags (:standard -warn-error +A))
+    (flags (:standard -warn-error +A -alert -unsafe_multidomain))
     (env-vars ("OCAMLPARAM" ""))))))
 endef
 
@@ -34,7 +34,7 @@ define dune_runtime_stdlib_context
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
   (env (_
-    (flags (:standard -warn-error +A))
+    (flags (:standard -warn-error +A -alert -unsafe_multidomain))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
@@ -47,7 +47,7 @@ define dune_main_context
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/runtime_stdlib_install/lib/ocaml_runtime_stdlib")))
   (env (_
-    (flags (:standard -warn-error +A))
+    (flags (:standard -warn-error +A -alert -unsafe_multidomain))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
@@ -77,6 +77,11 @@ runtime-stdlib: boot-compiler
 	$(cpl) -R _build/install/runtime_stdlib _build/runtime_stdlib_install
 # Dune does not believe the compiler can make .cmxs unless the following file exists.
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
+
+# This target is a polling version of "make runtime-stdlib"
+.PHONY: runtime-stdlib-hacking
+runtime-stdlib-hacking: boot-compiler
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build -w $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
 
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) SYSTEM=$(SYSTEM) MODEL=$(MODEL) \

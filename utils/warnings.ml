@@ -42,6 +42,10 @@ type upstream_compat_warning =
   | Unboxed_attribute of string (* example: unboxed attribute
       on an external declaration with float# is missing. *)
 
+type name_out_of_scope_warning =
+  | Name of string
+  | Fields of { record_form : string ; fields : string list }
+
 type t =
   | Comment_start                           (*  1 *)
   | Comment_not_end                         (*  2 *)
@@ -51,7 +55,7 @@ type t =
   | Labels_omitted of string list           (*  6 *)
   | Method_override of string list          (*  7 *)
   | Partial_match of string                 (*  8 *)
-  | Missing_record_field_pattern of string  (*  9 *)
+  | Missing_record_field_pattern of { form : string ; unbound : string } (* 9 *)
   | Non_unit_statement                      (* 10 *)
   | Redundant_case                          (* 11 *)
   | Redundant_subpat                        (* 12 *)
@@ -65,7 +69,7 @@ type t =
   | Ignored_extra_argument                  (* 20 *)
   | Nonreturning_statement                  (* 21 *)
   | Preprocessor of string                  (* 22 *)
-  | Useless_record_with                     (* 23 *)
+  | Useless_record_with of string           (* 23 *)
   | Bad_module_name of string               (* 24 *)
   | All_clauses_guarded                     (* 8, used to be 25 *)
   | Unused_var of string                    (* 26 *)
@@ -83,7 +87,7 @@ type t =
   | Unused_constructor of string * constructor_usage_warning (* 37 *)
   | Unused_extension of string * bool * constructor_usage_warning (* 38 *)
   | Unused_rec_flag                         (* 39 *)
-  | Name_out_of_scope of string * string list * bool (* 40 *)
+  | Name_out_of_scope of string * name_out_of_scope_warning (* 40 *)
   | Ambiguous_name of string list * string list *  bool * string (* 41 *)
   | Disambiguated_name of string            (* 42 *)
   | Nonoptional_label of string             (* 43 *)
@@ -112,7 +116,8 @@ type t =
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
   | Match_on_mutable_state_prevent_uncurry  (* 68 *)
-  | Unused_field of string * field_usage_warning (* 69 *)
+  | Unused_field of
+      { form : string; field : string; complaint : field_usage_warning }(* 69 *)
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
@@ -121,9 +126,11 @@ type t =
   | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
+  | Zero_alloc_all_hidden_arrow of string   (* 198 *)
   | Unchecked_zero_alloc_attribute          (* 199 *)
   | Unboxing_impossible                     (* 210 *)
   | Mod_by_top of string                    (* 211 *)
+  | Unnecessary_allow_any_kind              (* 212 *)
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -155,7 +162,7 @@ let number = function
   | Ignored_extra_argument -> 20
   | Nonreturning_statement -> 21
   | Preprocessor _ -> 22
-  | Useless_record_with -> 23
+  | Useless_record_with _ -> 23
   | Bad_module_name _ -> 24
   | All_clauses_guarded -> 8 (* used to be 25 *)
   | Unused_var _ -> 26
@@ -209,9 +216,11 @@ let number = function
   | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
   | Probe_name_too_long _ -> 190
+  | Zero_alloc_all_hidden_arrow _ -> 198
   | Unchecked_zero_alloc_attribute -> 199
   | Unboxing_impossible -> 210
   | Mod_by_top _ -> 211
+  | Unnecessary_allow_any_kind -> 212
 ;;
 (* DO NOT REMOVE the ;; above: it is used by
    the testsuite/ests/warnings/mnemonics.mll test to determine where
@@ -574,6 +583,11 @@ let descriptions = [
     names = ["probe-name-too-long"];
     description = "Probe name must be at most 100 characters long.";
     since = since 4 14 };
+  { number = 198;
+    names = ["zero-alloc-all-hidden-arrow"];
+    description = "A declaration whose type is an alias of a function type \
+                   will be ignored by zero_alloc all or all_opt.";
+    since = since 4 14 };
   { number = 199;
     names = ["unchecked-zero-alloc-attribute"];
     description = "A property of a function that was \
@@ -587,6 +601,11 @@ let descriptions = [
     names = ["mod-by-top"];
     description = "Including the top-most element of an axis in a kind's modifiers is a no-op.";
     since = since 4 14 };
+  { number = 212;
+    names = ["unnecessary-allow-any-kind"];
+    description = "[@@unsafe_allow_any_kind_in_{impl,intf}] attributes included \
+                   on a type and a signature with matching kinds";
+    since = since 5 1 };
 ]
 
 let name_to_number =
@@ -955,8 +974,9 @@ let message = function
   | Partial_match s ->
       "this pattern-matching is not exhaustive.\n\
        Here is an example of a case that is not matched:\n" ^ s
-  | Missing_record_field_pattern s ->
-      "the following labels are not bound in this record pattern:\n" ^ s ^
+  | Missing_record_field_pattern { form ; unbound } ->
+      "the following labels are not bound in this " ^ form ^ " pattern:\n" ^
+      unbound ^
       "\nEither bind these labels explicitly or add '; _' to the pattern."
   | Non_unit_statement ->
       "this expression should have type unit."
@@ -985,8 +1005,8 @@ let message = function
   | Nonreturning_statement ->
       "this statement never returns (or has an unsound type.)"
   | Preprocessor s -> s
-  | Useless_record_with ->
-      "all the fields are explicitly listed in this record:\n\
+  | Useless_record_with s ->
+      "all the fields are explicitly listed in this " ^ s ^ ":\n\
        the 'with' clause is useless."
   | Bad_module_name (modname) ->
       "bad source file name: \"" ^ modname ^ "\" is not a valid module name."
@@ -1034,15 +1054,14 @@ let message = function
      end
   | Unused_rec_flag ->
       "unused rec flag."
-  | Name_out_of_scope (ty, [nm], false) ->
+  | Name_out_of_scope (ty, Name nm) ->
       nm ^ " was selected from type " ^ ty ^
       ".\nIt is not visible in the current scope, and will not \n\
        be selected if the type becomes unknown."
-  | Name_out_of_scope (_, _, false) -> assert false
-  | Name_out_of_scope (ty, slist, true) ->
-      "this record of type "^ ty ^" contains fields that are \n\
+  | Name_out_of_scope (ty, Fields { record_form ; fields }) ->
+      "this " ^ record_form ^ " of type "^ ty ^" contains fields that are \n\
        not visible in the current scope: "
-      ^ String.concat " " slist ^ ".\n\
+      ^ String.concat " " fields ^ ".\n\
        They will not be selected if the type becomes unknown."
   | Ambiguous_name ([s], tl, false, expansion) ->
       s ^ " belongs to several types: " ^ String.concat " " tl ^
@@ -1165,13 +1184,14 @@ let message = function
     "This pattern depends on mutable state.\n\
      It prevents the remaining arguments from being uncurried, which will \
      cause additional closure allocations."
-  | Unused_field (s, Unused) -> "unused record field " ^ s ^ "."
-  | Unused_field (s, Not_read) ->
-      "record field " ^ s ^
+  | Unused_field { form; field; complaint = Unused } ->
+      "unused " ^ form ^ " field " ^ field ^ "."
+  | Unused_field { form; field; complaint = Not_read } ->
+      form ^ " field " ^ field ^
       " is never read.\n\
         (However, this field is used to build or mutate values.)"
-  | Unused_field (s, Not_mutated) ->
-      "mutable record field " ^ s ^
+  | Unused_field { form; field; complaint = Not_mutated } ->
+      "mutable " ^ form ^ " field " ^ field ^
       " is never mutated."
   | Missing_mli ->
     "Cannot find interface file."
@@ -1215,6 +1235,14 @@ let message = function
       Printf.sprintf
         "This probe name is too long: `%s'. \
          Probe names must be at most 100 characters long." name
+  | Zero_alloc_all_hidden_arrow s ->
+      Printf.sprintf
+      "The type of this item is an\n\
+       alias of a function type, but the [@@@zero_alloc %s] attribute for\n\
+       this signature does not apply to it because its type is not\n\
+       syntactically a function type. If it should be checked, use an\n\
+       explicit zero_alloc attribute with an arity. If not, use an explicit\n\
+       zero_alloc ignore attribute." s
   | Unchecked_zero_alloc_attribute ->
       Printf.sprintf "the zero_alloc attribute cannot be checked.\n\
       The function it is attached to was optimized away. \n\
@@ -1229,6 +1257,10 @@ let message = function
         "%s is the top-most modifier.\n\
          Modifying by a top element is a no-op."
         modifier
+  | Unnecessary_allow_any_kind ->
+    Printf.sprintf
+      "[@@allow_any_kind_in_intf] and [@@allow_any_kind_in_impl] set on a \n\
+       type, but the kind matches. The attributes can be removed."
 ;;
 
 let nerrors = ref 0

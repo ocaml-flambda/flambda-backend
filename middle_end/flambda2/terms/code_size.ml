@@ -349,7 +349,7 @@ let unary_prim_size prim =
     match array_kind with
     | Array_kind
         ( Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints
-        | Naked_vec128s ) ->
+        | Naked_vec128s | Unboxed_product _ ) ->
       array_length_size
     | Array_kind (Naked_int32s | Naked_float32s) ->
       (* There is a dynamic check here to see if the array has an odd or even
@@ -381,7 +381,7 @@ let unary_prim_size prim =
   | End_region { ghost } | End_try_region { ghost } -> if ghost then 0 else 1
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
-  | Atomic_load _ -> 1
+  | Atomic_load _ | Peek _ -> 1
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
@@ -403,8 +403,12 @@ let binary_prim_size prim =
     binary_float_comp_primitive width cmp
   | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
-  | Atomic_exchange | Atomic_fetch_and_add ->
+  | Atomic_int_arith _ -> 1
+  | Atomic_set Immediate -> 1
+  | Atomic_exchange Immediate -> 1
+  | Atomic_exchange Any_value | Atomic_set Any_value ->
     does_not_need_caml_c_call_extcall_size
+  | Poke _ -> 1
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
@@ -414,7 +418,10 @@ let ternary_prim_size prim =
     5 (* ~ 3 block_load + 2 block_set *)
   | Bigarray_set (_dims, _kind, _layout) -> 2
   (* ~ 1 block_load + 1 block_set *)
-  | Atomic_compare_and_set -> does_not_need_caml_c_call_extcall_size
+  | Atomic_compare_and_set Immediate -> 3
+  | Atomic_compare_exchange Immediate -> 1
+  | Atomic_compare_and_set Any_value | Atomic_compare_exchange Any_value ->
+    does_not_need_caml_c_call_extcall_size
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with

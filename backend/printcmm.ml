@@ -37,6 +37,7 @@ let machtype_component ppf (ty : machtype_component) =
   | Float -> fprintf ppf "float"
   | Vec128 -> fprintf ppf "vec128"
   | Float32 -> fprintf ppf "float32"
+  | Valx2 -> fprintf ppf "valx2"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -130,8 +131,15 @@ let temporal_locality = function
   | High -> "high"
 
 let atomic_op = function
-  | Fetch_and_add -> "fetch_and_add"
-  | Compare_and_swap -> "compare_and_swap"
+  | Fetch_and_add -> "xadd"
+  | Add -> "+="
+  | Sub -> "-="
+  | Land -> "&="
+  | Lor -> "|="
+  | Lxor -> "^="
+  | Exchange -> "exchange"
+  | Compare_set -> "compare_set"
+  | Compare_exchange -> "compare_exchange"
 
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
@@ -214,8 +222,8 @@ let operation d = function
       match mutability with
       | Asttypes.Immutable -> Printf.sprintf "load %s" (chunk memory_chunk)
       | Asttypes.Mutable   -> Printf.sprintf "load_mut %s" (chunk memory_chunk))
-  | Calloc Alloc_mode.Heap -> "alloc" ^ location d
-  | Calloc Alloc_mode.Local -> "alloc_local" ^ location d
+  | Calloc (Alloc_mode.Heap,_) -> "alloc" ^ location d
+  | Calloc (Alloc_mode.Local,_) -> "alloc_local" ^ location d
   | Cstore (c, init) ->
     let init =
       match init with
@@ -420,9 +428,12 @@ let codegen_option = function
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
       (if never_raises then "_never_raises" else "")
-  | Check_zero_alloc { strict; loc = _ } ->
-    Printf.sprintf "assert_zero_alloc%s"
+  | Check_zero_alloc { strict; loc = _; custom_error_msg; } ->
+    Printf.sprintf "assert_zero_alloc%s%s"
       (if strict then "_strict" else "")
+      (match custom_error_msg with
+       | None -> ""
+       | Some msg -> Printf.sprintf " customer_error_message %S" msg)
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

@@ -72,6 +72,7 @@ and head_of_kind_value_non_null = private
   | String of String_info.Set.t
   | Array of
       { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
+        (* CR mshinwell: add support for tracking unboxed product arrays *)
         length : t;
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
@@ -808,4 +809,4 @@ module Head_of_kind_naked_vec128 :
     with type n = Vector_types.Vec128.Bit_pattern.t
     with type n_set = Vector_types.Vec128.Bit_pattern.Set.t
 
-val recover_some_aliases : t -> t
+val recover_const_alias : t -> Reg_width_const.t option

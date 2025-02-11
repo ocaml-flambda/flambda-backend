@@ -15,6 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Memory management control and statistics; finalised values. *)
@@ -45,7 +47,7 @@ type stat =
 
     heap_chunks : int;
     (** Number of contiguous pieces of memory that make up the major heap.
-        This metrics is currently not available in OCaml 5: the field value is
+        This metric is currently not available in OCaml 5: the field value is
         always [0]. *)
 
     live_words : int;
@@ -74,12 +76,12 @@ type stat =
 
     free_blocks : int;
     (** Number of blocks in the free list.
-        This metrics is currently not available in OCaml 5: the field value is
+        This metric is currently not available in OCaml 5: the field value is
         always [0]. *)
 
     largest_free : int;
     (** Size (in words) of the largest block in the free list.
-        This metrics is currently not available in OCaml 5: the field value
+        This metric is currently not available in OCaml 5: the field value
         is always [0]. *)
 
     fragments : int;
@@ -95,7 +97,7 @@ type stat =
 
     stack_size: int;
     (** Current size of the stack, in words.
-        This metrics is currently not available in OCaml 5: the field value is
+        This metric is currently not available in OCaml 5: the field value is
         always [0].
         @since 3.12 *)
 
@@ -127,7 +129,9 @@ type control =
         number is less than or equal to 1000, it is a percentage of
         the current heap size (i.e. setting it to 100 will double the heap
         size at each increase). If it is more than 1000, it is a fixed
-        number of words that will be added to the heap. Default: 15. *)
+        number of words that will be added to the heap. Default: 15.
+        This metric is currently not available in OCaml 5: the field value is
+        always [0]. *)
 
     space_overhead : int;
     (** The major GC speed is computed from this parameter.
@@ -164,7 +168,9 @@ type control =
        If [max_overhead >= 1000000], compaction is never triggered.
        On runtime4, if compaction is permanently disabled, it is strongly
        suggested to set [allocation_policy] to 2.
-       Default: 500. *)
+       Default: 500.
+       This metric is currently not available in OCaml 5: the field value is
+       always [0]. *)
 
     stack_limit : int;
     (** The maximum size of the fiber stacks (in words).
@@ -217,6 +223,9 @@ type control =
 
         Default: 2.
 
+        This metric is currently not available in OCaml 5: the field value is
+        always [0].
+
         ----------------------------------------------------------------
 
         @since 3.11 *)
@@ -226,6 +235,8 @@ type control =
         out variations in its workload. This is an integer between
         1 and 50.
         Default: 1.
+        This metric is currently not available in OCaml 5: the field value is
+        always [0].
         @since 4.03 *)
 
     custom_major_ratio : int;
@@ -248,7 +259,15 @@ type control =
         heap. Expressed as a percentage of minor heap size.
         Note: this only applies to values allocated with
         [caml_alloc_custom_mem] (e.g. bigarrays).
-        Default: 100.
+
+        The main reason to limit the size of memory held in the minor
+        heap is to avoid long minor GC pauses. Since custom values are
+        typically faster to GC than normal values (they cannot hold
+        pointers so need no scanning), an large amount of data can be
+        held by the minor heap in custom blocks without significantly
+        affecting GC time. So, by default, this value is above 100%.
+
+        Default: 400.
         @since 4.08 *)
 
     custom_minor_max_size : int;
@@ -268,7 +287,10 @@ type control =
         than this many bytes are allocated on the major heap.
         Note: this only applies to values allocated with
         [caml_alloc_custom_mem] (e.g. bigarrays).
-        Default: 70000 bytes.
+        Numbers <=100 are interpreted as percentages of the size
+        that would immediately trigger minor GC (minor heap size
+        times custom_minor_ratio).
+        Default: 10 %.
 
         @since 4.08 *)
   }
@@ -356,7 +378,9 @@ external get_minor_free : unit -> int = "caml_get_minor_free"
 
     @since 4.03 *)
 
-val finalise : ('a -> unit) -> 'a -> unit
+(* CR runtime5: We need finalisers registered on the primary domain to only ever
+   run on the primary domain. *)
+val finalise : ('a -> unit) -> 'a -> unit @@ nonportable
 (** [finalise f v] registers [f] as a finalisation function for [v].
    [v] must be heap-allocated.  [f] will be called with [v] as
    argument at some point between the first time [v] becomes unreachable
@@ -422,7 +446,7 @@ val finalise : ('a -> unit) -> 'a -> unit
    heap-allocated and non-constant except when the length argument is [0].
 *)
 
-val finalise_last : (unit -> unit) -> 'a -> unit
+val finalise_last : (unit -> unit) -> 'a -> unit @@ nonportable
 (** same as {!finalise} except the value is not given as argument. So
     you can't use the given value for the computation of the
     finalisation function. The benefit is that the function is called
@@ -442,12 +466,12 @@ val finalise_release : unit -> unit
     GC that it can launch the next finalisation function without waiting
     for the current one to return. *)
 
-type alarm
+type alarm : value mod portable uncontended
 (** An alarm is a piece of data that calls a user function at the end of
    major GC cycle.  The following functions are provided to create
    and delete alarms. *)
 
-val create_alarm : (unit -> unit) -> alarm
+val create_alarm : (unit -> unit) -> alarm @@ nonportable
 (** [create_alarm f] will arrange for [f] to be called at the end of
    major GC cycles, not caused by [f] itself, starting with the
    current cycle or the next one. [f] will run on the same domain that
@@ -485,6 +509,41 @@ val eventlog_pause : unit -> unit
 val eventlog_resume : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  val finalise :
+    ('a @ portable contended -> unit) @ portable -> 'a @ portable contended -> unit
+  (** Like {!finalise}, but can be called on any domain. In the presence of multiple
+      domains it should be assumed that any particular finaliser may be executed in any
+      of the domains.
+
+      The provided closure must be [portable] as it may run on any domain. It must take
+      its argument [contended] as the domain it's finalised on may not be the same capsule
+      that has uncontended access to it.
+
+      The provided value must be [portable] as it may have been created inside a capsule,
+      in which case it needs to cross a capsule boundary to be finalised. *)
+
+  val finalise_last : (unit -> unit) @ portable -> 'a -> unit
+  (** Like {!finalise_last}, but can be called on any domain. In the presence of multiple
+      domains it should be assumed that any particular finaliser may be executed in any
+      of the domains.
+
+      The provided closure must be [portable] as it may run on any domain.
+
+      The provided value may be [nonportable] as it is not passed to the provided closure.
+  *)
+
+  val create_alarm : (unit -> unit) @ portable -> alarm
+  (** Like {!create_alarm}, but can be called on any domain and in particular from within
+      any capsule.
+
+      The provided closure must be [portable] as it might close over data from the current
+      capsule, but will be called on the current domain, regardless of whether the current
+      domain still has uncontended access to the original capsule. *)
+end
+
 (** [Memprof] is a profiling engine which randomly samples allocated
    memory words. Every allocated word has a probability of being
    sampled equal to a configurable sampling rate. Once a block is
@@ -508,8 +567,8 @@ val eventlog_resume : unit -> unit
     similar in most regards.)
 
    *)
-module Memprof :
-  sig
+module (Memprof @ nonportable) :
+  sig @@ portable
     type t
     (** the type of a profile *)
 
@@ -560,6 +619,7 @@ module Memprof :
       ?callstack_size:int ->
       ('minor, 'major) tracker ->
       t
+      @@ nonportable
     (** Start a profile with the given parameters. Raises an exception
        if a profile is already sampling in the current domain.
 
@@ -622,6 +682,34 @@ module Memprof :
        prevents any more callbacks for it. Raises an exception if
        called on a profile which has not been stopped.
        *)
+
+    (** Submodule containing non-backwards-compatible functions which enforce thread
+        safety via modes. *)
+    module Safe : sig
+      val start :
+        sampling_rate:float ->
+        ?callstack_size:int ->
+        ('minor, 'major) tracker @ portable ->
+        t
+      (** Like {!start}, but can be called from any domain.
+
+          The provided [tracker] must be [portable] as the contained callbacks are
+          registered with the current domain, but may close over data contained in the
+          current capsule which may later move to a different domain. *)
+
+      val start' :
+        Domain.Safe.DLS.Access.t ->
+        sampling_rate:float ->
+        ?callstack_size:int ->
+        ('minor, 'major) tracker ->
+        t
+      (** Like {!start}, but can be called from any domain.
+
+          An additional [Domain.Safe.DLS.Access.t] argument is taken, which acts as a
+          witness that the closures contained in the [tracker] do not close over any
+          data from the current capsule in an unsafe way. See {!Domain.Safe.DLS.Access}
+          for more details. *)
+    end
 end
 
 
@@ -633,7 +721,7 @@ end
 
         OCAMLRUNPARAM='Xfoo=42'
     *)
-module Tweak : sig
+module (Tweak @ nonportable) : sig
   (** Change a parameter.
       Raises Invalid_argument if no such parameter exists *)
   val set : string -> int -> unit

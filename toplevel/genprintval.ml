@@ -75,6 +75,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
 
     type t = O.t
 
+    external is_null : O.t -> bool = "%is_null"
+
+    (* Normally, [Obj.is_block] can't be called on [value_or_null]s.
+       But here we need to handle nullable values at toplevel. *)
+    let is_real_block o = O.is_block o && not (is_null o)
+
     module ObjTbl = Hashtbl.Make(struct
         type t = O.t
         let equal = (==)
@@ -94,7 +100,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         let list = ref [] in
         for i = start_offset to O.size obj - 1 do
           let arg = O.field obj i in
-          if not (O.is_block arg) then
+          if is_null arg then
+            list := Oval_constr (Oide_ident (Out_name.create "<null>"), []) :: !list
+          else if not (O.is_block arg) then
             list := Oval_int (O.obj arg : int) :: !list
                (* Note: this could be a char or a constant constructor... *)
           else if O.tag arg = Obj.string_tag then
@@ -147,6 +155,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       ( Pident(Ident.create_local "print_char"),
         Simple (Predef.type_char,
                 (fun x -> Oval_char (O.obj x : char))) );
+      ( Pident(Ident.create_local "print_int8"),
+        Simple (Predef.type_int8,
+                (fun x -> Oval_int (O.obj x : int))) );
+      ( Pident(Ident.create_local "print_int16"),
+        Simple (Predef.type_int16,
+                (fun x -> Oval_int (O.obj x : int))) );
       ( Pident(Ident.create_local "print_int32"),
         Simple (Predef.type_int32,
                 (fun x -> Oval_int32 (O.obj x : int32))) );
@@ -229,7 +243,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
     and tree_of_label =
       tree_of_qualified
         (fun lid env ->
-          (Env.find_label_by_name lid env).lbl_res)
+          (Env.find_label_by_name Legacy lid env).lbl_res)
 
     (* An abstract type *)
 
@@ -249,16 +263,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Print_as_value (* can interpret as a value and print *)
       | Print_as of string (* can't print *)
 
-    let get_and_default_jkind_for_printing jkind =
-      let layout = Jkind.get_layout_defaulting_to_value jkind in
-      match layout with
-      (* CR layouts v3.0: [Value_or_null] should probably require special
-         printing to avoid descending into NULL. (This module uses
-         lots of unsafe Obj features.)
-      *)
+    let print_sort : Jkind.Sort.Const.t -> _ = function
       | Base Value -> Print_as_value
       | Base Void -> Print_as "<void>"
-      | Any -> Print_as "<any>"
       | Base (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) -> Print_as "<abstr>"
       | Product _ -> Print_as "<unboxed product>"
 
@@ -269,7 +276,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       let nested_values = ObjTbl.create 8 in
       let nest_gen err f depth obj ty =
         let repr = obj in
-        if not (O.is_block repr) then
+        if not (is_real_block repr) then
           f depth obj ty
         else
           if ObjTbl.mem nested_values repr then
@@ -303,14 +310,14 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 (tree_of_labeled_val_list 0 depth obj labeled_tys)
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_list ->
-              if O.is_block obj then
+              if is_real_block obj then
                 match check_depth depth obj ty with
                   Some x -> x
                 | None ->
                     let rec tree_of_conses tree_list depth obj ty_arg =
                       if !printer_steps < 0 || depth < 0 then
                         Oval_ellipsis :: tree_list
-                      else if O.is_block obj then
+                      else if is_real_block obj then
                         let tree =
                           nest tree_of_val (depth - 1) (O.field obj 0) ty_arg
                         in
@@ -405,7 +412,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 | {type_kind = Type_abstract _; type_manifest = Some body} ->
                     tree_of_val depth obj
                       (instantiate_type env decl.type_params ty_list body)
-                | {type_kind = Type_variant (constr_list,rep)} ->
+                | {type_kind = Type_variant (constr_list, rep, _)} ->
                   (* Here we work backwards from the actual runtime value to
                      find the appropriate `constructor_declaration` in
                      `constr_list`.  `Datarepr.find_constr_by_tag` does most
@@ -422,19 +429,32 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         ~loc:Location.none Positive path env
                     in
                     let constant, tag =
-                      if O.is_block obj
-                      then false, O.tag obj
-                      else true, O.obj obj
-                    in
-                    let {cstr_uid} =
-                      Datarepr.find_constr_by_tag ~constant tag cstrs
+                      (* CR dkalinichenko: the null case being represented
+                         by [-1] is hacky, but there's no simple fix. *)
+                      if is_null obj then
+                        true, -1
+                      else if O.is_block obj then
+                        false, O.tag obj
+                      else
+                        true, O.obj obj
                     in
                     let {cd_id;cd_args;cd_res} =
                       try
+                        (* CR dkalinichenko: this is broken for unboxed variants:
+                           unless the tag of the inner value just happens to be 0,
+                           [Datarepr.find_constr_by_tag] will fail. *)
+                        let {cstr_uid} =
+                          Datarepr.find_constr_by_tag ~constant tag cstrs
+                        in
                         List.find (fun {cd_uid} -> Uid.equal cd_uid cstr_uid)
                           constr_list
                       with
-                      | Not_found -> raise Datarepr.Constr_not_found
+                      | Datarepr.Constr_not_found | Not_found ->
+                        (* If a [Variant_with_null] is not a [Null],
+                            it's guaranteed to be [This value]. *)
+                        match rep with
+                        | Variant_with_null -> List.nth constr_list 1
+                        | _ -> raise Datarepr.Constr_not_found
                     in
                     let type_params =
                       match cd_res with
@@ -448,6 +468,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     let unbx =
                       match rep with
                       | Variant_unboxed -> true
+                      | Variant_with_null when tag = -1 -> false
+                      | Variant_with_null -> true
                       | Variant_boxed _ | Variant_extensible -> false
                     in
                     begin
@@ -457,9 +479,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             instantiate_types env type_params ty_list l in
                           let ty_args =
                             List.map2
-                              (fun { ca_jkind } ty_arg ->
-                                 (ty_arg,
-                                 get_and_default_jkind_for_printing ca_jkind)
+                              (fun { ca_sort } ty_arg ->
+                                 (ty_arg, print_sort ca_sort)
                               ) l ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
@@ -481,7 +502,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                                         (Out_name.create (Ident.name cd_id)),
                                       [ r ])
                     end
-                | {type_kind = Type_record(lbl_list, rep)} ->
+                | {type_kind = Type_record(lbl_list, rep, _)} ->
                     begin match check_depth depth obj ty with
                       Some x -> x
                     | None ->
@@ -516,6 +537,16 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         tree_of_record_fields depth
                           env path decl.type_params ty_list
                           lbl_list pos obj rep
+                    end
+                | {type_kind = Type_record_unboxed_product
+                                 (lbl_list, Record_unboxed_product, _)} ->
+                    begin match check_depth depth obj ty with
+                      Some x -> x
+                    | None ->
+                        let pos = 0 in
+                        tree_of_record_unboxed_product_fields depth
+                          env path decl.type_params ty_list
+                          lbl_list pos obj
                     end
                 | {type_kind = Type_open} ->
                     tree_of_extension path ty_list depth obj
@@ -564,12 +595,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           lbl_list pos obj rep =
         let rec tree_of_fields first pos = function
           | [] -> []
-          | {ld_id; ld_type; ld_jkind} :: remainder ->
+          | {ld_id; ld_type; ld_sort} :: remainder ->
               let ty_arg = instantiate_type env type_params ty_list ld_type in
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Jkind.is_void_defaulting ld_jkind in
+              let is_void = Jkind.Sort.Const.(equal void ld_sort) in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
@@ -604,6 +635,34 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               (lid, v) :: tree_of_fields false pos remainder
         in
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
+
+      and tree_of_record_unboxed_product_fields depth env path type_params
+            ty_list lbl_list pos obj =
+        let rec tree_of_fields first pos = function
+          | [] -> []
+          | {ld_id; ld_type; ld_sort} :: remainder ->
+              let ty_arg = instantiate_type env type_params ty_list ld_type in
+              let name = Ident.name ld_id in
+              (* PR#5722: print full module path only
+                 for first record field *)
+              let is_void = Jkind.Sort.Const.(equal void ld_sort) in
+              let lid =
+                if first then tree_of_label env path (Out_name.create name)
+                else Oide_ident (Out_name.create name)
+              and v =
+                match print_sort ld_sort with
+                | Print_as msg -> Oval_stuff msg
+                | Print_as_value ->
+                  match lbl_list with
+                  | [_] ->
+                    (* singleton unboxed records are erased *)
+                    tree_of_val (depth - 1) obj ty_arg
+                  | _ -> nest tree_of_val (depth - 1) (O.field obj pos) ty_arg
+              in
+              let pos = if is_void then pos else pos + 1 in
+              (lid, v) :: tree_of_fields false pos remainder
+        in
+        Oval_record_unboxed_product (tree_of_fields (pos = 0) pos lbl_list)
 
       and tree_of_labeled_val_list start depth obj labeled_tys =
         let rec tree_list i = function
@@ -699,8 +758,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           | _ -> assert false
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
-        let args = List.map2 (fun { ca_jkind } arg ->
-            (arg, get_and_default_jkind_for_printing ca_jkind))
+        let args = List.map2 (fun { ca_sort } arg ->
+            (arg, print_sort ca_sort))
             cstr.cstr_args args
         in
         tree_of_constr_with_args

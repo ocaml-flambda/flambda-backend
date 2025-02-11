@@ -247,6 +247,8 @@ let type_kind sub tk = match tk with
       Ptype_variant (List.map (sub.constructor_declaration sub) list)
   | Ttype_record list ->
       Ptype_record (List.map (sub.label_declaration sub) list)
+  | Ttype_record_unboxed_product list ->
+      Ptype_record_unboxed_product (List.map (sub.label_declaration sub) list)
   | Ttype_open -> Ptype_open
 
 let constructor_argument sub {ca_loc; ca_type; ca_modalities} =
@@ -392,6 +394,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
+    | Tpat_record_unboxed_product (list, closed) ->
+        Ppat_record_unboxed_product (List.map (fun (lid, _, pat) ->
+            map_loc sub lid, sub.pat sub pat) list, closed)
     | Tpat_array (am, _, list) ->
         Ppat_array (mutable_ am, List.map (sub.pat sub) list)
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
@@ -411,15 +416,14 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Pexp_coerce (sexp,
                      Option.map (sub.typ sub) cty1,
                      sub.typ sub cty2)
-    | Texp_constraint (cty, modes) ->
-      Pexp_constraint
-        (sexp,
-         Option.map (sub.typ sub) cty,
-         Typemode.untransl_mode_annots ~loc modes)
+    | Texp_constraint (cty) ->
+        Pexp_constraint (sexp, Some (sub.typ sub cty), [])
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (_, label_loc, jkind, _) ->
         Pexp_newtype (label_loc, jkind, sexp)
     | Texp_stack -> Pexp_stack sexp
+    | Texp_mode modes ->
+        Pexp_constraint (sexp, None, Typemode.untransl_mode_annots ~loc modes)
   in
   Exp.mk ~loc ~attrs desc
 
@@ -492,30 +496,27 @@ let expression sub exp =
           | Tfunction_body body ->
               (* Unlike function cases, the [exp_extra] is placed on the body
                  itself. *)
-              Pfunction_body (sub.expr sub body), None
+              Pfunction_body (sub.expr sub body),
+              { mode_annotations = []; ret_type_constraint = None; ret_mode_annotations = []}
           | Tfunction_cases
               { fc_cases = cases; fc_loc = loc; fc_exp_extra = exp_extra;
                 fc_attributes = attributes; _ }
             ->
               let cases = List.map (sub.case sub) cases in
-              let constraint_ =
+              let ret_type_constraint =
                 match exp_extra with
                 | Some (Texp_coerce (ty1, ty2)) ->
                     Some
-                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2), [])
-                | Some (Texp_constraint (Some ty, modes)) ->
-                  Some (
-                    Pconstraint (sub.typ sub ty),
-                    Typemode.untransl_mode_annots ~loc modes
-                  )
-                | Some (Texp_poly _ | Texp_newtype _) | Some (Texp_constraint (None, _))
+                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
+                | Some (Texp_constraint ty) ->
+                  Some (Pconstraint (sub.typ sub ty))
+                | Some (Texp_mode _) (* CR zqian: [Texp_mode] should be possible here *)
+                | Some (Texp_poly _ | Texp_newtype _)
                 | Some Texp_stack
                 | None -> None
               in
               let constraint_ =
-                Option.map
-                  (fun (type_constraint, mode_annotations) -> { mode_annotations; type_constraint })
-                  constraint_
+                { ret_type_constraint; mode_annotations=[]; ret_mode_annotations = [] }
               in
               Pfunction_cases (cases, loc, attributes), constraint_
         in
@@ -581,8 +582,19 @@ let expression sub exp =
         in
         Pexp_record (list, Option.map (fun (exp, _) -> sub.expr sub exp)
                              extended_expression)
+    | Texp_record_unboxed_product { fields; extended_expression; _ } ->
+        let list = Array.fold_left (fun l -> function
+            | _, Kept _ -> l
+            | _, Overridden (lid, exp) -> (lid, sub.expr sub exp) :: l)
+            [] fields
+        in
+        Pexp_record_unboxed_product
+          (list,
+           Option.map (fun (exp, _) -> sub.expr sub exp) extended_expression)
     | Texp_field (exp, lid, _label, _, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
+    | Texp_unboxed_field (exp, _, lid, _label, _) ->
+        Pexp_unboxed_field (sub.expr sub exp, map_loc sub lid)
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
@@ -696,6 +708,9 @@ let expression sub exp =
         pexp_attributes = [];
       }, [Nolabel, sub.expr sub exp])
     | Texp_src_pos -> Pexp_extension ({ txt = "src_pos"; loc }, PStr [])
+    | Texp_overwrite (exp1, exp2) ->
+        Pexp_overwrite(sub.expr sub exp1, sub.expr sub exp2)
+    | Texp_hole _ -> Pexp_hole
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs desc)

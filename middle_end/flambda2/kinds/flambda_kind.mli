@@ -154,26 +154,6 @@ module Standard_int : sig
   include Container_types.S with type t := t
 end
 
-module Standard_int_or_float : sig
-  (** The same as [Standard_int], but also permitting naked floats. *)
-  type t =
-    | Tagged_immediate
-    | Naked_immediate
-    | Naked_float32
-    | Naked_float
-    | Naked_int32
-    | Naked_int64
-    | Naked_nativeint
-
-  val of_standard_int : Standard_int.t -> t
-
-  val to_kind : t -> kind
-
-  val print_lowercase : Format.formatter -> t -> unit
-
-  include Container_types.S with type t := t
-end
-
 module Boxable_number : sig
   (** These kinds are those of the numbers for which a tailored boxed
       representation exists. *)
@@ -233,6 +213,7 @@ module With_subkind : sig
       | Unboxed_int64_array
       | Unboxed_nativeint_array
       | Unboxed_vec128_array
+      | Unboxed_product_array
 
     include Container_types.S with type t := t
   end
@@ -296,6 +277,8 @@ module With_subkind : sig
 
   val unboxed_vec128_array : t
 
+  val unboxed_product_array : t
+
   val block : Tag.t -> t list -> t
 
   val float_block : num_fields:int -> t
@@ -339,4 +322,26 @@ module Flat_suffix_element : sig
   val compare : t -> t -> int
 
   val to_kind_with_subkind : t -> With_subkind.t
+end
+
+module Standard_int_or_float : sig
+  (** The same as [Standard_int], but also permitting naked floats. *)
+  type t =
+    | Tagged_immediate
+    | Naked_immediate
+    | Naked_float32
+    | Naked_float
+    | Naked_int32
+    | Naked_int64
+    | Naked_nativeint
+
+  val of_standard_int : Standard_int.t -> t
+
+  val to_kind : t -> kind
+
+  val to_kind_with_subkind : t -> With_subkind.t
+
+  val print_lowercase : Format.formatter -> t -> unit
+
+  include Container_types.S with type t := t
 end

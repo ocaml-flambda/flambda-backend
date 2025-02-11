@@ -1,10 +1,10 @@
-open Import
-
 val append3_semi
    : Semigroup.t option
   -> Semigroup.t option
   -> Semigroup.t option
   -> Semigroup.t option
+
+val concat_string_options : string option list -> string option
 
 val concat_semi : Semigroup.t option list -> Monoid_of_semigroup.t
 

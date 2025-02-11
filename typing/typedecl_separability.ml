@@ -48,28 +48,26 @@ type type_structure =
   | Unboxed of argument_to_unbox
 
 let structure : type_definition -> type_structure = fun def ->
-  match def.type_kind with
-  | Type_open -> Open
-  | Type_abstract _ ->
+  match (def.type_kind, find_unboxed_type def) with
+  | Type_open, _ -> Open
+  | Type_abstract _, _ ->
       begin match def.type_manifest with
       | None -> Abstract
       | Some type_expr -> Synonym type_expr
       end
-  | Type_record _ | Type_variant _ ->
-      begin match find_unboxed_type def with
-      | None -> Algebraic
-      | Some ty ->
-        let params =
-          match def.type_kind with
-          | Type_variant ([{cd_res = Some ret_type}], _) ->
-             begin match get_desc ret_type with
-             | Tconstr (_, tyl, _) -> tyl
-             | _ -> assert false
-             end
-          | _ -> def.type_params
-        in
-        Unboxed { argument_type = ty; result_type_parameter_instances = params }
-      end
+  | (Type_record _ | Type_variant _), None -> Algebraic
+  | Type_record_unboxed_product _, None -> Algebraic
+  | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some ty ->
+      let params =
+        match def.type_kind with
+        | Type_variant ([{cd_res = Some ret_type}], _, _) ->
+            begin match get_desc ret_type with
+            | Tconstr (_, tyl, _) -> tyl
+            | _ -> assert false
+            end
+        | _ -> def.type_params
+      in
+      Unboxed { argument_type = ty; result_type_parameter_instances = params }
 
 type error =
   | Non_separable_evar of string option
@@ -484,8 +482,13 @@ let msig_of_external_type env decl =
     Result.is_error (Ctype.check_decl_jkind env decl
                         (Jkind.Builtin.value_or_null ~why:Separability_check))
   in
+  let type_equal = Ctype.type_equal env in
+  let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
   let is_external =
-    match Jkind.get_externality_upper_bound decl.type_jkind with
+    match
+      Jkind.get_externality_upper_bound ~type_equal ~jkind_of_type
+        decl.type_jkind
+    with
     | Internal -> false
     | External | External64 -> true
   in

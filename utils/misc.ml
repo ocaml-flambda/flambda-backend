@@ -504,13 +504,6 @@ module Stdlib = struct
   external compare : 'a -> 'a -> int = "%compare"
 
   module Monad = struct
-    module type Basic = sig
-      type 'a t
-
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-      val return : 'a -> 'a t
-    end
-
     module type Basic2 = sig
       type ('a, 'e) t
 
@@ -519,60 +512,48 @@ module Stdlib = struct
       val return : 'a -> ('a, _) t
     end
 
-    module type S = sig
+    module type Basic = sig
       type 'a t
-
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-      val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
-      val return : 'a -> 'a t
-      val map : ('a -> 'b) -> 'a t -> 'b t
-      val join : 'a t t -> 'a t
-      val ignore_m : 'a t -> unit t
-      val all : 'a t list -> 'a list t
-      val all_unit : unit t list -> unit t
+      include Basic2 with type ('a, _) t := 'a t
     end
 
     module type S2 = sig
       type ('a, 'e) t
 
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+      val (>>=) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
       val return : 'a -> ('a, _) t
       val map : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
       val join : (('a, 'e) t, 'e) t -> ('a, 'e) t
+      val both : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
       val ignore_m : (_, 'e) t -> (unit, 'e) t
       val all : ('a, 'e) t list -> ('a list, 'e) t
       val all_unit : (unit, 'e) t list -> (unit, 'e) t
+
+      module Syntax : sig
+        val (let+) : ('a, 'e) t -> ('a -> 'b) -> ('b, 'e) t
+        val (and+) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+        val (let*) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+        val (and*) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+      end
     end
 
-    module Make (X : Basic) = struct
-      include X
-
-      let ( >>= ) t f = bind t f
-
-      let map f ma = ma >>= fun a -> return (f a)
-
-      let join t = t >>= fun t' -> t'
-      let ignore_m t = map (fun _ -> ()) t
-
-      let all =
-        let rec loop vs = function
-          | [] -> return (List.rev vs)
-          | t :: ts -> t >>= fun v -> loop (v :: vs) ts
-        in
-        fun ts -> loop [] ts
-
-      let rec all_unit = function
-        | [] -> return ()
-        | t :: ts -> t >>= fun () -> all_unit ts
+    module type S = sig
+      type 'a t
+      include S2 with type ('a, _) t := 'a t
     end
 
-    module Make2 (X : Basic2) = struct
+    module[@inline] Make2 (X : Basic2) = struct
       include X
+
+      let[@inline] ( >>= ) t f = bind t f
 
       let map f m =
         bind m (fun a -> return (f a))
 
       let join m = bind m Fun.id
+
+      let both t1 t2 = t1 >>= fun t1 -> t2 >>= fun t2 -> return (t1, t2)
 
       let ignore_m m = bind m (fun _ -> return ())
 
@@ -586,7 +567,29 @@ module Stdlib = struct
       let rec all_unit = function
         | [] -> return ()
         | m :: ms -> bind m (fun _ -> all_unit ms)
+
+      module Syntax = struct
+        let[@inline] (let+) t f = map f t
+        let[@inline] (and+) a b = both a b
+        let[@inline] (let*) t f = bind t f
+        let[@inline] (and*) a b = (and+) a b
+      end
     end
+
+    module[@inline] Make (X : Basic) = struct
+      include Make2(struct
+          include X
+          type ('a, _) t = 'a X.t
+        end)
+
+      type nonrec 'a t = 'a X.t
+    end
+
+    module Identity = Make(struct
+        type 'a t = 'a
+        let[@inline] bind x f = f x
+        let[@inline] return x = x
+      end)
 
     module Option = Make(struct
         include Stdlib.Option
@@ -742,6 +745,9 @@ let protect_writing_to_file ~filename ~f =
 
 let rec log2 n =
   if n <= 1 then 0 else 1 + log2(n asr 1)
+
+let rec log2_nativeint n =
+  if n <= 1n then 0 else 1 + log2_nativeint (Nativeint.shift_right n 1)
 
 let align n a =
   if n >= 0 then (n + a - 1) land (-a) else n land (-a)
@@ -1052,6 +1058,9 @@ module Style = struct
     Format.pp_close_stag ppf ()
 
   let inline_code ppf s = as_inline_code Format.pp_print_string ppf s
+
+  let as_clflag flag printer ppf x =
+    Format.fprintf ppf "@{<inline_code>%s %a@}" flag printer x
 
   (* either prints the tag of [s] or delegates to [or_else] *)
   let mark_open_tag ~or_else s =
@@ -1660,6 +1669,14 @@ module Le_result = struct
   let is_equal = function
     | Equal -> true
     | Less | Not_le -> false
+
+  let less_or_equal ~le a b =
+    match le a b, le b a with
+    | true, true -> Equal
+    | true, false -> Less
+    | false, _ -> Not_le
+
+  let equal ~le a b = le a b && le b a
 end
 
 (*********************************************)

@@ -605,6 +605,8 @@ binop_app:
       | Naked_int64s -> Naked_int64s
       | Naked_nativeints -> Naked_nativeints
       | Naked_vec128s -> Naked_vec128s
+      | Unboxed_product _ ->
+        Misc.fatal_error "Unboxed product array ops not supported"
     in
     Binary (Array_load (ak, array_load_kind, mut), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
@@ -638,6 +640,8 @@ ternop_app:
         | Naked_int64s -> Naked_int64s
         | Naked_nativeints -> Naked_nativeints
         | Naked_vec128s -> Naked_vec128s
+        | Unboxed_product _ ->
+          Misc.fatal_error "Unboxed product array ops not supported"
       in
       Ternary (Array_set (ak, array_set_kind), arr, ix, v)
     }

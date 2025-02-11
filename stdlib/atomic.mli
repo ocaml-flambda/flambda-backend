@@ -1,3 +1,4 @@
+@@ portable
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -24,10 +25,11 @@
 *)
 
 (** An atomic (mutable) reference to a value of type ['a]. *)
-type !'a t
+type !'a t : value mod portable uncontended
 
 (** Create an atomic reference. *)
-val make : 'a -> 'a t
+val make : 'a -> 'a t @@ nonportable
+[@@alert unsafe_multidomain "Use [Atomic.Safe.make]."]
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -43,33 +45,109 @@ val make : 'a -> 'a t
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
 
-val make_contended : 'a -> 'a t
+val make_contended : 'a -> 'a t @@ nonportable
+[@@alert unsafe_multidomain "Use [Atomic.Safe.make_contended]."]
 
 (** Get the current value of the atomic reference. *)
-val get : 'a t -> 'a
+val get : 'a t -> 'a @@ nonportable
+[@@alert unsafe_multidomain "Use [Atomic.Safe.get]."]
 
 (** Set a new value for the atomic reference. *)
-val set : 'a t -> 'a -> unit
+external set : 'a t -> 'a -> unit @@ nonportable = "%atomic_set"
+[@@alert unsafe_multidomain "Use [Atomic.Safe.set]."]
 
 (** Set a new value for the atomic reference, and return the current value. *)
-val exchange : 'a t -> 'a -> 'a
+external exchange : 'a t -> 'a -> 'a @@ nonportable = "%atomic_exchange"
+[@@alert unsafe_multidomain "Use [Atomic.Safe.exchange]."]
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-val compare_and_set : 'a t -> 'a -> 'a -> bool
+external compare_and_set : 'a t -> 'a -> 'a -> bool @@ nonportable = "%atomic_cas"
+[@@alert unsafe_multidomain "Use [Atomic.Safe.compare_and_set]."]
+
+(** [compare_exchange r seen v] sets the new value of [r] to [v] only
+    if its current value is physically equal to [seen] -- the comparison
+    and the set occur atomically. Returns the previous value. *)
+external compare_exchange : 'a t -> 'a -> 'a -> 'a @@ nonportable = "%atomic_compare_exchange"
+[@@alert unsafe_multidomain "Use [Atomic.Safe.compare_exchange]."]
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
 val fetch_and_add : int t -> int -> int
 
+(** [add r i] atomically adds [i] onto [r]. *)
+val add : int t -> int -> unit
+
+(** [sub r i] atomically subtracts [i] onto [r]. *)
+val sub : int t -> int -> unit
+
+(** [logand r i] atomically bitwise-ands [i] onto [r]. *)
+val logand : int t -> int -> unit
+
+(** [logor r i] atomically bitwise-ors [i] onto [r]. *)
+val logor : int t -> int -> unit
+
+(** [logxor r i] atomically bitwise-xors [i] onto [r]. *)
+val logxor : int t -> int -> unit
+
 (** [incr r] atomically increments the value of [r] by [1]. *)
-val incr : int t -> unit
+val incr : int t -> unit @@ portable
 
 (** [decr r] atomically decrements the value of [r] by [1]. *)
-val decr : int t -> unit
+val decr : int t -> unit @@ portable
+
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig @@ portable
+  (** Like {!make}, but is safe to call in the presence of multiple domains.
+
+      The provided value must be [portable] as atomics can freely cross between domains.
+  *)
+  val make : 'a @ portable contended -> 'a t
+
+  (** Like {!make_contended}, but is safe to call in the presence of multiple domains.
+
+      The provided value must be [portable] as atomics can freely cross between domains.
+  *)
+  val make_contended : 'a @ portable contended -> 'a t
+
+  (** Like {!get}, but is safe to call in the presence of multiple domains.
+
+      The resulting value must be [contended] as the atomics can freely cross between
+      domains, so the value may come from another domain. *)
+  val get : 'a t -> 'a @ portable contended
+
+  (** Like {!set}, but is safe to call in the presence of multiple domains.
+
+      The provided value must be [portable] as atomics can freely cross between domains.
+  *)
+  external set : 'a t -> 'a @ portable contended -> unit = "%atomic_set"
+
+  (** Like {!exchange}, but is safe to call in the presence of multiple domains.
+
+      The provided value must be [portable] and the resulting value must be [contended]
+      as atomics can freely cross between domains. *)
+  external exchange
+    : 'a t -> 'a @ portable contended -> 'a @ portable contended = "%atomic_exchange"
+
+  (** Like {!compare_and_set}, but is safe to call in the presence of multiple domains.
+
+      The provided values must be [portable] as atomics can freely cross between domains.
+  *)
+  external compare_and_set :
+    'a t -> 'a @ portable contended -> 'a @ portable contended -> bool = "%atomic_cas"
+
+  (** Like {!compare_exchange}, but is safe to call in the presence of multiple domains.
+
+      The provided values must be [portable] and the resulting value must be [contended]
+      as atomics can freely cross between domains. *)
+  external compare_exchange :
+    'a t -> 'a @ portable contended -> 'a @ portable contended -> 'a @ portable contended
+    = "%atomic_compare_exchange"
+end
 
 (** {1:examples Examples}
 

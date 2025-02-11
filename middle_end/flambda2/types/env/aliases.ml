@@ -809,19 +809,11 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       ~then_:(Coercion.inverse (Simple.coercion element1_with_coercion))
   in
   if Flambda_features.check_light_invariants ()
-  then (
+  then
     if Simple.equal canonical_element1 canonical_element2
     then
       Misc.fatal_errorf "Cannot alias an element to itself: %a" Simple.print
         canonical_element1;
-    Simple.pattern_match canonical_element1
-      ~name:(fun _ ~coercion:_ -> ())
-      ~const:(fun const1 ->
-        Simple.pattern_match canonical_element2
-          ~name:(fun _ ~coercion:_ -> ())
-          ~const:(fun const2 ->
-            Misc.fatal_errorf "Cannot add alias between two consts: %a, %a"
-              Reg_width_const.print const1 Reg_width_const.print const2)));
   let open Or_bottom.Let_syntax in
   let<+ t, which_element =
     add_alias ~binding_time_resolver ~binding_times_and_modes t

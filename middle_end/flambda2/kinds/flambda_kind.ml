@@ -84,12 +84,12 @@ let to_lambda (t : t) : Lambda.layout =
   | Value -> Lambda.layout_any_value
   | Naked_number Naked_immediate ->
     Misc.fatal_error "Can't convert kind [Naked_immediate] to lambda layout"
-  | Naked_number Naked_float -> Punboxed_float Pfloat64
-  | Naked_number Naked_float32 -> Punboxed_float Pfloat32
-  | Naked_number Naked_int32 -> Punboxed_int Pint32
-  | Naked_number Naked_int64 -> Punboxed_int Pint64
-  | Naked_number Naked_nativeint -> Punboxed_int Pnativeint
-  | Naked_number Naked_vec128 -> Punboxed_vector Pvec128
+  | Naked_number Naked_float -> Punboxed_float Unboxed_float64
+  | Naked_number Naked_float32 -> Punboxed_float Unboxed_float32
+  | Naked_number Naked_int32 -> Punboxed_int Unboxed_int32
+  | Naked_number Naked_int64 -> Punboxed_int Unboxed_int64
+  | Naked_number Naked_nativeint -> Punboxed_int Unboxed_nativeint
+  | Naked_number Naked_vec128 -> Punboxed_vector Unboxed_vec128
   | Region -> Misc.fatal_error "Can't convert kind [Region] to lambda layout"
   | Rec_info ->
     Misc.fatal_error "Can't convert kind [Rec_info] to lambda layout"
@@ -414,65 +414,6 @@ module Standard_int = struct
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
 end
 
-module Standard_int_or_float = struct
-  type t =
-    | Tagged_immediate
-    | Naked_immediate
-    | Naked_float32
-    | Naked_float
-    | Naked_int32
-    | Naked_int64
-    | Naked_nativeint
-
-  let of_standard_int (t : Standard_int.t) : t =
-    match t with
-    | Tagged_immediate -> Tagged_immediate
-    | Naked_immediate -> Naked_immediate
-    | Naked_int32 -> Naked_int32
-    | Naked_int64 -> Naked_int64
-    | Naked_nativeint -> Naked_nativeint
-
-  let to_kind t : kind =
-    match t with
-    | Tagged_immediate -> Value
-    | Naked_immediate -> Naked_number Naked_immediate
-    | Naked_float32 -> Naked_number Naked_float32
-    | Naked_float -> Naked_number Naked_float
-    | Naked_int32 -> Naked_number Naked_int32
-    | Naked_int64 -> Naked_number Naked_int64
-    | Naked_nativeint -> Naked_number Naked_nativeint
-
-  include Container_types.Make (struct
-    type nonrec t = t
-
-    let print ppf t =
-      match t with
-      | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
-      | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
-      | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
-      | Naked_float -> Format.pp_print_string ppf "Naked_float"
-      | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
-      | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
-      | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
-
-    let compare = Stdlib.compare
-
-    let equal t1 t2 = compare t1 t2 = 0
-
-    let hash = Hashtbl.hash
-  end)
-
-  let print_lowercase ppf t =
-    match t with
-    | Tagged_immediate -> Format.pp_print_string ppf "tagged_immediate"
-    | Naked_immediate -> Format.pp_print_string ppf "naked_immediate"
-    | Naked_float32 -> Format.pp_print_string ppf "naked_float32"
-    | Naked_float -> Format.pp_print_string ppf "naked_float"
-    | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
-    | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
-    | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
-end
-
 module Boxable_number = struct
   type t =
     | Naked_float32
@@ -494,9 +435,9 @@ module Boxable_number = struct
   let primitive_kind t : Primitive.boxed_integer =
     match t with
     | Naked_vec128 | Naked_float | Naked_float32 -> assert false
-    | Naked_int32 -> Pint32
-    | Naked_int64 -> Pint64
-    | Naked_nativeint -> Pnativeint
+    | Naked_int32 -> Boxed_int32
+    | Naked_int64 -> Boxed_int64
+    | Naked_nativeint -> Boxed_nativeint
 
   include Container_types.Make (struct
     type nonrec t = t
@@ -586,6 +527,9 @@ module With_subkind = struct
       | Unboxed_int64_array
       | Unboxed_nativeint_array
       | Unboxed_vec128_array
+      | Unboxed_product_array
+    (* CR mshinwell: more information could be added to
+       [Unboxed_product_array] *)
 
     (* CR vlaviron: only [Value] kinds need [value_subkind] and [nullable]
        fields. We should switch this to a variant in the future to avoid
@@ -614,7 +558,8 @@ module With_subkind = struct
       | Unboxed_int32_array, Unboxed_int32_array
       | Unboxed_int64_array, Unboxed_int64_array
       | Unboxed_nativeint_array, Unboxed_nativeint_array
-      | Unboxed_vec128_array, Unboxed_vec128_array ->
+      | Unboxed_vec128_array, Unboxed_vec128_array
+      | Unboxed_product_array, Unboxed_product_array ->
         true
       | ( Variant { consts = consts1; non_consts = non_consts1 },
           Variant { consts = consts2; non_consts = non_consts2 } ) ->
@@ -665,8 +610,8 @@ module With_subkind = struct
           | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-          | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
-            ),
+          | Unboxed_int64_array | Unboxed_nativeint_array
+          | Unboxed_product_array | Unboxed_vec128_array ),
           _ ) ->
         false
 
@@ -736,6 +681,9 @@ module With_subkind = struct
         | Unboxed_vec128_array ->
           Format.fprintf ppf "%t=Unboxed_vec128_array%t" colour
             Flambda_colours.pop
+        | Unboxed_product_array ->
+          Format.fprintf ppf "%t=Unboxed_product_array%t" colour
+            Flambda_colours.pop
 
       let compare = Stdlib.compare
 
@@ -761,7 +709,7 @@ module With_subkind = struct
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
           | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
-            ),
+          | Unboxed_product_array ),
           _ ) ->
         Misc.fatal_errorf "Subkind %a is not valid for kind %a"
           Non_null_value_subkind.print value_subkind print kind
@@ -829,6 +777,8 @@ module With_subkind = struct
 
   let unboxed_vec128_array = create value Unboxed_vec128_array Non_nullable
 
+  let unboxed_product_array = create value Unboxed_product_array Non_nullable
+
   let block tag fields =
     if List.exists (fun (t : t) -> not (equal t.kind Value)) fields
     then
@@ -891,12 +841,12 @@ module With_subkind = struct
     let value_subkind : Non_null_value_subkind.t =
       match vk.raw_kind with
       | Pgenval -> Anything
-      | Pboxedfloatval Pfloat64 -> Boxed_float
-      | Pboxedfloatval Pfloat32 -> Boxed_float32
-      | Pboxedintval Pint32 -> Boxed_int32
-      | Pboxedintval Pint64 -> Boxed_int64
-      | Pboxedintval Pnativeint -> Boxed_nativeint
-      | Pboxedvectorval Pvec128 -> Boxed_vec128
+      | Pboxedfloatval Boxed_float64 -> Boxed_float
+      | Pboxedfloatval Boxed_float32 -> Boxed_float32
+      | Pboxedintval Boxed_int32 -> Boxed_int32
+      | Pboxedintval Boxed_int64 -> Boxed_int64
+      | Pboxedintval Boxed_nativeint -> Boxed_nativeint
+      | Pboxedvectorval Boxed_vec128 -> Boxed_vec128
       | Pintval -> Tagged_immediate
       | Pvariant { consts; non_consts } -> (
         match consts, non_consts with
@@ -951,14 +901,15 @@ module With_subkind = struct
       | Parrayval Pintarray -> Immediate_array
       | Parrayval Paddrarray -> Value_array
       | Parrayval Pgenarray -> Generic_array
-      | Parrayval (Punboxedfloatarray Pfloat64) -> Float_array
-      | Parrayval (Punboxedfloatarray Pfloat32) -> Unboxed_float32_array
-      | Parrayval (Punboxedintarray Pint32) -> Unboxed_int32_array
-      | Parrayval (Punboxedintarray Pint64) -> Unboxed_int64_array
-      | Parrayval (Punboxedintarray Pnativeint) -> Unboxed_nativeint_array
-      | Parrayval (Punboxedvectorarray Pvec128) -> Unboxed_vec128_array
+      | Parrayval (Punboxedfloatarray Unboxed_float64) -> Float_array
+      | Parrayval (Punboxedfloatarray Unboxed_float32) -> Unboxed_float32_array
+      | Parrayval (Punboxedintarray Unboxed_int32) -> Unboxed_int32_array
+      | Parrayval (Punboxedintarray Unboxed_int64) -> Unboxed_int64_array
+      | Parrayval (Punboxedintarray Unboxed_nativeint) ->
+        Unboxed_nativeint_array
+      | Parrayval (Punboxedvectorarray Unboxed_vec128) -> Unboxed_vec128_array
       | Parrayval (Pgcscannableproductarray _ | Pgcignorableproductarray _) ->
-        Misc.fatal_errorf "Flambda_kind.from_lambda_value_kind: unimplemented"
+        Unboxed_product_array
     in
     let nullable : Nullable.t =
       match vk.nullable with
@@ -970,12 +921,12 @@ module With_subkind = struct
   let from_lambda_values_and_unboxed_numbers_only (layout : Lambda.layout) =
     match layout with
     | Pvalue vk -> from_lambda_value_kind vk
-    | Punboxed_float Pfloat64 -> naked_float
-    | Punboxed_float Pfloat32 -> naked_float32
-    | Punboxed_int Pint32 -> naked_int32
-    | Punboxed_int Pint64 -> naked_int64
-    | Punboxed_int Pnativeint -> naked_nativeint
-    | Punboxed_vector Pvec128 -> naked_vec128
+    | Punboxed_float Unboxed_float64 -> naked_float
+    | Punboxed_float Unboxed_float32 -> naked_float32
+    | Punboxed_int Unboxed_int32 -> naked_int32
+    | Punboxed_int Unboxed_int64 -> naked_int64
+    | Punboxed_int Unboxed_nativeint -> naked_nativeint
+    | Punboxed_vector Unboxed_vec128 -> naked_vec128
     | Punboxed_product _ | Ptop | Pbottom ->
       Misc.fatal_errorf
         "Flambda_kind.from_lambda_values_and_unboxed_numbers_only: cannot \
@@ -997,7 +948,7 @@ module With_subkind = struct
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
           | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
-            ),
+          | Unboxed_product_array ),
           Non_nullable )
       | (Naked_number _ | Region | Rec_info), _, Nullable ->
         assert false
@@ -1034,7 +985,8 @@ module With_subkind = struct
       | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
       | Float_block _ | Float_array | Immediate_array | Value_array
       | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array ->
+      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+      | Unboxed_product_array ->
         true)
     | Naked_number _ | Rec_info | Region -> false
 
@@ -1054,7 +1006,7 @@ module With_subkind = struct
       | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
       | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
       | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
-      | Unboxed_vec128_array ->
+      | Unboxed_vec128_array | Unboxed_product_array ->
         true)
     | Naked_number _ | Region | Rec_info -> false
 
@@ -1077,4 +1029,70 @@ module Flat_suffix_element = struct
     | Naked_int64 -> With_subkind.naked_int64
     | Naked_nativeint -> With_subkind.naked_nativeint
     | Naked_vec128 -> With_subkind.naked_vec128
+end
+
+module Standard_int_or_float = struct
+  type t =
+    | Tagged_immediate
+    | Naked_immediate
+    | Naked_float32
+    | Naked_float
+    | Naked_int32
+    | Naked_int64
+    | Naked_nativeint
+
+  let of_standard_int (t : Standard_int.t) : t =
+    match t with
+    | Tagged_immediate -> Tagged_immediate
+    | Naked_immediate -> Naked_immediate
+    | Naked_int32 -> Naked_int32
+    | Naked_int64 -> Naked_int64
+    | Naked_nativeint -> Naked_nativeint
+
+  let to_kind t : kind =
+    match t with
+    | Tagged_immediate -> Value
+    | Naked_immediate -> Naked_number Naked_immediate
+    | Naked_float32 -> Naked_number Naked_float32
+    | Naked_float -> Naked_number Naked_float
+    | Naked_int32 -> Naked_number Naked_int32
+    | Naked_int64 -> Naked_number Naked_int64
+    | Naked_nativeint -> Naked_number Naked_nativeint
+
+  include Container_types.Make (struct
+    type nonrec t = t
+
+    let print ppf t =
+      match t with
+      | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
+      | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
+      | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
+      | Naked_float -> Format.pp_print_string ppf "Naked_float"
+      | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
+      | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
+      | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
+
+    let compare = Stdlib.compare
+
+    let equal t1 t2 = compare t1 t2 = 0
+
+    let hash = Hashtbl.hash
+  end)
+
+  let print_lowercase ppf t =
+    match t with
+    | Tagged_immediate -> Format.pp_print_string ppf "tagged_immediate"
+    | Naked_immediate -> Format.pp_print_string ppf "naked_immediate"
+    | Naked_float32 -> Format.pp_print_string ppf "naked_float32"
+    | Naked_float -> Format.pp_print_string ppf "naked_float"
+    | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
+    | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
+    | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
+
+  let to_kind_with_subkind t =
+    match t with
+    | Tagged_immediate -> With_subkind.tagged_immediate
+    | Naked_immediate | Naked_float32 | Naked_float | Naked_int32 | Naked_int64
+    | Naked_nativeint ->
+      With_subkind.anything (to_kind t)
 end

@@ -18,7 +18,8 @@ type maturity =
 type _ t =
   | Comprehensions : unit t
   | Mode : maturity t
-  | Unique : unit t
+  | Unique : maturity t
+  | Overwriting : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t

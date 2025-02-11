@@ -197,6 +197,7 @@ let print_out_string ppf s =
   else
     fprintf ppf "%S" s
 
+(* We cannot use the [float32] type in the compiler. *)
 external float32_format : string -> Obj.t -> string = "caml_format_float32"
 
 let float32_to_string f = Stdlib.valid_float_lexem (float32_format "%.9g" f)
@@ -277,6 +278,8 @@ let print_out_value ppf tree =
     | Oval_stuff s -> pp_print_string ppf s
     | Oval_record fel ->
         fprintf ppf "@[<1>{%a}@]" (cautious (print_fields true)) fel
+    | Oval_record_unboxed_product fel ->
+        fprintf ppf "@[<1>#{%a}@]" (cautious (print_fields true)) fel
     | Oval_ellipsis -> raise Ellipsis
     | Oval_printer f -> f ppf
     | Oval_tuple tree_list ->
@@ -339,50 +342,6 @@ let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
-let print_out_jkind_const ppf ojkind =
-  let rec pp_element ~nested ppf (ojkind : Outcometree.out_jkind_const) =
-    match ojkind with
-    | Ojkind_const_default -> fprintf ppf "_"
-    | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
-    | Ojkind_const_mod (base, modes) ->
-      Misc.pp_parens_if nested (fun ppf (base, modes) ->
-        fprintf ppf "%a mod @[%a@]" (pp_element ~nested:true) base
-          (pp_print_list
-              ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
-              (fun ppf -> fprintf ppf "%s"))
-          modes
-      ) ppf (base, modes)
-    | Ojkind_const_product ts ->
-      let pp_sep ppf () = Format.fprintf ppf "@ & " in
-      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
-    | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
-      failwith "XXX unimplemented jkind syntax"
-  in
-  pp_element ~nested:false ppf ojkind
-
-let print_out_jkind ppf ojkind =
-  let rec pp_element ~nested ppf ojkind =
-    match ojkind with
-    | Ojkind_var v -> fprintf ppf "%s" v
-    | Ojkind_const jkind -> print_out_jkind_const ppf jkind
-    | Ojkind_product ts ->
-      let pp_sep ppf () = Format.fprintf ppf "@ & " in
-      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
-  in
-  pp_element ~nested:false ppf ojkind
-
-let print_out_jkind_annot ppf = function
-  | None -> ()
-  | Some lay -> fprintf ppf "@ : %a" print_out_jkind lay
-
-let pr_var_jkind ppf (v, l) = match l with
-    | None -> pr_var ppf v
-    | Some lay -> fprintf ppf "(%a : %a)"
-                    pr_var v
-                    print_out_jkind lay
-
-let pr_var_jkinds =
-  print_list pr_var_jkind (fun ppf -> fprintf ppf "@ ")
 
 (* NON-LEGACY MODES
   Here, we are printing mode annotations even if the mode extension is
@@ -583,7 +542,8 @@ and print_out_type_3 ppf =
       pp_close_box ppf ()
   | Otyp_abstract | Otyp_open
   | Otyp_sum _ | Otyp_manifest (_, _) -> ()
-  | Otyp_record lbls -> print_record_decl ppf lbls
+  | Otyp_record lbls -> print_record_decl ~unboxed:false ppf lbls
+  | Otyp_record_unboxed_product lbls -> print_record_decl ~unboxed:true ppf lbls
   | Otyp_module (p, fl) ->
       fprintf ppf "@[<1>(module %a" print_ident p;
       let first = ref true in
@@ -605,9 +565,10 @@ and print_out_type ppf typ =
   print_out_type_0 ppf typ
 and print_simple_out_type ppf typ =
   print_out_type_3 ppf typ
-and print_record_decl ppf lbls =
-  fprintf ppf "{%a@;<1 -2>}"
-    (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
+and print_record_decl ~unboxed ppf lbls =
+  let hash = if unboxed then "#" else "" in
+  fprintf ppf "%s{%a@;<1 -2>}"
+    hash (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
 and print_fields open_row ppf =
   function
     [] ->
@@ -653,6 +614,85 @@ and print_out_label ppf (name, mut, arg, gbl) =
     print_lident name
     print_out_type arg
     print_out_modalities_new m_new
+
+and print_out_jkind_const ppf ojkind =
+  let rec pp_element ~nested ppf (ojkind : Outcometree.out_jkind_const) =
+    (* HACK: we strip off the [Ojkind_const_with]s and convert them to a [string string
+       list] so we can sort them lexicographically, because otherwise the order of printed
+       [with]s is nondeterministic. This is sad, but we'd need deterministic sorting of
+       types to work around it.
+
+       CR aspsmith: remove this if we ever add deterministic, semantic type comparison
+    *)
+    let rec strip_withs ojkind =
+      match ojkind with
+      | Ojkind_const_with (base, ty, modalities) ->
+        let base, withs = strip_withs base in
+        let with_ =
+          Format.asprintf "%a" print_out_type ty
+          :: (match modalities with
+            | [] -> []
+            | modalities -> "@@" :: modalities)
+        in
+        base, with_ :: withs
+      | base -> base, []
+    in
+    let base, withs = strip_withs ojkind in
+    (match base with
+    | Ojkind_const_default -> fprintf ppf "_"
+    | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
+    | Ojkind_const_mod (base, modes) ->
+      Misc.pp_parens_if nested (fun ppf (base, modes) ->
+        fprintf ppf "%a mod @[%a@]" (pp_element ~nested:true) base
+          (pp_print_list
+              ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
+              (fun ppf -> fprintf ppf "%s"))
+          modes
+      ) ppf (base, modes)
+    | Ojkind_const_product ts ->
+      let pp_sep ppf () = Format.fprintf ppf "@ & " in
+      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
+    | Ojkind_const_with _ -> failwith "XXX unreachable (stripped off earlier)"
+    | Ojkind_const_kind_of _ ->
+      failwith "XXX unimplemented jkind syntax");
+    let withs = List.sort (List.compare String.compare) withs in
+    match withs with
+    | [] -> ()
+    | withs ->
+      pp_print_list
+        (fun ppf ->
+           Format.fprintf ppf "@ @[with %a@]"
+             (pp_print_list
+                ~pp_sep:(fun ppf () -> fprintf ppf " ")
+                (fun ppf -> Format.fprintf ppf "%s")))
+        ppf
+        withs
+  in
+  pp_element ~nested:false ppf ojkind
+
+and print_out_jkind ppf ojkind =
+  let rec pp_element ~nested ppf ojkind =
+    match ojkind with
+    | Ojkind_var v -> fprintf ppf "%s" v
+    | Ojkind_const jkind -> print_out_jkind_const ppf jkind
+    | Ojkind_product ts ->
+      let pp_sep ppf () = Format.fprintf ppf "@ & " in
+      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
+  in
+  pp_element ~nested:false ppf ojkind
+
+and print_out_jkind_annot ppf = function
+  | None -> ()
+  | Some lay -> fprintf ppf "@ : %a" print_out_jkind lay
+
+and pr_var_jkind ppf (v, l) = match l with
+    | None -> pr_var ppf v
+    | Some lay -> fprintf ppf "(%a : %a)"
+                    pr_var v
+                    print_out_jkind lay
+
+and pr_var_jkinds jks =
+  print_list pr_var_jkind (fun ppf -> fprintf ppf "@ ") jks
 
 let out_label = ref print_out_label
 
@@ -971,12 +1011,21 @@ and print_out_type_decl kwd ppf td =
   let print_unboxed ppf =
     if td.otype_unboxed then fprintf ppf " [%@%@unboxed]" else ()
   in
+  let print_or_null_reexport ppf =
+    if td.otype_or_null_reexport then
+      fprintf ppf " [%@%@or_null_reexport]"
+    else ()
+  in
   let print_out_tkind ppf = function
   | Otyp_abstract -> ()
   | Otyp_record lbls ->
       fprintf ppf " =%a %a"
         print_private td.otype_private
-        print_record_decl lbls
+        (print_record_decl ~unboxed:false) lbls
+  | Otyp_record_unboxed_product lbls ->
+      fprintf ppf " =%a %a"
+        print_private td.otype_private
+        (print_record_decl ~unboxed:true) lbls
   | Otyp_sum constrs ->
     let variants fmt constrs =
         if constrs = [] then fprintf fmt "|" else
@@ -992,12 +1041,17 @@ and print_out_type_decl kwd ppf td =
         print_private td.otype_private
         !out_type ty
   in
-  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t@]"
+  let print_out_attrs ppf =
+    List.iter (fun a -> fprintf ppf "@ [@@@@%s]" a.oattr_name)
+  in
+  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t%t@]%a"
     print_name_params
     print_out_jkind_annot td.otype_jkind
     print_out_tkind ty
     print_constraints
     print_unboxed
+    print_or_null_reexport
+    print_out_attrs td.otype_attributes
 
 and print_simple_out_gf_type ppf (ty, gf) =
   let m_legacy, m_new = partition_modalities gf in

@@ -223,6 +223,8 @@ module T = struct
     | Ptype_variant l ->
         Ptype_variant (List.map (sub.constructor_declaration sub) l)
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
+    | Ptype_record_unboxed_product l ->
+        Ptype_record_unboxed_product (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
   let map_constructor_argument sub x =
@@ -485,9 +487,10 @@ module E = struct
     | Pcoerce (ty1, ty2) ->
         Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2)
 
-  let map_function_constraint sub { mode_annotations; type_constraint } =
+  let map_function_constraint sub { mode_annotations; ret_type_constraint; ret_mode_annotations } =
     { mode_annotations = sub.modes sub mode_annotations;
-      type_constraint = map_type_constraint sub type_constraint;
+      ret_type_constraint = Option.map (map_type_constraint sub) ret_type_constraint;
+      ret_mode_annotations = sub.modes sub ret_mode_annotations
     }
 
   let map_iterator sub = function
@@ -532,7 +535,7 @@ module E = struct
     | Pexp_function (ps, c, b) ->
       function_ ~loc ~attrs
         (List.map (map_function_param sub) ps)
-        (map_opt (map_function_constraint sub) c)
+        (map_function_constraint sub c)
         (map_function_body sub b)
     | Pexp_apply (e, l) ->
         apply ~loc ~attrs (sub.expr sub e) (List.map (map_snd (sub.expr sub)) l)
@@ -550,8 +553,14 @@ module E = struct
     | Pexp_record (l, eo) ->
         record ~loc ~attrs (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
           (map_opt (sub.expr sub) eo)
+    | Pexp_record_unboxed_product (l, eo) ->
+        record_unboxed_product ~loc ~attrs
+          (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
+          (map_opt (sub.expr sub) eo)
     | Pexp_field (e, lid) ->
         field ~loc ~attrs (sub.expr sub e) (map_loc sub lid)
+    | Pexp_unboxed_field (e, lid) ->
+        unboxed_field ~loc ~attrs (sub.expr sub e) (map_loc sub lid)
     | Pexp_setfield (e1, lid, e2) ->
         setfield ~loc ~attrs (sub.expr sub e1) (map_loc sub lid)
           (sub.expr sub e2)
@@ -605,6 +614,8 @@ module E = struct
     | Pexp_unreachable -> unreachable ~loc ~attrs ()
     | Pexp_stack e -> stack ~loc ~attrs (sub.expr sub e)
     | Pexp_comprehension c -> comprehension ~loc ~attrs (map_cexp sub c)
+    | Pexp_overwrite (e1, e2) -> overwrite ~loc ~attrs (sub.expr sub e1) (sub.expr sub e2)
+    | Pexp_hole -> hole ~loc ~attrs ()
 
   let map_binding_op sub {pbop_op; pbop_pat; pbop_exp; pbop_loc} =
     let open Exp in
@@ -643,6 +654,9 @@ module P = struct
     | Ppat_variant (l, p) -> variant ~loc ~attrs l (map_opt (sub.pat sub) p)
     | Ppat_record (lpl, cf) ->
         record ~loc ~attrs
+               (List.map (map_tuple (map_loc sub) (sub.pat sub)) lpl) cf
+    | Ppat_record_unboxed_product (lpl, cf) ->
+        record_unboxed_product ~loc ~attrs
                (List.map (map_tuple (map_loc sub) (sub.pat sub)) lpl) cf
     | Ppat_array (mut, pl) -> array ~loc ~attrs mut (List.map (sub.pat sub) pl)
     | Ppat_or (p1, p2) -> or_ ~loc ~attrs (sub.pat sub p1) (sub.pat sub p2)
@@ -778,12 +792,13 @@ let default_mapper =
     binding_op = E.map_binding_op;
 
     module_declaration =
-      (fun this {pmd_name; pmd_type; pmd_attributes; pmd_loc} ->
+      (fun this {pmd_name; pmd_type; pmd_modalities; pmd_attributes; pmd_loc} ->
          Md.mk
            (map_loc this pmd_name)
            (this.module_type this pmd_type)
            ~attrs:(this.attributes this pmd_attributes)
            ~loc:(this.location this pmd_loc)
+           ~modalities:(this.modalities this pmd_modalities)
       );
 
     module_substitution =
@@ -931,8 +946,8 @@ let default_mapper =
         | Abbreviation (s : string) -> Abbreviation s
         | Mod (t, mode_list) ->
           Mod (this.jkind_annotation this t, this.modes this mode_list)
-        | With (t, ty) ->
-          With (this.jkind_annotation this t, this.typ this ty)
+        | With (t, ty, modalities) ->
+          With (this.jkind_annotation this t, this.typ this ty, this.modalities this modalities)
         | Kind_of ty -> Kind_of (this.typ this ty)
         | Product ts -> Product (List.map (this.jkind_annotation this) ts)
       in

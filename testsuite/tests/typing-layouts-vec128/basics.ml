@@ -114,7 +114,7 @@ Line 1, characters 26-27:
 1 | let f4_1 (x : t_vec128) = x, false;;
                               ^
 Error: This expression has type "t_vec128"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_vec128 is vec128
          because of the definition of t_vec128 at line 1, characters 0-22.
        But the layout of t_vec128 must be a sublayout of value
@@ -127,7 +127,7 @@ Line 1, characters 32-33:
 1 | let f4_2 (x : 'a t_vec128_id) = x, false;;
                                     ^
 Error: This expression has type "'a t_vec128_id" = "('a : vec128)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_vec128_id is vec128
          because of the definition of t_vec128_id at line 2, characters 0-35.
        But the layout of 'a t_vec128_id must be a sublayout of value
@@ -140,7 +140,7 @@ Line 1, characters 26-27:
 1 | let f4_3 (x : int64x2#) = x, false;;
                               ^
 Error: This expression has type "int64x2#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
          because it is the primitive type int64x2#.
        But the layout of int64x2# must be a sublayout of value
@@ -214,14 +214,9 @@ type t5_2' = { y : string; x : t_vec128 };;
 type t5_2' = { y : string; x : t_vec128; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_vec128 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-26:
-1 | type t5_3 = { x : t_vec128 } [@@unboxed];;
-                  ^^^^^^^^^^^^
-Error: Type "t_vec128" has layout "vec128".
-       Unboxed records may not yet contain types of this layout.
+type t5_3 = { x : t_vec128; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_vec128;;
@@ -255,20 +250,12 @@ Error: Expected all flat constructor arguments after non-value argument, "
 
 type t5_6 = A of t_vec128 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-25:
-1 | type t5_6 = A of t_vec128 [@@unboxed];;
-                ^^^^^^^^^^^^^
-Error: Type "t_vec128" has layout "vec128".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_vec128 [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_vec128 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-33:
-1 | type t5_6_1 = A of { x : t_vec128 } [@@unboxed];;
-                         ^^^^^^^^^^^^
-Error: Type "t_vec128" has layout "vec128".
-       Unboxed inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_vec128; } [@@unboxed]
 |}];;
 
 (****************************************************)
@@ -320,7 +307,7 @@ Line 1, characters 29-30:
 1 | let f7_1 (x : t_vec128) = `A x;;
                                  ^
 Error: This expression has type "t_vec128"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_vec128 is vec128
          because of the definition of t_vec128 at line 1, characters 0-22.
        But the layout of t_vec128 must be a sublayout of value
@@ -333,7 +320,7 @@ Line 1, characters 35-36:
 1 | let f7_2 (x : 'a t_vec128_id) = `A x;;
                                        ^
 Error: This expression has type "'a t_vec128_id" = "('a : vec128)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_vec128_id is vec128
          because of the definition of t_vec128_id at line 2, characters 0-35.
        But the layout of 'a t_vec128_id must be a sublayout of value
@@ -346,7 +333,7 @@ Line 1, characters 29-30:
 1 | let f7_3 (x : int64x2#) = `A x;;
                                  ^
 Error: This expression has type "int64x2#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
          because it is the primitive type int64x2#.
        But the layout of int64x2# must be a sublayout of value
@@ -398,7 +385,7 @@ Line 1, characters 20-38:
 1 | let x8_1 = id_value (make_t_vec128 ());;
                         ^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t_vec128"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_vec128 is vec128
          because of the definition of t_vec128 at line 1, characters 0-22.
        But the layout of t_vec128 must be a sublayout of value
@@ -411,7 +398,7 @@ Line 1, characters 20-41:
 1 | let x8_2 = id_value (make_t_vec128_id ());;
                         ^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a t_vec128_id" = "('a : vec128)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_vec128_id is vec128
          because of the definition of t_vec128_id at line 2, characters 0-35.
        But the layout of 'a t_vec128_id must be a sublayout of value
@@ -424,7 +411,7 @@ Line 1, characters 20-36:
 1 | let x8_3 = id_value (make_int64u ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type "int64x2#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
          because it is the primitive type int64x2#.
        But the layout of int64x2# must be a sublayout of value
@@ -698,7 +685,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_vec128"
        The layout of t_vec128 is vec128
          because of the definition of t_vec128 at line 1, characters 0-22.

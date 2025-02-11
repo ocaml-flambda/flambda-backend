@@ -225,31 +225,53 @@ modules in the `janestreet_shims` library.)
 The unboxed product layout describes types that work like normal products (e.g.,
 tuples or records), but which are represented without a box.
 
-In OCaml, a tuple is a pointer to a block containg the elements of the tuple. If
+In OCaml, a tuple is a pointer to a block containing the elements of the tuple. If
 you pass a tuple to a function, it is passed by reference in one register. The
-function can access the tuple's elements through the pointer. By contrast, an
+function can access the tuple's elements through the pointer. Records and
+their fields are treated similarly. By contrast, an
 unboxed product does not refer to a block at all. When used as a function
 argument or return type, its elements are passed separately in their own
-registers, with no indirection (or on the call stack, if the tuple has more
+registers, with no indirection (or on the call stack, if the product has more
 elements than there are available registers).
 
-Currently the only types that have unboxed product layouts are *unboxed tuples*.
-Unboxed tuples are written `#(...)`. So, for example, you can write:
+Currently, types that have unboxed product layouts are *unboxed tuples* and
+*unboxed records*.
+
+Unboxed tuples are written `#(...)`, and may have labels just like normal tuples.
+So, for example, you can write:
 ```ocaml
 module Flipper : sig
-  val flip : #(int * float# * string) -> #(string * float# * int)
+  val flip : #(int * float# * lbl:string) -> #(lbl:string * float# * int)
 end = struct
-  let flip #(x,y,z) = #(z,y,x)
+  let flip #(x,y,~lbl:z) = #(~lbl:z,y,x)
 end
 ```
-Unboxed tuples may have labels just like normal tuples. There are no limitations
-on the layouts of the elements of unboxed tuples, and they may be nested within
-themselves.
 
-*Limitations and future plans*: Unboxed tuples may not currently placed in
-blocks. We plan to lift this restriction in the near future. We also plan to add
-other types with unboxed product layouts (e.g., unboxed records and interior
-pointers).
+Unboxed records are defined, constructed, and matched on like normal records, but with
+a leading hash. Fields are projected with `.#`. For example:
+```ocaml
+type t = #{ f : float# ; s : string }
+let inc #{ f ; s } = #{ f = Float_u.add f #1.0 ; s }
+let get_s t = t.#s
+```
+
+The field names of unboxed records occupy a different namespace from the
+field names of "normal" (including `[@@unboxed]`) records.
+
+Unboxed tuples and records may be nested within other unboxed tuples and records.
+There are no limitations on the layouts of the elements of unboxed tuples, but the fields
+of unboxed records must be representable.
+
+*Limitations and future plans*:
+* Unboxed products may not currently placed in blocks.
+  We plan to lift this restriction in the near future.
+* Unboxed record fields may not be mutable.
+  We plan to allow mutating unboxed records within boxed records
+  (the design will differ from boxed record mutability, as unboxed types don't have the
+  same notion of identity).
+* Unboxed record fields must be representable.
+  We plan to lift this restriction in the future.
+* We plan to add other types with unboxed product layouts (e.g., interior pointers).
 
 # The `any` layout
 

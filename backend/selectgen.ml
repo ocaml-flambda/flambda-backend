@@ -209,7 +209,13 @@ class virtual selector_generic =
         (* Inversion addr/datum in Istore *)
       | Cdls_get, _ -> Idls_get, args
       | Cpoll, _ -> Ipoll { return_label = None }, args
-      | Calloc mode, _ -> Ialloc { bytes = 0; dbginfo = []; mode }, args
+      | Calloc (mode, alloc_block_kind), _ ->
+        let placeholder_for_alloc_block_kind =
+          { alloc_words = 0; alloc_block_kind; alloc_dbg = Debuginfo.none }
+        in
+        ( Ialloc
+            { bytes = 0; dbginfo = [placeholder_for_alloc_block_kind]; mode },
+          args )
       | Caddi, _ -> self#select_arith_comm Iadd args
       | Csubi, _ -> self#select_arith Isub args
       | Cmuli, _ -> self#select_arith_comm Imul args
@@ -241,23 +247,28 @@ class virtual selector_generic =
       | Cdivf w, _ -> Ifloatop (w, Idivf), args
       | Creinterpret_cast cast, _ -> Ireinterpret_cast cast, args
       | Cstatic_cast cast, _ -> Istatic_cast cast, args
-      | Catomic { op = Fetch_and_add; size }, [src; dst] ->
+      | ( Catomic
+            { op =
+                (Exchange | Fetch_and_add | Add | Sub | Land | Lor | Lxor) as op;
+              size
+            },
+          [src; dst] ) ->
         let dst_size =
           match size with
           | Word | Sixtyfour -> Word_int
           | Thirtytwo -> Thirtytwo_signed
         in
         let addr, eloc = self#select_addressing dst_size dst in
-        Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc]
-      | Catomic { op = Compare_and_swap; size }, [compare_with; set_to; dst] ->
+        Iintop_atomic { op; size; addr }, [src; eloc]
+      | ( Catomic { op = (Compare_set | Compare_exchange) as op; size },
+          [compare_with; set_to; dst] ) ->
         let dst_size =
           match size with
           | Word | Sixtyfour -> Word_int
           | Thirtytwo -> Thirtytwo_signed
         in
         let addr, eloc = self#select_addressing dst_size dst in
-        ( Iintop_atomic { op = Compare_and_swap; size; addr },
-          [compare_with; set_to; eloc] )
+        Iintop_atomic { op; size; addr }, [compare_with; set_to; eloc]
       | Cprobe { name; handler_code_sym; enabled_at_init }, _ ->
         Iprobe { name; handler_code_sym; enabled_at_init }, args
       | Cprobe_is_enabled { name }, _ -> Iprobe_is_enabled { name }, []
@@ -412,14 +423,14 @@ class virtual selector_generic =
           self#insert_move_results env loc_res rd stack_ofs;
           Select_utils.set_traps_for_raise env;
           if returns then ret rd else None
-        | Ialloc { bytes = _; mode } ->
+        | Ialloc { bytes = _; mode; dbginfo = [placeholder] } ->
           let rd = self#regs_for typ_val in
           let bytes = Select_utils.size_expr env (Ctuple new_args) in
           let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
           let op =
             Mach.Ialloc
               { bytes = alloc_words * Arch.size_addr;
-                dbginfo = [{ alloc_words; alloc_dbg = dbg }];
+                dbginfo = [{ placeholder with alloc_words; alloc_dbg = dbg }];
                 mode
               }
           in
@@ -428,6 +439,10 @@ class virtual selector_generic =
           self#emit_stores env dbg new_args rd;
           Select_utils.set_traps_for_raise env;
           ret rd
+        | Ialloc { bytes = _; mode = _; dbginfo } ->
+          Misc.fatal_errorf
+            "Selection Ialloc: expected a single placehold in dbginfo, found %d"
+            (List.length dbginfo)
         | Iprobe _ ->
           let r1 = self#emit_tuple env new_args in
           let rd = self#regs_for ty in

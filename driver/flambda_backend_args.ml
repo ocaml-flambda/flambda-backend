@@ -60,6 +60,11 @@ let mk_vectorize f =
 let mk_no_vectorize f =
   "-no-vectorize", Arg.Unit f, " Disable vectorizer (EXPERIMENTAL)"
 
+let mk_vectorize_max_block_size f =
+  "-vectorize-max-block-size", Arg.Int f,
+  Printf.sprintf "<n>  Only CFG block with at most n IR instructions will be vectorized \
+                  (default %d)" Flambda_backend_flags.default_vectorize_max_block_size
+
 let mk_dvectorize f =
   "-dvectorize", Arg.Unit f, " (undocumented)"
 ;;
@@ -130,10 +135,15 @@ let mk_heap_reduction_threshold f =
 ;;
 
 let mk_zero_alloc_check f =
-  let annotations = Zero_alloc_annotations.(List.map to_string all) in
+  let annotations = Zero_alloc_annotations.Check.(List.map to_string all) in
   "-zero-alloc-check", Arg.Symbol (annotations, f),
   " Check that annotated functions do not allocate \
-   and do not have indirect calls. "^Zero_alloc_annotations.doc
+   and do not have indirect calls. "^Zero_alloc_annotations.Check.doc
+
+let mk_zero_alloc_assert f =
+  let annotations = Zero_alloc_annotations.Assert.(List.map to_string all) in
+  "-zero-alloc-assert", Arg.Symbol (annotations, f),
+  " Add zero_alloc annotations to all functions."^Zero_alloc_annotations.Assert.doc
 
 let mk_dzero_alloc f =
   "-dzero-alloc", Arg.Unit f, " (undocumented)"
@@ -710,6 +720,7 @@ module type Flambda_backend_options = sig
 
   val vectorize : unit -> unit
   val no_vectorize : unit -> unit
+  val vectorize_max_block_size : int -> unit
   val dvectorize : unit -> unit
 
   val cfg_selection : unit -> unit
@@ -736,6 +747,7 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
+  val zero_alloc_assert : string -> unit
   val dzero_alloc : unit -> unit
   val disable_zero_alloc_checker : unit -> unit
   val disable_precise_zero_alloc_checker : unit -> unit
@@ -847,6 +859,7 @@ struct
 
     mk_vectorize F.vectorize;
     mk_no_vectorize F.no_vectorize;
+    mk_vectorize_max_block_size F.vectorize_max_block_size;
     mk_dvectorize F.dvectorize;
 
     mk_cfg_selection F.cfg_selection;
@@ -873,6 +886,7 @@ struct
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
+    mk_zero_alloc_assert F.zero_alloc_assert;
 
     mk_dzero_alloc F.dzero_alloc;
     mk_disable_zero_alloc_checker F.disable_zero_alloc_checker;
@@ -1015,6 +1029,8 @@ module Flambda_backend_options_impl = struct
 
   let vectorize = set' Flambda_backend_flags.vectorize
   let no_vectorize = clear' Flambda_backend_flags.vectorize
+  let vectorize_max_block_size n =
+    Flambda_backend_flags.vectorize_max_block_size := n
   let dvectorize = set' Flambda_backend_flags.dump_vectorize
 
   let cfg_selection = set' Flambda_backend_flags.cfg_selection
@@ -1055,10 +1071,16 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.heap_reduction_threshold := x
 
   let zero_alloc_check s =
-    match Zero_alloc_annotations.of_string s with
+    match Zero_alloc_annotations.Check.of_string s with
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some a ->
       Clflags.zero_alloc_check := a
+
+  let zero_alloc_assert s =
+    match Zero_alloc_annotations.Assert.of_string s with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some a ->
+      Clflags.zero_alloc_assert := a
 
   let dzero_alloc = set' Flambda_backend_flags.dump_zero_alloc
   let disable_zero_alloc_checker = set' Flambda_backend_flags.disable_zero_alloc_checker
@@ -1356,6 +1378,8 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
+    | "dump-vectorize" -> set' Flambda_backend_flags.dump_vectorize
+    | "vectorize-max-block-size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
     | "cfg-selection" -> set' Flambda_backend_flags.cfg_selection
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
@@ -1371,8 +1395,15 @@ module Extra_params = struct
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
-      (match Zero_alloc_annotations.of_string v with
+      (match Zero_alloc_annotations.Check.of_string v with
        | Some a -> Clflags.zero_alloc_check := a; true
+       | None ->
+         raise
+           (Arg.Bad
+              (Printf.sprintf "Unexpected value %s for %s" v name)))
+    | "zero-alloc-assert" ->
+      (match Zero_alloc_annotations.Assert.of_string v with
+       | Some a -> Clflags.zero_alloc_assert := a; true
        | None ->
          raise
            (Arg.Bad

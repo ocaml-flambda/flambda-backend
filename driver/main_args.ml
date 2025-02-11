@@ -480,6 +480,11 @@ let mk_runtime_variant f =
   "-runtime-variant", Arg.String f,
   "<str>  Use the <str> variant of the run-time system"
 
+let mk_ocamlrunparam f =
+  "-ocamlrunparam", Arg.String f,
+  "<settings>  Use the given OCAMLRUNPARAM settings as the default (ignored \
+    except when linking an executable)"
+
 let mk_with_runtime f =
   "-with-runtime", Arg.Unit f,
   "Include the runtime system in the generated program (default)"
@@ -682,6 +687,16 @@ let mk_as_argument_for f =
   "<module name> Compile the module as an argument for the named parameter."
 ;;
 
+let mk_instantiate0 f ~ext =
+  "-instantiate", Arg.Unit f,
+  Printf.sprintf
+  "  Instantiates the first .%s file, with the remaining ones used as the\n\
+  \  arguments for its parameters." ext
+
+let mk_instantiate_byt = mk_instantiate0 ~ext:"cmo"
+
+let mk_instantiate_opt = mk_instantiate0 ~ext:"cmx"
+
 let mk_use_prims f =
   "-use-prims", Arg.String f, "<file>  (undocumented)"
 
@@ -744,9 +759,9 @@ in
   \    allows a set of extensions, and every successive universe includes \n\
   \    the previous one."
 
-let mk_allow_illegal_crossing f =
-  "-allow-illegal-crossing", Arg.Unit f,
-  "Type declarations will not be checked along the portability or contention axes"
+let mk_infer_with_bounds f =
+  "-infer-with-bounds", Arg.Unit f,
+  "Infer with-bounds on kinds for type declarations. May impact performance."
 
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
@@ -868,9 +883,6 @@ let mk_dalloc f =
 let mk_dreload f =
   "-dreload", Arg.Unit f, " (undocumented)"
 
-let mk_dscheduling f =
-  "-dscheduling", Arg.Unit f, " (undocumented)"
-
 let mk_dlinear f =
   "-dlinear", Arg.Unit f, " (undocumented)"
 
@@ -945,7 +957,7 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
-  val _allow_illegal_crossing : unit -> unit
+  val _infer_with_bounds : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1019,6 +1031,7 @@ module type Compiler_options = sig
   val _stop_after : string -> unit
   val _i : unit -> unit
   val _impl : string -> unit
+  val _instantiate : unit -> unit
   val _intf : string -> unit
   val _intf_suffix : string -> unit
   val _keep_docs : unit -> unit
@@ -1039,6 +1052,7 @@ module type Compiler_options = sig
   val _no_principal : unit -> unit
   val _rectypes : unit -> unit
   val _runtime_variant : string -> unit
+  val _ocamlrunparam : string -> unit
   val _with_runtime : unit -> unit
   val _without_runtime : unit -> unit
   val _short_paths : unit -> unit
@@ -1154,7 +1168,6 @@ module type Optcommon_options = sig
   val _dprefer : unit -> unit
   val _dalloc : unit -> unit
   val _dreload : unit -> unit
-  val _dscheduling :  unit -> unit
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
@@ -1232,7 +1245,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1242,6 +1255,7 @@ struct
     mk_H F._H;
     mk_libloc F._libloc;
     mk_impl F._impl;
+    mk_instantiate_byt F._instantiate;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
     mk_intf_suffix_2 F._intf_suffix;
@@ -1363,7 +1377,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1458,7 +1472,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
@@ -1482,6 +1496,7 @@ struct
     mk_inline_lifting_benefit F._inline_lifting_benefit;
     mk_inlining_report F._inlining_report;
     mk_insn_sched F._insn_sched;
+    mk_instantiate_opt F._instantiate;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
     mk_keep_docs F._keep_docs;
@@ -1529,6 +1544,7 @@ struct
     mk_remove_unused_arguments F._remove_unused_arguments;
     mk_rounds F._rounds;
     mk_runtime_variant F._runtime_variant;
+    mk_ocamlrunparam F._ocamlrunparam;
     mk_with_runtime F._with_runtime;
     mk_without_runtime F._without_runtime;
     mk_S F._S;
@@ -1594,7 +1610,6 @@ struct
     mk_dprefer F._dprefer;
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
@@ -1649,7 +1664,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1723,7 +1738,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dprefer F._dprefer;
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
@@ -1758,7 +1772,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
+    mk_infer_with_bounds F._infer_with_bounds;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1870,7 +1884,7 @@ module Default = struct
     let _no_extension s = Language_extension.(disable_of_string_exn s)
     let _extension_universe s =
       Language_extension.(set_universe_and_enable_all_of_string_exn s)
-    let _allow_illegal_crossing = set Clflags.allow_illegal_crossing
+    let _infer_with_bounds = set Clflags.infer_with_bounds
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -1960,7 +1974,6 @@ module Default = struct
     let _drawclambda = set dump_rawclambda
     let _drawflambda = set dump_rawflambda
     let _dreload = set dump_reload
-    let _dscheduling = set dump_scheduling
     let _dsel = set dump_selection
     let _dspill = set dump_spill
     let _dsplit = set dump_split
@@ -2061,6 +2074,7 @@ module Default = struct
     let _no_g = clear debug
     let _i = set print_types
     let _impl = Compenv.impl
+    let _instantiate = set instantiate
     let _intf = Compenv.intf
     let _intf_suffix s = Config.interface_suffix := s
     let _keep_docs = set keep_docs
@@ -2077,6 +2091,7 @@ module Default = struct
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)
     let _runtime_variant s = runtime_variant := s
+    let _ocamlrunparam s = ocamlrunparam := s
     let _stop_after pass =
       let module P = Compiler_pass in
         match P.of_string pass with

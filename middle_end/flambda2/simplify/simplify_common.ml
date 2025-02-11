@@ -50,17 +50,20 @@ type simplify_function_body =
 
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
-  let env = DA.typing_env dacc in
-  match T.meet_shape env deconstructing ~shape ~result_var ~result_kind with
+  let denv = DA.denv dacc in
+  let denv = DE.define_variable denv result_var result_kind in
+  let env = DE.typing_env denv in
+  match T.meet_shape env deconstructing ~shape with
   | Bottom ->
-    let dacc = DA.add_variable dacc result_var (T.bottom result_kind) in
-    Simplify_primitive_result.create_invalid dacc
-  | Ok env_extension ->
-    let dacc =
-      DA.map_denv dacc ~f:(fun denv ->
-          DE.define_variable_and_extend_typing_environment denv result_var
-            result_kind env_extension)
+    let denv =
+      DE.add_equation_on_variable denv (Bound_var.var result_var)
+        (T.bottom result_kind)
     in
+    let dacc = DA.with_denv dacc denv in
+    Simplify_primitive_result.create_invalid dacc
+  | Ok env ->
+    let denv = DE.with_typing_env denv env in
+    let dacc = DA.with_denv dacc denv in
     Simplify_primitive_result.create original_term ~try_reify:true dacc
 
 let update_exn_continuation_extra_args uacc ~exn_cont_use_id apply =
@@ -403,6 +406,10 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       match T.meet_is_flat_float_array typing_env array_ty with
       | Known_result false | Need_meet -> Ok array_kind
       | Known_result true | Invalid -> Bottom))
+  | Unboxed_product _ ->
+    (* No float array optimization here. We could potentially specialize to
+       immediates, but not yet. *)
+    Ok array_kind
 
 let add_symbol_projection dacc ~projected_from projection ~projection_bound_to
     ~kind =

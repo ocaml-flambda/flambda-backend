@@ -33,7 +33,7 @@ let all_aliases_of env simple_opt ~in_env =
       ~f:(fun simple -> TE.mem_simple in_env simple)
       simples
 
-type 'a meet_return_value =
+type 'a meet_return_value = 'a TE.meet_return_value =
   | Left_input
   | Right_input
   | Both_inputs
@@ -52,8 +52,7 @@ type 'a meet_result =
 
 let add_equation (simple : Simple.t) ty_of_simple env ~meet_type :
     unit meet_result =
-  match Simple.must_be_name simple with
-  | Some (name, coercion_from_name_to_simple) -> (
+  let name name ~coercion:coercion_from_name_to_simple =
     let coercion_from_simple_to_name =
       Coercion.inverse coercion_from_name_to_simple
     in
@@ -64,8 +63,20 @@ let add_equation (simple : Simple.t) ty_of_simple env ~meet_type :
       TE.add_equation_strict env name ty_of_name ~meet_type:(TE.New meet_type)
     with
     | Ok env -> Ok (New_result (), env)
-    | Bottom -> Bottom (New_result ()))
-  | None -> Ok (New_result (), env)
+    | Bottom -> Bottom (New_result ())
+  in
+  Simple.pattern_match simple ~name ~const:(fun const ->
+      (* A constant is its own most precise type, but we still need to check
+         that is matches the assigned type. *)
+      if Flambda_features.check_light_invariants ()
+      then assert (TG.get_alias_opt ty_of_simple == None);
+      let expanded =
+        Expand_head.expand_head0 env (MTC.type_for_const const)
+          ~known_canonical_simple_at_in_types_mode:(Some simple)
+      in
+      match meet_type env (ET.to_type expanded) ty_of_simple with
+      | Or_bottom.Ok (_, env) -> Ok (New_result (), env)
+      | Or_bottom.Bottom -> Bottom (New_result ()))
 
 let map_result ~f = function
   | Bottom r -> Bottom r
@@ -505,49 +516,36 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
       Expand_head.expand_head0 env t1
         ~known_canonical_simple_at_in_types_mode:simple1
     in
-    let expanded2 =
-      Expand_head.expand_head0 env t2
-        ~known_canonical_simple_at_in_types_mode:simple2
-    in
     match simple2 with
     | None ->
+      let expanded2 =
+        Expand_head.expand_head0 env t2
+          ~known_canonical_simple_at_in_types_mode:simple2
+      in
       map_result ~f:ET.to_type (meet_expanded_head env expanded1 expanded2)
     | Some simple2 -> (
       (* Here we are meeting a non-alias type on the left with an alias on the
          right. In all cases, the return type is the alias, so we will always
-         return [Right_input]; the interesting part will be the environment. *)
+         return [Right_input]; the interesting part will be the environment.
+
+         [add_equation] will meet [expanded1] with the existing type of
+         [simple2]. *)
       let env : unit meet_result =
-        match meet_expanded_head env expanded1 expanded2 with
-        | Ok (Left_input, env) ->
-          add_equation simple2 (ET.to_type expanded1) env ~meet_type
-        | Ok ((Right_input | Both_inputs), env) -> Ok (New_result (), env)
-        | Ok (New_result expanded, env) ->
-          add_equation simple2 (ET.to_type expanded) env ~meet_type
-        | Bottom r -> Bottom r
+        add_equation simple2 (ET.to_type expanded1) env ~meet_type
       in
       match env with
       | Ok (_, env) -> Ok (Right_input, env)
       | Bottom r -> Bottom r))
-  | Some simple1 as simple1_opt -> (
+  | Some simple1 -> (
     match simple2 with
     | None -> (
-      let expanded1 =
-        Expand_head.expand_head0 env t1
-          ~known_canonical_simple_at_in_types_mode:simple1_opt
-      in
       let expanded2 =
         Expand_head.expand_head0 env t2
           ~known_canonical_simple_at_in_types_mode:simple2
       in
       (* We always return [Left_input] (see comment above) *)
       let env : unit meet_result =
-        match meet_expanded_head env expanded1 expanded2 with
-        | Ok (Right_input, env) ->
-          add_equation simple1 (ET.to_type expanded2) env ~meet_type
-        | Ok ((Left_input | Both_inputs), env) -> Ok (New_result (), env)
-        | Ok (New_result expanded, env) ->
-          add_equation simple1 (ET.to_type expanded) env ~meet_type
-        | Bottom r -> Bottom r
+        add_equation simple1 (ET.to_type expanded2) env ~meet_type
       in
       match env with
       | Ok (_, env) -> Ok (Left_input, env)
@@ -1531,7 +1529,7 @@ and meet_type env t1 t2 : _ Or_bottom.t =
   then Bottom
   else
     match meet env t1 t2 with
-    | Ok (res, env) -> Ok (extract_value res t1 t2, env)
+    | Ok (res, env) -> Ok (res, env)
     | Bottom _ -> Bottom
 
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
@@ -2301,27 +2299,16 @@ let meet env ty1 ty2 : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
   else
-    let scope = TE.current_scope env in
-    let scoped_env = TE.increment_scope env in
-    match meet scoped_env ty1 ty2 with
+    match meet env ty1 ty2 with
     | Bottom _ -> Bottom
-    | Ok (r, scoped_env) ->
+    | Ok (r, env) ->
       let res_ty = extract_value r ty1 ty2 in
-      if TG.is_obviously_bottom res_ty
-      then Bottom
-      else
-        let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
-        Ok (res_ty, env_extension)
+      if TG.is_obviously_bottom res_ty then Bottom else Ok (res_ty, env)
 
-let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
+let meet_shape env t ~shape : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
-  else
-    let result = Bound_name.create_var result_var in
-    let env = TE.add_definition env result result_kind in
-    match meet env t shape with
-    | Bottom -> Bottom
-    | Ok (_, env_extension) -> Ok env_extension
+  else match meet env t shape with Bottom -> Bottom | Ok (_, env) -> Ok env
 
 let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
   if TE.is_bottom env

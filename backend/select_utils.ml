@@ -16,6 +16,8 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Cmm
@@ -99,7 +101,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if prev_traps <> traps
+    if Stdlib.( <> ) prev_traps traps
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
@@ -154,7 +156,10 @@ let oper_result_type = function
   | Cstore (_c, _) -> typ_void
   | Cdls_get -> typ_val
   | Cprefetch _ -> typ_void
-  | Catomic _ -> typ_int
+  | Catomic
+      { op = Fetch_and_add | Compare_set | Exchange | Compare_exchange; _ } ->
+    typ_int
+  | Catomic { op = Add | Sub | Land | Lor | Lxor; _ } -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor | Clsl
   | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _ | Ccmpi _ | Ccmpa _
   | Ccmpf _ ->
@@ -206,15 +211,22 @@ let oper_result_type = function
 (* Infer the size in bytes of the result of an expression whose evaluation may
    be deferred (cf. [emit_parts]). *)
 
+(* [size_component] is placed here and not in [Cmm] to avoid cyclic
+   dependencies, because it uses [Arch]. *)
 let size_component : machtype_component -> int = function
   | Val | Addr -> Arch.size_addr
-  | Int -> Arch.size_int
+  | Int ->
+    assert (Int.equal Arch.size_int Arch.size_addr);
+    Arch.size_int
   | Float -> Arch.size_float
   | Float32 ->
     (* CR layouts v5.1: reconsider when float32 fields are efficiently packed.
        Note that packed float32# arrays are handled via a separate path. *)
     Arch.size_float
   | Vec128 -> Arch.size_vec128
+  | Valx2 ->
+    assert (Int.equal (Arch.size_addr * 2) Arch.size_vec128);
+    Arch.size_vec128
 
 let size_machtype mty =
   let size = ref 0 in
@@ -476,8 +488,8 @@ class virtual ['env, 'op, 'instr] common_selector =
           | Cextcall { effects = e; coeffects = ce } ->
             EC.create (select_effects e) (select_coeffects ce)
           | Capply _ | Cprobe _ | Copaque | Cpoll -> EC.arbitrary
-          | Calloc Heap -> EC.none
-          | Calloc Local -> EC.coeffect_only Coeffect.Arbitrary
+          | Calloc (Heap, _) -> EC.none
+          | Calloc (Local, _) -> EC.coeffect_only Coeffect.Arbitrary
           | Cstore _ -> EC.effect_only Effect.Arbitrary
           | Cbeginregion | Cendregion -> EC.arbitrary
           | Cprefetch _ -> EC.arbitrary
@@ -739,7 +751,9 @@ class virtual ['env, 'op, 'instr] common_selector =
     method emit_extcall_args env ty_args args =
       let args = self#emit_tuple_not_flattened env args in
       let ty_args =
-        if ty_args = [] then List.map (fun _ -> XInt) args else ty_args
+        match ty_args with
+        | [] -> List.map (fun _ -> XInt) args
+        | _ :: _ -> ty_args
       in
       let locs, stack_ofs = Proc.loc_external_arguments ty_args in
       let ty_args = Array.of_list ty_args in
@@ -780,6 +794,8 @@ class virtual ['env, 'op, 'instr] common_selector =
                        (big)array operations are handled separately via cmm. *)
                     Onetwentyeight_unaligned
                   | Val | Addr | Int -> Word_val
+                  | Valx2 ->
+                    Misc.fatal_error "Unexpected machtype_component Valx2"
                 in
                 self#insert_debug env
                   (self#make_store kind !a false)

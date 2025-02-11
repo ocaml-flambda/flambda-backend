@@ -411,6 +411,7 @@ module Analyser =
 
       | Parsetree.Ptype_record label_declaration_list ->
           (0, Record.(doc parsetree) pos_end label_declaration_list)
+      | Parsetree.Ptype_record_unboxed_product _ -> assert false
       | Parsetree.Ptype_open ->
           (0, [])
 
@@ -449,7 +450,7 @@ module Analyser =
       match type_kind with
         Types.Type_abstract _ ->
           Odoc_type.Type_abstract
-      | Types.Type_variant (l,_) ->
+      | Types.Type_variant (l,_,_) ->
           let f {Types.cd_id=constructor_name;cd_args;cd_res=ret_type;cd_attributes} =
             let constructor_name = Ident.name constructor_name in
             let comment_opt =
@@ -480,8 +481,10 @@ module Analyser =
           in
           Odoc_type.Type_variant (List.map f l)
 
-      | Types.Type_record (l, _) ->
+      | Types.Type_record (l, _, _) ->
           Odoc_type.Type_record (List.map (get_field env name_comment_list) l)
+
+      | Types.Type_record_unboxed_product (_, _, _) -> assert false
 
       | Types.Type_open ->
           Odoc_type.Type_open
@@ -493,7 +496,7 @@ module Analyser =
           { Typedtree.ld_id; ld_mutable; ld_type; ld_loc; ld_attributes } =
         get_field env comments @@
         {Types.ld_id; ld_mutable; ld_modalities = Mode.Modality.Value.Const.id;
-         ld_jkind=Jkind.Builtin.any ~why:Dummy_jkind (* ignored *);
+         ld_sort=Jkind.Sort.Const.void (* ignored *);
          ld_type=ld_type.Typedtree.ctyp_type;
          ld_loc; ld_attributes; ld_uid=Types.Uid.internal_not_actually_unique} in
       let open Typedtree in

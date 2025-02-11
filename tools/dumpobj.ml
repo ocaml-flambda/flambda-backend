@@ -17,6 +17,7 @@
 
 open Config
 open Instruct
+open Lambda
 open Location
 open Opcodes
 open Opnames
@@ -73,13 +74,62 @@ let record_events orig evl =
       Hashtbl.add event_table ev.ev_pos ev)
     evl
 
+(* Print a structured constant *)
+
+let print_float f =
+  if String.contains f '.'
+  then printf "%s" f
+  else printf "%s." f
+
+let rec print_struct_const = function
+    Const_base(Const_int i) -> printf "%d" i
+  | Const_base(Const_float f)
+  | Const_base(Const_unboxed_float f)
+  | Const_base(Const_float32 f)
+  | Const_base(Const_unboxed_float32 f) -> print_float f
+  | Const_base(Const_string (s, _, _)) -> printf "%S" s
+  | Const_immstring s -> printf "%S" s
+  | Const_base(Const_char c) -> printf "%C" c
+  | Const_base(Const_int32 i)
+  | Const_base(Const_unboxed_int32 i) -> printf "%ldl" i
+  | Const_base(Const_nativeint i)
+  | Const_base(Const_unboxed_nativeint i)-> printf "%ndn" i
+  | Const_base(Const_int64 i)
+  | Const_base(Const_unboxed_int64 i) -> printf "%LdL" i
+  | Const_block(tag, args) ->
+      printf "<%d>" tag;
+      begin match args with
+        [] -> ()
+      | [a1] ->
+          printf "("; print_struct_const a1; printf ")"
+      | a1::al ->
+          printf "("; print_struct_const a1;
+          List.iter (fun a -> printf ", "; print_struct_const a) al;
+          printf ")"
+      end
+  | Const_mixed_block _ ->
+    (* CR layouts v5.9: Support constant mixed blocks in bytecode, either by
+        dynamically allocating them once at top-level, or by supporting
+        marshaling into the cmo format for mixed blocks in bytecode.
+    *)
+    Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
+  | Const_float_block a | Const_float_array a ->
+      printf "[|";
+      List.iter (fun f -> print_float f; printf "; ") a;
+      printf "|]"
+  | Const_null -> printf "<null>"
+
 (* Print an obj *)
 
 let same_custom x y =
   Nativeint.equal (Obj.raw_field x 0) (Obj.raw_field (Obj.repr y) 0)
 
+external is_null : Obj.t -> bool = "%is_null"
+
 let rec print_obj x =
-  if Obj.is_block x then begin
+  if is_null x then
+    printf "null"
+  else if Obj.is_block x then begin
     let tag = Obj.tag x in
     if tag = Obj.string_tag then
         printf "%S" (Obj.magic x : string)
@@ -135,11 +185,6 @@ let find_reloc ic =
 let print_unexpected_reloc reloc_constr reloc_arg =
   printf "<unexpected (%s '%s') reloc>" reloc_constr reloc_arg
 
-let print_unexpected_reloc_literal sc =
-  printf "<unexpected (Reloc_literal ";
-  print_obj sc;
-  printf ") reloc>"
-
 let print_getglobal_name ic =
   if !objfile then begin
     begin try
@@ -147,7 +192,7 @@ let print_getglobal_name ic =
         | Reloc_getcompunit cu ->
           print_string (Compilation_unit.full_path_as_string cu)
         | Reloc_getpredef (Predef_exn predef_exn) -> print_string predef_exn
-        | Reloc_literal sc -> print_obj sc
+        | Reloc_literal sc -> print_struct_const sc
         | Reloc_setcompunit cu ->
           print_unexpected_reloc "Reloc_setcompunit"
             (Compilation_unit.full_path_as_string cu)
@@ -174,8 +219,7 @@ let print_setglobal_name ic =
       match find_reloc ic with
       | Reloc_setcompunit cu ->
         print_string (Compilation_unit.full_path_as_string cu)
-      | Reloc_literal sc ->
-        print_unexpected_reloc_literal sc
+      | Reloc_literal sc -> print_struct_const sc
       | Reloc_getcompunit cu ->
         print_unexpected_reloc "Reloc_getcompunit"
           (Compilation_unit.full_path_as_string cu)
@@ -204,8 +248,7 @@ let print_primitive ic =
     begin try
       match find_reloc ic with
         Reloc_primitive s -> print_string s
-      | Reloc_literal sc ->
-        print_unexpected_reloc_literal sc
+      | Reloc_literal sc -> print_struct_const sc
       | Reloc_getcompunit cu ->
         print_unexpected_reloc "Reloc_getcompunit"
           (Compilation_unit.full_path_as_string cu)
@@ -486,7 +529,7 @@ let print_code ic len =
 let print_reloc (info, pos) =
   printf "    %d    (%d)    " pos (pos/4);
   match info with
-  | Reloc_literal sc -> print_obj sc; printf "\n"
+  | Reloc_literal sc -> print_struct_const sc; printf "\n"
   | Reloc_getcompunit cu ->
     printf "require        %s\n"
       (Compilation_unit.full_path_as_string cu)

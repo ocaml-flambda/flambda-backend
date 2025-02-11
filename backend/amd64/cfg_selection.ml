@@ -15,6 +15,8 @@
 
 (* Instruction selection for the AMD64 *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Arch
@@ -30,12 +32,17 @@ let pseudoregs_for_operation op arg res =
   | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor)
   | Floatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
     [| res.(0); arg.(1) |], res
-  | Intop_atomic { op = Compare_and_swap; size = _; addr = _ } ->
+  | Intop_atomic { op = Compare_set; size = _; addr = _ } ->
     (* first arg must be rax *)
     let arg = Array.copy arg in
     arg.(0) <- rax;
     arg, res
-  | Intop_atomic { op = Fetch_and_add; size = _; addr = _ } ->
+  | Intop_atomic { op = Compare_exchange; size = _; addr = _ } ->
+    (* first arg must be rax, res.(0) must be rax. *)
+    let arg = Array.copy arg in
+    arg.(0) <- rax;
+    arg, [| rax |]
+  | Intop_atomic { op = Exchange | Fetch_and_add; size = _; addr = _ } ->
     (* first arg must be the same as res.(0) *)
     let arg = Array.copy arg in
     arg.(0) <- res.(0);
@@ -84,7 +91,14 @@ let pseudoregs_for_operation op arg res =
        edx (high) and eax (low). Make it simple and force the argument in rcx,
        and rax and rdx clobbered *)
     [| rcx |], res
-  | Specific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
+  | Specific (Isimd op) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.register_behavior op)
+      arg res
+  | Specific (Isimd_mem (op, _addr)) ->
+    Simd_selection.pseudoregs_for_operation
+      (Simd_proc.Mem.register_behavior op)
+      arg res
   | Csel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
@@ -92,6 +106,7 @@ let pseudoregs_for_operation op arg res =
     arg.(len - 1) <- res.(0);
     arg, res
   (* Other instructions are regular *)
+  | Intop_atomic { op = Add | Sub | Land | Lor | Lxor; _ }
   | Intop (Ipopcnt | Iclz _ | Ictz _ | Icomp _)
   | Intop_imm ((Imulh _ | Idiv | Imod | Icomp _ | Ipopcnt | Iclz _ | Ictz _), _)
   | Specific
@@ -178,12 +193,13 @@ class selector =
       | Ctrywith (_, _, _, _, _, _) ->
         super#select_store is_assign addr exp
 
-    method! select_operation op args dbg =
+    method! select_operation op args dbg ~label_after =
       match op with
       (* Recognize the LEA instruction *)
       | Caddi | Caddv | Cadda | Csubi -> (
         match self#select_addressing Word_int (Cop (op, args, dbg)) with
-        | Iindexed _, _ | Iindexed2 0, _ -> super#select_operation op args dbg
+        | Iindexed _, _ | Iindexed2 0, _ ->
+          super#select_operation op args dbg ~label_after
         | ( ((Iindexed2 _ | Iscaled _ | Iindexed2scaled _ | Ibased _) as addr),
             arg ) ->
           specific (Ilea addr), [arg])
@@ -218,18 +234,23 @@ class selector =
         | "caml_load_fence" -> specific Ilfence, args
         | "caml_store_fence" -> specific Isfence, args
         | "caml_memory_fence" -> specific Imfence, args
+        | "caml_cldemote" ->
+          let addr, eloc =
+            self#select_addressing Word_int (one_arg "cldemote" args)
+          in
+          specific (Icldemote addr), [eloc]
         | _ -> (
           match Simd_selection.select_operation_cfg func args with
           | Some (op, args) -> Basic (Op op), args
-          | None -> super#select_operation op args dbg))
+          | None -> super#select_operation op args dbg ~label_after))
       (* Recognize store instructions *)
       | Cstore (((Word_int | Word_val) as chunk), _init) -> (
         match args with
         | [loc; Cop (Caddi, [Cop (Cload _, [loc'], _); Cconst_int (n, _dbg)], _)]
-          when loc = loc' && is_immediate n ->
+          when Stdlib.( = ) loc loc' && is_immediate n ->
           let addr, arg = self#select_addressing chunk loc in
           specific (Ioffset_loc (n, addr)), [arg]
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       | Cbswap { bitwidth } ->
         let bitwidth = select_bitwidth bitwidth in
         specific (Ibswap { bitwidth }), args
@@ -238,7 +259,7 @@ class selector =
         match args with
         | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
           specific Isextend32, [k]
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       (* Recognize zero extension *)
       | Cand -> (
         match args with
@@ -247,7 +268,7 @@ class selector =
         | [Cconst_int (0xffff_ffff, _); arg]
         | [Cconst_natint (0xffff_ffffn, _); arg] ->
           specific Izextend32, [arg]
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       | Ccsel _ -> (
         match args with
         | [cond; ifso; ifnot] -> (
@@ -259,7 +280,7 @@ class selector =
                arguments. *)
             Basic (Op (Csel (Ifloattest (w, CFneq)))), [earg; ifnot; ifso]
           | _ -> Basic (Op (Csel cond)), [earg; ifso; ifnot])
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       | Cprefetch { is_write; locality } ->
         (* Emit prefetch for read hint when prefetchw is not supported. Matches
            the behavior of gcc's __builtin_prefetch *)
@@ -279,7 +300,7 @@ class selector =
           self#select_addressing Word_int (one_arg "prefetch" args)
         in
         specific (Iprefetch { is_write; addr; locality }), [eloc]
-      | _ -> super#select_operation op args dbg
+      | _ -> super#select_operation op args dbg ~label_after
 
     (* Recognize float arithmetic with mem *)
 
@@ -324,5 +345,5 @@ class selector =
   end
 
 let fundecl ~future_funcnames f =
-  Cfg_selectgen.reset_next_instr_id ();
+  Cfg.reset_next_instr_id ();
   (new selector)#emit_fundecl ~future_funcnames f

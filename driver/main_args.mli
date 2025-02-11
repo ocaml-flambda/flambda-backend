@@ -34,7 +34,7 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
-  val _allow_illegal_crossing : unit -> unit
+  val _infer_with_bounds : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -107,6 +107,7 @@ module type Compiler_options = sig
   val _stop_after : string -> unit
   val _i : unit -> unit
   val _impl : string -> unit
+  val _instantiate : unit -> unit
   val _intf : string -> unit
   val _intf_suffix : string -> unit
   val _keep_docs : unit -> unit
@@ -127,6 +128,7 @@ module type Compiler_options = sig
   val _no_principal : unit -> unit
   val _rectypes : unit -> unit
   val _runtime_variant : string -> unit
+  val _ocamlrunparam : string -> unit
   val _with_runtime : unit -> unit
   val _without_runtime : unit -> unit
   val _short_paths : unit -> unit
@@ -243,7 +245,6 @@ module type Optcommon_options = sig
   val _dprefer : unit -> unit
   val _dalloc : unit -> unit
   val _dreload : unit -> unit
-  val _dscheduling :  unit -> unit
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit

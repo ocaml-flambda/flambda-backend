@@ -20,11 +20,13 @@ open Parsetree
 
 module String = Misc.Stdlib.String
 
-type boxed_integer = Pnativeint | Pint32 | Pint64
+type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+type unboxed_float = Unboxed_float64 | Unboxed_float32
+type unboxed_vector = Unboxed_vec128
 
-type boxed_float = Pfloat64 | Pfloat32
-
-type boxed_vector = Pvec128
+type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
+type boxed_float = Boxed_float64 | Boxed_float32
+type boxed_vector = Boxed_vec128
 
 type native_repr =
   | Repr_poly
@@ -193,8 +195,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
-      (make_prim_repr_args arity (Prim_global, Unboxed_float Pfloat64),
-       (Prim_global, Unboxed_float Pfloat64))
+      (make_prim_repr_args arity (Prim_global, Unboxed_float Boxed_float64),
+       (Prim_global, Unboxed_float Boxed_float64))
     else
       (native_repr_args, native_repr_res)
   in
@@ -330,30 +332,46 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
-let equal_boxed_vector v1 v2 =
-  match v1, v2 with
-  | Pvec128, Pvec128 -> true
+let unboxed_integer = function
+  | Boxed_int32 -> Unboxed_int32
+  | Boxed_nativeint -> Unboxed_nativeint
+  | Boxed_int64 -> Unboxed_int64
+
+let unboxed_float = function
+  | Boxed_float32 -> Unboxed_float32
+  | Boxed_float64 -> Unboxed_float64
+
+let unboxed_vector = function
+  | Boxed_vec128 -> Unboxed_vec128
+
+(* Since these are just constant constructors, we can just use polymorphic equality and
+   comparison at no performance loss. We still match on the variants to prove here that
+   they are all constant constructors. *)
+let equal_unboxed_integer
+      ((Unboxed_int32 | Unboxed_nativeint | Unboxed_int64) as i1) i2 = i1 = i2
+let equal_unboxed_float
+      ((Unboxed_float32 | Unboxed_float64) as f1) f2 = f1 = f2
+let compare_unboxed_float
+      ((Unboxed_float32 | Unboxed_float64) as f1) f2 = Stdlib.compare f1 f2
+let equal_unboxed_vector ((Unboxed_vec128) as v1) v2 = v1 = v2
+let compare_unboxed_vector ((Unboxed_vec128) as v1) v2 = Stdlib.compare v1 v2
 
 let equal_boxed_integer bi1 bi2 =
-  match bi1, bi2 with
-  | Pnativeint, Pnativeint
-  | Pint32, Pint32
-  | Pint64, Pint64 ->
-    true
-  | (Pnativeint | Pint32 | Pint64), _ ->
-    false
+  equal_unboxed_integer (unboxed_integer bi1) (unboxed_integer bi2)
+let equal_boxed_float bf1 bf2 =
+  equal_unboxed_float (unboxed_float bf1) (unboxed_float bf2)
+let equal_boxed_vector bv1 bv2 =
+  equal_unboxed_vector (unboxed_vector bv1) (unboxed_vector bv2)
+let compare_boxed_float bf1 bf2 =
+  compare_unboxed_float (unboxed_float bf1) (unboxed_float bf2)
+let compare_boxed_vector bv1 bv2 =
+  compare_unboxed_vector (unboxed_vector bv1) (unboxed_vector bv2)
 
-let equal_boxed_float f1 f2 =
-  match f1, f2 with
-  | Pfloat32, Pfloat32
-  | Pfloat64, Pfloat64 -> true
-  | (Pfloat32 | Pfloat64), _ -> false
-
-let equal_boxed_vector_size bi1 bi2 =
+let equal_unboxed_vector_size v1 v2 =
   (* For the purposes of layouts/native representations,
      all 128-bit vector types are equal. *)
-  match bi1, bi2 with
-  | Pvec128, Pvec128 -> true
+  match v1, v2 with
+  | Unboxed_vec128, Unboxed_vec128 -> true
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
@@ -361,7 +379,8 @@ let equal_native_repr nr1 nr2 =
   | Repr_poly, (Unboxed_float _ | Unboxed_integer _
                | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
-    | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
+    | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly
+    -> false
   | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 ->
     Jkind_types.Sort.Const.equal s1 s2
   | Same_as_ocaml_repr _,
@@ -371,7 +390,8 @@ let equal_native_repr nr1 nr2 =
   | Unboxed_float _,
     (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_immediate |
      Unboxed_vector _) -> false
-  | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
+  | Unboxed_vector vi1, Unboxed_vector vi2 ->
+    equal_unboxed_vector_size (unboxed_vector vi1) (unboxed_vector vi2)
   | Unboxed_vector _,
     (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_integer _) -> false
@@ -654,7 +674,20 @@ let prim_has_valid_reprs ~loc prim =
         any;
         is (Same_as_ocaml_repr C.value);
       ]
-
+    | "%makearray_dynamic_uninit" ->
+      (* Restrictions on this primitive are checked in [Translprim] *)
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.value);
+      ]
+    | "%array_element_size_in_bytes" ->
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.value);
+      ]
+    | "%peek" | "%poke" ->
+      (* Arities and layouts of these primitives are checked in [Translprim] *)
+      fun _ -> Success
     | "%box_float" ->
       exactly [Same_as_ocaml_repr C.float64; Same_as_ocaml_repr C.value]
     | "%unbox_float" ->

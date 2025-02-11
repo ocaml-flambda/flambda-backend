@@ -1,6 +1,8 @@
 (* TEST
 include unix;
 hasunix;
+{ bytecode; }
+{ native; }
 *)
 
 let filename = "test.out"

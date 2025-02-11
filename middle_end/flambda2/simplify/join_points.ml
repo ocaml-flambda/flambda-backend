@@ -167,9 +167,8 @@ let add_equations_on_params typing_env ~is_recursive ~params:params'
                  [Invalid], but this seems an unusual situation, so we don't do
                  that currently. *)
               TE.add_equation typing_env name (T.bottom raw_kind)
-            | Ok (meet_ty, env_extension) ->
-              let typing_env = TE.add_equation typing_env name meet_ty in
-              TE.add_env_extension typing_env env_extension
+            | Ok (meet_ty, typing_env) ->
+              TE.add_equation typing_env name meet_ty
           else TE.add_equation typing_env name param_type
         in
         add_equations_on_params typing_env params param_types)

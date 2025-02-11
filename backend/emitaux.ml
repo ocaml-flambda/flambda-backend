@@ -111,7 +111,7 @@ let emit_float32_directive directive x = emit_printf "\t%s\t0x%lx\n" directive x
 (* Record live pointers at call points *)
 
 type frame_debuginfo =
-  | Dbg_alloc of Debuginfo.alloc_dbginfo
+  | Dbg_alloc of Cmm.alloc_dbginfo
   | Dbg_raise of Debuginfo.t
   | Dbg_other of Debuginfo.t
 
@@ -132,7 +132,7 @@ let get_flags debuginfo =
   | Dbg_other d | Dbg_raise d -> if is_none_dbg d then 0 else 1
   | Dbg_alloc dbgs ->
     if !Clflags.debug
-       && List.exists (fun d -> not (is_none_dbg d.Debuginfo.alloc_dbg)) dbgs
+       && List.exists (fun d -> not (is_none_dbg d.Cmm.alloc_dbg)) dbgs
     then 3
     else 2
 
@@ -143,6 +143,11 @@ let is_long n =
   if n > 0x3FFF_FFFF then raise (Error (Stack_frame_way_too_large n));
   n >= !Flambda_backend_flags.long_frames_threshold
 
+let is_long_stack_index n =
+  let is_reg n = n land 1 = 1 in
+  (* allows negative reg offsets in runtime4 *)
+  if is_reg n && not Config.runtime5 then false else is_long n
+
 let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
   assert (frame_size land 3 = 0);
   let fd_long =
@@ -150,7 +155,7 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
     (* The checks below are redundant (if they fail, then frame size check above
        should have failed), but they make the safety of [emit_frame] clear. *)
     || is_long (List.length live_offset)
-    || List.exists is_long live_offset
+    || List.exists is_long_stack_index live_offset
   in
   if fd_long && not !Flambda_backend_flags.allow_long_frames
   then raise (Error (Stack_frame_too_large frame_size));
@@ -238,7 +243,7 @@ let emit_frames a =
       assert (List.length dbg < 256);
       a.efa_8 (List.length dbg);
       List.iter
-        (fun Debuginfo.{ alloc_words; _ } ->
+        (fun Cmm.{ alloc_words; _ } ->
           (* Possible allocations range between 2 and 257 *)
           assert (
             2 <= alloc_words
@@ -250,7 +255,7 @@ let emit_frames a =
       then (
         a.efa_align 4;
         List.iter
-          (fun Debuginfo.{ alloc_dbg; _ } ->
+          (fun Cmm.{ alloc_dbg; _ } ->
             if is_none_dbg alloc_dbg
             then a.efa_32 Int32.zero
             else a.efa_label_rel (label_debuginfos false alloc_dbg) Int32.zero)

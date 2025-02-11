@@ -139,9 +139,9 @@ and add_jkind bv (jkind : jkind_annotation) =
   | Default -> ()
   | Abbreviation _ -> ()
   | Mod (jkind, (_ : modes)) -> add_jkind bv jkind
-  | With (jkind, typ) ->
+  | With (jkind, typ, (_ : modalities)) ->
       add_jkind bv jkind;
-      add_type bv typ
+      add_type bv typ;
   | Kind_of typ ->
       add_type bv typ
   | Product jkinds ->
@@ -173,6 +173,8 @@ let add_type_declaration bv td =
   | Ptype_variant cstrs ->
       List.iter (add_constructor_decl bv) cstrs
   | Ptype_record lbls ->
+      List.iter (fun pld -> add_type bv pld.pld_type) lbls
+  | Ptype_record_unboxed_product lbls ->
       List.iter (fun pld -> add_type bv pld.pld_type) lbls
   | Ptype_open -> () in
   add_tkind td.ptype_kind
@@ -208,7 +210,7 @@ let rec add_pattern bv pat =
       add_opt
         (fun bv (_,p) -> add_pattern bv p)
         bv opt
-  | Ppat_record(pl, _) ->
+  | Ppat_record(pl, _) | Ppat_record_unboxed_product(pl, _) ->
       List.iter (fun (lbl, p) -> add bv lbl; add_pattern bv p) pl
   | Ppat_array (_, pl) -> List.iter (add_pattern bv) pl
   | Ppat_or(p1, p2) -> add_pattern bv p1; add_pattern bv p2
@@ -241,7 +243,7 @@ let rec add_expr bv exp =
       let bv = add_bindings rf bv pel in add_expr bv e
   | Pexp_function (params, constraint_, body) ->
       let bv = List.fold_left add_function_param bv params in
-      add_opt add_function_constraint bv constraint_;
+      add_function_constraint bv constraint_;
       add_function_body bv body
   | Pexp_apply(e, el) ->
       add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
@@ -251,10 +253,11 @@ let rec add_expr bv exp =
   | Pexp_unboxed_tuple el -> add_labeled_tuple_expr bv el
   | Pexp_construct(c, opte) -> add bv c; add_opt add_expr bv opte
   | Pexp_variant(_, opte) -> add_opt add_expr bv opte
-  | Pexp_record(lblel, opte) ->
+  | Pexp_record(lblel, opte)
+  | Pexp_record_unboxed_product(lblel, opte) ->
       List.iter (fun (lbl, e) -> add bv lbl; add_expr bv e) lblel;
       add_opt add_expr bv opte
-  | Pexp_field(e, fld) -> add_expr bv e; add bv fld
+  | Pexp_field(e, fld) | Pexp_unboxed_field(e, fld) -> add_expr bv e; add bv fld
   | Pexp_setfield(e1, fld, e2) -> add_expr bv e1; add bv fld; add_expr bv e2
   | Pexp_array (_, el) -> List.iter (add_expr bv) el
   | Pexp_ifthenelse(e1, e2, opte3) ->
@@ -313,6 +316,8 @@ let rec add_expr bv exp =
       end
   | Pexp_extension e -> handle_extension e
   | Pexp_stack e -> add_expr bv e
+  | Pexp_overwrite (e1, e2) -> add_expr bv e1; add_expr bv e2
+  | Pexp_hole -> ()
   | Pexp_unreachable -> ()
   | Pexp_comprehension x -> add_comprehension_expr bv x
 
@@ -360,13 +365,14 @@ and add_function_body bv body =
   | Pfunction_cases (cases, _, _) ->
       add_cases bv cases
 
-and add_function_constraint bv { mode_annotations = _; type_constraint } =
-  match type_constraint with
-  | Pconstraint ty ->
+and add_function_constraint bv { mode_annotations = _; ret_type_constraint; ret_mode_annotations = _ } =
+  match ret_type_constraint with
+  | Some (Pconstraint ty) ->
       add_type bv ty
-  | Pcoerce (ty1, ty2) ->
+  | Some (Pcoerce (ty1, ty2)) ->
       add_opt add_type bv ty1;
       add_type bv ty2
+  | None -> ()
 
 and add_cases bv cases =
   List.iter (add_case bv) cases

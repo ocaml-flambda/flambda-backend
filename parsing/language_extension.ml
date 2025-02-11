@@ -62,7 +62,8 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
   | Mode -> (module Maturity)
-  | Unique -> (module Unit)
+  | Unique -> (module Maturity)
+  | Overwriting -> (module Unit)
   | Include_functor -> (module Unit)
   | Polymorphic_parameters -> (module Unit)
   | Immutable_arrays -> (module Unit)
@@ -82,10 +83,14 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
    But we've decided to punt on this issue in the short term.
 *)
 let is_erasable : type a. a t -> bool = function
-  | Mode | Unique | Layouts -> true
+  | Mode | Unique | Overwriting | Layouts -> true
   | Comprehensions | Include_functor | Polymorphic_parameters | Immutable_arrays
   | Module_strengthening | SIMD | Labeled_tuples | Small_numbers | Instances ->
     false
+
+let maturity_of_unique_for_drf = Stable
+
+let maturity_of_unique_for_destruction = Alpha
 
 module Exist_pair = struct
   type t = Pair : 'a language_extension * 'a -> t
@@ -93,7 +98,8 @@ module Exist_pair = struct
   let maturity : t -> Maturity.t = function
     | Pair (Comprehensions, ()) -> Beta
     | Pair (Mode, m) -> m
-    | Pair (Unique, ()) -> Alpha
+    | Pair (Unique, m) -> m
+    | Pair (Overwriting, ()) -> Alpha
     | Pair (Include_functor, ()) -> Stable
     | Pair (Polymorphic_parameters, ()) -> Stable
     | Pair (Immutable_arrays, ()) -> Stable
@@ -109,13 +115,14 @@ module Exist_pair = struct
   let to_string = function
     | Pair (Layouts, m) -> to_string Layouts ^ "_" ^ maturity_to_string m
     | Pair (Mode, m) -> to_string Mode ^ "_" ^ maturity_to_string m
+    | Pair (Unique, m) -> to_string Unique ^ "_" ^ maturity_to_string m
     | Pair (Small_numbers, m) ->
       to_string Small_numbers ^ "_" ^ maturity_to_string m
     | Pair (SIMD, m) -> to_string SIMD ^ "_" ^ maturity_to_string m
     | Pair
-        ( (( Comprehensions | Unique | Include_functor | Polymorphic_parameters
+        ( (( Comprehensions | Include_functor | Polymorphic_parameters
            | Immutable_arrays | Module_strengthening | Labeled_tuples
-           | Instances ) as ext),
+           | Instances | Overwriting ) as ext),
           _ ) ->
       to_string ext
 
@@ -129,7 +136,10 @@ module Exist_pair = struct
     | "mode" -> Some (Pair (Mode, Stable))
     | "mode_beta" -> Some (Pair (Mode, Beta))
     | "mode_alpha" -> Some (Pair (Mode, Alpha))
-    | "unique" -> Some (Pair (Unique, ()))
+    | "unique" -> Some (Pair (Unique, Stable))
+    | "unique_beta" -> Some (Pair (Unique, Beta))
+    | "unique_alpha" -> Some (Pair (Unique, Alpha))
+    | "overwriting" -> Some (Pair (Overwriting, ()))
     | "include_functor" -> Some (Pair (Include_functor, ()))
     | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
     | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
@@ -154,6 +164,7 @@ let all_extensions =
   [ Pack Comprehensions;
     Pack Mode;
     Pack Unique;
+    Pack Overwriting;
     Pack Include_functor;
     Pack Polymorphic_parameters;
     Pack Immutable_arrays;
@@ -191,6 +202,7 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   | Comprehensions, Comprehensions -> Some Refl
   | Mode, Mode -> Some Refl
   | Unique, Unique -> Some Refl
+  | Overwriting, Overwriting -> Some Refl
   | Include_functor, Include_functor -> Some Refl
   | Polymorphic_parameters, Polymorphic_parameters -> Some Refl
   | Immutable_arrays, Immutable_arrays -> Some Refl
@@ -200,7 +212,7 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   | Labeled_tuples, Labeled_tuples -> Some Refl
   | Small_numbers, Small_numbers -> Some Refl
   | Instances, Instances -> Some Refl
-  | ( ( Comprehensions | Mode | Unique | Include_functor
+  | ( ( Comprehensions | Mode | Unique | Overwriting | Include_functor
       | Polymorphic_parameters | Immutable_arrays | Module_strengthening
       | Layouts | SIMD | Labeled_tuples | Small_numbers | Instances ),
       _ ) ->

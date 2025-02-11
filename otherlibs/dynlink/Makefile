@@ -102,12 +102,8 @@ COMPILERLIBS_SOURCES=\
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \
-<<<<<<< HEAD
   utils/zero_alloc_utils.ml \
-||||||| 121bedcfd2
-=======
   utils/compression.ml \
->>>>>>> 5.2.0
   parsing/location.ml \
   parsing/language_extension.ml \
   parsing/unit_info.ml \
@@ -116,29 +112,17 @@ COMPILERLIBS_SOURCES=\
   parsing/printast.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
-<<<<<<< HEAD
-  parsing/ast_iterator.ml \
-  parsing/builtin_attributes.ml \
-  parsing/ast_mapper.ml \
-  parsing/attr_helper.ml \
-  parsing/pprintast.ml \
-  typing/solver.ml \
-  typing/mode.ml \
-||||||| 121bedcfd2
-  parsing/ast_mapper.ml \
-  parsing/attr_helper.ml \
-  parsing/builtin_attributes.ml \
-  typing/ident.ml \
-=======
   parsing/ast_iterator.ml \
   parsing/builtin_attributes.ml \
   parsing/ast_mapper.ml \
   parsing/camlinternalMenhirLib.ml \
   parsing/parser.ml \
   parsing/lexer.ml \
+  parsing/pprintast.ml \
+  typing/solver.ml \
+  typing/mode.ml \
   parsing/attr_helper.ml \
   typing/ident.ml \
->>>>>>> 5.2.0
   typing/path.ml \
   typing/shape.ml \
   typing/jkind_types.ml \
@@ -156,13 +140,8 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
-<<<<<<< HEAD
-  typing/shape_reduce.ml \
-||||||| 121bedcfd2
-=======
   typing/shape_reduce.ml \
   typing/typedtree.ml \
->>>>>>> 5.2.0
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \

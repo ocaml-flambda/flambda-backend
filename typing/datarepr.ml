@@ -70,15 +70,12 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
-      let jkind =
-        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
-      in
+      let jkind = Jkind.for_boxed_record lbls in
       let tdecl =
         {
           type_params;
           type_arity = arity;
-          type_kind = Type_record (lbls, rep);
+          type_kind = Type_record (lbls, rep, None);
           type_jkind = jkind;
           type_private = priv;
           type_manifest = None;
@@ -90,14 +87,13 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_attributes = [];
           type_unboxed_default = false;
           type_uid = Uid.mk ~current_unit;
-          type_has_illegal_crossings = false;
         }
       in
       existentials,
       [
         {
           ca_type = newgenconstr path type_params;
-          ca_jkind = jkind;
+          ca_sort = Jkind.Sort.Const.value;
           ca_modalities = Mode.Modality.Value.Const.id;
           ca_loc = Location.none
         }
@@ -121,21 +117,27 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
          written here should be irrelevant, and so would like to understand
          this interaction better. *)
       begin match cd_args with
-      | Cstr_tuple [{ ca_jkind = jkind }]
-      | Cstr_record [{ ld_jkind = jkind }] ->
-        [| Constructor_uniform_value, [| jkind |] |]
+      | Cstr_tuple [{ ca_sort = sort }]
+      | Cstr_record [{ ld_sort = sort }] ->
+        [| Constructor_uniform_value, [| sort |] |]
       | Cstr_tuple ([] | _ :: _) | Cstr_record ([] | _ :: _) ->
-        Misc.fatal_error "Multiple or 0 arguments in [@@unboxed] variant"
+        Misc.fatal_error "Multiple arguments in [@@unboxed] variant"
       end
     | Variant_unboxed, ([] | _ :: _) ->
       Misc.fatal_error "Multiple or 0 constructors in [@@unboxed] variant"
+    | Variant_with_null, _ ->
+      (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
+         users to write their own null constructors. *)
+      (* CR layouts v3.3: generalize to [any]. *)
+      [| Constructor_uniform_value, [| |]
+       ; Constructor_uniform_value, [| Jkind.Sort.Const.value |] |]
   in
-  let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
+  let all_void sorts = Array.for_all Jkind.Sort.Const.(equal void) sorts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
-      (fun (_, jkinds) ->
-         let all_void = all_void jkinds in
+      (fun (_, sorts) ->
+         let all_void = all_void sorts in
          if all_void then incr num_consts else incr num_nonconsts;
          all_void)
       cstr_shapes_and_arg_jkinds
@@ -155,7 +157,11 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       then const_tag, 1 + const_tag, nonconst_tag
       else nonconst_tag, const_tag, 1 + nonconst_tag
     in
-    let cstr_tag = Ordinary {src_index; runtime_tag} in
+    let cstr_tag =
+      match rep, cstr_constant with
+      | Variant_with_null, true -> Null
+      | _, _ ->  Ordinary {src_index; runtime_tag}
+    in
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
@@ -221,31 +227,36 @@ let none =
   create_expr (Ttuple []) ~level:(-1) ~scope:Btype.generic_level ~id:(-1)
     (* Clearly ill-formed type *)
 
-let dummy_label =
+let dummy_label (type rep) (record_form : rep record_form)
+    : rep gen_label_description =
+  let repres : rep = match record_form with
+  | Legacy -> Record_unboxed
+  | Unboxed_product -> Record_unboxed_product
+  in
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
     lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.Const.id;
-    lbl_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+    lbl_sort = Jkind.Sort.Const.void;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
-    lbl_repres = Record_unboxed;
+    lbl_repres = repres;
     lbl_private = Public;
     lbl_loc = Location.none;
     lbl_attributes = [];
     lbl_uid = Uid.internal_not_actually_unique;
   }
 
-let label_descrs ty_res lbls repres priv =
-  let all_labels = Array.make (List.length lbls) dummy_label in
+let label_descrs record_form ty_res lbls repres priv =
+  let all_labels = Array.make (List.length lbls) (dummy_label record_form) in
   let rec describe_labels num pos = function
       [] -> []
     | l :: rest ->
-        let is_void = Jkind.is_void_defaulting l.ld_jkind  in
+        let is_void = Jkind.Sort.Const.(equal void l.ld_sort) in
         let lbl =
           { lbl_name = Ident.name l.ld_id;
             lbl_res = ty_res;
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
             lbl_modalities = l.ld_modalities;
-            lbl_jkind = l.ld_jkind;
+            lbl_sort = l.ld_sort;
             lbl_pos = if is_void then lbl_pos_void else pos;
             lbl_num = num;
             lbl_all = all_labels;
@@ -268,6 +279,7 @@ let find_constr ~constant tag cstrs =
       (function
         | ({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_) ->
           tag' = tag && cstr_constant = constant
+        | ({cstr_tag=Null; cstr_constant}, _) -> tag = -1 && cstr_constant = constant
         | ({cstr_tag=Extension _},_) -> false)
       cstrs
   with
@@ -278,13 +290,23 @@ let find_constr_by_tag ~constant tag cstrlist =
 
 let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
-  | Type_variant (cstrs,rep) ->
+  | Type_variant (cstrs, rep, _) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
-  | Type_record _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
+  | Type_open -> []
 
 let labels_of_type ty_path decl =
   match decl.type_kind with
-  | Type_record(labels, rep) ->
-      label_descrs (newgenconstr ty_path decl.type_params)
+  | Type_record(labels, rep, _) ->
+      label_descrs Legacy (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
+  | Type_record_unboxed_product _
+  | Type_variant _ | Type_abstract _ | Type_open -> []
+
+let unboxed_labels_of_type ty_path decl =
+  match decl.type_kind with
+  | Type_record_unboxed_product(labels, rep, _) ->
+      label_descrs Unboxed_product (newgenconstr ty_path decl.type_params)
+        labels rep decl.type_private
+  | Type_record _
   | Type_variant _ | Type_abstract _ | Type_open -> []

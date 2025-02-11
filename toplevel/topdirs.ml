@@ -430,7 +430,7 @@ let reg_show_prim name to_sig doc =
 let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
-       let _path, desc, _ = Env.lookup_value ~loc lid env in
+       let _path, desc, _, _= Env.lookup_value ~loc lid env in
        [ Sig_value (id, desc, Exported) ]
     )
     "Print the signature of the corresponding value."
@@ -482,7 +482,7 @@ let is_exception_constructor env type_expr =
 
 let is_extension_constructor = function
   | Extension _ -> true
-  | Ordinary _ -> false
+  | Ordinary _ | Null -> false
 
 let () =
   (* This show_prim function will only show constructor types

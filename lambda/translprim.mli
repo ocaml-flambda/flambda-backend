@@ -62,8 +62,10 @@ val sort_of_native_repr :
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
+  | Wrong_layout_for_peek_or_poke of string
   | Invalid_floatarray_glb
   | Product_iarrays_unsupported
+  | Invalid_array_kind_for_uninitialized_makearray_dynamic
 
 exception Error of Location.t * error
 

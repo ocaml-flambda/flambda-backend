@@ -33,7 +33,7 @@ module Witness = struct
   type kind =
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Cmm.alloc_dbginfo
         }
     | Indirect_call
     | Indirect_tailcall
@@ -1402,6 +1402,8 @@ module Annotation : sig
 
   val get_loc : t -> Location.t
 
+  val get_custom_error_msg : t -> string option
+
   val find : Cmm.codegen_option list -> string -> Debuginfo.t -> t option
 
   val of_cfg : Cfg.codegen_option list -> string -> Debuginfo.t -> t option
@@ -1443,14 +1445,23 @@ end = struct
       assume : bool;
       never_returns_normally : bool;
       never_raises : bool;
-      loc : Location.t
+      loc : Location.t;
           (** Source location of the annotation, used for error messages. *)
+      custom_error_msg : string option
     }
 
   let get_loc t = t.loc
 
+  let get_custom_error_msg t = t.custom_error_msg
+
   let expected_value
-      { strict; never_returns_normally; never_raises; assume = _; loc = _ } =
+      { strict;
+        never_returns_normally;
+        never_raises;
+        assume = _;
+        loc = _;
+        custom_error_msg = _
+      } =
     Value.of_annotation ~strict ~never_returns_normally ~never_raises
 
   let valid t v =
@@ -1472,13 +1483,14 @@ end = struct
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1487,7 +1499,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
         codegen_options
@@ -1504,13 +1517,14 @@ end = struct
       List.filter_map
         (fun (c : Cfg.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1519,7 +1533,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE -> None)
         codegen_options
@@ -1599,9 +1614,12 @@ end = struct
         |> String.concat ","
       in
       Format.fprintf ppf
-        "Annotation check for zero_alloc%s failed on function %s (%s)"
+        "Annotation check for zero_alloc%s failed on function %s (%s).%s"
         (if Annotation.is_strict t.a then " strict" else "")
         scoped_name t.fun_name
+        (match Annotation.get_custom_error_msg t.a with
+        | None -> ""
+        | Some msg -> "\n" ^ msg)
     in
     Location.error_of_printer ~loc print_annotated_fun ()
 
@@ -1612,9 +1630,40 @@ end = struct
       if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
       then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
     in
+    let pp_alloc_block_kind ppf k =
+      let pp s = Format.fprintf ppf " for %s" s in
+      match (k : Cmm.alloc_block_kind) with
+      | Alloc_block_kind_other -> ()
+      | Alloc_block_kind_closure -> pp "closure"
+      | Alloc_block_kind_float -> pp "float"
+      | Alloc_block_kind_float32 -> pp "float32"
+      | Alloc_block_kind_vec128 -> pp "vec128"
+      | Alloc_block_kind_boxed_int bi ->
+        pp
+          (match bi with
+          | Boxed_nativeint -> "boxed_nativeint"
+          | Boxed_int32 -> "boxed_int32"
+          | Boxed_int64 -> "boxed_int64")
+      | Alloc_block_kind_float_array -> pp "unboxed_float64_array"
+      | Alloc_block_kind_float32_u_array -> pp "unboxed_float32_array"
+      | Alloc_block_kind_int32_u_array -> pp "unboxed_int32_array"
+      | Alloc_block_kind_int64_u_array -> pp "unboxed_int64_array"
+      | Alloc_block_kind_vec128_u_array -> pp "unboxed_vec128_array"
+    in
+    let pp_alloc_dbginfo_item (item : Cmm.alloc_dbginfo_item) =
+      let pp_alloc ppf =
+        Format.fprintf ppf "allocate %d words%a%a" item.alloc_words
+          pp_alloc_block_kind item.alloc_block_kind pp_inlined_dbg
+          item.alloc_dbg
+      in
+      let aloc = Debuginfo.to_location item.alloc_dbg in
+      Location.mkloc pp_alloc aloc
+    in
     let print_comballoc dbg =
       match dbg with
-      | [] | [_] -> "", []
+      | [] -> "", []
+      | [item] ->
+        Format.asprintf "%a" pp_alloc_block_kind item.Cmm.alloc_block_kind, []
       | alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
@@ -1624,17 +1673,7 @@ end = struct
           Printf.sprintf " combining %d allocations below"
             (List.length alloc_dbginfo)
         in
-        let details =
-          List.map
-            (fun (item : Debuginfo.alloc_dbginfo_item) ->
-              let pp_alloc ppf =
-                Format.fprintf ppf "allocate %d words%a" item.alloc_words
-                  pp_inlined_dbg item.alloc_dbg
-              in
-              let aloc = Debuginfo.to_location item.alloc_dbg in
-              Location.mkloc pp_alloc aloc)
-            alloc_dbginfo
-        in
+        let details = List.map pp_alloc_dbginfo_item alloc_dbginfo in
         msg, details
     in
     let print_witness (w : Witness.t) ~component =

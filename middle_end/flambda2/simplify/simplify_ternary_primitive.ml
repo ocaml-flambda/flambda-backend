@@ -32,7 +32,7 @@ let simplify_array_set (array_kind : P.Array_kind.t)
       | Immediates -> ()
       | Values -> (
         match array_set_kind with
-        | Values _init_or_assign -> ()
+        | Values _ -> ()
         | Immediates
         (* We don't expect specialisation regressions from Immediates to
            Values. *)
@@ -44,15 +44,9 @@ let simplify_array_set (array_kind : P.Array_kind.t)
             P.Array_kind.print array_kind P.Array_set_kind.print array_set_kind
             P.Array_kind.print orig_array_kind Named.print original_term)
       | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ->
+      | Naked_nativeints | Naked_vec128s | Unboxed_product _ ->
         ()
     in
-    (* CR mshinwell: This should check:
-
-       1. Any element kind(s) in [array_ty] match [array_kind].
-
-       2. The [new_value] matches [array_set_kind]. (For unboxed products this
-       can only be checked if the index is known.) *)
     let named =
       Named.create_prim
         (Ternary
@@ -79,6 +73,12 @@ let simplify_atomic_compare_and_set ~original_prim dacc ~original_term _dbg
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_atomic_compare_exchange ~original_prim dacc ~original_term _dbg
+    ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var =
   let original_term = Named.create_prim original_prim dbg in
@@ -89,7 +89,9 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
       simplify_bytes_or_bigstring_set bytes_like_value string_accessor_width
     | Bigarray_set (num_dimensions, bigarray_kind, bigarray_layout) ->
       simplify_bigarray_set ~num_dimensions bigarray_kind bigarray_layout
-    | Atomic_compare_and_set -> simplify_atomic_compare_and_set ~original_prim
+    | Atomic_compare_and_set _ -> simplify_atomic_compare_and_set ~original_prim
+    | Atomic_compare_exchange _ ->
+      simplify_atomic_compare_exchange ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3
     ~arg3_ty ~result_var

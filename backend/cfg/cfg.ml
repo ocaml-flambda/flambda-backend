@@ -56,7 +56,8 @@ type codegen_option =
       }
   | Check_zero_alloc of
       { strict : bool;
-        loc : Location.t
+        loc : Location.t;
+        custom_error_msg : string option
       }
 
 let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
@@ -70,8 +71,9 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc } ->
       Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }
       :: of_cmm_codegen_option tl
-    | Check_zero_alloc { strict; loc } ->
-      Check_zero_alloc { strict; loc } :: of_cmm_codegen_option tl
+    | Check_zero_alloc { strict; loc; custom_error_msg } ->
+      Check_zero_alloc { strict; loc; custom_error_msg }
+      :: of_cmm_codegen_option tl
     | Use_linscan_regalloc -> of_cmm_codegen_option tl)
 
 type t =
@@ -240,7 +242,14 @@ let register_predecessors_for_all_blocks (t : t) =
       let targets = successor_labels ~normal:true ~exn:true block in
       Label.Set.iter
         (fun target ->
-          let target_block = Label.Tbl.find t.blocks target in
+          let target_block =
+            match Label.Tbl.find t.blocks target with
+            | target_block -> target_block
+            | exception Not_found ->
+              Misc.fatal_errorf
+                "Cfg.register_predecessors_for_all_blocks: block %a not found"
+                Label.format target
+          in
           target_block.predecessors
             <- Label.Set.add label target_block.predecessors)
         targets)
@@ -420,6 +429,22 @@ let is_pure_terminator desc =
     (* CR gyorsh: fix for memory operands *)
     true
 
+let is_never_terminator desc =
+  match (desc : terminator) with
+  | Never -> true
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
+  | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+    false
+
+let is_return_terminator desc =
+  match (desc : terminator) with
+  | Return -> true
+  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _
+  | Call _ | Prim _ | Specific_can_raise _ ->
+    false
+
 let is_pure_basic : basic -> bool = function
   | Op op -> Operation.is_pure op
   | Reloadretaddr ->
@@ -501,3 +526,71 @@ let make_instruction ~desc ?(arg = [||]) ?(res = [||]) ?(dbg = Debuginfo.none)
     available_before;
     available_across
   }
+
+let next_instr_id = ref 0
+
+let reset_next_instr_id () = next_instr_id := 0
+
+let next_instr_id () : int =
+  let res = !next_instr_id in
+  incr next_instr_id;
+  res
+
+let make_instr desc arg res dbg =
+  { desc;
+    arg;
+    res;
+    dbg;
+    fdo = Fdo_info.none;
+    live = Reg.Set.empty;
+    stack_offset = -1;
+    id = next_instr_id ();
+    irc_work_list = Unknown_list;
+    ls_order = 0;
+    (* CR mshinwell/xclerc: should this be [None]? *)
+    available_before =
+      Some (Reg_availability_set.Ok Reg_with_debug_info.Set.empty);
+    available_across = None
+  }
+
+let make_empty_block ?label terminator : basic_block =
+  let start =
+    match label with None -> Cmm.new_label () | Some label -> label
+  in
+  { start;
+    body = DLL.make_empty ();
+    terminator;
+    predecessors = Label.Set.empty;
+    stack_offset = -1;
+    exn = None;
+    can_raise = false;
+    is_trap_handler = false;
+    dead = false;
+    cold = false
+  }
+
+let basic_block_contains_calls block =
+  block.is_trap_handler
+  || (match block.terminator.desc with
+     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+     | Int_test _ | Switch _ | Return ->
+       false
+     | Raise raise_kind -> (
+       match raise_kind with
+       | Lambda.Raise_notrace -> false
+       | Lambda.Raise_regular | Lambda.Raise_reraise ->
+         (* PR#6239 *)
+         (* caml_stash_backtrace; we #mark_call rather than #mark_c_tailcall to
+            get a good stack backtrace *)
+         true)
+     | Tailcall_self _ -> false
+     | Tailcall_func _ -> false
+     | Call_no_return _ -> true
+     | Call _ -> true
+     | Prim { op = External _; _ } -> true
+     | Prim { op = Probe _; _ } -> true
+     | Specific_can_raise _ -> false)
+  || DLL.exists block.body ~f:(fun (instr : basic instruction) ->
+         match[@ocaml.warning "-4"] instr.desc with
+         | Op (Alloc _ | Poll) -> true
+         | _ -> false)

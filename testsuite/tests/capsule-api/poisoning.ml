@@ -1,7 +1,6 @@
 (* TEST
  include stdlib_alpha;
  flags = "-extension-universe alpha";
- runtime5;
  { bytecode; }
  { native; }
 *)
@@ -68,10 +67,10 @@ let () =
   assert (!x = 2)
 ;;
 
-(* Destroying the mutex leaks the password. *)
+(* Destroying the mutex leaks a converter. *)
 let () =
   let (P m) = m in
-  let _k : _ Capsule.Password.t = Capsule.Mutex.destroy m in
+  let _k : _ Capsule.Access.t = Capsule.Mutex.destroy m in
   ()
 ;;
 

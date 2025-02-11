@@ -17,11 +17,12 @@ open! Stdlib
 
 (** Semaphores *)
 
-type sem = {
+type sem : value mod portable uncontended = {
   mut: Mutex.t;                         (* protects [v] *)
   mutable v: int;                       (* the current value *)
   nonzero: Condition.t                  (* signaled when [v > 0] *)
 }
+[@@unsafe_allow_any_mode_crossing "[v] is protected by [mut]"]
 
 module Counting = struct
 

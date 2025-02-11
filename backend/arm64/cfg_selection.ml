@@ -17,17 +17,19 @@
 
 (* Instruction selection for the ARM processor *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Arch
 open Cmm
 open Selection_utils
 
-let specific x =
+let specific x ~label_after =
   if Arch.operation_can_raise x
   then
-    Cfg_selectgen.With_next_label
-      (fun label_after -> Cfg.Specific_can_raise { Cfg.op = x; label_after })
+    Cfg_selectgen.Terminator
+      (Cfg.Specific_can_raise { Cfg.op = x; label_after })
   else Cfg_selectgen.Basic Cfg.(Op (Specific x))
 
 class selector =
@@ -74,7 +76,8 @@ class selector =
         Ibased (s.sym_name, 0), Ctuple []
       | arg -> Iindexed 0, arg
 
-    method! select_operation op args dbg =
+    method! select_operation op args dbg ~label_after =
+      let[@inline] specific op = specific op ~label_after in
       match op with
       (* Integer addition *)
       | Caddi | Caddv | Cadda -> (
@@ -94,13 +97,13 @@ class selector =
           specific (Ishiftarith (Ishiftadd, -n)), [arg2; arg1]
         (* Multiply-add *)
         | [arg1; Cop (Cmuli, args2, dbg)] | [Cop (Cmuli, args2, dbg); arg1] -> (
-          match self#select_operation Cmuli args2 dbg with
+          match self#select_operation Cmuli args2 dbg ~label_after with
           | Basic (Op (Intop_imm (Ilsl, l))), [arg3] ->
             specific (Ishiftarith (Ishiftadd, l)), [arg1; arg3]
           | Basic (Op (Intop Imul)), [arg3; arg4] ->
             specific Imuladd, [arg3; arg4; arg1]
-          | _ -> super#select_operation op args dbg)
-        | _ -> super#select_operation op args dbg)
+          | _ -> super#select_operation op args dbg ~label_after)
+        | _ -> super#select_operation op args dbg ~label_after)
       (* Integer subtraction *)
       | Csubi -> (
         match args with
@@ -113,20 +116,20 @@ class selector =
           specific (Ishiftarith (Ishiftsub, -n)), [arg1; arg2]
         (* Multiply-sub *)
         | [arg1; Cop (Cmuli, args2, dbg)] -> (
-          match self#select_operation Cmuli args2 dbg with
+          match self#select_operation Cmuli args2 dbg ~label_after with
           | Basic (Op (Intop_imm (Ilsl, l))), [arg3] ->
             specific (Ishiftarith (Ishiftsub, l)), [arg1; arg3]
           | Basic (Op (Intop Imul)), [arg3; arg4] ->
             specific Imulsub, [arg3; arg4; arg1]
-          | _ -> super#select_operation op args dbg)
-        | _ -> super#select_operation op args dbg)
+          | _ -> super#select_operation op args dbg ~label_after)
+        | _ -> super#select_operation op args dbg ~label_after)
       (* Recognize sign extension *)
       | Casr -> (
         match args with
         | [Cop (Clsl, [k; Cconst_int (n, _)], _); Cconst_int (n', _)]
           when n' = n && 0 < n && n < 64 ->
           specific (Isignext (64 - n)), [k]
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       (* Use trivial addressing mode for atomic loads *)
       | Cload { memory_chunk; mutability; is_atomic = true } ->
         ( Basic
@@ -142,20 +145,20 @@ class selector =
       | Cnegf Float64 -> (
         match args with
         | [Cop (Cmulf Float64, args, _)] -> specific Inegmulf, args
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       (* Recognize floating-point multiply and add/sub *)
       | Caddf Float64 -> (
         match args with
         | [arg; Cop (Cmulf Float64, args, _)]
         | [Cop (Cmulf Float64, args, _); arg] ->
           specific Imuladdf, arg :: args
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       | Csubf Float64 -> (
         match args with
         | [arg; Cop (Cmulf Float64, args, _)] -> specific Imulsubf, arg :: args
         | [Cop (Cmulf Float64, args, _); arg] ->
           specific Inegmulsubf, arg :: args
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       (* Recognize floating-point square root *)
       | Cextcall { func = "sqrt" } -> specific Isqrtf, args
       (* Recognize bswap instructions *)
@@ -163,14 +166,19 @@ class selector =
         let bitwidth = select_bitwidth bitwidth in
         specific (Ibswap { bitwidth }), args
       (* Other operations are regular *)
-      | _ -> super#select_operation op args dbg
+      | _ -> super#select_operation op args dbg ~label_after
 
     method! insert_move_extcall_arg env ty_arg src dst =
-      if macosx && ty_arg = XInt32 && is_stack_slot dst
+      let ty_arg_is_int32 =
+        match ty_arg with
+        | XInt32 -> true
+        | XInt | XInt64 | XFloat32 | XFloat | XVec128 -> false
+      in
+      if macosx && ty_arg_is_int32 && is_stack_slot dst
       then self#insert env (Op (Specific Imove32)) src dst
       else self#insert_moves env src dst
   end
 
 let fundecl ~future_funcnames f =
-  Cfg_selectgen.reset_next_instr_id ();
+  Cfg.reset_next_instr_id ();
   (new selector)#emit_fundecl ~future_funcnames f

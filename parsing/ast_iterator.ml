@@ -178,7 +178,8 @@ module T = struct
     | Ptype_abstract -> ()
     | Ptype_variant l ->
         List.iter (sub.constructor_declaration sub) l
-    | Ptype_record l -> List.iter (sub.label_declaration sub) l
+    | Ptype_record l | Ptype_record_unboxed_product l ->
+        List.iter (sub.label_declaration sub) l
     | Ptype_open -> ()
 
   let iter_constructor_argument sub {pca_type; pca_loc; pca_modalities} =
@@ -431,14 +432,17 @@ module E = struct
   let iter_function_constraint sub : function_constraint -> _ =
     (* Enable warning 9 to ensure that the record pattern doesn't miss any
        field. *)
-    fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
+    fun[@ocaml.warning "+9"] { mode_annotations; ret_type_constraint; ret_mode_annotations } ->
       sub.modes sub mode_annotations;
-      match type_constraint with
-      | Pconstraint ty ->
+      begin match ret_type_constraint with
+      | Some (Pconstraint ty) ->
           sub.typ sub ty
-      | Pcoerce (ty1, ty2) ->
+      | Some (Pcoerce (ty1, ty2)) ->
           Option.iter (sub.typ sub) ty1;
           sub.typ sub ty2
+      | None -> ()
+      end;
+      sub.modes sub ret_mode_annotations
 
   let iter_function_body sub : function_body -> _ = function
     | Pfunction_body expr ->
@@ -461,7 +465,7 @@ module E = struct
         sub.expr sub e
     | Pexp_function (params, constraint_, body) ->
         List.iter (iter_function_param sub) params;
-        iter_opt (iter_function_constraint sub) constraint_;
+        iter_function_constraint sub constraint_;
         iter_function_body sub body
     | Pexp_apply (e, l) ->
         sub.expr sub e; List.iter (iter_snd (sub.expr sub)) l
@@ -474,10 +478,12 @@ module E = struct
         iter_loc sub lid; iter_opt (sub.expr sub) arg
     | Pexp_variant (_lab, eo) ->
         iter_opt (sub.expr sub) eo
-    | Pexp_record (l, eo) ->
+    | Pexp_record (l, eo)
+    | Pexp_record_unboxed_product (l, eo) ->
         List.iter (iter_tuple (iter_loc sub) (sub.expr sub)) l;
         iter_opt (sub.expr sub) eo
-    | Pexp_field (e, lid) ->
+    | Pexp_field (e, lid)
+    | Pexp_unboxed_field (e, lid) ->
         sub.expr sub e; iter_loc sub lid
     | Pexp_setfield (e1, lid, e2) ->
         sub.expr sub e1; iter_loc sub lid;
@@ -532,6 +538,8 @@ module E = struct
     | Pexp_unreachable -> ()
     | Pexp_stack e -> sub.expr sub e
     | Pexp_comprehension e -> iter_comp_exp sub e
+    | Pexp_overwrite (e1, e2) -> sub.expr sub e1; sub.expr sub e2
+    | Pexp_hole -> ()
 
   let iter_binding_op sub {pbop_op; pbop_pat; pbop_exp; pbop_loc} =
     iter_loc sub pbop_op;
@@ -565,7 +573,8 @@ module P = struct
             sub.pat sub p)
           p
     | Ppat_variant (_l, p) -> iter_opt (sub.pat sub) p
-    | Ppat_record (lpl, _cf) ->
+    | Ppat_record (lpl, _cf)
+    | Ppat_record_unboxed_product (lpl, _cf) ->
         List.iter (iter_tuple (iter_loc sub) (sub.pat sub)) lpl
     | Ppat_array (_mut, pl) -> List.iter (sub.pat sub) pl
     | Ppat_or (p1, p2) -> sub.pat sub p1; sub.pat sub p2
@@ -833,9 +842,10 @@ let default_iterator =
          | Mod (t, mode_list) ->
              this.jkind_annotation this t;
              this.modes this mode_list
-         | With (t, ty) ->
+         | With (t, ty, modalities) ->
              this.jkind_annotation this t;
-             this.typ this ty
+             this.typ this ty;
+             this.modalities this modalities
          | Kind_of ty -> this.typ this ty
          | Product ts -> List.iter (this.jkind_annotation this) ts);
 

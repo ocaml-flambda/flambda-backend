@@ -52,13 +52,26 @@ let if_operation_supported op ~f =
   match Proc.operation_supported op with true -> Some (f ()) | false -> None
 
 let if_operation_supported_bi bi op ~f =
-  if bi = Primitive.Pint64 && size_int = 4
+  if bi = Primitive.Unboxed_int64 && size_int = 4
   then None
   else if_operation_supported op ~f
 
 let int_of_value arg dbg = Cop (Creinterpret_cast Int_of_value, [arg], dbg)
 
 let value_of_int arg dbg = Cop (Creinterpret_cast Value_of_int, [arg], dbg)
+
+let shift32 make_op arg count dbg =
+  assert (size_int = 8);
+  let mask = 32 - 1 in
+  let count =
+    match count with
+    | Cconst_int (n, _) -> Cconst_int (n land mask, dbg)
+    | Cconst_natint (n, _) ->
+      Cconst_int
+        (Nativeint.to_int (Nativeint.logand n (Nativeint.of_int mask)), dbg)
+    | _ -> Cop (Cand, [count; Cconst_int (mask, dbg)], dbg)
+  in
+  Some (make_op arg count dbg)
 
 (* Untagging of a negative value shifts in an extra bit. The following code
    clears the shifted sign bit of an untagged int. This straightline code is
@@ -72,13 +85,13 @@ let clz ~arg_is_non_zero bi arg dbg =
   let op = Cclz { arg_is_non_zero } in
   if_operation_supported_bi bi op ~f:(fun () ->
       let res = Cop (op, [make_unsigned_int bi arg dbg], dbg) in
-      if bi = Primitive.Pint32 && size_int = 8
+      if bi = Primitive.Unboxed_int32 && size_int = 8
       then Cop (Caddi, [res; Cconst_int (-32, dbg)], dbg)
       else res)
 
 let ctz ~arg_is_non_zero bi arg dbg =
   let arg = make_unsigned_int bi arg dbg in
-  if bi = Primitive.Pint32 && size_int = 8
+  if bi = Primitive.Unboxed_int32 && size_int = 8
   then
     (* regardless of the value of the argument [arg_is_non_zero], always set the
        corresponding field to [true], because we make it non-zero below by
@@ -139,7 +152,7 @@ let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
 let native_pointer_cas size (arg1, arg2, arg3) dbg =
-  let op = Catomic { op = Compare_and_swap; size } in
+  let op = Catomic { op = Compare_set; size } in
   if_operation_supported op ~f:(fun () ->
       bind "set_to" arg3 (fun set_to ->
           bind "compare_with" arg2 (fun compare_with ->
@@ -150,7 +163,7 @@ let ext_pointer_cas size (arg1, arg2, arg3) dbg =
   native_pointer_cas size (int_as_pointer arg1 dbg, arg2, arg3) dbg
 
 let bigstring_cas size (arg1, arg2, arg3, arg4) dbg =
-  let op = Catomic { op = Compare_and_swap; size } in
+  let op = Catomic { op = Compare_set; size } in
   if_operation_supported op ~f:(fun () ->
       bind "set_to" arg4 (fun set_to ->
           bind "compare_with" arg3 (fun compare_with ->
@@ -439,17 +452,17 @@ let transl_builtin name args dbg typ_res =
         let arg = clear_sign_bit (one_arg name args) dbg in
         Cop (Caddi, [Cop (op, [arg], dbg); Cconst_int (-1, dbg)], dbg))
   | "caml_int64_clz_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
+    clz ~arg_is_non_zero:false Unboxed_int64 (one_arg name args) dbg
   | "caml_int32_clz_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
+    clz ~arg_is_non_zero:false Unboxed_int32 (one_arg name args) dbg
   | "caml_nativeint_clz_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
+    clz ~arg_is_non_zero:false Unboxed_nativeint (one_arg name args) dbg
   | "caml_int64_clz_nonzero_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
+    clz ~arg_is_non_zero:true Unboxed_int64 (one_arg name args) dbg
   | "caml_int32_clz_nonzero_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
+    clz ~arg_is_non_zero:true Unboxed_int32 (one_arg name args) dbg
   | "caml_nativeint_clz_nonzero_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
+    clz ~arg_is_non_zero:true Unboxed_nativeint (one_arg name args) dbg
   | "caml_int_popcnt_tagged_to_untagged" ->
     if_operation_supported Cpopcnt ~f:(fun () ->
         (* Having the argument tagged saves a shift, but there is one extra
@@ -462,11 +475,11 @@ let transl_builtin name args dbg typ_res =
         let arg = clear_sign_bit (one_arg name args) dbg in
         Cop (Cpopcnt, [arg], dbg))
   | "caml_int64_popcnt_unboxed_to_untagged" ->
-    popcnt Pint64 (one_arg name args) dbg
+    popcnt Unboxed_int64 (one_arg name args) dbg
   | "caml_int32_popcnt_unboxed_to_untagged" ->
-    popcnt Pint32 (one_arg name args) dbg
+    popcnt Unboxed_int32 (one_arg name args) dbg
   | "caml_nativeint_popcnt_unboxed_to_untagged" ->
-    popcnt Pnativeint (one_arg name args) dbg
+    popcnt Unboxed_nativeint (one_arg name args) dbg
   | "caml_int_ctz_untagged_to_untagged" ->
     (* Assuming a 64-bit x86-64 target:
 
@@ -496,21 +509,23 @@ let transl_builtin name args dbg typ_res =
         in
         Cop (op, [Cop (Cor, [one_arg name args; c], dbg)], dbg))
   | "caml_int32_ctz_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
+    ctz ~arg_is_non_zero:false Unboxed_int32 (one_arg name args) dbg
   | "caml_int64_ctz_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
+    ctz ~arg_is_non_zero:false Unboxed_int64 (one_arg name args) dbg
   | "caml_nativeint_ctz_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
+    ctz ~arg_is_non_zero:false Unboxed_nativeint (one_arg name args) dbg
   | "caml_int32_ctz_nonzero_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
+    ctz ~arg_is_non_zero:true Unboxed_int32 (one_arg name args) dbg
   | "caml_int64_ctz_nonzero_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
+    ctz ~arg_is_non_zero:true Unboxed_int64 (one_arg name args) dbg
   | "caml_nativeint_ctz_nonzero_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
-  | "caml_signed_int64_mulh_unboxed" -> mulhi ~signed:true Pint64 args dbg
-  | "caml_unsigned_int64_mulh_unboxed" -> mulhi ~signed:false Pint64 args dbg
+    ctz ~arg_is_non_zero:true Unboxed_nativeint (one_arg name args) dbg
+  | "caml_signed_int64_mulh_unboxed" ->
+    mulhi ~signed:true Unboxed_int64 args dbg
+  | "caml_unsigned_int64_mulh_unboxed" ->
+    mulhi ~signed:false Unboxed_int64 args dbg
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
-    Some (zero_extend_32 dbg (one_arg name args))
+    Some (zero_extend ~bits:32 ~dbg (one_arg name args))
   | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
   | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed" ->
     (* Unboxed float variant of csel intrinsic is not currently supported. It
@@ -527,6 +542,28 @@ let transl_builtin name args dbg typ_res =
         | Cconst_int (0, _) -> ifnot
         | Cconst_int (1, _) -> ifso
         | _ -> Cop (op, [cond; ifso; ifnot], dbg))
+  | "caml_int32_shift_left_by_int32_unboxed" ->
+    let arg, count = two_args name args in
+    shift32 lsl_int arg count dbg
+  | "caml_int32_shift_right_by_int32_unboxed" ->
+    let arg, count = two_args name args in
+    shift32 asr_int arg count dbg
+  | "caml_int32_shift_right_logical_by_int32_unboxed" ->
+    let arg, count = two_args name args in
+    let arg = zero_extend ~bits:32 ~dbg arg in
+    shift32 lsr_int arg count dbg
+  | "caml_nativeint_shift_left_by_nativeint_unboxed"
+  | "caml_int64_shift_left_by_int64_unboxed" ->
+    let arg, count = two_args name args in
+    Some (lsl_int arg count dbg)
+  | "caml_nativeint_shift_right_by_nativeint_unboxed"
+  | "caml_int64_shift_right_by_int64_unboxed" ->
+    let arg, count = two_args name args in
+    Some (asr_int arg count dbg)
+  | "caml_nativeint_shift_right_logical_by_nativeint_unboxed"
+  | "caml_int64_shift_right_logical_by_int64_unboxed" ->
+    let arg, count = two_args name args in
+    Some (lsr_int arg count dbg)
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)

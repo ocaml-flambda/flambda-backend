@@ -81,6 +81,7 @@ STDLIB_MODULE_BASENAMES = \
   mutex \
   condition \
   semaphore \
+  modes \
   domain \
   bigarray \
   random \

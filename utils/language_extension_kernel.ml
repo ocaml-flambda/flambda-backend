@@ -7,7 +7,8 @@ type maturity =
 type _ t =
   | Comprehensions : unit t
   | Mode : maturity t
-  | Unique : unit t
+  | Unique : maturity t
+  | Overwriting : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
@@ -23,6 +24,7 @@ let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
   | Mode -> "mode"
   | Unique -> "unique"
+  | Overwriting -> "overwriting"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays"

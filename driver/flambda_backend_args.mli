@@ -36,6 +36,7 @@ module type Flambda_backend_options = sig
 
   val vectorize : unit -> unit
   val no_vectorize : unit -> unit
+  val vectorize_max_block_size : int -> unit
   val dvectorize : unit -> unit
 
   val cfg_selection : unit -> unit
@@ -62,6 +63,7 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
+  val zero_alloc_assert : string -> unit
 
   val dzero_alloc : unit -> unit
   val disable_zero_alloc_checker : unit -> unit

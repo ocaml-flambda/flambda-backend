@@ -17,6 +17,8 @@
 
 (* Instruction selection for the ARM processor *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Arch

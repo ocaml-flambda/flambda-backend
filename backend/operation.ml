@@ -70,7 +70,7 @@ type t =
   | Poll
   | Alloc of
       { bytes : int;
-        dbginfo : Debuginfo.alloc_dbginfo;
+        dbginfo : Cmm.alloc_dbginfo;
         mode : Cmm.Alloc_mode.t
       }
 
@@ -123,9 +123,6 @@ let intcomp (comp : Simple_operation.integer_comparison) =
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
-let intop_atomic (op : Cmm.atomic_op) =
-  match op with Fetch_and_add -> " += " | Compare_and_swap -> " cas "
-
 let intop (op : Simple_operation.integer_operation) =
   match op with
   | Iadd -> " + "
@@ -173,7 +170,7 @@ let dump ppf op =
   | Intop op -> Format.fprintf ppf "intop %s" (intop op)
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
-    Format.fprintf ppf "intop atomic %s" (intop_atomic op)
+    Format.fprintf ppf "intop atomic %s" (Printcmm.atomic_op op)
   | Floatop (Float64, op) -> Format.fprintf ppf "floatop %a" floatop op
   | Floatop (Float32, op) -> Format.fprintf ppf "float32op %a" floatop op
   | Csel _ -> Format.fprintf ppf "csel"

@@ -34,7 +34,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 type t_any_non_null : any_non_null;;
 
 [%%expect{|
-type t_any_non_null : any
+type t_any_non_null : any_non_null
 |}]
 
 type t_value_or_null : value_or_null;;
@@ -722,7 +722,7 @@ end;;
 Line 5, characters 16-17:
 5 |     | `Bar v -> v
                     ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
@@ -819,7 +819,7 @@ end;;
 Line 6, characters 21-22:
 6 |     | (a, _) -> f_id a
                          ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "float#"
        The layout of float# is float64
          because it is the primitive type float#.
@@ -1703,7 +1703,8 @@ Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
 Error: This pattern matches values of type "t_float64"
-       but a pattern was expected which matches values of type "('a : value)"
+       but a pattern was expected which matches values of type
+         "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -1792,7 +1793,7 @@ Line 1, characters 14-40:
 1 | let f _ = `Mk (assert false : t_float64)
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -2851,7 +2852,7 @@ Line 2, characters 14-18:
 2 |   let rec x = #3.4 in
                   ^^^^
 Error: This expression has type "float#" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value

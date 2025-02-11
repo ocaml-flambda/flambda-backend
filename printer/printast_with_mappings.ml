@@ -286,6 +286,9 @@ and pattern i ppf x =
   | Ppat_record (l, c) ->
       line i ppf "Ppat_record %a\n" fmt_closed_flag c;
       list i longident_x_pattern ppf l;
+  | Ppat_record_unboxed_product (l, c) ->
+      line i ppf "Ppat_record_unboxed_product %a\n" fmt_closed_flag c;
+      list i longident_x_pattern ppf l;
   | Ppat_array (mut, l) ->
       line i ppf "Ppat_array %a\n" fmt_mutable_flag mut;
       list i pattern ppf l;
@@ -332,7 +335,7 @@ and expression i ppf x =
   | Pexp_function (params, c, body) ->
       line i ppf "Pexp_function\n";
       list i function_param ppf params;
-      option i function_constraint ppf c;
+      function_constraint i ppf c;
       function_body i ppf body
   | Pexp_apply (e, l) ->
       line i ppf "Pexp_apply\n";
@@ -362,8 +365,16 @@ and expression i ppf x =
       line i ppf "Pexp_record\n";
       list i longident_x_expression ppf l;
       option i expression ppf eo;
+  | Pexp_record_unboxed_product (l, eo) ->
+      line i ppf "Pexp_record_unboxed_product\n";
+      list i longident_x_expression ppf l;
+      option i expression ppf eo;
   | Pexp_field (e, li) ->
       line i ppf "Pexp_field\n";
+      expression i ppf e;
+      longident_loc i ppf li;
+  | Pexp_unboxed_field (e, li) ->
+      line i ppf "Pexp_unboxed_field\n";
       expression i ppf e;
       longident_loc i ppf li;
   | Pexp_setfield (e1, li, e2) ->
@@ -461,6 +472,12 @@ and expression i ppf x =
   | Pexp_comprehension c ->
       line i ppf "Pexp_comprehension\n";
       comprehension_expression i ppf c
+  | Pexp_overwrite (e1, e2) ->
+      line i ppf "Pexp_overwrite\n";
+      expression i ppf e1;
+      expression i ppf e2
+  | Pexp_hole ->
+      line i ppf "Pexp_hole"
   )
 
 and comprehension_expression i ppf = function
@@ -515,10 +532,11 @@ and jkind_annotation i ppf (jkind : jkind_annotation) =
       line i ppf "Mod\n";
       jkind_annotation (i+1) ppf jkind;
       modes (i+1) ppf m
-  | With (jkind, type_) ->
+  | With (jkind, type_, modalities) ->
       line i ppf "With\n";
       jkind_annotation (i+1) ppf jkind;
-      core_type (i+1) ppf type_
+      core_type (i+1) ppf type_;
+      list i modality ppf modalities
   | Kind_of type_ ->
       line i ppf "Kind_of\n";
       core_type (i+1) ppf type_
@@ -557,9 +575,10 @@ and type_constraint i ppf type_constraint =
       option (i+1) core_type ppf ty1;
       core_type (i+1) ppf ty2
 
-and function_constraint i ppf { type_constraint = c; mode_annotations } =
-  type_constraint i ppf c;
-  modes i ppf mode_annotations
+and function_constraint i ppf
+  { ret_type_constraint; ret_mode_annotations; mode_annotations = _ } =
+  option i type_constraint ppf ret_type_constraint;
+  modes i ppf ret_mode_annotations
 
 and value_description i ppf x =
   with_location_mapping ~loc:x.pval_loc ppf (fun () ->
@@ -621,6 +640,9 @@ and type_kind i ppf x =
       list (i+1) constructor_decl ppf l;
   | Ptype_record l ->
       line i ppf "Ptype_record\n";
+      list (i+1) label_decl ppf l;
+  | Ptype_record_unboxed_product l ->
+      line i ppf "Ptype_record_unboxed_product\n";
       list (i+1) label_decl ppf l;
   | Ptype_open ->
       line i ppf "Ptype_open\n";

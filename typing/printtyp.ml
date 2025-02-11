@@ -49,9 +49,8 @@ module Style = Misc.Style
 
    In this case, there is no way to know the jkind without the annotation.
 
-   (* CR layouts v2.8: remove this case *)
-   (C1.2) The type has illegal mode crossings. In this case, the jkind is overridden by
-   the user rather than being inferred from the definition.
+   (C1.2) The type has unsafe mode crossings. In this case, the jkind is overridden by the
+   user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
    [type ('a : <<this one>>) t = ...].
@@ -139,6 +138,7 @@ let human_unique n id = Printf.sprintf "%s/%d" (Ident.name id) n
     | Type
     | Constructor
     | Label
+    | Unboxed_label
     | Module
     | Module_type
     | Extension_constructor
@@ -155,9 +155,10 @@ module Namespace = struct
     | Class -> 3
     | Class_type -> 4
     | Extension_constructor | Value | Constructor | Label -> 5
+    | Unboxed_label -> 6
      (* we do not handle those component *)
 
-  let size = 1 + id Value
+  let size = 1 + id Unboxed_label
 
 
   let pp ppf x =
@@ -174,7 +175,8 @@ module Namespace = struct
     | Some Module_type -> to_lookup Env.find_modtype_by_name
     | Some Class -> to_lookup Env.find_class_by_name
     | Some Class_type -> to_lookup Env.find_cltype_by_name
-    | None | Some(Value|Extension_constructor|Constructor|Label) ->
+    | None
+    | Some(Value|Extension_constructor|Constructor|Label|Unboxed_label) ->
          fun _ -> raise Not_found
 
   let location namespace id =
@@ -186,7 +188,8 @@ module Namespace = struct
         | Some Module_type -> (in_printing_env @@ Env.find_modtype path).mtd_loc
         | Some Class -> (in_printing_env @@ Env.find_class path).cty_loc
         | Some Class_type -> (in_printing_env @@ Env.find_cltype path).clty_loc
-        | Some (Extension_constructor|Value|Constructor|Label) | None ->
+        | Some (Extension_constructor|Value|Constructor|Label|Unboxed_label)
+        | None ->
             Location.none
       ) with Not_found -> None
 
@@ -435,6 +438,26 @@ let ident ppf id = pp_print_string ppf
 let namespaced_ident namespace  id =
   Out_name.print (Naming_context.ident_name (Some namespace) id)
 
+let instance_name global =
+  (* Construct the stopgap syntax and then shove it in a string with the
+     attribute after it. *)
+  (* CR lmaurer: This is hacky and it loses the state of the [out_name]s that
+     comprise the [out_ident]. Should presumably have a new constructor for
+     [out_ident] instead? *)
+  let rec string_of_global global =
+    (* We can avoid calling [ident_name_simple] here because instance names are
+       always global (which is bad - but the syntax is currently bad anyway) *)
+    let ({ head; args } : Global_module.Name.t) = global in
+    String.concat "" (head :: List.map string_of_arg args)
+  and string_of_arg arg =
+    let ({ param; value } : Global_module.Name.argument) = arg in
+    sprintf "(%s)(%s)" (string_of_global param) (string_of_global value)
+  in
+  let printed_name =
+    string_of_global global ^ " [@jane.non_erasable.instances]"
+  in
+  { printed_name }
+
 
 (* Print a path *)
 
@@ -545,6 +568,14 @@ let rec tree_of_path namespace = function
       | Pext_ty ->
           tree_of_path None p
     end
+
+let tree_of_path namespace = function
+  | Pident id when Ident.is_instance id ->
+    (* Only when the instance name is the entire path (which is the only place
+       a human could write it) is it worth printing the human-writable stopgap
+       syntax for instance names *)
+    Oide_ident (instance_name (Ident.to_global_exn id))
+  | p -> tree_of_path namespace p
 
 let tree_of_path namespace p =
   tree_of_path namespace (rewrite_double_underscore_paths !printing_env p)
@@ -1337,7 +1368,11 @@ let rec out_jkind_of_desc (desc : 'd Jkind.Desc.t) =
 let out_jkind_option_of_jkind jkind =
   let desc = Jkind.get jkind in
   let elide =
-    Jkind.is_value_for_printing jkind (* C2.1 *)
+    (* CR layouts: We ignore nullability here to avoid needlessly printing
+       ['a : value_or_null] when it's not relevant (most cases).
+       Unfortunately, this makes error messages really confusing, because
+       we don't consider jkind annotations. *)
+    Jkind.is_value_for_printing ~ignore_null:true jkind (* C2.1 *)
     || (match desc.layout with
         | Sort (Var _) -> not !Clflags.verbose_types (* X1 *)
         | _ -> false)
@@ -1387,7 +1422,8 @@ let tree_of_modes modes =
     tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_new "unique"];
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
     tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
-                                  Mode.Contention.Const.Shared, Omd_new "shared"]]
+                                  Mode.Contention.Const.Shared, Omd_new "shared"];
+    tree_of_mode diff.yielding [Mode.Yielding.Const.Yielding, Omd_new "yielding"]]
   in
   List.filter_map Fun.id l
 
@@ -1658,8 +1694,6 @@ let type_expr ppf ty =
   prepare_for_printing [ty];
   prepared_type_expr ppf ty
 
-let () = Env.print_type_expr := type_expr
-
 (* "Half-prepared" type expression: [ty] should have had its names reserved, but
    should not have had its loops marked. *)
 let type_expr_with_reserved_names ppf ty =
@@ -1686,6 +1720,11 @@ let type_path ppf p =
 let tree_of_type_scheme ty =
   prepare_for_printing [ty];
   tree_of_typexp Type_scheme ty
+
+let () =
+  Env.print_type_expr := type_expr;
+  Jkind.set_outcometree_of_type_scheme tree_of_type_scheme;
+  Jkind.set_outcometree_of_modalities_new tree_of_modalities_new
 
 (* Print one type declaration *)
 
@@ -1832,13 +1871,15 @@ let prepare_decl id decl =
   in
   begin match decl.type_kind with
   | Type_abstract _ -> ()
-  | Type_variant (cstrs, _rep) ->
+  | Type_variant (cstrs, _rep,_umc) ->
       List.iter
         (fun c ->
            prepare_type_constructor_arguments c.cd_args;
            Option.iter prepare_type c.cd_res)
         cstrs
-  | Type_record(l, _rep) ->
+  | Type_record(l, _rep,_umc) ->
+      List.iter (fun l -> prepare_type l.ld_type) l
+  | Type_record_unboxed_product(l, _rep,_umc) ->
       List.iter (fun l -> prepare_type l.ld_type) l
   | Type_open -> ()
   end;
@@ -1859,7 +1900,9 @@ let tree_of_type_decl id decl =
           decl.type_manifest = None || decl.type_private = Private
       | Type_record _ ->
           decl.type_private = Private
-      | Type_variant (tll, _rep) ->
+      | Type_record_unboxed_product _ ->
+          decl.type_private = Private
+      | Type_variant (tll, _rep,_umc) ->
           decl.type_private = Private ||
           List.exists (fun cd -> cd.cd_res <> None) tll
       | Type_open ->
@@ -1898,44 +1941,69 @@ let tree_of_type_decl id decl =
   in
   let (name, args) = type_defined decl in
   let constraints = tree_of_constraints params in
-  let ty, priv, unboxed =
+  let ty, priv, unboxed, or_null_reexport, unsafe_mode_crossing =
     match decl.type_kind with
     | Type_abstract _ ->
         begin match ty_manifest with
-        | None -> (Otyp_abstract, Public, false)
+        | None -> (Otyp_abstract, Public, false, false, false)
         | Some ty ->
-            tree_of_typexp Type ty, decl.type_private, false
+            tree_of_typexp Type ty, decl.type_private, false, false, false
         end
-    | Type_variant (cstrs, rep) ->
+    | Type_variant (cstrs, rep, umc) ->
         let unboxed =
           match rep with
           | Variant_unboxed -> true
-          | Variant_boxed _ | Variant_extensible -> false
+          | Variant_boxed _ | Variant_extensible | Variant_with_null -> false
+        in
+        (* CR layouts v3.5: remove when [Variant_with_null] is merged into
+           [Variant_unboxed]. *)
+        let or_null_reexport =
+          match rep with
+          | Variant_with_null -> true
+          | Variant_boxed _ | Variant_unboxed | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor_in_decl cstrs)),
         decl.type_private,
-        unboxed
-    | Type_record(lbls, rep) ->
+        unboxed,
+        or_null_reexport,
+        (Option.is_some umc)
+    | Type_record(lbls, rep, umc) ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
         decl.type_private,
-        (match rep with Record_unboxed -> true | _ -> false)
+        (match rep with Record_unboxed -> true | _ -> false),
+        false,
+        (Option.is_some umc)
+    | Type_record_unboxed_product(lbls, Record_unboxed_product, umc) ->
+        tree_of_manifest
+          (Otyp_record_unboxed_product (List.map tree_of_label lbls)),
+        decl.type_private,
+        false,
+        false,
+        (Option.is_some umc)
     | Type_open ->
         tree_of_manifest Otyp_open,
         decl.type_private,
+        false,
+        false,
         false
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let is_value = Jkind.is_value_for_printing decl.type_jkind in
+  let is_value = Jkind.is_value_for_printing ~ignore_null:false decl.type_jkind in
   let otype_jkind =
-    match ty, is_value, decl.type_has_illegal_crossings with
+    match ty, is_value, unsafe_mode_crossing with
     | (Otyp_abstract, false, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
-        (* type_has_illegal_crossings corresponds to C1.2 *)
+        (* unsafe_mode_crossing corresponds to C1.2 *)
         Some (out_jkind_of_desc (Jkind.get decl.type_jkind))
     | _ -> None (* other cases have no jkind annotation *)
+  in
+  let attrs =
+    if unsafe_mode_crossing
+    then [{ oattr_name = "unsafe_allow_any_mode_crossing" }]
+    else []
   in
     { otype_name = name;
       otype_params = args;
@@ -1943,7 +2011,9 @@ let tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind;
       otype_unboxed = unboxed;
-      otype_cstrs = constraints }
+      otype_or_null_reexport = or_null_reexport;
+      otype_cstrs = constraints;
+      otype_attributes = attrs }
 
 let add_type_decl_to_preparation id decl =
    ignore @@ prepare_decl id decl
@@ -2107,7 +2177,7 @@ let tree_of_value_description id decl =
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
   let snap = Btype.snapshot () in
-  let moda = Mode.Modality.Value.zap_to_floor decl.val_modalities in
+  let moda = Mode.Modality.Value.zap_to_id decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
   let apparent_arity =
     let rec count n typ =
@@ -2120,7 +2190,7 @@ let tree_of_value_description id decl =
   let attrs =
     match Zero_alloc.get decl.val_zero_alloc with
     | Default_zero_alloc | Ignore_assert_all -> []
-    | Check { strict; opt; arity; _ } ->
+    | Check { strict; opt; arity; custom_error_msg; loc = _; } ->
       [{ oattr_name =
            String.concat ""
              ["zero_alloc";
@@ -2128,6 +2198,9 @@ let tree_of_value_description id decl =
               if opt then " opt" else "";
               if arity = apparent_arity then "" else
                 Printf.sprintf " arity %d" arity;
+              match custom_error_msg with
+              | None -> ""
+              | Some msg -> Printf.sprintf " custom_error_message %S" msg
              ] }]
     | Assume { strict; never_returns_normally; arity; _ } ->
       [{ oattr_name =
@@ -2383,7 +2456,6 @@ let dummy =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.internal_not_actually_unique;
-    type_has_illegal_crossings = false;
   }
 
 (** we hide items being defined from short-path to avoid shortening

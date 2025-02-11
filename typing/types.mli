@@ -236,13 +236,6 @@ and jkind_l = (allowed * disallowed) jkind  (* the jkind of an actual type *)
 and jkind_r = (disallowed * allowed) jkind  (* the jkind expected of a type *)
 and jkind_lr = (allowed * allowed) jkind    (* the jkind of a variable *)
 
-(* jkind depends on types defined in this file, but Jkind.equal is required
-   here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
-   function. *)
-(** INTERNAL USE ONLY
-    jkind.ml should call this with the definition of Jkind.equal *)
-val set_jkind_equal : (jkind_l -> jkind_l -> bool) -> unit
-
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable
 val commu_var: unit -> commutable
@@ -541,18 +534,21 @@ type type_declaration =
     type_unboxed_default: bool;
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
-    type_has_illegal_crossings: bool;
-    (* true iff the type definition has illegal crossings of the portability and
-       contention axes *)
-    (* CR layouts v2.8: remove type_has_illegal_crossings *)
   }
 
-and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and ('lbl, 'cstr) type_kind =
+and unsafe_mode_crossing =
+  { modal_upper_bounds : Mode.Alloc.Const.t }
+
+and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
-  | Type_record of 'lbl list  * record_representation
-  | Type_variant of 'cstr list * variant_representation
+  | Type_record of 'lbl list * record_representation * unsafe_mode_crossing option
+  | Type_record_unboxed_product of
+      'lbl_flat list *
+      record_unboxed_product_representation *
+      unsafe_mode_crossing option
+  | Type_variant of 'cstr list * variant_representation * unsafe_mode_crossing option
   | Type_open
 
 (* CR layouts: after removing the void translation from lambda, we could get rid of
@@ -569,6 +565,7 @@ and ('lbl, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t
+        | Null (* Null pointer *)
 
 (* A mixed product contains a possibly-empty prefix of values followed by a
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
@@ -602,7 +599,7 @@ and record_representation =
   (* For an inlined record, we record the representation of the variant that
      contains it and the tag/representation of the relevant constructor of that
      variant. *)
-  | Record_boxed of jkind_l array
+  | Record_boxed of Jkind_types.Sort.Const.t array
   | Record_float (* All fields are floats *)
   | Record_ufloat
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
@@ -613,10 +610,16 @@ and record_representation =
      is tagged such that polymorphic operations will not work.
   *)
 
+and record_unboxed_product_representation =
+  | Record_unboxed_product
+  (* We give all unboxed records the same representation, as their layouts are
+     encapsulated by their label's jkinds. We keep this variant for uniformity with boxed
+     records, and to make it easier to support different representations in the future. *)
+
 and variant_representation =
   | Variant_unboxed
   | Variant_boxed of (constructor_representation *
-                      jkind_l array) array
+                      Jkind_types.Sort.Const.t array) array
   (* The outer array has an element for each constructor. Each inner array
      has a jkind for each argument of the corresponding constructor.
 
@@ -627,6 +630,11 @@ and variant_representation =
      [Constructor_mixed] if the inlined record has any unboxed fields.
   *)
   | Variant_extensible
+  | Variant_with_null
+  (* CR layouts v3.5: A custom variant representation for ['a or_null].
+     Eventually, it should likely be merged into [Variant_unboxed], with
+     [Variant_unboxed] allowing either one ordinary constructor, or one
+     ordinary non-null and one [Null] constructor. *)
 
 and constructor_representation =
   | Constructor_uniform_value
@@ -643,7 +651,7 @@ and label_declaration =
     ld_mutable: mutability;
     ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
-    ld_jkind : jkind_l;
+    ld_sort: Jkind_types.Sort.Const.t;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -663,7 +671,7 @@ and constructor_argument =
   {
     ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
-    ca_jkind: jkind_l;
+    ca_sort: Jkind_types.Sort.Const.t;
     ca_loc: Location.t;
   }
 
@@ -864,6 +872,9 @@ type constructor_description =
 (* Constructors are the same *)
 val equal_tag :  tag -> tag -> bool
 
+(* Comparison of tags to store them in sets. *)
+val compare_tag :  tag -> tag -> int
+
 (* Constructors may be the same, given potential rebinding *)
 val may_equal_constr :
     constructor_description ->  constructor_description -> bool
@@ -873,29 +884,50 @@ val may_equal_constr :
 val equal_record_representation :
   record_representation -> record_representation -> bool
 
+val equal_record_unboxed_product_representation :
+  record_unboxed_product_representation -> record_unboxed_product_representation -> bool
+
 val equal_variant_representation :
   variant_representation -> variant_representation -> bool
 
-type label_description =
+type 'a gen_label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;
                                         (* Modalities on the field *)
-    lbl_jkind : jkind_l;                (* Jkind of the argument *)
+    lbl_sort: Jkind_types.Sort.Const.t; (* Sort of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
-    lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for outer record *)
+    lbl_all: 'a gen_label_description array;   (* All the labels in this type *)
+    lbl_repres: 'a;  (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
-(* CR layouts v5: once we allow [any] in record fields, change [lbl_jkind] to
-   be a [sort option].  This will allow a fast path for representability checks
-   at record construction, and currently only the sort is used anyway. *)
+
+type label_description = record_representation gen_label_description
+
+type unboxed_label_description = record_unboxed_product_representation gen_label_description
+
+(** This type tracks the distinction between legacy records ([{ field }]) and unboxed
+    records ([#{ field }]). Note that [Legacy] includes normal boxed records, as well as
+    inlined and [[@@unboxed]] records.
+
+    As a GADT, it also lets us avoid duplicating functions that handle both record forms,
+    such as [Env.find_label_by_name], which has type
+    ['rep record_form -> Longident.t -> Env.t -> 'rep gen_label_description].
+*)
+type _ record_form =
+  | Legacy : record_representation record_form
+  | Unboxed_product : record_unboxed_product_representation record_form
+
+type record_form_packed =
+  | P : _ record_form -> record_form_packed
+
+val record_form_to_string : _ record_form -> string
 
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.

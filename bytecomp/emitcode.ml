@@ -150,7 +150,7 @@ let enter info =
   reloc_info := (info, !out_position) :: !reloc_info
 
 let slot_for_literal sc =
-  enter (Reloc_literal (Symtable.transl_const sc));
+  enter (Reloc_literal sc);
   out_int 0
 and slot_for_getglobal cu =
   let reloc_info = Reloc_getcompunit cu in
@@ -415,7 +415,8 @@ let rec emit = function
 
 (* Emission to a file *)
 
-let to_file outchan cu artifact_info ~required_globals code =
+let to_file outchan cu artifact_info ~required_globals ~main_module_block_format
+          ~arg_descr code =
   init();
   Fun.protect ~finally:clear (fun () ->
   output_string outchan cmo_magic_number;
@@ -449,7 +450,9 @@ let to_file outchan cu artifact_info ~required_globals code =
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;
+      cu_arg_descr = arg_descr;
       cu_imports = Env.imports() |> Array.of_list;
+      cu_format = main_module_block_format;
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;
       cu_required_compunits = Compilation_unit.Set.elements required_globals;

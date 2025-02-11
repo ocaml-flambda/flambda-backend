@@ -24,14 +24,23 @@ type info = {
   native : bool;
 }
 
-let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
+type compilation_unit_or_inferred =
+  | Exactly of Compilation_unit.t
+  | Inferred_from_output_prefix
+
+let with_info ~native ~tool_name ~source_file ~output_prefix
+      ~compilation_unit ~dump_ext k =
   Compmisc.init_path ();
+  Compmisc.init_parameters ();
   let target = Unit_info.make ~source_file output_prefix in
-  let module_name = Unit_info.modname target in
-  let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
   let compilation_unit =
-    Compilation_unit.create for_pack_prefix
-      (module_name |> Compilation_unit.Name.of_string)
+    match compilation_unit with
+    | Exactly compilation_unit -> compilation_unit
+    | Inferred_from_output_prefix ->
+        let module_name = Unit_info.modname target in
+        let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
+        Compilation_unit.create for_pack_prefix
+          (module_name |> Compilation_unit.Name.of_string)
   in
   Compilation_unit.set_current (Some compilation_unit);
   Env.set_unit_name (Some compilation_unit);
@@ -76,7 +85,7 @@ let typecheck_intf info ast =
         Format.(fprintf std_formatter) "%a@."
           (Printtyp.printed_signature (Unit_info.source_file info.target))
           sg);
-  ignore (Includemod.signatures info.env ~mark:Mark_both sg sg);
+  ignore (Includemod.signatures info.env ~mark:Mark_both ~modes:Legacy sg sg);
   Typecore.force_delayed_checks ();
   Builtin_attributes.warn_unused ();
   Warnings.check_fatal ();

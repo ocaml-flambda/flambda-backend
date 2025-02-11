@@ -64,10 +64,14 @@ let pass_dump_cfg_if ppf flag message c =
   then fprintf ppf "*** %s@.%a@." message (Cfg_with_layout.dump ~msg:"") c;
   c
 
+let should_vectorize () =
+  !Flambda_backend_flags.vectorize
+  && not (Flambda2_ui.Flambda_features.classic_mode ())
+
 let start_from_emit = ref true
 
 let should_save_before_emit () =
-  should_save_ir_after Compiler_pass.Scheduling && not !start_from_emit
+  should_save_ir_after Compiler_pass.Linearization && not !start_from_emit
 
 let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && not !start_from_emit
@@ -151,7 +155,7 @@ let write_ir prefix =
     pass_to_cfg;
   if should_save_before_emit ()
   then (
-    let filename = Compiler_pass.(to_output_filename Scheduling ~prefix) in
+    let filename = Compiler_pass.(to_output_filename Linearization ~prefix) in
     linear_unit_info.items <- List.rev linear_unit_info.items;
     Linear_format.save filename linear_unit_info);
   if should_save_cfg_before_emit ()
@@ -160,7 +164,7 @@ let write_ir prefix =
     cfg_unit_info.items <- List.rev cfg_unit_info.items;
     Cfg_format.save filename cfg_unit_info)
 
-let should_emit () = not (should_stop_after Compiler_pass.Scheduling)
+let should_emit () = not (should_stop_after Compiler_pass.Linearization)
 
 let should_use_linscan fun_codegen_options =
   !use_linscan || List.mem Cmm.Use_linscan_regalloc fun_codegen_options
@@ -445,7 +449,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                   let cfg_with_infos =
                     cfg_with_layout
                     ++ (fun cfg_with_layout ->
-                         match !Flambda_backend_flags.vectorize with
+                         match should_vectorize () with
                          | false -> cfg_with_layout
                          | true ->
                            cfg_with_layout

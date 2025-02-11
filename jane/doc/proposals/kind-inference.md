@@ -141,7 +141,7 @@ rec {
 q ::= best | not_best   (* quality of an inferred kind; best < not_best *)
 ```
 
-Mode crossing is not covered in this design. 
+Mode crossing is not covered in this design.
 
 However, it may be helpful to know that having e.g. `mod observing` in a kind
 means that `observing` is the upper bound for the locality mode of values whose
@@ -158,14 +158,14 @@ that kind.  Suppose `t : ... mod exclusive`. If a context requires `e` of type
 `exclusive` is sufficient. A requirement of `aliased` (the top mode) is
 completely unaffected.
 
-The key question: if `t : ... mod exclusive` and we have 
+The key question: if `t : ... mod exclusive` and we have
 `type ('a : ... mod aliased) t2`, is `t t2` valid? No! Even though
 `exclusive < aliased`. That's because `mod aliased` puts a *harder* requirement
 on its type (it must be agnostic between all of `unique`, `exclusive`, and
 `aliased`) than `mod exclusive` does (which says the type is agnostic between
 `unique` and `exclusive` only). This means that the subkind relation works
 backwards on monadic axes: `... mod aliased ≤ ... mod exclusive`. For this
-reason, in the presentation above, the monadic axis elements are listed in 
+reason, in the presentation above, the monadic axis elements are listed in
 reverse order: this document does not care about submoding or mode crossing
 directly, and writing the axes in reverse order gives us the right behavior
 on subkinding.
@@ -256,7 +256,7 @@ rec {
 Γ ⊢ jkind with field_types ↠ lay(χ); ⟪Ξ(χ) with types_for(Ξ, field_types)⟫
 ```
 
-In `K_OF`, we produce a kind in terms of `τ`, not just `κ`. This allows us
+In `KS_OF`, we produce a kind in terms of `τ`, not just `κ`. This allows us
 to make use of refinements to `τ` that we learn later, perhaps through
 functor application or GADT refinement.
 

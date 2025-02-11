@@ -1011,13 +1011,19 @@ let simplify_bigarray_get_alignment _align ~original_prim dacc ~original_term
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_atomic_set ~original_prim dacc ~original_term _dbg ~arg1:_
+    ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_atomic_exchange ~original_prim dacc ~original_term _dbg ~arg1:_
     ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
   SPR.create_unknown dacc ~result_var
     (P.result_kind' original_prim)
     ~original_term
 
-let simplify_atomic_fetch_and_add ~original_prim dacc ~original_term _dbg
+let simplify_atomic_int_arith ~original_prim dacc ~original_term _dbg ~op:_
     ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
   SPR.create_unknown dacc ~result_var
     (P.result_kind' original_prim)
@@ -1025,6 +1031,10 @@ let simplify_atomic_fetch_and_add ~original_prim dacc ~original_term _dbg
 
 let simplify_block_set _block_access_kind _init_or_assign ~field:_ dacc
     ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unit dacc ~result_var ~original_term
+
+let simplify_poke dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_
+    ~result_var =
   SPR.create_unit dacc ~result_var ~original_term
 
 let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
@@ -1073,8 +1083,10 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
         ~original_prim
     | Bigarray_get_alignment align ->
       simplify_bigarray_get_alignment align ~original_prim
-    | Atomic_exchange -> simplify_atomic_exchange ~original_prim
-    | Atomic_fetch_and_add -> simplify_atomic_fetch_and_add ~original_prim
+    | Atomic_set _ -> simplify_atomic_set ~original_prim
+    | Atomic_exchange _ -> simplify_atomic_exchange ~original_prim
+    | Atomic_int_arith op -> simplify_atomic_int_arith ~original_prim ~op
+    | Poke _ -> simplify_poke
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
 
@@ -1083,8 +1095,8 @@ let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
   | Block_set _ | Array_load _ | Int_arith _ | Int_shift _
   | Int_comp (_, Yielding_int_like_compare_functions _)
   | Float_arith _ | Float_comp _ | Phys_equal _ | String_or_bigstring_load _
-  | Bigarray_load _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Bigarray_load _ | Bigarray_get_alignment _ | Atomic_exchange _
+  | Atomic_set _ | Atomic_int_arith _ | Poke _ ->
     None
   | Int_comp (kind, Yielding_bool op) -> (
     match kind with

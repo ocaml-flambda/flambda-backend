@@ -219,7 +219,7 @@ val instance_poly:
 val polyfy: Env.t -> type_expr -> type_expr list -> type_expr * bool
 val instance_label:
         fixed:bool ->
-        label_description -> type_expr list * type_expr * type_expr
+        _ gen_label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
 val prim_mode :
         (Mode.allowed * 'r) Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
@@ -581,6 +581,10 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
        [get_unboxed_type_representation], but doesn't indicate whether the type
        was fully expanded or not. *)
 
+val contained_without_boxing : Env.t -> type_expr -> type_expr list
+    (* Return all types that are directly contained without boxing
+      (or "without indirection" or "flatly") *)
+
 (* Given the row from a variant type, determine if it is immediate.  Currently
    just checks that all constructors have no arguments, doesn't consider
    void. *)
@@ -597,6 +601,11 @@ val type_jkind : Env.t -> type_expr -> jkind_l
 (* Get the jkind of a type, dropping any changes to types caused by
    expansion. *)
 val type_jkind_purely : Env.t -> type_expr -> jkind_l
+
+(* Like [type_jkind_purely], but returns [None] if the type is not
+   principally known. Useful to instantiate [jkind_of_type] in various
+   functions exported by [Jkind]. *)
+val type_jkind_purely_if_principal : Env.t -> type_expr -> jkind_l option
 
 (* Find a type's sort (if fixed is false: constraining it to be an
    arbitrary sort variable, if needed) *)
@@ -623,6 +632,10 @@ val check_decl_jkind :
   Env.t -> type_declaration -> jkind_l -> (unit, Jkind.Violation.t) result
 val constrain_decl_jkind :
   Env.t -> type_declaration -> jkind_l -> (unit, Jkind.Violation.t) result
+
+(* Compare two types for equality, with no renaming. This is useful for
+   the [type_equal] function that must be passed to certain jkind functions. *)
+val type_equal: Env.t -> type_expr -> type_expr -> bool
 
 val check_type_jkind :
   Env.t -> type_expr -> ('l * allowed) jkind -> (unit, Jkind.Violation.t) result
@@ -678,7 +691,7 @@ val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
 
    *)
 val check_and_update_generalized_ty_jkind :
-  ?name:Ident.t -> loc:Location.t -> type_expr -> unit
+  ?name:Ident.t -> loc:Location.t -> Env.t -> type_expr -> unit
 
 (* False if running in principal mode and the type is not principal.
    True otherwise. *)

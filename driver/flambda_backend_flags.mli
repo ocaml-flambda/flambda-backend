@@ -24,6 +24,8 @@ val regalloc_validate : bool ref
 
 val vectorize : bool ref
 val dump_vectorize : bool ref
+val default_vectorize_max_block_size : int
+val vectorize_max_block_size : int ref
 
 val cfg_selection : bool ref
 

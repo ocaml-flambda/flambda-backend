@@ -38,6 +38,7 @@ type value_mismatch =
   | Type of Errortrace.moregen_error
   | Zero_alloc of Zero_alloc.error
   | Modality of Mode.Modality.Value.error
+  | Mode of Mode.Value.error
 
 exception Dont_match of value_mismatch
 
@@ -46,12 +47,14 @@ type privacy_mismatch =
   | Private_type_abbreviation
   | Private_variant_type
   | Private_record_type
+  | Private_record_unboxed_product_type
   | Private_extensible_variant
   | Private_row_type
 
 type type_kind =
   | Kind_abstract
   | Kind_record
+  | Kind_record_unboxed_product
   | Kind_variant
   | Kind_open
 
@@ -102,6 +105,10 @@ type private_object_mismatch =
   | Missing of string
   | Types of Errortrace.equality_error
 
+type unsafe_mode_crossing_mismatch =
+  | Mode_crossing_only_on of position
+  | Mode_crossing_not_equal
+
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
@@ -116,10 +123,20 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
+  | With_null_representation of position
   | Jkind of Jkind.Violation.t
+  | Unsafe_mode_crossing of unsafe_mode_crossing_mismatch
+
+type mmodes =
+  | All
+  (** Check module inclusion [M1 : MT1 @ m1 <= M2 : MT2 @ m2]
+      for all [m1 <= m2]. *)
+  | Legacy
+  (** Check module inclusion [M1 : MT1 @ legacy <= M2 : MT2 @ legacy]. *)
 
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->
+  mmodes:mmodes ->
   value_description -> value_description -> module_coercion
 
 val type_declarations:

@@ -114,7 +114,7 @@ Line 1, characters 24-25:
 1 | let f4_1 (x : t_word) = x, false;;
                             ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value
@@ -127,7 +127,7 @@ Line 1, characters 30-31:
 1 | let f4_2 (x : 'a t_word_id) = x, false;;
                                   ^
 Error: This expression has type "'a t_word_id" = "('a : word)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_word_id is word
          because of the definition of t_word_id at line 2, characters 0-31.
        But the layout of 'a t_word_id must be a sublayout of value
@@ -140,7 +140,7 @@ Line 1, characters 28-29:
 1 | let f4_3 (x : nativeint#) = x, false;;
                                 ^
 Error: This expression has type "nativeint#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of nativeint# is word
          because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
@@ -214,14 +214,9 @@ type t5_2' = { y : string; x : t_word };;
 type t5_2' = { y : string; x : t_word; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_word } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-24:
-1 | type t5_3 = { x : t_word } [@@unboxed];;
-                  ^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed records may not yet contain types of this layout.
+type t5_3 = { x : t_word; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_word;;
@@ -254,20 +249,12 @@ Error: Expected all flat constructor arguments after non-value argument, "
 
 type t5_6 = A of t_word [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-23:
-1 | type t5_6 = A of t_word [@@unboxed];;
-                ^^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_word [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_word } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-31:
-1 | type t5_6_1 = A of { x : t_word } [@@unboxed];;
-                         ^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_word; } [@@unboxed]
 |}];;
 
 (****************************************************)
@@ -319,7 +306,7 @@ Line 1, characters 27-28:
 1 | let f7_1 (x : t_word) = `A x;;
                                ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value
@@ -332,7 +319,7 @@ Line 1, characters 33-34:
 1 | let f7_2 (x : 'a t_word_id) = `A x;;
                                      ^
 Error: This expression has type "'a t_word_id" = "('a : word)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_word_id is word
          because of the definition of t_word_id at line 2, characters 0-31.
        But the layout of 'a t_word_id must be a sublayout of value
@@ -345,7 +332,7 @@ Line 1, characters 31-32:
 1 | let f7_3 (x : nativeint#) = `A x;;
                                    ^
 Error: This expression has type "nativeint#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of nativeint# is word
          because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
@@ -397,7 +384,7 @@ Line 1, characters 20-36:
 1 | let x8_1 = id_value (make_t_word ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value
@@ -410,7 +397,7 @@ Line 1, characters 20-39:
 1 | let x8_2 = id_value (make_t_word_id ());;
                         ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a t_word_id" = "('a : word)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_word_id is word
          because of the definition of t_word_id at line 2, characters 0-31.
        But the layout of 'a t_word_id must be a sublayout of value
@@ -423,7 +410,7 @@ Line 1, characters 20-40:
 1 | let x8_3 = id_value (make_nativeintu ());;
                         ^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "nativeint#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of nativeint# is word
          because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
@@ -695,7 +682,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_word"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.

@@ -138,8 +138,8 @@ type binding =
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
 type 'a pers_struct_info = {
-  ps_import : import;
-  ps_binding : binding;
+  ps_name_info: pers_name;
+  ps_binding: binding;
   ps_val : 'a;
 }
 
@@ -753,7 +753,7 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps =
-    { ps_import = import;
+    { ps_name_info = pers_name;
       ps_binding = binding;
       ps_val = pm;
     }
@@ -772,7 +772,7 @@ let read_pers_struct penv val_of_pers_sig check modname cmi ~add_binding =
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
-  | ps -> check_visibility ~allow_hidden ps.ps_import; ps
+  | ps -> check_visibility ~allow_hidden ps.ps_name_info.pn_import; ps
   | exception Not_found ->
       let pers_name = find_pers_name ~allow_hidden penv check name in
       acknowledge_pers_struct penv name pers_name val_of_pers_sig
@@ -869,17 +869,32 @@ let imports {imported_units; crc_units; _} =
   List.map (fun (cu_name, spec) -> Import_info.Intf.create cu_name spec)
     imports
 
-let local_ident penv modname =
+let is_imported_parameter penv modname =
   match find_info_in_cache penv modname with
-  | Some { ps_binding = Runtime_parameter local_ident; _ } -> Some local_ident
-  | Some { ps_binding = Constant _; _ }
-  | None -> None
+  | Some pers_struct -> pers_struct.ps_name_info.pn_import.imp_is_param
+  | None -> false
 
-let runtime_parameters ({persistent_structures; _} as penv) =
+let runtime_parameter_bindings {persistent_structures; _} =
+  (* This over-approximates the runtime parameters that are actually needed:
+     some modules get looked at during type checking but aren't relevant to
+     generated lambda code. This is increasingly true with modes and layouts: we
+     might need to check [P.t]'s layout but never end up using [P] directly, in
+     which case `P` will end up a runtime parameter that's not needed.
+
+     On the other hand, extra parameters here don't necessarily hurt much: they
+     make [-instantiate] work harder but inlining should eliminate the actual
+     runtime performance hit. If we do end up caring, probably what we need is
+     to coordinate with [Translmod] so that we're asking "what all did we access
+     during lambda generation?" rather than "what all did anyone ask about
+     ever?". *)
   persistent_structures
-  |> Hashtbl.to_seq_keys
+  |> Hashtbl.to_seq_values
   |> Seq.filter_map
-       (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
+        (fun ps ->
+           match ps.ps_binding with
+           | Runtime_parameter local_ident ->
+               Some (ps.ps_name_info.pn_global, local_ident)
+           | Constant _ -> None)
   |> List.of_seq
 
 let parameters {param_imports; _} =

@@ -81,7 +81,8 @@ type codegen_option =
       }
   | Check_zero_alloc of
       { strict : bool;
-        loc : Location.t
+        loc : Location.t;
+        custom_error_msg : string option
       }
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
@@ -192,6 +193,10 @@ val can_raise_terminator : terminator -> bool
 
 val is_pure_terminator : terminator -> bool
 
+val is_never_terminator : terminator -> bool
+
+val is_return_terminator : terminator -> bool
+
 val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
@@ -219,3 +224,17 @@ val make_instruction :
   ?available_across:Reg_availability_set.t option ->
   unit ->
   'a instruction
+
+(* CR mshinwell: consolidate with [make_instruction] and tidy up ID interface *)
+val make_instr :
+  'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a instruction
+
+(** These IDs are also used by [make_instr] *)
+val next_instr_id : unit -> int
+
+val reset_next_instr_id : unit -> unit
+
+val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block
+
+(** "Contains calls" in the traditional sense as used in upstream [Selectgen]. *)
+val basic_block_contains_calls : basic_block -> bool

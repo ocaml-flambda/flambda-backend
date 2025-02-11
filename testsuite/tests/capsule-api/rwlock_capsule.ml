@@ -1,6 +1,6 @@
 (* TEST
  include stdlib_alpha;
- flags = "-extension-universe alpha -allow-illegal-crossing";
+ flags = "-extension-universe alpha";
  runtime5;
  { bytecode; }
  { native; }
@@ -19,10 +19,12 @@ type ('a, 'k) _data : value mod portable uncontended = ('a, 'k) Capsule.Data.t
 type _packed :  value mod portable uncontended = Capsule.Rwlock.packed
 
 (* CR: without [with] syntax and mode crossing inference, we need to depend on
-  [allow-illegal-crossing] to determine that 'a myref crosses portabilility.
-  This only holds when 'a also crosses portability *)
+   [@@unsafe_allow_any_mode_crossing] to determine that 'a myref crosses portabilility.
+   This only holds when 'a also crosses portability *)
 
 type 'a myref : value mod portable = { mutable v : 'a}
+[@@unsafe_allow_any_mode_crossing
+  "CR layouts v2.8: This can go away once we have with-kinds"]
 
 
 module RwCell = struct
@@ -74,7 +76,7 @@ let with_write_guarded x (f : 'k . 'k Capsule.Password.t @ local -> ('a, 'k) Cap
   Capsule.Rwlock.with_write_lock m (fun k -> f k p)
 ;;
 
-let with_read_guarded x (f : 'k . 'k Capsule.ReaderPassword.t @ local -> ('a, 'k) Capsule.Data.t -> 'b) =
+let with_read_guarded x (f : 'k . 'k Capsule.Password.Shared.t @ local -> ('a, 'k) Capsule.Data.t -> 'b) =
   let (Mk (m, p)) = x in
   Capsule.Rwlock.with_read_lock m (fun k -> f k p)
 ;;
@@ -143,18 +145,35 @@ let () =
     let ptr' = Capsule.Data.map_shared k (fun (r @ shared) -> { v = r.v + 3}) p in
     assert (Capsule.Data.extract_shared k read_ref ptr' = 20))
 
-(* Using a Password.t as a ReaderPassword.t *)
+(* Using a Password.t as a Password.Shared.t *)
 let () =
   with_write_guarded ptr (fun k p ->
-    assert (Capsule.Data.extract_shared (Capsule.weaken_password k) read_ref p = 15))
+    assert (Capsule.Data.extract_shared (Capsule.Password.shared k) read_ref p = 15))
+
+(* [access_shared] and [unwrap_shared]. *)
+let () =
+  with_read_guarded ptr2 (fun k p ->
+    let ptr' =
+      Capsule.access_shared k (fun a ->
+          let r = Capsule.Data.unwrap_shared a p in
+          Capsule.Data.wrap a { v = r.v + 3 })
+    in
+    assert (Capsule.Data.extract_shared k read_ref ptr' = 20))
 
 exception Leak of int myref
 
 (* An exception raised from [iter] is marked as [contended]: *)
 let () =
-  with_write_guarded ptr (fun k p ->
+  with_write_guarded ptr (fun (type k) (k : k Capsule.Password.t) p ->
     match Capsule.Data.iter k (fun r -> reraise (Leak r)) p with
-    | exception Capsule.Data.Contended (Leak r) -> ()
+    | exception Capsule.Encapsulated (name, exn_data) ->
+      (match Capsule.Name.equality_witness name (Capsule.Password.name k) with
+       | Some Equal ->
+         Capsule.Data.iter k (function
+           | Leak r -> ()
+           | _ -> assert false)
+           exn_data
+       | None -> assert false)
     | _ -> assert false)
 ;;
 
@@ -168,11 +187,11 @@ let ptr2 =
 ;;
 
 
-(* [expose]. *)
+(* [destroy]. *)
 let () =
   let (Mk (m, p)) = ptr2 in
-  let k = Capsule.Rwlock.destroy m in
-  let (r1, r2) = Capsule.Data.expose k p in
+  let a = Capsule.Rwlock.destroy m in
+  let (r1, r2) = Capsule.Data.unwrap a p in
   assert (read_ref r1 = 15 && read_ref r2 = 3)
 ;;
 

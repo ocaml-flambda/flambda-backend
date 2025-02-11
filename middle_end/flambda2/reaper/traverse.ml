@@ -54,7 +54,10 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   in
   let never_delete =
     match Code.zero_alloc_attribute code with
-    | Default_zero_alloc -> !Clflags.zero_alloc_check_assert_all
+    | Default_zero_alloc ->
+      (* The effect of [Clflags.zero_alloc_assert] has been compiled into
+         [Check] earlier. *)
+      false
     | Assume _ -> false
     | Check _ -> true
   in

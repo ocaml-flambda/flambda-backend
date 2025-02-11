@@ -58,6 +58,8 @@ Ptop_def
                   ]
                 Ptyp_constr "int" (//toplevel//[2,1+9]..[2,1+12])
                 []
+          ptype_jkind_annotation =
+            None
       ]
   ]
 
@@ -158,6 +160,8 @@ Ptop_def
                   ptype_private = Public
                   ptype_manifest =
                     None
+                  ptype_jkind_annotation =
+                    None
               ]
           ]
   ]
@@ -186,6 +190,8 @@ Ptop_def
                     core_type (//toplevel//[2,1+34]..[2,1+37])
                       Ptyp_constr "int" (//toplevel//[2,1+34]..[2,1+37])
                       []
+                ptype_jkind_annotation =
+                  None
           ]
   ]
 
@@ -213,6 +219,8 @@ Ptop_def
                     core_type (//toplevel//[2,1+35]..[2,1+38])
                       Ptyp_constr "int" (//toplevel//[2,1+35]..[2,1+38])
                       []
+                ptype_jkind_annotation =
+                  None
           ]
   ]
 

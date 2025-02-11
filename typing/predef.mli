@@ -31,6 +31,8 @@ val type_iarray: type_expr -> type_expr
 val type_list: type_expr -> type_expr
 val type_option: type_expr -> type_expr
 val type_nativeint: type_expr
+val type_int8: type_expr
+val type_int16: type_expr
 val type_int32: type_expr
 val type_int64: type_expr
 val type_lazy_t: type_expr -> type_expr
@@ -71,6 +73,8 @@ val path_iarray: Path.t
 val path_list: Path.t
 val path_option: Path.t
 val path_nativeint: Path.t
+val path_int8: Path.t
+val path_int16: Path.t
 val path_int32: Path.t
 val path_int64: Path.t
 val path_lazy_t: Path.t
@@ -114,9 +118,9 @@ val ident_some : Ident.t
 val ident_or_null : Ident.t
 
 (* The jkind used for optional function argument types *)
-val option_argument_jkind : 'd jkind
+val option_argument_jkind : jkind_lr
 (* The jkind used for list argument types *)
-val list_argument_jkind : 'd jkind
+val list_argument_jkind : jkind_lr
 
 (* To build the initial environment. Since there is a nasty mutual
    recursion between predef and env, we break it by parameterizing
@@ -137,6 +141,11 @@ val add_simd_stable_extension_types :
 val add_small_number_extension_types :
    (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
 
+(* Add small number types to an environment.  This is separate from [build_initial_env]
+   because we'd like to only do it if the small numbers extension is set to [Beta]. *)
+val add_small_number_beta_extension_types :
+  (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+
 (* Add [or_null] to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if layouts are set to [Alpha]. *)
 val add_or_null :
@@ -145,7 +154,7 @@ val add_or_null :
 (* Construct the [type_kind] of [or_null]. For re-exporting [or_null]
    while users can't define their own types with null constructors. *)
 (* CR layouts v3.5: remove this when users can define null constructors. *)
-val or_null_kind : type_expr -> ('a, constructor_declaration) type_kind
+val or_null_kind : type_expr -> ('a, 'b, constructor_declaration) type_kind
 
 (* To initialize linker tables *)
 

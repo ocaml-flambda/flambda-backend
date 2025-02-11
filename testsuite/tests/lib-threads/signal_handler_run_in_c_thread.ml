@@ -1,5 +1,6 @@
 (* TEST
  modules = "signal_handler_run_in_c_thread_stubs.c";
+ flags = "-alert -unsafe_multidomain";
  native;
  hassysthreads;
 *)

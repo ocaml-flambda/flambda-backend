@@ -216,7 +216,7 @@ let build_global_target ~ppf_dump oc ~packed_compilation_unit state members
         | PM_impl _ -> Some m.pm_packed_name)
       members
   in
-  let _size, lam =
+  let main_module_block_size, lam =
     Translmod.transl_package components packed_compilation_unit coercion
       ~style:Set_global_to_block
   in
@@ -234,7 +234,8 @@ let build_global_target ~ppf_dump oc ~packed_compilation_unit state members
     rev_append_map
       (fun (r, ofs) -> (r, state.offset + ofs))
       pack_relocs state.relocs in
-  { state with events; debug_dirs; relocs; offset = state.offset + size }
+  { state with events; debug_dirs; relocs; offset = state.offset + size },
+  main_module_block_size
 
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
@@ -289,7 +290,7 @@ let package_object_files ~ppf_dump files target coercion =
     let state =
       List.fold_left (process_append_pack_member targetfile oc) state members
     in
-    let state =
+    let state, main_module_block_size =
       build_global_target ~ppf_dump oc ~packed_compilation_unit state
         members coercion
     in
@@ -317,12 +318,18 @@ let package_object_files ~ppf_dump files target coercion =
       Import_info.create packed_compilation_unit_name
         ~crc_with_unit:(Some (packed_compilation_unit, crc))
     in
+    let format : Lambda.main_module_block_format =
+      (* Open modules not supported with packs, so always just a record *)
+      Mb_struct { mb_size = main_module_block_size }
+    in
     let compunit =
       { cu_name = packed_compilation_unit;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev state.relocs;
+        cu_arg_descr = None;
         cu_imports = Array.of_list (import_info_for_the_pack_itself :: imports);
+        cu_format = format;
         cu_primitives = List.rev state.primitives;
         cu_required_compunits = CU.Set.elements required_compunits;
         cu_force_link = force_link;

@@ -133,6 +133,7 @@ val locations : bool ref
 val parameters : string list ref
 val as_parameter : bool ref
 val as_argument_for : string option ref
+val instantiate : bool ref
 val dump_source : bool ref
 val dump_parsetree : bool ref
 val dump_typedtree : bool ref
@@ -159,7 +160,6 @@ val dump_interf : bool ref
 val dump_prefer : bool ref
 val dump_regalloc : bool ref
 val dump_reload : bool ref
-val dump_scheduling : bool ref
 val dump_linear : bool ref
 val dump_interval : bool ref
 val debug_ocaml : bool ref
@@ -197,6 +197,7 @@ val shared : bool ref
 val dlcode : bool ref
 val pic_code : bool ref
 val runtime_variant : string ref
+val ocamlrunparam : string ref
 val with_runtime : bool ref
 val force_slash : bool ref
 val keep_docs : bool ref
@@ -225,7 +226,7 @@ val afl_instrument : bool ref
 val afl_inst_ratio : int ref
 val function_sections : bool ref
 val probes : bool ref
-val allow_illegal_crossing : bool ref
+val infer_with_bounds : bool ref
 
 val all_passes : string list ref
 val dumped_pass : string -> bool
@@ -280,7 +281,7 @@ end
 
 module Compiler_pass : sig
   type t = Parsing | Typing | Lambda | Middle_end
-         | Scheduling | Emit | Simplify_cfg | Selection
+         | Linearization | Emit | Simplify_cfg | Selection
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool
@@ -315,8 +316,9 @@ val print_arguments : string -> unit
 val reset_arguments : unit -> unit
 
 (* [zero_alloc_check] specifies which zero_alloc attributes to check. *)
-val zero_alloc_check : Zero_alloc_annotations.t ref
-val zero_alloc_check_assert_all : bool ref
+val zero_alloc_check : Zero_alloc_annotations.Check.t ref
+(* [zero_alloc_assert] specifies which zero_alloc attributes to add. *)
+val zero_alloc_assert : Zero_alloc_annotations.Assert.t ref
 
 val no_auto_include_otherlibs : bool ref
 

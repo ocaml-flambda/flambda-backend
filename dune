@@ -275,6 +275,7 @@
   compmisc
   makedepend
   compile_common
+  instantiator
   ; manual update: mli only files
   annot
   value_rec_types
@@ -295,6 +296,7 @@
  (modules
   ;; bytecomp/
   bytegen
+  byteinstantiator
   bytelibrarian
   bytelink
   bytepackager
@@ -420,6 +422,7 @@
   compilenv
   ;; asmcomp/
   asmgen
+  asminstantiator
   asmlibrarian
   asmlink
   asmpackager
@@ -431,6 +434,7 @@
   cfg_selectgen
   cfg_selection
   cfgize
+  cfgize_utils
   cmm_helpers
   cmm_builtins
   cmm_invariants
@@ -459,6 +463,7 @@
   peephole_rules
   peephole_utils
   polling
+  polling_utils
   printcmm
   printlinear
   printmach
@@ -471,6 +476,7 @@
   simd_proc
   simple_operation
   stack_check
+  sub_cfg
   reg
   reload
   reloadgen
@@ -521,6 +527,8 @@
   linear_utils
   simplify_terminator
   vectorize
+  vectorize_utils
+  vectorize_specific
   ;; backend/regalloc
   regalloc_gi
   regalloc_gi_state
@@ -812,6 +820,12 @@
   (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
    as
    compiler-libs/libflambda2_floats_stubs_native.a)
+  (middle_end/flambda2/algorithms/libflambda2_algorithms_stubs.a
+   as
+   compiler-libs/libflambda2_algorithms_stubs.a)
+  (middle_end/flambda2/algorithms/libflambda2_algorithms_stubs.a
+   as
+   compiler-libs/libflambda2_algorithms_stubs_native.a)
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)

@@ -8,11 +8,11 @@ let ignore_local : 'a @ local -> unit = fun _ -> ()
 val ignore_local : local_ 'a -> unit = <fun>
 |}]
 
-let f = ref (stack_ (fun x -> x))
+let f = ref (stack_ fun x -> x)
 [%%expect{|
-Line 1, characters 12-33:
-1 | let f = ref (stack_ (fun x -> x))
-                ^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 12-31:
+1 | let f = ref (stack_ fun x -> x)
+                ^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -164,7 +164,7 @@ val f : unit -> local_ int * int = <fun>
 |}]
 
 let f () =
-    let g = stack_ (fun x -> x) in
+    let g = stack_ fun x -> x in
     g 42
 [%%expect{|
 Line 3, characters 4-5:
@@ -176,11 +176,11 @@ Error: This value escapes its region.
 |}]
 
 let f () =
-    (stack_ (fun x -> x)) 42
+    (stack_ fun x -> x) 42
 [%%expect{|
-Line 2, characters 4-25:
-2 |     (stack_ (fun x -> x)) 42
-        ^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 4-23:
+2 |     (stack_ fun x -> x) 42
+        ^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
   Hint: This function cannot be local,
   because it is the function in a tail call.

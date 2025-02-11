@@ -43,8 +43,30 @@ type value_mismatch =
   | Type of Errortrace.moregen_error
   | Zero_alloc of Zero_alloc.error
   | Modality of Mode.Modality.Value.error
+  | Mode of Mode.Value.error
 
 exception Dont_match of value_mismatch
+
+type mmodes =
+  | All
+  | Legacy
+
+(** Mode cross a right mode *)
+(* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
+   there, too. *)
+let right_mode_cross_jkind env jkind mode =
+  let type_equal = Ctype.type_equal env in
+  let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
+  let upper_bounds =
+    Jkind.get_modal_upper_bounds ~type_equal ~jkind_of_type jkind
+  in
+  let upper_bounds = Const.alloc_as_value upper_bounds in
+  Value.imply upper_bounds mode
+
+let right_mode_cross env ty mode =
+  if not (Ctype.is_principal ty) then mode else
+  let jkind = Ctype.type_jkind_purely env ty in
+  right_mode_cross_jkind env jkind mode
 
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
@@ -90,6 +112,7 @@ let primitive_descriptions pd1 pd2 =
     native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args
 
 let value_descriptions ~loc env name
+    ~mmodes
     (vd1 : Types.value_description)
     (vd2 : Types.value_description) =
   Builtin_attributes.check_alerts_inclusion
@@ -102,9 +125,29 @@ let value_descriptions ~loc env name
   | Ok () -> ()
   | Error e -> raise (Dont_match (Zero_alloc e))
   end;
-  begin match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
-  | Ok () -> ()
-  | Error e -> raise (Dont_match (Modality e))
+  begin match mmodes with
+  | All -> begin
+      match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
+      | Ok () -> ()
+      | Error e -> raise (Dont_match (Modality e))
+      end;
+  | Legacy when (vd1.val_modalities == vd2.val_modalities) ->
+      (* [wrap_constraint_with_shape] invokes inclusion check with identical
+        inferred modalities, which we need to workaround. *)
+      ()
+  | Legacy ->
+      let mmode1, mmode2 =
+        Mode.Value.(disallow_right legacy), Mode.Value.(disallow_left legacy)
+      in
+      let mode1 = Mode.Modality.Value.apply vd1.val_modalities mmode1 in
+      let mode2 =
+        Mode.Modality.Value.(Const.apply (to_const_exn vd2.val_modalities) mmode2)
+      in
+      let mode2 = right_mode_cross env vd2.val_type mode2 in
+      begin match Mode.Value.submode mode1 mode2 with
+      | Ok () -> ()
+      | Error e -> raise (Dont_match (Mode e))
+      end
   end;
   match vd1.val_kind with
   | Val_prim p1 -> begin
@@ -186,19 +229,22 @@ type privacy_mismatch =
   | Private_type_abbreviation
   | Private_variant_type
   | Private_record_type
+  | Private_record_unboxed_product_type
   | Private_extensible_variant
   | Private_row_type
 
 type type_kind =
   | Kind_abstract
   | Kind_record
+  | Kind_record_unboxed_product
   | Kind_variant
   | Kind_open
 
 let of_kind = function
   | Type_abstract _ -> Kind_abstract
-  | Type_record (_, _) -> Kind_record
-  | Type_variant (_, _) -> Kind_variant
+  | Type_record (_, _, _) -> Kind_record
+  | Type_record_unboxed_product (_, _, _) -> Kind_record_unboxed_product
+  | Type_variant (_, _, _) -> Kind_variant
   | Type_open -> Kind_open
 
 type kind_mismatch = type_kind * type_kind
@@ -250,6 +296,10 @@ type variant_change =
   (Types.constructor_declaration as 'l, 'l, constructor_mismatch)
     Diffing_with_keys.change
 
+type unsafe_mode_crossing_mismatch =
+  | Mode_crossing_only_on of position
+  | Mode_crossing_not_equal
+
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
@@ -264,7 +314,9 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
+  | With_null_representation of position
   | Jkind of Jkind.Violation.t
+  | Unsafe_mode_crossing of unsafe_mode_crossing_mismatch
 
 let report_modality_sub_error first second ppf e =
   let print_modality id ppf m =
@@ -276,6 +328,14 @@ let report_modality_sub_error first second ppf e =
     (print_modality "empty") (Atom (ax, right) : Modality.t)
     first
     (print_modality "not") (Atom (ax, left) : Modality.t)
+
+let report_mode_sub_error first second ppf e =
+  let Mode.Value.Error(ax, {left; right}) = e in
+  Format.fprintf ppf "%s is %a and %s is %a."
+    (String.capitalize_ascii second)
+    (Value.Const.print_axis ax) right
+    first
+    (Value.Const.print_axis ax) left
 
 let report_modality_equate_error first second ppf ((equate_step, sub_error) : Modality.Value.equate_error) =
   match equate_step with
@@ -327,6 +387,7 @@ let report_value_mismatch first second env ppf err =
         (fun ppf -> Format.fprintf ppf "is not compatible with the type")
   | Zero_alloc e -> Zero_alloc.print_error ppf e
   | Modality e -> report_modality_sub_error first second ppf e
+  | Mode e -> report_mode_sub_error first second ppf e
 
 let report_type_inequality env ppf err =
   Printtyp.report_equality_error ppf Type_scheme env err
@@ -339,6 +400,7 @@ let report_privacy_mismatch ppf err =
     | Private_type_abbreviation  -> true,  "type abbreviation"
     | Private_variant_type       -> false, "variant constructor(s)"
     | Private_record_type        -> true,  "record constructor"
+    | Private_record_unboxed_product_type -> true, "unboxed record constructor"
     | Private_extensible_variant -> true,  "extensible variant"
     | Private_row_type           -> true,  "row type"
   in Format.fprintf ppf "%s %s would be revealed."
@@ -530,6 +592,7 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
   let kind_to_string = function
   | Kind_abstract -> "abstract"
   | Kind_record -> "a record"
+  | Kind_record_unboxed_product -> "an unboxed record"
   | Kind_variant -> "a variant"
   | Kind_open -> "an extensible variant" in
   pr "%s is %s, but %s is %s."
@@ -537,6 +600,17 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
     (kind_to_string kind1)
     second
     (kind_to_string kind2)
+
+let report_unsafe_mode_crossing_mismatch first second ppf e =
+  let pr fmt = Format.fprintf ppf fmt in
+  match e with
+  | Mode_crossing_only_on ord ->
+    pr "%s has [%@%@unsafe_allow_any_mode_crossing], but %s does not"
+      (choose ord first second)
+      (choose_other ord first second)
+  | Mode_crossing_not_equal ->
+    pr "Both specify [%@%@unsafe_allow_any_mode_crossing], but their \
+        mod-bounds are not equal"
 
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -581,8 +655,26 @@ let report_type_mismatch first second decl env ppf err =
       pr "Their internal representations differ:@ %s %s %s."
          (choose ord first second) decl
          "is extensible"
+  | With_null_representation ord ->
+      pr "Their internal representations differ:@ %s %s %s."
+         (choose ord first second) decl
+         "has a null constructor"
   | Jkind v ->
       Jkind.Violation.report_with_name ~name:first ppf v
+  | Unsafe_mode_crossing mismatch ->
+    pr "They have different unsafe mode crossing behavior:@,";
+    report_unsafe_mode_crossing_mismatch first second ppf mismatch
+
+let compare_unsafe_mode_crossing umc1 umc2 =
+  match umc1, umc2 with
+  | None, None -> None
+  | Some _, None -> Some (Unsafe_mode_crossing (Mode_crossing_only_on First))
+  | None, Some _ -> Some (Unsafe_mode_crossing (Mode_crossing_only_on Second))
+  | Some ({ modal_upper_bounds = mub1 }),
+    Some ({ modal_upper_bounds = mub2 }) ->
+    if (Mode.Alloc.Const.le mub1 mub2 && Mode.Alloc.Const.le mub2 mub1)
+    then None
+    else Some (Unsafe_mode_crossing Mode_crossing_not_equal)
 
 module Record_diffing = struct
 
@@ -734,46 +826,54 @@ module Record_diffing = struct
            representation is if one is a flat float record with a boxed float \
            field, and the other isn't."
 
-  let compare_with_representation ~loc env params1 params2 l r rep1 rep2 =
+  let compare_with_representation (type rep) ~loc
+        (record_form : rep record_form) env params1 params2 l r
+        (rep1 : rep) (rep2 : rep) =
     if not (equal ~loc env params1 params2 l r) then
       let patch = diffing loc env params1 params2 l r in
       Some (Record_mismatch (Label_mismatch patch))
     else
-     match rep1, rep2 with
-     | Record_unboxed, Record_unboxed -> None
-     | Record_unboxed, _ -> Some (Unboxed_representation (First, []))
-     | _, Record_unboxed -> Some (Unboxed_representation (Second, []))
+      match record_form with
+      | Legacy ->
+        begin match rep1, rep2 with
+        | Record_unboxed, Record_unboxed -> None
+        | Record_unboxed, _ -> Some (Unboxed_representation (First, []))
+        | _, Record_unboxed -> Some (Unboxed_representation (Second, []))
 
-     | Record_inlined _, Record_inlined _ -> None
-     | Record_inlined _, _ ->
-        Some (Record_mismatch (Inlined_representation First))
-     | _, Record_inlined _ ->
-        Some (Record_mismatch (Inlined_representation Second))
+        | Record_inlined _, Record_inlined _ -> None
+        | Record_inlined _, _ ->
+           Some (Record_mismatch (Inlined_representation First))
+        | _, Record_inlined _ ->
+           Some (Record_mismatch (Inlined_representation Second))
 
-     | Record_float, Record_float -> None
-     | Record_float, _ ->
-        Some (Record_mismatch (Float_representation First))
-     | _, Record_float ->
-        Some (Record_mismatch (Float_representation Second))
+        | Record_float, Record_float -> None
+        | Record_float, _ ->
+           Some (Record_mismatch (Float_representation First))
+        | _, Record_float ->
+           Some (Record_mismatch (Float_representation Second))
 
-     | Record_ufloat, Record_ufloat -> None
-     | Record_ufloat, _ ->
-        Some (Record_mismatch (Ufloat_representation First))
-     | _, Record_ufloat ->
-        Some (Record_mismatch (Ufloat_representation Second))
+        | Record_ufloat, Record_ufloat -> None
+        | Record_ufloat, _ ->
+           Some (Record_mismatch (Ufloat_representation First))
+        | _, Record_ufloat ->
+           Some (Record_mismatch (Ufloat_representation Second))
 
-     | Record_mixed m1, Record_mixed m2 -> begin
-         match find_mismatch_in_mixed_record_representations m1 m2 with
-         | None -> None
-         | Some mismatch -> Some (Record_mismatch mismatch)
-       end
-     | Record_mixed _, _ ->
-        Some (Record_mismatch (Mixed_representation First))
-     | _, Record_mixed _ ->
-        Some (Record_mismatch (Mixed_representation Second))
+        | Record_mixed m1, Record_mixed m2 ->
+            begin match find_mismatch_in_mixed_record_representations m1 m2 with
+            | None -> None
+            | Some mismatch -> Some (Record_mismatch mismatch)
+            end
+        | Record_mixed _, _ ->
+           Some (Record_mismatch (Mixed_representation First))
+        | _, Record_mixed _ ->
+           Some (Record_mismatch (Mixed_representation Second))
 
-     | Record_boxed _, Record_boxed _ -> None
-
+        | Record_boxed _, Record_boxed _ -> None
+        end
+      | Unboxed_product ->
+        begin match rep1, rep2 with
+        | Record_unboxed_product, Record_unboxed_product -> None
+        end
 end
 
 (* just like List.find_map, but also gives index if found *)
@@ -928,7 +1028,8 @@ module Variant_diffing = struct
     match err, rep1, rep2 with
     | None, Variant_unboxed, Variant_unboxed
     | None, Variant_boxed _, Variant_boxed _
-    | None, Variant_extensible, Variant_extensible -> None
+    | None, Variant_extensible, Variant_extensible
+    | None, Variant_with_null, Variant_with_null -> None
     | Some err, _, _ ->
         Some (Variant_mismatch err)
     | None, Variant_unboxed, Variant_boxed _ ->
@@ -939,6 +1040,10 @@ module Variant_diffing = struct
       Some (Extensible_representation First)
     | None, _, Variant_extensible ->
       Some (Extensible_representation Second)
+    | None, Variant_with_null, _ ->
+      Some (With_null_representation First)
+    | None, _, Variant_with_null ->
+      Some (With_null_representation Second)
 end
 
 (* Inclusion between "private" annotations *)
@@ -947,6 +1052,8 @@ let privacy_mismatch env decl1 decl2 =
   | Private, Public -> begin
       match decl1.type_kind, decl2.type_kind with
       | Type_record  _, Type_record  _ -> Some Private_record_type
+      | Type_record_unboxed_product  _, Type_record_unboxed_product  _ ->
+          Some Private_record_unboxed_product_type
       | Type_variant _, Type_variant _ -> Some Private_variant_type
       | Type_open,      Type_open      -> Some Private_extensible_variant
       | Type_abstract _, Type_abstract _
@@ -1257,17 +1364,41 @@ let type_declarations ?(equality = false) ~loc env ~mark name
         | () -> None
   in
   if err <> None then err else
+  let mark_and_compare_records record_form labels1 rep1 labels2 rep2 =
+    if mark then begin
+      let mark usage lbls =
+        List.iter (Env.mark_label_used record_form usage) lbls
+      in
+      let usage : Env.label_usage =
+        if decl2.type_private = Public then Env.Exported
+        else Env.Exported_private
+      in
+      mark usage labels1;
+      if equality then mark Env.Exported labels2
+    end;
+    Record_diffing.compare_with_representation ~loc record_form env
+      decl1.type_params decl2.type_params
+      labels1 labels2
+      rep1 rep2
+  in
   let err = match (decl1.type_kind, decl2.type_kind) with
       (_, Type_abstract _) ->
-       (* Note that [decl2.type_jkind] is an upper bound.
-          If it isn't tight, [decl2] must
-          have a manifest, which we're already checking for equality
-          above. Similarly, [decl1]'s kind may conservatively approximate its
-          jkind, but [check_decl_jkind] will expand its manifest.  *)
-        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
-         | Ok _ -> None
-         | Error v -> Some (Jkind v))
-    | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
+        (* No need to check jkinds if decl2 has a manifest; we've already
+           checked for type equality, above. Oddly, this is not just an
+           optimization; unconditionally checking jkinds causes a failure
+           around recursive modules (test case: shapes/recmodules.ml).
+           Richard spent several hours trying to understand what was going
+           on there (after the substitution in [Typemod.check_recmodule_inclusion],
+           there was a type_declaration whose [type_jkind] didn't match its
+           [type_manifest]), but just skipping this check when there is a
+           manifest fixes the problem. *)
+        if Option.is_none decl2.type_manifest then
+          (* Note that [decl2.type_jkind] is an upper bound *)
+          match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
+           | Ok _ -> None
+           | Error v -> Some (Jkind v)
+        else None
+    | (Type_variant (cstrs1, rep1, umc1), Type_variant (cstrs2, rep2, umc2)) -> begin
         if mark then begin
           let mark usage cstrs =
             List.iter (Env.mark_constructor_used usage) cstrs
@@ -1279,29 +1410,27 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           mark usage cstrs1;
           if equality then mark Env.Exported cstrs2
         end;
-        Variant_diffing.compare_with_representation ~loc env
-          decl1.type_params
-          decl2.type_params
-          cstrs1
-          cstrs2
-          rep1
-          rep2
-    | (Type_record(labels1,rep1), Type_record(labels2,rep2)) ->
-        if mark then begin
-          let mark usage lbls =
-            List.iter (Env.mark_label_used usage) lbls
-          in
-          let usage : Env.label_usage =
-            if decl2.type_private = Public then Env.Exported
-            else Env.Exported_private
-          in
-          mark usage labels1;
-          if equality then mark Env.Exported labels2
-        end;
-        Record_diffing.compare_with_representation ~loc env
-          decl1.type_params decl2.type_params
-          labels1 labels2
-          rep1 rep2
+        Misc.Stdlib.Option.first_some
+          (Variant_diffing.compare_with_representation ~loc env
+              decl1.type_params
+              decl2.type_params
+              cstrs1
+              cstrs2
+              rep1
+              rep2)
+          (fun () -> compare_unsafe_mode_crossing umc1 umc2)
+      end
+    | (Type_record(labels1,rep1,umc1), Type_record(labels2,rep2,umc2)) -> begin
+        Misc.Stdlib.Option.first_some
+          (mark_and_compare_records Legacy labels1 rep1 labels2 rep2)
+          (fun () -> compare_unsafe_mode_crossing umc1 umc2)
+      end
+    | (Type_record_unboxed_product(labels1,rep1,umc1),
+       Type_record_unboxed_product(labels2,rep2,umc2)) -> begin
+        Misc.Stdlib.Option.first_some
+          (mark_and_compare_records Unboxed_product labels1 rep1 labels2 rep2)
+          (fun () -> compare_unsafe_mode_crossing umc1 umc2)
+      end
     | (Type_open, Type_open) -> None
     | (_, _) -> Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))
   in

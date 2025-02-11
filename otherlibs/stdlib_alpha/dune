@@ -24,14 +24,12 @@
    -safe-string
    -strict-formats
    -extension-universe
-   alpha
-   ;; Capsule API can't be defined legally.
-   -allow-illegal-crossing))
+   alpha))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (foreign_stubs
   (language c)
-  (names rwlock)
+  (names capsule)
   (flags
    ((:include %{project_root}/oc_cflags.sexp)
     (:include %{project_root}/sharedlib_cflags.sexp)

@@ -180,24 +180,26 @@ let tuple_component_label i ppf = function
 let typevars ppf vs =
   List.iter (typevar_jkind ~print_quote:true ppf) vs
 
-let jkind_array i ppf jkinds =
-  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.format l)
-    ppf jkinds
+let sort_array i ppf sorts =
+  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.Sort.Const.format l)
+    ppf sorts
 
 let tag ppf = let open Types in function
   | Ordinary {src_index;runtime_tag} ->
       fprintf ppf "Ordinary {index: %d; tag: %d}" src_index runtime_tag
   | Extension p -> fprintf ppf "Extension %a" fmt_path p
+  | Null -> fprintf ppf "Null"
 
 let variant_representation i ppf = let open Types in function
   | Variant_unboxed ->
     line i ppf "Variant_unboxed\n"
   | Variant_boxed cstrs ->
     line i ppf "Variant_boxed %a\n"
-      (array (i+1) (fun _ ppf (_cstr, jkinds) ->
-         jkind_array (i+1) ppf jkinds))
+      (array (i+1) (fun _ ppf (_cstr, sorts) ->
+         sort_array (i+1) ppf sorts))
       cstrs
   | Variant_extensible -> line i ppf "Variant_inlined\n"
+  | Variant_with_null -> line i ppf "Variant_with_null\n"
 
 let flat_element i ppf flat_element =
   line i ppf "%s\n" (Types.flat_element_to_string flat_element)
@@ -205,8 +207,8 @@ let flat_element i ppf flat_element =
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->
     line i ppf "Record_unboxed\n"
-  | Record_boxed jkinds ->
-    line i ppf "Record_boxed %a\n" (jkind_array i) jkinds
+  | Record_boxed sorts ->
+    line i ppf "Record_boxed %a\n" (sort_array i) sorts
   | Record_inlined (t, _c, v) ->
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
@@ -214,6 +216,10 @@ let record_representation i ppf = let open Types in function
   | Record_mixed { value_prefix_len; flat_suffix } ->
     line i ppf "Record_mixed (value_prefix_len %d)\n" value_prefix_len;
     array (i+1) flat_element ppf flat_suffix
+
+let record_unboxed_product_representation i ppf = let open Types in function
+  | Record_unboxed_product ->
+    line i ppf "Record_unboxed_product\n"
 
 let attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.Parsetree.attr_name.txt;
@@ -347,6 +353,9 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   | Tpat_record (l, _c) ->
       line i ppf "Tpat_record\n";
       list i longident_x_pattern ppf l;
+  | Tpat_record_unboxed_product (l, _c) ->
+      line i ppf "Tpat_record_unboxed_product\n";
+      list i longident_x_pattern ppf l;
   | Tpat_array (am, arg_sort, l) ->
       line i ppf "Tpat_array %a\n" fmt_mutable_mode_flag am;
       line i ppf "%a\n" Jkind.Sort.format arg_sort;
@@ -413,11 +422,10 @@ and function_body i ppf (body : function_body) =
 
 and expression_extra i ppf x attrs =
   match x with
-  | Texp_constraint (ct, m) ->
+  | Texp_constraint (ct) ->
       line i ppf "Texp_constraint\n";
       attributes i ppf attrs;
-      option i core_type ppf ct;
-      alloc_const_option_mode i ppf m;
+      core_type i ppf ct;
   | Texp_coerce (cto1, cto2) ->
       line i ppf "Texp_coerce\n";
       attributes i ppf attrs;
@@ -433,6 +441,10 @@ and expression_extra i ppf x attrs =
   | Texp_stack ->
       line i ppf "Texp_stack\n";
       attributes i ppf attrs
+  | Texp_mode m ->
+      line i ppf "Texp_mode\n";
+      attributes i ppf attrs;
+      alloc_const_option_mode i ppf m
 
 and alloc_mode_raw: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
   = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
@@ -523,8 +535,22 @@ and expression i ppf x =
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf (Option.map fst extended_expression);
+  | Texp_record_unboxed_product
+        { fields; representation; extended_expression } ->
+      line i ppf "Texp_record_unboxed_product\n";
+      let i = i+1 in
+      line i ppf "fields =\n";
+      array (i+1) record_field ppf fields;
+      line i ppf "representation =\n";
+      record_unboxed_product_representation (i+1) ppf representation;
+      line i ppf "extended_expression =\n";
+      option (i+1) expression ppf (Option.map fst extended_expression);
   | Texp_field (e, li, _, _, _) ->
       line i ppf "Texp_field\n";
+      expression i ppf e;
+      longident i ppf li;
+  | Texp_unboxed_field (e, _, li, _, _) ->
+      line i ppf "Texp_unboxed_field\n";
       expression i ppf e;
       longident i ppf li;
   | Texp_setfield (e1, am, li, _, e2) ->
@@ -626,7 +652,13 @@ and expression i ppf x =
       line i ppf "Texp_exclave";
       expression i ppf e;
   | Texp_src_pos ->
-    line i ppf "Texp_src_pos"
+      line i ppf "Texp_src_pos"
+  | Texp_overwrite (e1, e2) ->
+    line i ppf "Texp_overwrite\n";
+    expression i ppf e1;
+    expression i ppf e2
+  | Texp_hole _ ->
+    line i ppf "Texp_hole"
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_ident x.val_id fmt_location
@@ -681,6 +713,9 @@ and type_kind i ppf x =
       list (i+1) constructor_decl ppf l;
   | Ttype_record l ->
       line i ppf "Ttype_record\n";
+      list (i+1) label_decl ppf l;
+  | Ttype_record_unboxed_product l ->
+      line i ppf "Ttype_record_unboxed_product\n";
       list (i+1) label_decl ppf l;
   | Ttype_open ->
       line i ppf "Ttype_open\n"
@@ -1115,7 +1150,8 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
 and field_decl i ppf {ca_type=ty; ca_loc=_; ca_modalities=_} =
   core_type (i+1) ppf ty
 
-and longident_x_pattern i ppf (li, _, p) =
+and longident_x_pattern : 'a. _ -> _ -> _ * 'a * _ -> _ =
+  fun i ppf (li, _, p) ->
   line i ppf "%a\n" fmt_longident li;
   pattern (i+1) ppf p;
 
@@ -1175,11 +1211,14 @@ and string_x_expression i ppf (s, _, e) =
   line i ppf "<override> \"%a\"\n" fmt_ident s;
   expression (i+1) ppf e;
 
-and record_field i ppf = function
-  | _, Overridden (li, e) ->
+and record_field
+    : 'a. _ -> _ -> 'a * _ -> _
+  = fun i ppf (_, record_label_definition) ->
+  match record_label_definition with
+  | Overridden (li, e) ->
       line i ppf "%a\n" fmt_longident li;
       expression (i+1) ppf e;
-  | _, Kept _ ->
+  | Kept _ ->
       line i ppf "<kept>"
 
 and label_x_apply_arg i ppf (l, e) =
