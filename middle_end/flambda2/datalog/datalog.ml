@@ -165,11 +165,12 @@ let unless_atom id args k info =
 type callback =
   | Callback :
       { func : 'a Constant.hlist -> unit;
+        name : string;
         args : 'a Term.hlist
       }
       -> callback
 
-let create_callback func args = Callback { func; args }
+let create_callback func ~name args = Callback { func; name; args }
 
 let yield output (info : _ context) =
   let output = compile_terms output in
@@ -180,8 +181,8 @@ let yield output (info : _ context) =
 let execute callbacks (info : _ context) =
   let calls =
     List.map
-      (fun (Callback { func; args }) ->
-        Cursor.create_call func (compile_terms args))
+      (fun (Callback { func; name; args }) ->
+        Cursor.create_call func ~name (compile_terms args))
       callbacks
   in
   Cursor.With_parameters.create ~calls

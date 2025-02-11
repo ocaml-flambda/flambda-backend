@@ -79,7 +79,8 @@ val print : Format.formatter -> 'a t -> unit
 
 type call
 
-val create_call : ('a Constant.hlist -> unit) -> 'a Option_ref.hlist -> call
+val create_call :
+  ('a Constant.hlist -> unit) -> name:string -> 'a Option_ref.hlist -> call
 
 val create : ?calls:call list -> ?output:'v Option_ref.hlist -> context -> 'v t
 

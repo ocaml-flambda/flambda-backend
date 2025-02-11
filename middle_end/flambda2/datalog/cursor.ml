@@ -241,11 +241,12 @@ let rec pop_rev_vars : type s. s Level.hlist -> (vm_action, s) VM.instruction =
 type call =
   | Call :
       { func : 'a Constant.hlist -> unit;
+        name : string;
         args : 'a Option_ref.hlist
       }
       -> call
 
-let create_call func args = Call { func; args }
+let create_call func ~name args = Call { func; name; args }
 
 let create ?(calls = []) ?output context =
   let { levels; actions; binders; naive_binders } = context in
@@ -255,10 +256,13 @@ let create ?(calls = []) ?output context =
     let k =
       match output with
       | None -> k
-      | Some output -> VM.call (fun args -> !callback args) output k
+      | Some output ->
+        VM.call (fun args -> !callback args) ~name:"yield" output k
     in
     (* Make sure to compute calls in the provided order. *)
-    List.fold_right (fun (Call { func; args }) k -> VM.call func args k) calls k
+    List.fold_right
+      (fun (Call { func; name; args }) k -> VM.call func ~name args k)
+      calls k
   in
   let instruction : (_, nil) VM.instruction =
     match rev_levels with

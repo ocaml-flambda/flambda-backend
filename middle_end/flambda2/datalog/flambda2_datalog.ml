@@ -257,7 +257,10 @@ module Datalog = struct
       fold
         (fun (Atom (tid, args)) callbacks ->
           let fn = Schedule.add_rule builder tid in
-          create_callback (Schedule.call_rule_fn fn) args :: callbacks)
+          create_callback (Schedule.call_rule_fn fn)
+            ~name:(Table.Id.name tid ^ ".insert")
+            args
+          :: callbacks)
         atoms []
     in
     map_program (execute callbacks) (fun cursor ->

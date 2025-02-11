@@ -107,14 +107,15 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       [create]. *)
   val action : 'a -> ('a, 's) instruction -> ('a, 's) instruction
 
-  (** [call f rs k] calls [f] with the values of the references in [rs] as a
-      heterogeneous list of values, then executes the instruction [k].
+  (** [call f ~name rs k] calls [f] with the values of the references in [rs] as a
+      heterogeneous list of values, then executes the instruction [k]. [name] is used when printing.
 
       {b Note}: The references in [rs] are intended to be the references
       associated with levels in the stack at the point the [call] instruction
       is executed, and {b must not} be [None] at that point. *)
   val call :
     ('a Heterogenous_list.Constant.hlist -> unit) ->
+    name:string ->
     'a Heterogenous_list.Option_ref.hlist ->
     ('x, 's) instruction ->
     ('x, 's) instruction

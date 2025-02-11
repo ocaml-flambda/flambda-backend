@@ -46,7 +46,10 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         -> ('a, 's) instruction
     | Action : 'a * ('a, 's) instruction -> ('a, 's) instruction
     | Call :
-        ('b Constant.hlist -> unit) * 'b Option_ref.hlist * ('a, 's) instruction
+        ('b Constant.hlist -> unit)
+        * 'b Option_ref.hlist
+        * ('a, 's) instruction
+        * string
         -> ('a, 's) instruction
 
   let pp_instruction pp_act ff instr =
@@ -91,8 +94,8 @@ module Make (Iterator : Leapfrog.Iterator) = struct
       | Action (a, instr) ->
         Format.fprintf ff "%a@[<v 2>%a@]%a" pp_initiator depth pp_act a
           pp_instruction (instr, depth)
-      | Call (_f, l, instr) ->
-        Format.fprintf ff "%a<call> (%a)%a" pp_initiator depth
+      | Call (_f, l, instr, name) ->
+        Format.fprintf ff "%a%s (%a)%a" pp_initiator depth name
           Option_ref.pp_name_hlist l pp_instruction (instr, depth)
     in
     pp_instruction ff (instr, 0)
@@ -141,7 +144,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         match (evaluate [@inlined hint]) op with
         | Accept -> execute k stack
         | Skip -> advance stack)
-      | Call (f, rs, k) ->
+      | Call (f, rs, k, _name) ->
         f (Option_ref.get rs);
         execute k stack
     in
@@ -164,7 +167,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
 
   let action a k = Action (a, k)
 
-  let call f y k = Call (f, y, k)
+  let call f ~name y k = Call (f, y, k, name)
 
   let rec refs : type s. s Iterator.hlist -> s Option_ref.hlist = function
     | [] -> []
@@ -202,7 +205,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     in
     match rev_iterators with
     | [] -> Advance
-    | _ :: _ -> loop rev_iterators rev_refs (call f rs advance)
+    | _ :: _ -> loop rev_iterators rev_refs (call f ~name:"yield" rs advance)
 
   type 'a iterator =
     | Iterator of ('a Constant.hlist -> unit) ref * nil continuation

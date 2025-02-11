@@ -63,7 +63,8 @@ val unless_atom :
 
 type callback
 
-val create_callback : ('a Constant.hlist -> unit) -> 'a Term.hlist -> callback
+val create_callback :
+  ('a Constant.hlist -> unit) -> name:string -> 'a Term.hlist -> callback
 
 val yield : 'v Term.hlist -> ('p, ('p, 'v) Cursor.With_parameters.t) program
 
