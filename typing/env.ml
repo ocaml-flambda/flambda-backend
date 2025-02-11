@@ -3228,7 +3228,7 @@ let rec lookup_module_components ~errors ~use ~loc lid env =
       let f_path, f_comp, arg = lookup_apply ~errors ~use ~loc lid env in
       let comps =
         !components_of_functor_appl' ~loc ~f_path ~f_comp ~arg env in
-      Papply (f_path, arg), [], comps
+      Papply (f_path, arg), locks_empty, comps
 
 and lookup_structure_components ~errors ~use ~loc ?(reason = Project) lid env =
   let path, locks, comps = lookup_module_components ~errors ~use ~loc lid env in
@@ -3261,8 +3261,10 @@ and lookup_all_args ~errors ~use ~loc lid0 env =
     | Lident _ | Ldot _ as f_lid ->
         (f_lid, args)
     | Lapply (f_lid, arg_lid) ->
-        (* This path is only for F(M).t, for which we don't walk the locks, and
-        the module remains at legacy, which we don't need to specify at runtime. *)
+        (* [Lapply] only appears in e.g. [F(M).t], which does not incur functor
+         application at runtime and thus both the functor and the arguments are not closed
+         over. Therefore, they all remains at legacy mode which don't need to be tracked.
+         *)
         let arg_path, arg_md, _ = lookup_module ~errors ~use ~loc arg_lid env in
         loop_lid_arg ((f_lid,arg_path,arg_md.md_type)::args) f_lid
   in
@@ -3469,7 +3471,7 @@ let add_components slot root env0 comps locks =
 
 let open_signature_by_path path env0 =
   let comps = find_structure_components path env0 in
-  add_components None path env0 comps []
+  add_components None path env0 comps locks_empty
 
 let open_signature ~errors ~loc slot lid env0 =
   let (root, locks, comps) =
@@ -3590,7 +3592,7 @@ let lookup_module_path ~errors ~use ~loc ~load lid env =
       path, locks
   | Lapply _ as lid ->
       let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
-      Papply(path_f, path_arg), []
+      Papply(path_f, path_arg), locks_empty
 
 let lookup_module_instance_path ~errors ~use ~loc ~load name env =
   (* The locks are whatever locks we would find if we went through
