@@ -236,7 +236,7 @@ Error: Signature mismatch:
 module M : sig
   type 'a t : immutable_data with 'a ref
 end = struct
-  type 'a t : mutable_data with 'a @@ many
+  type 'a t : mutable_data with 'a @@ many unyielding
 end
 [%%expect {|
 module M :
