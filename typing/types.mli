@@ -264,8 +264,9 @@ and with_bounds_types
 
 and 'd with_bounds =
   | No_with_bounds : ('l * 'r) with_bounds
-  | With_bounds : with_bounds_types -> ('l * Allowance.disallowed) with_bounds
-  (** Invariant : there must always be at least one type in this set **)
+  | With_bounds
+    : with_bounds_types -> ('l * Allowance.disallowed) with_bounds
+    (** Invariant : there must always be at least one type in this set **)
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
@@ -307,16 +308,20 @@ and jkind_r = (disallowed * allowed) jkind  (* the jkind expected of a type *)
 and jkind_lr = (allowed * allowed) jkind    (* the jkind of a variable *)
 and jkind_packed = Pack_jkind : ('l * 'r) jkind -> jkind_packed
 
-(** This module provides the interface to construct, query, and destruct
-    [with_bounds_types]. Under the hood this is a [Stdlib.Map] from [type_expr] to
-    [With_bounds_type_info.t], using a "best-effort" semantic comparison on [type_expr] to
-    provide the mapping. This "best-effort"ness means that two semantically equal
-    (according to [Ctype.eqtype]) types might have distinct keys in the map - but two
-    semantically {i inequal} types are guaranteed never to occupy the same key.
+(* A map from [type_expr] to [With_bounds_type_info.t], specifically defined with a
+   (best-effort) semantic comparison function on types to be used in the with-bounds of a
+   jkind.
+
+   This module is defined internally to be equal (via two uses of [Obj.magic]) to the
+   abstract type [with_bound_types] to break the circular dependency between with-bounds
+   and type_expr. The alternative to this approach would be mutually recursive modules,
+   but this approach creates a smaller diff with upstream and makes rebasing easier.
 *)
 module With_bounds_types : sig
+  (* Note that only the initially needed bits of [Stdlib.Map.S] are exposed here; feel
+     free to expose more functions if you need them! *)
+  type t = with_bounds_types
   type info := With_bounds_type_info.t
-  type t := with_bounds_types
 
   val empty : t
   val is_empty : t -> bool
@@ -329,6 +334,7 @@ module With_bounds_types : sig
     : (type_expr -> info option -> info option -> info option) ->
     t -> t -> t
   val update : type_expr -> (info option -> info option) -> t -> t
+  val find_opt : type_expr -> t -> info option
 end
 
 val is_commu_ok: commutable -> bool

@@ -1072,8 +1072,9 @@ let rec best_effort_compare_type_expr te1 te2 =
       List.compare best_effort_compare_type_expr (t1 :: ts1) (t2 :: ts2)
     | _, _ -> rank te1 - rank te2
 
-(* A map from [type_expr] to ['a], specifically defined with a (best-effort) semantic
-   comparison function on types to be used in the with-bounds of a jkind.
+(* A map from [type_expr] to [With_bounds_type_info.t], specifically defined with a
+   (best-effort) semantic comparison function on types to be used in the with-bounds of a
+   jkind.
 
    This module is defined internally to be equal (via two uses of [Obj.magic]) to the
    abstract type [with_bound_types] to break the circular dependency between with-bounds
@@ -1083,8 +1084,8 @@ let rec best_effort_compare_type_expr te1 te2 =
 module With_bounds_types : sig
   (* Note that only the initially needed bits of [Stdlib.Map.S] are exposed here; feel
      free to expose more functions if you need them! *)
+  type t = with_bounds_types
   type info := With_bounds_type_info.t
-  type t := with_bounds_types
 
   val empty : t
   val is_empty : t -> bool
@@ -1092,11 +1093,12 @@ module With_bounds_types : sig
   val of_list : (type_expr * info) list -> t
   val of_seq : (type_expr * info) Seq.t -> t
   val singleton : type_expr -> info -> t
-  val update : type_expr -> (info option -> info option) -> t -> t
+  val map : (info -> info) -> t -> t
   val merge
     : (type_expr -> info option -> info option -> info option) ->
     t -> t -> t
-  val map : (info -> info) -> t -> t
+  val update : type_expr -> (info option -> info option) -> t -> t
+  val find_opt : type_expr -> t -> info option
 end = struct
   module M = Map.Make(struct
       type t = type_expr
@@ -1106,6 +1108,7 @@ end = struct
   include M
 
   type map = With_bounds_type_info.t M.t
+  type t = with_bounds_types
 
   let of_map : map -> with_bounds_types = Obj.magic
   let to_map : with_bounds_types -> map = Obj.magic
@@ -1116,9 +1119,10 @@ end = struct
   let of_seq s = of_seq s |> of_map
   let of_list l = l |> List.to_seq |> of_seq
   let singleton ty i = add ty i (to_map empty) |> of_map
-  let update te f t = update te f (to_map t) |> of_map
-  let merge f t1 t2 = merge f (to_map t1) (to_map t2) |> of_map
   let map f t = map f (to_map t) |> of_map
+  let merge f t1 t2 = merge f (to_map t1) (to_map t2) |> of_map
+  let update te f t = update te f (to_map t) |> of_map
+  let find_opt te t = find_opt te (to_map t)
 end
 
 (* Constructor and accessors for [row_desc] *)

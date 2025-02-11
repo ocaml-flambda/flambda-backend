@@ -1276,7 +1276,7 @@ let narrow_to_manifest_jkind env loc decl =
           Jkind.sub_jkind_l ~type_equal ~jkind_of_type
             manifest_jkind decl.type_jkind
         with
-        | Ok _ -> ()
+        | Ok () -> ()
         | Error v -> raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
       end
     | Some type_jkind -> begin
@@ -1834,6 +1834,8 @@ let update_decl_jkind env id decl =
       { decl with type_jkind }
     | Type_record (lbls, rep, umc) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
+      (* See Note [Quality of jkinds during inference] for more information about when we
+         mark jkinds as best *)
       let type_jkind = Jkind.mark_best type_jkind in
       { decl with type_kind = Type_record (lbls, rep, umc); type_jkind }
     (* CR layouts v3.0: handle this case in [update_variant_jkind] when
@@ -2474,7 +2476,7 @@ let normalize_decl_jkinds env shapes decls =
     (fun env (id, original_jkind, allow_any_crossing, decl) shape ->
        let normalized_jkind =
          Jkind.normalize
-           ~require_best:true
+           ~mode:Require_best
            ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
            decl.type_jkind
        in
