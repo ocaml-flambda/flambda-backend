@@ -1256,13 +1256,19 @@ let find_ident_module id env =
       match Ident.to_global id with
       | Some global_name ->
           let allow_excess_args =
-            (* This may be a global that arose by substituting instance arguments into
-               an overapproximated instance name, so we have to allow it to have more
-               arguments than expected. *)
-            (* CR-someday lmaurer: This does mean that the original alias may have had too
-               many arguments and we'll never have checked them. One solution would be to
-               remember somewhere what the user actually typed in addition to the
-               approximation. *)
+            (* This may be a global that arose by substituting instance
+               arguments into an overapproximated instance name, so we have to
+               allow it to have more arguments than expected. For example, if
+               [foo.ml] is compiled with [-parameter P] and says
+               [module Alias = M], we assume that [m.ml] was (or will be)
+               compiled with [-parameter P] as well, sa [foo.cmi] will record
+               [M{P}] as an approximate elaboration of [M]. Then if [bar.ml]
+               refers to [Foo[P:Int]], we substitute in [Foo]'s signature and
+               get [module Alias = M[P:Int]] whether or not [M] takes [P].) *)
+            (* CR-someday lmaurer: This does mean that the original alias may
+               have had too many arguments and we'll never have checked them.
+               One solution would be to remember somewhere what the user
+               actually typed in addition to the approximation. *)
             true
           in
           find_pers_mod ~allow_hidden:true ~allow_excess_args global_name
