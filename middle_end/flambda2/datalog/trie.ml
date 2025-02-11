@@ -144,7 +144,7 @@ module Iterator = struct
     i.iterator <- Int.Map.seek i.iterator k
 
   let init (type a) (Iterator i : a t) : unit =
-    i.iterator <- Int.Map.iterator (i.map).contents
+    i.iterator <- Int.Map.iterator i.map.contents
 
   let accept (type a) (Iterator i : a t) : unit =
     match Int.Map.current i.iterator with
@@ -154,13 +154,26 @@ module Iterator = struct
   let create_iterator cell handler =
     Iterator { iterator = Int.Map.iterator Int.Map.empty; map = cell; handler }
 
-  let rec create : type m k v. (m, k, v) is_trie -> int -> string -> m Named_ref.t -> v Named_ref.t -> k hlist =
+  let rec create :
+      type m k v.
+      (m, k, v) is_trie ->
+      int ->
+      string ->
+      m Named_ref.t ->
+      v Named_ref.t ->
+      k hlist =
    fun is_trie i name this_ref value_handler ->
     match is_trie with
     | Map_is_trie -> [create_iterator this_ref value_handler]
     | Nested_trie next_trie ->
-      let next_ref : _ Named_ref.t = { contents = (empty next_trie); printed_name = name ^ "." ^ string_of_int i } in
+      let next_ref : _ Named_ref.t =
+        { contents = empty next_trie;
+          printed_name = name ^ "." ^ string_of_int i
+        }
+      in
       create_iterator this_ref next_ref
-      :: create next_trie (i + 1) name  next_ref value_handler
-  let create is_trie name this_ref value_handler = create is_trie 0 name this_ref value_handler
+      :: create next_trie (i + 1) name next_ref value_handler
+
+  let create is_trie name this_ref value_handler =
+    create is_trie 0 name this_ref value_handler
 end

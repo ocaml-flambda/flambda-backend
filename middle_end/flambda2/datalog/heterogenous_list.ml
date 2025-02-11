@@ -54,7 +54,8 @@ module Option_ref = struct
       r.contents <- Some v;
       set rs vs
 
-  let rec pp_name_hlist : type s. _ -> s hlist -> unit = fun ff values ->
+  let rec pp_name_hlist : type s. _ -> s hlist -> unit =
+   fun ff values ->
     match values with
     | [] -> ()
     | [x] -> Named_ref.pp_name ff x

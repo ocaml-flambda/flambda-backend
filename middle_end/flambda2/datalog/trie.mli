@@ -59,5 +59,10 @@ module Iterator : sig
       The [output] reference is set to the corresponding value when [accept] is
       called on the last iterator.
   *)
-  val create : ('m, 'k, 'v) is_trie -> string -> 'm Named_ref.t -> 'v Named_ref.t -> 'k hlist
+  val create :
+    ('m, 'k, 'v) is_trie ->
+    string ->
+    'm Named_ref.t ->
+    'v Named_ref.t ->
+    'k hlist
 end

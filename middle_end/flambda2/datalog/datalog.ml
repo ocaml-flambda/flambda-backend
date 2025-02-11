@@ -99,7 +99,9 @@ let rec bind_atom :
   | this_arg :: other_args, this_iterator :: other_iterators -> (
     match this_arg with
     | Constant cte ->
-      bind_iterator post_level { contents = (Some cte); printed_name = "<constant>" } this_iterator;
+      bind_iterator post_level
+        { contents = Some cte; printed_name = "<constant>" }
+        this_iterator;
       bind_atom ~order post_level other_args other_iterators
     | Parameter param ->
       bind_iterator post_level param.cell this_iterator;
@@ -145,7 +147,9 @@ let rec compile_terms : type a. a Term.hlist -> a Option_ref.hlist =
   | [] -> []
   | term :: terms -> (
     match term with
-    | Constant cte -> { contents = (Some cte); printed_name = "<constant>" } :: compile_terms terms
+    | Constant cte ->
+      { contents = Some cte; printed_name = "<constant>" }
+      :: compile_terms terms
     | Parameter param -> param.cell :: compile_terms terms
     | Variable var -> Cursor.Level.use_output var :: compile_terms terms)
 

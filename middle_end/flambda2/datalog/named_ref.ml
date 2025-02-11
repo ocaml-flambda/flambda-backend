@@ -13,10 +13,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type 'a t = {
-  mutable contents : 'a ;
-  printed_name : string
-}
+type 'a t =
+  { mutable contents : 'a;
+    printed_name : string
+  }
 
 let[@inline] ( ! ) r = r.contents
 
