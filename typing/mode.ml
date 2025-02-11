@@ -2493,10 +2493,7 @@ module Modality = struct
 
     let zap_to_id = zap_to_floor
 
-    let to_const_exn = function
-      | Const c -> c
-      | Undefined | Diff _ ->
-        Misc.fatal_error "Got infered modality but constant modality expected."
+    let to_const_opt = function Const c -> Some c | Undefined | Diff _ -> None
 
     let of_const c = Const c
 
@@ -2645,10 +2642,9 @@ module Modality = struct
         let c = Mode.Const.imply mm m in
         Const.Meet_const c
 
-    let to_const_exn = function
-      | Const c -> c
-      | Undefined | Exactly _ ->
-        Misc.fatal_error "Got inferred modality but expected constant modality."
+    let to_const_opt = function
+      | Const c -> Some c
+      | Undefined | Exactly _ -> None
 
     let of_const c = Const c
   end
@@ -2761,11 +2757,13 @@ module Modality = struct
       let monadic = Monadic.zap_to_floor monadic in
       { monadic; comonadic }
 
-    let to_const_exn t =
+    let to_const_opt t =
       let { monadic; comonadic } = t in
-      let comonadic = Comonadic.to_const_exn comonadic in
-      let monadic = Monadic.to_const_exn monadic in
-      { monadic; comonadic }
+      Option.bind (Comonadic.to_const_opt comonadic) (fun comonadic ->
+          Option.bind (Monadic.to_const_opt monadic) (fun monadic ->
+              Some { monadic; comonadic }))
+
+    let to_const_exn t = t |> to_const_opt |> Option.get
 
     let of_const { monadic; comonadic } =
       let comonadic = Comonadic.of_const comonadic in

@@ -7063,8 +7063,8 @@ and type_ident env ?(recarg=Rejected) lid =
   *)
   (* CR modes: codify the above per-axis argument. *)
   let actual_mode =
-    Env.walk_locks ~loc:lid.loc ~env ~item:Value ~lid:lid.txt mode
-      (Some desc.val_type) locks
+    Env.walk_locks ~env ~item:Value mode (Some desc.val_type)
+      (locks, lid.txt, lid.loc)
   in
   (* We need to cross again, because the monadic fragment might have been
   weakened by the locks. Ideally, the first crossing only deals with comonadic,
