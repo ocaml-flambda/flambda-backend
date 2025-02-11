@@ -281,11 +281,26 @@ and 'd jkind_desc = (Jkind_types.Sort.t Jkind_types.Layout.t, 'd) layout_and_axe
 
 and jkind_desc_packed = Pack_jkind_desc : ('l * 'r) jkind_desc -> jkind_desc_packed
 
+(** The "quality" of a jkind indicates whether we are able to learn more about the jkind
+    later.
+
+    We can never learn more about a [Best] jkind to make it "lower" (according to
+    [Jkind.sub] / [Jkind.sub_jkind_l]). A [Not_best], jkind, however, might have more
+    information provided about it later that makes it lower.
+
+    Note that only left jkinds can be [Best] (meaning we can never compare less than or
+    equal to a left jkind!)
+*)
+and 'd jkind_quality =
+  | Best : ('l * disallowed) jkind_quality
+  | Not_best : ('l * 'r) jkind_quality
+
 and 'd jkind =
   { jkind : 'd jkind_desc;
     annotation : Parsetree.jkind_annotation option;
     history : jkind_history;
-    has_warned : bool
+    has_warned : bool;
+    quality : 'd jkind_quality;
   }
   constraint 'd = 'l * 'r
 

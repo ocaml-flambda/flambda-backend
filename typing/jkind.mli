@@ -198,6 +198,8 @@ module Const : sig
       allowance machinery here. *)
   type 'd t constraint 'd = 'l * 'r
 
+  include Allowance.Allow_disallow with type (_, _, 'd) sided = 'd t
+
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
   (** This returns [true] iff both types have no with-bounds and they are equal.
@@ -281,7 +283,7 @@ module Builtin : sig
   val any : why:History.any_creation_reason -> 'd Types.jkind
 
   (** Value of types of this jkind are not retained at all at runtime *)
-  val void : why:History.void_creation_reason -> 'd Types.jkind
+  val void : why:History.void_creation_reason -> ('l * disallowed) Types.jkind
 
   val value_or_null :
     why:History.value_or_null_creation_reason -> 'd Types.jkind
@@ -296,7 +298,8 @@ module Builtin : sig
   val mutable_data : why:History.value_creation_reason -> 'd Types.jkind
 
   (** We know for sure that values of types of this jkind are always immediate *)
-  val immediate : why:History.immediate_creation_reason -> 'd Types.jkind
+  val immediate :
+    why:History.immediate_creation_reason -> ('l * disallowed) Types.jkind
 
   (** Build a jkind of unboxed products, from a list of types with
       their layouts. Errors if zero inputs are given. If only one input
@@ -305,7 +308,10 @@ module Builtin : sig
       Precondition: both input lists are the same length.
 
       This returns an [jkind_l] simply as a matter of convenience; it can be
-      generalized if need be.  *)
+      generalized if need be.
+
+      The resulting jkind has quality [Best], because all the components of the product
+      are represented in the with-bounds. *)
   val product :
     jkind_of_first_type:(unit -> Types.jkind_l) ->
     jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
@@ -314,9 +320,9 @@ module Builtin : sig
     Sort.t Layout.t list ->
     Types.jkind_l
 
-  (** Build a jkind of unboxed products, given only an arity. This jkind
-      will not mode-cross, even though unboxed products generally should.
-      This is useful when creating an initial jkind in Typedecl. *)
+  (** Build a jkind of unboxed products, given only an arity. This jkind will not
+      mode-cross (and has kind [Not_best] accordingly), even though unboxed products
+      generally should. This is useful when creating an initial jkind in Typedecl. *)
   val product_of_sorts :
     why:History.product_creation_reason -> int -> Types.jkind_l
 end
@@ -341,6 +347,13 @@ val add_with_bounds :
 (** Does this jkind have with-bounds? *)
 val has_with_bounds : Types.jkind_l -> bool
 
+(** Mark the given jkind as {i best}, meaning we can never learn any more information
+    about it that will cause it to become lower in the preorder of kinds*)
+val mark_best : ('l * 'r) Types.jkind -> ('l * disallowed) Types.jkind
+
+(** Is the given kind best? *)
+val is_best : ('l * disallowed) Types.jkind -> bool
+
 (******************************)
 (* construction *)
 
@@ -364,14 +377,19 @@ val of_new_legacy_sort_var :
 val of_new_legacy_sort :
   why:History.concrete_legacy_creation_reason -> 'd Types.jkind
 
+(** Construct a jkind from a constant jkind, at quality [Not_best] *)
 val of_const :
   annotation:Parsetree.jkind_annotation option ->
   why:History.creation_reason ->
+  quality:'d Types.jkind_quality ->
   'd Const.t ->
   'd Types.jkind
 
+(** Construct a jkind from a builtin kind, at quality [Best]. *)
 val of_builtin :
-  why:History.creation_reason -> Const.Builtin.t -> 'd Types.jkind
+  why:History.creation_reason ->
+  Const.Builtin.t ->
+  ('l * disallowed) Types.jkind
 
 val of_annotation :
   context:('l * allowed) History.annotation_context ->
@@ -390,7 +408,7 @@ val of_annotation_option_default :
     attributes, and [of_type_decl] needs to look in two different places on the
     [type_declaration] to account for these two alternatives.
 
-    Returns the jkind and the user-written annotation.
+    Returns the jkind (at quality [Not_best]) and the user-written annotation.
 
     Raises if a disallowed or unknown jkind is present.
 *)
@@ -401,7 +419,8 @@ val of_type_decl :
   (Types.jkind_l * Parsetree.jkind_annotation option) option
 
 (** Find a jkind from a type declaration in the same way as [of_type_decl],
-    defaulting to ~default.
+    defaulting to ~default. Returns a jkind at quality [Not_best]; call [mark_best] to
+    mark it as [Best].
 
     Raises if a disallowed or unknown jkind is present.
 *)

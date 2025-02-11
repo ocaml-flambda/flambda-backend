@@ -733,31 +733,92 @@ end
 
 (*********************************)
 
+module Quality = struct
+  include Allowance.Magic_allow_disallow (struct
+    type (_, _, 'd) sided = 'd jkind_quality constraint 'd = 'l * 'r
+
+    let disallow_left :
+        type l r. (l * r) jkind_quality -> (disallowed * r) jkind_quality =
+      function
+      | Not_best -> Not_best
+      | Best -> Best
+
+    let disallow_right :
+        type l r. (l * r) jkind_quality -> (l * disallowed) jkind_quality =
+      function
+      | Not_best -> Not_best
+      | Best -> Best
+
+    let allow_left :
+        type l r. (allowed * r) jkind_quality -> (l * r) jkind_quality =
+      function
+      | Not_best -> Not_best
+      | Best -> Best
+
+    let allow_right :
+        type l r. (l * allowed) jkind_quality -> (l * r) jkind_quality =
+      function
+      | Not_best -> Not_best
+  end)
+
+  let try_allow_r :
+      type l r. (l * r) jkind_quality -> (l * allowed) jkind_quality option =
+    function
+    | Not_best -> Some Not_best
+    | Best -> None
+end
+
 include Allowance.Magic_allow_disallow (struct
   type (_, _, 'd) sided = 'd jkind
 
   let disallow_right t =
-    { t with jkind = Layout_and_axes.disallow_right t.jkind }
+    { t with
+      jkind = Layout_and_axes.disallow_right t.jkind;
+      quality = Quality.disallow_right t.quality
+    }
 
-  let disallow_left t = { t with jkind = Layout_and_axes.disallow_left t.jkind }
+  let disallow_left t =
+    { t with
+      jkind = Layout_and_axes.disallow_left t.jkind;
+      quality = Quality.disallow_left t.quality
+    }
 
-  let allow_right t = { t with jkind = Layout_and_axes.allow_right t.jkind }
+  let allow_right t =
+    { t with
+      jkind = Layout_and_axes.allow_right t.jkind;
+      quality = Quality.allow_right t.quality
+    }
 
-  let allow_left t = { t with jkind = Layout_and_axes.allow_left t.jkind }
+  let allow_left t =
+    { t with
+      jkind = Layout_and_axes.allow_left t.jkind;
+      quality = Quality.allow_left t.quality
+    }
 end)
 
 let try_allow_r t =
-  Option.map
-    (fun jkind -> { t with jkind })
-    (Layout_and_axes.try_allow_r t.jkind)
+  let open Misc.Stdlib.Monad.Option.Syntax in
+  let* jkind = Layout_and_axes.try_allow_r t.jkind in
+  let* quality = Quality.try_allow_r t.quality in
+  Some { t with jkind; quality }
 
 let fresh_jkind jkind ~annotation ~why =
-  { jkind; annotation; history = Creation why; has_warned = false }
+  { jkind;
+    annotation;
+    history = Creation why;
+    has_warned = false;
+    quality = Not_best
+  }
   |> allow_left |> allow_right
 
 (* This version propagates the allowances from the [jkind] to the output. *)
 let fresh_jkind_poly jkind ~annotation ~why =
-  { jkind; annotation; history = Creation why; has_warned = false }
+  { jkind;
+    annotation;
+    history = Creation why;
+    has_warned = false;
+    quality = Not_best
+  }
 
 (***********************)
 (*** constant jkinds ***)
@@ -789,7 +850,11 @@ let set_outcometree_of_modalities_new p = outcometree_of_modalities_new := p
 module Const = struct
   type 'd t = (Layout.Const.t, 'd) Types.layout_and_axes
 
-  include Layout_and_axes.Allow_disallow
+  include Allowance.Magic_allow_disallow (struct
+    include Layout_and_axes.Allow_disallow
+
+    type (_, _, 'd) sided = 'd t
+  end)
 
   let max =
     Types.
@@ -1408,7 +1473,8 @@ module Jkind_desc = struct
           let { jkind = { layout; mod_bounds; with_bounds = _ };
                 annotation = _;
                 history = _;
-                has_warned = _
+                has_warned = _;
+                quality = _
               } =
             jkind_of_type ty
           in
@@ -1442,13 +1508,19 @@ end
 let mk_annot name =
   Some Parsetree.{ pjkind_loc = Location.none; pjkind_desc = Abbreviation name }
 
+let mark_best (type l r) (t : (l * r) Types.jkind) =
+  { (disallow_right t) with quality = Best }
+
+let is_best t = match t.quality with Best -> true | Not_best -> false
+
 module Builtin = struct
   let any_dummy_jkind =
     { jkind = Jkind_desc.max;
       annotation = None;
       (* this should never get printed: it's a dummy *)
       history = Creation (Any_creation Dummy_jkind);
-      has_warned = false
+      has_warned = false;
+      quality = Not_best
     }
 
   (* CR layouts: Should we be doing more memoization here? *)
@@ -1465,12 +1537,14 @@ module Builtin = struct
     { jkind = Jkind_desc.Builtin.value_or_null;
       annotation = mk_annot "value";
       history = Creation (Value_or_null_creation V1_safety_check);
-      has_warned = false
+      has_warned = false;
+      quality = Not_best
     }
 
   let void ~why =
     fresh_jkind Jkind_desc.Builtin.void ~annotation:(mk_annot "void")
       ~why:(Void_creation why)
+    |> mark_best
 
   let value_or_null ~why =
     match (why : History.value_or_null_creation_reason) with
@@ -1495,6 +1569,7 @@ module Builtin = struct
   let immediate ~why =
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
+    |> mark_best
 
   let product ~jkind_of_first_type ~jkind_of_type ~why tys_modalities layouts =
     let desc =
@@ -1502,6 +1577,10 @@ module Builtin = struct
         layouts
     in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
+    (* [mark_best] is correct here because the with-bounds of a product jkind include all
+       the components of the product. Accordingly, looking through the product, by one
+       step, never loses any information. *)
+    |> mark_best
 
   let product_of_sorts ~why arity =
     let layout =
@@ -1512,6 +1591,9 @@ module Builtin = struct
       { layout; mod_bounds = Mod_bounds.max; with_bounds = No_with_bounds }
     in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
+  (* We do not [mark_best] here because the resulting jkind is used (only) in the middle of
+     type-checking mutually recursive type declarations. See Note [Default jkind in
+     transl_declaration] for more commentary on why we don't want [Best] jkinds there. *)
 end
 
 let add_nullability_crossing t =
@@ -1556,19 +1638,27 @@ let of_new_legacy_sort_var ~why =
 
 let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
-let of_const ~annotation ~why (c : 'd Const.t) =
+let of_const (type l r) ~annotation ~why ~(quality : (l * r) jkind_quality)
+    (c : (l * r) Const.t) =
   { jkind = Layout_and_axes.map Layout.of_const c;
     annotation;
     history = Creation why;
-    has_warned = false
+    has_warned = false;
+    quality
   }
 
 let of_builtin ~why Const.Builtin.{ jkind; name } =
-  of_const ~annotation:(mk_annot name) ~why jkind |> allow_left |> allow_right
+  jkind |> Layout_and_axes.allow_left |> Layout_and_axes.disallow_right
+  |> of_const ~annotation:(mk_annot name)
+       ~why
+         (* The [Best] is OK here because this function is used only in Predef. *)
+       ~quality:Best
 
 let of_annotated_const ~context ~annotation ~const ~const_loc =
   let context = Context_with_transl.get_context context in
-  of_const ~annotation ~why:(Annotated (context, const_loc)) const
+  of_const ~annotation
+    ~why:(Annotated (context, const_loc))
+    const ~quality:Not_best
 
 let of_annotation_lr ~context (annot : Parsetree.jkind_annotation) =
   let const = Const.of_user_written_annotation ~context annot in
@@ -1641,6 +1731,7 @@ let for_boxed_record lbls =
     let base =
       (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
         ~why:Boxed_record
+      |> mark_best
     in
     add_labels_as_with_bounds lbls base
   else Builtin.value ~why:Boxed_record
@@ -1693,6 +1784,7 @@ let for_boxed_variant cstrs =
       let base =
         (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
           ~why:Boxed_variant
+        |> mark_best
       in
       let add_cstr_args cstr jkind =
         match cstr.cd_args with
@@ -1718,6 +1810,7 @@ let for_arrow =
       with_bounds = No_with_bounds
     }
     ~annotation:None ~why:(Value_creation Arrow)
+  |> mark_best
 
 let for_object =
   let ({ linearity;
@@ -2314,8 +2407,9 @@ end
 (* relations *)
 
 let equate_or_equal ~allow_mutation
-    { jkind = jkind1; annotation = _; history = _; has_warned = _ }
-    { jkind = jkind2; annotation = _; history = _; has_warned = _ } =
+    { jkind = jkind1; annotation = _; history = _; has_warned = _; quality = _ }
+    { jkind = jkind2; annotation = _; history = _; has_warned = _; quality = _ }
+    =
   Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
@@ -2384,7 +2478,9 @@ let intersection_or_error ~type_equal ~jkind_of_type ~reason t1 t2 =
         history =
           combine_histories ~type_equal ~jkind_of_type reason (Pack_jkind t1)
             (Pack_jkind t2);
-        has_warned = t1.has_warned || t2.has_warned
+        has_warned = t1.has_warned || t2.has_warned;
+        quality =
+          Not_best (* As required by the fact that this is a [jkind_r] *)
       }
 
 let round_up (type l r) ~type_equal ~jkind_of_type (t : (allowed * r) jkind) :
@@ -2395,7 +2491,10 @@ let round_up (type l r) ~type_equal ~jkind_of_type (t : (allowed * r) jkind) :
           (fun ~axis -> upper_bound_for_axis ~type_equal ~jkind_of_type ~axis t)
       }
   in
-  { t with jkind = { t.jkind with mod_bounds; with_bounds = No_with_bounds } }
+  { t with
+    jkind = { t.jkind with mod_bounds; with_bounds = No_with_bounds };
+    quality = Not_best (* As required by the fact that this is a [jkind_r] *)
+  }
 
 let map_type_expr f t = { t with jkind = Jkind_desc.map_type_expr f t.jkind }
 
@@ -2690,14 +2789,20 @@ module Debug_printers = struct
         history1 jkind_desc jkind2 (history ~print_type_expr) history2
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t ~print_type_expr ppf
-      ({ jkind; annotation = a; history = h; has_warned = _ } : 'd jkind) : unit
-      =
-    fprintf ppf "@[<v 2>{ jkind = %a@,; annotation = %a@,; history = %a }@]"
+  let t (type l r) ~print_type_expr ppf
+      ({ jkind; annotation = a; history = h; has_warned = _; quality = q } :
+        (l * r) jkind) : unit =
+    fprintf ppf
+      "@[<v 2>{ jkind = %a@,\
+       ; annotation = %a@,\
+       ; history = %a@,\
+       ; quality = %s@,\
+      \ }@]"
       (Jkind_desc.Debug_printers.t ~print_type_expr)
       jkind
       (pp_print_option Pprintast.jkind_annotation)
       a (history ~print_type_expr) h
+      (match q with Best -> "Best" | Not_best -> "Not_best")
 
   module Const = struct
     let t ~print_type_expr ppf ({ layout; mod_bounds; with_bounds } : _ Const.t)
