@@ -335,8 +335,8 @@ module Compat
   | ((Tpat_any|Tpat_var _),_)
   | (_,(Tpat_any|Tpat_var _)) -> true
 (* Structural induction *)
-  | Tpat_alias (p,_,_,_,_),_      -> compat p q
-  | _,Tpat_alias (q,_,_,_,_)      -> compat p q
+  | Tpat_alias (p,_,_,_,_,_),_      -> compat p q
+  | _,Tpat_alias (q,_,_,_,_,_)      -> compat p q
   | Tpat_or (p1,p2,_),_ ->
       (compat p1 q || compat p2 q)
   | _,Tpat_or (q1,q2,_) ->
@@ -1216,7 +1216,7 @@ let build_other ext env =
 let rec has_instance p = match p.pat_desc with
   | Tpat_variant (l,_,r) when is_absent l r -> false
   | Tpat_any | Tpat_var _ | Tpat_constant _ | Tpat_variant (_,None,_) -> true
-  | Tpat_alias (p,_,_,_,_) | Tpat_variant (_,Some p,_) -> has_instance p
+  | Tpat_alias (p,_,_,_,_,_) | Tpat_variant (_,Some p,_) -> has_instance p
   | Tpat_or (p1,p2,_) -> has_instance p1 || has_instance p2
   | Tpat_construct (_,_,ps, _) | Tpat_array (_, _, ps) ->
       has_instances ps
@@ -1676,7 +1676,7 @@ let is_var_column rs =
 (* Standard or-args for left-to-right matching *)
 let rec or_args p = match p.pat_desc with
 | Tpat_or (p1,p2,_) -> p1,p2
-| Tpat_alias (p,_,_,_,_)  -> or_args p
+| Tpat_alias (p,_,_,_,_,_)  -> or_args p
 | _                 -> assert false
 
 (* Just remove current column *)
@@ -1856,8 +1856,8 @@ and every_both pss qs q1 q2 =
 let rec le_pat p q =
   match (p.pat_desc, q.pat_desc) with
   | (Tpat_var _|Tpat_any),_ -> true
-  | Tpat_alias(p,_,_,_,_), _ -> le_pat p q
-  | _, Tpat_alias(q,_,_,_,_) -> le_pat p q
+  | Tpat_alias(p,_,_,_,_,_), _ -> le_pat p q
+  | _, Tpat_alias(q,_,_,_,_,_) -> le_pat p q
   | Tpat_constant(c1), Tpat_constant(c2) -> const_compare c1 c2 = 0
   | Tpat_construct(_,c1,ps,_), Tpat_construct(_,c2,qs,_) ->
       Types.equal_tag c1.cstr_tag c2.cstr_tag && le_pats ps qs
@@ -1917,8 +1917,8 @@ let get_mins le ps =
 *)
 
 let rec lub p q = match p.pat_desc,q.pat_desc with
-| Tpat_alias (p,_,_,_,_),_      -> lub p q
-| _,Tpat_alias (q,_,_,_,_)      -> lub p q
+| Tpat_alias (p,_,_,_,_,_),_      -> lub p q
+| _,Tpat_alias (q,_,_,_,_,_)      -> lub p q
 | (Tpat_any|Tpat_var _),_ -> q
 | _,(Tpat_any|Tpat_var _) -> p
 | Tpat_or (p1,p2,_),_     -> orlub p1 p2 q
@@ -2150,7 +2150,7 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
     List.fold_left
       (fun r (_, _, p) -> collect_paths_from_pat r p)
       r lps
-| Tpat_variant (_, Some p, _) | Tpat_alias (p,_,_,_,_) ->
+| Tpat_variant (_, Some p, _) | Tpat_alias (p,_,_,_,_,_) ->
     collect_paths_from_pat r p
 | Tpat_or (p1,p2,_) ->
     collect_paths_from_pat (collect_paths_from_pat r p1) p2
@@ -2290,7 +2290,7 @@ let inactive ~partial pat =
             List.for_all (fun (_,p,_) -> loop p) ps
         | Tpat_construct (_, _, ps, _) | Tpat_array (Immutable, _, ps) ->
             List.for_all (fun p -> loop p) ps
-        | Tpat_alias (p,_,_,_,_) | Tpat_variant (_, Some p, _) ->
+        | Tpat_alias (p,_,_,_,_,_) | Tpat_variant (_, Some p, _) ->
             loop p
         | Tpat_record (ldps,_) ->
             List.for_all
@@ -2419,7 +2419,7 @@ type amb_row = { row : pattern list ; varsets : Ident.Set.t list; }
 let simplify_head_amb_pat head_bound_variables varsets ~add_column p ps k =
   let rec simpl head_bound_variables varsets p ps k =
     match (Patterns.General.view p).pat_desc with
-    | `Alias (p,x,_,_,_) ->
+    | `Alias (p,x,_,_,_,_) ->
       simpl (Ident.Set.add x head_bound_variables) varsets p ps k
     | `Var (x, _, _, _) ->
       simpl (Ident.Set.add x head_bound_variables) varsets Patterns.omega ps k

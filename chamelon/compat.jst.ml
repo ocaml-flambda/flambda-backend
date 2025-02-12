@@ -297,10 +297,10 @@ type tpat_var_identifier = Value.l
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
   Tpat_var (ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_alias_identifier = Value.l
+type tpat_alias_identifier = Value.l * Types.type_expr
 
-let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
-  Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
+let mkTpat_alias ~id:(mode, ty) (p, ident, name) =
+  Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode, ty)
 
 type tpat_array_identifier = mutability * Jkind.sort
 
@@ -340,7 +340,8 @@ type 'a matched_pattern_desc =
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   match p with
   | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
-  | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
+  | Tpat_alias (p, ident, name, _uid, mode, ty) ->
+      Tpat_alias (p, ident, name, (mode, ty))
   | Tpat_array (mut, arg_sort, l) -> Tpat_array (l, (mut, arg_sort))
   | Tpat_tuple pats ->
       let labels, pats = List.split pats in

@@ -239,8 +239,9 @@ end = struct
     | Tpat_any
     | Tpat_var _ ->
         p
-    | Tpat_alias (q, id, s, uid, mode) ->
-        { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s, uid, mode) }
+    | Tpat_alias (q, id, s, uid, mode, ty) ->
+        { p with pat_desc =
+            Tpat_alias (simpl_under_orpat q, id, s, uid, mode, ty) }
     | Tpat_or (p1, p2, o) ->
         let p1, p2 = (simpl_under_orpat p1, simpl_under_orpat p2) in
         if le_pat p1 p2 then
@@ -267,8 +268,8 @@ end = struct
       match p.pat_desc with
       | `Any -> stop p `Any
       | `Var (id, s, uid, mode) ->
-        continue p (`Alias (Patterns.omega, id, s, uid, mode))
-      | `Alias (p, id, _, _, _) ->
+        continue p (`Alias (Patterns.omega, id, s, uid, mode, p.pat_type))
+      | `Alias (p, id, _, _, _, _) ->
           aux
             ( (General.view p, patl),
               bind_alias p id ~arg ~arg_sort ~action )
@@ -375,10 +376,11 @@ end = struct
       match p.pat_desc with
       | `Or (p1, p2, _) ->
           split_explode p1 aliases (split_explode p2 aliases rem)
-      | `Alias (p, id, _, _, _) -> split_explode p (id :: aliases) rem
+      | `Alias (p, id, _, _, _, _) -> split_explode p (id :: aliases) rem
       | `Var (id, str, uid, mode) ->
           explode
-            { p with pat_desc = `Alias (Patterns.omega, id, str, uid, mode) }
+            { p with pat_desc =
+                `Alias (Patterns.omega, id, str, uid, mode, p.pat_type) }
             aliases rem
       | #view as view ->
           (* We are doing two things here:
@@ -626,7 +628,7 @@ end = struct
           match p.pat_desc with
           | `Or (p1, p2, _) ->
               filter_rec ((left, p1, right) :: (left, p2, right) :: rem)
-          | `Alias (p, _, _, _, _) -> filter_rec ((left, p, right) :: rem)
+          | `Alias (p, _, _, _, _, _) -> filter_rec ((left, p, right) :: rem)
           | `Var _ -> filter_rec ((left, Patterns.omega, right) :: rem)
           | #Simple.view as view -> (
               let p = { p with pat_desc = view } in
@@ -676,7 +678,7 @@ let rec flatten_pat_line size p k =
   | Tpat_tuple args -> (List.map snd args) :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
-  | Tpat_alias (p, _, _, _, _) ->
+  | Tpat_alias (p, _, _, _, _, _) ->
       (* Note: we are only called from flatten_matrix,
          which is itself only ever used in places
          where variables do not matter (default environments,
@@ -754,7 +756,7 @@ end = struct
       | (p, ps) :: rem -> (
           let p = General.view p in
           match p.pat_desc with
-          | `Alias (p, _, _, _, _) -> filter_rec ((p, ps) :: rem)
+          | `Alias (p, _, _, _, _, _) -> filter_rec ((p, ps) :: rem)
           | `Var _ -> filter_rec ((Patterns.omega, ps) :: rem)
           | `Or (p1, p2, _) -> filter_rec_or p1 p2 ps rem
           | #Simple.view as view -> (
@@ -1304,7 +1306,7 @@ let rec omega_like p =
   | Tpat_any
   | Tpat_var _ ->
       true
-  | Tpat_alias (p, _, _, _, _) -> omega_like p
+  | Tpat_alias (p, _, _, _, _, _) -> omega_like p
   | Tpat_or (p1, p2, _) -> omega_like p1 || omega_like p2
   | _ -> false
 
@@ -3723,7 +3725,7 @@ let rec name_pattern default = function
   | ((pat, _), _) :: rem -> (
       match pat.pat_desc with
       | Tpat_var (id, _, _, _) -> id
-      | Tpat_alias (_, id, _, _, _) -> id
+      | Tpat_alias (_, id, _, _, _, _) -> id
       | _ -> name_pattern default rem
     )
   | _ -> Ident.create_local default
@@ -4267,7 +4269,7 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
          for "let _ = ...". See #6865. *)
       Lsequence (param, body)
   | Tpat_var (id, _, _, _)
-  | Tpat_alias ({ pat_desc = Tpat_any }, id, _, _, _) ->
+  | Tpat_alias ({ pat_desc = Tpat_any }, id, _, _, _, _) ->
       (* Fast path, and keep track of simple bindings to unboxable numbers.
 
          Note: the (Tpat_alias (Tpat_any, id)) case needs to be

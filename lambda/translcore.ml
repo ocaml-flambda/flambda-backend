@@ -322,7 +322,7 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
 let rec iter_exn_names f pat =
   match pat.pat_desc with
   | Tpat_var (id, _, _, _) -> f id
-  | Tpat_alias (p, id, _, _, _) ->
+  | Tpat_alias (p, id, _, _, _, _) ->
       f id;
       iter_exn_names f p
   | _ -> ()

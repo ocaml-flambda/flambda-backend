@@ -1449,7 +1449,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
     ty, mode
   in
   match p.pat_desc with
-    Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode env p1 ~mode
+    Tpat_alias(p1,_, _, _, _, _) -> build_as_type_and_mode env p1 ~mode
   | Tpat_tuple pl ->
       let labeled_tyl =
         List.map (fun (label, p) -> label, build_as_type env p) pl in
@@ -2860,7 +2860,7 @@ and type_pat_aux
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
           sp.ppat_attributes
       in
-      rvp { pat_desc = Tpat_alias(q, id, name, uid, mode);
+      rvp { pat_desc = Tpat_alias(q, id, name, uid, mode, ty_var);
             pat_loc = loc; pat_extra=[];
             pat_type = q.pat_type;
             pat_attributes = sp.ppat_attributes;
@@ -3509,7 +3509,7 @@ let rec check_counter_example_pat
           in
           check_rec ~info:(decrease 5) tp expected_ty k
       end
-  | Tpat_alias (p, _, _, _, _) -> check_rec ~info p expected_ty k
+  | Tpat_alias (p, _, _, _, _, _) -> check_rec ~info p expected_ty k
   | Tpat_constant cst ->
       let cst = constant_or_raise !!penv loc (Untypeast.constant cst) in
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
@@ -4868,7 +4868,7 @@ let rec name_pattern default = function
   | p :: rem ->
     match p.pat_desc with
       Tpat_var (id, _, _, _) -> id
-    | Tpat_alias(_, id, _, _, _) -> id
+    | Tpat_alias(_, id, _, _, _, _) -> id
     | _ -> name_pattern default rem
 
 let name_cases default lst =
@@ -9187,7 +9187,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
         let pat_name =
           match p.pat_desc with
             Tpat_var (id, _, _, _) -> Some id
-          | Tpat_alias(_, id, _, _, _) -> Some id
+          | Tpat_alias(_, id, _, _, _, _) -> Some id
           | _ -> None in
         Ctype.check_and_update_generalized_ty_jkind
           ?name:pat_name ~loc:exp.exp_loc env exp.exp_type
