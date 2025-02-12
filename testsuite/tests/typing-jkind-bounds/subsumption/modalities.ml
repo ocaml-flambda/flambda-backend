@@ -245,12 +245,11 @@ module M : sig type 'a t : immutable_data with 'a end
 type 'a u : value mod contended with 'a @@ global
 type 'a t : value mod global = 'a u
 [%%expect {|
-type 'a u : value mod contended with 'a @@ global many portable aliased
+type 'a u : value mod contended with 'a
 Line 2, characters 0-35:
 2 | type 'a t : value mod global = 'a u
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a u" is value mod contended
-         with 'a @@ global many portable aliased
+Error: The kind of type "'a u" is value mod contended with 'a
          because of the definition of u at line 1, characters 0-49.
        But the kind of type "'a u" must be a subkind of value mod global
          because of the definition of t at line 2, characters 0-35.
@@ -282,7 +281,7 @@ Error: Signature mismatch:
          because of the definition of t at line 2, characters 2-58.
 
        The first mode-crosses less than the second along:
-         contention: mod uncontended with 'a ≰ mod uncontended
+         contention: mod contended with 'a ≰ mod contended
          portability: mod portable with 'a ≰ mod portable
 |}]
 
@@ -358,7 +357,7 @@ Error: Signature mismatch:
          because of the definition of t at line 2, characters 2-75.
 
        The first mode-crosses less than the second along:
-         contention: mod uncontended with 'b ≰ mod uncontended with 'a
+         contention: mod contended with 'b ≰ mod contended with 'a
          portability: mod portable with 'a ≰ mod portable with 'b
 |}]
 

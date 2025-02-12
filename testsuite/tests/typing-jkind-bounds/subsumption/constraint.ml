@@ -151,7 +151,7 @@ Error: Signature mismatch:
          because of the definition of t at line 2, characters 2-59.
 
        The first mode-crosses less than the second along:
-         contention: mod contended ≰ mod uncontended with 'b
+         contention: mod uncontended ≰ mod contended with 'b
 |}]
 
 module M : sig

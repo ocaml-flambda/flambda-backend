@@ -148,17 +148,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t : value mod portable end
        is not included in
-         sig type t : value mod uncontended portable with M.t end
+         sig type t : value mod contended portable with M.t end
        Type declarations do not match:
          type t : value mod portable
        is not included in
-         type t
-           : value mod contended portable
-           with M.t @@ global many aliased
+         type t : value mod contended portable with M.t
        The kind of the first is value mod portable
          because of the definition of t at line 13, characters 2-29.
        But the kind of the first must be a subkind of
-         value mod contended portable with M.t @@ global many aliased
+         value mod contended portable with M.t
          because of the definition of t at line 11, characters 2-48.
 |}]
 
@@ -190,21 +188,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t : value mod portable end
        is not included in
-         sig
-           type t
-             : value mod contended portable
-             with M.u @@ global many aliased
-         end
+         sig type t : value mod contended portable with M.u end
        Type declarations do not match:
          type t : value mod portable
        is not included in
-         type t
-           : value mod contended portable
-           with M.u @@ global many aliased
+         type t : value mod contended portable with M.u
        The kind of the first is value mod portable
          because of the definition of t at line 15, characters 2-29.
        But the kind of the first must be a subkind of
-         value mod contended portable with M.u @@ global many aliased
+         value mod contended portable with M.u
          because of the definition of t at line 13, characters 2-48.
 |}]
 
@@ -414,20 +406,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig type a = int ref * int type t end
        is not included in
-         sig
-           type a = int ref * int
-           type t
-             : value mod contended
-             with a @@ global many portable aliased
-         end
+         sig type a = int ref * int type t : value mod contended with a end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod contended with a @@ global many portable aliased
+         type t : value mod contended with a
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
        But the kind of the first must be a subkind of value mod contended
-         with a @@ global many portable aliased
+         with a
          because of the definition of t at line 3, characters 2-37.
 |}]
 
@@ -484,18 +471,16 @@ Error: Signature mismatch:
        is not included in
          sig
            type a = { foo : 'a. 'a; } [@@unboxed]
-           type t
-             : value mod contended
-             with a @@ global many portable aliased
+           type t : value mod contended with a
          end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod contended with a @@ global many portable aliased
+         type t : value mod contended with a
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
        But the kind of the first must be a subkind of value mod contended
-         with a @@ global many portable aliased
+         with a
          because of the definition of t at line 3, characters 2-37.
 |}]
 

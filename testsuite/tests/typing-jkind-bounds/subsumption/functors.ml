@@ -65,7 +65,7 @@ Error: The kind of type "'a F(Ref).t" is mutable_data with 'a @@ many
          because of the definition of t at line 4, characters 0-48.
 
        The first mode-crosses less than the second along:
-         contention: mod contended ≰ mod uncontended with 'a
+         contention: mod uncontended ≰ mod contended with 'a
 |}]
 
 module Ref = struct
