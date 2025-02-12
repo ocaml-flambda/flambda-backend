@@ -159,7 +159,7 @@ Error: Signature mismatch:
          because of the definition of t at line 13, characters 2-29.
        But the kind of the first must be a subkind of
          value mod contended portable with M.t @@ global many aliased
-         because of the definition of t at line 11, characters 2-50.
+         because of the definition of t at line 11, characters 2-48.
 |}]
 
 module type S = sig
@@ -205,7 +205,7 @@ Error: Signature mismatch:
          because of the definition of t at line 15, characters 2-29.
        But the kind of the first must be a subkind of
          value mod contended portable with M.u @@ global many aliased
-         because of the definition of t at line 13, characters 2-50.
+         because of the definition of t at line 13, characters 2-48.
 |}]
 
 module M : sig
@@ -423,14 +423,12 @@ Error: Signature mismatch:
        Type declarations do not match:
          type t
        is not included in
-         type t
-           : value mod contended
-           with a @@ global many portable aliased
+         type t : value mod contended with a @@ global many portable aliased
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
        But the kind of the first must be a subkind of value mod contended
          with a @@ global many portable aliased
-         because of the definition of t at line 3, characters 2-39.
+         because of the definition of t at line 3, characters 2-37.
 |}]
 
 module M : sig
@@ -493,14 +491,12 @@ Error: Signature mismatch:
        Type declarations do not match:
          type t
        is not included in
-         type t
-           : value mod contended
-           with a @@ global many portable aliased
+         type t : value mod contended with a @@ global many portable aliased
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
        But the kind of the first must be a subkind of value mod contended
          with a @@ global many portable aliased
-         because of the definition of t at line 3, characters 2-39.
+         because of the definition of t at line 3, characters 2-37.
 |}]
 
 module type S = sig
