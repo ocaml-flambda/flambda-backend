@@ -1513,9 +1513,11 @@ end = struct
            which is a 2-byte instruction. *)
         push rax
       );
-      (* The asan report wrappers use a special calling convention via the C attribute
-         [__attribute__((preserve_all))] so that all registers except for [r11] are
-         callee-saved, in order to minimize the amount of spilling we have to do here. *)
+      (* The asan report wrappers use a special calling convention via the C
+         attribute [__attribute__((preserve_all))] so that all registers except
+         for [r11] (which is clobbered) are callee-saved, in order to minimize the
+         amount of spilling we have to do here. [address] is already in [rdi], and
+         this function accepts just a single argument. *)
       I.call (asan_report_function memory_chunk_size memory_access);
       if need_to_align_stack then pop rax
     in
