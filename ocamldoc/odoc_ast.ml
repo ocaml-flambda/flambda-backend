@@ -51,7 +51,7 @@ module Typedtree_search =
     let iter_val_pattern = function
       | Typedtree.Tpat_any -> None
       | Typedtree.Tpat_var (name, _, _, _)
-      | Typedtree.Tpat_alias (_, name, _, _, _)  -> Some (Name.from_ident name)
+      | Typedtree.Tpat_alias (_, name, _, _, _, _)  -> Some (Name.from_ident name)
       | Typedtree.Tpat_tuple _ -> None (* FIXME when we will handle tuples *)
       | _ -> None
 
@@ -258,7 +258,7 @@ module Analyser =
                           sn_type = Odoc_env.subst_type env pat.pat_type
                         }
 
-        | Typedtree.Tpat_alias (pat, _, _, _, _) ->
+        | Typedtree.Tpat_alias (pat, _, _, _, _, _) ->
             iter_pattern pat
 
         | Typedtree.Tpat_tuple patlist ->
