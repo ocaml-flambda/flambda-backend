@@ -582,7 +582,7 @@ AC_ARG_ENABLE([frame-pointers],
 
 AC_ARG_ENABLE([address-sanitizer],
   [AS_HELP_STRING([--enable-address-sanitizer],
-    [use Address Sanitizer and alter codegen to expose native OCaml operations to ASAN])])
+    [use Address Sanitizer and alter codegen to expose native OCaml operations to ASAN (also enables frame pointers)])])
 
 AC_ARG_ENABLE([cpp-mangling],
   [AS_HELP_STRING([--enable-cpp-mangling],
