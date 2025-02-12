@@ -518,7 +518,7 @@ let assemble_file infile outfile =
 let init () = ()
 
 let operation_supported = function
-  | Cctz _ | Cpopcnt
+  | Cpopcnt
   | Cprefetch _ | Catomic _
   (* CR mslater: (float32) arm64 *)
   | Cnegf Float32 | Cabsf Float32 | Caddf Float32
@@ -531,7 +531,7 @@ let operation_supported = function
                   Int_of_float Float32 | Float_of_int Float32 |
                   V128_of_scalar _ | Scalar_of_v128 _)
     -> false   (* Not implemented *)
-  | Cclz _ | Cbswap _
+  | Cclz _ | Cctz _ | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
