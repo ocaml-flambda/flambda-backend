@@ -11,9 +11,9 @@ type t : value mod contended = { mutable contents : string }
 [%%expect{|
 val use_as_value : 'a -> 'a = <fun>
 val use_uncontended : 'a -> 'a = <fun>
-Line 5, characters 0-62:
+Line 5, characters 0-60:
 5 | type t : value mod contended = { mutable contents : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod contended
@@ -282,7 +282,7 @@ Lines 4-7, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           type t : value mod portable contended = { mutable x : int; }
+           type t : value mod contended portable = { mutable x : int; }
            [@@unsafe_allow_any_mode_crossing]
          end
        is not included in
@@ -291,7 +291,7 @@ Error: Signature mismatch:
            [@@unsafe_allow_any_mode_crossing]
          end
        Type declarations do not match:
-         type t : value mod portable contended = { mutable x : int; }
+         type t : value mod contended portable = { mutable x : int; }
        [@@unsafe_allow_any_mode_crossing]
        is not included in
          type t : value mod contended = { mutable x : int; }
@@ -316,7 +316,7 @@ end
 module A : sig type t : mutable_data mod global external_ end
 module B :
   sig
-    type t : value mod portable contended = { a : A.t; }
+    type t : value mod contended portable = { a : A.t; }
     [@@unsafe_allow_any_mode_crossing]
     val a : t -> A.t
   end
