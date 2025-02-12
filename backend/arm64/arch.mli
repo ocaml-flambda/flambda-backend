@@ -18,6 +18,7 @@
 (* Specific operations for the ARM processor, 64-bit mode *)
 
 val macosx : bool
+val is_asan_enabled : bool ref
 
 (* Machine-specific command-line options *)
 

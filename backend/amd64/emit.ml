@@ -1366,8 +1366,6 @@ module Address_sanitizer : sig
 
   (** Implements [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping]. *)
   val emit_sanitize : ?dependencies:arg array -> address:arg -> memory_chunk -> memory_access -> unit
-
-  val command_line_options : (string * Arg.spec * string) list
 end = struct
   type memory_access = Load | Store_initialize | Store_modify
 
@@ -1527,21 +1525,12 @@ end = struct
     if need_to_save_rdi then pop rdi
   ;;
 
-  let is_asan_enabled = ref Config.with_address_sanitizer
-
-  let command_line_options =
-    [ ( "-fno-asan",
-        Arg.Clear is_asan_enabled,
-        "Disable AddressSanitizer. This is only meaningful if the compiler was \
-         built with AddressSanitizer support enabled." ) ]
-  ;;
-
   let[@inline always] emit_sanitize ?dependencies ~address memory_chunk memory_access =
     (* Checking [Config.with_address_sanitizer] is redundant, but we do it because
        it's a compile-time constant, so it enables the compiler to completely
        optimize-out the AddressSanitizer code when the compiler was configured
        without it. *)
-    if Config.with_address_sanitizer && !is_asan_enabled
+    if Config.with_address_sanitizer && !Arch.is_asan_enabled
     then (
       match memory_access with
       (* We can elide the ASAN check for stores made to initialize record fields on the grounds
@@ -1552,8 +1541,6 @@ end = struct
     )
   ;;
 end
-
-let command_line_options = Address_sanitizer.command_line_options
 
 (* Emit an instruction *)
 let emit_instr ~first ~fallthrough i =
