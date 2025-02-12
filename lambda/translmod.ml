@@ -960,7 +960,6 @@ let add_runtime_parameters lam params =
     ~body:lam
     ~mode:alloc_heap
     ~ret_mode:alloc_heap
-    ~region:true
 
 let transl_implementation_module ~scopes module_id (str, cc, cc2) =
   let path = global_path module_id in
