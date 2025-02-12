@@ -6,12 +6,12 @@
 (* Classic mode doesn't perform any lifting after inlining *)
 [@@@ocaml.flambda_o3]
 
-type t = { x : int option; y : int64#; }
+type t = { x : int64#; y : int option; }
 
 let[@inline] f x y = { x; y }
 
 let[@opaque] test () =
-  let a = f (Some 1) #2L in
+  let a = f #2L (Some 1) in
   a
 
 let () =

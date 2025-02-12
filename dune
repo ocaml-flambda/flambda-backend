@@ -244,6 +244,7 @@
   debuginfo
   lambda
   matching
+  mixed_block_shape
   printlambda
   runtimedef
   runtimetags

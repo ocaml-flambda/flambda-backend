@@ -532,7 +532,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               match cstr.cstr_shape with
               | Constructor_mixed shape ->
                   if !Clflags.native_code then
-                    let shape = transl_mixed_product_shape shape in
+                    let shape =
+                      Lambda.transl_mixed_product_shape
+                        ~get_value_kind:(fun _i -> Lambda.generic_value)
+                        shape
+                    in
                     Some (Const_mixed_block(runtime_tag, shape, constants))
                   else
                     (* CR layouts v5.9: Structured constants for mixed blocks should
@@ -556,7 +560,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                     in
                     Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
                 | Constructor_mixed shape ->
-                    let shape = Lambda.transl_mixed_product_shape shape in
+                    let shape =
+                      Lambda.transl_mixed_product_shape
+                        ~get_value_kind:(fun _i -> Lambda.generic_value)
+                        shape
+                    in
                     Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
               in
               Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
@@ -583,9 +591,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Pmakeblock(0, Immutable, Some (Lambda.generic_value :: shape),
                             alloc_mode)
               | Constructor_mixed shape ->
-                  let shape = Lambda.transl_mixed_product_shape shape in
                   let shape =
-                    { shape with value_prefix_len = shape.value_prefix_len + 1 }
+                    Lambda.transl_mixed_product_shape
+                      ~get_value_kind:(fun _i -> Lambda.generic_value)
+                      shape
+                  in
+                  let shape =
+                    Array.append [| Lambda.Value Lambda.generic_value |] shape
                   in
                   Pmakemixedblock(0, Immutable, shape, alloc_mode)
             in
@@ -654,32 +666,29 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               "Mixed inlined records not supported for extensible variants"
         | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
         | Record_mixed shape ->
-          let ({ value_prefix_len; flat_suffix } : mixed_product_shape) =
-            shape
-          in
-          let read =
-            if lbl.lbl_num < value_prefix_len then
-              let ptr_or_imm, _ = maybe_pointer e in
-              Mread_value_prefix ptr_or_imm
-            else
-              let flat_read =
-                match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Float_boxed ->
-                  (match float with
-                    | Boxing (mode, _) ->
-                        flat_read_float_boxed (transl_alloc_mode mode)
+          let shape =
+            Lambda.transl_mixed_product_shape_for_read
+              ~get_value_kind:(fun i ->
+                if i <> lbl.lbl_num then Lambda.generic_value
+                else
+                  let pointerness, nullable = representation_properties e in
+                  let raw_kind = match pointerness with
+                    | Pointer -> Pgenval
+                    | Immediate -> Pintval
+                  in
+                  Lambda.{ raw_kind; nullable })
+              ~get_mode:(fun i ->
+                if i <> lbl.lbl_num then Lambda.alloc_heap
+                else
+                  match float with
+                    | Boxing (mode, _) -> transl_alloc_mode mode
                     | Non_boxing _ ->
                         Misc.fatal_error
                           "expected typechecking to make [float] boxing mode\
                           \ present for float field read")
-                | non_float -> flat_read_non_float non_float
-              in
-              Mread_flat_suffix flat_read
+              shape
           in
-          let shape : Lambda.mixed_block_shape =
-            { value_prefix_len; flat_suffix }
-          in
-          Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
+          Lprim (Pmixedfield (lbl.lbl_pos, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
         | Record_inlined (_, _, Variant_with_null) -> assert false
       end
@@ -724,23 +733,23 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             fatal_error
               "Mixed inlined records not supported for extensible variants"
         | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
-        | Record_mixed shape -> begin
-          let ({ value_prefix_len; flat_suffix } : mixed_product_shape) =
-            shape
-          in
-          let write =
-            if lbl.lbl_num < value_prefix_len then
-              let ptr_or_imm, _ = maybe_pointer newval in
-              Mwrite_value_prefix ptr_or_imm
-            else
-              let flat_element = flat_suffix.(lbl.lbl_num - value_prefix_len) in
-              Mwrite_flat_suffix flat_element
-           in
-           let shape : Lambda.mixed_block_shape =
-             { value_prefix_len; flat_suffix }
-           in
-           Psetmixedfield(lbl.lbl_pos, write, shape, mode)
-          end
+        | Record_mixed shape ->
+          let shape =
+            Lambda.transl_mixed_product_shape
+              ~get_value_kind:(fun i ->
+                if i <> lbl.lbl_num then Lambda.generic_value
+                else
+                  let pointerness, nullable =
+                    representation_properties newval
+                  in
+                  let raw_kind = match pointerness with
+                    | Pointer -> Pgenval
+                    | Immediate -> Pintval
+                  in
+                  Lambda.{ raw_kind; nullable })
+              shape
+            in
+            Psetmixedfield(lbl.lbl_pos, shape, mode)
         | Record_inlined (_, _, Variant_with_null) -> assert false
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.Const.for_record arg;
@@ -1903,26 +1912,26 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 fatal_error
                   "Mixed inlined records not supported for extensible variants"
             | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
-            | Record_mixed shape -> begin
-                let { value_prefix_len; flat_suffix } : mixed_product_shape =
-                  shape
-                in
-                let write =
-                  if lbl.lbl_num < value_prefix_len then
-                    let ptr, _ = maybe_pointer expr in
-                    Mwrite_value_prefix ptr
-                  else
-                    let flat_element =
-                      flat_suffix.(lbl.lbl_num - value_prefix_len)
-                    in
-                    Mwrite_flat_suffix flat_element
-                in
-                let shape : Lambda.mixed_block_shape =
-                  { value_prefix_len; flat_suffix }
-                in
+            | Record_mixed shape ->
+                let shape =
+                  Lambda.transl_mixed_product_shape
+                    ~get_value_kind:(fun i ->
+                      if i <> lbl.lbl_num then Lambda.generic_value
+                      else
+                        let pointerness, nullable =
+                          representation_properties expr
+                        in
+                        let raw_kind = match pointerness with
+                          | Pointer -> Pgenval
+                          | Immediate -> Pintval
+                        in
+                        Lambda.{ raw_kind; nullable })
+                    shape
+                  in
+
+
                 Psetmixedfield
-                  (lbl.lbl_pos, write, shape, Assignment modify_heap)
-              end
+                  (lbl.lbl_pos, shape, Assignment modify_heap)
             | Record_inlined (_, _, Variant_with_null) -> assert false
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
@@ -1977,29 +1986,26 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  | Record_ufloat -> Pufloatfield (i, sem)
                  | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
                  | Record_mixed shape ->
-                  let { value_prefix_len; flat_suffix } : mixed_product_shape =
-                    shape
-                  in
-                   let read =
-                    if lbl.lbl_num < value_prefix_len then
-                      let ptr, _ = maybe_pointer_type env typ in
-                      Mread_value_prefix ptr
-                    else
-                      let read =
-                        match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                        | Float_boxed ->
-                            (* See the handling of [Record_float] above for
-                                why we choose Alloc_heap.
-                            *)
-                            flat_read_float_boxed alloc_heap
-                        | non_float -> flat_read_non_float non_float
-                      in
-                      Mread_flat_suffix read
+                   let shape =
+                     Lambda.transl_mixed_product_shape_for_read
+                       ~get_value_kind:(fun i ->
+                         if i <> lbl.lbl_num then Lambda.generic_value
+                         else
+                           let pointerness, nullable =
+                             representation_properties_type env typ
+                           in
+                           let raw_kind = match pointerness with
+                             | Pointer -> Pgenval
+                             | Immediate -> Pintval
+                           in
+                           Lambda.{ raw_kind; nullable })
+                       ~get_mode:(fun _i ->
+                          (* See the handling of [Record_float] above for
+                             why we choose Alloc_heap. *)
+                         Lambda.alloc_heap)
+                      shape
                    in
-                   let shape : Lambda.mixed_block_shape =
-                     { value_prefix_len; flat_suffix }
-                   in
-                   Pmixedfield (i, read, shape, sem)
+                   Pmixedfield (i, shape, sem)
                  | Record_inlined (_, _, Variant_with_null) -> assert false
                in
                Lprim(access, [Lvar init_id],
@@ -2030,7 +2036,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             Lconst(Const_float_block(List.map extract_float cl))
         | Record_mixed shape ->
             if !Clflags.native_code then
-              let shape = transl_mixed_product_shape shape in
+              let shape =
+                Lambda.transl_mixed_product_shape
+                  ~get_value_kind:(fun _i -> Lambda.generic_value)
+                  shape
+              in
               Lconst(Const_mixed_block(0, shape, cl))
             else
               (* CR layouts v5.9: Structured constants for mixed blocks should
@@ -2081,11 +2091,19 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Ordinary _, _, Variant_extensible) ->
             assert false
         | Record_mixed shape ->
-            let shape = transl_mixed_product_shape shape in
+            let shape =
+              Lambda.transl_mixed_product_shape
+                ~get_value_kind:(fun _i -> Lambda.generic_value)
+                shape
+            in
             Lprim (Pmakemixedblock (0, mut, shape, Option.get mode), ll, loc)
         | Record_inlined (Ordinary { runtime_tag },
                           Constructor_mixed shape, Variant_boxed _) ->
-            let shape = transl_mixed_product_shape shape in
+            let shape =
+              Lambda.transl_mixed_product_shape
+                ~get_value_kind:(fun _i -> Lambda.generic_value)
+                shape
+            in
             Lprim (Pmakemixedblock (runtime_tag, mut, shape, Option.get mode),
                    ll, loc)
         | Record_inlined (_, _, Variant_with_null) -> assert false

@@ -6064,10 +6064,10 @@ and type_expect_
           match label.lbl_repres with
           | Record_float -> true
           | Record_mixed mixed -> begin
-              match Types.get_mixed_product_element mixed label.lbl_num with
-              | Flat_suffix Float_boxed -> true
-              | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Vec128 | Word) -> false
-              | Value_prefix -> false
+              match mixed.(label.lbl_num) with
+              | Float_boxed -> true
+              | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word ->
+                false
             end
           | _ -> false
         in

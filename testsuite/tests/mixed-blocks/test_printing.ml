@@ -15,13 +15,13 @@ val t : t = {flt = 4.; uflt = <abstr>}
 |}];;
 
 (* Non-empty value prefix *)
-type t = { str : string; uflt : float# }
+type t = { uflt : float#; str : string }
 
-let t = { str = "str"; uflt = #5.0 }
+let t = { uflt = #5.0; str = "str" }
 
 [%%expect {|
-type t = { str : string; uflt : float#; }
-val t : t = {str = "str"; uflt = <abstr>}
+type t = { uflt : float#; str : string; }
+val t : t = {uflt = <abstr>; str = "str"}
 |}];;
 
 (* Flat suffix mixes float# and imm *)

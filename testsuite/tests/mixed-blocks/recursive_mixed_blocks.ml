@@ -7,7 +7,7 @@
  }
 *)
 
-type t = { t : t; flt : float# }
+type t = { flt : float#; t : t }
 
 (* Run Gc.full_major while constructing [t] so that it is promoted
    to the major heap. This ensures that the [caml_modify] run as part
@@ -15,8 +15,8 @@ type t = { t : t; flt : float# }
 *)
 
 let rec t =
-  { t;
-    flt = (Gc.full_major (); #0.);
+  { flt = (Gc.full_major (); #0.);
+    t;
   };;
 
 let (_ : t) = Sys.opaque_identity t

@@ -236,15 +236,12 @@ type ('a : vec128) t5_7 = A of int
 type ('a : vec128) t5_8 = A of 'a
 |}]
 
-(* not allowed: value in flat suffix *)
-type 'a t_disallowed = A of t_vec128 * 'a
+(* No mixed block restriction: the compiler reorders the block for you, moving
+   the unboxed type to the flat suffix. *)
+type 'a t_reordered = A of t_vec128 * 'a
 
 [%%expect{|
-Line 1, characters 23-41:
-1 | type 'a t_disallowed = A of t_vec128 * 'a
-                           ^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "
-       t_vec128", but found boxed argument, "'a".
+type 'a t_reordered = A of t_vec128 * 'a
 |}]
 
 
@@ -511,7 +508,8 @@ type t11_1 = ..
 Line 3, characters 14-27:
 3 | type t11_1 += A of t_vec128;;
                   ^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of int64x2#;;
@@ -519,7 +517,8 @@ type t11_1 += B of int64x2#;;
 Line 1, characters 14-27:
 1 | type t11_1 += B of int64x2#;;
                   ^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : vec128) t11_2 = ..
@@ -534,18 +533,19 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
-(* not allowed: value in flat suffix *)
+(* not allowed: extensible variant with unboxed field *)
 type 'a t11_2 += C : 'a * 'b -> 'a t11_2
 
 [%%expect{|
 Line 1, characters 17-40:
 1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
                      ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "'a",
-       but found boxed argument, "'b".
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (***************************************)

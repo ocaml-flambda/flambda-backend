@@ -97,7 +97,6 @@ let mixed_block_kinds shape =
     List.map
       (fun (flat_suffix_element : K.flat_suffix_element) ->
         match flat_suffix_element with
-        | Tagged_immediate -> KS.tagged_immediate
         | Naked_float -> KS.naked_float
         | Naked_float32 -> KS.naked_float32
         | Naked_int32 -> KS.naked_int32
@@ -128,7 +127,6 @@ let make_block ~dbg kind alloc_mode args =
 
 let memory_chunk_of_flat_suffix_element :
     K.flat_suffix_element -> Cmm.memory_chunk = function
-  | Tagged_immediate -> Word_int
   | Naked_float -> Double
   | Naked_float32 -> Single { reg = Float32 }
   | Naked_int32 -> Thirtytwo_signed

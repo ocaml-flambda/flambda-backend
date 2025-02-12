@@ -77,7 +77,6 @@ val to_lambda : t -> Lambda.layout
 include Container_types.S with type t := t
 
 type flat_suffix_element = private
-  | Tagged_immediate
   | Naked_float
   | Naked_float32
   | Naked_int32
@@ -315,7 +314,7 @@ module Flat_suffix_element : sig
 
   val kind : t -> kind
 
-  val from_lambda : Lambda.flat_element -> t
+  val from_lambda : _ Lambda.mixed_block_element -> t
 
   val print : Format.formatter -> t -> unit
 
