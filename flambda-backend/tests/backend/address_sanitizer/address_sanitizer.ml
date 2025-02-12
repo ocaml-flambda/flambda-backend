@@ -275,6 +275,59 @@ module Test_use_after_free = struct
     run_test __FUNCTION__ ~test ~validate:assert_asan_detected_write_use_after_free
   ;;
 
+  external prefetch_read : 'a -> unit = "caml_prefetch_ignore" "caml_prefetch_read_low"
+  [@@noalloc] [@@builtin]
+
+  external prefetch_write : 'a -> unit = "caml_prefetch_ignore" "caml_prefetch_write_low"
+  [@@noalloc] [@@builtin]
+
+  external cldemote : 'a -> unit = "caml_no_bytecode_impl" "caml_cldemote"
+  [@@noalloc] [@@builtin]
+
+  type t8 =
+    { mutable x : i64
+    ; mutable y : i64
+    }
+
+  let prefetch_read_record () =
+    let test () =
+      let t : t8 = alloc 2 in
+      t.x <- t.x;
+      t.y <- t.y;
+      free t;
+      prefetch_read t;
+      let _ = Sys.opaque_identity t in
+      ()
+    in
+    run_test __FUNCTION__ ~test ~validate:assert_asan_detected_read_use_after_free
+  ;;
+
+  let prefetch_write_record () =
+    let test () =
+      let t : t8 = alloc 2 in
+      t.x <- t.x;
+      t.y <- t.y;
+      free t;
+      prefetch_write t;
+      let _ = Sys.opaque_identity t in
+      ()
+    in
+    run_test __FUNCTION__ ~test ~validate:assert_asan_detected_write_use_after_free
+  ;;
+
+  let cldemote_record () =
+    let test () =
+      let t : t8 = alloc 2 in
+      t.x <- t.x;
+      t.y <- t.y;
+      free t;
+      cldemote t;
+      let _ = Sys.opaque_identity t in
+      ()
+    in
+    run_test __FUNCTION__ ~test ~validate:assert_asan_detected_write_use_after_free
+  ;;
+
   let valid_accesses_are_unaffected () =
     let test () =
       let t0 : t0 = alloc 1 in
@@ -722,7 +775,10 @@ let () =
       field_get_f32 ();
       field_set_f32 ();
       field_get_float_hack ();
-      field_set_float_hack ()
+      field_set_float_hack ();
+      prefetch_read_record ();
+      prefetch_write_record ();
+      cldemote_record ()
     in
     let () =
       let open Test_out_of_bounds_accesses in

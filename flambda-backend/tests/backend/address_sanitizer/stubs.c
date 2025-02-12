@@ -9,6 +9,8 @@
 #include <caml/memory.h>
 #include <caml/simd.h>
 
+#define DO_NOT_SANITIZE __attribute__((no_sanitize("address")))
+
 CAMLprim value ocaml_address_sanitizer_test_alloc(size_t len, int64_t tag) {
   assert(len > 0);
   assert(tag >= No_scan_tag);
@@ -26,4 +28,21 @@ CAMLprim value ocaml_address_sanitizer_test_free(value block) {
 
 CAMLprim __m128i ocaml_address_sanitizer_test_vec128_of_int64s(int64_t low, int64_t high) {
   return _mm_set_epi64x(high, low);
+}
+
+CAMLprim value DO_NOT_SANITIZE caml_prefetch_read_low(const void* ptr) {
+  __builtin_prefetch(ptr, /*is_write=*/0, /*locality=*/1);
+  return Val_unit;
+}
+
+CAMLprim value DO_NOT_SANITIZE caml_prefetch_write_low(const void* ptr) {
+  __builtin_prefetch(ptr, /*is_write=*/1, /*locality=*/1);
+  return Val_unit;
+}
+
+CAMLprim value DO_NOT_SANITIZE caml_cldemote(const void* ptr) {
+  #if (defined(__i386__) || defined(__x86_64__))
+  asm volatile("cldemote (%0)\n" : : "r" (ptr));
+  #endif
+  return Val_unit;
 }
