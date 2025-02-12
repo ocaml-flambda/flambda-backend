@@ -48,7 +48,14 @@ Error: Layout mismatch in final type declaration consistency check.
 
 type 'a mutable_list : mutable_data with 'a = Nil | Cons of 'a ref * 'a mutable_list
 [%%expect {|
-type 'a mutable_list = Nil | Cons of 'a ref * 'a mutable_list
+Line 1, characters 0-84:
+1 | type 'a mutable_list : mutable_data with 'a = Nil | Cons of 'a ref * 'a mutable_list
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "mutable_list" is value
+         because it's a boxed variant type.
+       But the kind of type "mutable_list" must be a subkind of mutable_data
+         with 'a
+         because of the annotation on the declaration of the type mutable_list.
 |}]
 
 type 'a mutable_list : mutable_data with 'a = Nil | Cons of { mutable hd : 'a; tl : 'a mutable_list }
@@ -237,7 +244,13 @@ type 'a t = Leaf | Node of int * 'a t
 
 type 'a mutable_list : mutable_data  = Nil | Cons of int ref * 'a mutable_list
 [%%expect {|
-type 'a mutable_list = Nil | Cons of int ref * 'a mutable_list
+Line 1, characters 0-78:
+1 | type 'a mutable_list : mutable_data  = Nil | Cons of int ref * 'a mutable_list
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "mutable_list" is value
+         because it's a boxed variant type.
+       But the kind of type "mutable_list" must be a subkind of mutable_data
+         because of the annotation on the declaration of the type mutable_list.
 |}]
 
 type t1

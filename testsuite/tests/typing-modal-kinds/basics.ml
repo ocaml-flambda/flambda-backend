@@ -688,7 +688,7 @@ let ref_immutable_data_right x =
 Line 2, characters 30-53:
 2 |   take_strong_immutable_data (weaken_immutable_data x : float ref);
                                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is "contended" but expected to be "uncontended".
+Error: This value is "once" but expected to be "many".
 |}]
 
 let ref_immutable_data_left x =
@@ -698,7 +698,7 @@ let ref_immutable_data_left x =
 Line 3, characters 29-30:
 3 |   take_strong_immutable_data x
                                  ^
-Error: This value is "contended" but expected to be "uncontended".
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_immutable_data_right x =

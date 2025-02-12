@@ -224,7 +224,55 @@ end = struct
   type t : immutable_data mod aliased with d with d with b with d with c with a
 end
 [%%expect {|
-module M : sig type t : mutable_data end
+Lines 3-9, characters 6-3:
+3 | ......struct
+4 |   type a : immediate
+5 |   type b : immutable_data with a with int with string with a ref
+6 |   type c : mutable_data with b with a with b with a
+7 |   type d : immediate with a
+8 |   type t : immutable_data mod aliased with d with d with b with d with c with a
+9 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type a : immediate
+           type b : value with a @@ global aliased
+           type c
+             : mutable_data
+             with a @@ global aliased contended
+
+             with b @@ global aliased contended
+           type d : immediate with a
+           type t
+             : immutable_data
+             with a @@ global aliased
+
+             with b @@ global aliased
+
+             with c @@ global aliased
+
+             with d @@ global aliased
+         end
+       is not included in
+         sig type t : mutable_data end
+       Type declarations do not match:
+         type t
+           : immutable_data
+           with a @@ global aliased
+
+           with b @@ global aliased
+
+           with c @@ global aliased
+
+           with d @@ global aliased
+       is not included in
+         type t : mutable_data
+       The kind of the first is immutable_data with a @@ global aliased
+         with b @@ global aliased with c @@ global aliased
+         with d @@ global aliased
+         because of the definition of t at line 8, characters 2-79.
+       But the kind of the first must be a subkind of mutable_data
+         because of the definition of t at line 2, characters 2-23.
 |}]
 
 type u
