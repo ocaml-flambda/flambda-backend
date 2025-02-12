@@ -61,14 +61,18 @@ static_assert(sizeof(struct stack_info) == Stack_ctx_words * sizeof(value), "");
 
 static _Atomic int64_t fiber_id = 0;
 
+/* Parameters settable with OCAMLRUNPARAM */
+uintnat caml_init_main_stack_wsz = 0;   /* -Xmain_stack_size= */
+uintnat caml_init_thread_stack_wsz = 0; /* -Xthread_stack_size= */
+
 uintnat caml_get_init_stack_wsize (int thread_stack_wsz)
 {
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
   uintnat init_stack_wsize =
     thread_stack_wsz < 0
-    ? caml_params->init_main_stack_wsz
-    : caml_params->init_thread_stack_wsz > 0
-    ? caml_params->init_thread_stack_wsz : thread_stack_wsz;
+    ? caml_init_main_stack_wsz
+    : caml_init_thread_stack_wsz > 0
+    ? caml_init_thread_stack_wsz : thread_stack_wsz;
 #else
   (void) thread_stack_wsz;
   uintnat init_stack_wsize = Wsize_bsize(Stack_init_bsize);

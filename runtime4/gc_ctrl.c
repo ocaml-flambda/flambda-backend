@@ -753,16 +753,22 @@ extern int caml_parser_trace;
 
 CAMLprim value caml_runtime_parameters (value unit)
 {
-#define F_Z ARCH_INTNAT_PRINTF_FORMAT
-#define F_S ARCH_SIZET_PRINTF_FORMAT
+#define F_Z "%"ARCH_INTNAT_PRINTF_FORMAT"u"
+#define F_S "%"ARCH_SIZET_PRINTF_FORMAT"u"
 
   CAMLassert (unit == Val_unit);
+  /* keep in sync with runtime4 and with parse_ocamlrunparam */
   return caml_alloc_sprintf
-    ("a=%d,b=%d,H=%"F_Z"u,i=%"F_Z"u,l=%"F_Z"u,o=%"F_Z"u,O=%"F_Z"u,p=%d,"
-     "s=%"F_S"u,t=%"F_Z"u,v=%"F_Z"u,w=%d,W=%"F_Z"u",
+    ("a=%d,b=%d,c=%d,h="F_Z",H="F_Z
+     ",i="F_Z",l="F_Z",m="F_Z",M="F_Z",n="F_Z
+     ",o="F_Z",O="F_Z",p=%d,s="F_S",t="F_Z
+     ",v="F_Z",w=%d,W="F_Z"",
      /* a */ (int) caml_allocation_policy,
      /* b */ (int) Caml_state->backtrace_active,
-     /* h */ /* missing */ /* FIXME add when changed to min_heap_size */
+     /* c */ caml_cleanup_on_exit,
+     /* d: runtime 5 max domains */
+     /* e: runtime 5 runtime_events size */
+     /* h */ caml_init_heap_wsz,
      /* H */ caml_use_huge_pages,
      /* i */ caml_major_heap_increment,
 #ifdef NATIVE_CODE
@@ -770,15 +776,20 @@ CAMLprim value caml_runtime_parameters (value unit)
 #else
      /* l */ caml_max_stack_size,
 #endif
+     /* m */ caml_custom_minor_ratio,
+     /* M */ caml_custom_major_ratio,
+     /* n */ caml_custom_minor_max_bsz,
      /* o */ caml_percent_free,
      /* O */ caml_percent_max,
      /* p */ caml_parser_trace,
-     /* R */ /* missing */
+     /* R */ /* missing: see stdlib/hashtbl.mli */
      /* s */ Caml_state->minor_heap_wsz,
      /* t */ caml_trace_level,
      /* v */ caml_verb_gc,
+     /* V: runtime 5 verify heap */
      /* w */ caml_major_window,
      /* W */ caml_runtime_warnings
+     /* X: runtime 5 gc tweaks */
      );
 #undef F_Z
 #undef F_S

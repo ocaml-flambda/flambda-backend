@@ -260,6 +260,11 @@ struct stack_info* caml_alloc_stack_noexc(mlsize_t wosize, value hval,
 /* try to grow the stack until at least required_size words are available.
    returns nonzero on success */
 CAMLextern int caml_try_realloc_stack (asize_t required_wsize);
+
+/* Parameters settable with OCAMLRUNPARAM */
+extern uintnat caml_init_main_stack_wsz;   /* -Xmain_stack_size= */
+extern uintnat caml_init_thread_stack_wsz; /* -Xthread_stack_size= */
+
 CAMLextern uintnat caml_get_init_stack_wsize(int thread_stack_wsz);
 void caml_change_max_stack_size (uintnat new_max_wsize);
 void caml_maybe_expand_stack(void);
