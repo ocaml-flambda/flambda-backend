@@ -46,14 +46,7 @@ module F :
   functor (M : sig type 'a t end) ->
     sig type 'a t : immutable_data with 'a M.t end
 module Ref : sig type 'a t = 'a ref end
-Line 8, characters 0-46:
-8 | type 'a t : mutable_data with 'a = 'a F(Ref).t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a F(Ref).t" is value
-         because of the definition of t at line 2, characters 2-40.
-       But the kind of type "'a F(Ref).t" must be a subkind of mutable_data
-         with 'a @@ global aliased contended
-         because of the definition of t at line 8, characters 0-46.
+type 'a t = 'a F(Ref).t
 |}]
 
 module Ref = struct

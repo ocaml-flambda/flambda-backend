@@ -94,12 +94,12 @@ module M : sig type 'a t : value mod global end
 |}]
 
 module M : sig
-  type 'a t : value mod uncontended
+  type 'a t : value mod contended
 end = struct
   type 'a t : immutable_data with 'a @@ contended
 end
 [%%expect {|
-module M : sig type 'a t : value mod uncontended end
+module M : sig type 'a t : value mod contended end
 |}]
 
 type 'a u : immutable_data with 'a @@ many
@@ -110,22 +110,22 @@ type 'a t = 'a u
 |}]
 
 module M : sig
-  type 'a t : value mod unique
+  type 'a t : value mod aliased
 end = struct
   type 'a t : immediate with 'a @@ aliased
 end
 [%%expect {|
-module M : sig type 'a t : value mod unique end
+module M : sig type 'a t : value mod aliased end
 |}]
 
 module M : sig
-  type 'a t : value mod global unique many portable uncontended
+  type 'a t : value mod global aliased many portable contended
 end = struct
   type 'a t : immediate with 'a @@ aliased many contended global portable
 end
 [%%expect {|
 module M :
-  sig type 'a t : value mod global unique many uncontended portable end
+  sig type 'a t : value mod global aliased many contended portable end
 |}]
 
 module M : sig
@@ -242,15 +242,16 @@ end
 module M : sig type 'a t : immutable_data with 'a end
 |}]
 
-type 'a u : value mod uncontended with 'a @@ global
+type 'a u : value mod contended with 'a @@ global
 type 'a t : value mod global = 'a u
 [%%expect {|
-type 'a u : value mod uncontended with 'a
+type 'a u : value mod contended with 'a @@ global many portable aliased
 Line 2, characters 0-35:
 2 | type 'a t : value mod global = 'a u
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a u" is value mod uncontended with 'a
-         because of the definition of u at line 1, characters 0-51.
+Error: The kind of type "'a u" is value mod contended
+         with 'a @@ global many portable aliased
+         because of the definition of u at line 1, characters 0-49.
        But the kind of type "'a u" must be a subkind of value mod global
          because of the definition of t at line 2, characters 0-35.
 |}]
@@ -378,13 +379,7 @@ end
 
 module type T = S with type t = t
 [%%expect {|
-type t : value mod uncontended
+type t : immutable_data
 module type S = sig type t : immutable_data end
-Line 7, characters 23-33:
-7 | module type T = S with type t = t
-                           ^^^^^^^^^^
-Error: The kind of type "t" is value mod uncontended
-         because of the definition of t at line 1, characters 0-49.
-       But the kind of type "t" must be a subkind of immutable_data
-         because of the definition of t at line 4, characters 2-25.
+module type T = sig type t = t end
 |}]
