@@ -131,8 +131,24 @@ type mmodes =
   | All
   (** Check module inclusion [M1 : MT1 @ m1 <= M2 : MT2 @ m2]
       for all [m1 <= m2]. *)
-  | Legacy
-  (** Check module inclusion [M1 : MT1 @ legacy <= M2 : MT2 @ legacy]. *)
+  | Legacy of Env.held_locks option
+  (** Check module inclusion [M1 : MT1 @ legacy <= M2 : MT2 @ legacy].
+    If [M1] is a [Pmod_ident] and the current inclusion check is for its
+    coercion into [M2], we treat all surroudning functions as not closing over
+    [M1], but closing over components in [M1] required by [MT2]. Therefore, the
+    locks for [M1] are held, to be walked by each of the components
+    individually.
+
+    This is potentially unsafe as it doesn't reflect the real runtime behavior,
+    for at least two reasons:
+    - The corecion might turn out to be [coercion_none], in which case no
+    coercion happens, and the functions will be closing over the original module.
+    - Even if the coercion happens, the functions will be closing over the
+      original module and projecting needed values out of it.
+
+    The above concern can be resolved by the "ergonomics" discussion in
+    [typecore.type_ident].
+  *)
 
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->

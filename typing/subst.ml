@@ -80,17 +80,58 @@ type additional_action_config =
   | Duplicate_variables
   | Prepare_for_saving
 
-let with_additional_action =
-  (* Memoize the built-in jkinds *)
-  let builtins =
+(* Memoize the built-in jkinds, either best or not-best *)
+module Builtins_memo : sig
+  val find :
+    quality:('l * 'r) jkind_quality ->
+    ('l * 'r) Jkind.Const.t ->
+    ('l * 'r) jkind option
+end = struct
+  open Allowance
+
+  type 'd builtins = ('d Jkind.Const.t * 'd jkind) list
+
+  let make_builtins (type l r) (quality : (l * r) jkind_quality) : (l * r) builtins =
     Jkind.Const.Builtin.all
     |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
-          builtin.jkind,
-          Jkind.of_const builtin.jkind
-            ~annotation:(Some { pjkind_loc = Location.none;
-                                pjkind_desc = Abbreviation builtin.name })
-            ~why:Jkind.History.Imported)
-  in
+      let const_jkind : (l * r) Jkind.Const.t =
+        builtin.jkind |> Jkind.Const.allow_left |> Jkind.Const.allow_right in
+      const_jkind,
+      Jkind.of_const
+        const_jkind
+        ~quality
+        ~annotation:(Some { pjkind_loc = Location.none;
+                            pjkind_desc = Abbreviation builtin.name })
+        ~why:Jkind.History.Imported)
+
+  let best_builtins : (allowed * disallowed) builtins = make_builtins Best
+  let not_best_builtins : (allowed * allowed) builtins = make_builtins Not_best
+
+  let find
+        (type l r)
+        ~(quality : (l * r) jkind_quality)
+        (const : (l * r) Jkind.Const.t)
+    : (l * r) jkind option
+    =
+    (match quality with
+     | Best ->
+       List.find_opt (fun ((builtin, _) : (allowed * disallowed) Jkind.Const.t * _) ->
+         Jkind.Const.no_with_bounds_and_equal
+           (const |> Jkind.Const.disallow_right)
+           (builtin |> Jkind.Const.allow_left))
+       best_builtins
+       |> Option.map (fun (_, jkind) -> jkind |> Jkind.allow_left)
+     | Not_best ->
+       List.find_opt (fun (builtin, _) ->
+         Jkind.Const.no_with_bounds_and_equal
+           const
+           (builtin |> Jkind.Const.allow_left |> Jkind.Const.allow_right))
+         not_best_builtins
+       |> Option.map (fun (_, jkind) -> jkind |> Jkind.allow_left |> Jkind.allow_right)
+    )
+end
+
+let with_additional_action =
   fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
      function, but it's in here because we really want to tailor the reason
@@ -106,17 +147,12 @@ let with_additional_action =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let prepare_jkind loc jkind =
+        let prepare_jkind (type l r) loc (jkind : (l * r) jkind) =
           match Jkind.get_const jkind with
           | Some const ->
-            let builtin =
-              List.find_opt (fun (builtin, _) ->
-                  Jkind.Const.no_baggage_and_equal const builtin)
-                builtins
-            in
-            begin match builtin with
-            | Some (_, jkind) -> jkind |> Jkind.allow_left |> Jkind.allow_right
-            | None -> Jkind.of_const const ~annotation:None ~why:Imported
+            begin match Builtins_memo.find ~quality:jkind.quality const with
+            | Some jkind -> jkind
+            | None -> Jkind.of_const ~quality:jkind.quality const ~annotation:None ~why:Imported
             end
           | None -> raise(Error (loc, Unconstrained_jkind_variable))
         in

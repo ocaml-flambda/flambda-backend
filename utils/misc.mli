@@ -163,6 +163,15 @@ module Stdlib : sig
     (** [fold_lefti f init l] is like [fold_left] but also takes as parameter
         the zero-based index of the element *)
 
+    val fold_left_map2
+      : ('acc -> 'a -> 'b -> 'acc * 'r)
+      -> 'acc
+      -> 'a list
+      -> 'b list
+      -> 'acc * 'r list
+    (** [fold_left_map2] is a combination of [fold_left2] and [map2] that threads an
+        accumulator through calls to [f]. *)
+
     val chunks_of : int -> 'a t -> 'a t t
     (** [chunks_of n t] returns a list of nonempty lists whose
         concatenation is equal to the original list. Every list has [n]
@@ -1095,3 +1104,21 @@ type filepath = string
 type alerts = string Stdlib.String.Map.t
 
 val remove_double_underscores : string -> string
+
+(** Non-empty lists *)
+module Nonempty_list : sig
+  type nonrec 'a t = ( :: ) of 'a * 'a list
+
+  val to_list : 'a t -> 'a list
+  val of_list_opt : 'a list -> 'a t option
+  val map : ('a -> 'b) -> 'a t -> 'b t
+
+  val pp_print :
+    ?pp_sep:(Format.formatter -> unit -> unit) ->
+    (Format.formatter -> 'a -> unit) ->
+    Format.formatter ->
+    'a t ->
+    unit
+
+  val (@) : 'a t -> 'a t -> 'a t
+end

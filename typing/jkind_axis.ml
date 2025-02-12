@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Liam Stevenson, Jane Street, New York                 *)
 (*                                                                        *)
-(*   Copyright 2021 Jane Street Group LLC                                 *)
+(*   Copyright 2024 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -125,7 +125,7 @@ module Axis = struct
     | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
     | Nonmodal : 'a Nonmodal.t -> 'a t
 
-  type packed = Pack : 'a t -> packed
+  type packed = Pack : 'a t -> packed [@@unboxed]
 
   module Accent_lattice (M : Mode_intf.Lattice) = struct
     (* A functor to add some convenient functions to modal axes *)
@@ -170,238 +170,290 @@ module Axis = struct
     | Modal (Comonadic Yielding) -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
-
-  let modality_is_const_for_axis (type a) (t : a t)
-      (modality : Mode.Modality.Value.Const.t) =
-    match t with
-    | Nonmodal Nullability | Nonmodal Externality -> false
-    | Modal axis ->
-      let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-      let modality = Mode.Modality.Value.Const.proj axis modality in
-      if Mode.Modality.is_constant modality
-      then true
-      else if Mode.Modality.is_id modality
-      then false
-      else
-        Misc.fatal_error
-          "Don't yet know how to interpret non-constant, non-identity \
-           modalities"
 end
 
-module type Axed = sig
-  type (+'type_expr, 'd, 'axis) t constraint 'd = 'l * 'r
-end
+module Axis_collection = struct
+  module Indexed_gen (T : Misc.T2) = struct
+    type 'a t_poly =
+      { locality : (Mode.Locality.Const.t, 'a) T.t;
+        linearity : (Mode.Linearity.Const.t, 'a) T.t;
+        uniqueness : (Mode.Uniqueness.Const.t, 'a) T.t;
+        portability : (Mode.Portability.Const.t, 'a) T.t;
+        contention : (Mode.Contention.Const.t, 'a) T.t;
+        yielding : (Mode.Yielding.Const.t, 'a) T.t;
+        externality : (Externality.t, 'a) T.t;
+        nullability : (Nullability.t, 'a) T.t
+      }
 
-(* Sadly this needs to be functorized since we don't have higher-kinded types *)
-module Axis_collection (T : Axed) = struct
-  type (+'type_expr, 'd) t =
-    { locality : ('type_expr, 'd, Mode.Locality.Const.t) T.t;
-      linearity : ('type_expr, 'd, Mode.Linearity.Const.t) T.t;
-      uniqueness : ('type_expr, 'd, Mode.Uniqueness.Const.t) T.t;
-      portability : ('type_expr, 'd, Mode.Portability.Const.t) T.t;
-      contention : ('type_expr, 'd, Mode.Contention.Const.t) T.t;
-      yielding : ('type_expr, 'd, Mode.Yielding.Const.t) T.t;
-      externality : ('type_expr, 'd, Externality.t) T.t;
-      nullability : ('type_expr, 'd, Nullability.t) T.t
-    }
+    type 'a t = 'a t_poly
 
-  let get (type a) ~(axis : a Axis.t) values : (_, _, a) T.t =
-    match axis with
-    | Modal (Comonadic Areality) -> values.locality
-    | Modal (Comonadic Linearity) -> values.linearity
-    | Modal (Monadic Uniqueness) -> values.uniqueness
-    | Modal (Comonadic Portability) -> values.portability
-    | Modal (Monadic Contention) -> values.contention
-    | Modal (Comonadic Yielding) -> values.yielding
-    | Nonmodal Externality -> values.externality
-    | Nonmodal Nullability -> values.nullability
+    let get (type a) ~(axis : a Axis.t) (t : 'b t) : (a, 'b) T.t =
+      match axis with
+      | Modal (Comonadic Areality) -> t.locality
+      | Modal (Comonadic Linearity) -> t.linearity
+      | Modal (Monadic Uniqueness) -> t.uniqueness
+      | Modal (Comonadic Portability) -> t.portability
+      | Modal (Monadic Contention) -> t.contention
+      | Modal (Comonadic Yielding) -> t.yielding
+      | Nonmodal Externality -> t.externality
+      | Nonmodal Nullability -> t.nullability
 
-  let set (type a) ~(axis : a Axis.t) values (value : (_, _, a) T.t) =
-    match axis with
-    | Modal (Comonadic Areality) -> { values with locality = value }
-    | Modal (Comonadic Linearity) -> { values with linearity = value }
-    | Modal (Monadic Uniqueness) -> { values with uniqueness = value }
-    | Modal (Comonadic Portability) -> { values with portability = value }
-    | Modal (Monadic Contention) -> { values with contention = value }
-    | Modal (Comonadic Yielding) -> { values with yielding = value }
-    | Nonmodal Externality -> { values with externality = value }
-    | Nonmodal Nullability -> { values with nullability = value }
+    let set (type a) ~(axis : a Axis.t) (t : 'b t) (value : (a, 'b) T.t) =
+      match axis with
+      | Modal (Comonadic Areality) -> { t with locality = value }
+      | Modal (Comonadic Linearity) -> { t with linearity = value }
+      | Modal (Monadic Uniqueness) -> { t with uniqueness = value }
+      | Modal (Comonadic Portability) -> { t with portability = value }
+      | Modal (Monadic Contention) -> { t with contention = value }
+      | Modal (Comonadic Yielding) -> { t with yielding = value }
+      | Nonmodal Externality -> { t with externality = value }
+      | Nonmodal Nullability -> { t with nullability = value }
 
-  (* Since we don't have polymorphic parameters, use a record to pass the
-     polymorphic function *)
-  module Create = struct
-    module Monadic (M : Misc.Stdlib.Monad.S) = struct
-      type ('type_expr, 'd) f =
-        { f : 'axis. axis:'axis Axis.t -> ('type_expr, 'd, 'axis) T.t M.t }
+    (* Since we don't have polymorphic parameters, use a record to pass the
+       polymorphic function *)
+    module Create = struct
+      module Monadic (M : Misc.Stdlib.Monad.S) = struct
+        type 'a f = { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) T.t M.t }
+        [@@unboxed]
+
+        let[@inline] f { f } =
+          let open M.Syntax in
+          let* locality = f ~axis:Axis.(Modal (Comonadic Areality)) in
+          let* uniqueness = f ~axis:Axis.(Modal (Monadic Uniqueness)) in
+          let* linearity = f ~axis:Axis.(Modal (Comonadic Linearity)) in
+          let* contention = f ~axis:Axis.(Modal (Monadic Contention)) in
+          let* portability = f ~axis:Axis.(Modal (Comonadic Portability)) in
+          let* yielding = f ~axis:Axis.(Modal (Comonadic Yielding)) in
+          let* externality = f ~axis:Axis.(Nonmodal Externality) in
+          let* nullability = f ~axis:Axis.(Nonmodal Nullability) in
+          M.return
+            { locality;
+              uniqueness;
+              linearity;
+              contention;
+              portability;
+              yielding;
+              externality;
+              nullability
+            }
+      end
+      [@@inline]
+
+      module Monadic_identity = Monadic (Misc.Stdlib.Monad.Identity)
+
+      type 'a f = 'a Monadic_identity.f
+
+      let[@inline] f f = Monadic_identity.f f
+    end
+
+    module Map = struct
+      module Monadic (M : Misc.Stdlib.Monad.S) = struct
+        type ('a, 'b) f =
+          { f :
+              'axis. axis:'axis Axis.t -> ('axis, 'a) T.t -> ('axis, 'b) T.t M.t
+          }
+        [@@unboxed]
+
+        module Create = Create.Monadic (M)
+
+        let[@inline] f { f } bounds =
+          Create.f { f = (fun ~axis -> f ~axis (get ~axis bounds)) }
+      end
+      [@@inline]
+
+      module Monadic_identity = Monadic (Misc.Stdlib.Monad.Identity)
+
+      type ('a, 'b) f = ('a, 'b) Monadic_identity.f
+
+      let[@inline] f f bounds = Monadic_identity.f f bounds
+    end
+
+    module Iter = struct
+      type 'a f = { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) T.t -> unit }
       [@@unboxed]
 
-      let[@inline] f { f } =
-        let open M.Syntax in
-        let* locality = f ~axis:Axis.(Modal (Comonadic Areality)) in
-        let* uniqueness = f ~axis:Axis.(Modal (Monadic Uniqueness)) in
-        let* linearity = f ~axis:Axis.(Modal (Comonadic Linearity)) in
-        let* contention = f ~axis:Axis.(Modal (Monadic Contention)) in
-        let* portability = f ~axis:Axis.(Modal (Comonadic Portability)) in
-        let* yielding = f ~axis:Axis.(Modal (Comonadic Yielding)) in
-        let* externality = f ~axis:Axis.(Nonmodal Externality) in
-        let* nullability = f ~axis:Axis.(Nonmodal Nullability) in
-        M.return
+      let[@inline] f { f }
           { locality;
-            uniqueness;
             linearity;
-            contention;
+            uniqueness;
             portability;
+            contention;
             yielding;
             externality;
             nullability
+          } =
+        f ~axis:Axis.(Modal (Comonadic Areality)) locality;
+        f ~axis:Axis.(Modal (Monadic Uniqueness)) uniqueness;
+        f ~axis:Axis.(Modal (Comonadic Linearity)) linearity;
+        f ~axis:Axis.(Modal (Monadic Contention)) contention;
+        f ~axis:Axis.(Modal (Comonadic Portability)) portability;
+        f ~axis:Axis.(Modal (Comonadic Yielding)) yielding;
+        f ~axis:Axis.(Nonmodal Externality) externality;
+        f ~axis:Axis.(Nonmodal Nullability) nullability
+    end
+
+    module Map2 = struct
+      module Monadic (M : Misc.Stdlib.Monad.S) = struct
+        type ('a, 'b, 'c) f =
+          { f :
+              'axis.
+              axis:'axis Axis.t ->
+              ('axis, 'a) T.t ->
+              ('axis, 'b) T.t ->
+              ('axis, 'c) T.t M.t
           }
+        [@@unboxed]
+
+        module Create = Create.Monadic (M)
+
+        let[@inline] f { f } bounds1 bounds2 =
+          Create.f
+            { f = (fun ~axis -> f ~axis (get ~axis bounds1) (get ~axis bounds2))
+            }
+      end
+      [@@inline]
+
+      module Monadic_identity = Monadic (Misc.Stdlib.Monad.Identity)
+
+      type ('a, 'b, 'c) f = ('a, 'b, 'c) Monadic_identity.f
+
+      let[@inline] f f bounds1 bounds2 = Monadic_identity.f f bounds1 bounds2
     end
-    [@@inline]
 
-    module Monadic_identity = Monadic (Misc.Stdlib.Monad.Identity)
+    module Fold = struct
+      type ('a, 'r) f =
+        { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) T.t -> 'r }
+      [@@unboxed]
 
-    type ('type_expr, 'd) f = ('type_expr, 'd) Monadic_identity.f
+      let[@inline] f { f }
+          { locality;
+            linearity;
+            uniqueness;
+            portability;
+            contention;
+            yielding;
+            externality;
+            nullability
+          } ~combine =
+        combine (f ~axis:Axis.(Modal (Comonadic Areality)) locality)
+        @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uniqueness)
+        @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) linearity)
+        @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) contention)
+        @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) portability)
+        @@ combine (f ~axis:Axis.(Modal (Comonadic Yielding)) yielding)
+        @@ combine (f ~axis:Axis.(Nonmodal Externality) externality)
+        @@ f ~axis:Axis.(Nonmodal Nullability) nullability
+    end
 
-    let[@inline] f f = Monadic_identity.f f
-  end
-
-  module Map = struct
-    module Monadic (M : Misc.Stdlib.Monad.S) = struct
-      type ('type_expr, 'd1, 'd2) f =
+    module Fold2 = struct
+      type ('a, 'b, 'r) f =
         { f :
-            'axis.
-            axis:'axis Axis.t ->
-            ('type_expr, 'd1, 'axis) T.t ->
-            ('type_expr, 'd2, 'axis) T.t M.t
+            'axis. axis:'axis Axis.t -> ('axis, 'a) T.t -> ('axis, 'b) T.t -> 'r
         }
       [@@unboxed]
 
-      module Create = Create.Monadic (M)
-
-      let[@inline] f { f } bounds =
-        Create.f { f = (fun ~axis -> f ~axis (get ~axis bounds)) }
+      let[@inline] f { f }
+          { locality = loc1;
+            linearity = lin1;
+            uniqueness = uni1;
+            portability = por1;
+            contention = con1;
+            yielding = yie1;
+            externality = ext1;
+            nullability = nul1
+          }
+          { locality = loc2;
+            linearity = lin2;
+            uniqueness = uni2;
+            portability = por2;
+            contention = con2;
+            yielding = yie2;
+            externality = ext2;
+            nullability = nul2
+          } ~combine =
+        combine (f ~axis:Axis.(Modal (Comonadic Areality)) loc1 loc2)
+        @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uni1 uni2)
+        @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) lin1 lin2)
+        @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) con1 con2)
+        @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) por1 por2)
+        @@ combine (f ~axis:Axis.(Modal (Comonadic Yielding)) yie1 yie2)
+        @@ combine (f ~axis:Axis.(Nonmodal Externality) ext1 ext2)
+        @@ f ~axis:Axis.(Nonmodal Nullability) nul1 nul2
     end
-    [@@inline]
-
-    module Monadic_identity = Monadic (Misc.Stdlib.Monad.Identity)
-
-    type ('type_expr, 'd1, 'd2) f = ('type_expr, 'd1, 'd2) Monadic_identity.f
-
-    let[@inline] f f bounds = Monadic_identity.f f bounds
   end
 
-  module Iter = struct
-    type ('type_expr, 'd) f =
-      { f : 'axis. axis:'axis Axis.t -> ('type_expr, 'd, 'axis) T.t -> unit }
+  module Indexed (T : Misc.T1) = struct
+    include Indexed_gen (struct
+      type ('a, 'b) t = 'a T.t
+    end)
 
-    let[@inline] f { f }
-        { locality;
-          linearity;
-          uniqueness;
-          portability;
-          contention;
-          externality;
-          nullability
-        } =
-      f ~axis:Axis.(Modal (Comonadic Areality)) locality;
-      f ~axis:Axis.(Modal (Monadic Uniqueness)) uniqueness;
-      f ~axis:Axis.(Modal (Comonadic Linearity)) linearity;
-      f ~axis:Axis.(Modal (Monadic Contention)) contention;
-      f ~axis:Axis.(Modal (Comonadic Portability)) portability;
-      f ~axis:Axis.(Nonmodal Externality) externality;
-      f ~axis:Axis.(Nonmodal Nullability) nullability
+    type nonrec t = unit t
   end
 
-  module Map2 = struct
-    module Monadic (M : Misc.Stdlib.Monad.S) = struct
-      type ('type_expr, 'd1, 'd2, 'd3) f =
-        { f :
-            'axis.
-            axis:'axis Axis.t ->
-            ('type_expr, 'd1, 'axis) T.t ->
-            ('type_expr, 'd2, 'axis) T.t ->
-            ('type_expr, 'd3, 'axis) T.t M.t
-        }
-      [@@unboxed]
+  module Identity = Indexed (Misc.Stdlib.Monad.Identity)
 
-      module Create = Create.Monadic (M)
+  include Indexed_gen (struct
+    type ('a, 'b) t = 'b
+  end)
 
-      let[@inline] f { f } bounds1 bounds2 =
-        Create.f
-          { f = (fun ~axis -> f ~axis (get ~axis bounds1) (get ~axis bounds2)) }
-    end
-    [@@inline]
+  let create ~f = Create.f { f = (fun ~axis -> f ~axis:(Axis.Pack axis)) }
 
-    module Monadic_identity = Monadic (Misc.Stdlib.Monad.Identity)
+  let map ~f t = Map.f { f = (fun ~axis:_ x -> f x) } t
 
-    type ('type_expr, 'd1, 'd2, 'd3) f =
-      ('type_expr, 'd1, 'd2, 'd3) Monadic_identity.f
+  let mapi ~f t = Map.f { f = (fun ~axis x -> f ~axis:(Axis.Pack axis) x) } t
 
-    let[@inline] f f bounds1 bounds2 = Monadic_identity.f f bounds1 bounds2
-  end
+  let fold ~f ~combine t =
+    Fold.f { f = (fun ~axis acc -> f ~axis:(Axis.Pack axis) acc) } t ~combine
+end
 
-  module Fold = struct
-    type ('type_expr, 'd, 'r) f =
-      { f : 'axis. axis:'axis Axis.t -> ('type_expr, 'd, 'axis) T.t -> 'r }
-    [@@unboxed]
+module Axis_set = struct
+  (* each axis is true or false to indicate membership  *)
+  type t = bool Axis_collection.t
 
-    let[@inline] f { f }
-        { locality;
-          linearity;
-          uniqueness;
-          portability;
-          contention;
-          yielding;
-          externality;
-          nullability
-        } ~combine =
-      combine (f ~axis:Axis.(Modal (Comonadic Areality)) locality)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uniqueness)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) linearity)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) contention)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) portability)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Yielding)) yielding)
-      @@ combine (f ~axis:Axis.(Nonmodal Externality) externality)
-      @@ f ~axis:Axis.(Nonmodal Nullability) nullability
-  end
+  (* TODO: this could be represented with a uint8 since there's only 7 possible members *)
 
-  module Fold2 = struct
-    type ('type_expr, 'd1, 'd2, 'r) f =
-      { f :
-          'axis.
-          axis:'axis Axis.t ->
-          ('type_expr, 'd1, 'axis) T.t ->
-          ('type_expr, 'd2, 'axis) T.t ->
-          'r
-      }
-    [@@unboxed]
+  let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
 
-    let[@inline] f { f }
-        { locality = loc1;
-          linearity = lin1;
-          uniqueness = uni1;
-          portability = por1;
-          contention = con1;
-          yielding = yie1;
-          externality = ext1;
-          nullability = nul1
-        }
-        { locality = loc2;
-          linearity = lin2;
-          uniqueness = uni2;
-          portability = por2;
-          contention = con2;
-          yielding = yie2;
-          externality = ext2;
-          nullability = nul2
-        } ~combine =
-      combine (f ~axis:Axis.(Modal (Comonadic Areality)) loc1 loc2)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uni1 uni2)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) lin1 lin2)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) con1 con2)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) por1 por2)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Yielding)) yie1 yie2)
-      @@ combine (f ~axis:Axis.(Nonmodal Externality) ext1 ext2)
-      @@ f ~axis:Axis.(Nonmodal Nullability) nul1 nul2
-  end
+  let add t axis = Axis_collection.set ~axis t true
+
+  let remove t axis = Axis_collection.set ~axis t false
+
+  let mem t axis = Axis_collection.get ~axis t
+
+  let union t1 t2 =
+    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
+        Axis_collection.get ~axis t1 || Axis_collection.get ~axis t2)
+
+  let intersection t1 t2 =
+    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
+        Axis_collection.get ~axis t1 && Axis_collection.get ~axis t2)
+
+  let diff t1 t2 =
+    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
+        Axis_collection.get ~axis t1 && not (Axis_collection.get ~axis t2))
+
+  let is_subset t1 t2 =
+    Axis_collection.fold
+      ~f:(fun ~axis:(Pack axis) t1_on_axis ->
+        let t2_on_axis = Axis_collection.get ~axis t2 in
+        (not t1_on_axis) || t2_on_axis)
+      ~combine:( && ) t1
+
+  let is_empty t = is_subset t empty
+
+  let complement t = Axis_collection.map ~f:not t
+
+  let to_list t =
+    Axis_collection.fold
+      ~f:(fun ~axis t_on_axis ->
+        match t_on_axis with true -> [axis] | false -> [])
+      ~combine:( @ ) t
+
+  let create = Axis_collection.create
+
+  let print ppf t =
+    Format.pp_print_list
+      ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
+      (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
+      ppf (to_list t)
 end

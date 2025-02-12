@@ -210,6 +210,11 @@ type shared_context =
 
 type locks
 
+type held_locks = locks * Longident.t * Location.t
+(** Sometimes we get the locks for something, but either want to walk them later, or
+walk them for something else. The [Longident.t] and [Location.t] are only for error
+messages, and point to the variable for which we actually want to walk the locks. *)
+
 val locks_empty : locks
 
 val locks_is_empty : locks -> bool
@@ -276,8 +281,8 @@ type actual_mode = {
     locks and constrains [mode] and [ty]. Return the access mode of the value allowed by
     the locks. [ty] is optional as the function works on modules and classes as well, for
     which [ty] should be [None]. *)
-val walk_locks : loc:Location.t -> env:t -> item:lock_item -> lid:Longident.t ->
-  Mode.Value.l -> type_expr option -> locks -> actual_mode
+val walk_locks : env:t -> item:lock_item -> Mode.Value.l -> type_expr option ->
+  held_locks -> actual_mode
 
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
@@ -286,8 +291,8 @@ val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
 val lookup_module:
-  ?use:bool -> ?lock:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * module_declaration * Mode.Value.l
+  ?use:bool -> loc:Location.t -> Longident.t -> t ->
+  Path.t * module_declaration * locks
 val lookup_modtype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * modtype_declaration
@@ -611,8 +616,8 @@ val set_type_used_callback:
 val check_functor_application:
   (errors:bool -> loc:Location.t ->
    lid_whole_app:Longident.t ->
-   f0_path:Path.t -> args:(Path.t * Types.module_type * Mode.Value.l) list ->
-   arg_path:Path.t -> arg_mty:Types.module_type -> arg_mode:Mode.Value.l ->
+   f0_path:Path.t -> args:(Path.t * Types.module_type) list ->
+   arg_path:Path.t -> arg_mty:Types.module_type ->
    param_mty:Types.module_type ->
    t -> unit) ref
 (* Forward declaration to break mutual recursion with Typemod. *)

@@ -85,12 +85,13 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
 let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
 
 module Transled_modifier = struct
-  type (_, 'd, 'a) t = 'a Location.loc option constraint 'd = 'l * 'r
+  type 'a t = 'a Location.loc option
 
   let drop_loc modifier = Option.map Location.get_txt modifier
 end
 
-module Transled_modifiers = Jkind_axis.Axis_collection (Transled_modifier)
+module Transled_modifiers =
+  Jkind_axis.Axis_collection.Indexed (Transled_modifier)
 
 let transl_modifier_annots annots =
   let step modifiers_so_far annot =

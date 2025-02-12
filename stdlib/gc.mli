@@ -168,9 +168,7 @@ type control =
        If [max_overhead >= 1000000], compaction is never triggered.
        On runtime4, if compaction is permanently disabled, it is strongly
        suggested to set [allocation_policy] to 2.
-       Default: 500.
-       This metric is currently not available in OCaml 5: the field value is
-       always [0]. *)
+        Default: 500. *)
 
     stack_limit : int;
     (** The maximum size of the fiber stacks (in words).

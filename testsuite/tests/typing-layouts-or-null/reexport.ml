@@ -1,5 +1,4 @@
 (* TEST
- flags = "-extension layouts_alpha";
  expect;
 *)
 
@@ -10,7 +9,6 @@ module Or_null = struct
     | Null
     | This of 'a
 end
-
 [%%expect{|
 Lines 2-4, characters 2-16:
 2 | ..type ('a : value) t : value_or_null = 'a or_null =
@@ -25,7 +23,6 @@ Error: This variant or record definition does not match that of type
 module Or_null = struct
   type ('a : value) t : value_or_null = 'a or_null
 end
-
 [%%expect{|
 module Or_null : sig type 'a t = 'a or_null end
 |}]
@@ -57,7 +54,6 @@ module Or_null = struct
 end
 let n = Or_null.Null
 let t v = Or_null.This v
-
 [%%expect{|
 module Or_null :
   sig type 'a t = 'a or_null = Null | This of 'a [@@or_null_reexport] end
@@ -109,10 +105,10 @@ type 'a t : value = 'a or_null [@@or_null_reexport]
 Line 1, characters 0-51:
 1 | type 'a t : value = 'a or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value_or_null
+Error: The kind of type "'a or_null" is value_or_null
          because it is the primitive value_or_null type or_null.
-       But the kind of type "t" must be a subkind of value
-         because of the annotation on the declaration of the type t.
+       But the kind of type "'a or_null" must be a subkind of value
+         because of the definition of t at line 1, characters 0-51.
 |}]
 
 type 'a t : float64 = 'a or_null [@@or_null_reexport]
@@ -121,10 +117,10 @@ type 'a t : float64 = 'a or_null [@@or_null_reexport]
 Line 1, characters 0-53:
 1 | type 'a t : float64 = 'a or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type "t" is value
+Error: The layout of type "'a or_null" is value
          because it is the primitive value_or_null type or_null.
-       But the layout of type "t" must be a sublayout of float64
-         because of the annotation on the declaration of the type t.
+       But the layout of type "'a or_null" must be a sublayout of float64
+         because of the definition of t at line 1, characters 0-53.
 |}]
 
 type ('a : float64) t = 'a or_null [@@or_null_reexport]

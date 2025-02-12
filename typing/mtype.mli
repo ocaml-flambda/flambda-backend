@@ -27,6 +27,8 @@ val scrape_alias: Env.t -> module_type -> module_type
            or abstract module type ident. *)
 val reduce_lazy:
   Env.t -> Subst.Lazy.module_type -> Subst.Lazy.module_type option
+val reduce_alias_lazy:
+  Env.t -> Subst.Lazy.module_type -> Subst.Lazy.module_type option
 val reduce: Env.t -> module_type -> module_type option
         (* Expand one toplevel module abbreviation. Return None if
            no expansion is possible. *)

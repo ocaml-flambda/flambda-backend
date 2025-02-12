@@ -156,6 +156,11 @@ val add_or_null :
 (* CR layouts v3.5: remove this when users can define null constructors. *)
 val or_null_kind : type_expr -> ('a, 'b, constructor_declaration) type_kind
 
+(* Construct the [jkind] of [or_null]. For re-exporting [or_null]
+   while users can't define their own types with null constructors. *)
+(* CR layouts v3.5: remove this when users can define null constructors. *)
+val or_null_jkind : Types.jkind_l
+
 (* To initialize linker tables *)
 
 val builtin_values: (string * Ident.t) list

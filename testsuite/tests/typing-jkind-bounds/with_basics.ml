@@ -683,18 +683,8 @@ type t : value mod uncontended
 |}]
 
 type t_test = t require_uncontended
-(* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = t require_uncontended
-|}, Principal{|
-Line 1, characters 14-15:
-1 | type t_test = t require_uncontended
-                  ^
-Error: This type "t" should be an instance of type "('a : value mod uncontended)"
-       The kind of t is value mod uncontended
-         because of the definition of t at line 1, characters 0-39.
-       But the kind of t must be a subkind of value mod uncontended
-         because of the definition of require_uncontended at line 6, characters 0-53.
 |}]
 
 type t_test = t require_portable

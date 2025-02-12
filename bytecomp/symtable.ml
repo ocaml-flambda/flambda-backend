@@ -268,8 +268,8 @@ let patch_object buff patchlist =
 
 (* Translate structured constants *)
 
-(* We cannot use the [float32] type in the compiler. *)
-external float32_is_stage1 : unit -> bool = "caml_float32_is_stage1"
+(* We cannot use [float32] or [or_null] types in the compiler. *)
+external is_boot_compiler : unit -> bool = "caml_is_boot_compiler"
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
 external int_as_pointer : int -> Obj.t = "%int_as_pointer"
@@ -280,8 +280,8 @@ let rec transl_const = function
   | Const_base(Const_string (s, _, _)) -> Obj.repr s
   | Const_base(Const_float32 f)
   | Const_base(Const_unboxed_float32 f) ->
-      if float32_is_stage1 ()
-      then Misc.fatal_error "The stage one bytecode compiler should not produce float32 constants."
+      if is_boot_compiler ()
+      then Misc.fatal_error "The boot bytecode compiler should not produce float32 constants."
       else Obj.repr (float32_of_string f)
   | Const_base(Const_float f)
   | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)
@@ -310,7 +310,10 @@ let rec transl_const = function
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
         fields;
       Obj.repr res
-  | Const_null -> int_as_pointer 0
+  | Const_null ->
+    if is_boot_compiler ()
+    then Misc.fatal_error "The boot bytecode compiler should not produce null constants."
+    else int_as_pointer 0
 
 (* Build the initial table of globals *)
 

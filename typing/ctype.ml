@@ -2224,10 +2224,10 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tconstr (p, args, _) -> begin try
       let type_decl = Env.find_type p env in
       let jkind = type_decl.type_jkind in
-      (* Checking [has_baggage] here is needed for correctness, because
+      (* Checking [has_with_bounds] here is needed for correctness, because
          intersection types sometimes do not unify with themselves. Removing
          this check causes typing-misc/pr7937.ml to fail. *)
-      if Jkind.has_baggage jkind
+      if Jkind.has_with_bounds jkind
       then
         let level = get_level ty in
         (* CR layouts v2.8: We could possibly skip this substitution if we're
@@ -2251,7 +2251,6 @@ let rec estimate_type_jkind ~expand_component env ty =
      else Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
   | Tunivar { jkind } -> Jkind.disallow_right jkind
   | Tpoly (ty, _) ->
-    let type_equal = !type_equal' env in
     let jkind_of_type = !type_jkind_purely_if_principal' env in
     estimate_type_jkind ~expand_component env ty |>
     (* The jkind of [ty] might mention the variables bound in this [Tpoly]
@@ -2261,7 +2260,7 @@ let rec estimate_type_jkind ~expand_component env ty =
        variables bound in this [Tpoly]. *)
     (* CR layouts v2.8: Consider doing better -- but only once we can write
        down a test case that cares. *)
-    Jkind.round_up ~type_equal ~jkind_of_type |>
+    Jkind.round_up ~jkind_of_type |>
     Jkind.disallow_right
   | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
@@ -2491,8 +2490,8 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     let type_equal = !type_equal' env in
     let jkind1 = type_jkind env ty1 in
     let jkind_of_type = type_jkind_purely_if_principal env in
-    let jkind1 = Jkind.round_up ~type_equal ~jkind_of_type jkind1 in
-    let jkind2 = Jkind.round_up ~type_equal ~jkind_of_type jkind2 in
+    let jkind1 = Jkind.round_up ~jkind_of_type jkind1 in
+    let jkind2 = Jkind.round_up ~jkind_of_type jkind2 in
     (* This is strange, in that we're rounding up and then computing an
        intersection. So we might find an intersection where there isn't really
        one. See the comment above this function arguing why this is OK here. *)
@@ -2517,11 +2516,8 @@ let check_and_update_generalized_ty_jkind ?name ~loc env ty =
       (* Just check externality and layout, because that's what actually matters
          for upstream code. We check both for a known value and something that
          might turn out later to be value. This is the conservative choice. *)
-      let type_equal = !type_equal' env in
       let jkind_of_type = type_jkind_purely_if_principal env in
-      let ext =
-        Jkind.get_externality_upper_bound ~type_equal ~jkind_of_type jkind
-      in
+      let ext = Jkind.get_externality_upper_bound ~jkind_of_type jkind in
       Jkind.Externality.le ext External64 &&
       match Jkind.get_layout jkind with
       | Some (Base Value) | None -> true
@@ -4869,10 +4865,9 @@ let relevant_pairs pairs v =
 let mode_cross_left_alloc env ty mode =
   let mode =
     if not (is_principal ty) then mode else
-    let type_equal = !type_equal' env in
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
-    let upper_bounds = Jkind.get_modal_upper_bounds ~type_equal ~jkind_of_type jkind in
+    let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
     Alloc.meet_const upper_bounds mode
   in
   mode |> Alloc.disallow_right
@@ -4881,12 +4876,9 @@ let mode_cross_left_alloc env ty mode =
    are likely bugs there, too. *)
 let mode_cross_right env ty mode =
   if not (is_principal ty) then Alloc.disallow_left mode else
-  let type_equal = !type_equal' env in
   let jkind = type_jkind_purely env ty in
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let upper_bounds =
-    Jkind.get_modal_upper_bounds ~type_equal ~jkind_of_type jkind
-  in
+  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
   Alloc.imply upper_bounds mode
 
 let submode_with_cross env ~is_ret ty l r =
@@ -6837,9 +6829,8 @@ let nondep_type_decl env mid is_covariant decl =
       try Jkind.map_type_expr (nondep_type_rec env mid) decl.type_jkind
       (* CR layouts v2.8: This should be done with a proper nondep_jkind. *)
       with Nondep_cannot_erase _ when is_covariant ->
-        let type_equal = !type_equal' env in
         let jkind_of_type = type_jkind_purely_if_principal env in
-        Jkind.round_up ~type_equal ~jkind_of_type decl.type_jkind |>
+        Jkind.round_up ~jkind_of_type decl.type_jkind |>
         Jkind.disallow_right
     in
     clear_hash ();
@@ -7040,7 +7031,7 @@ let check_decl_jkind env decl jkind =
   let type_equal = type_equal env in
   let jkind_of_type ty = Some (type_jkind_purely env ty) in
   match Jkind.sub_jkind_l ~type_equal ~jkind_of_type decl.type_jkind jkind with
-  | Ok _ -> Ok ()
+  | Ok () -> Ok ()
   | Error _ as err ->
     match decl.type_manifest with
     | None -> err
@@ -7049,7 +7040,7 @@ let check_decl_jkind env decl jkind =
          think not. *)
       let ty_jkind = type_jkind env ty in
       match Jkind.sub_jkind_l ~type_equal ~jkind_of_type ty_jkind jkind with
-      | Ok _ -> Ok ()
+      | Ok () -> Ok ()
       | Error _ as err -> err
 
 let constrain_decl_jkind env decl jkind =

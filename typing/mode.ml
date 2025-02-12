@@ -1832,6 +1832,13 @@ module Value_with (Areality : Areality) = struct
     | Comonadic ax -> Comonadic.Const.lattice_of_axis ax
     | Monadic ax -> Monadic.Const.lattice_of_axis ax
 
+  let all_axes =
+    [ P (Comonadic Areality);
+      P (Monadic Uniqueness);
+      P (Comonadic Linearity);
+      P (Monadic Contention);
+      P (Comonadic Portability) ]
+
   let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
     | Comonadic ax -> Comonadic.proj_obj ax
@@ -2486,10 +2493,7 @@ module Modality = struct
 
     let zap_to_id = zap_to_floor
 
-    let to_const_exn = function
-      | Const c -> c
-      | Undefined | Diff _ ->
-        Misc.fatal_error "Got infered modality but constant modality expected."
+    let to_const_opt = function Const c -> Some c | Undefined | Diff _ -> None
 
     let of_const c = Const c
 
@@ -2638,10 +2642,9 @@ module Modality = struct
         let c = Mode.Const.imply mm m in
         Const.Meet_const c
 
-    let to_const_exn = function
-      | Const c -> c
-      | Undefined | Exactly _ ->
-        Misc.fatal_error "Got inferred modality but expected constant modality."
+    let to_const_opt = function
+      | Const c -> Some c
+      | Undefined | Exactly _ -> None
 
     let of_const c = Const c
   end
@@ -2692,6 +2695,8 @@ module Modality = struct
         let comonadic = Comonadic.concat ~then_:then_.comonadic t.comonadic in
         { monadic; comonadic }
 
+      let of_list = List.fold_left (fun m atom -> compose m ~then_:atom) id
+
       let singleton a = compose ~then_:a id
 
       let to_list { monadic; comonadic } =
@@ -2701,6 +2706,10 @@ module Modality = struct
         match ax with
         | Monadic ax -> Monadic.proj ax monadic
         | Comonadic ax -> Comonadic.proj ax comonadic
+
+      let print ppf { monadic; comonadic } =
+        Format.fprintf ppf "%a;%a" Monadic.print monadic Comonadic.print
+          comonadic
     end
 
     type t = (Monadic.t, Comonadic.t) monadic_comonadic
@@ -2748,11 +2757,13 @@ module Modality = struct
       let monadic = Monadic.zap_to_floor monadic in
       { monadic; comonadic }
 
-    let to_const_exn t =
+    let to_const_opt t =
       let { monadic; comonadic } = t in
-      let comonadic = Comonadic.to_const_exn comonadic in
-      let monadic = Monadic.to_const_exn monadic in
-      { monadic; comonadic }
+      Option.bind (Comonadic.to_const_opt comonadic) (fun comonadic ->
+          Option.bind (Monadic.to_const_opt monadic) (fun monadic ->
+              Some { monadic; comonadic }))
+
+    let to_const_exn t = t |> to_const_opt |> Option.get
 
     let of_const { monadic; comonadic } =
       let comonadic = Comonadic.of_const comonadic in

@@ -190,6 +190,8 @@ let rec scrape_lazy ~aliases env mty =
   | Some mty -> scrape_lazy ~aliases env mty
   | None -> mty
 
+let reduce_alias_lazy env mty = reduce_lazy ~aliases:true env mty
+
 let reduce_lazy env mty = reduce_lazy ~aliases:false env mty
 
 let reduce env mty =

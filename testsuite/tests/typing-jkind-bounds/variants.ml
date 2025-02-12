@@ -144,7 +144,7 @@ type t : immutable_data = Foo | Bar of int ref
 Line 1, characters 0-46:
 1 | type t : immutable_data = Foo | Bar of int ref
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is mutable_data
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -155,7 +155,7 @@ type t : immutable_data = Foo of (unit -> unit)
 Line 1, characters 0-47:
 1 | type t : immutable_data = Foo of (unit -> unit)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -188,7 +188,7 @@ type t : mutable_data = Foo of { x : unit -> unit }
 Line 1, characters 0-51:
 1 | type t : mutable_data = Foo of { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
@@ -248,21 +248,20 @@ type ('a, 'b) t : mutable_data with 'a with 'b = Foo of { x : 'a; y : 'b; mutabl
 type 'a t : value mod uncontended with 'a = Foo of { x : unit -> unit; y : 'a }
 type 'a t : immutable_data with 'a = Foo | Bar of { x : int }
 type 'a t : value mod uncontended with 'a = Foo of int
-type 'a t : value mod immutable_data with 'a = Foo of 'a option
-type 'a t : value mod immutable_data with 'a -> 'a = Foo of { x : 'a -> 'a } | Bar of ('a -> 'a)
-(* CR layouts v2.8: the above will be accepted once we have proper subsumption
-   *)
+type 'a t : immutable_data with 'a = Foo of 'a option
+type 'a t : immutable_data with 'a -> 'a = Foo of { x : 'a -> 'a } | Bar of ('a -> 'a)
 [%%expect {|
 type 'a t = Foo
 type 'a t = Foo of 'a
 type 'a t = Bar of { mutable x : 'a; }
-Line 4, characters 0-48:
-4 | type 'a t : mutable_data with 'a = Foo of 'a ref
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
-         because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of mutable_data
-         because of the annotation on the declaration of the type t.
+type 'a t = Foo of 'a ref
+type ('a, 'b) t = Foo of { x : 'a; y : 'b; z : 'a; }
+type ('a, 'b) t = Foo of { x : 'a; y : 'b; mutable z : 'a; }
+type 'a t = Foo of { x : unit -> unit; y : 'a; }
+type 'a t = Foo | Bar of { x : int; }
+type 'a t = Foo of int
+type 'a t = Foo of 'a option
+type 'a t = Foo of { x : 'a -> 'a; } | Bar of ('a -> 'a)
 |}]
 
 type 'a t : immutable_data with 'a = Foo of { mutable x : 'a }
@@ -281,7 +280,7 @@ type 'a t : immutable_data with 'a = Foo of { x : 'a -> 'a }
 Line 1, characters 0-60:
 1 | type 'a t : immutable_data with 'a = Foo of { x : 'a -> 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -539,22 +538,9 @@ let () =
   cross_portable t;
   cross_uncontended t
 
-(* CR layouts v2.8: Fix this in the principal case, Richard and Liam think. *)
 [%%expect{|
 type t = Foo of int | Bar of string
 val t : t = Foo 10
-|}, Principal{|
-type t = Foo of int | Bar of string
-val t : t = Foo 10
-Line 4, characters 13-14:
-4 |   cross_many t;
-                 ^
-Error: This expression has type "t" but an expression was expected of type
-         "('a : value mod many)"
-       The kind of t is immutable_data
-         because of the definition of t at line 1, characters 0-35.
-       But the kind of t must be a subkind of value mod many
-         because of the definition of cross_many at line 11, characters 49-60.
 |}]
 
 let () = cross_global t
@@ -786,25 +772,8 @@ module M : sig
 end = struct
   type 'a t = Foo of 'a * int
 end
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type 'a t = Foo of 'a * int
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = Foo of 'a * int end
-       is not included in
-         sig type 'a t : immutable_data end
-       Type declarations do not match:
-         type 'a t = Foo of 'a * int
-       is not included in
-         type 'a t : immutable_data
-       The kind of the first is immutable_data
-         because of the definition of t at line 4, characters 2-29.
-       But the kind of the first must be a subkind of immutable_data
-         because of the definition of t at line 2, characters 2-36.
+module M : sig type 'a t : immutable_data end
 |}]
 
 module M : sig
@@ -872,7 +841,7 @@ Error: Signature mismatch:
          type t = Foo of int ref | Bar of string
        is not included in
          type t : immutable_data
-       The kind of the first is immutable_data
+       The kind of the first is mutable_data
          because of the definition of t at line 4, characters 2-41.
        But the kind of the first must be a subkind of immutable_data
          because of the definition of t at line 2, characters 2-25.
@@ -912,4 +881,25 @@ end
 
 [%%expect{|
 module M : sig type 'a t : immutable_data end
+|}]
+
+(* Some recursive types *)
+
+type 'a my_list : immutable_data with 'a = [] | ( :: ) of 'a * 'a my_list
+[%%expect{|
+type 'a my_list = [] | (::) of 'a * 'a my_list
+|}]
+
+type 'a my_list : immutable_data with 'a = [] | ( :: ) of 'a * 'a foo
+and 'a foo = 'a my_list
+[%%expect{|
+type 'a my_list = [] | (::) of 'a * 'a foo
+and 'a foo = 'a my_list
+|}]
+
+type 'a t1 : immutable_data with 'a = Base of 'a | T2 of 'a t2
+and 'a t2 : immutable_data with 'a = Base of 'a | T1 of 'a t1
+[%%expect{|
+type 'a t1 = Base of 'a | T2 of 'a t2
+and 'a t2 = Base of 'a | T1 of 'a t1
 |}]

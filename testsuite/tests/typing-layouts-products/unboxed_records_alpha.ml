@@ -161,3 +161,10 @@ Error: Unboxed record element types must have a representable layout.
        But the layout of t1 must be representable
          because it is the type of record field t1.
 |}]
+
+type ur1 = #{ a : int64#; b : float# }
+and ur4 = #{ a : ur1 }
+[%%expect{|
+type ur1 = #{ a : int64#; b : float#; }
+and ur4 = #{ a : ur1; }
+|}]
