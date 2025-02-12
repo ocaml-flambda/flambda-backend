@@ -576,6 +576,7 @@ let destroyed_at_oper = function
                 (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ); _})
   | Iop(Ispecific( Istore_int _))
   | Iop(Ispecific (Ifloatarithmem (Float64, _, _)))
+  | Iop(Ispecific (Iprefetch _ | Icldemote _))
                 -> destroyed_at_large_memory_op
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
@@ -591,8 +592,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isimd_mem (op,_))) ->
     destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
-                 | Ioffset_loc (_, _)
-                 | Ipause | Icldemote _ | Iprefetch _ | Ibswap _))
+                 | Ioffset_loc (_, _) | Ipause | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
@@ -639,7 +639,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op(Load { memory_chunk =
                 (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ); _})
   | Op(Specific (Istore_int _))
-  | Op(Specific (Ifloatarithmem (Float64, _, _))) ->
+  | Op(Specific (Ifloatarithmem (Float64, _, _)))
+  | Op(Specific (Iprefetch _ | Icldemote _)) ->
     destroyed_at_large_memory_op
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
@@ -670,8 +671,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Begin_region
        | End_region
        | Specific (Ilea _ | Ioffset_loc _ | Ibswap _
-                  | Isextend32 | Izextend32 | Ipause | Icldemote _
-                  | Iprefetch _ | Ilfence | Isfence | Imfence)
+                  | Isextend32 | Izextend32 | Ipause
+                  | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
