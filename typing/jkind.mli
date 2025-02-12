@@ -518,7 +518,7 @@ val get_modal_upper_bounds :
   Mode.Alloc.Comonadic.Const.t
 
 (** Gets the minimum monadic modes for types of this jkind. *)
-val get_modal_upper_bounds :
+val get_modal_lower_bounds :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
   Mode.Alloc.Monadic.Const.t
@@ -527,12 +527,12 @@ val get_modal_upper_bounds :
 val get_externality_upper_bound :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
-  Externality.t
+  Jkind_axis.Externality.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
 val set_externality_upper_bound :
-  Types.jkind_r -> Externality.t -> Types.jkind_r
+  Types.jkind_r -> Jkind_axis.Externality.t -> Types.jkind_r
 
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind

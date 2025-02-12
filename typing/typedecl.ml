@@ -2528,7 +2528,9 @@ let normalize_decl_jkinds env shapes decls =
               in
               let umc =
                 Some { modal_upper_bounds =
-                         Jkind.get_modal_upper_bounds ~jkind_of_type type_jkind }
+                         Jkind.get_modal_upper_bounds ~jkind_of_type type_jkind;
+                       modal_lower_bounds =
+                         Jkind.get_modal_lower_bounds ~jkind_of_type type_jkind }
               in
               let type_kind =
                 match decl.type_kind with

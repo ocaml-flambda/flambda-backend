@@ -945,7 +945,7 @@ let mode_cross_left_value env ty mode =
         { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
     in
     let upper_bounds = Const.alloc_as_value upper_bounds in
-    let lower_bounds = Jkind.get_modal_lower_bounds jkind in
+    let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
     let lower_bounds =
       Alloc.Const.merge
         { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
@@ -966,6 +966,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
   let jkind = type_jkind_purely env ty in
+  let jkind_of_type = type_jkind_purely_if_principal env in
   let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
   let comonadic = Alloc.Comonadic.meet_const upper_bounds comonadic in
   let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
@@ -983,7 +984,7 @@ let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
       { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
   in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds = Jkind.get_modal_lower_bounds jkind in
+  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
   let lower_bounds =
     Alloc.Const.merge
       { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }

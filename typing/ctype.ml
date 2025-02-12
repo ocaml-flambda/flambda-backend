@@ -2525,7 +2525,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc env ty =
          might turn out later to be value. This is the conservative choice. *)
       let jkind_of_type = type_jkind_purely_if_principal env in
       let ext = Jkind.get_externality_upper_bound ~jkind_of_type jkind in
-      Jkind.Externality.le ext External64 &&
+      Jkind_axis.Externality.le ext External64 &&
       match Jkind.get_layout jkind with
       | Some (Base Value) | None -> true
       | _ -> false
@@ -6033,7 +6033,7 @@ let rec build_subtype env (visited : transient_expr list)
             let a = mode_cross_right env t1 a in
             build_submode_pos a
           end else begin
-            let a = mode_cross_left_alloc env t1 a in
+            let a = mode_cross_left_alloc env t1 (Alloc.disallow_right a) in
             build_submode_neg a
           end
         end else a, Unchanged
@@ -6263,7 +6263,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        let a2 = mode_cross_left_alloc env t2 a2 in
+        let a2 = mode_cross_left_alloc env t2 (Alloc.disallow_right a2) in
          subtype_alloc_mode env trace a2 a1;
         (* RHS mode of arrow types indicates allocation in the parent region
            and is not subject to mode crossing *)
