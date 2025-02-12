@@ -1,5 +1,6 @@
 (* TEST
 flags += "-extension comprehensions";
+stack-allocation;
 expect;
 *)
 
@@ -298,4 +299,79 @@ Line 3, characters 2-5:
       ^^^
 Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+(* Testing primitives *)
+external fst : ('a * 'b[@local_opt]) -> ('a[@local_opt]) = "%field0_immut"
+external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+external ref_heap : 'a -> 'a ref = "%makemutable"
+external ref_stack : 'a -> 'a ref @ local = "%makemutable"
+external id : 'a -> 'a = "%identity"
+external c_func : 'a -> 'a = "foo"
+[%%expect{|
+external fst : ('a * 'b [@local_opt]) -> ('a [@local_opt]) = "%field0_immut"
+external ref : 'a -> ('a ref [@local_opt]) = "%makemutable"
+external ref_heap : 'a -> 'a ref = "%makemutable"
+external ref_stack : 'a -> local_ 'a ref = "%makemutable"
+external id : 'a -> 'a = "%identity"
+external c_func : 'a -> 'a = "foo"
+|}]
+
+let foo () =
+  let _ = stack_ (fst (42, 24)) in
+  ()
+[%%expect{|
+Line 2, characters 17-31:
+2 |   let _ = stack_ (fst (42, 24)) in
+                     ^^^^^^^^^^^^^^
+Error: This cannot be marked as stack_,
+       because this primitive does not allocate.
+|}]
+
+let foo () =
+  let _ = stack_ (c_func 52) in
+  ()
+[%%expect{|
+Line 2, characters 17-28:
+2 |   let _ = stack_ (c_func 52) in
+                     ^^^^^^^^^^^
+Error: This cannot be marked as stack_, because it is either not a primitive,
+       or the primitive does not allocate.
+|}]
+
+let foo () =
+  let _ = stack_ (ref_heap 52) in
+  ()
+[%%expect{|
+Line 2, characters 17-30:
+2 |   let _ = stack_ (ref_heap 52) in
+                     ^^^^^^^^^^^^^
+Error: This primitive always allocates on heap
+       (was it declared with "[@local_opt]" or "local_"?)
+|}]
+
+let foo () =
+  let _ = stack_ (ref_stack 52) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let foo () =
+  let _ = stack_ (ref 52) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+(* %identity, while appearing to be a primitive, doesn't translate to lambda primitive. *)
+let foo () =
+  let _ = stack_ (id 42) in
+  ()
+[%%expect{|
+Line 2, characters 17-24:
+2 |   let _ = stack_ (id 42) in
+                     ^^^^^^^
+Error: This cannot be marked as stack_, because it is either not a primitive,
+       or the primitive does not allocate.
 |}]

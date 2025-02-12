@@ -25,6 +25,11 @@ open Translmode
 
 module String = Misc.Stdlib.String
 
+type invalid_stack_primitive =
+  | Not_primitive
+  | Not_allocating
+  | Allocating_on_heap
+
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
@@ -32,6 +37,7 @@ type error =
   | Invalid_floatarray_glb
   | Product_iarrays_unsupported
   | Invalid_array_kind_for_uninitialized_makearray_dynamic
+  | Invalid_stack_primitive of invalid_stack_primitive
 
 exception Error of Location.t * error
 
@@ -1970,12 +1976,35 @@ let primitive_needs_event_after = function
   | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity
   | Peek _ | Poke _ | Unsupported _ -> false
 
-let transl_primitive_application loc p env ty ~poly_mode ~poly_sort
+let transl_primitive_application loc p env ty ~poly_mode ~stack ~poly_sort
     path exp args arg_exps pos =
   let prim =
     lookup_primitive_and_mark_used
       (to_location loc) ~poly_mode ~poly_sort pos p env (Some path)
   in
+  if stack then begin
+    match prim with
+    | Primitive (prim, _) ->
+        begin match Lambda.primitive_may_allocate prim with
+        (*
+        Assumption: If a primitive allocates, the allocation mode is the return mode.
+
+        Here we are only checking (not enforcing) stack allocation, because:
+
+        - If the primitive has [@local_opt] as its return mode, then the mode is
+        registered as allocation in [Typecore.type_ident], and pushed towards local before
+        lambda stage.
+
+        - If the primitive does not have [@local_opt] as its return mode, then its return
+        mode is constant, and therefore its allocation mode, if any, is already constant.
+          *)
+        | Some Alloc_local -> ()
+        | Some Alloc_heap ->
+            raise (Error (to_location loc, Invalid_stack_primitive Allocating_on_heap))
+        | None -> raise (Error (to_location loc, Invalid_stack_primitive Not_allocating))
+        end
+    | _ -> raise (Error (to_location loc, Invalid_stack_primitive Not_primitive))
+  end;
   let has_constant_constructor =
     match arg_exps with
     | [_; {exp_desc = Texp_construct(_, {cstr_constant}, _, _)}]
@@ -2026,6 +2055,20 @@ let report_error ppf = function
         "%%makearray_dynamic_uninit can only be used for GC-ignorable arrays@ \
          not involving tagged immediates; and arrays of unboxed numbers.@ Use \
          %%makearray instead, providing an initializer."
+  | Invalid_stack_primitive Not_allocating ->
+      fprintf ppf
+        "This cannot be marked as stack_,@ \
+        because this primitive does not allocate."
+  | Invalid_stack_primitive Not_primitive ->
+      fprintf ppf
+        "This cannot be marked as stack_,@ \
+        because it is either not a primitive,@ \
+        or the primitive does not allocate."
+  | Invalid_stack_primitive Allocating_on_heap ->
+      fprintf ppf
+        "This primitive always allocates on heap@ \
+        (was it declared with %a or %a?)"
+        Style.inline_code "[@local_opt]" Style.inline_code "local_"
 
 let () =
   Location.register_error_of_exn

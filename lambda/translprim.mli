@@ -43,7 +43,7 @@ val transl_primitive :
 val transl_primitive_application :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
   Types.type_expr ->
-  poly_mode:Mode.Locality.l option ->
+  poly_mode:Mode.Locality.l option -> stack:bool ->
   poly_sort:Jkind.Sort.t option -> Path.t ->
   Typedtree.expression option ->
   Lambda.lambda list -> Typedtree.expression list ->
@@ -59,6 +59,11 @@ val sort_of_native_repr :
 
 (* Errors *)
 
+type invalid_stack_primitive =
+  | Not_primitive
+  | Not_allocating
+  | Allocating_on_heap
+
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
@@ -66,6 +71,7 @@ type error =
   | Invalid_floatarray_glb
   | Product_iarrays_unsupported
   | Invalid_array_kind_for_uninitialized_makearray_dynamic
+  | Invalid_stack_primitive of invalid_stack_primitive
 
 exception Error of Location.t * error
 
