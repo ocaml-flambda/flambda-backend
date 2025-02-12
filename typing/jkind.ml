@@ -476,8 +476,8 @@ module Mod_bounds = struct
 
   let for_arrow =
     simple ~linearity:Linearity.Const.max ~locality:Locality.Const.max
-      ~uniqueness:Uniqueness.Const.min ~portability:Portability.Const.max
-      ~contention:Contention.Const.min ~yielding:Yielding.Const.max
+      ~uniqueness:Uniqueness.Const_op.min ~portability:Portability.Const.max
+      ~contention:Contention.Const_op.min ~yielding:Yielding.Const.max
       ~externality:Externality.max ~nullability:Nullability.Non_null
 end
 

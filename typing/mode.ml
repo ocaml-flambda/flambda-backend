@@ -1818,8 +1818,8 @@ module Monadic = struct
     let lattice_of_axis (type a) (axis : (t, a) Axis.t) :
         (module Lattice with type t = a) =
       match axis with
-      | Uniqueness -> (module Uniqueness.Const)
-      | Contention -> (module Contention.Const)
+      | Uniqueness -> (module Uniqueness.Const_op)
+      | Contention -> (module Contention.Const_op)
   end
 
   module Const_op = C.Monadic_op

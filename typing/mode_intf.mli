@@ -364,6 +364,8 @@ module type S = sig
 
     val print_axis : Format.formatter -> ('m, 'a, 'd) axis -> unit
 
+    (** Gets the normal lattice for comonadic axes and the "op"ped lattice for
+        monadic ones. *)
     val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
 
     val all_axes : ('l * 'r) axis_packed list
