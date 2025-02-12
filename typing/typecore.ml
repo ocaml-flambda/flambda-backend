@@ -6810,6 +6810,12 @@ and type_expect_
       | Texp_lazy _ -> unsupported Lazy
       | Texp_object _ -> unsupported Object
       | Texp_pack _ -> unsupported Module
+      | Texp_apply({ exp_desc = Texp_ident(_, _, {val_kind = Val_prim _}, _, _)},
+          _, _, _, _)
+          (* [stack_ (prim foo)] will be checked by [transl_primitive_application]. *)
+          (* CR zqian: Move/Copy [Lambda.primitive_may_allocate] to [typing], then we can
+          check primitive allocation here, and also improve the logic in [type_ident]. *)
+          -> ()
       | _ ->
         raise (Error (exp.exp_loc, env, Not_allocation))
       end;

@@ -723,10 +723,11 @@ Error: Mode annotations on modules are not supported yet.
 let f x = stack_ (ref x)
 
 [%%expect{|
-Line 1, characters 17-24:
+Line 1, characters 10-24:
 1 | let f x = stack_ (ref x)
-                     ^^^^^^^
-Error: This expression is not an allocation site.
+              ^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 type t = { a : int }

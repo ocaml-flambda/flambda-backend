@@ -450,6 +450,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | None -> Zero_alloc_utils.Assume_info.none
         | Some assume -> Builtin_attributes.assume_zero_alloc ~inferred:false assume
       in
+      let stack =
+        List.exists (function (Texp_stack, _, _) -> true | _ -> false) e.exp_extra
+      in
       let lam =
         let loc =
           map_scopes (update_assume_zero_alloc ~assume_zero_alloc)
@@ -457,7 +460,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         in
         Translprim.transl_primitive_application
           loc p e.exp_env prim_type
-          ~poly_mode:pmode ~poly_sort:psort
+          ~poly_mode:pmode ~poly_sort:psort ~stack
           path prim_exp args (List.map fst arg_exps) position
       in
       if extra_args = [] then lam
