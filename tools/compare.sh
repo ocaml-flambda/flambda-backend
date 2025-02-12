@@ -1,34 +1,87 @@
 #!/usr/bin/env bash
 
-libnames=(${LIBNAMES-})
+# Use this script to compare the output of an existing compiler
+# with one installed to _install
+#
+# E.g.,
+# make boot-install
+# export OLD='opam exec --switch=MY_OLD_SWITCH ocamlopt.opt --'
+# tools/compare.sh testsuite/tests/lib-int/test.ml -c -dcmm -dump-into-file
+# diff {old,new}.cmx.dump
 
-function construct_command {
-    local bin="$1"
-    shift
-    printf "%q" "${bin}"
-    standard_library="${STDLIB:-$("${bin}" -config-var standard_library)}" || return 1
-    for libname in "${libnames[@]}"; do
-        printf ' -I %q' "${standard_library}/${libname}"
-        printf ' %q' "${standard_library}/${libname}/${libname}.cmxa"
-    done
-    for arg in "$@"; do
-        printf ' %q' "${arg}"
-    done
-    echo
-}
+# Set these to add paths under the stdlib to the compiler arguments
+read -a LIB <<<"${LIB-}"
+read -a INCLUDE <<<"${INCLUDE-}"
 
 bin=ocamlopt.opt
-dev="$(realpath -- "${DEV-_install/bin/${bin}}")" || exit 1
-prod="${PROD-$(which "${bin}")}" || exit 1
-prod="$(STDLIB="${PROD_STDLIB}" construct_command "${prod}" "$@" ${PROD_FLAGS- -o prod})" || exit 1
-dev="$(STDLIB="${DEV_STDLIB}" construct_command "${dev}" "$@" ${DEV_FLAGS- -o dev})" || exit 1
+
+# override OLD or NEW to set what is executed as the compiler
+if [[ -z ${OLD+x} ]]; then
+    OLD="$(type -P "${bin}")" || exit 1
+    printf -v OLD '%q' "${OLD}"
+fi
+
+if [[ -z ${NEW+x} ]]; then
+    NEW="$(realpath -- "_install/bin/${bin}")" || exit 1
+    printf -v NEW '%q' "${NEW}"
+fi
+
+print_quoted_command () {
+    printf '%q' "$1"
+    shift
+
+    while [[ $# -gt 0 ]]; do
+        printf ' %q' "$1"
+        shift
+    done
+}
+
+# Usage:
+# construct_command "OCAML BINARY" [ARGS...]
+construct_command() {
+    local cmd
+
+    # Set the binary as the first part of the command
+    read -a cmd <<<"$1"
+    shift
+
+    if [[ ${#cmd[@]} -eq 0 ]]; then
+        echo 'no compiler specified' >&2
+        return 1
+    fi
+
+    local stdlib="$2"
+    shift
+
+    if [[ ${#LIB[@]} -gt 0 || ${#INCLUDE[@]} -gt 0 ]]; then
+        if [[ -z ${stdlib+x} ]]; then
+            stdlib="$("${cmd[@]}" -config-var standard_library)" || return 1
+        fi
+
+        local include
+        for include in "${INCLUDE[@]}"; do
+            cmd+=( "${stdlib}/${lib}/${lib}.cmxa" )
+        done
+
+        local lib
+        for lib in "${LIB[@]}"; do
+            cmd+=( '-I' "${stdlib}/${lib}/${lib}.cmxa" )
+        done
+    fi
+
+    cmd+=( "$@" )
+    print_quoted_command "${cmd[@]}"
+}
+
+old="$(construct_command "${OLD}" "${OLD_STDLIB-}" -o old "${@}")" || exit 1
+new="$(construct_command "${NEW}" "${NEW_STDLIB-}" -o new "${@}")" || exit 1
 
 exit_code=0
 
-printf '%s\n' "${prod}" >&2
-eval "${prod}" || exit_code=1
+printf '%s\n' "${old}" >&2
+eval "${old}" || exit_code=1
 
-printf '%s\n' "${dev}" >&2
-eval "${dev}" || exit_code=1
+printf '%s\n' "${new}" >&2
+eval "${new}" || exit_code=1
 
-exit ${exit_code}
+exit "${exit_code}"
