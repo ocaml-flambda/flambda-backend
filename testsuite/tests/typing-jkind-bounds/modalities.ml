@@ -101,6 +101,9 @@ Error: This expression has type "string t"
        But the kind of string t must be a subkind of
          value mod global & value mod global
          because of the definition of cross_global at line 2, characters 4-16.
+
+       The first mode-crosses less than the second along:
+         nullability: mod non_null with string ≰ mod non_null
 |}]
 
 let foo (t : string t @@ nonportable) = use_portable t
@@ -129,4 +132,7 @@ Error: This expression has type "(string -> string) t"
        But the kind of (string -> string) t must be a subkind of
          value & value
          because of the definition of use_portable at line 3, characters 4-16.
+
+       The first mode-crosses less than the second along:
+         nullability: mod non_null with string -> string ≰ mod non_null
 |}]
