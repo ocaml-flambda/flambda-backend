@@ -1362,14 +1362,14 @@ let emit_simd_instr op i =
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
 
 module Address_sanitizer : sig
-  type memory_access = Load | Store
+  type memory_access = Load | Store_initialize | Store_modify
 
   (** Implements [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping]. *)
   val emit_sanitize : ?dependencies:arg array -> address:arg -> memory_chunk -> memory_access -> unit
 
   val command_line_options : (string * Arg.spec * string) list
 end = struct
-  type memory_access = Load | Store
+  type memory_access = Load | Store_initialize | Store_modify
 
   module Memory_chunk_size = struct
     type t =
@@ -1416,7 +1416,7 @@ end = struct
   let asan_report_function memory_chunk_size memory_access =
     let index =
       (Memory_chunk_size.to_bytes_log2 memory_chunk_size lsl 1)
-      + match memory_access with Load -> 0 | Store -> 1
+      + match memory_access with Load -> 0 | (Store_initialize | Store_modify) -> 1
     in
     (* We take extra care to structure our code such that these are statically
        allocated as manifest constants in a flat array. *)
@@ -1542,7 +1542,14 @@ end = struct
        optimize-out the AddressSanitizer code when the compiler was configured
        without it. *)
     if Config.with_address_sanitizer && !is_asan_enabled
-    then emit_sanitize ?dependencies ~address memory_chunk memory_access
+    then (
+      match memory_access with
+      (* We can elide the ASAN check for stores made to initialize record fields on the grounds
+         that the backing memory for freshly allocated records is provided directly by the runtime
+         and guaranteed to be safe to use. *)
+      | Store_initialize -> ()
+      | Load | Store_modify -> emit_sanitize ?dependencies ~address memory_chunk memory_access
+    )
   ;;
 end
 
@@ -1701,11 +1708,14 @@ let emit_instr ~first ~fallthrough i =
       | Single { reg = Float32 } -> load ~dest:(res i 0) REAL4 I.movss
       | Double -> load ~dest:(res i 0) REAL8 I.movsd
       end
-  | Lop(Store(chunk, addr, _)) ->
+  | Lop(Store(chunk, addr, is_modify)) ->
+      let memory_access : Address_sanitizer.memory_access =
+        if is_modify then Store_modify else Store_initialize
+      in
       let[@inline always] store data_type arg_func instruction =
         let address = (addressing addr data_type i 1) in
         let src = (arg_func i 0) in
-        Address_sanitizer.emit_sanitize ~dependencies:[|src|] ~address chunk Store;
+        Address_sanitizer.emit_sanitize ~dependencies:[|src|] ~address chunk memory_access;
         instruction src address
       in
       begin match chunk with
@@ -1719,11 +1729,19 @@ let emit_instr ~first ~fallthrough i =
           let src = (arg i 0) in
           I.cvtsd2ss src xmm15;
           let address = (addressing addr REAL4 i 1) in
-          Address_sanitizer.emit_sanitize ~dependencies:[|src; xmm15|] ~address chunk Store;
+          Address_sanitizer.emit_sanitize ~dependencies:[|src; xmm15|] ~address chunk memory_access;
           I.movss xmm15 address
       | Single { reg = Float32 } -> store REAL4 arg I.movss
       | Double -> store REAL8 arg I.movsd
       end
+  | Lop(Specific(Istore_int(n, addr, is_modify))) ->
+      let address = (addressing addr QWORD i 0) in
+      let src = nat n in
+      let memory_access : Address_sanitizer.memory_access =
+        if is_modify then Store_modify else Store_initialize
+      in
+      Address_sanitizer.emit_sanitize ~dependencies:[|src|] ~address Word_int memory_access;
+      I.mov src address
   | Lop(Alloc { bytes = n; dbginfo; mode = Heap }) ->
       assert (n <= (Config.max_young_wosize + 1) * Arch.size_addr);
       if !fastcode_flag then begin
@@ -1850,16 +1868,6 @@ let emit_instr ~first ~fallthrough i =
       assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Specific(Ilea addr)) ->
       I.lea (addressing addr NONE i 0) (res i 0)
-  | Lop(Specific(Istore_int(n, addr, is_modify))) ->
-      let address = (addressing addr QWORD i 0) in
-      let src = nat n in
-      (* We can elide the ASAN check for stores made to initialize record fields on the grounds
-         that the backing memory for freshly allocated records is provided directly by the runtime
-         and guaranteed to be safe to use. *)
-      if is_modify then (
-        Address_sanitizer.emit_sanitize ~dependencies:[|src|] ~address Word_int Store;
-      );
-      I.mov src address
   | Lop(Specific(Ioffset_loc(n, addr))) ->
       I.add (int n) (addressing addr QWORD i 0)
   | Lop(Specific(Ifloatarithmem(Float64, op, addr))) ->
@@ -1968,7 +1976,7 @@ let emit_instr ~first ~fallthrough i =
     emit_simd_instr op i
   | Lop (Specific (Isimd_mem (op, addressing_mode))) ->
     let address = addressing addressing_mode VEC128 i 1 in
-    Address_sanitizer.emit_sanitize ~dependencies:[| res i 0 |] ~address Onetwentyeight_unaligned Store;
+    Address_sanitizer.emit_sanitize ~dependencies:[| res i 0 |] ~address Onetwentyeight_unaligned Store_modify;
     emit_simd_instr_with_memory_arg op i address
   | Lop (Static_cast cast) ->
     emit_static_cast cast i
@@ -1980,12 +1988,12 @@ let emit_instr ~first ~fallthrough i =
     let address = (addressing addr QWORD i 0) in
     (* This isn't really a [Load] or a [Store], but it is
        closer to [Store] semantically. *)
-    Address_sanitizer.emit_sanitize ~address Word_val Store;
+    Address_sanitizer.emit_sanitize ~address Word_val Store_modify;
     I.cldemote address
   | Lop (Specific (Iprefetch { is_write; locality; addr; })) ->
     let address = (addressing addr QWORD i 0) in
     let memory_access : Address_sanitizer.memory_access =
-      if is_write then Store else Load
+      if is_write then Store_modify else Load
     in
     (* While it is *technically* legal to issue a prefetch to an invalid
        address, it comes with a performance penalty. Quoting from the Intel
