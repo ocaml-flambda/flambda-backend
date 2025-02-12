@@ -1682,25 +1682,24 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Stackoffset n) ->
       emit_stack_offset n
   | Lop(Load { memory_chunk; addressing_mode; _ }) ->
-      let dest = res i 0 in
-      let[@inline always] load ?(dest=dest) data_type instruction =
+      let[@inline always] load ~dest data_type instruction =
         let address = (addressing addressing_mode data_type i 0) in
         Address_sanitizer.emit_sanitize ~address memory_chunk Load;
         instruction address dest
       in
       begin match memory_chunk with
-      | Word_int | Word_val -> load QWORD I.mov
-      | Byte_unsigned -> load BYTE I.movzx
-      | Byte_signed -> load BYTE I.movsx
-      | Sixteen_unsigned -> load WORD I.movzx
-      | Sixteen_signed -> load WORD I.movsx
+      | Word_int | Word_val -> load ~dest:(res i 0) QWORD I.mov
+      | Byte_unsigned -> load ~dest:(res i 0) BYTE I.movzx
+      | Byte_signed -> load ~dest:(res i 0) BYTE I.movsx
+      | Sixteen_unsigned -> load ~dest:(res i 0) WORD I.movzx
+      | Sixteen_signed -> load ~dest:(res i 0) WORD I.movsx
       | Thirtytwo_unsigned -> load ~dest:(res32 i 0) DWORD I.mov
-      | Thirtytwo_signed -> load DWORD I.movsxd
-      | Onetwentyeight_unaligned -> load VEC128 I.movupd
-      | Onetwentyeight_aligned -> load VEC128 I.movapd
-      | Single { reg = Float64 } -> load REAL4 I.cvtss2sd
-      | Single { reg = Float32 } -> load REAL4 I.movss
-      | Double -> load REAL8 I.movsd
+      | Thirtytwo_signed -> load ~dest:(res i 0) DWORD I.movsxd
+      | Onetwentyeight_unaligned -> load ~dest:(res i 0) VEC128 I.movupd
+      | Onetwentyeight_aligned -> load ~dest:(res i 0) VEC128 I.movapd
+      | Single { reg = Float64 } -> load ~dest:(res i 0) REAL4 I.cvtss2sd
+      | Single { reg = Float32 } -> load ~dest:(res i 0) REAL4 I.movss
+      | Double -> load ~dest:(res i 0) REAL8 I.movsd
       end
   | Lop(Store(chunk, addr, _)) ->
       let[@inline always] store data_type arg_func instruction =
