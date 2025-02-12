@@ -347,7 +347,7 @@ Line 2, characters 17-30:
 2 |   let _ = stack_ (ref_heap 52) in
                      ^^^^^^^^^^^^^
 Error: This primitive always allocates on heap
-       (was it declared with "[@local_opt]" or "local_"?)
+       (maybe it should be declared with "[@local_opt]" or "local_"?)
 |}]
 
 let foo () =

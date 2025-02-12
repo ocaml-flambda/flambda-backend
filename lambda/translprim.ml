@@ -2067,7 +2067,7 @@ let report_error ppf = function
   | Invalid_stack_primitive Allocating_on_heap ->
       fprintf ppf
         "This primitive always allocates on heap@ \
-        (was it declared with %a or %a?)"
+        (maybe it should be declared with %a or %a?)"
         Style.inline_code "[@local_opt]" Style.inline_code "local_"
 
 let () =
