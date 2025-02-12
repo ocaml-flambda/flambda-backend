@@ -354,7 +354,8 @@ module Lattices = struct
 
   type monadic =
     { uniqueness : Uniqueness.t;
-      contention : Contention.t }
+      contention : Contention.t
+    }
 
   module Monadic = struct
     type t = monadic
@@ -375,10 +376,8 @@ module Lattices = struct
       { uniqueness; contention }
 
     let le m1 m2 =
-      let { uniqueness = uniqueness1;
-            contention = contention1 } = m1 in
-      let { uniqueness = uniqueness2;
-            contention = contention2 } = m2 in
+      let { uniqueness = uniqueness1; contention = contention1 } = m1 in
+      let { uniqueness = uniqueness2; contention = contention2 } = m2 in
       Uniqueness.le uniqueness1 uniqueness2
       && Contention.le contention1 contention2
 
@@ -403,16 +402,16 @@ module Lattices = struct
       { uniqueness; contention }
 
     let print ppf m =
-      Format.fprintf ppf "%a,%a"
-        Uniqueness.print m.uniqueness
-        Contention.print m.contention
+      Format.fprintf ppf "%a,%a" Uniqueness.print m.uniqueness Contention.print
+        m.contention
   end
 
   type 'areality comonadic_with =
-  { areality : 'areality;
-    linearity : Linearity.t;
-    portability :  Portability.t;
-    yielding : Yielding.t; }
+    { areality : 'areality;
+      linearity : Linearity.t;
+      portability : Portability.t;
+      yielding : Yielding.t
+    }
 
   module Comonadic_with (Areality : Areality) = struct
     type t = Areality.t comonadic_with
@@ -442,11 +441,17 @@ module Lattices = struct
       let { areality = areality1;
             linearity = linearity1;
             portability = portability1;
-            yielding = yielding1 } = m1 in
+            yielding = yielding1
+          } =
+        m1
+      in
       let { areality = areality2;
             linearity = linearity2;
             portability = portability2;
-            yielding = yielding2 } = m2 in     
+            yielding = yielding2
+          } =
+        m2
+      in
       Areality.le areality1 areality2
       && Linearity.le linearity1 linearity2
       && Portability.le portability1 portability2
@@ -481,11 +486,8 @@ module Lattices = struct
       { areality; linearity; portability; yielding }
 
     let print ppf m =
-      Format.fprintf ppf "%a,%a,%a,%a"
-        Areality.print m.areality
-        Linearity.print m.linearity
-        Portability.print m.portability
-        Yielding.print m.yielding
+      Format.fprintf ppf "%a,%a,%a,%a" Areality.print m.areality Linearity.print
+        m.linearity Portability.print m.portability Yielding.print m.yielding
   end
   [@@inline]
 
@@ -1049,35 +1051,35 @@ module Lattices_mono = struct
   let monadic_to_comonadic_min :
       type a. a comonadic_with obj -> Monadic_op.t -> a comonadic_with =
    fun obj m ->
-     let areality : a =
-       match obj with
-       | Comonadic_with_locality -> Locality.min
-       | Comonadic_with_regionality -> Regionality.min
-     in
-     let linearity = unique_to_linear m.uniqueness in
-     let portability = contended_to_portable m.contention in
-     let yielding = Yielding.min in
-     { areality; linearity; portability; yielding }
+    let areality : a =
+      match obj with
+      | Comonadic_with_locality -> Locality.min
+      | Comonadic_with_regionality -> Regionality.min
+    in
+    let linearity = unique_to_linear m.uniqueness in
+    let portability = contended_to_portable m.contention in
+    let yielding = Yielding.min in
+    { areality; linearity; portability; yielding }
 
   let comonadic_to_monadic :
       type a. a comonadic_with obj -> a comonadic_with -> Monadic_op.t =
-   fun _ m  ->
-     let uniqueness = linear_to_unique m.linearity in
-     let contention = portable_to_contended m.portability in
-     { uniqueness; contention }
+   fun _ m ->
+    let uniqueness = linear_to_unique m.linearity in
+    let contention = portable_to_contended m.portability in
+    { uniqueness; contention }
 
   let monadic_to_comonadic_max :
       type a. a comonadic_with obj -> Monadic_op.t -> a comonadic_with =
    fun obj m ->
-     let areality : a =
-       match obj with
-       | Comonadic_with_locality -> Locality.max
-       | Comonadic_with_regionality -> Regionality.max
-     in
-     let linearity = unique_to_linear m.uniqueness in
-     let portability = contended_to_portable m.contention in
-     let yielding = Yielding.max in
-     { areality; linearity; portability; yielding }
+    let areality : a =
+      match obj with
+      | Comonadic_with_locality -> Locality.max
+      | Comonadic_with_regionality -> Regionality.max
+    in
+    let linearity = unique_to_linear m.uniqueness in
+    let portability = contended_to_portable m.contention in
+    let yielding = Yielding.max in
+    { areality; linearity; portability; yielding }
 
   let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
    fun dst f a ->
@@ -1340,13 +1342,15 @@ module S = Solvers_polarized (C)
 
 type monadic = C.monadic =
   { uniqueness : C.Uniqueness.t;
-    contention : C.Contention.t; }
+    contention : C.Contention.t
+  }
 
 type 'a comonadic_with = 'a C.comonadic_with =
   { areality : 'a;
     linearity : C.Linearity.t;
     portability : C.Portability.t;
-    yielding : C.Yielding.t; }
+    yielding : C.Yielding.t
+  }
 
 module Axis = C.Axis
 
@@ -1579,7 +1583,6 @@ end
 
 module Uniqueness = struct
   module Const = C.Uniqueness
-
   module Const_op = C.Uniqueness_op
 
   module Obj = struct
@@ -1604,7 +1607,6 @@ end
 
 module Contention = struct
   module Const = C.Contention
-
   module Const_op = C.Contention_op
 
   module Obj = struct
@@ -1730,7 +1732,8 @@ module Comonadic_with (Areality : Areality) = struct
     let yielding = proj Yielding m |> Yielding.zap_to_legacy in
     { areality; linearity; portability; yielding }
 
-  let imply c m = Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_left m)
+  let imply c m =
+    Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_left m)
 
   let subtract c m =
     Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_right m)
@@ -1738,15 +1741,20 @@ module Comonadic_with (Areality : Areality) = struct
   let legacy = of_const Const.legacy
 
   let axis_of_error (err : Obj.const Solver.error) : error =
-    let
-      { left = { areality = areality1;
-                 linearity = linearity1;
-                 portability = portability1;
-                 yielding = yielding1; };
-        right = { areality = areality2;
-                 linearity = linearity2;
-                 portability = portability2;
-                 yielding = yielding2; } } = err
+    let { left =
+            { areality = areality1;
+              linearity = linearity1;
+              portability = portability1;
+              yielding = yielding1
+            };
+          right =
+            { areality = areality2;
+              linearity = linearity2;
+              portability = portability2;
+              yielding = yielding2
+            }
+        } =
+      err
     in
     if Areality.Const.le areality1 areality2
     then
@@ -1756,12 +1764,19 @@ module Comonadic_with (Areality : Areality) = struct
         then
           if Yielding.Const.le yielding1 yielding2
           then assert false
-          else Error (Yielding,
-                      { left = err.left.yielding; right = err.right.yielding })
-        else Error (Portability,
-                    { left = err.left.portability; right = err.right.portability })
-      else Error (Linearity, { left = err.left.linearity; right = err.right.linearity })
-    else Error (Areality, { left = err.left.areality; right = err.right.areality })
+          else
+            Error
+              ( Yielding,
+                { left = err.left.yielding; right = err.right.yielding } )
+        else
+          Error
+            ( Portability,
+              { left = err.left.portability; right = err.right.portability } )
+      else
+        Error
+          (Linearity, { left = err.left.linearity; right = err.right.linearity })
+    else
+      Error (Areality, { left = err.left.areality; right = err.right.areality })
 
   (* overriding to report the offending axis *)
   let submode_log m0 m1 ~log : _ result =
@@ -1844,9 +1859,11 @@ module Monadic = struct
 
   let meet_with ax c m = meet_const (C.min_with Obj.obj ax c) m
 
-  let imply c m = Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_left m)
+  let imply c m =
+    Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_left m)
 
-  let subtract c m = Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_right m)
+  let subtract c m =
+    Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_right m)
 
   let zap_to_legacy m : Const.t =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
@@ -1856,18 +1873,23 @@ module Monadic = struct
   let legacy = of_const Const.legacy
 
   let axis_of_error (err : Obj.const Solver.error) : error =
-    let
-      { left = { uniqueness = uniqueness1;
-                 contention = contention1; };
-        right = { uniqueness = uniqueness2;
-                 contention = contention2; } } = err
+    let { left = { uniqueness = uniqueness1; contention = contention1 };
+          right = { uniqueness = uniqueness2; contention = contention2 }
+        } =
+      err
     in
     if Uniqueness.Const.le uniqueness1 uniqueness2
     then
       if Contention.Const.le contention1 contention2
       then assert false
-      else Error (Contention, { left = err.left.contention; right = err.right.contention })
-    else Error (Uniqueness, { left = err.left.uniqueness; right = err.right.uniqueness })
+      else
+        Error
+          ( Contention,
+            { left = err.left.contention; right = err.right.contention } )
+    else
+      Error
+        ( Uniqueness,
+          { left = err.left.uniqueness; right = err.right.uniqueness } )
 
   (* overriding to report the offending axis *)
   let submode_log m0 m1 ~log : _ result =
@@ -1948,10 +1970,10 @@ module Value_with (Areality : Areality) = struct
     { comonadic; monadic }
 
   let merge { comonadic; monadic } =
-    let { areality; linearity; portability; yielding } : Comonadic.Const.t =
+    let ({ areality; linearity; portability; yielding } : Comonadic.Const.t) =
       comonadic
     in
-    let { uniqueness; contention } : Monadic.Const.t = monadic in
+    let ({ uniqueness; contention } : Monadic.Const.t) = monadic in
     { areality; linearity; portability; yielding; uniqueness; contention }
 
   let print ?verbose () ppf { monadic; comonadic } =

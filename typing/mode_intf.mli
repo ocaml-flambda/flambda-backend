@@ -288,12 +288,14 @@ module type S = sig
   type 'a comonadic_with =
     { areality : 'a;
       linearity : Linearity.Const.t;
-      portability :  Portability.Const.t;
-      yielding :  Yielding.Const.t; }
+      portability : Portability.Const.t;
+      yielding : Yielding.Const.t
+    }
 
   type monadic =
     { uniqueness : Uniqueness.Const.t;
-      contention : Contention.Const.t }
+      contention : Contention.Const.t
+    }
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
