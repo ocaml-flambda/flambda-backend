@@ -1151,12 +1151,11 @@ let runtime_parameter_bindings () =
 
 let parameters () = Persistent_env.parameters !persistent_env
 
-let read_pers_mod modname cmi ~add_binding =
-  Persistent_env.read !persistent_env read_sign_of_cmi modname cmi
-    ~add_binding
+let read_pers_mod modname cmi =
+  Persistent_env.read !persistent_env modname cmi
 
-let find_pers_mod name =
-  Persistent_env.find !persistent_env read_sign_of_cmi name
+let find_pers_mod name ~allow_excess_args =
+  Persistent_env.find !persistent_env read_sign_of_cmi name ~allow_excess_args
 
 let check_pers_mod ~loc name =
   Persistent_env.check !persistent_env read_sign_of_cmi ~loc name
@@ -1255,7 +1254,24 @@ let find_ident_module id env =
   | Mod_unbound _ -> raise Not_found
   | Mod_persistent ->
       match Ident.to_global id with
-      | Some global_name -> find_pers_mod ~allow_hidden:true global_name
+      | Some global_name ->
+          let allow_excess_args =
+            (* This may be a global that arose by substituting instance
+               arguments into an overapproximated instance name, so we have to
+               allow it to have more arguments than expected. For example, if
+               [foo.ml] is compiled with [-parameter P] and says
+               [module Alias = M], we assume that [m.ml] was (or will be)
+               compiled with [-parameter P] as well, sa [foo.cmi] will record
+               [M{P}] as an approximate elaboration of [M]. Then if [bar.ml]
+               refers to [Foo[P:Int]], we substitute in [Foo]'s signature and
+               get [module Alias = M[P:Int]] whether or not [M] takes [P].) *)
+            (* CR-someday lmaurer: This does mean that the original alias may
+               have had too many arguments and we'll never have checked them.
+               One solution would be to remember somewhere what the user
+               actually typed in addition to the approximation. *)
+            true
+          in
+          find_pers_mod ~allow_hidden:true ~allow_excess_args global_name
       | None -> Misc.fatal_errorf "Not global: %a" Ident.print id
 
 let rec find_module_components path env =
@@ -1505,6 +1521,7 @@ let global_of_instance_compilation_unit cu =
     (* We could just convert the global name ourselves by filling in empty lists
        of hidden arguments, but this doubles as a typecheck of the instance. *)
     Persistent_env.global_of_global_name !persistent_env global_name ~check:true
+      ~allow_excess_args:false
   in
   let rec check (global : Global_module.t) =
     match global.hidden_args with
@@ -1646,6 +1663,31 @@ and expand_modtype_path env path =
   match (find_modtype_lazy path env).mtd_type with
   | Some (Mty_ident path) -> normalize_modtype_path env path
   | _ | exception Not_found -> path
+
+let normalize_instance_names_in_ident ident =
+  if Ident.is_instance ident then
+    let modname = Ident.to_global_exn ident in
+    let modname2 =
+      Persistent_env.normalize_global_name !persistent_env modname
+    in
+    if modname == modname2 then ident else Ident.create_global modname2
+  else
+    ident
+
+let rec normalize_instance_names_in_module_path path =
+  match path with
+  | Pident i ->
+      let i2 = normalize_instance_names_in_ident i in
+      if i == i2 then path else Pident i2
+  | Pdot (p, s) ->
+      let p2 = normalize_instance_names_in_module_path p in
+      if p == p2 then path else Pdot (p2, s)
+  | Pextra_ty (p, extra) ->
+      let p2 = normalize_instance_names_in_module_path p in
+      if p == p2 then path else Pextra_ty (p2, extra)
+  | Papply (p, a) ->
+      let p2 = normalize_instance_names_in_module_path p in
+      if p == p2 then path else Papply (p2, a)
 
 let find_module_lazy path env =
   find_module_lazy ~alias:false path env
@@ -2724,8 +2766,8 @@ let enter_unbound_module name reason env =
     summary = Env_module_unbound(env.summary, name, reason) }
 
 (* Read a signature from a file *)
-let read_signature modname cmi ~add_binding =
-  let mty = read_pers_mod modname cmi ~add_binding in
+let read_signature modname cmi =
+  let mty = read_pers_mod modname cmi in
   Subst.Lazy.force_signature mty
 
 let register_parameter modname =
@@ -2996,7 +3038,7 @@ let lookup_global_name_module_no_locks
       check_pers_mod ~allow_hidden:false ~loc name;
       path, (() : a)
   | Load -> begin
-      match find_pers_mod ~allow_hidden:false name with
+      match find_pers_mod ~allow_hidden:false name ~allow_excess_args:false with
       | mda ->
           use_module ~use ~loc path mda;
           path, (mda : a)
@@ -3875,10 +3917,10 @@ let bound_module name env =
       if Current_unit_name.is name then false
       else begin
         match
-          find_pers_mod ~allow_hidden:false
+          find_pers_mod ~allow_hidden:false ~allow_excess_args:false
             (Global_module.Name.create_no_args name)
         with
-        | _ -> true
+        | (_ : module_data) -> true
         | exception Not_found -> false
       end
 

@@ -70,7 +70,7 @@ let print_impl_import import =
   print_name_crc name crco
 
 let print_global_name_binding global =
-  printf "\t%a\n" Global_module.output global
+  printf "\t%a\n" Global_module.With_precision.output global
 
 let print_line name =
   printf "\t%s\n" name

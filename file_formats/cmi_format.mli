@@ -32,7 +32,7 @@ type kind =
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
-    cmi_globals : Global_module.t array;
+    cmi_globals : Global_module.With_precision.t array;
     cmi_sign : 'sg;
     cmi_params : Global_module.t list; (* CR lmaurer: Should be [Parameter_name.t list] *)
     cmi_crcs : Import_info.t array;

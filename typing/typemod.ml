@@ -3721,8 +3721,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
           raise(Error(Location.none, Env.empty,
                       Cannot_find_argument_type arg_module)) in
       let arg_cmi = Unit_info.Artifact.from_filename arg_filename in
-      let arg_sig =
-        Env.read_signature arg_module arg_cmi ~add_binding:false in
+      let arg_sig = Env.read_signature arg_module arg_cmi in
       if not (Env.is_parameter_unit arg_module) then
         raise (Error (Location.none, env,
                       Argument_for_non_parameter (arg_module, arg_filename)));
@@ -3818,9 +3817,7 @@ let type_implementation target modulename initial_env ast =
           let global_name =
             Compilation_unit.to_global_name_without_prefix modulename
           in
-          let dclsig =
-            Env.read_signature global_name compiled_intf_file ~add_binding:false
-          in
+          let dclsig = Env.read_signature global_name compiled_intf_file in
           if Env.is_parameter_unit global_name then
             error (Cannot_implement_parameter (cu_name, source_intf));
           let arg_type_from_cmi = Env.implemented_parameter global_name in
@@ -4007,7 +4004,6 @@ let package_units initial_env objfiles target_cmi modulename =
          let artifact = Unit_info.Artifact.from_filename f in
          let sg =
            Env.read_signature global_name (Unit_info.companion_cmi artifact)
-             ~add_binding:false
          in
          if Unit_info.is_cmi artifact &&
             not(Mtype.no_code_needed_sig (Lazy.force Env.initial) sg)
@@ -4037,7 +4033,7 @@ let package_units initial_env objfiles target_cmi modulename =
                   Interface_not_compiled mli))
     end;
     let name = Compilation_unit.to_global_name_without_prefix modulename in
-    let dclsig = Env.read_signature name target_cmi ~add_binding:false in
+    let dclsig = Env.read_signature name target_cmi in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mli dclsig shape

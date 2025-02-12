@@ -53,13 +53,6 @@ type error =
         expected : Global_module.Name.t;
         actual : Global_module.Name.t;
       }
-  | Inconsistent_global_name_resolution of
-      { name : Global_module.Name.t;
-        old_global : Global_module.t;
-        new_global : Global_module.t;
-        first_mentioned_by : Global_module.Name.t;
-        now_mentioned_by : Global_module.Name.t;
-      }
   | Unbound_module_as_argument_value of
       { instance : Global_module.Name.t; value : Global_module.Name.t; }
 
@@ -110,15 +103,10 @@ type 'a sig_reader =
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
-(* If [add_binding] is false, reads the signature from the .cmi but does not
-   bind the module name in the environment. *)
-(* CR-someday lmaurer: [add_binding] is apparently always false, including in the
-   [-instantiate] branch. We should remove this parameter. *)
-val read : 'a t -> 'a sig_reader
-  -> Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+val read : 'a t -> Global_module.Name.t -> Unit_info.Artifact.t
   -> Subst.Lazy.signature
 val find : allow_hidden:bool -> 'a t -> 'a sig_reader
-  -> Global_module.Name.t -> 'a
+  -> Global_module.Name.t -> allow_excess_args:bool -> 'a
 
 val find_in_cache : 'a t -> Global_module.Name.t -> 'a option
 
@@ -155,7 +143,12 @@ val implemented_parameter : 'a t
 val global_of_global_name : 'a t
   -> check:bool
   -> Global_module.Name.t
+  -> allow_excess_args:bool
   -> Global_module.t
+
+(* [normalize_global_name penv g] returns [g] with any excess arguments removed,
+   loading any .cmi files necessary to do so. *)
+val normalize_global_name : 'a t -> Global_module.Name.t -> Global_module.Name.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t

@@ -2,7 +2,7 @@
 
 type t = {
   sign : Subst.Lazy.signature;
-  bound_globals : Global_module.t array;
+  bound_globals : Global_module.With_precision.t array;
 }
 
 let read_from_cmi (cmi : Cmi_format.cmi_infos_lazy) =
@@ -29,7 +29,7 @@ let subst t (args : (Global_module.Name.t * Global_module.t) list) =
       let arg_subst = Global_module.Name.Map.of_list args in
       (* Take a bound global, substitute arguments into it, then return the
          updated global while also adding it to the term-level substitution *)
-      let add_and_update_binding subst bound_global =
+      let add_and_update_binding subst (bound_global, prec) =
         let name = Global_module.to_name bound_global in
         if Global_module.Name.Map.mem name arg_subst then
           (* This shouldn't happen: only globals with hidden arguments should be
@@ -58,7 +58,7 @@ let subst t (args : (Global_module.Name.t * Global_module.t) list) =
                    completely-applied global *)
                 None
               else
-                Some value
+                Some (value, prec)
             in
             subst, new_bound_global
           end
