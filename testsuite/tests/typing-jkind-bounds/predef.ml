@@ -10,8 +10,8 @@ let use_portable : 'a @ portable -> unit = fun _ -> ()
 let use_many : 'a @ many -> unit = fun _ -> ()
 
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type ('a : value mod non_null) require_nonnull
@@ -23,8 +23,8 @@ val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type 'a require_nonnull
@@ -38,13 +38,9 @@ type 'a t : immutable_data with 'a = 'a option
 type ('a : immutable_data) t : immutable_data = 'a option
 [%%expect {|
 type t = int option
-Line 2, characters 0-38:
-2 | type t : mutable_data = int ref option
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref option" is immutable_data
-         because it's a boxed variant type.
-       But the kind of type "int ref option" must be a subkind of mutable_data
-         because of the definition of t at line 2, characters 0-38.
+type t = int ref option
+type 'a t = 'a option
+type ('a : immutable_data) t = 'a option
 |}]
 
 type 'a t : immutable_data = 'a option
@@ -72,13 +68,13 @@ Error: The kind of type "int ref option" is immutable_data
 
 type t_test = int option require_portable
 type t_test = int option require_many
-type t_test = int option require_uncontended
+type t_test = int option require_contended
 type ('a : value mod portable) t_test = 'a option require_portable
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
 type t_test = int option require_portable
 type t_test = int option require_many
-type t_test = int option require_uncontended
+type t_test = int option require_contended
 type ('a : value mod portable) t_test = 'a option require_portable
 |}, Principal{|
 Line 1, characters 14-24:
@@ -140,12 +136,9 @@ type t : mutable_data = int ref
 type 'a t : mutable_data with 'a = 'a ref
 type ('a : mutable_data) t : mutable_data = 'a list
 [%%expect {|
-Line 1, characters 0-31:
-1 | type t : mutable_data = int ref
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref" is value.
-       But the kind of type "int ref" must be a subkind of mutable_data
-         because of the definition of t at line 1, characters 0-31.
+type t = int ref
+type 'a t = 'a ref
+type ('a : mutable_data) t = 'a list
 |}]
 
 type t : immutable_data = int ref
@@ -153,7 +146,7 @@ type t : immutable_data = int ref
 Line 1, characters 0-33:
 1 | type t : immutable_data = int ref
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref" is value.
+Error: The kind of type "int ref" is mutable_data.
        But the kind of type "int ref" must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-33.
 |}]
@@ -163,7 +156,7 @@ type 'a t : mutable_data = 'a ref
 Line 1, characters 0-33:
 1 | type 'a t : mutable_data = 'a ref
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a ref" is value.
+Error: The kind of type "'a ref" is mutable_data.
        But the kind of type "'a ref" must be a subkind of mutable_data
          because of the definition of t at line 1, characters 0-33.
 |}]
@@ -173,36 +166,37 @@ type t_test = int ref require_many
 type ('a : value mod portable) t_test = 'a ref require_portable
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
+type t_test = int ref require_portable
+type t_test = int ref require_many
+type ('a : value mod portable) t_test = 'a ref require_portable
+|}, Principal{|
 Line 1, characters 14-21:
 1 | type t_test = int ref require_portable
                   ^^^^^^^
 Error: This type "int ref" should be an instance of type
          "('a : value mod portable)"
-       The kind of int ref is value.
+       The kind of int ref is mutable_data.
        But the kind of int ref must be a subkind of value mod portable
          because of the definition of require_portable at line 10, characters 0-47.
 |}]
 
-type t_test = int ref require_uncontended
+type t_test = int ref require_contended
 [%%expect {|
 Line 1, characters 14-21:
-1 | type t_test = int ref require_uncontended
+1 | type t_test = int ref require_contended
                   ^^^^^^^
 Error: This type "int ref" should be an instance of type
-         "('a : value mod uncontended)"
-       The kind of int ref is value.
-       But the kind of int ref must be a subkind of value mod uncontended
-         because of the definition of require_uncontended at line 9, characters 0-53.
+         "('a : value mod contended)"
+       The kind of int ref is mutable_data.
+       But the kind of int ref must be a subkind of value mod contended
+         because of the definition of require_contended at line 9, characters 0-49.
 |}]
 
 let foo (t : int ref @@ portable once) =
   use_many t;
   use_portable t
 [%%expect {|
-Line 2, characters 11-12:
-2 |   use_many t;
-               ^
-Error: This value is "once" but expected to be "many".
+val foo : int ref @ once portable -> unit = <fun>
 |}]
 
 let foo (t : int ref @@ contended) = use_uncontended t
@@ -219,13 +213,8 @@ type t : mutable_data = int ref list
 type ('a : immutable_data) t : immutable_data = 'a list
 [%%expect {|
 type t = int list
-Line 2, characters 0-36:
-2 | type t : mutable_data = int ref list
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref list" is immutable_data
-         because it's a boxed variant type.
-       But the kind of type "int ref list" must be a subkind of mutable_data
-         because of the definition of t at line 2, characters 0-36.
+type t = int ref list
+type ('a : immutable_data) t = 'a list
 |}]
 
 type 'a t : immutable_data with 'a = 'a list
@@ -257,13 +246,13 @@ Error: The kind of type "int ref list" is immutable_data
 
 type t_test = int list require_portable
 type t_test = int list require_many
-type t_test = int list require_uncontended
+type t_test = int list require_contended
 type ('a : value mod portable) t_test = 'a list require_portable
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
 type t_test = int list require_portable
 type t_test = int list require_many
-type t_test = int list require_uncontended
+type t_test = int list require_contended
 type ('a : value mod portable) t_test = 'a list require_portable
 |}, Principal{|
 Line 1, characters 14-22:
@@ -372,17 +361,17 @@ Error: This type "int array" should be an instance of type
          because of the definition of require_portable at line 10, characters 0-47.
 |}]
 
-type t_test = int array require_uncontended
+type t_test = int array require_contended
 [%%expect {|
 Line 1, characters 14-23:
-1 | type t_test = int array require_uncontended
+1 | type t_test = int array require_contended
                   ^^^^^^^^^
 Error: This type "int array" should be an instance of type
-         "('a : value mod uncontended)"
+         "('a : value mod contended)"
        The kind of int array is mutable_data
          because it is the primitive value type array.
-       But the kind of int array must be a subkind of value mod uncontended
-         because of the definition of require_uncontended at line 9, characters 0-53.
+       But the kind of int array must be a subkind of value mod contended
+         because of the definition of require_contended at line 9, characters 0-49.
 |}]
 
 let foo (t : int array @@ portable once) =
@@ -407,13 +396,9 @@ type 'a t : immutable_data with 'a = 'a iarray
 type ('a : immutable_data) t : immutable_data = 'a iarray
 [%%expect {|
 type t = int iarray
-Line 2, characters 0-38:
-2 | type t : mutable_data = int ref iarray
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref iarray" is immutable_data
-         because it is the primitive value type iarray.
-       But the kind of type "int ref iarray" must be a subkind of mutable_data
-         because of the definition of t at line 2, characters 0-38.
+type t = int ref iarray
+type 'a t = 'a iarray
+type ('a : immutable_data) t = 'a iarray
 |}]
 
 type 'a t : immutable_data = 'a iarray
@@ -441,13 +426,13 @@ Error: The kind of type "int ref iarray" is immutable_data
 
 type t_test = int iarray require_portable
 type t_test = int iarray require_many
-type t_test = int iarray require_uncontended
+type t_test = int iarray require_contended
 type ('a : value mod portable) t_test = 'a iarray require_portable
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
 type t_test = int iarray require_portable
 type t_test = int iarray require_many
-type t_test = int iarray require_uncontended
+type t_test = int iarray require_contended
 type ('a : value mod portable) t_test = 'a iarray require_portable
 |}, Principal{|
 Line 1, characters 14-24:
