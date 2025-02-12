@@ -878,15 +878,11 @@ type num_dimensions = int
 
 let print_num_dimensions ppf d = Format.fprintf ppf "%d" d
 
-type unary_int_arith_op =
-  | Neg
-  | Swap_byte_endianness
+type unary_int_arith_op = Swap_byte_endianness
 
 let print_unary_int_arith_op ppf o =
   let fprintf = Format.fprintf in
-  match o with
-  | Neg -> fprintf ppf "~-"
-  | Swap_byte_endianness -> fprintf ppf "bswap"
+  match o with Swap_byte_endianness -> fprintf ppf "bswap"
 
 type unary_float_arith_op =
   | Abs
@@ -1424,7 +1420,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Int_as_pointer alloc_mode ->
     No_effects, coeffects_of_mode alloc_mode, Strict
   | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
-  | Int_arith (_, (Neg | Swap_byte_endianness))
+  | Int_arith (_, Swap_byte_endianness)
   | Num_conv _ | Boolean_not | Reinterpret_64_bit_word _ ->
     No_effects, No_coeffects, Strict
   | Float_arith (_width, (Abs | Neg)) ->

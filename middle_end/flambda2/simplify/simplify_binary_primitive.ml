@@ -195,8 +195,13 @@ end = struct
                       "Cannot use [Negation_of_the_other_side] with floats; \
                        use the float version instead"
                 in
+                let zero =
+                  Simple.const_int_of_kind
+                    (K.Standard_int.to_kind standard_int_kind)
+                    0
+                in
                 let prim : P.t =
-                  Unary (Int_arith (standard_int_kind, Neg), other_side)
+                  Binary (Int_arith (standard_int_kind, Sub), zero, other_side)
                 in
                 Some (PR.Set.add (Prim prim) possible_results)
               | Float_negation_of_the_other_side width ->
