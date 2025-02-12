@@ -51,8 +51,10 @@ including first-class modules, classes and objects, and exceptions. The contents
 of mutable fields (inside `ref`s, `array`s and mutable record fields) also
 cannot be stack-allocated.
 
-The `stack_` keyword must immediately precede an allocation; putting it
-anywhere else (like on a function call) leads to a type error.
+The `stack_` keyword works shallowly: it only forces the immediately succeeding allocation
+ to be on stack. Putting it before an expression that is not an allocation (such as a
+ complete function application) leads to a type error. Stack allocating closures resulted
+ from partial applications will be supported in the future.
 
 ## Local parameters
 

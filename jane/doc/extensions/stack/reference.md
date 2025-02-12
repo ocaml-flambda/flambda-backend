@@ -22,8 +22,22 @@ let abc = stack_ (42, 24) in
 ...
 ```
 
-Here, the tuple cell will be stack-allocated. Placing `stack_` on an expression
-that is not an allocation is meaningless and causes type error.
+Here, the tuple cell will be stack-allocated. The `stack_` keyword works shallowly: it
+only forces the immediately succeeding allocation to be on stack. In the following
+example, the outer tuple is guaranteed to be on stack, while the inner one is not (
+although likely to be due to optimization).
+```ocaml
+let abc = stack_ (42, (24, 42)) in
+...
+```
+
+Placing `stack_` on an expression that is not an allocation is meaningless and causes type
+error:
+```ocaml
+let f = ref (stack_ `Foo)
+                    ^^^^
+Error: This expression is not an allocation site.
+```
 
 Most OCaml types can be stack-allocated, including records, variants,
 polymorphic variants, closures, boxed numbers and strings. However, certain
