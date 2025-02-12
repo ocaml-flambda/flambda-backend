@@ -1,0 +1,4 @@
+File "fancy/bad_access_submodule_directly.ml", line 7, characters 9-26:
+7 | type t = Fancy__Flourish.t
+             ^^^^^^^^^^^^^^^^^
+Error: The module "Fancy__Flourish" is an alias for module "No_such_module", which is missing

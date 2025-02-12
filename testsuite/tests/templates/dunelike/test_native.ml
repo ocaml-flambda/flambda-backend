@@ -1,5 +1,6 @@
 (* TEST (* DO NOT EDIT. Instead edit test_byte.ml and run gen-native.sh. *)
  readonly_files = "\
+   bad_access_submodule_directly.ml bad_access_submodule_directly.reference \
    bad_use_util_wrongly.ml bad_use_util_wrongly.reference \
    basic.ml basic.mli basic__.ml \
    export_fancy_q_impl.ml export_fancy_q_impl.mli export_fancy_q_impl__.ml \
@@ -11,7 +12,7 @@
    p_string.ml p_string.mli p_string__.ml \
    q.mli q__.ml \
    q_impl.ml q_impl__.ml \
-   test_native.reference \
+   test.reference \
    use_fancy_q_impl.ml use_fancy_q_impl__.ml \
    util.ml util.mli util__.ml \
  ";
@@ -33,7 +34,10 @@
    dst = "export_fancy_q_impl/";
    copy;
 
-   src = "fancy.ml fancy.mli flourish.ml flourish.mli ornament.ml ornament.mli fancy__.ml";
+   src = "\
+     bad_access_submodule_directly.ml fancy.ml fancy.mli flourish.ml flourish.mli \
+     ornament.ml ornament.mli fancy__.ml \
+   ";
    dst = "fancy/";
    copy;
 
@@ -135,6 +139,21 @@
    flags = "$flg_fancy -o fancy/fancy__Ornament.cmx";
    module = "fancy/ornament.ml";
    ocamlopt.byte;
+
+   {
+     flags = "$flg_fancy -o fancy/fancy__Bad_access_submodule_directly.cmx";
+     module = "fancy/bad_access_submodule_directly.ml";
+     ocamlopt_byte_exit_status = "2";
+     compiler_output = "bad_access_submodule_directly.output";
+     ocamlopt.byte;
+
+     compiler_reference = "bad_access_submodule_directly.reference";
+     check-ocamlopt.byte-output;
+   }
+
+   (* Unindenting since we're really just resuming the main sequence of events and
+      I'm not going to indent all that *)
+ {
 
    flags = "$flg_fancy -o fancy/fancy.cmi -w -49";
    module = "fancy/fancy.mli";
@@ -290,9 +309,6 @@
      check-ocamlopt.byte-output;
    }
 
- (* Unindenting since we're really just resuming the main sequence of events and
-    I'm not going to indent all that *)
-
  {
    set flg_util_p_int = "$flg_instance -I util -I p -I p_int";
 
@@ -433,14 +449,14 @@
 
    (* Workaround for ocamltest bug: [script] breaks [run] unless you set
       [stdout] and [stderr] *)
-   stdout = "test_native.output";
-   stderr = "test_native.output";
-   output = "test_native.output";
+   stdout = "test.output";
+   stderr = "test.output";
+   output = "test.output";
    run;
 
-   reference = "test_native.reference";
+   reference = "test.reference";
    check-program-output;
- }}
+ }}}
 *)
 
 let () =

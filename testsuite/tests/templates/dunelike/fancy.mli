@@ -1,5 +1,7 @@
 (* Parameters: P, Q *)
 
+(* A library with two parameters, two submodules, and a dependency on [Basic]. *)
+
 module Flourish = Flourish
 module Ornament = Ornament
 
