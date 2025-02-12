@@ -202,12 +202,11 @@ let f (local_ x) =
   ??
 ```
 
-Both `x` and `y` are local and cannot, in general, escape a region. However,
-filling `??` in with `x` (but not `y`) is allowed. This is because we know that
-the value pointed to by `x` must have existed before `f` started and thus is
-guaranteed to be allocated in a pre-existing stack frame (or on the heap).
-In contrast, `y` will point to a cons cell allocated in the current stack frame;
-returning `y` from `f` would be unsafe (and is a type error).
+Both `x` and `y` are local and cannot, in general, escape a region. However, filling `??`
+in with `x` (but not `y`) is allowed. This is because we know that `x` lives outside of
+`f`'s region and thus is guaranteed to be allocated in a pre-existing stack frame (or on
+the heap) which will continue to exist after `f` ends. In contrast, `y` is a cons cell
+allocated in the current stack frame, which will be destroyed after `f` ends.
 
 ## Inference
 
