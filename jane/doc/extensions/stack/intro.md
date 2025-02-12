@@ -136,7 +136,7 @@ over which values are stack-allocated, including:
   - **Stack-allocated closures**
 
     ```ocaml
-    let stack_ f a b c = ...
+    let f  = stack_ (fun a b c -> ...)
     ```
 
     defines a function `f` whose closure is itself stack-allocated.

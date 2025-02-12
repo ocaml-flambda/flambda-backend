@@ -322,9 +322,9 @@ Consider again the example from "Variables and regions" above:
 
 ```ocaml
 let f () =
-  let stack_ outer = ref 42 in
+  let outer = stack_ (ref 42) in
   let g () =
-    let stack_ inner = ref 42 in
+    let inner = stack_ (ref 42) in
     outer
   in
   ...
@@ -424,7 +424,7 @@ and local closures may not be tail-called:
 
 ```ocaml
 let f2 () =
-  let stack_ g () = 42 in
+  let g = stack_ (fun () -> 42) in
   g ()
   ^
 Error: This local value escapes its region
@@ -441,7 +441,7 @@ let f1 () =
   res
 
 let f2 () =
-  let stack_ g () = 42 in
+  let g = stack_ (fun () -> 42) in
   let res = g () in
   res
 ```
@@ -455,7 +455,7 @@ let f1 () =
   some_func r [@nontail]
 
 let f2 () =
-  let stack_ g () = 42 in
+  let g = stack_ (fun () -> 42) in
   g () [@nontail]
 ```
 
@@ -637,7 +637,7 @@ both global:
 
 ```ocaml
 let f () =
-  let stack_ packed = (x, y) in
+  let packed = stack_ (x, y) in
   let x', y' = packed in
   x'
 ```
