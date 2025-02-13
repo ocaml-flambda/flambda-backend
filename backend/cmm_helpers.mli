@@ -375,8 +375,9 @@ val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 
 (** Operations on n-bit integers *)
 
-(** Simplify the given expression knowing low [bits] bits will be irrelevant *)
-val ignore_low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
+(** Simplify the given expression knowing the low bit of the argument will be irrelevant
+*)
+val ignore_low_bit_int : expression -> expression
 
 (** Simplify the given expression knowing that bits other than the low [bits] bits will be
     irrelevant *)
@@ -700,7 +701,7 @@ val create_ccatch :
 (** Shift operations.
     Inputs: a tagged caml integer and an untagged machine integer.
     Outputs: a tagged caml integer.
-    Take as first argument a tagged caml integer, and as
+    Takes as first argument a tagged caml integer, and as
     second argument an untagged machine intger which is the amount to shift the
     first argument by. *)
 
