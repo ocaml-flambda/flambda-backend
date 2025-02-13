@@ -77,6 +77,12 @@ end = struct
   let succ n = n + 1
 end
 
+let get_nth_joined_env index joined_envs =
+  match Index.Map.find_opt index env.joined_envs with
+  | Some typing_env -> typing_env
+  | None ->
+    Misc.fatal_error "Joined environment %a is not available." Index.print index
+
 (* The following are intended to help make sure we don't confuse things (names,
    simples) that are living in one of the joined environments and those that
    live in the target environment.
@@ -905,7 +911,7 @@ module Join_equations = struct
         let types_of_demoted_var =
           Simple_in_joined_envs.fold
             (fun index canonical types_of_demoted_var ->
-              let env = Index.Map.find index joined_envs in
+              let env = get_nth_joined_env index joined_envs in
               let canonical_simple = (canonical :> Simple.t) in
               let ty =
                 Simple.pattern_match canonical_simple
@@ -935,7 +941,7 @@ let n_way_join_symbol_projections ~exists_in_target_env
   let joined_projections =
     Index.Map.fold
       (fun index symbol_projections acc ->
-        let typing_env = Index.Map.find index joined_envs in
+        let typing_env = get_nth_joined_env index joined_envs in
         Variable.Map.fold
           (fun var symbol_projection acc ->
             let canonical =
@@ -1002,7 +1008,7 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
            (all_demotions, all_expanded_equations, all_symbol_projections) ->
         let symbol_projections = TEL.symbol_projections level in
         let equations = TEL.equations level in
-        let typing_env = Index.Map.find index t.joined_envs in
+        let typing_env = get_nth_joined_env index t.joined_envs in
         let demotions, expanded_equations =
           Name.Map.fold
             (fun name ty (demotions, expanded_equations) ->
@@ -1202,7 +1208,7 @@ let n_way_join_env_extension ~n_way_join_type ~meet_type t envs_with_extensions
   let joined_levels, joined_envs =
     List.fold_left
       (fun (joined_levels, joined_envs) (index, extension) ->
-        let parent_env = Index.Map.find index t.joined_envs in
+        let parent_env = get_nth_joined_env index t.joined_envs in
         (* The extension is not guaranteed to still be in canonical form, but we
            need the equations to be in canonical form to known which variables
            are actually touched by the extension, so we add it once then cut it.
@@ -1306,7 +1312,4 @@ let target_join_env { target_env; _ } = target_env
 
 type n_way_join_type = t -> TG.t join_arg list -> TG.t Or_unknown.t * t
 
-let joined_env env index =
-  match Index.Map.find_opt index env.joined_envs with
-  | Some typing_env -> typing_env
-  | None -> Misc.fatal_error "Invalid joined environment."
+let joined_env env index = get_nth_joined_env index env.joined_envs
