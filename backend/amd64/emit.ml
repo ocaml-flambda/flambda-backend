@@ -1057,11 +1057,11 @@ end = struct
 
   let[@inline always] uses_register register = function
     | Reg8L register' | Reg16 register' | Reg32 register' | Reg64 register' ->
-      register == register'
+      register = register'
     | Mem { idx = register'; base = None; scale; _ } ->
-      scale <> 0 && register == register'
+      scale <> 0 && register = register'
     | Mem { idx = register'; base = Some register''; _ } ->
-      register == register' || register == register''
+      register = register' || register = register''
     | _ -> false
   ;;
 
