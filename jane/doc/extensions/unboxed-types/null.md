@@ -1,10 +1,10 @@
 # Adding null to types
 
-This document proposes a way we can add a null value to types, thus granting a
-non-allocating version of `option`. This proposal builds on the *layouts*
-system described in the [main proposal for unboxed types](index.md). Before
+This document describes the way we can add a null value to types, thus granting a
+non-allocating version of `option`. This extension builds on the *layouts*
+system described in the [main document for unboxed types](index.md). Before
 reading this document, you may wish to read up through the
-[layouts](index.md#layouts) section of the main proposal.
+[layouts](index.md#layouts) section of the main document.
 
 # Adding null
 
@@ -56,7 +56,7 @@ environment:
 type ('a : value) or_null : value_or_null
 ```
 
-With-kinds will allow `'a or_null` to mode-cross the same way that
+The with-kinds feature allows `'a or_null` to mode-cross the same way that
 `'a` does -- this permits, e.g. `int or_null` to still be subject to
 optimizations around immediates.
 
@@ -70,35 +70,20 @@ In the diagram above, the `value_or_null` layout includes types that do contain
 null, whereas the `value` layout is the one that includes all of today's
 types, and is the default for abstract types and type variables. Why?
 
-It turns out that whatever default we choose for abstract types will also
+Whatever default we choose for abstract types will also
 determine the default for type variables due to backwards compatibility.
-Consider the following examples:
-
-```ocaml
-module M : sig
-  type 'a t (* Assumed non-null. *)
-end = struct
-  type 'a t = 'a (* [’a] must be non-null. *)
-end
-
-module F (X : sig
-  type t (* Assumed maybe-null. *)
-  type 'a u
-end) = struct
-  type t = X.t X.u (* The argument to [X.u] must be maybe-null. *)
-end
-```
-
 Choosing non-null would mean that all pre-existing OCaml types are valid
 parameters for `'a or_null`, whereas choosing maybe-null allows `or_null`
-to be a type argument. Most types in OCaml programs lack arguments, and those
+to be a type argument.
+
+Most types in OCaml programs lack arguments, and those
 that do are typically container types like `'a list`, which we can modify
 preemptively. Thus, we default abstract types to non-null to reduce the
 annotation burden on programmers.
 
 ## Arrays
 
-Flat-float array optimization demands that all types in OCaml are *separable*:
+The flat-float-array optimization demands that all types in OCaml are *separable*:
 either all elements of that type are float values, or none of them are. But
 `float or_null` is not separable: as possible values, it has all floating-point
 numbers, plus the null pointer. Therefore, `float or_null array`s must be forbidden.

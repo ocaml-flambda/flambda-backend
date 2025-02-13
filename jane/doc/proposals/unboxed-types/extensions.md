@@ -362,11 +362,8 @@ Using polymorphism instead of subtyping would help these scenarios:
 1. We want `or_null` to work with both values and immediates. Furthermore,
 we want to remember that e.g. `int or_null` is still an immediate (and
 is gc-ignorable). The current design is to say that the layout-check "looks
-through" `or_null`: if the argument type `t` is a `immediate`, then
-`t or_null` is `immediate_or_null`. This works OK, but it cannot be abstracted
-over, as the "looking through" must be implemented specially for `or_null`.
-With polymorphism instead, we could say `type ('a : 'i value) or_null : 'i
-value_or_null`, which says exactly what we want.
+through" `or_null`: if the argument type `t` is an `immediate`, then
+`t or_null` is `immediate_or_null`. This can be implemented using with-kinds.
 
 2. Generalizing the point above, any time we have an unboxed record of
 several components, we might want a richer layout than we currently can

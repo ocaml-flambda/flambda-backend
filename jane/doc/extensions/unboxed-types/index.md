@@ -224,8 +224,8 @@ modules in the `janestreet_shims` library.)
 ## Unboxed options
 
 We now have `type 'a or_null : value_or_null`, the type of unboxed options.
-It has constructors `Null` and `This v`. See the
-[`or_null` proposal](../../proposals/unboxed-types/null.md) for more details.
+It has constructors `Null` and `This v`. See the [`or_null` document](null.md)
+for more details.
 
 # Unboxed products
 
