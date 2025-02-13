@@ -72,16 +72,16 @@ for abstract types and type parameters:
 
 ```ocaml
 module M : sig
-  type 'a t (* Assumed low in the lattice. *)
+  type 'a t
 end = struct
-  type 'a t = 'a (* [’a] must be low in the lattice. *)
+  type 'a t = 'a (* [’a] must be as low as ['a t] in the lattice. *)
 end
 
 module F (X : sig
-  type t (* Assumed high in the lattice. *)
+  type t
   type 'a u
 end) = struct
-  type t = X.t X.u (* The argument to [X.u] must be high in the lattice. *)
+  type t = X.t X.u (* ['a] must be as high as [t] must be high in the lattice. *)
 end
 ```
 A similar arguments applies to type variables in function declarations.
