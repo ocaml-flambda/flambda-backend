@@ -77,6 +77,167 @@ end = struct
   let succ n = n + 1
 end
 
+(* The following are intended to help make sure we don't confuse things (names,
+   simples) that are living in one of the joined environments and those that
+   live in the target environment.
+
+   In particular, one simple in a joined environment can have multiple names in
+   the target environment if they have been demoted. *)
+
+module Thing_in_env (Thing : Container_types.S) () : sig
+  include Container_types.S with type t = private Thing.t
+
+  val create : Thing.t -> t
+end = struct
+  include Thing
+
+  let create thing = thing
+end
+
+module Name_in_target_env = struct
+  include Thing_in_env (Name) ()
+end
+
+module Simple_in_target_env : sig
+  include module type of Thing_in_env (Simple) ()
+
+  val name : Name_in_target_env.t -> t
+end = struct
+  include Thing_in_env (Simple) ()
+
+  let name (name : Name_in_target_env.t) = create (Simple.name (name :> Name.t))
+end
+
+module Name_in_one_joined_env = struct
+  include Thing_in_env (Name) ()
+end
+
+module Simple_in_one_joined_env : sig
+  include module type of Thing_in_env (Simple) ()
+
+  val pattern_match :
+    t ->
+    name:(Name_in_one_joined_env.t -> coercion:Coercion.t -> 'a) ->
+    const:(Reg_width_const.t -> 'a) ->
+    'a
+end = struct
+  include Thing_in_env (Simple) ()
+
+  let pattern_match (t : t) ~name:on_name ~const =
+    Simple.pattern_match
+      (t :> Simple.t)
+      ~name:(fun name ~coercion ->
+        on_name (Name_in_one_joined_env.create name) ~coercion)
+      ~const
+end
+
+module Simple_in_joined_envs : sig
+  include
+    Container_types.S
+      with type t = private Simple_in_one_joined_env.t Index.Map.t
+
+  val fold :
+    (Index.t -> Simple_in_one_joined_env.t -> 'a -> 'a) -> t -> 'a -> 'a
+
+  val distinct_from_simple_in_target_env : t -> Simple_in_target_env.t -> t
+
+  val apply_coercion : t -> Coercion.t -> t
+
+  val is_empty : t -> bool
+
+  val empty : t
+
+  val in_same_envs : t -> as_:t -> t
+
+  val is_defined_in : Index.Set.t -> t -> bool
+
+  val raw_name : t -> string
+
+  val add : Index.t -> Simple_in_one_joined_env.t -> t -> t
+
+  val of_list : (Index.t * Simple.t) list -> t
+end = struct
+  module T0 = struct
+    type t = Simple_in_one_joined_env.t Index.Map.t
+
+    let print = Index.Map.print Simple_in_one_joined_env.print
+
+    let hash map =
+      Index.Map.fold
+        (fun index simple hash ->
+          Hashtbl.hash
+            (hash, Index.hash index, Simple_in_one_joined_env.hash simple))
+        map (Hashtbl.hash 0)
+
+    let equal = Index.Map.equal Simple_in_one_joined_env.equal
+
+    let compare = Index.Map.compare Simple_in_one_joined_env.compare
+  end
+
+  include T0
+  include Container_types.Make (T0)
+
+  let fold = Index.Map.fold
+
+  let is_empty = Index.Map.is_empty
+
+  let empty = Index.Map.empty
+
+  let add = Index.Map.add
+
+  let apply_coercion t coercion =
+    if Coercion.is_id coercion
+    then t
+    else
+      Index.Map.map
+        (fun (simple : Simple_in_one_joined_env.t) ->
+          Simple_in_one_joined_env.create
+            (Simple.apply_coercion_exn (simple :> Simple.t) coercion))
+        t
+
+  let distinct_from_simple_in_target_env (t : t)
+      (simple_in_target_env : Simple_in_target_env.t) =
+    Index.Map.filter_map
+      (fun _ (simple_in_one_joined_env : Simple_in_one_joined_env.t) ->
+        if Simple.equal
+             (simple_in_one_joined_env :> Simple.t)
+             (simple_in_target_env :> Simple.t)
+        then None
+        else Some simple_in_one_joined_env)
+      t
+
+  let in_same_envs t ~as_ = Index.Map.inter (fun _ _ simple -> simple) as_ t
+
+  let is_defined_in envs t = Index.Set.subset envs (Index.Map.keys t)
+
+  let raw_name (t : t) =
+    let shared_name =
+      try
+        Index.Map.fold
+          (fun _ simple raw_name ->
+            Simple.pattern_match' simple
+              ~const:(fun _ -> raw_name)
+              ~symbol:(fun _ ~coercion:_ -> raw_name)
+              ~var:(fun var ~coercion:_ ->
+                let var_name = Variable.raw_name var in
+                match raw_name with
+                | None -> Some var_name
+                | Some raw_name when String.equal raw_name var_name ->
+                  Some raw_name
+                | Some _ -> raise Not_found))
+          (t :> Simple.t Index.Map.t)
+          None
+      with Not_found -> None
+    in
+    match shared_name with Some raw_name -> raw_name | None -> "join_var"
+
+  let of_list list =
+    List.fold_left
+      (fun t (index, simple) ->
+        Index.Map.add index (Simple_in_one_joined_env.create simple) t)
+      empty list
+end
+
 module Join_aliases : sig
   type t
 
@@ -100,20 +261,26 @@ module Join_aliases : sig
 
     {b Note}: the [simples] must be canonical in their environment. *)
   val find :
-    mem_name:(Name.t -> bool) ->
-    is_bound_strictly_earlier:(Name.t -> than:Simple.t -> bool) ->
-    Simple.t Index.Map.t ->
+    exists_in_target_env:
+      (Name_in_one_joined_env.t -> Name_in_target_env.t option) ->
+    is_bound_strictly_earlier:
+      (Name_in_target_env.t -> than:Simple_in_target_env.t -> bool) ->
+    Simple_in_joined_envs.t ->
     t ->
-    Simple.t Or_unknown_or_bottom.t
+    Simple_in_target_env.t Or_unknown_or_bottom.t
 
   (** [add_existential_var ~mem_name simples t] returns a fresh variable [var]
       and an updated [t] where [var] is associated with the [simples]. *)
   val add_existential_var :
-    mem_name:(Name.t -> bool) -> Simple.t Index.Map.t -> t -> Variable.t * t
+    exists_in_target_env:
+      (Name_in_one_joined_env.t -> Name_in_target_env.t option) ->
+    Simple_in_joined_envs.t ->
+    t ->
+    Variable.t * t
 
   type 'a add_result =
-    { values_in_target_env : 'a Index.Map.t Variable.Map.t;
-      touched_variables : Variable.Set.t
+    { values_in_target_env : 'a Index.Map.t Name_in_target_env.Map.t;
+      touched_variables : Name_in_target_env.Set.t
     }
 
   (** [add_in_target_env ~mem_name t values values_in_target_env] adds the values
@@ -125,19 +292,20 @@ module Join_aliases : sig
   for all variables [target_var] in the target environment that are equal to
   [var] in the joined environment at [index]. *)
   val add_in_target_env :
-    mem_name:(Name.t -> bool) ->
+    exists_in_target_env:
+      (Name_in_one_joined_env.t -> Name_in_target_env.t option) ->
     t ->
-    'a Variable.Map.t Index.Map.t ->
-    'a Index.Map.t Variable.Map.t ->
+    'a Name_in_one_joined_env.Map.t Index.Map.t ->
+    'a Index.Map.t Name_in_target_env.Map.t ->
     'a add_result
 
   type join_result = private
-    { demoted_in_target_env : Simple.t Variable.Map.t;
+    { demoted_in_target_env : Simple_in_target_env.t Name_in_target_env.Map.t;
           (** Variables that should be demoted in the target env as a result of the
           join.
 
           The demoted variables are no longer present in [t]. *)
-      demoted_in_some_envs : Simple.t Index.Map.t Variable.Map.t;
+      demoted_in_some_envs : Simple_in_joined_envs.t Name_in_target_env.Map.t;
           (** Variables that have been demoted in some (possibly all, if
               they have been demoted to distinct canonicals) of the joined
               environments, but not in the target enviroment.
@@ -148,38 +316,23 @@ module Join_aliases : sig
     }
 
   val n_way_join :
-    mem_name:(Name.t -> bool) ->
-    is_bound_strictly_earlier:(Name.t -> than:Simple.t -> bool) ->
+    exists_in_target_env:
+      (Name_in_one_joined_env.t -> Name_in_target_env.t option) ->
+    is_bound_strictly_earlier:
+      (Name_in_target_env.t -> than:Simple_in_target_env.t -> bool) ->
     t ->
-    Simple.t Variable.Map.t Index.Map.t ->
+    Simple_in_one_joined_env.t Name_in_one_joined_env.Map.t Index.Map.t ->
     join_result Or_bottom.t
 end = struct
-  module Indexed_simple = Container_types.Make (struct
-    type t = Simple.t Index.Map.t
-
-    let print = Index.Map.print Simple.print
-
-    let hash map =
-      Index.Map.fold
-        (fun index simple hash ->
-          Hashtbl.hash (hash, Index.hash index, Simple.hash simple))
-        map (Hashtbl.hash 0)
-
-    let equal = Index.Map.equal Simple.equal
-
-    let compare = Index.Map.compare Simple.compare
-  end)
-
-  module ISM = Indexed_simple.Map
-
   type t =
-    { joined_simples : Variable.t ISM.t;
+    { joined_simples : Name_in_target_env.t Simple_in_joined_envs.Map.t;
           (** Maps a tuple of simples in the joined environments to the variable
               that represents it in the target environment, if any.
 
               If there is a mapping [simples -> var] in [joined_simples], then
               [demoted_from_target_env(var) = simples]. *)
-      demoted_from_target_env : Simple.t Index.Map.t Variable.Map.t;
+      demoted_from_target_env :
+        Simple_in_joined_envs.t Name_in_target_env.Map.t;
           (** Maps a variable defined in the target environment to its
               canonicals in each joined environment {b where it has been
               demoted}.
@@ -197,23 +350,37 @@ end = struct
               the case for the shared variable with the latest binding time
               (because a shared variable with an earlier binding time can never
               be demoted to a shared variable with a later binding time). *)
-      names_in_target_env : Variable.Set.t Variable.Map.t Index.Map.t
+      names_in_target_env :
+        Name_in_target_env.Set.t Name_in_one_joined_env.Map.t Index.Map.t
           (** Maps a variable in a joined environment to the set of
               (other) variables it is equal to in the target environment. *)
     }
 
   let empty =
-    { joined_simples = ISM.empty;
-      demoted_from_target_env = Variable.Map.empty;
+    { joined_simples = Simple_in_joined_envs.Map.empty;
+      demoted_from_target_env = Name_in_target_env.Map.empty;
       names_in_target_env = Index.Map.empty
     }
 
-  let find ~mem_name ~is_bound_strictly_earlier (simples : Simple.t Index.Map.t)
-      t : _ Or_unknown_or_bottom.t =
-    let[@inline] mem_simple simple =
-      Simple.pattern_match simple
-        ~const:(fun _ -> true)
-        ~name:(fun name ~coercion:_ -> mem_name name)
+  let find
+      ~(exists_in_target_env :
+         Name_in_one_joined_env.t -> Name_in_target_env.t option)
+      ~(is_bound_strictly_earlier :
+         Name_in_target_env.t -> than:Simple_in_target_env.t -> bool)
+      (simples : Simple_in_joined_envs.t) t : _ Or_unknown_or_bottom.t =
+    let[@inline] simple_exists_in_target_env simple_in_one_joined_env =
+      Simple_in_one_joined_env.pattern_match simple_in_one_joined_env
+        ~const:(fun const ->
+          Some (Simple_in_target_env.create (Simple.const const)))
+        ~name:(fun name_in_one_joined_env ~coercion ->
+          match exists_in_target_env name_in_one_joined_env with
+          | None -> None
+          | Some name_in_target_env ->
+            Some
+              (Simple_in_target_env.create
+                 (Simple.with_coercion
+                    (Simple.name (name_in_target_env :> Name.t))
+                    coercion)))
     in
     (* We need to determine if the provided set of simples (which are assumed to
        be canonicals in their own environment) has an existing name in the
@@ -256,22 +423,33 @@ end = struct
        defined in the target environment to combine tests for cases 1) and
        2). *)
     let latest_bound_simple =
-      Index.Map.fold
+      Simple_in_joined_envs.fold
         (fun _ simple acc : _ Or_unknown_or_bottom.t ->
           match (acc : _ Or_unknown_or_bottom.t) with
-          | Bottom | Unknown -> if mem_simple simple then Ok simple else Unknown
+          | Bottom | Unknown -> (
+            match simple_exists_in_target_env simple with
+            | None -> Unknown
+            | Some simple -> Ok simple)
           | Ok existing_simple -> (
-            match Simple.must_be_var simple with
+            match Simple.must_be_var (simple :> Simple.t) with
             | None -> acc
-            | Some (var, _coercion) ->
-              if mem_name (Name.var var)
-              then
+            | Some (var, coercion) -> (
+              match
+                exists_in_target_env
+                  (Name_in_one_joined_env.create (Name.var var))
+              with
+              | None -> acc
+              | Some name_in_target_env ->
                 (* NB: These are not actually aliases in the target env yet. *)
-                if is_bound_strictly_earlier (Name.var var)
+                if is_bound_strictly_earlier name_in_target_env
                      ~than:existing_simple
-                then Ok simple
-                else acc
-              else acc))
+                then
+                  Ok
+                    (Simple_in_target_env.create
+                       (Simple.with_coercion
+                          (Simple.name (name_in_target_env :> Name.t))
+                          coercion))
+                else acc)))
         simples Or_unknown_or_bottom.Bottom
     in
     let[@local] find_local_variable () : _ Or_unknown_or_bottom.t =
@@ -280,9 +458,9 @@ end = struct
 
          This means that we might end up creating more local variables than
          would be strictly necessary, but they have more precise types. *)
-      match ISM.find_opt simples t.joined_simples with
+      match Simple_in_joined_envs.Map.find_opt simples t.joined_simples with
       | None -> Unknown
-      | Some var -> Ok (Simple.var var)
+      | Some name -> Ok (Simple_in_target_env.name name)
     in
     match latest_bound_simple with
     | Bottom -> Bottom
@@ -290,28 +468,28 @@ end = struct
       (* Join of existential variables can only be case 3) or 4) *)
       find_local_variable ()
     | Ok latest_bound_simple -> (
-      match Simple.must_be_var latest_bound_simple with
+      let earlier_bound_simples =
+        Simple_in_joined_envs.distinct_from_simple_in_target_env simples
+          latest_bound_simple
+      in
+      match Simple.must_be_name (latest_bound_simple :> Simple.t) with
       | None ->
         (* Case 1), 3), or 4) *)
-        if Index.Map.for_all
-             (fun _ simple -> Simple.equal simple latest_bound_simple)
-             simples
+        if Simple_in_joined_envs.is_empty earlier_bound_simples
         then Ok latest_bound_simple
         else find_local_variable ()
-      | Some (var, coercion) ->
+      | Some (name, coercion) ->
         (* Case 2), 3), or 4) *)
-        let coercion_to_var = Coercion.inverse coercion in
+        let coercion_to_name = Coercion.inverse coercion in
         let earlier_bound_simples =
-          Index.Map.filter_map
-            (fun _ simple ->
-              if Simple.equal simple latest_bound_simple
-              then None
-              else Some (Simple.apply_coercion_exn simple coercion_to_var))
-            simples
+          Simple_in_joined_envs.apply_coercion earlier_bound_simples
+            coercion_to_name
         in
-        let canonicals_for_var =
-          Option.value ~default:Index.Map.empty
-            (Variable.Map.find_opt var t.demoted_from_target_env)
+        let canonicals_for_name =
+          Option.value ~default:Simple_in_joined_envs.empty
+            (Name_in_target_env.Map.find_opt
+               (Name_in_target_env.create name)
+               t.demoted_from_target_env)
         in
         (* Consider the case where we have [a -> (1:b, 2:c)], i.e. [a] has been
            demoted to [b] in environment [1] and to [c] in environment [2], but
@@ -331,104 +509,118 @@ end = struct
            extension, so we favor preserving equalities for variables defined in
            the target env and precision for existential variables (cf
            [find_local_variable]). *)
-        let canonicals_for_var =
-          Index.Map.inter
-            (fun _ _ canonical -> canonical)
-            simples canonicals_for_var
+        let canonicals_for_name =
+          Simple_in_joined_envs.in_same_envs ~as_:simples canonicals_for_name
         in
-        if Index.Map.equal Simple.equal earlier_bound_simples canonicals_for_var
+        if Simple_in_joined_envs.equal earlier_bound_simples canonicals_for_name
         then Ok latest_bound_simple
         else find_local_variable ())
 
-  let add_existential_var ~mem_name simples t =
-    let shared_name =
-      try
-        Index.Map.fold
-          (fun _ simple raw_name ->
-            Simple.pattern_match' simple
-              ~const:(fun _ -> raw_name)
-              ~symbol:(fun _ ~coercion:_ -> raw_name)
-              ~var:(fun var ~coercion:_ ->
-                let var_name = Variable.raw_name var in
-                match raw_name with
-                | None -> Some var_name
-                | Some raw_name when String.equal raw_name var_name ->
-                  Some raw_name
-                | Some _ -> raise Not_found))
-          simples None
-      with Not_found -> None
-    in
-    let raw_name =
-      match shared_name with Some raw_name -> raw_name | None -> "join_var"
-    in
+  let add_existential_var ~exists_in_target_env simples t =
+    (* We have encountered a [Simple_in_joined_envs.t] that does not cleanly
+       correspond to the demotion of a name in the target env, e.g. we have type
+       "= a" on the left and "= b" on the right but no variable that is equal to
+       "a" on the left and "b" on the right yet.
+
+       We now create a new existential variable for this pair of values, and
+       record it so that it can be found by [find] if we encounter the same set
+       of values later. *)
+    let raw_name = Simple_in_joined_envs.raw_name simples in
     let var = Variable.create raw_name in
-    let joined_simples = ISM.add simples var t.joined_simples in
+    let var_as_name = Name_in_target_env.create (Name.var var) in
+    let joined_simples =
+      Simple_in_joined_envs.Map.add simples var_as_name t.joined_simples
+    in
     let demoted_from_target_env =
-      Variable.Map.add var simples t.demoted_from_target_env
+      Name_in_target_env.Map.add var_as_name simples t.demoted_from_target_env
     in
     let names_in_target_env =
-      Index.Map.fold
+      Simple_in_joined_envs.fold
         (fun index simple names_in_target_env ->
-          match Simple.must_be_var simple with
-          | Some (joined_var, coercion)
-            when Coercion.is_id coercion && mem_name (Name.var joined_var) ->
-            Index.Map.update index
-              (fun names_from_this_env_in_target_env ->
-                let names_from_this_env_in_target_env =
-                  Option.value ~default:Variable.Map.empty
-                    names_from_this_env_in_target_env
-                in
-                Some
-                  (Variable.Map.update joined_var
-                     (function
-                       | None -> Some (Variable.Set.singleton var)
-                       | Some existing_vars ->
-                         Some (Variable.Set.add var existing_vars))
-                     names_from_this_env_in_target_env))
-              names_in_target_env
+          match Simple.must_be_var (simple :> Simple.t) with
+          | Some (joined_var, coercion) when Coercion.is_id coercion -> (
+            let name_in_joined_env =
+              Name_in_one_joined_env.create (Name.var joined_var)
+            in
+            match exists_in_target_env name_in_joined_env with
+            | None -> names_in_target_env
+            | Some (name_in_target_env : Name_in_target_env.t) ->
+              Index.Map.update index
+                (fun names_from_this_env_in_target_env ->
+                  let names_from_this_env_in_target_env =
+                    Option.value ~default:Name_in_one_joined_env.Map.empty
+                      names_from_this_env_in_target_env
+                  in
+                  Some
+                    (Name_in_one_joined_env.Map.update name_in_joined_env
+                       (function
+                         | None ->
+                           Some
+                             (Name_in_target_env.Set.singleton
+                                name_in_target_env)
+                         | Some existing_names ->
+                           Some
+                             (Name_in_target_env.Set.add name_in_target_env
+                                existing_names))
+                       names_from_this_env_in_target_env))
+                names_in_target_env)
           | _ -> names_in_target_env)
         simples t.names_in_target_env
     in
     var, { joined_simples; names_in_target_env; demoted_from_target_env }
 
-  let find_canonicals demoted_var t =
-    match Variable.Map.find_opt demoted_var t.demoted_from_target_env with
+  let find_canonicals demoted_in_target_env t =
+    match
+      Name_in_target_env.Map.find_opt demoted_in_target_env
+        t.demoted_from_target_env
+    with
     | Some canonicals -> canonicals
     | None ->
-      Misc.fatal_errorf "Variable %a was not demoted." Variable.print
-        demoted_var
+      Misc.fatal_errorf "Variable %a was not demoted." Name_in_target_env.print
+        demoted_in_target_env
 
-  let forget_demoted_var demoted_var t =
-    (* [demoted_var] is demoted to [simple] in all environments.
+  let forget_demoted_var demoted_in_target_env t =
+    (* [demoted_in_target_env] is demoted to the same simple in all
+       environments.
 
        Remove it from all maps (except [map_to_canonical], which records the
-       demotion) -- for all intents and purposes, we only need to consider the
-       canonical [simple]. *)
-    let canonicals = find_canonicals demoted_var t in
+       demotion) -- we don't need to treat it as an name in the target env of
+       joined simples, since we have its new canonical instead. *)
+    let canonicals = find_canonicals demoted_in_target_env t in
     let demoted_from_target_env =
-      Variable.Map.remove demoted_var t.demoted_from_target_env
+      Name_in_target_env.Map.remove demoted_in_target_env
+        t.demoted_from_target_env
     in
     let names_in_target_env =
-      Index.Map.fold
+      Simple_in_joined_envs.fold
         (fun index simple names_in_target_env ->
-          match Simple.must_be_var simple with
+          match Simple.must_be_var (simple :> Simple.t) with
           | Some (var, coercion) when Coercion.is_id coercion ->
+            let name_in_joined_env =
+              Name_in_one_joined_env.create (Name.var var)
+            in
             Index.Map.update index
               (fun names_for_index ->
                 let names_for_index =
-                  Option.value ~default:Variable.Map.empty names_for_index
-                in
-                let names_for_index =
-                  Variable.Map.update var
-                    (fun names ->
-                      let names =
-                        Option.value ~default:Variable.Set.empty names
-                      in
-                      let names = Variable.Set.remove demoted_var names in
-                      if Variable.Set.is_empty names then None else Some names)
+                  Option.value ~default:Name_in_one_joined_env.Map.empty
                     names_for_index
                 in
-                if Variable.Map.is_empty names_for_index
+                let names_for_index =
+                  Name_in_one_joined_env.Map.update name_in_joined_env
+                    (fun names ->
+                      let names =
+                        Option.value ~default:Name_in_target_env.Set.empty names
+                      in
+                      let names =
+                        Name_in_target_env.Set.remove demoted_in_target_env
+                          names
+                      in
+                      if Name_in_target_env.Set.is_empty names
+                      then None
+                      else Some names)
+                    names_for_index
+                in
+                if Name_in_one_joined_env.Map.is_empty names_for_index
                 then None
                 else Some names_for_index)
               names_in_target_env
@@ -437,118 +629,203 @@ end = struct
     in
     { t with demoted_from_target_env; names_in_target_env }
 
-  let expand_to_names_in_target_env ~mem_name ~update_names names_in_target_env
-      table acc =
+  (* This function is responsible for recording demotions, represented as a map
+     from names to their {b current canonical simple} in each joined env.
+
+     This means we must:
+
+     - Update the [names_in_target_env] map to ensure the keys are canonicals in
+     the corresponding joined env and, if demoting a name that exists in the
+     target env, include the new name as an alias of the new canonical.
+
+     - Update the [demoted_from_target_env] map with the new canonicals in the
+     joined envs (recall that [demoted_from_target_env] only stores canonicals
+     in the joined envs that are *distinct* from the name in the target env). *)
+  let apply_demotions ~exists_in_target_env t all_demotions =
     Index.Map.fold
-      (fun index values (acc, names_in_target_env, touched_vars) ->
+      (fun index values
+           (demoted_from_target_env, names_in_target_env, touched_vars) ->
         let names_from_this_env_in_target_env =
-          Option.value ~default:Variable.Map.empty
+          Option.value ~default:Name_in_one_joined_env.Map.empty
             (Index.Map.find_opt index names_in_target_env)
         in
-        let acc, names_from_this_env_in_target_env, touched_vars =
-          Variable.Map.fold
-            (fun var value
-                 (acc, names_from_this_env_in_target_env, touched_vars) ->
+        let ( demoted_from_target_env,
+              names_from_this_env_in_target_env,
+              touched_vars ) =
+          Name_in_one_joined_env.Map.fold
+            (fun demoted_var
+                 (canonical_in_joined_env : Simple_in_one_joined_env.t)
+                 ( demoted_from_target_env,
+                   names_from_this_env_in_target_env,
+                   touched_vars ) ->
+              (* Usually, we expect that there is no entry in the
+                 [names_in_target_env] map for a variable we are demoting, since
+                 we only introduce entries on canonicals.
+
+                 However if we are processing an env extension with a demotion
+                 [y -> z], we could have demoted [x -> y] at the toplevel
+                 [cut_and_n_way_join], which would have introduced a mapping
+                 from [y] to [{ x }] (since [x] is a name for [y] in the target
+                 env). In this case, we need to remove the mapping for [y]
+                 (since it is no longer canonical in the extension) and
+                 introduce the mapping [z -> { x }] (if [y] does not exist in
+                 the target env) or [z -> { x, y }] (if [y] exists in the target
+                 env) instead. *)
               let vars_in_target_env =
-                Option.value ~default:Variable.Set.empty
-                  (Variable.Map.find_opt var names_from_this_env_in_target_env)
+                Option.value ~default:Name_in_target_env.Set.empty
+                  (Name_in_one_joined_env.Map.find_opt demoted_var
+                     names_from_this_env_in_target_env)
               in
               let vars_in_target_env =
-                if mem_name (Name.var var)
-                then Variable.Set.add var vars_in_target_env
-                else vars_in_target_env
+                match exists_in_target_env demoted_var with
+                | None -> vars_in_target_env
+                | Some name_in_target_env ->
+                  Name_in_target_env.Set.add name_in_target_env
+                    vars_in_target_env
               in
               let names_from_this_env_in_target_env =
-                update_names var vars_in_target_env value
-                  names_from_this_env_in_target_env
+                let names_from_this_env_in_target_env =
+                  Name_in_one_joined_env.Map.remove demoted_var
+                    names_from_this_env_in_target_env
+                in
+                match
+                  Simple.must_be_var (canonical_in_joined_env :> Simple.t)
+                with
+                | Some (canonical_var, coercion) when Coercion.is_id coercion ->
+                  Name_in_one_joined_env.Map.update
+                    (Name_in_one_joined_env.create (Name.var canonical_var))
+                    (function
+                      | None -> Some vars_in_target_env
+                      | Some existing_vars ->
+                        Some
+                          (Name_in_target_env.Set.union existing_vars
+                             vars_in_target_env))
+                    names_from_this_env_in_target_env
+                | _ -> names_from_this_env_in_target_env
               in
-              let acc =
-                Variable.Set.fold
+              let demoted_from_target_env =
+                Name_in_target_env.Set.fold
                   (fun var_in_target_env values ->
-                    Variable.Map.update var_in_target_env
-                      (function
-                        | None -> Some (Index.Map.singleton index value)
-                        | Some values_in_other_envs ->
-                          Some (Index.Map.add index value values_in_other_envs))
+                    Name_in_target_env.Map.update var_in_target_env
+                      (fun canonical_in_joined_envs ->
+                        let canonical_in_joined_envs =
+                          Option.value ~default:Simple_in_joined_envs.empty
+                            canonical_in_joined_envs
+                        in
+                        Some
+                          (Simple_in_joined_envs.add index
+                             canonical_in_joined_env canonical_in_joined_envs))
                       values)
-                  vars_in_target_env acc
+                  vars_in_target_env demoted_from_target_env
               in
-              ( acc,
+              ( demoted_from_target_env,
                 names_from_this_env_in_target_env,
-                Variable.Set.union vars_in_target_env touched_vars ))
+                Name_in_target_env.Set.union vars_in_target_env touched_vars ))
             values
-            (acc, names_from_this_env_in_target_env, touched_vars)
+            ( demoted_from_target_env,
+              names_from_this_env_in_target_env,
+              touched_vars )
         in
-        ( acc,
+        ( demoted_from_target_env,
           Index.Map.add index names_from_this_env_in_target_env
             names_in_target_env,
           touched_vars ))
-      table
-      (acc, names_in_target_env, Variable.Set.empty)
+      all_demotions
+      ( t.demoted_from_target_env,
+        t.names_in_target_env,
+        Name_in_target_env.Set.empty )
 
   type 'a add_result =
-    { values_in_target_env : 'a Index.Map.t Variable.Map.t;
-      touched_variables : Variable.Set.t
+    { values_in_target_env : 'a Index.Map.t Name_in_target_env.Map.t;
+      touched_variables : Name_in_target_env.Set.t
     }
 
-  let add_in_target_env ~mem_name t table values_by_index =
-    let values_in_target_env, _names_in_target_env, touched_variables =
-      expand_to_names_in_target_env ~mem_name
-        ~update_names:(fun _ _ _ names -> names)
-        t.names_in_target_env table values_by_index
+  (* Takes a map of values in joined envs (i.e. a map from canonical names in a
+     joined env to values of type ['a] for each joined env) and transforms it
+     into a map of values in the target env by adding the values on name [n] to
+     all the aliases of [n] that are canonical in the target env. *)
+  let add_in_target_env ~exists_in_target_env t values_in_joined_envs
+      values_in_target_env =
+    let values_in_target_env, touched_variables =
+      Index.Map.fold
+        (fun index values_in_joined_env (values_in_target_env, touched_vars) ->
+          let names_from_this_env_in_target_env =
+            Option.value ~default:Name_in_one_joined_env.Map.empty
+              (Index.Map.find_opt index t.names_in_target_env)
+          in
+          let values_in_target_env, touched_vars =
+            Name_in_one_joined_env.Map.fold
+              (fun var value (acc, touched_vars) ->
+                let vars_in_target_env =
+                  Option.value ~default:Name_in_target_env.Set.empty
+                    (Name_in_one_joined_env.Map.find_opt var
+                       names_from_this_env_in_target_env)
+                in
+                let vars_in_target_env =
+                  match exists_in_target_env var with
+                  | None -> vars_in_target_env
+                  | Some name_in_target_env ->
+                    Name_in_target_env.Set.add name_in_target_env
+                      vars_in_target_env
+                in
+                let values_in_target_env =
+                  Name_in_target_env.Set.fold
+                    (fun var_in_target_env values ->
+                      Name_in_target_env.Map.update var_in_target_env
+                        (function
+                          | None -> Some (Index.Map.singleton index value)
+                          | Some values_in_other_envs ->
+                            Some
+                              (Index.Map.add index value values_in_other_envs))
+                        values)
+                    vars_in_target_env acc
+                in
+                ( values_in_target_env,
+                  Name_in_target_env.Set.union vars_in_target_env touched_vars ))
+              values_in_joined_env
+              (values_in_target_env, touched_vars)
+          in
+          values_in_target_env, touched_vars)
+        values_in_joined_envs
+        (values_in_target_env, Name_in_target_env.Set.empty)
     in
     { values_in_target_env; touched_variables }
 
   type join_result =
-    { demoted_in_target_env : Simple.t Variable.Map.t;
-      demoted_in_some_envs : Simple.t Index.Map.t Variable.Map.t;
+    { demoted_in_target_env : Simple_in_target_env.t Name_in_target_env.Map.t;
+      demoted_in_some_envs : Simple_in_joined_envs.t Name_in_target_env.Map.t;
       t : t
     }
 
-  let n_way_join0 ~mem_name ~is_bound_strictly_earlier t all_demotions =
+  let n_way_join0 ~exists_in_target_env ~is_bound_strictly_earlier t
+      all_demotions =
     let demoted_from_target_env, names_in_target_env, touched_vars =
-      expand_to_names_in_target_env ~mem_name
-        ~update_names:
-          (fun demoted_var names_of_demoted_in_target_env canonical_simple
-               names_from_this_env_in_target_env ->
-          let names_from_this_env_in_target_env =
-            Variable.Map.remove demoted_var names_from_this_env_in_target_env
-          in
-          match Simple.must_be_var canonical_simple with
-          | Some (canonical_var, coercion)
-            when Coercion.is_id coercion && mem_name (Name.var canonical_var) ->
-            Variable.Map.update canonical_var
-              (function
-                | None -> Some names_of_demoted_in_target_env
-                | Some existing_vars ->
-                  Some
-                    (Variable.Set.union existing_vars
-                       names_of_demoted_in_target_env))
-              names_from_this_env_in_target_env
-          | _ -> names_from_this_env_in_target_env)
-        t.names_in_target_env all_demotions t.demoted_from_target_env
+      apply_demotions ~exists_in_target_env t all_demotions
     in
     let t = { t with demoted_from_target_env; names_in_target_env } in
     let all_indices = Index.Map.keys all_demotions in
-    Variable.Set.fold
+    Name_in_target_env.Set.fold
       (fun demoted_var { demoted_in_target_env; demoted_in_some_envs; t } ->
         let canonicals = find_canonicals demoted_var t in
         let[@local] is_demoted_in_some_envs t =
           let demoted_in_some_envs =
-            Variable.Map.add demoted_var canonicals demoted_in_some_envs
+            Name_in_target_env.Map.add demoted_var canonicals
+              demoted_in_some_envs
           in
           { demoted_in_target_env; demoted_in_some_envs; t }
         in
         let[@local] is_demoted_in_all_envs t =
           let joined_simples =
-            ISM.add canonicals demoted_var t.joined_simples
+            Simple_in_joined_envs.Map.add canonicals demoted_var
+              t.joined_simples
           in
           is_demoted_in_some_envs { t with joined_simples }
         in
         let[@local] is_demoted_in_target_env canonical t =
           let t = forget_demoted_var demoted_var t in
           let demoted_in_target_env =
-            Variable.Map.add demoted_var canonical demoted_in_target_env
+            Name_in_target_env.Map.add demoted_var canonical
+              demoted_in_target_env
           in
           { demoted_in_target_env; demoted_in_some_envs; t }
         in
@@ -558,27 +835,31 @@ end = struct
            environments.
 
            This can only happen in the presence of env extensions. *)
-        if not (Index.Set.subset all_indices (Index.Map.keys canonicals))
+        if not (Simple_in_joined_envs.is_defined_in all_indices canonicals)
         then is_demoted_in_some_envs t
         else
-          match find ~mem_name ~is_bound_strictly_earlier canonicals t with
+          match
+            find ~exists_in_target_env ~is_bound_strictly_earlier canonicals t
+          with
           | Bottom ->
             Misc.fatal_error
               "Unexpected bottom for non-empty set of canonicals."
           | Unknown -> is_demoted_in_all_envs t
           | Ok simple -> is_demoted_in_target_env simple t)
       touched_vars
-      { demoted_in_target_env = Variable.Map.empty;
-        demoted_in_some_envs = Variable.Map.empty;
+      { demoted_in_target_env = Name_in_target_env.Map.empty;
+        demoted_in_some_envs = Name_in_target_env.Map.empty;
         t
       }
 
-  let n_way_join ~mem_name ~is_bound_strictly_earlier t all_demotions =
+  let n_way_join ~exists_in_target_env ~is_bound_strictly_earlier t
+      all_demotions =
     if Index.Map.is_empty all_demotions
     then Or_bottom.Bottom
     else
       Or_bottom.Ok
-        (n_way_join0 ~mem_name ~is_bound_strictly_earlier t all_demotions)
+        (n_way_join0 ~exists_in_target_env ~is_bound_strictly_earlier t
+           all_demotions)
 end
 
 module Join_equations = struct
@@ -590,15 +871,16 @@ module Join_equations = struct
 
   {b Note}: A variable can have a more precise joined type if, and only if,
   it has been given a new type in {b all} the joined environments. *)
-  type t = ET.t Index.Map.t Variable.Map.t
+  type t = ET.t Index.Map.t Name_in_target_env.Map.t
 
-  let empty = Variable.Map.empty
+  let empty = Name_in_target_env.Map.empty
 
   let find var t =
-    Option.value ~default:Index.Map.empty (Variable.Map.find_opt var t)
+    Option.value ~default:Index.Map.empty
+      (Name_in_target_env.Map.find_opt var t)
 
   let n_way_join ~n_way_join_type vars equations st =
-    Variable.Map.fold
+    Name_in_target_env.Map.fold
       (fun var types (equations, st) ->
         let types =
           Index.Map.fold
@@ -607,28 +889,30 @@ module Join_equations = struct
         in
         match (n_way_join_type st types : _ Or_unknown.t * _) with
         | Unknown, st -> equations, st
-        | Known ty, st -> Variable.Map.add var ty equations, st)
+        | Known ty, st -> Name_in_target_env.Map.add var ty equations, st)
       vars (equations, st)
 
   let add_joined_simple ~joined_envs demoted_var canonicals joined_types =
-    Variable.Map.update demoted_var
+    Name_in_target_env.Map.update demoted_var
       (fun types_of_demoted_var ->
         let types_of_demoted_var =
           Option.value ~default:Index.Map.empty types_of_demoted_var
         in
         let types_of_demoted_var =
-          Index.Map.fold
+          Simple_in_joined_envs.fold
             (fun index canonical types_of_demoted_var ->
               let env = Index.Map.find index joined_envs in
+              let canonical_simple = (canonical :> Simple.t) in
               let ty =
-                Simple.pattern_match canonical
+                Simple.pattern_match canonical_simple
                   ~const:More_type_creators.type_for_const
                   ~name:(fun name ~coercion ->
                     TG.apply_coercion (TE.find env name None) coercion)
               in
               let expanded =
                 Expand_head.expand_head0 env ty
-                  ~known_canonical_simple_at_in_types_mode:(Some canonical)
+                  ~known_canonical_simple_at_in_types_mode:
+                    (Some canonical_simple)
               in
               Index.Map.add index expanded types_of_demoted_var)
             canonicals types_of_demoted_var
@@ -642,8 +926,8 @@ module Symbol_projection = struct
   include Container_types.Make (Symbol_projection)
 end
 
-let n_way_join_symbol_projections ~mem_name ~is_bound_strictly_earlier
-    join_aliases joined_envs all_symbol_projections =
+let n_way_join_symbol_projections ~exists_in_target_env
+    ~is_bound_strictly_earlier join_aliases joined_envs all_symbol_projections =
   let joined_projections =
     Index.Map.fold
       (fun index symbol_projections acc ->
@@ -654,11 +938,15 @@ let n_way_join_symbol_projections ~mem_name ~is_bound_strictly_earlier
               TE.get_canonical_simple_exn typing_env (Simple.var var)
                 ~min_name_mode:Name_mode.in_types
             in
+            let canonical = Simple_in_one_joined_env.create canonical in
             Symbol_projection.Map.update symbol_projection
-              (function
-                | None -> Some (Index.Map.singleton index canonical)
-                | Some projections_in_other_envs ->
-                  Some (Index.Map.add index canonical projections_in_other_envs))
+              (fun joined_projections ->
+                let joined_projections =
+                  Option.value joined_projections
+                    ~default:Simple_in_joined_envs.empty
+                in
+                Some
+                  (Simple_in_joined_envs.add index canonical joined_projections))
               acc)
           symbol_projections acc)
       all_symbol_projections Symbol_projection.Map.empty
@@ -666,16 +954,16 @@ let n_way_join_symbol_projections ~mem_name ~is_bound_strictly_earlier
   let all_indices = Index.Map.keys joined_envs in
   Symbol_projection.Map.fold
     (fun symbol_projection simples symbol_projections ->
-      if not (Index.Set.subset all_indices (Index.Map.keys simples))
+      if not (Simple_in_joined_envs.is_defined_in all_indices simples)
       then symbol_projections
       else
         match
-          Join_aliases.find ~mem_name ~is_bound_strictly_earlier simples
-            join_aliases
+          Join_aliases.find ~exists_in_target_env ~is_bound_strictly_earlier
+            simples join_aliases
         with
         | Bottom | Unknown -> symbol_projections
         | Ok simple -> (
-          match Simple.must_be_var simple with
+          match Simple.must_be_var (simple :> Simple.t) with
           | Some (var, coercion) when Coercion.is_id coercion ->
             Variable.Map.add var symbol_projection symbol_projections
           | _ -> symbol_projections))
@@ -685,7 +973,7 @@ type t =
   { join_aliases : Join_aliases.t;
     join_types : Join_equations.t;
     existential_vars : K.t Variable.Map.t;
-    pending_vars : Simple.t Index.Map.t Variable.Map.t;
+    pending_vars : Simple_in_joined_envs.t Name_in_target_env.Map.t;
     (* Existential variables that have been defined by their names in all the
        joined environment, but whose type has not yet been computed. *)
     joined_envs : TE.t Index.Map.t;
@@ -697,9 +985,9 @@ type t =
   }
 
 type join_result =
-  { demoted_in_target_env : Simple.t Variable.Map.t;
+  { demoted_in_target_env : Simple_in_target_env.t Name_in_target_env.Map.t;
     extra_variables : K.t Variable.Map.t;
-    equations : TG.t Variable.Map.t;
+    equations : TG.t Name_in_target_env.Map.t;
     symbol_projections : Symbol_projection.t Variable.Map.t
   }
 
@@ -717,12 +1005,21 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
               match Name.must_be_var_opt name with
               | None -> demotions, expanded_equations
               | Some var -> (
+                let name_in_joined_env =
+                  Name_in_one_joined_env.create (Name.var var)
+                in
+                (* Note: we must compute the current canonical here, because
+                   [Join_aliases.n_way_join] expects a fully compressed map
+                   demotions (i.e. the right-hand side must not themselves be
+                   demoted) *)
                 match
                   TE.get_alias_then_canonical_simple_exn
                     ~min_name_mode:Name_mode.in_types typing_env ty
                 with
                 | canonical_simple ->
-                  ( Variable.Map.add var canonical_simple demotions,
+                  ( Name_in_one_joined_env.Map.add name_in_joined_env
+                      (Simple_in_one_joined_env.create canonical_simple)
+                      demotions,
                     expanded_equations )
                 | exception Not_found ->
                   let expanded =
@@ -730,9 +1027,11 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
                       ~known_canonical_simple_at_in_types_mode:
                         (Some (Simple.var var))
                   in
-                  demotions, Variable.Map.add var expanded expanded_equations))
+                  ( demotions,
+                    Name_in_one_joined_env.Map.add name_in_joined_env expanded
+                      expanded_equations )))
             equations
-            (Variable.Map.empty, Variable.Map.empty)
+            (Name_in_one_joined_env.Map.empty, Name_in_one_joined_env.Map.empty)
         in
         ( Index.Map.add index demotions all_demotions,
           Index.Map.add index expanded_equations all_expanded_equations,
@@ -740,34 +1039,43 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
       all_levels
       (Index.Map.empty, Index.Map.empty, Index.Map.empty)
   in
-  let mem_name = TE.mem ~min_name_mode:Name_mode.in_types t.target_env in
-  let is_bound_strictly_earlier name ~than =
-    TE.alias_is_bound_strictly_earlier t.target_env ~bound_name:name ~alias:than
+  let target_env = t.target_env in
+  let exists_in_target_env (name : Name_in_one_joined_env.t) =
+    if TE.mem ~min_name_mode:Name_mode.in_types target_env (name :> Name.t)
+    then Some (Name_in_target_env.create (name :> Name.t))
+    else None
+  in
+  let is_bound_strictly_earlier (name : Name_in_target_env.t)
+      ~(than : Simple_in_target_env.t) =
+    TE.alias_is_bound_strictly_earlier t.target_env
+      ~bound_name:(name :> Name.t)
+      ~alias:(than :> Simple.t)
   in
   match
-    Join_aliases.n_way_join ~mem_name ~is_bound_strictly_earlier t.join_aliases
-      all_demotions
+    Join_aliases.n_way_join ~exists_in_target_env ~is_bound_strictly_earlier
+      t.join_aliases all_demotions
   with
   | Bottom -> Bottom
   | Ok { demoted_in_target_env; demoted_in_some_envs; t = join_aliases } ->
     let join_types =
-      Variable.Map.fold
+      Name_in_target_env.Map.fold
         (Join_equations.add_joined_simple ~joined_envs:t.joined_envs)
         demoted_in_some_envs t.join_types
     in
     let { Join_aliases.values_in_target_env = join_types;
           touched_variables = touched_vars
         } =
-      Join_aliases.add_in_target_env ~mem_name join_aliases
+      Join_aliases.add_in_target_env ~exists_in_target_env join_aliases
         all_expanded_equations join_types
     in
     let touched_vars =
-      Variable.Set.union touched_vars (Variable.Map.keys demoted_in_some_envs)
+      Name_in_target_env.Set.union touched_vars
+        (Name_in_target_env.Map.keys demoted_in_some_envs)
     in
     let t = { t with join_aliases; join_types } in
     let all_indices = Index.Map.keys t.joined_envs in
     let equations_to_join =
-      Variable.Set.fold
+      Name_in_target_env.Set.fold
         (fun var new_vars ->
           let types = Join_equations.find var t.join_types in
           if not (Index.Set.subset all_indices (Index.Map.keys types))
@@ -778,19 +1086,20 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
             let types =
               Index.Map.inter (fun _ _ expanded -> expanded) t.joined_envs types
             in
-            Variable.Map.add var types new_vars)
-        touched_vars Variable.Map.empty
+            Name_in_target_env.Map.add var types new_vars)
+        touched_vars Name_in_target_env.Map.empty
     in
     let rec loop equations_to_join joined_equations t =
       let equations, t =
         Join_equations.n_way_join ~n_way_join_type equations_to_join
           joined_equations t
       in
-      if Variable.Map.is_empty t.pending_vars
+      if Name_in_target_env.Map.is_empty t.pending_vars
       then
         let symbol_projections =
-          n_way_join_symbol_projections ~mem_name ~is_bound_strictly_earlier
-            t.join_aliases t.joined_envs all_symbol_projections
+          n_way_join_symbol_projections ~exists_in_target_env
+            ~is_bound_strictly_earlier t.join_aliases t.joined_envs
+            all_symbol_projections
         in
         Or_bottom.Ok
           { demoted_in_target_env;
@@ -800,19 +1109,19 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
           }
       else
         let join_types =
-          Variable.Map.fold
+          Name_in_target_env.Map.fold
             (Join_equations.add_joined_simple ~joined_envs:t.joined_envs)
             t.pending_vars t.join_types
         in
         let equations_to_join =
-          Variable.Map.mapi
+          Name_in_target_env.Map.mapi
             (fun var _ -> Join_equations.find var join_types)
             t.pending_vars
         in
-        let pending_vars = Variable.Map.empty in
+        let pending_vars = Name_in_target_env.Map.empty in
         loop equations_to_join equations { t with pending_vars; join_types }
     in
-    loop equations_to_join Variable.Map.empty t
+    loop equations_to_join Name_in_target_env.Map.empty t
 
 let cut_and_n_way_join ~n_way_join_type ~meet_type ~cut_after target_env
     joined_envs =
@@ -831,7 +1140,7 @@ let cut_and_n_way_join ~n_way_join_type ~meet_type ~cut_after target_env
       { join_aliases = Join_aliases.empty;
         join_types = Join_equations.empty;
         existential_vars = Variable.Map.empty;
-        pending_vars = Variable.Map.empty;
+        pending_vars = Name_in_target_env.Map.empty;
         joined_envs;
         target_env
       }
@@ -851,17 +1160,19 @@ let cut_and_n_way_join ~n_way_join_type ~meet_type ~cut_after target_env
         extra_variables target_env
     in
     let target_env =
-      Variable.Map.fold
-        (fun var simple target_env ->
-          let kind = TG.kind (TE.find target_env (Name.var var) None) in
+      Name_in_target_env.Map.fold
+        (fun name (simple : Simple_in_target_env.t) target_env ->
+          let name = (name :> Name.t) in
+          let simple = (simple :> Simple.t) in
+          let kind = TG.kind (TE.find target_env name None) in
           let ty = TG.alias_type_of kind simple in
-          TE.add_equation ~meet_type target_env (Name.var var) ty)
+          TE.add_equation ~meet_type target_env name ty)
         demoted_in_target_env target_env
     in
     let target_env =
-      Variable.Map.fold
-        (fun var ty target_env ->
-          TE.add_equation ~meet_type target_env (Name.var var) ty)
+      Name_in_target_env.Map.fold
+        (fun name ty target_env ->
+          TE.add_equation ~meet_type target_env (name :> Name.t) ty)
         equations target_env
     in
     let target_env =
@@ -906,7 +1217,7 @@ let n_way_join_env_extension ~n_way_join_type ~meet_type t envs_with_extensions
       { join_aliases = t.join_aliases;
         join_types = t.join_types;
         existential_vars = t.existential_vars;
-        pending_vars = Variable.Map.empty;
+        pending_vars = Name_in_target_env.Map.empty;
         joined_envs;
         target_env = t.target_env
       }
@@ -918,20 +1229,23 @@ let n_way_join_env_extension ~n_way_join_type ~meet_type t envs_with_extensions
     if not (Variable.Map.is_empty symbol_projections)
     then Misc.fatal_error "Unexpected symbol projections in env extension.";
     let joined_equations =
-      Variable.Map.fold
-        (fun var simple equations ->
+      Name_in_target_env.Map.fold
+        (fun name (simple : Simple_in_target_env.t) equations ->
           let kind =
-            match Variable.Map.find_opt var extra_variables with
-            | Some kind -> kind
-            | None -> TG.kind (TE.find t.target_env (Name.var var) None)
+            match Name.must_be_var_opt (name :> Name.t) with
+            | None -> TG.kind (TE.find t.target_env (name :> Name.t) None)
+            | Some var -> (
+              match Variable.Map.find_opt var extra_variables with
+              | Some kind -> kind
+              | None -> TG.kind (TE.find t.target_env (name :> Name.t) None))
           in
-          let ty = TG.alias_type_of kind simple in
-          Name.Map.add (Name.var var) ty equations)
+          let ty = TG.alias_type_of kind (simple :> Simple.t) in
+          Name.Map.add (name :> Name.t) ty equations)
         demoted_in_target_env Name.Map.empty
     in
     let joined_equations =
-      Variable.Map.fold
-        (fun var ty equations -> Name.Map.add (Name.var var) ty equations)
+      Name_in_target_env.Map.fold
+        (fun name ty equations -> Name.Map.add (name :> Name.t) ty equations)
         equations joined_equations
     in
     (* Preserve existential vars since we can't bind them in extensions. *)
@@ -939,23 +1253,35 @@ let n_way_join_env_extension ~n_way_join_type ~meet_type t envs_with_extensions
     Or_bottom.Ok (TEE.from_map joined_equations, { t with existential_vars })
 
 let n_way_join_simples t kind simples : _ Or_bottom.t * _ =
-  let simples = Index.Map.of_list simples in
-  let mem_name = TE.mem ~min_name_mode:Name_mode.in_types t.target_env in
-  let is_bound_strictly_earlier name ~than =
-    TE.alias_is_bound_strictly_earlier t.target_env ~bound_name:name ~alias:than
+  let simples = Simple_in_joined_envs.of_list simples in
+  let target_env = t.target_env in
+  let exists_in_target_env (name : Name_in_one_joined_env.t) =
+    if TE.mem ~min_name_mode:Name_mode.in_types target_env (name :> Name.t)
+    then Some (Name_in_target_env.create (name :> Name.t))
+    else None
+  in
+  let is_bound_strictly_earlier (name : Name_in_target_env.t)
+      ~(than : Simple_in_target_env.t) =
+    TE.alias_is_bound_strictly_earlier t.target_env
+      ~bound_name:(name :> Name.t)
+      ~alias:(than :> Simple.t)
   in
   match
-    Join_aliases.find ~mem_name ~is_bound_strictly_earlier simples
+    Join_aliases.find ~exists_in_target_env ~is_bound_strictly_earlier simples
       t.join_aliases
   with
   | Bottom -> Bottom, t
-  | Ok simple -> Ok simple, t
+  | Ok simple -> Ok (simple :> Simple.t), t
   | Unknown ->
     let var, join_aliases =
-      Join_aliases.add_existential_var ~mem_name simples t.join_aliases
+      Join_aliases.add_existential_var ~exists_in_target_env simples
+        t.join_aliases
     in
+    let var_as_name = Name_in_target_env.create (Name.var var) in
     let existential_vars = Variable.Map.add var kind t.existential_vars in
-    let pending_vars = Variable.Map.add var simples t.pending_vars in
+    let pending_vars =
+      Name_in_target_env.Map.add var_as_name simples t.pending_vars
+    in
     Ok (Simple.var var), { t with existential_vars; join_aliases; pending_vars }
 
 type env_id = Index.t
