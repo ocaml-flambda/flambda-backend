@@ -149,6 +149,8 @@ module Simple_in_joined_envs : sig
 
   val in_same_envs : t -> as_:t -> t
 
+  val in_envs : 'a Index.Map.t -> t -> t
+
   val is_defined_in : Index.Set.t -> t -> bool
 
   val raw_name : t -> string
@@ -205,6 +207,8 @@ end = struct
         then None
         else Some simple_in_one_joined_env)
       t
+
+  let in_envs envs t = Index.Map.inter (fun _ _ simple -> simple) envs t
 
   let in_same_envs t ~as_ = Index.Map.inter (fun _ _ simple -> simple) as_ t
 
@@ -1059,7 +1063,12 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
   | Ok { demoted_in_target_env; demoted_in_some_envs; t = join_aliases } ->
     let join_types =
       Name_in_target_env.Map.fold
-        (Join_equations.add_joined_simple ~joined_envs:t.joined_envs)
+        (fun name_in_target_env canonicals ->
+          let canonicals =
+            Simple_in_joined_envs.in_envs all_levels canonicals
+          in
+          Join_equations.add_joined_simple ~joined_envs:t.joined_envs
+            name_in_target_env canonicals)
         demoted_in_some_envs t.join_types
     in
     let { Join_aliases.values_in_target_env = join_types;
@@ -1110,7 +1119,12 @@ let n_way_join_levels ~n_way_join_type t all_levels : _ Or_bottom.t =
       else
         let join_types =
           Name_in_target_env.Map.fold
-            (Join_equations.add_joined_simple ~joined_envs:t.joined_envs)
+            (fun name_in_target_env canonicals ->
+              let canonicals =
+                Simple_in_joined_envs.in_envs all_levels canonicals
+              in
+              Join_equations.add_joined_simple ~joined_envs:t.joined_envs
+                name_in_target_env canonicals)
             t.pending_vars t.join_types
         in
         let equations_to_join =
