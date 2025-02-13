@@ -4869,7 +4869,7 @@ let relevant_pairs pairs v =
 (* This is very similar to Typecore.mode_cross_left_value. Any bugs here
    are likely bugs there, too. *)
 let mode_cross_left_alloc env ty mode =
-  if not (is_principal ty) then mode else begin
+  if not (is_principal ty) then Alloc.disallow_right mode else begin
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
     let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
@@ -6033,7 +6033,7 @@ let rec build_subtype env (visited : transient_expr list)
             let a = mode_cross_right env t1 a in
             build_submode_pos a
           end else begin
-            let a = mode_cross_left_alloc env t1 (Alloc.disallow_right a) in
+            let a = mode_cross_left_alloc env t1 a in
             build_submode_neg a
           end
         end else a, Unchanged
@@ -6263,7 +6263,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        let a2 = mode_cross_left_alloc env t2 (Alloc.disallow_right a2) in
+        let a2 = mode_cross_left_alloc env t2 a2 in
          subtype_alloc_mode env trace a2 a1;
         (* RHS mode of arrow types indicates allocation in the parent region
            and is not subject to mode crossing *)
