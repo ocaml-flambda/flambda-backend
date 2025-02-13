@@ -981,6 +981,189 @@ let emit_push_trap_label handler =
 
 (* Emit Code *)
 
+module Address_sanitizer : sig
+  type memory_access = Load | Store_initialize | Store_modify
+
+  (** Implements [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping]. *)
+  val emit_sanitize : ?dependencies:arg array -> address:arg -> memory_chunk -> memory_access -> unit
+end = struct
+  type memory_access = Load | Store_initialize | Store_modify
+
+  module Memory_chunk_size = struct
+    type t =
+      | I8
+      | I16
+      | I32
+      | I64
+      | I128
+
+    let of_memory_chunk = function
+      | Byte_unsigned | Byte_signed -> I8
+      | Sixteen_unsigned | Sixteen_signed -> I16
+      | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> I32
+      | Word_int | Word_val | Double -> I64
+      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> I128
+    ;;
+
+    external to_bytes_log2 : t -> int = "%identity"
+
+    let to_bytes t = 1 lsl to_bytes_log2 t
+  end
+
+  let mov_address src dest =
+    match src with
+    | Mem
+        { scale = 1;
+          base = None;
+          sym = None;
+          displ = 0;
+          idx;
+          arch = _;
+          typ = _
+        } ->
+      I.mov (Reg64 idx) dest
+    | _ -> I.lea src dest
+  ;;
+
+  let[@inline always] is_stack_16_byte_aligned () =
+    (* Yes, sadly this does result in materially better assembly than [(!stack_offset mod 16) = 0]
+       https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
+    !stack_offset land 15 = 0
+  ;;
+
+  let asan_report_function memory_chunk_size memory_access =
+    let index =
+      (Memory_chunk_size.to_bytes_log2 memory_chunk_size lsl 1)
+      + match memory_access with Load -> 0 | (Store_initialize | Store_modify) -> 1
+    in
+    (* We take extra care to structure our code such that these are statically
+       allocated as manifest constants in a flat array. *)
+    match index with
+    | 0 -> Sym "caml_asan_report_load1_noabort"
+    | 1 -> Sym "caml_asan_report_store1_noabort"
+    | 2 -> Sym "caml_asan_report_load2_noabort"
+    | 3 -> Sym "caml_asan_report_store2_noabort"
+    | 4 -> Sym "caml_asan_report_load4_noabort"
+    | 5 -> Sym "caml_asan_report_store4_noabort"
+    | 6 -> Sym "caml_asan_report_load8_noabort"
+    | 7 -> Sym "caml_asan_report_store8_noabort"
+    | 8 -> Sym "caml_asan_report_load16_noabort"
+    | 9 -> Sym "caml_asan_report_store16_noabort"
+    | _ ->
+      (* Larger loads and stores can be reported using
+         [__asan_report_load_n_noabort], but we don't support this yet. *)
+      assert false
+  ;;
+
+  let[@inline always] uses_register register = function
+    | Reg8L register' | Reg16 register' | Reg32 register' | Reg64 register' ->
+      register == register'
+    | Mem { idx = register'; base = None; scale; _ } ->
+      scale <> 0 && register == register'
+    | Mem { idx = register'; base = Some register''; _ } ->
+      register == register' || register == register''
+    | _ -> false
+  ;;
+
+  (* The C code snippets in the comments throughout this function refer to the implementation given in
+     [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping].
+     I'd recommend reading that first for reference before touching this function. *)
+  let emit_sanitize ?(dependencies = [||]) ~address (memory_chunk : memory_chunk) (memory_access : memory_access) =
+    let[@inline always] need_to_save_register register =
+      uses_register register address
+      || Array.exists (uses_register register) dependencies
+    in
+    let memory_chunk_size = Memory_chunk_size.of_memory_chunk memory_chunk in
+    (* -------- Begin prologue -------- *)
+    let need_to_save_rdi = need_to_save_register RDI in
+    if need_to_save_rdi then push rdi;
+    (* For the remainder of this function [rdi] will hold [address]. It's vital
+       that we do this now before we change the contents of any other registers,
+       because we don't want to clobber any of [address]'s component registers. *)
+    mov_address address rdi;
+    let need_to_save_r11 = need_to_save_register R11 in
+    if need_to_save_r11 then push r11;
+    let need_to_save_r10 =
+      match memory_chunk_size with
+      | I64 | I128 -> false
+      | I8 | I16 | I32 -> need_to_save_register R10
+    in
+    if need_to_save_r10 then push r10;
+    (* -------- End prologue -------- *)
+    let asan_check_succeded_label = new_label () in
+    I.mov rdi r11;
+    (* These constants come from
+       [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
+    I.shr (int 3) r11;
+    let shadow_address = mem64 BYTE 0x7FFF8000 R11 in
+    let () =
+      match memory_chunk_size with
+      | I64 | I128 ->
+        I.cmp (int 0) shadow_address;
+        I.je (label asan_check_succeded_label)
+        (* There is no slow-path check for word-sized and larger accesses *)
+      | I8 | I16 | I32 ->
+        I.movzx shadow_address r11;
+        I.test (Reg8L R11) (Reg8L R11);
+        I.je (label asan_check_succeded_label);
+        (* Begin the [SlowPathCheck]. Place [last_accessed_byte] in [r10].
+           ```
+           last_accessed_byte = (address & 7) + kAccessSize - 1;
+           ```
+        *)
+        I.mov rdi r10;
+        I.and_ (int 7) r10;
+        let () =
+          match memory_chunk_size with
+          | I8 -> ()
+          | I16 -> I.inc r10
+          | I32 | I64 | I128 ->
+            let offset = Memory_chunk_size.to_bytes memory_chunk_size - 1 in
+            I.add (int offset) r10
+        in
+        (* [ return (last_accessed_byte >= shadow_value) ] *)
+        I.cmp (Reg8L R11) (Reg8L R10);
+        I.jl (label asan_check_succeded_label)
+    in
+    (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
+    let () =
+      let need_to_align_stack = not (is_stack_16_byte_aligned ()) in
+      if need_to_align_stack then (
+        (* [push rax] is a single-byte instruction, as opposed to something like [push 0]
+           which is a 2-byte instruction. *)
+        push rax
+      );
+      (* The asan report wrappers use a special calling convention via the C
+         attribute [__attribute__((preserve_all))] so that all registers except
+         for [r11] (which is clobbered) are callee-saved, in order to minimize the
+         amount of spilling we have to do here. [address] is already in [rdi], and
+         this function accepts just a single argument. *)
+      I.call (asan_report_function memory_chunk_size memory_access);
+      if need_to_align_stack then pop rax
+    in
+    def_label asan_check_succeded_label;
+    if need_to_save_r10 then pop r10;
+    if need_to_save_r11 then pop r11;
+    if need_to_save_rdi then pop rdi
+  ;;
+
+  let[@inline always] emit_sanitize ?dependencies ~address memory_chunk memory_access =
+    (* Checking [Config.with_address_sanitizer] is redundant, but we do it because
+       it's a compile-time constant, so it enables the compiler to completely
+       optimize-out the AddressSanitizer code when the compiler was configured
+       without it. *)
+    if Config.with_address_sanitizer && !Arch.is_asan_enabled
+    then (
+      match memory_access with
+      (* We can elide the ASAN check for stores made to initialize record fields on the grounds
+         that the backing memory for freshly allocated records is provided directly by the runtime
+         and guaranteed to be safe to use. *)
+      | Store_initialize -> ()
+      | Load | Store_modify -> emit_sanitize ?dependencies ~address memory_chunk memory_access
+    )
+  ;;
+end
+
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
   let first_memory_arg_index =
     match op with
@@ -999,6 +1182,8 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     | Thirtytwo -> DWORD, arg32 instr src_index
     | (Sixtyfour|Word) -> QWORD, arg instr src_index
   in
+  Address_sanitizer.emit_sanitize ~dependencies:[|src|] ~address:dst
+    Thirtytwo_unsigned Store_modify;
   match op with
   | Fetch_and_add ->
     assert (Reg.same_loc instr.res.(0) instr.arg.(0));
@@ -1360,189 +1545,6 @@ let emit_simd_instr op i =
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set S (res8 i 0); I.movzx (res8 i 0) (res i 0)
   | SSE42 (Cmpistrz n) ->
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
-
-module Address_sanitizer : sig
-  type memory_access = Load | Store_initialize | Store_modify
-
-  (** Implements [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping]. *)
-  val emit_sanitize : ?dependencies:arg array -> address:arg -> memory_chunk -> memory_access -> unit
-end = struct
-  type memory_access = Load | Store_initialize | Store_modify
-
-  module Memory_chunk_size = struct
-    type t =
-      | I8
-      | I16
-      | I32
-      | I64
-      | I128
-
-    let of_memory_chunk = function
-      | Byte_unsigned | Byte_signed -> I8
-      | Sixteen_unsigned | Sixteen_signed -> I16
-      | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> I32
-      | Word_int | Word_val | Double -> I64
-      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> I128
-    ;;
-
-    external to_bytes_log2 : t -> int = "%identity"
-
-    let to_bytes t = 1 lsl to_bytes_log2 t
-  end
-
-  let mov_address src dest =
-    match src with
-    | Mem
-        { scale = 1;
-          base = None;
-          sym = None;
-          displ = 0;
-          idx;
-          arch = _;
-          typ = _
-        } ->
-      I.mov (Reg64 idx) dest
-    | _ -> I.lea src dest
-  ;;
-
-  let[@inline always] is_stack_16_byte_aligned () =
-    (* Yes, sadly this does result in materially better assembly than [(!stack_offset mod 16) = 0]
-       https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
-    !stack_offset land 15 = 0
-  ;;
-
-  let asan_report_function memory_chunk_size memory_access =
-    let index =
-      (Memory_chunk_size.to_bytes_log2 memory_chunk_size lsl 1)
-      + match memory_access with Load -> 0 | (Store_initialize | Store_modify) -> 1
-    in
-    (* We take extra care to structure our code such that these are statically
-       allocated as manifest constants in a flat array. *)
-    match index with
-    | 0 -> Sym "caml_asan_report_load1_noabort"
-    | 1 -> Sym "caml_asan_report_store1_noabort"
-    | 2 -> Sym "caml_asan_report_load2_noabort"
-    | 3 -> Sym "caml_asan_report_store2_noabort"
-    | 4 -> Sym "caml_asan_report_load4_noabort"
-    | 5 -> Sym "caml_asan_report_store4_noabort"
-    | 6 -> Sym "caml_asan_report_load8_noabort"
-    | 7 -> Sym "caml_asan_report_store8_noabort"
-    | 8 -> Sym "caml_asan_report_load16_noabort"
-    | 9 -> Sym "caml_asan_report_store16_noabort"
-    | _ ->
-      (* Larger loads and stores can be reported using
-         [__asan_report_load_n_noabort], but we don't support this yet. *)
-      assert false
-  ;;
-
-  let[@inline always] uses_register register = function
-    | Reg8L register' | Reg16 register' | Reg32 register' | Reg64 register' ->
-      register == register'
-    | Mem { idx = register'; base = None; scale; _ } ->
-      scale <> 0 && register == register'
-    | Mem { idx = register'; base = Some register''; _ } ->
-      register == register' || register == register''
-    | _ -> false
-  ;;
-
-  (* The C code snippets in the comments throughout this function refer to the implementation given in
-     [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping].
-     I'd recommend reading that first for reference before touching this function. *)
-  let emit_sanitize ?(dependencies = [||]) ~address (memory_chunk : memory_chunk) (memory_access : memory_access) =
-    let[@inline always] need_to_save_register register =
-      uses_register register address
-      || Array.exists (uses_register register) dependencies
-    in
-    let memory_chunk_size = Memory_chunk_size.of_memory_chunk memory_chunk in
-    (* -------- Begin prologue -------- *)
-    let need_to_save_rdi = need_to_save_register RDI in
-    if need_to_save_rdi then push rdi;
-    (* For the remainder of this function [rdi] will hold [address]. It's vital
-       that we do this now before we change the contents of any other registers,
-       because we don't want to clobber any of [address]'s component registers. *)
-    mov_address address rdi;
-    let need_to_save_r11 = need_to_save_register R11 in
-    if need_to_save_r11 then push r11;
-    let need_to_save_r10 =
-      match memory_chunk_size with
-      | I64 | I128 -> false
-      | I8 | I16 | I32 -> need_to_save_register R10
-    in
-    if need_to_save_r10 then push r10;
-    (* -------- End prologue -------- *)
-    let asan_check_succeded_label = new_label () in
-    I.mov rdi r11;
-    (* These constants come from
-       [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
-    I.shr (int 3) r11;
-    let shadow_address = mem64 BYTE 0x7FFF8000 R11 in
-    let () =
-      match memory_chunk_size with
-      | I64 | I128 ->
-        I.cmp (int 0) shadow_address;
-        I.je (label asan_check_succeded_label)
-        (* There is no slow-path check for word-sized and larger accesses *)
-      | I8 | I16 | I32 ->
-        I.movzx shadow_address r11;
-        I.test (Reg8L R11) (Reg8L R11);
-        I.je (label asan_check_succeded_label);
-        (* Begin the [SlowPathCheck]. Place [last_accessed_byte] in [r10].
-           ```
-           last_accessed_byte = (address & 7) + kAccessSize - 1;
-           ```
-        *)
-        I.mov rdi r10;
-        I.and_ (int 7) r10;
-        let () =
-          match memory_chunk_size with
-          | I8 -> ()
-          | I16 -> I.inc r10
-          | I32 | I64 | I128 ->
-            let offset = Memory_chunk_size.to_bytes memory_chunk_size - 1 in
-            I.add (int offset) r10
-        in
-        (* [ return (last_accessed_byte >= shadow_value) ] *)
-        I.cmp (Reg8L R11) (Reg8L R10);
-        I.jl (label asan_check_succeded_label)
-    in
-    (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
-    let () =
-      let need_to_align_stack = not (is_stack_16_byte_aligned ()) in
-      if need_to_align_stack then (
-        (* [push rax] is a single-byte instruction, as opposed to something like [push 0]
-           which is a 2-byte instruction. *)
-        push rax
-      );
-      (* The asan report wrappers use a special calling convention via the C
-         attribute [__attribute__((preserve_all))] so that all registers except
-         for [r11] (which is clobbered) are callee-saved, in order to minimize the
-         amount of spilling we have to do here. [address] is already in [rdi], and
-         this function accepts just a single argument. *)
-      I.call (asan_report_function memory_chunk_size memory_access);
-      if need_to_align_stack then pop rax
-    in
-    def_label asan_check_succeded_label;
-    if need_to_save_r10 then pop r10;
-    if need_to_save_r11 then pop r11;
-    if need_to_save_rdi then pop rdi
-  ;;
-
-  let[@inline always] emit_sanitize ?dependencies ~address memory_chunk memory_access =
-    (* Checking [Config.with_address_sanitizer] is redundant, but we do it because
-       it's a compile-time constant, so it enables the compiler to completely
-       optimize-out the AddressSanitizer code when the compiler was configured
-       without it. *)
-    if Config.with_address_sanitizer && !Arch.is_asan_enabled
-    then (
-      match memory_access with
-      (* We can elide the ASAN check for stores made to initialize record fields on the grounds
-         that the backing memory for freshly allocated records is provided directly by the runtime
-         and guaranteed to be safe to use. *)
-      | Store_initialize -> ()
-      | Load | Store_modify -> emit_sanitize ?dependencies ~address memory_chunk memory_access
-    )
-  ;;
-end
 
 (* Emit an instruction *)
 let emit_instr ~first ~fallthrough i =

@@ -685,8 +685,14 @@ module Test_out_of_bounds_accesses = struct
       ~validate:(assert_asan_detected_out_of_bounds_write ~access_size:1)
   ;;
 
-  module Vec128_bigarray = struct
+  module Bigstring = struct
     type t = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+    let create len : t = Bigarray.Array1.create Char C_layout len
+  end
+
+  module Vec128_bigarray = struct
+    type t = Bigstring.t
     type elem = int64x2#
 
     external create_elem
@@ -714,7 +720,7 @@ module Test_out_of_bounds_accesses = struct
     let test () =
       let len = 2 in
       let elem_size = 16 in
-      let t = Bigarray.Array1.create Char C_layout (len * elem_size) in
+      let t = Bigstring.create (len * elem_size) in
       let x = Vec128_bigarray.unsafe_aligned_get t ~byte:(len * elem_size) in
       let _ = Sys.opaque_identity x in
       ()
@@ -729,7 +735,7 @@ module Test_out_of_bounds_accesses = struct
     let test () =
       let len = 2 in
       let elem_size = 16 in
-      let t = Bigarray.Array1.create Char C_layout (len * elem_size) in
+      let t = Bigstring.create (len * elem_size) in
       Vec128_bigarray.unsafe_aligned_set
         t
         ~byte:(len * elem_size)
@@ -741,6 +747,28 @@ module Test_out_of_bounds_accesses = struct
       __FUNCTION__
       ~test
       ~validate:(assert_asan_detected_out_of_bounds_write ~access_size:16)
+  ;;
+
+  external bigstring_fetch_and_add_int
+    :  Bigstring.t
+    -> pos:(int[@untagged])
+    -> (int[@untagged])
+    -> (int[@untagged])
+    = "caml_no_bytecode_impl" "caml_bigstring_fetch_and_add_int_untagged"
+  [@@noalloc] [@@builtin]
+
+  let atomic_fetch_and_add_bigstring () =
+    let test () =
+      let len = 32 in
+      let t = Bigstring.create len in
+      let (_ : int) = bigstring_fetch_and_add_int t ~pos:len 0 in
+      let _ = Sys.opaque_identity t in
+      ()
+    in
+    run_test
+      __FUNCTION__
+      ~test
+      ~validate:(assert_asan_detected_out_of_bounds_write ~access_size:4)
   ;;
 end
 
@@ -810,7 +838,8 @@ let () =
       read_int8_unsigned_bigarray ();
       write_int8_unsigned_bigarray ();
       read_vec128_bigarray ();
-      write_vec128_bigarray ()
+      write_vec128_bigarray ();
+      atomic_fetch_and_add_bigstring ()
     in
     ())
 ;;

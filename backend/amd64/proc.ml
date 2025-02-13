@@ -570,6 +570,7 @@ let destroyed_at_oper = function
   | Iop(Iload { memory_chunk =
                 (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single _); _})
   | Iop(Ispecific (Ifloatarithmem (Float32, _, _)))
+  | Iop(Iintop_atomic _)
               -> destroyed_at_small_memory_op
   | Iop(Istore( (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ), _, _))
   | Iop(Iload { memory_chunk =
@@ -597,7 +598,6 @@ let destroyed_at_oper = function
               | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
                    | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_))
-  | Iop(Iintop_atomic _)
   | Iop(Imove | Ispill | Ireload | Ifloatop _
        | Icsel _
        | Ireinterpret_cast _ | Istatic_cast _
@@ -633,7 +633,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single { reg = Float32 } ), _, _))
   | Op (Load { memory_chunk =
                (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single _); _ })
-  | Op(Specific (Ifloatarithmem (Float32, _, _))) ->
+  | Op(Specific (Ifloatarithmem (Float32, _, _)))
+  | Op(Intop_atomic _) ->
     destroyed_at_small_memory_op
   | Op(Store( (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ), _, _))
   | Op(Load { memory_chunk =
@@ -661,7 +662,6 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
                     | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
-       | Intop_atomic _
        | Floatop _
        | Csel _
        | Reinterpret_cast _
