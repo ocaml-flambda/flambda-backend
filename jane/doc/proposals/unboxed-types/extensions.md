@@ -362,11 +362,8 @@ Using polymorphism instead of subtyping would help these scenarios:
 1. We want `or_null` to work with both values and immediates. Furthermore,
 we want to remember that e.g. `int or_null` is still an immediate (and
 is gc-ignorable). The current design is to say that the layout-check "looks
-through" `or_null`: if the argument type `t` is a `non_null_immediate`, then
-`t or_null` is `immediate`. This works OK, but it cannot be abstracted over,
-as the "looking through" must be implemented specially for `or_null`. With
-polymorphism instead, we could say `type ('a : 'i non_null_value) or_null : 'i
-value`, which says exactly what we want.
+through" `or_null`: if the argument type `t` is an `immediate`, then
+`t or_null` is `immediate_or_null`. This can be implemented using with-kinds.
 
 2. Generalizing the point above, any time we have an unboxed record of
 several components, we might want a richer layout than we currently can
@@ -375,37 +372,37 @@ offer. For example:
     ```ocaml
     type ('a : 'y1, 'b : 'y2) t : 'y1 * 'y2 = #{ x : 'a; y : 'b }
     ```
-    
+
     Without polymorphism, the best we can do is
-    
+
     ```ocaml
     type ('a : any, 'b : any) t = #{ x : 'a; y : 'b }
     ```
-    
+
     This works fine, but just like `or_null`, it can't be abstracted over.
-    
+
     In practice, though, it would be hard to abstract over this `t` even with
     polymorphism, because all functions that operate on `t`s have to work with
     concrete layouts anyway. In essence, the fact that one `t` is shared among
     many different layouts is not very useful: it saves repeating the type
     declaration, but that's it.
-    
+
     Though not covered (yet) in this design, we do imagine adding abstract
     layouts to the module system, where something like this will be possible:
-    
+
     ```ocaml
     module type Two_layouts = sig
       layout lay1
       layout lay2
     end
-    
+
     module Abs_t (L : Two_layouts) : sig
       type ('a : L.lay1, 'b : L.lay2) abs_t : L.lay1 * L.lay2
     end = struct
       type ('a : L.lay1, 'b : L.lay2) abs_t = ('a, 'b) t
     end
     ```
-    
+
     Then we could have the abstract e.g. `Abs_t(struct layout lay1 = value
     layout lay2 = bits32 end).abs_t`. Note that the `Abs_t` module above
     could also include actual functions, too.
@@ -423,51 +420,51 @@ example:
       ('a, 'a) Either.t * ('b, 'b) Either.t =
       fun a b f -> f a, f b
     ```
-    
+
     A caller might pass two `int`s; in this case, the continuation can
     still take advantage of the immediacy of its operand. This is because
     the layout of the argument `'c` to the continuation will be known to
     the same as the layouts of the arguments.
-    
+
     If we didn't have restrictions on what could be compiled to executable
     code, it would be easier to come up with examples of how we might want
     polymorphic parameters to connect to the layouts of other parameters.
     However, it does seem this would come into play only with layouts that
     are currently subtypes of `value`.
-   
+
 4. Polymorphism allows us to express homogeneous equality, while subtyping
 does not. Consider the equality GADT:
 
     ```ocaml
     type (_, _) eq = Refl : ('a, 'a) eq
     ```
-    
+
     What layouts should the arguments have? If we want to have `eq` work
     across multiple layouts, then we'd need to have both arguments have
     layout `any`. (Even if we don't do this, we still have a problem because
     of `value` and its sublayouts.) So we would have
-    
+
     ```ocaml
     type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
     ```
-    
+
     But this makes `(int, #float) eq` well formed. Such a type is empty,
     but it's still well formed. This means that we might imagine
-    
+
     ```ocaml
     let f : (int, #float) eq -> int -> #float = function
       | Refl -> fun x -> x
     ```
-    
+
     but I have no idea how that would actually be compiled; I would expect
     some kind of small (compile-time) disaster.
-    
+
     On the other hand, polymorphism allows us to say what we mean:
-    
+
     ```ocaml
     type (_ : l, _ : l) eq = Refl : ('a, 'a) eq
     ```
-    
+
 5. Similarly to the problem immediately above, subtyping prevents us from
 giving a sensible type to `Obj.magic`. The type for `Obj.magic`, with
 subtyping, is this:
@@ -475,20 +472,20 @@ subtyping, is this:
     ```ocaml
     val magic : ('a : any) ('b : any). 'a -> 'b
     ```
-    
+
     But this allows us to cast an `int` to a `#float`, which is worse
     than usual for `Obj.magic`. On the other hand, if we could assert
     that `'a` and `'b` had the same layout, via polymorphism, than we
     would have a safer type for `Obj.magic`.
-    
+
     (Prior art: Haskell has two different functions, `unsafeCoerce`
     and `unsafeCoerce#`. The former is representation-monomorphic;
     the latter is not, for those extra-special occasions.)
-   
+
 6. If we define `type loopy = { x : loopy } [@@unboxed]`, what is `loopy`'s
 layout? Any layout is acceptable. The current plan, as described in the
 "Defaults" section of the [inference page](inference.md), is to choose
-`non_null_value`. With polymorphism, however, we could choose `'y`, for a
+`value`. With polymorphism, however, we could choose `'y`, for a
 universally quantified `'y`. Then, we could effectively choose `loopy` to
 have any layout at all, which is appropriate. This is more expressive.
 
@@ -499,26 +496,26 @@ For example:
     type 'a list =
       | Nil
       | Cons of { shared hd : 'a; tl : 'a list }
-    
+
     let rec map : 'a 'b. ('a -> 'b) -> unique 'a list -> unique 'b list =
       fun f -> function
       | Nil -> Nil
       | Cons ({ hd; tl } as stuff) ->
         { unique stuff with { hd = f hd; tl = map f tl } }
     ```
-    
+
     This reuses the existing memory for the list.
-    
+
     The key question here: what are the layouts of `'a` and `'b`? In the
     example above, without annotations, they would default to `value`. But
     actually any layout is good for `'a` and `'b` -- *as long as they are the
     same*. That is, we could consider this type for `map`:
-    
+
     ```ocaml
     let rec map : ('a : 'y) ('b : 'y). ...
     ```
-    
-    Here, `'y` is a layout variable. Compiling this function would require 
+
+    Here, `'y` is a layout variable. Compiling this function would require
     support for layout polymorphism (likely by compile-time specialization),
     but it does seem that the ability to use a layout variable twice is helpful
     in describing the function.
