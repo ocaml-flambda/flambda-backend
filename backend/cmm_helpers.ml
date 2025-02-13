@@ -1751,8 +1751,9 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
     addr_array_initialize block ofs newval dbg
   | Word_int -> generic_case ()
   (* Generic cases that may differ under big endian archs *)
-  | Single _ | Double | Thirtytwo_unsigned | Thirtytwo_signed
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Single _
+  | Double | Thirtytwo_unsigned | Thirtytwo_signed | Onetwentyeight_unaligned
+  | Onetwentyeight_aligned ->
     if Arch.big_endian
     then
       Misc.fatal_errorf
@@ -1760,11 +1761,6 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
          architectures"
         (Printcmm.chunk memory_chunk);
     generic_case ()
-  (* Forbidden cases *)
-  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
-    Misc.fatal_errorf
-      "Fields with memory_chunk %s are not supported in generic allocations"
-      (Printcmm.chunk memory_chunk)
 
 let make_alloc_generic ~block_kind ~mode ~alloc_block_kind dbg tag wordsize args
     args_memory_chunks =
@@ -1864,8 +1860,7 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
           (* regular scanned part of a block *)
           match memory_chunk with
           | Word_int | Word_val -> ok ()
-          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
-            error "mixed blocks"
+          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
           | Thirtytwo_unsigned | Thirtytwo_signed | Single _ | Double
           | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
             error "the value prefix of a mixed block"
@@ -1873,10 +1868,9 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
           (* flat suffix part of the block *)
           match memory_chunk with
           | Word_int | Thirtytwo_unsigned | Thirtytwo_signed | Double
-          | Onetwentyeight_unaligned | Onetwentyeight_aligned | Single _ ->
-            ok ()
+          | Onetwentyeight_unaligned | Onetwentyeight_aligned | Single _
           | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
-            error "mixed blocks"
+            ok ()
           | Word_val -> error "the flat suffix of a mixed block")
       0 args_memory_chunks
   in
