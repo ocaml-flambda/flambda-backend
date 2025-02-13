@@ -989,7 +989,14 @@ module Address_sanitizer : sig
 end = struct
   type memory_access = Load | Store_initialize | Store_modify
 
-  module Memory_chunk_size = struct
+  module Memory_chunk_size : sig
+    type t
+
+    val of_memory_chunk : memory_chunk -> t
+    val to_bytes : t -> int
+    val to_bytes_log2 : t -> int
+    val is_small : t -> bool
+  end = struct
     type t =
       | I8
       | I16
@@ -1008,6 +1015,11 @@ end = struct
     external to_bytes_log2 : t -> int = "%identity"
 
     let to_bytes t = 1 lsl to_bytes_log2 t
+
+    let is_small = function
+      | I8 | I16 | I32 -> true
+      | I64 | I128 -> false
+    ;;
   end
 
   let mov_address src dest =
@@ -1055,6 +1067,8 @@ end = struct
       assert false
   ;;
 
+  (* CR-soon ksvetlitski: find a way to accomplish this without breaking the
+     abstraction barrier of [X86_ast]. *)
   let[@inline always] uses_register register = function
     | Reg8L register' | Reg16 register' | Reg32 register' | Reg64 register' ->
       register = register'
@@ -1079,15 +1093,16 @@ end = struct
     if need_to_save_rdi then push rdi;
     (* For the remainder of this function [rdi] will hold [address]. It's vital
        that we do this now before we change the contents of any other registers,
-       because we don't want to clobber any of [address]'s component registers. *)
+       because we don't want to clobber any of [address]'s component registers.
+
+       You could do this at the end of the prologue if you wanted to; the point is
+       just that you have to do this before you modify the contents of any
+       registers (other than [rsp]).
+     *)
     mov_address address rdi;
     let need_to_save_r11 = need_to_save_register R11 in
     if need_to_save_r11 then push r11;
-    let need_to_save_r10 =
-      match memory_chunk_size with
-      | I64 | I128 -> false
-      | I8 | I16 | I32 -> need_to_save_register R10
-    in
+    let need_to_save_r10 = Memory_chunk_size.is_small memory_chunk_size && need_to_save_register R10 in
     if need_to_save_r10 then push r10;
     (* -------- End prologue -------- *)
     let asan_check_succeded_label = new_label () in
@@ -1097,12 +1112,11 @@ end = struct
     I.shr (int 3) r11;
     let shadow_address = mem64 BYTE 0x7FFF8000 R11 in
     let () =
-      match memory_chunk_size with
-      | I64 | I128 ->
+      if not (Memory_chunk_size.is_small memory_chunk_size) then (
         I.cmp (int 0) shadow_address;
         I.je (label asan_check_succeded_label)
         (* There is no slow-path check for word-sized and larger accesses *)
-      | I8 | I16 | I32 ->
+      ) else (
         I.movzx shadow_address r11;
         I.test (Reg8L R11) (Reg8L R11);
         I.je (label asan_check_succeded_label);
@@ -1114,16 +1128,17 @@ end = struct
         I.mov rdi r10;
         I.and_ (int 7) r10;
         let () =
-          match memory_chunk_size with
-          | I8 -> ()
-          | I16 -> I.inc r10
-          | I32 | I64 | I128 ->
-            let offset = Memory_chunk_size.to_bytes memory_chunk_size - 1 in
-            I.add (int offset) r10
+          (* [ + kAccessSize - 1 ] *)
+          match Memory_chunk_size.to_bytes memory_chunk_size with
+          | 1 -> ()
+          | 2 -> I.inc r10
+          | 4 -> I.add (int 3) r10
+          | _ -> assert false
         in
         (* [ return (last_accessed_byte >= shadow_value) ] *)
         I.cmp (Reg8L R11) (Reg8L R10);
         I.jl (label asan_check_succeded_label)
+      )
     in
     (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
     let () =
