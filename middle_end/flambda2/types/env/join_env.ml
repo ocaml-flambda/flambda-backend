@@ -78,10 +78,11 @@ end = struct
 end
 
 let get_nth_joined_env index joined_envs =
-  match Index.Map.find_opt index env.joined_envs with
+  match Index.Map.find_opt index joined_envs with
   | Some typing_env -> typing_env
   | None ->
-    Misc.fatal_error "Joined environment %a is not available." Index.print index
+    Misc.fatal_errorf "Joined environment %a is not available." Index.print
+      index
 
 (* The following are intended to help make sure we don't confuse things (names,
    simples) that are living in one of the joined environments and those that
