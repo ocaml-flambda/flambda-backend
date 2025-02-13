@@ -81,7 +81,7 @@ module F (X : sig
   type t
   type 'a u
 end) = struct
-  type t = X.t X.u (* ['a] must be as high as [t] must be high in the lattice. *)
+  type t = X.t X.u (* ['a] must be as high as [t] in the lattice. *)
 end
 ```
 A similar arguments applies to type variables in function declarations.
