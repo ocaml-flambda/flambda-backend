@@ -949,6 +949,7 @@ module With_subkind = struct
     | Punboxed_int Unboxed_int32 -> naked_int32
     | Punboxed_int Unboxed_int64 -> naked_int64
     | Punboxed_int Unboxed_nativeint -> naked_nativeint
+    | Punboxed_int Unboxed_int -> naked_immediate
     | Punboxed_vector Unboxed_vec128 -> naked_vec128
     | Punboxed_product _ | Ptop | Pbottom ->
       Misc.fatal_errorf

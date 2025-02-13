@@ -98,7 +98,7 @@ let is_always_gc_ignorable env ty =
   in
   Ctype.check_type_externality env ty ext
 
-let maybe_pointer_type env ty =
+let maybe_pointer_type env ty : Lambda.immediate_or_pointer =
   let ty = scrape_ty env ty in
   if is_always_gc_ignorable env ty then Immediate else Pointer
 
@@ -250,7 +250,12 @@ let array_kind_of_elt ~elt_sort env loc ty =
   | Addr | Lazy -> Paddrarray
   | Int -> Pintarray
   | Unboxed_float f -> Punboxedfloatarray f
-  | Unboxed_int i -> Punboxedintarray i
+  | Unboxed_int Unboxed_int -> Punboxedintarray Unboxed_nativeint
+  | Unboxed_int Unboxed_int64 -> Punboxedintarray Unboxed_int64
+  | Unboxed_int Unboxed_nativeint -> Punboxedintarray Unboxed_nativeint
+  | Unboxed_int Unboxed_int32 -> Punboxedintarray Unboxed_int32
+  | Unboxed_int Unboxed_int16 -> Punboxedintarray Unboxed_int16
+  | Unboxed_int Unboxed_int8 -> Punboxedintarray Unboxed_int8
   | Unboxed_vector v -> Punboxedvectorarray v
   | Product c -> c
 
@@ -969,7 +974,7 @@ let rec layout_union l1 l2 =
   | Punboxed_float f1, Punboxed_float f2 ->
       if Primitive.equal_unboxed_float f1 f2 then l1 else Ptop
   | Punboxed_int bi1, Punboxed_int bi2 ->
-      if Primitive.equal_unboxed_integer bi1 bi2 then l1 else Ptop
+      if Lambda.equal_unboxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
       if Primitive.equal_unboxed_vector vi1 vi2 then l1 else Ptop
   | Punboxed_product layouts1, Punboxed_product layouts2 ->

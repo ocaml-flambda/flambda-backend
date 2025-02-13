@@ -184,10 +184,10 @@ type _ t = Int : int -> int t | Bool : bool -> bool t
                   (makelocalmutable 0 (int) 1) [0: 42])))
            (if *match*/334
              (let
-               (*match*/335 =a (field_imm 0 *match*/334)
-                *match*/337 =o (field_mut 0 (field_imm 0 *match*/335)))
-               (if *match*/337 (field_imm 0 (field_imm 1 *match*/335))
-                 (~ (field_imm 0 (field_imm 1 *match*/335)))))
+               (*match*/332 =a (field_imm 0 *match*/331)
+                *match*/334 =o (field_mut 0 (field_imm 0 *match*/332)))
+               (if *match*/334 (field_imm 0 (field_imm 1 *match*/332))
+                 (%int_neg (field_imm 0 (field_imm 1 *match*/332)))))
              3)))))
   (apply (field_imm 1 (global Toploop!)) "test" test/330))
 val test : 'a -> int = <fun>

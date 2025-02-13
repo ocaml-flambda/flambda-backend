@@ -114,7 +114,7 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
   | Binary (binary_prim, orig_arg1, orig_arg2) -> (
     let arg1_ty, arg1 = S.simplify_simple dacc orig_arg1 ~min_name_mode in
     let arg2_ty, arg2 = S.simplify_simple dacc orig_arg2 ~min_name_mode in
-    (if Flambda_features.check_invariants ()
+    (if true || Flambda_features.check_invariants ()
     then
       let arg1_kind, arg2_kind = P.args_kind_of_binary_primitive binary_prim in
       check_arg_kinds prim [arg1_ty, arg1_kind; arg2_ty, arg2_kind]);

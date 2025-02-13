@@ -393,7 +393,6 @@ nullop:
 
 unary_int_arith_op:
   | KWD_BSWAP { Swap_byte_endianness }
-  | TILDEMINUS { Neg }
 
 unop:
   | PRIM_ARRAY_LENGTH; kind = array_kind_for_length { Array_length kind }

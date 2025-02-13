@@ -348,7 +348,7 @@ let rec emit = function
         emit rem
   | Kpush::Kconst k::Kintcomp c::Kbranchifnot lbl::rem
       when is_immed_const k ->
-        emit_branch_comp (negate_integer_comparison c) ;
+        emit_branch_comp (Scalar.Integer_comparison.negate c) ;
         out_const k ;
         out_label lbl ;
         emit rem

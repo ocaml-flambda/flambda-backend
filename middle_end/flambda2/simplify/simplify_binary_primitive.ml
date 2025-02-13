@@ -198,7 +198,11 @@ end = struct
                        use the float version instead"
                 in
                 let prim : P.t =
-                  Unary (Int_arith (standard_int_kind, Neg), other_side)
+                  let kind =
+                    Flambda_kind.Standard_int.to_kind standard_int_kind
+                  in
+                  let zero = Simple.const_int_of_kind kind 0 in
+                  Binary (Int_arith (standard_int_kind, Sub), zero, other_side)
                 in
                 Some (PR.Set.add (Prim prim) possible_results)
               | Float_negation_of_the_other_side width ->
@@ -922,6 +926,9 @@ end)
 module Binary_float_comp = Binary_arith_like (Float_ops_for_binary_comp)
 module Binary_float32_comp = Binary_arith_like (Float32_ops_for_binary_comp)
 
+(* Unlike in the language specification, the compiler defines physical equality
+   as referential equality on all values, including immediates and immutable
+   blocks. *)
 let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     ~arg1:_ ~arg1_ty ~arg2:_ ~arg2_ty ~result_var =
   (* This primitive is only used for arguments of kind [Value]. *)

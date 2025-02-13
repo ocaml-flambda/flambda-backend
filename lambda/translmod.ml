@@ -26,6 +26,8 @@ open Translcore
 open Translclass
 open Debuginfo.Scoped_location
 
+let const_int i = Lambda.const_int Lambda.int i
+
 type unsafe_component =
   | Unsafe_module_binding
   | Unsafe_functor

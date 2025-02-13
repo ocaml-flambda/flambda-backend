@@ -183,10 +183,10 @@ let match_anf_aliased r =
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (catch
-         (let (y/337 =a (field_imm 1 r/335))
-           (if (== y/337 "") (let (*match*/344 =[int] 0) (exit 8 y/337))
-             (let (*match*/342 =[int] 1) (exit 8 (field_imm 1 r/335)))))
-        with (8 y/336)
+         (let (y/334 =a (field_imm 1 r/332))
+           (if (%eq y/334 "") (let (*match*/341 =[int] 0) (exit 8 y/334))
+             (let (*match*/339 =[int] 1) (exit 8 (field_imm 1 r/332)))))
+        with (8 y/333)
          (let
            (r/339 =[(consts ()) (non_consts ([0: *, *]))]
               (apply aliased_use/285 r/335))
@@ -214,11 +214,11 @@ let match_anf_unique r =
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (catch
-         (let (y/349 =o (field_mut 1 r/347))
-           (if (== y/349 "") (let (*match*/356 =[int] 0) (exit 14 y/349))
-             (let (y/350 =o (field_mut 1 r/347) *match*/354 =[int] 1)
-               (exit 14 y/350))))
-        with (14 y/348)
+         (let (y/346 =o (field_mut 1 r/344))
+           (if (%eq y/346 "") (let (*match*/353 =[int] 0) (exit 14 y/346))
+             (let (y/347 =o (field_mut 1 r/344) *match*/351 =[int] 1)
+               (exit 14 y/347))))
+        with (14 y/345)
          (let
            (r/351 =[(consts ()) (non_consts ([0: *, *]))]
               (apply unique_use/288 r/347))

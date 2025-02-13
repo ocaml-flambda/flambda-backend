@@ -179,6 +179,7 @@
   ident
   path
   jkind
+  scalar
   primitive
   shape
   shape_reduce
