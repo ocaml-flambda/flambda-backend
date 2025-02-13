@@ -103,12 +103,10 @@ module Id = struct
 
   let create_iterator { is_trie; default_value; name; _ } =
     let handler : _ Named_ref.t =
-      { contents = Trie.empty is_trie; printed_name = name }
+      { contents = Trie.empty is_trie; printed_name = name ^ ".0" }
     in
     let out : _ Named_ref.t =
-      { contents = default_value;
-        printed_name = name ^ "." ^ string_of_int (Trie.trie_depth is_trie - 1)
-      }
+      { contents = default_value; printed_name = name ^ ".output" }
     in
     let iterator = Trie.Iterator.create is_trie name handler out in
     handler, iterator, out
