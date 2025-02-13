@@ -4426,3 +4426,261 @@ let reperform ~dbg ~eff ~cont ~last_fiber =
       dbg )
 
 let poll ~dbg = return_unit dbg (Cop (Cpoll, [], dbg))
+
+module Scalar_type = struct
+  module Float_width = struct
+    type t = Cmm.float_width =
+      | Float64
+      | Float32
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Float64, Float64 -> exp
+      | Float32, Float32 -> exp
+      | Float32, Float64 -> float_of_float32 ~dbg exp
+      | Float64, Float32 -> float32_of_float ~dbg exp
+  end
+
+  module Signedness = struct
+    type t =
+      | Signed
+      | Unsigned
+
+    let equal (x : t) (y : t) = x = y
+
+    let print ppf t =
+      match t with
+      | Signed -> Format.pp_print_string ppf "signed"
+      | Unsigned -> Format.pp_print_string ppf "unsigned"
+  end
+
+  module Bit_width_and_signedness : sig
+    (** An integer with signedness [signedness t] that fits into a general-purpose
+        register. It is canonically stored in twos-complement representation, in the lower
+        [bits] bits of its container (whether that be memory or a register), and is sign-
+        or zero-extended to fill the entire container. *)
+    type t [@@immediate]
+
+    val create_exn : bit_width:int -> signedness:Signedness.t -> t
+
+    val bit_width : t -> int
+
+    val signedness : t -> Signedness.t
+
+    val equal : t -> t -> bool
+  end = struct
+    (* [signedness t] is stored in the low bit of [t], and [bit_width t] is
+       stored in the remaining high bits of [t]. We use this encoding to fit [t]
+       into an immediate value *)
+    type t = { bit_width_and_signedness : int } [@@unboxed]
+
+    let[@inline] equal { bit_width_and_signedness = x }
+        { bit_width_and_signedness = y } =
+      Int.equal x y
+
+    let[@inline] bit_width { bit_width_and_signedness } =
+      bit_width_and_signedness lsr 1
+
+    let[@inline] signedness { bit_width_and_signedness } =
+      match (Obj.magic (bit_width_and_signedness land 1) : Signedness.t) with
+      | (Signed | Unsigned) as signedness ->
+        (* If [Signedness.t] ever changes, adjust the representation of [t]
+           accordingly *)
+        signedness
+
+    (** This type annotation proves that [int_of_signedness] is valid *)
+    type signedness_is_immediate = Signedness.t [@@immediate]
+
+    external int_of_signedness : signedness_is_immediate -> int = "%identity"
+
+    let[@inline] create_exn ~bit_width ~signedness =
+      assert (0 < bit_width && bit_width <= arch_bits);
+      { bit_width_and_signedness =
+          (bit_width lsl 1) lor int_of_signedness signedness
+      }
+  end
+
+  module Integral_type = struct
+    include Bit_width_and_signedness
+
+    let[@inline] with_signedness t ~signedness =
+      create_exn ~bit_width:(bit_width t) ~signedness
+
+    let[@inline] signed t = with_signedness t ~signedness:Signed
+
+    let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
+
+    (** Determines whether [dst] can represent every value of [src], preserving sign *)
+    let[@inline] is_promotable ~src ~dst =
+      match signedness src, signedness dst with
+      | Signed, Signed | Unsigned, Unsigned -> bit_width src <= bit_width dst
+      | Unsigned, Signed -> bit_width src < bit_width dst
+      | Signed, Unsigned -> false
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      if is_promotable ~src ~dst
+      then
+        (* since the values are already stored sign- or zero-extended, this is a
+           no-op. *)
+        exp
+      else
+        match signedness dst with
+        | Signed -> sign_extend ~bits:(bit_width dst) exp ~dbg
+        | Unsigned -> zero_extend ~bits:(bit_width dst) exp ~dbg
+
+    let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+      x
+      |> static_cast ~src:outer ~dst:inner ~dbg
+      |> f
+      |> static_cast ~src:inner ~dst:outer ~dbg
+  end
+
+  module Integer = struct
+    include Integral_type
+
+    let print ppf t =
+      Format.fprintf ppf "%a int%d" Signedness.print (signedness t)
+        (bit_width t)
+
+    let nativeint = create_exn ~bit_width:arch_bits ~signedness:Signed
+  end
+
+  (** An {!Integer.t} but with the additional stipulation that its container must
+      reserve its lowest bit to be 1. The [bits] field does not include this bit. *)
+  module Tagged_integer = struct
+    include Integral_type
+
+    let[@inline] create_exn ~bit_width_including_tag_bit:bit_width ~signedness =
+      assert (bit_width > 1);
+      create_exn ~bit_width ~signedness
+
+    let immediate =
+      create_exn ~bit_width_including_tag_bit:arch_bits ~signedness:Signed
+
+    let[@inline] bit_width_including_tag_bit t = bit_width t
+
+    let[@inline] bit_width_excluding_tag_bit t = bit_width t - 1
+
+    let[@inline] untagged t =
+      Integer.create_exn
+        ~bit_width:(bit_width_excluding_tag_bit t)
+        ~signedness:(signedness t)
+
+    let[@inline] untag ~dbg t exp =
+      match signedness t with
+      | Signed -> asr_const exp 1 dbg
+      | Unsigned -> lsr_const exp 1 dbg
+
+    let print ppf t =
+      Format.fprintf ppf "tagged %a int%d" Signedness.print (signedness t)
+        (bit_width_excluding_tag_bit t)
+  end
+
+  module Integral = struct
+    type t =
+      | Untagged of Integer.t
+      | Tagged of Tagged_integer.t
+
+    let nativeint = Untagged Integer.nativeint
+
+    let[@inline] untagged = function
+      | Untagged t -> t
+      | Tagged t -> Tagged_integer.untagged t
+
+    let signedness = function
+      | Untagged t -> Integer.signedness t
+      | Tagged t -> Tagged_integer.signedness t
+
+    let with_signedness t ~signedness =
+      match t with
+      | Untagged t -> Untagged (Integer.with_signedness t ~signedness)
+      | Tagged t -> Tagged (Tagged_integer.with_signedness t ~signedness)
+
+    let[@inline] signed t = with_signedness t ~signedness:Signed
+
+    let[@inline] unsigned t = with_signedness t ~signedness:Signed
+
+    let[@inline] equal x y =
+      match x, y with
+      | Untagged x, Untagged y -> Integer.equal x y
+      | Untagged _, _ -> false
+      | Tagged x, Tagged y -> Tagged_integer.equal x y
+      | Tagged _, _ -> false
+
+    let print ppf t =
+      match t with
+      | Untagged untagged -> Integer.print ppf untagged
+      | Tagged tagged -> Tagged_integer.print ppf tagged
+
+    let[@inline] is_promotable ~src ~dst =
+      Integer.is_promotable ~src:(untagged src) ~dst:(untagged dst)
+
+    let static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Untagged src, Untagged dst -> Integer.static_cast ~dbg ~src ~dst exp
+      | Tagged src, Tagged dst -> Tagged_integer.static_cast ~dbg ~src ~dst exp
+      | Untagged src, Tagged dst ->
+        tag_int
+          (Integer.static_cast ~dbg ~src ~dst:(Tagged_integer.untagged dst) exp)
+          dbg
+      | Tagged src, Untagged dst ->
+        Integer.static_cast ~dbg
+          ~src:(Tagged_integer.untagged src)
+          ~dst
+          (Tagged_integer.untag ~dbg src exp)
+
+    let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+      x
+      |> static_cast ~src:outer ~dst:inner ~dbg
+      |> f
+      |> static_cast ~src:inner ~dst:outer ~dbg
+  end
+
+  type t =
+    | Integral of Integral.t
+    | Float of Float_width.t
+
+  let static_cast ~dbg ~src ~dst exp =
+    match src, dst with
+    | Integral src, Integral dst -> Integral.static_cast ~dbg ~src ~dst exp
+    | Float src, Float dst -> Float_width.static_cast ~dbg ~src ~dst exp
+    | Integral src, Float dst ->
+      let float_of_int_arg = Integral.nativeint in
+      if not (Integral.is_promotable ~src ~dst:float_of_int_arg)
+      then
+        Misc.fatal_errorf "static_cast: casting %a to float is not implemented"
+          Integral.print src
+      else
+        unary (Cstatic_cast (Float_of_int dst)) ~dbg
+          (Integral.static_cast exp ~dbg ~src ~dst:float_of_int_arg)
+    | Float src, Integral dst -> (
+      match Integral.signedness dst with
+      | Unsigned ->
+        Misc.fatal_errorf
+          "static_cast: casting floats to unsigned values is undefined"
+      | Signed ->
+        (* we can truncate, but we don't want to promote *)
+        Integral.static_cast ~dbg ~src:Integral.nativeint ~dst
+          (unary (Cstatic_cast (Int_of_float src)) exp ~dbg))
+
+  let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+    x
+    |> static_cast ~src:outer ~dst:inner ~dbg
+    |> f
+    |> static_cast ~src:inner ~dst:outer ~dbg
+
+  module Untagged = struct
+    type numeric = t
+
+    type t =
+      | Untagged of Integer.t
+      | Float of float_width
+
+    let to_numeric : t -> numeric = function
+      | Untagged width -> Integral (Untagged width)
+      | Float float -> Float float
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      static_cast ~dbg ~src:(to_numeric src) ~dst:(to_numeric dst) exp
+  end
+end
