@@ -10,8 +10,8 @@ let use_portable : 'a @ portable -> unit = fun _ -> ()
 let use_many : 'a @ many -> unit = fun _ -> ()
 
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type ('a : value mod non_null) require_nonnull
@@ -23,8 +23,8 @@ val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type 'a require_nonnull
@@ -77,21 +77,21 @@ type u = { x : int; y : int; }
 type t = { z : u; }
 |}]
 
-type t_test = t require_uncontended
+type t_test = t require_contended
 [%%expect {|
-type t_test = t require_uncontended
+type t_test = t require_contended
 |}]
 
-type t_test = t require_unique
+type t_test = t require_aliased
 [%%expect {|
 Line 1, characters 14-15:
-1 | type t_test = t require_unique
+1 | type t_test = t require_aliased
                   ^
-Error: This type "t" should be an instance of type "('a : value mod unique)"
+Error: This type "t" should be an instance of type "('a : value mod aliased)"
        The kind of t is immutable_data
          because of the definition of t at line 2, characters 0-18.
-       But the kind of t must be a subkind of value mod unique
-         because of the definition of require_unique at line 8, characters 0-43.
+       But the kind of t must be a subkind of value mod aliased
+         because of the definition of require_aliased at line 8, characters 0-45.
 |}]
 
 let foo (t : t @@ once) = use_many t
@@ -197,7 +197,7 @@ Error: This value escapes its region.
 
 (***********************************************************************)
 
-type 'a t : value mod uncontended with 'a =
+type 'a t : value mod contended with 'a =
   { a : 'a
   ; f1 : int -> int
   ; f2 : int -> string

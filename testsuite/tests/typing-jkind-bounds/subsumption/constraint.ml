@@ -71,49 +71,49 @@ module M :
 |}]
 
 module M : sig
-  type ('a : value mod portable, 'b : value mod uncontended) t : value mod portable uncontended constraint 'a = 'b
+  type ('a : value mod portable, 'b : value mod contended) t : value mod portable contended constraint 'a = 'b
 end = struct
-  type ('a : value mod portable, 'b : value mod uncontended) t = 'a constraint 'a = 'b
+  type ('a : value mod portable, 'b : value mod contended) t = 'a constraint 'a = 'b
 end
 [%%expect{|
 module M :
   sig
-    type ('b : value mod uncontended portable, 'a) t
-      : value mod uncontended portable constraint 'a = 'b
+    type ('b : value mod contended portable, 'a) t
+      : value mod contended portable constraint 'a = 'b
   end
 |}]
 
 module M : sig
-  type ('a : value mod portable, 'b : value mod uncontended) t : value mod many constraint 'a = 'b
+  type ('a : value mod portable, 'b : value mod contended) t : value mod many constraint 'a = 'b
 end = struct
-  type ('a : value mod portable, 'b : value mod uncontended) t = 'a constraint 'a = 'b
+  type ('a : value mod portable, 'b : value mod contended) t = 'a constraint 'a = 'b
 end
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   type ('a : value mod portable, 'b : value mod uncontended) t = 'a constraint 'a = 'b
+4 |   type ('a : value mod portable, 'b : value mod contended) t = 'a constraint 'a = 'b
 5 | end
 Error: Signature mismatch:
        Modules do not match:
          sig
-           type ('b : value mod uncontended portable, 'a) t = 'b
+           type ('b : value mod contended portable, 'a) t = 'b
              constraint 'a = 'b
          end
        is not included in
          sig
-           type ('b : value mod uncontended portable, 'a) t : value mod many
+           type ('b : value mod contended portable, 'a) t : value mod many
              constraint 'a = 'b
          end
        Type declarations do not match:
-         type ('b : value mod uncontended portable, 'a) t = 'b
+         type ('b : value mod contended portable, 'a) t = 'b
            constraint 'a = 'b
        is not included in
-         type ('b : value mod uncontended portable, 'a) t : value mod many
+         type ('b : value mod contended portable, 'a) t : value mod many
            constraint 'a = 'b
-       The kind of the first is value mod uncontended portable
-         because of the definition of t at line 2, characters 2-98.
+       The kind of the first is value mod contended portable
+         because of the definition of t at line 2, characters 2-96.
        But the kind of the first must be a subkind of value mod many
-         because of the definition of t at line 2, characters 2-98.
+         because of the definition of t at line 2, characters 2-96.
 |}]
 
 module M : sig
@@ -151,7 +151,7 @@ Error: Signature mismatch:
          because of the definition of t at line 2, characters 2-59.
 
        The first mode-crosses less than the second along:
-         contention: mod contended ≰ mod uncontended with 'b
+         contention: mod uncontended ≰ mod contended with 'b
 |}]
 
 module M : sig

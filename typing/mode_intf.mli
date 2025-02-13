@@ -229,6 +229,8 @@ module type S = sig
       include Lattice with type t := t
     end
 
+    module Const_op : Lattice with type t = Const.t
+
     type error = Const.t Solver.error
 
     include
@@ -253,6 +255,8 @@ module type S = sig
 
       include Lattice with type t := t
     end
+
+    module Const_op : Lattice with type t = Const.t
 
     type error = Const.t Solver.error
 
@@ -281,10 +285,17 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_comonadic
   end
 
-  type 'a comonadic_with = private
-    'a * Linearity.Const.t * Portability.Const.t * Yielding.Const.t
+  type 'a comonadic_with =
+    { areality : 'a;
+      linearity : Linearity.Const.t;
+      portability : Portability.Const.t;
+      yielding : Yielding.Const.t
+    }
 
-  type monadic = private Uniqueness.Const.t * Contention.Const.t
+  type monadic =
+    { uniqueness : Uniqueness.Const.t;
+      contention : Contention.Const.t
+    }
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
@@ -314,9 +325,11 @@ module type S = sig
         val min_axis : (t, 'a) Axis.t -> 'a
       end
 
+      module Const_op : Lattice with type t = monadic
+
       include Common with module Const := Const
 
-      val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+      val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
     end
 
     module Comonadic : sig
@@ -353,6 +366,8 @@ module type S = sig
 
     val print_axis : Format.formatter -> ('m, 'a, 'd) axis -> unit
 
+    (** Gets the normal lattice for comonadic axes and the "op"ped lattice for
+        monadic ones. *)
     val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
 
     val all_axes : ('l * 'r) axis_packed list
@@ -453,6 +468,10 @@ module type S = sig
     val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
 
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+
+    val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+    val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
     (* The following two are about the scenario where we partially apply a
        function [A -> B -> C] to [A] and get back [B -> C]. The mode of the

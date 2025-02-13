@@ -50,7 +50,7 @@ Error: The kind of type "t" is immutable_data with 'a @@ portable
 
        The first mode-crosses less than the second along:
          linearity: mod many with 'a ≰ mod many
-         contention: mod uncontended with 'a ≰ mod uncontended
+         contention: mod contended with 'a ≰ mod contended
          yielding: mod unyielding with 'a ≰ mod unyielding
 |}]
 
@@ -169,7 +169,7 @@ Error: This type "a" = "int ref" should be an instance of type
          because of the definition of t at line 2, characters 0-28.
 
        The first mode-crosses less than the second along:
-         contention: mod contended ≰ mod uncontended
+         contention: mod uncontended ≰ mod contended
 |}, Principal{|
 type a = int ref
 type ('a : immutable_data) t
@@ -183,7 +183,7 @@ Error: This type "a" = "int ref" should be an instance of type
          because of the definition of t at line 2, characters 0-28.
 
        The first mode-crosses less than the second along:
-         contention: mod contended ≰ mod uncontended
+         contention: mod uncontended ≰ mod contended
          portability: mod portable with int ≰ mod portable
 |}]
 
@@ -223,31 +223,31 @@ Error: This type "(int -> int) u" should be an instance of type
 
        The first mode-crosses less than the second along:
          linearity: mod many with int -> int ≰ mod many
-         contention: mod uncontended with int -> int ≰ mod uncontended
+         contention: mod contended with int -> int ≰ mod contended
          yielding: mod unyielding with int -> int ≰ mod unyielding
 |}]
 
 module M : sig
   type t : value mod portable
 end = struct
-  type t : value mod uncontended
+  type t : value mod contended
 end
 [%%expect {|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   type t : value mod uncontended
+4 |   type t : value mod contended
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type t : value mod uncontended end
+         sig type t : value mod contended end
        is not included in
          sig type t : value mod portable end
        Type declarations do not match:
-         type t : value mod uncontended
+         type t : value mod contended
        is not included in
          type t : value mod portable
-       The kind of the first is value mod uncontended
-         because of the definition of t at line 4, characters 2-32.
+       The kind of the first is value mod contended
+         because of the definition of t at line 4, characters 2-30.
        But the kind of the first must be a subkind of value mod portable
          because of the definition of t at line 2, characters 2-29.
 |}]
@@ -255,53 +255,53 @@ Error: Signature mismatch:
 module M : sig
   type 'a t : value mod portable with 'a
 end = struct
-  type 'a t : value mod uncontended with 'a
+  type 'a t : value mod contended with 'a
 end
 [%%expect {|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   type 'a t : value mod uncontended with 'a
+4 |   type 'a t : value mod contended with 'a
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : value mod uncontended with 'a end
+         sig type 'a t : value mod contended with 'a end
        is not included in
          sig type 'a t : value mod portable with 'a end
        Type declarations do not match:
-         type 'a t : value mod uncontended with 'a
+         type 'a t : value mod contended with 'a
        is not included in
          type 'a t : value mod portable with 'a
-       The kind of the first is value mod uncontended with 'a
-         because of the definition of t at line 4, characters 2-43.
+       The kind of the first is value mod contended with 'a
+         because of the definition of t at line 4, characters 2-41.
        But the kind of the first must be a subkind of value mod portable
          with 'a
          because of the definition of t at line 2, characters 2-40.
 |}]
 
 module M : sig
-  type 'a t : value mod portable uncontended with 'a
+  type 'a t : value mod portable contended with 'a
 end = struct
-  type 'a t : value mod uncontended with 'a
+  type 'a t : value mod contended with 'a
 end
 [%%expect {|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   type 'a t : value mod uncontended with 'a
+4 |   type 'a t : value mod contended with 'a
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : value mod uncontended with 'a end
+         sig type 'a t : value mod contended with 'a end
        is not included in
-         sig type 'a t : value mod uncontended portable with 'a end
+         sig type 'a t : value mod contended portable with 'a end
        Type declarations do not match:
-         type 'a t : value mod uncontended with 'a
+         type 'a t : value mod contended with 'a
        is not included in
-         type 'a t : value mod uncontended portable with 'a
-       The kind of the first is value mod uncontended with 'a
-         because of the definition of t at line 4, characters 2-43.
+         type 'a t : value mod contended portable with 'a
+       The kind of the first is value mod contended with 'a
+         because of the definition of t at line 4, characters 2-41.
        But the kind of the first must be a subkind of
-         value mod uncontended portable with 'a
-         because of the definition of t at line 2, characters 2-52.
+         value mod contended portable with 'a
+         because of the definition of t at line 2, characters 2-50.
 |}]
 
 module M : sig
@@ -436,5 +436,5 @@ Error: Signature mismatch:
          because of the definition of t at line 2, characters 2-56.
 
        The first mode-crosses less than the second along:
-         contention: mod contended ≰ mod uncontended with 'a
+         contention: mod uncontended ≰ mod contended with 'a
 |}]

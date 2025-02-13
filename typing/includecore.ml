@@ -57,8 +57,18 @@ type mmodes =
 let right_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
   let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let upper_bounds =
+    Alloc.Const.merge
+      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
+  in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  Value.imply upper_bounds mode
+  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
+  let lower_bounds =
+    Alloc.Const.merge
+      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
+  in
+  let lower_bounds = Const.alloc_as_value lower_bounds in
+  Value.imply upper_bounds (Value.join_const lower_bounds mode)
 
 let right_mode_cross env ty mode =
   if not (Ctype.is_principal ty) then mode else
@@ -68,8 +78,18 @@ let right_mode_cross env ty mode =
 let left_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
   let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let upper_bounds =
+    Alloc.Const.merge
+      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
+  in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  Value.meet_const upper_bounds mode
+  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
+  let lower_bounds =
+    Alloc.Const.merge
+      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
+  in
+  let lower_bounds = Const.alloc_as_value lower_bounds in
+  Value.subtract lower_bounds (Value.meet_const upper_bounds mode)
 
 let left_mode_cross env ty mode=
   if not (Ctype.is_principal ty) then mode else
@@ -688,11 +708,10 @@ let compare_unsafe_mode_crossing umc1 umc2 =
   | None, None -> None
   | Some _, None -> Some (Unsafe_mode_crossing (Mode_crossing_only_on First))
   | None, Some _ -> Some (Unsafe_mode_crossing (Mode_crossing_only_on Second))
-  | Some ({ modal_upper_bounds = mub1 }),
-    Some ({ modal_upper_bounds = mub2 }) ->
-    if (Mode.Alloc.Const.le mub1 mub2 && Mode.Alloc.Const.le mub2 mub1)
-    then None
-    else Some (Unsafe_mode_crossing Mode_crossing_not_equal)
+  | Some umc1, Some umc2 ->
+      if equal_unsafe_mode_crossing umc1 umc2
+      then None
+      else Some (Unsafe_mode_crossing Mode_crossing_not_equal)
 
 module Record_diffing = struct
 

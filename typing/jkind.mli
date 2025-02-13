@@ -40,25 +40,6 @@ open Allowance
    This will eventually be incorporated into the mode
    solver, but it is defined here because we do not yet track externalities
    on expressions, just in jkinds. *)
-(* CR externals: Move to mode.ml. But see
-   https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
-   first, which was reisenberg's attempt to do so. *)
-module Externality : sig
-  type t = Jkind_axis.Externality.t =
-    | External (* not managed by the garbage collector *)
-    | External64 (* not managed by the garbage collector on 64-bit systems *)
-    | Internal (* managed by the garbage collector *)
-
-  include module type of Jkind_axis.Externality with type t := t
-end
-
-module Nullability : sig
-  type t = Jkind_axis.Nullability.t =
-    | Non_null (* proven to not have NULL values *)
-    | Maybe_null (* may have NULL values *)
-
-  include module type of Jkind_axis.Nullability with type t := t
-end
 
 module Sort : sig
   include
@@ -530,22 +511,28 @@ val get_layout : 'd Types.jkind -> Layout.Const.t option
 (** Gets the layout of a jkind, without looking through sort variables. *)
 val extract_layout : 'd Types.jkind -> Sort.t Layout.t
 
-(** Gets the maximum modes for types of this jkind. *)
+(** Gets the maximum comonadic modes for types of this jkind. *)
 val get_modal_upper_bounds :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
-  Mode.Alloc.Const.t
+  Mode.Alloc.Comonadic.Const.t
+
+(** Gets the minimum monadic modes for types of this jkind. *)
+val get_modal_lower_bounds :
+  jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
+  'd Types.jkind ->
+  Mode.Alloc.Monadic.Const.t
 
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
 val get_externality_upper_bound :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
-  Externality.t
+  Jkind_axis.Externality.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
 val set_externality_upper_bound :
-  Types.jkind_r -> Externality.t -> Types.jkind_r
+  Types.jkind_r -> Jkind_axis.Externality.t -> Types.jkind_r
 
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind

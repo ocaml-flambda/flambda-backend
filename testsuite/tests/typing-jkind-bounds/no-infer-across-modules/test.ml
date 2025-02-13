@@ -17,8 +17,8 @@ let use_portable : 'a @ portable -> unit = fun _ -> ()
 let use_many : 'a @ many -> unit = fun _ -> ()
 
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type ('a : value mod non_null) require_nonnull
@@ -30,8 +30,8 @@ val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type 'a require_nonnull
@@ -95,31 +95,31 @@ Error: This type "int Define_with_kinds.my_list" should be an instance of type
          because of the definition of require_global at line 9, characters 0-43.
 |}]
 
-type my_list_test = int ref my_list require_uncontended
+type my_list_test = int ref my_list require_contended
 [%%expect{|
 Line 1, characters 20-35:
-1 | type my_list_test = int ref my_list require_uncontended
+1 | type my_list_test = int ref my_list require_contended
                         ^^^^^^^^^^^^^^^
 Error: This type "int ref Define_with_kinds.my_list"
-       should be an instance of type "('a : value mod uncontended)"
+       should be an instance of type "('a : value mod contended)"
        The kind of int ref Define_with_kinds.my_list is immutable_data.
        But the kind of int ref Define_with_kinds.my_list must be a subkind of
-         value mod uncontended
-         because of the definition of require_uncontended at line 11, characters 0-53.
+         value mod contended
+         because of the definition of require_contended at line 11, characters 0-49.
 |}]
 
-type my_list_test = int my_ref my_list require_uncontended
+type my_list_test = int my_ref my_list require_contended
 [%%expect{|
 Line 1, characters 20-38:
-1 | type my_list_test = int my_ref my_list require_uncontended
+1 | type my_list_test = int my_ref my_list require_contended
                         ^^^^^^^^^^^^^^^^^^
 Error: This type "int Define_with_kinds.my_ref Define_with_kinds.my_list"
-       should be an instance of type "('a : value mod uncontended)"
+       should be an instance of type "('a : value mod contended)"
        The kind of int Define_with_kinds.my_ref Define_with_kinds.my_list is
          immutable_data.
        But the kind of int Define_with_kinds.my_ref Define_with_kinds.my_list must be a subkind of
-         value mod uncontended
-         because of the definition of require_uncontended at line 11, characters 0-53.
+         value mod contended
+         because of the definition of require_contended at line 11, characters 0-49.
 |}]
 
 type my_list_test = int my_ref my_list require_portable

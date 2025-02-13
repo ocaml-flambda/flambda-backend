@@ -44,7 +44,7 @@ module Runtime_4 = struct
 
     let init () = ()
 
-    type 'a key : value mod portable uncontended = Key of (int * (Access.t -> 'a))
+    type 'a key : value mod portable contended = Key of (int * (Access.t -> 'a))
     [@@unboxed]
     [@@unsafe_allow_any_mode_crossing "runtime4 only"]
 
@@ -228,13 +228,13 @@ module Runtime_5 = struct
     let init () = create_dls ()
 
     (* CR with-kinds: Remove [Key] wrapper. *)
-    type 'a key : value mod portable uncontended =
+    type 'a key : value mod portable contended =
         Key of (int * (Access.t -> 'a) Modes.Portable.t) [@@unboxed]
     [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
     let key_counter = Atomic.Safe.make 0
 
-    type key_initializer : value mod portable uncontended =
+    type key_initializer : value mod portable contended =
         KI: 'a key * ('a -> (Access.t -> 'a) @ portable) @@ portable -> key_initializer
     [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
@@ -329,7 +329,7 @@ module Runtime_5 = struct
         end
       end
 
-    type key_value : value mod portable uncontended =
+    type key_value : value mod portable contended =
         KV : 'a key * (Access.t -> 'a) @@ portable -> key_value
     [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
@@ -458,7 +458,7 @@ module type S = sig
       val for_initial_domain : t @@ nonportable
     end
 
-    type 'a key : value mod portable uncontended
+    type 'a key : value mod portable contended
 
     val access
       :  (Access.t -> 'a @ portable contended) @ local portable

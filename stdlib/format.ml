@@ -32,7 +32,7 @@ let id x = x
 (* A devoted type for sizes to avoid confusion
    between sizes and mere integers. *)
 module Size : sig @@ portable
-  type t : value mod portable uncontended
+  type t : value mod portable contended
 
   val to_int : t -> int
   val of_int : int -> t
@@ -821,7 +821,7 @@ let pp_set_margin state n =
 
 
 (** Geometry functions and types *)
-type geometry : value mod portable uncontended = { max_indent:int; margin: int}
+type geometry : value mod portable contended = { max_indent:int; margin: int}
 [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
 let validate_geometry {margin; max_indent} =
@@ -1195,10 +1195,10 @@ let formatter_of_symbolic_output_buffer sob =
 
 let[@inline] apply1 f v = f (Domain.DLS.get std_formatter_key) v
 let[@inline] apply2 f v w = f (Domain.DLS.get std_formatter_key) v w
-let[@inline] apply1' (type a : value mod portable uncontended) f (v : a) =
+let[@inline] apply1' (type a : value mod portable contended) f (v : a) =
   DLS.access (fun access -> f (DLS.get access std_formatter_key) v)
 let[@inline] apply2'
-      (type (a : value mod portable uncontended) (b : value mod portable uncontended))
+      (type (a : value mod portable contended) (b : value mod portable contended))
       f (v : a) (w : b) =
   DLS.access (fun access -> f (DLS.get access std_formatter_key) v w)
 

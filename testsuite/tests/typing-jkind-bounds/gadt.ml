@@ -10,8 +10,8 @@ let use_portable : 'a @ portable -> unit = fun _ -> ()
 let use_many : 'a @ many -> unit = fun _ -> ()
 
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type ('a : value mod non_null) require_nonnull
@@ -23,8 +23,8 @@ val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 type ('a : value mod global) require_global
-type ('a : value mod unique) require_unique
-type ('a : value mod uncontended) require_uncontended
+type ('a : value mod aliased) require_aliased
+type ('a : value mod contended) require_contended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type 'a require_nonnull

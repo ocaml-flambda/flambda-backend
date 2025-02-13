@@ -476,8 +476,8 @@ module Mod_bounds = struct
 
   let for_arrow =
     simple ~linearity:Linearity.Const.max ~locality:Locality.Const.max
-      ~uniqueness:Uniqueness.Const.min ~portability:Portability.Const.max
-      ~contention:Contention.Const.min ~yielding:Yielding.Const.max
+      ~uniqueness:Uniqueness.Const_op.min ~portability:Portability.Const.max
+      ~contention:Contention.Const_op.min ~yielding:Yielding.Const.max
       ~externality:Externality.max ~nullability:Nullability.Non_null
 end
 
@@ -891,11 +891,11 @@ module Const = struct
       { jkind =
           { layout = Base Value;
             mod_bounds =
-              Mod_bounds.simple ~linearity:Linearity.Const.min
-                ~contention:Contention.Const.min
-                ~portability:Portability.Const.min
-                ~uniqueness:Uniqueness.Const.max ~locality:Locality.Const.max
-                ~yielding:Yielding.Const.min ~externality:Externality.max
+              Mod_bounds.simple ~locality:Locality.Const.max
+                ~linearity:Linearity.Const.min
+                ~portability:Portability.Const.min ~yielding:Yielding.Const.min
+                ~uniqueness:Uniqueness.Const_op.max
+                ~contention:Contention.Const_op.min ~externality:Externality.max
                 ~nullability:Nullability.Non_null;
             with_bounds = No_with_bounds
           };
@@ -906,11 +906,11 @@ module Const = struct
       { jkind =
           { layout = Base Value;
             mod_bounds =
-              Mod_bounds.simple ~linearity:Linearity.Const.min
-                ~contention:Contention.Const.max
-                ~portability:Portability.Const.min
-                ~uniqueness:Uniqueness.Const.max ~locality:Locality.Const.max
-                ~yielding:Yielding.Const.min ~externality:Externality.max
+              Mod_bounds.simple ~locality:Locality.Const.max
+                ~linearity:Linearity.Const.min
+                ~portability:Portability.Const.min ~yielding:Yielding.Const.min
+                ~contention:Contention.Const_op.max
+                ~uniqueness:Uniqueness.Const_op.max ~externality:Externality.max
                 ~nullability:Nullability.Non_null;
             with_bounds = No_with_bounds
           };
@@ -2017,21 +2017,15 @@ let for_arrow =
   |> mark_best
 
 let for_object =
-  let ({ linearity;
-         areality = locality;
-         uniqueness;
-         portability;
-         contention;
-         yielding
-       }
-        : Mode.Alloc.Const.t) =
-    (* The crossing of objects are based on the fact that they are
-       produced/defined/allocated at legacy, which applies to only the
-       comonadic axes. *)
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.legacy;
-        monadic = Alloc.Monadic.Const.max
-      }
+  (* The crossing of objects are based on the fact that they are
+     produced/defined/allocated at legacy, which applies to only the
+     comonadic axes. *)
+  let ({ linearity; areality = locality; portability; yielding }
+        : Mode.Alloc.Comonadic.Const.t) =
+    Alloc.Comonadic.Const.legacy
+  in
+  let ({ contention; uniqueness } : Mode.Alloc.Monadic.Const_op.t) =
+    Alloc.Monadic.Const_op.max
   in
   fresh_jkind
     { layout = Sort (Base Value);
@@ -2088,7 +2082,7 @@ let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
 let extract_layout jk = jk.jkind.layout
 
 let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
-    Alloc.Const.t =
+    Alloc.Comonadic.Const.t =
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           Allowance.right_only jkind_desc),
         _ ) =
@@ -2097,10 +2091,20 @@ let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
   let get axis = Mod_bounds.get mod_bounds ~axis in
   { areality = get (Modal (Comonadic Areality));
     linearity = get (Modal (Comonadic Linearity));
-    uniqueness = get (Modal (Monadic Uniqueness));
     portability = get (Modal (Comonadic Portability));
-    contention = get (Modal (Monadic Contention));
     yielding = get (Modal (Comonadic Yielding))
+  }
+
+let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
+    Alloc.Monadic.Const.t =
+  let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
+          Allowance.right_only jkind_desc),
+        _ ) =
+    Jkind_desc.normalize ~mode:Ignore_best ~jkind_of_type jk.jkind
+  in
+  let get axis = Mod_bounds.get mod_bounds ~axis in
+  { uniqueness = get (Modal (Monadic Uniqueness));
+    contention = get (Modal (Monadic Contention))
   }
 
 let get_externality_upper_bound ~jkind_of_type jk =

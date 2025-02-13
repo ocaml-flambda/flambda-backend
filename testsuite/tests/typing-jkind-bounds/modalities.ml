@@ -4,13 +4,13 @@
 *)
 let use_uncontended : 'a @ uncontended -> unit = fun _ -> ()
 let use_portable : 'a @ portable -> unit = fun _ -> ()
-let cross_uncontended : ('a : value mod uncontended) -> unit = fun _ -> ()
-type ('a : value mod uncontended) require_uncontended
+let cross_contended : ('a : value mod contended) -> unit = fun _ -> ()
+type ('a : value mod contended) require_contended
 [%%expect{|
 val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
-val cross_uncontended : ('a : value mod uncontended). 'a -> unit = <fun>
-type ('a : value mod uncontended) require_uncontended
+val cross_contended : ('a : value mod contended). 'a -> unit = <fun>
+type ('a : value mod contended) require_contended
 |}]
 
 type 'a t = { contended : 'a @@ contended }
@@ -18,11 +18,11 @@ type 'a t = { contended : 'a @@ contended }
 type 'a t = { contended : 'a @@ contended; }
 |}]
 
-type t_test = int t require_uncontended
-type t_test = int ref t require_uncontended
+type t_test = int t require_contended
+type t_test = int ref t require_contended
 [%%expect{|
-type t_test = int t require_uncontended
-type t_test = int ref t require_uncontended
+type t_test = int t require_contended
+type t_test = int ref t require_contended
 |}]
 
 let foo (t : int ref t @@ contended) = use_uncontended t
@@ -38,7 +38,7 @@ Line 1, characters 55-66:
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo (t : int ref t @@ contended) = cross_uncontended t
+let foo (t : int ref t @@ contended) = cross_contended t
 [%%expect{|
 val foo : int ref t @ contended -> unit = <fun>
 |}]
