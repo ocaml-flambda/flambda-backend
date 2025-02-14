@@ -475,6 +475,8 @@ module type S = sig
 
     val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
 
+    val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
