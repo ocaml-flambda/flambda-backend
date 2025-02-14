@@ -542,11 +542,11 @@ void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
   int flags = MAP_PRIVATE | MAP_ANONYMOUS;
   uintnat alignment = caml_plat_hugepagesize;
 
-  #ifdef WITH_ADDRESS_SANITIZER
+#ifdef WITH_ADDRESS_SANITIZER
   return aligned_alloc(caml_plat_mmap_alignment,
          (alloc_sz + (caml_plat_mmap_alignment - 1)) &
          ~(caml_plat_mmap_alignment - 1));
-  #else
+#else
   if (size < alignment || alignment < caml_plat_pagesize) {
     /* Short mapping or unknown/bad hugepagesize.
        Either way, not worth bothering with alignment. */
@@ -577,7 +577,7 @@ void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
   munmap(mem, offset);
   if (offset != alignment) munmap((void*)(aligned + size), alignment - offset);
   return (void*)aligned;
-  #endif
+#endif
 }
 
 #ifndef WITH_ADDRESS_SANITIZER
@@ -627,9 +627,9 @@ static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
 
 void* caml_plat_mem_commit(void* mem, uintnat size, const char* name)
 {
-  #ifdef WITH_ADDRESS_SANITIZER
+#ifdef WITH_ADDRESS_SANITIZER
   return mem;
-  #else
+#else
   void* p = map_fixed(mem, size, PROT_READ | PROT_WRITE, name);
   /*
     FIXME: On Linux, it might be useful to populate page tables with
@@ -637,25 +637,25 @@ void* caml_plat_mem_commit(void* mem, uintnat size, const char* name)
     a later point.
   */
   return p;
-  #endif
+#endif
 }
 
 void caml_plat_mem_decommit(void* mem, uintnat size, const char* name)
 {
-  #ifdef WITH_ADDRESS_SANITIZER
+#ifdef WITH_ADDRESS_SANITIZER
   /* We don't need the strength of [MADV_DONTNEED]. */
   madvise(mem, size, MADV_FREE);
-  #else
+#else
   map_fixed(mem, size, PROT_NONE, name);
-  #endif
+#endif
 }
 
 void caml_plat_mem_unmap(void* mem, uintnat size)
 {
-  #ifdef WITH_ADDRESS_SANITIZER
+#ifdef WITH_ADDRESS_SANITIZER
   free(mem);
-  #else
+#else
   if (munmap(mem, size) != 0)
     CAMLassert(0);
-  #endif
+#endif
 }
