@@ -1,6 +1,6 @@
 (* TEST
- readonly_files = "mainarith.c";
- arguments = "mainarith.c";
+ readonly_files = "mainarith.c asan_report_wrappers.c";
+ arguments = "mainarith.c asan_report_wrappers.c";
  asmgen;
 *)
 

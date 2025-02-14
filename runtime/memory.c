@@ -1029,3 +1029,41 @@ CAMLexport wchar_t* caml_stat_wcsconcat(int n, ...)
 }
 
 #endif
+
+#ifdef WITH_ADDRESS_SANITIZER
+/* Provides reasonable default settings for AddressSanitizer.
+   Ideally we'd make this a weak symbol so that user programs
+   could easily override it at compile time, but unfortunately that
+   doesn't work because the AddressSanitizer runtime library itself
+   already provides a weak symbol with this name, so there'd be no
+   guarantee which would get used if this symbol was also weak.
+
+   Users can still customize the behavior of AddressSanitizer via the
+   [ASAN_OPTIONS] environment variable at runtime.
+   */
+const char *__attribute__((used, retain))
+__asan_default_options(void) {
+  return "detect_leaks=false,"
+         "halt_on_error=false,"
+         "detect_stack_use_after_return=false";
+}
+
+#define CREATE_ASAN_REPORT_WRAPPER(memory_access, size) \
+void __asan_report_ ## memory_access ## size ## _noabort(const void* addr); \
+CAMLexport void __attribute__((preserve_all)) caml_asan_report_ ## memory_access ## size ## _noabort(const void* addr) { \
+  return __asan_report_ ## memory_access ## size ## _noabort(addr); \
+}
+
+CREATE_ASAN_REPORT_WRAPPER(load, 1)
+CREATE_ASAN_REPORT_WRAPPER(load, 2)
+CREATE_ASAN_REPORT_WRAPPER(load, 4)
+CREATE_ASAN_REPORT_WRAPPER(load, 8)
+CREATE_ASAN_REPORT_WRAPPER(load, 16)
+CREATE_ASAN_REPORT_WRAPPER(store, 1)
+CREATE_ASAN_REPORT_WRAPPER(store, 2)
+CREATE_ASAN_REPORT_WRAPPER(store, 4)
+CREATE_ASAN_REPORT_WRAPPER(store, 8)
+CREATE_ASAN_REPORT_WRAPPER(store, 16)
+
+#undef CREATE_ASAN_REPORT_WRAPPER
+#endif

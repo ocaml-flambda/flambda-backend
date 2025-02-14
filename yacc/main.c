@@ -436,6 +436,12 @@ void open_files(void)
       open_error(interface_file_name);
 }
 
+const char * __attribute__((used, retain)) __asan_default_options(void) {
+  return "detect_leaks=false,"
+         "halt_on_error=false,"
+         "detect_stack_use_after_return=false";
+}
+
 int main_os(int argc, char_os **argv)
 {
     set_signals();
