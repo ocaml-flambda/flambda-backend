@@ -510,7 +510,7 @@ void caml_init_os_params(void)
 }
 
 #ifndef __CYGWIN__
-
+#ifndef WITH_ADDRESS_SANITIZER
 static void* mmap_named(void* addr, size_t length, int prot, int flags,
                         int fd, off_t offset, const char* name)
 {
@@ -534,19 +534,18 @@ static void* mmap_named(void* addr, size_t length, int prot, int flags,
 #endif
   return p;
 }
+#endif
 
 void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
 {
+  uintnat alignment = caml_plat_hugepagesize;
+#ifdef WITH_ADDRESS_SANITIZER
+  return aligned_alloc(alignment, (size + (alignment - 1)) & ~(alignment - 1));
+#else
   void* mem;
   int prot = reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE);
   int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-  uintnat alignment = caml_plat_hugepagesize;
 
-#ifdef WITH_ADDRESS_SANITIZER
-  return aligned_alloc(caml_plat_mmap_alignment,
-         (alloc_sz + (caml_plat_mmap_alignment - 1)) &
-         ~(caml_plat_mmap_alignment - 1));
-#else
   if (size < alignment || alignment < caml_plat_pagesize) {
     /* Short mapping or unknown/bad hugepagesize.
        Either way, not worth bothering with alignment. */
