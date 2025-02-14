@@ -15,6 +15,10 @@ interesting interactions with some modes, so values of these types can safely
 ignore those modal axes. The non-modal bounds capture a grab-bag of other
 properties.
 
+Kinds are related by a _sub-kinding_ relation, described in more detail
+below. This allows to use a type with a more precise kind where a type with a
+less precise kind is expected.
+
 This page describes the kind system at a high level, and contains complete
 details for the non-modal bounds. It does not exhaustively describe the possible
 layouts (which are documented on the [unboxed types
@@ -43,23 +47,23 @@ with two modal bounds, `value mod aliased contended`.  The type `int` has all
 the bounds:
 
 ```
-value mod external non_null global contended portable aliased many
+value mod external_ non_null global contended portable aliased many unyielding
 ```
 
-This kind indicates that `int` mode crosses on all five of our modal axes. The
-non-modal bounds `external` and `non_null` capture two other properties of
-`int`s: `external` describes types that can safely be ignored by the OCaml
+This kind indicates that `int` mode crosses on all six of our modal axes. The
+non-modal bounds `external_` and `non_null` capture two other properties of
+`int`s: `external_` describes types that can safely be ignored by the OCaml
 garbage collector, and `non_null` describes types that do not have `NULL` as a
 valid member. These non-modal axes are described in more detail below.
 
 # The meaning of kinds
 
 In additional to `value`, Oxcaml supports layouts like `float64` (unboxed
-floating point numbers that are passed in int registers), `bits64` and `bits32`
-(for types represented by unboxed/untagged integers) and product layouts like
-`float64 & bits32` (an unboxed pair that is passed in two registers). More
-detail on layouts and the unboxed types language feature can be found
-[here](unboxed-types/index.md).
+floating point numbers that are passed in general-purpose registers), `bits64`
+and `bits32` (for types represented by unboxed/untagged integers) and product
+layouts like `float64 & bits32` (an unboxed pair that is passed in two
+registers). More detail on layouts and the unboxed types language feature can be
+found [here](unboxed-types/index.md).
 
 Modal bounds all correspond to modal axes, which are described in more detail in
 the [modes documentation](). The logic for which types can cross on which axes is
@@ -71,7 +75,7 @@ Formally, these are called modal _bounds_ because the represent upper or lower
 bounds on the appropriate modal axes. For _future_ modal axes (like portability
 and linearity), the kind records an upper bound on the mode of values of this
 type. For example, `int` is `mod portable` because if you have an `int` that is
-`non-portable`, it's safe to treat it as `portable`.  For _past_ modal axes
+`nonportable`, it's safe to treat it as `portable`.  For _past_ modal axes
 (like contention and uniqueness), the kind records a lower bound on
 _expectations_.  For example, `int` is `mod contended` because in a place where
 an `uncontended` value is expected, it's still safe to use a `contended` int.
@@ -85,7 +89,7 @@ understand for day-to-day use of the system.
 There is a partial order on kinds, which we'll write `k1 <= k2`. The
 relationship `k1 <= k2` holds when `k2` tells us less about a type than `k1`.
 Thus, it is always safe to use a type of kind `k1` where a type of kind `k2` is
-expected.  There is a maximum mode, written `any` (which, somewhat confusingly,
+expected.  There is a maximum kind, written `any` (which, somewhat confusingly,
 is also the name of the maximum layout).
 
 As an example, `value mod portable <= value`. This means that if we know a type
@@ -123,6 +127,12 @@ It's legal to omit the `mod ...` portion of the kind when you only want to
 specify the layout (as we did in a couple of these examples). The bounds of
 unspecified axes are the maximum on those axes.
 
+What is the maximum on each axis? It's the bound that tells us the least about
+the type. Note that for the "past" modes, this order is reversed from the order
+on the mode itself (that is, `value mod contended <= value mod uncontended`).
+This is due to the meaning of these kinds as covered
+[above](#the-meaning-of-kinds).
+
 Note that the meaning of a kind annotation on a type declaration differs
 depending on whether the type declaration is abstract.  For an abstract type declaration
 like `type t : value mod portable`, the kind annotation will be used as the
@@ -153,10 +163,10 @@ the kind we showed for `int` above.  Here is a list of the built-in abbreviation
 
 | Alias            | Meaning                                                                |
 |------------------|------------------------------------------------------------------------|
-| `immediate`      | `value mod external non_null global contended portable aliased many`   |
-| `immediate64`    | `value mod external64 non_null global contended portable aliased many` |
-| `immutable_data` | `value mod contended portable many non_null`                           |
-| `mutable_data`   | `value mod portable many non_null`                                     |
+| `immediate`      | `value mod external_ non_null global contended portable aliased many unyielding`   |
+| `immediate64`    | `value mod external64 non_null global contended portable aliased many unyielding` |
+| `immutable_data` | `value mod non_null contended portable many unyielding`                           |
+| `mutable_data`   | `value mod non_null portable many unyielding`                                     |
 
 It's allowed to extend an alias with an additional bounds.  For example,
 `mutable_data mod contended` is equivalent `immutable_data`.
@@ -213,10 +223,6 @@ end
 and still pass `Array` to functors expecting a `type 'a t`, which assumes `('a :
 value)`.
 
-CR ccasinghino: I just stole the above from the layouts docs, verbatim, except
-changing the word layout to kind.  Probably we should delete it from there and
-point here?
-
 Relatedly, a `with type` constraint on a signature can fill in a type with one
 that has a more specific kind.  E.g., this is legal:
 ```ocaml
@@ -264,12 +270,19 @@ by the GC.  This may be because they are OCaml "immediates" (values represented
 by a tagged integer), because they are unboxed types like `float#` or `int32#`,
 or because they are allocated elsewhere.
 
-The axis has two possible values, with `external < internal`.  Here, `external`
-means that all values of the type are safely ignored by the GC, and internal
-means values of the type may need to be scanned.
+The axis has three possible values, with `external_ < external64 < internal`.
+* `external_` means that all values of the type are safely ignored by the
+  GC.
+* `external64` means that all values of the type are safely ignored by the GC
+  _on 64-bit systems_. The only 32-bit target currently supported by the OCaml
+  compiler is bytecode. Note that, although JavaScript and WASM are 32-bit
+  platforms and the compiler goes through bytecode to reach them, they still
+  count as 64-bit systems for the purpose of this axis because of their unique
+  data models.
+* `internal` means values of the type may need to be scanned.
 
 The compiler uses the externality axis for certain runtime optimizations. In
-particular, updating a mutable reference to a type that is `external` can skip
+particular, updating a mutable reference to a type that is `external_` can skip
 the write barrier (i.e., it does not need a call to `caml_modify`).
 
 In the future, we plan to make externality a mode, rather than just a property
@@ -281,7 +294,7 @@ The nullability axis records whether `NULL` (the machine word 0) is a possible
 value of a type, and is used to support the non-allocating option `'a or_null`
 type. The axis has two possible values, with `non_null < maybe_null`.
 
-A type may be `non_null` if none of its value values are `NULL`.  Such types are
+A type may be `non_null` if none of its values are `NULL`.  Such types are
 compatible with `or_null`, whose definition is:
 ```ocaml
 type ('a : value mod non_null) or_null : value mod maybe_null =
