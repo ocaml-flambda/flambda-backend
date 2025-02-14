@@ -32,7 +32,7 @@ type env =
     should_keep_param : Continuation.t -> Variable.t -> bool
   }
 
-let is_used (env : env) cn = Hashtbl.mem env.uses cn
+let is_used (env : env) cn = Dep_solver.has_use env.uses cn
 
 let is_code_id_used (env : env) code_id =
   is_used env (Code_id_or_name.code_id code_id)
@@ -185,21 +185,15 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
   let slot_is_used slot =
     List.exists
       (fun bv ->
-        match
-          Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
-        with
-        | None | Some Bottom -> false
-        | Some Top -> true
-        | Some (Fields f) -> Global_flow_graph.Field.Map.mem slot f)
+        Dep_solver.field_used env.uses
+          (Code_id_or_name.var (Bound_var.var bv))
+          slot)
       bound
   in
   let code_is_used bv =
-    match
-      Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
-    with
-    | None | Some Bottom -> false
-    | Some Top -> true
-    | Some (Fields f) -> Global_flow_graph.Field.Map.mem Code_of_closure f
+    Dep_solver.field_used env.uses
+      (Code_id_or_name.var (Bound_var.var bv))
+      Code_of_closure
   in
   let value_slots =
     Value_slot.Map.filter
@@ -556,7 +550,9 @@ let rebuild
     in
     keep_all_parameters
     ||
-    let is_var_used = Hashtbl.mem solved_dep (Code_id_or_name.var param) in
+    let is_var_used =
+      Dep_solver.has_use solved_dep (Code_id_or_name.var param)
+    in
     is_var_used
     ||
     let info = Continuation.Map.find cont continuation_info in

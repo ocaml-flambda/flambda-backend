@@ -1562,6 +1562,8 @@ module Extra_params = struct
       set' Flambda_backend_flags.use_cached_generic_functions
     | "cached-generic-functions-path" ->
       Flambda_backend_flags.cached_generic_functions_path := v; true
+    | "reaper" ->
+      set Flambda2.enable_reaper
     | _ -> false
 end
 

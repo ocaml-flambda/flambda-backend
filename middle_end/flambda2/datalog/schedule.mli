@@ -2,10 +2,10 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*           Nathanaëlle Courant, Pierre Chambart, OCamlPro               *)
+(*                        Basile Clément, OCamlPro                        *)
 (*                                                                        *)
-(*   Copyright 2024 OCamlPro SAS                                          *)
-(*   Copyright 2024 Jane Street Group LLC                                 *)
+(*   Copyright 2024--2025 OCamlPro SAS                                    *)
+(*   Copyright 2024--2025 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,16 +13,30 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type result
+type builder
 
-val pp_result : Format.formatter -> result -> unit
+val create_builder : unit -> builder
 
-val fixpoint : Global_flow_graph.graph -> result
+type 'a rule_fn
 
-val has_use : result -> Code_id_or_name.t -> bool
+val call_rule_fn : 'a rule_fn -> 'a Heterogenous_list.Constant.hlist -> unit
 
-val field_used :
-  result -> Code_id_or_name.t -> Global_flow_graph.Field.t -> bool
+val add_rule : builder -> ('t, 'k, unit) Table.Id.t -> 'k rule_fn
 
-(** Color of node when producing the graph as a .dot *)
-val print_color : result -> Code_id_or_name.t -> string
+type stats
+
+val create_stats : unit -> stats
+
+val print_stats : Format.formatter -> stats -> unit
+
+type rule
+
+val build : builder -> 'a Cursor.t -> rule
+
+type t
+
+val saturate : rule list -> t
+
+val fixpoint : t list -> t
+
+val run : ?stats:stats -> t -> Table.Map.t -> Table.Map.t
