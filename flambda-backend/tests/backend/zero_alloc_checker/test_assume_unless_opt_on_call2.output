@@ -6,10 +6,16 @@ File "test_assume_unless_opt_on_call2.ml", line 3, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_assume_unless_opt_on_call2.bar (camlTest_assume_unless_opt_on_call2.bar_HIDE_STAMP).
 
 File "test_assume_unless_opt_on_call2.ml", line 3, characters 25-63:
-Error: allocation of 24 bytes (test_assume_unless_opt_on_call2.ml:3,25--63;test_assume_unless_opt_on_call2.ml:1,12--17)
+Error: allocation of 24 bytes
+inlined from
+test_assume_unless_opt_on_call2.ml:1,12--17[Test_assume_unless_opt_on_call2.foo][camlTest_assume_unless_opt_on_call2.foo_HIDE_STAMP]
+test_assume_unless_opt_on_call2.ml:3,25--63[Test_assume_unless_opt_on_call2.bar]
 
 File "test_assume_unless_opt_on_call2.ml", line 5, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_assume_unless_opt_on_call2.test_warning (camlTest_assume_unless_opt_on_call2.test_warning_HIDE_STAMP).
 
 File "test_assume_unless_opt_on_call2.ml", line 6, characters 2-63:
-Error: allocation of 24 bytes (test_assume_unless_opt_on_call2.ml:6,2--63;test_assume_unless_opt_on_call2.ml:1,12--17)
+Error: allocation of 24 bytes
+inlined from
+test_assume_unless_opt_on_call2.ml:1,12--17[Test_assume_unless_opt_on_call2.foo][camlTest_assume_unless_opt_on_call2.foo_HIDE_STAMP]
+test_assume_unless_opt_on_call2.ml:6,2--63[Test_assume_unless_opt_on_call2.test_warning]

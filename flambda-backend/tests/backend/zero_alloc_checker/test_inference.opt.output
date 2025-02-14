@@ -38,10 +38,14 @@ File "test_inference.ml", lines 63-66, characters 18-15:
 Error: Annotation check for zero_alloc strict failed on function Test_inference.f_strict_fail (camlTest_inference.f_strict_fail_HIDE_STAMP).
 
 File "test_inference.ml", line 65, characters 12-35:
-Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_inference.ml:65,12--35;printf.ml:48,18--43;printf.ml:46,2--31)
+Error: called function may allocate on a path to exceptional return (indirect call)
 
 File "test_inference.ml", line 65, characters 12-35:
-Error: called function may allocate on a path to exceptional return (indirect call)
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP)
+inlined from
+stdlib/printf.ml:46,2--31[Stdlib.Printf.ksprintf][camlStdlib.Printf.ksprintf_HIDE_STAMP]
+stdlib/printf.ml:48,18--43[Stdlib.Printf.sprintf][camlStdlib.Printf.sprintf_HIDE_STAMP]
+test_inference.ml:65,12--35[Test_inference.f_strict_fail]
 
 File "test_inference.ml", line 66, characters 10-15:
 Error: allocation of 24 bytes on a path to exceptional return
@@ -56,10 +60,14 @@ File "test_inference.ml", lines 81-84, characters 22-15:
 Error: Annotation check for zero_alloc strict failed on function Test_inference.f_strict_opt_fail (camlTest_inference.f_strict_opt_fail_HIDE_STAMP).
 
 File "test_inference.ml", line 83, characters 12-35:
-Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_inference.ml:83,12--35;printf.ml:48,18--43;printf.ml:46,2--31)
+Error: called function may allocate on a path to exceptional return (indirect call)
 
 File "test_inference.ml", line 83, characters 12-35:
-Error: called function may allocate on a path to exceptional return (indirect call)
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP)
+inlined from
+stdlib/printf.ml:46,2--31[Stdlib.Printf.ksprintf][camlStdlib.Printf.ksprintf_HIDE_STAMP]
+stdlib/printf.ml:48,18--43[Stdlib.Printf.sprintf][camlStdlib.Printf.sprintf_HIDE_STAMP]
+test_inference.ml:83,12--35[Test_inference.f_strict_opt_fail]
 
 File "test_inference.ml", line 84, characters 10-15:
 Error: allocation of 24 bytes on a path to exceptional return

@@ -6,4 +6,7 @@ File "test_assume_unless_opt_on_call.ml", line 5, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_assume_unless_opt_on_call.test_warning (camlTest_assume_unless_opt_on_call.test_warning_HIDE_STAMP).
 
 File "test_assume_unless_opt_on_call.ml", line 6, characters 2-63:
-Error: allocation of 24 bytes (test_assume_unless_opt_on_call.ml:6,2--63;test_assume_unless_opt_on_call.ml:1,12--17)
+Error: allocation of 24 bytes
+inlined from
+test_assume_unless_opt_on_call.ml:1,12--17[Test_assume_unless_opt_on_call.foo][camlTest_assume_unless_opt_on_call.foo_HIDE_STAMP]
+test_assume_unless_opt_on_call.ml:6,2--63[Test_assume_unless_opt_on_call.test_warning]
