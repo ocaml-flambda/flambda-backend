@@ -1041,7 +1041,12 @@ CAMLexport wchar_t* caml_stat_wcsconcat(int n, ...)
    Users can still customize the behavior of AddressSanitizer via the
    [ASAN_OPTIONS] environment variable at runtime.
    */
-const char *__attribute__((used, retain))
+const char *
+#ifdef __clang___
+__attribute__((used, retain))
+#else
+__attribute__((used))
+#endif
 __asan_default_options(void) {
   return "detect_leaks=false,"
          "halt_on_error=false,"
