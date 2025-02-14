@@ -6831,13 +6831,19 @@ and type_expect_
         mk_expected (newvar (Jkind.Builtin.value ~why:Boxed_record))
       in
       let exp1 = type_expect ~recarg env (mode_default cell_mode) exp1 cell_type in
-      let exp2 =
+      let new_fields_mode =
         (* The newly-written fields have to be global to avoid heap-to-stack pointers.
            We enforce that here, by asking the allocation to be global.
            This makes the block alloc_heap, but we ignore that information anyway. *)
+        (* CR uniqueness: this shouldn't mention yielding *)
+        { Value.Const.max with
+          areality = Regionality.Const.Global
+        ; yielding = Yielding.Const.Unyielding }
+      in
+      let exp2 =
         let exp2_mode =
           mode_coerce
-            (Value.max_with (Comonadic Areality) Regionality.global)
+            (Value.(meet_const new_fields_mode max |> disallow_left))
             expected_mode
         in
         (* When typing holes, we will enforce: fields_mode <= expected_mode.
@@ -6848,7 +6854,7 @@ and type_expect_
            And we have also checked above that for regionality cell_mode <= expected_mode.
            Therefore, we can safely ignore regionality when checking the mode of holes. *)
         let fields_mode =
-          Value.meet_with (Comonadic Areality) Regionality.Const.Global cell_mode
+          Value.meet_const new_fields_mode cell_mode
             |> Value.disallow_right
         in
         let overwrite =
