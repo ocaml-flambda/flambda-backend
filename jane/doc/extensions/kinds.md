@@ -47,14 +47,12 @@ with two modal bounds, `value mod aliased contended`.  The type `int` has all
 the bounds:
 
 ```
-value mod external_ non_null global contended portable aliased many unyielding
+value mod external_ global contended portable aliased many unyielding
 ```
 
 This kind indicates that `int` mode crosses on all six of our modal axes. The
-non-modal bounds `external_` and `non_null` capture two other properties of
-`int`s: `external_` describes types that can safely be ignored by the OCaml
-garbage collector, and `non_null` describes types that do not have `NULL` as a
-valid member. These non-modal axes are described in more detail below.
+non-modal bound `external_` captures the property that `int`s can safely be
+ignored by the OCaml garbage collector.
 
 # The meaning of kinds
 
@@ -161,12 +159,12 @@ and there is a mechanism to define aliases of your own.  The builtin
 abbreviations include kinds like "immediate", which is secretly shorthand for
 the kind we showed for `int` above.  Here is a list of the built-in abbreviations:
 
-| Alias            | Meaning                                                                |
-|------------------|------------------------------------------------------------------------|
-| `immediate`      | `value mod external_ non_null global contended portable aliased many unyielding`   |
-| `immediate64`    | `value mod external64 non_null global contended portable aliased many unyielding` |
-| `immutable_data` | `value mod non_null contended portable many unyielding`                           |
-| `mutable_data`   | `value mod non_null portable many unyielding`                                     |
+| Alias            | Meaning                                                                  |
+|------------------|--------------------------------------------------------------------------|
+| `immediate`      | `value mod external_ global contended portable aliased many unyielding`  |
+| `immediate64`    | `value mod external64 global contended portable aliased many unyielding` |
+| `immutable_data` | `value mod contended portable many unyielding`                           |
+| `mutable_data`   | `value mod portable many unyielding`                                     |
 
 It's allowed to extend an alias with an additional bounds.  For example,
 `mutable_data mod contended` is equivalent `immutable_data`.
@@ -254,12 +252,11 @@ don't want to restrict the normal `list` type to work only on a subset of
 The solution to this problem is "with kinds": kinds that record dependencies on
 types.  The actual kind of list in our.
 ```ocaml
-type 'a list : value mod non_null (contended portable many with 'a)
+type 'a list : value mod contended portable many with 'a
 ```
 
-CR ccasinghino: I'm giving up on explaining with-kinds here for now. I think
-there is no way to write the kind of list in the current system? (The above is
-not legal syntax)
+CR ccasinghino: I'm giving up on explaining with-kinds here for now, mainly
+because I'm not familiar enough with the the latest version of the syntax.
 
 # Non-modal kind axes
 
@@ -292,15 +289,31 @@ of types.
 
 The nullability axis records whether `NULL` (the machine word 0) is a possible
 value of a type, and is used to support the non-allocating option `'a or_null`
-type. The axis has two possible values, with `non_null < maybe_null`.
+type. The axis has two possible values, with `non_null < maybe_null`. A type may
+be `non_null` if none of its values are `NULL`.
 
-A type may be `non_null` if none of its values are `NULL`.  Such types are
-compatible with `or_null`, whose definition is:
+The syntax for this axis is special, mainly to keep the system backwards
+compatible. The nullability bound is not written as part of the bounds that
+follow `mod`, but rather is implicit in the part of the kind that comes before
+`mod`. In particular, `value` by itself really means the thing you would
+otherwise write as `value mod non_null`. This reflects the fact that, for all
+classic OCaml types, `NULL` is not a possible value.
+
+The kind of values with `NULL` added as a possibility is written
+`value_or_null`.
+
+Types that don't have `NULL` as a possible value are
+compatible with `or_null`, a non-allocating option type that is built into
+Oxcaml.  Its definition is:
 ```ocaml
-type ('a : value mod non_null) or_null : value mod maybe_null =
+type ('a : value) or_null : value_or_null =
   | Null
   | This of 'a
 ```
+
+Like value, the syntax for the kind `any` implicitly adds a `mod non_null`
+bound. If you want the `any` kind without this bound, you can write
+`any_or_null`.
 
 # Advanced topics
 
