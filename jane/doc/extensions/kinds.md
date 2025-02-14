@@ -59,7 +59,7 @@ valid member. These non-modal axes are described in more detail below.
 # The meaning of kinds
 
 In additional to `value`, Oxcaml supports layouts like `float64` (unboxed
-floating point numbers that are passed in general-purpose registers), `bits64`
+floating point numbers that are passed in SIMD registers), `bits64`
 and `bits32` (for types represented by unboxed/untagged integers) and product
 layouts like `float64 & bits32` (an unboxed pair that is passed in two
 registers). More detail on layouts and the unboxed types language feature can be
