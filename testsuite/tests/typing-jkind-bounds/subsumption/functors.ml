@@ -13,7 +13,8 @@ end
 type t : immutable_data = F(Int).t
 [%%expect {|
 module F :
-  functor (M : sig type t end) -> sig type t : immutable_data with M.t end
+  functor (M : sig type t end) ->
+    sig type t : immutable_data with M.t @@ global aliased end
 module Int : sig type t = int end
 type t = F(Int).t
 |}]
@@ -27,7 +28,7 @@ module T : sig type t end
 Line 4, characters 0-32:
 4 | type t : immutable_data = F(T).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "F(T).t" is immutable_data with T.t
+Error: The kind of type "F(T).t" is immutable_data with T.t @@ global aliased
          because of the definition of t at line 2, characters 2-34.
        But the kind of type "F(T).t" must be a subkind of immutable_data
          because of the definition of t at line 4, characters 0-32.
@@ -44,7 +45,7 @@ type 'a t : mutable_data with 'a = 'a F(Ref).t
 [%%expect {|
 module F :
   functor (M : sig type 'a t end) ->
-    sig type 'a t : immutable_data with 'a M.t end
+    sig type 'a t : immutable_data with 'a M.t @@ global aliased end
 module Ref : sig type 'a t = 'a ref end
 type 'a t = 'a F(Ref).t
 |}]
@@ -58,14 +59,12 @@ module Ref : sig type 'a t = 'a ref end
 Line 4, characters 0-48:
 4 | type 'a t : immutable_data with 'a = 'a F(Ref).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a F(Ref).t" is mutable_data with 'a @@ many
+Error: The kind of type "'a F(Ref).t" is mutable_data
+         with 'a @@ global many aliased contended
          because of the definition of t at line 2, characters 2-40.
        But the kind of type "'a F(Ref).t" must be a subkind of immutable_data
-         with 'a
+         with 'a @@ global aliased
          because of the definition of t at line 4, characters 0-48.
-
-       The first mode-crosses less than the second along:
-         contention: mod contended ≰ mod uncontended with 'a
 |}]
 
 module Ref = struct
@@ -77,7 +76,8 @@ module Ref : sig type 'a t = 'a ref end
 Line 4, characters 0-38:
 4 | type 'a t : mutable_data = 'a F(Ref).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a F(Ref).t" is immutable_data with 'a Ref.t
+Error: The kind of type "'a F(Ref).t" is immutable_data
+         with 'a Ref.t @@ global aliased
          because of the definition of t at line 2, characters 2-40.
        But the kind of type "'a F(Ref).t" must be a subkind of mutable_data
          because of the definition of t at line 4, characters 0-38.

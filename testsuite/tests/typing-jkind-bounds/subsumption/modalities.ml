@@ -9,7 +9,7 @@ end = struct
   type ('a, 'b) t : immutable_data with 'a @@ portable
 end
 [%%expect {|
-module M : sig type ('a, 'b) t : immutable_data with 'a end
+module M : sig type ('a, 'b) t : immutable_data with 'a @@ global aliased end
 |}]
 
 module M : sig
@@ -24,21 +24,22 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type ('a, 'b) t : immutable_data with 'a end
+         sig type ('a, 'b) t : immutable_data with 'a @@ global aliased end
        is not included in
-         sig type ('a, 'b) t : immutable_data with 'a @@ portable end
+         sig
+           type ('a, 'b) t
+             : immutable_data
+             with 'a @@ global portable aliased
+         end
        Type declarations do not match:
-         type ('a, 'b) t : immutable_data with 'a
+         type ('a, 'b) t : immutable_data with 'a @@ global aliased
        is not included in
-         type ('a, 'b) t : immutable_data with 'a @@ portable
-       The kind of the first is immutable_data with 'a
+         type ('a, 'b) t : immutable_data with 'a @@ global portable aliased
+       The kind of the first is immutable_data with 'a @@ global aliased
          because of the definition of t at line 4, characters 2-42.
        But the kind of the first must be a subkind of immutable_data
-         with 'a @@ portable
+         with 'a @@ global portable aliased
          because of the definition of t at line 2, characters 2-54.
-
-       The first mode-crosses less than the second along:
-         portability: mod portable with 'a ≰ mod portable
 |}]
 
 module M : sig
@@ -47,7 +48,7 @@ end = struct
   type 'a t : immutable_data with 'a @@ portable
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data with 'a end
+module M : sig type 'a t : immutable_data with 'a @@ global aliased end
 |}]
 
 module M : sig
@@ -65,23 +66,24 @@ end = struct
   type 'a t : mutable_data with 'a @@ portable
 end
 [%%expect {|
-module M : sig type 'a t : mutable_data with 'a @@ portable end
+module M :
+  sig
+    type 'a t : mutable_data with 'a @@ global portable aliased contended
+  end
 |}]
 
 type 'a u : immutable_data with 'a @@ contended
 type 'a t : value mod portable = 'a u
 [%%expect {|
-type 'a u : immutable_data with 'a @@ contended
+type 'a u : immutable_data with 'a @@ global aliased contended
 Line 2, characters 0-37:
 2 | type 'a t : value mod portable = 'a u
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a u" is immutable_data with 'a @@ contended
+Error: The kind of type "'a u" is immutable_data
+         with 'a @@ global aliased contended
          because of the definition of u at line 1, characters 0-47.
        But the kind of type "'a u" must be a subkind of value mod portable
          because of the definition of t at line 2, characters 0-37.
-
-       The first mode-crosses less than the second along:
-         portability: mod portable with 'a ≰ mod portable
 |}]
 
 module M : sig
@@ -105,7 +107,7 @@ module M : sig type 'a t : value mod uncontended end
 type 'a u : immutable_data with 'a @@ many
 type 'a t : value mod many = 'a u
 [%%expect {|
-type 'a u : immutable_data with 'a @@ many
+type 'a u : immutable_data with 'a @@ global many aliased
 type 'a t = 'a u
 |}]
 
@@ -145,12 +147,13 @@ end
 
 module type T = S with type ('a, 'b) t = ('a, 'b) t
 [%%expect {|
-type ('a, 'b) t : value mod portable with 'b
+type ('a, 'b) t : value mod portable with 'b @@ global many aliased contended
 module type S = sig type ('a, 'b) t : value mod portable end
 Line 7, characters 23-51:
 7 | module type T = S with type ('a, 'b) t = ('a, 'b) t
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "('a, 'b) t" is value mod portable with 'b
+Error: The kind of type "('a, 'b) t" is value mod portable
+         with 'b @@ global many aliased contended
          because of the definition of t at line 1, characters 0-77.
        But the kind of type "('a, 'b) t" must be a subkind of
          value mod portable
@@ -163,7 +166,12 @@ end = struct
   type ('a, 'b) t : value mod portable with 'a @@ portable with 'b @@ contended
 end
 [%%expect {|
-module M : sig type ('a, 'b) t : value mod portable with 'b end
+module M :
+  sig
+    type ('a, 'b) t
+      : value mod portable
+      with 'b @@ global many aliased contended
+  end
 |}]
 
 module M : sig
@@ -172,7 +180,12 @@ end = struct
   type ('a, 'b) t : value mod portable with 'b
 end
 [%%expect {|
-module M : sig type ('a, 'b) t : value mod portable with 'b end
+module M :
+  sig
+    type ('a, 'b) t
+      : value mod portable
+      with 'b @@ global many aliased contended
+  end
 |}]
 
 module M : sig
@@ -187,21 +200,20 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : immutable_data with 'a end
+         sig type 'a t : immutable_data with 'a @@ global aliased end
        is not included in
-         sig type 'a t : immutable_data with 'a @@ portable end
+         sig
+           type 'a t : immutable_data with 'a @@ global portable aliased
+         end
        Type declarations do not match:
-         type 'a t : immutable_data with 'a
+         type 'a t : immutable_data with 'a @@ global aliased
        is not included in
-         type 'a t : immutable_data with 'a @@ portable
-       The kind of the first is immutable_data with 'a
+         type 'a t : immutable_data with 'a @@ global portable aliased
+       The kind of the first is immutable_data with 'a @@ global aliased
          because of the definition of t at line 4, characters 2-56.
        But the kind of the first must be a subkind of immutable_data
-         with 'a @@ portable
+         with 'a @@ global portable aliased
          because of the definition of t at line 2, characters 2-48.
-
-       The first mode-crosses less than the second along:
-         portability: mod portable with 'a ≰ mod portable
 |}]
 
 module M : sig
@@ -216,21 +228,20 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : immutable_data with 'a end
+         sig type 'a t : immutable_data with 'a @@ global aliased end
        is not included in
-         sig type 'a t : immutable_data with 'a @@ portable end
+         sig
+           type 'a t : immutable_data with 'a @@ global portable aliased
+         end
        Type declarations do not match:
-         type 'a t : immutable_data with 'a
+         type 'a t : immutable_data with 'a @@ global aliased
        is not included in
-         type 'a t : immutable_data with 'a @@ portable
-       The kind of the first is immutable_data with 'a
+         type 'a t : immutable_data with 'a @@ global portable aliased
+       The kind of the first is immutable_data with 'a @@ global aliased
          because of the definition of t at line 4, characters 2-56.
        But the kind of the first must be a subkind of immutable_data
-         with 'a @@ portable
+         with 'a @@ global portable aliased
          because of the definition of t at line 2, characters 2-48.
-
-       The first mode-crosses less than the second along:
-         portability: mod portable with 'a ≰ mod portable
 |}]
 
 module M : sig
@@ -239,17 +250,18 @@ end = struct
   type 'a t : immutable_data with 'a @@ portable with 'a
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data with 'a end
+module M : sig type 'a t : immutable_data with 'a @@ global aliased end
 |}]
 
 type 'a u : value mod uncontended with 'a @@ global
 type 'a t : value mod global = 'a u
 [%%expect {|
-type 'a u : value mod uncontended with 'a
+type 'a u : value mod uncontended with 'a @@ global many portable aliased
 Line 2, characters 0-35:
 2 | type 'a t : value mod global = 'a u
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a u" is value mod uncontended with 'a
+Error: The kind of type "'a u" is value mod uncontended
+         with 'a @@ global many portable aliased
          because of the definition of u at line 1, characters 0-51.
        But the kind of type "'a u" must be a subkind of value mod global
          because of the definition of t at line 2, characters 0-35.
@@ -267,22 +279,24 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : immutable_data with 'a end
+         sig type 'a t : immutable_data with 'a @@ global aliased end
        is not included in
-         sig type 'a t : immutable_data with 'a @@ portable contended end
+         sig
+           type 'a t
+             : immutable_data
+             with 'a @@ global portable aliased contended
+         end
        Type declarations do not match:
-         type 'a t : immutable_data with 'a
+         type 'a t : immutable_data with 'a @@ global aliased
        is not included in
-         type 'a t : immutable_data with 'a @@ portable contended
-       The kind of the first is immutable_data with 'a
+         type 'a t
+           : immutable_data
+           with 'a @@ global portable aliased contended
+       The kind of the first is immutable_data with 'a @@ global aliased
          because of the definition of t at line 4, characters 2-69.
        But the kind of the first must be a subkind of immutable_data
-         with 'a @@ portable contended
+         with 'a @@ global portable aliased contended
          because of the definition of t at line 2, characters 2-58.
-
-       The first mode-crosses less than the second along:
-         contention: mod uncontended with 'a ≰ mod uncontended
-         portability: mod portable with 'a ≰ mod portable
 |}]
 
 module M : sig
@@ -291,7 +305,7 @@ end = struct
   type 'a t : immutable_data with 'a @@ contended portable
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data with 'a end
+module M : sig type 'a t : immutable_data with 'a @@ global aliased end
 |}]
 
 module M : sig
@@ -300,13 +314,18 @@ end = struct
   type 'a t : immutable_data with 'a @@ contended portable with 'a @@ portable many
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data with 'a @@ portable end
+module M :
+  sig type 'a t : immutable_data with 'a @@ global portable aliased end
 |}]
 
 type ('a, 'b) u : immutable_data with 'a @@ portable with 'b @@ contended
 type ('a, 'b) t : immutable_data with 'a @@ portable with 'b @@ contended = ('a, 'b) u
 [%%expect {|
-type ('a, 'b) u : immutable_data with 'a @@ portable with 'b @@ contended
+type ('a, 'b) u
+  : immutable_data
+  with 'a @@ global portable aliased
+
+  with 'b @@ global aliased contended
 type ('a, 'b) t = ('a, 'b) u
 |}]
 
@@ -325,40 +344,38 @@ Error: Signature mismatch:
          sig
            type ('a, 'b) t
              : immutable_data
-             with 'a @@ contended
+             with 'a @@ global aliased contended
 
-             with 'b @@ portable
+             with 'b @@ global portable aliased
          end
        is not included in
          sig
            type ('a, 'b) t
              : immutable_data
-             with 'a @@ portable
+             with 'a @@ global portable aliased
 
-             with 'b @@ contended
+             with 'b @@ global aliased contended
          end
        Type declarations do not match:
          type ('a, 'b) t
            : immutable_data
-           with 'a @@ contended
+           with 'a @@ global aliased contended
 
-           with 'b @@ portable
+           with 'b @@ global portable aliased
        is not included in
          type ('a, 'b) t
            : immutable_data
-           with 'a @@ portable
+           with 'a @@ global portable aliased
 
-           with 'b @@ contended
-       The kind of the first is immutable_data with 'a @@ contended
-         with 'b @@ portable
+           with 'b @@ global aliased contended
+       The kind of the first is immutable_data
+         with 'a @@ global aliased contended
+         with 'b @@ global portable aliased
          because of the definition of t at line 4, characters 2-75.
        But the kind of the first must be a subkind of immutable_data
-         with 'a @@ portable with 'b @@ contended
+         with 'a @@ global portable aliased
+         with 'b @@ global aliased contended
          because of the definition of t at line 2, characters 2-75.
-
-       The first mode-crosses less than the second along:
-         contention: mod uncontended with 'b ≰ mod uncontended with 'a
-         portability: mod portable with 'a ≰ mod portable with 'b
 |}]
 
 module M : sig
@@ -367,7 +384,8 @@ end = struct
   type 'a t : immutable_data with 'a @@ portable contended portable
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data with 'a @@ portable end
+module M :
+  sig type 'a t : immutable_data with 'a @@ global portable aliased end
 |}]
 
 type t : immutable_data with int ref @@ contended

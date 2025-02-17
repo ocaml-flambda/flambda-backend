@@ -215,8 +215,6 @@ module Axis_set : sig
 
   val empty : t
 
-  val singleton : _ Axis.t -> t
-
   val is_empty : t -> bool
 
   val add : t -> _ Axis.t -> t

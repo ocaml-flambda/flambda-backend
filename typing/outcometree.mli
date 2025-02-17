@@ -104,8 +104,7 @@ type out_ret_mode =
 type out_jkind_const =
   | Ojkind_const_default
   | Ojkind_const_abbreviation of string
-  (** The base of [Ojkind_const_mod] is optional to enable printing individual axes *)
-  | Ojkind_const_mod of out_jkind_const option * string list
+  | Ojkind_const_mod of out_jkind_const * string list
   | Ojkind_const_with of out_jkind_const * out_type * out_modality_new list
   | Ojkind_const_kind_of of out_type
   | Ojkind_const_product of out_jkind_const list

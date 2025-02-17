@@ -72,12 +72,14 @@ type 'a degenerate : immutable_data with 'a = Leaf of 'a | Branch of ('a * 'a) d
 Line 1, characters 0-89:
 1 | type 'a degenerate : immutable_data with 'a = Leaf of 'a | Branch of ('a * 'a) degenerate
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "degenerate" is immutable_data with 'a with 'a * 'a
-         with ('a * 'a) * ('a * 'a)
-         with (('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a))
+Error: The kind of type "degenerate" is immutable_data
+         with 'a @@ global aliased with 'a * 'a @@ global aliased
+         with ('a * 'a) * ('a * 'a) @@ global aliased
+         with (('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a)) @@ global aliased
+
          with (((('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a))) *
  ((('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a))))
-degenerate
+degenerate @@ global aliased
          because it's a boxed variant type.
        But the kind of type "degenerate" must be a subkind of immutable_data
          with 'a
@@ -248,7 +250,8 @@ type t1
 Line 2, characters 0-77:
 2 | type 'a t2 : immutable_data with 'a with t1 = Leaf of 'a | Node of 'a * t1 t2
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t2" is immutable_data with 'a with t1 with t1 t2
+Error: The kind of type "t2" is immutable_data with 'a @@ global aliased
+         with t1 @@ global aliased with t1 t2 @@ global aliased
          because it's a boxed variant type.
        But the kind of type "t2" must be a subkind of immutable_data with 'a
          with t1

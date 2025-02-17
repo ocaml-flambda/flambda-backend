@@ -416,8 +416,6 @@ module Axis_set = struct
 
   let add t axis = Axis_collection.set ~axis t true
 
-  let singleton axis = add empty axis
-
   let remove t axis = Axis_collection.set ~axis t false
 
   let mem t axis = Axis_collection.get ~axis t
