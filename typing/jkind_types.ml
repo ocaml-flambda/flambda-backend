@@ -521,3 +521,267 @@ module Layout = struct
       | Product of t list
   end
 end
+
+module With_bounds = struct
+  module Type_info = struct
+    type relevant_for_nullability =
+      | Relevant_for_nullability
+      | Irrelevant_for_nullability
+
+    type +'type_expr t =
+      { type_expr : 'type_expr;
+        modality : Mode.Modality.Value.Const.t;
+        relevant_for_nullability : relevant_for_nullability
+      }
+
+    let print ~print_type_expr ppf { type_expr; modality } =
+      let open Format in
+      if Mode.Modality.Value.Const.is_id modality
+      then print_type_expr ppf type_expr
+      else
+        fprintf ppf "(@[%a@ @@@@ %a])" print_type_expr type_expr
+          Mode.Modality.Value.Const.print modality
+
+    let map_type_expr f ({ type_expr; _ } as t) =
+      { t with type_expr = f type_expr }
+
+    let is_relevant_for_nullability = function
+      | { relevant_for_nullability = Relevant_for_nullability; _ } -> true
+      | { relevant_for_nullability = Irrelevant_for_nullability; _ } -> false
+
+    let is_on_axis (type a) ~(axis : a Jkind_axis.Axis.t) t =
+      match axis with
+      | Nonmodal Externality -> true (* All fields matter for externality *)
+      | Nonmodal Nullability -> is_relevant_for_nullability t
+      | Modal axis ->
+        let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
+        not
+          (Mode.Modality.Value.Const.proj axis t.modality
+          |> Mode.Modality.is_constant)
+
+    let compose_modality t ~then_ =
+      let modality = Mode.Modality.Value.Const.compose t.modality ~then_ in
+      { t with modality }
+
+    let create ~type_expr ~modality ~relevant_for_nullability =
+      { type_expr; modality; relevant_for_nullability }
+  end
+
+  type (+'type_expr, 'd) t =
+    | No_with_bounds : ('type_expr, 'l * 'r) t
+    (* There must always be at least one type. *)
+    | With_bounds :
+        'type_expr Type_info.t * 'type_expr Type_info.t list
+        -> ('type_expr, 'l * Allowance.disallowed) t
+
+  let as_list : type l r. (_, l * r) t -> _ = function
+    | No_with_bounds -> []
+    | With_bounds (ty, tys) -> ty :: tys
+
+  let has_with_bounds = function
+    | No_with_bounds -> false
+    | With_bounds _ -> true
+
+  open Allowance
+
+  include Magic_allow_disallow (struct
+    type ('type_expr, _, 'd) sided = ('type_expr, 'd) t constraint 'd = 'l * 'r
+
+    let disallow_left :
+        type l r. ('type_expr, l * r) t -> ('type_expr, disallowed * r) t =
+      function
+      | No_with_bounds -> No_with_bounds
+      | With_bounds _ as b -> b
+
+    let disallow_right :
+        type l r. ('type_expr, l * r) t -> ('type_expr, l * disallowed) t =
+      function
+      | No_with_bounds -> No_with_bounds
+      | With_bounds _ as b -> b
+
+    let allow_left :
+        type l r. ('type_expr, allowed * r) t -> ('type_expr, l * r) t =
+      function
+      | No_with_bounds -> No_with_bounds
+      | With_bounds _ as b -> b
+
+    let allow_right :
+        type l r. ('type_expr, l * allowed) t -> ('type_expr, l * r) t =
+      function
+      | No_with_bounds -> No_with_bounds
+  end)
+
+  let try_allow_l :
+      type l r. ('type_expr, l * r) t -> ('type_expr, allowed * r) t option =
+    function
+    | No_with_bounds -> Some No_with_bounds
+    | With_bounds _ as b -> Some b
+
+  let try_allow_r :
+      type l r. ('type_expr, l * r) t -> ('type_expr, l * allowed) t option =
+    function
+    | No_with_bounds -> Some No_with_bounds
+    | With_bounds _ -> None
+
+  let map_type_expr (type l r) f :
+      ('type_expr, l * r) t -> ('type_expr, l * r) t = function
+    | No_with_bounds -> No_with_bounds
+    | With_bounds (ty, tys) ->
+      let f' = Type_info.map_type_expr f in
+      With_bounds (f' ty, List.map f' tys)
+
+  let types_on_axis (type l r a) ~(axis : a Jkind_axis.Axis.t) :
+      (_, l * r) t -> _ = function
+    | No_with_bounds -> []
+    | With_bounds (ti, tis) ->
+      List.filter_map
+        (fun (type_info : _ Type_info.t) ->
+          if Type_info.is_on_axis ~axis type_info
+          then Some type_info.type_expr
+          else None)
+        (ti :: tis)
+
+  let compose_modality (type l r) ~then_ : (_, l * r) t -> (_, l * r) t =
+    function
+    | No_with_bounds -> No_with_bounds
+    | With_bounds (t, ts) ->
+      With_bounds
+        ( Type_info.compose_modality ~then_ t,
+          List.map (Type_info.compose_modality ~then_) ts )
+
+  let debug_print (type l r) ~print_type_expr ppf : (_, l * r) t -> _ =
+    let open Format in
+    function
+    | No_with_bounds -> fprintf ppf "No_with_bounds"
+    | With_bounds (ty, tys) ->
+      fprintf ppf "With_bounds @[[%a]@]"
+        (pp_print_list
+           ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
+           (Type_info.print ~print_type_expr))
+        (ty :: tys)
+end
+
+module Bounds = struct
+  open Jkind_axis
+  include Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
+
+  let equal bounds1 bounds2 =
+    Fold2.f
+      { f =
+          (fun (type axis) ~(axis : axis Axis.t) bound1 bound2 ->
+            let (module Bound_ops) = Axis.get axis in
+            Bound_ops.equal bound1 bound2)
+      }
+      ~combine:( && ) bounds1 bounds2
+
+  let debug_print ppf
+      { locality;
+        linearity;
+        uniqueness;
+        portability;
+        contention;
+        externality;
+        nullability
+      } =
+    Format.fprintf ppf
+      "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ portability = \
+       %a;@ contention = %a;@ externality = %a;@ nullability = %a }@]"
+      Mode.Locality.Const.print locality Mode.Linearity.Const.print linearity
+      Mode.Uniqueness.Const.print uniqueness Mode.Portability.Const.print
+      portability Mode.Contention.Const.print contention Externality.print
+      externality Nullability.print nullability
+end
+
+module Layout_and_axes = struct
+  type ('type_expr, 'layout, 'd) t =
+    { layout : 'layout;
+      upper_bounds : Bounds.t;
+      with_bounds : ('type_expr, 'd) With_bounds.t
+    }
+    constraint 'd = 'l * 'r
+
+  module Allow_disallow = Allowance.Magic_allow_disallow (struct
+    type ('type_expr, 'layout, 'd) sided = ('type_expr, 'layout, 'd) t
+
+    let disallow_left t =
+      { t with with_bounds = With_bounds.disallow_left t.with_bounds }
+
+    let disallow_right t =
+      { t with with_bounds = With_bounds.disallow_right t.with_bounds }
+
+    let allow_left t =
+      { t with with_bounds = With_bounds.allow_left t.with_bounds }
+
+    let allow_right t =
+      { t with with_bounds = With_bounds.allow_right t.with_bounds }
+  end)
+
+  include Allow_disallow
+
+  let map f t = { t with layout = f t.layout }
+
+  let map_option f t =
+    match f t.layout with None -> None | Some layout -> Some { t with layout }
+
+  let map_type_expr f t =
+    { t with with_bounds = With_bounds.map_type_expr f t.with_bounds }
+
+  let equal eq_layout { layout = lay1; upper_bounds = bounds1 }
+      { layout = lay2; upper_bounds = bounds2 } =
+    eq_layout lay1 lay2 && Bounds.equal bounds1 bounds2
+
+  let try_allow_l :
+      type l r.
+      ('type_expr, 'layout, l * r) t ->
+      ('type_expr, 'layout, Allowance.allowed * r) t option =
+   fun { layout; upper_bounds; with_bounds } ->
+    match With_bounds.try_allow_l with_bounds with
+    | None -> None
+    | Some with_bounds -> Some { layout; upper_bounds; with_bounds }
+
+  let try_allow_r { layout; upper_bounds; with_bounds } =
+    match With_bounds.try_allow_r with_bounds with
+    | Some with_bounds -> Some { layout; upper_bounds; with_bounds }
+    | None -> None
+
+  let debug_print ~print_type_expr format_layout ppf
+      { layout; upper_bounds; with_bounds } =
+    Format.fprintf ppf "{ layout = %a;@ upper_bounds = %a;@ with_bounds = %a }"
+      format_layout layout Bounds.debug_print upper_bounds
+      (With_bounds.debug_print ~print_type_expr)
+      with_bounds
+end
+
+module Jkind_desc = struct
+  type ('type_expr, 'd) t = ('type_expr, Sort.t Layout.t, 'd) Layout_and_axes.t
+
+  type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
+  [@@unboxed]
+end
+
+(* A history of conditions placed on a jkind.
+
+   INVARIANT: at most one sort variable appears in this history.
+   This is a natural consequence of producing this history by comparing
+   jkinds.
+*)
+type 'type_expr history =
+  | Interact of
+      { reason : Jkind_intf.History.interact_reason;
+        jkind1 : 'type_expr Jkind_desc.packed;
+        history1 : 'type_expr history;
+        jkind2 : 'type_expr Jkind_desc.packed;
+        history2 : 'type_expr history
+      }
+  | Creation of Jkind_intf.History.creation_reason
+
+type ('type_expr, 'd) t =
+  { jkind : ('type_expr, 'd) Jkind_desc.t;
+    annotation : Parsetree.jkind_annotation option;
+    history : 'type_expr history;
+    has_warned : bool
+  }
+
+module Const = struct
+  type ('type_expr, 'd) t = ('type_expr, Layout.Const.t, 'd) Layout_and_axes.t
+end
