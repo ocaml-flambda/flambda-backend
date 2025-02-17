@@ -596,7 +596,7 @@ caml_empty_minor_heap_promote(caml_domain_state* domain,
 
   prev_alloc_words = domain->allocated_words;
 
-  caml_gc_log ("Minor collection of domain %d starting", domain->id);
+  CAML_GC_MESSAGE(MINOR, "Minor collection starting.\n");
   CAML_EV_BEGIN(EV_MINOR);
   call_timing_hook(&caml_minor_gc_begin_hook);
 
@@ -707,14 +707,15 @@ caml_empty_minor_heap_promote(caml_domain_state* domain,
                           domain, false);
   CAML_EV_END(EV_MINOR_MEMPROF_ROOTS);
 
+  CAML_GC_MESSAGE(MINOR, "roots complete (%d roots). Mopping up.\n",
+                  remembered_roots);
   CAML_EV_BEGIN(EV_MINOR_REMEMBERED_SET_PROMOTE);
   mopup_result_s mopup_result = oldify_mopup (&st, 1); /* ephemerons promoted here */
   result.locked_ephemerons = mopup_result.locked_ephemerons;
   CAML_EV_END(EV_MINOR_REMEMBERED_SET_PROMOTE);
   CAML_EV_END(EV_MINOR_REMEMBERED_SET);
-  caml_gc_log("promoted %d roots, %" ARCH_INTNAT_PRINTF_FORMAT "u bytes",
-              remembered_roots, st.live_bytes);
-
+  CAML_GC_MESSAGE(MINOR, "Promoted %"ARCH_INTNAT_PRINTF_FORMAT"u bytes.\n",
+                  st.live_bytes);
 #ifdef DEBUG
   caml_global_barrier(participating_count);
   caml_gc_log("ref_base: %p, ref_ptr: %p",
@@ -737,10 +738,22 @@ caml_empty_minor_heap_promote(caml_domain_state* domain,
   if (scan_roots_hook != NULL)
     (*scan_roots_hook)(&oldify_one, oldify_scanning_flags, &st, domain);
 
+  CAML_GC_MESSAGE(MINOR, "Local roots done. Mopping up.\n");
   CAML_EV_BEGIN(EV_MINOR_LOCAL_ROOTS_PROMOTE);
   (void)oldify_mopup (&st, 0); /* ignore result as we're not doing ephemerons */
   CAML_EV_END(EV_MINOR_LOCAL_ROOTS_PROMOTE);
   CAML_EV_END(EV_MINOR_LOCAL_ROOTS);
+  if (minor_allocated_bytes) {
+    CAML_GC_MESSAGE(MINOR,
+                    "Promoted %"ARCH_INTNAT_PRINTF_FORMAT"u bytes (%2.0f%% of %u KB)\n",
+                    st.live_bytes,
+                    100.0 * (double)st.live_bytes / (double)minor_allocated_bytes,
+                    (unsigned)(minor_allocated_bytes + 512)/1024);
+  } else {
+    CAML_GC_MESSAGE(MINOR,
+                    "Promoted %"ARCH_INTNAT_PRINTF_FORMAT"u bytes (of zero)\n",
+                    st.live_bytes);
+  }
 
   CAML_EV_BEGIN(EV_MINOR_MEMPROF_CLEAN);
   caml_memprof_after_minor_gc(domain);
@@ -790,10 +803,6 @@ caml_empty_minor_heap_promote(caml_domain_state* domain,
   CAML_EV_COUNTER(EV_C_MINOR_ALLOCATED, minor_allocated_bytes);
 
   CAML_EV_END(EV_MINOR);
-  caml_gc_log ("Minor collection of domain %d completed: %2.0f%% of %u KB live",
-               domain->id,
-               100.0 * (double)st.live_bytes / (double)minor_allocated_bytes,
-               (unsigned)(minor_allocated_bytes + 512)/1024);
 
   /* leave the barrier */
   if( participating_count > 1 ) {
@@ -919,7 +928,7 @@ int caml_do_opportunistic_major_slice
   if (work_available) {
     /* NB: need to put guard around the ev logs to prevent spam when we poll */
     uintnat log_events =
-        atomic_load_relaxed(&caml_verb_gc) & CAML_GC_MSG_SLICESIZE;
+        atomic_load_relaxed(&caml_verb_gc) & CAML_GC_MSG_SLICE;
     if (log_events) CAML_EV_BEGIN(EV_MAJOR_MARK_OPPORTUNISTIC);
     caml_opportunistic_major_collection_slice(Major_slice_work_min);
     if (log_events) CAML_EV_END(EV_MAJOR_MARK_OPPORTUNISTIC);
@@ -969,13 +978,12 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
     nonatomic_increment_counter(&caml_minor_cycles_started);
   }
 
-  caml_gc_log("running stw empty_minor_heap_promote");
   promote_result_s prom =
     caml_empty_minor_heap_promote(domain, participating_count, participating);
 
   if (prom.locked_ephemerons) {
     CAML_EV_BEGIN(EV_MINOR_EPHE_CLEAN);
-    caml_gc_log("cleaning minor ephemerons");
+    CAML_GC_MESSAGE(MINOR, "cleaning minor ephemerons");
     ephe_clean_minor(domain);
     CAML_EV_END(EV_MINOR_EPHE_CLEAN);
   }
@@ -985,7 +993,7 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
     caml_mark_roots_stw(participating_count, participating);
 
   CAML_EV_BEGIN(EV_MINOR_FINALIZED);
-  caml_gc_log("finalizing dead minor custom blocks");
+  CAML_GC_MESSAGE(MINOR, "Finalizing dead minor custom blocks.\n");
   custom_finalize_minor(domain);
   CAML_EV_END(EV_MINOR_FINALIZED);
 
@@ -995,12 +1003,12 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   CAML_EV_END(EV_MINOR_DEPENDENT);
 
   CAML_EV_BEGIN(EV_MINOR_FINALIZERS_ADMIN);
-  caml_gc_log("running finalizer data structure book-keeping");
+  CAML_GC_MESSAGE(MINOR, "Finalizer data structure book-keeping.\n");
   caml_final_update_last_minor(domain);
   CAML_EV_END(EV_MINOR_FINALIZERS_ADMIN);
 
   CAML_EV_BEGIN(EV_MINOR_CLEAR);
-  caml_gc_log("running stw empty_minor_heap_domain_clear");
+  CAML_GC_MESSAGE(MINOR, "Clearing minor heap data structures.\n");
   caml_empty_minor_heap_domain_clear(domain);
 
 #ifdef DEBUG
@@ -1012,9 +1020,8 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
 
   CAML_EV_END(EV_MINOR_CLEAR);
 
-  caml_gc_log("finished stw empty_minor_heap");
   CAMLassert(domain->young_ptr == domain->young_end);
-
+  CAML_GC_MESSAGE(MINOR, "Minor collection done.\n");
   Caml_state->in_minor_collection = 0;
 }
 
