@@ -1152,6 +1152,21 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* Might be a module, which are all values.  Otherwise raise. *)
           ignore (Env.find_module_lazy path e.exp_env)
       ) arg_idents;
+      let make_param name = {
+        name;
+        layout = layout_probe_arg;
+        attributes = Lambda.default_param_attribute;
+        mode = alloc_local }
+      in
+      let params, ap_args =
+        match param_idents with
+        | [] ->
+            [make_param (Ident.create_local "unit")]
+          , [lambda_unit]
+        | _ :: _ ->
+            List.map make_param param_idents
+          , List.map (fun id -> Lvar id) arg_idents
+      in
       let body = Lambda.rename map lam in
       let attr =
         { inline = Never_inline;
@@ -1175,12 +1190,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         lfunction
           (* We conservatively assume that all arguments are local. This doesn't
              hurt performance as probe handlers are always applied fully. *)
-          ~kind:(Curried {nlocal=List.length param_idents})
+          ~kind:(Curried {nlocal=List.length params})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          ~params:(List.map (fun name -> { name; layout = layout_probe_arg;
-                                           attributes = Lambda.default_param_attribute;
-                                           mode = alloc_local }) param_idents)
+          ~params
           ~return:return_layout
           ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
@@ -1193,7 +1206,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       in
       let app =
         { ap_func = Lvar funcid;
-          ap_args = List.map (fun id -> Lvar id) arg_idents;
+          ap_args;
           ap_result_layout = return_layout;
           ap_region_close = Rc_normal;
           ap_mode = alloc_local;
