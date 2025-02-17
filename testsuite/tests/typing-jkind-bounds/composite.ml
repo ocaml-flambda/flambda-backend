@@ -568,7 +568,7 @@ type 'a t : immutable_data = Flat | Nested of 'a t t
 Line 1, characters 0-52:
 1 | type 'a t : immutable_data = Flat | Nested of 'a t t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -611,7 +611,7 @@ type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
 Line 1, characters 0-71:
 1 | type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.

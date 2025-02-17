@@ -537,17 +537,8 @@ val get_annotation : 'd Types.jkind -> Parsetree.jkind_annotation option
 (*********************************)
 (* normalization *)
 
-type normalize_mode =
-  | Require_best
-      (** Normalize a jkind without losing any precision. That is, keep any with-bounds
-          if the kind of the type is not best (a stronger kind may be found). *)
-  | Ignore_best
-      (** Normalize a left jkind, conservatively rounding up. That is, if the kind of a
-          type is not best, use the not-best kind. The resulting jkind will have no
-          with-bounds. *)
-
 val normalize :
-  mode:normalize_mode ->
+  require_best:bool ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   Types.jkind_l ->
   Types.jkind_l
@@ -648,9 +639,13 @@ val sub_or_error :
   ('l * allowed) Types.jkind ->
   (unit, Violation.t) result
 
-(** Like [sub], but compares a left jkind against another left jkind.
+(** Like [sub], but returns the subjkind with an updated history.
     Pre-condition: the super jkind must be fully settled; no variables which
-    might be filled in later.
+    might be filled in later. Right now, if the super jkind has any
+    [with]-types, the sub jkind must have exactly the same [with]-types, in the
+    same order.
+
+    CR layouts v2.8: Implement this properly.
 *)
 val sub_jkind_l :
   type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
@@ -658,7 +653,7 @@ val sub_jkind_l :
   ?allow_any_crossing:bool ->
   Types.jkind_l ->
   Types.jkind_l ->
-  (unit, Violation.t) result
+  (Types.jkind_l, Violation.t) result
 
 (** "round up" a [jkind_l] to a [jkind_r] such that the input is less than the
     output. *)
