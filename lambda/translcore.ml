@@ -1152,19 +1152,19 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* Might be a module, which are all values.  Otherwise raise. *)
           ignore (Env.find_module_lazy path e.exp_env)
       ) arg_idents;
+      let make_param name = {
+        name;
+        layout = layout_probe_arg;
+        attributes = Lambda.default_param_attribute;
+        mode = alloc_local }
+      in
       let params, ap_args =
         match param_idents with
         | [] ->
-            [{name = Ident.create_local "unit";
-              layout = layout_probe_arg;
-              attributes = Lambda.default_param_attribute;
-              mode = alloc_local}]
-          , [Lconst (Const_base (Const_int 0))]
+            [make_param (Ident.create_local "unit")]
+          , [lambda_unit]
         | _ :: _ ->
-            List.map (fun name ->
-              { name; layout = layout_probe_arg;
-                attributes = Lambda.default_param_attribute;
-                mode = alloc_local }) param_idents
+            List.map make_param param_idents
           , List.map (fun id -> Lvar id) arg_idents
       in
       let body = Lambda.rename map lam in
