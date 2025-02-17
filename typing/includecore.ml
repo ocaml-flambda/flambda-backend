@@ -64,9 +64,8 @@ let right_mode_cross env ty mode=
   let jkind = Ctype.type_jkind_purely env ty in
   right_mode_cross_jkind jkind mode
 
-let left_mode_cross_jkind env jkind mode =
-  let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+let left_mode_cross_jkind _env jkind mode =
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   Value.meet_const upper_bounds mode
 
