@@ -57,39 +57,29 @@ module Axis_pair = struct
 end
 
 let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
-    annot : m Axis_pair.t Location.loc =
+    annot : m Axis_pair.t =
   Option.iter
     (fun maturity ->
       Language_extension.assert_enabled ~loc:annot.loc Mode maturity)
     required_mode_maturity;
-  let pair : m Axis_pair.t =
-    match Axis_pair.of_string annot.txt, annot_type with
-    | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found)
-      ->
-      raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
-    | Any_axis_pair (Modal axis, mode), Mode -> Modal_axis_pair (axis, mode)
-    | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
-    | pair, Modifier -> pair
-  in
-  { txt = pair; loc = annot.loc }
+  match Axis_pair.of_string annot.txt, annot_type with
+  | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found) ->
+    raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
+  | Any_axis_pair (Modal axis, mode), Mode -> Modal_axis_pair (axis, mode)
+  | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
+  | pair, Modifier -> pair
 
 let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
 
-module Transled_modifier = struct
-  type (_, 'd, 'a) t = 'a Location.loc option constraint 'd = 'l * 'r
-
-  let drop_loc modifier = Option.map Location.get_txt modifier
-end
-
-module Transled_modifiers = Jkind_axis.Axis_collection (Transled_modifier)
+module Opt_axis_collection = Axis_collection (Option)
 
 let transl_modifier_annots annots =
   let step modifiers_so_far annot =
-    let { txt = Any_axis_pair (type a) ((axis, mode) : a Axis.t * a); loc } =
+    let (Any_axis_pair (type a) ((axis, mode) : a Axis.t * a)) =
       transl_annot ~annot_type:Modifier ~required_mode_maturity:None
       @@ unpack_mode_annot annot
     in
-    let (module A) = Axis.get axis in
+    let (module A : Axis_s with type t = a) = Axis.get axis in
     let is_top = A.le A.max mode in
     if is_top
     then
@@ -99,39 +89,37 @@ let transl_modifier_annots annots =
       (* Location.prerr_warning new_raw.loc (Warnings.Mod_by_top new_raw.txt) *)
       ();
     let is_dup =
-      Option.is_some (Transled_modifiers.get ~axis modifiers_so_far)
+      Option.is_some (Opt_axis_collection.get ~axis modifiers_so_far)
     in
     if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
-    Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
+    Opt_axis_collection.set ~axis modifiers_so_far (Some mode)
   in
   let empty_modifiers =
-    Transled_modifiers.Create.f { f = (fun ~axis:_ -> None) }
+    Opt_axis_collection.create { f = (fun ~axis:_ -> None) }
   in
   List.fold_left step empty_modifiers annots
 
 let transl_mode_annots annots : Alloc.Const.Option.t =
   let step modifiers_so_far annot =
-    let { txt = Modal_axis_pair (type a) ((axis, mode) : a Axis.Modal.t * a);
-          loc
-        } =
+    let (Modal_axis_pair (type a) ((axis, mode) : a Axis.Modal.t * a)) =
       transl_annot ~annot_type:Mode ~required_mode_maturity:(Some Stable)
       @@ unpack_mode_annot annot
     in
     let axis = Axis.Modal axis in
-    if Option.is_some (Transled_modifiers.get ~axis modifiers_so_far)
+    if Option.is_some (Opt_axis_collection.get ~axis modifiers_so_far)
     then raise (Error (annot.loc, Duplicated_axis axis));
-    Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
+    Opt_axis_collection.set ~axis modifiers_so_far (Some mode)
   in
   let empty_modifiers =
-    Transled_modifiers.Create.f { f = (fun ~axis:_ -> None) }
+    Opt_axis_collection.create { f = (fun ~axis:_ -> None) }
   in
   let modes = List.fold_left step empty_modifiers annots in
-  { areality = Transled_modifier.drop_loc modes.locality;
-    linearity = Transled_modifier.drop_loc modes.linearity;
-    uniqueness = Transled_modifier.drop_loc modes.uniqueness;
-    portability = Transled_modifier.drop_loc modes.portability;
-    contention = Transled_modifier.drop_loc modes.contention;
-    yielding = Transled_modifier.drop_loc modes.yielding
+  { areality = modes.locality;
+    linearity = modes.linearity;
+    uniqueness = modes.uniqueness;
+    portability = modes.portability;
+    contention = modes.contention;
+    yielding = modes.yielding
   }
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
@@ -159,7 +147,7 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
     transl_annot ~annot_type:Modality ~required_mode_maturity:(Some maturity)
       { txt = modality; loc }
   in
-  match axis_pair.txt with
+  match axis_pair with
   | Modal_axis_pair (Locality, mode) ->
     Modality.Atom
       (Comonadic Areality, Meet_with (Const.locality_as_regionality mode))

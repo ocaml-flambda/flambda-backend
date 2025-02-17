@@ -31,7 +31,6 @@ Runtime parameters:
 	List_element
 	List_monoid
 	Category_utils[Category:Category_of_monoid[Monoid:List_monoid]]
-	Semigroup
 	Category_of_monoid[Monoid:Monoid_of_semigroup]
 Required globals:
 	Monoid_utils[Monoid:Monoid_of_semigroup[Semigroup:String_semigroup]]

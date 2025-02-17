@@ -291,7 +291,7 @@ Error: Signature mismatch:
 |}]
 
 module A : sig
-  type t : value mod external_ global portable many uncontended unique unyielding
+  type t : value mod external_ global portable many uncontended unique
 end = struct
   type t = int
 end

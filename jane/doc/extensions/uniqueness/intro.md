@@ -67,22 +67,18 @@ value. However, the other directions are disallowed in general: if a value is
 value can not be made `many`.
 
 We make an exception to this rule for values of those types that cross these
-modes. A type crosses linearity if it doesn't contain functions; a type crosses
-uniqueness if it doesn't contain memory location subject to overwriting (even
-though overwriting hasn't been implemented yet). The mode crossing capability of
-a type can be removed by adding a kind annotation to an abstract type
-declaration (more details on this to come).
-
-For example, `int`s and other immediates can be used as `unique` and
+modes. For example, `int`s and other immediates can be used as `unique` and
 `many`, no matter their mode. For example:
 
 ```ocaml
 type delayed_free = { id : int; callback : unit -> unit }
+
 let get_id : delayed_free @ once -> int @ many = fun t -> t.id
 ```
 
-For another example, you can use an `int list @ once aliased` as `many` (but not
-as `unique`).
+We are working on a feature which will make it possible to use a value as `many`
+if its type prevents it from containing a function. For example, you will then
+be able to use an `int list @ once aliased` as `many` (but not as `unique`).
 
 ## Checking for Uniqueness
 

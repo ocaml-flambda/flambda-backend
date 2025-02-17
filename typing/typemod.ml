@@ -749,12 +749,23 @@ let merge_constraint initial_env loc sg lid constr =
            the declaration from the original signature.  Note that this is also
            checked in [check_type_decl], but there it is check, not constrain,
            which we need here to deal with type variables in package constraints
-           (see tests in [typing-modules/package_constraint.ml]). Because the
-           check is repeated later -- and with better handling for errors -- we
-           just drop any error here. *)
-        ignore
-          (* CR layouts v2.8: Does this type_jkind need to be instantiated? *)
-          (Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind);
+           (see tests in [typing-modules/package_constraint.ml]).  *)
+        begin match
+          Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind
+        with
+        | Ok _-> ()
+        | Error v ->
+          (* This is morally part of the below [check_type_decl], so we give the
+             same error that would be given there for good error messages. *)
+          let err =
+            Includemod.Error.In_Type_declaration(
+              id, Type_declarations
+                    {got=tdecl;
+                     expected=sig_decl;
+                     symptom=Includecore.Jkind v})
+          in
+          raise Includemod.(Error(initial_env, err))
+        end;
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
         let tdecl = { tdecl with type_manifest = None } in
         return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))

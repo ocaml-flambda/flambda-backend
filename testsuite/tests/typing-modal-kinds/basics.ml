@@ -1,5 +1,4 @@
 (* TEST
- flags = "-infer-with-bounds";
  expect;
 *)
 
@@ -280,14 +279,22 @@ val int_duplicate : int = 5
 
 let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
 
+(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-val string_list_duplicate : string list = ["hi"; "bye"]
+Line 1, characters 79-80:
+1 | let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
+                                                                                   ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
 
+(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-val int_list_duplicate : int list = [4; 5]
+Line 1, characters 66-67:
+1 | let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
+                                                                      ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_string_duplicate =
@@ -324,8 +331,12 @@ let hidden_int_list_duplicate =
     [Hidden_int.hide 2; Hidden_int.hide 3]
   in Fun.id x
 
+(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-val hidden_int_list_duplicate : Hidden_int.t list = [<abstr>; <abstr>]
+Line 4, characters 12-13:
+4 |   in Fun.id x
+                ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
@@ -363,15 +374,23 @@ val hidden_int64_u_duplicate : unit -> Hidden_int64_u.t = <fun>
 let float_u_record_duplicate =
   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
 
+(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-val float_u_record_duplicate : float_u_record = {x = <abstr>; y = <abstr>}
+Line 2, characters 69-70:
+2 |   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
+                                                                         ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_u_record_list_duplicate =
   let once_ x : float_u_record list = [] in Fun.id x
 
+(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-val float_u_record_list_duplicate : float_u_record list = []
+Line 2, characters 51-52:
+2 |   let once_ x : float_u_record list = [] in Fun.id x
+                                                       ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
@@ -688,7 +707,7 @@ let ref_immutable_data_right x =
 Line 2, characters 30-53:
 2 |   take_strong_immutable_data (weaken_immutable_data x : float ref);
                                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is "contended" but expected to be "uncontended".
+Error: This value is "once" but expected to be "many".
 |}]
 
 let ref_immutable_data_left x =
@@ -698,7 +717,7 @@ let ref_immutable_data_left x =
 Line 3, characters 29-30:
 3 |   take_strong_immutable_data x
                                  ^
-Error: This value is "contended" but expected to be "uncontended".
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_immutable_data_right x =

@@ -1694,9 +1694,7 @@ let type_expr ppf ty =
   prepare_for_printing [ty];
   prepared_type_expr ppf ty
 
-let () =
-  Env.print_type_expr := type_expr;
-  Jkind.set_print_type_expr type_expr
+let () = Env.print_type_expr := type_expr
 
 (* "Half-prepared" type expression: [ty] should have had its names reserved, but
    should not have had its loops marked. *)

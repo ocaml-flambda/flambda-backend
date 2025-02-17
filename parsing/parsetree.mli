@@ -1296,8 +1296,6 @@ and module_binding =
 and jkind_annotation_desc =
   | Default
   | Abbreviation of string
-  (* CR layouts v2.8: [mod] can have only layouts on the left, not
-     full kind annotations. We may want to narrow this type some. *)
   | Mod of jkind_annotation * modes
   | With of jkind_annotation * core_type
   | Kind_of of core_type
