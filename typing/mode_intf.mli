@@ -298,8 +298,6 @@ module type S = sig
       | Contention : (monadic, Contention.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
-
-    val eq : ('p, 'r0) t -> ('p, 'r1) t -> ('r0, 'r1) Misc.eq option
   end
 
   module type Mode := sig
@@ -338,12 +336,6 @@ module type S = sig
       | Comonadic :
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
-
-    type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
-
-    val print_axis : Format.formatter -> ('m, 'a, 'd) axis -> unit
-
-    val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
 
     type ('a, 'b, 'c, 'd, 'e, 'f) modes =
       { areality : 'a;
@@ -463,10 +455,6 @@ module type S = sig
   module Const : sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
 
-    module Axis : sig
-      val alloc_as_value : 'd Alloc.axis_packed -> 'd Value.axis_packed
-    end
-
     val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
   end
 
@@ -505,9 +493,6 @@ module type S = sig
 
     (** Test if the given modality is the identity modality. *)
     val is_id : t -> bool
-
-    (** Test if the given modality is a constant modality. *)
-    val is_constant : t -> bool
 
     (** Printing for debugging *)
     val print : Format.formatter -> t -> unit
@@ -557,12 +542,8 @@ module type S = sig
         val singleton : atom -> t
 
         (** Returns the list of [atom] in the given modality. The list is
-            commutative. Post-condition: each axis is represented in the
-            output list exactly once. *)
+            commutative. *)
         val to_list : t -> atom list
-
-        (** Project out the [atom] for the given axis in the given modality. *)
-        val proj : ('m, 'a, 'd) Value.axis -> t -> atom
 
         (** [equate t0 t1] checks that [t0 = t1].
             Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)

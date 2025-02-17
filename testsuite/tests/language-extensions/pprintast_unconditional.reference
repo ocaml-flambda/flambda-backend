@@ -57,7 +57,7 @@ tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
 
-jkind: value with local_ ('a : value) -> unit @@ uncontended
+jkind: value with local_ ('a : value) -> unit
 
 mode: global
 
@@ -122,7 +122,7 @@ tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
 
-jkind: value with local_ ('a : value) -> unit @@ uncontended
+jkind: value with local_ ('a : value) -> unit
 
 mode: global
 

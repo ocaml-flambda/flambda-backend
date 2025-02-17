@@ -25,32 +25,25 @@ exception Error of Location.t * error
 
 module Axis_pair = struct
   type 'm t =
-    | Modal_axis_pair : ('m, 'a, 'd) Mode.Alloc.axis * 'a -> modal t
+    | Modal_axis_pair : 'a Axis.Modal.t * 'a -> modal t
     | Any_axis_pair : 'a Axis.t * 'a -> maybe_nonmodal t
 
   let of_string s =
     let open Mode in
     match s with
-    | "local" -> Any_axis_pair (Modal (Comonadic Areality), Locality.Const.Local)
-    | "global" ->
-      Any_axis_pair (Modal (Comonadic Areality), Locality.Const.Global)
-    | "unique" ->
-      Any_axis_pair (Modal (Monadic Uniqueness), Uniqueness.Const.Unique)
-    | "aliased" ->
-      Any_axis_pair (Modal (Monadic Uniqueness), Uniqueness.Const.Aliased)
-    | "once" -> Any_axis_pair (Modal (Comonadic Linearity), Linearity.Const.Once)
-    | "many" -> Any_axis_pair (Modal (Comonadic Linearity), Linearity.Const.Many)
+    | "local" -> Any_axis_pair (Modal Locality, Locality.Const.Local)
+    | "global" -> Any_axis_pair (Modal Locality, Locality.Const.Global)
+    | "unique" -> Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Unique)
+    | "aliased" -> Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Aliased)
+    | "once" -> Any_axis_pair (Modal Linearity, Linearity.Const.Once)
+    | "many" -> Any_axis_pair (Modal Linearity, Linearity.Const.Many)
     | "nonportable" ->
-      Any_axis_pair
-        (Modal (Comonadic Portability), Portability.Const.Nonportable)
-    | "portable" ->
-      Any_axis_pair (Modal (Comonadic Portability), Portability.Const.Portable)
-    | "contended" ->
-      Any_axis_pair (Modal (Monadic Contention), Contention.Const.Contended)
-    | "shared" ->
-      Any_axis_pair (Modal (Monadic Contention), Contention.Const.Shared)
+      Any_axis_pair (Modal Portability, Portability.Const.Nonportable)
+    | "portable" -> Any_axis_pair (Modal Portability, Portability.Const.Portable)
+    | "contended" -> Any_axis_pair (Modal Contention, Contention.Const.Contended)
+    | "shared" -> Any_axis_pair (Modal Contention, Contention.Const.Shared)
     | "uncontended" ->
-      Any_axis_pair (Modal (Monadic Contention), Contention.Const.Uncontended)
+      Any_axis_pair (Modal Contention, Contention.Const.Uncontended)
     | "maybe_null" ->
       Any_axis_pair (Nonmodal Nullability, Nullability.Maybe_null)
     | "non_null" -> Any_axis_pair (Nonmodal Nullability, Nullability.Non_null)
@@ -58,10 +51,8 @@ module Axis_pair = struct
     | "external64" ->
       Any_axis_pair (Nonmodal Externality, Externality.External64)
     | "external_" -> Any_axis_pair (Nonmodal Externality, Externality.External)
-    | "yielding" ->
-      Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Yielding)
-    | "unyielding" ->
-      Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Unyielding)
+    | "yielding" -> Any_axis_pair (Modal Yielding, Yielding.Const.Yielding)
+    | "unyielding" -> Any_axis_pair (Modal Yielding, Yielding.Const.Unyielding)
     | _ -> raise Not_found
 end
 
@@ -120,9 +111,7 @@ let transl_modifier_annots annots =
 
 let transl_mode_annots annots : Alloc.Const.Option.t =
   let step modifiers_so_far annot =
-    let { txt =
-            Modal_axis_pair (type m a d)
-              ((axis, mode) : (m, a, d) Mode.Alloc.axis * a);
+    let { txt = Modal_axis_pair (type a) ((axis, mode) : a Axis.Modal.t * a);
           loc
         } =
       transl_annot ~annot_type:Mode ~required_mode_maturity:(Some Stable)
@@ -171,18 +160,18 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
       { txt = modality; loc }
   in
   match axis_pair.txt with
-  | Modal_axis_pair (Comonadic Areality, mode) ->
+  | Modal_axis_pair (Locality, mode) ->
     Modality.Atom
       (Comonadic Areality, Meet_with (Const.locality_as_regionality mode))
-  | Modal_axis_pair (Comonadic Linearity, mode) ->
+  | Modal_axis_pair (Linearity, mode) ->
     Modality.Atom (Comonadic Linearity, Meet_with mode)
-  | Modal_axis_pair (Comonadic Portability, mode) ->
-    Modality.Atom (Comonadic Portability, Meet_with mode)
-  | Modal_axis_pair (Monadic Uniqueness, mode) ->
+  | Modal_axis_pair (Uniqueness, mode) ->
     Modality.Atom (Monadic Uniqueness, Join_with mode)
-  | Modal_axis_pair (Monadic Contention, mode) ->
+  | Modal_axis_pair (Portability, mode) ->
+    Modality.Atom (Comonadic Portability, Meet_with mode)
+  | Modal_axis_pair (Contention, mode) ->
     Modality.Atom (Monadic Contention, Join_with mode)
-  | Modal_axis_pair (Comonadic Yielding, mode) ->
+  | Modal_axis_pair (Yielding, mode) ->
     Modality.Atom (Comonadic Yielding, Meet_with mode)
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =

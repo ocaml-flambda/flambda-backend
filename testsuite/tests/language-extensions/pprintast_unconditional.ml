@@ -17,7 +17,6 @@ let () = Language_extension.set_universe_and_enable_all
 module Example = struct
   open Parsetree
   open Parse
-  open Asttypes
   open struct
     let loc = Location.none
     let located =  Location.mknoloc
@@ -32,10 +31,6 @@ module Example = struct
   let structure        = parse implementation "include functor F"
   let module_expr      = parse module_expr "struct include functor F end"
   let toplevel_phrase  = parse toplevel_phrase "#2.17;;"
-  let modality         = { txt = Modality "uncontended"
-                         ; loc
-                         }
-  let modalities       = [ modality ]
   let class_field      = { pcf_desc = Pcf_initializer expression
                          ; pcf_loc = loc
                          ; pcf_attributes = []
@@ -103,9 +98,7 @@ module Example = struct
           ( { pjkind_loc = loc;
               pjkind_desc = Abbreviation "value";
             }
-          , core_type
-          , modalities
-          );
+          , core_type );
     }
 
   let mode = { Location.txt = (Parsetree.Mode "global"); loc }

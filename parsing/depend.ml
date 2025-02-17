@@ -139,9 +139,9 @@ and add_jkind bv (jkind : jkind_annotation) =
   | Default -> ()
   | Abbreviation _ -> ()
   | Mod (jkind, (_ : modes)) -> add_jkind bv jkind
-  | With (jkind, typ, (_ : modalities)) ->
+  | With (jkind, typ) ->
       add_jkind bv jkind;
-      add_type bv typ;
+      add_type bv typ
   | Kind_of typ ->
       add_type bv typ
   | Product jkinds ->

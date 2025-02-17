@@ -41,6 +41,17 @@ module Nullability : sig
 end
 
 module Axis : sig
+  (* CR zqian: remove this and use [Mode.Alloc.axis] instead *)
+  module Modal : sig
+    type 'a t =
+      | Locality : Mode.Locality.Const.t t
+      | Linearity : Mode.Linearity.Const.t t
+      | Uniqueness : Mode.Uniqueness.Const.t t
+      | Portability : Mode.Portability.Const.t t
+      | Contention : Mode.Contention.Const.t t
+      | Yielding : Mode.Yielding.Const.t t
+  end
+
   module Nonmodal : sig
     type 'a t =
       | Externality : Externality.t t
@@ -49,8 +60,8 @@ module Axis : sig
 
   (** Represents an axis of a jkind *)
   type 'a t =
-    | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
-    | Nonmodal : 'a Nonmodal.t -> 'a t
+    | Modal of 'a Modal.t
+    | Nonmodal of 'a Nonmodal.t
 
   type packed = Pack : 'a t -> packed
 
@@ -66,10 +77,6 @@ module Axis : sig
   (** Is this a modal axis? Includes externality, because that will one
       day be modal (it is a deep property). *)
   val is_modal : _ t -> bool
-
-  (* CR layouts v2.8: Not sure this belongs here, but there's not another obvious spot. Once this
-     file is more aligned with axis treatment in mode.ml, possibly re-home this. *)
-  val modality_is_const_for_axis : _ t -> Mode.Modality.Value.Const.t -> bool
 end
 
 (** [Axed] describes a type that is parameterized by axis. *)

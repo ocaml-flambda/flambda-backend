@@ -115,6 +115,16 @@ module Nullability = struct
 end
 
 module Axis = struct
+  module Modal = struct
+    type 'a t =
+      | Locality : Mode.Locality.Const.t t
+      | Linearity : Mode.Linearity.Const.t t
+      | Uniqueness : Mode.Uniqueness.Const.t t
+      | Portability : Mode.Portability.Const.t t
+      | Contention : Mode.Contention.Const.t t
+      | Yielding : Mode.Yielding.Const.t t
+  end
+
   module Nonmodal = struct
     type 'a t =
       | Externality : Externality.t t
@@ -122,70 +132,60 @@ module Axis = struct
   end
 
   type 'a t =
-    | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
-    | Nonmodal : 'a Nonmodal.t -> 'a t
+    | Modal of 'a Modal.t
+    | Nonmodal of 'a Nonmodal.t
 
   type packed = Pack : 'a t -> packed
 
-  module Accent_lattice (M : Mode_intf.Lattice) = struct
+  module Accent_lattice (M : Mode_intf.Lattice) : Axis_ops with type t = M.t =
+  struct
     (* A functor to add some convenient functions to modal axes *)
     include M
 
-    let less_or_equal a b : Misc.Le_result.t =
-      match le a b, le b a with
-      | true, true -> Equal
-      | true, false -> Less
-      | false, _ -> Not_le
+    let less_or_equal a b = Misc.Le_result.less_or_equal ~le a b
 
-    let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
+    let equal a b = Misc.Le_result.equal ~le a b
   end
 
   let get (type a) : a t -> (module Axis_ops with type t = a) = function
-    | Modal axis ->
-      (module Accent_lattice ((val Mode.Alloc.lattice_of_axis axis)))
+    | Modal Locality -> (module Accent_lattice (Mode.Locality.Const))
+    | Modal Linearity -> (module Accent_lattice (Mode.Linearity.Const))
+    | Modal Uniqueness -> (module Accent_lattice (Mode.Uniqueness.Const))
+    | Modal Portability -> (module Accent_lattice (Mode.Portability.Const))
+    | Modal Contention -> (module Accent_lattice (Mode.Contention.Const))
+    | Modal Yielding -> (module Accent_lattice (Mode.Yielding.Const))
     | Nonmodal Externality -> (module Externality)
     | Nonmodal Nullability -> (module Nullability)
 
   let all =
-    [ Pack (Modal (Comonadic Areality));
-      Pack (Modal (Monadic Uniqueness));
-      Pack (Modal (Comonadic Linearity));
-      Pack (Modal (Monadic Contention));
-      Pack (Modal (Comonadic Portability));
-      Pack (Modal (Comonadic Yielding));
+    [ Pack (Modal Locality);
+      Pack (Modal Uniqueness);
+      Pack (Modal Linearity);
+      Pack (Modal Contention);
+      Pack (Modal Portability);
+      Pack (Modal Yielding);
       Pack (Nonmodal Externality);
       Pack (Nonmodal Nullability) ]
 
   let name (type a) : a t -> string = function
-    | Modal axis -> Format.asprintf "%a" Mode.Alloc.print_axis axis
+    | Modal Locality -> "locality"
+    | Modal Linearity -> "linearity"
+    | Modal Uniqueness -> "uniqueness"
+    | Modal Portability -> "portability"
+    | Modal Contention -> "contention"
+    | Modal Yielding -> "yielding"
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
 
   let is_modal (type a) : a t -> bool = function
-    | Modal (Comonadic Areality) -> true
-    | Modal (Comonadic Linearity) -> true
-    | Modal (Monadic Uniqueness) -> true
-    | Modal (Comonadic Portability) -> true
-    | Modal (Monadic Contention) -> true
-    | Modal (Comonadic Yielding) -> true
+    | Modal Locality -> true
+    | Modal Linearity -> true
+    | Modal Uniqueness -> true
+    | Modal Portability -> true
+    | Modal Contention -> true
+    | Modal Yielding -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
-
-  let modality_is_const_for_axis (type a) (t : a t)
-      (modality : Mode.Modality.Value.Const.t) =
-    match t with
-    | Nonmodal Nullability | Nonmodal Externality -> false
-    | Modal axis ->
-      let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-      let modality = Mode.Modality.Value.Const.proj axis modality in
-      if Mode.Modality.is_constant modality
-      then true
-      else if Mode.Modality.is_id modality
-      then false
-      else
-        Misc.fatal_error
-          "Don't yet know how to interpret non-constant, non-identity \
-           modalities"
 end
 
 module type Axed = sig
@@ -207,23 +207,23 @@ module Axis_collection (T : Axed) = struct
 
   let get (type a) ~(axis : a Axis.t) values : (_, _, a) T.t =
     match axis with
-    | Modal (Comonadic Areality) -> values.locality
-    | Modal (Comonadic Linearity) -> values.linearity
-    | Modal (Monadic Uniqueness) -> values.uniqueness
-    | Modal (Comonadic Portability) -> values.portability
-    | Modal (Monadic Contention) -> values.contention
-    | Modal (Comonadic Yielding) -> values.yielding
+    | Modal Locality -> values.locality
+    | Modal Linearity -> values.linearity
+    | Modal Uniqueness -> values.uniqueness
+    | Modal Portability -> values.portability
+    | Modal Contention -> values.contention
+    | Modal Yielding -> values.yielding
     | Nonmodal Externality -> values.externality
     | Nonmodal Nullability -> values.nullability
 
   let set (type a) ~(axis : a Axis.t) values (value : (_, _, a) T.t) =
     match axis with
-    | Modal (Comonadic Areality) -> { values with locality = value }
-    | Modal (Comonadic Linearity) -> { values with linearity = value }
-    | Modal (Monadic Uniqueness) -> { values with uniqueness = value }
-    | Modal (Comonadic Portability) -> { values with portability = value }
-    | Modal (Monadic Contention) -> { values with contention = value }
-    | Modal (Comonadic Yielding) -> { values with yielding = value }
+    | Modal Locality -> { values with locality = value }
+    | Modal Linearity -> { values with linearity = value }
+    | Modal Uniqueness -> { values with uniqueness = value }
+    | Modal Portability -> { values with portability = value }
+    | Modal Contention -> { values with contention = value }
+    | Modal Yielding -> { values with yielding = value }
     | Nonmodal Externality -> { values with externality = value }
     | Nonmodal Nullability -> { values with nullability = value }
 
@@ -237,12 +237,12 @@ module Axis_collection (T : Axed) = struct
 
       let[@inline] f { f } =
         let open M.Syntax in
-        let* locality = f ~axis:Axis.(Modal (Comonadic Areality)) in
-        let* uniqueness = f ~axis:Axis.(Modal (Monadic Uniqueness)) in
-        let* linearity = f ~axis:Axis.(Modal (Comonadic Linearity)) in
-        let* contention = f ~axis:Axis.(Modal (Monadic Contention)) in
-        let* portability = f ~axis:Axis.(Modal (Comonadic Portability)) in
-        let* yielding = f ~axis:Axis.(Modal (Comonadic Yielding)) in
+        let* locality = f ~axis:Axis.(Modal Locality) in
+        let* uniqueness = f ~axis:Axis.(Modal Uniqueness) in
+        let* linearity = f ~axis:Axis.(Modal Linearity) in
+        let* contention = f ~axis:Axis.(Modal Contention) in
+        let* portability = f ~axis:Axis.(Modal Portability) in
+        let* yielding = f ~axis:Axis.(Modal Yielding) in
         let* externality = f ~axis:Axis.(Nonmodal Externality) in
         let* nullability = f ~axis:Axis.(Nonmodal Nullability) in
         M.return
@@ -333,12 +333,12 @@ module Axis_collection (T : Axed) = struct
           externality;
           nullability
         } ~combine =
-      combine (f ~axis:Axis.(Modal (Comonadic Areality)) locality)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uniqueness)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) linearity)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) contention)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) portability)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Yielding)) yielding)
+      combine (f ~axis:Axis.(Modal Locality) locality)
+      @@ combine (f ~axis:Axis.(Modal Uniqueness) uniqueness)
+      @@ combine (f ~axis:Axis.(Modal Linearity) linearity)
+      @@ combine (f ~axis:Axis.(Modal Contention) contention)
+      @@ combine (f ~axis:Axis.(Modal Portability) portability)
+      @@ combine (f ~axis:Axis.(Modal Yielding) yielding)
       @@ combine (f ~axis:Axis.(Nonmodal Externality) externality)
       @@ f ~axis:Axis.(Nonmodal Nullability) nullability
   end
@@ -373,12 +373,12 @@ module Axis_collection (T : Axed) = struct
           externality = ext2;
           nullability = nul2
         } ~combine =
-      combine (f ~axis:Axis.(Modal (Comonadic Areality)) loc1 loc2)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uni1 uni2)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) lin1 lin2)
-      @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) con1 con2)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) por1 por2)
-      @@ combine (f ~axis:Axis.(Modal (Comonadic Yielding)) yie1 yie2)
+      combine (f ~axis:Axis.(Modal Locality) loc1 loc2)
+      @@ combine (f ~axis:Axis.(Modal Uniqueness) uni1 uni2)
+      @@ combine (f ~axis:Axis.(Modal Linearity) lin1 lin2)
+      @@ combine (f ~axis:Axis.(Modal Contention) con1 con2)
+      @@ combine (f ~axis:Axis.(Modal Portability) por1 por2)
+      @@ combine (f ~axis:Axis.(Modal Yielding) yie1 yie2)
       @@ combine (f ~axis:Axis.(Nonmodal Externality) ext1 ext2)
       @@ f ~axis:Axis.(Nonmodal Nullability) nul1 nul2
   end
