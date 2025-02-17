@@ -238,45 +238,62 @@ runtime).
 What GC messages to print to stderr.  This is a sum of values selected
 from the following:
 
-.B 0x001
-Start and end of major GC cycle.
+.B 0x00001
+Main events of each major GC cycle.
 
-.B 0x002
-Minor collection and major GC slice.
+.B 0x00002
+Minor collection events.
 
-.B 0x004
-Growing and shrinking of the heap.
+.B 0x00004
+Per-slice events.
 
-.B 0x008
-Resizing of stacks and memory manager tables.
-
-.B 0x010
+.B 0x00008
 Heap compaction.
 
-.BR 0x020
+.B 0x00010
+GC policy computations.
+
+.B 0x00020
+Address space reservation changes.
+
+.B 0x00040
+Major domain events (such as creation and termination).
+
+.B 0x00080
+Stop-the-world events.
+
+.B 0x00100
+Minor heap events (such as creation and resizing).
+
+.B 0x00200
+Major heap events (such as creation and teardown).
+
+.B 0x00400
+Resizing of GC tables.
+
+.B 0x00800
+Allocation and resizing of stacks.
+
+.B 0x01000
+Output GC statistics at program exit.
+
+.B 0x02000
 Change of GC parameters.
 
-.BR 0x040
-Computation of major GC slice size.
+.B 0x04000
+Calling of finalization functions.
 
-.BR 0x080
-Calling of finalisation functions.
+.B 0x08000
+Bytecode executable and shared library search at start-up.
 
-.BR 0x100
-Startup messages (loading the bytecode executable file, resolving
-shared libraries).
-
-.BR 0x200
-Computation of compaction-triggering condition.
-
-.BR 0x400
-Output GC statistics at program exit, in the same format as Gc.print_stat.
-
-.BR 0x800
+.B 0x10000
 GC debugging messages.
 
-.BR 0x1000
-Address space reservation changes.
+.B 0x20000
+Changes to the major GC mark stack.
+
+.B 0x10000000
+Do not include timestamp and domain ID in log messages.
 
 .TP
 .BR w " (window_size)"

@@ -232,17 +232,12 @@ CAMLprim value caml_gc_set(value v)
   }
 
   if (newminwsz > caml_minor_heap_max_wsz) {
-    caml_gc_log ("update minor heap max: %"
-                 ARCH_INTNAT_PRINTF_FORMAT "uk words", newminwsz / 1024);
+    CAML_GC_MESSAGE(PARAMS, "New minor heap max: %"
+                    ARCH_INTNAT_PRINTF_FORMAT "uk words\n", newminwsz / 1024);
     caml_update_minor_heap_max(newminwsz);
   }
   CAMLassert(newminwsz <= caml_minor_heap_max_wsz);
   if (newminwsz != Caml_state->minor_heap_wsz) {
-    caml_gc_log ("current minor heap size: %"
-                 ARCH_SIZET_PRINTF_FORMAT "uk words",
-                 Caml_state->minor_heap_wsz / 1024);
-    caml_gc_log ("set minor heap size: %"
-                 ARCH_INTNAT_PRINTF_FORMAT "uk words", newminwsz / 1024);
     /* FIXME: when (newminwsz > caml_minor_heap_max_wsz) and
        (newminwsz != Caml_state->minor_heap_wsz) are both true,
        the current domain reallocates its own minor heap twice. */
@@ -267,7 +262,7 @@ CAMLprim value caml_gc_minor(value v)
 static value gc_major_exn(int compaction)
 {
   CAML_EV_BEGIN(EV_EXPLICIT_GC_MAJOR);
-  caml_gc_log ("Major GC cycle requested");
+  CAML_GC_MESSAGE(MAJOR, "Major GC cycle requested\n");
   caml_empty_minor_heaps_once();
   caml_finish_major_cycle(compaction);
   caml_reset_major_pacing();
@@ -290,7 +285,7 @@ static value gc_full_major_exn(void)
   int i;
   value exn = Val_unit;
   CAML_EV_BEGIN(EV_EXPLICIT_GC_FULL_MAJOR);
-  caml_gc_log ("Full Major GC requested");
+  CAML_GC_MESSAGE(MAJOR, "Full Major GC requested\n");
   /* In general, it can require up to 3 GC cycles for a
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
@@ -374,9 +369,9 @@ void caml_init_gc (void)
 #endif
   caml_percent_free = norm_pfree (caml_params->init_percent_free);
   caml_max_percent_free = norm_pmax (caml_params->init_max_percent_free);
-  caml_gc_log ("Initial stack limit: %"
-               ARCH_INTNAT_PRINTF_FORMAT "uk bytes",
-               caml_params->init_max_stack_wsz / 1024 * sizeof (value));
+  CAML_GC_MESSAGE(STACKS, "Initial stack limit: %"
+                  ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
+                  Bsize_wsize(caml_params->init_max_stack_wsz) / 1024);
 
   caml_custom_major_ratio =
       norm_custom_maj (caml_params->init_custom_major_ratio);
