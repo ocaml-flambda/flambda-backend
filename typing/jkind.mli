@@ -63,8 +63,7 @@ end
 module Sort : sig
   include
     Jkind_intf.Sort
-      with type t = Jkind_types.Sort.t
-       and type base = Jkind_types.Sort.base
+      with type base = Jkind_types.Sort.base
        and type Const.t = Jkind_types.Sort.Const.t
 
   module Flat : sig
@@ -96,8 +95,6 @@ module Layout : sig
   end
 
   val of_const : Const.t -> Sort.t t
-
-  val sub : Sort.t t -> Sort.t t -> Misc.Le_result.t
 end
 
 (** A Jkind.t is a full description of the runtime representation of values
@@ -505,12 +502,14 @@ val extract_layout : 'd Types.jkind -> Sort.t Layout.t
 
 (** Gets the maximum modes for types of this jkind. *)
 val get_modal_upper_bounds :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
   Mode.Alloc.Const.t
 
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
 val get_externality_upper_bound :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
   Externality.t
@@ -533,15 +532,6 @@ val decompose_product : 'd Types.jkind -> 'd Types.jkind list option
 
 (** Get an annotation (that a user might write) for this [t]. *)
 val get_annotation : 'd Types.jkind -> Parsetree.jkind_annotation option
-
-(*********************************)
-(* normalization *)
-
-val normalize :
-  require_best:bool ->
-  jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
-  Types.jkind_l ->
-  Types.jkind_l
 
 (*********************************)
 (* pretty printing *)
@@ -658,6 +648,7 @@ val sub_jkind_l :
 (** "round up" a [jkind_l] to a [jkind_r] such that the input is less than the
     output. *)
 val round_up :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   (allowed * 'r) Types.jkind ->
   ('l * allowed) Types.jkind

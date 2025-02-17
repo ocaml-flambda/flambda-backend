@@ -2695,8 +2695,6 @@ module Modality = struct
         let comonadic = Comonadic.concat ~then_:then_.comonadic t.comonadic in
         { monadic; comonadic }
 
-      let of_list = List.fold_left (fun m atom -> compose m ~then_:atom) id
-
       let singleton a = compose ~then_:a id
 
       let to_list { monadic; comonadic } =

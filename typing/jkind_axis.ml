@@ -125,7 +125,7 @@ module Axis = struct
     | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
     | Nonmodal : 'a Nonmodal.t -> 'a t
 
-  type packed = Pack : 'a t -> packed [@@unboxed]
+  type packed = Pack : 'a t -> packed
 
   module Accent_lattice (M : Mode_intf.Lattice) = struct
     (* A functor to add some convenient functions to modal axes *)
@@ -170,6 +170,22 @@ module Axis = struct
     | Modal (Comonadic Yielding) -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
+
+  let modality_is_const_for_axis (type a) (t : a t)
+      (modality : Mode.Modality.Value.Const.t) =
+    match t with
+    | Nonmodal Nullability | Nonmodal Externality -> false
+    | Modal axis ->
+      let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
+      let modality = Mode.Modality.Value.Const.proj axis modality in
+      if Mode.Modality.is_constant modality
+      then true
+      else if Mode.Modality.is_id modality
+      then false
+      else
+        Misc.fatal_error
+          "Don't yet know how to interpret non-constant, non-identity \
+           modalities"
 end
 
 module type Axed = sig
@@ -458,50 +474,4 @@ module Axis_collection = struct
         @@ f ~axis:Axis.(Nonmodal Nullability) nul1 nul2
     end
   end
-end
-
-module Axis_set = struct
-  (* each axis is true or false to indicate membership  *)
-  type t = bool Axis_collection.t
-
-  (* TODO: this could be represented with a uint8 since there's only 7 possible members *)
-
-  let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
-
-  let create ~f = Axis_collection.create ~f
-
-  let add t axis = Axis_collection.set ~axis t true
-
-  let remove t axis = Axis_collection.set ~axis t false
-
-  let mem t axis = Axis_collection.get ~axis t
-
-  let union t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 || Axis_collection.get ~axis t2)
-
-  let intersection t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 && Axis_collection.get ~axis t2)
-
-  let is_subset t1 t2 =
-    Axis_collection.fold
-      ~f:(fun ~axis:(Pack axis) t1_on_axis ->
-        let t2_on_axis = Axis_collection.get ~axis t2 in
-        (not t1_on_axis) || t2_on_axis)
-      ~combine:( && ) t1
-
-  let complement t = Axis_collection.map ~f:not t
-
-  let to_list t =
-    Axis_collection.fold
-      ~f:(fun ~axis t_on_axis ->
-        match t_on_axis with true -> [axis] | false -> [])
-      ~combine:( @ ) t
-
-  let print ppf t =
-    Format.pp_print_list
-      ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-      (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
-      ppf (to_list t)
 end

@@ -225,17 +225,6 @@ module Stdlib = struct
       in
       aux f 0 accu l
 
-    let fold_left_map2 f accu l1 l2 =
-      let rec aux f accu res l1 l2 =
-        match l1, l2 with
-        | [], [] -> accu, List.rev res
-        | a1 :: l1, a2 :: l2 ->
-          let accu', r = f accu a1 a2 in
-          aux f accu' (r :: res) l1 l2
-        | _, _ -> invalid_arg "fold_left_map2"
-      in
-      aux f accu [] l1 l2
-
     let chunks_of n l =
       if n <= 0 then raise (Invalid_argument "chunks_of");
       (* Invariant: List.length l = remaining *)

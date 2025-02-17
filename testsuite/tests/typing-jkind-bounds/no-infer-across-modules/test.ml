@@ -248,7 +248,7 @@ Error: This expression has type
          "#((int -> int) * int) Define_with_kinds.unboxed_record"
        but an expression was expected of type "('a : (value & value) & value)"
        The kind of #((int -> int) * int) Define_with_kinds.unboxed_record is
-         (immutable_data & immutable_data) & immutable_data.
+         (immediate & immediate) & immediate.
        But the kind of #((int -> int) * int) Define_with_kinds.unboxed_record must be a subkind of
          (value & value) & value
          because of the definition of use_portable_three_values at line 2, characters 84-95.

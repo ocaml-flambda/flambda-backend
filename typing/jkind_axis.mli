@@ -52,7 +52,7 @@ module Axis : sig
     | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
     | Nonmodal : 'a Nonmodal.t -> 'a t
 
-  type packed = Pack : 'a t -> packed [@@unboxed]
+  type packed = Pack : 'a t -> packed
 
   (* CR zqian: push ['a t] into the module to avoid first-class module. *)
 
@@ -66,6 +66,10 @@ module Axis : sig
   (** Is this a modal axis? Includes externality, because that will one
       day be modal (it is a deep property). *)
   val is_modal : _ t -> bool
+
+  (* CR layouts v2.8: Not sure this belongs here, but there's not another obvious spot. Once this
+     file is more aligned with axis treatment in mode.ml, possibly re-home this. *)
+  val modality_is_const_for_axis : _ t -> Mode.Modality.Value.Const.t -> bool
 end
 
 (** A collection with one item for each jkind axis *)
@@ -183,30 +187,4 @@ module Axis_collection : sig
       val f : 'r f -> t -> t -> combine:('r -> 'r -> 'r) -> 'r
     end
   end
-end
-
-module Axis_set : sig
-  type t
-
-  val empty : t
-
-  val create : f:(axis:Axis.packed -> bool) -> t
-
-  val add : t -> _ Axis.t -> t
-
-  val remove : t -> _ Axis.t -> t
-
-  val mem : t -> _ Axis.t -> bool
-
-  val union : t -> t -> t
-
-  val intersection : t -> t -> t
-
-  val is_subset : t -> t -> bool
-
-  val complement : t -> t
-
-  val to_list : t -> Axis.packed list
-
-  val print : Format.formatter -> t -> unit
 end

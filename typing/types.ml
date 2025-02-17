@@ -31,10 +31,6 @@ let is_mutable = function
 module Jkind_mod_bounds =
   Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
 
-module With_bounds_type_info = struct
-  type t = {relevant_axes : Jkind_axis.Axis_set.t } [@@unboxed]
-end
-
 type transient_expr =
   { mutable desc: type_desc;
     mutable level: int;
@@ -118,12 +114,22 @@ and jkind_history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
-(* See [With_bounds_types] for more information on this abstract type. *)
-and with_bounds_types
+and relevant_for_nullability =
+  | Relevant_for_nullability
+  | Irrelevant_for_nullability
+
+and with_bounds_type =
+  { type_expr : type_expr;
+    modality : Mode.Modality.Value.Const.t;
+    relevant_for_nullability: relevant_for_nullability
+  }
 
 and 'd with_bounds =
   | No_with_bounds : ('l * 'r) with_bounds
-  | With_bounds : with_bounds_types -> ('l * Allowance.disallowed) with_bounds
+  (* There must always be at least one type. *)
+  | With_bounds :
+      with_bounds_type Misc.Nonempty_list.t
+      -> ('l * Allowance.disallowed) with_bounds
 
 and ('layout, 'd) layout_and_axes =
   { layout : 'layout;
@@ -1000,140 +1006,19 @@ end
 let eq_type t1 t2 = t1 == t2 || repr t1 == repr t2
 let compare_type t1 t2 = compare (get_id t1) (get_id t2)
 
-(* with-bounds *)
-
-(* Compare types roughly semantically, to allow best-effort deduplication of the types
-   inside of with-bounds.
-
-   This function might compare two types as inequal that are actually equal, but should
-   /never/ compare two types as equal that are not semantically equal. It may go without
-   saying but it also needs to expose a total order.
-
-   Someday, it's probably desirable to merge this, and make it compatible, with
-   [Ctype.eqtype], though that seems quite hard.
-*)
-(* CR layouts v2.8: this will likely loop infinitely on rectypes *)
-(* CR layouts v2.8: this whole approach is probably /quite/ wrong, since type_expr is
-   fundamentally mutable, and using mutable things in the keys of maps is a recipe for
-   disaster. We haven't found a way that this can break /yet/, but it is likely that one
-   exists. We should rethink this whole approach soon. *)
-let rec best_effort_compare_type_expr te1 te2 =
-  if te1 == te2 || repr te1 == repr te2 then 0
-  else
-    let rank ty =
-      match get_desc ty with
-      (* Types which must be compared by id *)
-      | Tvar _
-      | Tunivar _
-      | Tobject (_, _)
-      | Tfield (_, _, _, _)
-      | Tnil
-      | Tvariant _
-      | Tpackage (_, _)
-      | Tarrow (_, _, _, _)
-          (* CR layouts v2.8: we can actually see Tsubst here in certain cases, eg during
-             [Ctype.copy] when copying the types inside of with_bounds. We also can't
-             compare Tsubst structurally, because the Tsubsts that are created in
-             Ctype.copy are cyclic (?). So the best we can do here is compare by id.
-             this is almost definitely wrong, primarily because of the mutability - we
-             should fix that. *)
-      | Tsubst (_, _)
-        ->
-        (* This negation is important! We want all these types to compare strictly /less/
-           than the structural ones - the easiest way to make that happen is to make the
-           id negative, and ensure the ranks of all the other variants are positive *)
-        -ty.id
-      (* Types which we know how to compare structurally*)
-      | Ttuple _ -> 2
-      | Tunboxed_tuple _ -> 3
-      | Tconstr (_, _, _) -> 5
-      | Tpoly (_, _) -> 6
-      (* Types we should never see *)
-      | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
-    in
-    match get_desc te1, get_desc te2 with
-    | Ttuple elts1, Ttuple elts2
-    | Tunboxed_tuple elts1, Tunboxed_tuple elts2 ->
-      List.compare
-        (fun (l1, te1) (l2, te2) ->
-           let l = Option.compare String.compare l1 l2 in
-           if l = 0 then best_effort_compare_type_expr te1 te2 else l
-        )
-        elts1
-        elts2
-    | Tconstr (p1, args1, _), Tconstr (p2, args2, _) ->
-      let p = Path.compare p1 p2 in
-      if p = 0
-      then List.compare best_effort_compare_type_expr args1 args2
-      else p
-    | Tpoly (t1, ts1), Tpoly (t2, ts2) ->
-      (* NOTE: this is mostly broken according to the semantics of type_expr, but probably
-         fine for the particular "best-effort" comparison we want. *)
-      List.compare best_effort_compare_type_expr (t1 :: ts1) (t2 :: ts2)
-    | _, _ -> rank te1 - rank te2
-
-(* A map from [type_expr] to ['a], specifically defined with a (best-effort) semantic
-   comparison function on types to be used in the with-bounds of a jkind.
-
-   This module is defined internally to be equal (via two uses of [Obj.magic]) to the
-   abstract type [with_bound_types] to break the circular dependency between with-bounds
-   and type_expr. The alternative to this approach would be mutually recursive modules,
-   but this approach creates a smaller diff with upstream and makes rebasing easier.
-*)
-module With_bounds_types : sig
-  (* Note that only the initially needed bits of [Stdlib.Map.S] are exposed here; feel
-     free to expose more functions if you need them! *)
-  type info := With_bounds_type_info.t
-  type t := with_bounds_types
-
-  val empty : t
-  val is_empty : t -> bool
-  val to_seq : t -> (type_expr * info) Seq.t
-  val of_list : (type_expr * info) list -> t
-  val of_seq : (type_expr * info) Seq.t -> t
-  val singleton : type_expr -> info -> t
-  val update : type_expr -> (info option -> info option) -> t -> t
-  val merge
-    : (type_expr -> info option -> info option -> info option) ->
-    t -> t -> t
-  val map : (info -> info) -> t -> t
-end = struct
-  module M = Map.Make(struct
-      type t = type_expr
-
-      let compare = best_effort_compare_type_expr
-    end)
-  include M
-
-  type map = With_bounds_type_info.t M.t
-
-  let of_map : map -> with_bounds_types = Obj.magic
-  let to_map : with_bounds_types -> map = Obj.magic
-
-  let empty = empty |> of_map
-  let is_empty t = t |> to_map |> is_empty
-  let to_seq t = t |> to_map |> to_seq
-  let of_seq s = of_seq s |> of_map
-  let of_list l = l |> List.to_seq |> of_seq
-  let singleton ty i = add ty i (to_map empty) |> of_map
-  let update te f t = update te f (to_map t) |> of_map
-  let merge f t1 t2 = merge f (to_map t1) (to_map t2) |> of_map
-  let map f t = map f (to_map t) |> of_map
-end
-
 (* Constructor and accessors for [row_desc] *)
 
 let create_row ~fields ~more ~closed ~fixed ~name =
-  { row_fields=fields; row_more=more;
-    row_closed=closed; row_fixed=fixed; row_name=name }
+    { row_fields=fields; row_more=more;
+      row_closed=closed; row_fixed=fixed; row_name=name }
 
 (* [row_fields] subsumes the original [row_repr] *)
 let rec row_fields row =
   match get_desc row.row_more with
   | Tvariant row' ->
-    row.row_fields @ row_fields row'
+      row.row_fields @ row_fields row'
   | _ ->
-    row.row_fields
+      row.row_fields
 
 let rec row_repr_no_fields row =
   match get_desc row.row_more with
