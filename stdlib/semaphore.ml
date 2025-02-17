@@ -17,7 +17,7 @@ open! Stdlib
 
 (** Semaphores *)
 
-type sem : value mod portable contended = {
+type sem : value mod portable uncontended = {
   mut: Mutex.t;                         (* protects [v] *)
   mutable v: int;                       (* the current value *)
   nonzero: Condition.t                  (* signaled when [v > 0] *)

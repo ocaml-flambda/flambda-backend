@@ -834,10 +834,10 @@ val ( @ ) : 'a list -> 'a list -> 'a list
     Note: all input/output functions can raise [Sys_error] when the system
     calls they invoke fail. *)
 
-type in_channel : value mod portable contended
+type in_channel : value mod portable uncontended
 (** The type of input channel. *)
 
-type out_channel : value mod portable contended
+type out_channel : value mod portable uncontended
 (** The type of output channel. *)
 
 val stdin : in_channel

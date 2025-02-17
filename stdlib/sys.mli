@@ -145,7 +145,7 @@ val os_type : string
 -  ["Win32"] (for MS-Windows, OCaml compiled with MSVC++ or MinGW-w64),
 -  ["Cygwin"] (for MS-Windows, OCaml compiled with Cygwin). *)
 
-type backend_type : value mod portable contended =
+type backend_type : value mod portable uncontended =
   | Native
   | Bytecode
   | Other of string (**)
@@ -245,7 +245,7 @@ external poll_actions : unit -> unit = "%poll"
 (** {1 Signal handling} *)
 
 
-type signal_behavior : value mod contended =
+type signal_behavior : value mod uncontended =
     Signal_default
   | Signal_ignore
   | Signal_handle of (int -> unit)   (** *)
@@ -419,7 +419,7 @@ type extra_prefix = Plus | Tilde
 type extra_info = extra_prefix * string
 (** @since 4.14 *)
 
-type ocaml_release_info : value mod portable contended = {
+type ocaml_release_info : value mod portable uncontended = {
   major : int;
   minor : int;
   patchlevel : int;

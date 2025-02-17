@@ -143,7 +143,7 @@ open! Stdlib
    that would be a problematic situation,
    known as a {i deadlock}. *)
 
-type t : value mod portable contended
+type t : value mod portable uncontended
 (** The type of condition variables. *)
 
 val create : unit -> t

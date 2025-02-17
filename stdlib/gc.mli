@@ -464,7 +464,7 @@ val finalise_release : unit -> unit
     GC that it can launch the next finalisation function without waiting
     for the current one to return. *)
 
-type alarm : value mod portable contended
+type alarm : value mod portable uncontended
 (** An alarm is a piece of data that calls a user function at the end of
    major GC cycle.  The following functions are provided to create
    and delete alarms. *)

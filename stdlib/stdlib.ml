@@ -311,8 +311,8 @@ let[@tail_mod_cons] rec ( @ ) l1 l2 =
 
 (* I/O operations *)
 
-type in_channel : value mod portable contended
-type out_channel : value mod portable contended
+type in_channel : value mod portable uncontended
+type out_channel : value mod portable uncontended
 
 external open_descriptor_out : int -> out_channel @@ portable
                              = "caml_ml_open_descriptor_out"
@@ -557,7 +557,7 @@ let ( ^^ ) (Format (fmt1, str1)) (Format (fmt2, str2)) =
 external sys_exit : int -> 'a = "caml_sys_exit"
 
 (* for at_exit *)
-type 'a atomic_t : value mod portable contended
+type 'a atomic_t : value mod portable uncontended
 external atomic_make : 'a @ contended portable -> 'a atomic_t @@ portable = "%makemutable"
 external atomic_get : 'a atomic_t -> 'a @ contended portable @@ portable = "%atomic_load"
 external atomic_compare_and_set : 'a atomic_t -> 'a @ contended portable -> 'a @ contended portable -> bool @@ portable

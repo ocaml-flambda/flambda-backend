@@ -10,8 +10,8 @@ let use_portable : 'a @ portable -> unit = fun _ -> ()
 let use_many : 'a @ many -> unit = fun _ -> ()
 
 type ('a : value mod global) require_global
-type ('a : value mod aliased) require_aliased
-type ('a : value mod contended) require_contended
+type ('a : value mod unique) require_unique
+type ('a : value mod uncontended) require_uncontended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type ('a : value mod non_null) require_nonnull
@@ -23,8 +23,8 @@ val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 type ('a : value mod global) require_global
-type ('a : value mod aliased) require_aliased
-type ('a : value mod contended) require_contended
+type ('a : value mod unique) require_unique
+type ('a : value mod uncontended) require_uncontended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type 'a require_nonnull
@@ -68,13 +68,13 @@ Error: The kind of type "int ref option" is immutable_data
 
 type t_test = int option require_portable
 type t_test = int option require_many
-type t_test = int option require_contended
+type t_test = int option require_uncontended
 type ('a : value mod portable) t_test = 'a option require_portable
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
 type t_test = int option require_portable
 type t_test = int option require_many
-type t_test = int option require_contended
+type t_test = int option require_uncontended
 type ('a : value mod portable) t_test = 'a option require_portable
 |}, Principal{|
 Line 1, characters 14-24:
@@ -180,16 +180,16 @@ Error: This type "int ref" should be an instance of type
          because of the definition of require_portable at line 10, characters 0-47.
 |}]
 
-type t_test = int ref require_contended
+type t_test = int ref require_uncontended
 [%%expect {|
 Line 1, characters 14-21:
-1 | type t_test = int ref require_contended
+1 | type t_test = int ref require_uncontended
                   ^^^^^^^
 Error: This type "int ref" should be an instance of type
-         "('a : value mod contended)"
+         "('a : value mod uncontended)"
        The kind of int ref is mutable_data.
-       But the kind of int ref must be a subkind of value mod contended
-         because of the definition of require_contended at line 9, characters 0-49.
+       But the kind of int ref must be a subkind of value mod uncontended
+         because of the definition of require_uncontended at line 9, characters 0-53.
 |}]
 
 let foo (t : int ref @@ portable once) =
@@ -246,13 +246,13 @@ Error: The kind of type "int ref list" is immutable_data
 
 type t_test = int list require_portable
 type t_test = int list require_many
-type t_test = int list require_contended
+type t_test = int list require_uncontended
 type ('a : value mod portable) t_test = 'a list require_portable
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
 type t_test = int list require_portable
 type t_test = int list require_many
-type t_test = int list require_contended
+type t_test = int list require_uncontended
 type ('a : value mod portable) t_test = 'a list require_portable
 |}, Principal{|
 Line 1, characters 14-22:
@@ -361,17 +361,17 @@ Error: This type "int array" should be an instance of type
          because of the definition of require_portable at line 10, characters 0-47.
 |}]
 
-type t_test = int array require_contended
+type t_test = int array require_uncontended
 [%%expect {|
 Line 1, characters 14-23:
-1 | type t_test = int array require_contended
+1 | type t_test = int array require_uncontended
                   ^^^^^^^^^
 Error: This type "int array" should be an instance of type
-         "('a : value mod contended)"
+         "('a : value mod uncontended)"
        The kind of int array is mutable_data
          because it is the primitive value type array.
-       But the kind of int array must be a subkind of value mod contended
-         because of the definition of require_contended at line 9, characters 0-49.
+       But the kind of int array must be a subkind of value mod uncontended
+         because of the definition of require_uncontended at line 9, characters 0-53.
 |}]
 
 let foo (t : int array @@ portable once) =
@@ -426,13 +426,13 @@ Error: The kind of type "int ref iarray" is immutable_data
 
 type t_test = int iarray require_portable
 type t_test = int iarray require_many
-type t_test = int iarray require_contended
+type t_test = int iarray require_uncontended
 type ('a : value mod portable) t_test = 'a iarray require_portable
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
 type t_test = int iarray require_portable
 type t_test = int iarray require_many
-type t_test = int iarray require_contended
+type t_test = int iarray require_uncontended
 type ('a : value mod portable) t_test = 'a iarray require_portable
 |}, Principal{|
 Line 1, characters 14-24:

@@ -318,8 +318,7 @@ and type_decl_kind =
   (label_declaration, label_declaration, constructor_declaration) type_kind
 
 and unsafe_mode_crossing =
-  { modal_upper_bounds : Mode.Alloc.Comonadic.Const.t;
-    modal_lower_bounds : Mode.Alloc.Monadic.Const.t }
+  { modal_upper_bounds : Mode.Alloc.Const.t }
 
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
@@ -870,16 +869,6 @@ let flat_element_to_lowercase_string = function
   | Bits64 -> "bits64"
   | Vec128 -> "vec128"
   | Word -> "word"
-
-let equal_unsafe_mode_crossing umc1 umc2 =
-    let { modal_upper_bounds = mub1;
-          modal_lower_bounds = mlb1 } = umc1 in
-    let { modal_upper_bounds = mub2;
-          modal_lower_bounds = mlb2 } = umc2 in
-    Mode.Alloc.Comonadic.Const.le mub1 mub2
-    && Mode.Alloc.Comonadic.Const.le mub2 mub1
-    && Mode.Alloc.Monadic.Const.le mlb1 mlb2
-    && Mode.Alloc.Monadic.Const.le mlb2 mlb1
 
 (**** Definitions for backtracking ****)
 

@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t : value mod portable contended
+type t : value mod portable uncontended
 external create: unit -> t @@ portable = "caml_ml_mutex_new"
 external lock: t -> unit @@ portable = "caml_ml_mutex_lock"
 external try_lock: t -> bool @@ portable = "caml_ml_mutex_try_lock"

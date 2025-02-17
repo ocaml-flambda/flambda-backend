@@ -99,7 +99,7 @@ let temp_file_key = Domain.DLS.new_key (fun _ ->
 module DLS : sig
 (** Domain-local Storage *)
 
-    type 'a key : value mod portable contended
+    type 'a key : value mod portable uncontended
     (** Type of a DLS key *)
 
     val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key @@ nonportable
@@ -186,7 +186,7 @@ module Safe : sig
           executed on the primary domain. *)
     end
 
-    type 'a key : value mod portable contended = 'a DLS.key
+    type 'a key : value mod portable uncontended = 'a DLS.key
     (** See {!DLS.key}. *)
 
     (* CR: Update this to use the Capsule API when that is merged into stdlib. *)

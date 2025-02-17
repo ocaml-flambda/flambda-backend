@@ -33,13 +33,13 @@ module Portable : sig
 end
 
 module Contended : sig
-  type 'a t : value mod contended = { contended : 'a @@ contended } [@@unboxed]
+  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
   [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
   (** Wraps values in the [contended] mode, even in an [uncontended] context. *)
 end
 
 module Portended : sig
-  type 'a t : value mod portable contended = { portended : 'a @@ portable contended }
+  type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended }
   [@@unboxed]
   [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
   (** Wraps values in the [portable contended] mode, even in a [nonportable uncontended]

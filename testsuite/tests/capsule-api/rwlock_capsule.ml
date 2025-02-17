@@ -8,15 +8,15 @@
 
 module Capsule = Stdlib_alpha.Capsule
 
-(* [Rwlock.t] and [Data.t] are [value mod portable contended]. *)
+(* [Rwlock.t] and [Data.t] are [value mod portable uncontended]. *)
 
-type 'k _rwlock : value mod portable contended = 'k Capsule.Rwlock.t
+type 'k _rwlock : value mod portable uncontended = 'k Capsule.Rwlock.t
 
-type ('a, 'k) _data : value mod portable contended = ('a, 'k) Capsule.Data.t
+type ('a, 'k) _data : value mod portable uncontended = ('a, 'k) Capsule.Data.t
 
-(* Packed rwlocks are [value mod portable contended]. *)
+(* Packed rwlocks are [value mod portable uncontended]. *)
 
-type _packed :  value mod portable contended = Capsule.Rwlock.packed
+type _packed :  value mod portable uncontended = Capsule.Rwlock.packed
 
 (* CR: without [with] syntax and mode crossing inference, we need to depend on
    [@@unsafe_allow_any_mode_crossing] to determine that 'a myref crosses portabilility.
@@ -31,23 +31,23 @@ module RwCell = struct
   type 'a t =
     | Mk : 'k Capsule.Rwlock.t * ('a myref, 'k) Capsule.Data.t -> 'a t
 
-    let create (type a : value mod portable contended) (x : a) : a t =
+    let create (type a : value mod portable uncontended) (x : a) : a t =
       let (P m) = Capsule.create_with_rwlock () in
       let p = Capsule.Data.create (fun () -> {v = x}) in
       Mk (m, p)
 
-    let read (type a : value mod portable contended) (t : a t) : a =
+    let read (type a : value mod portable uncontended) (t : a t) : a =
       let (Mk (m, p)) = t in
       Capsule.Rwlock.with_read_lock m (fun k ->
         let read' : a myref @ shared -> a @ portable contended = (fun r -> r.v) in
         Capsule.Data.extract_shared k read' p)
 
-    let write (type a : value mod portable contended) (t : a t) (x : a) =
+    let write (type a : value mod portable uncontended) (t : a t) (x : a) =
       let (Mk (m, p)) = t in
       Capsule.Rwlock.with_write_lock m (fun k ->
         Capsule.Data.iter k (fun r -> r.v <- x) p)
 
-    let copy (type a : value mod portable contended) (t : a t) : a t =
+    let copy (type a : value mod portable uncontended) (t : a t) : a t =
       let (Mk (m, p)) = t in
       Capsule.Rwlock.with_read_lock m (fun k ->
         let p = Capsule.Data.map_shared k (fun r ->
@@ -86,7 +86,7 @@ let read_ref : ('a : value mod portable) .
   ('a myref @ shared -> 'a @ portable contended) @@ portable = fun r -> r.v
 
 (* writing to myref with the expected modes *)
- let write_ref : ('a : value mod portable contended) .
+ let write_ref : ('a : value mod portable uncontended) .
   'a -> ('a myref -> unit) @ portable = fun v r -> r.v <- v
 
 (* [create]. *)

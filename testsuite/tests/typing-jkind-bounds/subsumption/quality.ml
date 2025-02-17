@@ -132,7 +132,7 @@ module M : S with type t = a = struct
 end
 
 module _ : sig
-  type t : value mod portable contended with M.t
+  type t : value mod portable uncontended with M.t
 end = struct
   type t : value mod portable
 end
@@ -148,16 +148,16 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t : value mod portable end
        is not included in
-         sig type t : value mod contended portable with M.t end
+         sig type t : value mod uncontended portable with M.t end
        Type declarations do not match:
          type t : value mod portable
        is not included in
-         type t : value mod contended portable with M.t
+         type t : value mod uncontended portable with M.t
        The kind of the first is value mod portable
          because of the definition of t at line 13, characters 2-29.
        But the kind of the first must be a subkind of
-         value mod contended portable with M.t
-         because of the definition of t at line 11, characters 2-48.
+         value mod uncontended portable with M.t
+         because of the definition of t at line 11, characters 2-50.
 |}]
 
 module type S = sig
@@ -172,7 +172,7 @@ module M : S with type t := a = struct
 end
 
 module M : sig
-  type t : value mod portable contended with M.u
+  type t : value mod portable uncontended with M.u
 end = struct
   type t : value mod portable
 end
@@ -188,16 +188,16 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t : value mod portable end
        is not included in
-         sig type t : value mod contended portable with M.u end
+         sig type t : value mod uncontended portable with M.u end
        Type declarations do not match:
          type t : value mod portable
        is not included in
-         type t : value mod contended portable with M.u
+         type t : value mod uncontended portable with M.u
        The kind of the first is value mod portable
          because of the definition of t at line 15, characters 2-29.
        But the kind of the first must be a subkind of
-         value mod contended portable with M.u
-         because of the definition of t at line 13, characters 2-48.
+         value mod uncontended portable with M.u
+         because of the definition of t at line 13, characters 2-50.
 |}]
 
 module M : sig
@@ -390,7 +390,7 @@ Error: Signature mismatch:
 
 module M : sig
   type a = int ref * int
-  type t : value mod contended with a
+  type t : value mod uncontended with a
 end = struct
   type a = int ref * int
   type t
@@ -406,21 +406,21 @@ Error: Signature mismatch:
        Modules do not match:
          sig type a = int ref * int type t end
        is not included in
-         sig type a = int ref * int type t : value mod contended with a end
+         sig type a = int ref * int type t : value mod uncontended with a end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod contended with a
+         type t : value mod uncontended with a
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
-       But the kind of the first must be a subkind of value mod contended
+       But the kind of the first must be a subkind of value mod uncontended
          with a
-         because of the definition of t at line 3, characters 2-37.
+         because of the definition of t at line 3, characters 2-39.
 |}]
 
 module M : sig
   type a = #(int ref * int)
-  type t : value mod contended with a
+  type t : value mod uncontended with a
 end = struct
   type a = #(int ref * int)
   type t
@@ -442,7 +442,7 @@ module M : sig type a = int -> int type t end
 
 module M : sig
   type a = { foo : 'a. 'a ref } [@@unboxed]
-  type t : value mod contended with a
+  type t : value mod uncontended with a
 end = struct
   type a = { foo : 'a. 'a ref } [@@unboxed]
   type t
@@ -453,7 +453,7 @@ module M : sig type a = { foo : 'a. 'a ref; } [@@unboxed] type t end
 
 module M : sig
   type a = { foo : ('a : value). 'a } [@@unboxed]
-  type t : value mod contended with a
+  type t : value mod uncontended with a
 end = struct
   type a = { foo : ('a : value). 'a } [@@unboxed]
   type t
@@ -471,17 +471,17 @@ Error: Signature mismatch:
        is not included in
          sig
            type a = { foo : 'a. 'a; } [@@unboxed]
-           type t : value mod contended with a
+           type t : value mod uncontended with a
          end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod contended with a
+         type t : value mod uncontended with a
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
-       But the kind of the first must be a subkind of value mod contended
+       But the kind of the first must be a subkind of value mod uncontended
          with a
-         because of the definition of t at line 3, characters 2-37.
+         because of the definition of t at line 3, characters 2-39.
 |}]
 
 module type S = sig

@@ -10,16 +10,16 @@ let use_portable : 'a @ portable -> unit = fun _ -> ()
 let use_many : 'a @ many -> unit = fun _ -> ()
 
 let cross_global : ('a : value mod global) -> unit = fun _ -> ()
-let cross_aliased : ('a : value mod aliased) -> unit = fun _ -> ()
-let cross_contended : ('a : value mod contended) -> unit = fun _ -> ()
+let cross_unique : ('a : value mod unique) -> unit = fun _ -> ()
+let cross_uncontended : ('a : value mod uncontended) -> unit = fun _ -> ()
 let cross_portable : ('a : value mod portable) -> unit = fun _ -> ()
 let cross_many : ('a : value mod many) -> unit = fun _ -> ()
 let cross_nonnull : ('a : value mod non_null) -> unit = fun _ -> ()
 let cross_external : ('a : value mod external_) -> unit = fun _ -> ()
 
 type ('a : value mod global) require_global
-type ('a : value mod aliased) require_aliased
-type ('a : value mod contended) require_contended
+type ('a : value mod unique) require_unique
+type ('a : value mod uncontended) require_uncontended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type ('a : value mod non_null) require_nonnull
@@ -31,15 +31,15 @@ val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 val cross_global : ('a : value mod global). 'a -> unit = <fun>
-val cross_aliased : ('a : value mod aliased). 'a -> unit = <fun>
-val cross_contended : ('a : value mod contended). 'a -> unit = <fun>
+val cross_unique : ('a : value mod unique). 'a -> unit = <fun>
+val cross_uncontended : ('a : value mod uncontended). 'a -> unit = <fun>
 val cross_portable : ('a : value mod portable). 'a -> unit = <fun>
 val cross_many : ('a : value mod many). 'a -> unit = <fun>
 val cross_nonnull : 'a -> unit = <fun>
 val cross_external : ('a : value mod external_). 'a -> unit = <fun>
 type ('a : value mod global) require_global
-type ('a : value mod aliased) require_aliased
-type ('a : value mod contended) require_contended
+type ('a : value mod unique) require_unique
+type ('a : value mod uncontended) require_uncontended
 type ('a : value mod portable) require_portable
 type ('a : value mod many) require_many
 type 'a require_nonnull
@@ -91,18 +91,18 @@ type ('a : mutable_data) t = { x : 'a option; }
 |}]
 
 (* annotations that aren't mutable_data or immutable_data *)
-type t : value mod contended = { x : unit -> unit }
-type 'a t : value mod contended = { x : 'a -> 'a }
-type ('a : value mod contended portable, 'b : value mod portable) t : value mod portable
+type t : value mod uncontended = { x : unit -> unit }
+type 'a t : value mod uncontended = { x : 'a -> 'a }
+type ('a : value mod uncontended portable, 'b : value mod portable) t : value mod portable
     = { x : 'a; y : 'b }
 type ('a : value mod many) t : value mod many = { x : 'a }
-type t : value mod contended portable = { x : int }
+type t : value mod uncontended portable = { x : int }
 type ('a : value mod portable many) t : value mod many = { mutable x : 'a }
 type 'a t : value mod non_null = { x : 'a }
 [%%expect {|
 type t = { x : unit -> unit; }
 type 'a t = { x : 'a -> 'a; }
-type ('a : value mod contended portable, 'b : value mod portable) t = {
+type ('a : value mod uncontended portable, 'b : value mod portable) t = {
   x : 'a;
   y : 'b;
 }
@@ -151,7 +151,7 @@ type t : immutable_data = { x : unit -> unit }
 Line 1, characters 0-46:
 1 | type t : immutable_data = { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -184,7 +184,7 @@ type t : mutable_data = { x : unit -> unit }
 Line 1, characters 0-44:
 1 | type t : mutable_data = { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
@@ -212,14 +212,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type ('a : value mod aliased) t : value mod aliased = { x : 'a }
+type ('a : value mod unique) t : value mod unique = { x : 'a }
 [%%expect {|
-Line 1, characters 0-64:
-1 | type ('a : value mod aliased) t : value mod aliased = { x : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-62:
+1 | type ('a : value mod unique) t : value mod unique = { x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of value mod aliased
+       But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -241,9 +241,9 @@ type 'a t : mutable_data with 'a = { mutable x : 'a }
 type 'a t : mutable_data with 'a = { x : 'a ref }
 type ('a, 'b) t : immutable_data with 'a with 'b = { x : 'a; y : 'b; z : 'a }
 type ('a, 'b) t : mutable_data with 'a with 'b = { x : 'a; y : 'b; mutable z : 'a }
-type 'a t : value mod contended with 'a = { x : unit -> unit; y : 'a }
+type 'a t : value mod uncontended with 'a = { x : unit -> unit; y : 'a }
 type 'a t : immutable_data with 'a = { x : int }
-type 'a t : value mod contended with 'a = { x : int }
+type 'a t : value mod uncontended with 'a = { x : int }
 type 'a t : immutable_data with 'a = { x : 'a option }
 type 'a t : immutable_data with 'a -> 'a = { x : 'a -> 'a }
 [%%expect {|
@@ -276,7 +276,7 @@ type 'a t : immutable_data with 'a = { x : 'a -> 'a }
 Line 1, characters 0-53:
 1 | type 'a t : immutable_data with 'a = { x : 'a -> 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod uncontended
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -293,14 +293,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type 'a t : value mod aliased with 'a = { x : 'a }
+type 'a t : value mod unique with 'a = { x : 'a }
 [%%expect {|
-Line 1, characters 0-50:
-1 | type 'a t : value mod aliased with 'a = { x : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-49:
+1 | type 'a t : value mod unique with 'a = { x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of value mod aliased
+       But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -532,7 +532,7 @@ let t = { x = 10; y = "hello" }
 let () =
   cross_many t;
   cross_portable t;
-  cross_contended t
+  cross_uncontended t
 
 [%%expect{|
 type t = { x : int; y : string; }
@@ -565,11 +565,11 @@ val func : (unit -> unit) t = {x = <fun>}
 let () =
   cross_many int;
   cross_portable int;
-  cross_contended int;
+  cross_uncontended int;
   cross_nonnull int
 
 let () =
-  cross_contended func;
+  cross_uncontended func;
   cross_nonnull func
 (* CR layouts v2.8: fix in principal case *)
 [%%expect {|
@@ -585,17 +585,17 @@ Error: This expression has type "int t" but an expression was expected of type
          because of the definition of cross_many at line 11, characters 49-60.
 |}]
 
-let () = cross_aliased int
+let () = cross_unique int
 [%%expect {|
-Line 1, characters 23-26:
-1 | let () = cross_aliased int
-                           ^^^
+Line 1, characters 22-25:
+1 | let () = cross_unique int
+                          ^^^
 Error: This expression has type "int t" but an expression was expected of type
-         "('a : value mod aliased)"
+         "('a : value mod unique)"
        The kind of int t is immutable_data
          because of the definition of t at line 1, characters 0-22.
-       But the kind of int t must be a subkind of value mod aliased
-         because of the definition of cross_aliased at line 8, characters 55-66.
+       But the kind of int t must be a subkind of value mod unique
+         because of the definition of cross_unique at line 8, characters 53-64.
 |}]
 
 let () = cross_portable func
@@ -629,18 +629,18 @@ Error: This expression has type "(unit -> unit) t"
 type 'a t = { x : 'a }
 type t_test = int t require_many
 type t_test = int t require_portable
-type t_test = int t require_contended
-type t_test = (unit -> unit) t require_contended
-type ('a : value mod contended) t_test = 'a t require_contended
+type t_test = int t require_uncontended
+type t_test = (unit -> unit) t require_uncontended
+type ('a : value mod uncontended) t_test = 'a t require_uncontended
 type 'a t_test = 'a t require_nonnull
 (* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type 'a t = { x : 'a; }
 type t_test = int t require_many
 type t_test = int t require_portable
-type t_test = int t require_contended
-type t_test = (unit -> unit) t require_contended
-type ('a : value mod contended) t_test = 'a t require_contended
+type t_test = int t require_uncontended
+type t_test = (unit -> unit) t require_uncontended
+type ('a : value mod uncontended) t_test = 'a t require_uncontended
 type 'a t_test = 'a t require_nonnull
 |}, Principal{|
 type 'a t = { x : 'a; }
@@ -666,16 +666,16 @@ Error: This type "int t" should be an instance of type "('a : value mod global)"
          because of the definition of require_global at line 15, characters 0-43.
 |}]
 
-type t_test = int t require_aliased
+type t_test = int t require_unique
 [%%expect {|
 Line 1, characters 14-19:
-1 | type t_test = int t require_aliased
+1 | type t_test = int t require_unique
                   ^^^^^
-Error: This type "int t" should be an instance of type "('a : value mod aliased)"
+Error: This type "int t" should be an instance of type "('a : value mod unique)"
        The kind of int t is immutable_data
          because of the definition of t at line 1, characters 0-22.
-       But the kind of int t must be a subkind of value mod aliased
-         because of the definition of require_aliased at line 16, characters 0-45.
+       But the kind of int t must be a subkind of value mod unique
+         because of the definition of require_unique at line 16, characters 0-43.
 |}]
 
 type t_test = (unit -> unit) t require_portable
@@ -692,11 +692,11 @@ Error: This type "(unit -> unit) t" should be an instance of type
          because of the definition of require_portable at line 18, characters 0-47.
 |}]
 
-type ('a : value mod contended) t_test = 'a t require_portable
+type ('a : value mod uncontended) t_test = 'a t require_portable
 [%%expect {|
-Line 1, characters 41-45:
-1 | type ('a : value mod contended) t_test = 'a t require_portable
-                                             ^^^^
+Line 1, characters 43-47:
+1 | type ('a : value mod uncontended) t_test = 'a t require_portable
+                                               ^^^^
 Error: This type "'a t" should be an instance of type "('b : value mod portable)"
        The kind of 'a t is immutable_data
          because of the definition of t at line 1, characters 0-22.

@@ -19,9 +19,9 @@ let mk_ref : ('a -> 'a myref) @@ portable = fun v -> {v}
 let read_ref : ('a : value mod portable) .
   ('a myref -> 'a @ portable contended) @@ portable = fun r -> r.v
 
-(* We need ['a] to be [portable] and [contended] to capture it in
+(* We need ['a] to be [portable] and [uncontended] to capture it in
    a [portable] closure like this.*)
-let write_ref : ('a : value mod portable contended) .
+let write_ref : ('a : value mod portable uncontended) .
   'a -> ('a myref -> unit) @ portable = fun v r -> r.v <- v
 
 type 'a guarded =

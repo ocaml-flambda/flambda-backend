@@ -43,7 +43,7 @@
 (** A [Name.t] is used to enable runtime identification of capsules. *)
 module Name : sig
 
-  type 'k t : value mod global portable many contended aliased
+  type 'k t : value mod global portable many uncontended unique
   (** A ['k Name.t] represents the identity of a capsule. *)
 
   val equality_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) Type.eq option @@ portable
@@ -58,7 +58,7 @@ module Access : sig
 
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod external_ global portable many aliased
+  type 'k t : value mod external_ global portable many unique
   (** ['k t] represents access to the current capsule, allowing wraping
       and unwraping [Data.t] values. An [uncontended] ['k t] indicates
       that ['k] is the current capsule. A [shared] ['k t] indicates that
@@ -93,7 +93,7 @@ module Password : sig
 
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod external_ portable many aliased contended
+  type 'k t : value mod external_ portable many unique uncontended
   (** ['k t] is the type of "passwords" representing permission for the
      current fiber to have [uncontended] access to the capsule
      ['k]. They are only ever avilable locally, so that they cannot move
@@ -115,7 +115,7 @@ module Password : sig
   (** Shared passwords represent permission to get shared access to a capsule *)
   module Shared : sig
 
-    type 'k t : value mod external_ portable many aliased contended
+    type 'k t : value mod external_ portable many unique uncontended
     (** ['k t] is the type of "shared passwords" representing permission
         for the current fiber to have [shared] access to the capsule
         ['k]. They are only ever avilable locally, so that they cannot
@@ -174,12 +174,12 @@ val access_shared_local :
     does not provide mutual exclusion between systhreads.  *)
 module Mutex : sig
 
-    type 'k t : value mod portable contended
+    type 'k t : value mod portable uncontended
     (** ['k t] is the type of the mutex that controls access to
         the capsule ['k]. This mutex is created when creating
         the capsule ['k] using {!create_with_mutex}. *)
 
-    type packed : value mod portable contended = P : 'k t -> packed
+    type packed : value mod portable uncontended = P : 'k t -> packed
     [@@unsafe_allow_any_mode_crossing
       "CR layouts v2.8: This can go away once we have proper mode crossing \
        inference for GADT constructors "]
@@ -216,12 +216,12 @@ end
 (** Requires runtime5. *)
 module Rwlock : sig
 
-    type 'k t : value mod portable contended
+    type 'k t : value mod portable uncontended
     (** ['k t] is the type of the reader-writer lock that controls reader and writer
         access to the capsule ['k]. This reader-writer lock can be created when creating
         the capsule ['k] using {!create_with_rwlock} *)
 
-    type packed : value mod portable contended = P : 'k t -> packed
+    type packed : value mod portable uncontended = P : 'k t -> packed
     [@@unsafe_allow_any_mode_crossing
       "CR layouts v2.8: This can go away once we have proper mode crossing \
        inference for GADT constructors "]
@@ -268,7 +268,7 @@ end
 (** Requires runtime5. *)
 module Condition : sig
 
-  type 'k t : value mod portable contended
+  type 'k t : value mod portable uncontended
   (** ['k t] is the type of a condition variable associated with the capsule ['k].
       This condition may only be used with the matching ['k Mutex.t]. *)
 
@@ -309,7 +309,7 @@ val create_with_rwlock : unit -> Rwlock.packed @@ portable
 (** Pointers to data within a capsule. *)
 module Data : sig
 
-    type ('a, 'k) t : value mod portable contended
+    type ('a, 'k) t : value mod portable uncontended
     (** [('a, 'k) t] is the type of ['a]s within the capsule ['k]. It
         can be passed between domains.  Operations on [('a, 'k) t]
         require a ['k Password.t], created from the ['k Mutex.t]. *)
@@ -455,14 +455,14 @@ module Data : sig
         so it must be [portable] and it is marked [contended]. *)
 
     val inject :
-      ('a : value mod contended) 'k.
+      ('a : value mod uncontended) 'k.
       'a @ portable -> ('a, 'k) t
       @@ portable
     (** [inject v] is a pointer to an immutable value [v] injected
         into the capsule ['k]. *)
 
     val inject_local :
-      ('a : value mod contended) 'k.
+      ('a : value mod uncontended) 'k.
       'a @ local portable -> ('a, 'k) t @ local
       @@ portable
     (** [inject_local v] is a pointer to an immutable value [v] injected

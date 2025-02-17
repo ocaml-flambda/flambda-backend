@@ -22,12 +22,12 @@ module Portable = struct
 end
 
 module Contended = struct
-  type 'a t : value mod contended = { contended : 'a @@ contended } [@@unboxed]
+  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
   [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 end
 
 module Portended = struct
-  type 'a t : value mod portable contended = { portended : 'a @@ portable contended }
+  type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended }
   [@@unboxed]
   [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 end

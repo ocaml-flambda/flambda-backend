@@ -64,20 +64,20 @@ type t_value_mod_global : value mod global
 type t_value_mod_local
 type t_value_mod_many : value mod many
 type t_value_mod_once
-type t_value_mod_unique
-type t_value_mod_aliased : value mod aliased
+type t_value_mod_unique : value mod unique
+type t_value_mod_aliased
 type t_value_mod_internal
-type t_value_mod_contended : value mod contended
-type t_value_mod_uncontended
+type t_value_mod_contended
+type t_value_mod_uncontended : value mod uncontended
 type t_value_mod_portable : value mod portable
 type t_value_mod_nonportable
 type t_value_mod_external : value mod external_
 type t_value_mod_external64 : value mod external64
 |}]
 
-type t1 : float32 mod internal unique many local
-type t2 : bits64 mod once external64 aliased
-type t3 : immediate mod local aliased
+type t1 : float32 mod internal aliased many local
+type t2 : bits64 mod once external64 unique
+type t3 : immediate mod local unique
 
 [%%expect {|
 type t1 : float32
@@ -117,11 +117,11 @@ Line 1, characters 28-33:
 Error: The locality axis has already been specified.
 |}]
 
-type t8 : value mod local many aliased contended nonportable external64 local
+type t8 : value mod local many unique uncontended nonportable external64 local
 [%%expect {|
-Line 1, characters 72-77:
-1 | type t8 : value mod local many aliased contended nonportable external64 local
-                                                                            ^^^^^
+Line 1, characters 73-78:
+1 | type t8 : value mod local many unique uncontended nonportable external64 local
+                                                                             ^^^^^
 Error: The locality axis has already been specified.
 |}]
 
@@ -181,18 +181,18 @@ Line 1, characters 19-22:
 Error: Unrecognized modifier foo.
 |}]
 
-type t : value mod global unique bar
+type t : value mod global aliased bar
 [%%expect {|
-Line 1, characters 33-36:
-1 | type t : value mod global unique bar
-                                     ^^^
+Line 1, characters 34-37:
+1 | type t : value mod global aliased bar
+                                      ^^^
 Error: Unrecognized modifier bar.
 |}]
 
-type t : value mod foobar aliased many
+type t : value mod foobar unique many
 [%%expect {|
 Line 1, characters 19-25:
-1 | type t : value mod foobar aliased many
+1 | type t : value mod foobar unique many
                        ^^^^^^
 Error: Unrecognized modifier foobar.
 |}]
@@ -211,7 +211,7 @@ Error: Unrecognized modifier fizzbuzz.
 let x : int as ('a: value) = 5
 let x : int as ('a : immediate) = 5
 let x : int as ('a : any) = 5;;
-let x : int as ('a: value mod global aliased many contended portable external_) = 5
+let x : int as ('a: value mod global aliased many uncontended portable external_) = 5
 
 [%%expect{|
 val x : int = 5
@@ -1123,14 +1123,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : value mod aliased = { x : t_value }
+type t : value mod unique = { x : t_value }
 [%%expect {|
-Line 1, characters 0-44:
-1 | type t : value mod aliased = { x : t_value }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-43:
+1 | type t : value mod unique = { x : t_value }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of value mod aliased
+       But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1156,14 +1156,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : value mod contended = { x : t_value }
+type t : value mod uncontended = { x : t_value }
 [%%expect {|
-Line 1, characters 0-46:
-1 | type t : value mod contended = { x : t_value }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-48:
+1 | type t : value mod uncontended = { x : t_value }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of value mod contended
+       But the kind of type "t" must be a subkind of value mod uncontended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1262,14 +1262,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : value mod aliased = Foo of t_value
+type t : value mod unique = Foo of t_value
 [%%expect {|
-Line 1, characters 0-43:
-1 | type t : value mod aliased = Foo of t_value
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-42:
+1 | type t : value mod unique = Foo of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of value mod aliased
+       But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1295,14 +1295,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : value mod contended = Foo of t_value
+type t : value mod uncontended = Foo of t_value
 [%%expect {|
-Line 1, characters 0-45:
-1 | type t : value mod contended = Foo of t_value
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-47:
+1 | type t : value mod uncontended = Foo of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of value mod contended
+       But the kind of type "t" must be a subkind of value mod uncontended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1342,18 +1342,18 @@ type t = private int
 val f : t -> t = <fun>
 |}]
 
-type t : bits64 mod portable aliased
+type t : bits64 mod portable unique
 type u = private t
-let f (x : t) : _ as (_ : bits64 mod portable aliased) = x
+let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
 type t : bits64
 type u = private t
 val f : t -> t = <fun>
 |}]
 
-type t : bits64 mod portable aliased
+type t : bits64 mod portable unique
 type u : bits64 = private t
-let f (x : t) : _ as (_ : bits64 mod portable aliased) = x
+let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
 type t : bits64
 type u = private t
@@ -1361,9 +1361,9 @@ val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since u is nominative *)
 
-type t : bits64 mod portable aliased
-type u : bits64 mod portable aliased = private t
-let f (x : t) : _ as (_ : bits64 mod portable aliased) = x
+type t : bits64 mod portable unique
+type u : bits64 mod portable unique = private t
+let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
 type t : bits64
 type u = private t
@@ -1397,16 +1397,16 @@ Error: The kind of type "t" is value
 |}]
 
 type t : value
-type u : value mod aliased = private t
+type u : value mod unique = private t
 [%%expect {|
 type t
-Line 2, characters 0-38:
-2 | type u : value mod aliased = private t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-37:
+2 | type u : value mod unique = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because of the definition of t at line 1, characters 0-14.
-       But the kind of type "t" must be a subkind of value mod aliased
-         because of the definition of u at line 2, characters 0-38.
+       But the kind of type "t" must be a subkind of value mod unique
+         because of the definition of u at line 2, characters 0-37.
 |}]
 
 type t : value
@@ -1436,16 +1436,16 @@ Error: The kind of type "t" is value
 |}]
 
 type t : value
-type u : value mod contended = private t
+type u : value mod uncontended = private t
 [%%expect {|
 type t
-Line 2, characters 0-40:
-2 | type u : value mod contended = private t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-42:
+2 | type u : value mod uncontended = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because of the definition of t at line 1, characters 0-14.
-       But the kind of type "t" must be a subkind of value mod contended
-         because of the definition of u at line 2, characters 0-40.
+       But the kind of type "t" must be a subkind of value mod uncontended
+         because of the definition of u at line 2, characters 0-42.
 |}]
 
 type t : value

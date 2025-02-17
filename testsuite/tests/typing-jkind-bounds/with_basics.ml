@@ -8,7 +8,7 @@ let use_unique : 'a @ unique -> unit = fun _ -> ()
 let use_uncontended : 'a @ uncontended -> unit = fun _ -> ()
 let use_portable : 'a @ portable -> unit = fun _ -> ()
 let use_many : 'a @ many -> unit = fun _ -> ()
-type ('a : value mod contended) require_contended
+type ('a : value mod uncontended) require_uncontended
 type ('a : value mod portable) require_portable
 [%%expect{|
 val use_global : 'a -> unit = <fun>
@@ -16,7 +16,7 @@ val use_unique : 'a @ unique -> unit = <fun>
 val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val use_many : 'a -> unit = <fun>
-type ('a : value mod contended) require_contended
+type ('a : value mod uncontended) require_uncontended
 type ('a : value mod portable) require_portable
 |}]
 
@@ -235,23 +235,25 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (* looks at kinds *)
-let foo (type a : value mod contended portable)
+let foo (type a : value mod uncontended portable)
       (t : a option @@ contended nonportable) =
   use_uncontended t;
   use_portable t
 
 [%%expect{|
-val foo : ('a : value mod contended portable). 'a option @ contended -> unit =
+val foo :
+  ('a : value mod uncontended portable). 'a option @ contended -> unit =
   <fun>
 |}]
 
 (* CR layouts v2.8: This should be accepted *)
-let foo (t : ('a : value mod contended portable) option @@ contended nonportable) =
+let foo (t : ('a : value mod uncontended portable) option @@ contended nonportable) =
   use_uncontended t;
   use_portable t
 
 [%%expect{|
-val foo : ('a : value mod contended portable). 'a option @ contended -> unit =
+val foo :
+  ('a : value mod uncontended portable). 'a option @ contended -> unit =
   <fun>
 |}, Principal{|
 Line 2, characters 18-19:
@@ -260,7 +262,7 @@ Line 2, characters 18-19:
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo (type a : value mod contended portable) (t : a option @@ once) =
+let foo (type a : value mod uncontended portable) (t : a option @@ once) =
   use_many t
 
 [%%expect{|
@@ -270,7 +272,7 @@ Line 2, characters 11-12:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : ('a : value mod contended portable) option @@ local) =
+let foo (t : ('a : value mod uncontended portable) option @@ local) =
   use_global t [@nontail]
 
 [%%expect{|
@@ -280,7 +282,7 @@ Line 2, characters 13-14:
 Error: This value escapes its region.
 |}]
 
-let foo (type a : value mod aliased) (t : a option @@ aliased) =
+let foo (type a : value mod unique) (t : a option @@ aliased) =
   use_unique t
 
 [%%expect{|
@@ -505,17 +507,17 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (* looks at kinds *)
-let foo (type a : value mod contended portable)
+let foo (type a : value mod uncontended portable)
       (t : a list @@ contended nonportable) =
   use_uncontended t;
   use_portable t
 
 [%%expect{|
-val foo : ('a : value mod contended portable). 'a list @ contended -> unit =
+val foo : ('a : value mod uncontended portable). 'a list @ contended -> unit =
   <fun>
 |}]
 
-let foo (type a : value mod contended portable) (t : a list @@ once) =
+let foo (type a : value mod uncontended portable) (t : a list @@ once) =
   use_many t
 
 [%%expect{|
@@ -525,7 +527,7 @@ Line 2, characters 11-12:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (type a : value mod contended portable) (t : a list @@ local) =
+let foo (type a : value mod uncontended portable) (t : a list @@ local) =
   use_global t [@nontail]
 
 [%%expect{|
@@ -535,7 +537,7 @@ Line 2, characters 13-14:
 Error: This value escapes its region.
 |}]
 
-let foo (type a : value mod contended portable) (t : a list @@ aliased) =
+let foo (type a : value mod uncontended portable) (t : a list @@ aliased) =
   use_unique t
 
 [%%expect{|
@@ -612,15 +614,15 @@ val depth : 'a t -> int = <fun>
 (*************************)
 (* TEST: gadt refinement *)
 
-type 'a contended_with : value mod contended with 'a
+type 'a uncontended_with : value mod uncontended with 'a
 type _ t =
-  | Foo : ('a : value mod contended) t
+  | Foo : ('a : value mod uncontended) t
 [%%expect {|
-type 'a contended_with : value mod contended
-type _ t = Foo : ('a : value mod contended). 'a t
+type 'a uncontended_with : value mod uncontended
+type _ t = Foo : ('a : value mod uncontended). 'a t
 |}]
 
-let f (type a) (t : a t) (x : a contended_with @@ contended) : _ @@ uncontended =
+let f (type a) (t : a t) (x : a uncontended_with @@ contended) : _ @@ uncontended =
   match t with
   | _ -> x
 [%%expect {|
@@ -631,11 +633,12 @@ Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 
-let f (type a) (t : a t) (x : a contended_with @@ contended) : _ @@ uncontended =
+let f (type a) (t : a t) (x : a uncontended_with @@ contended) : _ @@ uncontended =
   match t with
   | Foo -> x
 [%%expect {|
-val f : 'a t -> 'a contended_with @ contended -> 'a contended_with = <fun>
+val f : 'a t -> 'a uncontended_with @ contended -> 'a uncontended_with =
+  <fun>
 |}]
 
 (**************************************)
@@ -674,14 +677,14 @@ Error: The kind of type "Value.t" is value
 (* TEST: abstract types *)
 
 (*********************)
-type t : value mod contended with int
+type t : value mod uncontended with int
 [%%expect {|
-type t : value mod contended
+type t : value mod uncontended
 |}]
 
-type t_test = t require_contended
+type t_test = t require_uncontended
 [%%expect {|
-type t_test = t require_contended
+type t_test = t require_uncontended
 |}]
 
 type t_test = t require_portable
@@ -690,8 +693,8 @@ Line 1, characters 14-15:
 1 | type t_test = t require_portable
                   ^
 Error: This type "t" should be an instance of type "('a : value mod portable)"
-       The kind of t is value mod contended
-         because of the definition of t at line 1, characters 0-37.
+       The kind of t is value mod uncontended
+         because of the definition of t at line 1, characters 0-39.
        But the kind of t must be a subkind of value mod portable
          because of the definition of require_portable at line 7, characters 0-47.
 |}]
@@ -710,9 +713,9 @@ Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (*********************)
-type 'a t : value mod contended with int
+type 'a t : value mod uncontended with int
 [%%expect {|
-type 'a t : value mod contended
+type 'a t : value mod uncontended
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
@@ -729,9 +732,9 @@ Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (*********************)
-type 'a t : value mod contended with 'a
+type 'a t : value mod uncontended with 'a
 [%%expect {|
-type 'a t : value mod contended
+type 'a t : value mod uncontended
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t
@@ -756,25 +759,25 @@ Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (*********************)
-type ('a : immutable_data) t : value mod contended with 'a
+type ('a : immutable_data) t : value mod uncontended with 'a
 [%%expect {|
-type ('a : immutable_data) t : value mod contended
+type ('a : immutable_data) t : value mod uncontended
 |}]
 
-type 'a t_test = 'a t require_contended
+type 'a t_test = 'a t require_uncontended
 (* CR layouts v2.8: fix principal case *)
 [%%expect {|
-type ('a : immutable_data) t_test = 'a t require_contended
+type ('a : immutable_data) t_test = 'a t require_uncontended
 |}, Principal{|
 Line 1, characters 17-21:
-1 | type 'a t_test = 'a t require_contended
+1 | type 'a t_test = 'a t require_uncontended
                      ^^^^
 Error: This type "'a t" should be an instance of type
-         "('b : value mod contended)"
-       The kind of 'a t is value mod contended
-         because of the definition of t at line 1, characters 0-58.
-       But the kind of 'a t must be a subkind of value mod contended
-         because of the definition of require_contended at line 6, characters 0-49.
+         "('b : value mod uncontended)"
+       The kind of 'a t is value mod uncontended
+         because of the definition of t at line 1, characters 0-60.
+       But the kind of 'a t must be a subkind of value mod uncontended
+         because of the definition of require_uncontended at line 6, characters 0-53.
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t
@@ -802,38 +805,39 @@ Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (*********************)
-type ('a, 'b) t : value mod contended with 'a with 'b
+type ('a, 'b) t : value mod uncontended with 'a with 'b
 [%%expect {|
-type ('a, 'b) t : value mod contended
+type ('a, 'b) t : value mod uncontended
 |}]
 
-type t_test = (int, int) t require_contended
+type t_test = (int, int) t require_uncontended
 (* CR layouts v2.8: fix principal case *)
 [%%expect {|
-type t_test = (int, int) t require_contended
+type t_test = (int, int) t require_uncontended
 |}, Principal{|
 Line 1, characters 14-26:
-1 | type t_test = (int, int) t require_contended
+1 | type t_test = (int, int) t require_uncontended
                   ^^^^^^^^^^^^
 Error: This type "(int, int) t" should be an instance of type
-         "('a : value mod contended)"
-       The kind of (int, int) t is value mod contended
-         because of the definition of t at line 1, characters 0-53.
-       But the kind of (int, int) t must be a subkind of value mod contended
-         because of the definition of require_contended at line 6, characters 0-49.
+         "('a : value mod uncontended)"
+       The kind of (int, int) t is value mod uncontended
+         because of the definition of t at line 1, characters 0-55.
+       But the kind of (int, int) t must be a subkind of
+         value mod uncontended
+         because of the definition of require_uncontended at line 6, characters 0-53.
 |}]
 
-type ('a, 'b) t_test = ('a, 'b) t require_contended
+type ('a, 'b) t_test = ('a, 'b) t require_uncontended
 [%%expect {|
 Line 1, characters 23-33:
-1 | type ('a, 'b) t_test = ('a, 'b) t require_contended
+1 | type ('a, 'b) t_test = ('a, 'b) t require_uncontended
                            ^^^^^^^^^^
 Error: This type "('a, 'b) t" should be an instance of type
-         "('c : value mod contended)"
-       The kind of ('a, 'b) t is value mod contended
-         because of the definition of t at line 1, characters 0-53.
-       But the kind of ('a, 'b) t must be a subkind of value mod contended
-         because of the definition of require_contended at line 6, characters 0-49.
+         "('c : value mod uncontended)"
+       The kind of ('a, 'b) t is value mod uncontended
+         because of the definition of t at line 1, characters 0-55.
+       But the kind of ('a, 'b) t must be a subkind of value mod uncontended
+         because of the definition of require_uncontended at line 6, characters 0-53.
 |}]
 
 let foo (t : (int, int) t @@ contended) = use_uncontended t
@@ -861,12 +865,12 @@ Error: This value is "contended" but expected to be "uncontended".
 (* TEST: abstract types can hide mode crossing behavior *)
 
 module T : sig
-  type t : value mod contended
+  type t : value mod uncontended
 end = struct
   type t = { x : int }
 end
 [%%expect {|
-module T : sig type t : value mod contended end
+module T : sig type t : value mod uncontended end
 |}]
 
 let foo (t : T.t @@ contended) = use_uncontended t
@@ -884,12 +888,12 @@ Error: This value is "nonportable" but expected to be "portable".
 
 (*********************)
 module T : sig
-  type 'a t : value mod contended with 'a
+  type 'a t : value mod uncontended with 'a
 end = struct
   type 'a t = { x : 'a }
 end
 [%%expect {|
-module T : sig type 'a t : value mod contended end
+module T : sig type 'a t : value mod uncontended end
 |}]
 
 let foo (t : int T.t @@ contended) = use_uncontended t

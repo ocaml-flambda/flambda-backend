@@ -20,7 +20,7 @@ open Global
 
 (* Like [int Stdlib.Atomic.t], but [portable]. *)
 module A = struct
-  type t : value mod portable contended
+  type t : value mod portable uncontended
 
   external make : int -> t @@ portable = "%makemutable"
   external fetch_and_add : t -> int -> int @@ portable = "%atomic_fetch_add"
@@ -35,7 +35,7 @@ end
 external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
 
 module Name : sig
-  type 'k t : value mod external_ global portable many contended aliased
+  type 'k t : value mod external_ global portable many uncontended unique
   type packed = P : 'k t -> packed [@@unboxed]
 
   val make : unit -> packed @@ portable
@@ -56,7 +56,7 @@ end
 module Access : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod external_ global portable many aliased
+  type 'k t : value mod external_ global portable many unique
 
   type packed = P : 'k t -> packed [@@unboxed]
 
@@ -89,7 +89,7 @@ let initial = Access.unsafe_mk ()
 module Password : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t : value mod external_ portable many aliased contended
+  type 'k t : value mod external_ portable many unique uncontended
 
   type packed = P : 'k t -> packed [@@unboxed]
 
@@ -100,7 +100,7 @@ module Password : sig
   module Shared : sig
     (* CR layouts v5: this should have layout [void], but
        [void] can't be used for function argument and return types yet. *)
-    type 'k t : value mod external_ portable many aliased contended
+    type 'k t : value mod external_ portable many unique uncontended
 
     (* Can break the soundness of the API. *)
     val unsafe_mk : 'k Name.t -> 'k t @@ portable
@@ -134,7 +134,7 @@ external raise_with_backtrace: exn -> Printexc.raw_backtrace -> 'a @ portable @@
 external get_raw_backtrace: unit -> Printexc.raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
 module Data = struct
-  type ('a, 'k) t : value mod portable contended
+  type ('a, 'k) t : value mod portable uncontended
 
   exception Encapsulated : 'k Name.t * (exn, 'k) t -> exn
 
@@ -277,7 +277,7 @@ let[@inline] access_shared pw f =
 
 (* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
-  type t : value mod portable contended
+  type t : value mod portable uncontended
   external create: unit -> t @@ portable = "caml_capsule_mutex_new"
   external lock: t -> unit @@ portable = "caml_capsule_mutex_lock"
   external unlock: t -> unit @@ portable = "caml_capsule_mutex_unlock"
@@ -285,7 +285,7 @@ end
 
 (* Reader writer lock *)
 module Rw = struct
-  type t : value mod portable contended
+  type t : value mod portable uncontended
   external create: unit -> t @@ portable = "caml_capsule_rwlock_new"
   external lock_read: t -> unit @@ portable = "caml_capsule_rwlock_rdlock"
   external lock_write: t -> unit @@ portable = "caml_capsule_rwlock_wrlock"
@@ -297,14 +297,14 @@ module Mutex = struct
   (* Illegal mode crossing: ['k t] has a mutable field [poisoned]. It's safe,
      since [poisoned] protected by [mutex] and not exposed in the API, but
      is not allowed by the type system. *)
-  type 'k t : value mod portable contended =
+  type 'k t : value mod portable uncontended =
     { name : 'k Name.t
     ; mutex : M.t
     ; mutable poisoned : bool
     }
   [@@unsafe_allow_any_mode_crossing]
 
-  type packed : value mod portable contended = P : 'k t -> packed
+  type packed : value mod portable uncontended = P : 'k t -> packed
   [@@unsafe_allow_any_mode_crossing
     "CR layouts v2.8: illegal mode crossing on the current version of the compiler, but \
      should be legal."]
@@ -354,14 +354,14 @@ end
 
 module Rwlock = struct
 
-  type 'k t : value mod portable contended =
+  type 'k t : value mod portable uncontended =
     { name : 'k Name.t
     ; rwlock : Rw.t
     ; mutable poisoned : bool
     }
   [@@unsafe_allow_any_mode_crossing]
 
-  type packed : value mod portable contended = P : 'k t -> packed
+  type packed : value mod portable uncontended = P : 'k t -> packed
   [@@unsafe_allow_any_mode_crossing
     "CR layouts v2.8: This can go away once we have proper mode crossing \
      inference for GADT constructors "]
@@ -426,7 +426,7 @@ end
 
 module Condition = struct
 
-  type 'k t : value mod portable contended
+  type 'k t : value mod portable uncontended
 
   external create : unit -> 'k t @@ portable = "caml_capsule_condition_new"
   external wait : 'k t -> M.t -> unit @@ portable = "caml_capsule_condition_wait"
