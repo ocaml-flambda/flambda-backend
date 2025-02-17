@@ -183,20 +183,25 @@ The following environment variables are also consulted:
   \item[v] ("verbose")  What GC messages to print to stderr.  This
   is a sum of values selected from the following:
   \begin{options}
-        \item[1   (= 0x001)] Start and end of major GC cycle.
-        \item[2   (= 0x002)] Minor collection and major GC slice.
-        \item[4   (= 0x004)] Growing and shrinking of the heap.
-        \item[8   (= 0x008)] Resizing of stacks and memory manager tables.
-        \item[16  (= 0x010)] Heap compaction.
-        \item[32  (= 0x020)] Change of GC parameters.
-        \item[64  (= 0x040)] Computation of major GC slice size.
-        \item[128 (= 0x080)] Calling of finalization functions
-        \item[256 (= 0x100)] Startup messages (loading the bytecode
-           executable file, resolving shared libraries).
-        \item[512 (= 0x200)] Computation of compaction-triggering condition.
-        \item[1024 (= 0x400)] Output GC statistics at program exit.
-        \item[2048 (= 0x800)] GC debugging messages.
-        \item[4096 (= 0x1000)] Address space reservation changes.
+        \item[1   (= 0x00001)] Main events of each major GC cycle.
+        \item[2   (= 0x00002)] Minor collection events.
+        \item[4   (= 0x00004)] Per-slice events.
+        \item[8   (= 0x00008)] Heap compaction.
+        \item[16  (= 0x00010)] GC policy computations.
+        \item[32  (= 0x00020)] Address space reservation changes.
+        \item[64  (= 0x00040)] Major domain events (such as creation and termination).
+        \item[128 (= 0x00080)] Stop-the-world events.
+        \item[256 (= 0x00100)] Minor heap events (such as creation and resizing).
+        \item[512 (= 0x00200)] Major heap events (such as creation and teardown).
+        \item[1024 (= 0x00400)] Resizing of GC tables.
+        \item[2048 (= 0x00800)] Allocation and resizing of stacks.
+        \item[4096 (= 0x01000)] Output GC statistics at program exit.
+        \item[8192 (= 0x02000)] Change of GC parameters.
+        \item[16384 (= 0x04000)] Calling of finalization functions.
+        \item[32768 (= 0x08000)] Bytecode executable and shared library search at start-up.
+        \item[65536 (= 0x10000)] GC debugging messages.
+        \item[131072 (= 0x20000)] Changes to the major GC mark stack.
+        \item[268435456 (= 0x10000000)] Do not include timestamp and domain ID in log messages.
   \end{options}
   \item[V] ("verify_heap") runs an integrity check on the heap just after
     the completion of a major GC cycle

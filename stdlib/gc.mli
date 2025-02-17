@@ -147,6 +147,28 @@ type control =
     (** This value controls the GC messages on standard error output.
        It is a sum of some of the following flags, to print messages
        on the corresponding events:
+        - [0x00001]    Main events of each major GC cycle
+        - [0x00002]    Minor collection events
+        - [0x00004]    Per-slice events
+        - [0x00008]    Heap compaction
+        - [0x00010]    GC policy computations
+        - [0x00020]    Address space reservation changes
+        - [0x00040]    Major domain events (such as creation and termination)
+        - [0x00080]    Stop-the-world events
+        - [0x00100]    Minor heap events (such as creation and resizing)
+        - [0x00200]    Major heap events (such as creation and teardown)
+        - [0x00400]    Resizing of GC tables
+        - [0x00800]    Allocation and resizing of stacks
+        - [0x01000]    Output GC statistics at program exit
+        - [0x02000]    Change of GC parameters
+        - [0x04000]    Calling of finalization functions
+        - [0x08000]    Bytecode executable and shared library search at start-up
+        - [0x10000]    GC debugging messages
+        - [0x20000]    Changes to the major GC mark stack
+        - [0x10000000] Do not include timestamp and domain ID in log messages
+
+        For runtime 4, the flags are as follows (although the messages
+        produced may not fit these descriptions very well):
        - [0x0001] Start and end of major GC cycle.
        - [0x0002] Minor collection and major GC slice.
        - [0x0004] Growing and shrinking of the heap.
@@ -159,7 +181,8 @@ type control =
        - [0x0200] Computation of compaction-triggering condition.
        - [0x0400] Output GC statistics at program exit.
        - [0x0800] GC debugging messages.
-       - [0x1000] Address space reservation changes.
+       - [0x1000] Include domain ID in log messages.
+       - [0x2000] Include timestamp in log messages.
        Default: 0. *)
 
     max_overhead : int;
