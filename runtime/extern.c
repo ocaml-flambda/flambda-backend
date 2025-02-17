@@ -470,7 +470,7 @@ static void extern_failwith(struct caml_extern_state* s, char *msg)
 
 static void extern_stack_overflow(struct caml_extern_state* s)
 {
-  CAML_GC_MESSAGE(HEAPSIZE,
+  CAML_GC_MESSAGE(DEBUG,
                   "Stack overflow in marshaling value\n");
   free_extern_output(s);
   caml_raise_out_of_memory();
