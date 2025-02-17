@@ -306,13 +306,7 @@ module type S = sig
     module Areality : Common
 
     module Monadic : sig
-      module Const : sig
-        include Lattice with type t = monadic
-
-        val max_axis : (t, 'a) Axis.t -> 'a
-
-        val min_axis : (t, 'a) Axis.t -> 'a
-      end
+      module Const : Lattice with type t = monadic
 
       include Common with module Const := Const
 
@@ -326,10 +320,6 @@ module type S = sig
         val eq : t -> t -> bool
 
         val print_axis : (t, 'a) Axis.t -> Format.formatter -> 'a -> unit
-
-        val max_axis : (t, 'a) Axis.t -> 'a
-
-        val min_axis : (t, 'a) Axis.t -> 'a
       end
 
       type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error

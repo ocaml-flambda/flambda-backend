@@ -1694,6 +1694,10 @@ let type_expr ppf ty =
   prepare_for_printing [ty];
   prepared_type_expr ppf ty
 
+let () =
+  Env.print_type_expr := type_expr;
+  Jkind.set_print_type_expr type_expr
+
 (* "Half-prepared" type expression: [ty] should have had its names reserved, but
    should not have had its loops marked. *)
 let type_expr_with_reserved_names ppf ty =
@@ -1720,11 +1724,6 @@ let type_path ppf p =
 let tree_of_type_scheme ty =
   prepare_for_printing [ty];
   tree_of_typexp Type_scheme ty
-
-let () =
-  Env.print_type_expr := type_expr;
-  Jkind.set_outcometree_of_type_scheme tree_of_type_scheme;
-  Jkind.set_outcometree_of_modalities_new tree_of_modalities_new
 
 (* Print one type declaration *)
 
