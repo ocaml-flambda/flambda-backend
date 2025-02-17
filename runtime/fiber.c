@@ -108,9 +108,10 @@ void caml_change_max_stack_size (uintnat new_max_wsize)
 
   if (new_max_wsize < wsize) new_max_wsize = wsize;
   if (new_max_wsize != caml_max_stack_wsize){
-    caml_gc_log ("Changing stack limit to %"
-                 ARCH_INTNAT_PRINTF_FORMAT "uk bytes",
-                     new_max_wsize * sizeof (value) / 1024);
+    CAML_GC_MESSAGE(STACKS,
+                    "Changing stack limit to %"
+                    ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
+                    Bsize_wsize(new_max_wsize) / 1024);
   }
   caml_max_stack_wsize = new_max_wsize;
 }
@@ -810,13 +811,15 @@ int caml_try_realloc_stack(asize_t required_space)
   } while (wsize < stack_used + required_space);
 
   if (wsize > 4096 / sizeof(value)) {
-    caml_gc_log ("Growing stack to %"
-                 ARCH_INTNAT_PRINTF_FORMAT "uk bytes",
-                 (uintnat) wsize * sizeof(value) / 1024);
+    CAML_GC_MESSAGE(STACKS,
+                    "Growing stack to %"
+                    ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
+                    Bsize_wsize(wsize) / 1024);
   } else {
-    caml_gc_log ("Growing stack to %"
-                 ARCH_INTNAT_PRINTF_FORMAT "u bytes",
-                 (uintnat) wsize * sizeof(value));
+    CAML_GC_MESSAGE(STACKS,
+                    "Growing stack to %"
+                    ARCH_INTNAT_PRINTF_FORMAT "u bytes\n",
+                    Bsize_wsize(wsize) * sizeof(value));
   }
 
   new_stack = caml_alloc_stack_noexc(wsize,
