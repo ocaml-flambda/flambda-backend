@@ -693,6 +693,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
+   %{dep:middle_end/flambda2/datalog/flambda2_datalog.a}
    %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
@@ -731,6 +732,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
+   %{dep:middle_end/flambda2/datalog/flambda2_datalog.cma}
    %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cma}
@@ -769,6 +771,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
+   %{dep:middle_end/flambda2/datalog/flambda2_datalog.cmxa}
    %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
