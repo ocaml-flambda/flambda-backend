@@ -143,16 +143,11 @@ and 'd jkind_desc = (Jkind_types.Sort.t Jkind_types.Layout.t, 'd) layout_and_axe
 
 and jkind_desc_packed = Pack_jkind_desc : ('l * 'r) jkind_desc -> jkind_desc_packed
 
-and 'd jkind_quality =
-  | Best : ('l * disallowed) jkind_quality
-  | Not_best : ('l * 'r) jkind_quality
-
 and 'd jkind =
   { jkind : 'd jkind_desc;
     annotation : Parsetree.jkind_annotation option;
     history : jkind_history;
-    has_warned : bool;
-    quality : 'd jkind_quality;
+    has_warned : bool
   }
   constraint 'd = 'l * 'r
 
