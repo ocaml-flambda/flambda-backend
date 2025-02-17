@@ -106,59 +106,45 @@ module Layout : sig
   end
 end
 
-module With_bounds : sig
-  module Type_info : sig
-    type relevant_for_nullability =
-      | Relevant_for_nullability
-      | Irrelevant_for_nullability
-
-    type +'type_expr t =
-      { type_expr : 'type_expr;
-        modality : Mode.Modality.Value.Const.t;
-        relevant_for_nullability : relevant_for_nullability
-      }
-
-    val create :
-      type_expr:'type_expr ->
-      modality:Mode.Modality.Value.Const.t ->
-      relevant_for_nullability:relevant_for_nullability ->
-      'type_expr t
-
-    val is_relevant_for_nullability : 'type_expr t -> bool
-  end
-
+module Baggage : sig
   type (+'type_expr, 'd) t =
-    | No_with_bounds : ('type_expr, 'l * 'r) t
+    | No_baggage : ('type_expr, 'l * 'r) t
     (* There must always be at least one type. *)
-    | With_bounds :
-        'type_expr Type_info.t * 'type_expr Type_info.t list
+    | Baggage :
+        'type_expr * 'type_expr list
         -> ('type_expr, 'l * Allowance.disallowed) t
 
+  val as_list : ('type_expr, 'l * 'r) t -> 'type_expr list
+
+  val has_baggage : ('type_expr, 'l * 'r) t -> bool
+end
+
+module Bound : sig
+  open Allowance
+
+  type (+'type_expr, 'd, 'a) t =
+    { modifier : 'a;
+      baggage : ('type_expr, 'd) Baggage.t
+    }
+    constraint 'd = 'l * 'r
+
+  val try_allow_l :
+    ('type_expr, 'l * 'r, 'a) t -> ('type_expr, allowed * 'r, 'a) t option
+
+  val try_allow_r :
+    ('type_expr, 'l * 'r, 'a) t -> ('type_expr, 'l * allowed, 'a) t option
+end
+
+module Bounds : sig
+  include module type of Jkind_axis.Axis_collection (Bound)
+
   include Allowance.Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) t
-
-  val as_list : ('type_expr, 'l * 'r) t -> 'type_expr Type_info.t list
-
-  val has_with_bounds : ('type_expr, 'l * Allowance.disallowed) t -> bool
-
-  val types_on_axis :
-    axis:'a Jkind_axis.Axis.t -> ('type_expr, 'l * 'r) t -> 'type_expr list
-
-  (* CR aspsmith: this function can be removed once we remove allow-illegal-crossing *)
-  val compose_modality :
-    then_:Mode.Modality.t -> ('type_expr, 'l * 'r) t -> ('type_expr, 'l * 'r) t
 
   val debug_print :
     print_type_expr:(Format.formatter -> 'type_expr -> unit) ->
     Format.formatter ->
-    ('type_expr, 'l * 'r) t ->
+    ('type_expr, 'd) t ->
     unit
-end
-
-module Bounds : sig
-  include module type of
-      Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
-
-  val debug_print : Format.formatter -> t -> unit
 end
 
 module Layout_and_axes : sig
@@ -166,8 +152,7 @@ module Layout_and_axes : sig
 
   type (+'type_expr, 'layout, 'd) t =
     { layout : 'layout;
-      upper_bounds : Bounds.t;
-      with_bounds : ('type_expr, 'd) With_bounds.t
+      upper_bounds : ('type_expr, 'd) Bounds.t
     }
     constraint 'd = 'l * 'r
 

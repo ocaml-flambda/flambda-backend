@@ -2224,10 +2224,10 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tconstr (p, args, _) -> begin try
       let type_decl = Env.find_type p env in
       let jkind = type_decl.type_jkind in
-      (* Checking [has_with_bounds] here is needed for correctness, because
+      (* Checking [has_baggage] here is needed for correctness, because
          intersection types sometimes do not unify with themselves. Removing
          this check causes typing-misc/pr7937.ml to fail. *)
-      if Jkind.has_with_bounds jkind
+      if Jkind.has_baggage jkind
       then
         let level = get_level ty in
         (* CR layouts v2.8: We could possibly skip this substitution if we're

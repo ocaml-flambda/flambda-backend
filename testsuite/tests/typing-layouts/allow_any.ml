@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts_alpha -infer-with-bounds";
+ flags = "-extension layouts_alpha";
  expect;
 *)
 
@@ -14,7 +14,7 @@ val use_uncontended : 'a -> 'a = <fun>
 Line 5, characters 0-62:
 5 | type t : value mod uncontended = { mutable contents : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with string @@ global many aliased
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod uncontended
          because of the annotation on the declaration of the type t.
@@ -52,16 +52,6 @@ Error: The layout of type "t" is value
          because it's a boxed record type.
        But the layout of type "t" must be a sublayout of float64
          because of the annotation on the declaration of the type t.
-|}]
-
-(* Annotations with with-bounds aren't allowed *)
-type 'a t : value mod uncontended with 'a = { mutable contents : 'a }
-[@@unsafe_allow_any_mode_crossing]
-[%%expect{|
-Lines 1-2, characters 0-34:
-1 | type 'a t : value mod uncontended with 'a = { mutable contents : 'a }
-2 | [@@unsafe_allow_any_mode_crossing]
-Error: [@@unsafe_allow_any_mode_crossing] is not allowed with a kind annotation containing with-bounds.
 |}]
 
 (* Abstract types in signatures should work with the unsafe kind *)

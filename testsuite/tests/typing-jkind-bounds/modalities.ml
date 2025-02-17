@@ -96,8 +96,12 @@ Error: This expression has type "string t"
        but an expression was expected of type
          "('a : value mod global & value mod global)"
        The kind of string t is
-         immediate with string @@ global with string @@ global & immediate
-         with string @@ global with string @@ global
+         value_or_null mod global unique many uncontended portable unyielding
+                           external_ non_null
+         with string @@ global
+         & value_or_null mod global unique many uncontended portable
+                             unyielding external_ non_null
+         with string @@ global
          because of the definition of t at line 4, characters 0-51.
        But the kind of string t must be a subkind of
          value mod global & value mod global
@@ -124,9 +128,12 @@ Line 1, characters 65-66:
 Error: This expression has type "(string -> string) t"
        but an expression was expected of type "('a : value & value)"
        The kind of (string -> string) t is
-         immediate with string -> string @@ global
-         with string -> string @@ global & immediate
-         with string -> string @@ global with string -> string @@ global
+         value_or_null mod global unique many uncontended portable unyielding
+                           external_ non_null
+         with string -> string @@ global
+         & value_or_null mod global unique many uncontended portable
+                             unyielding external_ non_null
+         with string -> string @@ global
          because of the definition of t at line 4, characters 0-51.
        But the kind of (string -> string) t must be a subkind of
          value & value

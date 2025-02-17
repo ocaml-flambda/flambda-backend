@@ -1832,13 +1832,6 @@ module Value_with (Areality : Areality) = struct
     | Comonadic ax -> Comonadic.Const.lattice_of_axis ax
     | Monadic ax -> Monadic.Const.lattice_of_axis ax
 
-  let all_axes =
-    [ P (Comonadic Areality);
-      P (Monadic Uniqueness);
-      P (Comonadic Linearity);
-      P (Monadic Contention);
-      P (Comonadic Portability) ]
-
   let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
     | Comonadic ax -> Comonadic.proj_obj ax
@@ -2704,10 +2697,6 @@ module Modality = struct
         match ax with
         | Monadic ax -> Monadic.proj ax monadic
         | Comonadic ax -> Comonadic.proj ax comonadic
-
-      let print ppf { monadic; comonadic } =
-        Format.fprintf ppf "%a;%a" Monadic.print monadic Comonadic.print
-          comonadic
     end
 
     type t = (Monadic.t, Comonadic.t) monadic_comonadic

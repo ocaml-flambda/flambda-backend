@@ -355,8 +355,6 @@ module type S = sig
 
     val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
 
-    val all_axes : ('l * 'r) axis_packed list
-
     type ('a, 'b, 'c, 'd, 'e, 'f) modes =
       { areality : 'a;
         linearity : 'b;
@@ -396,10 +394,6 @@ module type S = sig
 
         val print : Format.formatter -> t -> unit
       end
-
-      val is_max : ('m, 'a, 'd) axis -> 'a -> bool
-
-      val is_min : ('m, 'a, 'd) axis -> 'a -> bool
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
 
@@ -583,9 +577,6 @@ module type S = sig
         (** [equate t0 t1] checks that [t0 = t1].
             Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
         val equate : t -> t -> (unit, equate_error) Result.t
-
-        (** Printing for debugging. *)
-        val print : Format.formatter -> t -> unit
       end
 
       (** A modality that acts on [Value] modes. Conceptually it is a sequnce of

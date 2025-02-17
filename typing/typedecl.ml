@@ -147,7 +147,6 @@ type error =
       }
   | Non_abstract_reexport of Path.t
   | Unsafe_mode_crossing_on_invalid_type_kind
-  | Unsafe_mode_crossing_with_with_bounds
   | Illegal_baggage of jkind_l
 
 open Typedtree
@@ -1859,31 +1858,18 @@ let update_decl_jkind env dpath decl =
        histories for this use-case, which doesn't need it. *)
     let type_equal = Ctype.type_equal env in
     let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
-    match
-      Jkind.sub_jkind_l
-        ~type_equal
-        ~jkind_of_type
-        ~allow_any_crossing
-        new_jkind
-        decl.type_jkind
-    with
+    match Jkind.sub_jkind_l ~type_equal ~jkind_of_type ~allow_any_crossing new_jkind decl.type_jkind with
     | Ok _ ->
+      (* If the user is asking us to allow any crossing, we use the modal bounds from
+         the annotation rather than the modal bounds inferred from the type_kind.
+         However, we /only/ take the modal bounds, not the layout - because we still
+         want to be able to eg locally use a type declared as layout [any] as [value]
+         if that's its actual layout! *)
+      let type_jkind =
+        Jkind.unsafely_set_upper_bounds ~from:decl.type_jkind
+          new_decl.type_jkind
+      in
       if allow_any_crossing then
-        (* If the user is asking us to allow any crossing, we use the modal bounds from
-           the annotation rather than the modal bounds inferred from the type_kind.
-           However, we /only/ take the modal bounds, not the layout - because we still
-           want to be able to eg locally use a type declared as layout [any] as [value]
-           if that's its actual layout! *)
-        let type_jkind =
-          match
-            Jkind.unsafely_set_upper_bounds
-              ~from:decl.type_jkind
-              new_decl.type_jkind
-          with
-          | Ok jkind -> jkind
-          | Error () ->
-            raise(Error(decl.type_loc, Unsafe_mode_crossing_with_with_bounds))
-        in
         let umc =
           Some { modal_upper_bounds =
                    Jkind.get_modal_upper_bounds
@@ -4291,13 +4277,8 @@ let report_error ppf = function
       (Path.name definition)
   | Unsafe_mode_crossing_on_invalid_type_kind ->
     fprintf ppf
-      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of \
-       type declaration.@ Only records, unboxed products, and variants are \
-       supported.@]"
-  | Unsafe_mode_crossing_with_with_bounds ->
-    fprintf ppf
-      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed with a kind \
-       annotation containing with-bounds.@]"
+      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.\
+       @ Only records, unboxed products, and variants are supported.@]"
   | Illegal_baggage jkind ->
     fprintf ppf
       "@[Illegal %a in kind annotation of an abbreviation:@ %a@]"
