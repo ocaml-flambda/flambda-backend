@@ -939,6 +939,7 @@ let max_arity () =
            - 1 (the hidden parameter containing the environment) *)
 
 let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode =
+  assert (List.length params > 0);
   assert (List.length params <= max_arity ());
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
