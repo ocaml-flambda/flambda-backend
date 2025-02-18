@@ -12,24 +12,39 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Asttypes
-open Debuginfo.Scoped_location
+type direction_flag = Asttypes.direction_flag =
+  | Upto
+  | Downto
+
+type raise_kind = Lambda.raise_kind =
+  | Raise_regular
+  | Raise_reraise
+  | Raise_notrace
 
 type static_label = Lambda.static_label
+
+type tailcall =
+  | Tailcall
+  | Nontail
 
 type nullary_primitive =
   | Getglobal of Compilation_unit.t
   | Getpredef of Ident.t
 
 type unary_primitive =
-  | Setglobal of Compilation_unit.t
   | Perform
-  | Vectlength
+  | Boolnot
   | Isint
+  | Vectlength
+  | Setglobal of Compilation_unit.t
+  | Getfield of int
   | Getfloatfield of int
+  | Raise of raise_kind
+  | Offsetint of int
+  | Offsetref of int
+  | Negint
 
 type binary_primitive =
-  | Negint
   | Addint
   | Subint
   | Mulint
@@ -43,34 +58,48 @@ type binary_primitive =
   | Asrint
   | Intcomp of Lambda.integer_comparison
   | Isout
+  | Getstringchar
   | Getbyteschar
   | Getvectitem
+  | Setfield of int
   | Setfloatfield of int
+  | Sequand
+  | Sequor
 
 type ternary_primitive =
   | Setvectitem
   | Setbyteschar
+  | Reperform
+  | Runstack of tailcall
 
-and primitive =
+type quaternary_primitive = Resume of tailcall
+
+type variadic_primitive =
+  | Ccall of string
+  | Makeblock of { tag : int }
+  | Makefloatblock
+  | Make_faux_mixedblock of
+      { total_len : int;
+        tag : int
+      }
+
+type primitive =
   | Nullary of nullary_primitive
   | Unary of unary_primitive * t
   | Binary of binary_primitive * t * t
   | Ternary of ternary_primitive * t * t * t
-  | Ccall of string * t list
+  | Quaternary of quaternary_primitive * t * t * t * t
+  | Variadic of variadic_primitive * t list
 
-type rec_binding =
+and rec_binding =
   { id : Ident.t;
     def : bfunction
   }
 
 and bfunction =
-  { params : Ident.t list;  (** function parameters *)
-    body : t;  (** the function body *)
-    label : label;  (** the label of the function entry *)
-    entries : Debug_event.closure_entry Ident.tbl;
-        (** the offsets for the free variables
-        and mutually recursive functions *)
-    rec_pos : int  (** rank in recursive definition *)
+  { params : Ident.t list;
+    body : t;
+    loc : Debuginfo.Scoped_location.t
   }
 
 and t =
@@ -78,7 +107,8 @@ and t =
   | Const of Lambda.structured_constant
   | Apply of
       { func : t;
-        args : t list
+        args : t list;
+        tailcall : tailcall
       }
   | Function of bfunction
   | Let of
@@ -90,9 +120,10 @@ and t =
       { decls : rec_binding list;
         body : t
       }
-  | Prim of primitive
+  | Prim of primitive * Debuginfo.Scoped_location.t
   | Switch of
-      { sw_numconsts : int;
+      { arg : t;
+        sw_numconsts : int;
         sw_consts : (int * t) list;
         sw_numblocks : int;
         sw_blocks : (int * t) list;
@@ -127,11 +158,11 @@ and t =
         for_body : t
       }
   | Assign of Ident.t * t
-  | Lsend of
+  | Send of
       { kind : Lambda.meth_kind;
         met : t;
         obj : t;
         args : t list;
-        rc : Lambda.region_close
+        tailcall : tailcall
       }
-  | Levent of t * Lambda.lambda_event
+  | Event of t * Lambda.lambda_event

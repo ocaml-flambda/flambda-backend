@@ -1,1 +1,4 @@
 blambda.ml
+blambda.mli
+blambda_of_lambda.ml
+blambda_of_lambda.mli
