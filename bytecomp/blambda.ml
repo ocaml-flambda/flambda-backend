@@ -27,11 +27,9 @@ type tailcall =
   | Tailcall
   | Nontail
 
-type nullary_primitive =
+type primitive =
   | Getglobal of Compilation_unit.t
   | Getpredef of Ident.t
-
-type unary_primitive =
   | Perform
   | Boolnot
   | Isint
@@ -43,8 +41,6 @@ type unary_primitive =
   | Offsetint of int
   | Offsetref of int
   | Negint
-
-type binary_primitive =
   | Addint
   | Subint
   | Mulint
@@ -65,16 +61,11 @@ type binary_primitive =
   | Setfloatfield of int
   | Sequand
   | Sequor
-
-type ternary_primitive =
   | Setvectitem
   | Setbyteschar
   | Reperform
   | Runstack of tailcall
-
-type quaternary_primitive = Resume of tailcall
-
-type variadic_primitive =
+  | Resume of tailcall
   | Ccall of string
   | Makeblock of { tag : int }
   | Makefloatblock
@@ -82,14 +73,6 @@ type variadic_primitive =
       { total_len : int;
         tag : int
       }
-
-type primitive =
-  | Nullary of nullary_primitive
-  | Unary of unary_primitive * t
-  | Binary of binary_primitive * t * t
-  | Ternary of ternary_primitive * t * t * t
-  | Quaternary of quaternary_primitive * t * t * t * t
-  | Variadic of variadic_primitive * t list
 
 and rec_binding =
   { id : Ident.t;
@@ -120,7 +103,7 @@ and t =
       { decls : rec_binding list;
         body : t
       }
-  | Prim of primitive * Debuginfo.Scoped_location.t
+  | Prim of primitive * t list * Debuginfo.Scoped_location.t
   | Switch of
       { arg : t;
         sw_numconsts : int;

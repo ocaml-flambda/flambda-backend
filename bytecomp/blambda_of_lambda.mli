@@ -12,5 +12,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val blambda_of_lambda :
-  compunit_name:Compilation_unit.t -> Lambda.lambda -> Blambda.t
+val blambda_of_lambda : Lambda.lambda -> Blambda.t
