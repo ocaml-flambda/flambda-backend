@@ -131,7 +131,7 @@ module Axis = struct
     (* A functor to add some convenient functions to modal axes *)
     include M
 
-    let less_or_equal a b : Misc.Le_result.t =
+    let[@inline] less_or_equal a b : Misc.Le_result.t =
       match le a b, le b a with
       | true, true -> Equal
       | true, false -> Less
@@ -408,54 +408,66 @@ end
 
 module Axis_set = struct
   (* each axis is true or false to indicate membership  *)
-  type t = bool Axis_collection.t
-
+  type t = int
   (* TODO: this could be represented with a uint8 since there's only 7 possible members *)
 
-  let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
+  let[@inline] axis_bit (type a) : a Axis.t -> _ = function
+    | Modal (Comonadic Areality) -> 1 lsl 0
+    | Modal (Comonadic Linearity) -> 1 lsl 1
+    | Modal (Monadic Uniqueness) -> 1 lsl 2
+    | Modal (Comonadic Portability) -> 1 lsl 3
+    | Modal (Monadic Contention) -> 1 lsl 4
+    | Modal (Comonadic Yielding) -> 1 lsl 5
+    | Nonmodal Externality -> 1 lsl 6
+    | Nonmodal Nullability -> 1 lsl 7
 
-  let add t axis = Axis_collection.set ~axis t true
+  let[@inline] set ~axis ~to_ t =
+    match to_ with
+    | true -> t lor axis_bit axis
+    | false -> t land lnot (axis_bit axis)
 
-  let singleton axis = add empty axis
+  let empty = 0
 
-  let remove t axis = Axis_collection.set ~axis t false
+  let[@inline] add t axis = set ~axis ~to_:true t
 
-  let mem t axis = Axis_collection.get ~axis t
+  let[@inline] create ~f =
+    List.fold_left
+      (fun t axis ->
+        if f ~axis
+        then
+          let (Axis.Pack axis) = axis in
+          add t axis
+        else t)
+      empty Axis.all
 
-  let union t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 || Axis_collection.get ~axis t2)
+  let all = create ~f:(fun ~axis:_ -> true)
 
-  let intersection t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 && Axis_collection.get ~axis t2)
+  let[@inline] singleton axis = add empty axis
 
-  let diff t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 && not (Axis_collection.get ~axis t2))
+  let[@inline] remove t axis = set ~axis ~to_:false t
 
-  let is_subset t1 t2 =
-    Axis_collection.fold
-      ~f:(fun ~axis:(Pack axis) t1_on_axis ->
-        let t2_on_axis = Axis_collection.get ~axis t2 in
-        (not t1_on_axis) || t2_on_axis)
-      ~combine:( && ) t1
+  let[@inline] mem t axis = not (Int.equal (t land axis_bit axis) 0)
 
-  let is_empty t = is_subset t empty
+  let[@inline] union t1 t2 = t1 lor t2
 
-  let complement t = Axis_collection.map ~f:not t
+  let[@inline] intersection t1 t2 = t1 land t2
 
-  let to_list t =
-    Axis_collection.fold
-      ~f:(fun ~axis t_on_axis ->
-        match t_on_axis with true -> [axis] | false -> [])
-      ~combine:( @ ) t
+  let[@inline] diff t1 t2 = t1 land lnot t2
 
-  let create = Axis_collection.create
+  let[@inline] is_subset t1 t2 = Int.equal (t1 land t2) t1
+
+  let[@inline] is_empty = Int.equal 0
+
+  let[@inline] complement t = diff t all
+
+  let[@inline] to_seq t =
+    Axis.all |> List.to_seq |> Seq.filter (fun (Axis.Pack axis) -> mem t axis)
+
+  let[@inline] to_list t = List.of_seq (to_seq t)
 
   let print ppf t =
-    Format.pp_print_list
+    Format.pp_print_seq
       ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
       (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
-      ppf (to_list t)
+      ppf (to_seq t)
 end
