@@ -72,8 +72,6 @@ module type Code_metadata_accessors_result_type = sig
 
   val inlining_decision : 'a t -> Function_decl_inlining_decision_type.t
 
-  val contains_no_escaping_local_allocs : 'a t -> bool
-
   val absolute_history : 'a t -> Inlining_history.Absolute.t
 
   val relative_history : 'a t -> Inlining_history.Relative.t
@@ -97,7 +95,6 @@ type 'a create_type =
   result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   result_mode:Lambda.locality_mode ->
-  contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
   zero_alloc_attribute:Zero_alloc_attribute.t ->

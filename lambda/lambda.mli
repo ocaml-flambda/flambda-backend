@@ -663,9 +663,33 @@ type loop_attribute =
   | Default_loop (* no [@loop] attribute *)
 
 type curried_function_kind = { nlocal: int } [@@unboxed]
-(* [nlocal] determines how many arguments may be partially applied
-    before the resulting closure must be locally allocated.
-    See [lfunction] for details *)
+(** A well-formed function parameter list is of the form
+     [G @ L @ [ Final_arg ]],
+    where the values of G and L are of the form [More_args { partial_mode }],
+    where [partial_mode] has locality Global in G and locality Local in L.
+
+    [nlocal] is defined as follows:
+      - if {v |L| > 0 v}, then {v nlocal = |L| + 1 v}.
+      - if {v |L| = 0 v},
+        * if the function returns at mode local, the final arg has mode local,
+          or the function itself is allocated locally, then {v nlocal = 1 v}.
+        * otherwise, {v nlocal = 0 v}.
+*)
+
+(* CR-someday: Now that some functions' arity won't be changed downstream of
+   lambda (see [may_fuse_arity = false]), we could change [nlocal] to be
+   more expressive. I suggest the variant:
+
+   {[
+     type partial_application_is_local_when =
+       | Applied_up_to_nth_argument_from_end of int
+       | Never
+   ]}
+
+   I believe this will allow us to get rid of the complicated logic for
+   |L| = 0, and help clarify how clients use this type. I plan on doing
+   this in a follow-on PR.
+*)
 
 type function_kind = Curried of curried_function_kind | Tupled
 
@@ -797,8 +821,8 @@ and lfunction = private
     loc : scoped_location;
     mode : locality_mode;     (* locality of the closure itself *)
     ret_mode: locality_mode;
-    region : bool;         (* false if this function may locally
-                              allocate in the caller's region *)
+    (** alloc mode of the returned value. Also indicates if the function might
+        allocate in the caller's region. *)
   }
 
 and lambda_while =
@@ -1002,7 +1026,6 @@ val lfunction :
   loc:scoped_location ->
   mode:locality_mode ->
   ret_mode:locality_mode ->
-  region:bool ->
   lambda
 
 val lfunction' :
@@ -1014,7 +1037,6 @@ val lfunction' :
   loc:scoped_location ->
   mode:locality_mode ->
   ret_mode:locality_mode ->
-  region:bool ->
   lfunction
 
 

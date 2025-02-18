@@ -465,8 +465,6 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~param_modes:(Code.param_modes code)
       ~first_complex_local_param:(Code.first_complex_local_param code)
       ~result_arity ~result_types ~result_mode:(Code.result_mode code)
-      ~contains_no_escaping_local_allocs:
-        (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code)
       ~zero_alloc_attribute:(Code.zero_alloc_attribute code)
       ~poll_attribute:(Code.poll_attribute code) ~is_a_functor ~is_opaque
