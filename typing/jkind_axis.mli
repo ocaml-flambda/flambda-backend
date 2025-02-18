@@ -211,7 +211,8 @@ module Axis_collection : sig
 end
 
 module Axis_set : sig
-  type t
+  (** A set of [Axis.t], represented as a bitfield for efficiency. *)
+  type t [@@immediate]
 
   val empty : t
 
@@ -234,6 +235,8 @@ module Axis_set : sig
   val is_subset : t -> t -> bool
 
   val complement : t -> t
+
+  val to_seq : t -> Axis.packed Seq.t
 
   val to_list : t -> Axis.packed list
 
