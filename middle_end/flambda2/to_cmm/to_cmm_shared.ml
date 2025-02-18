@@ -311,8 +311,6 @@ module Update_kind = struct
   type kind =
     | Pointer
     | Immediate
-    | Naked_int8
-    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_float
@@ -336,8 +334,8 @@ module Update_kind = struct
 
   let field_size_in_words t =
     match t.kind with
-    | Pointer | Immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
-    | Naked_float | Naked_float32 ->
+    | Pointer | Immediate | Naked_int32 | Naked_int64 | Naked_float
+    | Naked_float32 ->
       1
     | Naked_vec128 -> 2
 
@@ -354,10 +352,6 @@ module Update_kind = struct
   let naked_float32s = { kind = Naked_float32; stride = 4 }
 
   let naked_vec128s = { kind = Naked_vec128; stride = 16 }
-
-  let naked_int8_fields = { kind = Naked_int8; stride = Arch.size_addr }
-
-  let naked_int16_fields = { kind = Naked_int16; stride = Arch.size_addr }
 
   let naked_int32_fields = { kind = Naked_int32; stride = Arch.size_addr }
 
@@ -383,8 +377,8 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         | Immediate ->
           (* See [caml_initialize]; we can avoid this function in this case. *)
           None
-        | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_float
-        | Naked_float32 | Naked_vec128 ->
+        | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
+          ->
           (* The GC never sees these fields, so we can avoid using
              [caml_initialize]. This is important as it significantly reduces
              the complexity of the statically-allocated inconstant unboxed int32
@@ -400,11 +394,6 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         match kind with
         | Pointer -> Word_val
         | Immediate -> Word_int
-        | Naked_int8 | Naked_int16 ->
-          (* CR layouts v5.1: we only support small integers in being
-             sign-extended in word fields *)
-          assert (stride = Arch.size_addr);
-          Word_int
         | Naked_int32 ->
           (* Cmm expressions representing int32 values are always sign extended.
              By using [Word_int] in the "fields" cases (see [Update_kind],
