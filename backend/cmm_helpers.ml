@@ -924,7 +924,20 @@ let complex_im c dbg =
 
 (* Unit *)
 
-let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
+let return_unit dbg c =
+  match c with
+  | Csequence (_, Cconst_int (1, _)) as c -> c
+  | c -> Csequence (c, Cconst_int (1, dbg))
+
+let memory_chunk_width_in_bytes : memory_chunk -> int = function
+  | Byte_unsigned | Byte_signed -> 1
+  | Sixteen_unsigned | Sixteen_signed -> 2
+  | Thirtytwo_unsigned | Thirtytwo_signed -> 4
+  | Single { reg = Float64 | Float32 } -> 4
+  | Word_int -> size_int
+  | Word_val -> size_addr
+  | Double -> size_float
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
 
 let strided_field_address ptr ~index ~stride dbg =
   if index * stride = 0
@@ -932,24 +945,8 @@ let strided_field_address ptr ~index ~stride dbg =
   else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
 
 let field_address ?(memory_chunk = Word_val) ptr n dbg =
-  if n = 0
-  then ptr
-  else
-    let field_size_in_bytes =
-      match memory_chunk with
-      | Byte_unsigned | Byte_signed -> 1
-      | Sixteen_unsigned | Sixteen_signed -> 2
-      | Thirtytwo_unsigned | Thirtytwo_signed -> 4
-      | Single { reg = Float64 | Float32 } ->
-        assert (size_float = 8);
-        (* unclear what to do if this is false *)
-        size_float / 2
-      | Word_int -> size_int
-      | Word_val -> size_addr
-      | Double -> size_float
-      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
-    in
-    Cop (Cadda, [ptr; Cconst_int (n * field_size_in_bytes, dbg)], dbg)
+  strided_field_address ptr dbg ~index:n
+    ~stride:(memory_chunk_width_in_bytes memory_chunk)
 
 let get_field_gen_given_memory_chunk memory_chunk mutability ptr n dbg =
   Cop
@@ -1410,7 +1407,21 @@ let unboxed_int64_or_nativeint_array_set ~has_custom_ops arr ~index ~new_value
               in
               int_array_set arr index new_value dbg)))
 
-(* Get the field of a block given a possibly inconstant index *)
+let get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words =
+  if Arch.big_endian && memory_chunk_width_in_bytes memory_chunk <> size_addr
+  then
+    (* CR layouts v5.1: Properly support big-endian. *)
+    Misc.fatal_error
+      "Unboxed non-word size integer fields are only supported on \
+       little-endian architectures";
+  (* CR layouts v5.1: We'll need to vary log2_size_addr among other things to
+     efficiently pack small integers *)
+  let field_address =
+    assert (size_float = size_addr);
+    array_indexing log2_size_addr block index_in_words dbg
+  in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
 let get_field_computed imm_or_ptr mutability ~block ~index dbg =
   let memory_chunk =
@@ -1418,139 +1429,28 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
     | Lambda.Immediate -> Word_int
     | Lambda.Pointer -> Word_val
   in
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-(* Getters for unboxed int fields *)
-
-let get_field_unboxed_int32 mutability ~block ~index dbg =
-  let memory_chunk = Thirtytwo_signed in
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int32 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
-   * int32s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg =
-  let memory_chunk = Word_int in
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-(* Setters for unboxed int fields *)
-
-let setfield_unboxed_int32 arr ofs newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int32 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We will need to vary log2_size_addr when int32 fields are
-     efficiently packed. *)
-  return_unit dbg
-    (Cop
-       ( Cstore (Thirtytwo_signed, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
-  return_unit dbg
-    (Cop
-       ( Cstore (Word_int, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-(* Getters and setters for unboxed float32 fields *)
-
-let get_field_unboxed_float32 mutability ~block ~index dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed float32 fields only supported on little-endian architectures";
-  let memory_chunk = Single { reg = Float32 } in
-  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
-   * float32s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let setfield_unboxed_float32 arr ofs newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed float32 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We will need to vary log2_size_addr when float32 fields
-     are efficiently packed. *)
-  return_unit dbg
-    (Cop
-       ( Cstore (Single { reg = Float32 }, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-(* Getters and setters for unboxed vec128 fields *)
-
-let get_field_unboxed_vec128 mutability ~block ~index_in_words dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed vec128 fields only supported on little-endian architectures";
-  let memory_chunk = Onetwentyeight_unaligned in
-  let field_address = array_indexing log2_size_addr block index_in_words dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed vec128 fields only supported on little-endian architectures";
-  let field_address = array_indexing log2_size_addr arr index_in_words dbg in
-  return_unit dbg
-    (Cop
-       ( Cstore (Onetwentyeight_unaligned, Assignment),
-         [field_address; newval],
-         dbg ))
-
-let get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words =
-  match (memory_chunk : memory_chunk) with
-  | Single { reg = Float32 } ->
-    get_field_unboxed_float32 mutability ~block ~index:index_in_words dbg
-  | Double ->
-    unboxed_float_array_ref mutability ~block ~index:index_in_words dbg
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
-    get_field_unboxed_vec128 mutability ~block ~index_in_words dbg
-  | Thirtytwo_signed ->
-    get_field_unboxed_int32 mutability ~block ~index:index_in_words dbg
-  | Word_int ->
-    get_field_unboxed_int64_or_nativeint mutability ~block ~index:index_in_words
-      dbg
-  | Word_val ->
-    Misc.fatal_error "cannot use get_field_unboxed with a heap block"
-  | _ -> Misc.fatal_error "get_field_unboxed: unexpected memory chunk"
+  get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words:index
 
 let set_field_unboxed ~dbg memory_chunk block ~index_in_words newval =
-  match (memory_chunk : memory_chunk) with
-  | Single { reg = Float32 } ->
-    setfield_unboxed_float32 block index_in_words newval dbg
-  | Double -> float_array_set block index_in_words newval dbg
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
-    setfield_unboxed_vec128 block ~index_in_words newval dbg
-  | Thirtytwo_signed -> setfield_unboxed_int32 block index_in_words newval dbg
-  | Word_int ->
-    setfield_unboxed_int64_or_nativeint block index_in_words newval dbg
+  match memory_chunk with
   | Word_val ->
-    Misc.fatal_error "cannot use set_field_unboxed with a heap block"
-  | _ -> Misc.fatal_error "set_field_unboxed : unexpected memory chunk"
+    Misc.fatal_error "Attempted to set a value via [setfield_unboxed]"
+  | memory_chunk ->
+    let size_in_bytes = memory_chunk_width_in_bytes memory_chunk in
+    (* CR layouts v5.1: Properly support big-endian. *)
+    if Arch.big_endian && size_in_bytes <> size_addr
+    then
+      Misc.fatal_error
+        "Unboxed non-word-size fields are only supported on little-endian \
+         architectures";
+    (* CR layouts v5.1: We will need to vary log2_size_addr, among other things,
+       when small fields are efficiently packed. *)
+    let field_address =
+      array_indexing log2_size_addr block index_in_words dbg
+    in
+    let newval = if size_in_bytes = 4 then low_32 dbg newval else newval in
+    return_unit dbg
+      (Cop (Cstore (memory_chunk, Assignment), [field_address; newval], dbg))
 
 (* String length *)
 
