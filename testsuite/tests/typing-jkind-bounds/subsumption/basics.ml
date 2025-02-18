@@ -158,7 +158,23 @@ end = struct
   type 'a t : immutable_data with 'a ref
 end
 [%%expect {|
-module M : sig type 'a t : mutable_data with 'a end
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t : immutable_data with 'a ref
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t end
+       is not included in
+         sig type 'a t : mutable_data with 'a end
+       Type declarations do not match:
+         type 'a t
+       is not included in
+         type 'a t : mutable_data with 'a
+       The kind of the first is value
+         because of the definition of t at line 4, characters 2-40.
+       But the kind of the first must be a subkind of mutable_data with 'a
+         because of the definition of t at line 2, characters 2-34.
 |}]
 
 module M : sig
@@ -168,28 +184,7 @@ end = struct
 end
 (* This isn't accepted because ['a ref] is always [many] *)
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type 'a t : mutable_data with 'a
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t : mutable_data with 'a end
-       is not included in
-         sig type 'a t : mutable_data with 'a @@ many end
-       Type declarations do not match:
-         type 'a t : mutable_data with 'a
-       is not included in
-         type 'a t : mutable_data with 'a @@ many
-       The kind of the first is mutable_data with 'a
-         because of the definition of t at line 4, characters 2-34.
-       But the kind of the first must be a subkind of mutable_data
-         with 'a @@ many
-         because of the definition of t at line 2, characters 2-40.
-
-       The first mode-crosses less than the second along:
-         linearity: mod many with 'a ≰ mod many
-         yielding: mod unyielding with 'a ≰ mod unyielding
+module M : sig type 'a t end
 |}]
 
 module M : sig
@@ -198,7 +193,7 @@ end = struct
   type 'a t : mutable_data with 'a @@ many unyielding
 end
 [%%expect {|
-module M : sig type 'a t : mutable_data with 'a @@ many end
+module M : sig type 'a t end
 |}]
 
 (* CR layouts v2.8: 'a u's kind should get normalized to just immutable_data *)
@@ -224,7 +219,34 @@ end = struct
   type t : immutable_data mod aliased with d with d with b with d with c with a
 end
 [%%expect {|
-module M : sig type t : mutable_data end
+Lines 3-9, characters 6-3:
+3 | ......struct
+4 |   type a : immediate
+5 |   type b : immutable_data with a with int with string with a ref
+6 |   type c : mutable_data with b with a with b with a
+7 |   type d : immediate with a
+8 |   type t : immutable_data mod aliased with d with d with b with d with c with a
+9 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type a : immediate
+           type b : value with a
+           type c : mutable_data with a with b
+           type d : immediate with a
+           type t : immutable_data mod aliased with a with b with c with d
+         end
+       is not included in
+         sig type t : mutable_data end
+       Type declarations do not match:
+         type t : immutable_data mod aliased with a with b with c with d
+       is not included in
+         type t : mutable_data
+       The kind of the first is immutable_data mod aliased with a with b
+         with c with d
+         because of the definition of t at line 8, characters 2-79.
+       But the kind of the first must be a subkind of mutable_data
+         because of the definition of t at line 2, characters 2-23.
 |}]
 
 type u

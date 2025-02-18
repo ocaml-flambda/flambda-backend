@@ -378,7 +378,13 @@ end
 
 module type T = S with type t = t
 [%%expect {|
-type t : immutable_data
+type t : value mod contended
 module type S = sig type t : immutable_data end
-module type T = sig type t = t end
+Line 7, characters 23-33:
+7 | module type T = S with type t = t
+                           ^^^^^^^^^^
+Error: The kind of type "t" is value mod contended
+         because of the definition of t at line 1, characters 0-49.
+       But the kind of type "t" must be a subkind of immutable_data
+         because of the definition of t at line 4, characters 2-25.
 |}]

@@ -82,12 +82,13 @@ type ('a : mutable_data) t : mutable_data = { x : 'a option }
 [%%expect {|
 type t = { mutable x : int; }
 type t = { x : int; y : int; mutable z : int; }
-type t = { mutable x : int ref; }
-type t = { x : int; }
-type ('a : mutable_data) t = { x : 'a; }
-type ('a : immutable_data) t = { x : 'a; }
-type t = { x : int ref; y : string; }
-type ('a : mutable_data) t = { x : 'a option; }
+Line 3, characters 0-47:
+3 | type t : mutable_data = { mutable x : int ref }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value mod many unyielding
+         because it's a boxed record type.
+       But the kind of type "t" must be a subkind of mutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 (* annotations that aren't mutable_data or immutable_data *)
@@ -140,7 +141,7 @@ type t : immutable_data = { x : int ref }
 Line 1, characters 0-41:
 1 | type t : immutable_data = { x : int ref }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -250,14 +251,13 @@ type 'a t : immutable_data with 'a -> 'a = { x : 'a -> 'a }
 type 'a t = { x : int; }
 type 'a t = { x : 'a; }
 type 'a t = { mutable x : 'a; }
-type 'a t = { x : 'a ref; }
-type ('a, 'b) t = { x : 'a; y : 'b; z : 'a; }
-type ('a, 'b) t = { x : 'a; y : 'b; mutable z : 'a; }
-type 'a t = { x : unit -> unit; y : 'a; }
-type 'a t = { x : int; }
-type 'a t = { x : int; }
-type 'a t = { x : 'a option; }
-type 'a t = { x : 'a -> 'a; }
+Line 4, characters 0-49:
+4 | type 'a t : mutable_data with 'a = { x : 'a ref }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because it's a boxed record type.
+       But the kind of type "t" must be a subkind of mutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 type 'a t : immutable_data with 'a = { mutable x : 'a }
@@ -838,7 +838,7 @@ Error: Signature mismatch:
          type t = { x : int ref; y : string; }
        is not included in
          type t : immutable_data
-       The kind of the first is mutable_data
+       The kind of the first is value
          because of the definition of t at line 4, characters 2-38.
        But the kind of the first must be a subkind of immutable_data
          because of the definition of t at line 2, characters 2-25.
