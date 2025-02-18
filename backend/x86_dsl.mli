@@ -38,6 +38,7 @@ val cl: arg
 val ax: arg
 val rax: arg
 val rbx: arg
+val rdi: arg
 val rdx: arg
 val r10: arg
 val r11: arg
@@ -152,6 +153,7 @@ module I : sig
   val jbe: arg -> unit
   val je: arg -> unit
   val jg: arg -> unit
+  val jl : arg -> unit
   val jmp: arg -> unit
   val jne: arg -> unit
   val jp: arg -> unit

@@ -363,7 +363,6 @@ module Function_decls : sig
       closure_alloc_mode:Lambda.locality_mode ->
       first_complex_local_param:int ->
       result_mode:Lambda.locality_mode ->
-      contains_no_escaping_local_allocs:bool ->
       t
 
     val let_rec_ident : t -> Ident.t
@@ -415,8 +414,6 @@ module Function_decls : sig
     val first_complex_local_param : t -> int
 
     val result_mode : t -> Lambda.locality_mode
-
-    val contains_no_escaping_local_allocs : t -> bool
 
     (* Like [all_free_idents], but for just one function. *)
     val free_idents : t -> Ident.Set.t

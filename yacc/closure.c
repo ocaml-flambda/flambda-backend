@@ -66,7 +66,8 @@ static void set_EFF(void)
 }
 
 
-void set_first_derives(void)
+/* CR ksvetlitski for ksvetlitski: Fix the underlying error instead of suppressing ASAN for this function. */
+void __attribute__((no_sanitize(("address")))) set_first_derives(void)
 {
   unsigned *rrow;
   unsigned *vrow;

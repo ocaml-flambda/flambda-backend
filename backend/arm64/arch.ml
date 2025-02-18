@@ -21,9 +21,16 @@ open Format
 
 let macosx = (Config.system = "macosx")
 
+let is_asan_enabled = ref false
+
 (* Machine-specific command-line options *)
 
-let command_line_options = []
+let command_line_options = [
+  "-fno-asan",
+    Arg.Clear is_asan_enabled,
+    " Disable AddressSanitizer. This is only meaningful if the compiler was \
+     built with AddressSanitizer support enabled."
+]
 
 (* Addressing modes *)
 

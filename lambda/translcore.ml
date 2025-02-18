@@ -158,33 +158,8 @@ let is_alloc_heap = function Alloc_heap -> true | Alloc_local -> false
 let function_attribute_disallowing_arity_fusion =
   { default_function_attribute with may_fuse_arity = false }
 
-(** A well-formed function parameter list is of the form
-     [G @ L @ [ Final_arg ]],
-    where the values of G and L are of the form [More_args { partial_mode }],
-    where [partial_mode] has locality Global in G and locality Local in L.
-
-    [curried_function_kind p] checks the well-formedness of the list and returns
-    the corresponding [curried_function_kind]. [nlocal] is populated as follows:
-      - if {v |L| > 0 v}, then {v nlocal = |L| + 1 v}.
-      - if {v |L| = 0 v},
-        * if the function returns at mode local, the final arg has mode local,
-          or the function itself is allocated locally, then {v nlocal = 1 v}.
-        * otherwise, {v nlocal = 0 v}.
-*)
-(* CR-someday: Now that some functions' arity won't be changed downstream of
-   lambda (see [may_fuse_arity = false]), we could change [nlocal] to be
-   more expressive. I suggest the variant:
-
-   {[
-     type partial_application_is_local_when =
-       | Applied_up_to_nth_argument_from_end of int
-       | Never
-   ]}
-
-   I believe this will allow us to get rid of the complicated logic for
-   |L| = 0, and help clarify how clients use this type. I plan on doing
-   this in a follow-on PR.
-*)
+(** [curried_function_kind p] checks the well-formedness of the list and returns
+  the corresponding [curried_function_kind]. *)
 let curried_function_kind
     : (function_curry * Mode.Alloc.l) list
       -> return_mode:locality_mode
@@ -1053,7 +1028,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
                             ~ret_mode:alloc_heap
-                            ~region:true
                             ~body:(maybe_region_layout
                                      Lambda.layout_lazy_contents
                                      (transl_exp ~scopes Jkind.Sort.Const.for_lazy_body e))
@@ -1152,6 +1126,21 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* Might be a module, which are all values.  Otherwise raise. *)
           ignore (Env.find_module_lazy path e.exp_env)
       ) arg_idents;
+      let make_param name = {
+        name;
+        layout = layout_probe_arg;
+        attributes = Lambda.default_param_attribute;
+        mode = alloc_local }
+      in
+      let params, ap_args =
+        match param_idents with
+        | [] ->
+            [make_param (Ident.create_local "unit")]
+          , [lambda_unit]
+        | _ :: _ ->
+            List.map make_param param_idents
+          , List.map (fun id -> Lvar id) arg_idents
+      in
       let body = Lambda.rename map lam in
       let attr =
         { inline = Never_inline;
@@ -1175,12 +1164,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         lfunction
           (* We conservatively assume that all arguments are local. This doesn't
              hurt performance as probe handlers are always applied fully. *)
-          ~kind:(Curried {nlocal=List.length param_idents})
+          ~kind:(Curried {nlocal=List.length params})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          ~params:(List.map (fun name -> { name; layout = layout_probe_arg;
-                                           attributes = Lambda.default_param_attribute;
-                                           mode = alloc_local }) param_idents)
+          ~params
           ~return:return_layout
           ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
@@ -1189,11 +1176,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~ret_mode:alloc_local
           (* CR zqian: the handler function doesn't have a region. However, the
              [region] field is currently broken. *)
-          ~region:true
       in
       let app =
         { ap_func = Lvar funcid;
-          ap_args = List.map (fun id -> Lvar id) arg_idents;
+          ap_args;
           ap_result_layout = return_layout;
           ap_region_close = Rc_normal;
           ap_mode = alloc_local;
@@ -1421,11 +1407,6 @@ and transl_apply ~scopes
             | Alloc_local -> 1
             | Alloc_heap -> 0
           in
-          let region =
-            match ret_mode with
-            | Alloc_local -> false
-            | Alloc_heap -> true
-          in
           let layout_arg = layout_of_sort (to_location loc) sort_arg in
           let params = [{
               name = id_arg;
@@ -1434,7 +1415,7 @@ and transl_apply ~scopes
               mode = arg_mode
             }] in
           lfunction ~kind:(Curried {nlocal}) ~params
-                    ~return:result_layout ~body ~mode ~ret_mode ~region
+                    ~return:result_layout ~body ~mode ~ret_mode
                     ~attr:{ default_stub_attribute with may_fuse_arity = false } ~loc
         in
         (* Wrap "protected" definitions, starting from the left,
@@ -1700,7 +1681,7 @@ and transl_curried_function ~scopes loc repr params body
             ~params:chunk ~mode:current_mode
             ~return:return_layout ~ret_mode:return_mode ~body
             ~attr:function_attribute_disallowing_arity_fusion
-            ~loc ~region
+            ~loc
         in
         (* we return Pgenval (for a function) after the rightmost chunk *)
         { body;
@@ -1795,7 +1776,7 @@ and transl_function ~in_new_scope ~scopes e params body
   in
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
-  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
+  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode in
   Translattribute.add_function_attributes lam e.exp_loc attrs
 
 (* Like transl_exp, but used when a new scope was just introduced. *)
@@ -2352,7 +2333,7 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
     let loc = of_location ~scopes case.c_rhs.exp_loc in
     let body = maybe_region_layout return body in
     lfunction ~kind ~params ~return ~body ~attr ~loc
-              ~mode:alloc_heap ~ret_mode ~region:true
+              ~mode:alloc_heap ~ret_mode
   in
   Lapply{
     ap_loc = of_location ~scopes loc;

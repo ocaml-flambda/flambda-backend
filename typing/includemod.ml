@@ -541,22 +541,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
   in
   match mty1, mty2 with
   | _ when shallow_modtypes env subst mty1 mty2 ->
-    begin match modes with
-      | Legacy (Some (locks, _, _)) when not (Env.locks_is_empty locks) ->
-          (* If the coercion being checked is closed over, we close over individual values
-          in the module, instead of the whole module. *)
-          let mty1 = Mtype.reduce_alias_lazy env mty1 in
-          let mty2 = Subst.Lazy.modtype Keep subst mty2 |> Mtype.reduce_alias_lazy env in
-          begin match mty1, mty2 with
-          | Some mty1, Some mty2 ->
-             (* Only for the side-effects of walking locks *)
-              ignore (try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape)
-          | _, _ ->
-              walk_locks ~env ~item:Module modes
-          end
-      | _ ->
-        walk_locks ~env ~item:Module modes
-    end;
+    walk_locks ~env ~item:Module modes;
     Ok (Tcoerce_none, orig_shape)
 
   | (Mty_alias p1, _) when not (is_alias mty2) -> begin

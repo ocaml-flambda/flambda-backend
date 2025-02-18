@@ -37,6 +37,10 @@ module type S = S
 
 module type S_plus_stdlib = S_plus_stdlib
 
+module type Map_plus_iterator = Map_plus_iterator
+
+module type S_plus_iterator = S_plus_iterator
+
 module Make (T : Thing) : S_plus_stdlib with type t := T.t
 
 module Make_pair (T1 : S) (T2 : S) : sig

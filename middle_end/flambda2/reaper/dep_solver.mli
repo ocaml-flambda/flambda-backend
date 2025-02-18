@@ -13,20 +13,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* CR-someday ncourant: expose only accessors instead of the types *)
-type field_elt =
-  | Field_top
-  | Field_vals of Code_id_or_name.Set.t
-
-type elt =
-  | Top
-  | Fields of field_elt Global_flow_graph.Field.Map.t
-  | Bottom
-
-type result = (Code_id_or_name.t, elt) Hashtbl.t
-
-val pp_elt : Format.formatter -> elt -> unit
+type result
 
 val pp_result : Format.formatter -> result -> unit
 
 val fixpoint : Global_flow_graph.graph -> result
+
+val has_use : result -> Code_id_or_name.t -> bool
+
+val field_used :
+  result -> Code_id_or_name.t -> Global_flow_graph.Field.t -> bool
+
+(** Color of node when producing the graph as a .dot *)
+val print_color : result -> Code_id_or_name.t -> string

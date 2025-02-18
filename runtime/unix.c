@@ -510,7 +510,7 @@ void caml_init_os_params(void)
 }
 
 #ifndef __CYGWIN__
-
+#ifndef WITH_ADDRESS_SANITIZER
 static void* mmap_named(void* addr, size_t length, int prot, int flags,
                         int fd, off_t offset, const char* name)
 {
@@ -534,19 +534,24 @@ static void* mmap_named(void* addr, size_t length, int prot, int flags,
 #endif
   return p;
 }
+#endif
 
 void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
 {
+  uintnat alignment = caml_plat_hugepagesize;
+#ifdef WITH_ADDRESS_SANITIZER
+  return aligned_alloc(alignment, (size + (alignment - 1)) & ~(alignment - 1));
+#else
   void* mem;
   int prot = reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE);
   int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-  uintnat alignment = caml_plat_hugepagesize;
 
   if (size < alignment || alignment < caml_plat_pagesize) {
     /* Short mapping or unknown/bad hugepagesize.
        Either way, not worth bothering with alignment. */
     mem = mmap_named(0, size, prot, flags, -1, 0, name);
     if (mem == MAP_FAILED) mem = NULL;
+
     return mem;
   }
 
@@ -571,8 +576,10 @@ void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
   munmap(mem, offset);
   if (offset != alignment) munmap((void*)(aligned + size), alignment - offset);
   return (void*)aligned;
+#endif
 }
 
+#ifndef WITH_ADDRESS_SANITIZER
 static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
 {
   if (mmap_named(mem, size, prot, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
@@ -582,6 +589,7 @@ static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
     return mem;
   }
 }
+#endif
 
 #else
 
@@ -603,6 +611,7 @@ void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
   return mem;
 }
 
+#ifndef WITH_ADDRESS_SANITIZER
 static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
 {
   if (mprotect(mem, size, prot) != 0) {
@@ -611,11 +620,15 @@ static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
     return mem;
   }
 }
+#endif
 
 #endif /* !__CYGWIN__ */
 
 void* caml_plat_mem_commit(void* mem, uintnat size, const char* name)
 {
+#ifdef WITH_ADDRESS_SANITIZER
+  return mem;
+#else
   void* p = map_fixed(mem, size, PROT_READ | PROT_WRITE, name);
   /*
     FIXME: On Linux, it might be useful to populate page tables with
@@ -623,15 +636,25 @@ void* caml_plat_mem_commit(void* mem, uintnat size, const char* name)
     a later point.
   */
   return p;
+#endif
 }
 
 void caml_plat_mem_decommit(void* mem, uintnat size, const char* name)
 {
+#ifdef WITH_ADDRESS_SANITIZER
+  /* We don't need the strength of [MADV_DONTNEED]. */
+  madvise(mem, size, MADV_FREE);
+#else
   map_fixed(mem, size, PROT_NONE, name);
+#endif
 }
 
 void caml_plat_mem_unmap(void* mem, uintnat size)
 {
+#ifdef WITH_ADDRESS_SANITIZER
+  free(mem);
+#else
   if (munmap(mem, size) != 0)
     CAMLassert(0);
+#endif
 }

@@ -79,6 +79,7 @@ let system = {@QS@|@system@|@QS@}
 let asm = {@QS@|@AS@|@QS@}
 let asm_cfi_supported = @asm_cfi_supported@
 let with_frame_pointers = @frame_pointers@
+let with_address_sanitizer = @address_sanitizer@
 let with_cpp_mangling = @cpp_mangling@
 let custom_ops_struct_size = @custom_ops_struct_size@
 
