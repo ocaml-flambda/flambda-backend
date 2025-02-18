@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e -u -o pipefail
 
 # Use this script to compare the output of an existing compiler
 # with one installed to _install
@@ -50,22 +51,22 @@ construct_command() {
         return 1
     fi
 
-    local stdlib="$2"
+    local stdlib="$1"
     shift
 
     if [[ ${#LIB[@]} -gt 0 || ${#INCLUDE[@]} -gt 0 ]]; then
-        if [[ -z ${stdlib+x} ]]; then
+        if [[ -z ${stdlib-} ]]; then
             stdlib="$("${cmd[@]}" -config-var standard_library)" || return 1
         fi
 
         local include
         for include in "${INCLUDE[@]}"; do
-            cmd+=( "${stdlib}/${lib}/${lib}.cmxa" )
+            cmd+=( "${stdlib}/${include}/${include}.cmxa" )
         done
 
         local lib
         for lib in "${LIB[@]}"; do
-            cmd+=( '-I' "${stdlib}/${lib}/${lib}.cmxa" )
+            cmd+=( '-I' "${stdlib}/${lib}" )
         done
     fi
 
