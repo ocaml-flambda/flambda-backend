@@ -32,7 +32,8 @@ module RwCell = struct
     | Mk : 'k Capsule.Rwlock.t * ('a myref, 'k) Capsule.Data.t -> 'a t
 
     let create (type a : value mod portable contended) (x : a) : a t =
-      let (P m) = Capsule.create_with_rwlock () in
+      let (P k) = Capsule.create () in
+      let m = Capsule.Rwlock.create k in
       let p = Capsule.Data.create (fun () -> {v = x}) in
       Mk (m, p)
 
@@ -91,7 +92,8 @@ let read_ref : ('a : value mod portable) .
 
 (* [create]. *)
 let ptr =
-  let (P m) = Capsule.create_with_rwlock () in
+  let (P k) = Capsule.create () in
+  let m = Capsule.Rwlock.create k in
   Mk (m, Capsule.Data.create (fun () -> { v = 42 }))
 ;;
 
@@ -145,20 +147,14 @@ let () =
     let ptr' = Capsule.Data.map_shared k (fun (r @ shared) -> { v = r.v + 3}) p in
     assert (Capsule.Data.extract_shared k read_ref ptr' = 20))
 
-(* Using a Password.t as a Password.Shared.t *)
-let () =
-  with_write_guarded ptr (fun k p ->
-    assert (Capsule.Data.extract_shared (Capsule.Password.shared k) read_ref p = 15))
-
 (* [access_shared] and [unwrap_shared]. *)
 let () =
   with_read_guarded ptr2 (fun k p ->
-    let ptr' =
-      Capsule.access_shared k (fun a ->
-          let r = Capsule.Data.unwrap_shared a p in
-          Capsule.Data.wrap a { v = r.v + 3 })
-    in
-    assert (Capsule.Data.extract_shared k read_ref ptr' = 20))
+    Capsule.access_shared k (fun a ->
+      let r = Capsule.Data.unwrap_shared a p in
+      let ptr' = Capsule.Data.Shared.wrap a { v = r.v + 3 } in
+      let res = Capsule.Data.Shared.extract k read_ref ptr' in
+      assert (res = 20)) [@nontail])
 
 exception Leak of int myref
 
@@ -166,8 +162,8 @@ exception Leak of int myref
 let () =
   with_write_guarded ptr (fun (type k) (k : k Capsule.Password.t) p ->
     match Capsule.Data.iter k (fun r -> reraise (Leak r)) p with
-    | exception Capsule.Encapsulated (name, exn_data) ->
-      (match Capsule.Name.equality_witness name (Capsule.Password.name k) with
+    | exception Capsule.Encapsulated (id, exn_data) ->
+      (match Capsule.Password.Id.equality_witness id (Capsule.Password.id k) with
        | Some Equal ->
          Capsule.Data.iter k (function
            | Leak r -> ()
@@ -190,7 +186,7 @@ let ptr2 =
 (* [destroy]. *)
 let () =
   let (Mk (m, p)) = ptr2 in
-  let a = Capsule.Rwlock.destroy m in
+  let a = Capsule.Key.destroy (Capsule.Rwlock.destroy m) in
   let (r1, r2) = Capsule.Data.unwrap a p in
   assert (read_ref r1 = 15 && read_ref r2 = 3)
 ;;
@@ -223,7 +219,8 @@ type lost_capsule = |
 
 (* [bind]. *)
 let ptr' : (int, lost_capsule) Capsule.Data.t =
-  let (P m) = Capsule.create_with_rwlock () in
+  let (P k) = Capsule.create () in
+  let m = Capsule.Rwlock.create k in
   let ptr = Capsule.Data.inject 100 in
   Capsule.Rwlock.with_write_lock m (fun k ->
     Capsule.Data.bind k (fun x -> Capsule.Data.inject (((+) x) 11)) ptr)
@@ -231,4 +228,43 @@ let ptr' : (int, lost_capsule) Capsule.Data.t =
 
 let () =
   assert (Capsule.Data.project ptr' = 111)
+;;
+
+(* [freeze]. *)
+let () =
+  let (P k) = Capsule.create () in
+  let m = Capsule.Rwlock.create k in
+  let data = Capsule.Data.create (fun () -> { v = 42 }) in
+  with_write_guarded (Mk (m, data)) (fun k p ->
+    Capsule.Data.iter k (fun r -> r.v <- 999) p);
+  let _freeze_key = Capsule.Rwlock.freeze m in
+  with_read_guarded (Mk (m, data)) (fun k p ->
+    assert (Capsule.Data.extract_shared k (fun r -> r.v) p = 999));
+  match with_write_guarded (Mk (m, data)) (fun k p ->
+    Capsule.Data.iter k (fun r -> r.v <- 123) p)
+  with
+  | exception Capsule.Rwlock.Frozen -> ()
+  | _ -> assert false
+;;
+
+exception ReadLockTestException of int myref @@ shared
+
+(* Exceptions raised from [with_read_lock]. *)
+let () =
+  let ptr =
+    let (P k) = Capsule.create () in
+    let m = Capsule.Rwlock.create k in
+    Mk (m, Capsule.Data.create (fun () -> { v = 999 }))
+  in
+  with_read_guarded ptr (fun (type k) (k : k Capsule.Password.Shared.t) p ->
+    match Capsule.Data.extract_shared k (fun r -> reraise (ReadLockTestException r)) p with
+    | exception Capsule.Encapsulated_shared (id, exn_data) ->
+      (match Capsule.Password.Id.equality_witness id (Capsule.Password.Shared.id k) with
+       | Some Equal ->
+         Capsule.Data.Shared.iter k (function
+           | ReadLockTestException { v = 999 } -> ()
+           | _ -> assert false)
+           exn_data
+       | None -> assert false)
+    | _ -> assert false)
 ;;

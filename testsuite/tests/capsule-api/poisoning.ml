@@ -7,7 +7,10 @@
 
 module Capsule = Stdlib_alpha.Capsule
 
-let m = Capsule.create_with_mutex ()
+let m = 
+  let (P k) = Capsule.create () in
+  Capsule.Mutex.P (Capsule.Mutex.create k)
+;;
 
 (* Normal execution. *)
 let () =
@@ -56,7 +59,10 @@ let () =
 ;;
 
 (* Reset *)
-let m = Capsule.create_with_mutex ()
+let m =
+  let (P k) = Capsule.create () in
+  Capsule.Mutex.P (Capsule.Mutex.create k)
+;;
 
 let () =
   let x = ref 1 in
@@ -67,10 +73,10 @@ let () =
   assert (!x = 2)
 ;;
 
-(* Destroying the mutex leaks a converter. *)
+(* Destroying the mutex leaks a key. *)
 let () =
   let (P m) = m in
-  let _k : _ Capsule.Access.t = Capsule.Mutex.destroy m in
+  let _k : _ Capsule.Key.t= Capsule.Mutex.destroy m in
   ()
 ;;
 
