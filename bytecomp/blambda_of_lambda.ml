@@ -12,31 +12,24 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Lambda
-open Blambda
-
-(**** Compilation of a lambda expression ****)
-
-(* Translate a primitive to a bytecode instruction (possibly a call to a C
-   function) *)
-
-let is_nontail = function
+let is_nontail : Lambda.region_close -> bool = function
   | Rc_nontail -> true
   | Rc_normal | Rc_close_at_apply -> false
 
-let rec comp_rec_binding ({ id; def } : Lambda.rec_binding) :
-    Blambda.rec_binding =
-  { id; def = comp_fun def }
-
-and comp_fun ({ params; body; loc } : Lambda.lfunction) : Blambda.bfunction =
-  (* assume kind = Curried *)
-  { params = List.map (fun p -> p.name) params;
-    body = comp_expr body ~tailcall:Tailcall;
-    loc
-  }
-
-and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
-  let[@inline] comp_arg arg = comp_expr arg ~tailcall:Nontail in
+let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
+    Blambda.t =
+  let comp_fun ({ params; body; loc } : Lambda.lfunction) : Blambda.bfunction =
+    (* assume kind = Curried *)
+    { params = List.map (fun (p : Lambda.lparam) -> p.name) params;
+      body = comp_expr body ~tailcall:Blambda.Tailcall;
+      loc
+    }
+  in
+  let comp_rec_binding ({ id; def } : Lambda.rec_binding) : Blambda.rec_binding
+      =
+    { id; def = comp_fun def }
+  in
+  let[@inline] comp_arg arg = comp_expr arg ~tailcall:Blambda.Nontail in
   match (exp : Lambda.lambda) with
   | Lvar id | Lmutvar id -> Var id
   | Lconst cst -> Const cst
@@ -47,7 +40,7 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
         tailcall = (if is_nontail rc then Nontail else tailcall)
       }
   | Lsend (kind, met, obj, args, rc, _, _, _) ->
-    assert (kind <> Cached);
+    assert (kind <> (Cached : Lambda.meth_kind));
     Send
       { kind;
         met = comp_arg met;
@@ -111,12 +104,17 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
   | Lifused (_, exp) | Lregion (exp, _) | Lexclave exp ->
     comp_expr exp ~tailcall
   | Lprim (primitive, args, loc) -> (
+    let simd_is_not_supported () =
+      Misc.fatal_error "SIMD is not supported in bytecode mode."
+    in
     let wrong_arity ~expected =
       Misc.fatal_errorf "Blambda_of_lambda.comp_primitive: %a takes %d %s"
         Printlambda.primitive primitive expected
         (if expected = 1 then "argument" else "arguments")
     in
-    let variadic primitive = Prim (primitive, List.map comp_arg args, loc) in
+    let variadic primitive =
+      Blambda.Prim (primitive, List.map comp_arg args, loc)
+    in
     let n_ary primitive ~arity =
       if List.compare_length_with args arity <> 0
       then variadic primitive
@@ -128,16 +126,17 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
     let ternary = n_ary ~arity:3 in
     let ccall name ~arity = n_ary ~arity (Ccall name) in
     let boolnot arg = Blambda.Prim (Boolnot, [arg], loc) in
-    let comp_bint_primitive bi suff =
+    let comp_bint_primitive bi suff : Blambda.primitive =
       let pref =
-        match bi with
+        match (bi : Primitive.boxed_integer) with
         | Boxed_nativeint -> "caml_nativeint_"
         | Boxed_int32 -> "caml_int32_"
         | Boxed_int64 -> "caml_int64_"
       in
       Ccall (pref ^ suff)
     in
-    let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
+    let indexing_primitive (index_kind : Lambda.array_index_kind) prefix :
+        Blambda.primitive =
       let suffix =
         match index_kind with
         | Ptagged_int_index -> ""
@@ -202,8 +201,7 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
         variadic (Makeblock { tag = 0 })
       | Pfloatarray | Punboxedfloatarray Unboxed_float64 ->
         variadic Makefloatblock
-      | Punboxedvectorarray _ ->
-        Misc.fatal_error "SIMD is not supported in bytecode mode."
+      | Punboxedvectorarray _ -> simd_is_not_supported ()
       | Pgenarray -> (
         match args with
         | [] -> variadic (Makeblock { tag = 0 })
@@ -219,7 +217,7 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
       | Tailcall -> ternary Reperform)
     | Pmakearray_dynamic (kind, locality, Uninitialized) -> (
       (* Use a dummy initializer to implement the "uninitialized" primitive *)
-      let init =
+      let init : Lambda.lambda =
         match kind with
         | Pgenarray | Paddrarray | Pintarray | Pfloatarray
         | Pgcscannableproductarray _ ->
@@ -239,7 +237,7 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
           Misc.fatal_error "SIMD is not supported in bytecode mode."
         | Pgcignorableproductarray ignorables ->
           let rec convert_ignorable
-              (ign : Lambda.ignorable_product_element_kind) =
+              (ign : Lambda.ignorable_product_element_kind) : Lambda.lambda =
             match ign with
             | Pint_ignorable -> Lconst (Const_base (Const_int 0))
             | Punboxedfloat_ignorable Unboxed_float32 ->
@@ -254,7 +252,8 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
               Lconst (Const_base (Const_nativeint 0n))
             | Pproduct_ignorable ignorables ->
               let fields = List.map convert_ignorable ignorables in
-              Lprim (Pmakeblock (0, Immutable, None, alloc_heap), fields, loc)
+              Lprim
+                (Pmakeblock (0, Immutable, None, Lambda.alloc_heap), fields, loc)
           in
           convert_ignorable (Pproduct_ignorable ignorables)
       in
@@ -264,7 +263,8 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
           (Lprim
              ( Pmakearray_dynamic (kind, locality, With_initializer),
                [len; init],
-               loc ))
+               loc )
+            : Lambda.lambda)
           ~tailcall
       | _ -> wrong_arity ~expected:1)
     | Pduparray (kind, mutability) -> (
@@ -272,7 +272,7 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
       | [Lprim (Pmakearray (kind', _, m), args, _)] ->
         assert (kind = kind');
         comp_expr
-          (Lprim (Pmakearray (kind, mutability, m), args, loc))
+          (Lambda.Lprim (Pmakearray (kind, mutability, m), args, loc))
           ~tailcall
       | _ -> unary (Ccall "caml_obj_dup"))
     | Pfloatcomp (Boxed_float64, cmp)
@@ -321,7 +321,7 @@ and comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) : Blambda.t =
         let element_size : Lambda.lambda =
           Lprim (Plsrint, [word_size; Lconst (Const_base (Const_int 3))], loc)
         in
-        comp_expr (Lsequence (arg, element_size)) ~tailcall
+        comp_expr (Lambda.Lsequence (arg, element_size)) ~tailcall
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pfield_computed _sem -> binary Getvectitem
     | Psetfield (n, _ptr, _init) -> binary (Setfield n)
