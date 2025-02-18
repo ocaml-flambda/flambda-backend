@@ -5,7 +5,7 @@ set -e -u -o pipefail
 # with one installed to _install
 #
 # E.g.,
-# make boot-install
+# make boot-_install
 # export OLD='opam exec --switch=MY_OLD_SWITCH ocamlopt.opt --'
 # tools/compare.sh testsuite/tests/lib-int/test.ml -c -dcmm -dump-into-file
 # diff {old,new}.cmx.dump
