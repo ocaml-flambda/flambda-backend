@@ -26,8 +26,9 @@ module Cell = struct
     | Mk : 'k Capsule.Mutex.t * ('a myref, 'k) Capsule.Data.t -> 'a t
 
   let create (type a : value mod portable contended) (x : a) : a t =
-    let (P m) = Capsule.create_with_mutex () in
-    let p = Capsule.Data.create (fun () -> {v = x})  in
+    let (P k) = Capsule.create () in
+    let m = Capsule.Mutex.create k in
+    let p = Capsule.Data.create (fun () -> {v = x}) in
     Mk (m, p)
 
   let read (type a : value mod portable contended) (t : a t) : a =

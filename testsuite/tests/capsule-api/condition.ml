@@ -15,7 +15,8 @@ external ( ! ) : 'a ref -> 'a @@ portable = "%field0"
 external ( := ) : 'a ref -> 'a -> unit @@ portable = "%setfield0"
 
 let () = (* Signal *)
-  let (P mut) = Capsule.create_with_mutex () in
+  let (P k) = Capsule.create () in
+  let mut = Capsule.Mutex.create k in
   let cond = Capsule.Condition.create () in
   let go = Capsule.Data.create (fun () -> ref true) in
   let wait = Atomic.make true in
@@ -34,7 +35,8 @@ let () = (* Signal *)
 ;;
 
 let () = (* Broadcast *)
-  let (P mut) = Capsule.create_with_mutex () in
+  let (P k) = Capsule.create () in
+  let mut = Capsule.Mutex.create k in
   let cond = Capsule.Condition.create () in
   let go = Capsule.Data.create (fun () -> ref true) in
   let ready = Atomic.make 0 in

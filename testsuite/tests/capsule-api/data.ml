@@ -34,7 +34,8 @@ let with_guarded x (f : 'k . 'k Capsule.Password.t @ local -> ('a, 'k) Capsule.D
 
 (* [create]. *)
 let ptr =
-  let (P m) = Capsule.create_with_mutex () in
+  let (P k) = Capsule.create () in
+  let m = Capsule.Mutex.create k in
   Mk (m, Capsule.Data.create (fun () -> mk_ref 42))
 ;;
 
@@ -82,8 +83,8 @@ exception Leak of int myref
 let () =
   with_guarded ptr (fun (type k) (k : k Capsule.Password.t) p ->
     match Capsule.Data.iter k (fun r -> reraise (Leak r)) p with
-    | exception Capsule.Encapsulated (name, exn_data) ->
-      (match Capsule.Name.equality_witness name (Capsule.Password.name k) with
+    | exception Capsule.Encapsulated (id, exn_data) ->
+      (match Capsule.Password.Id.equality_witness id (Capsule.Password.id k) with
        | Some Equal ->
          Capsule.Data.iter k (function
            | Leak r -> ()
@@ -98,8 +99,8 @@ let () =
   with_guarded ptr (fun (type k) (k : k Capsule.Password.t) (p : _ Capsule.Data.t) ->
     match Capsule.access k
             (fun c -> reraise (Leak (Capsule.Data.unwrap c p))) with
-    | exception Capsule.Encapsulated (name, exn_data) ->
-      (match Capsule.Name.equality_witness name (Capsule.Password.name k) with
+    | exception Capsule.Encapsulated (id, exn_data) ->
+      (match Capsule.Password.Id.equality_witness id (Capsule.Password.id k) with
        | Some Equal ->
          Capsule.Data.iter k (function
            | Leak r -> ()
@@ -131,7 +132,7 @@ let () =
 (* [destroy]. *)
 let () =
   let (Mk (m, p)) = ptr2 in
-  let c = Capsule.Mutex.destroy m in
+  let c = Capsule.Key.destroy (Capsule.Mutex.destroy m) in
   let (r1, r2) = Capsule.Data.unwrap c p in
   assert (read_ref r1 = 15 && read_ref r2 = 3)
 ;;
@@ -166,7 +167,8 @@ type lost_capsule = |
 
 (* [bind]. *)
 let ptr' : (int, lost_capsule) Capsule.Data.t =
-  let (P m) = Capsule.create_with_mutex () in
+  let (P k) = Capsule.create () in
+  let m = Capsule.Mutex.create k in
   let ptr = Capsule.Data.inject 100 in
   Capsule.Mutex.with_lock m (fun k ->
     Capsule.Data.bind k (fun x -> Capsule.Data.inject (((+) x) 11)) ptr)
@@ -176,43 +178,3 @@ let () =
   assert (Capsule.Data.project ptr' = 111)
 ;;
 
-(* [with_password]. *)
-exception Exn of string
-
-let () =
-  match Capsule.with_password (fun _password -> "ok") with
-  | s -> assert (s = "ok")
-  | exception _ -> assert false
-;;
-
-let () =
-  match Capsule.with_password (fun _password -> Exn "ok") with
-  | Exn s -> assert (s = "ok")
-  | _ -> assert false
-;;
-
-let () =
-  match Capsule.with_password (fun _password -> reraise (Exn "fail")) with
-  | exception (Exn s) -> assert (s = "fail")
-  | _ -> assert false
-;;
-
-let () =
-  match Capsule.with_password (fun (Capsule.Password.P password) ->
-    let data = Capsule.Data.create (fun () -> "fail") in
-    let msg = Capsule.Data.extract password (fun s : string -> s) data in
-    reraise (Exn msg))
-  with
-  | exception (Exn s) -> assert (s = "fail")
-  | _ -> assert false
-;;
-
-let () =
-  match Capsule.with_password (fun (Capsule.Password.P password) ->
-    let data = Capsule.Data.create (fun () -> "fail") in
-    let () = Capsule.Data.extract password (fun s -> reraise (Exn s)) data in
-    ())
-  with
-  | exception (Exn s) -> assert (s = "fail")
-  | _ -> assert false
-;;
