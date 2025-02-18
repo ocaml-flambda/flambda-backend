@@ -82,8 +82,8 @@ module Password : sig
   type 'k t : value mod many portable contended
   (** ['k t] is the type of "passwords" representing permission for the
      current fiber to have [uncontended] access to the capsule
-     ['k]. They are only ever avilable locally, so that they cannot move
-     between fibers.
+     ['k]. They are only ever avilable locally, and they cannot move
+     between domains due to the read-write access they provide.
 
       Obtaining a ['k t] requires acquiring the mutex associated with
      ['k], and modes prevent retaining the [t] after releasing the
@@ -110,8 +110,8 @@ module Password : sig
     type 'k t : value mod many portable contended
     (** ['k t] is the type of "shared passwords" representing permission
         for the current fiber to have [shared] access to the capsule
-        ['k]. They are only ever avilable locally, so that they cannot
-        move between fibers.
+        ['k]. Unlike normal passwords, some [shared] passwords --
+        those marked as [unyielding] -- may be moved across domains.
 
         Obtaining a ['k t] requires read acquire the reader-writer lock
         associate with ['k]. *)
@@ -164,7 +164,7 @@ module Key : sig
 
   val with_password_shared :
     'k t
-    -> ('k Password.Shared.t @ local -> 'a) @ local
+    -> ('k Password.Shared.t @ local unyielding -> 'a) @ local
     -> 'a
     @@ portable
   (** [with_password_shared k f] runs [f], providing it a shared password
@@ -176,7 +176,7 @@ module Key : sig
 
   val with_password_shared_local :
     'k t
-    -> ('k Password.Shared.t @ local -> 'a @ local) @ local
+    -> ('k Password.Shared.t @ local unyielding -> 'a @ local) @ local
     -> 'a @ local
     @@ portable
   (** As [with_password_shared], but returns a local value. *)
@@ -345,7 +345,7 @@ module Rwlock : sig
 
     val with_read_lock :
         'k t
-        -> ('k Password.Shared.t @ local -> 'a) @ local
+        -> ('k Password.Shared.t @ local unyielding -> 'a) @ local
         -> 'a
         @@ portable
     (** [with_read_lock rw f] tries to read acquire the rwlock [rw]. If [rw] is already
