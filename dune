@@ -295,6 +295,7 @@
  (libraries ocamlcommon)
  (modules
   ;; bytecomp/
+  blambda
   bytegen
   byteinstantiator
   bytelibrarian
