@@ -297,7 +297,7 @@ let external_calling_conventions
     begin match ty_arg with
     | XInt | XInt64 ->
         loc.(i) <- [| loc_int last_int make_stack int ofs |]
-    | XInt32 | XInt16 | XInt8 ->
+    | XInt32 ->
         loc.(i) <- [| loc_int32 last_int make_stack int ofs |]
     | XFloat ->
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
