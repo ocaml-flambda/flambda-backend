@@ -75,6 +75,8 @@ val ge_component
 
 type exttype =
   | XInt                                (**r OCaml value, word-sized integer *)
+  | XInt8                               (**r 8-bit integer *)
+  | XInt16                              (**r 16-bit integer  *)
   | XInt32                              (**r 32-bit integer *)
   | XInt64                              (**r 64-bit integer  *)
   | XFloat32                            (**r single-precision FP number *)
