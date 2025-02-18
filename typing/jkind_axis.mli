@@ -219,6 +219,8 @@ module Axis_set : sig
 
   val is_empty : t -> bool
 
+  val is_all : t -> bool
+
   val add : t -> _ Axis.t -> t
 
   val remove : t -> _ Axis.t -> t

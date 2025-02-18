@@ -456,7 +456,9 @@ module Axis_set = struct
 
   let[@inline] is_subset t1 t2 = Int.equal (t1 land t2) t1
 
-  let[@inline] is_empty = Int.equal 0
+  let[@inline] is_empty t = Int.equal t 0
+
+  let[@inline] is_all t = Int.equal t all
 
   let[@inline] complement t = diff t all
 
