@@ -803,6 +803,7 @@ module type Wrapped = sig
   and module_declaration =
   {
     md_type: module_type;
+    md_modalities : Mode.Modality.Value.t;
     md_attributes: Parsetree.attributes;
     md_loc: Location.t;
     md_uid: Uid.t;

@@ -1116,10 +1116,14 @@ let rec approx_modtype env smty =
 and approx_module_declaration env pmd =
   {
     Types.md_type = approx_modtype env pmd.pmd_type;
+    md_modalities =
+      pmd.pmd_modalities
+      |> Typemode.transl_modalities ~maturity:Alpha Immutable []
+      |> Mode.Modality.Value.of_const;
     md_attributes = pmd.pmd_attributes;
     md_loc = pmd.pmd_loc;
     md_uid = Uid.internal_not_actually_unique;
-  }
+}
 
 and approx_sig env {psg_items; _} = approx_sig_items env psg_items
 
@@ -1638,13 +1642,14 @@ and transl_modtype_aux env smty =
               let id, newenv =
                 let arg_md =
                   { md_type = arg.mty_type;
+                    md_modalities = Mode.Modality.Value.id;
                     md_attributes = [];
                     md_loc = param.loc;
                     md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
                   }
                 in
                 Env.enter_module_declaration ~scope ~arg:true name Mp_present
-                  arg_md env
+                  arg_md ~mode:Mode.Value.legacy env
               in
               Some id, newenv
           in
@@ -1857,6 +1862,13 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           Builtin_attributes.warning_scope pmd.pmd_attributes
             (fun () -> transl_modtype env pmd.pmd_type)
         in
+        let modalities =
+          match pmd.pmd_modalities with
+          | [] -> sig_modalities
+          | l -> Typemode.transl_modalities ~maturity:Alpha Immutable
+              pmd.pmd_attributes l
+        in
+        let modalities = Mode.Modality.Value.of_const modalities in
         let pres =
           match tmty.mty_type with
           | Mty_alias _ -> Mp_absent
@@ -1864,6 +1876,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
         in
         let md = {
           md_type=tmty.mty_type;
+          md_modalities = modalities;
           md_attributes=pmd.pmd_attributes;
           md_loc=pmd.pmd_loc;
           md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
@@ -1883,6 +1896,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           mksig (Tsig_module {md_id=id; md_name=pmd.pmd_name;
                               md_uid=md.md_uid; md_presence=pres;
                               md_type=tmty;
+                              md_modalities=md.md_modalities;
                               md_loc=pmd.pmd_loc;
                               md_attributes=pmd.pmd_attributes})
             env loc
@@ -1895,7 +1909,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
         sig_item, tsg, newenv
     | Psig_modsubst pms ->
         let scope = Ctype.create_scope () in
-        let path, md, _ =
+        let path, md, mode =
           Env.lookup_module ~loc:pms.pms_manifest.loc ~lock:false
             pms.pms_manifest.txt env
         in
@@ -1905,6 +1919,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
             md
           else
             { md_type = Mty_alias path;
+              md_modalities = md.md_modalities;
               md_attributes = pms.pms_attributes;
               md_loc = pms.pms_loc;
               md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
@@ -1916,7 +1931,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           | _ -> Mp_present
         in
         let id, newenv =
-          Env.enter_module_declaration ~scope pms.pms_name.txt pres md env
+          Env.enter_module_declaration ~scope pms.pms_name.txt pres md ~mode env
         in
         let info =
           `Substituted_away (Subst.add_module id path Subst.identity)
@@ -1946,6 +1961,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
         let sig_items =
           map_rec (fun rs (id, md, uid) ->
             let d = {Types.md_type = md.md_type.mty_type;
+                     md_modalities = md.md_modalities;
                      md_attributes = md.md_attributes;
                      md_loc = md.md_loc;
                      md_uid = uid;
@@ -2140,7 +2156,7 @@ and transl_recmodule_modtypes env sdecls =
     List.map2
       (fun id pmd ->
          let md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
-         let md =
+         let md : Types.module_declaration =
            { md_type = approx_modtype approx_env pmd.pmd_type;
              md_loc = pmd.pmd_loc;
              md_attributes = pmd.pmd_attributes;
@@ -2548,21 +2564,33 @@ let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
     Mode.Modality.Value.id
   end
 
+type expected_mode = {
+  mode : Mode.Value.r;
+} [@@unboxed]
+
+let mode_legacy : expected_mode = { mode = Mode.Value.legacy }
+
+let submode ~loc ~env mode expected_mode =
+  match Mode.Value.submode mode expected_mode.mode with
+  | Ok () -> ()
+  | Error e -> raise (Error (loc, env, Submode_failed e))
+
 let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   Builtin_attributes.warning_scope smod.pmod_attributes
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
-and type_module_aux ~alias sttn funct_body anchor env smod =
+and type_module_aux ~alias sttn funct_body anchor env expected_mode smod =
+  let loc = smod.pmod_loc in
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, mode =
         Env.lookup_module_path ~load:(not alias) ~loc:smod.pmod_loc lid.txt env
       in
-      Mode.Value.submode_exn mode Mode.Value.legacy;
+      submode ~loc ~env mode expected_mode;
       type_module_path_aux ~alias sttn env path lid smod
   | Pmod_structure sstr ->
       let (str, sg, names, shape, _finalenv) =
-        type_structure funct_body anchor env sstr in
+        type_structure funct_body anchor env expected_mode sstr in
       let md =
         { mod_desc = Tmod_structure str;
           mod_type = Mty_signature sg;
@@ -2575,6 +2603,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       wrap_constraint_with_shape env false md
         (Mty_signature sg') shape Tmodtype_implicit
   | Pmod_functor(arg_opt, sbody) ->
+      let newenv = Env.add_closure_lock Functor expected_mode.mode.comonadic env in
       let t_arg, ty_arg, newenv, funct_shape_param, funct_body =
         match arg_opt with
         | Unit ->
@@ -2598,16 +2627,14 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
               let id = Ident.create_scoped ~scope name in
               let shape = Shape.var md_uid id in
               let newenv = Env.add_module_declaration
-                ~shape ~arg:true ~check:true id Mp_present arg_md env
+                ~shape ~arg:true ~check:true id Mp_present arg_md newenv
               in
               Some id, newenv, id
           in
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv,
           var, true
       in
-      let newenv = Env.add_escape_lock Module newenv in
-      let newenv = Env.add_share_lock Module newenv in
-      let body, body_shape = type_module true funct_body None newenv sbody in
+      let body, body_shape = type_module true funct_body None newenv Mode.Value.legacy sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);
         mod_env = env;
@@ -2672,7 +2699,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
           glob env
       in
-      Mode.Value.submode_exn mode Mode.Value.legacy;
+      submode_exn ~loc ~env mode expected_mode;
       let lid =
         (* Only used by [untypeast] *)
         let name =
@@ -2926,8 +2953,9 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
     } in
     open_descr, sg, newenv
 
-and type_structure ?(toplevel = None) funct_body anchor env sstr =
+and type_structure ?(toplevel = None) funct_body anchor env expected_mode sstr =
   let names = Signature_names.create () in
+  let md_mode = Mode.Value.newvar_below expected_mode.mode in
 
   let type_str_include ~loc env shape_map sincl sig_acc =
     let smodl = sincl.pincl_mod in
@@ -2978,8 +3006,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
   in
 
   let type_str_item
-        env shape_map {pstr_loc = loc; pstr_desc = desc} sig_acc =
-    let md_mode = Mode.Value.legacy in
+        env md_mode shape_map {pstr_loc = loc; pstr_desc = desc} sig_acc =
     match desc with
     | Pstr_eval (sexpr, attrs) ->
         let expr, sort =
@@ -3379,7 +3406,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     let str = { str_items = items; str_type = sg; str_final_env = final_env } in
     Cmt_format.set_saved_types
       (Cmt_format.Partial_structure str :: previous_saved_types);
-    str, sg, names, Shape.str shape_map, final_env
+    str, sg, md_mode, names, Shape.str shape_map, final_env
   in
   if Option.is_some toplevel then run ()
   else Builtin_attributes.warning_scope [] run

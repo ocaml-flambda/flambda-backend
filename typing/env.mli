@@ -32,7 +32,7 @@ type summary =
   | Env_value of summary * Ident.t * value_description * Mode.Value.l
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
-  | Env_module of summary * Ident.t * module_presence * module_declaration
+  | Env_module of summary * Ident.t * module_presence * module_declaration * Mode.Value.l
   | Env_modtype of summary * Ident.t * modtype_declaration
   | Env_class of summary * Ident.t * class_declaration
   | Env_cltype of summary * Ident.t * class_type_declaration
@@ -186,13 +186,13 @@ type locality_context =
 
 type closure_context =
   | Function of locality_context option
+  | Functor
   | Lazy
 
 type escaping_context =
   | Letop
   | Probe
   | Class
-  | Module
 
 type shared_context =
   | For_loop
@@ -201,7 +201,6 @@ type shared_context =
   | Closure
   | Comprehension
   | Class
-  | Module
   | Probe
 
 (** Items whose accesses are affected by locks *)
@@ -376,11 +375,11 @@ val add_extension:
 val add_module: ?arg:bool -> ?shape:Shape.t ->
   Ident.t -> module_presence -> module_type -> t -> t
 val add_module_lazy: update_summary:bool ->
-  Ident.t -> module_presence -> Subst.Lazy.module_type -> t -> t
+  Ident.t -> module_presence -> Subst.Lazy.module_type -> ?mode:(Mode.allowed * 'r) Mode.Value.t -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
-  Ident.t -> module_presence -> module_declaration -> t -> t
+  Ident.t -> module_presence -> module_declaration -> ?mode:(Mode.allowed * 'r) Mode.Value.t -> t -> t
 val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
-  Ident.t -> module_presence -> Subst.Lazy.module_declaration -> t -> t
+  Ident.t -> module_presence -> Subst.Lazy.module_declaration -> ?mode:(Mode.allowed * 'r) Mode.Value.t -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
 val add_modtype_lazy: update_summary:bool ->
    Ident.t -> Subst.Lazy.modtype_declaration -> t -> t
@@ -439,10 +438,10 @@ val enter_extension:
   extension_constructor -> t -> Ident.t * t
 val enter_module:
   scope:int -> ?arg:bool -> string -> module_presence ->
-  module_type -> t -> Ident.t * t
+  module_type -> ?mode:(Mode.allowed * 'r) Mode.Value.t -> t -> Ident.t * t
 val enter_module_declaration:
   scope:int -> ?arg:bool -> ?shape:Shape.t -> string -> module_presence ->
-  module_declaration -> t -> Ident.t * t
+  module_declaration -> ?mode:(Mode.allowed * 'r) Mode.Value.t -> t -> Ident.t * t
 val enter_modtype:
   scope:int -> string -> modtype_declaration -> t -> Ident.t * t
 val enter_class: scope:int -> string -> class_declaration -> t -> Ident.t * t

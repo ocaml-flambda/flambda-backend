@@ -50,11 +50,11 @@ let rec env_from_summary sum subst =
           Env.add_extension ~check:false ~rebind:false id
             (Subst.extension_constructor subst desc)
             (env_from_summary s subst)
-      | Env_module(s, id, pres, desc) ->
+      | Env_module(s, id, pres, desc, mode) ->
           let desc =
             Subst.Lazy.module_decl Keep subst (Subst.Lazy.of_module_decl desc)
           in
-          Env.add_module_declaration_lazy ~update_summary:true id pres desc
+          Env.add_module_declaration_lazy ~update_summary:true id pres desc ~mode
             (env_from_summary s subst)
       | Env_modtype(s, id, desc) ->
           let desc =
@@ -72,12 +72,12 @@ let rec env_from_summary sum subst =
           let env = env_from_summary s subst in
           let path' = Subst.module_path subst path in
           Env.open_signature_by_path path' env
-      | Env_functor_arg(Env_module(s, id, pres, desc), id')
+      | Env_functor_arg(Env_module(s, id, pres, desc, mode), id')
             when Ident.same id id' ->
           let desc =
             Subst.Lazy.module_decl Keep subst (Subst.Lazy.of_module_decl desc)
           in
-          Env.add_module_declaration_lazy ~update_summary:true id pres desc
+          Env.add_module_declaration_lazy ~update_summary:true id pres desc ~mode
             ~arg:true (env_from_summary s subst)
       | Env_functor_arg _ -> assert false
       | Env_constraints(s, map) ->

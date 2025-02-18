@@ -833,6 +833,7 @@ and module_declaration =
      md_uid: Uid.t;
      md_presence: Types.module_presence;
      md_type: module_type;
+     md_modalities: Mode.Modality.Value.t;
      md_attributes: attributes;
      md_loc: Location.t;
     }
