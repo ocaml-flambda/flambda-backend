@@ -48,7 +48,7 @@ module Sub_result = struct
     | Less
     | Not_le of Sub_failure_reason.t Nonempty_list.t
 
-  let of_le_result ~failure_reason (le_result : Misc.Le_result.t) =
+  let[@inline] of_le_result ~failure_reason (le_result : Misc.Le_result.t) =
     match le_result with
     | Less -> Less
     | Equal -> Equal
@@ -448,15 +448,46 @@ module Mod_bounds = struct
             Bound_ops.meet)
       }
 
-  let less_or_equal =
-    Fold2.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) b1 b2 ->
-            let (module Bound_ops) = Axis.get axis in
-            Sub_result.of_le_result (Bound_ops.less_or_equal b1 b2)
-              ~failure_reason:(fun () -> [Axis_disagreement (Pack axis)]))
-      }
-      ~combine:Sub_result.combine
+  let less_or_equal t1 t2 =
+    let less_or_equal le ax a b : Sub_result.t =
+      match le a b, le b a with
+      | true, true -> Equal
+      | true, false -> Less
+      | false, _ -> Not_le [Axis_disagreement ax]
+    in
+    Sub_result.combine
+      (less_or_equal Locality.Const.le (Pack (Modal (Comonadic Areality)))
+         t1.locality t2.locality)
+    @@ Sub_result.combine
+         (less_or_equal Uniqueness.Const.le (Pack (Modal (Monadic Uniqueness)))
+            t2.uniqueness t1.uniqueness)
+    @@ Sub_result.combine
+         (less_or_equal Linearity.Const.le (Pack (Modal (Comonadic Linearity)))
+            t1.linearity t2.linearity)
+    @@ Sub_result.combine
+         (less_or_equal Contention.Const.le (Pack (Modal (Monadic Contention)))
+            t2.contention t1.contention)
+    @@ Sub_result.combine
+         (less_or_equal Portability.Const.le
+            (Pack (Modal (Comonadic Portability))) t1.portability t2.portability)
+    @@ Sub_result.combine
+         (less_or_equal Yielding.Const.le (Pack (Modal (Comonadic Yielding)))
+            t1.yielding t2.yielding)
+    @@ Sub_result.combine
+         (less_or_equal Externality.le (Pack (Nonmodal Externality))
+            t1.externality t2.externality)
+    @@ less_or_equal Nullability.le (Pack (Nonmodal Nullability)) t1.nullability
+         t2.nullability
+
+  let is_le t1 t2 =
+    Locality.Const.le t1.locality t2.locality
+    && Uniqueness.Const.le t2.uniqueness t1.uniqueness
+    && Linearity.Const.le t1.linearity t2.linearity
+    && Contention.Const.le t2.contention t1.contention
+    && Portability.Const.le t1.portability t2.portability
+    && Yielding.Const.le t1.yielding t2.yielding
+    && Externality.le t1.externality t2.externality
+    && Nullability.le t1.nullability t2.nullability
 
   let equal =
     Fold2.f
