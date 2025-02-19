@@ -460,7 +460,7 @@ module Axis_set = struct
 
   let[@inline] is_all t = Int.equal t all
 
-  let[@inline] complement t = diff t all
+  let[@inline] complement t = diff all t
 
   let[@inline] to_seq t =
     Axis.all |> List.to_seq |> Seq.filter (fun (Axis.Pack axis) -> mem t axis)
