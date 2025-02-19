@@ -187,7 +187,7 @@ module Axis_collection = struct
 
     type 'a t = 'a t_poly
 
-    let get (type a) ~(axis : a Axis.t) (t : 'b t) : (a, 'b) T.t =
+    let[@inline] get (type a) ~(axis : a Axis.t) (t : 'b t) : (a, 'b) T.t =
       match axis with
       | Modal (Comonadic Areality) -> t.locality
       | Modal (Comonadic Linearity) -> t.linearity
@@ -198,7 +198,7 @@ module Axis_collection = struct
       | Nonmodal Externality -> t.externality
       | Nonmodal Nullability -> t.nullability
 
-    let set (type a) ~(axis : a Axis.t) (t : 'b t) (value : (a, 'b) T.t) =
+    let[@inline] set (type a) ~(axis : a Axis.t) (t : 'b t) (value : (a, 'b) T.t) =
       match axis with
       | Modal (Comonadic Areality) -> { t with locality = value }
       | Modal (Comonadic Linearity) -> { t with linearity = value }

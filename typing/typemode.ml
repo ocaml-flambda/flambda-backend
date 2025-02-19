@@ -138,12 +138,15 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
     Transled_modifiers.Create.f { f = (fun ~axis:_ -> None) }
   in
   let modes = List.fold_left step empty_modifiers annots in
-  { areality = Transled_modifier.drop_loc modes.locality;
-    linearity = Transled_modifier.drop_loc modes.linearity;
-    uniqueness = Transled_modifier.drop_loc modes.uniqueness;
-    portability = Transled_modifier.drop_loc modes.portability;
-    contention = Transled_modifier.drop_loc modes.contention;
-    yielding = Transled_modifier.drop_loc modes.yielding
+  let for_axis axis =
+    Transled_modifier.drop_loc (Transled_modifiers.get ~axis:(Modal axis) modes)
+  in
+  { areality = for_axis (Comonadic Areality);
+    linearity = for_axis (Comonadic Linearity);
+    uniqueness = for_axis (Monadic Uniqueness);
+    portability = for_axis (Comonadic Portability);
+    contention = for_axis (Monadic Contention);
+    yielding = for_axis (Comonadic Yielding)
   }
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =

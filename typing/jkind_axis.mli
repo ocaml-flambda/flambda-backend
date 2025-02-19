@@ -78,16 +78,7 @@ module Axis_collection : sig
        parameter for those instantiations, we define [type t = unit t_poly] in them. In
        instantiations where the polymorphism is actually used, we define
        [type 'a t = 'a t_poly] *)
-    type 'a t_poly =
-      { locality : (Mode.Locality.Const.t, 'a) u;
-        linearity : (Mode.Linearity.Const.t, 'a) u;
-        uniqueness : (Mode.Uniqueness.Const.t, 'a) u;
-        portability : (Mode.Portability.Const.t, 'a) u;
-        contention : (Mode.Contention.Const.t, 'a) u;
-        yielding : (Mode.Yielding.Const.t, 'a) u;
-        externality : (Externality.t, 'a) u;
-        nullability : (Nullability.t, 'a) u
-      }
+    type 'a t_poly
 
     val get : axis:'a Axis.t -> 'b t_poly -> ('a, 'b) u
 
