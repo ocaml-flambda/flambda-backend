@@ -131,7 +131,7 @@ module Axis = struct
     (* A functor to add some convenient functions to modal axes *)
     include M
 
-    let less_or_equal a b : Misc.Le_result.t =
+    let[@inline] less_or_equal a b : Misc.Le_result.t =
       match le a b, le b a with
       | true, true -> Equal
       | true, false -> Less
@@ -407,55 +407,79 @@ module Axis_collection = struct
 end
 
 module Axis_set = struct
-  (* each axis is true or false to indicate membership  *)
-  type t = bool Axis_collection.t
+  (* This could be [bool Axis_collection.t], but instead we represent it as a bitfield for
+     performance (this matters, since these are hammered on quite a bit during with-bound
+     normalization) *)
 
-  (* TODO: this could be represented with a uint8 since there's only 7 possible members *)
+  type t = int
+  (* CR layouts: if we had unboxed types in the compiler, this could be represented with a
+     uint8 since there are only 8 bits that we care about *)
 
-  let empty = Axis_collection.create ~f:(fun ~axis:_ -> false)
+  let[@inline] axis_index (type a) : a Axis.t -> _ = function
+    | Modal (Comonadic Areality) -> 0
+    | Modal (Comonadic Linearity) -> 1
+    | Modal (Monadic Uniqueness) -> 2
+    | Modal (Comonadic Portability) -> 3
+    | Modal (Monadic Contention) -> 4
+    | Modal (Comonadic Yielding) -> 5
+    | Nonmodal Externality -> 6
+    | Nonmodal Nullability -> 7
 
-  let add t axis = Axis_collection.set ~axis t true
+  let[@inline] axis_mask ax = 1 lsl axis_index ax
 
-  let singleton axis = add empty axis
+  let[@inline] set ~axis ~to_ t =
+    match to_ with
+    | true -> t lor axis_mask axis
+    | false -> t land lnot (axis_mask axis)
 
-  let remove t axis = Axis_collection.set ~axis t false
+  let empty = 0
 
-  let mem t axis = Axis_collection.get ~axis t
+  let[@inline] add t axis = set ~axis ~to_:true t
 
-  let union t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 || Axis_collection.get ~axis t2)
+  let[@inline] create ~f =
+    (* PERF: this is manually unrolled because flambda2 doesn't unroll for us, and this
+       function is quite hot *)
+    let[@inline] set_axis axis t =
+      if f ~axis:(Axis.Pack axis) then t lor axis_mask axis else t
+    in
+    0
+    |> set_axis (Modal (Comonadic Areality))
+    |> set_axis (Modal (Comonadic Linearity))
+    |> set_axis (Modal (Monadic Uniqueness))
+    |> set_axis (Modal (Comonadic Portability))
+    |> set_axis (Modal (Monadic Contention))
+    |> set_axis (Modal (Comonadic Yielding))
+    |> set_axis (Nonmodal Externality)
+    |> set_axis (Nonmodal Nullability)
 
-  let intersection t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 && Axis_collection.get ~axis t2)
+  let all = create ~f:(fun ~axis:_ -> true)
 
-  let diff t1 t2 =
-    Axis_collection.create ~f:(fun ~axis:(Pack axis) ->
-        Axis_collection.get ~axis t1 && not (Axis_collection.get ~axis t2))
+  let[@inline] singleton axis = add empty axis
 
-  let is_subset t1 t2 =
-    Axis_collection.fold
-      ~f:(fun ~axis:(Pack axis) t1_on_axis ->
-        let t2_on_axis = Axis_collection.get ~axis t2 in
-        (not t1_on_axis) || t2_on_axis)
-      ~combine:( && ) t1
+  let[@inline] remove t axis = set ~axis ~to_:false t
 
-  let is_empty t = is_subset t empty
+  let[@inline] mem t axis = not (Int.equal (t land axis_mask axis) 0)
 
-  let complement t = Axis_collection.map ~f:not t
+  let[@inline] union t1 t2 = t1 lor t2
 
-  let to_list t =
-    Axis_collection.fold
-      ~f:(fun ~axis t_on_axis ->
-        match t_on_axis with true -> [axis] | false -> [])
-      ~combine:( @ ) t
+  let[@inline] intersection t1 t2 = t1 land t2
 
-  let create = Axis_collection.create
+  let[@inline] diff t1 t2 = t1 land lnot t2
+
+  let[@inline] is_subset t1 t2 = Int.equal (t1 land t2) t1
+
+  let[@inline] is_empty t = Int.equal t 0
+
+  let[@inline] complement t = diff all t
+
+  let[@inline] to_seq t =
+    Axis.all |> List.to_seq |> Seq.filter (fun (Axis.Pack axis) -> mem t axis)
+
+  let[@inline] to_list t = List.of_seq (to_seq t)
 
   let print ppf t =
-    Format.pp_print_list
+    Format.pp_print_seq
       ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
       (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
-      ppf (to_list t)
+      ppf (to_seq t)
 end
