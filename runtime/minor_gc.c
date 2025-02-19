@@ -510,12 +510,14 @@ again:
         continue; /* we locked it on a prior iteration */
       atomic_value* data = Op_atomic_val(re->ephe) + re->offset;
       value v = atomic_load_relaxed(data);
+      header_t hd;
       if (v != caml_ephe_none &&                 /* occupied field       */
           v != caml_ephe_locked &&               /* not already locked   */
           re->offset != CAML_EPHE_DATA_OFFSET && /* ephe key (not data)  */
           Is_block(v) &&                         /* a block              */
           young_start <= v && v < young_end &&   /* on *this* minor heap */
-          Hd_val(v) != 0 &&                      /* not already promoted */
+          (hd = Hd_val(v)) != 0 &&               /* not already promoted */
+          Tag_hd(hd) != Infix_tag &&             /* not Infix_tag        */
           atomic_compare_exchange_strong(data, &v, caml_ephe_locked)) {
         /* locked, clean it later */
         re->stash = v;
