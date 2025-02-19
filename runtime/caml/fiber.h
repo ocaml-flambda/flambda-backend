@@ -64,8 +64,7 @@ struct stack_info {
 #define Stack_base(stk) ((value*)(stk + 1))
 #define Stack_threshold_ptr(stk) \
   (Stack_base(stk) + Stack_threshold / sizeof(value))
-#define Stack_high(stk) (value*)stk->handler
-
+#define Stack_high(stk) ((value*)stk->handler - Stack_padding_word)
 #define Stack_handle_value(stk) (stk)->handler->handle_value
 #define Stack_handle_exception(stk) (stk)->handler->handle_exn
 #define Stack_handle_effect(stk) (stk)->handler->handle_effect
@@ -75,10 +74,12 @@ struct stack_info {
  *
  * +------------------------+
  * |  struct stack_handler  |
+ * +------------------------+ <--- 16-aligned
+ * | pad word (amd64-no-fp) |
  * +------------------------+ <--- Stack_high
  * |    caml_runstack /     |
  * |   caml_start_program   |
- * +------------------------+
+ * +------------------------+ <--- 16-aligned
  * |                        |
  * .      OCaml frames      . <--- sp
  * |                        |

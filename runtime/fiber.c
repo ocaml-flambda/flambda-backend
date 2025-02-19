@@ -141,13 +141,16 @@ static uintnat round_up_p2(uintnat x, uintnat p2)
    well-defined), but other fields are uninitialised */
 Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 {
-  /* Ensure 16-byte alignment of the [struct stack_handler*] (e.g. for arm64) */
+  /* Ensure 16-byte alignment of the [struct stack_handler*]. */
   const int stack_alignment = 16;
+
+  /* Ensure we have room to offset Stack_high. */
+  wosize += Stack_padding_word;
 
 #ifdef USE_MMAP_MAP_STACK
   size_t len = sizeof(struct stack_info) +
                sizeof(value) * wosize +
-               8 /* for alignment to 16-bytes, needed for arm64 */ +
+               8 + /* For 16-byte aligning handler */
                sizeof(struct stack_handler);
   struct stack_info* si;
   si = mmap(NULL, len, PROT_WRITE | PROT_READ,
@@ -180,6 +183,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   uintnat trailer_size = round_up_p2(sizeof(struct stack_handler),
     stack_alignment);
   len += trailer_size;
+
   // We need two more pages for stack_info and guard
   CAMLassert(sizeof(struct stack_info) <= page_size);
   len += 2 * page_size;
@@ -189,7 +193,9 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   //
   // --------------------
   // struct stack_handler
-  // -------------------- <- 16-aligned
+  // -------------------- <- [stack->handler], 16-aligned
+  // pad word (amd64-no-fp)
+  // -------------------- <- Stack_high
   // the stack itself
   // -------------------- <- page-aligned
   // guard page
@@ -230,7 +236,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 #else
   size_t len = sizeof(struct stack_info)+
                sizeof(value) * wosize +
-               stack_alignment +
+               8 + /* For 16-byte aligning handler */
                sizeof(struct stack_handler);
   struct stack_info* stack = caml_stat_alloc_noexc(len);
   if (stack == NULL) return NULL;
@@ -295,7 +301,7 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
   hand->handle_exn = hexn;
   hand->handle_effect = heff;
   hand->parent = NULL;
-  stack->sp = (value*)hand;
+  stack->sp = Stack_high(stack);
   stack->exception_ptr = NULL;
   stack->id = id;
 #ifdef DEBUG

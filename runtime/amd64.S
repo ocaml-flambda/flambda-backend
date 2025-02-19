@@ -889,6 +889,11 @@ LBL(caml_start_program):
     /* Load the OCaml stack. */
         movq    Caml_state(current_stack), %r11
         movq    Stack_sp(%r11), %r10
+#if Stack_padding_word
+    /* If the stack has a padding word, advance an additional word so that it
+       will be 16-aligned when entering OCaml */
+        subq    $8, %r10
+#endif
     /* Store the stack pointer to allow DWARF unwind */
         subq    $16, %r10
         movq    %rsp, 0(%r10) /* C_STACK_SP */
@@ -917,6 +922,7 @@ LBL(caml_start_program):
              6*8 /* callee save regs */ +                             \
              8   /* ret addr */
 #endif
+        CHECK_STACK_ALIGNMENT;
         call    *%r12
 LBL(108):
     /* pop exn handler */
@@ -927,6 +933,10 @@ LBL(108):
         movq    8(%r10), %r11
         movq    %r11, Caml_state(gc_regs)
         addq    $16, %r10
+#if Stack_padding_word
+    /* Pop the additional alignment padding word. */
+        addq    $8, %r10
+#endif
     /* Update alloc ptr */
         movq    %r15, Caml_state(young_ptr)
     /* Return to C stack. */
@@ -1320,6 +1330,11 @@ CFI_STARTPROC
         movq    %rcx, Handler_parent(%r11)
         movq    %rax, Caml_state(current_stack)
         movq    Stack_sp(%rax), %r11
+#if Stack_padding_word
+    /* If the stack has a padding word, advance an additional word so that it
+       will be 16-aligned when entering OCaml */
+        subq    $8, %r11
+#endif
     /* Create an exception handler on the target stack
        after 16byte DWARF & gc_regs block (which is unused here) */
         subq    $32, %r11
@@ -1337,8 +1352,9 @@ CFI_STARTPROC
           DW_OP_breg + DW_REG_rsp,                    \
             16 /* exn */ +                            \
             8 /* gc_regs slot (unused) */ +           \
-            8 /* C_STACK_SP for DWARF (unused) */     \
-            + Handler_parent, DW_OP_deref,            \
+            8 /* C_STACK_SP for DWARF (unused) */ +   \
+            8 * Stack_padding_word +                  \
+            Handler_parent, DW_OP_deref,              \
           DW_OP_plus_uconst, Stack_sp, DW_OP_deref,   \
           DW_OP_plus_uconst, RETADDR_ENTRY_SIZE
 #endif

@@ -72,7 +72,7 @@
 #define First_frame(sp) ((sp) + 8)
 #endif
 #define Saved_gc_regs(sp) (*(value **)((sp) + 24))
-#define Stack_header_size 32
+#define Stack_header_size (32 + Stack_padding_word * 8)
 #endif
 
 #ifdef TARGET_arm64
