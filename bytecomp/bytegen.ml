@@ -146,6 +146,7 @@ let preserve_tailcall_for_prim = function
   | Prunstack | Pperform | Presume | Preperform
   | Pbox_float (_, _) | Punbox_float _
   | Pbox_vector (_, _) | Punbox_vector _
+  | Ptag_int _ | Puntag_int _
   | Pbox_int _ | Punbox_int _ ->
       true
   | Pbytes_to_string | Pbytes_of_string
@@ -401,6 +402,8 @@ let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
     | Ptagged_int_index -> ""
     | Punboxed_int_index Unboxed_int64 -> "_indexed_by_int64"
     | Punboxed_int_index Unboxed_int32 -> "_indexed_by_int32"
+    | Punboxed_int_index Unboxed_int16 -> "_indexed_by_int16"
+    | Punboxed_int_index Unboxed_int8 -> "_indexed_by_int8"
     | Punboxed_int_index Unboxed_nativeint -> "_indexed_by_nativeint"
   in
   prefix ^ suffix
@@ -743,6 +746,7 @@ let comp_primitive stack_info p sz args =
   | Pmakemixedblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
+  | Ptag_int _ | Puntag_int _
     ->
       fatal_error "Bytegen.comp_primitive"
   | Ppeek _ | Ppoke _ ->
@@ -903,7 +907,7 @@ and comp_expr stack_info env exp sz cont =
          (comp_expr stack_info
             (add_vars rec_idents (sz+1) env) body (sz + ndecl)
             (add_pop ndecl cont)))
-  | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
+  | Lprim((Popaque _ | Pobj_magic _ | Ptag_int _ | Puntag_int _), [arg], _) ->
       comp_expr stack_info env arg sz cont
   | Lprim((Pbox_float ((Boxed_float64 | Boxed_float32), _)
   | Punbox_float (Boxed_float64 | Boxed_float32)), [arg], _) ->
@@ -1049,6 +1053,8 @@ and comp_expr stack_info env exp sz cont =
             Lconst (Const_base (Const_float32 "0.0"))
         | Punboxedfloatarray Unboxed_float64 ->
             Lconst (Const_base (Const_float "0.0"))
+        | Punboxedintarray (Unboxed_int8| Unboxed_int16) ->
+          Misc.unboxed_small_int_arrays_are_not_implemented ()
         | Punboxedintarray Unboxed_int32 ->
             Lconst (Const_base (Const_int32 0l))
         | Punboxedintarray Unboxed_int64 ->
@@ -1066,6 +1072,8 @@ and comp_expr stack_info env exp sz cont =
                 Lconst (Const_base (Const_float32 "0.0"))
               | Punboxedfloat_ignorable Unboxed_float64 ->
                 Lconst (Const_base (Const_float "0.0"))
+              | Punboxedint_ignorable (Unboxed_int8| Unboxed_int16) ->
+                Misc.unboxed_small_int_arrays_are_not_implemented ()
               | Punboxedint_ignorable Unboxed_int32 ->
                 Lconst (Const_base (Const_int32 0l))
               | Punboxedint_ignorable Unboxed_int64 ->

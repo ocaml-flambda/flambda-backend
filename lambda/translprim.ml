@@ -929,6 +929,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%poll" -> Primitive (Ppoll, 1)
     | "%unbox_nativeint" -> Primitive(Punbox_int Boxed_nativeint, 1)
     | "%box_nativeint" -> Primitive(Pbox_int (Boxed_nativeint, mode), 1)
+    | "%untag_int8" -> Primitive(Puntag_int Unboxed_int8, 1)
+    | "%tag_int8" -> Primitive(Ptag_int Unboxed_int8, 1)
+    | "%untag_int16" -> Primitive(Puntag_int Unboxed_int16, 1)
+    | "%tag_int16" -> Primitive(Ptag_int Unboxed_int16, 1)
     | "%unbox_int32" -> Primitive(Punbox_int Boxed_int32, 1)
     | "%box_int32" -> Primitive(Pbox_int (Boxed_int32, mode), 1)
     | "%unbox_int64" -> Primitive(Punbox_int Boxed_int64, 1)
@@ -1218,6 +1222,8 @@ let peek_or_poke_layout_from_type ~prim_name error_loc env ty
     match layout with
     | Punboxed_float Unboxed_float32 -> Some Ppp_unboxed_float32
     | Punboxed_float Unboxed_float64 -> Some Ppp_unboxed_float
+    | Punboxed_int Unboxed_int8 -> Some Ppp_unboxed_int8
+    | Punboxed_int Unboxed_int16 -> Some Ppp_unboxed_int16
     | Punboxed_int Unboxed_int32 -> Some Ppp_unboxed_int32
     | Punboxed_int Unboxed_int64 -> Some Ppp_unboxed_int64
     | Punboxed_int Unboxed_nativeint -> Some Ppp_unboxed_nativeint
@@ -1960,6 +1966,7 @@ let lambda_primitive_needs_event_after = function
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _
   | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
+  | Puntag_int _ | Ptag_int _
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
     -> false

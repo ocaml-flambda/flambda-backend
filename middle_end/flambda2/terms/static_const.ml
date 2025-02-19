@@ -189,7 +189,7 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.pop
       (Format.pp_print_list
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
-        (Or_variable.print (fun ppf n -> Format.fprintf ppf "%ld" n)))
+        (Or_variable.print Numeric_types.Int32.print))
       fields
   | Immutable_int64_array fields ->
     fprintf ppf "@[<hov 1>(%tImmutable_int64_array%t@ @[[| %a |]@])@]"
@@ -197,7 +197,7 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.pop
       (Format.pp_print_list
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
-        (Or_variable.print (fun ppf n -> Format.fprintf ppf "%Ld" n)))
+        (Or_variable.print Numeric_types.Int64.print))
       fields
   | Immutable_nativeint_array fields ->
     fprintf ppf "@[<hov 1>(%tImmutable_nativeint_array%t@ @[[| %a |]@])@]"

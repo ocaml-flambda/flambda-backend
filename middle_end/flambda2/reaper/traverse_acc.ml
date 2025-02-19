@@ -101,6 +101,8 @@ let alias_kind name simple t =
         | Tagged_immediate _ | Null -> Flambda_kind.value
         | Naked_float _ -> Flambda_kind.naked_float
         | Naked_float32 _ -> Flambda_kind.naked_float32
+        | Naked_int8 _ -> Flambda_kind.naked_int8
+        | Naked_int16 _ -> Flambda_kind.naked_int16
         | Naked_int32 _ -> Flambda_kind.naked_int32
         | Naked_int64 _ -> Flambda_kind.naked_int64
         | Naked_nativeint _ -> Flambda_kind.naked_nativeint
