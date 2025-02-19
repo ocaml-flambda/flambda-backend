@@ -48,8 +48,6 @@ struct caml_params {
   uintnat init_custom_minor_max_bsz;
   uintnat init_custom_work_clamp;
 
-  uintnat init_main_stack_wsz;
-  uintnat init_thread_stack_wsz;
   uintnat init_max_stack_wsz;
 
   uintnat backtrace_enabled;

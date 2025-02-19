@@ -451,7 +451,10 @@ static struct gc_tweak gc_tweaks[] = {
   { "compaction", &caml_compaction_algorithm, 0 },
   { "compact_unmap", &caml_compact_unmap, 0 },
   { "pool_min_chunk_size", &caml_pool_min_chunk_bsz, 0 },
+  { "main_stack_size", &caml_init_main_stack_wsz, 0 },
+  { "thread_stack_size", &caml_init_thread_stack_wsz, 0 },
 };
+
 enum {N_GC_TWEAKS = sizeof(gc_tweaks)/sizeof(gc_tweaks[0])};
 
 void caml_init_gc_tweaks(void)
@@ -516,7 +519,7 @@ CAMLprim value caml_gc_tweak_list_active(value unit)
   CAMLreturn(list);
 }
 
-#define F_Z ARCH_INTNAT_PRINTF_FORMAT
+#define F_Z "%"ARCH_INTNAT_PRINTF_FORMAT"u"
 
 /* Return the OCAMLRUNPARAMS form of any GC tweaks. Returns NULL if
  * none are set, or if we can't allocate. */
@@ -548,7 +551,7 @@ char *format_gc_tweaks(void)
   for (size_t i = 0; i < N_GC_TWEAKS; i++) {
     uintnat val = *gc_tweaks[i].ptr;
     if (val != gc_tweaks[i].initial_value) {
-      int item_len = snprintf(p, len, ",X%s=%"F_Z"u",
+      int item_len = snprintf(p, len, ",X%s="F_Z,
                               gc_tweaks[i].name, val);
       if (item_len >= len) {
          /* surprise truncation: could be a race; just stop trying. */
@@ -571,28 +574,33 @@ CAMLprim value caml_runtime_parameters (value unit)
   CAMLassert (unit == Val_unit);
   char *tweaks = format_gc_tweaks();
   char *no_tweaks = "";
+  /* keep in sync with runtime4 and with parse_ocamlrunparam */
   value res = caml_alloc_sprintf
-      ("b=%d,c=%"F_Z"u,e=%"F_Z"u,i=%"F_Z"u,j=%"F_Z"u,"
-       "l=%"F_Z"u,M=%"F_Z"u,m=%"F_Z"u,n=%"F_Z"u,"
-       "o=%"F_Z"u,O=%"F_Z"u,p=%"F_Z"u,s=%"F_Z"u,"
-       "t=%"F_Z"u,v=%"F_Z"u,V=%"F_Z"u,W=%"F_Z"u%s",
+    ("b=%d,c="F_Z",d="F_Z",e="F_Z",l="F_Z
+     ",m="F_Z",M="F_Z",n="F_Z",o="F_Z",O="F_Z
+     ",p="F_Z",s="F_Z",t="F_Z",v="F_Z",V="F_Z
+     ",W="F_Z"%s",
+       /* a is runtime 4 allocation policy */
        /* b */ (int) Caml_state->backtrace_active,
        /* c */ caml_params->cleanup_on_exit,
+       /* d */ caml_params->max_domains,
        /* e */ caml_params->runtime_events_log_wsize,
-       /* i */ caml_params->init_main_stack_wsz,
-       /* j */ caml_params->init_thread_stack_wsz, /* check: new ? */
+       /* h is runtime 4 init heap size */
+       /* H is runtime 4 huge pages */
+       /* i is runtime 4 heap chunk size */
        /* l */ caml_max_stack_wsize,
-       /* M */ caml_custom_major_ratio,
        /* m */ caml_custom_minor_ratio,
+       /* M */ caml_custom_major_ratio,
        /* n */ caml_custom_minor_max_bsz,
        /* o */ caml_percent_free,
        /* O */ caml_max_percent_free,
        /* p */ caml_params->parser_trace,
-       /* R */ /* missing */
+       /* R */ /* missing: see stdlib/hashtbl.mli */
        /* s */ caml_minor_heap_max_wsz,
        /* t */ caml_params->trace_level,
        /* v */ caml_verb_gc,
        /* V */ caml_params->verify_heap,
+       /* w is runtime 4 major window */
        /* W */ caml_runtime_warnings,
        /* X */ tweaks ? tweaks : no_tweaks
        );
