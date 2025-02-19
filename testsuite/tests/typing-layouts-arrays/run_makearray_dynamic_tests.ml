@@ -17,21 +17,6 @@
    include stdlib_stable;
    include stdlib_upstream_compatible;
    ocamlopt.opt;
-   arguments = "native 5 0";
-   output = "${test_source_directory}/generated_test_0.ml.corrected";
-   run;
-   output = "${test_source_directory}/generated_test_0.ml.corrected";
-   reference = "${test_source_directory}/generated_test_0.ml";
-   check-program-output;
- }
- {
-   setup-ocamlopt.opt-build-env;
-   stack-allocation;
-   program = "${test_source_directory}/generate.out";
-   all_modules = "generate_makearray_dynamic_tests.ml";
-   include stdlib_stable;
-   include stdlib_upstream_compatible;
-   ocamlopt.opt;
    arguments = "native 5 1";
    output = "${test_source_directory}/generated_test_1.ml.corrected";
    run;
@@ -82,6 +67,21 @@
    run;
    output = "${test_source_directory}/generated_test_4.ml.corrected";
    reference = "${test_source_directory}/generated_test_4.ml";
+   check-program-output;
+ }
+ {
+   setup-ocamlopt.opt-build-env;
+   stack-allocation;
+   program = "${test_source_directory}/generate.out";
+   all_modules = "generate_makearray_dynamic_tests.ml";
+   include stdlib_stable;
+   include stdlib_upstream_compatible;
+   ocamlopt.opt;
+   arguments = "native 5 5";
+   output = "${test_source_directory}/generated_test_5.ml.corrected";
+   run;
+   output = "${test_source_directory}/generated_test_5.ml.corrected";
+   reference = "${test_source_directory}/generated_test_5.ml";
    check-program-output;
  }
 *)

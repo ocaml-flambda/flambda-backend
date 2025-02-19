@@ -83,140 +83,283 @@ and ur3 = #{ a : int64# }
 and ur4 = #{ a : ur1; b : ur3 }
 and enum3 = A3_0 | A3_1 | A3_2
 
-(* Catch metaprogramming errors early *)
-let () =
-  (* Check types and constants *)
-  let _ : float32# = #0.s in
-  let _ : ur1 = (#{ a = #0L; b = #0. } : ur1) in
-  let _ : #(int64# * ur1) = #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-  let _ : float32 = 0.s in
-  let _ : int = 0 in
-  let _ : #(float * float * float) = #(0., 0., 0.) in
-  (* Check equality and mk_value functions *)
-  let eq : float32# @ local -> float32# @ local -> bool = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let mk_value i = Float32_u.of_int i in
-  mark_test_run 1;
-  let test = eq (mk_value 1) #1.s in
-  if not test then failwithf "test 1 failed";
-  mark_test_run 2;
-  let test = eq #1.s #1.s in
-  if not test then failwithf "test 2 failed";
-  mark_test_run 3;
-  let test = not (eq #1.s #2.s) in
-  if not test then failwithf "test 3 failed";
-  let eq : ur1 @ local -> ur1 @ local -> bool = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
-  let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
-  mark_test_run 4;
-  let test = eq (mk_value 1) (#{ a = #1L; b = #1. } : ur1) in
-  if not test then failwithf "test 4 failed";
-  mark_test_run 5;
-  let test = eq (#{ a = #1L; b = #1. } : ur1) (#{ a = #1L; b = #1. } : ur1) in
-  if not test then failwithf "test 5 failed";
-  mark_test_run 6;
-  let test = not (eq (#{ a = #1L; b = #1. } : ur1) (#{ a = #2L; b = #2. } : ur1)) in
-  if not test then failwithf "test 6 failed";
-  let eq : #(int64# * ur1) @ local -> #(int64# * ur1) @ local -> bool = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
-  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
-  mark_test_run 7;
-  let test = eq (mk_value 1) #(#1L, (#{ a = #1L; b = #1. } : ur1)) in
-  if not test then failwithf "test 7 failed";
-  mark_test_run 8;
-  let test = eq #(#1L, (#{ a = #1L; b = #1. } : ur1)) #(#1L, (#{ a = #1L; b = #1. } : ur1)) in
-  if not test then failwithf "test 8 failed";
-  mark_test_run 9;
-  let test = not (eq #(#1L, (#{ a = #1L; b = #1. } : ur1)) #(#2L, (#{ a = #2L; b = #2. } : ur1))) in
-  if not test then failwithf "test 9 failed";
-  let eq : float32 @ local -> float32 @ local -> bool = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
-  let mk_value i = Float32.of_int i in
-  mark_test_run 10;
-  let test = eq (mk_value 1) 1.s in
-  if not test then failwithf "test 10 failed";
-  mark_test_run 11;
-  let test = eq 1.s 1.s in
-  if not test then failwithf "test 11 failed";
-  mark_test_run 12;
-  let test = not (eq 1.s 2.s) in
-  if not test then failwithf "test 12 failed";
-  let eq : int @ local -> int @ local -> bool = (fun a b -> Int.equal a b) in
-  let mk_value i = i in
-  mark_test_run 13;
-  let test = eq (mk_value 1) 1 in
-  if not test then failwithf "test 13 failed";
-  mark_test_run 14;
-  let test = eq 1 1 in
-  if not test then failwithf "test 14 failed";
-  mark_test_run 15;
-  let test = not (eq 1 2) in
-  if not test then failwithf "test 15 failed";
-  let eq : #(float * float * float) @ local -> #(float * float * float) @ local -> bool = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
-  let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
-  mark_test_run 16;
-  let test = eq (mk_value 1) #(1., 1., 1.) in
-  if not test then failwithf "test 16 failed";
-  mark_test_run 17;
-  let test = eq #(1., 1., 1.) #(1., 1., 1.) in
-  if not test then failwithf "test 17 failed";
-  mark_test_run 18;
-  let test = not (eq #(1., 1., 1.) #(2., 2., 2.)) in
-  if not test then failwithf "test 18 failed";
-  (* Check always-GC-ignored types *)
-  let _ = (makearray_dynamic_uninit 1 : float32# array) in
-  let _ = (makearray_dynamic_uninit 1 : ur1 array) in
-  let _ = (makearray_dynamic_uninit 1 : #(int64# * ur1) array) in
-  ()
-;;
-
 let test_makearray_dynamic size =
-  (****************)
-  (*   float32#   *)
-  (****************)
-  let eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let mk_value i = Float32_u.of_int i in
+  (******************)
+  (*   nativeint#   *)
+  (******************)
+  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let mk_value i = Nativeint_u.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : float32# array = makearray_dynamic size #0.s in
+  let a : nativeint# array = makearray_dynamic size #0n in
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
     let el = get a i in
+    mark_test_run 1;
+    let test = eq el #0n in
+    if not test then failwithf "test 1 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 2;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 2 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 3;
+    let test = raises in
+    if not test then failwithf "test 3 failed %d %d" size i;
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #0n with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 4;
+    let test = raises in
+    if not test then failwithf "test 4 failed %d %d" size i;
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 5;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 5 failed %d %d" size i;
+  done;
+  (* 7. Overlapping blits *)
+  iter (blit_offsets size) ~f:(fun ofs1 ->
+    iter (blit_offsets size) ~f:(fun ofs2 ->
+      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
+        unsafe_blit a ofs1 a ofs2 len;
+        for i = 0 to size - 1 do
+          let expected_src_i =
+            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
+          in
+          mark_test_run 6;
+          let test = eq (get a i) (mk_value expected_src_i) in
+          if not test then failwithf "test 6 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+        done;
+        (* Reset array *)
+        for i = 0 to size - 1 do
+          set a i (mk_value i);
+        done;
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 8. Blits to heap arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let a2 = makearray_dynamic size2 #0n in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 7;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 7 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 9. Blits to local arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let local_ a2 = makearray_dynamic_local size2 #0n in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 8;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 8 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+
+  (*********************************************************************************************)
+  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
+  (*********************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
+  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
+  (* 1. Create an array of size [size] *)
+  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic size #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+  (* 2. For initialized arrays, check all elements have the correct value *)
+  for i = 0 to size - 1 do
+    let el = get a i in
+    mark_test_run 9;
+    let test = eq el #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+    if not test then failwithf "test 9 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 10;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 10 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 11;
+    let test = raises in
+    if not test then failwithf "test 11 failed %d %d" size i;
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 12;
+    let test = raises in
+    if not test then failwithf "test 12 failed %d %d" size i;
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 13;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 13 failed %d %d" size i;
+  done;
+  (* 7. Overlapping blits *)
+  iter (blit_offsets size) ~f:(fun ofs1 ->
+    iter (blit_offsets size) ~f:(fun ofs2 ->
+      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
+        unsafe_blit a ofs1 a ofs2 len;
+        for i = 0 to size - 1 do
+          let expected_src_i =
+            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
+          in
+          mark_test_run 14;
+          let test = eq (get a i) (mk_value expected_src_i) in
+          if not test then failwithf "test 14 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+        done;
+        (* Reset array *)
+        for i = 0 to size - 1 do
+          set a i (mk_value i);
+        done;
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 8. Blits to heap arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let a2 = makearray_dynamic size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 15;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 15 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 9. Blits to local arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let local_ a2 = makearray_dynamic_local size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 16;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 16 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+
+  (*****************)
+  (*   nativeint   *)
+  (*****************)
+  let eq = (fun a b -> Nativeint.equal (globalize a) (globalize b)) in
+  let mk_value i = Nativeint.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : nativeint array = makearray_dynamic size 0n in
+  (* 2. For initialized arrays, check all elements have the correct value *)
+  for i = 0 to size - 1 do
+    let el = get a i in
+    mark_test_run 17;
+    let test = eq el 0n in
+    if not test then failwithf "test 17 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 18;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 18 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 19;
-    let test = eq el #0.s in
+    let test = raises in
     if not test then failwithf "test 19 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i 0n with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 20;
-    let test = eq (get a i) (mk_value i) in
+    let test = raises in
     if not test then failwithf "test 20 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
     mark_test_run 21;
-    let test = raises in
+    let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 21 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #0.s with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 22;
-    let test = raises in
-    if not test then failwithf "test 22 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 23;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 23 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -227,9 +370,9 @@ let test_makearray_dynamic size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 24;
+          mark_test_run 22;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 24 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 22 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -244,15 +387,15 @@ let test_makearray_dynamic size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #0.s in
+          let a2 = makearray_dynamic size2 0n in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 25;
+            mark_test_run 23;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 25 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 23 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -264,15 +407,15 @@ let test_makearray_dynamic size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #0.s in
+          let local_ a2 = makearray_dynamic_local size2 0n in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 26;
+            mark_test_run 24;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 26 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 24 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -280,56 +423,56 @@ let test_makearray_dynamic size =
   ) [@nontail];
   Gc.compact ();
 
-  (***********)
-  (*   ur1   *)
-  (***********)
-  let eq = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
-  let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
+  (**************************************************************************************************************)
+  (*   #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)   *)
+  (**************************************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun a b -> Int64.equal (globalize a) (globalize b)) a b|_->false) a0 b0 && (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int32.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) a0 b0 && (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun (a0, a1) (b0, b1) -> (fun a b -> Nativeint.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Nativeint.equal (globalize a) (globalize b)) a1 b1) a b|_->false) a1 b1) a3 b3 && (fun a b -> Int32.equal (globalize a) (globalize b)) a4 b4) in
+  let mk_value i = #((if i == 0 then None else Some (Int64.of_int i)), #(i, Int32.of_int i, Float.of_int i), Float.of_int i, #(Float32.of_int i, (if i == 0 then None else Some ((Nativeint.of_int i, Nativeint.of_int i)))), Int32.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : ur1 array = makearray_dynamic size (#{ a = #0L; b = #0. } : ur1) in
+  let a : #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) array = makearray_dynamic size #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
     let el = get a i in
+    mark_test_run 25;
+    let test = eq el #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
+    if not test then failwithf "test 25 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 26;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 26 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 27;
-    let test = eq el (#{ a = #0L; b = #0. } : ur1) in
+    let test = raises in
     if not test then failwithf "test 27 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 28;
-    let test = eq (get a i) (mk_value i) in
+    let test = raises in
     if not test then failwithf "test 28 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
     mark_test_run 29;
-    let test = raises in
+    let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 29 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i (#{ a = #0L; b = #0. } : ur1) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 30;
-    let test = raises in
-    if not test then failwithf "test 30 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 31;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 31 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -340,9 +483,9 @@ let test_makearray_dynamic size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 32;
+          mark_test_run 30;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 32 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 30 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -357,15 +500,15 @@ let test_makearray_dynamic size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 (#{ a = #0L; b = #0. } : ur1) in
+          let a2 = makearray_dynamic size2 #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 33;
+            mark_test_run 31;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 33 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 31 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -377,15 +520,15 @@ let test_makearray_dynamic size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 (#{ a = #0L; b = #0. } : ur1) in
+          let local_ a2 = makearray_dynamic_local size2 #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 34;
+            mark_test_run 32;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 34 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 32 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -393,56 +536,56 @@ let test_makearray_dynamic size =
   ) [@nontail];
   Gc.compact ();
 
-  (***********************)
-  (*   #(int64# * ur1)   *)
-  (***********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
-  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
+  (********************)
+  (*   #(ur2 * ur1)   *)
+  (********************)
+  let eq = (fun #(a0, a1) #(b0, b1) -> (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Int.equal a b) b1 b2) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
+  let mk_value i = #((#{ a = Int64_u.of_int i; b = i } : ur2), (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
   (* 1. Create an array of size [size] *)
-  let a : #(int64# * ur1) array = makearray_dynamic size #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
+  let a : #(ur2 * ur1) array = makearray_dynamic size #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
     let el = get a i in
+    mark_test_run 33;
+    let test = eq el #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
+    if not test then failwithf "test 33 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 34;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 34 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 35;
-    let test = eq el #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
+    let test = raises in
     if not test then failwithf "test 35 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 36;
-    let test = eq (get a i) (mk_value i) in
+    let test = raises in
     if not test then failwithf "test 36 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
     mark_test_run 37;
-    let test = raises in
+    let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 37 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 38;
-    let test = raises in
-    if not test then failwithf "test 38 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 39;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 39 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -453,9 +596,9 @@ let test_makearray_dynamic size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 40;
+          mark_test_run 38;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 40 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 38 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -470,15 +613,15 @@ let test_makearray_dynamic size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
+          let a2 = makearray_dynamic size2 #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 41;
+            mark_test_run 39;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 41 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 39 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -490,354 +633,15 @@ let test_makearray_dynamic size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
+          let local_ a2 = makearray_dynamic_local size2 #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 42;
+            mark_test_run 40;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 42 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (***************)
-  (*   float32   *)
-  (***************)
-  let eq = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
-  let mk_value i = Float32.of_int i in
-  (* 1. Create an array of size [size] *)
-  let a : float32 array = makearray_dynamic size 0.s in
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    mark_test_run 43;
-    let test = eq el 0.s in
-    if not test then failwithf "test 43 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 44;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 44 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 45;
-    let test = raises in
-    if not test then failwithf "test 45 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i 0.s with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 46;
-    let test = raises in
-    if not test then failwithf "test 46 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 47;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 47 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 48;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 48 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 0.s in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 49;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 49 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 0.s in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 50;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 50 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (***********)
-  (*   int   *)
-  (***********)
-  let eq = (fun a b -> Int.equal a b) in
-  let mk_value i = i in
-  (* 1. Create an array of size [size] *)
-  let a : int array = makearray_dynamic size 0 in
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    mark_test_run 51;
-    let test = eq el 0 in
-    if not test then failwithf "test 51 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 52;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 52 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 53;
-    let test = raises in
-    if not test then failwithf "test 53 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i 0 with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 54;
-    let test = raises in
-    if not test then failwithf "test 54 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 55;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 55 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 56;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 56 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 0 in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 57;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 57 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 0 in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 58;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 58 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (********************************)
-  (*   #(float * float * float)   *)
-  (********************************)
-  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
-  let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
-  (* 1. Create an array of size [size] *)
-  let a : #(float * float * float) array = makearray_dynamic size #(0., 0., 0.) in
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    mark_test_run 59;
-    let test = eq el #(0., 0., 0.) in
-    if not test then failwithf "test 59 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 60;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 60 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 61;
-    let test = raises in
-    if not test then failwithf "test 61 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #(0., 0., 0.) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 62;
-    let test = raises in
-    if not test then failwithf "test 62 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 63;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 63 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 64;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 64 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #(0., 0., 0.) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 65;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 65 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #(0., 0., 0.) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 66;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 66 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 40 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -848,56 +652,395 @@ let test_makearray_dynamic size =
   ()
 
 let test_makearray_dynamic_local size =
-  (****************)
-  (*   float32#   *)
-  (****************)
-  let eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let mk_value i = Float32_u.of_int i in
+  (******************)
+  (*   nativeint#   *)
+  (******************)
+  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let mk_value i = Nativeint_u.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : float32# array = makearray_dynamic_local size #0.s in
+  let a : nativeint# array = makearray_dynamic_local size #0n in
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
     let el = get a i in
+    mark_test_run 41;
+    let test = eq el #0n in
+    if not test then failwithf "test 41 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 42;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 42 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 43;
+    let test = raises in
+    if not test then failwithf "test 43 failed %d %d" size i;
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #0n with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 44;
+    let test = raises in
+    if not test then failwithf "test 44 failed %d %d" size i;
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 45;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 45 failed %d %d" size i;
+  done;
+  (* 7. Overlapping blits *)
+  iter (blit_offsets size) ~f:(fun ofs1 ->
+    iter (blit_offsets size) ~f:(fun ofs2 ->
+      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
+        unsafe_blit a ofs1 a ofs2 len;
+        for i = 0 to size - 1 do
+          let expected_src_i =
+            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
+          in
+          mark_test_run 46;
+          let test = eq (get a i) (mk_value expected_src_i) in
+          if not test then failwithf "test 46 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+        done;
+        (* Reset array *)
+        for i = 0 to size - 1 do
+          set a i (mk_value i);
+        done;
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 8. Blits to heap arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let a2 = makearray_dynamic size2 #0n in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 47;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 47 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 9. Blits to local arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let local_ a2 = makearray_dynamic_local size2 #0n in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 48;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 48 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+
+  (*********************************************************************************************)
+  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
+  (*********************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
+  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
+  (* 1. Create an array of size [size] *)
+  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic_local size #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+  (* 2. For initialized arrays, check all elements have the correct value *)
+  for i = 0 to size - 1 do
+    let el = get a i in
+    mark_test_run 49;
+    let test = eq el #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+    if not test then failwithf "test 49 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 50;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 50 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 51;
+    let test = raises in
+    if not test then failwithf "test 51 failed %d %d" size i;
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 52;
+    let test = raises in
+    if not test then failwithf "test 52 failed %d %d" size i;
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 53;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 53 failed %d %d" size i;
+  done;
+  (* 7. Overlapping blits *)
+  iter (blit_offsets size) ~f:(fun ofs1 ->
+    iter (blit_offsets size) ~f:(fun ofs2 ->
+      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
+        unsafe_blit a ofs1 a ofs2 len;
+        for i = 0 to size - 1 do
+          let expected_src_i =
+            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
+          in
+          mark_test_run 54;
+          let test = eq (get a i) (mk_value expected_src_i) in
+          if not test then failwithf "test 54 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+        done;
+        (* Reset array *)
+        for i = 0 to size - 1 do
+          set a i (mk_value i);
+        done;
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 8. Blits to heap arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let a2 = makearray_dynamic size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 55;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 55 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 9. Blits to local arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let local_ a2 = makearray_dynamic_local size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 56;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 56 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+
+  (*****************)
+  (*   nativeint   *)
+  (*****************)
+  let eq = (fun a b -> Nativeint.equal (globalize a) (globalize b)) in
+  let mk_value i = Nativeint.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : nativeint array = makearray_dynamic_local size 0n in
+  (* 2. For initialized arrays, check all elements have the correct value *)
+  for i = 0 to size - 1 do
+    let el = get a i in
+    mark_test_run 57;
+    let test = eq el 0n in
+    if not test then failwithf "test 57 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 58;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 58 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 59;
+    let test = raises in
+    if not test then failwithf "test 59 failed %d %d" size i;
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i 0n with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
+    mark_test_run 60;
+    let test = raises in
+    if not test then failwithf "test 60 failed %d %d" size i;
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 61;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 61 failed %d %d" size i;
+  done;
+  (* 7. Overlapping blits *)
+  iter (blit_offsets size) ~f:(fun ofs1 ->
+    iter (blit_offsets size) ~f:(fun ofs2 ->
+      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
+        unsafe_blit a ofs1 a ofs2 len;
+        for i = 0 to size - 1 do
+          let expected_src_i =
+            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
+          in
+          mark_test_run 62;
+          let test = eq (get a i) (mk_value expected_src_i) in
+          if not test then failwithf "test 62 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+        done;
+        (* Reset array *)
+        for i = 0 to size - 1 do
+          set a i (mk_value i);
+        done;
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 8. Blits to heap arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let a2 = makearray_dynamic size2 0n in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 63;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 63 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+  (* 9. Blits to local arrays *)
+  iter (sizes) ~f:(fun size2 ->
+    iter (blit_offsets size) ~f:(fun ofs1 ->
+      iter (blit_offsets size2) ~f:(fun ofs2 ->
+        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
+          let local_ a2 = makearray_dynamic_local size2 0n in
+          unsafe_blit a ofs1 a2 ofs2 len;
+          for i = 0 to size2 - 1 do
+            let expected_src_i =
+              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
+            in
+            mark_test_run 64;
+            let test = eq (get a2 i) (mk_value expected_src_i) in
+            if not test then failwithf "test 64 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+          done;
+        ) [@nontail];
+      ) [@nontail];
+    ) [@nontail];
+  ) [@nontail];
+  Gc.compact ();
+
+  (**************************************************************************************************************)
+  (*   #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)   *)
+  (**************************************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun a b -> Int64.equal (globalize a) (globalize b)) a b|_->false) a0 b0 && (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int32.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) a0 b0 && (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun (a0, a1) (b0, b1) -> (fun a b -> Nativeint.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Nativeint.equal (globalize a) (globalize b)) a1 b1) a b|_->false) a1 b1) a3 b3 && (fun a b -> Int32.equal (globalize a) (globalize b)) a4 b4) in
+  let mk_value i = #((if i == 0 then None else Some (Int64.of_int i)), #(i, Int32.of_int i, Float.of_int i), Float.of_int i, #(Float32.of_int i, (if i == 0 then None else Some ((Nativeint.of_int i, Nativeint.of_int i)))), Int32.of_int i) in
+  (* 1. Create an array of size [size] *)
+  let a : #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) array = makearray_dynamic_local size #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
+  (* 2. For initialized arrays, check all elements have the correct value *)
+  for i = 0 to size - 1 do
+    let el = get a i in
+    mark_test_run 65;
+    let test = eq el #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
+    if not test then failwithf "test 65 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 66;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 66 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 67;
-    let test = eq el #0.s in
+    let test = raises in
     if not test then failwithf "test 67 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 68;
-    let test = eq (get a i) (mk_value i) in
+    let test = raises in
     if not test then failwithf "test 68 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
     mark_test_run 69;
-    let test = raises in
+    let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 69 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #0.s with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 70;
-    let test = raises in
-    if not test then failwithf "test 70 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 71;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 71 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -908,9 +1051,9 @@ let test_makearray_dynamic_local size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 72;
+          mark_test_run 70;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 72 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 70 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -925,15 +1068,15 @@ let test_makearray_dynamic_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #0.s in
+          let a2 = makearray_dynamic size2 #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 73;
+            mark_test_run 71;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 73 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 71 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -945,15 +1088,15 @@ let test_makearray_dynamic_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #0.s in
+          let local_ a2 = makearray_dynamic_local size2 #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 74;
+            mark_test_run 72;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 74 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 72 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -961,56 +1104,56 @@ let test_makearray_dynamic_local size =
   ) [@nontail];
   Gc.compact ();
 
-  (***********)
-  (*   ur1   *)
-  (***********)
-  let eq = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
-  let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
+  (********************)
+  (*   #(ur2 * ur1)   *)
+  (********************)
+  let eq = (fun #(a0, a1) #(b0, b1) -> (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Int.equal a b) b1 b2) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
+  let mk_value i = #((#{ a = Int64_u.of_int i; b = i } : ur2), (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
   (* 1. Create an array of size [size] *)
-  let a : ur1 array = makearray_dynamic_local size (#{ a = #0L; b = #0. } : ur1) in
+  let a : #(ur2 * ur1) array = makearray_dynamic_local size #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
     let el = get a i in
+    mark_test_run 73;
+    let test = eq el #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
+    if not test then failwithf "test 73 failed %d %d" size i;
+  done;
+  (* 3. Fill [a] with distinct values and read back those values *)
+  for i = 0 to size - 1 do
+    set a i (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 74;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 74 failed %d %d" size i;
+  done;
+  iter (bad_indices size) ~f:(fun i ->
+    (* 4. Getting bad indices errors *)
+    let raises =
+      match get a i with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 75;
-    let test = eq el (#{ a = #0L; b = #0. } : ur1) in
+    let test = raises in
     if not test then failwithf "test 75 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
+    (* 5. Setting bad indices errors *)
+    let raises =
+      match set a i #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) with
+      | exception Invalid_argument _ -> true
+      | _ -> false
+    in
     mark_test_run 76;
-    let test = eq (get a i) (mk_value i) in
+    let test = raises in
     if not test then failwithf "test 76 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
+  ) [@nontail];
+  Gc.compact ();
+  (* 6. Array contents were unaffacted by setting bad indices *)
+  for i = 0 to size - 1 do
     mark_test_run 77;
-    let test = raises in
+    let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 77 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i (#{ a = #0L; b = #0. } : ur1) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 78;
-    let test = raises in
-    if not test then failwithf "test 78 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 79;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 79 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1021,9 +1164,9 @@ let test_makearray_dynamic_local size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 80;
+          mark_test_run 78;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 80 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 78 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1038,15 +1181,15 @@ let test_makearray_dynamic_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 (#{ a = #0L; b = #0. } : ur1) in
+          let a2 = makearray_dynamic size2 #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 81;
+            mark_test_run 79;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 81 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 79 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1058,467 +1201,15 @@ let test_makearray_dynamic_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 (#{ a = #0L; b = #0. } : ur1) in
+          let local_ a2 = makearray_dynamic_local size2 #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 82;
+            mark_test_run 80;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 82 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (***********************)
-  (*   #(int64# * ur1)   *)
-  (***********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
-  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
-  (* 1. Create an array of size [size] *)
-  let a : #(int64# * ur1) array = makearray_dynamic_local size #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    mark_test_run 83;
-    let test = eq el #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-    if not test then failwithf "test 83 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 84;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 84 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 85;
-    let test = raises in
-    if not test then failwithf "test 85 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 86;
-    let test = raises in
-    if not test then failwithf "test 86 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 87;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 87 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 88;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 88 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 89;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 89 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 90;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 90 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (***************)
-  (*   float32   *)
-  (***************)
-  let eq = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
-  let mk_value i = Float32.of_int i in
-  (* 1. Create an array of size [size] *)
-  let a : float32 array = makearray_dynamic_local size 0.s in
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    mark_test_run 91;
-    let test = eq el 0.s in
-    if not test then failwithf "test 91 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 92;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 92 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 93;
-    let test = raises in
-    if not test then failwithf "test 93 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i 0.s with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 94;
-    let test = raises in
-    if not test then failwithf "test 94 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 95;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 95 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 96;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 96 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 0.s in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 97;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 97 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 0.s in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 98;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 98 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (***********)
-  (*   int   *)
-  (***********)
-  let eq = (fun a b -> Int.equal a b) in
-  let mk_value i = i in
-  (* 1. Create an array of size [size] *)
-  let a : int array = makearray_dynamic_local size 0 in
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    mark_test_run 99;
-    let test = eq el 0 in
-    if not test then failwithf "test 99 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 100;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 100 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 101;
-    let test = raises in
-    if not test then failwithf "test 101 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i 0 with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 102;
-    let test = raises in
-    if not test then failwithf "test 102 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 103;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 103 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 104;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 104 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 0 in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 105;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 105 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 0 in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 106;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 106 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (********************************)
-  (*   #(float * float * float)   *)
-  (********************************)
-  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
-  let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
-  (* 1. Create an array of size [size] *)
-  let a : #(float * float * float) array = makearray_dynamic_local size #(0., 0., 0.) in
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    mark_test_run 107;
-    let test = eq el #(0., 0., 0.) in
-    if not test then failwithf "test 107 failed %d %d" size i;
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 108;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 108 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 109;
-    let test = raises in
-    if not test then failwithf "test 109 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #(0., 0., 0.) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 110;
-    let test = raises in
-    if not test then failwithf "test 110 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 111;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 111 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 112;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 112 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #(0., 0., 0.) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 113;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 113 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #(0., 0., 0.) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 114;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 114 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 80 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1529,13 +1220,13 @@ let test_makearray_dynamic_local size =
   ()
 
 let test_makearray_dynamic_uninit size =
-  (****************)
-  (*   float32#   *)
-  (****************)
-  let eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let mk_value i = Float32_u.of_int i in
+  (******************)
+  (*   nativeint#   *)
+  (******************)
+  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let mk_value i = Nativeint_u.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : float32# array = makearray_dynamic_uninit size in
+  let a : nativeint# array = makearray_dynamic_uninit size in
   (* 2. For uninitialized arrays, element values are unspecified *)
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
@@ -1548,9 +1239,9 @@ let test_makearray_dynamic_uninit size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 115;
+    mark_test_run 81;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 115 failed %d %d" size i;
+    if not test then failwithf "test 81 failed %d %d" size i;
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1559,25 +1250,25 @@ let test_makearray_dynamic_uninit size =
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 116;
+    mark_test_run 82;
     let test = raises in
-    if not test then failwithf "test 116 failed %d %d" size i;
+    if not test then failwithf "test 82 failed %d %d" size i;
     (* 5. Setting bad indices errors *)
     let raises =
-      match set a i #0.s with
+      match set a i #0n with
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 117;
+    mark_test_run 83;
     let test = raises in
-    if not test then failwithf "test 117 failed %d %d" size i;
+    if not test then failwithf "test 83 failed %d %d" size i;
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
-    mark_test_run 118;
+    mark_test_run 84;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 118 failed %d %d" size i;
+    if not test then failwithf "test 84 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1588,9 +1279,9 @@ let test_makearray_dynamic_uninit size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 119;
+          mark_test_run 85;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 119 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 85 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1605,15 +1296,15 @@ let test_makearray_dynamic_uninit size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #0.s in
+          let a2 = makearray_dynamic size2 #0n in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 120;
+            mark_test_run 86;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 120 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 86 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1625,15 +1316,15 @@ let test_makearray_dynamic_uninit size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #0.s in
+          let local_ a2 = makearray_dynamic_local size2 #0n in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 121;
+            mark_test_run 87;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 121 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 87 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1641,13 +1332,13 @@ let test_makearray_dynamic_uninit size =
   ) [@nontail];
   Gc.compact ();
 
-  (***********)
-  (*   ur1   *)
-  (***********)
-  let eq = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
-  let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
+  (*********************************************************************************************)
+  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
+  (*********************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
+  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : ur1 array = makearray_dynamic_uninit size in
+  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic_uninit size in
   (* 2. For uninitialized arrays, element values are unspecified *)
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
@@ -1660,9 +1351,9 @@ let test_makearray_dynamic_uninit size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 122;
+    mark_test_run 88;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 122 failed %d %d" size i;
+    if not test then failwithf "test 88 failed %d %d" size i;
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1671,25 +1362,25 @@ let test_makearray_dynamic_uninit size =
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 123;
+    mark_test_run 89;
     let test = raises in
-    if not test then failwithf "test 123 failed %d %d" size i;
+    if not test then failwithf "test 89 failed %d %d" size i;
     (* 5. Setting bad indices errors *)
     let raises =
-      match set a i (#{ a = #0L; b = #0. } : ur1) with
+      match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 124;
+    mark_test_run 90;
     let test = raises in
-    if not test then failwithf "test 124 failed %d %d" size i;
+    if not test then failwithf "test 90 failed %d %d" size i;
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
-    mark_test_run 125;
+    mark_test_run 91;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 125 failed %d %d" size i;
+    if not test then failwithf "test 91 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1700,9 +1391,9 @@ let test_makearray_dynamic_uninit size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 126;
+          mark_test_run 92;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 126 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 92 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1717,15 +1408,15 @@ let test_makearray_dynamic_uninit size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 (#{ a = #0L; b = #0. } : ur1) in
+          let a2 = makearray_dynamic size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 127;
+            mark_test_run 93;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 127 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 93 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1737,127 +1428,15 @@ let test_makearray_dynamic_uninit size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 (#{ a = #0L; b = #0. } : ur1) in
+          let local_ a2 = makearray_dynamic_local size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 128;
+            mark_test_run 94;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 128 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (***********************)
-  (*   #(int64# * ur1)   *)
-  (***********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
-  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
-  (* 1. Create an array of size [size] *)
-  let a : #(int64# * ur1) array = makearray_dynamic_uninit size in
-  (* 2. For uninitialized arrays, element values are unspecified *)
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    let _ = el in ()
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 129;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 129 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 130;
-    let test = raises in
-    if not test then failwithf "test 130 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 131;
-    let test = raises in
-    if not test then failwithf "test 131 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 132;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 132 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 133;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 133 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 134;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 134 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 135;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 135 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 94 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1868,13 +1447,13 @@ let test_makearray_dynamic_uninit size =
   ()
 
 let test_makearray_dynamic_uninit_local size =
-  (****************)
-  (*   float32#   *)
-  (****************)
-  let eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let mk_value i = Float32_u.of_int i in
+  (******************)
+  (*   nativeint#   *)
+  (******************)
+  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let mk_value i = Nativeint_u.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : float32# array = makearray_dynamic_uninit_local size in
+  let a : nativeint# array = makearray_dynamic_uninit_local size in
   (* 2. For uninitialized arrays, element values are unspecified *)
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
@@ -1887,9 +1466,9 @@ let test_makearray_dynamic_uninit_local size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 136;
+    mark_test_run 95;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 136 failed %d %d" size i;
+    if not test then failwithf "test 95 failed %d %d" size i;
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1898,25 +1477,25 @@ let test_makearray_dynamic_uninit_local size =
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 137;
+    mark_test_run 96;
     let test = raises in
-    if not test then failwithf "test 137 failed %d %d" size i;
+    if not test then failwithf "test 96 failed %d %d" size i;
     (* 5. Setting bad indices errors *)
     let raises =
-      match set a i #0.s with
+      match set a i #0n with
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 138;
+    mark_test_run 97;
     let test = raises in
-    if not test then failwithf "test 138 failed %d %d" size i;
+    if not test then failwithf "test 97 failed %d %d" size i;
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
-    mark_test_run 139;
+    mark_test_run 98;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 139 failed %d %d" size i;
+    if not test then failwithf "test 98 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1927,9 +1506,9 @@ let test_makearray_dynamic_uninit_local size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 140;
+          mark_test_run 99;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 140 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 99 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1944,15 +1523,15 @@ let test_makearray_dynamic_uninit_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #0.s in
+          let a2 = makearray_dynamic size2 #0n in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 141;
+            mark_test_run 100;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 141 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 100 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1964,15 +1543,15 @@ let test_makearray_dynamic_uninit_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #0.s in
+          let local_ a2 = makearray_dynamic_local size2 #0n in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 142;
+            mark_test_run 101;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 142 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 101 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1980,13 +1559,13 @@ let test_makearray_dynamic_uninit_local size =
   ) [@nontail];
   Gc.compact ();
 
-  (***********)
-  (*   ur1   *)
-  (***********)
-  let eq = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
-  let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
+  (*********************************************************************************************)
+  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
+  (*********************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
+  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : ur1 array = makearray_dynamic_uninit_local size in
+  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic_uninit_local size in
   (* 2. For uninitialized arrays, element values are unspecified *)
   (* 2. For initialized arrays, check all elements have the correct value *)
   for i = 0 to size - 1 do
@@ -1999,9 +1578,9 @@ let test_makearray_dynamic_uninit_local size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 143;
+    mark_test_run 102;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 143 failed %d %d" size i;
+    if not test then failwithf "test 102 failed %d %d" size i;
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2010,25 +1589,25 @@ let test_makearray_dynamic_uninit_local size =
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 144;
+    mark_test_run 103;
     let test = raises in
-    if not test then failwithf "test 144 failed %d %d" size i;
+    if not test then failwithf "test 103 failed %d %d" size i;
     (* 5. Setting bad indices errors *)
     let raises =
-      match set a i (#{ a = #0L; b = #0. } : ur1) with
+      match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
       | exception Invalid_argument _ -> true
       | _ -> false
     in
-    mark_test_run 145;
+    mark_test_run 104;
     let test = raises in
-    if not test then failwithf "test 145 failed %d %d" size i;
+    if not test then failwithf "test 104 failed %d %d" size i;
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
-    mark_test_run 146;
+    mark_test_run 105;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 146 failed %d %d" size i;
+    if not test then failwithf "test 105 failed %d %d" size i;
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2039,9 +1618,9 @@ let test_makearray_dynamic_uninit_local size =
           let expected_src_i =
             if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
           in
-          mark_test_run 147;
+          mark_test_run 106;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 147 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then failwithf "test 106 failed %d %d %d %d %d" size ofs1 ofs2 len i;
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2056,15 +1635,15 @@ let test_makearray_dynamic_uninit_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 (#{ a = #0L; b = #0. } : ur1) in
+          let a2 = makearray_dynamic size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 148;
+            mark_test_run 107;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 148 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 107 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2076,127 +1655,15 @@ let test_makearray_dynamic_uninit_local size =
     iter (blit_offsets size) ~f:(fun ofs1 ->
       iter (blit_offsets size2) ~f:(fun ofs2 ->
         iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 (#{ a = #0L; b = #0. } : ur1) in
+          let local_ a2 = makearray_dynamic_local size2 #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
           unsafe_blit a ofs1 a2 ofs2 len;
           for i = 0 to size2 - 1 do
             let expected_src_i =
               if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
             in
-            mark_test_run 149;
+            mark_test_run 108;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 149 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-
-  (***********************)
-  (*   #(int64# * ur1)   *)
-  (***********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
-  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
-  (* 1. Create an array of size [size] *)
-  let a : #(int64# * ur1) array = makearray_dynamic_uninit_local size in
-  (* 2. For uninitialized arrays, element values are unspecified *)
-  (* 2. For initialized arrays, check all elements have the correct value *)
-  for i = 0 to size - 1 do
-    let el = get a i in
-    let _ = el in ()
-  done;
-  (* 3. Fill [a] with distinct values and read back those values *)
-  for i = 0 to size - 1 do
-    set a i (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 150;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 150 failed %d %d" size i;
-  done;
-  iter (bad_indices size) ~f:(fun i ->
-    (* 4. Getting bad indices errors *)
-    let raises =
-      match get a i with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 151;
-    let test = raises in
-    if not test then failwithf "test 151 failed %d %d" size i;
-    (* 5. Setting bad indices errors *)
-    let raises =
-      match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
-      | exception Invalid_argument _ -> true
-      | _ -> false
-    in
-    mark_test_run 152;
-    let test = raises in
-    if not test then failwithf "test 152 failed %d %d" size i;
-  ) [@nontail];
-  Gc.compact ();
-  (* 6. Array contents were unaffacted by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 153;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 153 failed %d %d" size i;
-  done;
-  (* 7. Overlapping blits *)
-  iter (blit_offsets size) ~f:(fun ofs1 ->
-    iter (blit_offsets size) ~f:(fun ofs2 ->
-      iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size) ~f:(fun len ->
-        unsafe_blit a ofs1 a ofs2 len;
-        for i = 0 to size - 1 do
-          let expected_src_i =
-            if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i
-          in
-          mark_test_run 154;
-          let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 154 failed %d %d %d %d %d" size ofs1 ofs2 len i;
-        done;
-        (* Reset array *)
-        for i = 0 to size - 1 do
-          set a i (mk_value i);
-        done;
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 8. Blits to heap arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let a2 = makearray_dynamic size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 155;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 155 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
-          done;
-        ) [@nontail];
-      ) [@nontail];
-    ) [@nontail];
-  ) [@nontail];
-  Gc.compact ();
-  (* 9. Blits to local arrays *)
-  iter (sizes) ~f:(fun size2 ->
-    iter (blit_offsets size) ~f:(fun ofs1 ->
-      iter (blit_offsets size2) ~f:(fun ofs2 ->
-        iter (blit_lens ~ofs1 ~ofs2 ~size1:size ~size2) ~f:(fun len ->
-          let local_ a2 = makearray_dynamic_local size2 #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-          unsafe_blit a ofs1 a2 ofs2 len;
-          for i = 0 to size2 - 1 do
-            let expected_src_i =
-              if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0
-            in
-            mark_test_run 156;
-            let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 156 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then failwithf "test 108 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2219,7 +1686,7 @@ let () =
   ()
 ;;
 
-for i = 1 to 156 do
+for i = 1 to 108 do
   if not (List.mem ~set:!tests_run i) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;

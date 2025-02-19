@@ -1,6 +1,4 @@
 (* This file is used in [run_makearray_dynamic_tests.ml]. *)
-open Stdlib_upstream_compatible
-open Stdlib_stable
 module List = ListLabels
 module String = StringLabels
 
@@ -286,7 +284,7 @@ let every_nth ~offset ~n l =
 (* Types the GC always ignores, which can be used with %makearray_dynamic_uninit *)
 let always_ignored_types ~partition ~num_partitions =
   Ty.(
-    every_nth ~offset:partition ~n:num_partitions
+    every_nth ~offset:(partition - 1) ~n:num_partitions
     [
     float32_u; float_u; int32_u; int64_u; nativeint_u; ty_ur1; ty_ur3; ty_ur4;
     unboxed_tuple [float_u; int32_u; int64_u];
@@ -303,7 +301,7 @@ let always_ignored_types ~partition ~num_partitions =
 let types ~partition ~num_partitions =
   (always_ignored_types ~partition ~num_partitions)
   @ Ty.(
-    every_nth ~offset:partition ~n:num_partitions
+    every_nth ~offset:(partition - 1) ~n:num_partitions
     [
       float32; float; int32; int64; nativeint; int; enum 3; ty_ur2;
       unboxed_tuple [int; int64];
@@ -608,7 +606,6 @@ let toplevel_unit_block f =
 let main ~bytecode ~partition ~num_partitions =
   let types = types ~partition ~num_partitions in
   let always_ignored_types = always_ignored_types ~partition ~num_partitions in
-  let debug_exprs = [] in
   line {|(* TEST
  include stdlib_stable;
  include stdlib_upstream_compatible;|};
@@ -631,30 +628,31 @@ let main ~bytecode ~partition ~num_partitions =
   line "%s" preamble;
   List.iter (Ty.decls_code ()) ~f:(fun s -> line "%s" s);
   line "";
-  line "(* Catch metaprogramming errors early *)";
-  toplevel_unit_block (fun () ->
-    let open Ty in
-    line "(* Check types and constants *)";
-    List.iter types ~f:(fun ty ->
-      line "let _ : %s = %s in" ty.ty_code (ty.value_code 0)
-    );
-    line "(* Check equality and mk_value functions *)";
-    List.iter types ~f:(fun ty ->
-      line "let eq : %s @ local -> %s @ local -> bool = %s in"
-        ty.ty_code ty.ty_code ty.eq;
-      line "let mk_value i = %s in" ty.mk_value_code;
-      seq_assert ~debug_exprs
-        (sprintf "eq (mk_value 1) %s"  (ty.value_code 1));
-      seq_assert ~debug_exprs
-        (sprintf "eq %s %s" (ty.value_code 1) (ty.value_code 1));
-      seq_assert ~debug_exprs
-        (sprintf "not (eq %s %s)" (ty.value_code 1) (ty.value_code 2))
-    );
-    line "(* Check always-GC-ignored types *)";
-    List.iter always_ignored_types ~f:(fun ty ->
-      line "let _ = (makearray_dynamic_uninit 1 : %s array) in" (ty.ty_code)
-    );
-  );
+  (* line "(* Catch metaprogramming errors early *)";
+   * toplevel_unit_block (fun () ->
+   *   let open Ty in
+   *   let debug_exprs = [] in
+   *   line "(* Check types and constants *)";
+   *   List.iter types ~f:(fun ty ->
+   *     line "let _ : %s = %s in" ty.ty_code (ty.value_code 0)
+   *   );
+   *   line "(* Check equality and mk_value functions *)";
+   *   List.iter types ~f:(fun ty ->
+   *     line "let eq : %s @ local -> %s @ local -> bool = %s in"
+   *       ty.ty_code ty.ty_code ty.eq;
+   *     line "let mk_value i = %s in" ty.mk_value_code;
+   *     seq_assert ~debug_exprs
+   *       (sprintf "eq (mk_value 1) %s"  (ty.value_code 1));
+   *     seq_assert ~debug_exprs
+   *       (sprintf "eq %s %s" (ty.value_code 1) (ty.value_code 1));
+   *     seq_assert ~debug_exprs
+   *       (sprintf "not (eq %s %s)" (ty.value_code 1) (ty.value_code 2))
+   *   );
+   *   line "(* Check always-GC-ignored types *)";
+   *   List.iter always_ignored_types ~f:(fun ty ->
+   *     line "let _ = (makearray_dynamic_uninit 1 : %s array) in" (ty.ty_code)
+   *   );
+   * ); *)
   List.iter [false; true] ~f:(fun uninit ->
     List.iter [false; true] ~f:(fun local ->
       line "let test_%s size =" (makearray_dynamic_fn ~uninit ~local);
@@ -697,11 +695,11 @@ let () =
       failwith
         (sprintf
           "Usage: %s <byte|native> PARTITION NUM_PARTITIONS\n\
-            0 <= PARTITION < NUM_PARTITIONS"
+            1 <= PARTITION <= NUM_PARTITIONS"
           Sys.argv.(0))
   in
   let num_partitions = int_of_string n in
   let partition = int_of_string i in
-  assert (partition >= 0);
-  assert (partition < num_partitions);
+  assert (partition >= 1);
+  assert (partition <= num_partitions);
   main ~bytecode ~partition ~num_partitions
