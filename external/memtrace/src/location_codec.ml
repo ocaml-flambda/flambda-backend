@@ -112,9 +112,18 @@ module Writer = struct
     put_8 b (List.length locs);
     locs |> List.iter (fun (loc : Location.t) ->
       let clamp n lim = if n < 0 || n > lim then lim else n in
-      let line_number = clamp loc.line 0xfffff in
-      let start_char = clamp loc.start_char 0xfff in
-      let end_char = clamp loc.end_char 0xfff in
+      let line_number =
+        (* 20 bits *)
+        clamp loc.line 0xfffff
+      in
+      let start_char =
+        (* 8 bits *)
+        clamp loc.start_char 0xff
+      in
+      let end_char =
+        (* 10 bits *)
+        clamp loc.end_char 0x3ff
+      in
       let filename_code, defn_mtf =
         Mtf_table.encode file_mtf
           ~if_absent:Mtf_table.create loc.filename in
