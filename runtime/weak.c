@@ -30,11 +30,32 @@
 #include "caml/shared_heap.h"
 #include "caml/signals.h"
 #include "caml/weak.h"
+#include "caml/platform.h"
 
-value caml_dummy[] =
+static value weak_dummy[] =
   {(value)Make_header(0,Abstract_tag, NOT_MARKABLE),
+   Val_unit,
+   (value)Make_header(0,Abstract_tag, NOT_MARKABLE),
    Val_unit};
-value caml_ephe_none = (value)&caml_dummy[1];
+value caml_ephe_none = (value)&weak_dummy[1];
+value caml_ephe_locked = (value)&weak_dummy[3];
+
+/* The minor GC may lock key fields of ephemerons, and other domains
+   may complete minor GC and resume the mutator before they are unlocked.
+
+   So, when accessing an ephemeron key, if the value is caml_ephe_locked
+   then you need to wait until it becomes unlocked (i.e. any other value).
+
+   NB: Keys can only be locked by the minor GC, so once an unlocked value
+   is observed it's safe to do repeated accesses to the same key without
+   checking for locks, until the next allocation point. */
+value caml_ephe_await_key(value ephe, uintnat i)
+{
+  SPIN_WAIT {
+    value v = atomic_load_acquire(Op_atomic_val(ephe) + i);
+    if (v != caml_ephe_locked) return v;
+  }
+}
 
 struct caml_ephe_info* caml_alloc_ephe_info (void)
 {
@@ -109,6 +130,7 @@ static void do_check_key_clean(value e, mlsize_t offset)
 {
   value elt;
   CAMLassert (offset >= CAML_EPHE_FIRST_KEY);
+  caml_ephe_await_key(e, offset);
 
   if (caml_gc_phase != Phase_sweep_ephe) return;
 
@@ -133,7 +155,7 @@ void caml_ephe_clean (value v) {
   hd = Hd_val(v);
   size = Wosize_hd (hd);
   for (i = CAML_EPHE_FIRST_KEY; i < size; i++) {
-    child = Field(v, i);
+    child = ephe_key(v, i);
   ephemeron_again:
     if (child != caml_ephe_none && Is_block(child)) {
       if (Tag_val (child) == Forward_tag) {
@@ -158,7 +180,7 @@ void caml_ephe_clean (value v) {
     }
   }
 
-  child = Field(v, CAML_EPHE_DATA_OFFSET);
+  child = Ephe_data(v);
   if (child != caml_ephe_none) {
     if (release_data) {
       Field(v, CAML_EPHE_DATA_OFFSET) = caml_ephe_none;
@@ -435,11 +457,10 @@ CAMLprim value caml_ephe_check_data (value e)
   return ephe_check_field (e, CAML_EPHE_DATA_OFFSET);
 }
 
-static value ephe_blit_field (value es, mlsize_t offset_s,
-                              value ed, mlsize_t offset_d, mlsize_t length)
+static value ephe_blit_keys (value es, mlsize_t offset_s,
+                             value ed, mlsize_t offset_d, mlsize_t length)
 {
   CAMLparam2(es,ed);
-  CAMLlocal1(ar);
   long i;
 
   if (length == 0) CAMLreturn(Val_unit);
@@ -452,11 +473,13 @@ static value ephe_blit_field (value es, mlsize_t offset_s,
 
   if (offset_d < offset_s) {
     for (i = 0; i < length; i++) {
-      do_set(ed, offset_d + i, Field(es, (offset_s + i)));
+      caml_ephe_await_key(ed, offset_d + i);
+      do_set(ed, offset_d + i, ephe_key(es, offset_s + i));
     }
   } else {
     for (i = length - 1; i >= 0; i--) {
-      do_set(ed, offset_d + i, Field(es, (offset_s + i)));
+      caml_ephe_await_key(ed, offset_d + i);
+      do_set(ed, offset_d + i, ephe_key(es, offset_s + i));
     }
   }
   CAMLreturn(Val_unit);
@@ -475,14 +498,21 @@ CAMLprim value caml_ephe_blit_key (value es, value ofs,
   if (offset_d < CAML_EPHE_FIRST_KEY || offset_d + length > Wosize_val (ed)){
     caml_invalid_argument ("Weak.blit");
   }
-  return ephe_blit_field (es, offset_s, ed, offset_d, length);
+  return ephe_blit_keys (es, offset_s, ed, offset_d, length);
 }
 
 CAMLprim value caml_ephe_blit_data (value es, value ed)
 {
-  ephe_blit_field (es, CAML_EPHE_DATA_OFFSET, ed, CAML_EPHE_DATA_OFFSET, 1);
+  /* We clean the source and destination ephemerons before performing the blit.
+   * This guarantees that none of the keys and the data fields being accessed
+   * during a blit operation is unmarked during [Phase_sweep]. */
+  caml_ephe_clean(es);
+  caml_ephe_clean(ed);
+
+  value v = Ephe_data(es);
+  do_set(ed, CAML_EPHE_DATA_OFFSET, v);
   if (caml_marking_started())
-    caml_darken(0, Field(ed, CAML_EPHE_DATA_OFFSET), 0);
+    caml_darken(Caml_state, v, 0);
   /* [ed] may be in [Caml_state->ephe_info->live] list. The data value may be
      unmarked. The ephemerons on the live list are not scanned during ephemeron
      marking. Hence, unconditionally darken the data value. */

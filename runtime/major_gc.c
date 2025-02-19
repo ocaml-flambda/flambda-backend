@@ -1337,7 +1337,7 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
 
     size = Wosize_hd(hd);
     for (i = CAML_EPHE_FIRST_KEY; alive_data && i < size; i++) {
-      key = Field(v, i);
+      key = ephe_key(v, i);
     ephemeron_again:
       if (key != caml_ephe_none && Is_block(key)) {
         if (Tag_val(key) == Forward_tag) {

@@ -19,6 +19,7 @@
 #include "address_class.h"
 #include "misc.h"
 #include "config.h"
+#include "weak.h"
 
 #define caml_young_end Caml_state->young_end
 #define caml_young_ptr Caml_state->young_ptr
@@ -52,6 +53,7 @@ struct caml_ref_table CAML_TABLE_STRUCT(value *);
 struct caml_ephe_ref_elt {
   value ephe;      /* an ephemeron in major heap */
   mlsize_t offset; /* the offset that points in the minor heap  */
+  value stash;     /* copy of the field if it requires minor-GC cleaning */
 };
 struct caml_ephe_ref_table CAML_TABLE_STRUCT(struct caml_ephe_ref_elt);
 
@@ -114,6 +116,7 @@ Caml_inline void add_to_ephe_ref_table (struct caml_ephe_ref_table *tbl,
   ephe_ref = tbl->ptr++;
   ephe_ref->ephe = ar;
   ephe_ref->offset = offset;
+  ephe_ref->stash = caml_ephe_none;
   CAMLassert(ephe_ref->offset < Wosize_val(ephe_ref->ephe));
 }
 
