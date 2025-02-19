@@ -934,7 +934,7 @@ LBL(108):
         movq    %r11, Caml_state(gc_regs)
         addq    $16, %r10
 #if Stack_padding_word
-    /* Pop the additional alignment padding word. */
+    /* Pop the additional alignment padding word */
         addq    $8, %r10
 #endif
     /* Update alloc ptr */
@@ -1353,15 +1353,21 @@ CFI_STARTPROC
             16 /* exn */ +                            \
             8 /* gc_regs slot (unused) */ +           \
             8 /* C_STACK_SP for DWARF (unused) */ +   \
-            8 * Stack_padding_word +                  \
+            16 * Stack_padding_word +                  \
             Handler_parent, DW_OP_deref,              \
           DW_OP_plus_uconst, Stack_sp, DW_OP_deref,   \
           DW_OP_plus_uconst, RETADDR_ENTRY_SIZE
 #endif
         movq    %rdi, %rax /* first argument */
+        CHECK_STACK_ALIGNMENT;
         callq   *(%rbx) /* closure in %rbx (second argument) */
 LBL(frame_runstack):
         leaq    32(%rsp), %r11 /* SP with exn handler popped */
+#if Stack_padding_word
+    /* Pop the additional alignment padding word *and* the stack padding word,
+       so that $r11 points to the handler struct. */
+        addq    $16, %r11
+#endif
         movq    Handler_value(%r11), %rbx
 1:      movq    Caml_state(current_stack), C_ARG_1 /* arg to caml_free_stack */
     /* restore parent stack and exn_handler into Caml_state */
@@ -1388,6 +1394,11 @@ LBL(frame_runstack):
         jmp     *(%rbx)
 LBL(fiber_exn_handler):
         leaq    16(%rsp), %r11
+#if Stack_padding_word
+    /* Pop the additional alignment padding word *and* the stack padding word,
+       so that $r11 points to the handler struct. */
+        addq    $16, %r11
+#endif
         movq    Handler_exception(%r11), %rbx
         jmp     1b
 CFI_ENDPROC

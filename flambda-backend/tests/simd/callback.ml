@@ -73,5 +73,98 @@ let () =
   | Stack_overflow -> callback ()
   | _ -> assert false
 
-(* CR mslater: make sure this works with effects. I believe it will since caml_perform
-   only switches between existing stacks. *)
+(* Effects *)
+
+module Effect = Stdlib__Effect
+
+type _ Effect.t += E : unit Effect.t
+
+let eff0 () =
+  try Effect.Deep.try_with (fun () -> Effect.perform E) ()
+    { effc = (fun (type a) (e : a Effect.t) ->
+        match e with
+        | e -> None) }
+  with Effect.Unhandled E -> callback ()
+
+let eff1 () =
+  Effect.Deep.try_with (fun () -> callback ()) ()
+    { effc = (fun (type a) (e : a Effect.t) ->
+        match e with
+        | e -> None) };
+  callback ()
+
+let eff2 () =
+  Effect.Deep.try_with (fun () -> Effect.perform E) ()
+    { effc = (fun (type a) (e : a Effect.t) ->
+        match e with
+        | E -> callback ();
+          Some (fun (k : (a, unit) Effect.Deep.continuation) -> callback ())
+        | e -> None) };
+  callback ()
+
+let eff3 () =
+  Effect.Deep.try_with (fun () -> callback (); Effect.perform E; callback ()) ()
+  { effc = (fun (type a) (e : a Effect.t) ->
+      match e with
+      | E -> Some (fun (k : (a, unit) Effect.Deep.continuation) ->
+          callback (); Effect.Deep.continue k ())
+      | e -> None) };
+  callback ()
+
+let eff4 () =
+  Effect.Deep.match_with (fun () -> ()) ()
+    { retc = (fun () -> callback ())
+    ; exnc = (fun _ -> ())
+    ; effc = (fun (type a) (e : a Effect.t) ->
+        match e with
+        | e -> None)
+    };
+  callback ()
+
+let eff5 () =
+  Effect.Deep.match_with (fun () -> assert false) ()
+    { retc = (fun () -> assert false)
+    ; exnc = (fun _ -> callback ())
+    ; effc = (fun (type a) (e : a Effect.t) ->
+        match e with
+        | e -> None)
+    };
+  callback ()
+
+type _ Effect.t += E2 : unit Effect.t
+
+let eff6 () =
+  try Effect.Deep.match_with (fun () ->
+    callback ();
+    Effect.Deep.try_with (fun () -> callback (); Effect.perform E2; assert false) ()
+          { effc = (fun (type a) (e : a Effect.t) ->
+              match e with
+              | e -> None) }) ()
+    { retc = (fun () -> callback (); Effect.perform E; assert false)
+    ; exnc = (function
+              | Effect.Unhandled E2 -> callback (); Effect.perform E
+              | _ -> assert false)
+    ; effc = (fun (type a) (e : a Effect.t) ->
+        match e with
+        | E -> Some (fun (k : (a, unit) Effect.Deep.continuation) ->
+          callback (); Effect.Deep.continue k ())
+        | e -> None)
+    };
+  with Effect.Unhandled E -> callback ();
+  callback ()
+
+let () = eff0 ()
+let () = eff1 ()
+let () = eff2 ()
+let () = eff3 ()
+let () = eff4 ()
+let () = eff5 ()
+let () = eff6 ()
+
+let () = run_callback eff0
+let () = run_callback eff1
+let () = run_callback eff2
+let () = run_callback eff3
+let () = run_callback eff4
+let () = run_callback eff5
+let () = run_callback eff6
