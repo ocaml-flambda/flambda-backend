@@ -114,7 +114,7 @@ static void parse_gc_tweak(char_os** opt_p)
         fprintf(stderr, "No GC tweaks available in runtime4/\n");
       } else {
         fprintf(stderr, "Ignored unknown GC tweak '%.*s': "
-                "no HC tweaks available in runtime4.\n",
+                "no GC tweaks available in runtime4.\n",
                 (int)(opt - name), name);
       }
       break;

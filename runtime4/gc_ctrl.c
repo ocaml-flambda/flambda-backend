@@ -757,7 +757,7 @@ CAMLprim value caml_runtime_parameters (value unit)
 #define F_S "%"ARCH_SIZET_PRINTF_FORMAT"u"
 
   CAMLassert (unit == Val_unit);
-  /* keep in sync with runtime4 and with parse_ocamlrunparam */
+  /* keep in sync with runtime5 and with parse_ocamlrunparam */
   return caml_alloc_sprintf
     ("a=%d,b=%d,c=%d,h="F_Z",H="F_Z
      ",i="F_Z",l="F_Z",m="F_Z",M="F_Z",n="F_Z
