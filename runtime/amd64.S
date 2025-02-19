@@ -1365,7 +1365,7 @@ LBL(frame_runstack):
         leaq    32(%rsp), %r11 /* SP with exn handler popped */
 #if Stack_padding_word
     /* Pop the additional alignment padding word *and* the stack padding word,
-       so that $r11 points to the handler struct. */
+       so that %r11 points to the handler struct. */
         addq    $16, %r11
 #endif
         movq    Handler_value(%r11), %rbx
@@ -1396,7 +1396,7 @@ LBL(fiber_exn_handler):
         leaq    16(%rsp), %r11
 #if Stack_padding_word
     /* Pop the additional alignment padding word *and* the stack padding word,
-       so that $r11 points to the handler struct. */
+       so that %r11 points to the handler struct. */
         addq    $16, %r11
 #endif
         movq    Handler_exception(%r11), %rbx
