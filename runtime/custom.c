@@ -51,22 +51,8 @@ mlsize_t caml_custom_get_max_major (void)
          * caml_custom_major_ratio;
 }
 
-/* [mem] is an amount of out-of-heap resources, in the same units as
-   [max_major] and [max_minor]. When the cumulated amount of such
-   resources reaches [max_minor] (for resources held by the minor
-   heap) we do a minor collection; when it reaches [max_major] (for
-   resources held by the major heap), we guarantee that a major cycle
-   is done.
-
-   If [max_major] is 0, then [mem] is a number of bytes and the actual
-   limit is [caml_custom_get_max_major ()] computed at the
-   time when the custom block is promoted to the major heap.
-*/
 static value alloc_custom_gen (const struct custom_operations * ops,
                                uintnat bsz,
-                               mlsize_t mem,
-                               mlsize_t max_major,
-                               mlsize_t max_minor,
                                int minor_ok,
                                int local)
 {
@@ -83,21 +69,13 @@ static value alloc_custom_gen (const struct custom_operations * ops,
   else if (wosize <= Max_young_wosize && minor_ok) {
     result = caml_alloc_small(wosize, Custom_tag);
     Custom_ops_val(result) = ops;
-    if (ops->finalize != NULL || mem != 0) {
+    if (ops->finalize != NULL) {
       /* Record the extra resources in case the block gets promoted. */
-      add_to_custom_table (&Caml_state->minor_tables->custom, result,
-                           mem, max_major);
-      /* Keep track of extra resources held by custom block in
-         minor heap. */
-      if (mem != 0) {
-        caml_adjust_minor_gc_speed (mem, max_minor);
-      }
+      add_to_custom_table (&Caml_state->minor_tables->custom, result);
     }
   } else {
     result = caml_alloc_shr(wosize, Custom_tag);
     Custom_ops_val(result) = ops;
-    caml_adjust_gc_speed(mem, max_major);
-    result = caml_check_urgent_gc(result);
   }
   CAMLreturn(result);
 }
@@ -108,23 +86,12 @@ Caml_inline mlsize_t get_max_minor (void)
     Bsize_wsize (Caml_state->minor_heap_wsz) / 100 * caml_custom_minor_ratio;
 }
 
-static value caml_alloc_custom0(const struct custom_operations * ops,
-                                uintnat bsz,
-                                mlsize_t mem,
-                                mlsize_t max,
-                                int local)
-{
-  mlsize_t max_major = max;
-  mlsize_t max_minor = max == 0 ? get_max_minor() : max;
-  return alloc_custom_gen (ops, bsz, mem, max_major, max_minor, 1, local);
-}
-
 CAMLexport value caml_alloc_custom(const struct custom_operations * ops,
                                    uintnat bsz,
                                    mlsize_t mem,
                                    mlsize_t max)
 {
-  return caml_alloc_custom0(ops, bsz, mem, max, 0);
+  return alloc_custom_gen(ops, bsz, /* minor_ok: */ 1, /* local: */ 0);
 }
 
 CAMLexport value caml_alloc_custom_local(const struct custom_operations * ops,
@@ -136,7 +103,7 @@ CAMLexport value caml_alloc_custom_local(const struct custom_operations * ops,
     caml_invalid_argument(
       "caml_alloc_custom_local: finalizers not supported");
 
-  return caml_alloc_custom0(ops, bsz, mem, max, 1);
+  return alloc_custom_gen(ops, bsz, /* minor_ok: */ 1, /* local: */ 1);
 }
 
 CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
@@ -150,19 +117,30 @@ CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
   } else {
     max_minor_single = max_minor * caml_custom_minor_max_bsz / 100;
   }
-  value v = alloc_custom_gen (ops, bsz, mem, 0,
-                              max_minor, (mem < max_minor_single), 0);
+
+  value v = alloc_custom_gen (ops, bsz,
+                              /* minor_ok: */ (mem <= max_minor_single),
+                              /* local: */ 0);
   size_t mem_words = (mem + sizeof(value) - 1) / sizeof(value);
   caml_memprof_sample_block(v, mem_words, mem_words, CAML_MEMPROF_SRC_CUSTOM);
   return v;
 }
 
-CAMLexport value caml_alloc_custom_dep(const struct custom_operations * ops,
-                                       uintnat size, mlsize_t mem)
+/* For each block allocated with [caml_alloc_custom_dep],
+   the finalizer must call [caml_free_dependent_memory].
+   [bsz] is the size in bytes of the payload inside the heap-allocated
+   block, and [mem] is the size in bytes of the external memory
+   held by this block.
+*/
+CAMLexport value caml_alloc_custom_dep (const struct custom_operations * ops,
+                                        uintnat bsz,
+                                        mlsize_t mem)
 {
-  /* For now, alias caml_alloc_custom_mem, but this implementation
-     is to be replaced */
-  return caml_alloc_custom_mem(ops, size, mem);
+  CAMLparam0();
+  CAMLlocal1(result);
+  result = caml_alloc_custom_mem(ops, bsz, mem);
+  caml_alloc_dependent_memory (result, mem);
+  CAMLreturn(result);
 }
 
 struct custom_operations_list {

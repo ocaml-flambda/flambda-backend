@@ -39,6 +39,7 @@
 #include "caml/shared_heap.h"
 #include "caml/startup_aux.h"
 #include "caml/weak.h"
+#include "caml/custom.h"
 
 /* NB the MARK_STACK_INIT_SIZE must be larger than the number of objects
    that can be in a pool, see POOL_WSIZE */
@@ -624,21 +625,22 @@ static void update_major_slice_work(intnat howmuch,
                                     bool log_events)
 {
   double heap_words;
-  intnat alloc_work, dependent_work, extra_work, new_work;
-  intnat my_alloc_count, my_alloc_direct_count, my_dependent_count;
+  intnat alloc_work, extra_work, new_work;
+  intnat my_alloc_count, my_alloc_direct_count;
   double my_extra_count;
   caml_domain_state *dom_st = Caml_state;
   uintnat heap_size, heap_sweep_words, total_cycle_work;
 
   my_alloc_count = dom_st->allocated_words;
   my_alloc_direct_count = dom_st->allocated_words_direct;
-  my_dependent_count = dom_st->dependent_allocated;
-  my_extra_count = dom_st->extra_heap_resources;
+  my_extra_count =
+    (double)dom_st->allocated_dependent_bytes /
+    (double)caml_custom_get_max_major ();
+  if (my_extra_count > 1.0) my_extra_count = 1.0;
   dom_st->stat_major_words += dom_st->allocated_words;
   dom_st->allocated_words = 0;
   dom_st->allocated_words_direct = 0;
-  dom_st->dependent_allocated = 0;
-  dom_st->extra_heap_resources = 0.0;
+  dom_st->allocated_dependent_bytes = 0;
   /*
      Free memory at the start of the GC cycle (garbage + free list) (assumed):
                  FM = heap_words * caml_percent_free
@@ -690,16 +692,6 @@ static void update_major_slice_work(intnat howmuch,
     alloc_work = 0;
   }
 
-  if (dom_st->dependent_size > 0) {
-    double dependent_ratio =
-      total_cycle_work
-      * (100 + caml_percent_free)
-      / dom_st-> dependent_size / caml_percent_free;
-    dependent_work = (intnat) (my_dependent_count * dependent_ratio);
-  }else{
-    dependent_work = 0;
-  }
-
   extra_work = (intnat) (my_extra_count * (double) total_cycle_work);
 
   CAML_GC_MESSAGE(SLICESIZE,
@@ -715,19 +707,13 @@ static void update_major_slice_work(intnat howmuch,
                   "alloc work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
                    alloc_work);
   CAML_GC_MESSAGE(SLICESIZE,
-                  "dependent_words = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
-                   my_dependent_count);
-  CAML_GC_MESSAGE(SLICESIZE,
-                  "dependent work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
-                  dependent_work);
-  CAML_GC_MESSAGE(SLICESIZE,
                   "extra_heap_resources = %" ARCH_INTNAT_PRINTF_FORMAT "uu\n",
                   (uintnat) (my_extra_count * 1000000));
   CAML_GC_MESSAGE(SLICESIZE,
                   "extra work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
                   extra_work);
 
-  intnat offheap_work = max2 (dependent_work, extra_work);
+  intnat offheap_work = extra_work;
   intnat clamp = alloc_work * caml_custom_work_max_multiplier;
   if (offheap_work > clamp) {
     CAML_GC_MESSAGE(SLICESIZE, "Work clamped to %"
@@ -754,7 +740,6 @@ static void update_major_slice_work(intnat howmuch,
               " %"ARCH_INTNAT_PRINTF_FORMAT "u heap_words, "
               " %"ARCH_INTNAT_PRINTF_FORMAT "u allocated, "
               " %"ARCH_INTNAT_PRINTF_FORMAT "d alloc_work, "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "d dependent_work, "
               " %"ARCH_INTNAT_PRINTF_FORMAT "d extra_work,  "
               " %"ARCH_INTNAT_PRINTF_FORMAT "u work counter %s,  "
               " %"ARCH_INTNAT_PRINTF_FORMAT "u alloc counter,  "
@@ -763,7 +748,7 @@ static void update_major_slice_work(intnat howmuch,
               ,
               caml_gc_phase_char(may_access_gc_phase),
               (uintnat)heap_words, my_alloc_count,
-              alloc_work, dependent_work, extra_work,
+              alloc_work, extra_work,
               atomic_load (&work_counter),
               atomic_load (&work_counter) > atomic_load (&alloc_counter)
                 ? "[ahead]" : "[behind]",

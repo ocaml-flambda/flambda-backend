@@ -41,6 +41,7 @@ struct heap_stats {
   intnat large_words;
   intnat large_max_words;
   intnat large_blocks;
+  intnat dependent_bytes;
 };
 
 /* Note: accumulating stats then removing them is not a no-op, as
@@ -56,6 +57,9 @@ struct alloc_stats {
   uint64_t minor_words;
   uint64_t promoted_words;
   uint64_t major_words;
+  uint64_t minor_dependent_bytes;
+  uint64_t promoted_dependent_bytes;
+  uint64_t major_dependent_bytes;
   uint64_t forced_major_collections;
 };
 void caml_accum_alloc_stats(

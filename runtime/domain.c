@@ -658,11 +658,8 @@ static void domain_create(uintnat initial_minor_heap_wsize,
 
   CAMLassert(!interruptor_has_pending(s));
 
-  domain_state->extra_heap_resources = 0.0;
-  domain_state->extra_heap_resources_minor = 0.0;
-
-  domain_state->dependent_size = 0;
-  domain_state->dependent_allocated = 0;
+  domain_state->allocated_dependent_bytes = 0;
+  domain_state->minor_dependent_bsz = 0;
 
   domain_state->major_work_done_between_slices = 0;
 

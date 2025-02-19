@@ -59,15 +59,20 @@ struct caml_ephe_ref_table CAML_TABLE_STRUCT(struct caml_ephe_ref_elt);
 
 struct caml_custom_elt {
   value block;     /* The finalized block in the minor heap. */
-  mlsize_t mem;    /* The parameters for adjusting GC speed. */
-  mlsize_t max;
 };
 struct caml_custom_table CAML_TABLE_STRUCT(struct caml_custom_elt);
+
+struct caml_dependent_elt {
+  value block;     /* The finalized block in the minor heap. */
+  mlsize_t mem;    /* The size in bytes of the dependent memory. */
+};
+struct caml_dependent_table CAML_TABLE_STRUCT(struct caml_dependent_elt);
 
 struct caml_minor_tables {
   struct caml_ref_table major_ref;
   struct caml_ephe_ref_table ephe_ref;
   struct caml_custom_table custom;
+  struct caml_dependent_table dependent;
 };
 
 CAMLextern void caml_minor_collection (void);
@@ -87,6 +92,7 @@ void caml_alloc_table (struct caml_ref_table *tbl, asize_t sz, asize_t rsv);
 extern void caml_realloc_ref_table (struct caml_ref_table *);
 extern void caml_realloc_ephe_ref_table (struct caml_ephe_ref_table *);
 extern void caml_realloc_custom_table (struct caml_custom_table *);
+extern void caml_realloc_dependent_table (struct caml_dependent_table *);
 struct caml_minor_tables* caml_alloc_minor_tables(void);
 void caml_free_minor_tables(struct caml_minor_tables*);
 void caml_empty_minor_heap_setup(caml_domain_state* domain, void*);
@@ -120,8 +126,7 @@ Caml_inline void add_to_ephe_ref_table (struct caml_ephe_ref_table *tbl,
   CAMLassert(ephe_ref->offset < Wosize_val(ephe_ref->ephe));
 }
 
-Caml_inline void add_to_custom_table (struct caml_custom_table *tbl, value v,
-                                        mlsize_t mem, mlsize_t max)
+Caml_inline void add_to_custom_table (struct caml_custom_table *tbl, value v)
 {
   struct caml_custom_elt *elt;
   if (tbl->ptr >= tbl->limit){
@@ -130,8 +135,20 @@ Caml_inline void add_to_custom_table (struct caml_custom_table *tbl, value v,
   }
   elt = tbl->ptr++;
   elt->block = v;
+}
+
+Caml_inline void add_to_dependent_table (struct caml_dependent_table *tbl,
+                                         value v,
+                                         mlsize_t mem)
+{
+  struct caml_dependent_elt *elt;
+  if (tbl->ptr >= tbl->limit){
+    CAMLassert (tbl->ptr == tbl->limit);
+    caml_realloc_dependent_table (tbl);
+  }
+  elt = tbl->ptr++;
+  elt->block = v;
   elt->mem = mem;
-  elt->max = max;
 }
 
 #endif /* CAML_INTERNALS */
