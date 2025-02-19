@@ -129,8 +129,8 @@ let eff6 () =
   try Effect.Deep.match_with (fun () ->
     callback ();
     Effect.Deep.try_with (fun () -> callback (); Effect.perform E2; assert false) ()
-          { effc = (fun (type a) (_ : a Effect.t) -> None) }) ()
-    { retc = (fun () -> callback (); Effect.perform E; assert false)
+          { effc = (fun (type a) (_ : a Effect.t) -> callback (); Effect.perform E; callback (); None) }) ()
+    { retc = (fun () -> assert false)
     ; exnc = (function
               | Effect.Unhandled E2 -> callback (); Effect.perform E
               | _ -> assert false)
@@ -143,18 +143,22 @@ let eff6 () =
   with Effect.Unhandled E -> callback ();
   callback ()
 
-let () = eff0 ()
-let () = eff1 ()
-let () = eff2 ()
-let () = eff3 ()
-let () = eff4 ()
-let () = eff5 ()
-let () = eff6 ()
+external runtime5 : unit -> bool = "%runtime5"
 
-let () = run_callback eff0
-let () = run_callback eff1
-let () = run_callback eff2
-let () = run_callback eff3
-let () = run_callback eff4
-let () = run_callback eff5
-let () = run_callback eff6
+let () =
+  if runtime5 () then (
+    eff0 ();
+    eff1 ();
+    eff2 ();
+    eff3 ();
+    eff4 ();
+    eff5 ();
+    eff6 ();
+    run_callback eff0;
+    run_callback eff1;
+    run_callback eff2;
+    run_callback eff3;
+    run_callback eff4;
+    run_callback eff5;
+    run_callback eff6)
+  else ()

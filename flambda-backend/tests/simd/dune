@@ -95,7 +95,7 @@
     (run ./consts.exe))
    (with-outputs-to
     consts_u.out
-    (run ./callback.exe))
+    (run ./consts_u.exe))
    (with-outputs-to
     callback.out
     (run ./callback.exe)))))
