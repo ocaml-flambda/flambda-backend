@@ -280,46 +280,56 @@ let ty_ur2 = Ty.(unboxed_record "ur2" ["a", int64_u; "b", int])
 let ty_ur3 = Ty.(unboxed_record "ur3" ["a", int64_u])
 let ty_ur4 = Ty.(unboxed_record "ur4" ["a", ty_ur1; "b", ty_ur3])
 
-(* Types the GC always ignores, which can be used with %makearray_dynamic_uninit *)
-let always_ignored_types = Ty.([
-  float32_u; float_u; int32_u; int64_u; nativeint_u; ty_ur1; ty_ur3; ty_ur4;
-  unboxed_tuple [float_u; int32_u; int64_u];
-  unboxed_tuple [
-    float_u;
-    unboxed_tuple [int64_u; int64_u];
-    float32_u;
-    unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
-    int64_u;
-  ];
-  unboxed_tuple [int64_u; ty_ur1];
-])
+let every_nth ~offset ~n l =
+  List.filteri l ~f:(fun i _ -> Int.equal (i mod n) offset)
 
-let types = always_ignored_types @ Ty.([
-  float32; float; int32; int64; nativeint; int; enum 3; ty_ur2;
-  unboxed_tuple [int; int64];
-  unboxed_tuple [
-    option int64;
-    unboxed_tuple [int; int32; float];
-    float;
-    unboxed_tuple [float32; option (tuple [nativeint; nativeint])];
-    int32
-  ];
-  unboxed_tuple [float; float; float];
-  unboxed_tuple [
-    float;
-    unboxed_tuple [float; float];
-    unboxed_tuple [float; unboxed_tuple [float; float; float]]
-  ];
-  unboxed_tuple [float_u; int; int64_u];
-  unboxed_tuple [
-    float_u;
-    unboxed_tuple [int; int64_u];
-    float32_u;
-    unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
-    int;
-  ];
-  unboxed_tuple [ty_ur2; ty_ur1];
-])
+(* Types the GC always ignores, which can be used with %makearray_dynamic_uninit *)
+let always_ignored_types ~partition ~num_partitions =
+  Ty.(
+    every_nth ~offset:partition ~n:num_partitions
+    [
+    float32_u; float_u; int32_u; int64_u; nativeint_u; ty_ur1; ty_ur3; ty_ur4;
+    unboxed_tuple [float_u; int32_u; int64_u];
+    unboxed_tuple [
+      float_u;
+      unboxed_tuple [int64_u; int64_u];
+      float32_u;
+      unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
+      int64_u;
+    ];
+    unboxed_tuple [int64_u; ty_ur1];
+  ])
+
+let types ~partition ~num_partitions =
+  (always_ignored_types ~partition ~num_partitions)
+  @ Ty.(
+    every_nth ~offset:partition ~n:num_partitions
+    [
+      float32; float; int32; int64; nativeint; int; enum 3; ty_ur2;
+      unboxed_tuple [int; int64];
+      unboxed_tuple [
+        option int64;
+        unboxed_tuple [int; int32; float];
+        float;
+        unboxed_tuple [float32; option (tuple [nativeint; nativeint])];
+        int32
+      ];
+      unboxed_tuple [float; float; float];
+      unboxed_tuple [
+        float;
+        unboxed_tuple [float; float];
+        unboxed_tuple [float; unboxed_tuple [float; float; float]]
+      ];
+      unboxed_tuple [float_u; int; int64_u];
+      unboxed_tuple [
+        float_u;
+        unboxed_tuple [int; int64_u];
+        float32_u;
+        unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
+        int;
+      ];
+      unboxed_tuple [ty_ur2; ty_ur1];
+    ])
 
 let preamble = {|
 open Stdlib_upstream_compatible
@@ -595,7 +605,9 @@ let toplevel_unit_block f =
   line ";;";
   line ""
 
-let main ~bytecode =
+let main ~bytecode ~partition ~num_partitions =
+  let types = types ~partition ~num_partitions in
+  let always_ignored_types = always_ignored_types ~partition ~num_partitions in
   let debug_exprs = [] in
   line {|(* TEST
  include stdlib_stable;
@@ -672,11 +684,24 @@ let main ~bytecode =
   line "done;;";
   print_in_test "All tests passed."
 
+(* We partition the list of interesting types into N partitions, to cut down on test
+   runtime *)
 let () =
-  let bytecode =
+  let bytecode, n, i =
     match Sys.argv with
-    | [| _; "native" |] -> false
-    | [| _; "byte" |] -> true
-    | _ -> failwith (sprintf "Usage %s <byte|native>" Sys.argv.(0))
-      in
-  main ~bytecode
+    | [| _; "native"; n; i |] ->
+      false, n, i
+    | [| _; "byte"; n; i |] ->
+      true, n, i
+    | _ ->
+      failwith
+        (sprintf
+          "Usage: %s <byte|native> PARTITION NUM_PARTITIONS\n\
+            0 <= PARTITION < NUM_PARTITIONS"
+          Sys.argv.(0))
+  in
+  let num_partitions = int_of_string n in
+  let partition = int_of_string i in
+  assert (partition >= 0);
+  assert (partition < num_partitions);
+  main ~bytecode ~partition ~num_partitions
