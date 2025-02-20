@@ -92,6 +92,7 @@ let builtin_attrs =
   ; "nolabels"
   ; "flambda_oclassic"
   ; "flambda_o3"
+  ; "infer_with_bounds"
   ; "afl_inst_ratio"
   ; "local_opt"
   ; "curry"; "extension.curry"
@@ -571,6 +572,11 @@ let flambda_o3_attribute attr =
     ~name:"flambda_o3"
     ~f:(fun () -> if Config.flambda || Config.flambda2 then Clflags.set_o3 ())
 
+let infer_with_bounds_attribute attr =
+  clflags_attribute_without_payload' attr
+    ~name:"infer_with_bounds"
+    ~f:(fun () -> Clflags.infer_with_bounds := true)
+
 let inline_attribute attr =
   when_attribute_is ["inline"; "ocaml.inline"] attr ~f:(fun () ->
     let err_msg =
@@ -635,6 +641,7 @@ let parse_standard_interface_attributes attr =
   principal_attribute attr;
   noprincipal_attribute attr;
   nolabels_attribute attr;
+  infer_with_bounds_attribute attr;
   zero_alloc_attribute ~in_signature:true attr;
   unsafe_allow_any_mode_crossing_attribute attr
 
@@ -647,6 +654,7 @@ let parse_standard_implementation_attributes attr =
   afl_inst_ratio_attribute attr;
   flambda_o3_attribute attr;
   flambda_oclassic_attribute attr;
+  infer_with_bounds_attribute attr;
   zero_alloc_attribute ~in_signature:false attr;
   unsafe_allow_any_mode_crossing_attribute attr
 

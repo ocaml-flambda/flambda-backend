@@ -108,6 +108,18 @@ module TestFlambdaStruct = struct
   [@@@flambda_oclassic] (* accepted *)
 end
 
+module type TestInferSig = sig
+  type 'a t = { x : 'a } [@@infer_with_bounds] (* rejected *)
+
+  [@@@infer_with_bounds] (* accepted *)
+end
+
+module TestInferStruct = struct
+  type 'a t = { x : 'a } [@@infer_with_bounds] (* rejected *)
+
+  [@@@infer_with_bounds] (* accepted *)
+end
+
 module type TestAflInstRatioSig = sig
   type 'a t1 = 'a [@@afl_inst_ratio 42] (* rejected *)
 
