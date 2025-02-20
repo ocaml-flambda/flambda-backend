@@ -277,14 +277,14 @@ let split_direct_over_application apply
     Let.create
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
       (Named.create_prim
-         (Nullary (Begin_region { ghost = false }))
+         (Variadic (Begin_region { ghost = false }, []))
          (Apply.dbg apply))
       ~body:
         (Let.create
            (Bound_pattern.singleton
               (Bound_var.create ghost_region Name_mode.normal))
            (Named.create_prim
-              (Nullary (Begin_region { ghost = false }))
+              (Variadic (Begin_region { ghost = false }, []))
               (Apply.dbg apply))
            ~body:both_applications
            ~free_names_of_body:(Known free_names_of_body)

@@ -521,9 +521,20 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           | None -> applied_unarized_args
           | Some applied_callee -> applied_callee :: applied_unarized_args
         in
+        let contains_no_escaping_local_allocs =
+          match result_mode with Alloc_heap -> true | Alloc_local -> false
+        in
         let my_closure = Variable.create "my_closure" in
-        let my_region = Variable.create "my_region" in
-        let my_ghost_region = Variable.create "my_ghost_region" in
+        let my_region =
+          if contains_no_escaping_local_allocs
+          then None
+          else Some (Variable.create "my_region")
+        in
+        let my_ghost_region =
+          if contains_no_escaping_local_allocs
+          then None
+          else Some (Variable.create "my_ghost_region")
+        in
         let my_depth = Variable.create "my_depth" in
         let exn_continuation =
           Apply.exn_continuation apply |> Exn_continuation.without_extra_args

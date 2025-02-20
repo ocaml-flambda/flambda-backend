@@ -166,6 +166,12 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
             (Array.to_list (K.Mixed_block_shape.field_kinds arg_kinds))
         | Variadic_all_of_kind kind ->
           List.map (fun arg_ty -> arg_ty, kind) arg_tys
+        | Variadic_zero_or_one kind ->
+          (match arg_tys with
+          | [] | [_] -> ()
+          | _ :: _ :: _ ->
+            Misc.fatal_errorf "Too many arguments for primitive %a" P.print prim);
+          List.map (fun arg_ty -> arg_ty, kind) arg_tys
         | Variadic_unboxed_product kinds ->
           (* CR mshinwell: move to Misc, may be useful in e.g.
              simplify_variadic_primitive.ml for Make_array *)

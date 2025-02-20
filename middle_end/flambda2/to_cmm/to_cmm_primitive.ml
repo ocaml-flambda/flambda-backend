@@ -854,10 +854,6 @@ let nullary_primitive _env res dbg prim =
        `to_cmm_shared.ml` *)
     let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
     None, res, expr
-  | Begin_region { ghost = false } | Begin_try_region { ghost = false } ->
-    None, res, C.beginregion ~dbg
-  | Begin_region { ghost = true } | Begin_try_region { ghost = true } ->
-    None, res, C.int ~dbg 0
   | Enter_inlined_apply _ ->
     Misc.fatal_errorf
       "The primitive [Enter_inlined_apply] should not be translated by \
@@ -1057,6 +1053,10 @@ let ternary_primitive _env dbg f x y z =
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
+  | Begin_region { ghost = false } | Begin_try_region { ghost = false } ->
+    C.beginregion ~dbg
+  | Begin_region { ghost = true } | Begin_try_region { ghost = true } ->
+    C.int ~dbg 0
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
 
@@ -1126,7 +1126,7 @@ let consider_inlining_effectful_expressions p =
      evaluation order and does not duplicate any arguments. *)
   match[@ocaml.warning "-4"] (p : P.t) with
   | Variadic ((Make_block _ | Make_array _), _) -> Some true
-  | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
+  | Nullary _ | Unary _ | Binary _ | Ternary _ | Variadic _ -> None
 
 let prim_simple env res dbg p =
   let consider_inlining_effectful_expressions =
@@ -1176,7 +1176,7 @@ let prim_simple env res dbg p =
     let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
     let expr = ternary_primitive env dbg ternary x.cmm y.cmm z.cmm in
     Env.simple expr free_vars, None, env, res, effs
-  | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
+  | Variadic (variadic, l) ->
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
     in
@@ -1211,7 +1211,7 @@ let prim_complex env res dbg p =
       let To_cmm_env.{ env; res; expr = z } = arg env res z in
       let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
       prim', [x; y; z], effs, env, res
-    | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
+    | Variadic (variadic, l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =
         arg_list' ?consider_inlining_effectful_expressions ~dbg env res l

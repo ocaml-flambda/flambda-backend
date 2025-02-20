@@ -37,7 +37,8 @@ module IR = struct
     | Get_tag of Ident.t
     | Begin_region of
         { ghost : bool;
-          is_try_region : bool
+          is_try_region : bool;
+          parent_region : Ident.t option
         }
     | End_region of
         { is_try_region : bool;
@@ -49,8 +50,8 @@ module IR = struct
           args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
-          region : Ident.t;
-          ghost_region : Ident.t
+          region : Ident.t option;
+          ghost_region : Ident.t option
         }
 
   type apply_kind =
@@ -71,8 +72,8 @@ module IR = struct
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.locality_mode;
-      region : Ident.t;
-      ghost_region : Ident.t;
+      region : Ident.t option;
+      ghost_region : Ident.t option;
       args_arity : [`Complex] Flambda_arity.t;
       return_arity : [`Unarized] Flambda_arity.t
     }
@@ -98,7 +99,7 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
-    | Begin_region { is_try_region; ghost } ->
+    | Begin_region { is_try_region; ghost; parent_region = _ } ->
       if is_try_region
       then fprintf ppf "Begin_try_region"
       else fprintf ppf "Begin_region";
@@ -618,6 +619,9 @@ module Acc = struct
   let remove_var_from_free_names var t =
     { t with free_names = Name_occurrences.remove_var t.free_names ~var }
 
+  let remove_var_opt_from_free_names var t =
+    { t with free_names = Name_occurrences.remove_var_opt t.free_names ~var }
+
   let add_continuation_application ~cont args_approx t =
     let continuation_application =
       match args_approx with
@@ -766,8 +770,8 @@ module Function_decls = struct
         calling_convention : calling_convention;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
-        my_region : Ident.t;
-        my_ghost_region : Ident.t;
+        my_region : Ident.t option;
+        my_ghost_region : Ident.t option;
         body : Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t;
         free_idents_of_body : Ident.Set.t;
         attr : Lambda.function_attribute;
@@ -788,6 +792,18 @@ module Function_decls = struct
         | None -> Ident.create_local "unnamed_function"
         | Some let_rec_ident -> let_rec_ident
       in
+      (match my_region, my_ghost_region with
+      | None, None -> ()
+      | Some _, Some _ -> ()
+      | _, _ ->
+        Misc.fatal_errorf
+          "Function %a has mismatched parameters my_region %a and \
+           my_ghost_region %a"
+          Ident.print let_rec_ident
+          (Format.pp_print_option Ident.print)
+          my_region
+          (Format.pp_print_option Ident.print)
+          my_ghost_region);
       { let_rec_ident;
         function_slot;
         kind;

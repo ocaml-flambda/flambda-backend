@@ -27,6 +27,11 @@ val remove_skipped_args : 'a list -> _ To_cmm_env.param_type list -> 'a list
 val remove_var_with_provenance :
   To_cmm_env.free_vars -> Backend_var.With_provenance.t -> To_cmm_env.free_vars
 
+val remove_var_opt_with_provenance :
+  To_cmm_env.free_vars ->
+  Backend_var.With_provenance.t option ->
+  To_cmm_env.free_vars
+
 val remove_vars_with_machtype :
   To_cmm_env.free_vars ->
   (Backend_var.With_provenance.t * _) list ->

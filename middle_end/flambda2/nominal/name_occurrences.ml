@@ -831,6 +831,9 @@ let remove_var t ~var =
     let names = For_names.remove t.names (Name.var var) in
     { t with names }
 
+let remove_var_opt t ~var =
+  match var with None -> t | Some var -> remove_var t ~var
+
 let remove_symbol t ~symbol =
   if For_names.is_empty t.names
   then t

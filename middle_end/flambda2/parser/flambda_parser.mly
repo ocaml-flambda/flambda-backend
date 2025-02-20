@@ -384,13 +384,6 @@ recursive:
   | KWD_REC { Recursive }
 ;
 
-nullop:
-  | PRIM_BEGIN_REGION { Begin_region { ghost = false } }
-  | PRIM_BEGIN_GHOST_REGION { Begin_region { ghost = true } }
-  | PRIM_BEGIN_TRY_REGION { Begin_try_region { ghost = false } }
-  | PRIM_BEGIN_GHOST_TRY_REGION { Begin_try_region { ghost = true } }
-;
-
 unary_int_arith_op:
   | KWD_BSWAP { Swap_byte_endianness }
   | TILDEMINUS { Neg }
@@ -650,7 +643,15 @@ ternop_app:
     { Ternary (Bytes_or_bigstring_set (blv, saw), block, ix, v) }
 ;
 
+begin_region:
+  | PRIM_BEGIN_REGION { Begin_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_REGION { Begin_region { ghost = true } }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_TRY_REGION { Begin_try_region { ghost = true } }
+;
+
 block:
+  | r = begin_region { Variadic (r, []) }
   | PRIM_BLOCK; m = mutability; t = tag; alloc = alloc_mode_for_allocations_opt;
     LPAREN; elts = separated_list(COMMA, simple); RPAREN
     { Variadic (Make_block (t, m, alloc), elts) }
@@ -658,7 +659,6 @@ block:
 
 named:
   | s = simple { Simple s }
-  | n = nullop { Prim (Nullary n) }
   | u = unop a = simple { Prim (Unary (u, a)) }
   | b = binop_app { Prim b }
   | t = ternop_app { Prim t }

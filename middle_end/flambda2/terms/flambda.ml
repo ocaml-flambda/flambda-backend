@@ -589,11 +589,14 @@ and print_function_params_and_body ppf t =
        \u{27c5}%t%a%t\u{27c6}@ %a %a %t%a%t %t.%t@]@ %a))@]"
       Flambda_colours.lambda Flambda_colours.pop Continuation.print
       return_continuation Continuation.print exn_continuation
-      Flambda_colours.parameter Variable.print my_region Flambda_colours.pop
-      Flambda_colours.parameter Variable.print my_ghost_region
-      Flambda_colours.pop Bound_parameters.print params Bound_parameter.print
-      my_closure Flambda_colours.depth_variable Variable.print my_depth
-      Flambda_colours.pop Flambda_colours.elide Flambda_colours.pop print body
+      Flambda_colours.parameter
+      (Format.pp_print_option Variable.print)
+      my_region Flambda_colours.pop Flambda_colours.parameter
+      (Format.pp_print_option Variable.print)
+      my_ghost_region Flambda_colours.pop Bound_parameters.print params
+      Bound_parameter.print my_closure Flambda_colours.depth_variable
+      Variable.print my_depth Flambda_colours.pop Flambda_colours.elide
+      Flambda_colours.pop print body
   in
   let module BFF = Bound_for_function in
   Name_abstraction.pattern_match_for_printing

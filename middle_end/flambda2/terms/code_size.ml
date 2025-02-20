@@ -333,8 +333,6 @@ let nullary_prim_size prim =
   | Invalid _ -> 0
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
-  | Begin_region { ghost } -> if ghost then 0 else 1
-  | Begin_try_region { ghost } -> if ghost then 0 else 1
   | Enter_inlined_apply _ -> 0
   | Dls_get -> 1
   | Poll -> alloc_size
@@ -425,6 +423,8 @@ let ternary_prim_size prim =
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with
+  | Begin_region { ghost } -> if ghost then 0 else 1
+  | Begin_try_region { ghost } -> if ghost then 0 else 1
   | Make_block (_, _mut, _alloc_mode)
   (* CR mshinwell: I think Make_array for a generic array ("Anything") is more
      expensive than the other cases *)

@@ -269,10 +269,6 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Signed
   | Unsigned
 
-type nullop =
-  | Begin_region of { ghost : bool }
-  | Begin_try_region of { ghost : bool }
-
 type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
   | Swap_byte_endianness
@@ -406,10 +402,11 @@ type ternop =
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
 
 type varop =
+  | Begin_region of { ghost : bool }
+  | Begin_try_region of { ghost : bool }
   | Make_block of tag_scannable * mutability * alloc_mode_for_allocations
 
 type prim =
-  | Nullary of nullop
   | Unary of unop * simple
   | Binary of binop * simple * simple
   | Ternary of ternop * simple * simple * simple
