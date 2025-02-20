@@ -4,7 +4,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test1_runner.exe test1.cmx.dump)
  (deps test1.mli test1.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test1_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test1_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -37,7 +37,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test1_vectorized_runner.exe test1_vectorized.cmx.dump)
  (deps test1_vectorized.mli test1_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test1_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test1_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -80,7 +80,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_arrays_runner.exe test_arrays.cmx.dump)
  (deps test_arrays.mli test_arrays.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_arrays_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_arrays_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -113,7 +113,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_arrays_vectorized_runner.exe test_arrays_vectorized.cmx.dump)
  (deps test_arrays_vectorized.mli test_arrays_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_arrays_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_arrays_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -156,7 +156,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_int64_unboxed_runner.exe test_int64_unboxed.cmx.dump)
  (deps test_int64_unboxed.mli test_int64_unboxed.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_int64_unboxed_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_int64_unboxed_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -189,7 +189,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_int64_unboxed_vectorized_runner.exe test_int64_unboxed_vectorized.cmx.dump)
  (deps test_int64_unboxed_vectorized.mli test_int64_unboxed_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_int64_unboxed_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_int64_unboxed_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -232,7 +232,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_float_unboxed_runner.exe test_float_unboxed.cmx.dump)
  (deps test_float_unboxed.mli test_float_unboxed.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_float_unboxed_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_float_unboxed_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -265,7 +265,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_float_unboxed_vectorized_runner.exe test_float_unboxed_vectorized.cmx.dump)
  (deps test_float_unboxed_vectorized.mli test_float_unboxed_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_float_unboxed_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_float_unboxed_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -308,7 +308,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_int64_runner.exe test_int64.cmx.dump)
  (deps test_int64.mli test_int64.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_int64_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_int64_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -341,7 +341,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_int64_vectorized_runner.exe test_int64_vectorized.cmx.dump)
  (deps test_int64_vectorized.mli test_int64_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_int64_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_int64_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -384,7 +384,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_float_runner.exe test_float.cmx.dump)
  (deps test_float.mli test_float.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_float_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_float_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -417,7 +417,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_float_vectorized_runner.exe test_float_vectorized.cmx.dump)
  (deps test_float_vectorized.mli test_float_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_float_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_float_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -460,7 +460,7 @@
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets test_float32_unboxed_runner.exe test_float32_unboxed.cmx.dump)
  (deps test_float32_unboxed.mli test_float32_unboxed.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_float32_unboxed_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_float32_unboxed_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -493,7 +493,7 @@
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (targets test_float32_unboxed_vectorized_runner.exe test_float32_unboxed_vectorized.cmx.dump)
  (deps test_float32_unboxed_vectorized.mli test_float32_unboxed_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_float32_unboxed_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_float32_unboxed_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -536,7 +536,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_int32_unboxed_runner.exe test_int32_unboxed.cmx.dump)
  (deps test_int32_unboxed.mli test_int32_unboxed.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_int32_unboxed_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_int32_unboxed_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -569,7 +569,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_int32_unboxed_vectorized_runner.exe test_int32_unboxed_vectorized.cmx.dump)
  (deps test_int32_unboxed_vectorized.mli test_int32_unboxed_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_int32_unboxed_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_int32_unboxed_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -612,7 +612,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_spill_valx2_runner.exe test_spill_valx2.cmx.dump)
  (deps test_spill_valx2.mli test_spill_valx2.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_spill_valx2_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_spill_valx2_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -645,7 +645,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_spill_valx2_vectorized_runner.exe test_spill_valx2_vectorized.cmx.dump)
  (deps test_spill_valx2_vectorized.mli test_spill_valx2_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_spill_valx2_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_spill_valx2_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -688,7 +688,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_register_compatible_runner.exe test_register_compatible.cmx.dump)
  (deps test_register_compatible.mli test_register_compatible.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_register_compatible_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -no-vectorize -o test_register_compatible_runner.exe)))
 
 (rule
  (alias   runtest)
@@ -721,7 +721,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test_register_compatible_vectorized_runner.exe test_register_compatible_vectorized.cmx.dump)
  (deps test_register_compatible_vectorized.mli test_register_compatible_vectorized.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_register_compatible_vectorized_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -vectorize -o test_register_compatible_vectorized_runner.exe)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
@@ -776,7 +776,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets test1_classic_runner.exe test1_classic.cmx.dump)
  (deps test1_classic.mli test1_classic.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize-max-block-size 1000 -Oclassic -vectorize -o test1_classic_runner.exe)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg -extension simd -vectorize-max-block-size 1000 -Oclassic -vectorize -o test1_classic_runner.exe)))
 
 (rule
  (enabled_if (= %{context_name} "main"))

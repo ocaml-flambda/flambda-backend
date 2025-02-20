@@ -16,28 +16,7 @@
 (* CSE for ARM64 *)
 
 open! Int_replace_polymorphic_compare
-
-open Mach
 open CSE_utils
-
-class cse = object
-
-inherit CSEgen.cse_generic as super
-
-method! class_of_operation op =
-  match op with
-  | Ispecific _ -> Op_pure
-  | _ -> super#class_of_operation op
-
-method! is_cheap_operation op =
-  match op with
-  | Iconst_int n -> Nativeint.compare n 65535n <= 0 && Nativeint.compare n 0n >= 0
-  | _ -> false
-
-end
-
-let fundecl f =
-  (new cse)#fundecl f
 
 class cfg_cse = object
 

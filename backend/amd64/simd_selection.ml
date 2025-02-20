@@ -433,10 +433,6 @@ let select_simd_instr op args =
   |> or_else select_operation_sse41 (fun (op, args) -> SSE41 op, args)
   |> or_else select_operation_sse42 (fun (op, args) -> SSE42 op, args)
 
-let select_operation op args =
-  select_simd_instr op args
-  |> Option.map (fun (op, args) -> Mach.(Ispecific (Isimd op), args))
-
 let select_operation_cfg op args =
   select_simd_instr op args
   |> Option.map (fun (op, args) -> Operation.Specific (Isimd op), args)

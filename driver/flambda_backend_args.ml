@@ -22,9 +22,6 @@ let mk_flambda2_debug f =
 let mk_no_flambda2_debug f =
   "-no-flambda2-debug", Arg.Unit f, " Disable debug output for the Flambda2 pass"
 
-let mk_no_mach_ir f =
-  "-no-mach-ir", Arg.Unit f, " Avoid using the Mach IR"
-
 let mk_ocamlcfg f =
   "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
 
@@ -38,9 +35,6 @@ let mk_dcfg f =
 
 let mk_dcfg_invariants f =
   "-dcfg-invariants", Arg.Unit f, " Extra sanity checks on Cfg"
-
-let mk_dcfg_equivalence_check f =
-  "-dcfg-equivalence-check", Arg.Unit f, " Extra sanity checks on Cfg transformations"
 
 let mk_regalloc f =
   "-regalloc", Arg.String f, " Select the register allocator"
@@ -712,7 +706,6 @@ module type Flambda_backend_options = sig
   val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
-  val dcfg_equivalence_check : unit -> unit
   val regalloc : string -> unit
   val regalloc_param : string -> unit
   val regalloc_validate : unit -> unit
@@ -723,17 +716,8 @@ module type Flambda_backend_options = sig
   val vectorize_max_block_size : int -> unit
   val dvectorize : unit -> unit
 
-  val cfg_selection : unit -> unit
-  val no_cfg_selection : unit -> unit
-
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
-
-  val cfg_cse_optimize : unit -> unit
-  val no_cfg_cse_optimize : unit -> unit
-
-  val cfg_zero_alloc_checker : unit -> unit
-  val no_cfg_zero_alloc_checker : unit -> unit
 
   val cfg_stack_checks : unit -> unit
   val no_cfg_stack_checks : unit -> unit
@@ -769,8 +753,6 @@ module type Flambda_backend_options = sig
   val internal_assembler : unit -> unit
 
   val gc_timings : unit -> unit
-
-  val no_mach_ir : unit -> unit
 
   val flambda2_debug : unit -> unit
   val no_flambda2_debug : unit -> unit
@@ -851,7 +833,6 @@ struct
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
     mk_dcfg_invariants F.dcfg_invariants;
-    mk_dcfg_equivalence_check F.dcfg_equivalence_check;
     mk_regalloc F.regalloc;
     mk_regalloc_param F.regalloc_param;
     mk_regalloc_validate F.regalloc_validate;
@@ -862,17 +843,8 @@ struct
     mk_vectorize_max_block_size F.vectorize_max_block_size;
     mk_dvectorize F.dvectorize;
 
-    mk_cfg_selection F.cfg_selection;
-    mk_no_cfg_selection F.no_cfg_selection;
-
     mk_cfg_peephole_optimize F.cfg_peephole_optimize;
     mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
-
-    mk_cfg_cse_optimize F.cfg_cse_optimize;
-    mk_no_cfg_cse_optimize F.no_cfg_cse_optimize;
-
-    mk_cfg_zero_alloc_checker F.cfg_zero_alloc_checker;
-    mk_no_cfg_zero_alloc_checker F.no_cfg_zero_alloc_checker;
 
     mk_cfg_stack_checks F.cfg_stack_checks;
     mk_no_cfg_stack_checks F.no_cfg_stack_checks;
@@ -910,8 +882,6 @@ struct
     mk_internal_assembler F.internal_assembler;
 
     mk_gc_timings F.gc_timings;
-
-    mk_no_mach_ir F.no_mach_ir;
 
     mk_flambda2_debug F.flambda2_debug;
     mk_no_flambda2_debug F.no_flambda2_debug;
@@ -1021,7 +991,6 @@ module Flambda_backend_options_impl = struct
   let no_ocamlcfg = clear' Flambda_backend_flags.use_ocamlcfg
   let dcfg = set' Flambda_backend_flags.dump_cfg
   let dcfg_invariants = set' Flambda_backend_flags.cfg_invariants
-  let dcfg_equivalence_check = set' Flambda_backend_flags.cfg_equivalence_check
   let regalloc x = Flambda_backend_flags.regalloc := x
   let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
   let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
@@ -1033,17 +1002,8 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.vectorize_max_block_size := n
   let dvectorize = set' Flambda_backend_flags.dump_vectorize
 
-  let cfg_selection = set' Flambda_backend_flags.cfg_selection
-  let no_cfg_selection = clear' Flambda_backend_flags.cfg_selection
-
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
-
-  let cfg_cse_optimize = set' Flambda_backend_flags.cfg_cse_optimize
-  let no_cfg_cse_optimize = clear' Flambda_backend_flags.cfg_cse_optimize
-
-  let cfg_zero_alloc_checker = set' Flambda_backend_flags.cfg_zero_alloc_checker
-  let no_cfg_zero_alloc_checker = clear' Flambda_backend_flags.cfg_zero_alloc_checker
 
   let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
   let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
@@ -1123,12 +1083,6 @@ module Flambda_backend_options_impl = struct
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
   let gc_timings = set' Flambda_backend_flags.gc_timings
-
-  let no_mach_ir () =
-    Flambda_backend_flags.cfg_selection := true;
-    Flambda_backend_flags.cfg_cse_optimize := true;
-    Flambda_backend_flags.cfg_zero_alloc_checker := true;
-    Flambda_backend_flags.regalloc := "cfg"
 
   let flambda2_debug = set' Flambda_backend_flags.Flambda2.debug
   let no_flambda2_debug = clear' Flambda_backend_flags.Flambda2.debug
@@ -1370,20 +1324,15 @@ module Extra_params = struct
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
-    | "no-mach-ir" -> Flambda_backend_options_impl.no_mach_ir (); true
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
-    | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
     | "dump-vectorize" -> set' Flambda_backend_flags.dump_vectorize
     | "vectorize-max-block-size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
-    | "cfg-selection" -> set' Flambda_backend_flags.cfg_selection
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
-    | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
-    | "cfg-zero-alloc-checker" -> set' Flambda_backend_flags.cfg_zero_alloc_checker
     | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
     | "cfg-stack-checks-threshold" -> set_int' Flambda_backend_flags.cfg_stack_checks_threshold
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths

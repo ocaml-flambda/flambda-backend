@@ -1998,14 +1998,6 @@ end
 *)
 module Analysis : sig
   (** Check one function. *)
-  val fundecl :
-    Mach.fundecl ->
-    future_funcnames:String.Set.t ->
-    Unit_info.t ->
-    Unresolved_dependencies.t ->
-    Format.formatter ->
-    unit
-
   val cfg :
     Cfg.t ->
     future_funcnames:String.Set.t ->
@@ -2232,134 +2224,6 @@ end = struct
     in
     transform t ~next ~exn ~effect desc dbg
 
-  let transform_operation t (op : Mach.operation) ~next ~exn dbg =
-    match op with
-    | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
-    | Iconst_float32 _ | Iconst_symbol _ | Iconst_vec128 _ | Iload _
-    | Ifloatop _
-    | Ireinterpret_cast
-        ( Float32_of_float | Float_of_float32 | Float_of_int64 | Int64_of_float
-        | Float32_of_int32 | Int32_of_float32 | V128_of_v128 )
-    | Istatic_cast
-        ( Float_of_int _ | Int_of_float _ | Float_of_float32 | Float32_of_float
-        | Scalar_of_v128 _ | V128_of_scalar _ )
-    | Iintop_imm
-        ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
-          _ )
-    | Iintop
-        ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-        | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-    | Icsel _ ->
-      assert (Mach.operation_is_pure op);
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Iname_for_debugger _ | Ireinterpret_cast (Int_of_value | Value_of_int) ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
-    | Iintop_atomic _ ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Istore _ ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Ipoll _
-    (* Ignore poll points even though they may trigger an allocations, because
-       otherwise all loops would be considered allocating when poll insertion is
-       enabled. [@poll error] should be used instead. *)
-    | Ialloc { mode = Local; _ } ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Ialloc { mode = Heap; bytes; dbginfo } ->
-      assert (not (Mach.operation_can_raise op));
-      let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
-      let effect =
-        match Metadata.assume_value dbg ~can_raise:false w with
-        | Some effect -> effect
-        | None -> Value.{ nor = V.top w; exn = V.bot; div = V.bot }
-      in
-      transform t ~effect ~next ~exn "heap allocation" dbg
-    | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
-      let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
-      let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
-      transform_call t ~next ~exn handler_code_sym w ~desc dbg
-    | Icall_ind ->
-      let w = create_witnesses t Indirect_call dbg in
-      transform_top t ~next ~exn w "indirect call" dbg
-    | Itailcall_ind ->
-      (* Sound to ignore [next] and [exn] because the call never returns. *)
-      let w = create_witnesses t Indirect_tailcall dbg in
-      transform_top t ~next:Value.normal_return ~exn:Value.exn_escape w
-        "indirect tailcall" dbg
-    | Icall_imm { func = { sym_name = func; _ } } ->
-      let w = create_witnesses t (Direct_call { callee = func }) dbg in
-      transform_call t ~next ~exn func w ~desc:("direct call to " ^ func) dbg
-    | Itailcall_imm { func = { sym_name = func; _ } } ->
-      (* Sound to ignore [next] and [exn] because the call never returns. *)
-      let w = create_witnesses t (Direct_tailcall { callee = func }) dbg in
-      transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func w
-        ~desc:("direct tailcall to " ^ func)
-        dbg
-    | Iextcall { alloc = false; returns = true; _ } ->
-      (* Sound to ignore [exn] because external call marked as noalloc does not
-         raise. *)
-      next
-    | Iextcall { alloc = false; returns = false; _ } ->
-      (* Sound to ignore [next] and [exn] because the call never returns or
-         raises. *)
-      Value.bot
-    | Iextcall { func; alloc = true; _ } ->
-      let w = create_witnesses t (Extcall { callee = func }) dbg in
-      transform_top t ~next ~exn w ("external call to " ^ func) dbg
-    | Ispecific s -> transform_specific t s ~next ~exn dbg
-    | Idls_get -> next
-
-  module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
-
-  let check_instr t body =
-    let transfer (i : Mach.instruction) ~next ~exn =
-      match i.desc with
-      | Ireturn _ -> Value.normal_return
-      | Iop op -> transform_operation t op ~next ~exn i.dbg
-      | Iraise Raise_notrace ->
-        (* [raise_notrace] is typically used for control flow, not for
-           indicating an error. Therefore, we do not ignore any allocation on
-           paths to it. The following conservatively assumes that normal and exn
-           Returns are reachable. *)
-        Value.join exn Value.safe
-      | Iraise (Raise_reraise | Raise_regular) -> exn
-      | Iend -> next
-      | Iexit _ ->
-        report t next ~msg:"transform" ~desc:"iexit" i.dbg;
-        next
-      | Iifthenelse _ ->
-        report t next ~msg:"transform" ~desc:"ifthenelse" i.dbg;
-        next
-      | Iswitch _ ->
-        report t next ~msg:"transform" ~desc:"switch" i.dbg;
-        next
-      | Icatch (_rc, _ts, _, _body) ->
-        report t next ~msg:"transform" ~desc:"catch" i.dbg;
-        next
-      | Itrywith (_body, _, (_trap_stack, _handler)) ->
-        report t next ~msg:"transform" ~desc:"try-with" i.dbg;
-        next
-    in
-    (* By default, backward analysis does not check the property on paths that
-       diverge (non-terminating loops that do not reach normal or exceptional
-       return). All loops must go through an (Iexit label) instruction or a
-       recursive function call. If (Iexit label) is not backward reachable from
-       the function's Normal or Exceptional Return, either the loop diverges or
-       the Iexit instruction is not reachable from function entry.
-
-       To check divergent loops, the initial value of "div" component of all
-       Iexit labels of recurisve Icatch handlers is set to "Safe" instead of
-       "Bot". *)
-    D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges ~transfer
-      body
-    |> fst
-
   module Env : sig
     type t
 
@@ -2585,13 +2449,6 @@ end = struct
     in
     Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 
-  let fundecl (fd : Mach.fundecl) ~future_funcnames unit_info unresolved_deps
-      ppf =
-    let a = Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg in
-    let check_body t = check_instr t fd.fun_body in
-    check_fun fd.fun_name fd.fun_dbg a check_body ~future_funcnames unit_info
-      unresolved_deps ppf
-
   module Check_cfg_backward = struct
     module Value = struct
       include Value
@@ -2771,59 +2628,6 @@ let unit_info = Unit_info.create ()
 
 let unresolved_deps = Unresolved_dependencies.create ()
 
-(* [Selectgen] sets [return] field of [Iextcall] to prevent dead code
-   elimination on functions that zero_alloc checker needs to see (details in
-   PR#2112). Here we can clear [returns] field to allow subsequent passes to
-   eliminate dead code. *)
-let update_caml_flambda_invalid (fd : Mach.fundecl) =
-  let rec fixup (i : Mach.instruction) : Mach.instruction =
-    match i.desc with
-    | Iop (Iextcall ({ func; _ } as ext)) ->
-      if String.equal func Cmm.caml_flambda2_invalid
-      then
-        let desc = Mach.Iop (Iextcall { ext with returns = false }) in
-        { i with desc; next = Mach.end_instr () }
-      else { i with next = fixup i.next }
-    | Iop
-        ( Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
-        | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Icall_ind
-        | Icall_imm _ | Istackoffset _ | Iload _ | Istore _ | Ialloc _
-        | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
-        | Ireinterpret_cast _ | Istatic_cast _ | Ispecific _
-        | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-        | Ibeginregion | Iendregion | Ipoll _ | Idls_get ) ->
-      { i with next = fixup i.next }
-    | Iend | Ireturn _
-    | Iop Itailcall_ind
-    | Iop (Itailcall_imm _)
-    | Iraise _ | Iexit _ ->
-      i
-    | Iifthenelse (tst, ifso, ifnot) ->
-      let next = fixup i.next in
-      { i with desc = Iifthenelse (tst, fixup ifso, fixup ifnot); next }
-    | Iswitch (index, cases) ->
-      let next = fixup i.next in
-      { i with desc = Iswitch (index, Array.map fixup cases); next }
-    | Icatch (rec_flag, ts, handlers, body) ->
-      let next = fixup i.next in
-      let handlers =
-        List.map
-          (fun (n, ts, handler, is_cold) -> n, ts, fixup handler, is_cold)
-          handlers
-      in
-      { i with desc = Icatch (rec_flag, ts, handlers, fixup body); next }
-    | Itrywith (body, kind, (ts, handler)) ->
-      let next = fixup i.next in
-      { i with desc = Itrywith (fixup body, kind, (ts, fixup handler)); next }
-  in
-  (* This condition matches the one in [Selectgen] to avoid copying [fd]
-     unnecessarily. *)
-  let enabled =
-    Annotation.is_check_enabled
-      (Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg)
-  in
-  if enabled then { fd with fun_body = fixup fd.Mach.fun_body } else fd
-
 let update_caml_flambda_invalid_cfg cfg_with_layout =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   (* This condition matches the one in [Selectgen] to avoid copying [fd]
@@ -2869,10 +2673,6 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
           Simplify_terminator.run cfg;
           Eliminate_dead_code.run_dead_block cfg_with_layout)
         ())
-
-let fundecl ppf_dump ~future_funcnames fd =
-  Analysis.fundecl fd ~future_funcnames unit_info unresolved_deps ppf_dump;
-  update_caml_flambda_invalid fd
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in

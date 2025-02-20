@@ -234,18 +234,8 @@ module type Optcommon_options = sig
   val _dclambda : unit -> unit
   val _dcmm_invariants : unit -> unit
   val _dcmm : unit -> unit
-  val _dsel : unit -> unit
-  val _dcombine : unit -> unit
   val _dcse : unit -> unit
-  val _dlive : unit -> unit
-  val _dspill : unit -> unit
-  val _dsplit : unit -> unit
-  val _dinterf : unit -> unit
-  val _dprefer : unit -> unit
-  val _dalloc : unit -> unit
-  val _dreload : unit -> unit
   val _dlinear :  unit -> unit
-  val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
 end
 

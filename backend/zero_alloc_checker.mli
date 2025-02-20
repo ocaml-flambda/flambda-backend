@@ -35,14 +35,6 @@ val reset_unit_info : unit -> unit
 (** Records the result in [Compilenv] to be saved to [cmx]. *)
 val record_unit_info : Format.formatter -> unit
 
-(** Analyzes the function, performs all checks that are enabled, and accumulates
-    the results. *)
-val fundecl :
-  Format.formatter ->
-  future_funcnames:Misc.Stdlib.String.Set.t ->
-  Mach.fundecl ->
-  Mach.fundecl
-
 val cfg :
   Format.formatter ->
   future_funcnames:Misc.Stdlib.String.Set.t ->

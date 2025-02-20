@@ -17,7 +17,6 @@
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 val cfg_invariants : bool ref
-val cfg_equivalence_check : bool ref
 val regalloc : string ref
 val regalloc_params : string list ref
 val regalloc_validate : bool ref
@@ -27,12 +26,7 @@ val dump_vectorize : bool ref
 val default_vectorize_max_block_size : int
 val vectorize_max_block_size : int ref
 
-val cfg_selection : bool ref
-
 val cfg_peephole_optimize: bool ref
-
-val cfg_cse_optimize: bool ref
-val cfg_zero_alloc_checker : bool ref
 
 val cfg_stack_checks : bool ref
 val cfg_stack_checks_threshold : int ref

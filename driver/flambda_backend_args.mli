@@ -28,7 +28,6 @@ module type Flambda_backend_options = sig
   val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
-  val dcfg_equivalence_check : unit -> unit
   val regalloc : string -> unit
   val regalloc_param : string -> unit
   val regalloc_validate : unit -> unit
@@ -39,17 +38,8 @@ module type Flambda_backend_options = sig
   val vectorize_max_block_size : int -> unit
   val dvectorize : unit -> unit
 
-  val cfg_selection : unit -> unit
-  val no_cfg_selection : unit -> unit
-
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
-
-  val cfg_cse_optimize : unit -> unit
-  val no_cfg_cse_optimize : unit -> unit
-
-  val cfg_zero_alloc_checker : unit -> unit
-  val no_cfg_zero_alloc_checker : unit -> unit
 
   val cfg_stack_checks : unit -> unit
   val no_cfg_stack_checks : unit -> unit
@@ -86,8 +76,6 @@ module type Flambda_backend_options = sig
   val internal_assembler : unit -> unit
 
   val gc_timings : unit -> unit
-
-  val no_mach_ir : unit -> unit
 
   val flambda2_debug : unit -> unit
   val no_flambda2_debug : unit -> unit
