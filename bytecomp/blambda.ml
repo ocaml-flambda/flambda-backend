@@ -23,14 +23,21 @@ type raise_kind = Lambda.raise_kind =
 
 type static_label = Lambda.static_label
 
+type event = Lambda.lambda_event
+
 type tailcall =
   | Tailcall
   | Nontail
 
+type context_switch =
+  | Perform
+  | Reperform
+  | Runstack
+  | Resume
+
 type primitive =
   | Getglobal of Compilation_unit.t
   | Getpredef of Ident.t
-  | Perform
   | Boolnot
   | Isint
   | Vectlength
@@ -59,13 +66,8 @@ type primitive =
   | Getvectitem
   | Setfield of int
   | Setfloatfield of int
-  | Sequand
-  | Sequor
   | Setvectitem
   | Setbyteschar
-  | Reperform
-  | Runstack of tailcall
-  | Resume of tailcall
   | Ccall of string
   | Makeblock of { tag : int }
   | Makefloatblock
@@ -81,71 +83,76 @@ and rec_binding =
 
 and bfunction =
   { params : Ident.t list;
-    body : t;
-    loc : Debuginfo.Scoped_location.t
+    body : blambda;
+    loc : Debuginfo.Scoped_location.t;
+    free_variables : Ident.Set.t
   }
 
-and t =
+and blambda =
   | Var of Ident.t
   | Const of Lambda.structured_constant
   | Apply of
-      { func : t;
-        args : t list;
+      { func : blambda;
+        args : blambda list;
         tailcall : tailcall
       }
   | Function of bfunction
   | Let of
       { id : Ident.t;
-        arg : t;
-        body : t
+        arg : blambda;
+        body : blambda
       }
   | Letrec of
       { decls : rec_binding list;
-        body : t
+        body : blambda;
+        free_variables : Ident.Set.t
       }
-  | Prim of primitive * t list * Debuginfo.Scoped_location.t
+  | Prim of primitive * blambda list
   | Switch of
-      { arg : t;
-        sw_numconsts : int;
-        sw_consts : (int * t) list;
-        sw_numblocks : int;
-        sw_blocks : (int * t) list;
-        sw_failaction : t option
+      { arg : blambda;
+        int_cases : int array;
+            (** indices into {!cases}, indexed by the value of the immediate *)
+        tag_cases : int array;
+            (** indexes into {!cases}, indexed by the the block tag *)
+        cases : blambda array
       }
-  | Staticraise of static_label * t list
+  | Staticraise of static_label * blambda list
   | Staticcatch of
-      { body : t;
+      { body : blambda;
         args : static_label * Ident.t list;
-        handler : t
+        handler : blambda
       }
   | Trywith of
-      { body : t;
+      { body : blambda;
         id : Ident.t;
-        handler : t
+        handler : blambda
       }
+  | Sequence of blambda * blambda
+  | Assign of Ident.t * blambda
+  | Send of
+      { self : bool;
+        met : blambda;
+        obj_and_args : blambda list;
+        tailcall : tailcall
+      }
+  | Event of blambda * Lambda.lambda_event
+  | Pseudo_event of blambda * Debuginfo.Scoped_location.t
+  | Context_switch of context_switch * tailcall * blambda list
   | Ifthenelse of
-      { cond : t;
-        ifso : t;
-        ifnot : t
+      { cond : blambda;
+        ifso : blambda;
+        ifnot : blambda
       }
-  | Sequence of t * t
   | While of
-      { wh_cond : t;
-        wh_body : t
+      { wh_cond : blambda;
+        wh_body : blambda
       }
   | For of
       { for_id : Ident.t;
-        for_from : t;
-        for_to : t;
+        for_from : blambda;
+        for_to : blambda;
         for_dir : direction_flag;
-        for_body : t
+        for_body : blambda
       }
-  | Assign of Ident.t * t
-  | Send of
-      { kind : Lambda.meth_kind;
-        met : t;
-        obj : t;
-        args : t list;
-        tailcall : tailcall
-      }
-  | Event of t * Lambda.lambda_event
+  | Sequand of blambda * blambda
+  | Sequor of blambda * blambda

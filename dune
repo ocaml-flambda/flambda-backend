@@ -296,6 +296,7 @@
  (modules
   ;; bytecomp/
   blambda
+  printblambda
   blambda_of_lambda
   bytegen
   byteinstantiator

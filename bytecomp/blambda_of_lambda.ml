@@ -16,13 +16,28 @@ let is_nontail : Lambda.region_close -> bool = function
   | Rc_nontail -> true
   | Rc_normal | Rc_close_at_apply -> false
 
+module Storer = Switch.Store (struct
+  type t = Lambda.lambda
+
+  type key = t
+
+  let compare_key = Stdlib.compare
+
+  let make_key = Lambda.make_key
+end)
+
+let is_immed n = Instruct.immed_min <= n && n <= Instruct.immed_max
+
 let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
-    Blambda.t =
-  let comp_fun ({ params; body; loc } : Lambda.lfunction) : Blambda.bfunction =
+    Blambda.blambda =
+  let comp_fun ({ params; body; loc } as lfunction : Lambda.lfunction) :
+      Blambda.bfunction =
     (* assume kind = Curried *)
+    let free_variables = Lambda.free_variables (Lfunction lfunction) in
     { params = List.map (fun (p : Lambda.lparam) -> p.name) params;
       body = comp_expr body ~tailcall:Blambda.Tailcall;
-      loc
+      loc;
+      free_variables
     }
   in
   let comp_rec_binding ({ id; def } : Lambda.rec_binding) : Blambda.rec_binding
@@ -33,19 +48,18 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
   match (exp : Lambda.lambda) with
   | Lvar id | Lmutvar id -> Var id
   | Lconst cst -> Const cst
-  | Lapply { ap_func = func; ap_args = args; ap_region_close = rc } ->
+  | Lapply { ap_func; ap_args; ap_region_close } ->
     Apply
-      { func = comp_arg func;
-        args = List.map comp_arg args;
-        tailcall = (if is_nontail rc then Nontail else tailcall)
+      { func = comp_arg ap_func;
+        args = List.map comp_arg ap_args;
+        tailcall = (if is_nontail ap_region_close then Nontail else tailcall)
       }
   | Lsend (kind, met, obj, args, rc, _, _, _) ->
     assert (kind <> (Cached : Lambda.meth_kind));
     Send
-      { kind;
+      { self = kind = (Self : Lambda.meth_kind);
         met = comp_arg met;
-        obj = comp_arg obj;
-        args = List.map comp_arg args;
+        obj_and_args = comp_arg obj :: List.map comp_arg args;
         tailcall = (if is_nontail rc then Nontail else tailcall)
       }
   | Lfunction f -> Function (comp_fun f)
@@ -54,7 +68,9 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
   | Lletrec (decl, body) ->
     Letrec
       { decls = List.map comp_rec_binding decl;
-        body = comp_expr body ~tailcall
+        body = comp_expr body ~tailcall;
+        free_variables =
+          Lambda.free_variables (Lletrec (decl, Lambda.lambda_unit))
       }
   | Lstaticcatch (body, (i, vars), handler, _, _) ->
     Staticcatch
@@ -87,16 +103,28 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         { sw_numconsts; sw_consts; sw_numblocks; sw_blocks; sw_failaction },
         _loc,
         _kind ) ->
-    let[@inline] comp_case e = comp_expr e ~tailcall in
-    let comp_arm (i, v) = i, comp_case v in
-    Switch
-      { arg = comp_arg arg;
-        sw_numconsts;
-        sw_consts = List.map comp_arm sw_consts;
-        sw_numblocks;
-        sw_blocks = List.map comp_arm sw_blocks;
-        sw_failaction = Option.map comp_case sw_failaction
-      }
+    (* Build indirection vectors *)
+    let store = Storer.mk_store () in
+    let fail = Option.map (store.act_store ()) sw_failaction in
+    let compile_cases src ~size =
+      let dst = Array.make size None in
+      ListLabels.iter src ~f:(fun (n, case) ->
+          match dst.(n) with
+          | Some _ -> Misc.fatal_error "duplicate case in switch"
+          | None -> dst.(n) <- Some (store.act_store () case));
+      ArrayLabels.map dst ~f:(function
+        | Some case -> case
+        | None -> (
+          match fail with
+          | Some fail -> fail
+          | None -> Misc.fatal_error "no default action in switch"))
+    in
+    (* Compile and label actions *)
+    let arg = comp_arg arg in
+    let int_cases = compile_cases sw_consts ~size:sw_numconsts in
+    let tag_cases = compile_cases sw_blocks ~size:sw_numblocks in
+    let cases = Array.map (comp_expr ~tailcall) (store.act_get ()) in
+    Switch { arg; int_cases; tag_cases; cases }
   | Lstringswitch (arg, sw, d, loc, kind) ->
     comp_expr (Matching.expand_stringswitch loc kind arg sw d) ~tailcall
   | Lassign (id, expr) -> Assign (id, comp_arg expr)
@@ -112,20 +140,22 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         Printlambda.primitive primitive expected
         (if expected = 1 then "argument" else "arguments")
     in
-    let variadic primitive =
-      Blambda.Prim (primitive, List.map comp_arg args, loc)
+    let check_arity ~arity =
+      match List.compare_length_with args arity with
+      | 0 -> List.map comp_arg args
+      | _ -> wrong_arity ~expected:arity
     in
-    let n_ary primitive ~arity =
-      if List.compare_length_with args arity <> 0
-      then variadic primitive
-      else wrong_arity ~expected:arity
+    let context_switch c ~arity =
+      Blambda.Context_switch (c, tailcall, check_arity ~arity)
     in
+    let pseudo_event t = Blambda.Pseudo_event (t, loc) in
+    let variadic primitive = Blambda.Prim (primitive, List.map comp_arg args) in
+    let n_ary primitive ~arity = Blambda.Prim (primitive, check_arity ~arity) in
     let nullary = n_ary ~arity:0 in
     let unary = n_ary ~arity:1 in
     let binary = n_ary ~arity:2 in
     let ternary = n_ary ~arity:3 in
-    let ccall name ~arity = n_ary ~arity (Ccall name) in
-    let boolnot arg = Blambda.Prim (Boolnot, [arg], loc) in
+    let boolnot arg = Blambda.Prim (Boolnot, [arg]) in
     let comp_bint_primitive bi suff : Blambda.primitive =
       let pref =
         match (bi : Primitive.boxed_integer) with
@@ -163,11 +193,29 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         Sequence (comp_arg arg, Const (Const_base (Const_int 0)))
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pnot -> unary Boolnot
-    | Psequand -> binary Sequand
-    | Psequor -> binary Sequor
+    | Psequand -> (
+      match args with
+      | [x; y] -> Sequand (comp_arg x, comp_expr y ~tailcall)
+      | _ -> wrong_arity ~expected:2)
+    | Psequor -> (
+      match args with
+      | [x; y] -> Sequor (comp_arg x, comp_expr y ~tailcall)
+      | _ -> wrong_arity ~expected:2)
     | Praise k -> unary (Raise k)
-    | Paddint -> binary Addint
-    | Psubint -> binary Subint
+    | Paddint -> (
+      match args with
+      | [arg; Lconst (Const_base (Const_int n))] when is_immed n ->
+        Prim (Offsetint n, [comp_arg arg])
+      | [Lconst (Const_base (Const_int n)); arg] when is_immed n ->
+        Prim (Offsetint n, [comp_arg arg])
+      | _ -> binary Addint)
+    | Psubint -> (
+      match args with
+      | [arg; Lconst (Const_base (Const_int n))] when is_immed (-n) ->
+        Prim (Offsetint (-n), [comp_arg arg])
+      | [Lconst (Const_base (Const_int n)); arg] when is_immed (-n) ->
+        Prim (Offsetint (-n), [comp_arg arg])
+      | _ -> binary Subint)
     | Pmulint -> binary Mulint
     | Pdivint (Safe | Unsafe) -> binary Divint
     | Pmodint (Safe | Unsafe) -> binary Modint
@@ -178,11 +226,13 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Plsrint -> binary Lsrint
     | Pasrint -> binary Asrint
     | Pnegint -> unary Negint
-    | Poffsetint n -> unary (Offsetint n)
+    | Poffsetint n ->
+      assert (is_immed n);
+      unary (Offsetint n)
     | Pmakefloatblock _ | Pmakeufloatblock _ ->
       (* In bytecode, float# is boxed, so we can treat these two primitives the
          same. *)
-      variadic Makefloatblock
+      pseudo_event (variadic Makefloatblock)
     | Pmakemixedblock (tag, _, shape, _) ->
       (* There is no notion of a mixed block at runtime in bytecode. Further,
          source-level unboxed types are represented as boxed in bytecode, so
@@ -190,31 +240,32 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
          the (normal, unmixed) block.
       *)
       let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
-      variadic (Make_faux_mixedblock { total_len; tag })
-    | Pmakearray (kind, _, _) -> (
-      match kind with
-      (* arrays of unboxed types have the same representation
-         as the boxed ones on bytecode *)
-      | Pintarray | Paddrarray | Punboxedintarray _
-      | Punboxedfloatarray Unboxed_float32
-      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
-        variadic (Makeblock { tag = 0 })
-      | Pfloatarray | Punboxedfloatarray Unboxed_float64 ->
-        variadic Makefloatblock
-      | Punboxedvectorarray _ -> simd_is_not_supported ()
-      | Pgenarray -> (
-        match args with
-        | [] -> variadic (Makeblock { tag = 0 })
-        | _ :: _ ->
-          (* for the floatarray hack *)
-          Prim (Ccall "caml_make_array", [variadic (Makeblock { tag = 0 })], loc)
-        ))
-    | Presume -> n_ary (Resume tailcall) ~arity:4
-    | Prunstack -> ternary (Runstack tailcall)
+      pseudo_event (variadic (Make_faux_mixedblock { total_len; tag }))
+    | Pmakearray (kind, _, _) ->
+      pseudo_event
+        (match kind with
+        (* arrays of unboxed types have the same representation
+           as the boxed ones on bytecode *)
+        | Pintarray | Paddrarray | Punboxedintarray _
+        | Punboxedfloatarray Unboxed_float32
+        | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+          variadic (Makeblock { tag = 0 })
+        | Pfloatarray | Punboxedfloatarray Unboxed_float64 ->
+          variadic Makefloatblock
+        | Punboxedvectorarray _ -> simd_is_not_supported ()
+        | Pgenarray -> (
+          let block = variadic (Makeblock { tag = 0 }) in
+          match args with
+          | [] -> block
+          | _ :: _ ->
+            (* for the floatarray hack *)
+            Prim (Ccall "caml_make_array", [block])))
+    | Presume -> context_switch Resume ~arity:4
+    | Prunstack -> context_switch Runstack ~arity:3
     | Preperform -> (
       match tailcall with
       | Nontail -> Misc.fatal_error "Reperform used in non-tail position"
-      | Tailcall -> ternary Reperform)
+      | Tailcall -> context_switch Reperform ~arity:3)
     | Pmakearray_dynamic (kind, locality, Uninitialized) -> (
       (* Use a dummy initializer to implement the "uninitialized" primitive *)
       let init : Lambda.lambda =
@@ -301,12 +352,19 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       | CFnle -> binary (Ccall "caml_le_float32") |> boolnot
       | CFge -> binary (Ccall "caml_ge_float32")
       | CFnge -> binary (Ccall "caml_ge_float32") |> boolnot)
-    | Pmakeblock (tag, _mut, _, _) -> variadic (Makeblock { tag })
-    | Pmake_unboxed_product _ -> variadic (Makeblock { tag = 0 })
+    | Pmakeblock (tag, _mut, _, _) ->
+      pseudo_event (variadic (Makeblock { tag }))
+    | Pmake_unboxed_product _ -> pseudo_event (variadic (Makeblock { tag = 0 }))
     | Pgetglobal cu -> nullary (Getglobal cu)
     | Psetglobal cu -> unary (Setglobal cu)
     | Pgetpredef id -> nullary (Getpredef id)
-    | Pintcomp cmp -> binary (Intcomp cmp)
+    | Pintcomp cmp -> (
+      (* put constant first for enabling further optimization (cf. emitcode.ml)  *)
+      match args with
+      | [arg1; (Lconst _ as arg2)] ->
+        let cmp = Lambda.swap_integer_comparison cmp in
+        Blambda.Prim (Intcomp cmp, [comp_arg arg2; comp_arg arg1])
+      | _ -> binary (Intcomp cmp))
     | Pcompare_ints -> binary (Ccall "caml_int_compare")
     | Pcompare_floats Boxed_float64 -> binary (Ccall "caml_float_compare")
     | Pcompare_floats Boxed_float32 -> binary (Ccall "caml_float32_compare")
@@ -328,7 +386,8 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Psetfield_computed (_ptr, _init) -> ternary Setvectitem
     (* In bytecode, float#s are boxed.  So, we can use the existing float
        instructions for the ufloat primitives. *)
-    | Pfloatfield (n, _, _) | Pufloatfield (n, _) -> unary (Getfloatfield n)
+    | Pfloatfield (n, _, _) | Pufloatfield (n, _) ->
+      pseudo_event (unary (Getfloatfield n))
     | Psetfloatfield (n, _) | Psetufloatfield (n, _) -> binary (Setfloatfield n)
     | Pmixedfield (n, _, _, _) ->
       (* CR layouts: This will need reworking if we ever want bytecode
@@ -341,9 +400,9 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Psetmixedfield (n, _, _shape, _init) ->
       (* See the comment in the [Pmixedfield] case. *)
       binary (Setfield n)
-    | Pduprecord _ -> ccall "caml_obj_dup" ~arity:1
-    | Pccall p -> ccall p.prim_name ~arity:p.prim_arity
-    | Pperform -> unary Perform
+    | Pduprecord _ -> unary (Ccall "caml_obj_dup")
+    | Pccall p -> n_ary (Ccall p.prim_name) ~arity:p.prim_arity
+    | Pperform -> context_switch Perform ~arity:1
     | Poffsetref n -> unary (Offsetref n)
     | Pfloatoffloat32 _ -> unary (Ccall "caml_float_of_float32")
     | Pfloat32offloat _ -> unary (Ccall "caml_float32_of_float")

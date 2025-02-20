@@ -12,4 +12,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val blambda_of_lambda : Lambda.lambda -> Blambda.t
+val blambda_of_lambda : Lambda.lambda -> Blambda.blambda
