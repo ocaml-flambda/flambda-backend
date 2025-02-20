@@ -4,8 +4,8 @@ let enabled_if_main_amd64 =
   {|(enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )|}
 
 let flags =
-  "-S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc \
-   cfg -extension simd -vectorize-max-block-size 1000"
+  "-S -O3 -g -dump-into-file -dcfg -dvectorize -dlinear -regalloc cfg \
+   -extension simd -vectorize-max-block-size 1000"
 
 let runner name = name ^ "_runner.exe"
 

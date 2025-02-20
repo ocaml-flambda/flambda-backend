@@ -21,14 +21,6 @@ type _ pass =
   | Flambda2 : Flambda2_terms.Flambda_unit.t pass
   | Reaped_flambda2 : Flambda2_terms.Flambda_unit.t pass
 
-  | Mach_polling : Mach.fundecl pass
-  | Mach_combine : Mach.fundecl pass
-  | Mach_cse : Mach.fundecl pass
-  | Mach_spill : Mach.fundecl pass
-  | Mach_live : Mach.fundecl pass
-  | Mach_reload : Mach.fundecl pass
-  | Mach_sel : Mach.fundecl pass
-  | Mach_split : Mach.fundecl pass
   | Linear : Linear.fundecl pass
   | Cfg_combine : Cfg_with_layout.t pass
   | Cfg_cse : Cfg_with_layout.t pass
@@ -48,14 +40,6 @@ type t = {
   mutable raw_flambda2 : (Flambda2_terms.Flambda_unit.t -> unit) list;
   mutable flambda2 : (Flambda2_terms.Flambda_unit.t -> unit) list;
   mutable reaped_flambda2 : (Flambda2_terms.Flambda_unit.t -> unit) list;
-  mutable mach_polling : (Mach.fundecl -> unit) list;
-  mutable mach_combine : (Mach.fundecl -> unit) list;
-  mutable mach_cse : (Mach.fundecl -> unit) list;
-  mutable mach_spill : (Mach.fundecl -> unit) list;
-  mutable mach_live : (Mach.fundecl -> unit) list;
-  mutable mach_reload : (Mach.fundecl -> unit) list;
-  mutable mach_sel : (Mach.fundecl -> unit) list;
-  mutable mach_split : (Mach.fundecl -> unit) list;
   mutable linear : (Linear.fundecl -> unit) list;
   mutable cfg_combine : (Cfg_with_layout.t -> unit) list;
   mutable cfg_cse : (Cfg_with_layout.t -> unit) list;
@@ -74,14 +58,6 @@ let hooks : t = {
   raw_flambda2 = [];
   flambda2 = [];
   reaped_flambda2 = [];
-  mach_polling = [];
-  mach_combine = [];
-  mach_cse = [];
-  mach_spill = [];
-  mach_live = [];
-  mach_reload = [];
-  mach_sel = [];
-  mach_split = [];
   linear = [];
   cfg_combine = [];
   cfg_cse = [];
@@ -107,14 +83,6 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Flambda2 -> hooks.flambda2 <- f :: hooks.flambda2
   | Reaped_flambda2 -> hooks.reaped_flambda2 <- f :: hooks.reaped_flambda2
 
-  | Mach_combine -> hooks.mach_combine <- f :: hooks.mach_combine
-  | Mach_polling -> hooks.mach_polling <- f :: hooks.mach_polling
-  | Mach_cse -> hooks.mach_cse <- f :: hooks.mach_cse
-  | Mach_spill -> hooks.mach_spill <- f :: hooks.mach_spill
-  | Mach_live -> hooks.mach_live <- f :: hooks.mach_live
-  | Mach_reload -> hooks.mach_reload <- f :: hooks.mach_reload
-  | Mach_sel -> hooks.mach_sel <- f :: hooks.mach_sel
-  | Mach_split -> hooks.mach_split <- f :: hooks.mach_split
   | Linear -> hooks.linear <- f :: hooks.linear
   | Cfg_combine -> hooks.cfg_combine <- f :: hooks.cfg_combine
   | Cfg_cse -> hooks.cfg_cse <- f :: hooks.cfg_cse
@@ -136,14 +104,6 @@ let execute : type a. a pass -> a -> unit =
   | Raw_flambda2 -> execute_hooks hooks.raw_flambda2 arg
   | Flambda2 -> execute_hooks hooks.flambda2 arg
   | Reaped_flambda2 -> execute_hooks hooks.reaped_flambda2 arg
-  | Mach_polling -> execute_hooks hooks.mach_polling arg
-  | Mach_combine -> execute_hooks hooks.mach_combine arg
-  | Mach_cse -> execute_hooks hooks.mach_cse arg
-  | Mach_spill -> execute_hooks hooks.mach_spill arg
-  | Mach_live -> execute_hooks hooks.mach_live arg
-  | Mach_reload -> execute_hooks hooks.mach_reload arg
-  | Mach_sel -> execute_hooks hooks.mach_sel arg
-  | Mach_split -> execute_hooks hooks.mach_split arg
   | Linear -> execute_hooks hooks.linear arg
   | Cfg_combine -> execute_hooks hooks.cfg_combine arg
   | Cfg_cse -> execute_hooks hooks.cfg_cse arg
@@ -165,14 +125,6 @@ let clear : type a. a pass -> unit =
   | Raw_flambda2 -> hooks.raw_flambda2 <- []
   | Flambda2 -> hooks.flambda2 <- []
   | Reaped_flambda2 -> hooks.reaped_flambda2 <- []
-  | Mach_polling -> hooks.mach_polling <- []
-  | Mach_combine -> hooks.mach_combine <- []
-  | Mach_cse -> hooks.mach_cse <- []
-  | Mach_spill -> hooks.mach_spill <- []
-  | Mach_live -> hooks.mach_live <- []
-  | Mach_reload -> hooks.mach_reload <- []
-  | Mach_sel -> hooks.mach_sel <- []
-  | Mach_split -> hooks.mach_split <- []
   | Linear -> hooks.linear <- []
   | Cfg_combine -> hooks.cfg_combine <- []
   | Cfg_cse -> hooks.cfg_cse <- []
