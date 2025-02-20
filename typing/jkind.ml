@@ -2129,8 +2129,9 @@ let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
     contention = get (Modal (Monadic Contention))
   }
 
+let only_externality = Axis_set.singleton (Nonmodal Externality)
+
 let get_externality_upper_bound ~jkind_of_type jk =
-  let only_externality = Axis_set.singleton (Nonmodal Externality) in
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           Allowance.right_only jkind_desc),
         _ ) =
