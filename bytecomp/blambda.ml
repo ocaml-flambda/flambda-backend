@@ -21,7 +21,7 @@ type raise_kind = Lambda.raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-type static_label = Lambda.static_label
+type static_label = { static_label : Lambda.static_label } [@@unboxed]
 
 type event = Lambda.lambda_event
 
@@ -75,6 +75,7 @@ type primitive =
       { total_len : int;
         tag : int
       }
+  | Check_signals
 
 and rec_binding =
   { id : Ident.t;
@@ -111,20 +112,22 @@ and blambda =
   | Switch of
       { arg : blambda;
         int_cases : int array;
-            (** indices into {!cases}, indexed by the value of the immediate *)
+            (** indexes into {!cases}, indexed by the value of the immediate *)
         tag_cases : int array;
             (** indexes into {!cases}, indexed by the the block tag *)
         cases : blambda array
       }
   | Staticraise of static_label * blambda list
   | Staticcatch of
-      { body : blambda;
-        args : static_label * Ident.t list;
-        handler : blambda
+      { id : static_label;
+        body : blambda;
+        args : Ident.t list;
+        handler : blambda;
+        recursive : bool
       }
   | Trywith of
       { body : blambda;
-        id : Ident.t;
+        param : Ident.t;
         handler : blambda
       }
   | Sequence of blambda * blambda
@@ -144,15 +147,10 @@ and blambda =
         ifnot : blambda
       }
   | While of
-      { wh_cond : blambda;
-        wh_body : blambda
-      }
-  | For of
-      { for_id : Ident.t;
-        for_from : blambda;
-        for_to : blambda;
-        for_dir : direction_flag;
-        for_body : blambda
+      { cond : blambda;
+        body : blambda
       }
   | Sequand of blambda * blambda
   | Sequor of blambda * blambda
+
+(* simple printing functions *)

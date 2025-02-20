@@ -43,14 +43,6 @@ type t =
     cont : instruction list
   }
 
-let create ?(compunit_name = Compilation_unit.dummy) () =
-  { compunit_name;
-    next_label = 0;
-    functions_to_compile = [];
-    max_stack_used = 0;
-    cont = []
-  }
-
 let new_label t =
   let label = t.next_label in
   label, { t with next_label = label + 1 }
@@ -64,13 +56,13 @@ type stack_frame =
 
 type static_handler =
   { handler : label;
-    frame : stack_frame
+    frame : stack_frame;
+    arity : int
   }
 
 type stack_info =
   { frame : stack_frame;
     static_handlers : (static_label * static_handler) list;
-        (** association staticraise numbers -> static_handler *)
     env : compilation_env
   }
 
@@ -87,6 +79,10 @@ let add_var id stack =
 
 let rec add_vars idlist stack =
   match idlist with [] -> stack | id :: rem -> add_vars rem (add_var id stack)
+
+let pushtrap stack =
+  let { size; try_blocks } = stack.frame in
+  { stack with frame = { size = size + 4; try_blocks = size :: try_blocks } }
 
 (* Compute the closure environment *)
 
@@ -129,9 +125,9 @@ let closure_entries fun_defs fvs =
 let label_code t =
   match t.cont with
   | (Kbranch lbl | Klabel lbl) :: _ -> lbl, t
-  | _ ->
-    let label = t.next_label in
-    label, { t with next_label = label + 1; cont = Klabel label :: t.cont }
+  | cont ->
+    let label, t = new_label t in
+    label, { t with cont = Klabel label :: cont }
 
 (** Return a branch to the continuation. That is, an instruction that,
    when executed, branches to the continuation or performs what the
@@ -144,7 +140,7 @@ let make_branch t =
     let rec look_for_return t n = function
       | Klabel _ :: cont -> look_for_return t n cont
       | Kpop m :: cont -> look_for_return t (n + m) cont
-      | Kreturn m :: _ -> Kreturn n, t
+      | Kreturn m :: _ -> Kreturn (n + m), t
       | _ ->
         let lbl, t = label_code t in
         Kbranch lbl, t
@@ -179,14 +175,14 @@ let rec add_pop n t =
     | Kraise _ :: _ -> t
     | cont -> { t with cont = Kpop n :: cont }
 
-(* Add the constant "unit" in front of a continuation *)
-
 let kconst0 = Kconst (Const_base (Const_int 0))
 
-let add_const_unit t =
+(** Set the accumulator to an immediate (if it's not about to be overwritten).
+    This avoids space leaks from holding onto an unused reference *)
+let clear_accumulator t =
   match t.cont with
-  | (Kacc _ | Kconst _ | Kgetglobal _ | Kpush_retaddr _) :: _ as cont -> cont
-  | cont -> kconst0 :: cont
+  | (Kacc _ | Kconst _ | Kgetglobal _ | Kpush_retaddr _) :: _ -> t
+  | cont -> { t with cont = kconst0 :: cont }
 
 let push_dummies n t =
   match n with
@@ -296,86 +292,86 @@ let add_pseudo_event loc t =
 
 (**** Compilation of a blambda expression ****)
 
-let push_static_catch si ~static_label ~handler =
+let push_static_catch si (static_label : static_label) ~handler ~arity =
   { si with
     static_handlers =
-      (static_label, { handler; frame = si.frame }) :: si.static_handlers
+      (static_label, { handler; arity; frame = si.frame }) :: si.static_handlers
   }
 
-let find_raise_label stack_info ~static_label =
+let find_raise_label stack_info (static_label : static_label) =
   try List.assoc static_label stack_info.static_handlers
   with Not_found ->
+    let { static_label } = static_label in
     Misc.fatal_errorf "exit(%d) outside appropriated catch" static_label
 
 (* Will the translation of l lead to a jump to label ? *)
 let code_as_jump stack_info = function
-  | Staticraise (static_label, []) -> (
-    match find_raise_label stack_info ~static_label with
-    | { handler; frame } ->
+  | Staticraise (l, []) -> (
+    match find_raise_label stack_info l with
+    | { handler; frame; arity } ->
+      assert (arity = 0);
       if stack_info.frame = frame then Some handler else None)
   | _ -> None
 
 let check_stack t stack_info =
   let sz = stack_info.frame.size in
-  let curr = t.max_stack_used in
   if sz <= t.max_stack_used then t else { t with max_stack_used = sz }
 
 let push stack n =
   { stack with frame = { stack.frame with size = stack.frame.size + n } }
 
-let[@inline always] ( @@ ) instr t = { t with cont = instr :: t.cont }
+let[@inline always] ( @> ) instr t = { t with cont = instr :: t.cont }
 
 let comp_primitive stack_info p nargs t =
   let t = check_stack t stack_info in
   match (p : Blambda.primitive) with
-  | Getglobal cu -> Kgetglobal cu @@ t
-  | Getpredef id -> Kgetpredef id @@ t
+  | Getglobal cu -> Kgetglobal cu @> t
+  | Getpredef id -> Kgetpredef id @> t
   | Boolnot -> (
     match t.cont with
     | Kbranchif lbl :: cont -> { t with cont = Kbranchifnot lbl :: cont }
     | Kbranchifnot lbl :: cont -> { t with cont = Kbranchif lbl :: cont }
-    | _ -> Kboolnot @@ t)
-  | Isint -> Kisint @@ t
-  | Vectlength -> Kvectlength @@ t
-  | Setglobal cu -> Ksetglobal cu @@ t
-  | Getfield i -> Kgetfield i @@ t
-  | Getfloatfield i -> Kgetfloatfield i @@ t
-  | Raise k -> Kraise k @@ discard_dead_code t
-  | Offsetint i -> Koffsetint i @@ t
-  | Offsetref i -> Koffsetref i @@ t
-  | Negint -> Knegint @@ t
-  | Addint -> Kaddint @@ t
-  | Subint -> Ksubint @@ t
-  | Mulint -> Kmulint @@ t
-  | Divint -> Kdivint @@ t
-  | Modint -> Kmodint @@ t
-  | Andint -> Kandint @@ t
-  | Orint -> Korint @@ t
-  | Xorint -> Kxorint @@ t
-  | Lslint -> Klslint @@ t
-  | Lsrint -> Klsrint @@ t
-  | Asrint -> Kasrint @@ t
-  | Intcomp cmp -> Kintcomp cmp @@ t
-  | Isout -> Kisout @@ t
-  | Getstringchar -> Kgetstringchar @@ t
-  | Getbyteschar -> Kgetbyteschar @@ t
-  | Getvectitem -> Kgetvectitem @@ t
-  | Setfield i -> Ksetfield i @@ t
-  | Setfloatfield i -> Ksetfloatfield i @@ t
-  | Setvectitem -> Ksetvectitem @@ t
-  | Setbyteschar -> Ksetbyteschar @@ t
-  | Ccall name -> Kccall (name, nargs) @@ t
-  | Makeblock { tag } -> Kmakeblock (tag, nargs) @@ t
-  | Makefloatblock -> Kmakefloatblock nargs @@ t
+    | _ -> Kboolnot @> t)
+  | Isint -> Kisint @> t
+  | Vectlength -> Kvectlength @> t
+  | Setglobal cu -> Ksetglobal cu @> t
+  | Getfield i -> Kgetfield i @> t
+  | Getfloatfield i -> Kgetfloatfield i @> t
+  | Raise k -> Kraise k @> discard_dead_code t
+  | Offsetint i -> Koffsetint i @> t
+  | Offsetref i -> Koffsetref i @> t
+  | Negint -> Knegint @> t
+  | Addint -> Kaddint @> t
+  | Subint -> Ksubint @> t
+  | Mulint -> Kmulint @> t
+  | Divint -> Kdivint @> t
+  | Modint -> Kmodint @> t
+  | Andint -> Kandint @> t
+  | Orint -> Korint @> t
+  | Xorint -> Kxorint @> t
+  | Lslint -> Klslint @> t
+  | Lsrint -> Klsrint @> t
+  | Asrint -> Kasrint @> t
+  | Intcomp cmp -> Kintcomp cmp @> t
+  | Isout -> Kisout @> t
+  | Getstringchar -> Kgetstringchar @> t
+  | Getbyteschar -> Kgetbyteschar @> t
+  | Getvectitem -> Kgetvectitem @> t
+  | Setfield i -> Ksetfield i @> t
+  | Setfloatfield i -> Ksetfloatfield i @> t
+  | Setvectitem -> Ksetvectitem @> t
+  | Setbyteschar -> Ksetbyteschar @> t
+  | Ccall name -> Kccall (name, nargs) @> t
+  | Makeblock { tag } -> Kmakeblock (nargs, tag) @> t
+  | Makefloatblock -> Kmakefloatblock nargs @> t
   | Make_faux_mixedblock { total_len; tag } ->
     (* There is no notion of a mixed block at runtime in bytecode. Further,
        source-level unboxed types are represented as boxed in bytecode, so
        no ceremony is needed to box values before inserting them into
        the (normal, unmixed) block.
     *)
-    Kmake_faux_mixedblock (total_len, tag) @@ t
-
-let is_immed n = immed_min <= n && n <= immed_max
+    Kmake_faux_mixedblock (total_len, tag) @> t
+  | Check_signals -> Kcheck_signals @> t
 
 (* Compile an expression.
    The value of the expression is left in the accumulator.
@@ -405,17 +401,17 @@ let rec translate_float32s_or_nulls stack cst t =
   | Const_base (Const_float32 f | Const_unboxed_float32 f) ->
     let i = float32_of_string f in
     Kconst (Const_base (Const_int32 (Obj.obj i)))
-    @@ Kccall ("caml_float32_of_bits_bytecode", 1)
-    @@ t
+    @> Kccall ("caml_float32_of_bits_bytecode", 1)
+    @> t
   | Const_null ->
-    Kconst (Const_base (Const_int 0)) @@ Kccall ("caml_int_as_pointer", 1) @@ t
+    Kconst (Const_base (Const_int 0)) @> Kccall ("caml_int_as_pointer", 1) @> t
   | Const_block (tag, fields) as cst when contains_float32s_or_nulls cst ->
     let fields = List.map (fun field -> Const field) fields in
-    let t = Kmakeblock (List.length fields, tag) @@ t in
+    let t = Kmakeblock (List.length fields, tag) @> t in
     comp_args stack fields t
   | Const_mixed_block _ ->
     Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
-  | _ as cst -> Kconst cst @@ t
+  | _ as cst -> Kconst cst @> t
 
 and comp_expr stack exp t =
   let t = check_stack t stack in
@@ -423,7 +419,7 @@ and comp_expr stack exp t =
   match (exp : Blambda.blambda) with
   | Var id -> (
     match Ident.find_same id stack.env.ce_stack with
-    | pos -> Kacc (sz - pos) @@ t
+    | pos -> Kacc (sz - pos) @> t
     | exception Not_found -> (
       let not_found () =
         Misc.fatal_errorf "Bytegen.comp_expr: var %s" (Ident.unique_name id)
@@ -432,32 +428,32 @@ and comp_expr stack exp t =
       | Not_in_closure -> not_found ()
       | In_closure { entries; env_pos } -> (
         match Ident.find_same id entries with
-        | Free_variable pos -> Kenvacc (pos - env_pos) @@ t
-        | Function pos -> Koffsetclosure (pos - env_pos) @@ t
+        | Free_variable pos -> Kenvacc (pos - env_pos) @> t
+        | Function pos -> Koffsetclosure (pos - env_pos) @> t
         | exception Not_found -> not_found ())))
   | Const cst ->
     if is_boot_compiler ()
     then translate_float32s_or_nulls stack cst t
-    else Kconst cst @@ t
+    else Kconst cst @> t
   | Apply { func; args; tailcall } -> (
     let nargs = List.length args in
     match tailcall with
     | Tailcall ->
       comp_args stack args
         (Kpush
-        @@ comp_expr (push stack nargs) func
-             (Kappterm (nargs, sz + nargs) @@ discard_dead_code t))
+        @> comp_expr (push stack nargs) func
+             (Kappterm (nargs, sz + nargs) @> discard_dead_code t))
     | Nontail ->
       if nargs < 4
       then
         comp_args stack args
-          (Kpush @@ comp_expr (push stack nargs) func (Kapply nargs @@ t))
+          (Kpush @> comp_expr (push stack nargs) func (Kapply nargs @> t))
       else
         let lbl, t = label_code t in
         let stack = push stack 3 in
         Kpush_retaddr lbl
-        @@ comp_args stack args
-             (Kpush @@ comp_expr (push stack nargs) func (Kapply nargs @@ t)))
+        @> comp_args stack args
+             (Kpush @> comp_expr (push stack nargs) func (Kapply nargs @> t)))
   | Send { self; met; obj_and_args; tailcall } -> (
     let nargs = List.length obj_and_args in
     let getmethod, args =
@@ -471,14 +467,14 @@ and comp_expr stack exp t =
     match tailcall with
     | Tailcall ->
       comp_args stack args
-        (getmethod @@ Kappterm (nargs, sz + nargs) @@ discard_dead_code t)
+        (getmethod @> Kappterm (nargs, sz + nargs) @> discard_dead_code t)
     | Nontail ->
       if nargs < 4
-      then comp_args stack args (getmethod @@ Kapply nargs @@ t)
+      then comp_args stack args (getmethod @> Kapply nargs @> t)
       else
         let lbl, t = label_code t in
         Kpush_retaddr lbl
-        @@ comp_args (push stack 3) args (getmethod @@ Kapply nargs @@ t))
+        @> comp_args (push stack 3) args (getmethod @> Kapply nargs @> t))
   | Function { params; body; loc; free_variables } ->
     let fv = Ident.Set.elements free_variables in
     (* assume kind = Curried *)
@@ -490,10 +486,10 @@ and comp_expr stack exp t =
     in
     comp_args stack
       (List.map (fun n -> Var n) fv)
-      (Kclosure (label, List.length fv) @@ t)
+      (Kclosure (label, List.length fv) @> t)
   | Let { id; arg; body } ->
     comp_expr stack arg
-      (Kpush @@ comp_expr (add_var id stack) body (add_pop 1 t))
+      (Kpush @> comp_expr (add_var id stack) body (add_pop 1 t))
   | Letrec { decls; body; free_variables } ->
     let ndecl = List.length decls in
     let fv = Ident.Set.elements free_variables in
@@ -514,31 +510,35 @@ and comp_expr stack exp t =
     comp_args stack
       (List.map (fun n -> Var n) fv)
       (Kclosurerec (lbls, List.length fv)
-      @@ comp_expr (add_vars rec_idents stack) body (add_pop ndecl t))
+      @> comp_expr (add_vars rec_idents stack) body (add_pop ndecl t))
   | Sequand (exp1, exp2) -> (
     match t.cont with
     | Kbranchifnot lbl :: _ ->
-      comp_expr stack exp1 (Kbranchifnot lbl @@ comp_expr stack exp2 t)
+      comp_expr stack exp1 (Kbranchifnot lbl @> comp_expr stack exp2 t)
     | Kbranchif lbl :: cont ->
       let t = { t with cont } in
       let lbl2, t = label_code t in
       comp_expr stack exp1
-        (Kbranchifnot lbl2 @@ comp_expr stack exp2 (Kbranchif lbl @@ t))
+        (Kbranchifnot lbl2 @> comp_expr stack exp2 (Kbranchif lbl @> t))
     | _ ->
       let lbl, t = label_code t in
-      comp_expr stack exp1 (Kstrictbranchifnot lbl @@ comp_expr stack exp2 t))
+      comp_expr stack exp1 (Kstrictbranchifnot lbl @> comp_expr stack exp2 t))
   | Sequor (exp1, exp2) -> (
     match t.cont with
     | Kbranchif lbl :: _ ->
-      comp_expr stack exp1 (Kbranchif lbl @@ comp_expr stack exp2 t)
+      comp_expr stack exp1 (Kbranchif lbl @> comp_expr stack exp2 t)
     | Kbranchifnot lbl :: cont ->
       let t = { t with cont } in
       let lbl2, t = label_code t in
       comp_expr stack exp1
-        (Kbranchif lbl2 @@ comp_expr stack exp2 (Kbranchifnot lbl @@ t))
+        (Kbranchif lbl2 @> comp_expr stack exp2 (Kbranchifnot lbl @> t))
     | _ ->
       let lbl, t = label_code t in
-      comp_expr stack exp1 (Kstrictbranchif lbl @@ comp_expr stack exp2 t))
+      comp_expr stack exp1 (Kstrictbranchif lbl @> comp_expr stack exp2 t))
+  | Pseudo_event (exp, loc) -> comp_expr stack exp (add_pseudo_event loc t)
+  | Context_switch (Perform, (Tailcall | Nontail), args) ->
+    let t = check_stack t (push stack 4) in
+    comp_args stack args (Kresume @> t)
   | Context_switch (Resume, tailcall, args) -> (
     let nargs = List.length args - 1 in
     assert (nargs = 3);
@@ -546,14 +546,14 @@ and comp_expr stack exp t =
     | Tailcall ->
       (* Resumeterm itself only pushes 2 words, but perform adds another *)
       let t = check_stack t (push stack 3) in
-      comp_args stack args (Kresumeterm (sz + nargs) @@ discard_dead_code t)
+      comp_args stack args (Kresumeterm (sz + nargs) @> discard_dead_code t)
     | Nontail ->
       (* Resume itself only pushes 2 words, but perform adds another *)
       let t = check_stack t (push stack (nargs + 3)) in
-      comp_args stack args (Kresume @@ t))
+      comp_args stack args (Kresume @> t))
   | Context_switch (Runstack, tailcall, args) -> (
-    kconst0 @@ Kpush
-    @@
+    kconst0 @> Kpush
+    @>
     let nargs = List.length args in
     assert (nargs = 3);
     match tailcall with
@@ -561,11 +561,11 @@ and comp_expr stack exp t =
       (* Resumeterm itself only pushes 2 words, but perform adds another *)
       let t = check_stack t (push stack 3) in
       comp_args (push stack 1) args
-        (Kresumeterm (sz + nargs) @@ discard_dead_code t)
+        (Kresumeterm (sz + nargs) @> discard_dead_code t)
     | Nontail ->
       (* Resume itself only pushes 2 words, but perform adds another *)
       let t = check_stack t (push stack (nargs + 3)) in
-      comp_args (push stack 1) args (Kresume @@ t))
+      comp_args (push stack 1) args (Kresume @> t))
   | Context_switch (Reperform, tailcall, args) -> (
     let nargs = List.length args - 1 in
     assert (nargs = 2);
@@ -573,122 +573,99 @@ and comp_expr stack exp t =
     match tailcall with
     | Nontail -> Misc.fatal_error "Reperform used in non-tail position"
     | Tailcall ->
-      comp_args stack args (Kreperformterm (sz + nargs) @@ discard_dead_code t))
+      comp_args stack args (Kreperformterm (sz + nargs) @> discard_dead_code t))
   (* Integer first for enabling further optimization (cf. emitcode.ml)  *)
   | Prim (p, args) ->
     let nargs = List.length args in
     comp_args stack args (comp_primitive (push stack (nargs - 1)) p nargs t)
-  | Staticcatch { body; args = i, vars; handler } -> (
+  | Staticcatch { body; id; args = vars; handler } -> (
     let nvars = List.length vars in
-    let branch1, cont1 = make_branch cont in
+    let branch, t = make_branch t in
     match vars with
     | [] | _ :: _ :: _ ->
-      (* general case *)
-      let lbl_handler, cont2 =
-        label_code
-          (comp_expr stack_info
-             (add_vars vars (sz + 1) env)
-             handler (sz + nvars) (add_pop nvars cont1))
+      let handler, t =
+        label_code (comp_expr (add_vars vars stack) handler (add_pop nvars t))
       in
-      let stack_info =
-        push_static_raise stack_info i lbl_handler (sz + nvars)
-      in
-      push_dummies nvars
-        (comp_expr stack_info env body (sz + nvars)
-           (add_pop nvars (branch1 @@ cont2)))
+      let stack = push_static_catch stack id ~handler ~arity:nvars in
+      push_dummies nvars (comp_expr stack body (add_pop nvars (branch @> t)))
     | [var] ->
       (* small optimization for nvars = 1 *)
-      let lbl_handler, cont2 =
-        label_code
-          (Kpush
-          @@ comp_expr stack_info
-               (add_var var (sz + 1) env)
-               handler (sz + 1) (add_pop 1 cont1))
+      let handler, t =
+        label_code (Kpush @> comp_expr (add_var var stack) handler (add_pop 1 t))
       in
-      let stack_info = push_static_raise stack_info i lbl_handler sz in
-      comp_expr stack body (branch1 @@ cont2))
-  | Staticraise (i, args) -> (
+      let stack = push_static_catch stack id ~handler ~arity:nvars in
+      comp_expr stack body (branch @> t))
+  | Staticraise (id, args) -> (
     let t = discard_dead_code t in
-    let { handler = label; frame = { size; try_blocks = tb } } =
-      find_raise_label stack ~static_label:i
-    in
-    let cont = branch_to label cont in
-    let rec loop sz tbb =
-      if tb == tbb
-      then add_pop (sz - size) cont
+    let dst = find_raise_label stack id in
+    assert (List.compare_length_with args dst.arity = 0);
+    (* let { handler; frame = { size; try_blocks = tb } as dst_frame } = *)
+    let t = branch_to dst.handler t in
+    let rec unwind src =
+      if dst.frame.try_blocks == src.try_blocks
+      then add_pop (src.size - dst.frame.size) t
       else
-        match tbb with
+        match src.try_blocks with
         | [] -> assert false
-        | try_sz :: tbb ->
-          add_pop (sz - try_sz - 4) (Kpoptrap @@ loop try_sz tbb)
+        | size :: try_blocks ->
+          add_pop (src.size - size - 4) (Kpoptrap @> unwind { size; try_blocks })
     in
-    let cont = loop sz stack_info.try_blocks in
+    let t = unwind stack.frame in
+    let stack = { stack with frame = dst.frame } in
     match args with
-    | [arg] ->
-      (* optim, argument passed in accumulator *)
-      comp_expr stack arg cont
-    | _ -> comp_exit_args stack args size cont)
-  | Trywith { body; id; handler } ->
-    let branch1, cont1 = make_branch cont in
-    let lbl_handler = new_label () in
-    let body_cont =
-      Kpoptrap @@ branch1 @@ Klabel lbl_handler @@ Kpush
-      @@ comp_expr stack_info
-           (add_var id (sz + 1) env)
-           handler (sz + 1) (add_pop 1 cont1)
-    in
-    let stack_info =
-      { stack_info with try_blocks = sz @@ stack_info.try_blocks }
-    in
-    let l = comp_expr stack_info env body (sz + 4) body_cont in
-    Kpushtrap lbl_handler @@ l
-  | Ifthenelse { cond; ifso; ifnot } -> comp_binary_test stack cond ifso ifnot t
-  | Sequence (exp1, exp2) ->
-    comp_expr stack exp1 (comp_expr stack_info env exp2 sz cont)
-  | While { wh_cond; wh_body } ->
-    let lbl_loop = new_label () in
-    let lbl_test = new_label () in
-    Kbranch lbl_test @@ Klabel lbl_loop @@ Kcheck_signals
-    @@ comp_expr stack wh_body
+    (* optimization, argument passed in accumulator *)
+    | [arg] -> comp_expr stack arg t
+    | _ -> comp_exit_args stack args dst.frame.size t)
+  | Trywith { body; param; handler } ->
+    let skip_handler, t = make_branch t in
+    let t = Kpush @> comp_expr (add_var param stack) handler (add_pop 1 t) in
+    let handler, t = label_code t in
+    let t = Kpoptrap @> skip_handler @> t in
+    Kpushtrap handler @> comp_expr (pushtrap stack) body t
+  | Ifthenelse { cond; ifso; ifnot } ->
+    comp_expr stack cond
+      (if ifnot = Const const_unit
+      then
+        let lbl_end, t = label_code t in
+        Kstrictbranchifnot lbl_end @> comp_expr stack ifso t
+      else
+        match code_as_jump stack ifso with
+        | Some label -> Kbranchif label @> comp_expr stack ifnot t
+        | None -> (
+          match code_as_jump stack ifnot with
+          | Some label -> Kbranchifnot label @> comp_expr stack ifso t
+          | None ->
+            let branch_end, t = make_branch t in
+            let lbl_not, t = label_code (comp_expr stack ifnot t) in
+            Kbranchifnot lbl_not @> comp_expr stack ifso (branch_end @> t)))
+  | Sequence (exp1, exp2) -> comp_expr stack exp1 (comp_expr stack exp2 t)
+  | While { cond; body } ->
+    let lbl_loop, t = new_label t in
+    let lbl_test, t = new_label t in
+    Kbranch lbl_test @> Klabel lbl_loop @> Kcheck_signals
+    @> comp_expr stack body
          (Klabel lbl_test
-         @@ comp_expr stack wh_cond (Kbranchif lbl_loop @@ add_const_unit cont)
-         )
-  | For { for_id; for_from; for_to; for_dir; for_body } ->
-    let lbl_loop = new_label () in
-    let lbl_exit = new_label () in
-    let offset = match for_dir with Upto -> 1 | Downto -> -1 in
-    let comp = match for_dir with Upto -> Cgt | Downto -> Clt in
-    comp_expr stack for_from
-      (Kpush
-      @@ comp_expr stack_info env for_to (sz + 1)
-           (Kpush @@ Kpush @@ Kacc 2 @@ Kintcomp comp @@ Kbranchif lbl_exit
-          @@ Klabel lbl_loop @@ Kcheck_signals
-           @@ comp_expr stack_info
-                (add_var for_id (sz + 1) env)
-                for_body (sz + 2)
-                (Kacc 1 @@ Kpush @@ Koffsetint offset @@ Kassign 2 @@ Kacc 1
-               @@ Kintcomp Cne @@ Kbranchif lbl_loop @@ Klabel lbl_exit
-                @@ add_const_unit (add_pop 2 cont))))
+         @> comp_expr stack cond (Kbranchif lbl_loop @> clear_accumulator t))
   | Switch { arg; int_cases; tag_cases; cases } ->
     let branch, t = make_branch t in
-    let t = ref (discard_dead_code t) in
-    let lbls = Array.make (Array.length cases) 0 in
-    for i = Array.length acts - 1 downto 0 do
-      let lbl, t' =
-        label_code (comp_expr stack_info env acts.(i) sz (branch @@ !t))
-      in
-      t := discard_dead_code t';
-      lbls.(i) <- lbl
-    done;
+    let rec make_labels acts t =
+      match acts with
+      | [] -> [], t
+      | act :: acts ->
+        let labels, t = make_labels acts t in
+        let label, t = label_code (comp_expr stack act (branch @> t)) in
+        label :: labels, t
+    in
+    let lbls, t = make_labels (Array.to_list cases) t in
+    let lbls = Array.of_list lbls in
     (* Build label vectors *)
-    let lbl_blocks = Array.map (Array.get lbl) tag_cases in
-    let lbl_consts = Array.map (Array.get lbl) int_cases in
-    comp_expr stack arg (Kswitch (lbl_consts, lbl_blocks) @@ !t)
+    let lbl_blocks = Array.map (Array.get lbls) tag_cases in
+    let lbl_consts = Array.map (Array.get lbls) int_cases in
+    comp_expr stack arg (Kswitch (lbl_consts, lbl_blocks) @> t)
   | Assign (id, expr) -> (
-    try
-      let pos = Ident.find_same id stack.env.ce_stack in
-      comp_expr stack expr (Kassign (sz - pos) @@ cont)
-    with Not_found -> Misc.fatal_error "Bytegen.comp_expr: assign")
+    match Ident.find_same id stack.env.ce_stack with
+    | pos -> comp_expr stack expr (Kassign (sz - pos) @> t)
+    | exception Not_found -> Misc.fatal_error "Bytegen.comp_expr: assign")
   | Event (lam, lev) -> (
     let ev_defname =
       string_of_scoped_location ~include_zero_alloc:false lev.lev_loc
@@ -703,7 +680,7 @@ and comp_expr stack exp t =
         ev_info = info;
         ev_typenv = Env.summary lev.lev_env;
         ev_typsubst = Subst.identity;
-        ev_compenv = env;
+        ev_compenv = stack.env;
         ev_stacksize = sz;
         ev_repr =
           (match lev.lev_repr with
@@ -717,142 +694,124 @@ and comp_expr stack exp t =
     in
     match lev.lev_kind with
     | Lev_before ->
-      let c = comp_expr stack lam cont in
+      let c = comp_expr stack lam t in
       let ev = event Event_before Event_other in
       add_event ev c
     | Lev_function ->
-      let c = comp_expr stack lam cont in
+      let c = comp_expr stack lam t in
       let ev = event Event_pseudo Event_function in
       add_event ev c
     | Lev_pseudo ->
-      let c = comp_expr stack lam cont in
+      let c = comp_expr stack lam t in
       let ev = event Event_pseudo Event_other in
       add_event ev c
-    | Lev_after ty ->
-      let preserve_tailcall =
+    | Lev_after ty -> (
+      let tailcall =
         match lam with
-        | Prim (prim, _, _) -> preserve_tailcall_for_prim prim
-        | Lapply { ap_region_close = rc; _ } | Lsend (_, _, _, _, rc, _, _, _)
-          ->
-          not (is_nontail rc)
-        | _ -> true
+        | Apply { tailcall; _ }
+        | Send { tailcall; _ }
+        | Context_switch (_, tailcall, _) ->
+          tailcall
+        | _ -> Nontail
       in
-      if preserve_tailcall && is_tailcall cont
-      then (* don't destroy tail call opt *)
-        comp_expr stack lam cont
-      else
+      match tailcall with
+      (* don't destroy tail call opt *)
+      | Tailcall -> comp_expr stack lam t
+      | Nontail ->
         let info =
           match lam with
-          | Lapply { ap_args = args } -> Event_return (List.length args)
-          | Lsend (_, _, _, args, _, _, _, _) ->
-            Event_return (List.length args + 1)
-          | Prim (_, args, _) -> Event_return (List.length args)
+          | Apply { args; _ }
+          | Send { obj_and_args = args; _ }
+          | Prim (_, args)
+          | Context_switch (_, _, args) ->
+            Event_return (List.length args)
           | _ -> Event_other
         in
         let ev = event (Event_after ty) info in
-        let cont1 = add_event ev cont in
-        comp_expr stack lam cont1)
+        let t = add_event ev t in
+        comp_expr stack lam t))
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.
    The values of eN ... e2 are pushed on the stack, e2 at top of stack,
    then e3, then ... The value of e1 is left in the accumulator. *)
 
-and comp_args t stack argl = comp_expr_list t stack (List.rev argl)
+and comp_args stack argl t = comp_expr_list stack (List.rev argl) t
 
-and comp_expr_list t stack exprl =
+and comp_expr_list stack exprl t =
   match exprl with
   | [] -> t
-  | [exp] -> comp_expr t stack exp
+  | [exp] -> comp_expr stack exp t
   | exp :: rem ->
-    comp_expr stack exp
-      (Kpush @@ comp_expr_list stack_info env rem (sz + 1) cont)
+    comp_expr stack exp (Kpush @> comp_expr_list (push stack 1) rem t)
 
-and comp_exit_args stack argl pos cont =
-  comp_expr_list_assign stack_info env (List.rev argl) sz pos cont
+and comp_exit_args stack argl pos t =
+  comp_expr_list_assign stack (List.rev argl) pos t
 
-and comp_expr_list_assign stack exprl pos cont =
+and comp_expr_list_assign stack exprl pos t =
+  let sz = stack.frame.size in
   match exprl with
-  | [] -> cont
+  | [] -> t
   | exp :: rem ->
     comp_expr stack exp
-      (Kassign (sz - pos) @@ comp_expr_list_assign stack rem (pos - 1) cont)
-
-(* Compile an if-then-else test. *)
-
-and comp_binary_test stack_info env cond ifso ifnot sz cont =
-  let cont_cond =
-    if ifnot = Const const_unit
-    then
-      let lbl_end, cont1 = label_code cont in
-      Kstrictbranchifnot lbl_end @@ comp_expr stack ifso cont1
-    else
-      match code_as_jump stack_info ifso sz with
-      | Some label ->
-        let cont = comp_expr stack ifnot cont in
-        Kbranchif label @@ cont
-      | None -> (
-        match code_as_jump stack_info ifnot sz with
-        | Some label ->
-          let cont = comp_expr stack ifso cont in
-          Kbranchifnot label @@ cont
-        | None ->
-          let branch_end, cont1 = make_branch cont in
-          let lbl_not, cont2 = label_code (comp_expr stack ifnot cont1) in
-          Kbranchifnot lbl_not @@ comp_expr stack ifso (branch_end @@ cont2))
-  in
-  comp_expr stack cond cont_cond
+      (Kassign (sz - pos) @> comp_expr_list_assign stack rem (pos - 1) t)
 
 (**** Compilation of a code block (with tracking of stack usage) ****)
-
-let comp_block env exp sz cont =
-  let stack_info = create_stack_info () in
-  let code = comp_expr stack exp cont in
-  let used_safe = !(stack_info.max_stack_used) + Config.stack_safety_margin in
-  if used_safe > Config.stack_threshold
-  then
+let comp_block stack exp t =
+  let t = comp_expr stack exp t in
+  let used_safe = t.max_stack_used + Config.stack_safety_margin in
+  if used_safe <= Config.stack_threshold
+  then t
+  else
     Kconst (Const_base (Const_int used_safe))
-    @@ Kccall ("caml_ensure_stack_capacity", 1)
-    @@ code
-  else code
+    @> Kccall ("caml_ensure_stack_capacity", 1)
+    @> t
 
-(**** Compilation of functions ****)
-
-let comp_function tc cont =
-  let arity = List.length tc.params in
-  let ce_stack, _last_pos =
-    add_positions Ident.empty Fun.id ~pos:arity ~delta:(-1) tc.params
-  in
-  let env =
-    { ce_stack;
-      ce_closure = In_closure { entries = tc.entries; env_pos = 3 * tc.rec_pos }
-    }
-  in
-  let cont = comp_block env tc.body arity (Kreturn arity @@ cont) in
-  if arity > 1
-  then Krestart @@ Klabel tc.label @@ Kgrab (arity - 1) @@ cont
-  else Klabel tc.label @@ cont
-
-let comp_remainder cont =
-  let c = ref cont in
-  (try
-     while true do
-       c := comp_function (Stack.pop functions_to_compile) !c
-     done
-   with Stack.Empty -> ());
-  !c
+let rec comp_functions t =
+  match t.functions_to_compile with
+  | [] -> t.cont
+  | { params; body; label; entries; rec_pos } :: functions_to_compile ->
+    let t = { t with functions_to_compile; max_stack_used = 0 } in
+    let arity = List.length params in
+    let ce_stack, _last_pos =
+      add_positions Ident.empty Fun.id ~pos:arity ~delta:(-1) params
+    in
+    let env =
+      { ce_stack; ce_closure = In_closure { entries; env_pos = 3 * rec_pos } }
+    in
+    let stack =
+      { env; frame = { size = arity; try_blocks = [] }; static_handlers = [] }
+    in
+    let t = comp_block stack body (Kreturn arity @> t) in
+    let t =
+      if arity > 1
+      then Krestart @> Klabel label @> Kgrab (arity - 1) @> t
+      else Klabel label @> t
+    in
+    comp_functions t
 
 (**** Compilation of a lambda phrase ****)
 
-let compile_gen ?modulename ~init_stack expr =
-  reset ();
-  (match modulename with Some name -> compunit_name := name | None -> ());
-  Fun.protect ~finally:reset (fun () ->
-      let init_code = comp_block empty_env expr init_stack [] in
-      if Stack.length functions_to_compile > 0
-      then
-        let lbl_init = new_label () in
-        Kbranch lbl_init @@ comp_remainder (Klabel lbl_init @@ init_code), false
-      else init_code, true)
+let compile_gen ?(modulename = Compilation_unit.dummy) ~init_stack expr =
+  let t =
+    { compunit_name = modulename;
+      next_label = 0;
+      functions_to_compile = [];
+      max_stack_used = 0;
+      cont = []
+    }
+  in
+  let init_stack =
+    { env = empty_env;
+      frame = { size = init_stack; try_blocks = [] };
+      static_handlers = []
+    }
+  in
+  let t = comp_block init_stack expr t in
+  match t.functions_to_compile with
+  | [] -> t.cont, true
+  | _ :: _ ->
+    let goto_init, t = make_branch t in
+    goto_init :: comp_functions t, false
 
 let compile_implementation modulename expr =
   fst (compile_gen ~modulename ~init_stack:0 expr)

@@ -12,6 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module L = Lambda
+open Blambda
+
 let is_nontail : Lambda.region_close -> bool = function
   | Rc_nontail -> true
   | Rc_normal | Rc_close_at_apply -> false
@@ -72,15 +75,19 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         free_variables =
           Lambda.free_variables (Lletrec (decl, Lambda.lambda_unit))
       }
-  | Lstaticcatch (body, (i, vars), handler, _, _) ->
+  | Lstaticcatch (body, (static_label, args), handler, _, _) ->
     Staticcatch
       { body = comp_arg body;
-        args = i, List.map fst vars;
-        handler = comp_expr handler ~tailcall
+        id = { static_label };
+        args = List.map fst args;
+        handler = comp_expr handler ~tailcall;
+        recursive = false
       }
-  | Lstaticraise (i, args) -> Staticraise (i, List.map comp_arg args)
-  | Ltrywith (body, id, handler, _kind) ->
-    Trywith { body = comp_arg body; id; handler = comp_expr handler ~tailcall }
+  | Lstaticraise (static_label, args) ->
+    Staticraise ({ static_label }, List.map comp_arg args)
+  | Ltrywith (body, param, handler, _kind) ->
+    Trywith
+      { body = comp_arg body; param; handler = comp_expr handler ~tailcall }
   | Lifthenelse (cond, ifso, ifnot, _kind) ->
     Ifthenelse
       { cond = comp_arg cond;
@@ -89,14 +96,50 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       }
   | Lsequence (exp1, exp2) -> Sequence (comp_arg exp1, comp_expr exp2 ~tailcall)
   | Lwhile { wh_cond; wh_body } ->
-    While { wh_cond = comp_arg wh_cond; wh_body = comp_arg wh_body }
+    While { cond = comp_arg wh_cond; body = comp_arg wh_body }
+    (* let loop_start = { static_label = L.next_raise_count () } in
+     * let goto_start = Blambda.Staticraise (loop_start, []) in
+     * Staticcatch
+     *   { id = loop_start;
+     *     recursive = true;
+     *     args = [];
+     *     body = goto_start;
+     *     handler =
+     *       Ifthenelse
+     *         { cond = comp_arg wh_cond;
+     *           ifnot = Const (Const_base (Const_int 0));
+     *           ifso = Sequence (comp_arg wh_body, goto_start)
+     *         }
+     *   } *)
   | Lfor { for_id; for_from; for_to; for_dir; for_body } ->
-    For
-      { for_id;
-        for_from = comp_arg for_from;
-        for_to = comp_arg for_to;
-        for_dir;
-        for_body = comp_arg for_body
+    let for_bound = Ident.create_local "for_to" in
+    let (start_cond : Lambda.integer_comparison), increment =
+      match for_dir with Upto -> L.Clt, 1 | Downto -> L.Cgt, -1
+    in
+    Let
+      { id = for_id;
+        arg = comp_arg for_from;
+        body =
+          Let
+            { id = for_bound;
+              arg = comp_arg for_to;
+              body =
+                Ifthenelse
+                  { cond = Prim (Intcomp start_cond, [Var for_id; Var for_bound]);
+                    ifnot = Const (Const_base (Const_int 0));
+                    ifso =
+                      While
+                        { cond =
+                            Sequence
+                              ( comp_arg for_body,
+                                Prim (Intcomp Cne, [Var for_id; Var for_bound])
+                              );
+                          body =
+                            Assign
+                              (for_id, Prim (Offsetint increment, [Var for_id]))
+                        }
+                  }
+            }
       }
   | Lswitch
       ( arg,
@@ -105,19 +148,23 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         _kind ) ->
     (* Build indirection vectors *)
     let store = Storer.mk_store () in
-    let fail = Option.map (store.act_store ()) sw_failaction in
+    let fail =
+      match sw_failaction with
+      | Some fail -> store.act_store () fail
+      | None ->
+        (* if there is no failaction (i.e., default action) either
+           1. all of the potential cases have been covered, or
+           2. Some cases have been refuted.
+
+           In both cases, we arbitrarily pick the first case as the value to put
+        *)
+        0
+    in
     let compile_cases src ~size =
-      let dst = Array.make size None in
+      let dst = Array.make size fail in
       ListLabels.iter src ~f:(fun (n, case) ->
-          match dst.(n) with
-          | Some _ -> Misc.fatal_error "duplicate case in switch"
-          | None -> dst.(n) <- Some (store.act_store () case));
-      ArrayLabels.map dst ~f:(function
-        | Some case -> case
-        | None -> (
-          match fail with
-          | Some fail -> fail
-          | None -> Misc.fatal_error "no default action in switch"))
+          dst.(n) <- store.act_store () case);
+      dst
     in
     (* Compile and label actions *)
     let arg = comp_arg arg in
