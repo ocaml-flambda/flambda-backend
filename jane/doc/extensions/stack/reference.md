@@ -867,12 +867,11 @@ several variables, the type-checker treats it as such rather than
 making all of `a`,`b` and `c` local if any of `x`, `y` and `z` are.
 
 
-## Primitive definitions
+## Primitive declarations
+### Mode polymorphism
 
 A limited form of mode polymorphism is available for primivites, defined
-with `external`. The implementation of primitives defined within the compiler
-(with names starting with `%`) can even branch on whether the primitive
-is used in a non-escaping context.
+with `external`.
 
 In the interface for the stdlib (and as re-exported by Base), this feature is
 enabled by use of the `[@local_opt]` annotation on `external` declarations. For
@@ -896,8 +895,27 @@ but if the two `[@local_opt]`s did not act in unison (that is, they varied
 independently), it would not be: `id : local_ 'a -> 'a` allows a local value to
 escape.
 
-Moreover, since primitives are guaranteed to be inlined at every use site,
-they can have different runtime behavior (such as allocation) according to the instantiated modes. For example, `ref` is defined as
+### Stack allocation
+
+Primitives defined within the compiler (with names starting with `%`) are
+inlined at every use site, and can have different runtime behavior (such as
+allocation) at each use site. For example, primitives that return allocated
+values will allocate the value on stack if declared to be local-returning:
+
+```ocaml
+external ref_stack : 'a -> local_ 'a ref = "%makemutable"
+external ref_heap : 'a -> 'a ref = "%makemutable"
+
+let r_stack = ref_stack "hello" in
+let r_heap = ref_heap "hello" in
+let r_error = stack_ (ref_heap "hello") in
+...
+```
+
+In this example, `r_stack` will always be on stack even without `stack_`
+annotation; `r_heap` will always be on heap; and `r_error` will trigger type
+error. We can further use the `[@local_opt]` attribute to declare an allocation
+polymorphic `ref`:
 
 ```ocaml
 external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
