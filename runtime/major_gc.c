@@ -660,8 +660,14 @@ void caml_reset_major_pacing(void)
   } while (!res);
 }
 
+/* The [log_events] parameter is used to disable writing to the ring, to
+      avoid logging events when the calling domain is not part of the
+      Stop-The-World (STW) participant set. If the domain is not part of
+      the STW set, the ring could be torn down concurrently while this domain
+      attempts to write to it. */
 static void update_major_slice_work(intnat howmuch,
-                                    int may_access_gc_phase)
+                                    int may_access_gc_phase,
+                                    bool log_events)
 {
   double heap_words;
   intnat alloc_work, dependent_work, extra_work, new_work;
@@ -810,6 +816,10 @@ static void update_major_slice_work(intnat howmuch,
               atomic_load (&alloc_counter),
               dom_st->slice_target, dom_st->slice_budget
               );
+  if (log_events) {
+    /* TODO: add event logging here (haven't ported upstream events as flambda-backend
+     * pacing code is about to change anyway). */
+  }
 }
 
 #define Chunk_size 0x4000
@@ -1835,10 +1845,10 @@ static void major_collection_slice(intnat howmuch,
   /* Opportunistic slices may run concurrently with gc phase updates. */
   int may_access_gc_phase = (mode != Slice_opportunistic);
 
-  int log_events = mode != Slice_opportunistic ||
-                   (atomic_load_relaxed(&caml_verb_gc) & 0x40);
+  bool log_events = (mode != Slice_opportunistic ||
+                     (atomic_load_relaxed(&caml_verb_gc) & 0x40));
 
-  update_major_slice_work(howmuch, may_access_gc_phase);
+  update_major_slice_work(howmuch, may_access_gc_phase, log_events);
 
   /* When a full slice of major GC work is done,
      or the slice is interrupted (in mode Slice_interruptible),
@@ -2342,8 +2352,10 @@ void caml_teardown_major_gc(void) {
    so we may not access the gc phase. */
   int may_access_gc_phase = 0;
 
-  /* account for latest allocations */
-  update_major_slice_work (0, may_access_gc_phase);
+  /* Account for latest allocations, but do not write to the event ring since
+     we are out of the STW participant set; the ring may be torn down
+     concurrently. */
+  update_major_slice_work (0, may_access_gc_phase, false);
   CAMLassert(!caml_addrmap_iter_ok(&d->mark_stack->compressed_stack,
                                    d->mark_stack->compressed_stack_iter));
   caml_addrmap_clear(&d->mark_stack->compressed_stack);
