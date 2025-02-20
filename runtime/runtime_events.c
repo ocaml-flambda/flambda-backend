@@ -205,11 +205,13 @@ void caml_runtime_events_post_fork(void) {
   }
 }
 
-/* Return the current location for the ring buffers of this process. This is
-  used in the consumer to read the ring buffers of the current process */
+/* Return the path of the ring buffers file of this process, or NULL
+   if runtime events are not enabled. This is used in the consumer to
+   read the ring buffers of the current process. Always returns a
+   freshly-allocated string. */
 char_os* caml_runtime_events_current_location(void) {
   if( atomic_load_acquire(&runtime_events_enabled) ) {
-    return current_ring_loc;
+    return caml_stat_strdup_noexc_os(current_ring_loc);
   } else {
     return NULL;
   }
@@ -278,9 +280,13 @@ static void runtime_events_create_from_stw_single(void) {
 
     if (ring_file_handle == INVALID_HANDLE_VALUE) {
       char* ring_loc_u8 = caml_stat_strdup_of_os(current_ring_loc);
-      caml_fatal_error("Couldn't open ring buffer loc: %s",
-                        ring_loc_u8);
-      caml_stat_free(ring_loc_u8);
+      if (ring_loc_u8) {
+        caml_fatal_error("Couldn't open ring buffer file: %s",
+                         ring_loc_u8);
+        caml_stat_free(ring_loc_u8);
+      } else {
+        caml_fatal_error("Couldn't open ring buffer file");
+      }
     }
 
     ring_handle = CreateFileMapping(
@@ -478,6 +484,29 @@ CAMLprim value caml_ml_runtime_events_pause(value vunit) {
 
 CAMLprim value caml_ml_runtime_events_resume(value vunit) {
   caml_runtime_events_resume(); return Val_unit;
+}
+
+CAMLprim value caml_ml_runtime_events_path(value vunit)
+{
+  CAMLparam0();
+  CAMLlocal2(res, str);
+
+  if (atomic_load_acquire(&runtime_events_enabled)) {
+    /* The allocation might GC, which could allow another domain to
+     * nuke current_ring_loc, so we snapshot it first. */
+
+    char_os* current_ring_loc_str = caml_stat_strdup_os(current_ring_loc);
+
+    res = caml_alloc(1, Tag_some);
+    str = caml_copy_string_of_os(current_ring_loc_str);
+    Store_field(res, 0, str);
+
+    caml_stat_free(current_ring_loc_str);
+  } else {
+    res = Val_none;
+  }
+
+  CAMLreturn(res);
 }
 
 CAMLprim value caml_ml_runtime_events_are_active(void) {
