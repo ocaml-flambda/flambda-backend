@@ -63,14 +63,6 @@ let main() =
      "-dcfg", Arg.Set Flambda_backend_flags.dump_cfg, "";
      "-dcmm", Arg.Set dump_cmm, "";
      "-dcse", Arg.Set dump_cse, "";
-     "-dsel", Arg.Set dump_selection, "";
-     "-dlive", Arg.Unit(fun () -> dump_live := true ), "";
-     "-dspill", Arg.Set dump_spill, "";
-     "-dsplit", Arg.Set dump_split, "";
-     "-dinterf", Arg.Set dump_interf, "";
-     "-dprefer", Arg.Set dump_prefer, "";
-     "-dalloc", Arg.Set dump_regalloc, "";
-     "-dreload", Arg.Set dump_reload, "";
      "-dlinear", Arg.Set dump_linear, "";
      "-dtimings", Arg.Unit (fun () -> profile_columns := [ `Time ]), "";
      "-dcounters", Arg.Unit (fun () -> profile_columns := [ `Counters ]), "";
