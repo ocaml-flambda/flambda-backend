@@ -1604,7 +1604,9 @@ module Jkind_desc = struct
     { t with mod_bounds; with_bounds }, fuel_status
 
   let normalize ~jkind_of_type ~mode t =
-    map_normalize ~jkind_of_type ~mode ~map_type_info:(fun _ ti -> ti) t
+    map_normalize ~jkind_of_type ~mode
+      ~map_type_info:(fun [@inline] _ ti -> ti)
+      t
 
   let sub (type l r) ~type_equal:_ ~jkind_of_type
       (sub : (allowed * r) jkind_desc)
@@ -2098,11 +2100,7 @@ let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
       ~map_type_info:(fun _ ti ->
         { relevant_axes =
             (* Optimization: We only care about comonadic modal axes *)
-            Axis_set.intersection ti.relevant_axes
-              (Axis_set.create ~f:(fun ~axis ->
-                   match axis with
-                   | Pack (Modal (Comonadic _)) -> true
-                   | Pack (Modal (Monadic _)) | Pack (Nonmodal _) -> false))
+            Axis_set.intersection ti.relevant_axes Axis_set.all_comonadic_axes
         })
       jk.jkind
   in
@@ -2122,11 +2120,7 @@ let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
       ~map_type_info:(fun _ ti ->
         { relevant_axes =
             (* Optimization: We only care about monadic modal axes *)
-            Axis_set.intersection ti.relevant_axes
-              (Axis_set.create ~f:(fun ~axis ->
-                   match axis with
-                   | Pack (Modal (Monadic _)) -> true
-                   | Pack (Modal (Comonadic _)) | Pack (Nonmodal _) -> false))
+            Axis_set.intersection ti.relevant_axes Axis_set.all_monadic_axes
         })
       jk.jkind
   in
@@ -2136,6 +2130,7 @@ let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
   }
 
 let get_externality_upper_bound ~jkind_of_type jk =
+  let only_externality = Axis_set.singleton (Nonmodal Externality) in
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           Allowance.right_only jkind_desc),
         _ ) =
@@ -2143,8 +2138,7 @@ let get_externality_upper_bound ~jkind_of_type jk =
       ~map_type_info:(fun _ ti ->
         { relevant_axes =
             (* Optimization: We only care about the externality axis *)
-            Axis_set.intersection ti.relevant_axes
-              (Axis_set.singleton (Nonmodal Externality))
+            Axis_set.intersection ti.relevant_axes only_externality
         })
       jk.jkind
   in
