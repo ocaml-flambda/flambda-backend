@@ -524,7 +524,6 @@ let dead_slots_msg dbg function_slots value_slots =
 
 let unary_int_arith_primitive _env dbg kind op arg =
   match (kind : K.Standard_int.t), (op : P.unary_int_arith_op) with
-  | Tagged_immediate, Neg -> C.negint arg dbg
   | Tagged_immediate, Swap_byte_endianness ->
     (* This isn't currently needed since [Lambda_to_flambda_primitives] always
        untags the integer first. *)
@@ -534,15 +533,6 @@ let unary_int_arith_primitive _env dbg kind op arg =
        arises from the [Pbswap16] Lambda primitive. That operation does not
        affect the sign of the resulting value. *)
     C.bswap16 arg dbg
-  (* Negation needs a sign-extension for 32-bit and 63-bit values *)
-  | Naked_immediate, Neg ->
-    C.sign_extend ~bits:63 ~dbg
-      (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits:63 ~dbg arg) dbg)
-  | Naked_int32, Neg ->
-    C.sign_extend ~bits:32 ~dbg
-      (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits:32 ~dbg arg) dbg)
-  (* General case *)
-  | (Naked_int64 | Naked_nativeint), Neg -> C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension in
      order to match the Lambda semantics (where the swap might affect the
      sign). *)
