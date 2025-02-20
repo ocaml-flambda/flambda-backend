@@ -1689,8 +1689,8 @@ module Jkind_desc = struct
         in
         { layout; mod_bounds; with_bounds }
       else
-        let folder (layouts, bounds) (ty, _) =
-          let { jkind = { layout; mod_bounds; with_bounds = _ };
+        let folder (layouts, mod_boundss, with_boundss) (ty, _) =
+          let { jkind = { layout; mod_bounds; with_bounds };
                 annotation = _;
                 history = _;
                 has_warned = _;
@@ -1698,16 +1698,17 @@ module Jkind_desc = struct
               } =
             jkind_of_type ty
           in
-          layout :: layouts, Mod_bounds.join bounds mod_bounds
+          ( layout :: layouts,
+            Mod_bounds.join mod_bounds mod_boundss,
+            With_bounds.join with_bounds with_boundss )
         in
-        let layouts, mod_bounds =
-          List.fold_left folder ([], Mod_bounds.min) tys_modalities
+        let layouts, mod_bounds, with_bounds =
+          List.fold_left folder
+            ([], Mod_bounds.min, No_with_bounds)
+            tys_modalities
         in
         let layouts = List.rev layouts in
-        { layout = Layout.Product layouts;
-          mod_bounds;
-          with_bounds = No_with_bounds
-        }
+        { layout = Layout.Product layouts; mod_bounds; with_bounds }
 
   let get t = Layout_and_axes.map Layout.get t
 
