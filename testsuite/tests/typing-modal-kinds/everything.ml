@@ -257,15 +257,11 @@ type t : value_or_null mod everything
 type bad : value = t
 
 [%%expect{|
-type t
-  : value_or_null mod global aliased many contended portable unyielding
-                      external_
+type t : value_or_null mod everything
 Line 2, characters 0-20:
 2 | type bad : value = t
     ^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is
-         value_or_null mod global aliased many contended portable unyielding
-                           external_
+Error: The kind of type "t" is value_or_null mod everything
          because of the definition of t at line 1, characters 0-37.
        But the kind of type "t" must be a subkind of value
          because of the definition of bad at line 2, characters 0-20.
@@ -288,4 +284,21 @@ Line 1, characters 22-32:
 1 | type t = { x : int @@ everything }
                           ^^^^^^^^^^
 Error: Unrecognized modality everything.
+|}]
+
+(* Printing *)
+type t : immediate & immediate
+[%%expect{|
+type t : immediate & immediate
+|}]
+
+type t : value & float64 mod everything
+[%%expect{|
+type t : immediate & float64 mod everything
+|}]
+
+type t : value & (immediate & bits64) & float32 mod everything
+[%%expect{|
+type t
+  : immediate & (immediate & bits64 mod everything) & float32 mod everything
 |}]
