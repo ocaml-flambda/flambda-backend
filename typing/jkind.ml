@@ -725,12 +725,12 @@ module Layout_and_axes = struct
      to map the type-info for the type being expanded. The type can be prevented from
      being expanded by mapping the relevant axes to an empty set. [map_type_info] is used
      by sub_jkind_l to remove irrelevant axes. *)
-  let normalize (type l1 r1 l2 r2) ~jkind_of_type
+  let normalize (type layout l1 r1 l2 r2) ~jkind_of_type
       ~(mode : (l2 * r2) normalize_mode)
       ?(map_type_info :
          (type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
-         option) (t : (l1 * r1) jkind_desc) :
-      (l2 * r2) jkind_desc * Fuel_status.t =
+         option) (t : (layout, l1 * r1) layout_and_axes) :
+      (layout, l2 * r2) layout_and_axes * Fuel_status.t =
     (* Sadly, it seems hard (impossible?) to be sure to expand all types
        here without using a fuel parameter to stop infinite regress. Here
        is a nasty case:
@@ -1620,7 +1620,7 @@ module Jkind_desc = struct
     let ( ({ layout = lay1; mod_bounds = bounds1; with_bounds = No_with_bounds } :
             Allowance.right_only jkind_desc),
           _ ) =
-      normalize ~mode:Ignore_best ~jkind_of_type
+      Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
         ~map_type_info:(fun _ ti ->
           { relevant_axes = Axis_set.diff ti.relevant_axes axes_max_on_right })
         sub
@@ -2056,10 +2056,12 @@ type normalize_mode =
   | Ignore_best
 
 let[@inline] normalize ~mode ~jkind_of_type t =
-  let mode : _ Jkind_desc.normalize_mode =
+  let mode : _ Layout_and_axes.normalize_mode =
     match mode with Require_best -> Require_best | Ignore_best -> Ignore_best
   in
-  let jkind, fuel_result = Jkind_desc.normalize ~jkind_of_type ~mode t.jkind in
+  let jkind, fuel_result =
+    Layout_and_axes.normalize ~jkind_of_type ~mode t.jkind
+  in
   { t with
     jkind;
     quality =
@@ -2097,7 +2099,7 @@ let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           Allowance.right_only jkind_desc),
         _ ) =
-    Jkind_desc.normalize ~mode:Ignore_best ~jkind_of_type
+    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
       ~map_type_info:(fun _ ti ->
         { relevant_axes =
             (* Optimization: We only care about comonadic modal axes *)
@@ -2117,7 +2119,7 @@ let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           Allowance.right_only jkind_desc),
         _ ) =
-    Jkind_desc.normalize ~mode:Ignore_best ~jkind_of_type
+    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
       ~map_type_info:(fun _ ti ->
         { relevant_axes =
             (* Optimization: We only care about monadic modal axes *)
@@ -2136,7 +2138,7 @@ let get_externality_upper_bound ~jkind_of_type jk =
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           Allowance.right_only jkind_desc),
         _ ) =
-    Jkind_desc.normalize ~mode:Ignore_best ~jkind_of_type
+    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
       ~map_type_info:(fun _ ti ->
         { relevant_axes =
             (* Optimization: We only care about the externality axis *)
@@ -2923,7 +2925,7 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
          with the [mod_bounds] along the relevant axes. *)
       (* [Jkind_desc.map_normalize] handles the stepping, jkind lookups, and joining.
          [map_type_info] handles looking for [ty] on the right and removing irrelevant axes. *)
-      Jkind_desc.normalize sub.jkind ~jkind_of_type ~mode:Ignore_best
+      Layout_and_axes.normalize sub.jkind ~jkind_of_type ~mode:Ignore_best
         ~map_type_info:(fun ty { relevant_axes = left_relevant_axes } ->
           let right_relevant_axes =
             (* Look for [ty] on the right. There may be multiple occurrences of it on the
