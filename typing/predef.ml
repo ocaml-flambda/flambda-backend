@@ -310,9 +310,8 @@ let mk_add_type add_type =
         type_expansion_scope = lowest_level;
         type_attributes = [];
         type_unboxed_default = false;
-        type_uid;
+        type_uid = Uid.unboxed_version type_uid;
         type_unboxed_version = None;
-        type_is_unboxed_version = true;
       }
   in
   let decl =
@@ -331,7 +330,6 @@ let mk_add_type add_type =
      type_unboxed_default = false;
      type_uid;
      type_unboxed_version;
-     type_is_unboxed_version = false;
     }
 >>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
   in
@@ -364,7 +362,6 @@ let mk_add_type1 add_type type_ident
       type_unboxed_default = false;
       type_uid = Uid.of_predef_id type_ident;
       type_unboxed_version = None;
-      type_is_unboxed_version = false;
     }
   in
   add_type type_ident decl env
