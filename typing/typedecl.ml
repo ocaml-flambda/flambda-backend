@@ -324,7 +324,7 @@ in
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = sdecl.ptype_loc;
-      type_attributes = [];
+      type_attributes = sdecl.ptype_attributes;
       type_unboxed_default = false;
       type_uid = Uid.unboxed_version uid;
       type_unboxed_version = None;
@@ -1188,7 +1188,7 @@ let derive_unboxed_version find_type decl =
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = decl.type_loc;
-      type_attributes = [];
+      type_attributes = decl.type_attributes;
       type_unboxed_default = false;
       type_uid = Uid.unboxed_version decl.type_uid;
       type_unboxed_version = None;
@@ -3997,7 +3997,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
           type_is_newtype = false;
           type_expansion_scope = Btype.lowest_level;
           type_loc = loc;
-          type_attributes = [];
+          type_attributes = decl.type_attributes;
           type_unboxed_default = false;
           type_uid = Uid.unboxed_version type_uid;
           type_unboxed_version = None;
