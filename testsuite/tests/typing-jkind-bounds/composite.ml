@@ -182,7 +182,7 @@ Line 1, characters 13-20:
 1 | let foo (t : int ref t @@ contended) = use_uncontended t
                  ^^^^^^^
 Error: This type "int ref" should be an instance of type "('a : immutable_data)"
-       The kind of int ref is mutable_data.
+       The kind of int ref is value mod many unyielding.
        But the kind of int ref must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-46.
 |}]
@@ -320,7 +320,7 @@ Line 1, characters 13-20:
 1 | let foo (t : int ref t @@ contended) = use_uncontended t
                  ^^^^^^^
 Error: This type "int ref" should be an instance of type "('a : immutable_data)"
-       The kind of int ref is mutable_data.
+       The kind of int ref is value mod many unyielding.
        But the kind of int ref must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-73.
 |}]
@@ -500,7 +500,7 @@ Line 1, characters 0-149:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "int list list list list list list list list list list
                         list list list list list list list list list list
-                        list list list list" is immutable_data
+                        list list list list" is value
          because it's a boxed variant type.
        But the kind of type "int list list list list list list list list list
                             list list list list list list list list list list
@@ -568,7 +568,7 @@ type 'a t : immutable_data = Flat | Nested of 'a t t
 Line 1, characters 0-52:
 1 | type 'a t : immutable_data = Flat | Nested of 'a t t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -611,7 +611,7 @@ type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
 Line 1, characters 0-71:
 1 | type ('a : immutable_data) t : immutable_data = Flat | Nested of 'a t t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -647,7 +647,7 @@ Error: This value is "aliased" but expected to be "unique".
 type 'a u : immutable_data with 'a
 type t = { x : int u; y : string u }
 [%%expect {|
-type 'a u : immutable_data
+type 'a u : immutable_data with 'a
 type t = { x : int u; y : string u; }
 |}]
 
@@ -688,7 +688,7 @@ type 'a t =
   | None
   | Some of ('a * 'a) t u
 [%%expect {|
-type 'a u : immutable_data
+type 'a u : immutable_data with 'a
 type 'a t = None | Some of ('a * 'a) t u
 |}]
 

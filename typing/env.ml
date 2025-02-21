@@ -4468,8 +4468,8 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "@[%a must have a type of layout value because it is \
                    captured by an object.@ %a@]"
         (Style.as_inline_code !print_longident) lid
-        (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+        (fun v -> Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> !print_type_expr ppf typ) v) err
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
 

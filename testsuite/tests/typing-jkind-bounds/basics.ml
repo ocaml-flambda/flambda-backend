@@ -9,13 +9,13 @@
 type 'a list : immutable_data with 'a
 
 [%%expect{|
-type 'a list : immutable_data
+type 'a list : immutable_data with 'a
 |}]
 
 type ('a, 'b) either : immutable_data with 'a * 'b
 
 [%%expect{|
-type ('a, 'b) either : immutable_data
+type ('a, 'b) either : immutable_data with 'a * 'b
 |}]
 
 type 'a gel : kind_of_ 'a mod global
@@ -762,7 +762,7 @@ type t : any mod many = { x : t_value }
 Line 1, characters 0-39:
 1 | type t : any mod many = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod many
          because of the annotation on the declaration of the type t.
@@ -773,7 +773,7 @@ type t : any mod contended = { x : t_value }
 Line 1, characters 0-44:
 1 | type t : any mod contended = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod contended
          because of the annotation on the declaration of the type t.
@@ -784,7 +784,7 @@ type t : any mod portable = { x : t_value }
 Line 1, characters 0-43:
 1 | type t : any mod portable = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
@@ -795,7 +795,7 @@ type t : any mod many contended portable global = { x : t_value }
 Line 1, characters 0-65:
 1 | type t : any mod many contended portable global = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of
          any mod global many contended portable
@@ -1234,7 +1234,7 @@ type 'a t : value mod aliased = { x : 'a @@ aliased }
 Line 1, characters 0-53:
 1 | type 'a t : value mod aliased = { x : 'a @@ aliased }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod aliased
          because of the annotation on the declaration of the type t.
@@ -1245,7 +1245,7 @@ type 'a t : value mod global = { x : 'a @@ global }
 Line 1, characters 0-51:
 1 | type 'a t : value mod global = { x : 'a @@ global }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
@@ -1547,7 +1547,7 @@ type 'a t : value mod global = { x : 'a }
 Line 1, characters 0-41:
 1 | type 'a t : value mod global = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
@@ -1558,7 +1558,7 @@ type 'a t : value mod many = { x : 'a }
 Line 1, characters 0-39:
 1 | type 'a t : value mod many = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod many
          because of the annotation on the declaration of the type t.

@@ -1432,7 +1432,9 @@ module Style = Misc.Style
 let pp_tag ppf t = Format.fprintf ppf "`%s" t
 
 
-let report_error env ppf = function
+let report_error env ppf =
+  let jkind_of_type = Ctype.type_jkind_purely env in
+  function
   | Unbound_type_variable (name, in_scope_names) ->
     fprintf ppf "The type variable %a is unbound in this type declaration.@ %a"
       Style.inline_code name
@@ -1527,14 +1529,15 @@ let report_error env ppf = function
         "@[<hov>The universal type variable %a was %s to have kind %a.@;%a@]"
         Pprintast.tyvar name
         (if jkind_info.defaulted then "defaulted" else "declared")
-        Jkind.format jkind_info.original_jkind
-        (Jkind.format_history ~intro:(
+        (Jkind.format ~jkind_of_type) jkind_info.original_jkind
+        (Jkind.format_history ~jkind_of_type ~intro:(
           dprintf "But it was inferred to have %t"
             (fun ppf -> let desc = Jkind.get inferred_jkind in
               match desc.layout with
               | Sort (Var _) -> fprintf ppf "a representable kind"
               | Sort (Base _) | Any | Product _ ->
-                fprintf ppf "kind %a" Jkind.format inferred_jkind)))
+                fprintf ppf "kind %a" (Jkind.format ~jkind_of_type)
+                  inferred_jkind)))
         inferred_jkind
   | Multiple_constraints_on_type s ->
       fprintf ppf "Multiple constraints for type %a"
@@ -1568,7 +1571,7 @@ let report_error env ppf = function
       | Object_field -> "Object field"
     in
     fprintf ppf "@[%s types must have layout value.@ %a@]"
-      s (Jkind.Violation.report_with_offender
+      s (Jkind.Violation.report_with_offender ~jkind_of_type
            ~offender:(fun ppf ->
                Style.as_inline_code Printtyp.type_expr ppf typ)) err
   | Non_sort {vloc; typ; err} ->
@@ -1578,12 +1581,12 @@ let report_error env ppf = function
       | Fun_ret -> "Function return"
     in
     fprintf ppf "@[%s types must have a representable layout.@ %a@]"
-      s (Jkind.Violation.report_with_offender
+      s (Jkind.Violation.report_with_offender ~jkind_of_type
            ~offender:(fun ppf ->
                Style.as_inline_code Printtyp.type_expr ppf typ)) err
   | Bad_jkind_annot(ty, violation) ->
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
-      (Jkind.Violation.report_with_offender
+      (Jkind.Violation.report_with_offender ~jkind_of_type
          ~offender:(fun ppf ->
              Style.as_inline_code Printtyp.type_expr ppf ty)) violation
   | Did_you_mean_unboxed lid ->

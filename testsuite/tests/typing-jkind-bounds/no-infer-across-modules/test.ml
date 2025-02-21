@@ -48,7 +48,7 @@ Line 1, characters 20-31:
                         ^^^^^^^^^^^
 Error: This type "int Define_with_kinds.my_list" should be an instance of type
          "('a : value mod portable)"
-       The kind of int Define_with_kinds.my_list is immutable_data.
+       The kind of int Define_with_kinds.my_list is value.
        But the kind of int Define_with_kinds.my_list must be a subkind of
          value mod portable
          because of the definition of require_portable at line 12, characters 0-47.
@@ -63,7 +63,8 @@ Line 1, characters 20-35:
                         ^^^^^^^^^^^^^^^
 Error: This type "int ref Define_with_kinds.my_list"
        should be an instance of type "('a : value mod portable)"
-       The kind of int ref Define_with_kinds.my_list is immutable_data.
+       The kind of int ref Define_with_kinds.my_list is
+         value mod many unyielding.
        But the kind of int ref Define_with_kinds.my_list must be a subkind of
          value mod portable
          because of the definition of require_portable at line 12, characters 0-47.
@@ -76,7 +77,8 @@ Line 1, characters 20-40:
                         ^^^^^^^^^^^^^^^^^^^^
 Error: This type "(int -> int) Define_with_kinds.my_list"
        should be an instance of type "('a : value mod portable)"
-       The kind of (int -> int) Define_with_kinds.my_list is immutable_data.
+       The kind of (int -> int) Define_with_kinds.my_list is
+         value mod contended.
        But the kind of (int -> int) Define_with_kinds.my_list must be a subkind of
          value mod portable
          because of the definition of require_portable at line 12, characters 0-47.
@@ -89,7 +91,7 @@ Line 1, characters 14-25:
                   ^^^^^^^^^^^
 Error: This type "int Define_with_kinds.my_list" should be an instance of type
          "('a : value mod global)"
-       The kind of int Define_with_kinds.my_list is immutable_data.
+       The kind of int Define_with_kinds.my_list is value.
        But the kind of int Define_with_kinds.my_list must be a subkind of
          value mod global
          because of the definition of require_global at line 9, characters 0-43.
@@ -102,7 +104,8 @@ Line 1, characters 20-35:
                         ^^^^^^^^^^^^^^^
 Error: This type "int ref Define_with_kinds.my_list"
        should be an instance of type "('a : value mod contended)"
-       The kind of int ref Define_with_kinds.my_list is immutable_data.
+       The kind of int ref Define_with_kinds.my_list is
+         value mod many unyielding.
        But the kind of int ref Define_with_kinds.my_list must be a subkind of
          value mod contended
          because of the definition of require_contended at line 11, characters 0-49.
@@ -116,7 +119,7 @@ Line 1, characters 20-38:
 Error: This type "int Define_with_kinds.my_ref Define_with_kinds.my_list"
        should be an instance of type "('a : value mod contended)"
        The kind of int Define_with_kinds.my_ref Define_with_kinds.my_list is
-         immutable_data.
+         value mod many unyielding.
        But the kind of int Define_with_kinds.my_ref Define_with_kinds.my_list must be a subkind of
          value mod contended
          because of the definition of require_contended at line 11, characters 0-49.
@@ -134,7 +137,7 @@ Line 1, characters 20-38:
 Error: This type "int Define_with_kinds.my_ref Define_with_kinds.my_list"
        should be an instance of type "('a : value mod portable)"
        The kind of int Define_with_kinds.my_ref Define_with_kinds.my_list is
-         immutable_data.
+         value mod many unyielding.
        But the kind of int Define_with_kinds.my_ref Define_with_kinds.my_list must be a subkind of
          value mod portable
          because of the definition of require_portable at line 12, characters 0-47.
@@ -248,7 +251,7 @@ Error: This expression has type
          "#((int -> int) * int) Define_with_kinds.unboxed_record"
        but an expression was expected of type "('a : (value & value) & value)"
        The kind of #((int -> int) * int) Define_with_kinds.unboxed_record is
-         (immutable_data & immutable_data) & immutable_data.
+         (value mod contended & value mod contended) & value mod contended.
        But the kind of #((int -> int) * int) Define_with_kinds.unboxed_record must be a subkind of
          (value & value) & value
          because of the definition of use_portable_three_values at line 2, characters 84-95.

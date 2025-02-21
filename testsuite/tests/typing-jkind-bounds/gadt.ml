@@ -146,7 +146,10 @@ type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
 val use_portable : 'a @ portable -> unit = <fun>
 module F :
   functor (X : S) ->
-    sig type t3 : value mod portable type t4 : value mod portable end
+    sig
+      type t3 : value mod portable with X.t1
+      type t4 : value mod portable with X.t2
+    end
 module Arg1 : sig type t1 = int -> int type t2 = string end
 module M1 : sig type t3 = F(Arg1).t3 type t4 = F(Arg1).t4 end
 >> Fatal error: Abstract kind with [with]: value mod portable
