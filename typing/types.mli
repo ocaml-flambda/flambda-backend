@@ -696,9 +696,15 @@ type type_declaration =
        [Env.find_type_unboxed_version_data] will follow aliases.
 
        as an optimization, many aliases do store their unboxed versions, but
-       not always: e.g. they don't when the type they alias gains an unboxed
-       version through [with type] substition.
-    *)
+       not always, e.g. they don't when the type they alias gains an unboxed
+       version through [with type] substition. this only applies to aliases:
+       see the first invariant below
+
+       invariants:
+       1. if [type_kind] is a boxed record, then [type_unboxed_version] is
+          accurate.
+       2. there are no "twice-unboxed" types: the [type_declaration] stored here
+          itself has [type_unboxed_version = None]. *)
     type_is_unboxed_version : bool;
   }
 

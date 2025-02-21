@@ -59,36 +59,33 @@ let identity =
     last_compose = None;
   }
 
-let add_type_path id p ~has_unboxed_version s =
+let add_type_path id p s =
   let types = Path.Map.add id (Path p) s.types in
   let types =
-    if has_unboxed_version then
+    if Path.is_unboxed_version p then
+      types
+    else
       Path.Map.add
         (Path.unboxed_version id) (Path (Path.unboxed_version p)) types
-    else
-      types
   in
   { s with types; last_compose = None }
 
-let add_type id p ~has_unboxed_version s =
-  add_type_path (Pident id) p ~has_unboxed_version s
+let add_type id p s =
+  add_type_path (Pident id) p s
 
-let add_type_function id ~params ~body ~has_unboxed_version s =
+let add_type_function id ~params ~body s =
   let types = Path.Map.add id (Type_function { params; body }) s.types in
   let types =
-    if has_unboxed_version then
+    match get_desc body with
+    | Tconstr (path, args, _)
+      when not (Path.is_unboxed_version path) ->
       let body =
-        match get_desc body with
-        | Tconstr (path, args, _) ->
-          newty3 ~level:(get_level body) ~scope:(get_scope body)
-            (Tconstr(Path.unboxed_version path, args, ref Mnil))
-        | _ ->
-          fatal_error "Subst.add_type_function"
+        newty3 ~level:(get_level body) ~scope:(get_scope body)
+          (Tconstr(Path.unboxed_version path, args, ref Mnil))
       in
       Path.Map.add
         (Path.unboxed_version id) (Type_function { params; body }) types
-    else
-      types
+    | _ -> types
   in
   { s with types; last_compose = None }
 
@@ -770,9 +767,8 @@ let rename_bound_idents scoping s sg =
     | [] -> sg, s
     | Sig_type(id, td, rs, vis) :: rest ->
         let id' = rename id in
-        let has_unboxed_version = Option.is_some td.type_unboxed_version in
         rename_bound_idents
-          (add_type id (Pident id') ~has_unboxed_version s)
+          (add_type id (Pident id') s)
           (Sig_type(id', td, rs, vis) :: sg)
           rest
     | Sig_module(id, pres, md, rs, vis) :: rest ->
@@ -791,14 +787,14 @@ let rename_bound_idents scoping s sg =
         (* cheat and pretend they are types cf. PR#6650 *)
         let id' = rename id in
         rename_bound_idents
-          (add_type id (Pident id') ~has_unboxed_version:false s)
+          (add_type id (Pident id') s)
           (Sig_class(id', cd, rs, vis) :: sg)
           rest
     | Sig_class_type(id, ctd, rs, vis) :: rest ->
         (* cheat and pretend they are types cf. PR#6650 *)
         let id' = rename id in
         rename_bound_idents
-          (add_type id (Pident id') ~has_unboxed_version:false s)
+          (add_type id (Pident id') s)
           (Sig_class_type(id', ctd, rs, vis) :: sg)
           rest
     | Sig_value(id, vd, vis) :: rest ->

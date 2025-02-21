@@ -380,21 +380,25 @@ in
 let update_type temp_env env id loc =
   let path = Path.Pident id in
   let decl = Env.find_type path temp_env in
-  let to_unify =
-    match decl.type_manifest with
-    | Some ty -> Ctype.newconstr path decl.type_params, ty
-    | None -> Misc.fatal_error "Typedecl.update_type"
-  in
-  let unboxed_version_to_unify =
+  try
+    let checks =
+      match decl.type_manifest with
+      | Some ty ->
+        Ctype.unify_delaying_jkind_checks
+          env (Ctype.newconstr path decl.type_params) ty
+      | None -> Misc.fatal_error "Typedecl.update_type"
+    in
     match decl.type_unboxed_version with
-    | None -> []
+    | None ->
+      checks
     | Some { type_manifest = Some ty; type_params; _ } ->
-      [Ctype.newconstr (Path.unboxed_version path) type_params, ty]
+      let checks_from_unboxed_version =
+        Ctype.unify_delaying_jkind_checks env
+          (Ctype.newconstr (Path.unboxed_version path) type_params) ty
+      in
+      checks @ checks_from_unboxed_version
     | Some { type_manifest = None; _ } ->
       Misc.fatal_error "Typedecl.update_type"
-  in
-  try
-    Ctype.unify_delaying_jkind_checks env (to_unify :: unboxed_version_to_unify)
   with Ctype.Unify err ->
     raise (Error(loc, Type_clash (env, err)))
 
@@ -1559,16 +1563,13 @@ let check_kind_coherence env loc dpath decl =
             | exception Ctype.Equality err ->
                 Some (Includecore.Constraint err)
             | () ->
-              let has_unboxed_version =
-                Option.is_some decl.type_unboxed_version in
               Includecore.type_declarations ~loc ~equality:true env
                 ~mark:true
                 (Path.last path)
                 decl'
                 dpath
                 (Subst.type_declaration
-                    (Subst.add_type_path dpath path Subst.identity
-                      ~has_unboxed_version) decl)
+                    (Subst.add_type_path dpath path Subst.identity) decl)
           end
         in
         if err <> None then

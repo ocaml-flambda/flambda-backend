@@ -284,14 +284,26 @@ let mk_add_type add_type =
       let type_jkind =
         Jkind.of_builtin ~why:(Unboxed_primitive type_ident) unboxed_jkind
       in
+      let type_kind =
+        match kind with
+          | Type_abstract Definition -> Type_abstract Definition
+          | _ ->
+            Misc.fatal_error "Predef.mk_add_type: non-abstract unboxed kind"
+      in
+      let type_manifest =
+        match manifest with
+        | None -> None
+        | Some _ ->
+          Misc.fatal_error "Predef.mk_add_type: non-[None] unboxed manifest"
+      in
       Some {
         type_params = [];
         type_arity = 0;
-        type_kind = Type_abstract Definition;
+        type_kind;
         type_jkind;
         type_loc = Location.none;
         type_private = Asttypes.Public;
-        type_manifest = None;
+        type_manifest;
         type_variance = [];
         type_separability = [];
         type_is_newtype = false;
