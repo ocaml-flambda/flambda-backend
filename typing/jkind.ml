@@ -1337,39 +1337,80 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float64 =
       { jkind =
-          mk_jkind (Base Float64) ~mode_crossing:true ~nullability:Non_null;
+          mk_jkind (Base Float64) ~mode_crossing:false ~nullability:Non_null;
         name = "float64"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let kind_of_unboxed_float =
+      { jkind =
+          mk_jkind (Base Float64) ~mode_crossing:true ~nullability:Non_null;
+        name = "float64 mod everything"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float32 =
       { jkind =
-          mk_jkind (Base Float32) ~mode_crossing:true ~nullability:Non_null;
+          mk_jkind (Base Float32) ~mode_crossing:false ~nullability:Non_null;
         name = "float32"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let kind_of_unboxed_float32 =
+      { jkind =
+          mk_jkind (Base Float32) ~mode_crossing:true ~nullability:Non_null;
+        name = "float32 mod everything"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let word =
-      { jkind = mk_jkind (Base Word) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = mk_jkind (Base Word) ~mode_crossing:false ~nullability:Non_null;
         name = "word"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let kind_of_unboxed_nativeint =
+      { jkind = mk_jkind (Base Word) ~mode_crossing:true ~nullability:Non_null;
+        name = "word mod everything"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
-      { jkind = mk_jkind (Base Bits32) ~mode_crossing:true ~nullability:Non_null;
+      { jkind =
+          mk_jkind (Base Bits32) ~mode_crossing:false ~nullability:Non_null;
         name = "bits32"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let kind_of_unboxed_int32 =
+      { jkind = mk_jkind (Base Bits32) ~mode_crossing:true ~nullability:Non_null;
+        name = "bits32 mod everything"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits64 =
-      { jkind = mk_jkind (Base Bits64) ~mode_crossing:true ~nullability:Non_null;
+      { jkind =
+          mk_jkind (Base Bits64) ~mode_crossing:false ~nullability:Non_null;
         name = "bits64"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let kind_of_unboxed_int64 =
+      { jkind = mk_jkind (Base Bits64) ~mode_crossing:true ~nullability:Non_null;
+        name = "bits64 mod everything"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let vec128 =
-      { jkind = mk_jkind (Base Vec128) ~mode_crossing:true ~nullability:Non_null;
+      { jkind =
+          mk_jkind (Base Vec128) ~mode_crossing:false ~nullability:Non_null;
         name = "vec128"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let kind_of_unboxed_128bit_vectors =
+      { jkind = mk_jkind (Base Vec128) ~mode_crossing:true ~nullability:Non_null;
+        name = "vec128 mod everything"
       }
 
     let all =
@@ -1384,11 +1425,17 @@ module Const = struct
         immediate_or_null;
         immediate64;
         float64;
+        kind_of_unboxed_float;
         float32;
+        kind_of_unboxed_float32;
         word;
+        kind_of_unboxed_nativeint;
         bits32;
+        kind_of_unboxed_int32;
         bits64;
-        vec128 ]
+        kind_of_unboxed_int64;
+        vec128;
+        kind_of_unboxed_128bit_vectors ]
 
     let of_attribute : Builtin_attributes.jkind_attribute -> t = function
       | Immediate -> immediate

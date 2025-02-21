@@ -289,29 +289,41 @@ module Const : sig
     (** Values of types of this jkind are either immediate or null pointers *)
     val immediate_or_null : t
 
-    (** This is the jkind of unboxed 64-bit floats.  They have sort
-    Float64. Mode-crosses. *)
+    (** The jkind of unboxed 64-bit floats with no mode crossing. *)
     val float64 : t
 
-    (** This is the jkind of unboxed 32-bit floats.  They have sort
-    Float32. Mode-crosses. *)
+    (** The jkind of unboxed 64-bit floats with mode crossing. *)
+    val kind_of_unboxed_float : t
+
+    (** The jkind of unboxed 32-bit floats with no mode crossing. *)
     val float32 : t
 
-    (** This is the jkind of unboxed native-sized integers. They have sort
-    Word. Does not mode-cross. *)
+    (** The jkind of unboxed 32-bit floats with mode crossing. *)
+    val kind_of_unboxed_float32 : t
+
+    (** The jkind of unboxed 32-bit native-sized integers with no mode crossing. *)
     val word : t
 
-    (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
-    not mode-cross. *)
+    (** The jkind of unboxed 32-bit native-sized integers with mode crossing. *)
+    val kind_of_unboxed_nativeint : t
+
+    (** The jkind of unboxed 32-bit integers with no mode crossing. *)
     val bits32 : t
 
-    (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
-    not mode-cross. *)
+    (** The jkind of unboxed 32-bit integers with mode crossing. *)
+    val kind_of_unboxed_int32 : t
+
+    (** The jkind of unboxed 64-bit integers with no mode crossing. *)
     val bits64 : t
 
-    (** This is the jkind of unboxed 128-bit simd vectors. They have sort Vec128. Does
-    not mode-cross. *)
+    (** The jkind of unboxed 64-bit integers with mode crossing. *)
+    val kind_of_unboxed_int64 : t
+
+    (** The jkind of unboxed 128-bit vectors with no mode crossing. *)
     val vec128 : t
+
+    (** The jkind of unboxed 128-bit vectors with mode crossing. *)
+    val kind_of_unboxed_128bit_vectors : t
 
     (** A list of all Builtin jkinds *)
     val all : t list
