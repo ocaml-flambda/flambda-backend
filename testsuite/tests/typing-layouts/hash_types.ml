@@ -143,6 +143,86 @@ type 'a rep = Float : float rep
 val f : 'a rep -> int = <fun>
 |}]
 
+(***********************************)
+(* Implicit unboxed records basics *)
+
+(* Boxed records get implicit unboxed records *)
+type r = { i : int ; s : string }
+type u : immediate & value = r#
+[%%expect{|
+type r = { i : int; s : string; }
+type u = r#
+|}]
+
+(* But not mixed block, float, or [@@unboxed] records *)
+type r = { f : float ; f2 : float }
+type bad = r#
+[%%expect{|
+type r = { f : float; f2 : float; }
+Line 2, characters 11-13:
+2 | type bad = r#
+               ^^
+Error: The type "r" has no unboxed version.
+|}]
+type r = { s : string ; f : float# }
+type bad = r#
+[%%expect{|
+type r = { s : string; f : float#; }
+Line 2, characters 11-13:
+2 | type bad = r#
+               ^^
+Error: The type "r" has no unboxed version.
+|}]
+type r = { i : int } [@@unboxed]
+type bad = r#
+[%%expect{|
+type r = { i : int; } [@@unboxed]
+Line 2, characters 11-13:
+2 | type bad = r#
+               ^^
+Error: The type "r" has no unboxed version.
+|}]
+type ('a : float64) t = { i : 'a ; j : 'a }
+type floatu_t : float64 & float64 = float t#
+[%%expect{|
+type ('a : float64) t = { i : 'a; j : 'a; }
+Line 2, characters 42-44:
+2 | type floatu_t : float64 & float64 = float t#
+                                              ^^
+Error: The type "t" has no unboxed version.
+|}]
+
+(* A type can get an unboxed version from both the manifest and kind *)
+type r = { i : int ; s : string }
+type r2 = r = { i : int ; s : string }
+let id : r# -> r2# = fun x -> x
+[%%expect{|
+type r = { i : int; s : string; }
+type r2 = r = { i : int; s : string; }
+val id : r# -> r2# = <fun>
+|}]
+
+(* The alias above was necessary for [id] to typecheck: *)
+type r = { i : int ; s : string }
+type r2 = { i : int ; s : string }
+let bad_id : r# -> r2# = fun x -> x
+[%%expect{|
+type r = { i : int; s : string; }
+type r2 = { i : int; s : string; }
+Line 3, characters 34-35:
+3 | let bad_id : r# -> r2# = fun x -> x
+                                      ^
+Error: This expression has type "r#" but an expression was expected of type "r2#"
+|}]
+
+(* Mutable fields imply modalities *)
+type r = { i : int ; mutable s : string }
+type u = r# = #{ i : int ; s : string @@ global many aliased unyielding }
+[%%expect{|
+type r = { i : int; mutable s : string; }
+type u = r# = #{ i : int; global_ s : string @@ many aliased; }
+|}]
+
 (*******************)
 (* Type parameters *)
 
@@ -310,6 +390,99 @@ Line 2, characters 11-18:
 Error: The type "Bad2.t" has no unboxed version.
 |}]
 
+(* Implicit unboxed records *)
+
+type ('a : value & float64) t
+[%%expect{|
+type ('a : value & float64) t
+|}]
+
+type s = r#
+and r = {x:int; y:float}
+[%%expect{|
+type s = r#
+and r = { x : int; y : float; }
+|}]
+
+
+type s = q
+and r = {x:int; y:float}
+and q = r#
+[%%expect{|
+type s = q
+and r = { x : int; y : float; }
+and q = r#
+|}]
+
+(* Mixed blocks don't get unboxed records *)
+type bad = r# t
+and r = {x:int; y:float#}
+[%%expect{|
+Line 1, characters 0-15:
+1 | type bad = r# t
+    ^^^^^^^^^^^^^^^
+Error: The type "r" has no unboxed version.
+|}]
+type s = bad t
+and r = {x:int; y:float#}
+and bad = r#
+[%%expect{|
+Line 3, characters 0-12:
+3 | and bad = r#
+    ^^^^^^^^^^^^
+Error: The type "r" has no unboxed version.
+|}]
+
+type s_bad = r# t
+and r = {x:int; y:bool}
+[%%expect{|
+Line 2, characters 0-23:
+2 | and r = {x:int; y:bool}
+    ^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The kind of r# is value_or_null & float64
+         because it is an unboxed record.
+       But the kind of r# must be a subkind of value & float64
+         because of the definition of t at line 1, characters 0-29.
+|}]
+
+type s_bad = q t
+and r = {x:int; y:bool}
+and q = r#
+[%%expect{|
+Line 3, characters 0-10:
+3 | and q = r#
+    ^^^^^^^^^^
+Error:
+       The kind of q is value_or_null & float64
+         because it is an unboxed record.
+       But the kind of q must be a subkind of value & float64
+         because of the definition of t at line 1, characters 0-29.
+|}]
+
+module rec M : sig
+  type t = M2.t
+end = struct
+  type t = M2.t
+end
+and M2 : sig
+  type t = { f : float }
+end = struct
+  type t = { f : float }
+end
+[%%expect{|
+module rec M : sig type t = M2.t end
+and M2 : sig type t = { f : float; } end
+|}]
+
+type bad = M.t#
+[%%expect{|
+Line 1, characters 11-15:
+1 | type bad = M.t#
+               ^^^^
+Error: The type "M.t" has no unboxed version.
+|}]
+
 (********************)
 (* Module inclusion *)
 
@@ -342,6 +515,46 @@ Line 7, characters 13-19:
 Error: The type "int32" has no unboxed version.
 |}]
 
+(*************************)
+(* Module type inclusion *)
+
+module type S = sig
+  type t = { foo : int }
+end
+[%%expect{|
+module type S = sig type t = { foo : int; } end
+|}]
+
+(* Shadowing a boxed record type also shadows the ghost unboxed record type *)
+module type Shadowed = sig
+  include S
+  type t
+end
+[%%expect {|
+module type Shadowed = sig type t end
+|}]
+
+(* ...so we can't reference the derived type... *)
+module M(Shadowed : Shadowed) = struct
+  type t = Shadowed.t#
+end
+[%%expect{|
+Line 2, characters 11-22:
+2 |   type t = Shadowed.t#
+               ^^^^^^^^^^^
+Error: The type "Shadowed.t" has no unboxed version.
+|}]
+
+(* ...or its labels. *)
+module M(Shadowed : Shadowed) = struct
+  let r = #{ foo = 1 }
+end
+[%%expect{|
+Line 2, characters 13-16:
+2 |   let r = #{ foo = 1 }
+                 ^^^
+Error: Unbound unboxed record field "foo"
+|}]
 
 (*************************)
 (* With type constraints *)
@@ -365,6 +578,70 @@ module F(M : S) = struct
 end
 [%%expect{|
 module F : functor (M : S) -> sig val id : float# -> M.N.t# end
+|}]
+
+(******************************************************)
+(* With type constraints for implicit unboxed records *)
+
+module type S = sig
+  type t = { i : int }
+  val dummy : int
+  val f : t# -> t#
+end
+
+type t' = { i : int }
+[%%expect{|
+module type S =
+  sig type t = { i : int; } val dummy : int val f : t# -> t# end
+type t' = { i : int; }
+|}]
+
+module type S' = S with type t = t'
+[%%expect{|
+module type S' =
+  sig type t = t' = { i : int; } val dummy : int val f : t# -> t# end
+|}]
+
+type t = { i : int ; j : int }
+
+
+(* Check that the constraint was added (we can't check this by printing because
+   t# is hidden) *)
+module Check_constraints
+  (M: sig
+        type t = { i : int ; j : int }
+      end with type t = t) =
+struct
+  let f : t -> M.t = fun x -> x
+  let f : t# -> M.t# = fun x -> x
+end
+[%%expect{|
+type t = { i : int; j : int; }
+module Check_constraints :
+  functor (M : sig type t = t = { i : int; j : int; } end) ->
+    sig val f : t# -> M.t# end
+|}]
+
+module type S = sig
+  type t = float
+  type u = t#
+end with type t := float
+[%%expect{|
+module type S = sig type u = float# end
+|}]
+
+(* Make sure that [with type] doesn't remove an existing kind *)
+type orig = { i : int }
+module Config : sig
+  type t = { i : int }
+end with type t = orig = struct
+  type t = orig = { i : int }
+end
+type t = Config.t = { i : int }
+[%%expect{|
+type orig = { i : int; }
+module Config : sig type t = orig = { i : int; } end
+type t = Config.t = { i : int; }
 |}]
 
 (*******************************)
@@ -498,6 +775,53 @@ end
 module type S = sig end
 |}]
 
+(* Implicit unboxed record #-type *)
+
+type t = { i : int ; j : string }
+
+module type S = sig
+  type t_to_replace = { i : int ; j : string }
+
+  type r = t_to_replace
+  type ru = t_to_replace#
+end with type t_to_replace := t
+[%%expect{|
+type t = { i : int; j : string; }
+module type S = sig type r = t type ru = t# end
+|}]
+
+module CheckSubsted(M : S) = struct
+  let f : t -> M.r = fun x -> x
+  let f : t# -> M.ru = fun x -> x
+end
+[%%expect{|
+module CheckSubsted : functor (M : S) -> sig val f : t# -> M.ru end
+|}]
+
+module Bad(M : S) = struct
+  type bad = t_to_replace#
+end
+[%%expect{|
+Line 2, characters 13-26:
+2 |   type bad = t_to_replace#
+                 ^^^^^^^^^^^^^
+Error: Unbound type constructor "t_to_replace"
+|}]
+
+(* Make sure the variance is recomputed for unboxed versions for with
+   constraints. *)
+module M = struct
+  type 'a t = private { f : 'a -> int }
+end
+
+type 'a t = 'a M.t = private { f : 'a -> int }
+module type S = module type of M with type 'a t := 'a t
+[%%expect{|
+module M : sig type 'a t = private { f : 'a -> int; } end
+type 'a t = 'a M.t = private { f : 'a -> int; }
+module type S = sig end
+|}]
+
 (****************************)
 (* Module type substitution *)
 
@@ -515,6 +839,23 @@ end
 [%%expect{|
 module type S = sig module type x = sig type t = float end module M : x end
 module F : functor (M : S) -> sig val id : M.M.t# -> float# end
+|}]
+
+(* Unboxed record *)
+type r = { i : int ; j : int }
+module type S = sig
+  module type x
+  module M:x
+end
+with module type x := sig type t = r end
+module F (M : S) = struct
+  let id : M.M.t# -> r# = fun x -> x
+  type u : immediate & immediate = M.M.t#
+end
+[%%expect{|
+type r = { i : int; j : int; }
+module type S = sig module M : sig type t = r end end
+module F : functor (M : S) -> sig val id : M.M.t# -> r# type u = M.M.t# end
 |}]
 
 (* No unboxed version *)
@@ -590,6 +931,24 @@ module F :
       val id : M.t# -> float#
       type u = M.t#
     end
+|}]
+
+(* Unboxed record *)
+module type S = sig type t end
+type r = { i : int; j : int }
+type m = (module S with type t = r)
+module F (X : sig val x : m end) = struct
+  module M = (val X.x)
+  let id : M.t# -> r# = fun x -> x
+  type u : immediate & immediate = M.t#
+end
+[%%expect{|
+module type S = sig type t end
+type r = { i : int; j : int; }
+type m = (module S with type t = r)
+module F :
+  functor (X : sig val x : m end) ->
+    sig module M : sig type t = r end val id : M.t# -> r# type u = M.t# end
 |}]
 
 (* No unboxed version *)
@@ -838,4 +1197,61 @@ module M = F(FloatId)
 [%%expect{|
 module F : functor (M : sig type t = float end) -> sig type s = M.t end
 module M : sig type s = FloatId.t end
+|}]
+
+(*********************************************)
+(* Separability approximation for hash types *)
+
+(* We are conservative when computing the separability of aliases of unboxed
+   versions. This should be fixed when unboxed versions of types are represented
+   as an operator on types.
+
+   This isn't actually too conservative, though: inaccuracy requires a
+   singleton record containing one of multiple type parameters. We only
+   erroneously reject the last example here.
+*)
+
+type 'a t = int32
+type packed = P : 'a t# -> packed [@@unboxed]
+[%%expect{|
+type 'a t = int32
+type packed = P : 'a t# -> packed [@@unboxed]
+|}]
+
+type ('a, 'b) t = { a : 'a; b : 'b }
+type ('a, 'b) s = ('a, 'b) t
+type packed = T : ('a, 'b) s# -> packed [@@unboxed]
+[%%expect{|
+type ('a, 'b) t = { a : 'a; b : 'b; }
+type ('a, 'b) s = ('a, 'b) t
+type packed = T : ('a, 'b) s# -> packed [@@unboxed]
+|}]
+
+(* This one is rejected, but it should be *)
+type 'a t = { i : 'a }
+and bad = P : 'a t# -> bad [@@unboxed]
+[%%expect{|
+Line 2, characters 0-38:
+2 | and bad = P : 'a t# -> bad [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This type cannot be unboxed because
+       it might contain both float and non-float values,
+       depending on the instantiation of the existential variable "'a".
+       You should annotate it with "[@@ocaml.boxed]".
+|}]
+
+(* CR layouts 7.2: accept the following program. *)
+type ('a, 'b) t = { a : 'a }
+type ('a, 'b) s = ('a, 'b) t
+type packed = T : (int, 'b) s# -> packed [@@unboxed]
+[%%expect{|
+type ('a, 'b) t = { a : 'a; }
+type ('a, 'b) s = ('a, 'b) t
+Line 3, characters 0-52:
+3 | type packed = T : (int, 'b) s# -> packed [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This type cannot be unboxed because
+       it might contain both float and non-float values,
+       depending on the instantiation of the existential variable "'b".
+       You should annotate it with "[@@ocaml.boxed]".
 |}]
