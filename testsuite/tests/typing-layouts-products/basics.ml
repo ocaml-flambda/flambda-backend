@@ -1101,11 +1101,11 @@ Error: This value escapes its region.
 (****************************************************)
 (* Test 8: modal kinds for product kind annotations *)
 
-type t : float64 & float64
+type t : float64 & float64 mod global
 let f_external_kind_annot_mode_crosses_local_1
   : local_ t -> t = fun x -> x
 [%%expect{|
-type t : float64 & float64
+type t : float64 mod global & float64 mod global
 val f_external_kind_annot_mode_crosses_local_1 : local_ t -> t = <fun>
 |}]
 
@@ -1120,11 +1120,11 @@ Line 3, characters 29-30:
 Error: This value escapes its region.
 |}]
 
-type t : immediate & (float64 & immediate)
+type t : immediate & ((float64 mod global) & immediate)
 let f_external_kind_annot_mode_crosses_local_2
   : local_ t -> t = fun x -> x
 [%%expect{|
-type t : immediate & (float64 & immediate)
+type t : value mod global & (float64 mod global & value mod global)
 val f_external_kind_annot_mode_crosses_local_2 : local_ t -> t = <fun>
 |}]
 

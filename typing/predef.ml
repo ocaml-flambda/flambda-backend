@@ -455,10 +455,14 @@ let build_initial_env add_type add_extension empty_env =
          add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr:type_int |>
          add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr:type_string)
   |> add_type ident_string ~jkind:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_float ~jkind:Jkind.Const.Builtin.float64
-  |> add_type ident_unboxed_nativeint ~jkind:Jkind.Const.Builtin.word
-  |> add_type ident_unboxed_int32 ~jkind:Jkind.Const.Builtin.bits32
-  |> add_type ident_unboxed_int64 ~jkind:Jkind.Const.Builtin.bits64
+  |> add_type ident_unboxed_float
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_float
+  |> add_type ident_unboxed_nativeint
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_nativeint
+  |> add_type ident_unboxed_int32
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_int32
+  |> add_type ident_unboxed_int64
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_int64
   |> add_type ident_bytes ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []])
@@ -495,18 +499,25 @@ let add_simd_stable_extension_types add_type env =
   |> add_type ident_int64x2 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_float32x4 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_float64x2 ~jkind:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_int8x16 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int16x8 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int32x4 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int64x2 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_float32x4 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_float64x2 ~jkind:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_int8x16
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
+  |> add_type ident_unboxed_int16x8
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
+  |> add_type ident_unboxed_int32x4
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
+  |> add_type ident_unboxed_int64x2
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
+  |> add_type ident_unboxed_float32x4
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
+  |> add_type ident_unboxed_float64x2
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
 
 let add_small_number_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_float32 ~jkind:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_float32 ~jkind:Jkind.Const.Builtin.float32
+  |> add_type ident_unboxed_float32
+       ~jkind:Jkind.Const.Builtin.kind_of_unboxed_float32
 
 let add_small_number_beta_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
