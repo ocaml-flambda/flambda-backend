@@ -449,9 +449,19 @@ external f_4 : string -> (nativeint''#[@unboxed])  = "foo" "bar";;
 external f_4 : string -> (nativeint''# [@unboxed]) = "foo" "bar"
 |}];;
 
+external f_4b : string -> (int nativeint'#[@unboxed])  = "foo" "bar";;
+[%%expect{|
+external f_4b : string -> (int nativeint'# [@unboxed]) = "foo" "bar"
+|}];;
+
 external f_5 : int64 -> string int64'#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
 external f_5 : int64 -> string int64'# = "foo" "bar" [@@unboxed]
+|}];;
+
+external f_5b : int64 -> (string int64'# [@unboxed])  = "foo" "bar";;
+[%%expect{|
+external f_5b : int64 -> (string int64'# [@unboxed]) = "foo" "bar"
 |}];;
 
 external f_6 : (int32'[@untagged]) -> bool -> string  = "foo" "bar";;

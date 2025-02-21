@@ -74,6 +74,23 @@ Line 2, characters 11-17:
 Error: "float" has no unboxed version.
 |}]
 
+(* Restore float *)
+type float = unit ff
+[%%expect{|
+type float = unit ff
+|}]
+
+(* Same as previous test, except the type doing the shadowing has a manifest *)
+type float = string
+type bad = float#
+[%%expect{|
+type float = string
+Line 2, characters 11-17:
+2 | type bad = float#
+               ^^^^^^
+Error: "float" has no unboxed version.
+|}]
+
 type bad = non_existent#
 [%%expect{|
 Line 1, characters 11-24:
@@ -88,6 +105,44 @@ type float = unit ff
 type float = unit ff
 |}]
 
+(* Hash versions are propagated through constraints *)
+
+type 'a t  = 'a constraint 'a = float
+type fh = float t#
+[%%expect{|
+type 'a t = 'a constraint 'a = float
+type fh = float t#
+|}]
+
+type bad = int t#
+[%%expect{|
+Line 1, characters 11-14:
+1 | type bad = int t#
+               ^^^
+Error: This type "int" should be an instance of type "float/1" = "float/2"
+|}]
+
+type 'a t = float as 'a
+type fh = float t#
+[%%expect{|
+type 'a t = 'a constraint 'a = float
+type fh = float t#
+|}, Principal{|
+type 'a t = float constraint 'a = float
+type fh = float t#
+|}]
+
+(* Unboxed versions are even propagated through type equations *)
+type 'a rep = Float : float rep
+let f (type a) (x : a rep) =
+    match x with
+    | Float ->
+      let module M = struct type t = a# end in 0;;
+[%%expect{|
+type 'a rep = Float : float rep
+val f : 'a rep -> int = <fun>
+|}]
+
 (*******************)
 (* Type parameters *)
 
@@ -96,12 +151,14 @@ and itu = int t#
 and stu = string t#
 and it = int t
 and st = string t
+and ith = it#
 [%%expect{|
 type 'a t = float
 and itu = int t#
 and stu = string t#
 and it = int t
 and st = string t
+and ith = it#
 |}]
 
 
@@ -354,7 +411,7 @@ Error: The layout of type "float#" is float64
          because of the definition of t at line 2, characters 2-8.
 |}]
 
-(* Can't substitute a type for its unboxed version *)
+(* Can't substitute an unboxed version for a different unboxed version *)
 module type Bad = sig
   type t = int32#
 end with type t := float#
@@ -376,7 +433,7 @@ Error: In this "with" constraint, the new definition of "t"
          Definition of type "float/2"
 |}]
 
-(* Can't substitute an unboxed version for a different unboxed version *)
+(* Can't substitute an unboxed version for a nonexistent unboxed version *)
 module type Bad = sig
   type t = float#
 end with type t := int#
@@ -385,6 +442,48 @@ Line 3, characters 19-23:
 3 | end with type t := int#
                        ^^^^
 Error: "int" has no unboxed version.
+|}]
+
+(* Test subst when a decl's type_unboxed_version over-approximately [None]
+   (regression test for the initial implementation of [Subst] *)
+module type S = sig
+  type t = float
+  type s = t#
+end
+type 'a t = 'b constraint 'a = < m : 'b >
+module type T = S with type t := < m : float > t
+[%%expect{|
+module type S = sig type t = float type s = t# end
+type 'a t = 'b constraint 'a = < m : 'b >
+module type T = sig type s = < m : float > t# end
+|}]
+
+(* Standalone destructive substitution *)
+
+module type S = sig
+  type t := float
+  type s = t#
+end
+[%%expect{|
+module type S = sig type s = float# end
+|}]
+
+module type S = sig
+  type 'a t = float
+  type s := int t
+  type u = s#
+end
+[%%expect{|
+module type S = sig type 'a t = float type u = int t# end
+|}]
+
+module type S = sig
+  type t := float
+  type s := t#
+  type u = s
+end
+[%%expect{|
+module type S = sig type u = float# end
 |}]
 
 (****************************)

@@ -31,8 +31,16 @@ let unboxed_version t =
   | Pident _ | Pdot _ | Papply _
   | Pextra_ty (_, (Pcstr_ty _ | Pext_ty)) ->
     Pextra_ty (t, Punboxed_ty)
-  | Pextra_ty (_ ,Punboxed_ty) ->
+  | Pextra_ty (_, Punboxed_ty) ->
     Misc.fatal_error "Path.unboxed_version"
+
+let is_unboxed_version t =
+  match t with
+  | Pident _ | Pdot _ | Papply _
+  | Pextra_ty (_, (Pcstr_ty _ | Pext_ty)) ->
+    false
+  | Pextra_ty (_, Punboxed_ty) ->
+    true
 
 let rec same p1 p2 =
   p1 == p2
@@ -122,7 +130,8 @@ let rec name ?(paren=kfalse) = function
     match p with
     | Pident id -> Ident.name id ^ "#"
     | Pdot (p, s) -> name ~paren (Pdot (p, s ^ "#"))
-    | Papply _ | Pextra_ty _ -> assert false
+    | Papply _ | Pextra_ty _ ->
+      Misc.fatal_error "Path.name"
 
 let rec print ppf = function
   | Pident id -> Ident.print_with_scope ppf id
@@ -134,7 +143,8 @@ let rec print ppf = function
     match p with
     | Pident id -> Format.fprintf ppf "%a#" Ident.print_with_scope id
     | Pdot (p, s) -> print ppf (Pdot (p, s ^ "#"))
-    | Papply _ | Pextra_ty _ -> assert false
+    | Papply _ | Pextra_ty _ ->
+      Misc.fatal_error "Path.print"
 
 let rec head = function
     Pident id -> id
