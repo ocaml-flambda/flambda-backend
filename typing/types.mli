@@ -704,8 +704,13 @@ type type_declaration =
        1. if [type_kind] is a boxed record, then [type_unboxed_version] is
           accurate.
        2. there are no "twice-unboxed" types: the [type_declaration] stored here
-          itself has [type_unboxed_version = None]. *)
-    type_is_unboxed_version : bool;
+          itself has [type_unboxed_version = None].
+       3. if the unboxed version is a [Tconstr], then so is the boxed version,
+          and the path of the unboxed version is
+          [Path.unboxed_version <path of boxed version>
+       4. likewise, the Uid of the unboxed version is
+          [Uid.unboxed_version <uid of boxed version>]
+    *)
   }
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind

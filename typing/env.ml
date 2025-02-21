@@ -1453,9 +1453,8 @@ and find_type_unboxed_version_data path env seen =
           type_loc = decl.type_loc;
           type_attributes = [];
           type_unboxed_default = false;
-          type_uid = decl.type_uid;
+          type_uid = Uid.unboxed_version decl.type_uid;
           type_unboxed_version = None;
-          type_is_unboxed_version = true;
         }
   in
   let descrs =
@@ -2935,7 +2934,13 @@ let mark_value_used uid =
   | mark -> mark ()
   | exception Not_found -> ()
 
-let mark_type_used uid =
+let mark_type_used (uid : Uid.t) =
+  let uid =
+    (* Using the unboxed version of a type counts as using the boxed version *)
+    match uid with
+    | Unboxed_version uid -> uid
+    | _ -> uid
+  in
   match Types.Uid.Tbl.find !type_declarations uid with
   | mark -> mark ()
   | exception Not_found -> ()

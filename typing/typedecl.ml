@@ -326,9 +326,8 @@ in
       type_loc = sdecl.ptype_loc;
       type_attributes = [];
       type_unboxed_default = false;
-      type_uid = uid;
+      type_uid = Uid.unboxed_version uid;
       type_unboxed_version = None;
-      type_is_unboxed_version = true;
     }
   in
   let decl =
@@ -347,7 +346,6 @@ in
       type_unboxed_default = false;
       type_uid = uid;
       type_unboxed_version;
-      type_is_unboxed_version = false;
     }
   in
   add_type ~check:true id decl env
@@ -1065,7 +1063,6 @@ let transl_declaration env sdecl (id, uid) =
         type_unboxed_version = None;
         (* Unboxed versions are computed after all declarations have been
            translated, in [update_unboxed_versions] *)
-        type_is_unboxed_version = false;
       } in
   (* Check constraints *)
     List.iter
@@ -1193,9 +1190,8 @@ let derive_unboxed_version find_type decl =
       type_loc = decl.type_loc;
       type_attributes = [];
       type_unboxed_default = false;
-      type_uid = decl.type_uid;
+      type_uid = Uid.unboxed_version decl.type_uid;
       type_unboxed_version = None;
-      type_is_unboxed_version = true;
     }
 
 (* Note [Typechecking unboxed versions of types]
@@ -4003,12 +3999,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
           type_loc = loc;
           type_attributes = [];
           type_unboxed_default = false;
-          type_uid;
-          (* The unboxed version has the same uid as the boxed version for
-              "unused type" warnings - using the unboxed version should count
-              as using the boxed version. *)
+          type_uid = Uid.unboxed_version type_uid;
           type_unboxed_version = None;
-          type_is_unboxed_version = true;
         }
       | { type_unboxed_version = None ; _ } ->
         None
@@ -4042,7 +4034,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_unboxed_default;
       type_uid;
       type_unboxed_version;
-      type_is_unboxed_version = false;
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -4080,7 +4071,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_loc = new_sig_decl.type_loc;
       type_attributes = new_sig_decl.type_attributes;
       type_uid = new_sig_decl.type_uid;
-      type_is_unboxed_version = new_sig_decl.type_is_unboxed_version;
 
       (* For every recomputed field added below, consider if we also must
          recompute it for the unboxed version. *)
@@ -4148,7 +4138,6 @@ let transl_package_constraint ~loc ty =
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     type_unboxed_version = None;
-    type_is_unboxed_version = false;
   }
 
 (* Approximate a type declaration: just make all types abstract *)
@@ -4188,9 +4177,7 @@ let abstract_type_decl ~injective ~jkind ~params =
           type_unboxed_default = false;
           type_uid = Uid.internal_not_actually_unique;
           type_unboxed_version = None;
-          type_is_unboxed_version = true;
         };
-      type_is_unboxed_version = false;
     }
   end
 
