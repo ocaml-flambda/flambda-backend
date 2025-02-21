@@ -76,8 +76,8 @@ let rec blambda ppf = function
   | Var id -> Ident.print ppf id
   | Const cst -> Printlambda.structured_constant ppf cst
   | Apply { func; args; tailcall = t } ->
-    fprintf ppf "@[<2>(Apply %a@ %a %a)@]" tailcall t blambda func
-      (pp_print_list ~pp_sep:pp_print_space (fun ppf arg -> blambda ppf arg))
+    fprintf ppf "@[<2>(apply %a@ %a %a)@]" tailcall t blambda func
+      (pp_print_list ~pp_sep:pp_print_space blambda)
       args
   | Assign (id, expr) ->
     fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id blambda expr

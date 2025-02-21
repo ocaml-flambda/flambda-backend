@@ -112,34 +112,35 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
      *         }
      *   } *)
   | Lfor { for_id; for_from; for_to; for_dir; for_body } ->
-    let for_bound = Ident.create_local "for_to" in
     let (start_cond : Lambda.integer_comparison), increment =
       match for_dir with Upto -> L.Clt, 1 | Downto -> L.Cgt, -1
+    in
+    let bind name arg f =
+      match comp_arg arg with
+      (* | Const _ as const -> f const *)
+      | arg ->
+        let id = Ident.create_local name in
+        Let { id; arg; body = f (Var id) }
     in
     Let
       { id = for_id;
         arg = comp_arg for_from;
         body =
-          Let
-            { id = for_bound;
-              arg = comp_arg for_to;
-              body =
-                Ifthenelse
-                  { cond = Prim (Intcomp start_cond, [Var for_id; Var for_bound]);
-                    ifnot = Const (Const_base (Const_int 0));
-                    ifso =
-                      While
-                        { cond =
-                            Sequence
-                              ( comp_arg for_body,
-                                Prim (Intcomp Cne, [Var for_id; Var for_bound])
-                              );
-                          body =
-                            Assign
-                              (for_id, Prim (Offsetint increment, [Var for_id]))
-                        }
-                  }
-            }
+          bind "for_to" for_to (fun for_to ->
+              Ifthenelse
+                { cond = Prim (Intcomp start_cond, [Var for_id; for_to]);
+                  ifnot = Const (Const_base (Const_int 0));
+                  ifso =
+                    While
+                      { cond =
+                          Sequence
+                            ( comp_arg for_body,
+                              Prim (Intcomp Cne, [Var for_id; for_to]) );
+                        body =
+                          Assign
+                            (for_id, Prim (Offsetint increment, [Var for_id]))
+                      }
+                })
       }
   | Lswitch
       ( arg,
@@ -460,7 +461,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Paddfloat (Boxed_float64, _) -> binary (Ccall "caml_add_float")
     | Psubfloat (Boxed_float64, _) -> binary (Ccall "caml_sub_float")
     | Pmulfloat (Boxed_float64, _) -> binary (Ccall "caml_mul_float")
-    | Pdivfloat (Boxed_float64, _) -> binary (Ccall "caml_mul_float")
+    | Pdivfloat (Boxed_float64, _) -> binary (Ccall "caml_div_float")
     | Pintoffloat Boxed_float32 -> unary (Ccall "caml_int_of_float32")
     | Pfloatofint (Boxed_float32, _) -> unary (Ccall "caml_float32_of_int")
     | Pnegfloat (Boxed_float32, _) -> unary (Ccall "caml_neg_float32")

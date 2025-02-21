@@ -317,8 +317,12 @@ let check_stack t stack_info =
   let sz = stack_info.frame.size in
   if sz <= t.max_stack_used then t else { t with max_stack_used = sz }
 
-let push stack n =
+let push_exact stack n =
   { stack with frame = { stack.frame with size = stack.frame.size + n } }
+
+let push_args stack n =
+  (* the first argument is passed in the accumulator *)
+  if n <= 1 then stack else push_exact stack (n - 1)
 
 let[@inline always] ( @> ) instr t = { t with cont = instr :: t.cont }
 
@@ -431,29 +435,35 @@ and comp_expr stack exp t =
         | Free_variable pos -> Kenvacc (pos - env_pos) @> t
         | Function pos -> Koffsetclosure (pos - env_pos) @> t
         | exception Not_found -> not_found ())))
-  | Const cst ->
-    if is_boot_compiler ()
-    then translate_float32s_or_nulls stack cst t
-    else Kconst cst @> t
+  | Const cst -> (
+    (* avoid loading a constant if the accumulator will obviously be immediately
+       overwritten *)
+    match t.cont with
+    | (Kacc _ | Kconst _ | Kgetglobal _ | Kpush_retaddr _) :: _ -> t
+    | _ ->
+      if is_boot_compiler ()
+      then translate_float32s_or_nulls stack cst t
+      else Kconst cst @> t)
   | Apply { func; args; tailcall } -> (
     let nargs = List.length args in
     match tailcall with
     | Tailcall ->
       comp_args stack args
         (Kpush
-        @> comp_expr (push stack nargs) func
+        @> comp_expr (push_args stack nargs) func
              (Kappterm (nargs, sz + nargs) @> discard_dead_code t))
     | Nontail ->
       if nargs < 4
       then
         comp_args stack args
-          (Kpush @> comp_expr (push stack nargs) func (Kapply nargs @> t))
+          (Kpush @> comp_expr (push_exact stack nargs) func (Kapply nargs @> t))
       else
         let lbl, t = label_code t in
-        let stack = push stack 3 in
+        let stack = push_exact stack 3 in
         Kpush_retaddr lbl
         @> comp_args stack args
-             (Kpush @> comp_expr (push stack nargs) func (Kapply nargs @> t)))
+             (Kpush
+             @> comp_expr (push_exact stack nargs) func (Kapply nargs @> t)))
   | Send { self; met; obj_and_args; tailcall } -> (
     let nargs = List.length obj_and_args in
     let getmethod, args =
@@ -474,7 +484,7 @@ and comp_expr stack exp t =
       else
         let lbl, t = label_code t in
         Kpush_retaddr lbl
-        @> comp_args (push stack 3) args (getmethod @> Kapply nargs @> t))
+        @> comp_args (push_exact stack 3) args (getmethod @> Kapply nargs @> t))
   | Function { params; body; loc; free_variables } ->
     let fv = Ident.Set.elements free_variables in
     (* assume kind = Curried *)
@@ -537,7 +547,7 @@ and comp_expr stack exp t =
       comp_expr stack exp1 (Kstrictbranchif lbl @> comp_expr stack exp2 t))
   | Pseudo_event (exp, loc) -> comp_expr stack exp (add_pseudo_event loc t)
   | Context_switch (Perform, (Tailcall | Nontail), args) ->
-    let t = check_stack t (push stack 4) in
+    let t = check_stack t (push_exact stack 4) in
     comp_args stack args (Kresume @> t)
   | Context_switch (Resume, tailcall, args) -> (
     let nargs = List.length args - 1 in
@@ -574,7 +584,6 @@ and comp_expr stack exp t =
     | Nontail -> Misc.fatal_error "Reperform used in non-tail position"
     | Tailcall ->
       comp_args stack args (Kreperformterm (sz + nargs) @> discard_dead_code t))
-  (* Integer first for enabling further optimization (cf. emitcode.ml)  *)
   | Prim (p, args) ->
     let nargs = List.length args in
     comp_args stack args (comp_primitive (push stack (nargs - 1)) p nargs t)
@@ -611,11 +620,10 @@ and comp_expr stack exp t =
           add_pop (src.size - size - 4) (Kpoptrap @> unwind { size; try_blocks })
     in
     let t = unwind stack.frame in
-    let stack = { stack with frame = dst.frame } in
     match args with
     (* optimization, argument passed in accumulator *)
     | [arg] -> comp_expr stack arg t
-    | _ -> comp_exit_args stack args dst.frame.size t)
+    | args -> comp_exit_args stack args dst.frame.size t)
   | Trywith { body; param; handler } ->
     let skip_handler, t = make_branch t in
     let t = Kpush @> comp_expr (add_var param stack) handler (add_pop 1 t) in
@@ -794,7 +802,7 @@ let rec comp_functions t =
 let compile_gen ?(modulename = Compilation_unit.dummy) ~init_stack expr =
   let t =
     { compunit_name = modulename;
-      next_label = 0;
+      next_label = 1;
       functions_to_compile = [];
       max_stack_used = 0;
       cont = []
