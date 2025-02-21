@@ -1231,15 +1231,31 @@ module Const = struct
         name = "any"
       }
 
+    let any_mod_everything =
+      { jkind = mk_jkind Any ~mode_crossing:true ~nullability:Maybe_null;
+        name = "any mod everything"
+      }
+
     let any_non_null =
       { jkind = mk_jkind Any ~mode_crossing:false ~nullability:Non_null;
         name = "any_non_null"
+      }
+
+    let any_non_null_mod_everything =
+      { jkind = mk_jkind Any ~mode_crossing:true ~nullability:Non_null;
+        name = "any_non_null mod everything"
       }
 
     let value_or_null =
       { jkind =
           mk_jkind (Base Value) ~mode_crossing:false ~nullability:Maybe_null;
         name = "value_or_null"
+      }
+
+    let value_or_null_mod_everything =
+      { jkind =
+          mk_jkind (Base Value) ~mode_crossing:true ~nullability:Maybe_null;
+        name = "value_or_null mod everything"
       }
 
     let value =
@@ -1415,8 +1431,11 @@ module Const = struct
 
     let all =
       [ any;
+        any_mod_everything;
         any_non_null;
+        any_non_null_mod_everything;
         value_or_null;
+        value_or_null_mod_everything;
         value;
         immutable_data;
         mutable_data;

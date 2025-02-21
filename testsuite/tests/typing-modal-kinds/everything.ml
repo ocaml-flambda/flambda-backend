@@ -285,3 +285,20 @@ Line 1, characters 22-32:
                           ^^^^^^^^^^
 Error: Unrecognized modality everything.
 |}]
+
+(* Printing *)
+type t : immediate & immediate
+[%%expect{|
+type t : immediate & immediate
+|}]
+
+type t : value & float64 mod everything
+[%%expect{|
+type t : immediate & float64 mod everything
+|}]
+
+type t : value & (immediate & bits64) & float32 mod everything
+[%%expect{|
+type t
+  : immediate & (immediate & bits64 mod everything) & float32 mod everything
+|}]
