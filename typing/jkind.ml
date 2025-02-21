@@ -701,6 +701,225 @@ module Layout_and_axes = struct
       format_layout layout Mod_bounds.debug_print mod_bounds
       (With_bounds.debug_print ~print_type_expr)
       with_bounds
+
+  type 'd normalize_mode =
+    | Require_best : ('l * disallowed) normalize_mode
+    | Ignore_best : ('l * 'r) normalize_mode
+
+  module Fuel_status = struct
+    type t =
+      | Ran_out_of_fuel
+      | Sufficient_fuel
+
+    let both a b =
+      match a, b with
+      | Ran_out_of_fuel, _ | _, Ran_out_of_fuel -> Ran_out_of_fuel
+      | Sufficient_fuel, Sufficient_fuel -> Sufficient_fuel
+  end
+
+  (* Normalize the jkind. If mode is Require_best, only jkinds that are best will be used.
+     If mode is Ignore_best, then Not_best will be used. Since Ignore_best can use
+     Not_best, the result is guaranteed to have no with-bounds.
+
+     At each step during normalization, before expanding a type, [map_type_info] is used
+     to map the type-info for the type being expanded. The type can be prevented from
+     being expanded by mapping the relevant axes to an empty set. [map_type_info] is used
+     by sub_jkind_l to remove irrelevant axes. *)
+  let normalize (type l1 r1 l2 r2) ~jkind_of_type
+      ~(mode : (l2 * r2) normalize_mode)
+      ?(map_type_info :
+         (type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
+         option) (t : (l1 * r1) jkind_desc) :
+      (l2 * r2) jkind_desc * Fuel_status.t =
+    (* Sadly, it seems hard (impossible?) to be sure to expand all types
+       here without using a fuel parameter to stop infinite regress. Here
+       is a nasty case:
+
+       {[
+         type zero
+         type 'n succ
+
+         type 'n loopy = Mk of 'n succ loopy list [@@unboxed]
+       ]}
+
+       First off: this type *is* inhabited, because of the [list] intervening
+       type (which can be empty). It's also inhabited by various circular
+       structures.
+
+       But what's the jkind of ['n loopy]? It must be the jkind of
+       ['n succ loopy list], which is [immutable_data with 'n succ loopy].
+       In order to see if we shouldn't mode-cross, we have to expand the
+       ['n succ loopy] in the jkind, but expanding that just yields the need
+       to expand ['n succ succ loopy], and around we go.
+
+       It seems hard to avoid this problem. And so we use fuel. Yet we want
+       both a small amount of fuel (a type like [type t = K of (t * t) list]
+       gets big very quickly) and a lot of fuel (we can imagine using a unit
+       of fuel for each level of a deeply nested record structure). The
+       compromise is to track fuel per type head, where a type head is either
+       the path to a type constructor (like [t] or [loopy]) or a tuple.
+       (We need to include tuples because of the possibility of recursive
+       types and the fact that tuples track their element types in their
+       jkind's with_bounds.)
+
+       The initial fuel per type head is 10, as it seems hard to imagine that
+       we're going to make meaningful progress if we've seen the same type
+       head 10 times in one line of recursive descent. (This "one line of
+       recursive descent" bit is why we recur separately down one type before
+       iterating down the list.)
+    *)
+    (* CR reisenberg: document seen_args *)
+    let module Loop_control = struct
+      type t =
+        { tuple_fuel : int;
+          constr : (int * type_expr list) Path.Map.t;
+          fuel_status : Fuel_status.t
+        }
+
+      type result =
+        | Stop of t (* give up, returning [max] *)
+        | Skip (* skip reducing this type, but otherwise continue *)
+        | Continue of t (* continue, with a new [t] *)
+
+      let initial_fuel_per_ty = 2
+
+      let starting =
+        { tuple_fuel = initial_fuel_per_ty;
+          constr = Path.Map.empty;
+          fuel_status = Sufficient_fuel
+        }
+
+      let rec check ({ tuple_fuel; constr; fuel_status = _ } as t) ty =
+        match Types.get_desc ty with
+        | Tpoly (ty, _) -> check t ty
+        | Ttuple _ ->
+          if tuple_fuel > 0
+          then Continue { t with tuple_fuel = tuple_fuel - 1 }
+          else Stop { t with fuel_status = Ran_out_of_fuel }
+        | Tconstr (p, args, _) -> (
+          match Path.Map.find_opt p constr with
+          | None ->
+            Continue
+              { t with
+                constr = Path.Map.add p (initial_fuel_per_ty, args) constr
+              }
+          | Some (fuel, seen_args) ->
+            if List.for_all2
+                 (fun ty1 ty2 ->
+                   TransientTypeOps.equal (Transient_expr.repr ty1)
+                     (Transient_expr.repr ty2))
+                 seen_args args
+            then Skip
+            else if fuel > 0
+            then
+              Continue
+                { t with constr = Path.Map.add p (fuel - 1, args) constr }
+            else Stop { t with fuel_status = Ran_out_of_fuel })
+        | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
+        | Tvariant _ | Tunivar _ | Tpackage _ ->
+          (* these cases either cannot be infinitely recursive or their jkinds
+             do not have with_bounds *)
+          (* CR layouts v2.8: Some of these might get with-bounds someday. We
+             should double-check before we're done that they haven't. *)
+          Continue t
+        | Tlink _ | Tsubst _ -> Misc.fatal_error "Tlink or Tsubst in normalize"
+    end in
+    let rec loop (ctl : Loop_control.t) bounds_so_far :
+        (type_expr * With_bounds_type_info.t) list ->
+        Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t = function
+      (* early cutoff *)
+      | _
+        when Sub_result.is_le
+               (Mod_bounds.less_or_equal Mod_bounds.max bounds_so_far) ->
+        (* CR layouts v2.8: we can do better by early-terminating on a per-axis basis *)
+        bounds_so_far, No_with_bounds, Sufficient_fuel
+      | [] -> bounds_so_far, No_with_bounds, ctl.fuel_status
+      | (ty, ti) :: bs -> (
+        (* Map the type's info before expanding the type *)
+        let ti =
+          match map_type_info with
+          | None -> ti
+          | Some map_type_info -> map_type_info ty ti
+        in
+        (* We don't care about axes that are already max because they can't get any
+           better or worse. By ignoring them, we may be able to terminate early *)
+        let ti : With_bounds_type_info.t =
+          { relevant_axes =
+              Axis_set.diff ti.relevant_axes
+                (Mod_bounds.get_max_axes bounds_so_far)
+          }
+        in
+        match Axis_set.is_empty ti.relevant_axes with
+        | true ->
+          (* If [ty] is not relevant to any axes, then we can safely drop it and thereby
+             avoid doing the work of expanding it. *)
+          loop ctl bounds_so_far bs
+        | false -> (
+          let join_bounds b1 b2 ~relevant_axes =
+            Mod_bounds.Map2.f
+              { f =
+                  (fun (type a) ~(axis : a Axis.t) b1 b2 ->
+                    if Axis_set.mem relevant_axes axis
+                    then
+                      let (module Bound_ops) = Axis.get axis in
+                      Bound_ops.join b1 b2
+                    else b1)
+              }
+              b1 b2
+          in
+          let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
+              Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t =
+            match quality, mode with
+            | Best, _ | Not_best, Ignore_best ->
+              let bounds_so_far =
+                join_bounds bounds_so_far b_upper_bounds
+                  ~relevant_axes:ti.relevant_axes
+              in
+              (* Descend into the with-bounds of each of our with-bounds types'
+                  with-bounds *)
+              let bounds_so_far, nested_with_bounds, fuel_result1 =
+                loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
+              in
+              (* CR layouts v2.8: we use [new_ctl] here, not [ctl], to avoid big quadratic
+                 stack growth for very widely recursive types. This is sad, since it
+                 prevents us from mode crossing a record with 20 lists with different
+                 payloads, but less sad than a stack overflow of the compiler during type
+                 declaration checking.
+
+                 Ideally, this whole problem goes away once we rethink fuel.
+              *)
+              let bounds, bs', fuel_result2 = loop new_ctl bounds_so_far bs in
+              ( bounds,
+                With_bounds.join nested_with_bounds bs',
+                Fuel_status.both fuel_result1 fuel_result2 )
+            | Not_best, Require_best ->
+              let bounds_so_far, bs', fuel_result =
+                loop new_ctl bounds_so_far bs
+              in
+              bounds_so_far, With_bounds.add ty ti bs', fuel_result
+          in
+          match Loop_control.check ctl ty with
+          | Stop ctl_after_stop ->
+            (* out of fuel, so assume [ty] has the worst possible bounds. *)
+            found_jkind_for_ty ctl_after_stop Mod_bounds.max No_with_bounds
+              Not_best
+          | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
+          | Continue ctl_after_unpacking_b -> (
+            match jkind_of_type ty with
+            | Some b_jkind ->
+              found_jkind_for_ty ctl_after_unpacking_b b_jkind.jkind.mod_bounds
+                b_jkind.jkind.with_bounds b_jkind.quality
+            | None ->
+              (* kind of b is not principally known, so we treat it as having the max
+                 bound (only along the axes we care about for this type!) *)
+              found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
+                No_with_bounds Not_best)))
+    in
+    let mod_bounds, with_bounds, fuel_status =
+      loop Loop_control.starting t.mod_bounds
+        (With_bounds.to_list t.with_bounds)
+    in
+    { t with mod_bounds; with_bounds }, fuel_status
 end
 
 (*********************************)
@@ -1388,225 +1607,6 @@ module Jkind_desc = struct
 
   let equate_or_equal ~allow_mutation t1 t2 =
     Layout_and_axes.equal (Layout.equate_or_equal ~allow_mutation) t1 t2
-
-  type 'd normalize_mode =
-    | Require_best : ('l * disallowed) normalize_mode
-    | Ignore_best : ('l * 'r) normalize_mode
-
-  module Fuel_status = struct
-    type t =
-      | Ran_out_of_fuel
-      | Sufficient_fuel
-
-    let both a b =
-      match a, b with
-      | Ran_out_of_fuel, _ | _, Ran_out_of_fuel -> Ran_out_of_fuel
-      | Sufficient_fuel, Sufficient_fuel -> Sufficient_fuel
-  end
-
-  (* Normalize the jkind. If mode is Require_best, only jkinds that are best will be used.
-     If mode is Ignore_best, then Not_best will be used. Since Ignore_best can use
-     Not_best, the result is guaranteed to have no with-bounds.
-
-     At each step during normalization, before expanding a type, [map_type_info] is used
-     to map the type-info for the type being expanded. The type can be prevented from
-     being expanded by mapping the relevant axes to an empty set. [map_type_info] is used
-     by sub_jkind_l to remove irrelevant axes. *)
-  let normalize (type l1 r1 l2 r2) ~jkind_of_type
-      ~(mode : (l2 * r2) normalize_mode)
-      ?(map_type_info :
-         (type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
-         option) (t : (l1 * r1) jkind_desc) :
-      (l2 * r2) jkind_desc * Fuel_status.t =
-    (* Sadly, it seems hard (impossible?) to be sure to expand all types
-       here without using a fuel parameter to stop infinite regress. Here
-       is a nasty case:
-
-       {[
-         type zero
-         type 'n succ
-
-         type 'n loopy = Mk of 'n succ loopy list [@@unboxed]
-       ]}
-
-       First off: this type *is* inhabited, because of the [list] intervening
-       type (which can be empty). It's also inhabited by various circular
-       structures.
-
-       But what's the jkind of ['n loopy]? It must be the jkind of
-       ['n succ loopy list], which is [immutable_data with 'n succ loopy].
-       In order to see if we shouldn't mode-cross, we have to expand the
-       ['n succ loopy] in the jkind, but expanding that just yields the need
-       to expand ['n succ succ loopy], and around we go.
-
-       It seems hard to avoid this problem. And so we use fuel. Yet we want
-       both a small amount of fuel (a type like [type t = K of (t * t) list]
-       gets big very quickly) and a lot of fuel (we can imagine using a unit
-       of fuel for each level of a deeply nested record structure). The
-       compromise is to track fuel per type head, where a type head is either
-       the path to a type constructor (like [t] or [loopy]) or a tuple.
-       (We need to include tuples because of the possibility of recursive
-       types and the fact that tuples track their element types in their
-       jkind's with_bounds.)
-
-       The initial fuel per type head is 10, as it seems hard to imagine that
-       we're going to make meaningful progress if we've seen the same type
-       head 10 times in one line of recursive descent. (This "one line of
-       recursive descent" bit is why we recur separately down one type before
-       iterating down the list.)
-    *)
-    (* CR reisenberg: document seen_args *)
-    let module Loop_control = struct
-      type t =
-        { tuple_fuel : int;
-          constr : (int * type_expr list) Path.Map.t;
-          fuel_status : Fuel_status.t
-        }
-
-      type result =
-        | Stop of t (* give up, returning [max] *)
-        | Skip (* skip reducing this type, but otherwise continue *)
-        | Continue of t (* continue, with a new [t] *)
-
-      let initial_fuel_per_ty = 2
-
-      let starting =
-        { tuple_fuel = initial_fuel_per_ty;
-          constr = Path.Map.empty;
-          fuel_status = Sufficient_fuel
-        }
-
-      let rec check ({ tuple_fuel; constr; fuel_status = _ } as t) ty =
-        match Types.get_desc ty with
-        | Tpoly (ty, _) -> check t ty
-        | Ttuple _ ->
-          if tuple_fuel > 0
-          then Continue { t with tuple_fuel = tuple_fuel - 1 }
-          else Stop { t with fuel_status = Ran_out_of_fuel }
-        | Tconstr (p, args, _) -> (
-          match Path.Map.find_opt p constr with
-          | None ->
-            Continue
-              { t with
-                constr = Path.Map.add p (initial_fuel_per_ty, args) constr
-              }
-          | Some (fuel, seen_args) ->
-            if List.for_all2
-                 (fun ty1 ty2 ->
-                   TransientTypeOps.equal (Transient_expr.repr ty1)
-                     (Transient_expr.repr ty2))
-                 seen_args args
-            then Skip
-            else if fuel > 0
-            then
-              Continue
-                { t with constr = Path.Map.add p (fuel - 1, args) constr }
-            else Stop { t with fuel_status = Ran_out_of_fuel })
-        | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
-        | Tvariant _ | Tunivar _ | Tpackage _ ->
-          (* these cases either cannot be infinitely recursive or their jkinds
-             do not have with_bounds *)
-          (* CR layouts v2.8: Some of these might get with-bounds someday. We
-             should double-check before we're done that they haven't. *)
-          Continue t
-        | Tlink _ | Tsubst _ -> Misc.fatal_error "Tlink or Tsubst in normalize"
-    end in
-    let rec loop (ctl : Loop_control.t) bounds_so_far :
-        (type_expr * With_bounds_type_info.t) list ->
-        Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t = function
-      (* early cutoff *)
-      | _
-        when Sub_result.is_le
-               (Mod_bounds.less_or_equal Mod_bounds.max bounds_so_far) ->
-        (* CR layouts v2.8: we can do better by early-terminating on a per-axis basis *)
-        bounds_so_far, No_with_bounds, Sufficient_fuel
-      | [] -> bounds_so_far, No_with_bounds, ctl.fuel_status
-      | (ty, ti) :: bs -> (
-        (* Map the type's info before expanding the type *)
-        let ti =
-          match map_type_info with
-          | None -> ti
-          | Some map_type_info -> map_type_info ty ti
-        in
-        (* We don't care about axes that are already max because they can't get any
-           better or worse. By ignoring them, we may be able to terminate early *)
-        let ti : With_bounds_type_info.t =
-          { relevant_axes =
-              Axis_set.diff ti.relevant_axes
-                (Mod_bounds.get_max_axes bounds_so_far)
-          }
-        in
-        match Axis_set.is_empty ti.relevant_axes with
-        | true ->
-          (* If [ty] is not relevant to any axes, then we can safely drop it and thereby
-             avoid doing the work of expanding it. *)
-          loop ctl bounds_so_far bs
-        | false -> (
-          let join_bounds b1 b2 ~relevant_axes =
-            Mod_bounds.Map2.f
-              { f =
-                  (fun (type a) ~(axis : a Axis.t) b1 b2 ->
-                    if Axis_set.mem relevant_axes axis
-                    then
-                      let (module Bound_ops) = Axis.get axis in
-                      Bound_ops.join b1 b2
-                    else b1)
-              }
-              b1 b2
-          in
-          let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
-              Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t =
-            match quality, mode with
-            | Best, _ | Not_best, Ignore_best ->
-              let bounds_so_far =
-                join_bounds bounds_so_far b_upper_bounds
-                  ~relevant_axes:ti.relevant_axes
-              in
-              (* Descend into the with-bounds of each of our with-bounds types'
-                  with-bounds *)
-              let bounds_so_far, nested_with_bounds, fuel_result1 =
-                loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
-              in
-              (* CR layouts v2.8: we use [new_ctl] here, not [ctl], to avoid big quadratic
-                 stack growth for very widely recursive types. This is sad, since it
-                 prevents us from mode crossing a record with 20 lists with different
-                 payloads, but less sad than a stack overflow of the compiler during type
-                 declaration checking.
-
-                 Ideally, this whole problem goes away once we rethink fuel.
-              *)
-              let bounds, bs', fuel_result2 = loop new_ctl bounds_so_far bs in
-              ( bounds,
-                With_bounds.join nested_with_bounds bs',
-                Fuel_status.both fuel_result1 fuel_result2 )
-            | Not_best, Require_best ->
-              let bounds_so_far, bs', fuel_result =
-                loop new_ctl bounds_so_far bs
-              in
-              bounds_so_far, With_bounds.add ty ti bs', fuel_result
-          in
-          match Loop_control.check ctl ty with
-          | Stop ctl_after_stop ->
-            (* out of fuel, so assume [ty] has the worst possible bounds. *)
-            found_jkind_for_ty ctl_after_stop Mod_bounds.max No_with_bounds
-              Not_best
-          | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
-          | Continue ctl_after_unpacking_b -> (
-            match jkind_of_type ty with
-            | Some b_jkind ->
-              found_jkind_for_ty ctl_after_unpacking_b b_jkind.jkind.mod_bounds
-                b_jkind.jkind.with_bounds b_jkind.quality
-            | None ->
-              (* kind of b is not principally known, so we treat it as having the max
-                 bound (only along the axes we care about for this type!) *)
-              found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
-                No_with_bounds Not_best)))
-    in
-    let mod_bounds, with_bounds, fuel_status =
-      loop Loop_control.starting t.mod_bounds
-        (With_bounds.to_list t.with_bounds)
-    in
-    { t with mod_bounds; with_bounds }, fuel_status
 
   let sub (type l r) ~type_equal:_ ~jkind_of_type
       (sub : (allowed * r) jkind_desc)
