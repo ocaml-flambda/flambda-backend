@@ -91,7 +91,7 @@ let check_arg_kinds prim arg_tys_with_expected_kinds =
           T.print arg_ty K.print arg_kind K.print expected_kind P.print prim)
     arg_tys_with_expected_kinds
 
-let simplify_primitive dacc (prim : P.t) dbg ~result_var =
+let simplify_primitive0 dacc (prim : P.t) dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
   match prim with
   | Nullary prim' ->
@@ -196,3 +196,8 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
     | Not_applied dacc ->
       Simplify_variadic_primitive.simplify_variadic_primitive dacc original_prim
         variadic_prim ~args_with_tys dbg ~result_var)
+
+let rec simplify_primitive dacc prim dbg ~result_var =
+  match simplify_primitive0 dacc prim dbg ~result_var with
+  | Simplified result -> result
+  | Resimplify { prim; dacc } -> simplify_primitive dacc prim dbg ~result_var

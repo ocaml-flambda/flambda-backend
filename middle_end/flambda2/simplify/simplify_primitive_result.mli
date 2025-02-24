@@ -16,12 +16,19 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = private
+type simplified = private
   { simplified_named : Simplified_named.t Or_invalid.t;
     extra_bindings : Expr_builder.binding_to_place list;
     try_reify : bool;
     dacc : Downwards_acc.t
   }
+
+type t = private
+  | Simplified of simplified
+  | Resimplify of
+      { prim : Flambda_primitive.t;
+        dacc : Downwards_acc.t
+      }
 
 val create :
   ?extra_bindings:Expr_builder.binding_to_place list ->
@@ -48,4 +55,8 @@ val create_unknown :
   original_term:Flambda.Named.t ->
   t
 
+val create_resimplify : Downwards_acc.t -> Flambda_primitive.t -> t
+
 val with_dacc : t -> Downwards_acc.t -> t
+
+val dacc : t -> Downwards_acc.t
