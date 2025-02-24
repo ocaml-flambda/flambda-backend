@@ -4,42 +4,35 @@
 
 let _ = Int32.(add 1 2l);;
 [%%expect{|
-Line 1, characters 19-20:
-1 | let _ = Int32.(add 1 2l);;
-                       ^
-Error: This expression has type "int" but an expression was expected of type
-         "int32"
-  Hint: Did you mean "1l"?
+- : int32 = 3l
 |}]
+
+let _ = Int32.(add 1l 2);;
+[%%expect{|
+- : int32 = 3l
+|}]
+
 
 let _ : int32 * int32 = 42l, 43;;
 [%%expect{|
-Line 1, characters 29-31:
-1 | let _ : int32 * int32 = 42l, 43;;
-                                 ^^
-Error: This expression has type "int" but an expression was expected of type
-         "int32"
-  Hint: Did you mean "43l"?
+- : int32 * int32 = (42l, 43l)
 |}]
 
 let _ : int32 * nativeint = 42l, 43;;
 [%%expect{|
-Line 1, characters 33-35:
-1 | let _ : int32 * nativeint = 42l, 43;;
-                                     ^^
-Error: This expression has type "int" but an expression was expected of type
-         "nativeint"
-  Hint: Did you mean "43n"?
+- : int32 * nativeint = (42l, 43n)
 |}]
 
 let _ = min 6L 7;;
 [%%expect{|
+- : int64 = 6L
+|}, Principal{|
 Line 1, characters 15-16:
 1 | let _ = min 6L 7;;
                    ^
-Error: This expression has type "int" but an expression was expected of type
-         "int64"
-  Hint: Did you mean "7L"?
+Warning 18 [not-principal]: this coercion to int64 is not principal.
+
+- : int64 = 6L
 |}]
 
 let _ : float = 123;;
@@ -149,12 +142,14 @@ Error: This expression has type "int64" but an expression was expected of type
    literals in decimal, hexadecimal, octal and binary notation *)
 let _ : int64 = min 0L 1_000;;
 [%%expect{|
+- : int64 = 0L
+|}, Principal{|
 Line 1, characters 23-28:
 1 | let _ : int64 = min 0L 1_000;;
                            ^^^^^
-Error: This expression has type "int" but an expression was expected of type
-         "int64"
-  Hint: Did you mean "1_000L"?
+Warning 18 [not-principal]: this coercion to int64 is not principal.
+
+- : int64 = 0L
 |}]
 let _ : nativeint * nativeint = 0n, 0xAA_BBL;;
 [%%expect{|
