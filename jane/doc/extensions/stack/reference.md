@@ -203,9 +203,8 @@ let f (local_ x) =
 
 Both `x` and `y` are local and cannot, in general, escape a region. However, filling `??`
 in with `x` (but not `y`) is allowed. This is because we know that `x` lives outside of
-`f`'s region and thus is guaranteed to be allocated in a pre-existing stack frame (or on
-the heap) which will continue to exist after `f` ends. In contrast, `y` is a cons cell
-allocated in the current stack frame, which will be destroyed after `f` ends.
+`f`'s region and therefore will continue to exist after `f` ends. In contrast, `y` is a cons cell
+in `f`'s region, which will be destroyed after `f` ends.
 
 ## Inference
 
