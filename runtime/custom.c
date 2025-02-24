@@ -17,6 +17,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "caml/alloc.h"
 #include "caml/camlatomic.h"
@@ -53,8 +54,8 @@ mlsize_t caml_custom_get_max_major (void)
 
 static value alloc_custom_gen (const struct custom_operations * ops,
                                uintnat bsz,
-                               int minor_ok,
-                               int local)
+                               bool minor_ok,
+                               bool local)
 {
   mlsize_t wosize;
   CAMLparam0();
@@ -91,7 +92,7 @@ CAMLexport value caml_alloc_custom(const struct custom_operations * ops,
                                    mlsize_t mem,
                                    mlsize_t max)
 {
-  return alloc_custom_gen(ops, bsz, /* minor_ok: */ 1, /* local: */ 0);
+  return alloc_custom_gen(ops, bsz, /* minor_ok: */ true, /* local: */ false);
 }
 
 CAMLexport value caml_alloc_custom_local(const struct custom_operations * ops,
@@ -103,7 +104,7 @@ CAMLexport value caml_alloc_custom_local(const struct custom_operations * ops,
     caml_invalid_argument(
       "caml_alloc_custom_local: finalizers not supported");
 
-  return alloc_custom_gen(ops, bsz, /* minor_ok: */ 1, /* local: */ 1);
+  return alloc_custom_gen(ops, bsz, /* minor_ok: */ true, /* local: */ true);
 }
 
 CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
@@ -120,7 +121,7 @@ CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
 
   value v = alloc_custom_gen (ops, bsz,
                               /* minor_ok: */ (mem <= max_minor_single),
-                              /* local: */ 0);
+                              /* local: */ false);
   size_t mem_words = (mem + sizeof(value) - 1) / sizeof(value);
   caml_memprof_sample_block(v, mem_words, mem_words, CAML_MEMPROF_SRC_CUSTOM);
   return v;

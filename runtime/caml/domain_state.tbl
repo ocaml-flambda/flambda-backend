@@ -142,7 +142,7 @@ DOMAIN_STATE(int, unique_id)
 DOMAIN_STATE(value, dls_root)
 /* Domain-local state */
 
-/* How much external memory is currenty held by the minor and major heap. */
+/* How much external memory is currenty held by the minor heap. */
 DOMAIN_STATE(uintnat, minor_dependent_bsz)
 
 /* How much work needs to be done (by all domains) before we stop this slice. */
