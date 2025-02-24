@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+# we want `read` to respect backslashes
+# shellcheck disable=SC2162
 set -e -u -o pipefail
 
 # Use this script to compare the output of an existing compiler
@@ -11,78 +14,136 @@ set -e -u -o pipefail
 # diff {old,new}.cmx.dump
 
 # Set these to add paths under the stdlib to the compiler arguments
-read -a LIB <<<"${LIB-}"
-read -a INCLUDE <<<"${INCLUDE-}"
+read -a LIB <<< "${LIB-}"
+read -a INCLUDE <<< "${INCLUDE-}"
 
-bin=ocamlopt.opt
-
-# override OLD or NEW to set what is executed as the compiler
-if [[ -z ${OLD+x} ]]; then
-    OLD="$(type -P "${bin}")" || exit 1
-    printf -v OLD '%q' "${OLD}"
-fi
-
-if [[ -z ${NEW+x} ]]; then
-    NEW="$(realpath -- "_install/bin/${bin}")" || exit 1
-    printf -v NEW '%q' "${NEW}"
-fi
-
-print_quoted_command () {
-    printf '%q' "$1"
-    shift
-
-    while [[ $# -gt 0 ]]; do
-        printf ' %q' "$1"
-        shift
-    done
+fail() {
+    [[ $# -eq 0 ]] || printf '%s: %s\n' "$0" "$*" >&2
+    exit 1
 }
 
-# Usage:
-# construct_command "OCAML BINARY" [ARGS...]
-construct_command() {
-    local cmd
+quote_array() {
+    while [[ $# -gt 1 ]]; do
+        printf '%q ' "$1"
+        shift
+    done
 
-    # Set the binary as the first part of the command
-    read -a cmd <<<"$1"
-    shift
+    printf '%q' "$1"
+}
 
-    if [[ ${#cmd[@]} -eq 0 ]]; then
-        echo 'no compiler specified' >&2
-        return 1
+
+[[ -n ${BIN-} ]] || BIN=ocamlopt.opt
+
+if [[ -z ${LIB_SUFFIX-} ]]; then
+    case "${BIN}" in
+    ocamlc*) LIB_SUFFIX='.cma' ;;
+    ocamlopt*) LIB_SUFFIX='.cmxa' ;;
+    *) fail "Unrecognized command ${BIN}, expected ocamlc or ocamlopt" ;;
+    esac
+fi
+
+# override OLD or NEW to set what is executed as the compiler
+
+#usage: parse_compiler VAR_NAME DEFAULT_TO_EVAL
+parse_compiler() {
+    local parsed
+    if [[ -n ${!1-} ]]; then
+        # break the command up by spaces
+        read -a parsed <<< "${!1}"
+        if [[ ${#parsed[@]} -eq 0 ]]; then
+            fail "no $1 compiler specified"
+        elif [[ ${#parsed[@]} -eq 1 && -d ${parsed[0]} ]]; then
+             # automagically add BIN if we've specified a directory
+            parsed=( "${parsed[0]}/${BIN}" )
+        fi
+    else
+        parsed=("$(type -P "${BIN}")") || fail
     fi
 
-    local stdlib="$1"
-    shift
+    # overwrite VAR_NAME with the parsed version
+    declare -a -g "$1"=( "${parsed[@]}" )
+}
+
+
+if [[ -n ${OLD-} ]]; then
+    # break the command up by spaces
+    read -a OLD <<< "${OLD}"
+    [[ ${#OLD[@]} -gt 0 ]] || fail "no OLD compiler specified"
+
+    # automagically add BIN if we've specified a directory
+    if [[ ${#OLD[@]} -eq 1 && -d ${OLD[0]} ]]; then
+        OLD=( "${OLD[0]}/${BIN}" )
+    fi
+else
+    OLD=("$(type -P "${BIN}")") || fail
+fi
+
+if [[ -n ${NEW-} ]]; then
+    # break the command up by spaces
+    read -a NEW <<< "${NEW}"
+    [[ ${#NEW[@]} -gt 0 ]] || fail "no NEW compiler specified"
+
+    if [[ ${#NEW[@]} -eq 1 && -d ${NEW[0]} ]]; then
+        NEW=( "${NEW[0]}/${BIN}" )
+    fi
+else
+    NEW=("$(realpath -- "${BASH_SOURCE[0]%/*}/../_install/bin/${BIN}")") || fail
+fi
+
+# Usage:
+# COMPILER=( ... ) STDLIB=... construct_command [ARGS...]
+construct_command() {
+    declare -a args
 
     if [[ ${#LIB[@]} -gt 0 || ${#INCLUDE[@]} -gt 0 ]]; then
-        if [[ -z ${stdlib-} ]]; then
-            stdlib="$("${cmd[@]}" -config-var standard_library)" || return 1
+        if [[ -z ${STDLIB-} ]]; then
+            STDLIB="$("${COMPILER[@]}" -config-var standard_library)" || fail
         fi
 
         local include
         for include in "${INCLUDE[@]}"; do
-            cmd+=( "${stdlib}/${include}/${include}.cmxa" )
+            args+=("${STDLIB}/${include}/${include}${LIB_SUFFIX}")
         done
 
         local lib
         for lib in "${LIB[@]}"; do
-            cmd+=( '-I' "${stdlib}/${lib}" )
+            args+=('-I' "${STDLIB}/${lib}")
         done
     fi
 
-    cmd+=( "$@" )
-    print_quoted_command "${cmd[@]}"
+    quote_array "${COMPILER[@]}" "${args[@]}" "$@"
 }
 
-old="$(construct_command "${OLD}" "${OLD_STDLIB-}" -o old "${@}")" || exit 1
-new="$(construct_command "${NEW}" "${NEW_STDLIB-}" -o new "${@}")" || exit 1
+old="$(
+    COMPILER=("${OLD[@]}")
+    STDLIB="${OLD_STDLIB-}"
+    construct_command -o old "${@}"
+)" || fail
+new="$(
+    COMPILER=("${NEW[@]}")
+    STDLIB="${NEW_STDLIB-}"
+    construct_command -o new "${@}"
+)" || fail
 
-exit_code=0
+verbose_eval() {
+    local exit_code
+    printf '%s\n' "$*" >&2
+    eval "$*"
+    exit_code=$?
+    if [[ ${exit_code} -ne 0 ]]; then
+        printf 'exited with code %d: %s\n' "${exit_code}" "$*" >&2
+    fi
+    return "${exit_code}"
+}
 
-printf '%s\n' "${old}" >&2
-eval "${old}" || exit_code=1
+verbose_eval "${old}"
+old_exit=$?
 
-printf '%s\n' "${new}" >&2
-eval "${new}" || exit_code=1
+verbose_eval "${new}"
+new_exit=$?
 
-exit "${exit_code}"
+if [[ ${old_exit} -ne ${new_exit} ]]; then
+    exit 1
+else
+    exit "${old_exit}"
+fi
