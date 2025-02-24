@@ -163,8 +163,7 @@ including an entire file. This region never ends and is where global (heap-alloc
 values live.
 
 One subtlety is that we wish to treat `local` variables from the current region
-differently than `local` variables from an enclosing region. Variables from an
-enclosing region are called *regional*.
+differently than `local` variables from an enclosing region. The latter is called *outer-local*.
 
 For instance:
 
@@ -180,7 +179,7 @@ let f () =
 
 At the point marked `??` inside `g`, both `outer` and `inner` are
 local values; they will both be allocated on the stack at runtime. However,
-`inner` is local to `g`, while (within `g`) `outer` is regional.
+`inner` is local to `g`, while (within `g`) `outer` is outer-local.
 
 So, if we replace `??` with `inner`, we see an error:
 
@@ -267,7 +266,7 @@ positions, leading to four distinct types of function:
     local_ a -> local_ b
 
 In all cases, the `local_` annotation means "local to the call site's surrounding
-region" , or equivalently "regional to the function's region".
+region" , or equivalently "outer-local to the function's region".
 
 In argument positions, `local_` indicates that the function may be passed
 local values. As always, the `local_` keyword does not *require*
@@ -288,7 +287,7 @@ A function with a local argument can be defined by annotating the argument as
 let f (local_ x) = ...
 ```
 
-As we saw above, inside the definition of `f`, the argument `x` is regional: that is,
+As we saw above, inside the definition of `f`, the argument `x` is outer-local: that is,
 while it may be stack-allocated, it is known not to have been allocated during
 `f` itself, and thus may safely be returned from `f`. For example:
 
@@ -421,7 +420,7 @@ Therefore, when a function ends in a tail call, that function's region ends:
   - but before control is transferred to the callee.
 
 This early ending of the region introduces some restrictions, as values used in
-tail calls then count as escaping the region. In particular, local (but not *regional*)
+tail calls then count as escaping the region. In particular, local
 values may not be passed to tail calls:
 
 ```ocaml
@@ -475,8 +474,7 @@ let f2 () =
 These changes make the local values (`r` and `g`) stay available until after
 the call has returned.
 
-Note that values which are regional rather than purely local (that
-is, local values that were passed into this region from outside) may be used in
+Note that values which are outer-local (see "Nested regions") may be used in
 tail calls, as the early closing of the region does not affect them:
 
 ```ocaml
