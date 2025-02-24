@@ -23,6 +23,117 @@ open Switch
 open Instruct
 open Debuginfo.Scoped_location
 
+module Scalar = struct
+  (** We represent small integers as sign-extended immediates in bytecode. Additionally,
+      all boxable integers are boxed, there are no naked integers, and there are no local
+      allocations. *)
+
+  type small_int = Int8 | Int16
+
+  module Or_small_int = struct
+    type 'a t =
+      | Small of small_int
+      | Builtin of 'a
+
+    let map t ~f =
+      match t with
+      | Small _ as t -> t
+      | Builtin x -> Builtin (f x)
+  end
+
+  module Integral = struct
+    type boxed = Int32 | Nativeint | Int64
+    type t = Int | Boxed of boxed
+
+    let of_lambda l : t Or_small_int.t =
+      match
+        Lambda.Scalar.Integral.width
+          (Lambda.Scalar.Integral.map l ~f:(fun _ ->
+             Lambda.Any_locality_mode))
+      with
+      | Taggable Int8 -> Small Int8
+      | Taggable Int16 -> Small Int16
+      | Taggable Int -> Builtin Int
+      | Boxable (Int32 Any_locality_mode) -> Builtin (Boxed Int32)
+      | Boxable (Nativeint Any_locality_mode) -> Builtin (Boxed Nativeint)
+      | Boxable (Int64 Any_locality_mode) -> Builtin (Boxed Int64)
+
+    let to_string = function
+      | Int -> "int"
+      | Boxed Int32 -> "int32"
+      | Boxed Nativeint -> "nativeint"
+      | Boxed Int64 -> "int64"
+
+    let to_const t i : Typedtree.constant =
+      match t with
+      | Int -> (Const_int i)
+      | Boxed Int32 -> Const_int32 (Int32.of_int i)
+      | Boxed Nativeint -> Const_nativeint (Nativeint.of_int i)
+      | Boxed Int64 -> Const_int64 (Int64.of_int i)
+  end
+
+  module Floating = struct
+    type t =
+        Float
+      | Float32
+
+    let to_string = function
+      | Float  -> "float"
+      | Float32 -> "float32"
+
+    let of_lambda l =
+      match
+        Lambda.Scalar.Floating.width
+          (Lambda.Scalar.Floating.map l ~f:(fun _ ->
+             Lambda.Any_locality_mode))
+      with
+      | Float32 Any_locality_mode -> Float32
+      | Float64 Any_locality_mode -> Float
+  end
+
+
+  module Boxed = struct
+    type t = Int32 | Nativeint | Int64 | Float | Float32
+
+    let integral : Integral.boxed -> t = function
+      | Int32 -> Int32
+      | Nativeint -> Nativeint
+      | Int64 -> Int64
+
+    let floating : Floating.t -> t = function
+      | Float -> Float
+      | Float32 -> Float32
+
+    let to_string = function
+      | Int32 -> "int32"
+      | Nativeint -> "nativeint"
+      | Int64 -> "int64"
+      | Float32 -> "float32"
+      | Float -> "float"
+    end
+
+  type t =
+    | Int
+    | Boxed of Boxed.t
+
+  let to_string = function
+    | Int -> "int"
+    | Boxed b -> Boxed.to_string b
+
+  let integral : Integral.t -> t = function
+    | Integral.Int -> Int
+    | Integral.Boxed boxed -> Boxed (Boxed.integral boxed)
+
+  let of_lambda l : t Or_small_int.t =
+    match
+      Lambda.Scalar.width
+        (Lambda.Scalar.map l ~f:(fun _ ->
+           Lambda.Any_locality_mode))
+    with
+    | Floating l -> Builtin (Boxed (Boxed.floating (Floating.of_lambda (Value l))))
+    | Integral l -> Or_small_int.map (Integral.of_lambda (Value l)) ~f:integral
+end
+
 (**** Label generation ****)
 
 let label_counter = ref 0
@@ -141,14 +252,17 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-    Popaque _ | Psequor | Psequand
+   Popaque _ | Psequor | Psequand
   | Pobj_magic _
   | Prunstack | Pperform | Presume | Preperform
-  | Pbox_float (_, _) | Punbox_float _
   | Pbox_vector (_, _) | Punbox_vector _
-  | Ptag_int _ | Puntag_int _
-  | Pbox_int _ | Punbox_int _ ->
+  ->
       true
+  | Pscalar (Unary (Static_cast {src; dst})) ->
+    (* no-op *)
+    Scalar.of_lambda src = Scalar.of_lambda dst
+  | Pscalar _
+  | Pphys_equal _
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
   | Pget_header _
@@ -160,22 +274,14 @@ let preserve_tailcall_for_prim = function
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
   | Pmake_unboxed_product _ | Punboxed_product_field _
   | Parray_element_size_in_bytes _
-  | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
-  | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
-  | Pfloatofint (_, _) | Pfloatoffloat32 _ | Pfloat32offloat _
-  | Pnegfloat (_, _) | Pabsfloat (_, _)
-  | Paddfloat (_, _) | Psubfloat (_, _) | Pmulfloat (_, _)
-  | Pdivfloat (_, _) | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
+  | Pccall _ | Praise _ | Pnot
+  | Poffsetref _
   | Pstringlength | Pstringrefu  | Pstringrefs
-  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
   | Pmakearray_dynamic _ | Parrayblit _
-  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _
-  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
-  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-  | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _
+  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisout
+
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
   | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_f32 _
   | Pstring_load_64 _ | Pstring_load_128 _
@@ -196,13 +302,14 @@ let preserve_tailcall_for_prim = function
   | Punboxed_nativeint_array_set_128 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pprobe_is_enabled _ | Pobj_dup
-  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
+  | Pctconst _ | Pint_as_pointer _
   | Patomic_exchange _ | Patomic_compare_exchange _
   | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add
   | Patomic_sub | Patomic_land | Patomic_lor
   | Patomic_lxor | Patomic_load _ | Patomic_set _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _ ->
+  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _
+    ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -247,7 +354,8 @@ let merge_repr ev ev' =
   | x, Event_none -> x
   | Event_parent r, Event_child r' when r == r' && !r = 1 -> Event_none
   | Event_child r, Event_parent r' when r == r' -> Event_parent r
-  | _, _          -> fatal_error "Bytegen.merge_repr"
+  | _, _          ->
+    fatal_error "Bytegen.merge_repr"
 
 let merge_events ev ev' =
   let (maj, min) =
@@ -385,21 +493,14 @@ let check_stack stack_info sz =
 
 (* Sequence of string tests *)
 
-
 (* Translate a primitive to a bytecode instruction (possibly a call to a C
    function) *)
-
-let comp_bint_primitive bi suff args =
-  let pref =
-    match bi with Boxed_nativeint -> "caml_nativeint_"
-                | Boxed_int32 -> "caml_int32_"
-                | Boxed_int64 -> "caml_int64_" in
-  Kccall(pref ^ suff, List.length args)
 
 let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
   let suffix =
     match index_kind with
-    | Ptagged_int_index -> ""
+    | Ptagged_int_index
+    | Punboxed_int_index Unboxed_int -> ""
     | Punboxed_int_index Unboxed_int64 -> "_indexed_by_int64"
     | Punboxed_int_index Unboxed_int32 -> "_indexed_by_int32"
     | Punboxed_int_index Unboxed_int16 -> "_indexed_by_int16"
@@ -414,11 +515,7 @@ let comp_primitive stack_info p sz args =
     Pgetglobal cu -> Kgetglobal cu
   | Psetglobal cu -> Ksetglobal cu
   | Pgetpredef id -> Kgetpredef id
-  | Pintcomp cmp -> Kintcomp cmp
-  | Pcompare_ints -> Kccall("caml_int_compare", 2)
-  | Pcompare_floats Boxed_float64 -> Kccall("caml_float_compare", 2)
-  | Pcompare_floats Boxed_float32 -> Kccall("caml_float32_compare", 2)
-  | Pcompare_bints bi -> comp_bint_primitive bi "compare" args
+
   | Pfield (n, _ptr, _sem) -> Kgetfield n
   | Punboxed_product_field (n, _layouts) -> Kgetfield n
   | Parray_element_size_in_bytes _array_kind ->
@@ -448,38 +545,7 @@ let comp_primitive stack_info p sz args =
   | Pperform ->
       check_stack stack_info (sz + 4);
       Kperform
-  | Pnegint -> Knegint
-  | Paddint -> Kaddint
-  | Psubint -> Ksubint
-  | Pmulint -> Kmulint
-  | Pdivint _ -> Kdivint
-  | Pmodint _ -> Kmodint
-  | Pandint -> Kandint
-  | Porint -> Korint
-  | Pxorint -> Kxorint
-  | Plslint -> Klslint
-  | Plsrint -> Klsrint
-  | Pasrint -> Kasrint
-  | Poffsetint n -> Koffsetint n
   | Poffsetref n -> Koffsetref n
-  | Pintoffloat Boxed_float64 -> Kccall("caml_int_of_float", 1)
-  | Pfloatofint (Boxed_float64, _) -> Kccall("caml_float_of_int", 1)
-  | Pfloatoffloat32 _ -> Kccall("caml_float_of_float32", 1)
-  | Pfloat32offloat _ -> Kccall("caml_float32_of_float", 1)
-  | Pnegfloat (Boxed_float64, _) -> Kccall("caml_neg_float", 1)
-  | Pabsfloat (Boxed_float64, _) -> Kccall("caml_abs_float", 1)
-  | Paddfloat (Boxed_float64, _) -> Kccall("caml_add_float", 2)
-  | Psubfloat (Boxed_float64, _) -> Kccall("caml_sub_float", 2)
-  | Pmulfloat (Boxed_float64, _) -> Kccall("caml_mul_float", 2)
-  | Pdivfloat (Boxed_float64, _) -> Kccall("caml_div_float", 2)
-  | Pintoffloat Boxed_float32 -> Kccall("caml_int_of_float32", 1)
-  | Pfloatofint (Boxed_float32, _) -> Kccall("caml_float32_of_int", 1)
-  | Pnegfloat (Boxed_float32, _) -> Kccall("caml_neg_float32", 1)
-  | Pabsfloat (Boxed_float32, _) -> Kccall("caml_abs_float32", 1)
-  | Paddfloat (Boxed_float32, _) -> Kccall("caml_add_float32", 2)
-  | Psubfloat (Boxed_float32, _) -> Kccall("caml_sub_float32", 2)
-  | Pmulfloat (Boxed_float32, _) -> Kccall("caml_mul_float32", 2)
-  | Pdivfloat (Boxed_float32, _) -> Kccall("caml_div_float32", 2)
   | Pstringlength -> Kccall("caml_ml_string_length", 1)
   | Pbyteslength -> Kccall("caml_ml_bytes_length", 1)
   | Pstringrefs -> Kccall("caml_string_get", 2)
@@ -598,37 +664,6 @@ let comp_primitive stack_info p sz args =
      Kccall(Printf.sprintf "caml_sys_const_%s" const_name, 1)
   | Pisint _ -> Kisint
   | Pisout -> Kisout
-  | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
-  | Pintofbint bi -> comp_bint_primitive bi "to_int" args
-  | Pcvtbint(src, dst, _) ->
-      begin match (src, dst) with
-      | (Boxed_int32, Boxed_nativeint) -> Kccall("caml_nativeint_of_int32", 1)
-      | (Boxed_nativeint, Boxed_int32) -> Kccall("caml_nativeint_to_int32", 1)
-      | (Boxed_int32, Boxed_int64) -> Kccall("caml_int64_of_int32", 1)
-      | (Boxed_int64, Boxed_int32) -> Kccall("caml_int64_to_int32", 1)
-      | (Boxed_nativeint, Boxed_int64) -> Kccall("caml_int64_of_nativeint", 1)
-      | (Boxed_int64, Boxed_nativeint) -> Kccall("caml_int64_to_nativeint", 1)
-      | ((Boxed_int32 | Boxed_int64 | Boxed_nativeint), _) ->
-          fatal_error "Bytegen.comp_primitive: invalid Pcvtbint cast"
-      end
-  | Pnegbint (bi,_) -> comp_bint_primitive bi "neg" args
-  | Paddbint (bi,_) -> comp_bint_primitive bi "add" args
-  | Psubbint (bi,_) -> comp_bint_primitive bi "sub" args
-  | Pmulbint (bi,_) -> comp_bint_primitive bi "mul" args
-  | Pdivbint { size = bi } -> comp_bint_primitive bi "div" args
-  | Pmodbint { size = bi } -> comp_bint_primitive bi "mod" args
-  | Pandbint(bi,_) -> comp_bint_primitive bi "and" args
-  | Porbint(bi,_) -> comp_bint_primitive bi "or" args
-  | Pxorbint(bi,_) -> comp_bint_primitive bi "xor" args
-  | Plslbint(bi,_) -> comp_bint_primitive bi "shift_left" args
-  | Plsrbint(bi,_) -> comp_bint_primitive bi "shift_right_unsigned" args
-  | Pasrbint(bi,_) -> comp_bint_primitive bi "shift_right" args
-  | Pbintcomp(_, Ceq) | Punboxed_int_comp(_, Ceq) -> Kccall("caml_equal", 2)
-  | Pbintcomp(_, Cne) | Punboxed_int_comp(_, Cne) -> Kccall("caml_notequal", 2)
-  | Pbintcomp(_, Clt) | Punboxed_int_comp(_, Clt) -> Kccall("caml_lessthan", 2)
-  | Pbintcomp(_, Cgt) | Punboxed_int_comp(_, Cgt) -> Kccall("caml_greaterthan", 2)
-  | Pbintcomp(_, Cle) | Punboxed_int_comp(_, Cle) -> Kccall("caml_lessequal", 2)
-  | Pbintcomp(_, Cge) | Punboxed_int_comp(_, Cge) -> Kccall("caml_greaterequal", 2)
   | Pbigarrayref(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_set_" ^ Int.to_string n, n + 2)
   | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
@@ -650,8 +685,6 @@ let comp_primitive stack_info p sz args =
       Kccall(indexing_primitive index_kind "caml_ba_uint8_setf32", 3)
   | Pbigstring_set_64{unsafe=_;index_kind} ->
       Kccall(indexing_primitive index_kind "caml_ba_uint8_set64", 3)
-  | Pbswap16 -> Kccall("caml_bswap16", 1)
-  | Pbbswap(bi,_) -> comp_bint_primitive bi "bswap" args
   | Pint_as_pointer _ -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
@@ -727,6 +760,8 @@ let comp_primitive stack_info p sz args =
     | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ -> ()
     end;
     Kccall("caml_array_blit", 5)
+  | Pphys_equal Eq -> Kintcomp Ceq
+  | Pphys_equal Noteq -> Kintcomp Cne
   | Pmakearray_dynamic(_, _, Uninitialized) ->
     Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
       translated to Pmakearray_dynamic Initialized earlier on"
@@ -738,21 +773,17 @@ let comp_primitive stack_info p sz args =
   | Pnot | Psequand | Psequor
   | Praise _
   | Pmakearray _ | Pduparray _
-  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pmakeblock _
   | Pmake_unboxed_product _
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
   | Pprobe_is_enabled _
-  | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
-  | Ptag_int _ | Puntag_int _
-    ->
+  | Pscalar _
+      ->
       fatal_error "Bytegen.comp_primitive"
   | Ppeek _ | Ppoke _ ->
       fatal_error "Bytegen.comp_primitive: Ppeek/Ppoke not supported in bytecode"
-
-let is_immed n = immed_min <= n && n <= immed_max
 
 let is_nontail = function
   | Rc_nontail -> true
@@ -786,6 +817,37 @@ let rec contains_float32s_or_nulls = function
   | Const_mixed_block _ ->  Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
   | _ -> false
 
+
+let bits : Scalar.small_int -> structured_constant = function
+  | Int8 -> Const_base (Const_int 8)
+  | Int16 -> Const_base (Const_int 16)
+
+let sign_extend width cont =
+    Kpush (* save the accumulator, then compute how far to shift *)
+  :: Kconst (bits width)
+  :: Kpush
+  :: Kconst const_unit
+  :: Kccall ("caml_sys_const_int_size", 1)
+  :: Ksubint
+  :: Kpush (* save the number of bits to shift by, once for each shift *)
+  :: Kpush
+  :: Kacc 2 (* load the original argument *)
+  :: Klslint (* shift left *)
+  :: Kasrint (* shift right *)
+  :: Kpop 1 (* restore the stack *)
+  :: cont
+
+let zero_extend width cont =
+  (* zero the top bits by computing [acc & (1 << bits - 1)] *)
+  Kpush
+  :: Kconst (bits width)
+  :: Kpush
+  :: Kconst (Const_base (Const_int 1))
+  :: Klslint
+  :: Koffsetint (-1)
+  :: Kandint
+  :: cont
+
 let rec translate_float32s_or_nulls stack_info env cst sz cont =
   match cst with
   | Const_base (Const_float32 f | Const_unboxed_float32 f) ->
@@ -801,346 +863,292 @@ let rec translate_float32s_or_nulls stack_info env cst sz cont =
   | Const_mixed_block _ -> Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
   | _ as cst -> Kconst cst :: cont
 
-and comp_expr stack_info env exp sz cont =
-  check_stack stack_info sz;
-  match exp with
-    Lvar id | Lmutvar id ->
-      begin try
-        let pos = Ident.find_same id env.ce_stack in
-        Kacc(sz - pos) :: cont
-      with Not_found ->
-      let not_found () =
-        fatal_error ("Bytegen.comp_expr: var " ^ Ident.unique_name id)
-      in
-      match env.ce_closure with
-      | Not_in_closure -> not_found ()
-      | In_closure { entries; env_pos } ->
-        match Ident.find_same id entries with
-        | Free_variable pos ->
-          Kenvacc(pos - env_pos) :: cont
-        | Function pos ->
-          Koffsetclosure(pos - env_pos) :: cont
-        | exception Not_found -> not_found ()
-      end
-  | Lconst cst when is_boot_compiler () ->
+  and comp_expr stack_info env exp sz cont =
+    check_stack stack_info sz;
+    match exp with
+      Lvar id | Lmutvar id ->
+        begin try
+          let pos = Ident.find_same id env.ce_stack in
+          Kacc(sz - pos) :: cont
+        with Not_found ->
+        let not_found () =
+          fatal_error ("Bytegen.comp_expr: var " ^ Ident.unique_name id)
+        in
+        match env.ce_closure with
+        | Not_in_closure -> not_found ()
+        | In_closure { entries; env_pos } ->
+          match Ident.find_same id entries with
+          | Free_variable pos ->
+            Kenvacc(pos - env_pos) :: cont
+          | Function pos ->
+            Koffsetclosure(pos - env_pos) :: cont
+          | exception Not_found -> not_found ()
+        end
+    | Lconst cst when is_boot_compiler () ->
       translate_float32s_or_nulls stack_info env cst sz cont
-  | Lconst cst ->
-      Kconst cst :: cont
-  | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
-      let nargs = List.length args in
-      if is_tailcall cont && not (is_nontail rc) then begin
-        comp_args stack_info env args sz
-          (Kpush :: comp_expr stack_info env func (sz + nargs)
-            (Kappterm(nargs, sz + nargs) :: discard_dead_code cont))
-      end else begin
-        if nargs < 4 then
+    | Lconst cst ->
+        Kconst cst :: cont
+    | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
+        let nargs = List.length args in
+        if is_tailcall cont && not (is_nontail rc) then begin
           comp_args stack_info env args sz
-            (Kpush ::
-             comp_expr stack_info env func (sz + nargs) (Kapply nargs :: cont))
-        else begin
-          let (lbl, cont1) = label_code cont in
-          Kpush_retaddr lbl ::
-          comp_args stack_info env args (sz + 3)
-            (Kpush :: comp_expr stack_info env func (sz + 3 + nargs)
-                      (Kapply nargs :: cont1))
+            (Kpush :: comp_expr stack_info env func (sz + nargs)
+              (Kappterm(nargs, sz + nargs) :: discard_dead_code cont))
+        end else begin
+          if nargs < 4 then
+            comp_args stack_info env args sz
+              (Kpush ::
+              comp_expr stack_info env func (sz + nargs) (Kapply nargs :: cont))
+          else begin
+            let (lbl, cont1) = label_code cont in
+            Kpush_retaddr lbl ::
+            comp_args stack_info env args (sz + 3)
+              (Kpush :: comp_expr stack_info env func (sz + 3 + nargs)
+                        (Kapply nargs :: cont1))
+          end
         end
-      end
-  | Lsend(kind, met, obj, args, rc, _, _, _) ->
-      assert (kind <> Cached);
-      let nargs = List.length args + 1 in
-      let getmethod, args' =
-        if kind = Self then (Kgetmethod, met::obj::args) else
-        match met with
-          Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
-        | _ -> (Kgetdynmet, met::obj::args)
-      in
-      if is_tailcall cont && not (is_nontail rc) then
-        comp_args stack_info env args' sz
-          (getmethod :: Kappterm(nargs, sz + nargs) :: discard_dead_code cont)
-      else
-        if nargs < 4 then
+    | Lsend(kind, met, obj, args, rc, _, _, _) ->
+        assert (kind <> Cached);
+        let nargs = List.length args + 1 in
+        let getmethod, args' =
+          if kind = Self then (Kgetmethod, met::obj::args) else
+          match met with
+            Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
+          | _ -> (Kgetdynmet, met::obj::args)
+        in
+        if is_tailcall cont && not (is_nontail rc) then
           comp_args stack_info env args' sz
-            (getmethod :: Kapply nargs :: cont)
-        else begin
-          let (lbl, cont1) = label_code cont in
-          Kpush_retaddr lbl ::
-          comp_args stack_info env args' (sz + 3)
-            (getmethod :: Kapply nargs :: cont1)
+            (getmethod :: Kappterm(nargs, sz + nargs) :: discard_dead_code cont)
+        else
+          if nargs < 4 then
+            comp_args stack_info env args' sz
+              (getmethod :: Kapply nargs :: cont)
+          else begin
+            let (lbl, cont1) = label_code cont in
+            Kpush_retaddr lbl ::
+            comp_args stack_info env args' (sz + 3)
+              (getmethod :: Kapply nargs :: cont1)
+          end
+    | Lfunction{params; body; loc} -> (* assume kind = Curried *)
+        let cont = add_pseudo_event loc !compunit_name cont in
+        let lbl = new_label() in
+        let fv = Ident.Set.elements(free_variables exp) in
+        let entries = closure_entries Single_non_recursive fv in
+        let to_compile =
+          { params = List.map (fun p -> p.name) params; body = body; label = lbl;
+            entries = entries; rec_pos = 0 } in
+        Stack.push to_compile functions_to_compile;
+        comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
+          (Kclosure(lbl, List.length fv) :: cont)
+    | Llet(_, _k, id, arg, body)
+    | Lmutlet(_k, id, arg, body) ->
+        comp_expr stack_info env arg sz
+          (Kpush :: comp_expr stack_info (add_var id (sz+1) env) body (sz+1)
+            (add_pop 1 cont))
+    | Lletrec(decl, body) ->
+        let ndecl = List.length decl in
+        let fv =
+          Ident.Set.elements (free_variables (Lletrec(decl, lambda_unit))) in
+        let rec_idents = List.map (fun { id } -> id) decl in
+        let entries =
+          closure_entries (Multiple_recursive rec_idents) fv
+        in
+        let rec comp_fun pos = function
+            [] -> []
+          | { def = {params; body} } :: rem ->
+              let lbl = new_label() in
+              let to_compile =
+                { params = List.map (fun p -> p.name) params; body = body; label = lbl;
+                  entries = entries; rec_pos = pos} in
+              Stack.push to_compile functions_to_compile;
+              lbl :: comp_fun (pos + 1) rem
+        in
+        let lbls = comp_fun 0 decl in
+        comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
+          (Kclosurerec(lbls, List.length fv) ::
+          (comp_expr stack_info
+              (add_vars rec_idents (sz+1) env) body (sz + ndecl)
+              (add_pop ndecl cont)))
+    | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
+        comp_expr stack_info env arg sz cont
+    | Lprim(Pignore, [arg], _) ->
+        comp_expr stack_info env arg sz (add_const_unit cont)
+    | Lprim(Pnot, [arg], _) ->
+        let newcont =
+          match cont with
+            Kbranchif lbl :: cont1 -> Kbranchifnot lbl :: cont1
+          | Kbranchifnot lbl :: cont1 -> Kbranchif lbl :: cont1
+          | _ -> Kboolnot :: cont in
+        comp_expr stack_info env arg sz newcont
+    | Lprim(Psequand, [exp1; exp2], _) ->
+        begin match cont with
+          Kbranchifnot lbl :: _ ->
+            comp_expr stack_info env exp1 sz (Kbranchifnot lbl ::
+              comp_expr stack_info env exp2 sz cont)
+        | Kbranchif lbl :: cont1 ->
+            let (lbl2, cont2) = label_code cont1 in
+            comp_expr stack_info env exp1 sz (Kbranchifnot lbl2 ::
+              comp_expr stack_info env exp2 sz (Kbranchif lbl :: cont2))
+        | _ ->
+            let (lbl, cont1) = label_code cont in
+            comp_expr stack_info env exp1 sz (Kstrictbranchifnot lbl ::
+              comp_expr stack_info env exp2 sz cont1)
         end
-  | Lfunction{params; body; loc} -> (* assume kind = Curried *)
-      let cont = add_pseudo_event loc !compunit_name cont in
-      let lbl = new_label() in
-      let fv = Ident.Set.elements(free_variables exp) in
-      let entries = closure_entries Single_non_recursive fv in
-      let to_compile =
-        { params = List.map (fun p -> p.name) params; body = body; label = lbl;
-          entries = entries; rec_pos = 0 } in
-      Stack.push to_compile functions_to_compile;
-      comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
-        (Kclosure(lbl, List.length fv) :: cont)
-  | Llet(_, _k, id, arg, body)
-  | Lmutlet(_k, id, arg, body) ->
-      comp_expr stack_info env arg sz
-        (Kpush :: comp_expr stack_info (add_var id (sz+1) env) body (sz+1)
-          (add_pop 1 cont))
-  | Lletrec(decl, body) ->
-      let ndecl = List.length decl in
-      let fv =
-        Ident.Set.elements (free_variables (Lletrec(decl, lambda_unit))) in
-      let rec_idents = List.map (fun { id } -> id) decl in
-      let entries =
-        closure_entries (Multiple_recursive rec_idents) fv
-      in
-      let rec comp_fun pos = function
-          [] -> []
-        | { def = {params; body} } :: rem ->
-            let lbl = new_label() in
-            let to_compile =
-              { params = List.map (fun p -> p.name) params; body = body; label = lbl;
-                entries = entries; rec_pos = pos} in
-            Stack.push to_compile functions_to_compile;
-            lbl :: comp_fun (pos + 1) rem
-      in
-      let lbls = comp_fun 0 decl in
-      comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
-        (Kclosurerec(lbls, List.length fv) ::
-         (comp_expr stack_info
-            (add_vars rec_idents (sz+1) env) body (sz + ndecl)
-            (add_pop ndecl cont)))
-  | Lprim((Popaque _ | Pobj_magic _ | Ptag_int _ | Puntag_int _), [arg], _) ->
-      comp_expr stack_info env arg sz cont
-  | Lprim((Pbox_float ((Boxed_float64 | Boxed_float32), _)
-  | Punbox_float (Boxed_float64 | Boxed_float32)), [arg], _) ->
-      comp_expr stack_info env arg sz cont
-  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
-      comp_expr stack_info env arg sz cont
-  | Lprim(Pignore, [arg], _) ->
-      comp_expr stack_info env arg sz (add_const_unit cont)
-  | Lprim(Pnot, [arg], _) ->
-      let newcont =
-        match cont with
-          Kbranchif lbl :: cont1 -> Kbranchifnot lbl :: cont1
-        | Kbranchifnot lbl :: cont1 -> Kbranchif lbl :: cont1
-        | _ -> Kboolnot :: cont in
-      comp_expr stack_info env arg sz newcont
-  | Lprim(Psequand, [exp1; exp2], _) ->
-      begin match cont with
-        Kbranchifnot lbl :: _ ->
-          comp_expr stack_info env exp1 sz (Kbranchifnot lbl ::
-            comp_expr stack_info env exp2 sz cont)
-      | Kbranchif lbl :: cont1 ->
-          let (lbl2, cont2) = label_code cont1 in
-          comp_expr stack_info env exp1 sz (Kbranchifnot lbl2 ::
-            comp_expr stack_info env exp2 sz (Kbranchif lbl :: cont2))
-      | _ ->
-          let (lbl, cont1) = label_code cont in
-          comp_expr stack_info env exp1 sz (Kstrictbranchifnot lbl ::
-            comp_expr stack_info env exp2 sz cont1)
-      end
-  | Lprim(Psequor, [exp1; exp2], _) ->
-      begin match cont with
-        Kbranchif lbl :: _ ->
-          comp_expr stack_info env exp1 sz (Kbranchif lbl ::
-            comp_expr stack_info env exp2 sz cont)
-      | Kbranchifnot lbl :: cont1 ->
-          let (lbl2, cont2) = label_code cont1 in
-          comp_expr stack_info env exp1 sz (Kbranchif lbl2 ::
-            comp_expr stack_info env exp2 sz (Kbranchifnot lbl :: cont2))
-      | _ ->
-          let (lbl, cont1) = label_code cont in
-          comp_expr stack_info env exp1 sz (Kstrictbranchif lbl ::
-            comp_expr stack_info env exp2 sz cont1)
-      end
-  | Lprim(Praise k, [arg], _) ->
-      comp_expr stack_info env arg sz (Kraise k :: discard_dead_code cont)
-  | Lprim(Paddint, [arg; Lconst(Const_base(Const_int n))], _)
-    when is_immed n ->
-      comp_expr stack_info env arg sz (Koffsetint n :: cont)
-  | Lprim(Psubint, [arg; Lconst(Const_base(Const_int n))], _)
-    when is_immed (-n) ->
-      comp_expr stack_info env arg sz (Koffsetint (-n) :: cont)
-  | Lprim (Poffsetint n, [arg], _)
-    when not (is_immed n) ->
-      comp_expr stack_info env arg sz
-        (Kpush::
-         Kconst (Const_base (Const_int n))::
-         Kaddint::cont)
-  | Lprim ((Pmakefloatblock _ | Pmakeufloatblock _), args, loc) ->
-      (* In bytecode, float# is boxed, so we can treat these two primitives the
-         same. *)
-      let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env args sz
-        (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
-      (* There is no notion of a mixed block at runtime in bytecode. Further,
-         source-level unboxed types are represented as boxed in bytecode, so
-         no ceremony is needed to box values before inserting them into
-         the (normal, unmixed) block.
-      *)
-      let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
-      let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env args sz
-        (Kmake_faux_mixedblock (total_len, tag) :: cont)
-  | Lprim(Pmakearray (kind, _, _), args, loc) ->
-      let cont = add_pseudo_event loc !compunit_name cont in
-      begin match kind with
-      (* arrays of unboxed types have the same representation
-         as the boxed ones on bytecode *)
-      | Pintarray | Paddrarray | Punboxedintarray _
-      | Punboxedfloatarray Unboxed_float32
-      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
-          comp_args stack_info env args sz
-            (Kmakeblock(List.length args, 0) :: cont)
-      | Pfloatarray | Punboxedfloatarray Unboxed_float64 ->
-          comp_args stack_info env args sz
-            (Kmakefloatblock(List.length args) :: cont)
-      | Punboxedvectorarray _ ->
-        fatal_error "SIMD is not supported in bytecode mode."
-      | Pgenarray ->
-          if args = []
-          then Kmakeblock(0, 0) :: cont
-          else comp_args stack_info env args sz
-                 (Kmakeblock(List.length args, 0) ::
-                  Kccall("caml_make_array", 1) :: cont)
-      end
-  | Lprim(Presume, args, _) ->
-      let nargs = List.length args - 1 in
-      assert (nargs = 3);
-      if is_tailcall cont then begin
-        (* Resumeterm itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info 3;
+    | Lprim(Psequor, [exp1; exp2], _) ->
+        begin match cont with
+          Kbranchif lbl :: _ ->
+            comp_expr stack_info env exp1 sz (Kbranchif lbl ::
+              comp_expr stack_info env exp2 sz cont)
+        | Kbranchifnot lbl :: cont1 ->
+            let (lbl2, cont2) = label_code cont1 in
+            comp_expr stack_info env exp1 sz (Kbranchif lbl2 ::
+              comp_expr stack_info env exp2 sz (Kbranchifnot lbl :: cont2))
+        | _ ->
+            let (lbl, cont1) = label_code cont in
+            comp_expr stack_info env exp1 sz (Kstrictbranchif lbl ::
+              comp_expr stack_info env exp2 sz cont1)
+        end
+    | Lprim(Praise k, [arg], _) ->
+        comp_expr stack_info env arg sz (Kraise k :: discard_dead_code cont)
+    | Lprim ((Pmakefloatblock _ | Pmakeufloatblock _), args, loc) ->
+        (* In bytecode, float# is boxed, so we can treat these two primitives the
+          same. *)
+        let cont = add_pseudo_event loc !compunit_name cont in
         comp_args stack_info env args sz
-          (Kresumeterm(sz + nargs) :: discard_dead_code cont)
-      end else begin
-        (* Resume itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info (sz + nargs + 3);
-        comp_args stack_info env args sz (Kresume :: cont)
-      end
-  | Lprim(Prunstack, args, _) ->
-      let nargs = List.length args in
-      assert (nargs = 3);
-      if is_tailcall cont then begin
-        (* Resumeterm itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info 3;
-        Kconst const_unit :: Kpush ::
-          comp_args stack_info env args (sz + 1)
-          (Kresumeterm(sz + nargs) :: discard_dead_code cont)
-      end else begin
-        (* Resume itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info (sz + nargs + 3);
-        Kconst const_unit :: Kpush ::
-          comp_args stack_info env args (sz + 1) (Kresume :: cont)
-      end
-  | Lprim(Preperform, args, _) ->
-      let nargs = List.length args - 1 in
-      assert (nargs = 2);
-      check_stack stack_info (sz + 3);
-      if is_tailcall cont then
+          (Kmakefloatblock (List.length args) :: cont)
+    | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
+        (* There is no notion of a mixed block at runtime in bytecode. Further,
+          source-level unboxed types are represented as boxed in bytecode, so
+          no ceremony is needed to box values before inserting them into
+          the (normal, unmixed) block.
+        *)
+        let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
+        let cont = add_pseudo_event loc !compunit_name cont in
         comp_args stack_info env args sz
-          (Kreperformterm(sz + nargs) :: discard_dead_code cont)
-      else
-        fatal_error "Reperform used in non-tail position"
-  | Lprim (Pmakearray_dynamic (kind, locality, Uninitialized), [len], loc) ->
-      (* Use a dummy initializer to implement the "uninitialized" primitive *)
-      let init =
-        match kind with
-        | Pgenarray | Paddrarray | Pintarray | Pfloatarray
-        | Pgcscannableproductarray _ ->
-            Misc.fatal_errorf "Array kind %s should have been ruled out by \
-                the frontend for %%makearray_dynamic_uninit"
-              (Printlambda.array_kind kind)
-        | Punboxedfloatarray Unboxed_float32 ->
-            Lconst (Const_base (Const_float32 "0.0"))
-        | Punboxedfloatarray Unboxed_float64 ->
-            Lconst (Const_base (Const_float "0.0"))
-        | Punboxedintarray (Unboxed_int8| Unboxed_int16) ->
-          Misc.unboxed_small_int_arrays_are_not_implemented ()
-        | Punboxedintarray Unboxed_int32 ->
-            Lconst (Const_base (Const_int32 0l))
-        | Punboxedintarray Unboxed_int64 ->
-            Lconst (Const_base (Const_int64 0L))
-        | Punboxedintarray Unboxed_nativeint ->
-            Lconst (Const_base (Const_nativeint 0n))
+          (Kmake_faux_mixedblock (total_len, tag) :: cont)
+    | Lprim(Pmakearray (kind, _, _), args, loc) ->
+        let cont = add_pseudo_event loc !compunit_name cont in
+        begin match kind with
+        (* arrays of unboxed types have the same representation
+          as the boxed ones on bytecode *)
+        | Pintarray | Paddrarray | Punboxedintarray _
+        | Punboxedfloatarray Unboxed_float32
+        | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+            comp_args stack_info env args sz
+              (Kmakeblock(List.length args, 0) :: cont)
+        | Pfloatarray | Punboxedfloatarray Unboxed_float64 ->
+            comp_args stack_info env args sz
+              (Kmakefloatblock(List.length args) :: cont)
         | Punboxedvectorarray _ ->
-            fatal_error "SIMD is not supported in bytecode mode."
-        | Pgcignorableproductarray ignorables ->
-            let rec convert_ignorable
-                  (ign : Lambda.ignorable_product_element_kind) =
-              match ign with
-              | Pint_ignorable -> Lconst (Const_base (Const_int 0))
-              | Punboxedfloat_ignorable Unboxed_float32 ->
-                Lconst (Const_base (Const_float32 "0.0"))
-              | Punboxedfloat_ignorable Unboxed_float64 ->
-                Lconst (Const_base (Const_float "0.0"))
-              | Punboxedint_ignorable (Unboxed_int8| Unboxed_int16) ->
-                Misc.unboxed_small_int_arrays_are_not_implemented ()
-              | Punboxedint_ignorable Unboxed_int32 ->
-                Lconst (Const_base (Const_int32 0l))
-              | Punboxedint_ignorable Unboxed_int64 ->
-                Lconst (Const_base (Const_int64 0L))
-              | Punboxedint_ignorable Unboxed_nativeint ->
-                Lconst (Const_base (Const_nativeint 0n))
-              | Pproduct_ignorable ignorables ->
-                  let fields = List.map convert_ignorable ignorables in
-                  Lprim (Pmakeblock (0, Immutable, None, alloc_heap), fields,
-                    loc)
-            in
-            convert_ignorable (Pproduct_ignorable ignorables)
-      in
-      comp_expr stack_info env
-        (Lprim (Pmakearray_dynamic (kind, locality, With_initializer),
-          [len; init], loc)) sz cont
-  | Lprim (Pmakearray_dynamic (_, _, Uninitialized), _, _loc) ->
-      Misc.fatal_error "Pmakearray_dynamic takes one arg when [Uninitialized]"
-  | Lprim (Pduparray (kind, mutability),
-           [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
-      assert (kind = kind');
-      comp_expr stack_info env
-        (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
-  | Lprim (Pduparray _, [arg], loc) ->
-      let prim_obj_dup =
-        Lambda.simple_prim_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
-      in
-      comp_expr stack_info env (Lprim (Pccall prim_obj_dup, [arg], loc)) sz cont
-  | Lprim (Pduparray _, _, _) ->
-      Misc.fatal_error "Bytegen.comp_expr: Pduparray takes exactly one arg"
-(* Integer first for enabling further optimization (cf. emitcode.ml)  *)
-  | Lprim (Pintcomp c, [arg ; (Lconst _ as k)], _) ->
-      let p = Pintcomp (swap_integer_comparison c)
-      and args = [k ; arg] in
-      let nargs = List.length args - 1 in
-      comp_args stack_info env args sz
-        (comp_primitive stack_info p (sz + nargs - 1) args :: cont)
-  | Lprim (Pfloatcomp (Boxed_float64, cmp), args, _) | Lprim (Punboxed_float_comp (Unboxed_float64, cmp), args, _) ->
-      let cont =
-        match cmp with
-        | CFeq -> Kccall("caml_eq_float", 2) :: cont
-        | CFneq -> Kccall("caml_neq_float", 2) :: cont
-        | CFlt -> Kccall("caml_lt_float", 2) :: cont
-        | CFnlt -> Kccall("caml_lt_float", 2) :: Kboolnot :: cont
-        | CFgt -> Kccall("caml_gt_float", 2) :: cont
-        | CFngt -> Kccall("caml_gt_float", 2) :: Kboolnot :: cont
-        | CFle -> Kccall("caml_le_float", 2) :: cont
-        | CFnle -> Kccall("caml_le_float", 2) :: Kboolnot :: cont
-        | CFge -> Kccall("caml_ge_float", 2) :: cont
-        | CFnge -> Kccall("caml_ge_float", 2) :: Kboolnot :: cont
-      in
-      comp_args stack_info env args sz cont
-  | Lprim (Pfloatcomp (Boxed_float32, cmp), args, _) | Lprim (Punboxed_float_comp (Unboxed_float32, cmp), args, _) ->
-      let cont =
-        match cmp with
-        | CFeq -> Kccall("caml_eq_float32", 2) :: cont
-        | CFneq -> Kccall("caml_neq_float32", 2) :: cont
-        | CFlt -> Kccall("caml_lt_float32", 2) :: cont
-        | CFnlt -> Kccall("caml_lt_float32", 2) :: Kboolnot :: cont
-        | CFgt -> Kccall("caml_gt_float32", 2) :: cont
-        | CFngt -> Kccall("caml_gt_float32", 2) :: Kboolnot :: cont
-        | CFle -> Kccall("caml_le_float32", 2) :: cont
-        | CFnle -> Kccall("caml_le_float32", 2) :: Kboolnot :: cont
-        | CFge -> Kccall("caml_ge_float32", 2) :: cont
-        | CFnge -> Kccall("caml_ge_float32", 2) :: Kboolnot :: cont
-      in
-      comp_args stack_info env args sz cont
+          fatal_error "SIMD is not supported in bytecode mode."
+        | Pgenarray ->
+            if args = []
+            then Kmakeblock(0, 0) :: cont
+            else comp_args stack_info env args sz
+                  (Kmakeblock(List.length args, 0) ::
+                    Kccall("caml_make_array", 1) :: cont)
+        end
+    | Lprim(Presume, args, _) ->
+        let nargs = List.length args - 1 in
+        assert (nargs = 3);
+        if is_tailcall cont then begin
+          (* Resumeterm itself only pushes 2 words, but perform adds another *)
+          check_stack stack_info 3;
+          comp_args stack_info env args sz
+            (Kresumeterm(sz + nargs) :: discard_dead_code cont)
+        end else begin
+          (* Resume itself only pushes 2 words, but perform adds another *)
+          check_stack stack_info (sz + nargs + 3);
+          comp_args stack_info env args sz (Kresume :: cont)
+        end
+    | Lprim(Prunstack, args, _) ->
+        let nargs = List.length args in
+        assert (nargs = 3);
+        if is_tailcall cont then begin
+          (* Resumeterm itself only pushes 2 words, but perform adds another *)
+          check_stack stack_info 3;
+          Kconst const_unit :: Kpush ::
+            comp_args stack_info env args (sz + 1)
+            (Kresumeterm(sz + nargs) :: discard_dead_code cont)
+        end else begin
+          (* Resume itself only pushes 2 words, but perform adds another *)
+          check_stack stack_info (sz + nargs + 3);
+          Kconst const_unit :: Kpush ::
+            comp_args stack_info env args (sz + 1) (Kresume :: cont)
+        end
+    | Lprim(Preperform, args, _) ->
+        let nargs = List.length args - 1 in
+        assert (nargs = 2);
+        check_stack stack_info (sz + 3);
+        if is_tailcall cont then
+          comp_args stack_info env args sz
+            (Kreperformterm(sz + nargs) :: discard_dead_code cont)
+        else
+          fatal_error "Reperform used in non-tail position"
+    | Lprim (Pmakearray_dynamic (kind, locality, Uninitialized), [len], loc) ->
+        (* Use a dummy initializer to implement the "uninitialized" primitive *)
+        let init =
+          match kind with
+          | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+          | Pgcscannableproductarray _ ->
+              Misc.fatal_errorf "Array kind %s should have been ruled out by \
+                  the frontend for %%makearray_dynamic_uninit"
+                (Printlambda.array_kind kind)
+          | Punboxedfloatarray Unboxed_float32 ->
+              Lconst (Const_base (Const_float32 "0.0"))
+          | Punboxedfloatarray Unboxed_float64 ->
+              Lconst (Const_base (Const_float "0.0"))
+          | Punboxedintarray (Unboxed_int8| Unboxed_int16) ->
+            Misc.unboxed_small_int_arrays_are_not_implemented ()
+          | Punboxedintarray Unboxed_int32 ->
+              Lconst (Const_base (Const_int32 0l))
+          | Punboxedintarray Unboxed_int64 ->
+              Lconst (Const_base (Const_int64 0L))
+          | Punboxedintarray Unboxed_nativeint ->
+              Lconst (Const_base (Const_nativeint 0n))
+          | Punboxedvectorarray _ ->
+              fatal_error "SIMD is not supported in bytecode mode."
+          | Pgcignorableproductarray ignorables ->
+              let rec convert_ignorable
+                    (ign : Lambda.ignorable_product_element_kind) =
+                match ign with
+                | Pint_ignorable -> Lconst (Const_base (Const_int 0))
+                | Punboxedfloat_ignorable Unboxed_float32 ->
+                  Lconst (Const_base (Const_float32 "0.0"))
+                | Punboxedfloat_ignorable Unboxed_float64 ->
+                  Lconst (Const_base (Const_float "0.0"))
+                | Punboxedint_ignorable (Unboxed_int8| Unboxed_int16) ->
+                  Misc.unboxed_small_int_arrays_are_not_implemented ()
+                | Punboxedint_ignorable Unboxed_int32 ->
+                  Lconst (Const_base (Const_int32 0l))
+                | Punboxedint_ignorable Unboxed_int64 ->
+                  Lconst (Const_base (Const_int64 0L))
+                | Punboxedint_ignorable Unboxed_nativeint ->
+                  Lconst (Const_base (Const_nativeint 0n))
+                | Pproduct_ignorable ignorables ->
+                    let fields = List.map convert_ignorable ignorables in
+                    Lprim (Pmakeblock (0, Immutable, None, alloc_heap), fields,
+                      loc)
+              in
+              convert_ignorable (Pproduct_ignorable ignorables)
+        in
+        comp_expr stack_info env
+          (Lprim (Pmakearray_dynamic (kind, locality, With_initializer),
+            [len; init], loc)) sz cont
+    | Lprim (Pmakearray_dynamic (_, _, Uninitialized), _, _loc) ->
+        Misc.fatal_error "Pmakearray_dynamic takes one arg when [Uninitialized]"
+    | Lprim (Pduparray (kind, mutability),
+            [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
+        assert (kind = kind');
+        comp_expr stack_info env
+          (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
+    | Lprim (Pduparray _, [arg], loc) ->
+        let prim_obj_dup =
+          Lambda.simple_prim_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+        in
+        comp_expr stack_info env (Lprim (Pccall prim_obj_dup, [arg], loc)) sz cont
+    | Lprim (Pduparray _, _, _) ->
+        Misc.fatal_error "Bytegen.comp_expr: Pduparray takes exactly one arg"
   | Lprim(Pmakeblock(tag, _mut, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
@@ -1152,6 +1160,8 @@ and comp_expr stack_info env exp sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
+  | Lprim(Pscalar scalar, args, _) ->
+    comp_args stack_info env args sz ( comp_scalar_intrinsic scalar cont)
   | Lprim(p, args, _) ->
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
@@ -1419,6 +1429,213 @@ and comp_binary_test stack_info env cond ifso ifnot sz cont =
             comp_expr stack_info env ifso sz (branch_end :: cont2) in
 
   comp_expr stack_info env cond sz cont_cond
+
+(* Compiler a scalar intrinsic. *)
+
+and comp_scalar_intrinsic (op : _ Lambda.Scalar.Intrinsic.t) cont =
+  let identity cont =
+    Kpop 0 :: cont
+  in
+  let module I = Lambda.Scalar.Intrinsic in
+  let ccall arity fmt =
+    Printf.ksprintf (fun name cont ->
+      (Kccall(name, arity) :: cont))
+      fmt
+  in
+  let comp_binary_integral size (op : I.Binary.Int_op.t) cont =
+    let size, cont =
+      match (size : _ Scalar.Or_small_int.t) with
+      | Builtin size -> size, cont
+      | Small (Int8 | Int16 as small) -> Scalar.Integral.Int, (sign_extend small cont)
+    in
+    match (size : Scalar.Integral.t) with
+    | Int ->
+      (match op with
+       | Add -> Kaddint :: cont
+       | Sub -> Ksubint:: cont
+       | Mul -> Kmulint:: cont
+       | Div (Safe | Unsafe)-> Kdivint :: cont
+       | Mod (Safe | Unsafe) -> Kmodint :: cont
+       | And -> Kandint :: cont
+       | Or -> Korint :: cont
+       | Xor -> Kxorint :: cont)
+    | Boxed (Int32 | Nativeint | Int64) ->
+      let c name =
+        ccall 2 "caml_%s_%s" (Scalar.Integral.to_string size) name cont
+      in
+      (match op with
+       | Add -> c "add"
+       | Sub -> c "sub"
+       | Mul -> c "mul"
+       | Div (Safe | Unsafe) -> c "div"
+       | Mod (Safe | Unsafe) -> c "mod"
+       | And -> c "and"
+       | Or -> c "or"
+       | Xor -> c "xor")
+  in
+  let comp_shift size (op : I.Binary.Shift_op.t) cont =
+    match (size : Scalar.Integral.t Scalar.Or_small_int.t) with
+    | Small (Int8 | Int16 as small) ->
+      (match op with
+       | Lsl -> Klslint :: sign_extend small cont
+       | Asr -> Kasrint :: sign_extend small cont
+       | Lsr -> zero_extend small (Klsrint :: sign_extend small cont))
+    | Builtin Int ->
+      (match op with
+       | Lsl -> Klslint :: cont
+       | Lsr -> Klsrint :: cont
+       | Asr -> Kasrint :: cont)
+    | Builtin (Boxed (Int32 | Nativeint | Int64) as size) ->
+      let c name =
+        ccall 2 "caml_%s_%s" (Scalar.Integral.to_string size) name cont
+      in
+      (match op with
+       | Lsl -> c "shift_left"
+       | Lsr -> c "shift_right_unsigned"
+       | Asr -> c "shift_right")
+  in
+  let comp_binary_scalar_intrinsic op cont =
+    match (op : _ Lambda.Scalar.Intrinsic.Binary.t) with
+    | Integral (size, op) ->
+      comp_binary_integral (Scalar.Integral.of_lambda size) op cont
+    | Floating (size, (Add | Sub | Mul | Div as op)) ->
+      let size = Scalar.Floating.of_lambda size in
+      ccall 2 "caml_%s_%s"
+        (I.Binary.Float_op.to_string op)
+        (Scalar.Floating.to_string size)
+        cont
+    | Shift (size, op, Int) ->
+      comp_shift (Scalar.Integral.of_lambda size) op cont
+    | Icmp (size, cmp) ->
+      (match Scalar.Integral.of_lambda size with
+       | Small (Int8 | Int16) | Builtin Int -> Kintcomp cmp :: cont
+       | Builtin (Boxed (Int32 | Nativeint | Int64)) ->
+         (match cmp with
+          | Ceq -> ccall 2 "caml_equal" cont
+          | Cne -> ccall 2 "caml_notequal" cont
+          | Clt -> ccall 2 "caml_lessthan" cont
+          | Cle -> ccall 2 "caml_lessequal" cont
+          | Cgt -> ccall 2 "caml_greaterthan" cont
+          | Cge -> ccall 2 "caml_greaterequal" cont))
+    | Fcmp (size, cmp) ->
+      (match Scalar.Floating.of_lambda size with
+       | Float | Float32 as size ->
+         let size = Scalar.Floating.to_string size in
+         match cmp with
+         | CFeq -> ccall 2 "caml_eq_%s" size (cont)
+         | CFneq -> ccall 2 "caml_neq_%s" size (cont)
+         | CFlt -> ccall 2 "caml_lt_%s" size (cont)
+         | CFnlt -> ccall 2 "caml_lt_%s" size (Kboolnot :: cont)
+         | CFgt -> ccall 2 "caml_gt_%s" size (cont)
+         | CFngt -> ccall 2 "caml_gt_%s" size (Kboolnot :: cont)
+         | CFle -> ccall 2 "caml_le_%s" size (cont)
+         | CFnle -> ccall 2 "caml_le_%s" size (Kboolnot :: cont)
+         | CFge -> ccall 2 "caml_ge_%s" size (cont)
+         | CFnge -> ccall 2 "caml_ge_%s" size (Kboolnot :: cont))
+    | Three_way_compare size ->
+      let size = match Scalar.of_lambda size with
+        | Small (Int8 | Int16) -> Scalar.Int
+        | Builtin (Int | Boxed (Int32 | Nativeint | Int64 | Float | Float32) as builtin )
+          -> builtin
+      in
+      ccall 2 "caml_%s_compare" (Scalar.to_string size) cont
+  in
+  let comp_unary_scalar_intrinsic op cont =
+    (* we don't need to sign- or zero-extend the inputs because tagged small integers are
+       always stored sign-extended *)
+    ( match (op : _ I.Unary.t) with
+      | Integral (size, op) ->
+        let comp_builtin size cont =
+          let comp_offset n cont =
+            let n = (Scalar.Integral.to_const size n) in
+            comp_binary_integral (Builtin size) Add
+              (Kpush :: Kconst (Const_base n) :: cont)
+          in
+          match op, (size : Scalar.Integral.t) with
+          | Bswap, Int -> ccall 1 "caml_bswap16" cont
+          | Bswap, Boxed (Int32 | Int64 | Nativeint) ->
+            ccall 1 "caml_%s_bswap" (Scalar.Integral.to_string size) cont
+          | Neg, Int -> Knegint :: cont
+          | Neg, Boxed (Int32 | Int64 | Nativeint) ->
+            ccall 1 "caml_%s_neg" (Scalar.Integral.to_string size) cont
+          | Succ, Int -> Koffsetint 1 :: cont
+          | Pred, Int -> Koffsetint (-1) :: cont
+          | Succ, Boxed _ -> comp_offset 1 cont
+          | Pred, Boxed _ -> comp_offset (-1) cont
+        in
+        (match op, Scalar.Integral.of_lambda size with
+        | _, Builtin size -> comp_builtin size cont
+        | Bswap, Small Int8 -> identity cont
+        | (Succ | Pred | Neg), (Small (Int8 | Int16 as small))
+        | Bswap, (Small (Int16 as small)) -> comp_builtin Int (sign_extend small cont))
+    | Floating (size, ((Abs | Neg) as op)) ->
+      let size = Scalar.Floating.of_lambda size in
+      ccall 1 "caml_%s_%s"
+        (I.Unary.Float_op.to_string op)
+        (Scalar.Floating.to_string size)
+        cont
+    | Static_cast { src; dst } ->
+      let rec static_cast ~src ~dst cont =
+        (match (src : Scalar.t), (dst : Scalar.t) with
+         | Boxed Int32, Boxed Int32
+         | Boxed Int64, Boxed Int64
+         | Boxed Nativeint, Boxed Nativeint
+         | Boxed Float, Boxed Float
+         | Boxed Float32, Boxed Float32
+         | Int, Int ->
+           (* the identity function *)
+           identity cont
+         | Boxed Float32, Boxed (Int64 | Nativeint | Int32)
+         | Boxed (Int64 | Nativeint | Int32), Boxed Float32 ->
+           (* there are no builtins to convert directly, so we go indirectly via
+              float *)
+           static_cast ~src ~dst:(Scalar.Boxed Float)
+             (static_cast ~src:(Scalar.Boxed Float) ~dst cont)
+         | Boxed Int64, (Int | Boxed (Int32 | Nativeint | Float))
+         | Boxed Nativeint, (Int | Boxed (Int32 | Float))
+         | Boxed Int32, (Int | Boxed (Float))
+            ->
+            (* these happen to break from the more favored naming rule of
+               caml_dst_of_src *)
+            ccall 1 "caml_%s_to_%s"
+              (Scalar.to_string src)
+              (Scalar.to_string dst)
+              cont
+         | (Boxed (Float | Float32)), Int
+         | (Int | Boxed (Float | Int32 | Nativeint)), Boxed Int64
+         | (Int | Boxed (Float | Int32)), Boxed Nativeint
+         | (Int | Boxed (Float)), Boxed Int32
+         | (Int | Boxed (Float)), Boxed Float32
+         | (Int | Boxed Float32), Boxed Float
+            ->
+            ccall 1 "caml_%s_of_%s"
+              (Scalar.to_string dst)
+              (Scalar.to_string src)
+              cont
+          )
+        in
+      (match Scalar.of_lambda src, Scalar.of_lambda dst with
+        | Builtin src, Builtin dst -> static_cast ~src ~dst cont
+        | Small (Int8 | Int16), Builtin dst ->
+          (* we don't need to sign-extend in this case because tagged small integers
+             are always represented sign-extended in bytecode *)
+          (static_cast ~src:Int ~dst cont)
+       | Builtin src, Small (Int8 | Int16 as dst)
+         -> static_cast ~src:src ~dst:Int (sign_extend dst cont)
+       | Small Int8, Small (Int8 | Int16)
+       | Small Int16, Small Int16 ->
+         (* we don't need to sign-extend in this case because tagged small integers
+            are always represented sign-extended in bytecode *)
+         identity cont
+       | (Small Int16), Small (Int8 as dst) ->
+         (* we need to sign-extend here because these values are stored in full-width
+            immediates *)
+         sign_extend dst cont))
+  in
+  match (op : _ Lambda.Scalar.Intrinsic.t) with
+  | Unary op -> comp_unary_scalar_intrinsic  op cont
+  | Binary op -> comp_binary_scalar_intrinsic  op cont
+
 
 (**** Compilation of a code block (with tracking of stack usage) ****)
 

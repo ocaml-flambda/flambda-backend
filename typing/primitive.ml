@@ -491,6 +491,7 @@ module Repr_check = struct
       prim
 end
 
+
 (* Note: [any] here is not the same as jkind [any]. It means we allow any
    [native_repr] for the corresponding argument or return.  It's [Typedecl]'s
    responsibility to check that types in externals are representable or marked
@@ -774,6 +775,11 @@ let prim_has_valid_reprs ~loc prim =
         match String.Map.find_opt name stringlike_indexing_primitives with
         | Some reprs -> exactly reprs
         | None ->
+          let module I = Scalar.Intrinsic in
+          match I.With_percent_prefix.of_string name with
+          | intrinsic ->
+            exactly (List.map (fun sort -> Same_as_ocaml_repr sort) (I.sort intrinsic))
+          | exception Not_found ->
             if is_builtin_prim_name name then no_non_value_repr
               (* These can probably support non-value reprs if the need arises:
                  {|

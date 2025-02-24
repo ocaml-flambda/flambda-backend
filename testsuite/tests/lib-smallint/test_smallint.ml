@@ -27,11 +27,11 @@ let nudge rng f =
         f
 
 let run (module Smallint : Int.S) ~min_int ~max_int =
-  let int_size = Smallint.size in
-  assert (0 < int_size && int_size <= Sys.int_size);
-  assert (max_int = (1 lsl (int_size - 1)) - 1);
+  let size = Smallint.size in
+  assert (0 < size && size <= Int.size);
+  assert (max_int = (1 lsl (size - 1)) - 1);
   assert (min_int = lnot max_int);
-  let mask = (1 lsl int_size) - 1 in
+  let mask = (1 lsl size) - 1 in
   let to_int x : int =
     let i : int = Smallint.to_int x in
     assert (phys_same i x);
@@ -48,10 +48,10 @@ let run (module Smallint : Int.S) ~min_int ~max_int =
            (to_int x) (i land mask) i);
     x
   in
-  let rng = Random.State.make [| int_size |] in
+  let rng = Random.State.make [| size |] in
   let test_cases =
     (* sparse test cases, concentrated around 0 and the endpoints *)
-    List.init (int_size - 1) (fun size ->
+    List.init (size - 1) (fun size ->
         let bit = 1 lsl size in
         let rand () =
           Random.State.int_in_range rng ~min:(bit lsr 1) ~max:(bit - 1)
@@ -64,7 +64,7 @@ let run (module Smallint : Int.S) ~min_int ~max_int =
   let test2 f = test1 (fun x -> test1 (fun y -> f x y)) in
   let test_round_trip () =
     let test hi lo =
-      let hi = hi lsl int_size in
+      let hi = hi lsl size in
       assert (phys_same lo (to_int (of_int (hi lxor lo))))
     in
     test2 (fun hi lo ->
@@ -126,7 +126,7 @@ let run (module Smallint : Int.S) ~min_int ~max_int =
   test_logical2 Smallint.logor Int.logor;
   test_logical2 Smallint.logxor Int.logxor;
   test_logical1 Smallint.lognot Int.lognot;
-  for shift = 0 to int_size - 1 do
+  for shift = 0 to size - 1 do
     let apply_shift f x = f x shift in
     test_logical1
       (apply_shift Smallint.shift_right)

@@ -95,20 +95,10 @@ val tag_int : expression -> Debuginfo.t -> expression
 val untag_int : expression -> Debuginfo.t -> expression
 
 (** signed division of two register-width integers *)
-val div_int :
-  ?dividend_cannot_be_min_int:bool ->
-  expression ->
-  expression ->
-  Debuginfo.t ->
-  expression
+val div_int : expression -> expression -> Debuginfo.t -> expression
 
 (** signed remainder of two register-width integers *)
-val mod_int :
-  ?dividend_cannot_be_min_int:bool ->
-  expression ->
-  expression ->
-  Debuginfo.t ->
-  expression
+val mod_int : expression -> expression -> Debuginfo.t -> expression
 
 (** Boolean negation *)
 val mk_not : Debuginfo.t -> expression -> expression
@@ -1284,20 +1274,23 @@ module Scalar_type : sig
     val static_cast : t static_cast
 
     val conjugate : t conjugate
+
+    (** Sets the size of the argument to the size of a register *)
+    val to_register_width : t -> t
+
+    (** NOTE: for tagged integers, this INCLUDES the tag bit *)
+    val bit_width : t -> int
   end
 
   (** An integer that fits into a general-purpose register. It is canonically stored in
       twos-complement representation, in the lower [bits] bits of its container (whether
-      that be memory or a register), and is sign- or zero-extended as needed, according
-      to [signed]. *)
+      that be memory or a register). *)
   module Integer : sig
     type t [@@immediate]
 
-    val nativeint : t
+    val nativeint : Signedness.t -> t
 
     val create_exn : bit_width:int -> signedness:Signedness.t -> t
-
-    val bit_width : t -> int
 
     include Integral_ops with type t := t
   end
@@ -1307,18 +1300,17 @@ module Scalar_type : sig
   module Tagged_integer : sig
     type t [@@immediate]
 
-    val immediate : t
+    val immediate : Signedness.t -> t
 
     val create_exn :
       bit_width_including_tag_bit:int -> signedness:Signedness.t -> t
 
-    val bit_width_excluding_tag_bit : t -> int
-
-    val bit_width_including_tag_bit : t -> int
-
-    val untagged : t -> Integer.t
+    (** The corresponding untagged scalar type *)
+    val to_untagged : t -> Integer.t
 
     include Integral_ops with type t := t
+
+    val bit_width_excluding_tag_bit : t -> int
   end
 
   module Integral : sig
@@ -1326,14 +1318,23 @@ module Scalar_type : sig
       | Untagged of Integer.t
       | Tagged of Tagged_integer.t
 
-    val nativeint : t
+    val naked_int_exn : bits:int -> Signedness.t -> t
 
-    (** Gets the integral resulting from untagging the integer (if it is tagged).
+    val nativeint : Signedness.t -> t
 
-        E.g., you can use [static_cast ~src ~dst:(Untagged (untagged src))] to untag a
-        value of type [src]
-    *)
-    val untagged : t -> Integer.t
+    val tagged_immediate : Signedness.t -> t
+
+    val naked_immediate : Signedness.t -> t
+
+    (** Gets the integral resulting from untagging the integer (if it is tagged), or the
+        input unchanged if it is already untagged.
+
+        E.g., you can use [static_cast ~src ~dst:(Untagged (to_untagged src))] to obtain
+        an equivalent untagged value from [src]. *)
+    val to_untagged : t -> Integer.t
+
+    (** NOTE: for tagged integers, this INCLUDES the tag bit *)
+    val bit_width : t -> int
 
     include Integral_ops with type t := t
   end
@@ -1341,6 +1342,14 @@ module Scalar_type : sig
   type t =
     | Integral of Integral.t
     | Float of Float_width.t
+
+  val naked_int_exn : bits:int -> Signedness.t -> t
+
+  val nativeint : Signedness.t -> t
+
+  val tagged_immediate : Signedness.t -> t
+
+  val naked_immediate : Signedness.t -> t
 
   val static_cast : t static_cast
 

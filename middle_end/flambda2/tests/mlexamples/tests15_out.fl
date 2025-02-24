@@ -74,7 +74,7 @@ let code loopify(never) size(2) newer_version_of(negate_5)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
-  let Pnegint = %int_arith ~- x in
+  let Pnegint = 0 - x in
   cont k (Pnegint)
 in
 let $camlTests15__negate_12 = closure negate_5_1 @negate in

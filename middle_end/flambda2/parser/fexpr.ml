@@ -278,7 +278,6 @@ type nullop =
   | Begin_try_region of { ghost : bool }
 
 type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
-  | Neg
   | Swap_byte_endianness
 
 type array_kind_for_length = Flambda_primitive.Array_kind_for_length.t =

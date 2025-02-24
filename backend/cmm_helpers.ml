@@ -22,6 +22,21 @@ open Arch
 
 let arch_bits = Arch.size_int * 8
 
+let[@inline] get_const = function
+  | Cconst_int (i, _) -> Some (Nativeint.of_int i)
+  | Cconst_natint (i, _) -> Some i
+  | _ -> None
+
+let memory_chunk_width_in_bytes : memory_chunk -> int = function
+  | Byte_unsigned | Byte_signed -> 1
+  | Sixteen_unsigned | Sixteen_signed -> 2
+  | Thirtytwo_unsigned | Thirtytwo_signed -> 4
+  | Single { reg = Float64 | Float32 } -> 4
+  | Word_int -> size_int
+  | Word_val -> size_addr
+  | Double -> size_float
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
+
 type arity =
   { function_kind : Lambda.function_kind;
     params_layout : Lambda.layout list;
@@ -369,6 +384,10 @@ let rec lsl_int c1 c2 dbg =
   | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when Misc.no_overflow_lsl n1 n2 ->
     add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
+  | c1, Cconst_int (n2, _) when 0 < n2 && n2 < arch_bits -> (
+    match get_const c1 with
+    | Some c1 -> natint_const_untagged dbg (Nativeint.shift_left c1 n2)
+    | None -> Cop (Clsl, [c1; c2], dbg))
   | _, _ -> Cop (Clsl, [c1; c2], dbg)
 
 let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
@@ -416,8 +435,10 @@ let lsr_int c1 c2 dbg =
   | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
     Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | c1, Cconst_int (n, _) when n > 0 ->
-    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
+  | c1, Cconst_int (n, _) when n > 0 -> (
+    match get_const c1 with
+    | Some c1 -> natint_const_untagged dbg (Nativeint.shift_right_logical c1 n)
+    | None -> Cop (Clsr, [ignore_low_bit_int c1; c2], dbg))
   | _ -> Cop (Clsr, [c1; c2], dbg)
 
 let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
@@ -426,13 +447,16 @@ let asr_int c1 c2 dbg =
   match c2 with
   | Cconst_int (0, _) -> c1
   | Cconst_int (n, _) when n > 0 -> (
-    match ignore_low_bit_int c1 with
-    (* some operations always return small enough integers that it is safe and
-       correct to optimise [asr (lsl x 1) 1] into [x]. *)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
-      when n = 1 && guaranteed_to_be_small_int c ->
-      c
-    | c1' -> Cop (Casr, [c1'; c2], dbg))
+    match get_const c1 with
+    | Some c1 -> natint_const_untagged dbg (Nativeint.shift_right c1 n)
+    | None -> (
+      match ignore_low_bit_int c1 with
+      (* some operations always return small enough integers that it is safe and
+         correct to optimise [asr (lsl x 1) 1] into [x]. *)
+      | Cop (Clsl, [c; Cconst_int (1, _)], _)
+        when n = 1 && guaranteed_to_be_small_int c ->
+        c
+      | c1' -> Cop (Casr, [c1'; c2], dbg)))
   | _ -> Cop (Casr, [c1; c2], dbg)
 
 let asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
@@ -630,10 +654,31 @@ let raise_symbol dbg symb =
   Cop
     (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
 
-let[@inline] get_const = function
-  | Cconst_int (i, _) -> Some (Nativeint.of_int i)
-  | Cconst_natint (i, _) -> Some i
-  | _ -> None
+let cannot_be_min_int e =
+  let min_int = Nativeint.shift_left 1n (arch_bits - 1) in
+  match get_const e with
+  | Some e -> e <> min_int
+  | None -> (
+    match e with
+    | Cop ((Clsr | Casr | Clsl), [_; Cconst_int (n, _)], _) ->
+      0 < n && n < arch_bits
+    | Cop (Cand, args, _) ->
+      ListLabels.exists args ~f:(fun arg ->
+          match get_const arg with
+          | None -> false
+          | Some x ->
+            (* cannot be min_int if we zero that bit *)
+            Nativeint.logand x min_int = 0n)
+    | Cop (Cor, args, _) ->
+      ListLabels.exists args ~f:(fun arg ->
+          match get_const arg with
+          | None -> false
+          | Some x ->
+            (* cannot be min_int if we set any other bit to 1 *)
+            Nativeint.logand x (Nativeint.pred min_int) <> 0n)
+    | Cop (Cload { memory_chunk; mutability = _; is_atomic = _ }, _, _) ->
+      memory_chunk_width_in_bytes memory_chunk < Arch.size_int
+    | _ -> false)
 
 (** Division or modulo on registers. The overflow case min_int / -1 can
     occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513).
@@ -641,9 +686,8 @@ let[@inline] get_const = function
 
     However, if division crashes on overflow, we will insert a runtime check for a divisor
     of -1, and fall back to [if_divisor_is_minus_one]. *)
-let make_safe_divmod operator ~if_divisor_is_negative_one
-    ?(dividend_cannot_be_min_int = false) c1 c2 ~dbg =
-  if dividend_cannot_be_min_int || not Arch.division_crashes_on_overflow
+let make_safe_divmod operator ~if_divisor_is_negative_one c1 c2 ~dbg =
+  if (not Arch.division_crashes_on_overflow) || cannot_be_min_int c1
   then Cop (operator, [c1; c2], dbg)
   else
     bind "divisor" c2 (fun c2 ->
@@ -663,7 +707,7 @@ let divide_by_zero dividend ~dbg =
   bind "dividend" dividend (fun _ ->
       raise_symbol dbg "caml_exn_Division_by_zero")
 
-let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
+let div_int c1 c2 dbg =
   let if_divisor_is_negative_one ~dividend ~dbg = neg_int dividend dbg in
   match get_const c1, get_const c2 with
   | _, Some 0n -> divide_by_zero c1 ~dbg
@@ -735,11 +779,9 @@ let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
             lsr_const (if divisor >= 0n then n else q) (Nativeint.size - 1) dbg
           in
           add_int q sign_bit dbg)
-  | _, _ ->
-    make_safe_divmod ?dividend_cannot_be_min_int ~if_divisor_is_negative_one
-      Cdivi c1 c2 ~dbg
+  | _, _ -> make_safe_divmod ~if_divisor_is_negative_one Cdivi c1 c2 ~dbg
 
-let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
+let mod_int c1 c2 dbg =
   let if_divisor_is_positive_or_negative_one ~dividend ~dbg =
     bind "dividend" dividend (fun _ -> Cconst_int (0, dbg))
   in
@@ -791,7 +833,7 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
       bind "dividend" c1 (fun c1 ->
           sub_int c1 (mul_int (div_int c1 c2 dbg) c2 dbg) dbg)
   | _, _ ->
-    make_safe_divmod ?dividend_cannot_be_min_int
+    make_safe_divmod
       ~if_divisor_is_negative_one:if_divisor_is_positive_or_negative_one Cmodi
       c1 c2 ~dbg
 
@@ -929,16 +971,6 @@ let return_unit dbg c =
   match c with
   | Csequence (_, Cconst_int (1, _)) as c -> c
   | c -> Csequence (c, Cconst_int (1, dbg))
-
-let memory_chunk_width_in_bytes : memory_chunk -> int = function
-  | Byte_unsigned | Byte_signed -> 1
-  | Sixteen_unsigned | Sixteen_signed -> 2
-  | Thirtytwo_unsigned | Thirtytwo_signed -> 4
-  | Single { reg = Float64 | Float32 } -> 4
-  | Word_int -> size_int
-  | Word_val -> size_addr
-  | Double -> size_float
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
 
 let strided_field_address ptr ~index ~stride dbg =
   if index * stride = 0
@@ -1327,7 +1359,9 @@ let zero_extend ~bits ~dbg e =
   assert (0 < bits && bits <= arch_bits);
   let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
   let zero_extend_via_mask e =
-    Cop (Cand, [e; natint_const_untagged dbg mask], dbg)
+    match get_const e with
+    | Some e -> natint_const_untagged dbg (Nativeint.logand e mask)
+    | None -> Cop (Cand, [e; natint_const_untagged dbg mask], dbg)
   in
   if bits = arch_bits
   then e
@@ -1958,19 +1992,21 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_complex64 -> Double
 
 let and_int e1 e2 dbg =
-  let is_mask32 = function
-    | Cconst_natint (0xFFFF_FFFFn, _) -> true
-    | Cconst_int (n, _) -> Nativeint.of_int n = 0xFFFF_FFFFn
-    | _ -> false
-  in
-  match e1, e2 with
-  | e, m when is_mask32 m -> zero_extend ~bits:32 e ~dbg
-  | m, e when is_mask32 m -> zero_extend ~bits:32 e ~dbg
-  | e1, e2 -> Cop (Cand, [e1; e2], dbg)
+  match (e1, get_const e1), (e2, get_const e2) with
+  | (_, Some x), (_, Some y) -> natint_const_untagged dbg (Nativeint.logand x y)
+  | (_, Some 0xFFFF_FFFFn), (e, None) | (e, None), (_, Some 0xFFFF_FFFFn) ->
+    zero_extend ~bits:32 e ~dbg
+  | (e1, None), (e2, _) | (e1, _), (e2, None) -> Cop (Cand, [e1; e2], dbg)
 
-let or_int e1 e2 dbg = Cop (Cor, [e1; e2], dbg)
+let or_int e1 e2 dbg =
+  match get_const e1, get_const e2 with
+  | Some x, Some y -> natint_const_untagged dbg (Nativeint.logor x y)
+  | None, _ | _, None -> Cop (Cor, [e1; e2], dbg)
 
-let xor_int e1 e2 dbg = Cop (Cxor, [e1; e2], dbg)
+let xor_int e1 e2 dbg =
+  match get_const e1, get_const e2 with
+  | Some x, Some y -> natint_const_untagged dbg (Nativeint.logxor x y)
+  | None, _ | _, None -> Cop (Cxor, [e1; e2], dbg)
 
 (* Boxed integers *)
 
@@ -3446,26 +3482,10 @@ let mul_int_caml arg1 arg2 dbg =
   | c1, c2 -> incr_int (mul_int (decr_int c1 dbg) (untag_int c2 dbg) dbg) dbg
 
 let div_int_caml arg1 arg2 dbg =
-  let dividend_cannot_be_min_int =
-    (* Since caml integers are tagged, we know that they when they're untagged,
-       they can't be [Nativeint.min_int] *)
-    true
-  in
-  tag_int
-    (div_int ~dividend_cannot_be_min_int (untag_int arg1 dbg)
-       (untag_int arg2 dbg) dbg)
-    dbg
+  tag_int (div_int (untag_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
 
 let mod_int_caml arg1 arg2 dbg =
-  let dividend_cannot_be_min_int =
-    (* Since caml integers are tagged, we know that they when they're untagged,
-       they can't be [Nativeint.min_int] *)
-    true
-  in
-  tag_int
-    (mod_int ~dividend_cannot_be_min_int (untag_int arg1 dbg)
-       (untag_int arg2 dbg) dbg)
-    dbg
+  tag_int (mod_int (untag_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
 
 let and_int_caml arg1 arg2 dbg = and_int arg1 arg2 dbg
 
@@ -4497,10 +4517,11 @@ module Scalar_type = struct
            accordingly *)
         signedness
 
-    (** This type annotation proves that [int_of_signedness] is valid *)
-    type signedness_is_immediate = Signedness.t [@@immediate]
-
-    external int_of_signedness : signedness_is_immediate -> int = "%identity"
+    let[@inline] int_of_signedness : Signedness.t -> int = function
+      (* If [Signedness.t] ever changes, adjust the representation of [t]
+         accordingly *)
+      | Signed -> 0
+      | Unsigned -> 1
 
     let[@inline] create_exn ~bit_width ~signedness =
       assert (0 < bit_width && bit_width <= arch_bits);
@@ -4511,6 +4532,14 @@ module Scalar_type = struct
 
   module Integral_type = struct
     include Bit_width_and_signedness
+
+    let to_register_width t =
+      (* Technically, signedness doesn't matter since this is the widest integer
+         type supported. However, we preserve it anyway so that the result looks
+         like what you'd expect *)
+      let signedness = signedness t in
+      assert (bit_width t <= arch_bits);
+      create_exn ~bit_width:arch_bits ~signedness
 
     let[@inline] with_signedness t ~signedness =
       create_exn ~bit_width:(bit_width t) ~signedness
@@ -4527,15 +4556,15 @@ module Scalar_type = struct
       | Signed, Unsigned -> false
 
     let[@inline] static_cast ~dbg ~src ~dst exp =
-      if is_promotable ~src ~dst
-      then
-        (* since the values are already stored sign- or zero-extended, this is a
-           no-op. *)
-        exp
+      let sign = signedness dst in
+      let src = bit_width src in
+      let dst = bit_width dst in
+      if dst <= src
+      then low_bits ~bits:dst exp ~dbg
       else
-        match signedness dst with
-        | Signed -> sign_extend ~bits:(bit_width dst) exp ~dbg
-        | Unsigned -> zero_extend ~bits:(bit_width dst) exp ~dbg
+        match sign with
+        | Signed -> sign_extend ~bits:src exp ~dbg
+        | Unsigned -> zero_extend ~bits:src exp ~dbg
 
     let[@inline] conjugate ~outer ~inner ~dbg ~f x =
       x
@@ -4551,7 +4580,7 @@ module Scalar_type = struct
       Format.fprintf ppf "%a int%d" Signedness.print (signedness t)
         (bit_width t)
 
-    let nativeint = create_exn ~bit_width:arch_bits ~signedness:Signed
+    let nativeint signedness = create_exn ~bit_width:arch_bits ~signedness
   end
 
   (** An {!Integer.t} but with the additional stipulation that its container must
@@ -4563,14 +4592,12 @@ module Scalar_type = struct
       assert (bit_width > 1);
       create_exn ~bit_width ~signedness
 
-    let immediate =
-      create_exn ~bit_width_including_tag_bit:arch_bits ~signedness:Signed
-
-    let[@inline] bit_width_including_tag_bit t = bit_width t
+    let immediate signedness =
+      create_exn ~bit_width_including_tag_bit:arch_bits ~signedness
 
     let[@inline] bit_width_excluding_tag_bit t = bit_width t - 1
 
-    let[@inline] untagged t =
+    let[@inline] to_untagged t =
       Integer.create_exn
         ~bit_width:(bit_width_excluding_tag_bit t)
         ~signedness:(signedness t)
@@ -4590,11 +4617,9 @@ module Scalar_type = struct
       | Untagged of Integer.t
       | Tagged of Tagged_integer.t
 
-    let nativeint = Untagged Integer.nativeint
-
-    let[@inline] untagged = function
+    let[@inline] to_untagged = function
       | Untagged t -> t
-      | Tagged t -> Tagged_integer.untagged t
+      | Tagged t -> Tagged_integer.to_untagged t
 
     let signedness = function
       | Untagged t -> Integer.signedness t
@@ -4604,6 +4629,14 @@ module Scalar_type = struct
       match t with
       | Untagged t -> Untagged (Integer.with_signedness t ~signedness)
       | Tagged t -> Tagged (Tagged_integer.with_signedness t ~signedness)
+
+    let to_register_width = function
+      | Untagged t -> Untagged (Integer.to_register_width t)
+      | Tagged t -> Tagged (Tagged_integer.to_register_width t)
+
+    let bit_width = function
+      | Untagged t -> Integer.bit_width t
+      | Tagged t -> Tagged_integer.bit_width t
 
     let[@inline] signed t = with_signedness t ~signedness:Signed
 
@@ -4622,39 +4655,59 @@ module Scalar_type = struct
       | Tagged tagged -> Tagged_integer.print ppf tagged
 
     let[@inline] is_promotable ~src ~dst =
-      Integer.is_promotable ~src:(untagged src) ~dst:(untagged dst)
+      Integer.is_promotable ~src:(to_untagged src) ~dst:(to_untagged dst)
 
     let static_cast ~dbg ~src ~dst exp =
       match src, dst with
       | Untagged src, Untagged dst -> Integer.static_cast ~dbg ~src ~dst exp
       | Tagged src, Tagged dst -> Tagged_integer.static_cast ~dbg ~src ~dst exp
       | Untagged src, Tagged dst ->
-        tag_int
-          (Integer.static_cast ~dbg ~src ~dst:(Tagged_integer.untagged dst) exp)
-          dbg
+        let dst = Tagged_integer.to_untagged dst in
+        tag_int (Integer.static_cast ~dbg ~src ~dst exp) dbg
       | Tagged src, Untagged dst ->
-        Integer.static_cast ~dbg
-          ~src:(Tagged_integer.untagged src)
-          ~dst
-          (Tagged_integer.untag ~dbg src exp)
+        let exp = Tagged_integer.untag ~dbg src exp
+        and src = Tagged_integer.to_untagged src in
+        Integer.static_cast ~dbg ~src ~dst exp
 
     let[@inline] conjugate ~outer ~inner ~dbg ~f x =
       x
       |> static_cast ~src:outer ~dst:inner ~dbg
       |> f
       |> static_cast ~src:inner ~dst:outer ~dbg
+
+    let[@inline] naked_int_exn ~bits signedness =
+      Untagged (Integer.create_exn ~bit_width:bits ~signedness)
+
+    let[@inline] nativeint signedness = Untagged (Integer.nativeint signedness)
+
+    let[@inline] tagged_immediate signedness =
+      Tagged (Tagged_integer.immediate signedness)
+
+    let[@inline] naked_immediate signedness =
+      Untagged (to_untagged (tagged_immediate signedness))
   end
 
   type t =
     | Integral of Integral.t
     | Float of Float_width.t
 
+  let[@inline] naked_int_exn ~bits signedness =
+    Integral (Integral.naked_int_exn ~bits signedness)
+
+  let[@inline] nativeint signedness = Integral (Integral.nativeint signedness)
+
+  let[@inline] tagged_immediate signedness =
+    Integral (Integral.tagged_immediate signedness)
+
+  let[@inline] naked_immediate signedness =
+    Integral (Integral.naked_immediate signedness)
+
   let static_cast ~dbg ~src ~dst exp =
     match src, dst with
     | Integral src, Integral dst -> Integral.static_cast ~dbg ~src ~dst exp
     | Float src, Float dst -> Float_width.static_cast ~dbg ~src ~dst exp
     | Integral src, Float dst ->
-      let float_of_int_arg = Integral.nativeint in
+      let float_of_int_arg = Integral.nativeint Signed in
       if not (Integral.is_promotable ~src ~dst:float_of_int_arg)
       then
         Misc.fatal_errorf "static_cast: casting %a to float is not implemented"
@@ -4667,9 +4720,11 @@ module Scalar_type = struct
       | Unsigned ->
         Misc.fatal_errorf
           "static_cast: casting floats to unsigned values is undefined"
-      | Signed ->
+      | Signed as signedness ->
         (* we can truncate, but we don't want to promote *)
-        Integral.static_cast ~dbg ~src:Integral.nativeint ~dst
+        Integral.static_cast ~dbg
+          ~src:(Integral.nativeint signedness)
+          ~dst
           (unary (Cstatic_cast (Int_of_float src)) exp ~dbg))
 
   let[@inline] conjugate ~outer ~inner ~dbg ~f x =
