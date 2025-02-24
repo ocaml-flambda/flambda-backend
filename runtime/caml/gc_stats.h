@@ -61,6 +61,7 @@ struct alloc_stats {
   uint64_t promoted_dependent_bytes;
   uint64_t major_dependent_bytes;
   uint64_t forced_major_collections;
+  uint64_t major_work_done;
 };
 void caml_accum_alloc_stats(
   struct alloc_stats* acc,
