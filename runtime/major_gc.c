@@ -1789,28 +1789,22 @@ static void major_collection_slice(intnat howmuch,
   /* Opportunistic slices may run concurrently with gc phase updates. */
   int may_access_gc_phase = (mode != Slice_opportunistic);
 
-  bool log_events = (mode != Slice_opportunistic ||
-                     (atomic_load_relaxed(&caml_verb_gc) & 0x40));
-
-  update_major_slice_work(howmuch, may_access_gc_phase, log_events);
-
-  /* When a full slice of major GC work is done,
-     or the slice is interrupted (in mode Slice_interruptible),
-     get_major_slice_work(mode) will return a budget <= 0 */
-
-  /* shortcut out if there is no opportunistic work to be done
-   * NB: needed particularly to avoid caml_ev spam when polling */
+  /* shortcut out if there is no opportunistic work to be done */
   if (mode == Slice_opportunistic &&
       !caml_opportunistic_major_work_available(domain_state)) {
-    commit_major_slice_work (0);
     return;
   }
 
-  if (log_events) CAML_EV_BEGIN(EV_MAJOR_SLICE);
+  CAML_EV_BEGIN(EV_MAJOR_SLICE);
   call_timing_hook(&caml_major_slice_begin_hook);
+  update_major_slice_work(howmuch, may_access_gc_phase, true);
 
   if (!domain_state->sweeping_done) {
-    if (log_events) CAML_EV_BEGIN(EV_MAJOR_SWEEP);
+    CAML_EV_BEGIN(EV_MAJOR_SWEEP);
+
+    /* When a full slice of major GC work is done,
+       or the slice is interrupted (in mode Slice_interruptible),
+       get_major_slice_work(mode) will return a budget <= 0 */
 
     while (!domain_state->sweeping_done &&
            (budget = get_major_slice_work(mode)) > 0) {
@@ -1825,7 +1819,7 @@ static void major_collection_slice(intnat howmuch,
       }
     }
 
-    if (log_events) CAML_EV_END(EV_MAJOR_SWEEP);
+    CAML_EV_END(EV_MAJOR_SWEEP);
   }
 
   if (domain_state->sweeping_done) {
@@ -1846,7 +1840,7 @@ mark_again:
   if (caml_marking_started() &&
       !domain_state->marking_done &&
       get_major_slice_work(mode) > 0) {
-    if (log_events) CAML_EV_BEGIN(EV_MAJOR_MARK);
+    CAML_EV_BEGIN(EV_MAJOR_MARK);
 
     while (!domain_state->marking_done &&
            (budget = get_major_slice_work(mode)) > 0) {
@@ -1856,7 +1850,7 @@ mark_again:
       commit_major_slice_work(work_done);
     }
 
-    if (log_events) CAML_EV_END(EV_MAJOR_MARK);
+    CAML_EV_END(EV_MAJOR_MARK);
   }
 
   if (mode != Slice_opportunistic && caml_marking_started()) {
@@ -1986,7 +1980,7 @@ mark_again:
   }
 
   call_timing_hook(&caml_major_slice_end_hook);
-  if (log_events) CAML_EV_END(EV_MAJOR_SLICE);
+  CAML_EV_END(EV_MAJOR_SLICE);
 
 #define F_U "%"ARCH_INTNAT_PRINTF_FORMAT"u"
 
