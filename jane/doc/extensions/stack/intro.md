@@ -19,11 +19,9 @@ heap.
 
 Though type inference will infer where stack allocation is possible, it is
 often wise to annotate places where you wish to enforce locality and stack
-allocation. This can be done in two ways, by either giving variables or
-values the `local` mode or by labeling an allocation as a `stack_` allocation:
+allocation. This can be done by labeling an allocation as a `stack_` allocation:
 
 ```ocaml
-let local_ x1 = { foo; bar } in
 let x2 = stack_ { foo; bar } in
 ...
 ```
