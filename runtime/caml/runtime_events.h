@@ -120,6 +120,7 @@ typedef enum {
     EV_COMPACT_FORWARD,
     EV_COMPACT_RELEASE,
     EV_MINOR_EPHE_CLEAN,
+    EV_MINOR_DEPENDENT,
 } ev_runtime_phase;
 
 typedef enum {
@@ -140,6 +141,7 @@ typedef enum {
     EV_C_MAJOR_HEAP_POOL_FRAG_WORDS,
     EV_C_MAJOR_HEAP_POOL_LIVE_BLOCKS,
     EV_C_MAJOR_HEAP_LARGE_BLOCKS,
+    EV_C_REQUEST_MINOR_REALLOC_DEPENDENT_TABLE,
 } ev_runtime_counter;
 
 typedef enum {

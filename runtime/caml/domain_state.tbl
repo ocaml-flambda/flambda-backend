@@ -90,6 +90,10 @@ DOMAIN_STATE(uintnat, allocated_words_direct)
 /* Number of words allocated directly to the major heap since the latest
    slice. (subset of allocated_words) */
 
+DOMAIN_STATE(uintnat, allocated_dependent_bytes)
+/* Number of external bytes whose pointers were promoted or allocated in
+   the major heap since latest slice. */
+
 DOMAIN_STATE(uintnat, swept_words)
 
 DOMAIN_STATE(uintnat, major_slice_epoch)
@@ -138,11 +142,8 @@ DOMAIN_STATE(int, unique_id)
 DOMAIN_STATE(value, dls_root)
 /* Domain-local state */
 
-DOMAIN_STATE(double, extra_heap_resources)
-DOMAIN_STATE(double, extra_heap_resources_minor)
-
-DOMAIN_STATE(uintnat, dependent_size)
-DOMAIN_STATE(uintnat, dependent_allocated)
+/* How much external memory is currenty held by the minor heap. */
+DOMAIN_STATE(uintnat, minor_dependent_bsz)
 
 /* How much work needs to be done (by all domains) before we stop this slice. */
 DOMAIN_STATE(intnat, slice_target)
@@ -165,6 +166,9 @@ DOMAIN_STATE(struct caml_intern_state*, intern_state)
 DOMAIN_STATE(uintnat, stat_minor_words)
 DOMAIN_STATE(uintnat, stat_promoted_words)
 DOMAIN_STATE(uintnat, stat_major_words)
+DOMAIN_STATE(uintnat, stat_minor_dependent_bytes)
+DOMAIN_STATE(uintnat, stat_promoted_dependent_bytes)
+DOMAIN_STATE(uintnat, stat_major_dependent_bytes)
 DOMAIN_STATE(intnat, stat_forced_major_collections)
 DOMAIN_STATE(uintnat, stat_blocks_marked)
 

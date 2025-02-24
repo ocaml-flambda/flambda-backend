@@ -113,6 +113,7 @@ static void reset_minor_tables(struct caml_minor_tables* r)
   reset_table((struct generic_table *)&r->major_ref);
   reset_table((struct generic_table *)&r->ephe_ref);
   reset_table((struct generic_table *)&r->custom);
+  reset_table((struct generic_table *)&r->dependent);
 }
 
 void caml_free_minor_tables(struct caml_minor_tables* r)
@@ -554,8 +555,11 @@ void caml_empty_minor_heap_domain_clear(caml_domain_state* domain)
   clear_table ((struct generic_table *)&minor_tables->custom,
                sizeof(struct caml_custom_elt),
                "custom");
+  clear_table ((struct generic_table *)&minor_tables->dependent,
+               sizeof(struct caml_dependent_elt),
+               "dependent");
 
-  domain->extra_heap_resources_minor = 0.0;
+  domain->minor_dependent_bsz = 0;
 }
 
 /* Try to do a major slice, returns nonzero if there was any work available,
@@ -841,14 +845,37 @@ static void custom_finalize_minor (caml_domain_state * domain)
        elt < domain->minor_tables->custom.ptr; elt++) {
     value *v = &elt->block;
     if (Is_block(*v) && Is_young(*v)) {
-      if (get_header_val(*v) == 0) { /* value copied to major heap */
-        caml_adjust_gc_speed(elt->mem, elt->max);
-      } else {
+      if (get_header_val(*v) != 0) { /* value not copied to major heap */
         void (*final_fun)(value) = Custom_ops_val(*v)->finalize;
         if (final_fun != NULL) final_fun(*v);
       }
     }
   }
+}
+
+static void dependent_finalize_minor (caml_domain_state *domain)
+{
+  struct caml_dependent_elt *elt;
+  for (elt = domain->minor_tables->dependent.base;
+       elt < domain->minor_tables->dependent.ptr; elt++) {
+    value *v = &elt->block;
+    CAMLassert (Is_block (*v));
+    if (Is_young(*v)) {
+      if (get_header_val(*v) == 0) { /* value copied to major heap */
+#ifdef DEBUG
+        domain->minor_dependent_bsz -= elt->mem;
+        /* see assertion below */
+#endif
+        /* inlined version of [caml_alloc_dependent_memory] */
+        domain->allocated_dependent_bytes += elt->mem;
+        domain->stat_promoted_dependent_bytes += elt->mem;
+        caml_add_dependent_bytes (domain->shared_heap, elt->mem);
+      }
+    }
+  }
+  /* At this point, everything must be finalized or promoted. */
+  CAMLassert (domain->minor_dependent_bsz == 0);
+  domain->minor_dependent_bsz = 0;
 }
 
 /* Increment the counter non-atomically, when it is already known that this
@@ -961,6 +988,11 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   caml_gc_log("finalizing dead minor custom blocks");
   custom_finalize_minor(domain);
   CAML_EV_END(EV_MINOR_FINALIZED);
+
+  CAML_EV_BEGIN(EV_MINOR_DEPENDENT);
+  caml_gc_log("accounting for minor blocks with dependent memory");
+  dependent_finalize_minor(domain);
+  CAML_EV_END(EV_MINOR_DEPENDENT);
 
   CAML_EV_BEGIN(EV_MINOR_FINALIZERS_ADMIN);
   caml_gc_log("running finalizer data structure book-keeping");
@@ -1191,4 +1223,14 @@ void caml_realloc_custom_table (struct caml_custom_table *tbl)
      "custom_table threshold crossed\n",
      "Growing custom_table to %" ARCH_INTNAT_PRINTF_FORMAT "dk bytes\n",
      "custom_table overflow");
+}
+
+void caml_realloc_dependent_table (struct caml_dependent_table *tbl)
+{
+  realloc_generic_table
+    ((struct generic_table *) tbl, sizeof (struct caml_dependent_elt),
+     EV_C_REQUEST_MINOR_REALLOC_DEPENDENT_TABLE,
+     "dependent_table threshold crossed\n",
+     "Growing dependent_table to %" ARCH_INTNAT_PRINTF_FORMAT "dk bytes\n",
+     "dependent_table overflow");
 }

@@ -238,50 +238,47 @@ CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
 */
 CAMLexport void caml_alloc_dependent_memory (value v, mlsize_t nbytes)
 {
-  /* No-op for now */
+  if (nbytes == 0) return;
+  CAMLassert (Is_block (v));
+  if (Is_young (v)){
+    Caml_state->stat_minor_dependent_bytes += nbytes;
+    add_to_dependent_table (&Caml_state->minor_tables->dependent, v, nbytes);
+    Caml_state->minor_dependent_bsz += nbytes;
+    uintnat max_minor =
+      Bsize_wsize (Caml_state->minor_heap_wsz) / 100 * caml_custom_minor_ratio;
+    if (Caml_state->minor_dependent_bsz > max_minor) {
+      caml_request_minor_gc ();
+    }
+  } else {
+    caml_add_dependent_bytes (Caml_state->shared_heap, nbytes);
+    Caml_state->allocated_dependent_bytes += nbytes;
+    /* FIXME sdolan: what's the right condition here? */
+    uintnat max_major = caml_custom_get_max_major() / 5;
+    if (Caml_state->allocated_dependent_bytes > max_major){
+      CAML_EV_COUNTER (EV_C_REQUEST_MAJOR_ALLOC_SHR, 1);
+      caml_request_major_slice(1);
+    }
+  }
 }
 
 CAMLexport void caml_free_dependent_memory (value v, mlsize_t nbytes)
 {
-  /* No-op for now */
+  CAMLassert (Is_block (v));
+  if (Is_young (v)){
+    Caml_state->minor_dependent_bsz -= nbytes;
+  }else{
+    caml_add_dependent_bytes (Caml_state->shared_heap, -nbytes);
+  }
 }
 
-/* Use this function to tell the major GC to speed up when you use
-   finalized blocks to automatically deallocate resources (other
-   than memory). The GC will do at least one cycle every [max]
-   allocated resources; [res] is the number of resources allocated
-   this time.
-   Note that only [res/max] is relevant.  The units (and kind of
-   resource) can change between calls to [caml_adjust_gc_speed].
-
-   If [max] = 0, then we use a number proportional to the major heap
-   size and [caml_custom_major_ratio]. In this case, [mem] should
-   be a number of bytes and the trade-off between GC work and space
-   overhead is under the control of the user through
-   [caml_custom_major_ratio].
-*/
 CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
 {
-  if (max == 0) max = caml_custom_get_max_major ();
-  if (res > max) res = max;
-  Caml_state->extra_heap_resources += (double) res / (double) max;
-  if (Caml_state->extra_heap_resources > 0.2){
-    CAML_EV_COUNTER (EV_C_REQUEST_MAJOR_ADJUST_GC_SPEED, 1);
-    caml_request_major_slice (1);
-  }
+  /* No-op, present only for compatibility */
 }
 
-/* This function is analogous to [caml_adjust_gc_speed]. When the
-   accumulated sum of [res/max] values reaches 1, a minor GC is
-   triggered.
-*/
 CAMLexport void caml_adjust_minor_gc_speed (mlsize_t res, mlsize_t max)
 {
-  if (max == 0) max = 1;
-  Caml_state->extra_heap_resources_minor += (double) res / (double) max;
-  if (Caml_state->extra_heap_resources_minor > 1.0) {
-    caml_request_minor_gc ();
-  }
+  /* No-op, present only for compatibility */
 }
 
 /* You must use [caml_intialize] to store the initial value in a field of a

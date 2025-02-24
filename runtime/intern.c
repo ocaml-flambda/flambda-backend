@@ -715,7 +715,7 @@ static void intern_rec(struct caml_intern_state* s,
           s->intern_obj_table[s->obj_counter++] = v;
         if (ops->finalize != NULL && Is_young(v)) {
           /* Remember that the block has a finalizer. */
-          add_to_custom_table (&d->minor_tables->custom, v, 0, 1);
+          add_to_custom_table (&d->minor_tables->custom, v);
         }
         break;
       }

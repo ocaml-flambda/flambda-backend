@@ -760,6 +760,11 @@ static void adopt_all_pool_stats_with_lock(struct caml_heap_state *adopter) {
   memset(&pool_freelist.stats, 0, sizeof(pool_freelist.stats));
 }
 
+void caml_add_dependent_bytes (struct caml_heap_state *local, intnat n)
+{
+  local->stats.dependent_bytes += n;
+}
+
 void caml_collect_heap_stats_sample(
   struct caml_heap_state* local,
   struct heap_stats* sample)
