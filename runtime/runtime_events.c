@@ -380,6 +380,7 @@ static void runtime_events_create_from_stw_single(void) {
 
     // at the same instant: snapshot user_events list and set
     // runtime_events_enabled to 1
+    /* calling from STW */
     caml_plat_lock_blocking(&user_events_lock);
     value current_user_event = user_events;
     atomic_store_release(&runtime_events_enabled, 1);
@@ -728,6 +729,12 @@ CAMLprim value caml_runtime_events_user_register(value event_name,
   Field(event, 3) = event_tag;
 
 
+  /* Pre-allocate to avoid STW while holding [user_events_lock]. */
+  list_item = caml_alloc(2, 0);
+
+  /* [user_events_lock] can be acquired during STW, so we must use
+     caml_plat_lock_blocking and be careful to avoid triggering any
+     STW while holding it */
   caml_plat_lock_blocking(&user_events_lock);
   // critical section: when we update the user_events list we need to make sure
   // it is not updated while we construct the pointer to the next element
@@ -738,9 +745,8 @@ CAMLprim value caml_runtime_events_user_register(value event_name,
   }
 
   // event is added to the list of known events
-  list_item = caml_alloc_small(2, 0);
-  Field(list_item, 0) = event;
-  Field(list_item, 1) = user_events;
+  Store_field(list_item, 0, event);
+  Store_field(list_item, 1, user_events);
   caml_modify_generational_global_root(&user_events, list_item);
   // end critical section
   caml_plat_unlock(&user_events_lock);
