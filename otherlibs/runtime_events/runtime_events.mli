@@ -138,6 +138,7 @@ type runtime_phase =
 | EV_COMPACT_EVACUATE
 | EV_COMPACT_FORWARD
 | EV_COMPACT_RELEASE
+| EV_MINOR_EPHE_CLEAN
 
 (** Lifecycle events for the ring itself. *)
 type lifecycle =
