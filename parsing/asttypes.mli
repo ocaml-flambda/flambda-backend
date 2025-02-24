@@ -31,6 +31,9 @@ type constant =
   | Const_int64 of int64
   | Const_nativeint of nativeint
 
+(** Defines whether a constant is a value (i.e., boxed/tagged), or if it is "naked" *)
+type naked_flag = Naked | Value
+
 type rec_flag = Nonrecursive | Recursive
 
 type direction_flag = Upto | Downto

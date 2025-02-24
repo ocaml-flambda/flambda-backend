@@ -24,23 +24,26 @@ let is_cons = function
 | {cstr_name = "::"} -> true
 | _ -> false
 
-let pretty_const c = match c with
-| Const_int i -> Printf.sprintf "%d" i
-| Const_char c -> Printf.sprintf "%C" c
-| Const_string (s, _, _) -> Printf.sprintf "%S" s
-| Const_float f -> Printf.sprintf "%s" f
-| Const_float32 f -> Printf.sprintf "%s" f
-| Const_unboxed_float f -> Printf.sprintf "%s" (Misc.format_as_unboxed_literal f)
-| Const_unboxed_float32 f -> Printf.sprintf "%ss" (Misc.format_as_unboxed_literal f)
-| Const_int32 i -> Printf.sprintf "%ldl" i
-| Const_int64 i -> Printf.sprintf "%LdL" i
-| Const_nativeint i -> Printf.sprintf "%ndn" i
-| Const_unboxed_int32 i ->
-  Printf.sprintf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
-| Const_unboxed_int64 i ->
-  Printf.sprintf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
-| Const_unboxed_nativeint i ->
-  Printf.sprintf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
+let pretty_const c =
+  let maybe_naked nakedness fmt =
+    Printf.ksprintf (fun s ->
+      match (nakedness : naked_flag) with
+      | Value -> s
+      | Naked -> (Misc.format_as_unboxed_literal s))
+      fmt
+  in
+  match (c : constant) with
+  | Const_char (n, c) -> maybe_naked n "%C" c
+  | Const_int (Value, i) -> maybe_naked Value "%d" i
+  | Const_int (Naked, i) -> maybe_naked Naked "%di" i
+  | Const_int8 (n, i) -> maybe_naked n "%dy" i
+  | Const_int16 (n, i) -> maybe_naked n "%dw" i
+  | Const_int32 (n, i) -> maybe_naked n "%ldl" i
+  | Const_int64 (n, i) -> maybe_naked n "%LdL" i
+  | Const_nativeint (n, i) -> maybe_naked n "%ndn" i
+  | Const_float (n, f) -> maybe_naked n "%s" f
+  | Const_float32 (n, f) -> maybe_naked n "%ss" f
+  | Const_string (s, _, _) -> maybe_naked Value "%S" s
 
 let pretty_extra ppf (cstr, _loc, _attrs) pretty_rest rest =
   match cstr with

@@ -76,9 +76,22 @@ let out opcode =
 exception AsInt
 
 let const_as_int = function
-  | Const_base(Const_int i) -> i
-  | Const_base(Const_char c) -> Char.code c
-  | _ -> raise AsInt
+  | Const_base(Const_int ((Naked | Value), i))
+  | Const_base(Const_int8 ((Naked | Value), i))
+  | Const_base(Const_int16 ((Naked | Value), i)) -> i
+  | Const_base(Const_char ((Naked | Value), c)) -> Char.code c
+  | Const_base(Const_float _)
+  | Const_base(Const_float32 _)
+  | Const_base(Const_int32 _)
+  | Const_base(Const_int64 _)
+  | Const_base(Const_nativeint _)
+  | Const_base(Const_string _)
+  | Const_block _
+  | Const_mixed_block _
+  | Const_float_array _
+  | Const_immstring _
+  | Const_float_block _
+  | Const_null -> raise AsInt
 
 let is_immed i = immed_min <= i && i <= immed_max
 let is_immed_const k =
@@ -253,11 +266,11 @@ let emit_instr = function
   | Kgetpredef id -> out opGETGLOBAL; slot_for_getpredef id
   | Kconst sc ->
       begin match sc with
-        Const_base(Const_int i) when is_immed i ->
+        Const_base(Const_int ((Value | Naked), i)) when is_immed i ->
           if i >= 0 && i <= 3
           then out (opCONST0 + i)
           else (out opCONSTINT; out_int i)
-      | Const_base(Const_char c) ->
+      | Const_base(Const_char ((Value | Naked), c)) ->
           out opCONSTINT; out_int (Char.code c)
       | Const_block(t, []) ->
           if t = 0 then out opATOM0 else (out opATOM; out_int t)
@@ -388,11 +401,11 @@ let rec emit = function
       out opPUSHGETGLOBAL; slot_for_getglobal id; emit c
   | Kpush :: Kconst sc :: c ->
       begin match sc with
-        Const_base(Const_int i) when is_immed i ->
+        Const_base(Const_int ((Naked|Value), i)) when is_immed i ->
           if i >= 0 && i <= 3
           then out (opPUSHCONST0 + i)
           else (out opPUSHCONSTINT; out_int i)
-      | Const_base(Const_char c) ->
+      | Const_base(Const_char ((Naked|Value), c)) ->
           out opPUSHCONSTINT; out_int(Char.code c)
       | Const_block(t, []) ->
           if t = 0 then out opPUSHATOM0 else (out opPUSHATOM; out_int t)

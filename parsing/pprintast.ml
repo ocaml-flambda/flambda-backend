@@ -243,27 +243,24 @@ let rec longident f = function
 let longident_loc f x = pp f "%a" longident x.txt
 
 let constant f = function
-  | Pconst_char i ->
+  | Pconst_char (Value, i) ->
       pp f "%C"  i
+  | Pconst_char (Naked, i) ->
+      pp f "#%C"  i
   | Pconst_string (i, _, None) ->
       pp f "%S" i
   | Pconst_string (i, _, Some delim) ->
       pp f "{%s|%s|%s}" delim i delim
-  | Pconst_integer (i, None) ->
-      paren (first_is '-' i) (fun f -> pp f "%s") f i
-  | Pconst_integer (i, Some m) ->
-      paren (first_is '-' i) (fun f (i, m) -> pp f "%s%c" i m) f (i,m)
-  | Pconst_float (i, None) ->
-      paren (first_is '-' i) (fun f -> pp f "%s") f i
-  | Pconst_float (i, Some m) ->
-      paren (first_is '-' i) (fun f (i,m) -> pp f "%s%c" i m) f (i,m)
-  | Pconst_unboxed_float (x, None) ->
-      paren (first_is '-' x) (fun f -> pp f "%s") f
-        (Misc.format_as_unboxed_literal x)
-  | Pconst_unboxed_float (x, Some suffix)
-  | Pconst_unboxed_integer (x, suffix) ->
-      paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%c" x suffix) f
-        (Misc.format_as_unboxed_literal x, suffix)
+  | Pconst_integer {naked; value; suffix}
+  | Pconst_float {naked; value; suffix}
+    ->
+    paren (first_is '-' value) (fun f () ->
+      let value =
+        match naked with
+        | Value -> value
+        | Naked -> Misc.format_as_unboxed_literal value
+      in
+      pp f "%s%s" value suffix) f ()
 
 (* trailing space*)
 let mutable_flag f = function
@@ -2171,8 +2168,7 @@ and tuple_component ctxt f (l,e) =
 and directive_argument f x =
   match x.pdira_desc with
   | Pdir_string (s) -> pp f "@ %S" s
-  | Pdir_int (n, None) -> pp f "@ %s" n
-  | Pdir_int (n, Some m) -> pp f "@ %s%c" n m
+  | Pdir_int (n, m) -> pp f "@ %s%s" n m
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 

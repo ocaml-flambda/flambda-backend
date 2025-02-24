@@ -398,6 +398,8 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_int8 ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_int32 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_int64 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_lazy_t

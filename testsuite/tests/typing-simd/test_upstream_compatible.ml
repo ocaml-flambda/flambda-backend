@@ -9,6 +9,7 @@ Line 1, characters 9-16:
 1 | type t = int8x16;;
              ^^^^^^^
 Error: Unbound type constructor "int8x16"
+Hint: Did you mean "int16"?
 |}];;
 
 type t = int16x8;;
@@ -17,7 +18,7 @@ Line 1, characters 9-16:
 1 | type t = int16x8;;
              ^^^^^^^
 Error: Unbound type constructor "int16x8"
-Hint: Did you mean "int64" or "int64#"?
+Hint: Did you mean "int16"?
 |}];;
 
 type t = int32x4;;

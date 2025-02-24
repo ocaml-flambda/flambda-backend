@@ -59,23 +59,25 @@ let rec fmt_path_aux f x =
 let fmt_path f x = fprintf f "\"%a\"" fmt_path_aux x
 
 let fmt_constant f x =
+  let fmt_naked f n =
+    match (n : naked_flag) with
+    | Value -> pp_print_string f "Value"
+    | Naked -> pp_print_string f "Naked"
+  in
   match x with
-  | Const_int (i) -> fprintf f "Const_int %d" i
-  | Const_char (c) -> fprintf f "Const_char %02x" (Char.code c)
+  | Const_int (n, i) -> fprintf f "Const_int(%a, %d)" fmt_naked n i
+  | Const_char (n, c) -> fprintf f "Const_char(%a, %02x)" fmt_naked n (Char.code c)
   | Const_string (s, strloc, None) ->
       fprintf f "Const_string(%S,%a,None)" s fmt_location strloc
   | Const_string (s, strloc, Some delim) ->
       fprintf f "Const_string (%S,%a,Some %S)" s fmt_location strloc delim
-  | Const_float (s) -> fprintf f "Const_float %s" s
-  | Const_float32 (s) -> fprintf f "Const_float32 %s" s;
-  | Const_unboxed_float (s) -> fprintf f "Const_unboxed_float %s" s
-  | Const_unboxed_float32 (s) -> fprintf f "Const_unboxed_float32 %s" s
-  | Const_int32 (i) -> fprintf f "Const_int32 %ld" i
-  | Const_int64 (i) -> fprintf f "Const_int64 %Ld" i
-  | Const_nativeint (i) -> fprintf f "Const_nativeint %nd" i
-  | Const_unboxed_int32 (i) -> fprintf f "Const_unboxed_int32 %ld" i
-  | Const_unboxed_int64 (i) -> fprintf f "Const_unboxed_int64 %Ld" i
-  | Const_unboxed_nativeint (i) -> fprintf f "Const_unboxed_nativeint %nd" i
+  | Const_float (n, s) -> fprintf f "Const_float(%a, %s)" fmt_naked n s
+  | Const_float32 (n, s) -> fprintf f "Const_float32(%a, %s)" fmt_naked n s;
+  | Const_int8 (n, i) -> fprintf f "Const_int8(%a, %d)" fmt_naked n i
+  | Const_int16 (n, i) -> fprintf f "Const_int16(%a, %d)" fmt_naked n i
+  | Const_int32 (n, i) -> fprintf f "Const_int32(%a, %ld)" fmt_naked n i
+  | Const_int64 (n, i) -> fprintf f "Const_int64(%a, %Ld)" fmt_naked n i
+  | Const_nativeint (n, i) -> fprintf f "Const_nativeint(%a, %nd)" fmt_naked n i
 
 let fmt_mutable_flag f x =
   match x with

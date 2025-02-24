@@ -150,31 +150,30 @@ let all_coherent column =
       && c.cstr_nonconsts = c'.cstr_nonconsts
     | Constant c1, Constant c2 -> begin
         match c1, c2 with
-        | Const_char _, Const_char _
-        | Const_int _, Const_int _
-        | Const_int32 _, Const_int32 _
-        | Const_int64 _, Const_int64 _
-        | Const_nativeint _, Const_nativeint _
-        | Const_unboxed_int32 _, Const_unboxed_int32 _
-        | Const_unboxed_int64 _, Const_unboxed_int64 _
-        | Const_unboxed_nativeint _, Const_unboxed_nativeint _
-        | Const_float _, Const_float _
-        | Const_float32 _, Const_float32 _
-        | Const_unboxed_float _, Const_unboxed_float _
-        | Const_unboxed_float32 _, Const_unboxed_float32 _
+        | Const_char (n1, _), Const_char (n2, _)
+        | Const_int (n1, _), Const_int (n2, _)
+        | Const_int8 (n1, _), Const_int8 (n2, _)
+        | Const_int16 (n1, _), Const_int16 (n2, _)
+        | Const_int32 (n1, _), Const_int32 (n2, _)
+        | Const_int64 (n1, _), Const_int64 (n2, _)
+        | Const_nativeint (n1, _), Const_nativeint (n2, _)
+        | Const_float (n1, _), Const_float (n2, _)
+        | Const_float32 (n1, _), Const_float32 (n2, _) ->
+          (match n1, n2 with
+           | Naked, Naked
+           | Value, Value -> true
+           | Naked, Value
+           | Value, Naked -> false)
         | Const_string _, Const_string _ -> true
         | ( Const_char _
           | Const_int _
+          | Const_int8 _
+          | Const_int16 _
           | Const_int32 _
           | Const_int64 _
           | Const_nativeint _
-          | Const_unboxed_int32 _
-          | Const_unboxed_int64 _
-          | Const_unboxed_nativeint _
           | Const_float _
           | Const_float32 _
-          | Const_unboxed_float _
-          | Const_unboxed_float32 _
           | Const_string _), _ -> false
       end
     | Tuple l1, Tuple l2 ->
@@ -285,24 +284,20 @@ let is_absent_pat d =
 
 let const_compare x y =
   match x,y with
-  | Const_unboxed_float f1, Const_unboxed_float f2
-  | Const_float f1, Const_float f2 ->
+  | Const_float ((Value|Naked),f1), Const_float ((Value|Naked),f2) ->
       Stdlib.compare (float_of_string f1) (float_of_string f2)
-  | Const_unboxed_float32 _, _
-  | Const_float32 _, _ -> raise_matched_float32 ()
+  | Const_float32 ((Value|Naked), _), _ -> raise_matched_float32 ()
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
       String.compare s1 s2
   | (Const_int _
+    |Const_int8 _
+    |Const_int16 _
     |Const_char _
     |Const_string (_, _, _)
     |Const_float _
-    |Const_unboxed_float _
     |Const_int32 _
     |Const_int64 _
     |Const_nativeint _
-    |Const_unboxed_int32 _
-    |Const_unboxed_int64 _
-    |Const_unboxed_nativeint _
     ), _ -> Stdlib.compare x y
 
 let records_args l1 l2 =
@@ -830,7 +825,7 @@ let set_last a =
 (* mark constructor lines for failure when they are incomplete *)
 let mark_partial =
   let zero =
-    make_pat (`Constant (Const_int 0)) Ctype.none Env.empty
+    make_pat (`Constant (Const_int (Value, 0))) Ctype.none Env.empty
   in
   List.map (fun ((hp, _), _ as ps) ->
     match hp.pat_desc with
@@ -904,9 +899,18 @@ let full_match closing env =  match env with
           (fun (tag,f) ->
             row_field_repr f = Rabsent || List.mem tag fields)
           (row_fields row)
+  | Constant Const_int8 _
   | Constant Const_char _ ->
       List.length env = 256
-  | Constant _
+  | Constant Const_int16 _ ->
+    List.length env = 256 * 256
+  | Constant (Const_int (_, _))
+  | Constant (Const_string (_, _, _))
+  | Constant (Const_float (_, _))
+  | Constant (Const_float32 (_, _))
+  | Constant (Const_int32 (_, _))
+  | Constant (Const_int64 (_, _))
+  | Constant (Const_nativeint (_, _))
   | Array _ -> false
   | Tuple _
   | Unboxed_tuple _
@@ -1037,8 +1041,13 @@ let build_other_constant proj make first next p env =
   let all = List.map (fun (p, _) -> proj p.pat_desc) env in
   let rec try_const i =
     if List.mem i all
-    then try_const (next i)
-    else make_pat (make i) p.pat_type p.pat_env
+    then
+      (let next = next i in
+       if next = first
+       then Patterns.omega
+       else try_const next)
+    else
+      make_pat (make i) p.pat_type p.pat_env
   in try_const first
 
 (*
@@ -1112,11 +1121,11 @@ let build_other ext env =
                       d.pat_type d.pat_env)
                   pat other_pats
             end
-      | Constant Const_char _ ->
+      | Constant Const_char (n, _) ->
           let all_chars =
             List.map
               (fun (p,_) -> match p.pat_desc with
-              | Constant (Const_char c) -> c
+              | Constant (Const_char (n', c)) when n' = n -> c
               | _ -> assert false)
               env
           in
@@ -1127,7 +1136,7 @@ let build_other ext env =
               if List.mem ci all_chars then
                 find_other (i+1) imax
               else
-                make_pat (Tpat_constant (Const_char ci))
+                make_pat (Tpat_constant (Const_char (n, ci)))
                   d.pat_type d.pat_env
           in
           let rec try_chars = function
@@ -1141,40 +1150,41 @@ let build_other ext env =
           try_chars
             [ 'a', 'z' ; 'A', 'Z' ; '0', '9' ;
               ' ', '~' ; Char.chr 0 , Char.chr 255]
-      | Constant Const_int _ ->
+      | Constant Const_int8 (n, _) ->
+        build_other_constant
+          (function Constant(Const_int8 (n', i)) when n' = n -> i
+                  | _ -> assert false)
+          (function i -> Tpat_constant(Const_int8 (n, i)))
+          0 succ d env
+      | Constant Const_int16 (n, _) ->
+        build_other_constant
+          (function Constant(Const_int16 (n', i)) when n' = n -> i
+                  | _ -> assert false)
+          (function i -> Tpat_constant(Const_int16 (n, i)))
+          0 succ d env
+      | Constant Const_int (n, _) ->
           build_other_constant
-            (function Constant(Const_int i) -> i | _ -> assert false)
-            (function i -> Tpat_constant(Const_int i))
+            (function Constant(Const_int (n', i)) when n' = n -> i
+                    | _ -> assert false)
+            (function i -> Tpat_constant(Const_int (n, i)))
             0 succ d env
-      | Constant Const_int32 _ ->
+      | Constant Const_int32 (n, (_ : int32)) ->
           build_other_constant
-            (function Constant(Const_int32 i) -> i | _ -> assert false)
-            (function i -> Tpat_constant(Const_int32 i))
+            (function Constant(Const_int32 (n', i)) when n' = n -> i
+                    | _ -> assert false)
+            (function i -> Tpat_constant(Const_int32 (n, i)))
             0l Int32.succ d env
-      | Constant Const_int64 _ ->
+      | Constant Const_int64 (n, (_ : int64)) ->
           build_other_constant
-            (function Constant(Const_int64 i) -> i | _ -> assert false)
-            (function i -> Tpat_constant(Const_int64 i))
+            (function Constant(Const_int64 (n', i)) when n' = n -> i
+                    | _ -> assert false)
+            (function i -> Tpat_constant(Const_int64 (n, i)))
             0L Int64.succ d env
-      | Constant Const_nativeint _ ->
+      | Constant Const_nativeint (n, ( _: nativeint)) ->
           build_other_constant
-            (function Constant(Const_nativeint i) -> i | _ -> assert false)
-            (function i -> Tpat_constant(Const_nativeint i))
-            0n Nativeint.succ d env
-      | Constant Const_unboxed_int32 _ ->
-          build_other_constant
-            (function Constant(Const_unboxed_int32 i) -> i | _ -> assert false)
-            (function i -> Tpat_constant(Const_unboxed_int32 i))
-            0l Int32.succ d env
-      | Constant Const_unboxed_int64 _ ->
-          build_other_constant
-            (function Constant(Const_unboxed_int64 i) -> i | _ -> assert false)
-            (function i -> Tpat_constant(Const_unboxed_int64 i))
-            0L Int64.succ d env
-      | Constant Const_unboxed_nativeint _ ->
-          build_other_constant
-            (function Constant(Const_unboxed_nativeint i) -> i | _ -> assert false)
-            (function i -> Tpat_constant(Const_unboxed_nativeint i))
+            (function Constant(Const_nativeint (n', i)) when n' = n -> i
+                    | _ -> assert false)
+            (function i -> Tpat_constant(Const_nativeint (n, i)))
             0n Nativeint.succ d env
       | Constant Const_string _ ->
           build_other_constant
@@ -1184,20 +1194,14 @@ let build_other ext env =
                Tpat_constant
                  (Const_string(String.make i '*',Location.none,None)))
             0 succ d env
-      | Constant Const_float _ ->
+      | Constant Const_float (n, _) ->
           build_other_constant
-            (function Constant(Const_float f) -> float_of_string f
+            (function Constant(Const_float (n', f)) when n' = n ->
+               float_of_string f
                     | _ -> assert false)
-            (function f -> Tpat_constant(Const_float (string_of_float f)))
+            (function f -> Tpat_constant(Const_float (n, string_of_float f)))
             0.0 (fun f -> f +. 1.0) d env
-      | Constant Const_unboxed_float _ ->
-          build_other_constant
-            (function Constant(Const_unboxed_float f) -> float_of_string f
-                    | _ -> assert false)
-            (function f -> Tpat_constant(Const_unboxed_float (string_of_float f)))
-            0.0 (fun f -> f +. 1.0) d env
-      | Constant Const_float32 _
-      | Constant Const_unboxed_float32 _ -> raise_matched_float32 ()
+      | Constant Const_float32 _ -> raise_matched_float32 ()
       | Array (am, arg_sort, _) ->
           let all_lengths =
             List.map
@@ -1211,7 +1215,12 @@ let build_other ext env =
               make_pat (Tpat_array (am, arg_sort, omegas l))
                 d.pat_type d.pat_env in
           try_arrays 0
-      | _ -> Patterns.omega
+      | Any
+      | Lazy
+      | Tuple _
+      | Unboxed_tuple _
+      | Record _
+      | Record_unboxed_product _ -> Patterns.omega
 
 let rec has_instance p = match p.pat_desc with
   | Tpat_variant (l,_,r) when is_absent l r -> false
@@ -2278,10 +2287,9 @@ let inactive ~partial pat =
         | Tpat_constant c -> begin
             match c with
             | Const_string _
-            | Const_int _ | Const_char _ | Const_float _ | Const_float32 _
-            | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
-            | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
-            | Const_unboxed_int64 _ | Const_unboxed_nativeint _
+            | Const_int _ | Const_int8 _ | Const_int16 _ | Const_char _ | Const_float _ | Const_float32 _
+            | Const_int32 _
+            | Const_int64 _ | Const_nativeint _
             -> true
           end
         | Tpat_tuple ps ->

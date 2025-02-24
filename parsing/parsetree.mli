@@ -23,37 +23,35 @@
 open Asttypes
 
 type constant =
-  | Pconst_integer of string * char option
-      (** Integer constants such as [3] [3l] [3L] [3n].
+  | Pconst_integer of
+      { naked : naked_flag
+      ; value : string
+      ; suffix : string
+      }
+      (** Integer constants such as [3] [3l] [3L] [3n],
+          or naked constants, which start with a # character.
 
-     Suffixes [[g-z][G-Z]] are accepted by the parser.
-     Suffixes except ['l'], ['L'] and ['n'] are rejected by the typechecker
-  *)
-  | Pconst_unboxed_integer of string * char
-      (** Integer constants such as [#3] [#3l] [#3L] [#3n].
-
-          A suffix [[g-z][G-Z]] is required by the parser.
+          Suffixes [[g-zG-Z][0-9]*] are accepted by the parser.
           Suffixes except ['l'], ['L'] and ['n'] are rejected by the typechecker
       *)
-  | Pconst_char of char  (** Character such as ['c']. *)
+  | Pconst_char of naked_flag * char  (** Character such as ['c']. *)
   | Pconst_string of string * Location.t * string option
       (** Constant string such as ["constant"] or
           [{delim|other constant|delim}].
 
      The location span the content of the string, without the delimiters.
   *)
-  | Pconst_float of string * char option
-      (** Float constant such as [3.4], [2e5] or [1.4e-4].
+  | Pconst_float of
+      { naked : naked_flag
+      ; value : string
+      ; suffix : string
+      }
+      (** Float constant such as [3.4], [2e5], [1.4e-4], or [0x1abc.0acp10],
+          or naked constants, which start with a # character.
 
-     Suffixes [g-z][G-Z] are accepted by the parser.
-     Suffixes except ['s'] are rejected by the typechecker.
-  *)
-  | Pconst_unboxed_float of string * char option
-  (** Float constant such as [#3.4], [#2e5] or [#1.4e-4].
-
-      Suffixes [g-z][G-Z] are accepted by the parser.
-      Suffixes except ['s'] are rejected by the typechecker.
-  *)
+          Suffixes [g-z][G-Z] are accepted by the parser.
+          Suffixes except ['s'] are rejected by the typechecker.
+      *)
 
 type location_stack = Location.t list
 
@@ -1331,6 +1329,6 @@ and directive_argument =
 
 and directive_argument_desc =
   | Pdir_string of string
-  | Pdir_int of string * char option
+  | Pdir_int of string * string
   | Pdir_ident of Longident.t
   | Pdir_bool of bool

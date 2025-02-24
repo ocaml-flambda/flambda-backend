@@ -66,10 +66,10 @@ module Scalar = struct
 
     let to_const t i : Typedtree.constant =
       match t with
-      | Int -> (Const_int i)
-      | Boxed Int32 -> Const_int32 (Int32.of_int i)
-      | Boxed Nativeint -> Const_nativeint (Nativeint.of_int i)
-      | Boxed Int64 -> Const_int64 (Int64.of_int i)
+      | Int -> Const_int (Value, i)
+      | Boxed Int32 -> Const_int32 (Value, Int32.of_int i)
+      | Boxed Nativeint -> Const_nativeint (Value, Nativeint.of_int i)
+      | Boxed Int64 -> Const_int64 (Value, Int64.of_int i)
   end
 
   module Floating = struct
@@ -519,7 +519,7 @@ let comp_primitive stack_info p sz args =
   | Pfield (n, _ptr, _sem) -> Kgetfield n
   | Punboxed_product_field (n, _layouts) -> Kgetfield n
   | Parray_element_size_in_bytes _array_kind ->
-      Kconst (Const_base (Const_int (Sys.word_size / 8)))
+      Kconst (const_int int (Sys.word_size / 8))
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
@@ -811,7 +811,7 @@ external is_boot_compiler : unit -> bool = "caml_is_boot_compiler"
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
 let rec contains_float32s_or_nulls = function
-  | Const_base (Const_float32 _ | Const_unboxed_float32 _)
+  | Const_base (Const_float32 _)
   | Const_null -> true
   | Const_block (_, fields) -> List.exists contains_float32s_or_nulls fields
   | Const_mixed_block _ ->  Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
@@ -819,8 +819,8 @@ let rec contains_float32s_or_nulls = function
 
 
 let bits : Scalar.small_int -> structured_constant = function
-  | Int8 -> Const_base (Const_int 8)
-  | Int16 -> Const_base (Const_int 16)
+  | Int8 -> Const_base (Const_int (Value, 8))
+  | Int16 -> Const_base (Const_int (Value, 16))
 
 let sign_extend width cont =
     Kpush (* save the accumulator, then compute how far to shift *)
@@ -842,7 +842,7 @@ let zero_extend width cont =
   Kpush
   :: Kconst (bits width)
   :: Kpush
-  :: Kconst (Const_base (Const_int 1))
+  :: Kconst (Const_base (Const_int (Value, 1)))
   :: Klslint
   :: Koffsetint (-1)
   :: Kandint
@@ -850,12 +850,12 @@ let zero_extend width cont =
 
 let rec translate_float32s_or_nulls stack_info env cst sz cont =
   match cst with
-  | Const_base (Const_float32 f | Const_unboxed_float32 f) ->
+  | Const_base (Const_float32 ((Naked | Value), f)) ->
     let i = float32_of_string f in
-    Kconst (Const_base (Const_int32 (Obj.obj i))) ::
+    Kconst (Const_base (Const_int32 (Value, Obj.obj i))) ::
     Kccall("caml_float32_of_bits_bytecode", 1) :: cont
   | Const_null ->
-    Kconst (Const_base (Const_int 0)) :: Kccall("caml_int_as_pointer", 1) :: cont
+    Kconst const_unit :: Kccall("caml_int_as_pointer", 1) :: cont
   | Const_block (tag, fields) as cst when contains_float32s_or_nulls cst ->
     let fields = List.map (fun field -> Lconst field) fields in
     let cont = Kmakeblock (List.length fields, tag) :: cont in
@@ -913,7 +913,7 @@ let rec translate_float32s_or_nulls stack_info env cst sz cont =
         let getmethod, args' =
           if kind = Self then (Kgetmethod, met::obj::args) else
           match met with
-            Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
+            Lconst(Const_base(Const_int (Value, n))) -> (Kgetpubmet n, obj::args)
           | _ -> (Kgetdynmet, met::obj::args)
         in
         if is_tailcall cont && not (is_nontail rc) then
@@ -1095,36 +1095,36 @@ let rec translate_float32s_or_nulls stack_info env cst sz cont =
                   the frontend for %%makearray_dynamic_uninit"
                 (Printlambda.array_kind kind)
           | Punboxedfloatarray Unboxed_float32 ->
-              Lconst (Const_base (Const_float32 "0.0"))
+              Lconst (Const_base (Const_float32 (Naked, "0.0")))
           | Punboxedfloatarray Unboxed_float64 ->
-              Lconst (Const_base (Const_float "0.0"))
+              Lconst (Const_base (Const_float (Naked, "0.0")))
           | Punboxedintarray (Unboxed_int8| Unboxed_int16) ->
             Misc.unboxed_small_int_arrays_are_not_implemented ()
           | Punboxedintarray Unboxed_int32 ->
-              Lconst (Const_base (Const_int32 0l))
+              Lconst (Const_base (Const_int32 (Naked, 0l)))
           | Punboxedintarray Unboxed_int64 ->
-              Lconst (Const_base (Const_int64 0L))
+              Lconst (Const_base (Const_int64 (Naked,  0L)))
           | Punboxedintarray Unboxed_nativeint ->
-              Lconst (Const_base (Const_nativeint 0n))
+              Lconst (Const_base (Const_nativeint (Naked, 0n)))
           | Punboxedvectorarray _ ->
               fatal_error "SIMD is not supported in bytecode mode."
           | Pgcignorableproductarray ignorables ->
               let rec convert_ignorable
                     (ign : Lambda.ignorable_product_element_kind) =
                 match ign with
-                | Pint_ignorable -> Lconst (Const_base (Const_int 0))
+                | Pint_ignorable -> lconst_int int 0
                 | Punboxedfloat_ignorable Unboxed_float32 ->
-                  Lconst (Const_base (Const_float32 "0.0"))
+                  Lconst (Const_base (Const_float32 (Value, "0.0")))
                 | Punboxedfloat_ignorable Unboxed_float64 ->
-                  Lconst (Const_base (Const_float "0.0"))
+                  Lconst (Const_base (Const_float (Value, "0.0")))
                 | Punboxedint_ignorable (Unboxed_int8| Unboxed_int16) ->
                   Misc.unboxed_small_int_arrays_are_not_implemented ()
                 | Punboxedint_ignorable Unboxed_int32 ->
-                  Lconst (Const_base (Const_int32 0l))
+                  Lconst (Const_base (Const_int32 (Value, 0l)))
                 | Punboxedint_ignorable Unboxed_int64 ->
-                  Lconst (Const_base (Const_int64 0L))
+                  Lconst (Const_base (Const_int64 (Value, 0L)))
                 | Punboxedint_ignorable Unboxed_nativeint ->
-                  Lconst (Const_base (Const_nativeint 0n))
+                  Lconst (Const_base (Const_nativeint (Value, 0n)))
                 | Pproduct_ignorable ignorables ->
                     let fields = List.map convert_ignorable ignorables in
                     Lprim (Pmakeblock (0, Immutable, None, alloc_heap), fields,
@@ -1644,7 +1644,7 @@ let comp_block env exp sz cont =
   let code = comp_expr stack_info env exp sz cont in
   let used_safe = !(stack_info.max_stack_used) + Config.stack_safety_margin in
   if used_safe > Config.stack_threshold then
-    Kconst(Const_base(Const_int used_safe)) ::
+    Kconst(const_int int used_safe) ::
     Kccall("caml_ensure_stack_capacity", 1) ::
     code
   else

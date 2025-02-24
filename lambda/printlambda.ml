@@ -54,27 +54,8 @@ let boxed_vector = function
   | Boxed_vec128 -> "vec128"
 
 let rec struct_const ppf = function
-  | Const_naked_immediate (i, (Int8 | Int16 | Int)) ->
-    fprintf ppf "%s" (Misc.format_as_unboxed_literal (Int.to_string i))
-  | Const_base(Const_int n) -> fprintf ppf "%i" n
-  | Const_base(Const_char c) -> fprintf ppf "%C" c
-  | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
-  | Const_immstring s -> fprintf ppf "#%S" s
-  | Const_base(Const_float f) -> fprintf ppf "%s" f
-  | Const_base(Const_float32 f) -> fprintf ppf "%ss" f
-  | Const_base(Const_unboxed_float f) ->
-      fprintf ppf "%s" (Misc.format_as_unboxed_literal f)
-  | Const_base(Const_unboxed_float32 f) ->
-      fprintf ppf "%ss" (Misc.format_as_unboxed_literal f)
-  | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
-  | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
-  | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
-  | Const_base(Const_unboxed_int32 i) ->
-      fprintf ppf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
-  | Const_base(Const_unboxed_int64 i) ->
-      fprintf ppf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
-  | Const_base(Const_unboxed_nativeint i) ->
-      fprintf ppf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
+  | Const_base base -> pp_print_string ppf (Printpat.pretty_const base)
+  | Const_immstring s -> fprintf ppf "%S" s
   | Const_block(tag, []) ->
       fprintf ppf "[%i]" tag
   | Const_block(tag, hd::tl) ->

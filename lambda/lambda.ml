@@ -612,7 +612,6 @@ let must_be_value layout =
 
 type structured_constant =
     Const_base of constant
-  | Const_naked_immediate of int * Scalar.Integral.Taggable.Width.t
   | Const_block of int * structured_constant list
   | Const_mixed_block of int * mixed_block_shape * structured_constant list
   | Const_float_array of string list
@@ -910,21 +909,18 @@ type arg_descr =
     arg_block_idx: int; }
 
 let const_int size n =
-  match (size : _ Scalar.Integral.t) with
-  | Value (Taggable (Int8 | Int16 | Int)) -> Const_base (Const_int n)
-  | Value (Boxable (Int32 _)) ->
-    Const_base (Const_int32 (Int32.of_int n))
-  | Value (Boxable (Int64 _)) ->
-    Const_base (Const_int64 (Int64.of_int n))
-  | Value (Boxable (Nativeint _)) ->
-    Const_base (Const_nativeint (Nativeint.of_int n))
-  | Naked (Taggable taggable) -> Const_naked_immediate (n, taggable)
-  | Naked (Boxable (Int32 _)) ->
-    Const_base (Const_unboxed_int32 (Int32.of_int n))
-  | Naked (Boxable (Int64 _)) ->
-    Const_base (Const_unboxed_int64 (Int64.of_int n))
-  | Naked (Boxable (Nativeint _)) ->
-    Const_base (Const_unboxed_nativeint (Nativeint.of_int n))
+  let make naked : _ Scalar.Integral.Width.t -> constant = function
+    | Taggable Int8 -> Const_int8 (naked, n)
+    | Taggable Int16 -> Const_int16 (naked, n)
+    | Taggable Int -> Const_int (naked, n)
+    | Boxable (Int32 _) -> Const_int32 (naked, Int32.of_int n)
+    | Boxable (Int64 _) -> Const_int64 (naked, Int64.of_int n)
+    | Boxable (Nativeint _) -> Const_nativeint (naked, Nativeint.of_int n)
+  in
+  Const_base
+    (match (size : _ Scalar.Integral.t) with
+      | Value width -> make Value width
+      | Naked width -> make Naked width)
 
 let lconst_int size n = Lconst (const_int size n)
 
@@ -2053,28 +2049,38 @@ let primitive_can_raise prim =
   | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
     false
 
-let constant_layout: constant -> layout = function
-  | Const_int _ | Const_char _ -> non_null_value Pintval
+let constant_layout constant : layout =
+  let boxed_integer naked boxed =
+    match (naked : naked_flag) with
+    | Value -> non_null_value (Pboxedintval boxed)
+    | Naked ->
+      Punboxed_int
+        (Primitive.unboxed_integer boxed
+         |> unboxed_integer_of_primitive)
+  in
+  let boxed_float naked boxed =
+    match (naked : naked_flag) with
+    | Value -> non_null_value (Pboxedfloatval boxed)
+    | Naked -> Punboxed_float (Primitive.unboxed_float boxed)
+  in
+  match (constant : constant) with
+  | Const_int (Value, (_ : int))
+  | Const_char (Value, (_ : char))
+  | Const_int8 (Value, (_ : int))
+  | Const_int16 (Value, (_ : int)) -> non_null_value Pintval
+  | Const_int (Naked, (_ : int)) -> Punboxed_int Unboxed_int
+  | Const_char (Naked, (_ : char))
+  | Const_int8 (Naked, (_ : int)) -> Punboxed_int Unboxed_int8
+  | Const_int16 (Naked, (_ : int)) -> Punboxed_int Unboxed_int16
   | Const_string _ -> non_null_value Pgenval
-  | Const_int32 _ -> non_null_value (Pboxedintval Boxed_int32)
-  | Const_int64 _ -> non_null_value (Pboxedintval Boxed_int64)
-  | Const_nativeint _ -> non_null_value (Pboxedintval Boxed_nativeint)
-  | Const_unboxed_int32 _ -> Punboxed_int Unboxed_int32
-  | Const_unboxed_int64 _ -> Punboxed_int Unboxed_int64
-  | Const_unboxed_nativeint _ -> Punboxed_int Unboxed_nativeint
-  | Const_float _ -> non_null_value (Pboxedfloatval Boxed_float64)
-  | Const_float32 _ -> non_null_value (Pboxedfloatval Boxed_float32)
-  | Const_unboxed_float _ -> Punboxed_float Unboxed_float64
-  | Const_unboxed_float32 _ -> Punboxed_float Unboxed_float32
+  | Const_int32 (n, (_ : int32)) -> boxed_integer n Boxed_int32
+  | Const_int64 (n, (_ : int64)) -> boxed_integer n Boxed_int64
+  | Const_nativeint (n, (_ : nativeint)) -> boxed_integer n Boxed_nativeint
+  | Const_float (n, (_ : string)) -> boxed_float n Boxed_float64
+  | Const_float32 (n, (_ : string)) -> boxed_float n Boxed_float32
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
-  | Const_naked_immediate ((_ : int), Int8) ->
-    Punboxed_int Unboxed_int8
-  | Const_naked_immediate ((_ : int), Int16) ->
-    Punboxed_int Unboxed_int16
-  | Const_naked_immediate ((_ : int), Int) ->
-    Punboxed_int Unboxed_int
   | Const_mixed_block _ | Const_block _ | Const_immstring _ ->
     non_null_value Pgenval
   | Const_float_array _ | Const_float_block _ ->

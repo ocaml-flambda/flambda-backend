@@ -1253,21 +1253,30 @@ let pm_free_variables { cases } =
 let can_group discr pat =
   let open Patterns.Head in
   match (discr.pat_desc, (Simple.head pat).pat_desc) with
-  | Any, Any
-  | Constant (Const_int _), Constant (Const_int _)
-  | Constant (Const_char _), Constant (Const_char _)
-  | Constant (Const_string _), Constant (Const_string _)
-  | Constant (Const_float _), Constant (Const_float _)
-  | Constant (Const_float32 _), Constant (Const_float32 _)
-  | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
-  | Constant (Const_unboxed_float32 _), Constant (Const_unboxed_float32 _)
-  | Constant (Const_int32 _), Constant (Const_int32 _)
-  | Constant (Const_int64 _), Constant (Const_int64 _)
-  | Constant (Const_nativeint _), Constant (Const_nativeint _)
-  | Constant (Const_unboxed_int32 _), Constant (Const_unboxed_int32 _)
-  | Constant (Const_unboxed_int64 _), Constant (Const_unboxed_int64 _)
-  | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)->
-      true
+  | Constant x, Constant y ->
+    assert ((constant_is_naked x) = (constant_is_naked y));
+    (match x, y with
+     | Const_char _, Const_char _
+     | Const_int _, Const_int _
+     | Const_int8 _, Const_int8 _
+     | Const_int16 _, Const_int16 _
+     | Const_int32 _, Const_int32 _
+     | Const_int64 _, Const_int64 _
+     | Const_nativeint _, Const_nativeint _
+     | Const_float _, Const_float _
+     | Const_float32 _, Const_float32 _
+     | Const_string _, Const_string _ -> true
+     | ( Const_char _
+       | Const_int _
+       | Const_int8 _
+       | Const_int16 _
+       | Const_int32 _
+       | Const_int64 _
+       | Const_nativeint _
+       | Const_float _
+       | Const_float32 _
+       | Const_string _), _ -> false)
+  | Constant _, _ -> false
   | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
     ->
       (* Extension constructors with distinct names may be equal thanks to
@@ -1276,6 +1285,7 @@ let can_group discr pat =
          of exits such that each submatrix falls back to the
          potentially-compatible submatrices below it).  *)
       Types.equal_tag discr_tag pat_cstr.cstr_tag
+  | Any, Any -> true
   | Construct _, Construct _
   | Tuple _, (Tuple _ | Any)
   | Unboxed_tuple _, (Unboxed_tuple _ | Any)
@@ -1285,16 +1295,10 @@ let can_group discr pat =
   | Variant _, Variant _
   | Lazy, Lazy ->
       true
-  | ( _,
-      ( Any
-      | Constant
-          ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_float32 _ | Const_unboxed_float _ | Const_unboxed_float32 _
-          | Const_int32 _ | Const_int64 _ | Const_nativeint _
-          | Const_unboxed_int32 _ | Const_unboxed_int64 _
-          | Const_unboxed_nativeint _ )
+  | ( ( Any
       | Construct _ | Tuple _ | Unboxed_tuple _ | Record _
-      | Record_unboxed_product _ | Array _ | Variant _ | Lazy ) ) ->
+      | Record_unboxed_product _ | Array _ | Variant _ | Lazy ),
+      _) ->
       false
 
 let is_or p =
@@ -2189,7 +2193,7 @@ let inline_lazy_force arg pos loc =
       { ap_tailcall = Default_tailcall;
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
-        ap_args = [ Lconst (Const_base (Const_int 0)); arg ];
+        ap_args = [ lambda_unit; arg ];
         ap_result_layout = Lambda.layout_lazy_contents;
         ap_region_close = pos;
         ap_mode = alloc_heap;
@@ -2486,7 +2490,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let mut = if Types.is_mutable am then Mutable else Immutable in
       ( Lprim
           (Parrayrefu (ref_kind, Ptagged_int_index, mut),
-           [ arg; Lconst (Const_base (Const_int pos)) ],
+           [ arg; lconst_int int pos ],
            loc),
         (if Types.is_mutable am then StrictOpt else Alias),
         arg_sort,
@@ -2567,7 +2571,7 @@ let rec split k xs =
         let xs, y0, ys = split (k - 2) xs in
         (x0 :: xs, y0, ys)
 
-let zero_lam = Lconst (Const_base (Const_int 0))
+let zero_lam = lconst_int int 0
 
 let tree_way_test loc kind arg lt eq gt =
   Lifthenelse
@@ -2728,6 +2732,7 @@ let make_test_sequence value_kind loc fail size arg const_lambda_list =
   in
   hs (make_test_sequence const_lambda_list)
 
+(* CR jvanburen: generalize this to other widths *)
 module SArg = struct
   type primitive = Lambda.primitive
   let pintcomp cmp =
@@ -2770,7 +2775,7 @@ module SArg = struct
     (* [switch.ml] will only call bind with an integer argument *)
     bind_with_layout Alias (newvar, Lambda.layout_int) arg (body newarg)
 
-  let make_const i = Lconst (Const_base (Const_int i))
+  let make_const i = lconst_int int i
 
   let make_isout h arg = Lprim (Pisout, [ h; arg ], Loc_unknown)
 
@@ -3133,27 +3138,47 @@ let mk_failaction_pos partial seen ctx defs =
 let combine_constant value_kind loc arg cst partial ctx def
     (const_lambda_list, total, _pats) =
   let fail, local_jumps = mk_failaction_neg partial ctx def in
-  let make_scalar_test_sequence scalar =
+  let make_scalar_test_sequence naked scalar =
     make_test_sequence value_kind loc fail
-      scalar
+      (match (naked : naked_flag) with
+       | Naked -> Naked scalar
+       | Value -> Value scalar)
       arg const_lambda_list
   in
   let lambda1 =
     match cst with
-    | Const_int _ ->
+    | Const_int (Value, _) ->
         let int_lambda_list =
           List.map
             (function
-              | Const_int n, l -> (n, l)
+              | Const_int (Value, n), l -> (n, l)
               | _ -> assert false)
             const_lambda_list
         in
         call_switcher value_kind loc fail arg min_int max_int int_lambda_list
-    | Const_char _ ->
+    | Const_int8 (Value, _) ->
+      let int_lambda_list =
+        List.map
+          (function
+            | Const_int8 (Value, n), l -> (n, l)
+            | _ -> assert false)
+          const_lambda_list
+      in
+      call_switcher value_kind loc fail arg (-0x80) 0x7f int_lambda_list
+    | Const_int16 (Value, _) ->
+      let int_lambda_list =
+        List.map
+          (function
+            | Const_int16 (Value, n), l -> (n, l)
+            | _ -> assert false)
+          const_lambda_list
+      in
+      call_switcher value_kind loc fail arg (-0x8000) 0x7fff int_lambda_list
+    | Const_char (Value, _) ->
         let int_lambda_list =
           List.map
             (function
-              | Const_char c, l -> (Char.code c, l)
+              | Const_char (Value, c), l -> (Char.code c, l)
               | _ -> assert false)
             const_lambda_list
         in
@@ -3174,17 +3199,21 @@ let combine_constant value_kind loc arg cst partial ctx def
         in
         let hs, sw, fail = share_actions_tree value_kind sw fail in
         hs (Lstringswitch (arg, sw, fail, loc, value_kind))
-    | Const_float _ -> make_scalar_test_sequence Scalar.float
-    | Const_float32 _ | Const_unboxed_float32 _ ->
+    | Const_float (naked, _) -> make_scalar_test_sequence naked Scalar.Width.float
+    | Const_float32 _ ->
         (* Should be caught in do_compile_matching. *)
         Misc.fatal_error "Found unexpected float32 literal pattern."
-    | Const_unboxed_float _ -> make_scalar_test_sequence Scalar.naked_float
-    | Const_int32 _ -> make_scalar_test_sequence Scalar.int32
-    | Const_int64 _ -> make_scalar_test_sequence Scalar.int64
-    | Const_nativeint _ -> make_scalar_test_sequence Scalar.nativeint
-    | Const_unboxed_int32 _ -> make_scalar_test_sequence Scalar.naked_int32
-    | Const_unboxed_int64 _ -> make_scalar_test_sequence Scalar.naked_int64
-    | Const_unboxed_nativeint _ -> make_scalar_test_sequence Scalar.naked_nativeint
+    | Const_int32 (naked, _) -> make_scalar_test_sequence naked Scalar.Width.int32
+    | Const_int64 (naked, _) -> make_scalar_test_sequence naked Scalar.Width.int64
+    | Const_nativeint (naked, _) ->
+      make_scalar_test_sequence naked Scalar.Width.nativeint
+    | Const_int (Naked, _) ->
+      make_scalar_test_sequence Naked Scalar.Width.int
+    | Const_int8 (Naked, _)
+    | Const_char (Naked, _) ->
+      make_scalar_test_sequence Naked Scalar.Width.int8
+    | Const_int16 (Naked, _) ->
+      make_scalar_test_sequence Naked Scalar.Width.int16
   in
   (lambda1, Jumps.union local_jumps total)
 
@@ -3873,7 +3902,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             (divide_record_unboxed_product ~scopes lbl.lbl_all ph)
             Context.combine repr partial ctx pm
-      | Constant (Const_float32 _ | Const_unboxed_float32 _) ->
+      | Constant (Const_float32 (Value, _) | Const_float32 (Naked, _)) ->
           Parmatch.raise_matched_float32 ()
       | Constant cst ->
           compile_test
@@ -4037,8 +4066,8 @@ let failure_handler ~scopes loc ~failer () =
                   (Const_block
                      ( 0,
                        [ Const_base (Const_string (fname, loc, None));
-                         Const_base (Const_int line);
-                         Const_base (Const_int char)
+                         const_int int line;
+                         const_int int char
                        ] ))
               ],
               sloc )

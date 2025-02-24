@@ -102,47 +102,55 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
     Simple.With_debuginfo.create (Simple.const cst) dbg
   in
   match const with
-  | Const_naked_immediate (c, Int8) ->
-    ( acc,
-      reg_width (RWC.naked_int8 (Numeric_types.Int8.of_int_exn c)),
-      "naked_int8" )
-  | Const_naked_immediate (c, Int16) ->
-    ( acc,
-      reg_width (RWC.naked_int16 (Numeric_types.Int16.of_int_exn c)),
-      "naked_int16" )
-  | Const_naked_immediate (c, Int) ->
-    acc, reg_width (RWC.naked_immediate (Targetint_31_63.of_int c)), "naked_int"
-  | Const_base (Const_int c) ->
+  | Const_base (Const_int (Value, c)) ->
     acc, reg_width (RWC.tagged_immediate (Targetint_31_63.of_int c)), "int"
-  | Const_base (Const_char c) ->
+  | Const_base (Const_int (Naked, c)) ->
+    acc, reg_width (RWC.naked_immediate (Targetint_31_63.of_int c)), "int#"
+  | Const_base (Const_int8 (Value, c)) ->
+    acc, reg_width (RWC.tagged_immediate (Targetint_31_63.of_int c)), "int8"
+  | Const_base (Const_int8 (Naked, c)) ->
+    ( acc,
+      reg_width (RWC.naked_immediate (Targetint_31_63.of_int c)),
+      "untagged_int8" )
+  | Const_base (Const_int16 (Value, c)) ->
+    acc, reg_width (RWC.tagged_immediate (Targetint_31_63.of_int c)), "int16"
+  | Const_base (Const_int16 (Naked, c)) ->
+    ( acc,
+      reg_width (RWC.naked_immediate (Targetint_31_63.of_int c)),
+      "untagged_int16" )
+  | Const_base (Const_char (Value, c)) ->
     acc, reg_width (RWC.tagged_immediate (Targetint_31_63.of_char c)), "char"
-  | Const_base (Const_unboxed_float c) ->
+  | Const_base (Const_char (Naked, c)) ->
+    ( acc,
+      reg_width (RWC.naked_immediate (Targetint_31_63.of_char c)),
+      "untagged_char" )
+  | Const_base (Const_float (Naked, c)) ->
     let c = Numeric_types.Float_by_bit_pattern.of_string c in
     acc, reg_width (RWC.naked_float c), "unboxed_float"
-  | Const_base (Const_unboxed_float32 c) ->
+  | Const_base (Const_float32 (Naked, c)) ->
     let c = Numeric_types.Float32_by_bit_pattern.of_string c in
     acc, reg_width (RWC.naked_float32 c), "unboxed_float32"
   | Const_base (Const_string (s, _, _)) ->
     register_const acc dbg (SC.immutable_string s) "immstring"
-  | Const_base (Const_float c) ->
+  | Const_base (Const_float (Value, c)) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc dbg (SC.boxed_float (Const c)) "float"
-  | Const_base (Const_float32 c) ->
+  | Const_base (Const_float32 (Value, c)) ->
     let c = Numeric_types.Float32_by_bit_pattern.create (float_of_string c) in
     register_const acc dbg (SC.boxed_float32 (Const c)) "float32"
-  | Const_base (Const_int32 c) ->
+  | Const_base (Const_int32 (Value, c)) ->
     register_const acc dbg (SC.boxed_int32 (Const c)) "int32"
-  | Const_base (Const_int64 c) ->
+  | Const_base (Const_int64 (Value, c)) ->
     register_const acc dbg (SC.boxed_int64 (Const c)) "int64"
-  | Const_base (Const_nativeint c) ->
+  | Const_base (Const_nativeint (Value, c)) ->
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
     register_const acc dbg (SC.boxed_nativeint (Const c)) "nativeint"
-  | Const_base (Const_unboxed_int32 c) ->
+  | Const_base (Const_int32 (Naked, c)) ->
     acc, reg_width (RWC.naked_int32 c), "unboxed_int32"
-  | Const_base (Const_unboxed_int64 c) ->
+  | Const_base (Const_int64 (Naked, c)) ->
     acc, reg_width (RWC.naked_int64 c), "unboxed_int64"
-  | Const_base (Const_unboxed_nativeint c) ->
+  | Const_base (Const_nativeint (Naked, c)) ->
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
     acc, reg_width (RWC.naked_nativeint c), "unboxed_nativeint"
@@ -203,13 +211,13 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
     let unbox_float_constant (c : Lambda.structured_constant) :
         Lambda.structured_constant =
       match c with
-      | Const_base (Const_float f) -> Const_base (Const_unboxed_float f)
-      | Const_naked_immediate _
+      | Const_base (Const_float (Value, f)) ->
+        Const_base (Const_float (Naked, f))
       | Const_base
           ( Const_int _ | Const_char _ | Const_string _ | Const_float32 _
-          | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
-          | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
-          | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
+          | Const_float (Naked, _)
+          | Const_int8 _ | Const_int16 _ | Const_int32 _ | Const_int64 _
+          | Const_nativeint _ )
       | Const_block _ | Const_mixed_block _ | Const_float_array _
       | Const_immstring _ | Const_float_block _ | Const_null ->
         Misc.fatal_errorf

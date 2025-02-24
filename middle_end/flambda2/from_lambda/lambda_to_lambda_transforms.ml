@@ -49,7 +49,7 @@ let rec_catch_for_while_loop env cond body =
             Lifthenelse
               ( Lvar cond_result,
                 Lsequence (body, Lstaticraise (cont, [])),
-                Lconst (Const_base (Const_int 0)),
+                L.lambda_unit,
                 L.layout_unit ) ),
         Same_region,
         L.layout_unit )
@@ -419,7 +419,7 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     makearray_dynamic_singleton_uninitialized "unboxed_float32" ~length mode loc
     |> initialize_array env loc ~length (Punboxedfloatarray_set Unboxed_float32)
          (Thirty_two
-            { zero_init = Lconst (Const_base (Const_unboxed_float32 "0")) })
+            { zero_init = Lconst (Const_base (Const_float32 (Naked, "0"))) })
          ~init
   | Punboxedfloatarray Unboxed_float64 ->
     makearray_dynamic_singleton_uninitialized "unboxed_float64" ~length mode loc
@@ -429,7 +429,7 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     makearray_dynamic_singleton_uninitialized "unboxed_int32" ~length mode loc
     |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_int32)
          (Thirty_two
-            { zero_init = Lconst (Const_base (Const_unboxed_int32 0l)) })
+            { zero_init = Lconst (Const_base (Const_int32 (Naked, 0l))) })
          ~init
   | Punboxedintarray (Unboxed_int8 | Unboxed_int16) ->
     Misc.unboxed_small_int_arrays_are_not_implemented ()
@@ -562,7 +562,7 @@ let transform_primitive0 env (prim : L.primitive) args loc =
          ( Strict,
            L.layout_int,
            const_true,
-           Lconst (Const_base (Const_int 1)),
+           Lconst (L.const_int L.int 1),
            L.Llet
              ( Strict,
                L.layout_int,
@@ -578,7 +578,7 @@ let transform_primitive0 env (prim : L.primitive) args loc =
          ( Strict,
            L.layout_int,
            const_false,
-           Lconst (Const_base (Const_int 0)),
+           Lconst (L.const_int L.int 0),
            L.Llet
              ( Strict,
                L.layout_int,
@@ -591,9 +591,7 @@ let transform_primitive0 env (prim : L.primitive) args loc =
   | ( (Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray),
       [arg] ) ->
     Transformed arg
-  | Pignore, [arg] ->
-    let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Lsequence (arg, result))
+  | Pignore, [arg] -> Transformed (L.Lsequence (arg, L.lambda_unit))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
     when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error

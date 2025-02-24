@@ -326,17 +326,19 @@ let directive_error
 
 (* to translate escape sequences *)
 
-let digit_value c =
+let digit_value c lexbuf =
   match c with
   | 'a' .. 'f' -> 10 + Char.code c - Char.code 'a'
   | 'A' .. 'F' -> 10 + Char.code c - Char.code 'A'
   | '0' .. '9' -> Char.code c - Char.code '0'
-  | _ -> assert false
+  | c ->
+  let error = Illegal_character c in
+  raise (Error (error, Location.curr lexbuf))
 
 let num_value lexbuf ~base ~first ~last =
   let c = ref 0 in
   for i = first to last do
-    let v = digit_value (Lexing.lexeme_char lexbuf i) in
+    let v = digit_value (Lexing.lexeme_char lexbuf i) lexbuf  in
     assert(v < base);
     c := (base * !c) + v
   done;
@@ -452,6 +454,18 @@ let int ~maybe_hash lit modifier =
   | "" -> INT (lit, modifier)
   | unexpected -> fatal_error ("expected # or empty string: " ^ unexpected)
 
+let char ~maybe_hash lit =
+  match maybe_hash with
+  | "#" -> HASH_CHAR lit
+  | "" -> CHAR lit
+  | unexpected -> fatal_error ("expected # or empty string: " ^ unexpected)
+
+let skip_hash ~maybe_hash =
+  match maybe_hash with
+  | "#" -> 1
+  | "" -> 0
+  | unexpected -> fatal_error ("expected # or empty string: " ^ unexpected)
+
 (* Error report *)
 
 open Format
@@ -551,7 +565,8 @@ let hex_float_literal =
   ['0'-'9' 'A'-'F' 'a'-'f'] ['0'-'9' 'A'-'F' 'a'-'f' '_']*
   ('.' ['0'-'9' 'A'-'F' 'a'-'f' '_']* )?
   (['p' 'P'] ['+' '-']? ['0'-'9'] ['0'-'9' '_']* )?
-let literal_modifier = ['G'-'Z' 'g'-'z']
+let int_literal_modifier = ['G'-'Z' 'g'-'z']['a'-'z' 'A'-'Z' '0'-'9']*
+let float_literal_modifier = ['a'-'z' 'A'-'Z' '0'-'9']*
 let raw_ident_escape = "\\#"
 
 rule token = parse
@@ -634,17 +649,17 @@ rule token = parse
   | ('#'? as maybe_hash) (int_literal as lit)
       { if at_beginning_of_line lexbuf.lex_start_p && maybe_hash = "#" then
           try directive (Hash_and_line_num { line_num = lit }) lexbuf
-          with Failure _ -> int ~maybe_hash lit None
-        else int ~maybe_hash lit None
+          with Failure _ -> int ~maybe_hash lit ""
+        else int ~maybe_hash lit ""
       }
-  | ('#'? as maybe_hash) (int_literal as lit) (literal_modifier as modif)
-      { int ~maybe_hash lit (Some modif) }
+  | ('#'? as maybe_hash) (int_literal as lit) (int_literal_modifier as modif)
+      { int ~maybe_hash lit modif }
   | ('#'? as maybe_hash)
     (float_literal | hex_float_literal as lit)
-      { float ~maybe_hash lit None }
+      { float ~maybe_hash lit "" }
   | ('#'? as maybe_hash)
-    (float_literal | hex_float_literal as lit) (literal_modifier as modif)
-      { float ~maybe_hash lit (Some modif) }
+    (float_literal | hex_float_literal as lit) (float_literal_modifier as modif)
+      { float ~maybe_hash lit modif }
   | '#'? (float_literal | hex_float_literal | int_literal) identchar+ as invalid
       { error lexbuf (Invalid_literal invalid) }
   | "\""
@@ -673,20 +688,20 @@ rule token = parse
         let s, loc = wrap_string_lexer (quoted_string delim) lexbuf in
         let idloc = compute_quoted_string_idloc orig_loc 3 id in
         QUOTED_STRING_ITEM (id, idloc, s, loc, Some delim) }
-  | "\'" newline "\'"
+  | ('#'? as maybe_hash) "\'" newline "\'"
       { update_loc lexbuf None 1 false 1;
         (* newline is ('\013'* '\010') *)
-        CHAR '\n' }
-  | "\'" ([^ '\\' '\'' '\010' '\013'] as c) "\'"
-      { CHAR c }
-  | "\'\\" (['\\' '\'' '\"' 'n' 't' 'b' 'r' ' '] as c) "\'"
-      { CHAR (char_for_backslash c) }
-  | "\'\\" ['0'-'9'] ['0'-'9'] ['0'-'9'] "\'"
-      { CHAR(char_for_decimal_code lexbuf 2) }
-  | "\'\\" 'o' ['0'-'7'] ['0'-'7'] ['0'-'7'] "\'"
-      { CHAR(char_for_octal_code lexbuf 3) }
-  | "\'\\" 'x' ['0'-'9' 'a'-'f' 'A'-'F'] ['0'-'9' 'a'-'f' 'A'-'F'] "\'"
-      { CHAR(char_for_hexadecimal_code lexbuf 3) }
+        char ~maybe_hash '\n' }
+  | ('#'? as maybe_hash) "\'" ([^ '\\' '\'' '\010' '\013'] as c) "\'"
+      { char ~maybe_hash c }
+  | ('#'? as maybe_hash) "\'\\" (['\\' '\'' '\"' 'n' 't' 'b' 'r' ' '] as c) "\'"
+      { char ~maybe_hash (char_for_backslash c) }
+  | ('#'? as maybe_hash) "\'\\" ['0'-'9'] ['0'-'9'] ['0'-'9'] "\'"
+      { char ~maybe_hash (char_for_decimal_code lexbuf (2 + skip_hash ~maybe_hash)) }
+  | ('#'? as maybe_hash) "\'\\" 'o' ['0'-'7'] ['0'-'7'] ['0'-'7'] "\'"
+      { char ~maybe_hash (char_for_octal_code lexbuf (3 + skip_hash ~maybe_hash)) }
+  | ('#'? as maybe_hash) "\'\\" 'x' ['0'-'9' 'a'-'f' 'A'-'F'] ['0'-'9' 'a'-'f' 'A'-'F'] "\'"
+      { char ~maybe_hash (char_for_hexadecimal_code lexbuf (3 + skip_hash ~maybe_hash)) }
   | "\'" ("\\" [^ '#'] as esc)
       { error lexbuf (Illegal_escape (esc, None)) }
   | "\'\'"
