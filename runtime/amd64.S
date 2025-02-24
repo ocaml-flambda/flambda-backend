@@ -236,8 +236,8 @@
 
    If a C function is called which might call back into OCaml,
    then nothing may be pushed to the C stack between SWITCH_OCAML_TO_C
-   and the next C call. (This is to ensure frame pointers are correctly
-   maintained if the stack is reallocated) */
+   and the next call on the C stack. (This is to ensure frame pointers
+   are correctly maintained if the stack is reallocated) */
 #ifdef ASM_CFI_SUPPORTED
 #define SWITCH_OCAML_TO_C_CFI                                   \
         CFI_REMEMBER_STATE;                                     \
