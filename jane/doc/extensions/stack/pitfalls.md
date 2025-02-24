@@ -1,19 +1,19 @@
-# Some Pitfalls of Local Allocations
+# Some Pitfalls of Stack Allocations
 
 This document outlines some common pitfalls that may come up when
-trying out local allocations in a new code base, as well as some
+trying out stack allocations in a new code base, as well as some
 suggested workarounds. Over time, this list may grow (as experience
 discovers new things that go wrong) or shrink (as we deploy new
 compiler versions that ameliorate some issues).
 
-If you want an introduction to local allocations, see the [introduction](intro.md).
+If you want an introduction to stack allocations, see the [introduction](intro.md).
 
 ## Tail calls
 
 Many OCaml functions just happen to end in a tail call, even those
 that are not intentionally tail-recursive. To preserve the
 constant-space property of tail calls, the compiler applies special
-rules around local allocations in tail calls (see [the
+rules around locality in tail calls (see [the
 reference](./reference.md)).
 
 If this causes a problem for calls that just happen to be in tail
@@ -41,7 +41,7 @@ after `func` returns.
 
 ## Partial applications with local parameters
 
-To enable the use of local allocations with higher-order functions, a
+To enable the use of stack allocations with higher-order functions, a
 necessary step is to add local annotations to function types,
 particularly those of higher-order functions. For instance, an
 unlabeled `iter` function may become:
@@ -50,12 +50,12 @@ unlabeled `iter` function may become:
 val iter : local_ ('a -> unit) -> 'a t -> unit
 ```
 
-thus allowing locally-allocated closures to be used as the first
+thus allowing stack-allocated closures to be used as the first
 parameter.
 
 However, this is unfortunately not an entirely backwards-compatible
 change. The problem is that partial applications of `iter` functions
-with the new type are themselves locally allocated, because they close
+with the new type are themselves `local`, because they close
 over the possibly-local `f`. This means in particular that partial
 applications will no longer be accepted as module-level definitions:
 
@@ -84,9 +84,9 @@ parameter of functions.
 
 ## Typing of (@@) and (|>)
 
-The typechecking of (@@) and (|>) changed slightly with the local
-allocations typechecker, in order to allow them to work with both
-local and nonlocal arguments. The major difference is that:
+The type-checking of (@@) and (|>) changed slightly with locality,
+in order to allow them to work with both
+local and global arguments. The major difference is that:
 
     f x @@ y
     y |> f x

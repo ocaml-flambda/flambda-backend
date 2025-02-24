@@ -1,61 +1,47 @@
-# Local Allocations Reference
+# Stack Allocations Reference
 
-The goal of this document is to be a reasonably complete reference to local
+The goal of this document is to be a reasonably complete reference to stack
 allocations in OCaml. For a gentler introduction, see [the
 introduction](intro.md).
 
-The local allocations language extension allows the compiler to
-locally allocate some values, placing them on a stack rather than the
+The stack allocations language extension allows the compiler to
+stack-allocate some values, placing them on a stack rather than the
 garbage collected heap. Instead of waiting for the next GC, the memory
-used by locally allocated values is reclaimed when their _region_ (see
-below) ends, and can be immediately reused. Whether the compiler
-locally allocates certain values is controlled using a new keyword
-currently spelled `local_`, whose effects in expressions, patterns and
-types are explained below.
+used by stack-allocated values is reclaimed when their stack frame
+is reclaimed, and can be immediately reused. Whether the compiler
+stack-allocates certain values is controlled or inferred from new keywords
+`stack_` and `local_`, whose effects are explained below.
 
+## Stack allocation
 
-## Local expressions and allocation
-
-The `local_` keyword may be placed on an expression to indicate that
-allocations in that expression should be locally allocated:
+The `stack_` keyword may be placed on an allocation to indicate that
+it should be stack-allocated:
 
 ```ocaml
-let abc = local_ [a; b; c] in
+let abc = stack_ (42, 24) in
 ...
 ```
 
-Here, the three cons cells of the list `[a; b; c]` will all be locally
-allocated.
-
-Equivalently, the keyword `local_` may precede the pattern in a `let`:
-
+Here, the tuple cell will be stack-allocated. The `stack_` keyword works shallowly: it
+only forces the immediately following allocation to be on stack. In the following
+example, the outer tuple is guaranteed to be on stack, while the inner one is not (
+although likely to be due to optimization).
 ```ocaml
-let local_ abc = [a; b; c] in
+let abc = stack_ (42, (24, 42)) in
 ...
 ```
 
-Locally allocated values may reference global (that is, GC-allocated or
-constant) values, but global values may not reference local ones. In the
-example above, any or all of `a`, `b` and `c` may themselves be locally
-allocated.
-
-It is valid for an expression annotated `local_` to still yield a global value.
-For instance, if there is a global `x : int list` in scope, then this is
-allowed:
-
+Placing `stack_` on an expression that is not an allocation is meaningless and
+causes a type error:
 ```ocaml
-let l = local_ if n > 0 then n :: x else x in
-...
+let f = ref (stack_ `Foo)
+                    ^^^^
+Error: This expression is not an allocation site.
 ```
 
-Here, if `n > 0`, then `l` will be a locally-allocated cons cell. However, if
-`n <= 0`, then `l` will be `x`, which is global. In other words, the `local_`
-keyword on an expression permits but does not oblige that expression to locally
-allocate its result.
-
-Most OCaml types can be locally allocated, including records, variants,
+Most OCaml types can be stack-allocated, including records, variants,
 polymorphic variants, closures, boxed numbers and strings. However, certain
-values cannot be locally allocated, and will always be on the GC heap,
+values cannot be stack-allocated, and will always be on the GC heap,
 including:
 
   - Modules (including first-class modules)
@@ -64,32 +50,182 @@ including:
     (Technically, values of type `exn` can be locally allocated, but only global
     ones may be raised)
 
-  - Classes and objects
+  - Classes and Objects
 
-In addition, any value that is to be put into a mutable field (for example
-inside a `ref`, an `array` or a mutable record) cannot be locally allocated.
-Should you need to put a locally allocated value into one of these places,
-you may want to check out [`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
+### Runtime behavior
+
+At runtime, stack allocations do not take place on the function call stack, but on a
+separately-allocated stack that follows the same layout as the OCaml
+minor heap. In particular, this allows local-returning functions
+(see "Use `exclave_` to return a local value" below)
+without the need to copy returned values.
+
+The runtime records the stack pointer when entering a new stack frame,
+and leaving that stack frame resets the stack pointer to that value.
+
+## Regions
+
+Every stack allocation takes places inside a stack frame and is freed when the
+stack frame is freed. For this to be safe, stack-allocated values cannot be used
+after their stack frame is freed. This property is guaranteed at
+compile-time by the type checker as follows.
+
+A function body defines a _region_: a contiguous stretch of code, all of whose
+stack allocations go into the same stack frame.
+A stack-allocated value lives in the region it's allocated in. We say
+the value is _local_ to the region it lives in. A heap-allocated value is
+_global_.
+
+We say that a value _escapes_ a region if it is still referenced beyond the end
+of that region. The type-checker guarantees that local values do not escape
+their region. Since stack-allocated values live in the region representing the
+stack frame containing the allocation, they are guaranteed to be never
+referenced after their stack frame is freed.
+
+Global values can escape all regions. As a result, they may not reference local
+values, since that will make the local values escape regions, which breaks the
+guarantee. Local values may reference global ones.
+
+### Weakening
+
+A global value can be weakened to local, effectively "forgetting" that it
+can escape regions. For instance, if there is a global `x : int list` in
+scope, then this is allowed:
+
+```ocaml
+let l = if n > 0 then stack_ (n :: x) else x in
+...
+```
+
+Here, if `n > 0`, then `l` will be a stack-allocated cons cell and thus local.
+However, if `n <= 0`, then `l` will be `x`, which is global. The latter is
+implicitly weakened to local (because both branches of an `if` must have the
+same locality), making the whole
+expression local.
+
+You can also use the `local_` keyword to explicitly weaken a value to local. For
+example:
+
+```ocaml
+let l = local_ if n > 0 then n :: x else x in
+...
+```
+
+The `local_` keyword doesn't force stack allocation. However, it does weaken `l`
+to local, which prevents `l` from escaping the current region, and as a result
+the compiler will optimize `n :: x` to be stack-allocated in the current
+region. However, users may wish to use `stack_` to ensure stack allocation,
+as refactoring code can make an allocation that was previously on the stack
+silently move to the heap.
+
+### Region vs. Scope
+
+*Region* is a wider concept than *scope*, and stack-allocated variables can
+outlive their scope. For example:
+
+```ocaml
+let f () =
+  let counter =
+    let r = stack_ (ref 42) in
+    incr r;
+    r
+  in
+  ...
+```
+
+The stack-allocated reference `r` is allocated inside the definition of
+`counter`. This value outlives the scope of `r` (it is bound to the variable
+`counter` and may later be used in the code marked `...`). However, the
+type-checker ensures that it does not outlive the region that it lives in,
+which is the entire body of `f`.
+
+### Other regions
+
+As well as function bodies, a region is also placed around:
+
+  - Loop bodies (`while` and `for`)
+  - Lazy expressions (`lazy ...`)
+  - Module bindings (`let x = ...;;` at module level, including in sub-modules)
+
+Module bindings are wrapped in regions to enforce the rule (as mentioned above)
+that modules never contain local values.
+
+Additionally, it is possible to write functions whose region ends before the
+function does, which is useful to write functions that return
+stack-allocated values. See "Use `exclave_` to return a local value" below.
+
+### Nested regions
+
+Regions nest, for instance when defining a local function. Stack-allocated
+values always live in the inner-most region, since at runtime one can
+allocate only in the current stack frame. There is an outermost region,
+including an entire file. This region never ends and is where global (heap-allocated)
+values live.
+
+One subtlety is that we wish to treat `local` variables from the current region
+differently than `local` variables from an enclosing region. The latter is called *outer-local*.
+
+For instance:
+
+```ocaml
+let f () =
+  let local_ outer = ref 42 in
+  let g () =
+    let local_ inner = ref 42 in
+    ??
+  in
+  ...
+```
+
+At the point marked `??` inside `g`, both `outer` and `inner` are local values,
+but they live in different regions: `inner` lives in `g`'s region, while `outer`
+lives in the outer region and thus is outer-local.
+
+So, if we replace `??` with `inner`, we see an error:
+
+    Error: This local value escapes its region
+
+However, if we replace `??` with `outer`, the compiler will accept it: the
+value `outer`, while being local, was definitely not local to the region of
+`g`, and there is therefore no problem allowing it to escape `g`'s region.
+
+(This is quite subtle, and there is an additional wrinkle: how does the
+compiler know that it is safe to still refer to `outer` from within the closure
+`g`? See "Closures" below for more details)
+
+This situation also arises with local parameters. For example:
+
+```ocaml
+let f (local_ x) =
+  let local_ y = 3 :: x in
+  ??
+```
+
+Both `x` and `y` are local and cannot, in general, escape a region. However, filling `??`
+in with `x` (but not `y`) is allowed. This is because we know that `x` lives outside of
+`f`'s region and therefore will continue to exist after `f` ends. In contrast, `y` is a cons cell
+in `f`'s region, which will be destroyed after `f` ends.
 
 ## Inference
 
-In fact, the allocations of the examples above will be locally
-allocated even without the `local_` keyword, if it is safe to do
-so. The presence of the keyword on an expression only affects what
-happens if the value escapes (e.g. is stored into a global hash table)
-and therefore cannot be locally allocated. With the keyword, an error
+In fact, allocations will be on stack even without `stack_`, if it is safe to do
+so. The presence of the keyword on an allocation only affects what
+happens if the allocated value escapes (e.g. is stored into a global hash table)
+and therefore cannot be stack-allocated. With the keyword, an error
 will be reported, while without the keyword the allocations will occur
-on the GC heap as usual.
+on the GC heap as usual. Similarly, whether a value is global or local (and
+hence whether certain allocation can be optimized to be on stack) is inferred by
+the type-checker, although the `local_` keyword may be used to specify it.
 
 Inference does not cross file boundaries. If local annotations subject to
 inference appear in the type of a module (e.g. since they can appear in
 function types, see below) then inference will resolve them according to what
-appears in the `.mli`. If there is no `.mli` file, then inference will always
-choose `global` for anything that can be accessed from another file.
+appears in the mli. If there is no mli file, then inference will always
+choose global for anything that can be accessed from another file.
 
 Local annotations (or the lack thereof) in the mli don't affect inference
 within the ml. In the below example, the `~foo` parameter is inferred to
-be local internally to `A`, so `foo:(Some x)` can be constructed locally.
+be local internally to `a.ml`, so `foo:(Some x)` can be stack-allocated.
 
 ```ocaml
 (* in a.mli *)
@@ -105,8 +241,8 @@ let f2 x = f1 ~foo:(Some x) (* [Some x] is stack allocated *)
      in the flambda-backend Git repo. The ensuing paragraph is related to that
      note; we can remove this comment when the note is resolved.
 -->
-However, a missing mli *does* affect inference within the ml. As a conservative
-rule of thumb, function arguments in an mli-less file will be heap-allocated
+However, a missing mli *does* affect inference within the ml file. As a conservative
+rule of thumb, function arguments in an mli-less file will default to global
 unless the function parameter or argument is annotated with `local_`. This is
 due to an implementation detail of the type-checker and is not fundamental, but
 for now, it's yet another reason to prefer writing mlis.
@@ -116,115 +252,6 @@ for now, it's yet another reason to prefer writing mlis.
 let f1 ~foo:_ = ()
 let f2 x = f1 ~foo:(Some x) (* [Some x] is heap allocated *)
 ```
-
-## Regions
-
-Every local allocation takes places inside a _region_, which is a block of code
-(usually a function body, but see below).  At the end of a region, all of its
-local allocations are freed.
-
-Regions may nest, for instance when one function calls another. Local
-allocations always occur in the innermost (most recent) region.
-
-We say that a value _escapes_ a region if it is still referenced beyond the end
-of that region. The job of the type-checker is to ensure that locally allocated
-values do not escape the region they were allocated in.
-
-"Region" is a wider concept than "scope", and locally-allocated variables can
-outlive their scope. For example:
-
-```ocaml
-let f () =
-  let local_ counter =
-    let local_ r = ref 42 in
-    incr r;
-    r
-  in
-  ...
-```
-
-The locally-allocated reference `r` is allocated inside the definition of
-`counter`. This value outlives the scope of `r` (it is bound to the variable
-`counter` and may later be used in the code marked `...`). However, the
-type-checker ensures that it does not outlive the region in which it is
-allocated, which is the entire body of `f`.
-
-As well as function bodies, a region is also placed around:
-
-  - Loop bodies (`while` and `for`)
-  - Lazy expressions (`lazy ...`)
-  - Module bindings (`let x = ...` at module level, including in sub-modules)
-
-Module bindings are wrapped in regions to enforce the rule (as mentioned above)
-that modules never contain locally-allocated values.
-
-Additionally, it is possible to write functions that do *not* have a region
-around their body, which is useful to write functions that return
-locally-allocated values. See "Use exclave_ to return a local value" below.
-
-### Runtime behavior
-
-At runtime, local allocations do not allocate on the C stack, but on a
-separately-allocated stack that follows the same layout as the OCaml
-minor heap. In particular, this allows local-returning functions
-without the need to copy returned values.
-
-The beginning of a region records the stack pointer of this local
-stack, and the end of the region resets the stack pointer to this
-value.
-
-### Variables and regions
-
-To spot escaping local allocations, the type checker internally tracks whether
-each variable is:
-
-  - **Global**: must be a global value. These variables are allowed to freely
-    cross region boundaries, as normal OCaml values.
-
-  - **Local**: may be a locally-allocated value. These variables are restricted
-    from crossing region boundaries.
-
-As described above, whether a given variable is global or local is inferred by
-the type-checker, although the `local_` keyword may be used to specify it.
-
-Additionally, local variables are further subdivided into two cases:
-
-  - **Outer-region local**: may be a locally-allocated value, but only from an
-    outer region and not from the current one.
-
-  - **Any-region local**: may be a locally-allocated value, even one allocated
-    during the current region.
-
-For instance:
-
-```ocaml
-let f () =
-  let local_ outer = ref 42 in
-  let g () =
-    let local_ inner = ref 42 in
-    ??
-  in
-  ...
-```
-
-At the point marked `??` inside `g`, both `outer` and `inner` are
-locally-allocated values. However, only `inner` is any-region local, having been
-allocated in `g`'s region. The value `outer` is instead outer-region local: it
-is locally allocated but from a region other than `g`'s own.
-
-So, if we replace `??` with `inner`, we see an error:
-
-    Error: This local value escapes its region
-
-However, if we replace `??` with `outer`, the compiler will accept it: the
-value `outer`, while locally allocated, was definitely not locally allocated
-_during g_, and there is therefore no problem allowing it to escape `g`'s
-region.
-
-(This is quite subtle, and there is an additional wrinkle: how does the
-compiler know that it is safe to still refer to `outer` from within the closure
-`g`? See "Closures" below for more details)
-
 
 ## Function types and local arguments
 
@@ -236,16 +263,20 @@ positions, leading to four distinct types of function:
     a -> local_ b
     local_ a -> local_ b
 
+In all cases, the `local_` annotation means "local to the call site's surrounding
+region" , or equivalently "outer-local to the function's region".
+
 In argument positions, `local_` indicates that the function may be passed
-locally-allocated values. As always, the local_ keyword does not *require*
-a locally-allocated value, and you may pass global values to such functions. In
+local values. As always, the `local_` keyword does not *require*
+a local value, and you may pass global values to such functions. (This is an
+example of the fact that global values can always be weakened to local ones.) In
 effect, a function of type `local_ a -> b` is a function accepting `a`
 and returning `b` that promises not to capture any reference to its argument.
 
-In return positions, `local_` indicates that the function may return
-locally-allocated values. A function of type `local_ a -> local_ b` promises
-not to capture any reference to its argument except possibly in its return
-value.
+In return positions, `local_` indicates that the function may return values that
+are local (See "Use `exclave_` to return a local value" below). A function of
+type `local_ a -> local_ b` promises not to capture any reference to its
+argument except possibly in its return value.
 
 A function with a local argument can be defined by annotating the argument as
 `local_`:
@@ -254,8 +285,8 @@ A function with a local argument can be defined by annotating the argument as
 let f (local_ x) = ...
 ```
 
-Inside the definition of `f`, the argument `x` is outer-region local: that is,
-while it may be locally allocated, it is known not to have been allocated during
+As we saw above, inside the definition of `f`, the argument `x` is outer-local: that is,
+while it may be stack-allocated, it is known not to have been allocated during
 `f` itself, and thus may safely be returned from `f`. For example:
 
 ```ocaml
@@ -275,46 +306,46 @@ In the above, `f1` returns a global `int list`, while `f2` returns a local one.
 function's region, because the value `x` is known to come from outside that
 region.
 
-In contrast, `f3` is an error. The value `42 :: x` must be locally allocated (as
-it refers to a local value `x`), and it is locally allocated from within the
-region of `f3`. When this region ends, the any-region local value `42 :: x` is
-not allowed to escape it.
+In contrast, `f3` is an error. The value `42 :: x` refers to a local value `x`,
+which means it cannot be global. Therefore, it must be stack-allocated, and it
+ is allocated within the region of `f3`. When this region ends, the any-region
+local value `42 :: x` is not allowed to escape it.
 
-It is possible to write functions like `f3` that return locally-allocated
-values, but this requires explicit annotation, as it would otherwise be easy to
-do by mistake.  See "Use exclave_ to return a local value" below.
+It is possible to write functions like `f3` that return stack-allocated
+values, but this requires an explicit annotation, as it would otherwise be easy to
+do by mistake.  See "Use `exclave_` to return a local value" below.
 
 Like local variables, inference can determine whether function arguments are
 local. However, note that for arguments of exported functions to be local, the
-`local_` keyword must appear in their declarations in the corresponding `.mli`
+`local_` keyword must appear in their declarations in the corresponding mli
 file.
 
 
 ## Closures
 
-Like most other values, closures can be locally allocated. In particular, this
-happens when a closure closes over local values from an outer scope: since
-global values cannot refer to local values, all such closures _must_ be locally
-allocated.
+Like most other values, closures can be stack-allocated. In particular, this
+happens when a closure closes over local values: since global values cannot
+refer to local values, all such closures cannot be global and _must_ be
+stack-allocated.
 
 Consider again the example from "Variables and regions" above:
 
 ```ocaml
 let f () =
-  let local_ outer = ref 42 in
+  let outer = stack_ (ref 42) in
   let g () =
-    let local_ inner = ref 42 in
+    let inner = stack_ (ref 42) in
     outer
   in
   ...
 ```
 
 Here, since `g` refers to the local value `outer`, the closure `g` must itself
-be locally allocated. (As always, this is deduced by inference, and an explicit
-`local_` annotation on `g` is not needed).
+be stack-allocated. (As always, this is deduced by inference, and an explicit
+`stack_` annotation on `g` is not needed.)
 
-This then means that `g` is not allowed to escape its region, i.e. the body of
-`f`. `f` may call `g` but may not return the closure. This guarantees that `g`
+This then means that `g` is not allowed to escape its region (the body of
+`f`). `f` may call `g` but may not return the closure. This guarantees that `g`
 will only run before `f` has ended, which is what makes it safe to refer to
 `outer` from within `g`.
 
@@ -324,7 +355,7 @@ following function for computing the length of a list:
 
 ```ocaml
 let length xs =
-  let local_ count = ref 0 in
+  let count = stack_ (ref 0) in
   List.iter xs ~f:(fun () -> incr count);
   !count
 ```
@@ -375,7 +406,7 @@ by `iter` not to capture `f`, while the second is a requirement by
 ## Tail calls
 
 Usually, a function's region lasts for the entire body of that function,
-cleaning up local allocations at the very end. This story gets more complicated
+and local values are available until at the very end. This story gets more complicated
 if the function ends in a tail call, however, as such functions need to clean
 up their stack frame before the tail call in order to ensure that
 tail-recursive loops use only constant space.
@@ -387,23 +418,23 @@ Therefore, when a function ends in a tail call, that function's region ends:
   - but before control is transferred to the callee.
 
 This early ending of the region introduces some restrictions, as values used in
-tail calls then count as escaping the region. In particular, any-region local
+tail calls then count as escaping the region. In particular, local
 values may not be passed to tail calls:
 
 ```ocaml
 let f1 () =
-  let local_ r = ref 42 in
+  let r = stack_ (ref 42) in
   some_func r
             ^
 Error: This local value escapes its region
   Hint: This argument cannot be local, because this is a tail call
 ```
 
-and any-region local closures may not be tail-called:
+and local closures may not be tail-called:
 
 ```ocaml
 let f2 () =
-  let local_ g () = 42 in
+  let g = stack_ (fun () -> 42) in
   g ()
   ^
 Error: This local value escapes its region
@@ -415,34 +446,33 @@ resolved by moving the call so that it is not syntactically a tail call:
 
 ```ocaml
 let f1 () =
-  let local_ r = ref 42 in
+  let r = stack_ (ref 42) in
   let res = some_func r in
   res
 
 let f2 () =
-  let local_ g () = 42 in
+  let g = stack_ (fun () -> 42) in
   let res = g () in
   res
 ```
 
-or by annotating the call with the `[@nontail]` attribute, that
+or by annotating the call with the `[@nontail]` attribute, which
 prevents it from being a tail call:
 
 ```ocaml
 let f1 () =
-  let local_ r = ref 42 in
+  let r = stack_ (ref 42) in
   some_func r [@nontail]
 
 let f2 () =
-  let local_ g () = 42 in
+  let g = stack_ (fun () -> 42) in
   g () [@nontail]
 ```
 
-This change means that the locally allocated values (`r` and `g`)
-will not be freed until after the call has returned.
+These changes make the local values (`r` and `g`) stay available until after
+the call has returned.
 
-Note that values which are outer-region local rather than any-region local (that
-is, local values that were passed into this region from outside) may be used in
+Note that values which are outer-local (see "Nested regions") may be used in
 tail calls, as the early closing of the region does not affect them:
 
 ```ocaml
@@ -455,7 +485,7 @@ value `x` remains available.
 
 ## Use `exclave_` to return a local value
 
-The region around the body of a function prevents local allocations inside that
+The region around the body of a function prevents local values inside that
 function from escaping. Occasionally, it is useful to write a function that
 allocates and returns a value in the caller's region. For instance, consider
 this code that uses an `int ref` as a counter:
@@ -469,8 +499,8 @@ let f () =
   ...
 ```
 
-Here, inference will detect that `counter` does not escape and will allocate
-the reference locally. However, this changes if we try to abstract out
+Here, inference will detect that `counter` does not escape and will stack-allocate
+the reference (assuming that `incr` takes its argument `local_`ly). However, this changes if we try to abstract out
 `counter` to its own module:
 
 ```ocaml
@@ -493,13 +523,13 @@ let f () =
   ...
 ```
 
-In this code, the counter will *not* be allocated locally. The reason is the
+In this code, the counter will *not* be stack-allocated. The reason is the
 `Counter.make` function: the allocation of `ref 0` escapes the region of
-`Counter.make`, and the compiler will therefore not allow it to be locally
-allocated. This remains the case no matter how many `local_` annotations we
+`Counter.make`, and the compiler will therefore not allow it to be
+stack-allocated. This remains the case no matter how many `local_` annotations we
 write inside `f`: the issue is the definition of `make`, not its uses.
 
-To allow the counter to be locally allocated, we need to make `Counter.make` end
+To allow the counter to be stack-allocated, we need to make `Counter.make` end
 its region early so that it can allocate its return value in the caller's
 region. This can be done with `exclave_`:
 
@@ -510,10 +540,11 @@ let make () = exclave_
 
 The keyword `exclave_` terminates the current region and executes the subsequent
 code in the outer region. Therefore, `ref 0` is executed in `f`'s region, which
-allows its local allocation. The allocation will only be cleaned up when the
+allows its stack-allocation. The allocation will only be cleaned up when the
 region of `f` ends.
 
 ## Delaying exclaves
+
 In the previous section, the example function exits its own region immediately,
 which allows allocating and returning in the caller's region. This approach,
 however, has certain disadvantages. Consider the following example:
@@ -539,10 +570,10 @@ let f (local_ x) =
 
 In this example, the function `f` has a region where the allocation for the
 complex computation occurs. This region is terminated by `exclave_`, releasing
-all temporary allocations. Both `None` and `Some x` are considered "local"
-relative to the outer region and are allowed to be returned. In summary, the
+all temporary allocations. Both `None` and `Some x` are allocated in the
+caller's stack frame and are allowed to be returned. In summary, the
 temporary allocations in the `f`'s region are promptly released, and the result
-allocation in the caller's region is returned.
+allocated in the caller's region is returned.
 
 Here is another example in which the stack usage can be improved asymptotically
 by delaying `exclave_`:
@@ -585,7 +616,7 @@ Now the function uses O(1) stack space.
 
 `exclave_` terminates the current region, so local values from that region
 cannot be used inside `exclave_`. For example, the following code produces an
-error because `x` would escape its region:
+error:
 ```ocaml
   let local_ x = "hello" in
   exclave_ (
@@ -615,7 +646,7 @@ both global:
 
 ```ocaml
 let f () =
-  let local_ packed = (x, y) in
+  let packed = stack_ (x, y) in
   let x', y' = packed in
   x'
 ```
@@ -624,7 +655,7 @@ Here, the `packed` values is treated as local, and the type-checker then
 conservatively assumes that `x'` and `y'` may also be local (since they are
 extracted from `packed`), and so cannot safely be returned.
 
-Similarly, a variable `local_ x` of type `string list` means a local
+Similarly, a local value of type `string list` means a local
 list of local strings, and none of these strings can be safely
 returned from a function like `f`.
 
@@ -635,14 +666,14 @@ This can be overridden for record types, by annotating some fields with
 type ('a, 'b) t = { global_ foo : 'a; bar: 'b }
 
 let f () =
-  let local_ packed = {foo=x; bar=y} in
+  let packed = stack_ {foo=x; bar=y} in
   let {foo; bar} = packed in
   foo
 ```
 
 Here, the `foo` field of any value of type `_ t` is always known to be global,
 and so can be returned from a function. When constructing such a record, the
-`foo` field must therefore be a global value, so trying to fill it with a local
+`foo` field must therefore be assigned a global value, so trying to fill it with a local
 value will result in an escape error, even if the record being constructed is
 itself local.
 
@@ -652,9 +683,9 @@ In particular, by defining:
 type 'a t = { global_ global : 'a } [@@unboxed]
 ```
 
-then a variable `local_ x` of type `string t list` is a local list of global
+then a local value of type `string t list` is a local list of global
 strings, and while the list itself cannot be returned out of a region, the
-`global` field of any of its elements can. For convenience, `base` provides
+global field of any of its elements can. For convenience, `base` provides
 this as the type `Modes.Global.t`.
 
 The same overriding can be used on constructor arguments. To imitate the example
@@ -663,7 +694,7 @@ for record fields:
 type ('a, 'b) t = Foo of global_ 'a * 'b
 
 let f () =
-  let local_ packed = Foo (x, y) in
+  let packed = stack_ (Foo (x, y)) in
   match packed with
   | Foo (foo, bar) -> foo
 ```
@@ -672,12 +703,14 @@ let f () =
 
 Mutable fields are always `global_`, including array elements. That is, while
 you may create local `ref`s or arrays, their contents must always be global.
+Should you need to put a local value into one of these
+places, you may want to check out
+[`ppx_globalize`](https://github.com/janestreet/ppx_globalize).
 
 This restriction may be lifted somewhat in future: the tricky part is that
 naively permitting mutability might allow an older local mutable value to be
 mutated to point to a younger one, creating a dangling reference to an escaping
 value when the younger one's region ends.
-
 
 ## Curried functions
 
@@ -738,11 +771,11 @@ local_ (a -> local_ (b -> local_ (c -> d))) -> local_ (e -> local_ (f -> g))
 
 Note the implicit `local_` both in the returned `e -> f` closure (as described
 above), and also in the type of the `b -> c` argument. The propagation of
-`local_` into the function argument is necessary to allow a locally-allocated
+`local_` into the function argument is necessary to allow a stack-allocated
 function (which would have type `a -> local_ (b -> local_ (c -> d))`) to be
 passed as an argument. Functions are different than other types in that, because
-of currying, a locally-allocated function has a different type than a
-globally-allocated one.
+of currying, a stack-allocated function has a different type than a
+heap-allocated one.
 
 ### Currying of local closures
 
@@ -755,14 +788,14 @@ rejected:
 let local_ f : int -> int -> int = fun a b -> a + b + !counter in
 ...
 
-let f : int -> int -> int = local_ fun a b -> a + b + !counter in
+let f : int -> int -> int = stack_ fun a b -> a + b + !counter in
 ...
 ```
 
 Both define a closure which accepts two integers and returns an integer. The
 closure must be local, since it refers to the local value `counter`. In the
-former definition, the type of the function appears under the `local_` keyword,
-as as described above is interpreted as:
+former definition, the type of the function appears under the `stack_` keyword,
+and as described above is interpreted as:
 
 ```ocaml
 int -> local_ (int -> int)
@@ -771,7 +804,7 @@ int -> local_ (int -> int)
 This is the correct type for this function: if we partially apply it to
 a single argument, the resulting closure will still be local, as it refers to
 the original function which refers to `counter`. By contrast, in the latter
-definition the type of the function is outside the `local_` keyword as is
+definition the type of the function is outside the `stack_` keyword as is
 interpreted as normal as:
 
 ```ocaml
@@ -784,7 +817,7 @@ case here. For this reason, this version is rejected. It would be accepted if
 written as follows:
 
 ```ocaml
-let f : int -> local_ (int -> int) = local_ fun a b -> a + b + !counter in
+let f : int -> local_ (int -> int) = stack_ fun a b -> a + b + !counter in
 ...
 ```
 
@@ -830,14 +863,11 @@ several variables, the type-checker treats it as such rather than
 making all of `a`,`b` and `c` local if any of `x`, `y` and `z` are.
 
 
-## Primitive definitions
+## Primitive declarations
+### Mode polymorphism
 
-Allocations in OCaml functions must either be local or global, as these are
-compiled separately. A different option is available for `%`-primitives exported
-by the stdlib, however, as these are guaranteed to be inlined at every use
-site. Unlike ordinary functions, these primitives may be used to make both
-local and global allocations, which is why `ref` worked for both local and
-global in various examples above.
+A limited form of mode polymorphism is available for primivites, defined
+with `external`.
 
 In the interface for the stdlib (and as re-exported by Base), this feature is
 enabled by use of the `[@local_opt]` annotation on `external` declarations. For
@@ -850,14 +880,42 @@ external id : ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
 This declaration means that `id` can have either of the following types:
 
 ```ocaml
-id : local_ 'a -> local_ a
+id : local_ 'a -> local_ 'a
 id : 'a -> 'a
 ```
 
 Notice that the two `[@local_opt]`s act in unison: either both `local_`s are
-present or neither is. This allows for a limited form of mode-polymorphism for
-`external`s (only). Nothing checks that the locality ascriptions are sound,
+present or neither is. Nothing checks that the locality ascriptions are sound,
 though, so use this feature with much caution. In the case of `id`, all is well,
 but if the two `[@local_opt]`s did not act in unison (that is, they varied
 independently), it would not be: `id : local_ 'a -> 'a` allows a local value to
 escape.
+
+### Stack allocation
+
+Primitives defined within the compiler (with names starting with `%`) are
+inlined at every use site, and can have different runtime behavior (such as
+allocation) at each use site. For example, primitives that return allocated
+values will allocate the value on stack if declared to be local-returning:
+
+```ocaml
+external ref_stack : 'a -> local_ 'a ref = "%makemutable"
+external ref_heap : 'a -> 'a ref = "%makemutable"
+
+let r_stack = ref_stack "hello" in
+let r_heap = ref_heap "hello" in
+let r_error = stack_ (ref_heap "hello") in
+...
+```
+
+In this example, `r_stack` will always be on stack even without `stack_`
+annotation; `r_heap` will always be on heap; and `r_error` will trigger type
+error. We can further use the `[@local_opt]` attribute to declare an allocation
+polymorphic `ref`:
+
+```ocaml
+external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+```
+
+which allocates the cell on the GC heap or on the stack, depending on the
+inferred mode.

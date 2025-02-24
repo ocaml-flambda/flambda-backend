@@ -8,7 +8,7 @@ necessary to read all of the details from the other page.
 
 ## Motivation: mode crossing
 
-In a language without modes (such as [`local`](../../extensions/local/intro.md)
+In a language without modes (such as [`local`](../../extensions/stack/intro.md)
 or [`sync`](../modes/data-race-freedom.md)), classifying a type by its [layout](index.md) would
 be enough. However, our experience with local types suggest that users will
 enjoy the ability to control whether types can mode-cross, and kinds are
@@ -160,7 +160,7 @@ and a kind of the same name.
 ## The externality mode axis
 
 The [locality mode axis is well
-described](../../extensions/local/intro.md). However, this page newly introduces
+described](../../extensions/stack/intro.md). However, this page newly introduces
 the *externality* axis. It is arranged like this:
 
 ```
