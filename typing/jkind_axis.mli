@@ -93,87 +93,55 @@ module Axis_collection : sig
 
     val set : axis:'a Axis.t -> 'b t_poly -> ('a, 'b) u -> 'b t_poly
 
+    (** This record type is used to pass a polymorphic function to [create] *)
+    type 'a create_f = { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u }
+    [@@unboxed]
+
     (** Create an axis collection by applying the function on each axis *)
-    module Create : sig
-      module Monadic (M : Misc.Stdlib.Monad.S) : sig
-        type 'a f = { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u M.t }
-        [@@unboxed]
+    val create : 'a create_f -> 'a t_poly
 
-        val f : 'a f -> 'a t_poly M.t
-      end
-
-      (** This record type is used to pass a polymorphic function to [create] *)
-      type 'a f = 'a Monadic(Misc.Stdlib.Monad.Identity).f
-
-      val f : 'a f -> 'a t_poly
-    end
+    type ('a, 'b) map_f =
+      { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> ('axis, 'b) u }
+    [@@unboxed]
 
     (** Map an operation over all the bounds *)
-    module Map : sig
-      module Monadic (M : Misc.Stdlib.Monad.S) : sig
-        type ('a, 'b) f =
-          { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> ('axis, 'b) u M.t }
-        [@@unboxed]
+    val map : ('a, 'b) map_f -> 'a t_poly -> 'b t_poly
 
-        val f : ('a, 'b) f -> 'a t_poly -> 'b t_poly M.t
-      end
+    type 'a iter_f = { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> unit }
+    [@@unboxed]
 
-      type ('a, 'b) f = ('a, 'b) Monadic(Misc.Stdlib.Monad.Identity).f
+    val iter : 'a iter_f -> 'a t_poly -> unit
 
-      val f : ('a, 'b) f -> 'a t_poly -> 'b t_poly
-    end
-
-    module Iter : sig
-      type 'a f = { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> unit }
-      [@@unboxed]
-
-      val f : 'a f -> 'a t_poly -> unit
-    end
+    type ('a, 'b, 'c) map2_f =
+      { f :
+          'axis.
+          axis:'axis Axis.t -> ('axis, 'a) u -> ('axis, 'b) u -> ('axis, 'c) u
+      }
+    [@@unboxed]
 
     (** Map an operation over two sets of bounds *)
-    module Map2 : sig
-      module Monadic (M : Misc.Stdlib.Monad.S) : sig
-        type ('a, 'b, 'c) f =
-          { f :
-              'axis.
-              axis:'axis Axis.t ->
-              ('axis, 'a) u ->
-              ('axis, 'b) u ->
-              ('axis, 'c) u M.t
-          }
-        [@@unboxed]
+    val map2 : ('a, 'b, 'c) map2_f -> 'a t_poly -> 'b t_poly -> 'c t_poly
 
-        val f : ('a, 'b, 'c) f -> 'a t_poly -> 'b t_poly -> 'c t_poly M.t
-      end
+    type ('a, 'r) fold_f =
+      { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> 'r }
+    [@@unboxed]
 
-      type ('a, 'b, 'c) f = ('a, 'b, 'c) Monadic(Misc.Stdlib.Monad.Identity).f
+    (** Fold an operation over the bounds to a summary value.
+          [combine] should be commutative and associative. *)
+    val fold : ('a, 'r) fold_f -> 'a t_poly -> combine:('r -> 'r -> 'r) -> 'r
 
-      val f : ('a, 'b, 'c) f -> 'a t_poly -> 'b t_poly -> 'c t_poly
-    end
+    type ('a, 'b, 'r) fold2_f =
+      { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> ('axis, 'b) u -> 'r }
+    [@@unboxed]
 
-    (** Fold an operation over the bounds to a summary value *)
-    module Fold : sig
-      type ('a, 'r) f = { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> 'r }
-      [@@unboxed]
-
-      (** [combine] should be commutative and associative. *)
-      val f : ('a, 'r) f -> 'a t_poly -> combine:('r -> 'r -> 'r) -> 'r
-    end
-
-    (** Fold an operation over two sets of bounds to a summary value *)
-    module Fold2 : sig
-      type ('a, 'b, 'r) f =
-        { f : 'axis. axis:'axis Axis.t -> ('axis, 'a) u -> ('axis, 'b) u -> 'r }
-      [@@unboxed]
-
-      (** [combine] should be commutative and associative. *)
-      val f :
-        ('a, 'b, 'r) f ->
-        'a t_poly ->
-        'b t_poly ->
-        combine:('r -> 'r -> 'r) ->
-        'r
-    end
+    (** Fold an operation over two sets of bounds to a summary value.
+          [combine] should be commutative and associative. *)
+    val fold2 :
+      ('a, 'b, 'r) fold2_f ->
+      'a t_poly ->
+      'b t_poly ->
+      combine:('r -> 'r -> 'r) ->
+      'r
   end
 
   module type S_poly := sig
@@ -197,10 +165,6 @@ module Axis_collection : sig
   include S_poly with type ('a, 'b) u := 'b
 
   val create : f:(axis:Axis.packed -> 'a) -> 'a t
-
-  val get : axis:'ax Axis.t -> 'a t -> 'a
-
-  val set : axis:'ax Axis.t -> 'a t -> 'a -> 'a t
 
   val mapi : f:(axis:Axis.packed -> 'a -> 'a) -> 'a t -> 'a t
 

@@ -115,7 +115,7 @@ let transl_modifier_annots annots =
     Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
   in
   let empty_modifiers =
-    Transled_modifiers.Create.f { f = (fun ~axis:_ -> None) }
+    Transled_modifiers.create { f = (fun ~axis:_ -> None) }
   in
   List.fold_left step empty_modifiers annots
 
@@ -135,7 +135,7 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
     Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
   in
   let empty_modifiers =
-    Transled_modifiers.Create.f { f = (fun ~axis:_ -> None) }
+    Transled_modifiers.create { f = (fun ~axis:_ -> None) }
   in
   let modes = List.fold_left step empty_modifiers annots in
   { areality = Transled_modifier.drop_loc modes.locality;

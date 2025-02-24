@@ -405,7 +405,7 @@ module Mod_bounds = struct
       Nullability.print nullability
 
   let min =
-    Create.f
+    create
       { f =
           (fun (type axis) ~(axis : axis Axis.t) ->
             let (module Bound_ops) = Axis.get axis in
@@ -413,7 +413,7 @@ module Mod_bounds = struct
       }
 
   let max =
-    Create.f
+    create
       { f =
           (fun (type axis) ~(axis : axis Axis.t) ->
             let (module Bound_ops) = Axis.get axis in
@@ -433,7 +433,7 @@ module Mod_bounds = struct
     }
 
   let join =
-    Map2.f
+    map2
       { f =
           (fun (type axis) ~(axis : axis Axis.t) ->
             let (module Bound_ops) = Axis.get axis in
@@ -441,7 +441,7 @@ module Mod_bounds = struct
       }
 
   let meet =
-    Map2.f
+    map2
       { f =
           (fun (type axis) ~(axis : axis Axis.t) ->
             let (module Bound_ops) = Axis.get axis in
@@ -449,7 +449,7 @@ module Mod_bounds = struct
       }
 
   let less_or_equal =
-    Fold2.f
+    fold2
       { f =
           (fun (type axis) ~(axis : axis Axis.t) b1 b2 ->
             let (module Bound_ops) = Axis.get axis in
@@ -459,7 +459,7 @@ module Mod_bounds = struct
       ~combine:Sub_result.combine
 
   let equal =
-    Fold2.f
+    fold2
       { f =
           (fun (type axis) ~(axis : axis Axis.t) ->
             let (module Bound_ops) = Axis.get axis in
@@ -1264,7 +1264,7 @@ module Const = struct
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let mod_bounds =
-        Mod_bounds.Create.f
+        Mod_bounds.create
           { f =
               (fun (type a) ~(axis : a Axis.t) ->
                 let (module A) = Axis.get axis in
@@ -1538,7 +1538,7 @@ module Jkind_desc = struct
           loop ctl bounds_so_far bs
         | false -> (
           let join_bounds b1 b2 ~relevant_axes =
-            Mod_bounds.Map2.f
+            Mod_bounds.map2
               { f =
                   (fun (type a) ~(axis : a Axis.t) b1 b2 ->
                     if Axis_set.mem relevant_axes axis
