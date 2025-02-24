@@ -199,7 +199,7 @@ let init () =
       let cst = Const_block
           (Obj.object_tag,
            [Const_base(Const_string (name, Location.none,None));
-            Const_base(Const_int (-i-1))
+            const_int int (-i-1)
            ])
       in
       literal_table := (c, cst) :: !literal_table)
@@ -275,23 +275,19 @@ external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 external int_as_pointer : int -> Obj.t = "%int_as_pointer"
 
 let rec transl_const = function
-    Const_base(Const_int i)
-  | Const_naked_immediate (i, (Int8 | Int16 | Int)) -> Obj.repr i
-  | Const_base(Const_char c) -> Obj.repr c
+  | Const_base(Const_int8 ((Value|Naked), i)) -> Obj.repr i
+  | Const_base(Const_int16 ((Value|Naked), i)) -> Obj.repr i
+  | Const_base(Const_int ((Value|Naked), i)) -> Obj.repr i
+  | Const_base(Const_char ((Value|Naked), c)) -> Obj.repr c
   | Const_base(Const_string (s, _, _)) -> Obj.repr s
-  | Const_base(Const_float32 f)
-  | Const_base(Const_unboxed_float32 f) ->
+  | Const_base(Const_float32 ((Value|Naked),f)) ->
       if is_boot_compiler ()
       then Misc.fatal_error "The boot bytecode compiler should not produce float32 constants."
       else Obj.repr (float32_of_string f)
-  | Const_base(Const_float f)
-  | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)
-  | Const_base(Const_int32 i)
-  | Const_base(Const_unboxed_int32 i) -> Obj.repr i
-  | Const_base(Const_int64 i)
-  | Const_base(Const_unboxed_int64 i) -> Obj.repr i
-  | Const_base(Const_nativeint i)
-  | Const_base(Const_unboxed_nativeint i) -> Obj.repr i
+  | Const_base(Const_float ((Value|Naked),f)) -> Obj.repr (float_of_string f)
+  | Const_base(Const_int32 ((Value|Naked), i)) -> Obj.repr i
+  | Const_base(Const_int64 ((Value|Naked), i)) -> Obj.repr i
+  | Const_base(Const_nativeint ((Value|Naked), i)) -> Obj.repr i
   | Const_immstring s -> Obj.repr s
   | Const_block(tag, fields) ->
       let block = Obj.new_block tag (List.length fields) in

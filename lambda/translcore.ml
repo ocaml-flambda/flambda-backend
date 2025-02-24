@@ -121,7 +121,7 @@ let extract_constant = function
   | _ -> raise Not_constant
 
 let extract_float = function
-    Const_base(Const_float f) -> f
+    Const_base(Const_float (Value, f)) -> f
   | _ -> fatal_error "Translcore.extract_float"
 
 let transl_apply_position position =
@@ -237,8 +237,8 @@ let assert_failed loc ~scopes exp =
           [slot;
            Lconst(Const_block(0,
               [Const_base(Const_string (fname, exp.exp_loc, None));
-               Const_base(Const_int line);
-               Const_base(Const_int char)]))], loc))], loc)
+               const_int int line;
+               const_int int char]))], loc))], loc)
 
 type fusable_function =
   { params : function_param list
@@ -1221,9 +1221,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let pos_fname = Clflags.prepend_directory pos.pos_fname in
       let cl =
         [ Const_base (Const_string (pos_fname, e.exp_loc, None))
-        ; Const_base (Const_int pos.pos_lnum)
-        ; Const_base (Const_int pos.pos_bol)
-        ; Const_base (Const_int pos.pos_cnum)
+        ; const_int int pos.pos_lnum
+        ; const_int int pos.pos_bol
+        ; const_int int pos.pos_cnum
         ]
       in
       Lconst(Const_block(0, cl))

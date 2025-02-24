@@ -1,0 +1,61 @@
+type t = float32
+- : float32 = 1.s
+- : float32 = 1.s
+- : float32 = 1e+10s
+- : float32 = 10.s
+- : float32 = 0.100000001s
+- : float32 = 273.s
+- : float32 = 1.25s
+- : float32 = infs
+- : float32 = 0.s
+- : float32 = 2.72982066e+38s
+type t = int8
+Line 2, characters 8-10:
+2 | let _ = 1y;;
+            ^^
+Error: Found the int8 literal "1y", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-11:
+1 | let _ = -1y;;
+            ^^^
+Error: Found the int8 literal "(-1y)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-14:
+1 | let _ = 0xfffy;;
+            ^^^^^^
+Error: Found the int8 literal "0xfffy", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-13:
+1 | let _ = -0o7y;;
+            ^^^^^
+Error: Found the int8 literal "(-0o7y)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-16:
+1 | let _ = -0b1010y;;
+            ^^^^^^^^
+Error: Found the int8 literal "(-0b1010y)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 2, characters 8-13:
+2 |   match -0xfy with
+            ^^^^^
+Error: Found the int8 literal "(-0xfy)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 2, characters 8-10:
+2 | let _ = 1w;;
+            ^^
+Error: Found the int16 literal "1w", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-12:
+1 | let _ = -#1w;;
+            ^^^^
+Error: Found the int16# literal "(-#1w)", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-14:
+1 | let _ = 0xfffw;;
+            ^^^^^^
+Error: Found the int16 literal "0xfffw", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-13:
+1 | let _ = -0o7w;;
+            ^^^^^
+Error: Found the int16 literal "(-0o7w)", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-16:
+1 | let _ = -0b1010w;;
+            ^^^^^^^^
+Error: Found the int16 literal "(-0b1010w)", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+
+
+Line 11, characters 0-0:
+Error: Syntax error
+

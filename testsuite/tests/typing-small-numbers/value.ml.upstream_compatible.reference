@@ -1,0 +1,99 @@
+Line 28, characters 9-16:
+28 | type t = float32;;
+              ^^^^^^^
+Error: Unbound type constructor "float32"
+Hint: Did you mean "float" or "float#"?
+Line 2, characters 8-12:
+2 | let _ = 1.0s;;
+            ^^^^
+Error: Found the float32 literal "1.0s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-11:
+1 | let _ = 1.s;;
+            ^^^
+Error: Found the float32 literal "1.s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-13:
+1 | let _ = 1e10s;;
+            ^^^^^
+Error: Found the float32 literal "1e10s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-13:
+1 | let _ = 1e+1s;;
+            ^^^^^
+Error: Found the float32 literal "1e+1s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-13:
+1 | let _ = 1e-1s;;
+            ^^^^^
+Error: Found the float32 literal "1e-1s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-18:
+1 | let _ = 0x111.000s;;
+            ^^^^^^^^^^
+Error: Found the float32 literal "0x111.000s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-17:
+1 | let _ = 0x1.4p+0s;;
+            ^^^^^^^^^
+Error: Found the float32 literal "0x1.4p+0s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-32:
+1 | let _ = 0xf.ffffffffffff8p+1020s;;
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Found the float32 literal "0xf.ffffffffffff8p+1020s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-17:
+1 | let _ = 0x8p-972s;;
+            ^^^^^^^^^
+Error: Found the float32 literal "0x8p-972s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 1, characters 8-24:
+1 | let _ = 0xc.d5e6fp+1_24s;;
+            ^^^^^^^^^^^^^^^^
+Error: Found the float32 literal "0xc.d5e6fp+1_24s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+Line 3, characters 8-12:
+3 |   match 0.0s with
+            ^^^^
+Error: Found the float32 literal "0.0s", but float32 literals are not enabled. You must enable -extension small_numbers to use this feature.
+type t = int8
+Line 2, characters 8-10:
+2 | let _ = 1y;;
+            ^^
+Error: Found the int8 literal "1y", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-11:
+1 | let _ = -1y;;
+            ^^^
+Error: Found the int8 literal "(-1y)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-14:
+1 | let _ = 0xfffy;;
+            ^^^^^^
+Error: Found the int8 literal "0xfffy", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-13:
+1 | let _ = -0o7y;;
+            ^^^^^
+Error: Found the int8 literal "(-0o7y)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-16:
+1 | let _ = -0b1010y;;
+            ^^^^^^^^
+Error: Found the int8 literal "(-0b1010y)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 2, characters 8-13:
+2 |   match -0xfy with
+            ^^^^^
+Error: Found the int8 literal "(-0xfy)", but int8 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 2, characters 8-10:
+2 | let _ = 1w;;
+            ^^
+Error: Found the int16 literal "1w", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-12:
+1 | let _ = -#1w;;
+            ^^^^
+Error: Found the int16# literal "(-#1w)", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-14:
+1 | let _ = 0xfffw;;
+            ^^^^^^
+Error: Found the int16 literal "0xfffw", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-13:
+1 | let _ = -0o7w;;
+            ^^^^^
+Error: Found the int16 literal "(-0o7w)", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 8-16:
+1 | let _ = -0b1010w;;
+            ^^^^^^^^
+Error: Found the int16 literal "(-0b1010w)", but int16 literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+
+
+Line 11, characters 0-0:
+Error: Syntax error
+

@@ -11,7 +11,7 @@
               pattern (extensions.ml[9,153+11]..[9,153+12])
                 Ppat_var "x" (extensions.ml[9,153+11]..[9,153+12])
               expression (extensions.ml[9,153+15]..[9,153+16])
-                Pexp_constant PConst_int (1,None)
+                Pexp_constant Pconst_int (Value,1,None)
           ]
           expression (extensions.ml[9,153+20]..[9,153+21])
             Pexp_ident "x" (extensions.ml[9,153+20]..[9,153+21])
@@ -33,11 +33,11 @@
                   <arg>
                   Nolabel
                     expression (extensions.ml[10,176+10]..[10,176+11])
-                      Pexp_constant PConst_int (2,None)
+                      Pexp_constant Pconst_int (Value,2,None)
                   <arg>
                   Nolabel
                     expression (extensions.ml[10,176+12]..[10,176+13])
-                      Pexp_constant PConst_int (1,None)
+                      Pexp_constant Pconst_int (Value,1,None)
                 ]
           ]
         core_type (extensions.ml[10,176+17]..[10,176+31])
@@ -199,7 +199,7 @@
           <arg>
           Nolabel
             expression (extensions.ml[19,418+24]..[19,418+25])
-              Pexp_constant PConst_int (0,None)
+              Pexp_constant Pconst_int (Value,0,None)
         ]
   structure_item (extensions.ml[20,445+0]..[20,445+60])
     Pstr_value Nonrec

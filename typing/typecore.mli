@@ -281,8 +281,13 @@ type error =
   | Probe_is_enabled_format
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
-  | Unknown_literal of string * char
-  | Float32_literal of string
+  | Unknown_literal of string * string
+  | Disabled_literal :
+      { name : string
+      ; constant : Parsetree.constant
+      ; extension_required : 'maturity Language_extension.t
+      ; maturity : 'maturity
+      } -> error
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr

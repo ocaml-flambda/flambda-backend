@@ -360,7 +360,7 @@ let try_run_directive ppf dir_name pdir_arg =
       match d, pdir_arg with
       | Directive_none f, None -> f (); true
       | Directive_string f, Some {pdira_desc = Pdir_string s} -> f s; true
-      | Directive_int f, Some {pdira_desc = Pdir_int (n,None) } ->
+      | Directive_int f, Some {pdira_desc = Pdir_int (n,"") } ->
          begin match Misc.Int_literal_converter.int n with
          | n -> f n; true
          | exception _ ->
@@ -369,7 +369,7 @@ let try_run_directive ppf dir_name pdir_arg =
                    Style.inline_code dir_name;
            false
          end
-      | Directive_int _, Some {pdira_desc = Pdir_int (_, Some _)} ->
+      | Directive_int _, Some {pdira_desc = Pdir_int (_, _)} ->
           fprintf ppf "Wrong integer literal for directive %a.@."
             Style.inline_code dir_name;
           false

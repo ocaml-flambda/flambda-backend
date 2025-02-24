@@ -143,6 +143,7 @@ Line 1, characters 14-16:
                   ^^
 Error: This expression has type "int64" but an expression was expected of type
          "int"
+  Hint: Did you mean "1"?
 |}]
 
 (* Check that the hint preserves formatting of int, int32, int64 and nativeint

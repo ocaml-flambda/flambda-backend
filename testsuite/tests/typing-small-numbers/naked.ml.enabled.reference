@@ -1,0 +1,100 @@
+type t = float32#
+external ignore : t -> unit = "%ignore"
+Line 2, characters 9-14:
+2 | type t = char#;;
+             ^^^^^
+Error: Unbound type constructor "char#"
+Hint: Did you mean "char"?
+Line 3, characters 16-20:
+3 | let () = ignore #'a';;
+                    ^^^^
+Error: Found the char# literal "#'a'", but char# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-23:
+1 | let () = ignore #'\000';;
+                    ^^^^^^^
+Error: Found the char# literal "#'\000'", but char# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-23:
+1 | let () = ignore #'\x80';;
+                    ^^^^^^^
+Error: Found the char# literal "#'\128'", but char# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 18-25:
+1 | let () = ignore (-#'\x80');;
+                      ^^^^^^^
+Error: Found the char# literal "#'\128'", but char# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 2, characters 8-15:
+2 |   match #'\x80' with
+            ^^^^^^^
+Error: Found the char# literal "#'\128'", but char# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 3, characters 16-19:
+3 | let () = ignore #1y;;
+                    ^^^
+Error: Found the int8# literal "#1y", but int8# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-22:
+1 | let () = ignore (-#1y);;
+                    ^^^^^^
+Error: Found the int8# literal "(-#1y)", but int8# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-23:
+1 | let () = ignore #0xfffy;;
+                    ^^^^^^^
+Error: Found the int8# literal "#0xfffy", but int8# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-24:
+1 | let () = ignore (-#0o7y);;
+                    ^^^^^^^^
+Error: Found the int8# literal "(-#0o7y)", but int8# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-27:
+1 | let () = ignore (-#0b1010y);;
+                    ^^^^^^^^^^^
+Error: Found the int8# literal "(-#0b1010y)", but int8# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 2, characters 8-14:
+2 |   match -#0xfy with
+            ^^^^^^
+Error: Found the int8# literal "(-#0xfy)", but int8# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 3, characters 16-19:
+3 | let () = ignore #1w;;
+                    ^^^
+Error: Found the int16# literal "#1w", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-22:
+1 | let () = ignore (-#1w);;
+                    ^^^^^^
+Error: Found the int16# literal "(-#1w)", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-23:
+1 | let () = ignore #0xfffw;;
+                    ^^^^^^^
+Error: Found the int16# literal "#0xfffw", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-24:
+1 | let () = ignore (-#0o7w);;
+                    ^^^^^^^^
+Error: Found the int16# literal "(-#0o7w)", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-27:
+1 | let () = ignore (-#0b1010w);;
+                    ^^^^^^^^^^^
+Error: Found the int16# literal "(-#0b1010w)", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 2, characters 8-14:
+2 |   match -#0xfw with
+            ^^^^^^
+Error: Found the int16# literal "(-#0xfw)", but int16# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 3, characters 16-19:
+3 | let () = ignore #1i;;
+                    ^^^
+Error: Found the int# literal "#1i", but int# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-22:
+1 | let () = ignore (-#1i);;
+                    ^^^^^^
+Error: Found the int# literal "(-#1i)", but int# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-23:
+1 | let () = ignore #0xfffi;;
+                    ^^^^^^^
+Error: Found the int# literal "#0xfffi", but int# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-24:
+1 | let () = ignore (-#0o7i);;
+                    ^^^^^^^^
+Error: Found the int# literal "(-#0o7i)", but int# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+Line 1, characters 16-27:
+1 | let () = ignore (-#0b1010i);;
+                    ^^^^^^^^^^^
+Error: Found the int# literal "(-#0b1010i)", but int# literals are not enabled. You must enable -extension small_numbers_beta to use this feature.
+
+
+Line 6, characters 0-0:
+Error: Syntax error
+

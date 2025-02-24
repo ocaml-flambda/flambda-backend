@@ -1,0 +1,35 @@
+type t = float32
+- : float32 = 1.s
+- : float32 = 1.s
+- : float32 = 1e+10s
+- : float32 = 10.s
+- : float32 = 0.100000001s
+- : float32 = 273.s
+- : float32 = 1.25s
+- : float32 = infs
+- : float32 = 0.s
+- : float32 = 2.72982066e+38s
+type t = int8
+- : int8 = 1
+- : int8 = -1
+Line 1, characters 8-14:
+1 | let _ = 0xfffy;;
+            ^^^^^^
+Error: Integer literal exceeds the range of representable integers of type "int8"
+- : int8 = -7
+- : int8 = -10
+type t = int16
+- : int16 = 1
+Line 1, characters 0-12:
+1 | let _ = -#1w;;
+    ^^^^^^^^^^^^
+Error: Types of unnamed expressions must have layout value when using
+       the toplevel, but this expression has layout "bits16".
+- : int16 = 4095
+- : int16 = -7
+- : int16 = -10
+
+
+Line 11, characters 0-0:
+Error: Syntax error
+

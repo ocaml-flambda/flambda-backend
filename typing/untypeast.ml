@@ -123,19 +123,22 @@ let rec extract_letop_patterns n pat =
 (** Mapping functions. *)
 
 let constant = function
-  | Const_char c -> Pconst_char c
+  | Const_char (naked, c) -> Pconst_char (naked, c)
   | Const_string (s,loc,d) -> Pconst_string (s,loc,d)
-  | Const_int i -> Pconst_integer (Int.to_string i, None)
-  | Const_int32 i -> Pconst_integer (Int32.to_string i, Some 'l')
-  | Const_int64 i -> Pconst_integer (Int64.to_string i, Some 'L')
-  | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, Some 'n')
-  | Const_float f -> Pconst_float (f,None)
-  | Const_float32 f -> Pconst_float (f, Some 's')
-  | Const_unboxed_float f -> Pconst_unboxed_float (f, None)
-  | Const_unboxed_float32 f -> Pconst_unboxed_float (f, Some 's')
-  | Const_unboxed_int32 i -> Pconst_unboxed_integer (Int32.to_string i, 'l')
-  | Const_unboxed_int64 i -> Pconst_unboxed_integer (Int64.to_string i, 'L')
-  | Const_unboxed_nativeint i -> Pconst_unboxed_integer (Nativeint.to_string i, 'n')
+  | Const_int (naked, i) ->
+    Pconst_integer {naked; value=Int.to_string i; suffix=""}
+  | Const_int8 (naked, i) ->
+    Pconst_integer {naked; value=Int.to_string i; suffix="i8"}
+  | Const_int16 (naked, i) ->
+    Pconst_integer {naked; value=Int.to_string i; suffix="i16"}
+  | Const_int32 (naked, i) ->
+    Pconst_integer {naked; value=Int32.to_string i; suffix="l"}
+  | Const_int64 (naked, i) ->
+    Pconst_integer {naked; value=Int64.to_string i; suffix="L"}
+  | Const_nativeint (naked, i) ->
+    Pconst_integer {naked; value=Nativeint.to_string i; suffix="n"}
+  | Const_float (naked, value) -> Pconst_float {naked; value; suffix=""}
+  | Const_float32 (naked, value) -> Pconst_float {naked; value; suffix="s"}
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;

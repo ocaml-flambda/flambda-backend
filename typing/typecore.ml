@@ -236,8 +236,13 @@ type error =
   | Probe_is_enabled_format
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
-  | Unknown_literal of string * char
-  | Float32_literal of string
+  | Unknown_literal of string * string
+  | Disabled_literal :
+      { name : string
+      ; constant : Parsetree.constant
+      ; extension_required : 'maturity Language_extension.t
+      ; maturity : 'maturity
+      } -> error
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr
@@ -742,110 +747,127 @@ let rec can_be_overwritten = function
 (* Typing of constants *)
 
 let type_constant: Typedtree.constant -> type_expr = function
-    Const_int _ -> instance Predef.type_int
-  | Const_char _ -> instance Predef.type_char
   | Const_string _ -> instance Predef.type_string
-  | Const_float _ -> instance Predef.type_float
-  | Const_float32 _ -> instance Predef.type_float32
-  | Const_unboxed_float _ -> instance Predef.type_unboxed_float
-  | Const_unboxed_float32 _ -> instance Predef.type_unboxed_float32
-  | Const_int32 _ -> instance Predef.type_int32
-  | Const_int64 _ -> instance Predef.type_int64
-  | Const_nativeint _ -> instance Predef.type_nativeint
-  | Const_unboxed_int32 _ -> instance Predef.type_unboxed_int32
-  | Const_unboxed_int64 _ -> instance Predef.type_unboxed_int64
-  | Const_unboxed_nativeint _ -> instance Predef.type_unboxed_nativeint
+  | Const_int (Value, (_ : int)) -> instance Predef.type_int
+  | Const_char (Value, (_ : char)) -> instance Predef.type_char
+  | Const_float (Value, (_ : string)) -> instance Predef.type_float
+  | Const_float32 (Value, (_ : string)) -> instance Predef.type_float32
+  | Const_float (Naked, (_ : string)) -> instance Predef.type_unboxed_float
+  | Const_float32 (Naked, (_ : string)) -> instance Predef.type_unboxed_float32
+  | Const_int8 (Value, (_ : int)) -> instance Predef.type_int8
+  | Const_int16 (Value, (_ : int)) -> instance Predef.type_int16
+  | Const_int32 (Value, (_ : int32)) -> instance Predef.type_int32
+  | Const_int64 (Value, (_ : int64)) -> instance Predef.type_int64
+  | Const_nativeint (Value, (_ : nativeint)) -> instance Predef.type_nativeint
+  | Const_char (Naked, (_ : char)) -> instance Predef.type_naked_char
+  | Const_int (Naked, (_ : int)) -> instance Predef.type_naked_int
+  | Const_int8 (Naked, (_ : int)) -> instance Predef.type_naked_int8
+  | Const_int16 (Naked, (_ : int)) -> instance Predef.type_naked_int16
+  | Const_int32 (Naked, (_ : int32)) -> instance Predef.type_unboxed_int32
+  | Const_int64 (Naked, (_ : int64)) -> instance Predef.type_unboxed_int64
+  | Const_nativeint (Naked, (_ : nativeint)) ->
+    instance Predef.type_unboxed_nativeint
 
-type constant_integer_result =
-  | Int32 of int32
-  | Int64 of int64
-  | Nativeint of nativeint
-
-type constant_integer_error =
-  | Int32_literal_overflow
-  | Int64_literal_overflow
-  | Nativeint_literal_overflow
-  | Unknown_constant_literal
-
-let constant_integer i ~suffix :
-    (constant_integer_result, constant_integer_error) result =
-  match suffix with
-  | 'l' ->
+let constant (constant : Parsetree.constant) : (Typedtree.constant, error) result =
+  let small_numbers_enabled naked name (maturity : Language_extension_kernel.maturity)
+    : _ result =
+    let name =
+      match (naked : naked_flag) with
+      | Value -> name
+      | Naked -> name ^ "#"
+    in
+    let extension_required = Language_extension.Small_numbers in
+    if Language_extension.is_at_least extension_required maturity
+    then Ok ()
+    else Error (Disabled_literal
+                   { name; constant; extension_required; maturity })
+  in
+  let literal_overflow naked name =
+    let name =
+      match (naked : naked_flag) with
+      | Value -> name
+      | Naked -> name ^ "#"
+    in
+    (Literal_overflow name)
+  in
+  match constant with
+  | Pconst_integer {naked; value=i; suffix=("y" | "i8" )} ->
+    Result.bind (small_numbers_enabled naked "int8" Beta) (fun () ->
+      match Misc.Int_literal_converter.int i with
+      | i when -0x80 <= i && i < 0x80 -> Ok (Const_int8 (naked, i))
+      | _ | exception Failure _ -> Error (literal_overflow naked "int8"))
+  | Pconst_integer {naked; value=i; suffix=("w" | "i16")} ->
+    Result.bind (small_numbers_enabled naked "int16" Beta) (fun () ->
+      match Misc.Int_literal_converter.int i with
+      | i when -0x8000 <= i && i < 0x8000 -> Ok (Const_int16 (naked, i))
+      | _ | exception Failure _ -> Error (literal_overflow naked "int16"))
+  | Pconst_integer {naked=Naked; value=i; suffix="i"} ->
+    Result.bind (small_numbers_enabled Naked "int" Beta) (fun () ->
+      match Misc.Int_literal_converter.int i with
+      | i -> Ok (Const_int (Naked, i))
+      | exception Failure _ -> Error (literal_overflow Naked "int"))
+  | Pconst_integer {naked=Value; value=i; suffix=("" | "i")} ->
     begin
-      try Ok (Int32 (Misc.Int_literal_converter.int32 i))
-      with Failure _ -> Error Int32_literal_overflow
+      match Misc.Int_literal_converter.int i with
+      | i -> Ok (Const_int (Value, i))
+      | exception Failure _ -> Error (literal_overflow Value "int")
     end
-  | 'L' ->
+  | Pconst_integer {naked; value=i; suffix=("l" | "i32")} ->
     begin
-      try Ok (Int64 (Misc.Int_literal_converter.int64 i))
-      with Failure _ -> Error Int64_literal_overflow
+      try Ok (Const_int32 (naked, Misc.Int_literal_converter.int32 i))
+      with Failure _ -> Error (literal_overflow naked "int32")
     end
-  | 'n' ->
+  | Pconst_integer {naked; value=i; suffix=("L" | "i64")} ->
     begin
-      try Ok (Nativeint (Misc.Int_literal_converter.nativeint i))
-      with Failure _ -> Error Nativeint_literal_overflow
+      try Ok (Const_int64 (naked, Misc.Int_literal_converter.int64 i))
+      with Failure _ -> Error (literal_overflow naked "int64")
     end
-  | _ -> Error Unknown_constant_literal
-
-let constant : Parsetree.constant -> (Typedtree.constant, error) result =
-  function
-  | Pconst_integer (i, Some suffix) ->
-    begin match constant_integer i ~suffix with
-      | Ok (Int32 v) -> Ok (Const_int32 v)
-      | Ok (Int64 v) -> Ok (Const_int64 v)
-      | Ok (Nativeint v) -> Ok (Const_nativeint v)
-      | Error Int32_literal_overflow -> Error (Literal_overflow "int32")
-      | Error Int64_literal_overflow -> Error (Literal_overflow "int64")
-      | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint")
-      | Error Unknown_constant_literal -> Error (Unknown_literal (i, suffix))
+  | Pconst_integer { naked; value=i; suffix="n" } ->
+    begin
+      try Ok (Const_nativeint (naked, Misc.Int_literal_converter.nativeint i))
+      with Failure _ -> Error (literal_overflow naked "nativeint")
     end
-  | Pconst_integer (i,None) ->
-     begin
-       try Ok (Const_int (Misc.Int_literal_converter.int i))
-       with Failure _ -> Error (Literal_overflow "int")
-     end
-  | Pconst_char c -> Ok (Const_char c)
+  | Pconst_char (Value, c) -> Ok (Const_char (Value, c))
+  | Pconst_char (Naked, c) ->
+    Result.bind (small_numbers_enabled Naked "char" Beta) (fun () ->
+      Ok (Const_char (Naked, c)))
   | Pconst_string (s,loc,d) -> Ok (Const_string (s,loc,d))
-  | Pconst_float (f,None)-> Ok (Const_float f)
-  | Pconst_float (f,Some 's') ->
-    if Language_extension.is_enabled Small_numbers then Ok (Const_float32 f)
-    else Error (Float32_literal f)
-  | Pconst_float (f,Some c) -> Error (Unknown_literal (f, c))
-  | Pconst_unboxed_float (f, None) ->
-      Ok (Const_unboxed_float f)
-  | Pconst_unboxed_float (f, Some 's') ->
-      if Language_extension.is_enabled Small_numbers then Ok (Const_unboxed_float32 f)
-      else Error (Float32_literal (Misc.format_as_unboxed_literal f))
-  | Pconst_unboxed_float (x, Some c) ->
-      Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
-  | Pconst_unboxed_integer (i, suffix) ->
-      begin match constant_integer i ~suffix with
-      | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
-      | Ok (Int64 v) -> Ok (Const_unboxed_int64 v)
-      | Ok (Nativeint v) -> Ok (Const_unboxed_nativeint v)
-      | Error Int32_literal_overflow -> Error (Literal_overflow "int32#")
-      | Error Int64_literal_overflow -> Error (Literal_overflow "int64#")
-      | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint#")
-      | Error Unknown_constant_literal ->
-          Error (Unknown_literal (Misc.format_as_unboxed_literal i, suffix))
-      end
+  | Pconst_float {naked; value=f;suffix=""} -> Ok (Const_float (naked, f))
+  | Pconst_float {naked; value=f;suffix="s"} ->
+    Result.bind (small_numbers_enabled naked "float32" Stable) (fun () ->
+      Ok (Const_float32 (naked, f)))
+  | Pconst_integer { naked; value; suffix }
+  | Pconst_float { naked; value; suffix } ->
+    let value =
+      match naked with
+      | Value -> value
+      | Naked -> Misc.format_as_unboxed_literal value
+    in
+    Error (Unknown_literal (value, suffix))
 
 let constant_or_raise env loc cst =
   match constant cst with
-  | Ok c ->
-      (match c with
-       | Const_unboxed_int32 _
-       | Const_unboxed_int64 _
-       | Const_unboxed_nativeint _
-       | Const_unboxed_float _
-       | Const_unboxed_float32 _ ->
-           Language_extension.assert_enabled ~loc Layouts
-             Language_extension.Stable
-       | Const_int _ | Const_char _ | Const_string _ | Const_float _
-       | Const_float32 _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ ->
-           ());
-      c
   | Error err -> raise (Error (loc, env, err))
+  | Ok c ->
+    let nakedness : naked_flag =
+      match c with
+       | Const_char (n, _)
+       | Const_int (n, _)
+       | Const_int8 (n, _)
+       | Const_int16 (n, _)
+       | Const_int32 (n, _)
+       | Const_int64 (n, _)
+       | Const_nativeint (n, _)
+       | Const_float (n, _)
+       | Const_float32  (n, _) -> n
+       | Const_string _ -> Value
+    in
+    (match (nakedness : naked_flag) with
+      | Naked ->
+        Language_extension.assert_enabled ~loc Layouts
+          Language_extension.Stable
+      | Value -> ());
+    c
 
 (* Specific version of type_option, using newty rather than newgenty *)
 
@@ -2899,22 +2921,31 @@ and type_pat_aux
         pat_attributes = sp.ppat_attributes;
         pat_env = !!penv;
         pat_unique_barrier = Unique_barrier.not_computed () }
-  | Ppat_interval (Pconst_char c1, Pconst_char c2) ->
+  | Ppat_interval (l, r) ->
+    let expand_interval lo hi ~make =
       let open Ast_helper.Pat in
       let gloc = Location.ghostify loc in
-      let rec loop c1 c2 =
-        if c1 = c2 then constant ~loc:gloc (Pconst_char c1)
+      let rec loop lo hi =
+        if lo = hi
+        then constant ~loc:gloc (make lo)
         else
           or_ ~loc:gloc
-            (constant ~loc:gloc (Pconst_char c1))
-            (loop (Char.chr(Char.code c1 + 1)) c2)
+            (constant ~loc:gloc (make lo))
+            (loop (lo + 1) hi)
       in
-      let p = if c1 <= c2 then loop c1 c2 else loop c2 c1 in
+      let p = if lo <= hi then loop lo hi else loop hi lo in
       let p = {p with ppat_loc=loc} in
       type_pat tps category p expected_ty
-        (* TODO: record 'extra' to remember about interval *)
-  | Ppat_interval _ ->
-      raise (Error (loc, !!penv, Invalid_interval))
+      (* TODO: record 'extra' to remember about interval *)
+    in
+    (match constant_or_raise !!penv loc l, constant_or_raise !!penv loc r with
+     | Const_char (n1, c1), Const_char (n2, c2) when n1 = n2 ->
+       expand_interval (Char.code c1) (Char.code c2) ~make:(fun i ->
+         Pconst_char (n1, Char.chr i))
+     | Const_int8 (n1, i1), Const_int8 (n2, i2) when n1 = n2 ->
+       expand_interval i1 i2 ~make:(fun i ->
+         Pconst_integer{naked=n1; value = Int.to_string i; suffix="i8"})
+     | _ -> raise (Error (loc, !!penv, Invalid_interval)))
   | Ppat_tuple (spl, closed) ->
       type_tuple_pat spl closed
   | Ppat_unboxed_tuple (spl, oc) ->
@@ -7565,9 +7596,10 @@ and type_format loc str env =
             Some (mk_exp_loc (Pexp_tuple (List.map (fun e -> None, e) args))) in
         mk_exp_loc (Pexp_construct (mk_lid_loc lid, arg)) in
       let mk_cst cst = mk_exp_loc (Pexp_constant cst) in
-      let mk_int n = mk_cst (Pconst_integer (Int.to_string n, None))
+      let mk_int n =
+        mk_cst (Pconst_integer {naked=Value; value=Int.to_string n; suffix=""})
       and mk_string str = mk_cst (Pconst_string (str, loc, None))
-      and mk_char chr = mk_cst (Pconst_char chr) in
+      and mk_char chr = mk_cst (Pconst_char (Value, chr)) in
       let rec mk_formatting_lit fmting = match fmting with
         | Close_box ->
           mk_constr "Close_box" []
@@ -10057,34 +10089,74 @@ let type_clash_of_trace trace =
 
 (* Hint on type error on integer literals
    To avoid confusion, it is disabled on float literals
-   and when the expected type is `int` *)
-(* CR layouts v2.5: Should we add a case here for float#?  Test it, if so. *)
+   and when the expected type is integral *)
 let report_literal_type_constraint expected_type const =
-  let const_str = match const with
-    | Pconst_integer (s, _) -> Some s
-    | _ -> None
-  in
-  let suffix =
-    if Path.same expected_type Predef.path_int32 then
-      Some 'l'
-    else if Path.same expected_type Predef.path_int64 then
-      Some 'L'
-    else if Path.same expected_type Predef.path_nativeint then
-      Some 'n'
-    else if Path.same expected_type Predef.path_float32 then
-      Some 's'
-    else if Path.same expected_type Predef.path_float then
-      Some '.'
-    else None
-  in
-  let pp_const ppf (c,s) = Format.fprintf ppf "%s%c" c s in
-  match const_str, suffix with
-  | Some c, Some s -> [
+  let expected path = Path.same expected_type path in
+  let hint naked fmt =
+    Printf.ksprintf (fun s ->
+      let s =
+        match (naked : naked_flag) with
+        | Value -> s
+        | Naked -> Misc.format_as_unboxed_literal s
+      in
       Location.msg
         "@[@{<hint>Hint@}: Did you mean %a?@]"
-        (Style.as_inline_code pp_const) (c,s)
-    ]
-  | _, _ -> []
+        (Style.as_inline_code pp_print_string)
+        s)
+      fmt
+  in
+  let open Predef in
+  match const with
+  | Pconst_string _ -> []
+  | Pconst_char ((Naked|Value), value) ->
+    let hint naked = [ hint naked "%C" value ] in
+    if expected path_char
+    then hint Value
+    else if expected path_naked_char
+    then hint Naked
+    else []
+  | Pconst_float { naked = _; value; suffix = _ } ->
+    let hint naked suffix = [ hint naked "%s%s" value suffix ] in
+    if expected path_float
+    then hint Value ""
+    else if expected path_float32
+    then hint Value "s"
+    else if expected path_unboxed_float
+    then hint Naked ""
+    else if expected path_unboxed_float32
+    then hint Naked "s"
+    else []
+  | Pconst_integer {naked = _; value; suffix = _ } ->
+    let hint naked suffix = [ hint naked "%s%s" value suffix ] in
+    if expected path_float
+    then hint Value "."
+    else if expected path_float32
+    then hint Value ".s"
+    else if expected path_int
+    then hint Value ""
+    else if expected path_int8
+    then hint Value "y"
+    else if expected path_int16
+    then hint Value "w"
+    else if expected path_int32
+    then hint Value "l"
+    else if expected path_int64
+    then hint Value "L"
+    else if expected path_nativeint
+    then hint Value "n"
+    else if expected path_naked_int
+    then hint Naked ""
+    else if expected path_naked_int8
+    then hint Naked "y"
+    else if expected path_naked_int16
+    then hint Naked "w"
+    else if expected path_unboxed_int32
+    then hint Naked "l"
+    else if expected path_unboxed_int64
+    then hint Naked "L"
+    else if expected path_unboxed_nativeint
+    then hint Naked "n"
+    else []
 
 let report_literal_type_constraint const = function
   | Some tr ->
@@ -10777,13 +10849,17 @@ let report_error ~loc env = function
         "Integer literal exceeds the range of representable integers of type %a"
         Style.inline_code ty
   | Unknown_literal (n, m) ->
-      let pp_lit ppf (n,m) = fprintf ppf "%s%c" n m in
+      let pp_lit ppf (n,m) = fprintf ppf "%s%s" n m in
       Location.errorf ~loc "Unknown modifier %a for literal %a"
-        (Style.as_inline_code pp_print_char) m
+        (Style.as_inline_code pp_print_string) m
         (Style.as_inline_code pp_lit) (n,m)
-  | Float32_literal f ->
-      Location.errorf ~loc "Found 32-bit float literal %ss, but float32 is not enabled. \
-                            You must enable -extension small_numbers to use this feature." f
+  | Disabled_literal { name; constant; extension_required; maturity } ->
+      Location.errorf ~loc "Found the %s literal %a, but %s literals are not enabled. \
+                            You must enable -extension %s to use this feature."
+        name
+        (Style.as_inline_code Pprintast.constant) constant
+        name
+        (Language_extension.to_command_line_string extension_required maturity)
   | Illegal_letrec_pat ->
       Location.errorf ~loc
         "Only variables are allowed as left-hand side of %a"

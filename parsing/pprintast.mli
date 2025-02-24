@@ -23,6 +23,7 @@
 
 type space_formatter = (unit, Format.formatter, unit) format
 
+val constant : Format.formatter -> Parsetree.constant -> unit
 val longident : Format.formatter -> Longident.t -> unit
 val expression : Format.formatter -> Parsetree.expression -> unit
 val string_of_expression : Parsetree.expression -> string

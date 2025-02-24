@@ -139,14 +139,10 @@ let mkuminus ~oploc name arg =
     match arg.pexp_desc with
     | Pexp_constant const -> begin
         match name, const with
-        | "-", Pconst_integer (n, m) ->
-           Some (Pconst_integer (neg_string n, m))
-        | "-", Pconst_unboxed_integer (n, m) ->
-           Some (Pconst_unboxed_integer (neg_string n, m))
-        | ("-" | "-."), Pconst_float (f, m) ->
-           Some (Pconst_float (neg_string f, m))
-        | ("-" | "-."), Pconst_unboxed_float (f, m) ->
-           Some (Pconst_unboxed_float (neg_string f, m))
+        | "-", Pconst_integer {naked; value; suffix} ->
+           Some (Pconst_integer {naked; value = (neg_string value); suffix})
+        | ("-" | "-."), Pconst_float {naked; value; suffix} ->
+           Some (Pconst_float {naked; value = neg_string value; suffix})
         | _, _ -> None
       end
     | _ -> None
@@ -159,8 +155,8 @@ let mkuminus ~oploc name arg =
 let mkuplus ~oploc name arg =
   let desc = arg.pexp_desc in
   match name, desc with
-  | "+", Pexp_constant (Pconst_integer _ | Pconst_unboxed_integer _)
-  | ("+" | "+."), Pexp_constant (Pconst_float _ | Pconst_unboxed_float _) ->
+  | "+", Pexp_constant (Pconst_integer _)
+  | ("+" | "+."), Pexp_constant (Pconst_float _) ->
      desc, arg.pexp_attributes
   | _ ->
      Pexp_apply (mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
@@ -885,17 +881,18 @@ let with_sign sign num =
   | Positive -> num
   | Negative -> "-" ^ num
 
-let unboxed_int sloc int_loc sign (n, m) =
-  match m with
-  | Some m -> Pconst_unboxed_integer (with_sign sign n, m)
-  | None ->
-      if Language_extension.is_enabled unboxed_literals_extension then
-        raise
-          Syntaxerr.(Error(Missing_unboxed_literal_suffix (make_loc int_loc)))
-      else
-        not_expecting sloc "line number directive"
+let const_int sloc int_loc sign naked (n, suffix) =
+  match (naked : naked_flag), suffix with
+  | Naked, "" ->
+       if Language_extension.is_enabled unboxed_literals_extension
+       then
+         raise
+           Syntaxerr.(Error(Missing_unboxed_literal_suffix (make_loc int_loc)))
+       else not_expecting sloc "line number directive"
+  | _ -> Pconst_integer { naked; value = with_sign sign n; suffix }
 
-let unboxed_float sign (f, m) = Pconst_unboxed_float (with_sign sign f, m)
+let const_float sign naked (f, suffix) =
+  Pconst_float {naked; value = with_sign sign f; suffix}
 
 (* Invariant: [lident] must end with an [Lident] that ends with a ["#"]. *)
 let unboxed_type sloc lident tys =
@@ -931,6 +928,7 @@ let maybe_pmod_constraint mode expr =
 %token BARRBRACKET            "|]"
 %token BEGIN                  "begin"
 %token <char> CHAR            "'a'" (* just an example *)
+%token <char> HASH_CHAR       "#'a'" (* just an example *)
 %token CLASS                  "class"
 %token COLON                  ":"
 %token COLONCOLON             "::"
@@ -953,8 +951,8 @@ let maybe_pmod_constraint mode expr =
 %token EXCLAVE                "exclave_"
 %token EXTERNAL               "external"
 %token FALSE                  "false"
-%token <string * char option> FLOAT       "42.0" (* just an example *)
-%token <string * char option> HASH_FLOAT "#42.0" (* just an example *)
+%token <string * string> FLOAT       "42.0" (* just an example *)
+%token <string * string> HASH_FLOAT "#42.0" (* just an example *)
 %token FOR                    "for"
 %token FUN                    "fun"
 %token FUNCTION               "function"
@@ -980,8 +978,8 @@ let maybe_pmod_constraint mode expr =
 %token <string> ANDOP         "and*" (* just an example *)
 %token INHERIT                "inherit"
 %token INITIALIZER            "initializer"
-%token <string * char option> INT      "42"  (* just an example *)
-%token <string * char option> HASH_INT "#42l" (* just an example *)
+%token <string * string> INT      "42"  (* just an example *)
+%token <string * string> HASH_INT "#42l" (* just an example *)
 %token KIND_ABBREV            "kind_abbrev_"
 %token KIND_OF                "kind_of_"
 %token <string> LABEL         "~label:" (* just an example *)
@@ -1131,7 +1129,7 @@ The precedences must be listed from low to high.
 %nonassoc below_DOT
 %nonassoc DOT DOTHASH DOTOP
 /* Finally, the first tokens of simple_expr are above everything else. */
-%nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
+%nonassoc BACKQUOTE BANG BEGIN CHAR HASH_CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR STACK HASHLBRACE HASHLPAREN
@@ -3689,7 +3687,7 @@ simple_pattern_not_ident:
   mkpat(
     UNDERSCORE
       { Ppat_any }
-  | signed_value_constant DOTDOT signed_value_constant
+  | signed_constant DOTDOT signed_constant
       { Ppat_interval ($1, $3) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
@@ -4835,15 +4833,16 @@ meth_list:
 /* Constants */
 
 value_constant:
-  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
-  | CHAR              { Pconst_char $1 }
+  | INT               { const_int $sloc $sloc Positive Value $1 }
+  | CHAR              { Pconst_char (Value, $1) }
   | STRING            { let (s, strloc, d) = $1 in
                         Pconst_string (s, strloc, d) }
-  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
+  | FLOAT             { const_float Positive Value $1 }
 ;
 unboxed_constant:
-  | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
-  | HASH_FLOAT        { unboxed_float Positive $1 }
+  | HASH_INT          { const_int $sloc $sloc Positive Naked $1 }
+  | HASH_FLOAT        { const_float Positive Naked $1 }
+  | HASH_CHAR         { Pconst_char (Naked, $1) }
 ;
 constant:
     value_constant    { $1 }
@@ -4851,18 +4850,18 @@ constant:
 ;
 signed_value_constant:
     value_constant    { $1 }
-  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
-  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
-  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
-  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
+  | MINUS INT         { const_int $sloc $sloc Negative Value $2 }
+  | MINUS FLOAT       { const_float Negative Value $2 }
+  | PLUS INT          { const_int $sloc $sloc Positive Value $2 }
+  | PLUS FLOAT        { const_float Positive Value $2 }
 ;
 signed_constant:
     signed_value_constant { $1 }
   | unboxed_constant      { $1 }
-  | MINUS HASH_INT        { unboxed_int $sloc $loc($2) Negative $2 }
-  | MINUS HASH_FLOAT      { unboxed_float Negative $2 }
-  | PLUS HASH_INT         { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT       { unboxed_float Positive $2 }
+  | MINUS HASH_INT        { const_int $sloc $loc($2) Negative Naked $2 }
+  | MINUS HASH_FLOAT      { const_float Negative Naked $2 }
+  | PLUS HASH_INT         { const_int $sloc $loc($2) Positive Naked $2 }
+  | PLUS HASH_FLOAT       { const_float Positive Naked $2 }
 ;
 
 /* Identifiers and long identifiers */

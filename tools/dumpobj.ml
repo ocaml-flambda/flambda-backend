@@ -82,21 +82,8 @@ let print_float f =
   else printf "%s." f
 
 let rec print_struct_const = function
-    Const_base(Const_int i)
-  | Const_naked_immediate (i, _) -> printf "%d" i
-  | Const_base(Const_float f)
-  | Const_base(Const_unboxed_float f)
-  | Const_base(Const_float32 f)
-  | Const_base(Const_unboxed_float32 f) -> print_float f
-  | Const_base(Const_string (s, _, _)) -> printf "%S" s
+    Const_base constant -> print_string (Printpat.pretty_const constant)
   | Const_immstring s -> printf "%S" s
-  | Const_base(Const_char c) -> printf "%C" c
-  | Const_base(Const_int32 i)
-  | Const_base(Const_unboxed_int32 i) -> printf "%ldl" i
-  | Const_base(Const_nativeint i)
-  | Const_base(Const_unboxed_nativeint i)-> printf "%ndn" i
-  | Const_base(Const_int64 i)
-  | Const_base(Const_unboxed_int64 i) -> printf "%LdL" i
   | Const_block(tag, args) ->
       printf "<%d>" tag;
       begin match args with

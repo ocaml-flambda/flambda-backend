@@ -23,6 +23,8 @@ let oo_prim = Lambda.transl_prim "CamlinternalOO"
 
 let consts : (structured_constant, Ident.t) Hashtbl.t = Hashtbl.create 17
 
+let int n = Lconst (const_int int n)
+
 let share c =
   match c with
     Const_block (_n, l) when l <> [] ->
@@ -42,12 +44,12 @@ let method_cache = ref lambda_unit
 let method_count = ref 0
 let method_table = ref []
 
-let meth_tag s = Lconst(Const_base(Const_int(Btype.hash_variant s)))
+let meth_tag s = int (Btype.hash_variant s)
 
 let next_cache tag =
   let n = !method_count in
   incr method_count;
-  (tag, [!method_cache; Lconst(Const_base(Const_int n))])
+  (tag, [!method_cache; int n])
 
 let rec is_path = function
     Lvar _ | Lprim (Pgetglobal _, [], _) | Lconst _ -> true
@@ -79,8 +81,6 @@ let reset_labels () =
   method_table := []
 
 (* Insert labels *)
-
-let int n = Lconst (Const_base (Const_int n))
 
 (* CR layouts v5: To change when we have arrays of other sorts *)
 let prim_makearray =

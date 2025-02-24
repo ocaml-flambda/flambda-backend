@@ -24,25 +24,21 @@
 open Asttypes
 module Uid = Shape.Uid
 
-(* We define a new constant type that can represent unboxed values.
-   This is currently used only in [Typedtree], but the long term goal
-   is to share this definition with [Lambda] and completely replace the
-   usage of [Asttypes.constant] *)
+(** We define a new constant type that can represent unboxed values.*)
 type constant =
-    Const_int of int
-  | Const_char of char
+    Const_int of naked_flag * int
+  | Const_char of naked_flag * char
   | Const_string of string * Location.t * string option
-  | Const_float of string
-  | Const_float32 of string
-  | Const_unboxed_float of string
-  | Const_unboxed_float32 of string
-  | Const_int32 of int32
-  | Const_int64 of int64
-  (* CR mshinwell: This should use [Targetint.t] not [nativeint] *)
-  | Const_nativeint of nativeint
-  | Const_unboxed_int32 of int32
-  | Const_unboxed_int64 of int64
-  | Const_unboxed_nativeint of nativeint
+  | Const_float of naked_flag * string
+  | Const_float32 of naked_flag * string
+  | Const_int8 of naked_flag * int
+  | Const_int16 of naked_flag * int
+  | Const_int32 of naked_flag * int32
+  | Const_int64 of naked_flag * int64
+  | Const_nativeint of naked_flag * nativeint
+  (* CR mshinwell: [Const_nativeint] should use [Targetint.t] not [nativeint] *)
+
+val constant_is_naked : constant -> naked_flag
 
 (* Value expressions for the core language *)
 
