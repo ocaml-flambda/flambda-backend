@@ -1438,7 +1438,7 @@ static void compact_algorithm_52(caml_domain_state* domain_state,
     caml_plat_lock_blocking(&pool_freelist.lock);
     pool_freelist.active_pools -= freed_pools;
     caml_plat_unlock(&pool_freelist.lock);
-    caml_gc_message(0x010, "Freed (and unmapped) %lu pools.\n", freed_pools);
+    CAML_GC_MESSAGE(COMPACT, "Freed (and unmapped) %lu pools.\n", freed_pools);
   } else { /* not unmapping */
     pool* cur_pool = evacuated_pools;
     pool* last = NULL;
@@ -1460,7 +1460,7 @@ static void compact_algorithm_52(caml_domain_state* domain_state,
       pool_freelist.active_pools -= freed_pools;
       caml_plat_unlock(&pool_freelist.lock);
     }
-    caml_gc_message(0x010, "Freed %lu pools.\n", freed_pools);
+    CAML_GC_MESSAGE(COMPACT, "Freed %lu pools.\n", freed_pools);
   }
 
   caml_global_barrier(participating_count);
@@ -1485,7 +1485,7 @@ static void compact_algorithm_52(caml_domain_state* domain_state,
 
       pool_freelist.free = NULL;
       caml_plat_unlock(&pool_freelist.lock);
-      caml_gc_message(0x010, "Also unmapped %lu pools from free list.\n", unmapped);
+      CAML_GC_MESSAGE(COMPACT, "Also unmapped %lu pools from free list.\n", unmapped);
     }
   }
   CAML_EV_END(EV_COMPACT_RELEASE);
@@ -1831,7 +1831,7 @@ void compact_release_freelist(void)
   pool_freelist.free = new_free_list;
 
   caml_stat_free(free_pools);
-  caml_gc_message(0x010,
+  CAML_GC_MESSAGE(COMPACT,
                   "Released %lu pools; %lu remaining on free list.\n",
                   unmapped, remaining);
 done:
@@ -2174,7 +2174,8 @@ void caml_compact_heap(caml_domain_state* domain_state,
   if (participants[0] == Caml_state) {
      /* We are done, increment the compaction count */
     atomic_fetch_add(&caml_compactions_count, 1);
-    caml_gc_message(0x010, "Compaction %lu completed (algorithm %lu).\n",
+    CAML_GC_MESSAGE(COMPACT,
+                    "Compaction %lu completed (algorithm %lu).\n",
                     caml_compactions_count,
                     caml_compaction_algorithm);
   }

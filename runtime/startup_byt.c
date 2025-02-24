@@ -124,12 +124,12 @@ int caml_attempt_open(char_os **name, struct exec_trailer *trail,
 
   truename = caml_search_exe_in_path(*name);
   u8 = caml_stat_strdup_of_os(truename);
-  caml_gc_message(0x100, "Opening bytecode executable %s\n", u8);
+  CAML_GC_MESSAGE(STARTUP, "Opening bytecode executable %s\n", u8);
   caml_stat_free(u8);
   fd = open_os(truename, O_RDONLY | O_BINARY);
   if (fd == -1) {
     caml_stat_free(truename);
-    caml_gc_message(0x100, "Cannot open file\n");
+    CAML_GC_MESSAGE(STARTUP, "Cannot open file\n");
     if (errno == EMFILE)
       return NO_FDS;
     else
@@ -140,7 +140,7 @@ int caml_attempt_open(char_os **name, struct exec_trailer *trail,
     if (err < 2 || (buf [0] == '#' && buf [1] == '!')) {
       close(fd);
       caml_stat_free(truename);
-      caml_gc_message(0x100, "Rejected #! script\n");
+      CAML_GC_MESSAGE(STARTUP, "Rejected #! script\n");
       return BAD_BYTECODE;
     }
   }
@@ -148,7 +148,7 @@ int caml_attempt_open(char_os **name, struct exec_trailer *trail,
   if (err != 0) {
     close(fd);
     caml_stat_free(truename);
-    caml_gc_message(0x100, "Not a bytecode executable\n");
+    CAML_GC_MESSAGE(STARTUP, "Not a bytecode executable\n");
     return err;
   }
   *name = truename;
@@ -318,7 +318,7 @@ static int parse_command_line(char_os **argv)
         params->trace_level += 1; /* ignored unless DEBUG mode */
         break;
       case 'v':
-        atomic_store_relaxed(&caml_verb_gc, 0x001+0x004+0x008+0x010+0x020);
+        atomic_store_relaxed(&caml_verb_gc, CAML_GC_MSG_VERBOSE);
         break;
       case 'p':
         for (j = 0; caml_names_of_builtin_cprim[j] != NULL; j++)
@@ -464,7 +464,7 @@ CAMLexport void caml_main(char_os **argv)
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that
   // check program output.
-  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // CAML_GC_MESSAGE (ANY, "### OCaml runtime: debug mode ###\n");
 #endif
   if (!caml_startup_aux(/* pooling */ caml_params->cleanup_on_exit))
     return;
@@ -607,7 +607,7 @@ CAMLexport value caml_startup_code_exn(
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that
   // check program output.
-  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // CAML_GC_MESSAGE (ANY, "### OCaml runtime: debug mode ###\n");
 #endif
   if (caml_params->cleanup_on_exit)
     pooling = 1;

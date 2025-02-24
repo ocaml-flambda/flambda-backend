@@ -405,13 +405,15 @@ void* caml_mem_map(uintnat size, int reserve_only, const char* name)
   void* mem = caml_plat_mem_map(size, reserve_only, name);
 
   if (mem == 0) {
-    caml_gc_message(0x1000, "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes failed",
-                            size);
+    CAML_GC_MESSAGE(ADDRSPACE,
+                    "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes failed",
+                    size);
     return 0;
   }
 
-  caml_gc_message(0x1000, "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                          " bytes at %p for %s\n", size, mem, name);
+  CAML_GC_MESSAGE(ADDRSPACE,
+                  "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                  " bytes at %p for %s\n", size, mem, name);
 
   return mem;
 }
@@ -419,24 +421,27 @@ void* caml_mem_map(uintnat size, int reserve_only, const char* name)
 void* caml_mem_commit(void* mem, uintnat size, const char* name)
 {
   CAMLassert(Is_page_aligned(size));
-  caml_gc_message(0x1000, "commit %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                          " bytes at %p for %s\n", size, mem, name);
+  CAML_GC_MESSAGE(ADDRSPACE,
+                  "commit %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                  " bytes at %p for %s\n", size, mem, name);
   return caml_plat_mem_commit(mem, size, name);
 }
 
 void caml_mem_decommit(void* mem, uintnat size, const char* name)
 {
   if (size) {
-    caml_gc_message(0x1000, "decommit %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                            " bytes at %p for %s\n", size, mem, name);
+    CAML_GC_MESSAGE(ADDRSPACE,
+                    "decommit %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                    " bytes at %p for %s\n", size, mem, name);
     caml_plat_mem_decommit(mem, size, name);
   }
 }
 
 void caml_mem_unmap(void* mem, uintnat size)
 {
-  caml_gc_message(0x1000, "munmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                          " bytes at %p\n", size, mem);
+  CAML_GC_MESSAGE(ADDRSPACE,
+                  "munmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                  " bytes at %p\n", size, mem);
   caml_plat_mem_unmap(mem, size);
 }
 

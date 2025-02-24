@@ -590,7 +590,7 @@ void caml_local_realloc(void)
   for (i = s->saved_sp; i < 0; i += sizeof(value)) {
     *((header_t*)(arena + s->next_length + i)) = Local_uninit_hd;
   }
-  caml_gc_message(0x08,
+  CAML_GC_MESSAGE(STACKSIZE,
                   "Growing local stack to %"ARCH_INTNAT_PRINTF_FORMAT"d kB\n",
                   s->next_length / 1024);
   s->count++;

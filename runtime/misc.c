@@ -82,7 +82,7 @@ void caml_alloc_point_here(void)
 
 atomic_uintnat caml_verb_gc = 0;
 
-static void print_log(char* msg, int newline, va_list ap)
+static void print_log(const char* msg, int newline, va_list ap)
 {
   char buf[GC_LOG_LENGTH];
   int pos = 0;
@@ -101,9 +101,9 @@ static void print_log(char* msg, int newline, va_list ap)
   fflush(stderr);
 }
 
-void caml_gc_log (char *msg, ...)
+void caml_gc_log (const char *msg, ...)
 {
-  if ((atomic_load_relaxed(&caml_verb_gc) & 0x800) != 0) {
+  if ((atomic_load_relaxed(&caml_verb_gc) & CAML_GC_MSG_DEBUG) != 0) {
     va_list ap;
     va_start (ap, msg);
     print_log(msg, 1, ap);
@@ -111,7 +111,7 @@ void caml_gc_log (char *msg, ...)
   }
 }
 
-void caml_gc_message (int level, char *msg, ...)
+void caml_gc_message (int level, const char *msg, ...)
 {
   if ((atomic_load_relaxed(&caml_verb_gc) & level) != 0){
     va_list ap;
