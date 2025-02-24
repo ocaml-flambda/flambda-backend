@@ -1,4 +1,5 @@
 fp_backtrace_many_args
+caml_c_call_copy_stack_args
 caml_c_call_stack_args
 camlC_call__f_0_1_code
 camlC_call__entry
