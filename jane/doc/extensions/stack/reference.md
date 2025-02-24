@@ -50,7 +50,7 @@ including:
     (Technically, values of type `exn` can be locally allocated, but only global
     ones may be raised)
 
-  - Objects
+  - Classes and Objects
 
 ### Runtime behavior
 
@@ -177,9 +177,9 @@ let f () =
   ...
 ```
 
-At the point marked `??` inside `g`, both `outer` and `inner` are
-local values; they will both be allocated on the stack at runtime. However,
-`inner` is local to `g`, while (within `g`) `outer` is outer-local.
+At the point marked `??` inside `g`, both `outer` and `inner` are local values,
+but they live in different regions: `inner` lives in `g`'s region, while `outer`
+lives in the outer region and thus is outer-local.
 
 So, if we replace `??` with `inner`, we see an error:
 
