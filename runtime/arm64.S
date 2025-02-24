@@ -670,7 +670,11 @@ END_FUNCTION(caml_c_call_stack_args)
    of arguments is done by this separate function */
 FUNCTION(caml_c_call_copy_stack_args)
         CFI_STARTPROC
-        ENTER_FUNCTION
+        CFI_OFFSET(29, -16)
+        CFI_OFFSET(30, -8)
+        stp     x29, x30, [sp, -16]!
+        CFI_ADJUST(16)
+        add     x29, sp, #0
         CFI_DEF_CFA_REGISTER(DW_REG_x29)
     /* Copy arguments from OCaml to C stack
        NB: STACK_ARG_{BEGIN,END} are 16-byte aligned */
@@ -685,7 +689,8 @@ FUNCTION(caml_c_call_copy_stack_args)
     /* Restore stack */
         mov     sp, x29
         CFI_DEF_CFA_REGISTER(DW_REG_sp)
-        LEAVE_FUNCTION
+        ldp     x29, x30, [sp], 16
+        CFI_ADJUST(-16)
         ret
         CFI_ENDPROC
 END_FUNCTION(caml_c_call_copy_stack_args)
