@@ -208,8 +208,7 @@ in `f`'s region, which will be destroyed after `f` ends.
 
 ## Inference
 
-In fact, the allocations of the examples above will be on
-stack even without the `stack_` or `local_` keywords, if it is safe to do
+In fact, allocations will be on stack even without `stack_`, if it is safe to do
 so. The presence of the keyword on an allocation only affects what
 happens if the allocated value escapes (e.g. is stored into a global hash table)
 and therefore cannot be stack-allocated. With the keyword, an error
@@ -343,7 +342,7 @@ let f () =
 
 Here, since `g` refers to the local value `outer`, the closure `g` must itself
 be stack-allocated. (As always, this is deduced by inference, and an explicit
-`stack_` or `local_` annotation on `g` is not needed.)
+`stack_` annotation on `g` is not needed.)
 
 This then means that `g` is not allowed to escape its region (the body of
 `f`). `f` may call `g` but may not return the closure. This guarantees that `g`
