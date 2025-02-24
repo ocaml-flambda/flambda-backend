@@ -240,21 +240,20 @@ CAMLexport void caml_alloc_dependent_memory (value v, mlsize_t nbytes)
 {
   if (nbytes == 0) return;
   CAMLassert (Is_block (v));
+  /* Maximum dependent allocation before a minor GC or a major slice */
+  uintnat max_alloc =
+    Bsize_wsize (Caml_state->minor_heap_wsz) / 100 * caml_custom_minor_ratio;
   if (Is_young (v)){
     Caml_state->stat_minor_dependent_bytes += nbytes;
     add_to_dependent_table (&Caml_state->minor_tables->dependent, v, nbytes);
     Caml_state->minor_dependent_bsz += nbytes;
-    uintnat max_minor =
-      Bsize_wsize (Caml_state->minor_heap_wsz) / 100 * caml_custom_minor_ratio;
-    if (Caml_state->minor_dependent_bsz > max_minor) {
+    if (Caml_state->minor_dependent_bsz > max_alloc) {
       caml_request_minor_gc ();
     }
   } else {
     caml_add_dependent_bytes (Caml_state->shared_heap, nbytes);
     Caml_state->allocated_dependent_bytes += nbytes;
-    /* FIXME sdolan: what's the right condition here? */
-    uintnat max_major = caml_custom_get_max_major() / 5;
-    if (Caml_state->allocated_dependent_bytes > max_major){
+    if (Caml_state->allocated_dependent_bytes > max_alloc){
       CAML_EV_COUNTER (EV_C_REQUEST_MAJOR_ALLOC_SHR, 1);
       caml_request_major_slice(1);
     }

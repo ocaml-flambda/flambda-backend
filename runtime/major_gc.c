@@ -633,10 +633,22 @@ static void update_major_slice_work(intnat howmuch,
 
   my_alloc_count = dom_st->allocated_words;
   my_alloc_direct_count = dom_st->allocated_words_direct;
-  my_extra_count =
-    (double)dom_st->allocated_dependent_bytes /
-    (double)caml_custom_get_max_major ();
-  if (my_extra_count > 1.0) my_extra_count = 1.0;
+  {
+    /* The major ratio is a percentage relative to the major heap size.
+       A complete GC cycle will be done every time 2/3 of that much
+       memory is allocated for blocks in the major heap.  Assuming
+       constant allocation and deallocation rates, this means there are
+       at most [M/100 * major-heap-size] bytes of floating garbage at
+       any time.  The reason for a factor of 2/3 (or 1.5) is, roughly
+       speaking, because the major GC takes 1.5 cycles (previous cycle +
+       marking phase) before it starts to deallocate dead blocks
+       allocated during the previous cycle.  [heap_size / 150] is really
+       [heap_size * (2/3) / 100] (but faster). */
+    double max_major =
+      caml_heap_size(Caml_state->shared_heap) / 150 * caml_custom_major_ratio;
+    my_extra_count = (double)dom_st->allocated_dependent_bytes / max_major;
+    if (my_extra_count > 1.0) my_extra_count = 1.0;
+  }
   dom_st->stat_major_words += dom_st->allocated_words;
   dom_st->allocated_words = 0;
   dom_st->allocated_words_direct = 0;
