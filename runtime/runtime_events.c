@@ -698,7 +698,7 @@ CAMLprim value caml_runtime_events_user_register(value event_name,
   CAMLparam3(event_name, event_tag, event_type);
   CAMLlocal2(list_item, event);
 
-  int index = atomic_fetch_add(&runtime_custom_event_index, 1);
+  uintnat index = atomic_fetch_add(&runtime_custom_event_index, 1);
 
   if (index > RUNTIME_EVENTS_MAX_CUSTOM_EVENTS) {
     caml_invalid_argument(
