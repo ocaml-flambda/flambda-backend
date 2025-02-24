@@ -23,7 +23,7 @@ let abc = stack_ (42, 24) in
 ```
 
 Here, the tuple cell will be stack-allocated. The `stack_` keyword works shallowly: it
-only forces the immediately succeeding allocation to be on stack. In the following
+only forces the immediately following allocation to be on stack. In the following
 example, the outer tuple is guaranteed to be on stack, while the inner one is not (
 although likely to be due to optimization).
 ```ocaml
@@ -31,8 +31,8 @@ let abc = stack_ (42, (24, 42)) in
 ...
 ```
 
-Placing `stack_` on an expression that is not an allocation is meaningless and causes type
-error:
+Placing `stack_` on an expression that is not an allocation is meaningless and
+causes a type error:
 ```ocaml
 let f = ref (stack_ `Foo)
                     ^^^^
@@ -116,7 +116,7 @@ to local, which prevents `l` from escaping the current region, and as a result
 the compiler will optimize `n :: x` to be stack-allocated in the current
 region. However, users may wish to use `stack_` to ensure stack allocation,
 as refactoring code can make an allocation that was previously on the stack
-silenetly move to the heap.
+silently move to the heap.
 
 ### Region vs. Scope
 

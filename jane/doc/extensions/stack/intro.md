@@ -28,7 +28,7 @@ let x2 = stack_ { foo; bar } in
 
 However, for this to be safe, stack-allocated values must not be used after
 their stack frame is freed. This is ensured by the type-checker as follows.
-Stack frames are represented as _region_ at compile time, and each
+A stack frames is represented as a _region_ at compile time, and each
 stack-allocated value lives in the surrounding region (usually a function body).
 Stack-allocated values are not allowed to escape their region. If they do,
 you'll see error messages:
@@ -49,10 +49,9 @@ including first-class modules, classes and objects, and exceptions. The contents
 of mutable fields (inside `ref`s, `array`s and mutable record fields) also
 cannot be stack-allocated.
 
-The `stack_` keyword works shallowly: it only forces the immediately succeeding allocation
+The `stack_` keyword works shallowly: it only forces the immediately following allocation
  to be on stack. Putting it before an expression that is not an allocation (such as a
- complete function application) leads to a type error. Stack allocating closures resulted
- from partial applications will be supported in the future.
+ complete function application) leads to a type error.
 
 ## Local parameters
 
@@ -81,6 +80,8 @@ val f : local_ 'a -> ...
 The function f may be equally be called with stack- or
 heap-allocated values: the `local_` annotation places obligations only on the
 definition of f, not its uses.
+
+<!-- CR zqian: factor the generic mode stuff into a dedicated document. -->
 
 Even if you're not interested in performance benefits, local
 parameters are a useful new tool for structuring APIs. For instance,
