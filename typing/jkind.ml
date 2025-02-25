@@ -48,13 +48,13 @@ module Sub_result = struct
     | Less
     | Not_le of Sub_failure_reason.t Nonempty_list.t
 
-  let of_le_result ~failure_reason (le_result : Misc.Le_result.t) =
+  let[@inline] of_le_result ~failure_reason (le_result : Misc.Le_result.t) =
     match le_result with
     | Less -> Less
     | Equal -> Equal
     | Not_le -> Not_le (failure_reason ())
 
-  let combine sr1 sr2 =
+  let[@inline] combine sr1 sr2 =
     match sr1, sr2 with
     | Equal, Equal -> Equal
     | Equal, Less | Less, Equal | Less, Less -> Less
@@ -437,7 +437,7 @@ module Mod_bounds = struct
       ~externality ~nullability
 
   let less_or_equal t1 t2 =
-    let axis_less_or_equal ~le ~axis a b : Sub_result.t =
+    let[@inline] axis_less_or_equal ~le ~axis a b : Sub_result.t =
       match le a b, le b a with
       | true, true -> Equal
       | true, false -> Less
