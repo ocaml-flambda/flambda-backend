@@ -21,6 +21,9 @@
  {
    setup-ocamlopt.byte-build-env;
 
+   (* Hide annoying optimization settings coming from CI *)
+   set OCAMLPARAM = "";
+
    script = "\
      mkdir \
        basic export_fancy_q_impl fancy instances main main_basic p p_int p_string \
