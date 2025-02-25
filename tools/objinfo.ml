@@ -49,13 +49,25 @@ let null_crc = String.make 32 '0'
 
 let string_of_crc crc = if !no_crc then null_crc else Digest.to_hex crc
 
-let print_name_crc name crco =
+let print_cu_without_prefix oc cu =
+  (* Drop the pack prefix for backward compatibility, but keep the instance
+     arguments *)
+  let cu_without_prefix =
+    Compilation_unit.with_for_pack_prefix cu Compilation_unit.Prefix.empty
+  in
+  Compilation_unit.output oc cu_without_prefix
+
+let print_with_crc ~print_name name crco =
   let crc =
     match crco with
       None -> dummy_crc
     | Some crc -> string_of_crc crc
   in
-    printf "\t%s\t%a\n" crc Compilation_unit.Name.output name
+    printf "\t%s\t%a\n" crc print_name name
+
+let print_name_crc = print_with_crc ~print_name:Compilation_unit.Name.output
+
+let print_cu_crc = print_with_crc ~print_name:print_cu_without_prefix
 
 (* CR-someday mshinwell: consider moving to [Import_info.print] *)
 
@@ -65,9 +77,9 @@ let print_intf_import import =
   print_name_crc name crco
 
 let print_impl_import import =
-  let name = Import_info.name import in
+  let name = Import_info.cu import in
   let crco = Import_info.crc import in
-  print_name_crc name crco
+  print_cu_crc name crco
 
 let print_global_name_binding global =
   printf "\t%a\n" Global_module.With_precision.output global
@@ -82,12 +94,7 @@ let print_global_as_name_line glob =
   printf "\t%a\n" Global_module.Name.output (Global_module.to_name glob)
 
 let print_name_line cu =
-  (* Drop the pack prefix for backward compatibility, but keep the instance
-     arguments *)
-  let cu_without_prefix =
-    Compilation_unit.with_for_pack_prefix cu Compilation_unit.Prefix.empty
-  in
-  printf "\t%a\n" Compilation_unit.output cu_without_prefix
+  printf "\t%a\n" print_cu_without_prefix cu
 
 let print_runtime_param p =
   match (p : Lambda.runtime_param) with
