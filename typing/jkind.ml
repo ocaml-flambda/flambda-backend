@@ -856,9 +856,7 @@ module Layout_and_axes = struct
         (type_expr * With_bounds_type_info.t) list ->
         Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t = function
       (* early cutoff *)
-      | _
-        when Sub_result.is_le
-               (Mod_bounds.less_or_equal Mod_bounds.max bounds_so_far) ->
+      | _ when Mod_bounds.equal Mod_bounds.max bounds_so_far ->
         (* CR layouts v2.8: we can do better by early-terminating on a per-axis basis *)
         bounds_so_far, No_with_bounds, Sufficient_fuel
       | [] -> bounds_so_far, No_with_bounds, ctl.fuel_status
