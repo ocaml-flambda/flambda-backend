@@ -48,7 +48,7 @@ type 'a t : immutable_data = 'a option
 Line 1, characters 0-38:
 1 | type 'a t : immutable_data = 'a option
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a option" is immutable_data
+Error: The kind of type "'a option" is value
          because it's a boxed variant type.
        But the kind of type "'a option" must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-38.
@@ -59,7 +59,7 @@ type t : immutable_data = int ref option
 Line 1, characters 0-40:
 1 | type t : immutable_data = int ref option
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref option" is immutable_data
+Error: The kind of type "int ref option" is mutable_data
          because it's a boxed variant type.
        But the kind of type "int ref option" must be a subkind of
          immutable_data
@@ -82,7 +82,7 @@ Line 1, characters 14-24:
                   ^^^^^^^^^^
 Error: This type "int option" should be an instance of type
          "('a : value mod portable)"
-       The kind of int option is immutable_data
+       The kind of int option is value
          because it's a boxed variant type.
        But the kind of int option must be a subkind of value mod portable
          because of the definition of require_portable at line 10, characters 0-47.
@@ -95,7 +95,7 @@ Line 1, characters 14-35:
                   ^^^^^^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) option" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) option is immutable_data
+       The kind of (unit -> unit) option is value mod contended
          because it's a boxed variant type.
        But the kind of (unit -> unit) option must be a subkind of
          value mod portable
@@ -109,7 +109,7 @@ Line 1, characters 14-24:
                   ^^^^^^^^^^
 Error: This type "int option" should be an instance of type
          "('a : value mod global)"
-       The kind of int option is immutable_data
+       The kind of int option is value
          because it's a boxed variant type.
        But the kind of int option must be a subkind of value mod global
          because of the definition of require_global at line 7, characters 0-43.
@@ -156,7 +156,7 @@ type 'a t : mutable_data = 'a ref
 Line 1, characters 0-33:
 1 | type 'a t : mutable_data = 'a ref
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a ref" is mutable_data.
+Error: The kind of type "'a ref" is value mod many unyielding.
        But the kind of type "'a ref" must be a subkind of mutable_data
          because of the definition of t at line 1, characters 0-33.
 |}]
@@ -175,7 +175,7 @@ Line 1, characters 14-21:
                   ^^^^^^^
 Error: This type "int ref" should be an instance of type
          "('a : value mod portable)"
-       The kind of int ref is mutable_data.
+       The kind of int ref is value mod many unyielding.
        But the kind of int ref must be a subkind of value mod portable
          because of the definition of require_portable at line 10, characters 0-47.
 |}]
@@ -187,7 +187,7 @@ Line 1, characters 14-21:
                   ^^^^^^^
 Error: This type "int ref" should be an instance of type
          "('a : value mod contended)"
-       The kind of int ref is mutable_data.
+       The kind of int ref is value mod many unyielding.
        But the kind of int ref must be a subkind of value mod contended
          because of the definition of require_contended at line 9, characters 0-49.
 |}]
@@ -227,7 +227,7 @@ type 'a t : immutable_data = 'a list
 Line 1, characters 0-36:
 1 | type 'a t : immutable_data = 'a list
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a list" is immutable_data
+Error: The kind of type "'a list" is value
          because it's a boxed variant type.
        But the kind of type "'a list" must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-36.
@@ -238,7 +238,7 @@ type t : immutable_data = int ref list
 Line 1, characters 0-38:
 1 | type t : immutable_data = int ref list
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref list" is immutable_data
+Error: The kind of type "int ref list" is mutable_data
          because it's a boxed variant type.
        But the kind of type "int ref list" must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-38.
@@ -260,7 +260,7 @@ Line 1, characters 14-22:
                   ^^^^^^^^
 Error: This type "int list" should be an instance of type
          "('a : value mod portable)"
-       The kind of int list is immutable_data
+       The kind of int list is value
          because it's a boxed variant type.
        But the kind of int list must be a subkind of value mod portable
          because of the definition of require_portable at line 10, characters 0-47.
@@ -273,7 +273,7 @@ Line 1, characters 14-33:
                   ^^^^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) list" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) list is immutable_data
+       The kind of (unit -> unit) list is value mod contended
          because it's a boxed variant type.
        But the kind of (unit -> unit) list must be a subkind of
          value mod portable
@@ -287,7 +287,7 @@ Line 1, characters 14-22:
                   ^^^^^^^^
 Error: This type "int list" should be an instance of type
          "('a : value mod global)"
-       The kind of int list is immutable_data
+       The kind of int list is value
          because it's a boxed variant type.
        But the kind of int list must be a subkind of value mod global
          because of the definition of require_global at line 7, characters 0-43.
@@ -335,7 +335,7 @@ type 'a t : mutable_data = 'a array
 Line 1, characters 0-35:
 1 | type 'a t : mutable_data = 'a array
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a array" is mutable_data
+Error: The kind of type "'a array" is value
          because it is the primitive value type array.
        But the kind of type "'a array" must be a subkind of mutable_data
          because of the definition of t at line 1, characters 0-35.
@@ -355,7 +355,7 @@ Line 1, characters 14-23:
                   ^^^^^^^^^
 Error: This type "int array" should be an instance of type
          "('a : value mod portable)"
-       The kind of int array is mutable_data
+       The kind of int array is value
          because it is the primitive value type array.
        But the kind of int array must be a subkind of value mod portable
          because of the definition of require_portable at line 10, characters 0-47.
@@ -368,7 +368,7 @@ Line 1, characters 14-23:
                   ^^^^^^^^^
 Error: This type "int array" should be an instance of type
          "('a : value mod contended)"
-       The kind of int array is mutable_data
+       The kind of int array is value
          because it is the primitive value type array.
        But the kind of int array must be a subkind of value mod contended
          because of the definition of require_contended at line 9, characters 0-49.
@@ -406,7 +406,7 @@ type 'a t : immutable_data = 'a iarray
 Line 1, characters 0-38:
 1 | type 'a t : immutable_data = 'a iarray
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a iarray" is immutable_data
+Error: The kind of type "'a iarray" is value
          because it is the primitive value type iarray.
        But the kind of type "'a iarray" must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-38.
@@ -417,7 +417,7 @@ type t : immutable_data = int ref iarray
 Line 1, characters 0-40:
 1 | type t : immutable_data = int ref iarray
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int ref iarray" is immutable_data
+Error: The kind of type "int ref iarray" is mutable_data
          because it is the primitive value type iarray.
        But the kind of type "int ref iarray" must be a subkind of
          immutable_data
@@ -440,7 +440,7 @@ Line 1, characters 14-24:
                   ^^^^^^^^^^
 Error: This type "int iarray" should be an instance of type
          "('a : value mod portable)"
-       The kind of int iarray is immutable_data
+       The kind of int iarray is value
          because it is the primitive value type iarray.
        But the kind of int iarray must be a subkind of value mod portable
          because of the definition of require_portable at line 10, characters 0-47.
@@ -453,7 +453,7 @@ Line 1, characters 14-35:
                   ^^^^^^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) iarray" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) iarray is immutable_data
+       The kind of (unit -> unit) iarray is value mod contended
          because it is the primitive value type iarray.
        But the kind of (unit -> unit) iarray must be a subkind of
          value mod portable
@@ -467,7 +467,7 @@ Line 1, characters 14-24:
                   ^^^^^^^^^^
 Error: This type "int iarray" should be an instance of type
          "('a : value mod global)"
-       The kind of int iarray is immutable_data
+       The kind of int iarray is value
          because it is the primitive value type iarray.
        But the kind of int iarray must be a subkind of value mod global
          because of the definition of require_global at line 7, characters 0-43.

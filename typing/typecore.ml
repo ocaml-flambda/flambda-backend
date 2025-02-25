@@ -10311,7 +10311,9 @@ let report_too_many_arg_error ~funct ~func_ty ~previous_arg_loc
      @ It is applied to too many arguments@]"
     report_this_function funct Printtyp.type_expr func_ty
 
-let report_error ~loc env = function
+let report_error ~loc env =
+  let jkind_of_type = Some (Ctype.type_jkind_purely env) in
+  function
   | Constructor_arity_mismatch(lid, expected, provided) ->
       Location.errorf ~loc
        "@[The constructor %a@ expects %i argument(s),@ \
@@ -10531,15 +10533,17 @@ let report_error ~loc env = function
   | Non_value_object (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Object types must have layout value.@ %a"
-        (Jkind.Violation.report_with_name ~name:"the type of this expression")
+        (Jkind.Violation.report_with_name
+           ~jkind_of_type ~name:"the type of this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)
       ()
   | Non_value_let_rec (err, ty) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Variables bound in a \"let rec\" must have layout value.@ %a"
-        (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err)
+        (fun v -> Jkind.Violation.report_with_offender
+           ~jkind_of_type:None
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty) v) err)
       ()
   | Undefined_method (ty, me, valid_methods) ->
       Location.error_of_printer ~loc (fun ppf () ->
@@ -10990,17 +10994,17 @@ let report_error ~loc env = function
   | Function_type_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Function arguments and returns must be representable.@]@ %a"
-        (Jkind.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender ~jkind_of_type
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Record_projection_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Records being projected from must be representable.@]@ %a"
-        (Jkind.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender ~jkind_of_type
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Record_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Record expressions must be representable.@]@ %a"
-        (Jkind.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender ~jkind_of_type
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Invalid_label_for_src_pos arg_label ->
       Location.errorf ~loc
@@ -11029,8 +11033,8 @@ let report_error ~loc env = function
          has kind %a, which cannot be the kind of a function.@ \
          (Functions always have kind %a.)@]"
         (Style.as_inline_code Printtyp.type_expr) ty
-        (Style.as_inline_code Jkind.format) jkind
-        (Style.as_inline_code Jkind.format) Jkind.for_arrow
+        (Style.as_inline_code (Jkind.format ~jkind_of_type)) jkind
+        (Style.as_inline_code (Jkind.format ~jkind_of_type)) Jkind.for_arrow
   | Overwrite_of_invalid_term ->
       Location.errorf ~loc
         "Overwriting is only supported on tuples, constructors and boxed records."

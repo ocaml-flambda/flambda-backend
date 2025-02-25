@@ -587,7 +587,7 @@ type ('a : mutable_data) t : immutable_data = { x : 'a }
 Line 1, characters 0-56:
 1 | type ('a : mutable_data) t : immutable_data = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -616,7 +616,7 @@ type 'a contended_with : value mod contended with 'a
 type _ t =
   | Foo : ('a : value mod contended) t
 [%%expect {|
-type 'a contended_with : value mod contended
+type 'a contended_with : value mod contended with 'a
 type _ t = Foo : ('a : value mod contended). 'a t
 |}]
 
@@ -647,7 +647,8 @@ end = struct
   type t : immutable_data with T.t
 end
 [%%expect {|
-module F : functor (T : sig type t end) -> sig type t : immutable_data end
+module F :
+  functor (T : sig type t end) -> sig type t : immutable_data with T.t end
 |}]
 
 module Immutable = F(struct type t : immutable_data end)
@@ -731,7 +732,7 @@ Error: This value is "nonportable" but expected to be "portable".
 (*********************)
 type 'a t : value mod contended with 'a
 [%%expect {|
-type 'a t : value mod contended
+type 'a t : value mod contended with 'a
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t
@@ -758,7 +759,7 @@ Error: This value is "nonportable" but expected to be "portable".
 (*********************)
 type ('a : immutable_data) t : value mod contended with 'a
 [%%expect {|
-type ('a : immutable_data) t : value mod contended
+type ('a : immutable_data) t : value mod contended with 'a
 |}]
 
 type 'a t_test = 'a t require_contended
@@ -804,7 +805,7 @@ Error: This value is "nonportable" but expected to be "portable".
 (*********************)
 type ('a, 'b) t : value mod contended with 'a with 'b
 [%%expect {|
-type ('a, 'b) t : value mod contended
+type ('a, 'b) t : value mod contended with 'a with 'b
 |}]
 
 type t_test = (int, int) t require_contended
@@ -817,7 +818,7 @@ Line 1, characters 14-26:
                   ^^^^^^^^^^^^
 Error: This type "(int, int) t" should be an instance of type
          "('a : value mod contended)"
-       The kind of (int, int) t is value mod contended
+       The kind of (int, int) t is value
          because of the definition of t at line 1, characters 0-53.
        But the kind of (int, int) t must be a subkind of value mod contended
          because of the definition of require_contended at line 6, characters 0-49.
@@ -830,7 +831,7 @@ Line 1, characters 23-33:
                            ^^^^^^^^^^
 Error: This type "('a, 'b) t" should be an instance of type
          "('c : value mod contended)"
-       The kind of ('a, 'b) t is value mod contended
+       The kind of ('a, 'b) t is value
          because of the definition of t at line 1, characters 0-53.
        But the kind of ('a, 'b) t must be a subkind of value mod contended
          because of the definition of require_contended at line 6, characters 0-49.
@@ -889,7 +890,7 @@ end = struct
   type 'a t = { x : 'a }
 end
 [%%expect {|
-module T : sig type 'a t : value mod contended end
+module T : sig type 'a t : value mod contended with 'a end
 |}]
 
 let foo (t : int T.t @@ contended) = use_uncontended t
@@ -1020,7 +1021,7 @@ type 'a u = Foo of { x : 'a; }
 Line 2, characters 0-53:
 2 | type 'a t : immutable_data = 'a u = Foo of { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
