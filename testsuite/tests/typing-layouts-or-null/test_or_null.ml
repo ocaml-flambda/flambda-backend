@@ -212,33 +212,16 @@ Error: This type "float or_null" should be an instance of type
          because it's the type argument to the array type.
 |}]
 
-(* CR layouts v3.0: this should eventually work but
-   [list] only accepts values now. *)
 let null_list = [ Null; This 5 ]
 
 [%%expect{|
-Line 1, characters 18-22:
-1 | let null_list = [ Null; This 5 ]
-                      ^^^^
-Error: This expression has type "'a t" = "'a or_null"
-       but an expression was expected of type "('b : value)"
-       The kind of 'a t is value_or_null
-         because it is the primitive value_or_null type or_null.
-       But the kind of 'a t must be a subkind of value
-         because the type argument of list has kind value.
+val null_list : int t list = [Null; This 5]
 |}]
 
 type null_list = float or_null list
 
 [%%expect{|
-Line 1, characters 17-30:
-1 | type null_list = float or_null list
-                     ^^^^^^^^^^^^^
-Error: This type "float or_null" should be an instance of type "('a : value)"
-       The kind of float or_null is value_or_null
-         because it is the primitive value_or_null type or_null.
-       But the kind of float or_null must be a subkind of value
-         because the type argument of list has kind value.
+type null_list = float or_null list
 |}]
 
 (* Immutable arrays should work the same as mutable: *)
