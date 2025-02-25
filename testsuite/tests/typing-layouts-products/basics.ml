@@ -1771,11 +1771,11 @@ Line 1, characters 28-34:
 1 | let f_optional_utuple ?(x = #(1,2)) () = x
                                 ^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_19 & '_representable_layout_20
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}]
 
 type optional_record = #{ i1 : int; i2 : int }
@@ -1786,11 +1786,11 @@ Line 2, characters 29-48:
 2 | let f_optional_urecord ?(x = #{ i1 = 1; i2 = 2 }) () = x
                                  ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "optional_record"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of optional_record is value & value
          because of the definition of optional_record at line 1, characters 0-46.
        But the layout of optional_record must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}]
 
 (******************************)

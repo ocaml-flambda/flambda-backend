@@ -29,11 +29,11 @@ type t = float# list;;
 Line 1, characters 9-15:
 1 | type t = float# list;;
              ^^^^^^
-Error: This type "float#" should be an instance of type "('a : value)"
+Error: This type "float#" should be an instance of type "('a : value_or_null)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let f (_ : float# list) = ();;
@@ -41,11 +41,11 @@ let f (_ : float# list) = ();;
 Line 1, characters 11-17:
 1 | let f (_ : float# list) = ();;
                ^^^^^^
-Error: This type "float#" should be an instance of type "('a : value)"
+Error: This type "float#" should be an instance of type "('a : value_or_null)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C of float# list;;
@@ -53,11 +53,11 @@ type t = C of float# list;;
 Line 1, characters 14-20:
 1 | type t = C of float# list;;
                   ^^^^^^
-Error: This type "float#" should be an instance of type "('a : value)"
+Error: This type "float#" should be an instance of type "('a : value_or_null)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C : float# list -> t;;
@@ -65,11 +65,11 @@ type t = C : float# list -> t;;
 Line 1, characters 13-19:
 1 | type t = C : float# list -> t;;
                  ^^^^^^
-Error: This type "float#" should be an instance of type "('a : value)"
+Error: This type "float#" should be an instance of type "('a : value_or_null)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* Syntax: float#c

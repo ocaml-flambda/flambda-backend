@@ -74,7 +74,8 @@ Error: The type constraints are not consistent.
        The layout of 'a is float64
          because of the definition of t at line 2, characters 2-23.
        But the layout of 'a must overlap with value
-         because the type argument of list has layout value.
+         because it instantiates an unannotated type parameter of t,
+         chosen to have layout value.
 |}];;
 
 module type S1f'' = S1f with type s = t_float64;;
@@ -270,11 +271,12 @@ end;;
 Line 2, characters 27-29:
 2 |   type 'a t = 'a Bar3f.t * 'a list
                                ^^
-Error: This type "('a : float64)" should be an instance of type "('b : value)"
+Error: This type "('a : float64)" should be an instance of type
+         "('b : value_or_null)"
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t3f : float64

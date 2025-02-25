@@ -238,7 +238,8 @@ install_for_test: _install
 	rm -rf _runtest
 	mkdir _runtest
 	ln -s ../_install _runtest/_install
-	$(cpl) -a $(ocamldir)/testsuite _runtest/testsuite
+	# Use rsync to ensure hardlinks are created on both Linux and macOS
+	rsync --link-dest=../../$(ocamldir)/testsuite/ -a $(ocamldir)/testsuite/ _runtest/testsuite/
 	 # replace backend-specific testsuite/tools with their new versions
 	rm -f _runtest/testsuite/tools/*
 	cp -a flambda-backend/testsuite/tools/* _runtest/testsuite/tools/
@@ -300,7 +301,6 @@ install_for_test: _install
 	 for universe in upstream_compatible stable beta alpha ; do \
 		mkdir -p otherlibs/{stdlib_,}$${universe}; \
 		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
-		$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
 	 done; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \

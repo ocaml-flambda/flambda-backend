@@ -215,7 +215,7 @@ and ident_null = ident_create "Null"
 and ident_this = ident_create "This"
 
 let option_argument_sort = Jkind.Sort.Const.value
-let option_argument_jkind = Jkind.Builtin.value ~why:(
+let option_argument_jkind = Jkind.Builtin.value_or_null ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
 let list_jkind param =
@@ -227,7 +227,7 @@ let list_jkind param =
 
 let list_sort = Jkind.Sort.Const.value
 let list_argument_sort = Jkind.Sort.Const.value
-let list_argument_jkind = Jkind.Builtin.value ~why:(
+let list_argument_jkind = Jkind.Builtin.value_or_null ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
 
 let or_null_argument_sort = Jkind.Sort.Const.value
@@ -404,6 +404,7 @@ let build_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [unrestricted tvar list_argument_sort;
                                    unrestricted (type_list tvar) list_sort]])
+       ~param_jkind:list_argument_jkind
        ~jkind:list_jkind
   |> add_type ident_nativeint
       ~jkind:Jkind.Const.Builtin.immutable_data
@@ -413,6 +414,7 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(fun tvar ->
          variant [cstr ident_none [];
                   cstr ident_some [unrestricted tvar option_argument_sort]])
+       ~param_jkind:option_argument_jkind
        ~jkind:(fun param ->
          Jkind.Builtin.immutable_data ~why:Boxed_variant |>
          Jkind.add_with_bounds

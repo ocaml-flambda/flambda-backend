@@ -2388,7 +2388,7 @@ module Format_history = struct
       fprintf ppf
         "it's an enumeration variant type (all constructors are constant)"
 
-  let format_value_or_null_creation_reason ppf :
+  let format_value_or_null_creation_reason ppf ~layout_or_kind :
       History.value_or_null_creation_reason -> _ = function
     | Primitive id ->
       fprintf ppf "it is the primitive value_or_null type %s" (Ident.name id)
@@ -2406,6 +2406,10 @@ module Format_history = struct
       fprintf ppf "it's the type of a variable captured in an object"
     | Let_rec_variable v ->
       fprintf ppf "it's the type of the recursive variable %s" (Ident.name v)
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "the %stype argument of %a has %s value_or_null"
+        (format_position ~arity position)
+        !printtyp_path parent_path layout_or_kind
 
   let format_value_creation_reason ppf ~layout_or_kind :
       History.value_creation_reason -> _ = function
@@ -2477,7 +2481,7 @@ module Format_history = struct
       format_immediate_creation_reason ppf immediate
     | Void_creation _ -> .
     | Value_or_null_creation value ->
-      format_value_or_null_creation_reason ppf value
+      format_value_or_null_creation_reason ppf value ~layout_or_kind
     | Value_creation value ->
       format_value_creation_reason ppf ~layout_or_kind value
     | Product_creation product -> format_product_creation_reason ppf product
@@ -3100,6 +3104,9 @@ module Debug_printers = struct
     | Probe -> fprintf ppf "Probe"
     | Captured_in_object -> fprintf ppf "Captured_in_object"
     | Let_rec_variable v -> fprintf ppf "Let_rec_variable %a" Ident.print v
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
+        !printtyp_path parent_path
 
   let value_creation_reason ppf : History.value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
