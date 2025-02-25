@@ -100,6 +100,8 @@ module Jkind_mod_bounds : sig
   val set_yielding : Mode.Yielding.Const.t -> t -> t
   val set_externality : Jkind_axis.Externality.t -> t -> t
   val set_nullability : Jkind_axis.Nullability.t -> t -> t
+
+  val set_max : axis:Jkind_axis.Axis.packed -> t -> t
 end
 
 

@@ -32,9 +32,9 @@ module Jkind_mod_bounds = struct
   type t = {
     locality: Mode.Locality.Const.t;
     linearity: Mode.Linearity.Const.t;
-    uniqueness: Mode.Uniqueness.Const.t;
+    uniqueness: Mode.Uniqueness.Const_op.t;
     portability: Mode.Portability.Const.t;
-    contention: Mode.Contention.Const.t;
+    contention: Mode.Contention.Const_op.t;
     yielding: Mode.Yielding.Const.t;
     externality: Jkind_axis.Externality.t;
     nullability: Jkind_axis.Nullability.t;
@@ -77,6 +77,25 @@ module Jkind_mod_bounds = struct
   let[@inline] set_yielding yielding t = { t with yielding }
   let[@inline] set_externality externality t = { t with externality }
   let[@inline] set_nullability nullability t = { t with nullability }
+
+  let[@inline] set_max ~axis:(Pack axis : Jkind_axis.Axis.packed) t =
+    match axis with
+    | Modal (Comonadic Areality) ->
+      { t with locality = Mode.Locality.Const.max }
+    | Modal (Comonadic Linearity) ->
+      { t with linearity = Mode.Linearity.Const.max }
+    | Modal (Monadic Uniqueness) ->
+      { t with uniqueness = Mode.Uniqueness.Const_op.max }
+    | Modal (Comonadic Portability) ->
+      { t with portability = Mode.Portability.Const.max }
+    | Modal (Monadic Contention) ->
+      { t with contention = Mode.Contention.Const_op.max }
+    | Modal (Comonadic Yielding) ->
+      { t with yielding = Mode.Yielding.Const.max }
+    | Nonmodal Externality ->
+      { t with externality = Jkind_axis.Externality.max }
+    | Nonmodal Nullability ->
+      { t with nullability = Jkind_axis.Nullability.max }
 end
 
 
