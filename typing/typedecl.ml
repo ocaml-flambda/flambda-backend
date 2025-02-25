@@ -147,13 +147,9 @@ type error =
       }
   | Non_abstract_reexport of Path.t
   | Unsafe_mode_crossing_on_invalid_type_kind
-<<<<<<< HEAD
   | Unsafe_mode_crossing_with_with_bounds
   | Illegal_baggage of jkind_l
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-=======
   | No_unboxed_version of Path.t
->>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
 
 open Typedtree
 
@@ -316,7 +312,7 @@ in
     Some { type_params;
       type_arity = arity;
       type_kind = Type_abstract abstract_source;
-      type_jkind = any;
+      type_jkind;
       type_private = sdecl.ptype_private;
       type_manifest = unboxed_type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1873,11 +1869,6 @@ let add_types_to_env decls shapes env =
    mutually recursive type decls see each others' best kinds during normalization and
    subsumption
 *)
-<<<<<<< HEAD
-let update_decl_jkind env id decl =
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-let update_decl_jkind env dpath decl =
-=======
 let rec update_decl_jkind env dpath decl =
   let type_unboxed_version =
     Option.map
@@ -1886,7 +1877,6 @@ let rec update_decl_jkind env dpath decl =
       decl.type_unboxed_version
   in
   let decl = { decl with type_unboxed_version } in
->>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
   let open struct
     (* For tracking what types appear in record blocks. *)
     type element_repr_summary =
@@ -2163,8 +2153,18 @@ let rec update_decl_jkind env dpath decl =
     raise (Error (
       decl.type_loc,
       Jkind_mismatch_of_path (
+<<<<<<< HEAD
         Pident id,
         Jkind.Violation.of_ ~jkind_of_type (
+||||||| parent of 3fdb65009a (Resolve conflicts)
+        Pident id,
+        env,
+        Jkind.Violation.of_ (
+=======
+        dpath,
+        env,
+        Jkind.Violation.of_ (
+>>>>>>> 3fdb65009a (Resolve conflicts)
           Not_a_subjkind (
             new_decl.type_jkind, decl.type_jkind, Nonempty_list.to_list reason)))))
   | Less | Equal -> new_decl
@@ -2201,7 +2201,8 @@ let update_decls_jkind env decls =
          | _ -> ()
        end;
 
-       (id, decl.type_jkind, allow_any_crossing, update_decl_jkind env id decl))
+       (id, decl.type_jkind, allow_any_crossing,
+        update_decl_jkind env (Pident id) decl))
     decls
 
 let check_unboxed_versions_exist env loc decl =
@@ -4804,7 +4805,6 @@ let report_error ppf = function
       (Path.name definition)
   | Unsafe_mode_crossing_on_invalid_type_kind ->
     fprintf ppf
-<<<<<<< HEAD
       "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of \
        type declaration.@ Only records, unboxed products, and variants are \
        supported.@]"
@@ -4821,17 +4821,16 @@ let report_error ppf = function
       Style.inline_code "with" (Jkind.format ~jkind_of_type:None) jkind
 =======
       Style.inline_code "with" (Jkind.format ~jkind_of_type:None) jkind
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.\
-       @ Only records, unboxed products, and variants are supported.@]"
-=======
-      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of type declaration.\
-       @ Only records, unboxed products, and variants are supported.@]"
   | No_unboxed_version p ->
       fprintf ppf "@[%a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p
+<<<<<<< HEAD
 >>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
 >>>>>>> cfee94ccf2 (Operator-like unboxed versions of types (rebased, w conflicts))
+||||||| parent of 3fdb65009a (Resolve conflicts)
+>>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
+=======
+>>>>>>> 3fdb65009a (Resolve conflicts)
 
 let () =
   Location.register_error_of_exn

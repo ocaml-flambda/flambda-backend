@@ -1502,29 +1502,17 @@ let map_kind f = function
 let instance_declaration decl =
   For_copy.with_scope (fun copy_scope ->
     let copy = copy ~keep_names:true copy_scope in
-<<<<<<< HEAD
-    {decl with type_params = List.map copy decl.type_params;
-     type_manifest = Option.map copy decl.type_manifest;
-     type_kind = map_kind copy decl.type_kind;
-     type_jkind = Jkind.map_type_expr copy decl.type_jkind;
-    }
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-    {decl with type_params = List.map copy decl.type_params;
-     type_manifest = Option.map copy decl.type_manifest;
-     type_kind = map_kind copy decl.type_kind;
-    }
-=======
     let rec instance decl =
       {
         decl with
         type_params = List.map copy decl.type_params;
         type_manifest = Option.map copy decl.type_manifest;
         type_kind = map_kind copy decl.type_kind;
+        type_jkind = Jkind.map_type_expr copy decl.type_jkind;
         type_unboxed_version = Option.map instance decl.type_unboxed_version;
       }
     in
     instance decl
->>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
   )
 
 let generic_instance_declaration decl =

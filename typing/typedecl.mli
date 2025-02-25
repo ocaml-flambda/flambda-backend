@@ -183,13 +183,9 @@ type error =
       }
   | Non_abstract_reexport of Path.t
   | Unsafe_mode_crossing_on_invalid_type_kind
-<<<<<<< HEAD
   | Unsafe_mode_crossing_with_with_bounds
   | Illegal_baggage of jkind_l
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-=======
   | No_unboxed_version of Path.t
->>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
 
 exception Error of Location.t * error
 

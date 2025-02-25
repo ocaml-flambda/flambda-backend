@@ -4578,19 +4578,11 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "@[%a must have a type of layout value because it is \
                    captured by an object.@ %a@]"
         (Style.as_inline_code !print_longident) lid
-<<<<<<< HEAD
         (fun v -> Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ) v) err
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-        (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> !print_type_expr ppf typ)) err
-=======
-        (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> !print_type_expr ppf typ)) err
   | No_unboxed_version lid ->
       fprintf ppf "@[%a has no unboxed version.@]"
         (Style.as_inline_code !print_longident) lid
->>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
 
