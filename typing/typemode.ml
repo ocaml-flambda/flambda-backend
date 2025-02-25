@@ -159,9 +159,9 @@ let transl_modifier_annots annots =
       Transled_modifiers.
         { locality = Some { txt = Locality.Const.min; loc };
           linearity = Some { txt = Linearity.Const.min; loc };
-          uniqueness = Some { txt = Uniqueness.Const.max; loc };
+          uniqueness = Some { txt = Uniqueness.Const_op.min; loc };
           portability = Some { txt = Portability.Const.min; loc };
-          contention = Some { txt = Contention.Const.max; loc };
+          contention = Some { txt = Contention.Const_op.min; loc };
           yielding = Some { txt = Yielding.Const.min; loc };
           externality = Some { txt = Externality.min; loc };
           nullability =
