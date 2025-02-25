@@ -40,7 +40,8 @@ Error: The type constraints are not consistent.
        The layout of 'a is void
          because of the definition of t at line 10, characters 2-20.
        But the layout of 'a must overlap with value
-         because the type argument of list has layout value.
+         because it instantiates an unannotated type parameter of t,
+         chosen to have layout value.
 |}];;
 
 module type S1'' = S1 with type s = t_void;;
@@ -210,11 +211,12 @@ end;;
 Line 2, characters 26-28:
 2 |   type 'a t = 'a Bar3.t * 'a list
                               ^^
-Error: This type "('a : void)" should be an instance of type "('b : value)"
+Error: This type "('a : void)" should be an instance of type
+         "('b : value_or_null)"
        The layout of 'a is void
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* One downside of the current approach - this could be allowed, but isn't.  You

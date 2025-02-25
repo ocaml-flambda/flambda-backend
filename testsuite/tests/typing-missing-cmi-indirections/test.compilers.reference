@@ -5,6 +5,6 @@ Error:
        The layout of alias is any
          because the .cmi file for Missing.t is missing.
        But the layout of alias must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
        No .cmi file found containing Missing.t.
        Hint: Adding "missing" to your dependencies might help.

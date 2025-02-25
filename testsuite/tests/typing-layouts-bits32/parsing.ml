@@ -33,11 +33,11 @@ type t = int32# list;;
 Line 1, characters 9-15:
 1 | type t = int32# list;;
              ^^^^^^
-Error: This type "int32#" should be an instance of type "('a : value)"
+Error: This type "int32#" should be an instance of type "('a : value_or_null)"
        The layout of int32# is bits32
          because it is the primitive type int32#.
        But the layout of int32# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let f (_ : int32# list) = ();;
@@ -45,11 +45,11 @@ let f (_ : int32# list) = ();;
 Line 1, characters 11-17:
 1 | let f (_ : int32# list) = ();;
                ^^^^^^
-Error: This type "int32#" should be an instance of type "('a : value)"
+Error: This type "int32#" should be an instance of type "('a : value_or_null)"
        The layout of int32# is bits32
          because it is the primitive type int32#.
        But the layout of int32# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C of int32# list;;
@@ -57,11 +57,11 @@ type t = C of int32# list;;
 Line 1, characters 14-20:
 1 | type t = C of int32# list;;
                   ^^^^^^
-Error: This type "int32#" should be an instance of type "('a : value)"
+Error: This type "int32#" should be an instance of type "('a : value_or_null)"
        The layout of int32# is bits32
          because it is the primitive type int32#.
        But the layout of int32# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C : int32# list -> t;;
@@ -69,11 +69,11 @@ type t = C : int32# list -> t;;
 Line 1, characters 13-19:
 1 | type t = C : int32# list -> t;;
                  ^^^^^^
-Error: This type "int32#" should be an instance of type "('a : value)"
+Error: This type "int32#" should be an instance of type "('a : value_or_null)"
        The layout of int32# is bits32
          because it is the primitive type int32#.
        But the layout of int32# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* Syntax: int32#c

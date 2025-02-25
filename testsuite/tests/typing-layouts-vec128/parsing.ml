@@ -39,11 +39,11 @@ type t = int64x2# list;;
 Line 1, characters 9-17:
 1 | type t = int64x2# list;;
              ^^^^^^^^
-Error: This type "int64x2#" should be an instance of type "('a : value)"
+Error: This type "int64x2#" should be an instance of type "('a : value_or_null)"
        The layout of int64x2# is vec128
          because it is the primitive type int64x2#.
        But the layout of int64x2# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let f (_ : int64x2# list) = ();;
@@ -51,11 +51,11 @@ let f (_ : int64x2# list) = ();;
 Line 1, characters 11-19:
 1 | let f (_ : int64x2# list) = ();;
                ^^^^^^^^
-Error: This type "int64x2#" should be an instance of type "('a : value)"
+Error: This type "int64x2#" should be an instance of type "('a : value_or_null)"
        The layout of int64x2# is vec128
          because it is the primitive type int64x2#.
        But the layout of int64x2# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C of int64x2# list;;
@@ -63,11 +63,11 @@ type t = C of int64x2# list;;
 Line 1, characters 14-22:
 1 | type t = C of int64x2# list;;
                   ^^^^^^^^
-Error: This type "int64x2#" should be an instance of type "('a : value)"
+Error: This type "int64x2#" should be an instance of type "('a : value_or_null)"
        The layout of int64x2# is vec128
          because it is the primitive type int64x2#.
        But the layout of int64x2# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C : int64x2# list -> t;;
@@ -75,11 +75,11 @@ type t = C : int64x2# list -> t;;
 Line 1, characters 13-21:
 1 | type t = C : int64x2# list -> t;;
                  ^^^^^^^^
-Error: This type "int64x2#" should be an instance of type "('a : value)"
+Error: This type "int64x2#" should be an instance of type "('a : value_or_null)"
        The layout of int64x2# is vec128
          because it is the primitive type int64x2#.
        But the layout of int64x2# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* Syntax: int64x2#c
