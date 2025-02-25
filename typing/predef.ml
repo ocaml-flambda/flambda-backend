@@ -227,111 +227,69 @@ let mk_add_type add_type =
   let add_type_with_jkind
       ?manifest type_ident
       ?(kind=Type_abstract Definition)
-<<<<<<< HEAD
       ~jkind
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-      ?jkind
-=======
-      ?jkind
       ?unboxed_jkind
->>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
       env =
+    let type_uid = Uid.of_predef_id type_ident in
+    let type_unboxed_version = match unboxed_jkind with
+      | None -> None
+      | Some unboxed_jkind ->
+        let type_jkind =
+          Jkind.of_builtin ~why:(Unboxed_primitive type_ident) unboxed_jkind
+        in
+        let type_kind =
+          match kind with
+            | Type_abstract Definition -> Type_abstract Definition
+            | _ ->
+              Misc.fatal_error "Predef.mk_add_type: non-abstract unboxed kind"
+        in
+        let type_manifest =
+          match manifest with
+          | None -> None
+          | Some _ ->
+            Misc.fatal_error "Predef.mk_add_type: non-[None] unboxed manifest"
+        in
+        Some {
+          type_params = [];
+          type_arity = 0;
+          type_kind;
+          type_jkind = Jkind.mark_best type_jkind;
+          type_loc = Location.none;
+          type_private = Asttypes.Public;
+          type_manifest;
+          type_variance = [];
+          type_separability = [];
+          type_is_newtype = false;
+          type_expansion_scope = lowest_level;
+          type_attributes = [];
+          type_unboxed_default = false;
+          type_uid = Uid.unboxed_version type_uid;
+          type_unboxed_version = None;
+        }
+    in
     let decl =
       {type_params = [];
-       type_arity = 0;
-       type_kind = kind;
-       type_jkind = Jkind.mark_best jkind;
-       type_loc = Location.none;
-       type_private = Asttypes.Public;
-       type_manifest = manifest;
-       type_variance = [];
-       type_separability = [];
-       type_is_newtype = false;
-       type_expansion_scope = lowest_level;
-       type_attributes = [];
-       type_unboxed_default = false;
-       type_uid = Uid.of_predef_id type_ident;
+      type_arity = 0;
+      type_kind = kind;
+      type_jkind = Jkind.mark_best jkind;
+      type_loc = Location.none;
+      type_private = Asttypes.Public;
+      type_manifest = manifest;
+      type_variance = [];
+      type_separability = [];
+      type_is_newtype = false;
+      type_expansion_scope = lowest_level;
+      type_attributes = [];
+      type_unboxed_default = false;
+      type_uid;
+      type_unboxed_version;
       }
     in
     add_type type_ident decl env
   in
-<<<<<<< HEAD
-  let add_type ?manifest type_ident ?kind ~jkind env =
+  let add_type ?manifest type_ident ?kind ~jkind ?unboxed_jkind env =
     let jkind = Jkind.of_builtin ~why:(Primitive type_ident) jkind in
-    add_type_with_jkind ?manifest type_ident ?kind ~jkind env
-||||||| parent of dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
-  let decl =
-    {type_params = [];
-     type_arity = 0;
-     type_kind = kind;
-     type_jkind;
-     type_loc = Location.none;
-     type_private = Asttypes.Public;
-     type_manifest = manifest;
-     type_variance = [];
-     type_separability = [];
-     type_is_newtype = false;
-     type_expansion_scope = lowest_level;
-     type_attributes = [];
-     type_unboxed_default = false;
-     type_uid = Uid.of_predef_id type_ident;
-    }
-=======
-  let type_uid = Uid.of_predef_id type_ident in
-  let type_unboxed_version = match unboxed_jkind with
-    | None -> None
-    | Some unboxed_jkind ->
-      let type_jkind =
-        Jkind.of_builtin ~why:(Unboxed_primitive type_ident) unboxed_jkind
-      in
-      let type_kind =
-        match kind with
-          | Type_abstract Definition -> Type_abstract Definition
-          | _ ->
-            Misc.fatal_error "Predef.mk_add_type: non-abstract unboxed kind"
-      in
-      let type_manifest =
-        match manifest with
-        | None -> None
-        | Some _ ->
-          Misc.fatal_error "Predef.mk_add_type: non-[None] unboxed manifest"
-      in
-      Some {
-        type_params = [];
-        type_arity = 0;
-        type_kind;
-        type_jkind;
-        type_loc = Location.none;
-        type_private = Asttypes.Public;
-        type_manifest;
-        type_variance = [];
-        type_separability = [];
-        type_is_newtype = false;
-        type_expansion_scope = lowest_level;
-        type_attributes = [];
-        type_unboxed_default = false;
-        type_uid = Uid.unboxed_version type_uid;
-        type_unboxed_version = None;
-      }
-  in
-  let decl =
-    {type_params = [];
-     type_arity = 0;
-     type_kind = kind;
-     type_jkind;
-     type_loc = Location.none;
-     type_private = Asttypes.Public;
-     type_manifest = manifest;
-     type_variance = [];
-     type_separability = [];
-     type_is_newtype = false;
-     type_expansion_scope = lowest_level;
-     type_attributes = [];
-     type_unboxed_default = false;
-     type_uid;
-     type_unboxed_version;
-    }
->>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))
+    add_type_with_jkind ?manifest type_ident ?kind ~jkind ?unboxed_jkind env
   in
   add_type_with_jkind, add_type
 
