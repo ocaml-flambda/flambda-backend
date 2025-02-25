@@ -383,121 +383,60 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 
 module Mod_bounds = struct
   include Types.Jkind_mod_bounds
+  module Locality = Mode.Locality.Const
+  module Linearity = Mode.Linearity.Const
+  module Uniqueness = Mode.Uniqueness.Const_op
+  module Portability = Mode.Portability.Const
+  module Contention = Mode.Contention.Const_op
+  module Yielding = Mode.Yielding.Const
 
-  let debug_print ppf
-      { locality;
-        linearity;
-        uniqueness;
-        portability;
-        contention;
-        yielding;
-        externality;
-        nullability
-      } =
+  let debug_print ppf t =
     Format.fprintf ppf
       "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ portability = \
        %a;@ contention = %a;@ yielding = %a;@ externality = %a;@ nullability = \
        %a }@]"
-      Mode.Locality.Const.print locality Mode.Linearity.Const.print linearity
-      Mode.Uniqueness.Const.print uniqueness Mode.Portability.Const.print
-      portability Mode.Contention.Const.print contention
-      Mode.Yielding.Const.print yielding Externality.print externality
-      Nullability.print nullability
+      Locality.print (locality t) Linearity.print (linearity t) Uniqueness.print
+      (uniqueness t) Portability.print (portability t) Contention.print
+      (contention t) Yielding.print (yielding t) Externality.print
+      (externality t) Nullability.print (nullability t)
 
   let min =
-    Create.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) ->
-            let (module Bound_ops) = Axis.get axis in
-            Bound_ops.min)
-      }
+    create ~locality:Locality.min ~linearity:Linearity.min
+      ~uniqueness:Uniqueness.min ~portability:Portability.min
+      ~contention:Contention.min ~yielding:Yielding.min
+      ~externality:Externality.min ~nullability:Nullability.min
 
   let max =
-    Create.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) ->
-            let (module Bound_ops) = Axis.get axis in
-            Bound_ops.max)
-      }
+    create ~locality:Locality.max ~linearity:Linearity.max
+      ~uniqueness:Uniqueness.max ~portability:Portability.max
+      ~contention:Contention.max ~yielding:Yielding.max
+      ~externality:Externality.max ~nullability:Nullability.max
 
-  let simple ~locality ~linearity ~uniqueness ~portability ~contention ~yielding
-      ~externality ~nullability =
-    { locality;
-      linearity;
-      uniqueness;
-      portability;
-      contention;
-      yielding;
-      externality;
-      nullability
-    }
+  let join t1 t2 =
+    let locality = Locality.join (locality t1) (locality t2) in
+    let linearity = Linearity.join (linearity t1) (linearity t2) in
+    let uniqueness = Uniqueness.join (uniqueness t1) (uniqueness t2) in
+    let portability = Portability.join (portability t1) (portability t2) in
+    let contention = Contention.join (contention t1) (contention t2) in
+    let yielding = Yielding.join (yielding t1) (yielding t2) in
+    let externality = Externality.join (externality t1) (externality t2) in
+    let nullability = Nullability.join (nullability t1) (nullability t2) in
+    create ~locality ~linearity ~uniqueness ~portability ~contention ~yielding
+      ~externality ~nullability
 
-  let join
-      { locality;
-        linearity;
-        uniqueness;
-        portability;
-        contention;
-        yielding;
-        externality;
-        nullability
-      } t2 =
-    let locality = Locality.Const.join locality t2.locality in
-    let linearity = Linearity.Const.join linearity t2.linearity in
-    let uniqueness = Uniqueness.Const_op.join uniqueness t2.uniqueness in
-    let portability = Portability.Const.join portability t2.portability in
-    let contention = Contention.Const_op.join contention t2.contention in
-    let yielding = Yielding.Const.join yielding t2.yielding in
-    let externality = Externality.join externality t2.externality in
-    let nullability = Nullability.join nullability t2.nullability in
-    { locality;
-      linearity;
-      uniqueness;
-      portability;
-      contention;
-      yielding;
-      externality;
-      nullability
-    }
+  let meet t1 t2 =
+    let locality = Locality.meet (locality t1) (locality t2) in
+    let linearity = Linearity.meet (linearity t1) (linearity t2) in
+    let uniqueness = Uniqueness.meet (uniqueness t1) (uniqueness t2) in
+    let portability = Portability.meet (portability t1) (portability t2) in
+    let contention = Contention.meet (contention t1) (contention t2) in
+    let yielding = Yielding.meet (yielding t1) (yielding t2) in
+    let externality = Externality.meet (externality t1) (externality t2) in
+    let nullability = Nullability.meet (nullability t1) (nullability t2) in
+    create ~locality ~linearity ~uniqueness ~portability ~contention ~yielding
+      ~externality ~nullability
 
-  let meet
-      { locality;
-        linearity;
-        uniqueness;
-        portability;
-        contention;
-        yielding;
-        externality;
-        nullability
-      } t2 =
-    let locality = Locality.Const.meet locality t2.locality in
-    let linearity = Linearity.Const.meet linearity t2.linearity in
-    let uniqueness = Uniqueness.Const_op.meet uniqueness t2.uniqueness in
-    let portability = Portability.Const.meet portability t2.portability in
-    let contention = Contention.Const_op.meet contention t2.contention in
-    let yielding = Yielding.Const.meet yielding t2.yielding in
-    let externality = Externality.meet externality t2.externality in
-    let nullability = Nullability.meet nullability t2.nullability in
-    { locality;
-      linearity;
-      uniqueness;
-      portability;
-      contention;
-      yielding;
-      externality;
-      nullability
-    }
-
-  let less_or_equal
-      { locality;
-        linearity;
-        uniqueness;
-        portability;
-        contention;
-        yielding;
-        externality;
-        nullability
-      } t2 =
+  let less_or_equal t1 t2 =
     let axis_less_or_equal ~le ~axis a b : Sub_result.t =
       match le a b, le b a with
       | true, true -> Equal
@@ -505,49 +444,56 @@ module Mod_bounds = struct
       | false, _ -> Not_le [Axis_disagreement axis]
     in
     Sub_result.combine
-      (axis_less_or_equal ~le:Locality.Const.le
-         ~axis:(Pack (Modal (Comonadic Areality))) locality t2.locality)
+      (axis_less_or_equal ~le:Locality.le
+         ~axis:(Pack (Modal (Comonadic Areality))) (locality t1) (locality t2))
     @@ Sub_result.combine
-         (axis_less_or_equal ~le:Uniqueness.Const_op.le
-            ~axis:(Pack (Modal (Monadic Uniqueness))) uniqueness t2.uniqueness)
+         (axis_less_or_equal ~le:Uniqueness.le
+            ~axis:(Pack (Modal (Monadic Uniqueness))) (uniqueness t1)
+            (uniqueness t2))
     @@ Sub_result.combine
-         (axis_less_or_equal ~le:Linearity.Const.le
-            ~axis:(Pack (Modal (Comonadic Linearity))) linearity t2.linearity)
+         (axis_less_or_equal ~le:Linearity.le
+            ~axis:(Pack (Modal (Comonadic Linearity))) (linearity t1)
+            (linearity t2))
     @@ Sub_result.combine
-         (axis_less_or_equal ~le:Contention.Const_op.le
-            ~axis:(Pack (Modal (Monadic Contention))) contention t2.contention)
+         (axis_less_or_equal ~le:Contention.le
+            ~axis:(Pack (Modal (Monadic Contention))) (contention t1)
+            (contention t2))
     @@ Sub_result.combine
-         (axis_less_or_equal ~le:Portability.Const.le
-            ~axis:(Pack (Modal (Comonadic Portability))) portability
-            t2.portability)
+         (axis_less_or_equal ~le:Portability.le
+            ~axis:(Pack (Modal (Comonadic Portability))) (portability t1)
+            (portability t2))
     @@ Sub_result.combine
-         (axis_less_or_equal ~le:Yielding.Const.le
-            ~axis:(Pack (Modal (Comonadic Yielding))) yielding t2.yielding)
+         (axis_less_or_equal ~le:Yielding.le
+            ~axis:(Pack (Modal (Comonadic Yielding))) (yielding t1)
+            (yielding t2))
     @@ Sub_result.combine
          (axis_less_or_equal ~le:Externality.le
-            ~axis:(Pack (Nonmodal Externality)) externality t2.externality)
+            ~axis:(Pack (Nonmodal Externality)) (externality t1)
+            (externality t2))
     @@ axis_less_or_equal ~le:Nullability.le ~axis:(Pack (Nonmodal Nullability))
-         nullability t2.nullability
+         (nullability t1) (nullability t2)
 
-  let equal
-      { locality;
-        linearity;
-        uniqueness;
-        portability;
-        contention;
-        yielding;
-        externality;
-        nullability
-      } t2 =
+  let equal t1 t2 =
     let equal ~le a b = le a b && le b a in
-    equal ~le:Locality.Const.le locality t2.locality
-    && equal ~le:Linearity.Const.le linearity t2.linearity
-    && equal ~le:Uniqueness.Const_op.le uniqueness t2.uniqueness
-    && equal ~le:Portability.Const.le portability t2.portability
-    && equal ~le:Contention.Const_op.le contention t2.contention
-    && equal ~le:Yielding.Const.le yielding t2.yielding
-    && equal ~le:Externality.le externality t2.externality
-    && equal ~le:Nullability.le nullability t2.nullability
+    equal ~le:Locality.le (locality t1) (locality t2)
+    && equal ~le:Linearity.le (linearity t1) (linearity t2)
+    && equal ~le:Uniqueness.le (uniqueness t1) (uniqueness t2)
+    && equal ~le:Portability.le (portability t1) (portability t2)
+    && equal ~le:Contention.le (contention t1) (contention t2)
+    && equal ~le:Yielding.le (yielding t1) (yielding t2)
+    && equal ~le:Externality.le (externality t1) (externality t2)
+    && equal ~le:Nullability.le (nullability t1) (nullability t2)
+
+  let[@inline] get (type a) ~(axis : a Axis.t) t : a =
+    match axis with
+    | Modal (Monadic Uniqueness) -> uniqueness t
+    | Modal (Comonadic Areality) -> locality t
+    | Modal (Monadic Contention) -> contention t
+    | Modal (Comonadic Linearity) -> linearity t
+    | Modal (Comonadic Portability) -> portability t
+    | Modal (Comonadic Yielding) -> yielding t
+    | Nonmodal Externality -> externality t
+    | Nonmodal Nullability -> nullability t
 
   (** Get all axes that are set to max *)
   let get_max_axes t =
@@ -557,9 +503,9 @@ module Mod_bounds = struct
         Axis_ops.le Axis_ops.max bound)
 
   let for_arrow =
-    simple ~linearity:Linearity.Const.max ~locality:Locality.Const.max
-      ~uniqueness:Uniqueness.Const_op.min ~portability:Portability.Const.max
-      ~contention:Contention.Const_op.min ~yielding:Yielding.Const.max
+    create ~linearity:Linearity.max ~locality:Locality.max
+      ~uniqueness:Uniqueness.min ~portability:Portability.max
+      ~contention:Contention.min ~yielding:Yielding.max
       ~externality:Externality.max ~nullability:Nullability.Non_null
 end
 
@@ -938,16 +884,24 @@ module Layout_and_axes = struct
           loop ctl bounds_so_far bs
         | false -> (
           let join_bounds b1 b2 ~relevant_axes =
-            Mod_bounds.Map2.f
-              { f =
-                  (fun (type a) ~(axis : a Axis.t) b1 b2 ->
-                    if Axis_set.mem relevant_axes axis
-                    then
-                      let (module Bound_ops) = Axis.get axis in
-                      Bound_ops.join b1 b2
-                    else b1)
-              }
-              b1 b2
+            let value_for_axis (type a) ~(axis : a Axis.t) : a =
+              if Axis_set.mem relevant_axes axis
+              then
+                let (module Bound_ops) = Axis.get axis in
+                Bound_ops.join (Mod_bounds.get ~axis b1)
+                  (Mod_bounds.get ~axis b2)
+              else Mod_bounds.get ~axis b1
+            in
+            Mod_bounds.create
+              ~locality:(value_for_axis ~axis:(Modal (Comonadic Areality)))
+              ~linearity:(value_for_axis ~axis:(Modal (Comonadic Linearity)))
+              ~uniqueness:(value_for_axis ~axis:(Modal (Monadic Uniqueness)))
+              ~portability:
+                (value_for_axis ~axis:(Modal (Comonadic Portability)))
+              ~contention:(value_for_axis ~axis:(Modal (Monadic Contention)))
+              ~yielding:(value_for_axis ~axis:(Modal (Comonadic Yielding)))
+              ~externality:(value_for_axis ~axis:(Nonmodal Externality))
+              ~nullability:(value_for_axis ~axis:(Nonmodal Nullability))
           in
           let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
               Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t =
@@ -1161,9 +1115,10 @@ module Const = struct
 
     let mk_jkind ~mode_crossing ~nullability (layout : Layout.Const.t) =
       let mod_bounds =
-        match mode_crossing with
-        | true -> { Mod_bounds.min with nullability }
-        | false -> { Mod_bounds.max with nullability }
+        (match mode_crossing with
+        | true -> Mod_bounds.min
+        | false -> Mod_bounds.max)
+        |> Mod_bounds.set_nullability nullability
       in
       { layout; mod_bounds; with_bounds = No_with_bounds }
 
@@ -1192,7 +1147,7 @@ module Const = struct
       { jkind =
           { layout = Base Value;
             mod_bounds =
-              Mod_bounds.simple ~locality:Locality.Const.max
+              Mod_bounds.create ~locality:Locality.Const.max
                 ~linearity:Linearity.Const.min
                 ~portability:Portability.Const.min ~yielding:Yielding.Const.min
                 ~uniqueness:Uniqueness.Const_op.max
@@ -1207,7 +1162,7 @@ module Const = struct
       { jkind =
           { layout = Base Value;
             mod_bounds =
-              Mod_bounds.simple ~locality:Locality.Const.max
+              Mod_bounds.create ~locality:Locality.Const.max
                 ~linearity:Linearity.Const.min
                 ~portability:Portability.Const.min ~yielding:Yielding.Const.min
                 ~contention:Contention.Const_op.max
@@ -1263,9 +1218,8 @@ module Const = struct
       { jkind =
           { immediate.jkind with
             mod_bounds =
-              { immediate.jkind.mod_bounds with
-                externality = Externality.External64
-              }
+              Mod_bounds.set_externality Externality.External64
+                immediate.jkind.mod_bounds
           };
         name = "immediate64"
       }
@@ -1485,9 +1439,8 @@ module Const = struct
                 { jkind =
                     { layout = jkind.layout;
                       mod_bounds =
-                        { Mod_bounds.max with
-                          nullability = Nullability.Non_null
-                        };
+                        Mod_bounds.set_nullability Nullability.Non_null
+                          Mod_bounds.max;
                       with_bounds = No_with_bounds
                     };
                   name = Layout.Const.to_string jkind.layout
@@ -1586,19 +1539,26 @@ module Const = struct
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let mod_bounds =
-        Mod_bounds.Create.f
-          { f =
-              (fun (type a) ~(axis : a Axis.t) ->
-                let (module A) = Axis.get axis in
-                let parsed_modifier =
-                  Typemode.Transled_modifiers.get ~axis parsed_modifiers
-                in
-                let base_bound = Mod_bounds.get ~axis base.mod_bounds in
-                match parsed_modifier, base_bound with
-                | None, base_bound -> base_bound
-                | Some parsed_modifier, base_modifier ->
-                  A.meet base_modifier parsed_modifier.txt)
-          }
+        let value_for_axis (type a) ~(axis : a Axis.t) : a =
+          let (module A) = Axis.get axis in
+          let parsed_modifier =
+            Typemode.Transled_modifiers.get ~axis parsed_modifiers
+          in
+          let base_bound = Mod_bounds.get ~axis base.mod_bounds in
+          match parsed_modifier, base_bound with
+          | None, base_modifier -> base_modifier
+          | Some parsed_modifier, base_modifier ->
+            A.meet base_modifier parsed_modifier.txt
+        in
+        Mod_bounds.create
+          ~locality:(value_for_axis ~axis:(Modal (Comonadic Areality)))
+          ~linearity:(value_for_axis ~axis:(Modal (Comonadic Linearity)))
+          ~uniqueness:(value_for_axis ~axis:(Modal (Monadic Uniqueness)))
+          ~portability:(value_for_axis ~axis:(Modal (Comonadic Portability)))
+          ~contention:(value_for_axis ~axis:(Modal (Monadic Contention)))
+          ~yielding:(value_for_axis ~axis:(Modal (Comonadic Yielding)))
+          ~externality:(value_for_axis ~axis:(Nonmodal Externality))
+          ~nullability:(value_for_axis ~axis:(Nonmodal Nullability))
       in
       { layout = base.layout; mod_bounds; with_bounds = No_with_bounds }
     | Product ts ->
@@ -1633,7 +1593,7 @@ module Const = struct
   let get_required_layouts_level (_context : 'd Context_with_transl.t)
       (jkind : 'd t) =
     let rec scan_layout (l : Layout.Const.t) : Language_extension.maturity =
-      match l, jkind.mod_bounds.nullability with
+      match l, Mod_bounds.nullability jkind.mod_bounds with
       | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
       | Base Value, Non_null
       | Base Value, Maybe_null ->
@@ -1687,7 +1647,9 @@ module Jkind_desc = struct
   let of_const t = Layout_and_axes.map Layout.of_const t
 
   let add_nullability_crossing t =
-    { t with mod_bounds = { t.mod_bounds with nullability = Nullability.min } }
+    { t with
+      mod_bounds = Mod_bounds.set_nullability Nullability.min t.mod_bounds
+    }
 
   let unsafely_set_mod_bounds t ~from =
     { t with mod_bounds = from.mod_bounds; with_bounds = No_with_bounds }
@@ -1750,7 +1712,7 @@ module Jkind_desc = struct
     let layout, sort = Layout.of_new_sort_var () in
     ( { layout;
         mod_bounds =
-          { Mod_bounds.max with nullability = nullability_upper_bound };
+          Mod_bounds.set_nullability nullability_upper_bound Mod_bounds.max;
         with_bounds = No_with_bounds
       },
       sort )
@@ -2144,7 +2106,7 @@ let for_object =
   fresh_jkind
     { layout = Sort (Base Value);
       mod_bounds =
-        Mod_bounds.simple ~linearity ~locality ~uniqueness ~portability
+        Mod_bounds.create ~linearity ~locality ~uniqueness ~portability
           ~contention ~yielding ~externality:Externality.max
           ~nullability:Non_null;
       with_bounds = No_with_bounds
@@ -2256,7 +2218,7 @@ let set_externality_upper_bound jk externality_upper_bound =
     jkind =
       { jk.jkind with
         mod_bounds =
-          { jk.jkind.mod_bounds with externality = externality_upper_bound }
+          Mod_bounds.set_externality externality_upper_bound jk.jkind.mod_bounds
       }
   }
 
@@ -3090,7 +3052,7 @@ let is_value_for_printing ~ignore_null { jkind; _ } =
       then
         { value with
           mod_bounds =
-            { value.mod_bounds with nullability = Nullability.Maybe_null }
+            Mod_bounds.set_nullability Nullability.Maybe_null value.mod_bounds
         }
         :: values
       else values

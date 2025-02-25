@@ -84,14 +84,52 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
 
 let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
 
-module Transled_modifier = struct
-  type 'a t = 'a Location.loc option
+module Transled_modifiers = struct
+  type t =
+    { locality : Mode.Locality.Const.t Location.loc option;
+      linearity : Mode.Linearity.Const.t Location.loc option;
+      uniqueness : Mode.Uniqueness.Const.t Location.loc option;
+      portability : Mode.Portability.Const.t Location.loc option;
+      contention : Mode.Contention.Const.t Location.loc option;
+      yielding : Mode.Yielding.Const.t Location.loc option;
+      externality : Jkind_axis.Externality.t Location.loc option;
+      nullability : Jkind_axis.Nullability.t Location.loc option
+    }
 
-  let drop_loc modifier = Option.map Location.get_txt modifier
+  let empty =
+    { locality = None;
+      linearity = None;
+      uniqueness = None;
+      portability = None;
+      contention = None;
+      yielding = None;
+      externality = None;
+      nullability = None
+    }
+
+  let get (type a) ~(axis : a Axis.t) (t : t) : a Location.loc option =
+    match axis with
+    | Modal (Comonadic Areality) -> t.locality
+    | Modal (Comonadic Linearity) -> t.linearity
+    | Modal (Monadic Uniqueness) -> t.uniqueness
+    | Modal (Comonadic Portability) -> t.portability
+    | Modal (Monadic Contention) -> t.contention
+    | Modal (Comonadic Yielding) -> t.yielding
+    | Nonmodal Externality -> t.externality
+    | Nonmodal Nullability -> t.nullability
+
+  let set (type a) ~(axis : a Axis.t) (t : t) (value : a Location.loc option) :
+      t =
+    match axis with
+    | Modal (Comonadic Areality) -> { t with locality = value }
+    | Modal (Comonadic Linearity) -> { t with linearity = value }
+    | Modal (Monadic Uniqueness) -> { t with uniqueness = value }
+    | Modal (Comonadic Portability) -> { t with portability = value }
+    | Modal (Monadic Contention) -> { t with contention = value }
+    | Modal (Comonadic Yielding) -> { t with yielding = value }
+    | Nonmodal Externality -> { t with externality = value }
+    | Nonmodal Nullability -> { t with nullability = value }
 end
-
-module Transled_modifiers =
-  Jkind_axis.Axis_collection.Indexed (Transled_modifier)
 
 let transl_modifier_annots annots =
   let step modifiers_so_far annot =
@@ -114,9 +152,7 @@ let transl_modifier_annots annots =
     if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
     Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
   in
-  let empty_modifiers =
-    Transled_modifiers.Create.f { f = (fun ~axis:_ -> None) }
-  in
+  let empty_modifiers = Transled_modifiers.empty in
   List.fold_left step empty_modifiers annots
 
 let transl_mode_annots annots : Alloc.Const.Option.t =
@@ -134,16 +170,14 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
     then raise (Error (annot.loc, Duplicated_axis axis));
     Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
   in
-  let empty_modifiers =
-    Transled_modifiers.Create.f { f = (fun ~axis:_ -> None) }
-  in
+  let empty_modifiers = Transled_modifiers.empty in
   let modes = List.fold_left step empty_modifiers annots in
-  { areality = Transled_modifier.drop_loc modes.locality;
-    linearity = Transled_modifier.drop_loc modes.linearity;
-    uniqueness = Transled_modifier.drop_loc modes.uniqueness;
-    portability = Transled_modifier.drop_loc modes.portability;
-    contention = Transled_modifier.drop_loc modes.contention;
-    yielding = Transled_modifier.drop_loc modes.yielding
+  { areality = Option.map get_txt modes.locality;
+    linearity = Option.map get_txt modes.linearity;
+    uniqueness = Option.map get_txt modes.uniqueness;
+    portability = Option.map get_txt modes.portability;
+    contention = Option.map get_txt modes.contention;
+    yielding = Option.map get_txt modes.yielding
   }
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =

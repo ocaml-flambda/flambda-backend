@@ -69,8 +69,39 @@ val is_mutable : mutability -> bool
  *)
 
 (** The mod-bounds of a jkind *)
-module Jkind_mod_bounds :
-  module type of Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
+module Jkind_mod_bounds : sig
+  type t
+
+  val create :
+    locality:Mode.Locality.Const.t ->
+    linearity:Mode.Linearity.Const.t ->
+    uniqueness:Mode.Uniqueness.Const.t ->
+    portability:Mode.Portability.Const.t ->
+    contention:Mode.Contention.Const.t ->
+    yielding:Mode.Yielding.Const.t ->
+    externality:Jkind_axis.Externality.t ->
+    nullability:Jkind_axis.Nullability.t ->
+    t
+
+  val locality : t -> Mode.Locality.Const.t
+  val linearity : t -> Mode.Linearity.Const.t
+  val uniqueness : t -> Mode.Uniqueness.Const.t
+  val portability : t -> Mode.Portability.Const.t
+  val contention : t -> Mode.Contention.Const.t
+  val yielding : t -> Mode.Yielding.Const.t
+  val externality : t -> Jkind_axis.Externality.t
+  val nullability : t -> Jkind_axis.Nullability.t
+
+  val set_locality : Mode.Locality.Const.t -> t -> t
+  val set_linearity : Mode.Linearity.Const.t -> t -> t
+  val set_uniqueness : Mode.Uniqueness.Const.t -> t -> t
+  val set_portability : Mode.Portability.Const.t -> t -> t
+  val set_contention : Mode.Contention.Const.t -> t -> t
+  val set_yielding : Mode.Yielding.Const.t -> t -> t
+  val set_externality : Jkind_axis.Externality.t -> t -> t
+  val set_nullability : Jkind_axis.Nullability.t -> t -> t
+end
+
 
 (** Information tracked about an individual type within the with-bounds for a jkind *)
 module With_bounds_type_info : sig

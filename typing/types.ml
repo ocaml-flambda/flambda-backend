@@ -28,8 +28,57 @@ let is_mutable = function
 
 (* Type expressions for the core language *)
 
-module Jkind_mod_bounds =
-  Jkind_axis.Axis_collection.Indexed (Misc.Stdlib.Monad.Identity)
+module Jkind_mod_bounds = struct
+  type t = {
+    locality: Mode.Locality.Const.t;
+    linearity: Mode.Linearity.Const.t;
+    uniqueness: Mode.Uniqueness.Const.t;
+    portability: Mode.Portability.Const.t;
+    contention: Mode.Contention.Const.t;
+    yielding: Mode.Yielding.Const.t;
+    externality: Jkind_axis.Externality.t;
+    nullability: Jkind_axis.Nullability.t;
+  }
+
+  let[@inline] locality t = t.locality
+  let[@inline] linearity t = t.linearity
+  let[@inline] uniqueness t = t.uniqueness
+  let[@inline] portability t = t.portability
+  let[@inline] contention t = t.contention
+  let[@inline] yielding t = t.yielding
+  let[@inline] externality t = t.externality
+  let[@inline] nullability t = t.nullability
+
+  let[@inline] create
+      ~locality
+      ~linearity
+      ~uniqueness
+      ~portability
+      ~contention
+      ~yielding
+      ~externality
+      ~nullability =
+    {
+      locality;
+      linearity;
+      uniqueness;
+      portability;
+      contention;
+      yielding;
+      externality;
+      nullability;
+    }
+
+  let[@inline] set_locality locality t = { t with locality }
+  let[@inline] set_linearity linearity t = { t with linearity }
+  let[@inline] set_uniqueness uniqueness t = { t with uniqueness }
+  let[@inline] set_portability portability t = { t with portability }
+  let[@inline] set_contention contention t = { t with contention }
+  let[@inline] set_yielding yielding t = { t with yielding }
+  let[@inline] set_externality externality t = { t with externality }
+  let[@inline] set_nullability nullability t = { t with nullability }
+end
+
 
 module With_bounds_type_info = struct
   type t = {relevant_axes : Jkind_axis.Axis_set.t } [@@unboxed]
