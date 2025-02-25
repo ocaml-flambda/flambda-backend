@@ -765,6 +765,7 @@ let create_us () =
   let b = stack_ B (1, 2) in
   let c = stack_ C 3 in
   let d = stack_ D in
+  let e = stack_ a#b in
   ()
 
 [%%expect{|
@@ -772,6 +773,21 @@ type u = A of unit | C of int | B of int * int | D
 Line 7, characters 17-18:
 7 |   let d = stack_ D in
                      ^
+Error: This expression is not an allocation site.
+|}]
+
+let unary_minus_plus () =
+  let x = 42 in
+  let a = stack_ (-x) in
+  let b = stack_ (-42) in
+  let c = stack_ (-(-42)) in
+  let d = stack_ (+x) in
+  let e = stack_ (+42) in
+  ()
+[%%expect{|
+Line 4, characters 17-22:
+4 |   let b = stack_ (-42) in
+                     ^^^^^
 Error: This expression is not an allocation site.
 |}]
 

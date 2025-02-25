@@ -1134,7 +1134,7 @@ The precedences must be listed from low to high.
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
-          LBRACKETPERCENT QUOTED_STRING_EXPR STACK HASHLBRACE HASHLPAREN
+          LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN
 
 
 /* Entry points */
@@ -2577,7 +2577,8 @@ class_type_declarations:
 %inline or_function(EXPR):
   | EXPR
       { $1 }
-  | FUNCTION ext_attributes match_cases
+  | maybe_stack (
+    FUNCTION ext_attributes match_cases
       { let loc = make_loc $sloc in
         let cases = $3 in
         (* There are two choices of where to put attributes: on the
@@ -2590,6 +2591,8 @@ class_type_declarations:
         mkfunction [] empty_body_constraint (Pfunction_cases (cases, loc, [])) ~attrs:$2
           ~loc:$sloc
       }
+    )
+    { $1 }
 ;
 
 (* [fun_seq_expr] (and [fun_expr]) are legal expression bodies of a function.
@@ -2798,9 +2801,11 @@ optional_atomic_constraint_:
 
 fun_:
     /* Cf #5939: we used to accept (fun p when e0 -> e) */
-  | FUN ext_attributes fun_params body_constraint = optional_atomic_constraint_
+  | maybe_stack (
+    FUN ext_attributes fun_params body_constraint = optional_atomic_constraint_
       MINUSGREATER fun_body
     {  mkfunction $3 body_constraint $6 ~loc:$sloc ~attrs:$2 }
+    ) { $1 }
 
 fun_expr:
     simple_expr %prec below_HASH
@@ -2892,24 +2897,18 @@ fun_expr:
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
       { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
-  | STACK simple_expr
-      { mkexp ~loc:$sloc (Pexp_stack $2) }
-  | STACK or_function(fun_)
-      { mkexp ~loc:$sloc (Pexp_stack $2) }
+  | stack(simple_expr) %prec below_HASH { $1 }
   | labeled_tuple %prec below_COMMA
       { mkexp ~loc:$sloc (Pexp_tuple $1) }
-  | constructor_app %prec below_HASH { $1 }
-  | STACK constructor_app %prec below_HASH
-      { mkexp ~loc:$sloc (Pexp_stack $2) }
+  | maybe_stack (
+    mkrhs(constr_longident) simple_expr %prec below_HASH
+      { mkexp ~loc:$sloc (Pexp_construct($1, Some $2)) }
+    ) { $1 }
   | name_tag simple_expr %prec below_HASH
       { mkexp ~loc:$sloc (Pexp_variant($1, Some $2)) }
   | e1 = fun_expr op = op(infix_operator) e2 = expr
       { mkexp ~loc:$sloc (mkinfix e1 op e2) }
 ;
-
-%inline constructor_app:
-  | mkrhs(constr_longident) simple_expr
-    { mkexp ~loc:$sloc (Pexp_construct($1, Some $2)) }
 
 simple_expr:
   | LPAREN seq_expr RPAREN
@@ -4547,6 +4546,13 @@ optional_at_modalities_expr:
   | AT modalities { $2 }
   | AT error { expecting $loc($2) "modality expression" }
 ;
+
+%inline stack(expr):
+  | STACK expr { mkexp ~loc:$sloc (Pexp_stack $2) }
+
+%inline maybe_stack(expr):
+  | expr { $1 }
+  | stack(expr) { $1 }
 
 %inline param_type:
   | mktyp(
