@@ -432,11 +432,11 @@ let include_kind f = function
   | Structure -> ()
 
 (* c ['a,'b] *)
-let rec class_params_def ctxt f =  function
+let rec class_params_def f =  function
   | [] -> ()
   | l ->
       pp f "[%a] " (* space *)
-        (list (type_param ctxt) ~sep:",") l
+        (list type_param ~sep:",") l
 
 and type_with_label ctxt f (label, c, mode) =
   match label with
@@ -1289,7 +1289,7 @@ and class_type_declaration_list ctxt f l =
     let { pci_params=ls; pci_name={ txt; _ }; _ } = x in
     pp f "@[<2>%s %a%a%a@ =@ %a@]%a" kwd
       virtual_flag x.pci_virt
-      (class_params_def ctxt) ls
+      class_params_def ls
       ident_of_name txt
       (class_type ctxt) x.pci_expr
       (item_attributes ctxt) x.pci_attributes
@@ -1464,7 +1464,7 @@ and module_type ctxt f x =
 and with_constraint ctxt f = function
   | Pwith_type (li, ({ptype_params= ls ;_} as td)) ->
       pp f "type@ %a %a =@ %a"
-        (type_params ctxt) ls
+        type_params ls
         longident_loc li (type_declaration ctxt) td
   | Pwith_module (li, li2) ->
       pp f "module %a =@ %a" longident_loc li longident_loc li2;
@@ -1472,7 +1472,7 @@ and with_constraint ctxt f = function
       pp f "module type %a =@ %a" longident_loc li (module_type ctxt) mty;
   | Pwith_typesubst (li, ({ptype_params=ls;_} as td)) ->
       pp f "type@ %a %a :=@ %a"
-        (type_params ctxt) ls
+        type_params ls
         longident_loc li
         (type_declaration ctxt) td
   | Pwith_modsubst (li, li2) ->
@@ -1527,7 +1527,7 @@ and signature_item ctxt f x : unit =
       let class_description kwd f ({pci_params=ls;pci_name={txt;_};_} as x) =
         pp f "@[<2>%s %a%a%a@;:@;%a@]%a" kwd
           virtual_flag x.pci_virt
-          (class_params_def ctxt) ls
+          class_params_def ls
           ident_of_name txt
           (class_type ctxt) x.pci_expr
           (item_attributes ctxt) x.pci_attributes
@@ -1889,7 +1889,7 @@ and structure_item ctxt f x =
         let args, constr, cl = extract_class_args x.pci_expr in
         pp f "@[<2>%s %a%a%a %a%a=@;%a@]%a" kwd
           virtual_flag x.pci_virt
-          (class_params_def ctxt) ls
+          class_params_def ls
           ident_of_name txt
           (list (label_exp ctxt) ~last:"@ ") args
           (option class_constraint) constr
@@ -1964,12 +1964,26 @@ and structure_item ctxt f x =
   | Pstr_kind_abbrev (name, jkind) ->
       kind_abbrev ctxt f name jkind
 
-and type_param ctxt f (ct, (a,b)) =
-  pp f "%s%s%a" (type_variance a) (type_injectivity b) (core_type ctxt) ct
+(* Don't just use [core_type] because we do not want parens around params
+   with jkind annotations *)
+and core_type_param f ct = match ct.ptyp_desc with
+  | Ptyp_any None -> pp f "_"
+  | Ptyp_any (Some jk) -> pp f "_ : %a" (jkind_annotation reset_ctxt) jk
+  | Ptyp_var (s, None) -> tyvar f s
+  | Ptyp_var (s, Some jk) ->
+    pp f "%a : %a" tyvar s (jkind_annotation reset_ctxt) jk
+  | _ -> Misc.fatal_error "unexpected type in core_type_param"
 
-and type_params ctxt f = function
+and type_param f (ct, (a,b)) =
+  pp f "%s%s%a" (type_variance a) (type_injectivity b) core_type_param ct
+
+and type_params f = function
   | [] -> ()
-  | l -> pp f "%a " (list (type_param ctxt) ~first:"(" ~last:")" ~sep:",@;") l
+  (* Normally, one param doesn't get parentheses, but it does when there is
+     a jkind annotation. *)
+  | [{ ptyp_desc = Ptyp_any (Some _) | Ptyp_var (_, Some _) }, _ as param] ->
+    pp f "(%a) " type_param param
+  | l -> pp f "%a " (list type_param ~first:"(" ~last:")" ~sep:",@;") l
 
 and type_def_list ctxt f (rf, exported, l) =
   let type_decl kwd rf f x =
@@ -1987,7 +2001,7 @@ and type_def_list ctxt f (rf, exported, l) =
     in
     pp f "@[<2>%s %a%a%a%t%s%a@]%a" kwd
       nonrec_flag rf
-      (type_params ctxt) x.ptype_params
+      type_params x.ptype_params
       ident_of_name x.ptype_name.txt
       layout_annot eq
       (type_declaration ctxt) x
@@ -2070,11 +2084,7 @@ and type_extension ctxt f x =
     pp f "@\n|@;%a" (extension_constructor ctxt) x
   in
   pp f "@[<2>type %a%a += %a@ %a@]%a"
-    (fun f -> function
-       | [] -> ()
-       | l ->
-           pp f "%a@;" (list (type_param ctxt) ~first:"(" ~last:")" ~sep:",") l)
-    x.ptyext_params
+    type_params x.ptyext_params
     longident_loc x.ptyext_path
     private_flag x.ptyext_private (* Cf: #7200 *)
     (list ~sep:"" extension_constructor)
