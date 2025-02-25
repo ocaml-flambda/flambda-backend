@@ -250,6 +250,16 @@ module Axis_set = struct
 
   let[@inline] complement t = diff all t
 
+  let[@inline] fold acc t ~f =
+    (* little optimization *)
+    if is_empty t
+    then acc
+    else
+      List.fold_left
+        (fun acc (Axis.Pack unpacked as axis) ->
+          if mem t unpacked then f ~axis acc else acc)
+        acc Axis.all
+
   let[@inline] to_seq t =
     Axis.all |> List.to_seq |> Seq.filter (fun (Axis.Pack axis) -> mem t axis)
 
