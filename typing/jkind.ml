@@ -2209,7 +2209,7 @@ let decompose_product ({ jkind; _ } as jk) =
    doing so, because it teaches the user that e.g. [value mod local] is better
    off spelled [value]. Possibly remove [jkind.annotation], but only after
    we have a proper printing story. *)
-let format ?jkind_of_type ppf jkind =
+let format ~jkind_of_type ppf jkind =
   Desc.format ~jkind_of_type ppf (Jkind_desc.get jkind.jkind)
 
 let printtyp_path = ref (fun _ _ -> assert false)
@@ -2525,7 +2525,7 @@ module Format_history = struct
         match reason, Desc.get_const jkind_desc with
         | Concrete_legacy_creation _, Some _ ->
           fprintf ppf ",@ chosen to have %s %a" layout_or_kind
-            (format ?jkind_of_type) t
+            (format ~jkind_of_type) t
         | _ -> ())
     | Interact _ ->
       Misc.fatal_error "Non-flat history in format_flattened_history");
@@ -2555,7 +2555,7 @@ module Format_history = struct
       else format_history_tree ~intro ~layout_or_kind ppf t
 end
 
-let format_history ?jkind_of_type ~intro ppf t =
+let format_history ~jkind_of_type ~intro ppf t =
   Format_history.format_history ~jkind_of_type ~intro ~layout_or_kind:"kind" ppf
     t
 
@@ -2688,7 +2688,7 @@ module Violation = struct
     in
     let format_layout_or_kind ppf jkind =
       match mismatch_type with
-      | Mode -> Format.fprintf ppf "@,%a" (format ?jkind_of_type) jkind
+      | Mode -> Format.fprintf ppf "@,%a" (format ~jkind_of_type) jkind
       | Layout -> Layout.format ppf jkind.jkind.layout
     in
     let subjkind_format verb k2 =
@@ -2761,14 +2761,14 @@ module Violation = struct
 
   let pp_t ppf x = fprintf ppf "%t" x
 
-  let report_with_offender ?jkind_of_type ~offender =
+  let report_with_offender ~jkind_of_type ~offender =
     report_general ~jkind_of_type "" pp_t offender
 
-  let report_with_offender_sort ?jkind_of_type ~offender =
+  let report_with_offender_sort ~jkind_of_type ~offender =
     report_general ~jkind_of_type "A representable layout was expected, but "
       pp_t offender
 
-  let report_with_name ?jkind_of_type ~name =
+  let report_with_name ~jkind_of_type ~name =
     report_general ~jkind_of_type "" pp_print_string name
 end
 

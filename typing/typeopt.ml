@@ -982,7 +982,7 @@ let report_error ppf = function
       | Some err ->
         fprintf ppf "@ %a"
         (Jkind.Violation.report_with_offender
-           ~jkind_of_type:(Ctype.type_jkind_purely env)
+           ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
       end
   | Non_value_sort (sort, ty) ->
@@ -1050,7 +1050,7 @@ let report_error ppf = function
   | Not_a_sort (ty, env, err) ->
       fprintf ppf "A representable layout is required here.@ %a"
         (Jkind.Violation.report_with_offender
-           ~jkind_of_type:(Ctype.type_jkind_purely env)
+           ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
   | Unsupported_sort const ->
       fprintf ppf "Layout %a is not supported yet."

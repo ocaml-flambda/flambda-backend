@@ -184,9 +184,19 @@ module Violation : sig
      probably should be rethought at some point. *)
 
   (** Prints a violation and the thing that had an unexpected jkind
-      ([offender], which you supply an arbitrary printer for). *)
+      ([offender], which you supply an arbitrary printer for).
+
+      The [jkind_of_type] allows the printer to normalize with-bounds.  If none
+      is supplied (because you don't have an [env], say), then all with-bounds
+      are printed as-is. If a [jkind_of_type] is supplied, and we're trying to
+      avoid printing with-bounds (because we're not in alpha), then we'll
+      normalize the with-bounds before printing.  Unlike other [jkind_of_type]s,
+      this one does not return a [jkind_l option]; the optionality there is to
+      allow the callback to fail in the case that the type is not principally
+      known. For printing, we do not need to care about principality in this
+      way, so we just unconditionally succeed with a [jkind_l].  *)
   val report_with_offender :
-    ?jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
+    jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
     offender:(Format.formatter -> unit) ->
     Format.formatter ->
     t ->
@@ -195,7 +205,7 @@ module Violation : sig
   (** Like [report_with_offender], but additionally prints that the issue is
       that a representable jkind was expected. *)
   val report_with_offender_sort :
-    ?jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
+    jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
     offender:(Format.formatter -> unit) ->
     Format.formatter ->
     t ->
@@ -204,7 +214,7 @@ module Violation : sig
   (** Simpler version of [report_with_offender] for when the thing that had an
       unexpected jkind is available as a string. *)
   val report_with_name :
-    ?jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
+    jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
     name:string ->
     Format.formatter ->
     t ->
@@ -487,6 +497,8 @@ module Desc : sig
 
   val get_const : 'd t -> 'd Const.t option
 
+  (* See [Violation.report_with_offender] for comments on the [jkind_of_type]
+     argument. *)
   val format :
     jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
     Format.formatter ->
@@ -597,8 +609,10 @@ val set_outcometree_of_modalities_new :
   Outcometree.out_mode_new list) ->
   unit
 
+(* See [Violation.report_with_offender] for comments on the [jkind_of_type]
+   argument. *)
 val format :
-  ?jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
+  jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
   Format.formatter ->
   'd Types.jkind ->
   unit
@@ -607,9 +621,13 @@ val format :
     it is the jkind that it is. Might be a no-op: see [display_histories]
     in the implementation of the [Jkind] module.
 
-    The [intro] is something like "The jkind of t is". *)
+    The [intro] is something like "The jkind of t is".
+
+    See [Violation.report_with_offender] for comments on the [jkind_of_type]
+    argument.
+*)
 val format_history :
-  ?jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
+  jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
   intro:(Format.formatter -> unit) ->
   Format.formatter ->
   'd Types.jkind ->

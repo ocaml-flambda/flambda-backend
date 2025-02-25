@@ -2368,7 +2368,7 @@ let report_error env ppf =
     fprintf ppf
       "@[Variables bound in a class must have layout value.@ %a@]"
       (Jkind.Violation.report_with_name
-         ~jkind_of_type:(Ctype.type_jkind_purely env) ~name:nm) err
+         ~jkind_of_type:(Some (Ctype.type_jkind_purely env)) ~name:nm) err
   | Non_value_let_binding (nm, sort) ->
     fprintf ppf
       "@[The types of variables bound by a 'let' in a class function@ \

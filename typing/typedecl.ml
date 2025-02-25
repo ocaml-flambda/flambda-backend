@@ -3948,7 +3948,7 @@ let report_jkind_mismatch_due_to_bad_inference ppf env ty violation loc =
      the declaration where this error is reported.@]"
     loc
     (Jkind.Violation.report_with_offender
-       ~jkind_of_type:(Ctype.type_jkind_purely env)
+       ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
        ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
 
 let report_error ppf = function
@@ -4224,12 +4224,12 @@ let report_error ppf = function
       fprintf ppf "type %a" Style.inline_code (Ident.name (Path.head dpath))
     in
     Jkind.Violation.report_with_offender
-      ~jkind_of_type:(Ctype.type_jkind_purely env) ~offender ppf v
+      ~jkind_of_type:(Some (Ctype.type_jkind_purely env)) ~offender ppf v
   | Jkind_mismatch_of_type (ty,env,v) ->
     let offender ppf = fprintf ppf "type %a"
         (Style.as_inline_code Printtyp.type_expr) ty in
     Jkind.Violation.report_with_offender
-      ~jkind_of_type:(Ctype.type_jkind_purely env) ~offender ppf v
+      ~jkind_of_type:(Some (Ctype.type_jkind_purely env)) ~offender ppf v
   | Jkind_sort {kloc; typ; env; err} ->
     let s =
       match kloc with
@@ -4255,12 +4255,12 @@ let report_error ppf = function
     fprintf ppf "@[%s must have a representable layout%t.@ %a@]" s
       extra
       (Jkind.Violation.report_with_offender
-         ~jkind_of_type:(Ctype.type_jkind_purely env)
+         ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
   | Non_value_in_sig (err, val_name, env, ty) ->
-    let jkind_of_type = Ctype.type_jkind_purely env in
+    let jkind_of_type = Some (Ctype.type_jkind_purely env) in
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     fprintf ppf "@[This type signature for %a is not a value type.@ %a@]"
       Style.inline_code val_name
@@ -4417,7 +4417,7 @@ let report_error ppf = function
   | Illegal_baggage jkind ->
     fprintf ppf
       "@[Illegal %a in kind annotation of an abbreviation:@ %a@]"
-      Style.inline_code "with" (fun k -> Jkind.format k) jkind
+      Style.inline_code "with" (Jkind.format ~jkind_of_type:None) jkind
 
 let () =
   Location.register_error_of_exn

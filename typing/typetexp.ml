@@ -1433,7 +1433,7 @@ let pp_tag ppf t = Format.fprintf ppf "`%s" t
 
 
 let report_error env ppf =
-  let jkind_of_type = Ctype.type_jkind_purely env in
+  let jkind_of_type = Some (Ctype.type_jkind_purely env) in
   function
   | Unbound_type_variable (name, in_scope_names) ->
     fprintf ppf "The type variable %a is unbound in this type declaration.@ %a"

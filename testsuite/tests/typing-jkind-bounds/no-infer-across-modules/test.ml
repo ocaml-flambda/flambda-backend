@@ -256,6 +256,7 @@ Error: This expression has type
          (value & value) & value
          because of the definition of use_portable_three_values at line 2, characters 84-95.
 |}]
+(* CR layouts v2.8: Lift bounds outside of products *)
 
 (******)
 

@@ -10312,7 +10312,7 @@ let report_too_many_arg_error ~funct ~func_ty ~previous_arg_loc
     report_this_function funct Printtyp.type_expr func_ty
 
 let report_error ~loc env =
-  let jkind_of_type = Ctype.type_jkind_purely env in
+  let jkind_of_type = Some (Ctype.type_jkind_purely env) in
   function
   | Constructor_arity_mismatch(lid, expected, provided) ->
       Location.errorf ~loc
@@ -10542,6 +10542,7 @@ let report_error ~loc env =
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Variables bound in a \"let rec\" must have layout value.@ %a"
         (fun v -> Jkind.Violation.report_with_offender
+           ~jkind_of_type:None
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty) v) err)
       ()
   | Undefined_method (ty, me, valid_methods) ->
