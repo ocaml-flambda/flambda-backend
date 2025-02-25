@@ -777,6 +777,7 @@ Error: This expression is not an allocation site.
 |}]
 
 let unary_minus_plus () =
+  let x = 42 in
   let a = stack_ (-x) in
   let b = stack_ (-42) in
   let c = stack_ (-(-42)) in
@@ -784,15 +785,10 @@ let unary_minus_plus () =
   let e = stack_ (+42) in
   ()
 [%%expect{|
-Line 2, characters 19-20:
-2 |   let a = stack_ (-x) in
-                       ^
-Error: This expression has type "unit -> #('a M/2.t * string M/2.t)"
-       but an expression was expected of type "int"
-       Line 2, characters 0-21:
-         Definition of module "M/1"
-       Lines 1-3, characters 0-3:
-         Definition of module "M/2"
+Line 4, characters 17-22:
+4 |   let b = stack_ (-42) in
+                     ^^^^^
+Error: This expression is not an allocation site.
 |}]
 
 (**********)
