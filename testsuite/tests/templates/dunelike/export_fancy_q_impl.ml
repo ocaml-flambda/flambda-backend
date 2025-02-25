@@ -1,5 +1,5 @@
 (* Parameters: P *)
 
-module Fancy_q_impl = Fancy(Q)(Q_impl) [@jane.non_erasable.instances]
+module Fancy_q_impl = Fancy_q_impl
 
 let fancy = Util.create ()
