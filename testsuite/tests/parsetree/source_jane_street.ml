@@ -150,6 +150,12 @@ type t11 : bits32
 type t12 : bits64
 |}]
 
+type ('a, 'b : float64, 'c : any) t
+
+[%%expect{|
+type ('a, 'b : float64, 'c : any) t
+|}]
+
 type t = #(int * float#)
 
 let f xs = match xs with
