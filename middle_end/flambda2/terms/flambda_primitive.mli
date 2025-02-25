@@ -82,6 +82,8 @@ module Init_or_assign : sig
     | Initialization
     | Assignment of Alloc_mode.For_assignments.t
 
+  val print : Format.formatter -> t -> unit
+
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
 

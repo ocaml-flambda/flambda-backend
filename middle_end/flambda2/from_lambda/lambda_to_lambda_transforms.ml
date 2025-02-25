@@ -114,8 +114,8 @@ type initialize_array_element_width =
   | Thirty_two of { zero_init : L.lambda }
   | Sixty_four_or_more
 
-let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
-    creation_expr =
+let initialize_array0 env loc ~length array_kind array_set_kind width
+    ~(init : L.lambda) creation_expr =
   let array = Ident.create_local "array" in
   (* If the element size is 32-bit, zero-initialize the last 64-bit word, to
      ensure reproducibility. *)
@@ -126,7 +126,8 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
     | Thirty_two { zero_init } ->
       let zero_init_last_field =
         L.Lprim
-          ( Parraysetu (array_set_kind, Ptagged_int_index),
+          ( Parraysetu
+              (array_set_kind, array_kind, Ptagged_int_index, Pnormal_access),
             (* [Popaque] is used to conceal the out-of-bounds write. *)
             [Lprim (Popaque L.layout_unit, [Lvar array], loc); length; zero_init],
             loc )
@@ -155,7 +156,8 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
       (L.Lprim (Psubint, [length; Lconst (L.const_int 1)], loc))
       Upto
       (Lprim
-         ( Parraysetu (array_set_kind, Ptagged_int_index),
+         ( Parraysetu
+             (array_set_kind, array_kind, Ptagged_int_index, Pnormal_access),
            [Lvar array; Lvar index; init],
            loc ))
   in
@@ -170,11 +172,13 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
   in
   env, Transformed term
 
-let initialize_array env loc ~length array_set_kind width ~init creation_expr =
+let initialize_array env loc ~length array_kind array_set_kind width ~init
+    creation_expr =
   match init with
   | None -> env, Transformed creation_expr
   | Some init ->
-    initialize_array0 env loc ~length array_set_kind width ~init creation_expr
+    initialize_array0 env loc ~length array_kind array_set_kind width ~init
+      creation_expr
 
 let makearray_dynamic_singleton name (mode : L.locality_mode) ~length ~init loc
     =
@@ -274,7 +278,7 @@ let makearray_dynamic_non_scannable_unboxed_product env
   match init with
   | None -> env, Transformed term
   | Some init ->
-    initialize_array0 env loc ~length
+    initialize_array0 env loc ~length lambda_array_kind
       (L.array_set_kind
          (match mode with
          | Alloc_heap -> L.modify_heap
@@ -414,33 +418,35 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
            loc) )
   | Punboxedfloatarray Unboxed_float32 ->
     makearray_dynamic_singleton_uninitialized "unboxed_float32" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedfloatarray_set Unboxed_float32)
+    |> initialize_array env loc ~length (Punboxedfloatarray Unboxed_float32)
+         (Punboxedfloatarray_set Unboxed_float32)
          (Thirty_two
             { zero_init = Lconst (Const_base (Const_unboxed_float32 "0")) })
          ~init
   | Punboxedfloatarray Unboxed_float64 ->
     makearray_dynamic_singleton_uninitialized "unboxed_float64" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedfloatarray_set Unboxed_float64)
-         Sixty_four_or_more ~init
+    |> initialize_array env loc ~length (Punboxedfloatarray Unboxed_float64)
+         (Punboxedfloatarray_set Unboxed_float64) Sixty_four_or_more ~init
   | Punboxedintarray Unboxed_int32 ->
     makearray_dynamic_singleton_uninitialized "unboxed_int32" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_int32)
+    |> initialize_array env loc ~length (Punboxedintarray Unboxed_int32)
+         (Punboxedintarray_set Unboxed_int32)
          (Thirty_two
             { zero_init = Lconst (Const_base (Const_unboxed_int32 0l)) })
          ~init
   | Punboxedintarray Unboxed_int64 ->
     makearray_dynamic_singleton_uninitialized "unboxed_int64" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_int64)
-         Sixty_four_or_more ~init
+    |> initialize_array env loc ~length (Punboxedintarray Unboxed_int64)
+         (Punboxedintarray_set Unboxed_int64) Sixty_four_or_more ~init
   | Punboxedintarray Unboxed_nativeint ->
     makearray_dynamic_singleton_uninitialized "unboxed_nativeint" ~length mode
       loc
-    |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_nativeint)
-         Sixty_four_or_more ~init
+    |> initialize_array env loc ~length (Punboxedintarray Unboxed_nativeint)
+         (Punboxedintarray_set Unboxed_nativeint) Sixty_four_or_more ~init
   | Punboxedvectorarray Unboxed_vec128 ->
     makearray_dynamic_singleton_uninitialized "unboxed_vec128" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedvectorarray_set Unboxed_vec128)
-         Sixty_four_or_more ~init
+    |> initialize_array env loc ~length (Punboxedvectorarray Unboxed_vec128)
+         (Punboxedvectorarray_set Unboxed_vec128) Sixty_four_or_more ~init
   | Pgcscannableproductarray _ ->
     let init = must_have_initializer () in
     makearray_dynamic_scannable_unboxed_product env lambda_array_kind mode
@@ -459,8 +465,8 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     makearray_dynamic_non_scannable_unboxed_product env lambda_array_kind mode
       ~length ~init loc
 
-let arrayblit env ~(src_mutability : L.mutable_flag)
-    ~(dst_array_set_kind : L.array_set_kind) args loc =
+let arrayblit env ~(src_mutability : L.mutable_flag) array_kind
+    ~dst_array_set_kind args loc =
   let src_array_ref_kind =
     (* We don't expect any allocation (e.g. occurring from the reading of a
        [float array]) to persist after simplification. We use [alloc_local] just
@@ -504,7 +510,11 @@ let arrayblit env ~(src_mutability : L.mutable_flag)
       in
       rec_catch_for_for_loop env loc src_index start_pos end_pos direction
         (Lprim
-           ( Parraysetu (dst_array_set_kind, Ptagged_int_index),
+           ( Parraysetu
+               ( dst_array_set_kind,
+                 array_kind,
+                 Ptagged_int_index,
+                 Pnormal_access ),
              [ Lvar dst;
                Lprim
                  ( Paddint,
@@ -513,10 +523,12 @@ let arrayblit env ~(src_mutability : L.mutable_flag)
                Lprim
                  ( Parrayrefu
                      ( src_array_ref_kind,
+                       array_kind,
                        Ptagged_int_index,
-                       match src_mutability with
+                       (match src_mutability with
                        | Immutable | Immutable_unique -> Immutable
-                       | Mutable -> Mutable ),
+                       | Mutable -> Mutable),
+                       Pnormal_access ),
                    [Lvar src; Lvar src_index],
                    loc ) ],
              loc ))
@@ -696,7 +708,11 @@ let transform_primitive env (prim : L.primitive) args loc =
   match prim with
   | Pmakearray_dynamic (lambda_array_kind, mode, has_init) ->
     makearray_dynamic env lambda_array_kind mode has_init args loc
-  | Parrayblit { src_mutability; dst_array_set_kind } ->
-    arrayblit env ~src_mutability ~dst_array_set_kind args loc
+  | Parrayblit
+      { src_mutability;
+        array_kind;
+        dst_array_set_kind;
+      } ->
+    arrayblit env ~src_mutability array_kind ~dst_array_set_kind args loc
   | _ -> env, transform_primitive0 env prim args loc
   [@@ocaml.warning "-fragile-match"]
