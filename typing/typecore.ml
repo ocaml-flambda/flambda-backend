@@ -4190,12 +4190,9 @@ let rec is_nonexpansive exp =
   | Texp_assert (exp, _) ->
       is_nonexpansive exp
   | Texp_apply (
-      { exp_desc = Texp_ident (_, _, {val_kind =
-             Val_prim {Primitive.prim_name =
-                         ("%raise" | "%reraise" | "%raise_notrace")}},
-             Id_prim _, _) },
-      [Nolabel, Arg (e, _)], _, _, _) ->
-     is_nonexpansive e
+      { exp_desc = Texp_ident (_, _, {val_kind = Val_prim prim}, Id_prim _, _) },
+      args, _, _, _) ->
+     is_nonexpansive_prim prim args
   | Texp_array (_, _, _ :: _, _)
   | Texp_apply _
   | Texp_try _
@@ -4221,6 +4218,15 @@ let rec is_nonexpansive exp =
   (* Texp_hole can always be replaced by a field read from the old allocation,
      which is non-expansive: *)
   | Texp_hole _ -> true
+
+and is_nonexpansive_prim (prim : Primitive.description) args =
+  match prim.prim_name, args with
+  | ("%raise" | "%reraise" | "%raise_notrace"), [Nolabel, Arg (e, _)] ->
+    is_nonexpansive e
+  | ("%identity" | "%obj_magic"), [Nolabel, Arg (e, _)]
+    when not (Language_extension.erasable_extensions_only ()) ->
+    is_nonexpansive e
+  | _ -> false
 
 and is_nonexpansive_mod mexp =
   match mexp.mod_desc with
