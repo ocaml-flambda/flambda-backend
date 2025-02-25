@@ -56,8 +56,6 @@ Error: This type "int Define_with_kinds.my_list" should be an instance of type
 
 type my_list_test = int ref my_list require_portable
 [%%expect{|
-type my_list_test = int ref Define_with_kinds.my_list require_portable
-|}, Principal{|
 Line 1, characters 20-35:
 1 | type my_list_test = int ref my_list require_portable
                         ^^^^^^^^^^^^^^^

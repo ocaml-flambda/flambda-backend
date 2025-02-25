@@ -87,12 +87,13 @@ type ('a : mutable_data) t : mutable_data = Foo of { x : 'a option }
 [%%expect {|
 type t = Foo of { mutable x : int; }
 type t = Foo of { x : int; } | Bar of { y : int; mutable z : int; }
-type t = Foo of { mutable x : int ref; }
-type t = Foo of int
-type ('a : mutable_data) t = Foo of 'a
-type ('a : immutable_data) t = Foo of 'a | Bar
-type t = Foo of int ref | Bar of string
-type ('a : mutable_data) t = Foo of { x : 'a option; }
+Line 3, characters 0-54:
+3 | type t : mutable_data = Foo of { mutable x : int ref }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value mod many unyielding
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of mutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 (* annotations that aren't mutable_data or immutable_data *)
@@ -144,7 +145,7 @@ type t : immutable_data = Foo | Bar of int ref
 Line 1, characters 0-46:
 1 | type t : immutable_data = Foo | Bar of int ref
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data
+Error: The kind of type "t" is value
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -254,14 +255,13 @@ type 'a t : immutable_data with 'a -> 'a = Foo of { x : 'a -> 'a } | Bar of ('a 
 type 'a t = Foo
 type 'a t = Foo of 'a
 type 'a t = Bar of { mutable x : 'a; }
-type 'a t = Foo of 'a ref
-type ('a, 'b) t = Foo of { x : 'a; y : 'b; z : 'a; }
-type ('a, 'b) t = Foo of { x : 'a; y : 'b; mutable z : 'a; }
-type 'a t = Foo of { x : unit -> unit; y : 'a; }
-type 'a t = Foo | Bar of { x : int; }
-type 'a t = Foo of int
-type 'a t = Foo of 'a option
-type 'a t = Foo of { x : 'a -> 'a; } | Bar of ('a -> 'a)
+Line 4, characters 0-48:
+4 | type 'a t : mutable_data with 'a = Foo of 'a ref
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of mutable_data
+         because of the annotation on the declaration of the type t.
 |}]
 
 type 'a t : immutable_data with 'a = Foo of { mutable x : 'a }
@@ -841,7 +841,7 @@ Error: Signature mismatch:
          type t = Foo of int ref | Bar of string
        is not included in
          type t : immutable_data
-       The kind of the first is mutable_data
+       The kind of the first is value
          because of the definition of t at line 4, characters 2-41.
        But the kind of the first must be a subkind of immutable_data
          because of the definition of t at line 2, characters 2-25.

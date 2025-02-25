@@ -111,7 +111,10 @@ let foo (t : int ref option @@ nonportable once) =
     use_portable t;
     use_many t
 [%%expect{|
-val foo : int ref option @ once -> unit = <fun>
+Line 2, characters 17-18:
+2 |     use_portable t;
+                     ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 let foo (t : int ref option @@ local) =
@@ -381,7 +384,10 @@ let foo (t : int ref list @@ nonportable once) =
     use_portable t;
     use_many t
 [%%expect{|
-val foo : int ref list @ once -> unit = <fun>
+Line 2, characters 17-18:
+2 |     use_portable t;
+                     ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 let foo (t : int ref list @@ local) =
