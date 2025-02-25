@@ -432,40 +432,122 @@ module Mod_bounds = struct
       nullability
     }
 
-  let join =
-    Map2.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) ->
-            let (module Bound_ops) = Axis.get axis in
-            Bound_ops.join)
-      }
+  let join
+      { locality;
+        linearity;
+        uniqueness;
+        portability;
+        contention;
+        yielding;
+        externality;
+        nullability
+      } t2 =
+    let locality = Locality.Const.join locality t2.locality in
+    let linearity = Linearity.Const.join linearity t2.linearity in
+    let uniqueness = Uniqueness.Const_op.join uniqueness t2.uniqueness in
+    let portability = Portability.Const.join portability t2.portability in
+    let contention = Contention.Const_op.join contention t2.contention in
+    let yielding = Yielding.Const.join yielding t2.yielding in
+    let externality = Externality.join externality t2.externality in
+    let nullability = Nullability.join nullability t2.nullability in
+    { locality;
+      linearity;
+      uniqueness;
+      portability;
+      contention;
+      yielding;
+      externality;
+      nullability
+    }
 
-  let meet =
-    Map2.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) ->
-            let (module Bound_ops) = Axis.get axis in
-            Bound_ops.meet)
-      }
+  let meet
+      { locality;
+        linearity;
+        uniqueness;
+        portability;
+        contention;
+        yielding;
+        externality;
+        nullability
+      } t2 =
+    let locality = Locality.Const.meet locality t2.locality in
+    let linearity = Linearity.Const.meet linearity t2.linearity in
+    let uniqueness = Uniqueness.Const_op.meet uniqueness t2.uniqueness in
+    let portability = Portability.Const.meet portability t2.portability in
+    let contention = Contention.Const_op.meet contention t2.contention in
+    let yielding = Yielding.Const.meet yielding t2.yielding in
+    let externality = Externality.meet externality t2.externality in
+    let nullability = Nullability.meet nullability t2.nullability in
+    { locality;
+      linearity;
+      uniqueness;
+      portability;
+      contention;
+      yielding;
+      externality;
+      nullability
+    }
 
-  let less_or_equal =
-    Fold2.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) b1 b2 ->
-            let (module Bound_ops) = Axis.get axis in
-            Sub_result.of_le_result (Bound_ops.less_or_equal b1 b2)
-              ~failure_reason:(fun () -> [Axis_disagreement (Pack axis)]))
-      }
-      ~combine:Sub_result.combine
+  let less_or_equal
+      { locality;
+        linearity;
+        uniqueness;
+        portability;
+        contention;
+        yielding;
+        externality;
+        nullability
+      } t2 =
+    let axis_less_or_equal ~le ~axis a b : Sub_result.t =
+      match le a b, le b a with
+      | true, true -> Equal
+      | true, false -> Less
+      | false, _ -> Not_le [Axis_disagreement axis]
+    in
+    Sub_result.combine
+      (axis_less_or_equal ~le:Locality.Const.le
+         ~axis:(Pack (Modal (Comonadic Areality))) locality t2.locality)
+    @@ Sub_result.combine
+         (axis_less_or_equal ~le:Uniqueness.Const_op.le
+            ~axis:(Pack (Modal (Monadic Uniqueness))) uniqueness t2.uniqueness)
+    @@ Sub_result.combine
+         (axis_less_or_equal ~le:Linearity.Const.le
+            ~axis:(Pack (Modal (Comonadic Linearity))) linearity t2.linearity)
+    @@ Sub_result.combine
+         (axis_less_or_equal ~le:Contention.Const_op.le
+            ~axis:(Pack (Modal (Monadic Contention))) contention t2.contention)
+    @@ Sub_result.combine
+         (axis_less_or_equal ~le:Portability.Const.le
+            ~axis:(Pack (Modal (Comonadic Portability))) portability
+            t2.portability)
+    @@ Sub_result.combine
+         (axis_less_or_equal ~le:Yielding.Const.le
+            ~axis:(Pack (Modal (Comonadic Yielding))) yielding t2.yielding)
+    @@ Sub_result.combine
+         (axis_less_or_equal ~le:Externality.le
+            ~axis:(Pack (Nonmodal Externality)) externality t2.externality)
+    @@ axis_less_or_equal ~le:Nullability.le ~axis:(Pack (Nonmodal Nullability))
+         nullability t2.nullability
 
-  let equal =
-    Fold2.f
-      { f =
-          (fun (type axis) ~(axis : axis Axis.t) ->
-            let (module Bound_ops) = Axis.get axis in
-            Bound_ops.equal)
-      }
-      ~combine:( && )
+  let equal
+      { locality;
+        linearity;
+        uniqueness;
+        portability;
+        contention;
+        yielding;
+        externality;
+        nullability
+      } t2 =
+    let equal ~le a b = le a b && le b a in
+    equal ~le:Locality.Const.le locality t2.locality
+    && equal ~le:Linearity.Const.le linearity t2.linearity
+    && equal ~le:Uniqueness.Const_op.le uniqueness t2.uniqueness
+    && equal ~le:Portability.Const.le portability t2.portability
+    && equal ~le:Contention.Const_op.le contention t2.contention
+    && equal ~le:Yielding.Const.le yielding t2.yielding
+    && equal ~le:Externality.le externality t2.externality
+    && equal ~le:Nullability.le nullability t2.nullability
 
   (** Get all axes that are set to max *)
   let get_max_axes t =
