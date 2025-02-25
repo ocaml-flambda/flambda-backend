@@ -205,6 +205,14 @@ let clear_missing {imports; _} =
 let add_import {imported_units; _} s =
   imported_units := CU.Name.Set.add s !imported_units
 
+let rec add_imports_in_name penv (g : Global_module.Name.t) =
+  add_import penv (g |> CU.Name.of_head_of_global_name);
+  let add_in_arg ({ param; value } : Global_module.Name.argument) =
+    add_imports_in_name penv param;
+    add_imports_in_name penv value
+  in
+  List.iter add_in_arg g.args
+
 let register_import_as_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
 
@@ -964,7 +972,7 @@ let check ~allow_hidden penv f ~loc name =
     (* PR#6843: record the weak dependency ([add_import]) regardless of
        whether the check succeeds, to help make builds more
        deterministic. *)
-    add_import penv (name |> CU.Name.of_head_of_global_name);
+    add_imports_in_name penv name;
     let _ : Global_module.t =
       (* Record an overapproximation of the elaborated form of this name so that
          substitution will work when the signature we're compiling is imported
