@@ -104,46 +104,8 @@ val discontinue_with_backtrace :
     resumed.
   *)
 
-(* CR effects: implement when pointers between different stacks are allowed. *)
-(* val continue_local :
-  local_ ('a, 'b, 'es) Continuation.t
-  -> 'a
-  -> local_ 'es Handler.List.t
-  -> local_ 'b *)
-(** [continue_local k v hs] resumes the continuation [k] with value [v].
-    [hs] are used to handle [k]'s additional effects.
 
-    @raise Continuation_already_resumed if the continuation has already been
-    resumed.
-  *)
 
-(* CR effects: implement when pointers between different stacks are allowed. *)
-(* val discontinue_local :
-  local_ ('a, 'b, 'es) Continuation.t
-  -> exn
-  -> local_ 'es Handler.List.t
-  -> local_ 'b *)
-(** [discontinue k e hs] resumes the continuation [k] by raising the
-    exception [e]. [hs] are used to handle [k]'s additional effects.
-
-    @raise Continuation_already_resumed if the continuation has already been
-    resumed.
-  *)
-
-(* CR effects: implement when pointers between different stacks are allowed. *)
-(* val discontinue_local_with_backtrace :
-  local_ ('a,'b, 'es) Continuation.t
-  -> exn
-  -> Printexc.raw_backtrace
-  -> local_ 'es Handler.List.t
-  -> local_ 'b *)
-(** [discontinue_with k e bt hs] resumes the continuation [k] by raising the
-    exception [e] using the raw backtrace [bt] as the origin of the exception.
-    [hs] are used to handle [k]'s additional effects.
-
-    @raise Continuation_already_resumed if the continuation has already been
-    resumed.
-  *)
 
 (** The signature for effects with no type parameters *)
 module type S = sig
@@ -200,13 +162,6 @@ module type S = sig
       is passed a [t Handler.t] so that it can perform operations from effect
       [t]. *)
 
-  (* CR effects: implement when pointers between different stacks are allowed. *)
-  (* val fiber_local :
-    local_ (local_ t Handler.t -> 'a -> 'b)
-    -> local_ ('a, ('b, unit) Result.t, unit) Continuation.t *)
-  (** [fiber_local f] constructs a continuation that runs the computation [f].
-      [f] is passed a [t Handler.t] so that it can perform operations from effect
-      [t]. *)
 
   val fiber_with :
     'es Handler.List.Length.t @ local
@@ -222,13 +177,6 @@ module type S = sig
       immediately continues it. [f] is passed a [t Handler.t] so that it can
       perform operations from effect [t]. *)
 
-  (* CR effects: implement when pointers between different stacks are allowed. *)
-  (* val run_local :
-    local_ (local_ t Handler.t -> 'a)
-    -> local_ ('a, unit) Result.t *)
-  (** [run_local f] constructs a continuation that runs the computation
-      [f], and immediately continues it. [f] is passed a [t Handler.t]
-      so that it can perform operations from effect [t]. *)
 
   val run_with :
     'es Handler.List.t @ local
@@ -318,13 +266,6 @@ module type S1 = sig
       is passed a [t Handler.t] so that it can perform operations from effect
       [t]. *)
 
-  (* CR effects: implement when pointers between different stacks are allowed. *)
-  (* val fiber_local :
-    local_ (local_ 'p t Handler.t -> 'a -> 'b)
-    -> local_ ('a, ('b, 'p, unit) Result.t, unit) Continuation.t *)
-  (** [fiber_local f] constructs a continuation that runs the
-      computation [f]. [f] is passed a [t Handler.t] so that it can
-      perform operations from effect [t]. *)
 
   val fiber_with :
     'es Handler.List.Length.t @ local
@@ -339,12 +280,6 @@ module type S1 = sig
   (** [run f] constructs a continuation that runs the computation [f], and
       immediately continues it. *)
 
-  (* CR effects: implement when pointers between different stacks are allowed. *)
-  (* val run_local :
-    local_ (local_ 'p t Handler.t -> 'a)
-    -> local_ ('a, 'p, unit) Result.t *)
-  (** [run_local f] constructs a continuation that runs the computation
-      [f], and immediately continues it. *)
 
   val run_with :
     'es Handler.List.t @ local
@@ -426,13 +361,6 @@ module type S2 = sig
       is passed a [t Handler.t] so that it can perform operations from effect
       [t]. *)
 
-  (* CR effects: implement when pointers between different stacks are allowed. *)
-  (* val fiber_local :
-    local_ (local_ ('p, 'q) t Handler.t -> 'a -> 'b)
-    -> local_ ('a, ('b, 'p, 'q, unit) Result.t, unit) Continuation.t *)
-  (** [fiber_local f] constructs a continuation that runs the
-      computation [f]. [f] is passed a [t Handler.t] so that it can
-      perform operations from effect [t]. *)
 
   val fiber_with :
     'es Handler.List.Length.t @ local
@@ -449,12 +377,6 @@ module type S2 = sig
   (** [run f] constructs a continuation that runs the computation [f], and
       immediately continues it. *)
 
-  (* CR effects: implement when pointers between different stacks are allowed. *)
-  (* val run_local :
-    local_ (local_ ('p, 'q) t Handler.t -> 'a)
-    -> local_ ('a, 'p, 'q, unit) Result.t *)
-  (** [run_local f] constructs a continuation that runs the computation
-      [f], and immediately continues it. *)
 
   val run_with :
     'es Handler.List.t @ local
