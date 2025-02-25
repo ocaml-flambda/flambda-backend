@@ -1251,11 +1251,11 @@ type t13f = t_float64 option;;
 Line 1, characters 12-21:
 1 | type t13f = t_float64 option;;
                 ^^^^^^^^^
-Error: This type "t_float64" should be an instance of type "('a : value)"
+Error: This type "t_float64" should be an instance of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13f (v : t_float64) = Some v;;
@@ -1264,11 +1264,11 @@ Line 1, characters 32-33:
 1 | let x13f (v : t_float64) = Some v;;
                                     ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13f v =
@@ -1279,12 +1279,12 @@ let x13f v =
 Line 3, characters 19-20:
 3 |   | Some v -> f_id v
                        ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_float64"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 (* list *)
@@ -1293,11 +1293,11 @@ type t13f = t_float64 list;;
 Line 1, characters 12-21:
 1 | type t13f = t_float64 list;;
                 ^^^^^^^^^
-Error: This type "t_float64" should be an instance of type "('a : value)"
+Error: This type "t_float64" should be an instance of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 (v : t_float64) = [v];;
@@ -1306,11 +1306,11 @@ Line 1, characters 27-28:
 1 | let x13 (v : t_float64) = [v];;
                                ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 v =
@@ -1321,12 +1321,12 @@ let x13 v =
 Line 3, characters 16-17:
 3 |   | [v] -> f_id v
                     ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_float64"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* array *)
@@ -1370,7 +1370,7 @@ Error:
        The layout of foo14 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of foo14 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (****************************************************)
@@ -1556,11 +1556,11 @@ Line 2, characters 15-16:
 2 |   let g ?(x2 = x) () = () in
                    ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}]
 
 (*********************************************************)

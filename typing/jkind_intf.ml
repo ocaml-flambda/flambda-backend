@@ -246,9 +246,6 @@ module History = struct
 
   (* CR layouts v3: move some [value_creation_reason]s
      related to objects here. *)
-  (* CR layouts v3: add a copy of [Type_argument] once we support
-     enough subjkinding for interfaces to accept [value_or_null]
-     in [list] or [option]. *)
   type value_or_null_creation_reason =
     | Primitive of Ident.t
     | Tuple_element
@@ -259,6 +256,11 @@ module History = struct
     | Probe
     | Captured_in_object
     | Let_rec_variable of Ident.t
+    | Type_argument of
+        { parent_path : Path.t;
+          position : int;
+          arity : int
+        }
 
   type value_creation_reason =
     | Class_let_binding

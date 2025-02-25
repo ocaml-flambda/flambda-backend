@@ -1069,11 +1069,11 @@ type t13 = t_void option;;
 Line 1, characters 11-17:
 1 | type t13 = t_void option;;
                ^^^^^^
-Error: This type "t_void" should be an instance of type "('a : value)"
+Error: This type "t_void" should be an instance of type "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13 (VV v) = Some v;;
@@ -1082,11 +1082,11 @@ Line 1, characters 22-23:
 1 | let x13 (VV v) = Some v;;
                           ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13 v =
@@ -1097,12 +1097,12 @@ let x13 v =
 Line 3, characters 17-18:
 3 |   | Some v -> VV v
                      ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_void"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 (* list *)
@@ -1112,11 +1112,11 @@ type t13 = t_void list;;
 Line 1, characters 11-17:
 1 | type t13 = t_void list;;
                ^^^^^^
-Error: This type "t_void" should be an instance of type "('a : value)"
+Error: This type "t_void" should be an instance of type "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 (VV v) = [v];;
@@ -1125,11 +1125,11 @@ Line 1, characters 18-19:
 1 | let x13 (VV v) = [v];;
                       ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 v =
@@ -1140,12 +1140,12 @@ let x13 v =
 Line 3, characters 14-15:
 3 |   | [v] -> VV v
                   ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_void"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* array *)
@@ -1199,7 +1199,7 @@ Error:
        The layout of foo14 is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of foo14 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (****************************************************)
@@ -1389,11 +1389,11 @@ Line 2, characters 15-16:
 2 |   let g ?(x2 = x) () = () in
                    ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}]
 
 (*********************************************************)
