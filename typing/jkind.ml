@@ -496,7 +496,7 @@ module Mod_bounds = struct
 
   (** Get all axes that are set to max *)
   let get_max_axes t =
-    let add_if b ax axis_set =
+    let[@inline] add_if b ax axis_set =
       if b then Axis_set.add axis_set ax else axis_set
     in
     Axis_set.empty
