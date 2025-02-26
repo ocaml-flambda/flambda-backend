@@ -1,4 +1,5 @@
 (* TEST
+ flags = "-extension-universe beta";
 *)
 
 let x = Null

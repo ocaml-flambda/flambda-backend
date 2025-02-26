@@ -10,3 +10,11 @@
 
 open Stdlib_beta
 
+
+(* Test that [Or_null] is exported. *)
+
+let () =
+  match Or_null.null with
+  | Null -> ()
+  | This _ -> assert false
+;;

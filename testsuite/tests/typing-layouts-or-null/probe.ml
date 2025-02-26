@@ -1,4 +1,5 @@
 (* TEST
+ flags = "-extension-universe beta";
  arch_amd64;
  not-macos;
  native;
