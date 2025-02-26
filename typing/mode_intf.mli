@@ -28,6 +28,10 @@ module type Lattice = sig
 
   val le : t -> t -> bool
 
+  (** [equal a b] is equivalent to [le a b && le b a], but defined separately for
+      performance reasons *)
+  val equal : t -> t -> bool
+
   val join : t -> t -> t
 
   val meet : t -> t -> t

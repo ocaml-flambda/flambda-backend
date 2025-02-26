@@ -474,15 +474,14 @@ module Mod_bounds = struct
          (nullability t1) (nullability t2)
 
   let equal t1 t2 =
-    let equal ~le a b = le a b && le b a in
-    equal ~le:Locality.le (locality t1) (locality t2)
-    && equal ~le:Linearity.le (linearity t1) (linearity t2)
-    && equal ~le:Uniqueness.le (uniqueness t1) (uniqueness t2)
-    && equal ~le:Portability.le (portability t1) (portability t2)
-    && equal ~le:Contention.le (contention t1) (contention t2)
-    && equal ~le:Yielding.le (yielding t1) (yielding t2)
-    && equal ~le:Externality.le (externality t1) (externality t2)
-    && equal ~le:Nullability.le (nullability t1) (nullability t2)
+    Locality.equal (locality t1) (locality t2)
+    && Linearity.equal (linearity t1) (linearity t2)
+    && Uniqueness.equal (uniqueness t1) (uniqueness t2)
+    && Portability.equal (portability t1) (portability t2)
+    && Contention.equal (contention t1) (contention t2)
+    && Yielding.equal (yielding t1) (yielding t2)
+    && Externality.equal (externality t1) (externality t2)
+    && Nullability.equal (nullability t1) (nullability t2)
 
   let[@inline] get (type a) ~(axis : a Axis.t) t : a =
     match axis with

@@ -51,7 +51,9 @@ module Lattices = struct
 
     let legacy = L.legacy
 
-    let le a b = L.le b a
+    let[@inline] le a b = L.le b a
+
+    let equal = L.equal
 
     let join = L.meet
 
@@ -111,8 +113,13 @@ module Lattices = struct
 
       let legacy = Global
 
-      let le a b =
+      let[@inline] le a b =
         match a, b with Global, _ | _, Local -> true | Local, Global -> false
+
+      let[@inline] equal a b =
+        match a, b with
+        | Global, Global | Local, Local -> true
+        | Global, Local | Local, Global -> false
 
       let join a b =
         match a, b with
@@ -147,6 +154,16 @@ module Lattices = struct
 
       let legacy = Global
 
+      let[@inline] equal a b =
+        match a, b with
+        | Global, Global -> true
+        | Regional, Regional -> true
+        | Local, Local -> true
+        | Global, (Regional | Local)
+        | Regional, (Global | Local)
+        | Local, (Global | Regional) ->
+          false
+
       let join a b =
         match a, b with
         | Local, _ | _, Local -> Local
@@ -159,7 +176,7 @@ module Lattices = struct
         | Regional, _ | _, Regional -> Regional
         | Local, Local -> Local
 
-      let le a b =
+      let[@inline] le a b =
         match a, b with
         | Global, _ | _, Local -> true
         | _, Global | Local, _ -> false
@@ -188,10 +205,16 @@ module Lattices = struct
 
       let legacy = Aliased
 
-      let le a b =
+      let[@inline] le a b =
         match a, b with
         | Unique, _ | _, Aliased -> true
         | Aliased, Unique -> false
+
+      let[@inline] equal a b =
+        match a, b with
+        | Unique, Unique -> true
+        | Aliased, Aliased -> true
+        | Unique, Aliased | Aliased, Unique -> false
 
       let join a b =
         match a, b with
@@ -225,8 +248,14 @@ module Lattices = struct
 
       let legacy = Many
 
-      let le a b =
+      let[@inline] le a b =
         match a, b with Many, _ | _, Once -> true | Once, Many -> false
+
+      let[@inline] equal a b =
+        match a, b with
+        | Many, Many -> true
+        | Once, Once -> true
+        | Many, Once | Once, Many -> false
 
       let join a b =
         match a, b with Once, _ | _, Once -> Once | Many, Many -> Many
@@ -254,10 +283,16 @@ module Lattices = struct
 
       let legacy = Nonportable
 
-      let le a b =
+      let[@inline] le a b =
         match a, b with
         | Portable, _ | _, Nonportable -> true
         | Nonportable, Portable -> false
+
+      let[@inline] equal a b =
+        match a, b with
+        | Portable, Portable -> true
+        | Nonportable, Nonportable -> true
+        | Portable, Nonportable | Nonportable, Portable -> false
 
       let join a b =
         match a, b with
@@ -290,11 +325,21 @@ module Lattices = struct
 
       let legacy = Uncontended
 
-      let le a b =
+      let[@inline] le a b =
         match a, b with
         | Uncontended, _ | _, Contended -> true
         | _, Uncontended | Contended, _ -> false
         | Shared, Shared -> true
+
+      let[@inline] equal a b =
+        match a, b with
+        | Contended, Contended -> true
+        | Shared, Shared -> true
+        | Uncontended, Uncontended -> true
+        | Contended, (Shared | Uncontended)
+        | Shared, (Contended | Uncontended)
+        | Uncontended, (Contended | Shared) ->
+          false
 
       let join a b =
         match a, b with
@@ -331,10 +376,16 @@ module Lattices = struct
 
       let legacy = Unyielding
 
-      let le a b =
+      let[@inline] le a b =
         match a, b with
         | Unyielding, _ | _, Yielding -> true
         | Yielding, Unyielding -> false
+
+      let[@inline] equal a b =
+        match a, b with
+        | Yielding, Yielding -> true
+        | Unyielding, Unyielding -> true
+        | Yielding, Unyielding | Unyielding, Yielding -> false
 
       let join a b =
         match a, b with
@@ -380,6 +431,12 @@ module Lattices = struct
       let { uniqueness = uniqueness2; contention = contention2 } = m2 in
       Uniqueness.le uniqueness1 uniqueness2
       && Contention.le contention1 contention2
+
+    let equal m1 m2 =
+      let { uniqueness = uniqueness1; contention = contention1 } = m1 in
+      let { uniqueness = uniqueness2; contention = contention2 } = m2 in
+      Uniqueness.equal uniqueness1 uniqueness2
+      && Contention.equal contention1 contention2
 
     let join m1 m2 =
       let uniqueness = Uniqueness.join m1.uniqueness m2.uniqueness in
@@ -456,6 +513,26 @@ module Lattices = struct
       && Linearity.le linearity1 linearity2
       && Portability.le portability1 portability2
       && Yielding.le yielding1 yielding2
+
+    let equal m1 m2 =
+      let { areality = areality1;
+            linearity = linearity1;
+            portability = portability1;
+            yielding = yielding1
+          } =
+        m1
+      in
+      let { areality = areality2;
+            linearity = linearity2;
+            portability = portability2;
+            yielding = yielding2
+          } =
+        m2
+      in
+      Areality.equal areality1 areality2
+      && Linearity.equal linearity1 linearity2
+      && Portability.equal portability1 portability2
+      && Yielding.equal yielding1 yielding2
 
     let join m1 m2 =
       let areality = Areality.join m1.areality m2.areality in
@@ -2010,6 +2087,12 @@ module Value_with (Areality : Areality) = struct
       let m0 = split m0 in
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
+
+    let equal m0 m1 =
+      let m0 = split m0 in
+      let m1 = split m1 in
+      Comonadic.equal m0.comonadic m1.comonadic
+      && Monadic.equal m0.monadic m1.monadic
 
     let print ppf m =
       let { monadic; comonadic } = split m in
