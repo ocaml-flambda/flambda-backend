@@ -1956,7 +1956,7 @@ let add_with_bounds ~modality ~type_expr t =
 let has_with_bounds t =
   match t.jkind.with_bounds with
   | No_with_bounds -> false
-  | With_bounds _ -> true
+  | With_bounds tys -> not (With_bounds_types.is_empty tys)
 
 (******************************)
 (* construction *)
