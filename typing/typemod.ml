@@ -517,7 +517,32 @@ let check_well_formed_module env loc context mty =
     in
     let env, super = iterator_with_env env in
     { super with
-      it_type_expr = (fun _self _ty -> ());
+      it_type_expr = (fun self ty ->
+        (* Check that an unboxed path is valid because substitutions can
+           remove an unboxed version of a type.
+           See [tests/typing-layouts/hash_types.ml]. *)
+        begin match get_desc ty with
+        | Tconstr (Pextra_ty(path, Punboxed_ty) as path_unboxed, _, _) ->
+          let env = Lazy.force !env in
+          begin try ignore (Env.find_type path_unboxed env) with
+          | Not_found ->
+            let err =
+              Badly_formed_signature(context, Typedecl.No_unboxed_version path)
+            in
+            raise (Error (loc, env, err))
+          end
+        | _ -> ()
+        end;
+        super.it_type_expr self ty
+      );
+      it_type_declaration = (fun self td ->
+        (* Optimization: the above check on [type_expr]s doesn't need to check
+           unboxed versions, so we override [it_type_declaration] to skip
+           [td.type_unboxed_version]. *)
+        List.iter (self.it_type_expr self) td.type_params;
+        Option.iter (self.it_type_expr self) td.type_manifest;
+        self.it_type_kind self td.type_kind
+      );
       it_signature = (fun self sg ->
         let env_before = !env in
         let env = lazy (Env.add_signature sg (Lazy.force env_before)) in
@@ -525,7 +550,8 @@ let check_well_formed_module env loc context mty =
         super.it_signature self sg);
     }
   in
-  iterator.it_module_type iterator mty
+  iterator.it_module_type iterator mty;
+  Btype.(unmark_iterators.it_module_type unmark_iterators) mty
 
 let () = Env.check_well_formed_module := check_well_formed_module
 

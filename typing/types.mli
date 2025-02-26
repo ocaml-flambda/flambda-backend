@@ -689,27 +689,14 @@ type type_declaration =
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
     type_unboxed_version : type_declaration option;
-    (* stores the unboxed version of this type. this is always [Some] for
-       predefined types with unboxed versions (e.g. [float]) and boxed records.
-       for aliases of types with unboxed versions, this may be [None] even
-       though the alias has an unboxed version;
-       [Env.find_type_unboxed_version_data] will follow aliases.
-
-       as an optimization, many aliases do store their unboxed versions, but
-       not always, e.g. they don't when the type they alias gains an unboxed
-       version through [with type] substition. this only applies to aliases:
-       see the first invariant below
+    (* stores the unboxed version of that this type introduces: this is [Some]
+       for predefined types with unboxed versions (e.g. [float]) and boxed
+       records, but [None] for aliases of these types
 
        invariants:
-       1. if [type_kind] is a boxed record, then [type_unboxed_version] is
-          accurate.
-       2. there are no "twice-unboxed" types: the [type_declaration] stored here
+       1. there are no "twice-unboxed" types: the [type_declaration] stored here
           itself has [type_unboxed_version = None].
-       3. if the unboxed version is a [Tconstr], then so is the boxed version,
-          and the path of the unboxed version is
-          [Path.unboxed_version <path of boxed version>
-       4. likewise, the Uid of the unboxed version is
-          [Uid.unboxed_version <uid of boxed version>]
+       2. the Uid of the unboxed version is [Uid.unboxed_version <uid of boxed>]
     *)
   }
 

@@ -1058,7 +1058,7 @@ let transl_declaration env sdecl (id, uid) =
         type_uid = uid;
         type_unboxed_version = None;
         (* Unboxed versions are computed after all declarations have been
-           translated, in [update_unboxed_versions] *)
+           translated, in [derive_unboxed_versions] *)
       } in
   (* Check constraints *)
     List.iter
@@ -1105,208 +1105,53 @@ let transl_declaration env sdecl (id, uid) =
     decl, typ_shape
   end
 
-(* A type should get an unboxed version if it's an alias of a type with an
-   unboxed version, or if it's a record with representation [Record_boxed].
-   [derive_unboxed_version] implements something slightly different in the case
-   where the type has a kind and a manifest, to give better errors.
+(* Record declarations with representation [Record_unboxed] get an implicit
+   unboxed record stored in [type_unboxed_version]. If that record is also an
+   alias, so is its stored unboxed version. E.g. [type t = r = { i : int }]'s
+   unboxed version gets kind [#{ i : int}] and manifest [r#].
 
-   We say a kind or manifest either:
-   1. Implies an unboxed version (kind: is a boxed record; manifest: is an alias
-      of a type with unboxed version),
-   2. is "neutral" (kind: is abstract; manifest: is [None]),
-   3. or implies the *lack* of an unboxed version (everything else).
-
-   If either the kind or the manifest imply a lack of an unboxed version, and
-   the other piece implies an unboxed version, then the kind and manifest must
-   not match, and the type will later fail [check_coherence]. In this case, we
-   choose to not give the type an unboxed version, in order to give better
-   error messages for recursive type declarations.
-
-   E.g., [type t = { i : int } [@@unboxed] and s = t = { i : int }] should
-   complain about a mismatch in record representations, not that [t#] has no
-   unboxed version, which would occur while looking up [s#].
+   Note that all aliases of types with unboxed versions, with an abstract kind,
+   also have unboxed versions, but these aren't stored in
+   [type_unboxed_version].
 *)
-let derive_unboxed_version find_type decl =
-  let unboxed_kind_jkind =
-    match decl.type_kind with
-    | Type_abstract a ->
-      `Abstract_kind a
-    | Type_record_unboxed_product _ | Type_variant _
-    | Type_open
-    | Type_record _ ->
-      `No_unboxed_version
+let gets_unboxed_version decl =
+  (* CR-soon layouts v7.2: update for implicit unboxed records *)
+  ignore decl;
+  false
+let derive_unboxed_version env unboxed_versions_in_group decl =
+  (* CR-soon layouts v7.2: update for implicit unboxed records *)
+  ignore env;
+  ignore unboxed_versions_in_group;
+  ignore decl;
+  None
+
+let derive_unboxed_versions decls env =
+  let unboxed_versions_in_group =
+    Path.Set.of_list
+      (List.filter_map
+         (fun (id, d) ->
+            if gets_unboxed_version d then Some (Path.Pident id) else None)
+        decls)
   in
-  let unboxed_manifest =
-    match decl.type_manifest with
-    | None -> `No_manifest
-    | Some ty ->
-      match get_desc ty with
-      | Tconstr (path, args, _) ->
-        begin match path with
-        | Pextra_ty (_, Punboxed_ty) -> `No_unboxed_version
-        | _ ->
-        begin match find_type path with
-        | { type_unboxed_version = None; _ } -> `No_unboxed_version
-        | { type_unboxed_version = Some unboxed_version ; _ } ->
-          (* CR layouts v11: we'll have to update type_jkind once we have
-              [layout_of] layouts *)
-          `Unboxed_manifest_jkind
-            (Ctype.newconstr (Path.unboxed_version path) args,
-              unboxed_version.type_jkind)
-        | exception Not_found ->
-          Misc.fatal_error "Typedecl.derive_unboxed_version"
-        end
-        end
-      | _ ->
-        `No_unboxed_version
-  in
-  let unboxed_kind_jkind_manifest =
-    match unboxed_kind_jkind, unboxed_manifest with
-    | `No_unboxed_version, _ | _, `No_unboxed_version
-    | `Abstract_kind _, `No_manifest -> None
-    | `Abstract_kind a, `Unboxed_manifest_jkind (ty, jkind) ->
-      Some (Type_abstract a, jkind, Some ty)
-  in
-  match unboxed_kind_jkind_manifest with
-  | None -> None
-  | Some (kind, jkind, manifest) ->
-    Some {
-      type_params = decl.type_params;
-      type_arity = decl.type_arity;
-      type_kind = kind;
-      type_jkind = jkind;
-      type_private = decl.type_private;
-      type_manifest = manifest;
-      type_variance =
-        Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
-      type_separability =
-        Types.Separability.default_signature ~arity:decl.type_arity;
-      type_is_newtype = false;
-      type_expansion_scope = Btype.lowest_level;
-      type_loc = decl.type_loc;
-      type_attributes = decl.type_attributes;
-      type_unboxed_default = false;
-      type_uid = Uid.unboxed_version decl.type_uid;
-      type_unboxed_version = None;
-    }
+  List.map
+    (fun (id, d) ->
+       let type_unboxed_version =
+         derive_unboxed_version env unboxed_versions_in_group d
+       in
+       id, { d with type_unboxed_version })
+    decls
 
-(* Note [Typechecking unboxed versions of types]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-   To properly typecheck mutually recursive declarations and provide clear error
-   messages, typechecking for unboxed versions of types is done in four steps.
-
-   1) [enter_type] is used to construct [temp_env], in which all types have an
-      unboxed version.
-
-        This permissive temporary environment allows typechecking declarations
-        that reference unboxed versions, e.g. [type t = f# and f = float].
-
-   2) [transl_declaration] uses [temp_env], but produces declarations whose
-      unboxed version is [None].
-
-        It is not possible to determine whether types have unboxed versions
-        until all declarations (except their unboxed versions) are typechecked.
-
-        Consider [type t = { a : a } and a = ...]. Whether or not [t] has an
-        unboxed version depends on [a]'s type: e.g. if it's a [float] record, it
-        doesn't get an unboxed version.
-
-   3) Compute final unboxed versions for types in preparation for
-      [update_decls_jkind].
-
-      Directly after [transl_declaration], [update_unboxed_versions] updates
-      these declarations to add unboxed versions. This will be mostly correct,
-      except [transl_declaration] inaccurately sets [record_representation]s
-      for float and mixed-block records to [Record_boxed], so some these types
-      will be given unboxed versions when they shouldn't.
-
-      However, we still need to compute all the *actual* unboxed versions,
-      as these types will be needed for jkind checking in [update_decls_jkind].
-
-   4) Remove the extra unboxed versions from Step 3.
-
-      After [update_decls_jkind], declarations finally will have the proper
-      [record_representations]s, so some [Record_boxed]s will change to other
-      representations. We now need to *remove* the unboxed versions from these
-      declarations and their aliases, so we again call [update_unboxed_versions]
-      but with [~remove:true].
-
-   [update_unboxed_versions] either adds or removes (depending on [remove])
-   unboxed versions of types as determined by [derive_unboxed_version], until
-   fixed point.
-
-   Meta comment: This approach is similar to jkind-checking: [enter_type] gives
-   overly permissive unboxed versions/jkinds, [transl_declaration] produces
-   dummy values, and [update_unboxed_versions]/[update_decls_jkind] computes the
-   actual values. See Note [Default jkinds in transl_declaration].
-*)
-let update_unboxed_versions ?(remove = false) env decls  =
-  let id_to_decl = Ident.Map.of_list decls in
-  (* Above, this was described as a fixed point algorithm that adds
-     unboxed versions by exhaustion. This describes the semantics, but for
-     efficiency, we actually implement this by depth-first traversal of the
-     "aliased-by" graph (which is a union of trees and simple cycles). *)
-  let follow_alias_in_group (_, decl) =
-    match decl.type_manifest with
-    | None -> None
-    | Some ty ->
-      match get_desc ty with
-      | Tconstr (Pident id, _, _)
-          when List.exists (fun (d_id, _) -> Ident.equal d_id id) decls ->
-        Some id
-      | _ -> None
-  in
-  (* Compute the aliased-by graph: [id_to_aliases] maps each ident in the decl
-     group to the decls in the same group that alias it. *)
-  let id_to_aliases =
-    List.fold_left
-      (fun id_to_aliases decl ->
-         match follow_alias_in_group decl with
-         | None -> id_to_aliases
-         | Some id ->
-            Ident.Map.update id
-              (function l -> Some (decl :: Option.value ~default:[] l))
-              id_to_aliases)
-      Ident.Map.empty
-      decls
-  in
-  (* Update [id_to_decl] so the decl corresponding to [id] and its descendents
-     in the aliased-by graph have the correct unboxed versions. *)
-  let rec visit id_to_decl (id, decl) =
-    (* Create a mock version of [Env.find_type] that uses the current
-       versions of each declaration in [id_to_decl]. *)
-    let find_type path =
-      match path with
-      | Path.Pident id ->
-        begin match Ident.Map.find_opt id id_to_decl with
-        | Some decl -> decl
-        | None -> Env.find_type path env
-        end
-      | _ -> Env.find_type path env
-    in
-    let type_unboxed_version = derive_unboxed_version find_type decl in
-    (* If we're adding, update and recurse if we derived an unboxed type;
-       if we're removing, update and recursive if we didn't. *)
-    if Option.is_none type_unboxed_version = remove then
-      let id_to_decl =
-        Ident.Map.add id { decl with type_unboxed_version } id_to_decl in
-      match Ident.Map.find_opt id id_to_aliases with
-      | Some aliases -> List.fold_left visit id_to_decl aliases
-      | None -> id_to_decl
-    else
-      id_to_decl
-  in
-  let id_to_decl =
-    List.fold_left
-      (fun id_to_decl (id, decl) ->
-         (* Start out by only visiting the roots of the aliased-by graph. *)
-         match follow_alias_in_group (id, decl) with
-         | Some _ -> id_to_decl
-         | None -> visit id_to_decl (id, decl))
-      id_to_decl decls
-  in
-  List.map (fun (id, _) -> id, Ident.Map.find id id_to_decl) decls
+(* Float and [@@unboxed] records are typechecked as boxed records until
+   [update_decls_jkind], so their unboxed versions need to be removed
+   afterwards*)
+let remove_unboxed_versions decls =
+  List.fold_left_map
+    (fun removed (id, d) ->
+      match Option.is_some d.type_unboxed_version, gets_unboxed_version d with
+      | false, false | true, true -> removed, (id, d)
+      | true, false -> true, (id, { d with type_unboxed_version = None })
+      | false, true -> Misc.fatal_error "Typedecl.remove_unboxed_versions")
+    false decls
 
 (* Generalize a type declaration *)
 
@@ -3087,9 +2932,8 @@ let transl_type_decl env rec_flag sdecl_list =
       let tdecls =
         List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
       let tdecls, shapes = List.split tdecls in
-      let decls =
-        List.map (fun d -> (d.typ_id, d.typ_type)) tdecls
-        |> update_unboxed_versions env in
+      let decls = List.map (fun d -> (d.typ_id, d.typ_type)) tdecls in
+      let decls = derive_unboxed_versions decls env in
       let tdecls =
         List.map2
           (fun tdecl (_, decl) -> { tdecl with typ_type = decl }) tdecls decls
@@ -3211,6 +3055,12 @@ let transl_type_decl env rec_flag sdecl_list =
         |> update_decls_jkind new_env
         |> normalize_decl_jkinds new_env shapes
       in
+      let removed, decls = remove_unboxed_versions decls in
+      if removed then
+        List.iter (fun (id, decl) ->
+          check_unboxed_recursion_decl ~abs_env new_env
+            (List.assoc id id_loc_list) (Path.Pident id) decl to_check)
+          decls;
       new_env, update_decls_jkind_reason new_env decls
     with
     | Typedecl_variance.Error (loc, err) ->
@@ -3220,12 +3070,8 @@ let transl_type_decl env rec_flag sdecl_list =
   in
   (* Check re-exportation, updating [type_jkind] from the manifest *)
   let decls = List.map2 (check_abbrev new_env) sdecl_list decls in
-  let decls = update_unboxed_versions new_env decls ~remove:true in
   (* Compute the final environment with variance and immediacy *)
   let final_env = add_types_to_env decls shapes env in
-  List.iter (fun (id, decl) ->
-    check_unboxed_versions_exist final_env (List.assoc id id_loc_list) decl)
-    decls;
   (* Keep original declaration *)
   let final_decls =
     List.map2
