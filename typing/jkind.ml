@@ -497,10 +497,34 @@ module Mod_bounds = struct
 
   (** Get all axes that are set to max *)
   let get_max_axes t =
-    Axis_set.create ~f:(fun ~axis:(Pack axis) ->
-        let (module Axis_ops) = Axis.get axis in
-        let bound = get ~axis t in
-        Axis_ops.le Axis_ops.max bound)
+    let add_if b ax axis_set =
+      if b then Axis_set.add axis_set ax else axis_set
+    in
+    Axis_set.empty
+    |> add_if
+         (Locality.le Locality.max (locality t))
+         (Modal (Comonadic Areality))
+    |> add_if
+         (Linearity.le Linearity.max (linearity t))
+         (Modal (Comonadic Linearity))
+    |> add_if
+         (Uniqueness.le Uniqueness.max (uniqueness t))
+         (Modal (Monadic Uniqueness))
+    |> add_if
+         (Portability.le Portability.max (portability t))
+         (Modal (Comonadic Portability))
+    |> add_if
+         (Contention.le Contention.max (contention t))
+         (Modal (Monadic Contention))
+    |> add_if
+         (Yielding.le Yielding.max (yielding t))
+         (Modal (Comonadic Yielding))
+    |> add_if
+         (Externality.le Externality.max (externality t))
+         (Nonmodal Externality)
+    |> add_if
+         (Nullability.le Nullability.max (nullability t))
+         (Nonmodal Nullability)
 
   let for_arrow =
     create ~linearity:Linearity.max ~locality:Locality.max
