@@ -2098,8 +2098,8 @@ let rec components_of_module_maker
             let final_decl = Subst.type_declaration sub decl in
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
-            let descrs =
-              match decl.type_kind with
+            let store_decl path final_decl =
+              match final_decl.type_kind with
               | Type_variant (_,repr,umc) ->
                   let cstrs = List.map snd
                     (Datarepr.constructors_of_type path final_decl
@@ -2140,6 +2140,10 @@ let rec components_of_module_maker
               | Type_abstract r -> Type_abstract r
               | Type_open -> Type_open
             in
+            let descrs = store_decl path final_decl in
+            ignore
+              (Option.map (store_decl (Path.unboxed_version path))
+                 final_decl.type_unboxed_version);
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
               { tda_declaration = final_decl;
