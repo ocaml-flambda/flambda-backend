@@ -615,6 +615,20 @@ void caml_reset_major_pacing(void)
   } while (!res);
 }
 
+static uintnat mark_work_done_between_slices(void)
+{
+  uintnat work = Caml_state->mark_work_done_between_slices;
+  Caml_state->mark_work_done_between_slices = 0;
+  return work;
+}
+
+static uintnat sweep_work_done_between_slices(void)
+{
+  uintnat work = Caml_state->sweep_work_done_between_slices;
+  Caml_state->sweep_work_done_between_slices = 0;
+  return work;
+}
+
 /* The [log_events] parameter is used to disable writing to the ring, to
       avoid logging events when the calling domain is not part of the
       Stop-The-World (STW) participant set. If the domain is not part of
@@ -734,10 +748,15 @@ static void update_major_slice_work(intnat howmuch,
     offheap_work = clamp;
   }
 
+  uintnat work_done_between_slices =
+    mark_work_done_between_slices() +
+    sweep_work_done_between_slices();
+  atomic_fetch_add (&work_counter, work_done_between_slices);
+  dom_st->stat_major_work_done += work_done_between_slices;
+
   new_work = max2 (alloc_work, offheap_work);
-  atomic_fetch_add (&work_counter, dom_st->major_work_done_between_slices);
-  dom_st->major_work_done_between_slices = 0;
   atomic_fetch_add (&alloc_counter, new_work);
+
   if (howmuch == AUTO_TRIGGERED_MAJOR_SLICE ||
       howmuch == GC_CALCULATE_MAJOR_SLICE) {
     dom_st->slice_target = atomic_load (&alloc_counter);
@@ -1048,7 +1067,7 @@ Caml_noinline static intnat do_some_marking(struct mark_stack* stk,
 
       if (Tag_hd(hd) == Cont_tag) {
         caml_darken_cont(block);
-        budget -= Wosize_hd(hd);
+        budget -= Whsize_hd(hd);
         continue;
       }
 
@@ -1227,6 +1246,7 @@ void caml_darken_cont(value cont)
                           Ptr_val(stk), 0, NULL);
         atomic_store_release(Hp_atomic_val(cont),
                              With_status_hd(hd, caml_global_heap_state.MARKED));
+        Caml_state->mark_work_done_between_slices += Whsize_hd(hd);
       }
     }
   }
@@ -1256,6 +1276,9 @@ void caml_darken(void* state, value v, volatile value* ignored) {
          With_status_hd(hd, caml_global_heap_state.MARKED));
       if (Tag_hd(hd) < No_scan_tag) {
         mark_stack_push_block(domain_state->mark_stack, v);
+        Caml_state->mark_work_done_between_slices += 1; /* just the header */
+      } else {
+        Caml_state->mark_work_done_between_slices += Whsize_hd(hd);
       }
     }
   }
@@ -1377,7 +1400,6 @@ static intnat ephe_sweep (caml_domain_state* domain_state, intnat budget)
 
     if (is_unmarked(v)) {
       /* The whole array is dead, drop this ephemeron */
-      budget -= 1;
     } else {
       caml_ephe_clean(v);
       Ephe_link(v) = domain_state->ephe_info->live;
@@ -1864,6 +1886,11 @@ mark_again:
            (budget = get_major_slice_work(mode)) > 0) {
       intnat left = mark(budget);
       intnat work_done = budget - left;
+      /* It is possible to call caml_darken directly during marking,
+         if we e.g. discover a continuation and mark its stack.
+         This work should count towards this slice */
+      work_done += mark_work_done_between_slices();
+
       mark_work += work_done;
       commit_major_slice_work(work_done);
     }
@@ -1909,6 +1936,8 @@ mark_again:
                (budget = get_major_slice_work(mode)) > 0) {
           intnat left = ephe_mark(budget, saved_ephe_cycle, EPHE_MARK_DEFAULT);
           intnat work_done = budget - left;
+          /* caml_darken is called by ephe_mark, so count the work it does */
+          work_done += mark_work_done_between_slices();
           ephe_mark_work += work_done;
           commit_major_slice_work (work_done);
 
@@ -2011,6 +2040,9 @@ mark_again:
      sweep_work, mark_work,
      domain_state->stat_blocks_marked - blocks_marked_before,
      ephe_mark_work, ephe_sweep_work);
+
+  domain_state->stat_major_work_done +=
+    sweep_work + mark_work + ephe_mark_work + ephe_sweep_work;
 
   if (mode != Slice_opportunistic && is_complete_phase_sweep_ephe()) {
     /* To handle the case where multiple domains try to finish the major cycle
@@ -2150,8 +2182,11 @@ void caml_finish_marking (void)
     empty_mark_stack();
     shrink_mark_stack();
     Caml_state->stat_major_words += Caml_state->allocated_words;
+    Caml_state->stat_major_dependent_bytes +=
+      Caml_state->allocated_dependent_bytes;
     Caml_state->allocated_words = 0;
     Caml_state->allocated_words_direct = 0;
+    Caml_state->allocated_dependent_bytes = 0;
     CAMLassert(Caml_state->marking_done);
     CAML_EV_END(EV_MAJOR_FINISH_MARKING);
   }

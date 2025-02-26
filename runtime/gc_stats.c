@@ -63,6 +63,7 @@ void caml_accum_alloc_stats(
   acc->promoted_dependent_bytes += s->promoted_dependent_bytes;
   acc->major_dependent_bytes += s->major_dependent_bytes;
   acc->forced_major_collections += s->forced_major_collections;
+  acc->major_work_done += s->major_work_done;
 }
 
 void caml_collect_alloc_stats_sample(
@@ -76,6 +77,7 @@ void caml_collect_alloc_stats_sample(
   sample->promoted_dependent_bytes = local->stat_promoted_dependent_bytes;
   sample->major_dependent_bytes = local->stat_major_dependent_bytes;
   sample->forced_major_collections = local->stat_forced_major_collections;
+  sample->major_work_done = local->stat_major_work_done;
 }
 
 void caml_reset_domain_alloc_stats(caml_domain_state *local)
@@ -87,6 +89,7 @@ void caml_reset_domain_alloc_stats(caml_domain_state *local)
   local->stat_promoted_dependent_bytes = 0;
   local->stat_major_dependent_bytes = 0;
   local->stat_forced_major_collections = 0;
+  local->stat_major_work_done = 0;
 }
 
 /* We handle orphaning allocation stats here,
