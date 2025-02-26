@@ -80,6 +80,8 @@ module Jkind_mod_bounds = struct
 
   let[@inline] set_max_in_set t max_axes =
     let open Jkind_axis.Axis_set in
+    (* a little optimization *)
+    if is_empty max_axes then t else
     let locality =
       if mem max_axes (Modal (Comonadic Areality))
       then Mode.Locality.Const.max
