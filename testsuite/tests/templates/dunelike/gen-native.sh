@@ -29,5 +29,6 @@ s/TEST/TEST (* DO NOT EDIT. Instead edit test_byte.ml and run gen-native.sh. *)/
 ' test_byte.ml > "$OUTPUT"
 
 if [ -n "$CHECKING" ]; then
-  diff -q test_native.ml "$OUTPUT" && rm "$OUTPUT"
+  ( diff -q test_native.ml "$OUTPUT" && rm "$OUTPUT" ) \
+  || exit 1
 fi
