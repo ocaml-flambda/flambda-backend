@@ -4673,7 +4673,7 @@ let report_error ppf = function
       "@[Illegal %a in kind annotation of an abbreviation:@ %a@]"
       Style.inline_code "with" (Jkind.format ~jkind_of_type:None) jkind
   | No_unboxed_version p ->
-      fprintf ppf "@[%a@ has no unboxed version.@]"
+      fprintf ppf "@[The type %a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p
 
 let () =
