@@ -1,12 +1,13 @@
 (* TEST
- include stdlib_stable;
+ flags = "-extension-universe beta";
+ include stdlib_beta;
  expect;
 *)
 
-module Or_null = Stdlib_stable.Or_null
+module Or_null = Stdlib_beta.Or_null
 
 [%%expect{|
-module Or_null = Stdlib_stable.Or_null
+module Or_null = Stdlib_beta.Or_null
 |}]
 
 let _ = Or_null.null
