@@ -10,7 +10,6 @@
 
 open Stdlib_beta
 
-
 (* Test that [Or_null] is exported. *)
 
 let () =
