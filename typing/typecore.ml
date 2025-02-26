@@ -6821,11 +6821,17 @@ and type_expect_
       | Texp_record {alloc_mode = Some alloc_mode; _}
       | Texp_array (_, _, _, alloc_mode)
       | Texp_field (_, _, _, Boxing (alloc_mode, _), _) ->
-        begin match Locality.submode Locality.local
-          (Alloc.proj (Comonadic Areality) alloc_mode.mode) with
-        | Ok () -> ()
-        | Error _ -> raise (Error (e.pexp_loc, env,
-            Cannot_stack_allocate alloc_mode.locality_context))
+        begin
+          submode ~loc ~env
+            (Value.min_with (Comonadic Areality) Regionality.local)
+            expected_mode;
+          match
+            Locality.submode Locality.local
+              (Alloc.proj (Comonadic Areality) alloc_mode.mode)
+          with
+          | Ok () -> ()
+          | Error _ -> raise (Error (e.pexp_loc, env,
+              Cannot_stack_allocate alloc_mode.locality_context))
         end
       | Texp_list_comprehension _ -> unsupported List_comprehension
       | Texp_array_comprehension _ -> unsupported Array_comprehension
@@ -6839,12 +6845,13 @@ and type_expect_
           (* [stack_ (prim foo)] will be checked by [transl_primitive_application]. *)
           (* CR zqian: Move/Copy [Lambda.primitive_may_allocate] to [typing], then we can
           check primitive allocation here, and also improve the logic in [type_ident]. *)
-          -> ()
+          ->
+          submode ~loc ~env
+            (Value.min_with (Comonadic Areality) Regionality.local)
+            expected_mode;
       | _ ->
         raise (Error (exp.exp_loc, env, Not_allocation))
       end;
-      submode ~loc ~env (Value.min_with (Comonadic Areality) Regionality.local)
-        expected_mode;
       let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
       {exp with exp_extra}
   | Pexp_comprehension comp ->
