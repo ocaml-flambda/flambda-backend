@@ -982,8 +982,7 @@ module Layout_and_axes = struct
                 No_with_bounds Not_best)))
     in
     let mod_bounds =
-      Axis_set.fold ~f:Mod_bounds.set_max t.mod_bounds
-        (Axis_set.complement relevant_axes)
+      Mod_bounds.set_max_in_set t.mod_bounds (Axis_set.complement relevant_axes)
     in
     let mod_bounds, with_bounds, fuel_status =
       loop Loop_control.starting mod_bounds (With_bounds.to_list t.with_bounds)

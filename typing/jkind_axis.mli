@@ -94,8 +94,6 @@ module Axis_set : sig
 
   val complement : t -> t
 
-  val fold : 'acc -> t -> f:(axis:Axis.packed -> 'acc -> 'acc) -> 'acc
-
   val to_seq : t -> Axis.packed Seq.t
 
   val to_list : t -> Axis.packed list
