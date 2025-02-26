@@ -51,7 +51,7 @@ module Lattices = struct
 
     let legacy = L.legacy
 
-    let le a b = L.le b a
+    let[@inline] le a b = L.le b a
 
     let join = L.meet
 
@@ -62,6 +62,33 @@ module Lattices = struct
     let imply a b = L.subtract b a
 
     let subtract a b = L.imply b a
+  end
+  [@@inline]
+
+  (** Make a lattice from a pair of functions [index] and [of_index_exn] for converting
+      the members of the lattice to and from an integer index. *)
+  module From_index (M : sig
+    type t
+
+    val min : t
+
+    val max : t
+
+    val legacy : t
+
+    val index : t -> int
+
+    val of_index_exn : int -> t
+
+    val print : Format.formatter -> t -> unit
+  end) : Lattice with type t = M.t = struct
+    include M
+
+    let[@inline] le a b = index a <= index b
+
+    let[@inline] join a b = of_index_exn (Int.max (index a) (index b))
+
+    let[@inline] meet a b = of_index_exn (Int.min (index a) (index b))
   end
   [@@inline]
 
@@ -82,10 +109,10 @@ module Lattices = struct
            - or the other branch, then [subtract a c = a <= b]
          - if [b <= c], then [a <= join c b = c], then [subtract a c = min <= b]
     *)
-    let subtract a c = if le a c then min else a
+    let[@inline] subtract a c = if le a c then min else a
 
     (* The proof for [imply] is dual and omitted. *)
-    let imply c b = if le c b then max else b
+    let[@inline] imply c b = if le c b then max else b
   end
   [@@inline]
 
@@ -102,7 +129,7 @@ module Lattices = struct
       | Global
       | Local
 
-    include Total (struct
+    include Total (From_index (struct
       type nonrec t = t
 
       let min = Global
@@ -111,23 +138,17 @@ module Lattices = struct
 
       let legacy = Global
 
-      let le a b =
-        match a, b with Global, _ | _, Local -> true | Local, Global -> false
-
-      let join a b =
-        match a, b with
-        | Local, _ | _, Local -> Local
-        | Global, Global -> Global
-
-      let meet a b =
-        match a, b with
-        | Global, _ | _, Global -> Global
-        | Local, Local -> Local
-
       let print ppf = function
         | Global -> Format.fprintf ppf "global"
         | Local -> Format.fprintf ppf "local"
-    end)
+
+      let[@inline] index = function Global -> 0 | Local -> 1
+
+      let[@inline] of_index_exn = function
+        | 0 -> Global
+        | 1 -> Local
+        | _ -> invalid_arg "Locality.of_index_exn"
+    end))
 
     let _is_areality = ()
   end
@@ -138,7 +159,7 @@ module Lattices = struct
       | Regional
       | Local
 
-    include Total (struct
+    include Total (From_index (struct
       type nonrec t = t
 
       let min = Global
@@ -147,29 +168,19 @@ module Lattices = struct
 
       let legacy = Global
 
-      let join a b =
-        match a, b with
-        | Local, _ | _, Local -> Local
-        | Regional, _ | _, Regional -> Regional
-        | Global, Global -> Global
+      let[@inline] index = function Global -> 0 | Regional -> 1 | Local -> 2
 
-      let meet a b =
-        match a, b with
-        | Global, _ | _, Global -> Global
-        | Regional, _ | _, Regional -> Regional
-        | Local, Local -> Local
-
-      let le a b =
-        match a, b with
-        | Global, _ | _, Local -> true
-        | _, Global | Local, _ -> false
-        | Regional, Regional -> true
+      let[@inline] of_index_exn = function
+        | 0 -> Global
+        | 1 -> Regional
+        | 2 -> Local
+        | _ -> invalid_arg "Regionality.of_index_exn"
 
       let print ppf = function
         | Global -> Format.fprintf ppf "global"
         | Regional -> Format.fprintf ppf "regional"
         | Local -> Format.fprintf ppf "local"
-    end)
+    end))
 
     let _is_areality = ()
   end
@@ -179,7 +190,7 @@ module Lattices = struct
       | Unique
       | Aliased
 
-    include Total (struct
+    include Total (From_index (struct
       type nonrec t = t
 
       let min = Unique
@@ -188,25 +199,17 @@ module Lattices = struct
 
       let legacy = Aliased
 
-      let le a b =
-        match a, b with
-        | Unique, _ | _, Aliased -> true
-        | Aliased, Unique -> false
+      let[@inline] index = function Unique -> 0 | Aliased -> 1
 
-      let join a b =
-        match a, b with
-        | Aliased, _ | _, Aliased -> Aliased
-        | Unique, Unique -> Unique
-
-      let meet a b =
-        match a, b with
-        | Unique, _ | _, Unique -> Unique
-        | Aliased, Aliased -> Aliased
+      let[@inline] of_index_exn = function
+        | 0 -> Unique
+        | 1 -> Aliased
+        | _ -> invalid_arg "Uniqueness.of_index_exn"
 
       let print ppf = function
         | Aliased -> Format.fprintf ppf "aliased"
         | Unique -> Format.fprintf ppf "unique"
-    end)
+    end))
   end
 
   module Uniqueness_op = Opposite (Uniqueness)
@@ -245,7 +248,7 @@ module Lattices = struct
       | Portable
       | Nonportable
 
-    include Total (struct
+    include Total (From_index (struct
       type nonrec t = t
 
       let min = Portable
@@ -254,25 +257,17 @@ module Lattices = struct
 
       let legacy = Nonportable
 
-      let le a b =
-        match a, b with
-        | Portable, _ | _, Nonportable -> true
-        | Nonportable, Portable -> false
+      let[@inline] index = function Portable -> 0 | Nonportable -> 1
 
-      let join a b =
-        match a, b with
-        | Nonportable, _ | _, Nonportable -> Nonportable
-        | Portable, Portable -> Portable
-
-      let meet a b =
-        match a, b with
-        | Portable, _ | _, Portable -> Portable
-        | Nonportable, Nonportable -> Nonportable
+      let[@inline] of_index_exn = function
+        | 0 -> Portable
+        | 1 -> Nonportable
+        | _ -> invalid_arg "Portability.of_index_exn"
 
       let print ppf = function
         | Portable -> Format.fprintf ppf "portable"
         | Nonportable -> Format.fprintf ppf "nonportable"
-    end)
+    end))
   end
 
   module Contention = struct
@@ -281,7 +276,7 @@ module Lattices = struct
       | Shared
       | Uncontended
 
-    include Total (struct
+    include Total (From_index (struct
       type nonrec t = t
 
       let min = Uncontended
@@ -290,29 +285,22 @@ module Lattices = struct
 
       let legacy = Uncontended
 
-      let le a b =
-        match a, b with
-        | Uncontended, _ | _, Contended -> true
-        | _, Uncontended | Contended, _ -> false
-        | Shared, Shared -> true
+      let[@inline] index = function
+        | Uncontended -> 0
+        | Shared -> 1
+        | Contended -> 2
 
-      let join a b =
-        match a, b with
-        | Contended, _ | _, Contended -> Contended
-        | Shared, _ | _, Shared -> Shared
-        | Uncontended, Uncontended -> Uncontended
-
-      let meet a b =
-        match a, b with
-        | Uncontended, _ | _, Uncontended -> Uncontended
-        | Shared, _ | _, Shared -> Shared
-        | Contended, Contended -> Contended
+      let[@inline] of_index_exn = function
+        | 0 -> Uncontended
+        | 1 -> Shared
+        | 2 -> Contended
+        | _ -> invalid_arg "Contention.of_index_exn"
 
       let print ppf = function
         | Contended -> Format.fprintf ppf "contended"
         | Shared -> Format.fprintf ppf "shared"
         | Uncontended -> Format.fprintf ppf "uncontended"
-    end)
+    end))
   end
 
   module Contention_op = Opposite (Contention)
@@ -322,7 +310,7 @@ module Lattices = struct
       | Yielding
       | Unyielding
 
-    include Total (struct
+    include Total (From_index (struct
       type nonrec t = t
 
       let min = Unyielding
@@ -331,25 +319,17 @@ module Lattices = struct
 
       let legacy = Unyielding
 
-      let le a b =
-        match a, b with
-        | Unyielding, _ | _, Yielding -> true
-        | Yielding, Unyielding -> false
+      let[@inline] index = function Unyielding -> 0 | Yielding -> 1
 
-      let join a b =
-        match a, b with
-        | Yielding, _ | _, Yielding -> Yielding
-        | Unyielding, Unyielding -> Unyielding
-
-      let meet a b =
-        match a, b with
-        | Unyielding, _ | _, Unyielding -> Unyielding
-        | Yielding, Yielding -> Yielding
+      let[@inline] of_index_exn = function
+        | 0 -> Unyielding
+        | 1 -> Yielding
+        | _ -> invalid_arg "Yielding.of_index_exn"
 
       let print ppf = function
         | Yielding -> Format.fprintf ppf "yielding"
         | Unyielding -> Format.fprintf ppf "unyielding"
-    end)
+    end))
   end
 
   type monadic =
