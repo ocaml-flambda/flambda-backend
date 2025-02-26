@@ -405,8 +405,18 @@ let value_kind_of_value_jkind env jkind =
 *)
 exception Missing_cmi_fallback
 
-(* CR vlaviron: replace this with proper nullability info *)
-let mk_nn raw_kind = { raw_kind; nullable = Non_nullable }
+let non_nullable raw_kind = { raw_kind; nullable = Non_nullable }
+
+let nullable raw_kind = { raw_kind; nullable = Nullable }
+
+let add_nullability_from_jkind env jkind raw_kind =
+  let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
+  let nullable =
+    match Jkind.get_nullability ~jkind_of_type jkind with
+    | Non_null -> Non_nullable
+    | Maybe_null -> Nullable
+  in
+  { raw_kind; nullable }
 
 let fallback_if_missing_cmi ~default f =
   try f () with Missing_cmi_fallback -> default
@@ -463,66 +473,78 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   end;
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_int ->
-    num_nodes_visited, mk_nn Pintval
+    num_nodes_visited, non_nullable Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_char ->
-    num_nodes_visited, mk_nn Pintval
+    num_nodes_visited, non_nullable Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_int8 ->
-    num_nodes_visited, mk_nn Pintval
+    num_nodes_visited, non_nullable Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_int16 ->
-    num_nodes_visited, mk_nn Pintval
+    num_nodes_visited, non_nullable Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-    num_nodes_visited, mk_nn (Pboxedfloatval Boxed_float64)
+    num_nodes_visited, non_nullable (Pboxedfloatval Boxed_float64)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->
-    num_nodes_visited, mk_nn (Pboxedfloatval Boxed_float32)
+    num_nodes_visited, non_nullable (Pboxedfloatval Boxed_float32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
-    num_nodes_visited, mk_nn (Pboxedintval Boxed_int32)
+    num_nodes_visited, non_nullable (Pboxedintval Boxed_int32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
-    num_nodes_visited, mk_nn (Pboxedintval Boxed_int64)
+    num_nodes_visited, non_nullable (Pboxedintval Boxed_int64)
   | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
-    num_nodes_visited, mk_nn (Pboxedintval Boxed_nativeint)
+    num_nodes_visited, non_nullable (Pboxedintval Boxed_nativeint)
   | Tconstr(p, _, _) when Path.same p Predef.path_int8x16 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
+    num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int16x8 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
+    num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32x4 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
+    num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64x2 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
+    num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32x4 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
+    num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float64x2 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
+    num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
     (* CR layouts: [~elt_sort:None] here is bad for performance. To
        fix it, we need a place to store the sort on a [Tconstr]. *)
-    num_nodes_visited, mk_nn (Parrayval (array_type_kind ~elt_sort:None env loc ty))
+    num_nodes_visited, non_nullable (Parrayval (array_type_kind ~elt_sort:None env loc ty))
   | Tconstr(p, _, _) -> begin
+      (* CR layouts v2.8: The uses of [decl.type_jkind] here are suspect:
+         with with-kinds, [decl.type_jkind] will mention variables bound
+         by the parameters of the declaration. The code below loses this
+         connection and will continue processing with e.g. ['a : value]
+         instead of [string] when looking at a [string list]. This should
+         probably just call a [type_jkind] function. *)
       let decl =
         try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
       in
       if cannot_proceed () then
         num_nodes_visited,
-        mk_nn (value_kind_of_value_jkind env decl.type_jkind)
+        add_nullability_from_jkind env decl.type_jkind
+          (value_kind_of_value_jkind env decl.type_jkind)
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
            in the case of @@unboxed variant and records, due to the precondition
-           of [value_kind]. *)
+           of [value_kind]. Conservatively saying that types from missing
+           cmis might be nullable, which is possible in the case of @@unboxed
+           types. *)
         match decl.type_kind with
         | Type_variant (cstrs, rep, _) ->
-          fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
+          fallback_if_missing_cmi
+            ~default:(num_nodes_visited, nullable Pgenval)
             (fun () -> value_kind_variant env ~loc ~visited ~depth
                          ~num_nodes_visited cstrs rep)
         | Type_record (labels, rep, _) ->
           let depth = depth + 1 in
-          fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
+          fallback_if_missing_cmi
+            ~default:(num_nodes_visited, nullable Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
         | Type_record_unboxed_product ([{ld_type}], Record_unboxed_product, _) ->
           let depth = depth + 1 in
-          fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
+          fallback_if_missing_cmi
+            ~default:(num_nodes_visited, nullable Pgenval)
             (fun () ->
                value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type)
         | Type_record_unboxed_product (([] | _::_::_),
@@ -531,14 +553,16 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             "Typeopt.value_kind: non-unary unboxed record can't have kind value"
         | Type_abstract _ ->
           num_nodes_visited,
-          mk_nn (value_kind_of_value_jkind env decl.type_jkind)
-        | Type_open -> num_nodes_visited, mk_nn Pgenval
+          add_nullability_from_jkind env decl.type_jkind
+            (value_kind_of_value_jkind env decl.type_jkind)
+        | Type_open -> num_nodes_visited, non_nullable Pgenval
     end
   | Ttuple labeled_fields ->
     if cannot_proceed () then
-      num_nodes_visited, mk_nn Pgenval
+      num_nodes_visited, non_nullable Pgenval
     else
-      fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval) (fun () ->
+      fallback_if_missing_cmi
+        ~default:(num_nodes_visited, non_nullable Pgenval) (fun () ->
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         let depth = depth + 1 in
         let num_nodes_visited, fields =
@@ -552,12 +576,17 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             num_nodes_visited labeled_fields
         in
         num_nodes_visited,
-        mk_nn (Pvariant { consts = []; non_consts = [0, Constructor_uniform fields] }))
+        non_nullable
+          (Pvariant { consts = [];
+                      non_consts = [0, Constructor_uniform fields] }))
   | Tvariant row ->
     num_nodes_visited,
-    if Ctype.tvariant_not_immediate row then mk_nn Pgenval else mk_nn Pintval
+    if Ctype.tvariant_not_immediate row
+    then non_nullable Pgenval
+    else non_nullable Pintval
   | _ ->
-    num_nodes_visited, mk_nn Pgenval
+    num_nodes_visited,
+    add_nullability_from_jkind env (Ctype.estimate_type_jkind env ty) Pgenval
 
 and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       (cstrs : Types.constructor_declaration list) rep =
@@ -699,7 +728,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           (num_nodes_visited, Pvariant { consts; non_consts })
       end
     in
-    num_nodes_visited, mk_nn raw_kind
+    num_nodes_visited, non_nullable raw_kind
 
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
@@ -721,7 +750,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           labels
       in
       if is_mutable then
-        num_nodes_visited, mk_nn Pgenval
+        num_nodes_visited, non_nullable Pgenval
       else
         let num_nodes_visited, fields =
           match rep with
@@ -746,7 +775,8 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                         optimization. *)
                       match rep with
                       | Record_float | Record_ufloat ->
-                        num_nodes_visited, mk_nn (Pboxedfloatval Boxed_float64)
+                        num_nodes_visited,
+                        non_nullable (Pboxedfloatval Boxed_float64)
                       | Record_inlined _ | Record_boxed _ ->
                           value_kind env ~loc ~visited ~depth ~num_nodes_visited
                             label.ld_type
@@ -795,7 +825,8 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_unboxed -> assert false
           | Record_inlined (Null, _, _) -> assert false
         in
-        (num_nodes_visited, mk_nn (Pvariant { consts = []; non_consts }))
+        (num_nodes_visited,
+         non_nullable (Pvariant { consts = []; non_consts }))
     end
 
 let value_kind env loc ty =

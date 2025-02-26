@@ -2178,6 +2178,22 @@ let set_externality_upper_bound jk externality_upper_bound =
       }
   }
 
+let only_nullability = Axis_set.singleton (Nonmodal Nullability)
+
+let get_nullability ~jkind_of_type jk =
+  let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
+          Allowance.right_only jkind_desc),
+        _ ) =
+    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
+      ~map_type_info:(fun _ ti ->
+        { relevant_axes =
+            (* Optimization: We only care about the externality axis *)
+            Axis_set.intersection ti.relevant_axes only_nullability
+        })
+      jk.jkind
+  in
+  Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
+
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
 let get_annotation jk = jk.annotation
