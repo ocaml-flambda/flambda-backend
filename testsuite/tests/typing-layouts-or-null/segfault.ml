@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-O3";
+   flags = "-O3 -extension-universe beta";
    native;
 *)
 
