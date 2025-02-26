@@ -30,12 +30,24 @@ val untransl_modalities :
   Mode.Modality.Value.Const.t ->
   Parsetree.modalities
 
-module Transled_modifier : sig
-  type 'a t = 'a Location.loc option
-end
+module Transled_modifiers : sig
+  type t =
+    { locality : Mode.Locality.Const.t Location.loc option;
+      linearity : Mode.Linearity.Const.t Location.loc option;
+      uniqueness : Mode.Uniqueness.Const.t Location.loc option;
+      portability : Mode.Portability.Const.t Location.loc option;
+      contention : Mode.Contention.Const.t Location.loc option;
+      yielding : Mode.Yielding.Const.t Location.loc option;
+      externality : Jkind_axis.Externality.t Location.loc option;
+      nullability : Jkind_axis.Nullability.t Location.loc option
+    }
 
-module Transled_modifiers :
-    module type of Jkind_axis.Axis_collection.Indexed (Transled_modifier)
+  val empty : t
+
+  val get : axis:'a Jkind_axis.Axis.t -> t -> 'a Location.loc option
+
+  val set : axis:'a Jkind_axis.Axis.t -> t -> 'a Location.loc option -> t
+end
 
 (** Interpret a list of modifiers.
     A "modifier" is any keyword coming after a `mod` in a jkind *)
