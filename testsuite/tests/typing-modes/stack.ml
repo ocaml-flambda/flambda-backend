@@ -39,10 +39,10 @@ let f () =
   let g = ref (stack_ ((42, 42) : _ @@ global )) in
   ()
 [%%expect{|
-Line 2, characters 22-47:
+Line 2, characters 14-48:
 2 |   let g = ref (stack_ ((42, 42) : _ @@ global )) in
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This allocation cannot be on the stack.
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
 |}]
 
 let f () =
@@ -59,10 +59,10 @@ let f () =
   let g = ref (stack_ (fun x y -> x : 'a -> 'a -> 'a)) in
   ()
 [%%expect{|
-Line 2, characters 22-53:
+Line 2, characters 14-54:
 2 |   let g = ref (stack_ (fun x y -> x : 'a -> 'a -> 'a)) in
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This allocation cannot be on the stack.
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
 |}]
 
 
