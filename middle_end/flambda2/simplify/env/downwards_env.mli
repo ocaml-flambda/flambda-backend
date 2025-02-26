@@ -73,6 +73,8 @@ val get_continuation_scope : t -> Scope.t
 
 val typing_env : t -> Flambda2_types.Typing_env.t
 
+val define_continuations : t -> Continuation.t list -> t
+
 val define_variable : t -> Bound_var.t -> Flambda_kind.t -> t
 
 val add_name : t -> Bound_name.t -> Flambda2_types.t -> t
@@ -202,12 +204,15 @@ val with_code_age_relation : Code_age_relation.t -> t -> t
 
 val defined_variables_by_scope : t -> Lifted_cont_params.t list
 
-val enter_continuation_handler : Lifted_cont_params.t -> t -> t
+val enter_continuation_handler :
+  replay:(Replay_history.t * bool) option -> Lifted_cont_params.t -> t -> t
 
 val variables_defined_in_current_continuation : t -> Lifted_cont_params.t
 
 val cost_of_lifting_continuations_out_of_current_one : t -> int
 
 val add_lifting_cost : int -> t -> t
+
+val must_inline : t -> bool
 
 val denv_for_lifted_continuation : denv_for_join:t -> denv:t -> t
