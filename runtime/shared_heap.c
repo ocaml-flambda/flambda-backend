@@ -583,7 +583,7 @@ void clear_garbage(header_t *p,
 
 static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
                          sizeclass sz, int release_to_global_pool) {
-  intnat work = 0;
+  uintnat work = 0;
   pool* a = *plist;
   if (!a) return 0;
   *plist = a->next;
@@ -611,9 +611,9 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
         local->owner->swept_words += Whsize_hd(hd);
         work += wh;
       } else {
-        work += wh;
         /* still live, the pool can't be released to the global freelist */
         release_to_global_pool = 0;
+        work += wh;
       }
       p += wh;
     }

@@ -615,6 +615,20 @@ void caml_reset_major_pacing(void)
   } while (!res);
 }
 
+static uintnat mark_work_done_between_slices(void)
+{
+  uintnat work = Caml_state->mark_work_done_between_slices;
+  Caml_state->mark_work_done_between_slices = 0;
+  return work;
+}
+
+static uintnat sweep_work_done_between_slices(void)
+{
+  uintnat work = Caml_state->sweep_work_done_between_slices;
+  Caml_state->sweep_work_done_between_slices = 0;
+  return work;
+}
+
 /* The [log_events] parameter is used to disable writing to the ring, to
       avoid logging events when the calling domain is not part of the
       Stop-The-World (STW) participant set. If the domain is not part of
@@ -734,12 +748,10 @@ static void update_major_slice_work(intnat howmuch,
     offheap_work = clamp;
   }
 
-  intnat work_done_between_slices =
-    dom_st->mark_work_done_between_slices +
-    dom_st->sweep_work_done_between_slices;
+  uintnat work_done_between_slices =
+    mark_work_done_between_slices() +
+    sweep_work_done_between_slices();
   atomic_fetch_add (&work_counter, work_done_between_slices);
-  dom_st->mark_work_done_between_slices = 0;
-  dom_st->sweep_work_done_between_slices = 0;
   dom_st->stat_major_work_done += work_done_between_slices;
 
   new_work = max2 (alloc_work, offheap_work);
@@ -1860,13 +1872,11 @@ mark_again:
            (budget = get_major_slice_work(mode)) > 0) {
       intnat left = mark(budget);
       intnat work_done = budget - left;
-      if (Caml_state->mark_work_done_between_slices > 0) {
-        /* Rare, but we can call caml_darken directly during marking,
-           if we e.g. discover a continuation and mark its stack.
-           This work should count towards this slice */
-        work_done += Caml_state->mark_work_done_between_slices;
-        Caml_state->mark_work_done_between_slices = 0;
-      }
+      /* It is possible to call caml_darken directly during marking,
+         if we e.g. discover a continuation and mark its stack.
+         This work should count towards this slice */
+      work_done += mark_work_done_between_slices();
+
       mark_work += work_done;
       commit_major_slice_work(work_done);
     }
@@ -1912,6 +1922,8 @@ mark_again:
                (budget = get_major_slice_work(mode)) > 0) {
           intnat left = ephe_mark(budget, saved_ephe_cycle, EPHE_MARK_DEFAULT);
           intnat work_done = budget - left;
+          /* caml_darken is called by ephe_mark, so count the work it does */
+          work_done += mark_work_done_between_slices();
           ephe_mark_work += work_done;
           commit_major_slice_work (work_done);
 
