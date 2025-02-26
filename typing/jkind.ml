@@ -970,7 +970,10 @@ module Layout_and_axes = struct
                   With_bounds.join nested_with_bounds bs',
                   Fuel_status.both fuel_result1 fuel_result2 )
               | Not_best, Require_best ->
-                let bounds_so_far, bs', fuel_result =
+                (* CR layouts v2.8: The type annotation on the next line is
+                   necessary only because [loop] is
+                   local. Bizarre. Investigate. *)
+                let bounds_so_far, (bs' : (l * r2) With_bounds.t), fuel_result =
                   loop new_ctl bounds_so_far bs
                 in
                 bounds_so_far, With_bounds.add ty ti bs', fuel_result
@@ -979,20 +982,20 @@ module Layout_and_axes = struct
             | Stop ctl_after_stop ->
               (* out of fuel, so assume [ty] has the worst possible bounds. *)
               found_jkind_for_ty ctl_after_stop Mod_bounds.max No_with_bounds
-                Not_best
+                Not_best [@nontail]
             | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
             | Continue ctl_after_unpacking_b -> (
               match jkind_of_type ty with
               | Some b_jkind ->
                 found_jkind_for_ty ctl_after_unpacking_b
                   b_jkind.jkind.mod_bounds b_jkind.jkind.with_bounds
-                  b_jkind.quality
+                  b_jkind.quality [@nontail]
               | None ->
                 (* kind of b is not principally known, so we treat it as having
                    the max bound (only along the axes we care about for this
                    type!) *)
                 found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
-                  No_with_bounds Not_best)))
+                  No_with_bounds Not_best [@nontail])))
       in
       let mod_bounds =
         Mod_bounds.set_max_in_set t.mod_bounds
