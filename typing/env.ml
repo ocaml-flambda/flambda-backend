@@ -1437,6 +1437,16 @@ and find_type_unboxed_version_data path env seen =
           Btype.newgenty
             (Tconstr (Path.unboxed_version decl_path, decl_args, ref Mnil)) in
         let jkind = ud.type_jkind in
+        (* As this unboxed version aliases [ud], its params' separabilities can
+           be conservatively set to the max of the separabilities of [ud]
+           (to account for the alias possibly shuffling params).
+        *)
+        let max_sep_of_ud =
+          List.fold_left Separability.max Separability.Ind ud.type_separability
+        in
+        let type_separability =
+          List.map (fun _ -> max_sep_of_ud) decl.type_separability
+        in
         {
           type_params = decl.type_params;
           type_arity = decl.type_arity;
@@ -1444,10 +1454,9 @@ and find_type_unboxed_version_data path env seen =
           type_jkind = jkind;
           type_private = decl.type_private;
           type_manifest = Some man;
-          type_variance =
-            Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
-          type_separability =
-            Types.Separability.default_signature ~arity:decl.type_arity;
+          type_variance = decl.type_variance;
+          (* Variance is the same as the boxed version *)
+          type_separability;
           type_is_newtype = false;
           type_expansion_scope = Btype.lowest_level;
           type_loc = decl.type_loc;
