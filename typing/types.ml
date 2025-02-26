@@ -132,6 +132,25 @@ module Jkind_mod_bounds = struct
       externality;
       nullability;
     }
+
+  let[@inline] is_max_within_set t axes =
+    let open Jkind_axis.Axis_set in
+    (not (mem axes (Modal (Comonadic Areality))) ||
+     Mode.Locality.Const.(le max (locality t))) &&
+    (not (mem axes (Modal (Comonadic Linearity))) ||
+     Mode.Linearity.Const.(le max (linearity t))) &&
+    (not (mem axes (Modal (Monadic Uniqueness))) ||
+     Mode.Uniqueness.Const_op.(le max (uniqueness t))) &&
+    (not (mem axes (Modal (Comonadic Portability))) ||
+     Mode.Portability.Const.(le max (portability t))) &&
+    (not (mem axes (Modal (Monadic Contention))) ||
+     Mode.Contention.Const.(le max (contention t))) &&
+    (not (mem axes (Modal (Comonadic Yielding))) ||
+     Mode.Yielding.Const.(le max (yielding t))) &&
+    (not (mem axes (Nonmodal Externality)) ||
+     Jkind_axis.Externality.(le max (externality t))) &&
+    not (mem axes (Nonmodal Nullability)) ||
+    Jkind_axis.Nullability.(le max (nullability t))
 end
 
 

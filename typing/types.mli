@@ -102,6 +102,7 @@ module Jkind_mod_bounds : sig
   val set_nullability : Jkind_axis.Nullability.t -> t -> t
 
   val set_max_in_set : t -> Jkind_axis.Axis_set.t -> t
+  val is_max_within_set : t -> Jkind_axis.Axis_set.t -> bool
 end
 
 
