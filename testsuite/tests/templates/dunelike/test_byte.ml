@@ -6,7 +6,9 @@
    export_fancy_q_impl.ml export_fancy_q_impl.mli export_fancy_q_impl__.ml \
    fancy.ml fancy.mli flourish.ml flourish.mli ornament.ml ornament.mli fancy__.ml \
    main.ml main.mli main__.ml \
+   main.cmo.objinfo.reference \
    main_basic.ml main_basic.mli main_basic__.ml \
+   main_basic.cmo.objinfo.reference main_basic__.cmo.objinfo.reference \
    p.mli p__.ml \
    p_int.ml p_int.mli p_int__.ml \
    p_string.ml p_string.mli p_string__.ml \
@@ -18,6 +20,9 @@
  ";
  {
    setup-ocamlc.byte-build-env;
+
+   (* Hide annoying optimization settings coming from CI *)
+   set OCAMLPARAM = "";
 
    script = "\
      mkdir \
@@ -214,10 +219,30 @@
    module = "main_basic/main_basic__.ml";
    ocamlc.byte;
 
+   {
+     program = "-no-approx -no-code main_basic/main_basic__.cmi main_basic/main_basic__.cmo";
+     output = "main_basic__.cmo.objinfo.output";
+     ocamlobjinfo;
+
+     reference = "main_basic__.cmo.objinfo.reference";
+     check-program-output;
+   }
+
+ {
    flags = "$flg_main_basic";
    module = "main_basic/main_basic.mli main_basic/main_basic.ml";
    ocamlc.byte;
 
+   {
+     program = "-no-approx -no-code main_basic/main_basic.cmi main_basic/main_basic.cmo";
+     output = "main_basic.cmo.objinfo.output";
+     ocamlobjinfo;
+
+     reference = "main_basic.cmo.objinfo.reference";
+     check-program-output;
+   }
+
+ {
    set flg_q_impl = "\
      $flg -I q -I q_impl \
      -open Q_impl__ -open No_direct_access_to_q_impl \
@@ -401,6 +426,16 @@
 
    check-ocamlc.byte-output;
 
+   {
+     program = "-no-approx -no-code main/main.cmi main/main.cmo";
+     output = "main.cmo.objinfo.output";
+     ocamlobjinfo;
+
+     reference = "main.cmo.objinfo.reference";
+     check-program-output;
+   }
+
+ {
    flags = "\
      $flg -H p -H p_int -H p_string -H q -H q_impl -H fancy -H basic \
      -I main -I main_basic \
@@ -456,7 +491,7 @@
 
    reference = "test.reference";
    check-program-output;
- }}}
+ }}}}}}
 *)
 
 let () =
