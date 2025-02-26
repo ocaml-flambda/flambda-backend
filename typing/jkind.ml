@@ -2187,7 +2187,7 @@ let get_nullability ~jkind_of_type jk =
     Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
       ~map_type_info:(fun _ ti ->
         { relevant_axes =
-            (* Optimization: We only care about the externality axis *)
+            (* Optimization: We only care about the nullability axis *)
             Axis_set.intersection ti.relevant_axes only_nullability
         })
       jk.jkind
