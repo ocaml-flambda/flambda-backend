@@ -2201,8 +2201,7 @@ let update_decls_jkind env decls =
          | _ -> ()
        end;
 
-       (id, decl.type_jkind, allow_any_crossing,
-        update_decl_jkind env (Pident id) decl))
+       (id, decl, allow_any_crossing, update_decl_jkind env (Pident id) decl))
     decls
 
 let check_unboxed_versions_exist env loc decl =
@@ -2765,6 +2764,82 @@ let check_redefined_unit (td: Parsetree.type_declaration) =
 
 (* Normalize the jkinds in a list of (potentially mutually recursive) type declarations *)
 let normalize_decl_jkinds env shapes decls =
+  let rec normalize_decl_jkind env original_decl allow_any_crossing decl path =
+    let type_unboxed_version =
+      Option.map (fun type_unboxed_version ->
+        normalize_decl_jkind env (Option.get original_decl.type_unboxed_version)
+          allow_any_crossing type_unboxed_version (Path.unboxed_version path))
+      decl.type_unboxed_version
+    in
+    let normalized_jkind =
+      Jkind.normalize
+        ~mode:Require_best
+        ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
+        decl.type_jkind
+    in
+    let decl = { decl with type_jkind = normalized_jkind; type_unboxed_version } in
+    let original_jkind = original_decl.type_jkind in
+    if normalized_jkind != original_jkind then begin
+      (* If the jkind has changed, check that it is a subjkind of the original jkind
+        that we computed, either from a user-written annotation or as a dummy jkind.
+
+        (see Note [Default jkinds in transl_declaration]) *)
+      (* CR layouts v2.8: it almost definitely has changed, but also we probably trust
+        the new jkind (we really only want this check here to check against the
+        user-written annotation). We might be able to do a better job here and save
+        some work. *)
+      let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
+      let type_equal = Ctype.type_equal env in
+      match
+        (* CR layouts v2.8: Consider making a function that doesn't compute
+          histories for this use-case, which doesn't need it. *)
+        Jkind.sub_jkind_l
+          ~type_equal
+          ~jkind_of_type
+          ~allow_any_crossing
+          decl.type_jkind
+          original_jkind
+      with
+      | Ok _ ->
+        if allow_any_crossing then
+          (* If the user is asking us to allow any crossing, we use the modal bounds from
+              the annotation rather than the modal bounds inferred from the type_kind.
+              However, we /only/ take the modal bounds, not the layout - because we still
+              want to be able to eg locally use a type declared as layout [any] as [value]
+              if that's its actual layout! *)
+          let type_jkind =
+            match
+              Jkind.unsafely_set_mod_bounds
+                ~from:original_jkind
+                decl.type_jkind
+            with
+            | Ok jkind -> jkind
+            | Error () ->
+              raise(Error(decl.type_loc, Unsafe_mode_crossing_with_with_bounds))
+          in
+          let umc =
+            Some { modal_upper_bounds =
+                      Jkind.get_modal_upper_bounds ~jkind_of_type type_jkind;
+                    modal_lower_bounds =
+                      Jkind.get_modal_lower_bounds ~jkind_of_type type_jkind }
+          in
+          let type_kind =
+            match decl.type_kind with
+            | Type_abstract _ | Type_open -> assert false (* Checked above *)
+            | Type_record (lbls, rep, _) ->
+              Type_record (lbls, rep, umc)
+            | Type_record_unboxed_product (lbls, rep, _) ->
+              Type_record_unboxed_product (lbls, rep, umc)
+            | Type_variant (cs, rep, _) ->
+              Type_variant (cs, rep, umc)
+          in
+          { decl with type_jkind; type_kind; }
+        else decl
+      | Error err ->
+        raise(Error(decl.type_loc, Jkind_mismatch_of_path (path, env, err)))
+    end
+    else decl
+  in
   (* Add the types, with non-normalized kinds, to the environment to start, so that eg
      types can look up their own (potentially non-normalized) kinds *)
   let env =
@@ -2774,6 +2849,7 @@ let normalize_decl_jkinds env shapes decls =
       decls shapes env
   in
   Misc.Stdlib.List.fold_left_map2
+<<<<<<< HEAD
     (fun env (id, original_jkind, allow_any_crossing, decl) shape ->
        let normalized_jkind =
          Jkind.normalize
@@ -2846,6 +2922,93 @@ let normalize_decl_jkinds env shapes decls =
                        Jkind_mismatch_of_path (Pident id, err)))
        end
        else env, (id, decl))
+||||||| parent of 75fd51b2ad (Update jkind normalization to know about unboxed versions)
+    (fun env (id, original_jkind, allow_any_crossing, decl) shape ->
+       let normalized_jkind =
+         Jkind.normalize
+           ~mode:Require_best
+           ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
+           decl.type_jkind
+       in
+       let decl = { decl with type_jkind = normalized_jkind } in
+       (* Add the decl with the normalized kind back to the environment, so that later
+          kinds don't have to normalize this kind if they mention this type in their
+          with-bounds *)
+       let env = add_type ~check:false ~shape:shape id decl env in
+       if normalized_jkind != original_jkind then begin
+         (* If the jkind has changed, check that it is a subjkind of the original jkind
+            that we computed, either from a user-written annotation or as a dummy jkind.
+
+            (see Note [Default jkinds in transl_declaration]) *)
+         (* CR layouts v2.8: it almost definitely has changed, but also we probably trust
+            the new jkind (we really only want this check here to check against the
+            user-written annotation). We might be able to do a better job here and save
+            some work. *)
+         let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
+         let type_equal = Ctype.type_equal env in
+         match
+           (* CR layouts v2.8: Consider making a function that doesn't compute
+              histories for this use-case, which doesn't need it. *)
+           Jkind.sub_jkind_l
+             ~type_equal
+             ~jkind_of_type
+             ~allow_any_crossing
+             decl.type_jkind
+             original_jkind
+         with
+         | Ok _ ->
+            if allow_any_crossing then
+              (* If the user is asking us to allow any crossing, we use the modal bounds from
+                 the annotation rather than the modal bounds inferred from the type_kind.
+                 However, we /only/ take the modal bounds, not the layout - because we still
+                 want to be able to eg locally use a type declared as layout [any] as [value]
+                 if that's its actual layout! *)
+              let type_jkind =
+                match
+                  Jkind.unsafely_set_mod_bounds
+                    ~from:original_jkind
+                    decl.type_jkind
+                with
+                | Ok jkind -> jkind
+                | Error () ->
+                  raise(Error(decl.type_loc, Unsafe_mode_crossing_with_with_bounds))
+              in
+              let umc =
+                Some { modal_upper_bounds =
+                         Jkind.get_modal_upper_bounds ~jkind_of_type type_jkind;
+                       modal_lower_bounds =
+                         Jkind.get_modal_lower_bounds ~jkind_of_type type_jkind }
+              in
+              let type_kind =
+                match decl.type_kind with
+                | Type_abstract _ | Type_open -> assert false (* Checked above *)
+                | Type_record (lbls, rep, _) ->
+                  Type_record (lbls, rep, umc)
+                | Type_record_unboxed_product (lbls, rep, _) ->
+                  Type_record_unboxed_product (lbls, rep, umc)
+                | Type_variant (cs, rep, _) ->
+                  Type_variant (cs, rep, umc)
+              in
+              env, (id, { decl with type_jkind; type_kind; })
+            else env, (id, decl)
+         | Error err ->
+           raise(Error(decl.type_loc,
+                       Jkind_mismatch_of_path (Pident id, env, err)))
+       end
+       else env, (id, decl))
+=======
+    (fun env (id, original_decl, allow_any_crossing, decl) shape ->
+      let decl =
+        normalize_decl_jkind env original_decl allow_any_crossing decl
+          (Pident id)
+      in
+      (* Add the decl with the normalized kind back to the environment, so that later
+        kinds don't have to normalize this kind if they mention this type in their
+        with-bounds *)
+      let env = add_type ~check:false ~shape:shape id decl env in
+      env, (id, decl)
+    )
+>>>>>>> 75fd51b2ad (Update jkind normalization to know about unboxed versions)
     env
     decls
     shapes
