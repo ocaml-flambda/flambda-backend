@@ -190,6 +190,8 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
     in
     register_const acc dbg const "const_block"
   | Const_mixed_block (tag, shape, consts) ->
+    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    (* CR mshinwell: why do we need these "const" block cases? *)
     let unbox_float_constant (c : Lambda.structured_constant) :
         Lambda.structured_constant =
       match c with
@@ -202,22 +204,23 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       | Const_block _ | Const_mixed_block _ | Const_float_array _
       | Const_immstring _ | Const_float_block _ | Const_null ->
         Misc.fatal_errorf
-          "In constant mixed block, a field of kind Float_boxed contained the \
-           constant %a"
+          "In constant mixed block, a field of kind\n\
+          \       Float_boxed contained the  constant %a"
           Printlambda.structured_constant c
     in
     let consts =
-      List.mapi
-        (fun i c ->
-          if i < shape.value_prefix_len
-          then c
-          else
-            match shape.flat_suffix.(i - shape.value_prefix_len) with
-            | Float_boxed -> unbox_float_constant c
-            | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> c)
-        consts
+      consts |> Array.of_list
+      |> Mixed_block_shape.reorder_array shape
+      |> Array.mapi (fun i c ->
+             match Mixed_block_shape.get_reordered shape i with
+             | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+               c
+             | Float_boxed _ -> unbox_float_constant c)
+      |> Array.to_list
     in
-    let shape = K.Mixed_block_shape.from_lambda shape in
+    let shape =
+      K.Mixed_block_shape.from_lambda (Mixed_block_shape.reordered_shape shape)
+    in
     let acc, fields =
       List.fold_left_map
         (fun acc c ->

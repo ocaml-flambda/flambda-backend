@@ -2178,6 +2178,15 @@ let set_externality_upper_bound jk externality_upper_bound =
       }
   }
 
+let set_nullability_upper_bound jk nullability_upper_bound =
+  { jk with
+    jkind =
+      { jk.jkind with
+        mod_bounds =
+          { jk.jkind.mod_bounds with nullability = nullability_upper_bound }
+      }
+  }
+
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
 let get_annotation jk = jk.annotation

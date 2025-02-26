@@ -614,3 +614,8 @@ We would bump the version number in either of these cases, which would prompt yo
 
   * We change what word half the int32 is stored in
   * We start packing int32s more efficiently
+
+Version history:
+
+- `v1`: initial implementation;
+- `v2`: automatic reordering by the front- and middle-ends.

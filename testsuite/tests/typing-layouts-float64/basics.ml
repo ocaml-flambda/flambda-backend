@@ -565,7 +565,8 @@ type t11_1 = ..
 Line 3, characters 14-28:
 3 | type t11_1 += A of t_float64;;
                   ^^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of float#;;
@@ -573,7 +574,8 @@ type t11_1 += B of float#;;
 Line 1, characters 14-25:
 1 | type t11_1 += B of float#;;
                   ^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : float64) t11_2 = ..
@@ -588,7 +590,8 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (* Some extensible variants aren't supported, though. *)
@@ -599,8 +602,8 @@ type t11_1 += C of t_float64 * string;;
 Line 1, characters 14-37:
 1 | type t11_1 += C of t_float64 * string;;
                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "
-       t_float64", but found boxed argument, "string".
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (***************************************)

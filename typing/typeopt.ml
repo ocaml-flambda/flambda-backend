@@ -98,11 +98,27 @@ let is_always_gc_ignorable env ty =
   in
   Ctype.check_type_externality env ty ext
 
-let maybe_pointer_type env ty =
-  let ty = scrape_ty env ty in
+let maybe_pointer_scraped_ty env ty =
   if is_always_gc_ignorable env ty then Immediate else Pointer
 
+let maybe_pointer_type env ty =
+  let ty = scrape_ty env ty in
+  maybe_pointer_scraped_ty env ty
+
 let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
+
+let representation_properties_type env ty =
+  let ty = scrape_ty env ty in
+  let pointer = maybe_pointer_scraped_ty env ty in
+  let nullable =
+    if Ctype.check_type_nullability env ty Jkind_axis.Nullability.Non_null
+    then Non_nullable
+    else Nullable
+  in
+  pointer, nullable
+
+let representation_properties exp =
+  representation_properties_type exp.exp_env exp.exp_type
 
 (* CR layouts v2.8: Calling [type_legacy_sort] in [typeopt] is not ideal
    and this function should be removed at some point. To do that, there
@@ -559,6 +575,23 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | _ ->
     num_nodes_visited, mk_nn Pgenval
 
+and value_kind_mixed_block_field env ~loc ~visited ~depth ~num_nodes_visited
+      (field : Types.mixed_block_element) ty
+  : int * unit Lambda.mixed_block_element =
+  match field with
+  | Value ->
+    let num_nodes_visited, kind =
+      value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+    in
+    num_nodes_visited, Value kind
+  | Float_boxed -> num_nodes_visited, Float_boxed ()
+  | Float64 -> num_nodes_visited, Float64
+  | Float32 -> num_nodes_visited, Float32
+  | Bits32 -> num_nodes_visited, Bits32
+  | Bits64 -> num_nodes_visited, Bits64
+  | Vec128 -> num_nodes_visited, Vec128
+  | Word -> num_nodes_visited, Word
+
 and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       (cstrs : Types.constructor_declaration list) rep =
   match rep with
@@ -584,35 +617,32 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
     end
   | Variant_boxed cstrs_and_sorts ->
     let depth = depth + 1 in
-    let for_constructor_fields fields ~depth ~num_nodes_visited ~field_to_type =
-      List.fold_left_map
-        (fun num_nodes_visited field ->
-           let ty = field_to_type field in
-           let num_nodes_visited = num_nodes_visited + 1 in
-           value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
-        num_nodes_visited
-        fields
+    let for_one_uniform_value_constructor fields ~field_to_type ~depth
+          ~num_nodes_visited =
+      let num_nodes_visited, shape =
+        List.fold_left_map
+          (fun num_nodes_visited field ->
+             let ty = field_to_type field in
+             let num_nodes_visited = num_nodes_visited + 1 in
+             value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
+          num_nodes_visited
+          fields
+      in
+      num_nodes_visited, Lambda.Constructor_uniform shape
     in
-    let for_one_uniform_value_constructor
-        fields ~field_to_type ~depth ~num_nodes_visited =
-      let num_nodes_visited, fields =
-        for_constructor_fields fields ~depth ~num_nodes_visited ~field_to_type
+    let for_one_mixed_constructor fields ~shape ~field_to_type ~depth
+          ~num_nodes_visited =
+      let (_, num_nodes_visited), shape =
+        List.fold_left_map
+          (fun (i, num_nodes_visited) field ->
+             let num_nodes_visited, kind =
+               value_kind_mixed_block_field env ~loc ~visited ~depth
+                 ~num_nodes_visited shape.(i) (field_to_type field)
+             in
+             (i+1, num_nodes_visited), kind)
+          (0, num_nodes_visited) fields
       in
-      num_nodes_visited, Lambda.Constructor_uniform fields
-    in
-    let for_one_mixed_constructor fields ~value_prefix_len ~flat_suffix
-        ~field_to_type ~depth ~num_nodes_visited =
-      let value_prefix, _ =
-        Misc.Stdlib.List.split_at value_prefix_len fields
-      in
-      assert (List.length value_prefix = value_prefix_len);
-      let num_nodes_visited, value_prefix =
-        for_constructor_fields value_prefix ~depth ~num_nodes_visited
-          ~field_to_type
-      in
-      num_nodes_visited + Array.length flat_suffix,
-      Lambda.Constructor_mixed
-        { value_prefix; flat_suffix = Array.to_list flat_suffix }
+      num_nodes_visited, Constructor_mixed (Array.of_list shape)
     in
     let for_one_constructor (constructor : Types.constructor_declaration)
           ~depth ~num_nodes_visited
@@ -626,10 +656,9 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           | Constructor_uniform_value ->
               for_one_uniform_value_constructor fields ~field_to_type
                 ~depth ~num_nodes_visited
-          | Constructor_mixed { value_prefix_len; flat_suffix } ->
+          | Constructor_mixed shape ->
               for_one_mixed_constructor fields
-                ~value_prefix_len ~flat_suffix ~field_to_type
-                ~depth ~num_nodes_visited
+                ~shape ~field_to_type ~depth ~num_nodes_visited
         in
         (false, num_nodes_visited), fields
       | Cstr_record labels ->
@@ -645,10 +674,9 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           | Constructor_uniform_value ->
               for_one_uniform_value_constructor labels ~field_to_type
                 ~depth ~num_nodes_visited
-          | Constructor_mixed { value_prefix_len; flat_suffix } ->
+          | Constructor_mixed shape ->
               for_one_mixed_constructor labels
-                ~value_prefix_len ~flat_suffix ~field_to_type
-                ~depth ~num_nodes_visited
+                ~shape ~field_to_type ~depth ~num_nodes_visited
         in
         (is_mutable, num_nodes_visited), fields
     in
@@ -760,25 +788,17 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
               num_nodes_visited, Constructor_uniform fields
           | Record_inlined (_, Constructor_mixed shape, _)
           | Record_mixed shape ->
-              let { value_prefix_len; flat_suffix } : mixed_product_shape =
-                shape
-              in
-              let labels_value_prefix, _ =
-                Misc.Stdlib.List.split_at value_prefix_len labels
-              in
-              assert (List.length labels_value_prefix = value_prefix_len);
-              let num_nodes_visited, value_prefix =
-                List.fold_left_map
-                  (fun num_nodes_visited
-                    (label:Types.label_declaration) ->
-                    let num_nodes_visited = num_nodes_visited + 1 in
-                    value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                      label.ld_type)
-                  num_nodes_visited labels_value_prefix
-              in
-              let flat_suffix = Array.to_list flat_suffix in
-              num_nodes_visited,
-              Constructor_mixed { value_prefix; flat_suffix }
+            let (_, num_nodes_visited), kind =
+              List.fold_left_map
+                (fun (i, num_nodes_visited) label ->
+                   let num_nodes_visited, kind =
+                     value_kind_mixed_block_field env ~loc ~visited ~depth
+                       ~num_nodes_visited shape.(i) label.Types.ld_type
+                   in
+                   (i+1, num_nodes_visited), kind)
+                (0, num_nodes_visited) labels
+            in
+            num_nodes_visited, Constructor_mixed (Array.of_list kind)
         in
         let non_consts =
           match rep with

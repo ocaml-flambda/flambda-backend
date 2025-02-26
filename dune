@@ -175,7 +175,7 @@
   ast_invariants
   depend
   parser_types ; manual update: mli only files asttypes parsetree
-  ;; TYPING
+               ;; TYPING
   ident
   path
   jkind
@@ -244,6 +244,7 @@
   debuginfo
   lambda
   matching
+  mixed_block_shape
   printlambda
   runtimedef
   runtimetags
@@ -895,6 +896,7 @@
 ; guess is that targets in subdirectories aren't even discovered until
 ; ocamlcommon is built, unless something in the subdirectory is explicitly made
 ; a dependency.
+
 (alias
  (name install)
  (package ocaml)

@@ -741,9 +741,10 @@ let rec expression : Typedtree.expression -> term_judg =
            (match desc.cstr_shape with
             | Constructor_uniform_value -> Guard
             | Constructor_mixed mixed_shape ->
-                (match get_mixed_product_element mixed_shape i with
-                 | Value_prefix -> Guard
-                 | Flat_suffix _ -> Dereference))
+                (match mixed_shape.(i) with
+                 | Value | Float_boxed -> Guard
+                 | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+                   Dereference))
       in
       let arg i e = expression e << arg_mode i in
       join [
@@ -766,9 +767,10 @@ let rec expression : Typedtree.expression -> term_judg =
               Guard
           | Record_inlined (_, Constructor_mixed mixed_shape, _)
           | Record_mixed mixed_shape ->
-              (match get_mixed_product_element mixed_shape i with
-               | Value_prefix -> Guard
-               | Flat_suffix _ -> Dereference)
+            (match mixed_shape.(i) with
+             | Value | Float_boxed -> Guard
+             | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+               Dereference)
         in
         let field (label, field_def) =
           let env =

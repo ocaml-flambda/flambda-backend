@@ -618,12 +618,11 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                       nest tree_of_val (depth - 1) fld ty_arg
                   | Outval_record_mixed_block shape ->
                       let fld =
-                        match Types.get_mixed_product_element shape pos with
-                        | Value_prefix -> `Continue (O.field obj pos)
-                        | Flat_suffix Imm -> `Continue (O.field obj pos)
-                        | Flat_suffix (Float_boxed | Float64) ->
+                        match shape.(pos) with
+                        | Value -> `Continue (O.field obj pos)
+                        | Float_boxed | Float64 ->
                             `Continue (O.repr (O.double_field obj pos))
-                        | Flat_suffix (Float32 | Bits32 | Bits64 | Vec128 | Word) ->
+                        | Float32 | Bits32 | Bits64 | Vec128 | Word ->
                             `Stop (Oval_stuff "<abstr>")
                       in
                       match fld with

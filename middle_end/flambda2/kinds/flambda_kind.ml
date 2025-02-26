@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Mixed_block_lambda_shape = Mixed_block_shape
+
 module Naked_number_kind = struct
   type t =
     | Naked_immediate
@@ -150,6 +152,8 @@ include Container_types.Make (struct
       else Format.fprintf ppf "Rec"
 end)
 
+let print_kind = print
+
 let is_value t =
   match t with Value -> true | Naked_number _ | Region | Rec_info -> false
 
@@ -163,8 +167,10 @@ let is_naked_float t =
   | Region | Rec_info ->
     false
 
+(* Note that the flat suffix cannot include tagged immediates, since we don't
+   have a global view as to whether they might end up being part of a type
+   involving boxed values. *)
 type flat_suffix_element =
-  | Tagged_immediate
   | Naked_float
   | Naked_float32
   | Naked_int32
@@ -177,7 +183,6 @@ module Flat_suffix_element0 = struct
 
   let kind t =
     match t with
-    | Tagged_immediate -> value
     | Naked_float -> naked_float
     | Naked_float32 -> naked_float32
     | Naked_int32 -> naked_int32
@@ -192,14 +197,13 @@ module Flat_suffix_element0 = struct
   let equal = Stdlib.( = )
 
   let size_in_words = function
-    | Tagged_immediate | Naked_float | Naked_float32 | Naked_int32 | Naked_int64
-    | Naked_nativeint ->
+    | Naked_float | Naked_float32 | Naked_int32 | Naked_int64 | Naked_nativeint
+      ->
       1
     | Naked_vec128 -> 2
 
   let print ppf t =
     match t with
-    | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
     | Naked_float -> Format.pp_print_string ppf "Naked_float"
     | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
     | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
@@ -207,15 +211,18 @@ module Flat_suffix_element0 = struct
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
     | Naked_vec128 -> Format.pp_print_string ppf "Naked_vec128"
 
-  let from_lambda (elt : Lambda.flat_element) =
+  let from_lambda (elt : _ Lambda.mixed_block_element) =
     match elt with
-    | Imm -> Tagged_immediate
-    | Float_boxed | Float64 -> Naked_float
+    | Float_boxed _ | Float64 -> Naked_float
     | Float32 -> Naked_float32
     | Bits32 -> Naked_int32
     | Bits64 -> Naked_int64
     | Vec128 -> Naked_vec128
     | Word -> Naked_nativeint
+    | Value _ ->
+      (* XXX print the value kind *)
+      Misc.fatal_error
+        "Cannot convert [Value] mixed block elements to flat suffix elements"
 end
 
 module Mixed_block_shape = struct
@@ -296,13 +303,18 @@ module Mixed_block_shape = struct
       Misc.Stdlib.Array.compare Flat_suffix_element0.compare flat_suffix1
         flat_suffix2
 
-  let from_lambda ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape)
-      =
-    let value_prefix_kinds = Array.init value_prefix_len (fun _ -> value) in
-    let flat_suffix = Array.map Flat_suffix_element0.from_lambda flat_suffix in
+  let from_lambda (shape : Lambda.mixed_block_shape) : t =
+    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    let value_prefix_kinds =
+      Array.map (fun _ -> value) (Mixed_block_shape.value_prefix shape)
+    in
+    let flat_suffix =
+      Array.map Flat_suffix_element0.from_lambda
+        (Mixed_block_shape.flat_suffix shape)
+    in
     let flat_suffix_kinds = Array.map Flat_suffix_element0.kind flat_suffix in
     { flat_suffix;
-      value_prefix_size = value_prefix_len;
+      value_prefix_size = Array.length value_prefix_kinds;
       field_kinds = Array.concat [value_prefix_kinds; flat_suffix_kinds]
     }
 end
@@ -644,8 +656,23 @@ module With_subkind = struct
           Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{1d54d}128%t" colour
             Flambda_colours.pop
         | Variant { consts; non_consts } ->
-          let print_field ppf { kind = _; value_subkind; nullable = _ } =
-            print ppf value_subkind
+          let print_field ppf { kind; value_subkind; nullable } =
+            (* CR mshinwell: share code with "print", below *)
+            match kind, value_subkind, nullable with
+            | _, Anything, Non_nullable -> print_kind ppf kind
+            | Value, value_subkind, nullable ->
+              Format.fprintf ppf "@[%a%a%a@]" print_kind kind print
+                value_subkind Nullable.print nullable
+            | ( (Naked_number _ | Region | Rec_info),
+                ( Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+                | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
+                | Float_block _ | Float_array | Immediate_array | Value_array
+                | Generic_array | Unboxed_float32_array | Unboxed_int32_array
+                | Unboxed_int64_array | Unboxed_nativeint_array
+                | Unboxed_vec128_array | Unboxed_product_array ),
+                Non_nullable )
+            | (Naked_number _ | Region | Rec_info), _, Nullable ->
+              assert false
           in
           Format.fprintf ppf "%t=Variant((consts (%a))@ (non_consts (%a)))%t"
             colour Targetint_31_63.Set.print consts
@@ -829,12 +856,14 @@ module With_subkind = struct
     | Naked_vec128 -> boxed_vec128
 
   let of_flat_suffix_element elt =
+    (* XXX this comment is probably irrelevant now that immediates are no longer
+       in flat suffixes *)
     (* CR vlaviron: We should generate the appropriate subkind for immediates.
        This requires us to know the nullability, so we need a patch in the
        front-end for that. *)
     anything (Flat_suffix_element0.kind elt)
 
-  let of_lambda_flat_element_kind elt =
+  let _of_lambda_flat_element_kind elt =
     Flat_suffix_element0.from_lambda elt |> of_flat_suffix_element
 
   let rec from_lambda_value_kind (vk : Lambda.value_kind) =
@@ -878,18 +907,37 @@ module With_subkind = struct
                     | Constructor_uniform fields ->
                       ( Scannable Value_only,
                         List.map from_lambda_value_kind fields )
-                    | Constructor_mixed { value_prefix; flat_suffix } ->
+                    | Constructor_mixed mixed_block_shape ->
+                      let mixed_block_shape =
+                        Mixed_block_lambda_shape.of_mixed_block_elements
+                          mixed_block_shape
+                      in
+                      let from_mixed_block_element :
+                          _ Lambda.mixed_block_element -> t =
+                        (* CR-soon xclerc for xclerc: is there already a
+                           function for that? *)
+                        function
+                        | Value (value_kind : Lambda.value_kind) ->
+                          from_lambda_value_kind value_kind
+                        | Float_boxed _ | Float64 -> naked_float
+                        | Float32 -> naked_float32
+                        | Bits32 -> naked_int32
+                        | Bits64 -> naked_int64
+                        | Vec128 -> naked_vec128
+                        | Word -> naked_nativeint
+                      in
+                      let fields : t array =
+                        Array.map from_mixed_block_element
+                          (Mixed_block_lambda_shape.reordered_shape
+                             mixed_block_shape)
+                      in
                       let mixed_block_shape =
                         Mixed_block_shape.from_lambda
-                          { value_prefix_len = List.length value_prefix;
-                            flat_suffix = Array.of_list flat_suffix
-                          }
+                          (Mixed_block_lambda_shape.reordered_shape
+                             mixed_block_shape)
                       in
-                      let fields =
-                        List.map from_lambda_value_kind value_prefix
-                        @ List.map of_lambda_flat_element_kind flat_suffix
-                      in
-                      Scannable (Mixed_record mixed_block_shape), fields
+                      ( Scannable (Mixed_record mixed_block_shape),
+                        Array.to_list fields )
                   in
                   Tag.Scannable.Map.add tag shape_and_fields non_consts
                 | None ->
@@ -1022,7 +1070,6 @@ module Flat_suffix_element = struct
 
   let to_kind_with_subkind t =
     match t with
-    | Tagged_immediate -> With_subkind.tagged_immediate
     | Naked_float -> With_subkind.naked_float
     | Naked_float32 -> With_subkind.naked_float32
     | Naked_int32 -> With_subkind.naked_int32

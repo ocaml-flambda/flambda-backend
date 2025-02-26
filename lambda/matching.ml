@@ -1930,27 +1930,21 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
     cstr.cstr_args;
   let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
   let sem = add_barrier_to_read ubr Reads_agree in
-  let make_field_access binding_kind sort ~field ~pos =
+  let make_field_access binding_kind sort ~field:_ ~pos =
     let prim =
       match cstr.cstr_shape with
       | Constructor_uniform_value -> Pfield (pos, Pointer, sem)
       | Constructor_mixed shape ->
-          let read =
-            match Types.get_mixed_product_element shape field with
-            | Value_prefix -> Mread_value_prefix Pointer
-            | Flat_suffix flat ->
-                let flat_read =
-                  match flat with
-                  | Float_boxed ->
-                      Misc.fatal_error
-                        "unexpected flat float of layout value in \
-                         constructor field"
-                  | non_float -> flat_read_non_float non_float
-                in
-                Mread_flat_suffix flat_read
+          let shape =
+            Lambda.transl_mixed_product_shape_for_read
+              ~get_value_kind:(fun _i -> Lambda.generic_value)
+              ~get_mode:(fun _i ->
+                Misc.fatal_error
+                  "unexpected flat float of layout value in \
+                    constructor field")
+              shape
           in
-          let shape = Lambda.transl_mixed_product_shape shape in
-          Pmixedfield (pos, read, shape, sem)
+          Pmixedfield (pos, shape, sem)
     in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
@@ -2366,26 +2360,15 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               "Mixed inlined records not supported for extensible variants"
         | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
         | Record_mixed shape ->
-            let ({ value_prefix_len; flat_suffix } : mixed_product_shape) =
-              shape
+            let shape =
+              Lambda.transl_mixed_product_shape_for_read
+                ~get_value_kind:(fun _i -> Lambda.generic_value)
+                ~get_mode:(fun _i ->
+                  (* TODO: could optimise to Alloc_local sometimes *)
+                  alloc_heap)
+                shape
             in
-            let read =
-              if pos < value_prefix_len then Mread_value_prefix ptr
-              else
-                let read =
-                  match flat_suffix.(pos - value_prefix_len) with
-                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word as non_float ->
-                      flat_read_non_float non_float
-                  | Float_boxed ->
-                      (* TODO: could optimise to Alloc_local sometimes *)
-                      flat_read_float_boxed alloc_heap
-                in
-                Mread_flat_suffix read
-            in
-            let shape : Lambda.mixed_block_shape =
-              { value_prefix_len; flat_suffix }
-            in
-            Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [ arg ], loc),
+            Lprim (Pmixedfield (lbl.lbl_pos, shape, sem), [ arg ], loc),
             lbl.lbl_sort, lbl_layout
         | Record_inlined (_, _, Variant_with_null) -> assert false
       in
