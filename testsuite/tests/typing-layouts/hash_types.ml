@@ -42,7 +42,7 @@ type bad = Float.t#
 Line 1, characters 11-19:
 1 | type bad = Float.t#
                ^^^^^^^^
-Error: "Float.t" has no unboxed version.
+Error: The type "Float.t" has no unboxed version.
 |}]
 
 (* The alias can also have type parameters. *)
@@ -71,7 +71,7 @@ type float
 Line 2, characters 11-17:
 2 | type bad = float#
                ^^^^^^
-Error: "float" has no unboxed version.
+Error: The type "float" has no unboxed version.
 |}]
 
 (* Restore float *)
@@ -88,7 +88,7 @@ type float = string
 Line 2, characters 11-17:
 2 | type bad = float#
                ^^^^^^
-Error: "float" has no unboxed version.
+Error: The type "float" has no unboxed version.
 |}]
 
 type bad = non_existent#
@@ -226,7 +226,7 @@ and bad = t#
 Line 2, characters 0-12:
 2 | and bad = t#
     ^^^^^^^^^^^^
-Error: "t" has no unboxed version.
+Error: The type "t" has no unboxed version.
 |}]
 
 type t = int
@@ -235,7 +235,7 @@ and bad = t# * t#
 Line 2, characters 0-17:
 2 | and bad = t# * t#
     ^^^^^^^^^^^^^^^^^
-Error: "t" has no unboxed version.
+Error: The type "t" has no unboxed version.
 |}]
 
 type bad_a = X of bad_b#
@@ -244,7 +244,7 @@ and bad_b = Y of bad_a#
 Line 1, characters 0-24:
 1 | type bad_a = X of bad_b#
     ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: "bad_b" has no unboxed version.
+Error: The type "bad_b" has no unboxed version.
 |}]
 
 type a = b
@@ -256,7 +256,7 @@ and b = int
 Line 3, characters 11-13:
 3 | type bad = a#
                ^^
-Error: "a" has no unboxed version.
+Error: The type "a" has no unboxed version.
 |}]
 
 (* Recursive modules *)
@@ -290,7 +290,7 @@ end
 Line 2, characters 11-18:
 2 |   type t = Bad2.t#
                ^^^^^^^
-Error: "Bad2.t" has no unboxed version.
+Error: The type "Bad2.t" has no unboxed version.
 |}]
 
 module rec Bad1 : sig
@@ -307,7 +307,7 @@ end
 Line 2, characters 11-18:
 2 |   type t = Bad2.t#
                ^^^^^^^
-Error: "Bad2.t" has no unboxed version.
+Error: The type "Bad2.t" has no unboxed version.
 |}]
 
 (********************)
@@ -339,7 +339,7 @@ end
 Line 7, characters 13-19:
 7 |   type bad = int32#
                  ^^^^^^
-Error: "int32" has no unboxed version.
+Error: The type "int32" has no unboxed version.
 |}]
 
 
@@ -441,7 +441,7 @@ end with type t := int#
 Line 3, characters 19-23:
 3 | end with type t := int#
                        ^^^^
-Error: "int" has no unboxed version.
+Error: The type "int" has no unboxed version.
 |}]
 
 (* Test subst when a decl's type_unboxed_version over-approximately [None]
@@ -458,7 +458,7 @@ type 'a t = 'b constraint 'a = < m : 'b >
 Line 6, characters 16-48:
 6 | module type T = S with type t := < m : float > t
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this instantiated signature: "t" has no unboxed version.
+Error: In this instantiated signature: The type "t" has no unboxed version.
 |}]
 
 (* Standalone destructive substitution *)
@@ -522,7 +522,7 @@ module type S = sig module type x = sig type t = int end module M : x end
 Line 7, characters 11-17:
 7 |   let id : M.M.t# -> r# = fun x -> x
                ^^^^^^
-Error: "M.M.t" has no unboxed version.
+Error: The type "M.M.t" has no unboxed version.
 |}]
 
 (* Destructive substition *)
@@ -557,7 +557,7 @@ module type S = sig module M : sig type t = int end end
 Line 7, characters 11-17:
 7 |   type u = M.M.t#
                ^^^^^^
-Error: "M.M.t" has no unboxed version.
+Error: The type "M.M.t" has no unboxed version.
 |}]
 
 (***********************)
@@ -596,7 +596,7 @@ type m = (module S with type t = int)
 Line 5, characters 11-15:
 5 |   type u = M.t#
                ^^^^
-Error: "M.t" has no unboxed version.
+Error: The type "M.t" has no unboxed version.
 |}]
 
 (******************************)
@@ -630,7 +630,7 @@ Lines 1-4, characters 18-27:
 2 |   type t = float
 3 |   type u = t#
 4 | end with type t := float id
-Error: In this instantiated signature: "id" has no unboxed version.
+Error: In this instantiated signature: The type "id" has no unboxed version.
 |}]
 
 (* We can also remove an unboxed version through functor application *)
@@ -644,7 +644,7 @@ Line 4, characters 13-23:
 4 | module Bad = F(FloatId)
                  ^^^^^^^^^^
 Error: In the signature of this functor application:
-       "FloatId.t" has no unboxed version.
+       The type "FloatId.t" has no unboxed version.
 |}]
 
 (* ..and module substitution... *)
@@ -662,7 +662,8 @@ Lines 1-6, characters 18-32:
 4 |   end
 5 |   type u = Float.t#
 6 | end with module Float := FloatId
-Error: In this instantiated signature: "FloatId.t" has no unboxed version.
+Error: In this instantiated signature:
+       The type "FloatId.t" has no unboxed version.
 |}]
 
 (* ..and module type substitution. *)
@@ -684,7 +685,7 @@ Lines 1-8, characters 18-41:
 6 |     type u = M.t#
 7 |   end
 8 | end with module type Float_S := FloatId_S
-Error: In this instantiated signature: "M.t" has no unboxed version.
+Error: In this instantiated signature: The type "M.t" has no unboxed version.
 |}]
 
 (* The check for bad unboxed paths looks deeply through manifests *)
@@ -698,7 +699,7 @@ Lines 1-4, characters 18-27:
 2 |   type t = float
 3 |   type uu = #(t# * t#)
 4 | end with type t := float id
-Error: In this instantiated signature: "id" has no unboxed version.
+Error: In this instantiated signature: The type "id" has no unboxed version.
 |}]
 
 (* The check for bad unboxed paths looks deeply through kinds *)
@@ -712,7 +713,7 @@ Lines 1-4, characters 18-27:
 2 |   type t = float
 3 |   type uu = #{ uu : #(t# * t#) }
 4 | end with type t := float id
-Error: In this instantiated signature: "id" has no unboxed version.
+Error: In this instantiated signature: The type "id" has no unboxed version.
 |}]
 
 (* The check for bad unboxed paths looks through nested modules *)
@@ -730,7 +731,7 @@ Lines 1-6, characters 18-29:
 4 |   end
 5 |   type u = M.t#
 6 | end with type M.t := float id
-Error: In this instantiated signature: "id" has no unboxed version.
+Error: In this instantiated signature: The type "id" has no unboxed version.
 |}]
 
 (* Still check when the original unboxed version comes from a constraint *)
@@ -744,7 +745,7 @@ Lines 1-4, characters 18-27:
 2 |   type 'a t = 'a constraint float = 'a
 3 |   type u = float t#
 4 | end with type 'a t := 'a id
-Error: In this instantiated signature: "id" has no unboxed version.
+Error: In this instantiated signature: The type "id" has no unboxed version.
 |}]
 
 (* Nested functor application *)
@@ -771,7 +772,7 @@ Line 10, characters 13-44:
 10 | module Bad = G(struct type t = float id end)
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In the signature of this functor application:
-       "N.t" has no unboxed version.
+       The type "N.t" has no unboxed version.
 |}]
 
 (* Chain of two aliases that lose unboxed versions *)
@@ -788,7 +789,7 @@ Line 5, characters 13-23:
 5 | module Bad = F(FloatId)
                  ^^^^^^^^^^
 Error: In the signature of this functor application:
-       "s" has no unboxed version.
+       The type "s" has no unboxed version.
 |}]
 
 (* Mutually recursive aliases that lose unboxed versions *)
@@ -805,7 +806,7 @@ Line 5, characters 13-23:
 5 | module Bad = F(FloatId)
                  ^^^^^^^^^^
 Error: In the signature of this functor application:
-       "s" has no unboxed version.
+       The type "s" has no unboxed version.
 |}]
 
 (* Make sure our check isn't too restrictive. We allow a module with a

@@ -4831,7 +4831,7 @@ let report_error ppf = function
 =======
       Style.inline_code "with" (Jkind.format ~jkind_of_type:None) jkind
   | No_unboxed_version p ->
-      fprintf ppf "@[%a@ has no unboxed version.@]"
+      fprintf ppf "@[The type %a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p
 <<<<<<< HEAD
 >>>>>>> dfbd93623f (Operator-like unboxed versions of types (e.g. float and float#))

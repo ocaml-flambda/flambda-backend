@@ -4585,7 +4585,7 @@ let report_lookup_error _loc env ppf = function
         (fun v -> Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ) v) err
   | No_unboxed_version lid ->
-      fprintf ppf "@[%a has no unboxed version.@]"
+      fprintf ppf "@[The type %a has no unboxed version.@]"
         (Style.as_inline_code !print_longident) lid
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
