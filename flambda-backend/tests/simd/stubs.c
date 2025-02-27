@@ -1,8 +1,22 @@
 
 #include <caml/memory.h>
 #include <caml/simd.h>
+#include <caml/callback.h>
 #include <smmintrin.h>
 #include <assert.h>
+
+value vec128_run_callback(value f)
+{
+  CAMLparam1(f);
+  CAMLreturn(caml_callback(f, Val_unit));
+}
+
+value vec128_run_callback_stack_args(value i0, value i1, value i2, value i3, value i4, value i5, value i6, value i7, value f)
+{
+  CAMLparam1(f); // Others are ints
+  value args[] = {i0, i1, i2, i3, i4, i5, i6, i7};
+  CAMLreturn(caml_callbackN(f, 8, args));
+}
 
 int64_t vec128_low_int64(__m128i v)
 {
@@ -19,7 +33,7 @@ __m128i vec128_of_int64s(int64_t low, int64_t high)
   return _mm_set_epi64x(high, low);
 }
 
-CAMLprim value boxed_combine(value v0, value v1)
+value boxed_combine(value v0, value v1)
 {
   CAMLparam2(v0, v1);
 
