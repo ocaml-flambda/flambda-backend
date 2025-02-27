@@ -4471,7 +4471,9 @@ module Scalar_type = struct
   end = struct
     (* [signedness t] is stored in the low bit of [t], and [bit_width t] is
        stored in the remaining high bits of [t]. We use this encoding to fit [t]
-       into an immediate value *)
+       into an immediate value. This is worth trying since we expect to create
+       one of these for ~every integer operation, so it should cut down on
+       garbage *)
     type t = { bit_width_and_signedness : int } [@@unboxed]
 
     let[@inline] equal { bit_width_and_signedness = x }
@@ -4520,7 +4522,7 @@ module Scalar_type = struct
     let[@inline] static_cast ~dbg ~src ~dst exp =
       if is_promotable ~src ~dst
       then
-        (* since the values are already stored sign- or zero-extended, this is a
+        (* since int32# are already stored sign- or zero-extended, this is a
            no-op. *)
         exp
       else
