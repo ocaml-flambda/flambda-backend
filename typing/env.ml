@@ -2424,14 +2424,6 @@ and store_type ~check id info shape env =
     | Type_open -> Type_open, env
   in
   let descrs, env = store_decl (Pident id) info env in
-  let env =
-    match info.type_unboxed_version with
-    | Some info ->
-      let path = Path.unboxed_version (Pident id) in
-      let _, env = store_decl path info env in
-      env
-    | None -> env
-  in
   let tda =
     { tda_declaration = info;
       tda_descriptions = descrs;
