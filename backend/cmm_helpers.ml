@@ -1313,6 +1313,8 @@ let rec low_bits ~bits ~dbg x =
               [Cop (Clsl, [x; Cconst_int (left, _)], _); Cconst_int (right, _)],
               _ )
           when 0 <= right && right <= left && left <= unused_bits ->
+          (* these sign-extensions can be replaced with a left shift since we
+             don't care about the high bits that it changed *)
           low_bits ~bits (lsl_const x (left - right) dbg) ~dbg
         | x -> (
           match get_const_bitmask x with
@@ -1363,7 +1365,9 @@ let sign_extend ~bits ~dbg e =
           when 0 <= n && n < arch_bits ->
           (* see middle_end/flambda2/z3/sign_extension.py for proof *)
           if n > unused_bits
-          then (* already sign-extended *) e
+          then
+            (* sign-extension is a no-op since the top n bits already match *)
+            e
           else
             let e = lsl_const inner (unused_bits - n) dbg in
             asr_const e unused_bits dbg
@@ -1747,9 +1751,8 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
     addr_array_initialize block ofs newval dbg
   | Word_int -> generic_case ()
   (* Generic cases that may differ under big endian archs *)
-  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Single _
-  | Double | Thirtytwo_unsigned | Thirtytwo_signed | Onetwentyeight_unaligned
-  | Onetwentyeight_aligned ->
+  | Single _ | Double | Thirtytwo_unsigned | Thirtytwo_signed
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
     if Arch.big_endian
     then
       Misc.fatal_errorf
@@ -1757,6 +1760,11 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
          architectures"
         (Printcmm.chunk memory_chunk);
     generic_case ()
+  (* Forbidden cases *)
+  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+    Misc.fatal_errorf
+      "Fields with memory_chunk %s are not supported in generic allocations"
+      (Printcmm.chunk memory_chunk)
 
 let make_alloc_generic ~block_kind ~mode ~alloc_block_kind dbg tag wordsize args
     args_memory_chunks =
