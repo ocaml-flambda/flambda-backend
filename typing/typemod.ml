@@ -331,7 +331,10 @@ let rec iter_path_apply p ~f =
      iter_path_apply p1 ~f;
      iter_path_apply p2 ~f;
      f p1 p2 (* after recursing, so we know both paths are well typed *)
-  | Pextra_ty _ -> assert false
+  | Pextra_ty (p, t) ->
+     match t with
+     | Punboxed_ty -> iter_path_apply p ~f
+     | Pcstr_ty _ | Pext_ty -> assert false
 
 let path_is_strict_prefix =
   let rec list_is_strict_prefix l ~prefix =
@@ -514,7 +517,32 @@ let check_well_formed_module env loc context mty =
     in
     let env, super = iterator_with_env env in
     { super with
-      it_type_expr = (fun _self _ty -> ());
+      it_type_expr = (fun self ty ->
+        (* Check that an unboxed path is valid because substitutions can
+           remove an unboxed version of a type.
+           See [tests/typing-layouts/hash_types.ml]. *)
+        begin match get_desc ty with
+        | Tconstr (Pextra_ty(path, Punboxed_ty) as path_unboxed, _, _) ->
+          let env = Lazy.force !env in
+          begin try ignore (Env.find_type path_unboxed env) with
+          | Not_found ->
+            let err =
+              Badly_formed_signature(context, Typedecl.No_unboxed_version path)
+            in
+            raise (Error (loc, env, err))
+          end
+        | _ -> ()
+        end;
+        super.it_type_expr self ty
+      );
+      it_type_declaration = (fun self td ->
+        (* Optimization: the above check on [type_expr]s doesn't need to check
+           unboxed versions, so we override [it_type_declaration] to skip
+           [td.type_unboxed_version]. *)
+        List.iter (self.it_type_expr self) td.type_params;
+        Option.iter (self.it_type_expr self) td.type_manifest;
+        self.it_type_kind self td.type_kind
+      );
       it_signature = (fun self sg ->
         let env_before = !env in
         let env = lazy (Env.add_signature sg (Lazy.force env_before)) in
@@ -522,7 +550,8 @@ let check_well_formed_module env loc context mty =
         super.it_signature self sg);
     }
   in
-  iterator.it_module_type iterator mty
+  iterator.it_module_type iterator mty;
+  Btype.(unmark_iterators.it_module_type unmark_iterators) mty
 
 let () = Env.check_well_formed_module := check_well_formed_module
 
@@ -691,6 +720,7 @@ let merge_constraint initial_env loc sg lid constr =
             type_attributes = [];
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+            type_unboxed_version = None;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -871,14 +901,16 @@ let merge_constraint initial_env loc sg lid constr =
                   try Env.find_type_by_name lid.txt initial_env
                   with Not_found -> assert false
                 in
-                fun s path -> Subst.add_type_path path replacement s
+                fun s path ->
+                  Subst.add_type_path path replacement s
             | None ->
                 let body = Option.get tdecl.typ_type.type_manifest in
                 let params = tdecl.typ_type.type_params in
                 if params_are_constrained params
                 then raise(Error(loc, initial_env,
                                 With_cannot_remove_constrained_type));
-                fun s path -> Subst.add_type_function path ~params ~body s
+                fun s path ->
+                  Subst.add_type_function path ~params ~body s
           in
           let sub = Subst.change_locs Subst.identity loc in
           let sub = List.fold_left how_to_extend_subst sub !real_ids in
@@ -1828,13 +1860,13 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           if params_are_constrained params
           then raise(Error(loc, env, With_cannot_remove_constrained_type));
           let info =
-              let subst =
-                Subst.add_type_function (Pident td.typ_id)
-                  ~params
-                  ~body:(Option.get td.typ_type.type_manifest)
-                  Subst.identity
-              in
-              Some (`Substituted_away subst)
+            let subst =
+              Subst.add_type_function (Pident td.typ_id)
+                ~params
+                ~body:(Option.get td.typ_type.type_manifest)
+                Subst.identity
+            in
+            Some (`Substituted_away subst)
           in
           Signature_names.check_type ?info names td.typ_loc td.typ_id
         ) decls;

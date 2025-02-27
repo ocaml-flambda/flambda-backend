@@ -55,6 +55,12 @@ let rec fmt_path_aux f x =
   | Path.Papply (y, z) ->
       fprintf f "%a(%a)" fmt_path_aux y fmt_path_aux z
   | Path.Pextra_ty (y, Pext_ty) -> fmt_path_aux f y
+  | Path.Pextra_ty (y, Punboxed_ty) ->
+      match y with
+      | Path.Pident id ->
+        fprintf f "%a#" fmt_ident id
+      | Path.Pdot (y, s) -> fprintf f "%a.%s" fmt_path_aux y (s ^ "#")
+      | Path.Papply _ | Path.Pextra_ty _ -> assert false
 
 let fmt_path f x = fprintf f "\"%a\"" fmt_path_aux x
 
