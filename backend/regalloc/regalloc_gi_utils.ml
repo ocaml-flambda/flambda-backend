@@ -347,12 +347,15 @@ let iter_instructions_layout :
     let trap_handler_id =
       if block.is_trap_handler
       then Regalloc_utils.first_instruction_id block
-      else min_int
+      else InstructionId.none
     in
     DLL.iter block.body ~f:(fun instr ->
-        instruction ~trap_handler:(Int.equal instr.Cfg.id trap_handler_id) instr);
+        instruction
+          ~trap_handler:(InstructionId.equal instr.Cfg.id trap_handler_id)
+          instr);
     terminator
-      ~trap_handler:(Int.equal block.terminator.Cfg.id trap_handler_id)
+      ~trap_handler:
+        (InstructionId.equal block.terminator.Cfg.id trap_handler_id)
       block.terminator
   in
   iter_cfg_layout cfg_with_layout ~f
@@ -493,7 +496,7 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     instr.ls_order <- on;
     Array.iter instr.arg ~f:(fun reg -> update_range reg ~begin_:on ~end_:on);
     Array.iter instr.res ~f:(fun reg -> update_range reg ~begin_:off ~end_:off);
-    let live = Cfg_dataflow.Instr.Tbl.find liveness instr.id in
+    let live = InstructionId.Tbl.find liveness instr.id in
     Reg.Set.iter (fun reg -> update_range reg ~begin_:on ~end_:off) live.across;
     Array.iter destroyed ~f:(fun reg -> update_range reg ~begin_:off ~end_:off)
   in

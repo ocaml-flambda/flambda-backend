@@ -96,7 +96,7 @@ module S = struct
       mutable fdo : Fdo_info.t;
       mutable live : Reg.Set.t;
       mutable stack_offset : int;
-      id : int;
+      id : InstructionId.t;
       mutable irc_work_list : irc_work_list;
       mutable ls_order : int;
       mutable available_before : Reg_availability_set.t option;

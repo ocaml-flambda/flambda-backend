@@ -132,7 +132,7 @@ let dump ppf t ~msg =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%a:\n" Label.format label;
     let pp_with_id ppf ~pp (instr : _ Cfg.instruction) =
-      fprintf ppf "(id:%d) %a\n" instr.id pp instr
+      fprintf ppf "(id:%a) %a\n" InstructionId.format instr.id pp instr
     in
     DLL.iter ~f:(pp_with_id ppf ~pp:Cfg.print_basic) block.body;
     pp_with_id ppf ~pp:Cfg.print_terminator block.terminator;
@@ -267,8 +267,9 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
           type a. a Cfg.instruction -> Format.formatter -> unit =
        fun i ppf ->
         if i.ls_order >= 0
-        then Format.dprintf "id:%d ls:%d" i.id i.ls_order ppf
-        else Format.dprintf "id:%d" i.id ppf
+        then
+          Format.dprintf "id:%a ls:%d" InstructionId.format i.id i.ls_order ppf
+        else Format.dprintf "id:%a" InstructionId.format i.id ppf
       in
       DLL.iter
         ~f:(fun (i : _ Cfg.instruction) ->

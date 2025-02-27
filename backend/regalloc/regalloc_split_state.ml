@@ -15,7 +15,7 @@ type t =
     definitions_at_beginning : definitions_at_beginning;
     phi_at_beginning : phi_at_beginning;
     stack_slots : Regalloc_stack_slots.t;
-    mutable next_instruction_id : Instruction.id
+    instruction_id : InstructionId.sequence
   }
 
 let log_renaming_info : indent:int -> t -> unit =
@@ -615,7 +615,7 @@ let[@inline] remove_empty_sets (map : 'a Label.Map.t) ~(f : 'a -> Reg.Set.t) :
     'a Label.Map.t =
   Label.Map.filter (fun _ data -> not (Reg.Set.is_empty (f data))) map
 
-let make cfg_with_infos ~next_instruction_id =
+let make cfg_with_infos ~last_used =
   let destructions_at_end = compute_destructions cfg_with_infos in
   let definitions_at_beginning =
     compute_definitions cfg_with_infos ~destructions_at_end
@@ -640,11 +640,12 @@ let make cfg_with_infos ~next_instruction_id =
     compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
   in
   let stack_slots = Regalloc_stack_slots.make () in
+  let instruction_id = InstructionId.make_sequence ~last_used () in
   { destructions_at_end;
     definitions_at_beginning;
     phi_at_beginning;
     stack_slots;
-    next_instruction_id
+    instruction_id
   }
 
 let destructions_at_end state = state.destructions_at_end
@@ -656,6 +657,4 @@ let phi_at_beginning state = state.phi_at_beginning
 let stack_slots state = state.stack_slots
 
 let get_and_incr_instruction_id state =
-  let res = state.next_instruction_id in
-  state.next_instruction_id <- succ res;
-  res
+  InstructionId.get_next state.instruction_id

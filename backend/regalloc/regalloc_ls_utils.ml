@@ -73,14 +73,15 @@ let iter_instructions_dfs :
       let trap_handler_id =
         if block.is_trap_handler
         then Regalloc_utils.first_instruction_id block
-        else min_int
+        else InstructionId.none
       in
       DLL.iter block.body ~f:(fun instr ->
           instruction
-            ~trap_handler:(Int.equal instr.Cfg.id trap_handler_id)
+            ~trap_handler:(InstructionId.equal instr.Cfg.id trap_handler_id)
             instr);
       terminator
-        ~trap_handler:(Int.equal block.terminator.Cfg.id trap_handler_id)
+        ~trap_handler:
+          (InstructionId.equal block.terminator.Cfg.id trap_handler_id)
         block.terminator)
 
 module Range = struct

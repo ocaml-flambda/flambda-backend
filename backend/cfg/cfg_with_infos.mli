@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
+type liveness = Cfg_liveness.Liveness.domain InstructionId.Tbl.t
 
 (** Holds a Cfg_with_layout.t value, and "caches" for:
     - the liveness information;
@@ -32,9 +32,10 @@ val get_block_exn : t -> Label.t -> Cfg.basic_block
 
 val liveness : t -> liveness
 
-val liveness_find : t -> int -> Cfg_liveness.Liveness.domain
+val liveness_find : t -> InstructionId.t -> Cfg_liveness.Liveness.domain
 
-val liveness_find_opt : t -> int -> Cfg_liveness.Liveness.domain option
+val liveness_find_opt :
+  t -> InstructionId.t -> Cfg_liveness.Liveness.domain option
 
 val invalidate_liveness : t -> unit
 

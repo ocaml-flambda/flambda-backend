@@ -6,8 +6,10 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 let live_before :
     type a. a Cfg.instruction -> Cfg_with_infos.liveness -> Reg.Set.t =
  fun instr liveness ->
-  match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
-  | None -> fatal "no liveness information for instruction %d" instr.id
+  match InstructionId.Tbl.find_opt liveness instr.id with
+  | None ->
+    fatal "no liveness information for instruction %a" InstructionId.format
+      instr.id
   | Some { Cfg_liveness.before; across = _ } -> before
 
 let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness

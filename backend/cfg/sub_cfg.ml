@@ -119,7 +119,7 @@ let mark_as_trap_handler sub_cfg ~exn_label =
   sub_cfg.entry.is_trap_handler <- true
 
 let dump sub_cfg =
-  let liveness = Cfg_dataflow.Instr.Tbl.create 32 in
+  let liveness = InstructionId.Tbl.create 32 in
   DLL.iter sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
       Format.eprintf "Block %a@." Label.print block.start;
       Regalloc_irc_utils.log_body_and_terminator ~indent:0 block.body

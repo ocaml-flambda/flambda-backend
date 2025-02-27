@@ -13,9 +13,9 @@ module State : sig
 
   val create : Format.formatter -> Cfg_with_layout.t -> t
 
-  val next_available_instruction : t -> int
+  val next_available_instruction : t -> InstructionId.t
 
-  val liveness : t -> int -> live_regs
+  val liveness : t -> InstructionId.t -> live_regs
 
   val dump_debug : t -> ('a, Format.formatter, unit) format -> 'a
 
@@ -29,7 +29,7 @@ module State : sig
 end = struct
   type t =
     { ppf_dump : Format.formatter;
-      mutable max_instruction_id : int;
+      instruction_id : InstructionId.sequence;
       cfg_with_infos : Cfg_with_infos.t Lazy.t;
       cfg_with_layout : Cfg_with_layout.t
     }
@@ -40,27 +40,15 @@ end = struct
 
   let fun_dbg t = (Cfg_with_layout.cfg t.cfg_with_layout).fun_dbg
 
-  let next_available_instruction t =
-    let id = t.max_instruction_id + 1 in
-    t.max_instruction_id <- id;
-    id
-
-  let init_instructon_max_id cl =
-    (* CR gyorsh: Duplicated from backend/regalloc/regalloc_utils.ml. Should
-       probably move it to Cfg or Cfg_with_infos. *)
-    let max_id = ref Int.min_int in
-    let update_max_id (instr : _ Cfg.instruction) : unit =
-      max_id := Int.max !max_id instr.id
-    in
-    Cfg_with_layout.iter_instructions cl ~instruction:update_max_id
-      ~terminator:update_max_id;
-    !max_id
+  let next_available_instruction t = InstructionId.get_next t.instruction_id
 
   let create ppf_dump cl =
     (* CR-someday tip: the function may someday take a cfg_with_infos instead of
        creating a new one *)
+    let cfg = Cfg_with_layout.cfg cl in
     { ppf_dump;
-      max_instruction_id = init_instructon_max_id cl;
+      instruction_id =
+        InstructionId.make_sequence ~last_used:(Cfg.max_instr_id cfg) ();
       cfg_with_layout = cl;
       cfg_with_infos = lazy (Cfg_with_infos.make cl)
     }
@@ -152,7 +140,7 @@ module Instruction : sig
      blocks only, and removing it would simplify the code and reduce
      allocation. *)
   module Id : sig
-    type t
+    type t = InstructionId.t
 
     include Identifiable.S with type t := t
   end
@@ -187,14 +175,14 @@ module Instruction : sig
     Cfg.basic Cfg.instruction ->
     arg:Reg.t array ->
     res:Reg.t array ->
-    id:int ->
+    id:Id.t ->
     desc:Cfg.basic ->
     Cfg.basic Cfg.instruction
 end = struct
   module Id = struct
-    include Numbers.Int
+    include InstructionId
 
-    let print ppf t = Format.fprintf ppf "(id:%d)" t
+    let print ppf t = Format.fprintf ppf "(id:%a)" InstructionId.format t
   end
 
   type t =

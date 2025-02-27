@@ -180,5 +180,5 @@ class selector =
   end
 
 let fundecl ~future_funcnames f =
-  Cfg.reset_next_instr_id ();
+  Cfg.reset_instr_id ();
   (new selector)#emit_fundecl ~future_funcnames f

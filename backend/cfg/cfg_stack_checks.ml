@@ -51,7 +51,7 @@ let is_nontail_call : Cfg.terminator -> bool =
 let block_preproc_stack_check_result :
     Cfg.basic_block ->
     frame_size:int ->
-    Emitaux.preproc_stack_check_result * int =
+    Emitaux.preproc_stack_check_result * InstructionId.t =
  fun block ~frame_size ->
   let contains_nontail_calls =
     (* XCR mshinwell: move to a method in Cfg somewhere?
@@ -65,7 +65,7 @@ let block_preproc_stack_check_result :
       ~init:(block.terminator.stack_offset, block.terminator.id)
       ~f:(fun (max_stack_frame, max_instr_id) (instr : _ Cfg.instruction) ->
         ( Int.max max_stack_frame instr.stack_offset,
-          Int.max max_instr_id instr.id ))
+          InstructionId.max max_instr_id instr.id ))
   in
   let max_frame_size = max_frame_size + frame_size in
   { max_frame_size; contains_nontail_calls }, max_instr_id
@@ -73,7 +73,7 @@ let block_preproc_stack_check_result :
 type cfg_info =
   { max_frame_size : int;
     blocks_needing_stack_checks : Label.Set.t;
-    max_instr_id : int
+    max_instr_id : InstructionId.t
   }
 
 let build_cfg_info : Cfg.t -> cfg_info =
@@ -85,7 +85,7 @@ let build_cfg_info : Cfg.t -> cfg_info =
   let init =
     { max_frame_size = 0;
       blocks_needing_stack_checks = Label.Set.empty;
-      max_instr_id = 0
+      max_instr_id = InstructionId.none
     }
   in
   Cfg.fold_blocks cfg ~init
@@ -110,7 +110,7 @@ let build_cfg_info : Cfg.t -> cfg_info =
         then Label.Set.add label blocks_needing_stack_checks
         else blocks_needing_stack_checks
       in
-      let max_instr_id = Int.max max_instr_id max_instr_id_block in
+      let max_instr_id = InstructionId.max max_instr_id max_instr_id_block in
       { max_frame_size; blocks_needing_stack_checks; max_instr_id })
 
 (* Populates `num_checks` with the number of blocks needing a stack check in the
@@ -188,10 +188,11 @@ let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size
 
        xclerc: (keeping the comment, and the explicit values below until all of
        that is implemented.) *)
+    let seq = InstructionId.make_sequence ~last_used:max_instr_id () in
+    let id = InstructionId.get_next seq in
     Cfg.make_instruction ()
       ~desc:(Cfg.Stack_check { max_frame_size_bytes = max_frame_size })
-      ~stack_offset ~id:(succ max_instr_id) ~available_before:None
-      ~available_across:None
+      ~stack_offset ~id ~available_before:None ~available_across:None
   in
   DLL.add_begin block.body check
 

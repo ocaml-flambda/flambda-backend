@@ -1,7 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
-module Instruction = Regalloc_utils.Instruction
 module List = ListLabels
 module Array = ArrayLabels
 
@@ -17,19 +16,19 @@ let debug = false
 module State : sig
   type t
 
-  val make : next_instruction_id:Instruction.id -> t
+  val make : last_used:InstructionId.t -> t
 
-  val get_and_incr_instruction_id : t -> Instruction.id
+  val get_and_incr_instruction_id : t -> InstructionId.t
 end = struct
   (* CR-soon xclerc for xclerc: factor out with the state of GI, IRC, LS. *)
-  type t = { mutable next_instruction_id : Instruction.id }
+  type t = { instruction_id : InstructionId.sequence }
 
-  let make ~next_instruction_id = { next_instruction_id }
+  let make ~last_used =
+    let instruction_id = InstructionId.make_sequence ~last_used () in
+    { instruction_id }
 
   let get_and_incr_instruction_id state =
-    let res = state.next_instruction_id in
-    state.next_instruction_id <- succ res;
-    res
+    InstructionId.get_next state.instruction_id
 end
 
 let insert_single_move :
@@ -277,9 +276,7 @@ class cse_generic =
         (if not (List.mem ~set:cfg.fun_codegen_options Cfg.No_CSE)
         then
           let cfg_infos = Regalloc_utils.collect_cfg_infos cfg_with_layout in
-          let state =
-            State.make ~next_instruction_id:(succ cfg_infos.max_instruction_id)
-          in
+          let state = State.make ~last_used:cfg_infos.max_instruction_id in
           self#cse_blocks state cfg);
         cfg_with_layout
   end

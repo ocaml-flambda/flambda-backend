@@ -316,14 +316,14 @@ module Description : sig
   val reg_fun_args : t -> Register.t array
 end = struct
   type basic_info =
-    { successor_id : int;
+    { successor_id : InstructionId.t;
       instr : basic Instruction.t
     }
 
   type t =
-    { instructions : (int, basic_info) Hashtbl.t;
-      terminators : (int, terminator Instruction.t) Hashtbl.t;
-      first_instruction_in_block : int Label.Tbl.t;
+    { instructions : (InstructionId.t, basic_info) Hashtbl.t;
+      terminators : (InstructionId.t, terminator Instruction.t) Hashtbl.t;
+      first_instruction_in_block : InstructionId.t Label.Tbl.t;
       reg_fun_args : Register.t array
     }
 
@@ -340,7 +340,9 @@ end = struct
 
   let add_instr_id ~seen_ids ~context id =
     if Hashtbl.mem seen_ids id
-    then Regalloc_utils.fatal "Duplicate instruction no. %d while %s" id context;
+    then
+      Regalloc_utils.fatal "Duplicate instruction no. %a while %s"
+        InstructionId.format id context;
     Hashtbl.add seen_ids id ()
 
   let add_basic ~seen_ids ~successor_id t instr =
@@ -350,9 +352,9 @@ end = struct
     if is_regalloc_specific_basic instr.desc
     then
       Regalloc_utils.fatal
-        "Instruction no. %d is specific to the regalloc phase while creating \
+        "Instruction no. %a is specific to the regalloc phase while creating \
          pre-allocation description"
-        id;
+        InstructionId.format id;
     Hashtbl.add t.instructions id
       { successor_id;
         instr =
@@ -459,10 +461,14 @@ end = struct
   let verify_reg_arrays (type a) ~id (instr : a Cfg.instruction)
       (old_instr : a Instruction.t) =
     verify_reg_array
-      ~context:(Printf.sprintf "In instruction's no %d arguments" id)
+      ~context:
+        (Printf.sprintf "In instruction's no %s arguments"
+           (InstructionId.to_string id))
       ~reg_arr:old_instr.arg ~loc_arr:instr.arg;
     verify_reg_array
-      ~context:(Printf.sprintf "In instruction's no %d results" id)
+      ~context:
+        (Printf.sprintf "In instruction's no %s results"
+           (InstructionId.to_string id))
       ~reg_arr:old_instr.res ~loc_arr:instr.res
 
   let verify_basic ~seen_ids ~successor_id t instr =
@@ -474,13 +480,14 @@ end = struct
     with
     (* The instruction was present before. *)
     | Some { instr = old_instr; successor_id = old_successor_id }, false ->
-      if not (Int.equal old_successor_id successor_id)
+      if not (InstructionId.equal old_successor_id successor_id)
       then
         Regalloc_utils.fatal
-          "The instruction's no. %d successor id has changed. Before \
-           allocation: %d. After allocation (ignoring instructions added by \
-           allocation): %d."
-          id old_successor_id successor_id;
+          "The instruction's no. %a successor id has changed. Before \
+           allocation: %a. After allocation (ignoring instructions added by \
+           allocation): %a."
+          InstructionId.format id InstructionId.format old_successor_id
+          InstructionId.format successor_id;
       (* CR-someday azewierzejew: Avoid using polymrphic compare. *)
       (match instr.desc, old_instr.desc with
       | Op (Name_for_debugger _), Op (Name_for_debugger _) ->
@@ -490,7 +497,8 @@ end = struct
       | _ ->
         if instr.desc <> old_instr.desc
         then
-          Regalloc_utils.fatal "The desc of instruction with id %d changed" id);
+          Regalloc_utils.fatal "The desc of instruction with id %a changed"
+            InstructionId.format id);
       verify_reg_arrays ~id instr old_instr;
       (* Return new successor id which is the id of the current instruction. *)
       id
@@ -501,9 +509,9 @@ end = struct
       successor_id
     | Some _, true ->
       Regalloc_utils.fatal
-        "Register allocation changed existing instruction no. %d into a \
+        "Register allocation changed existing instruction no. %a into a \
          register allocation specific instruction"
-        id
+        InstructionId.format id
     | None, false -> (
       match instr.desc with
       | Op Move ->
@@ -512,21 +520,22 @@ end = struct
         successor_id
       | _ ->
         Regalloc_utils.fatal
-          "Register allocation added non-regalloc specific instruction no. %d"
-          id)
+          "Register allocation added non-regalloc specific instruction no. %a"
+          InstructionId.format id)
 
   let compare_terminators ~successor_ids ~id (old_instr : terminator)
       (instr : terminator) =
     let compare_label l1 l2 =
       let s1 = Label.Tbl.find successor_ids l1 in
       let s2 = Label.Tbl.find successor_ids l2 in
-      if not (Int.equal s1 s2)
+      if not (InstructionId.equal s1 s2)
       then
         Regalloc_utils.fatal
           "When checking equivalence of labels before and after allocation got \
            different successor id's. Successor (label, instr id) before: (%a, \
-           %d). Successor (label, instr id) after: (%a, %d)."
-          Label.format l1 s1 Label.format l2 s2
+           %a). Successor (label, instr id) after: (%a, %a)."
+          Label.format l1 InstructionId.format s1 Label.format l2
+          InstructionId.format s2
     in
     match old_instr, instr with
     | Never, Never -> ()
@@ -587,13 +596,15 @@ end = struct
       compare_label l1 l2
     | _ ->
       Regalloc_utils.fatal
-        "The desc of terminator with id %d changed, before: %a, after: %a." id
+        "The desc of terminator with id %a changed, before: %a, after: %a."
+        InstructionId.format id
         (Cfg.dump_terminator ~sep:", ")
         old_instr
         (Cfg.dump_terminator ~sep:", ")
         instr
 
-  let verify_terminator ~seen_ids ~successor_ids t instr =
+  let verify_terminator ~seen_ids ~(successor_ids : InstructionId.t Label.Tbl.t)
+      t instr : InstructionId.t =
     let id = instr.id in
     add_instr_id ~seen_ids
       ~context:"checking a terminator instruction in the new CFG" id;
@@ -611,9 +622,9 @@ end = struct
         Label.Tbl.find successor_ids successor
       | _ ->
         Regalloc_utils.fatal
-          "Register allocation added a terminator no. %d but that's not \
+          "Register allocation added a terminator no. %a but that's not \
            allowed for this type of terminator: %a"
-          id Cfg.print_terminator instr)
+          InstructionId.format id Cfg.print_terminator instr)
 
   let compute_successor_ids t (cfg : Cfg.t) =
     let visited_labels = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
@@ -655,14 +666,15 @@ end = struct
         | Always label, false -> get_id (Cfg.get_block_exn cfg label)
         | _, false ->
           Regalloc_utils.fatal
-            "Register allocation added a terminator no. %d but that's not \
+            "Register allocation added a terminator no. %a but that's not \
              allowed for this type of terminator: %a"
-            block.terminator.id Cfg.print_terminator block.terminator)
+            InstructionId.format block.terminator.id Cfg.print_terminator
+            block.terminator)
     in
     Label.Tbl.iter
       (fun _ block ->
         (* Force compuatation of the given id. *)
-        let (_ : int) = get_id block in
+        let (_ : InstructionId.t) = get_id block in
         ())
       cfg.blocks;
     successor_ids
@@ -687,7 +699,7 @@ end = struct
               verify_basic ~seen_ids ~successor_id t instr)
             block.body ~init:successor_id
         in
-        ignore (first_instruction_id : int))
+        ignore (first_instruction_id : InstructionId.t))
       (Cfg_with_layout.cfg cfg).Cfg.blocks;
     Hashtbl.iter
       (fun id { instr; _ } ->
@@ -704,14 +716,16 @@ end = struct
         if (not (Hashtbl.mem seen_ids id)) && not can_be_removed
         then
           Regalloc_utils.fatal
-            "Instruction no. %d was deleted by register allocator" id)
+            "Instruction no. %a was deleted by register allocator"
+            InstructionId.format id)
       t.instructions;
     Hashtbl.iter
       (fun id _ ->
         if not (Hashtbl.mem seen_ids id)
         then
           Regalloc_utils.fatal
-            "Terminator no. %d was deleted by register allocator" id)
+            "Terminator no. %a was deleted by register allocator"
+            InstructionId.format id)
       t.terminators
 end
 
@@ -1042,7 +1056,8 @@ end = struct
         ( `Terminator (Instruction.to_prealloc ~alloced:t.loc_instr t.reg_instr),
           `Terminator t.loc_instr )
     in
-    Format.fprintf ppf "CFG REGALLOC Check failed in instr %d:\n" t.loc_instr.id;
+    Format.fprintf ppf "CFG REGALLOC Check failed in instr %a:\n"
+      InstructionId.format t.loc_instr.id;
     Format.fprintf ppf "Instruction's description before allocation: %a\n"
       Cfg.print_instruction reg_instr;
     Format.fprintf ppf "Instruction's description after allocation: %a\n"
@@ -1214,9 +1229,9 @@ module Transfer (Desc_val : Description_value) :
         t
       | _ ->
         Regalloc_utils.fatal
-          "Register allocation added a terminator no. %d but that's not \
+          "Register allocation added a terminator no. %a but that's not \
            allowed for this type of terminator: %a"
-          instr.id Cfg.print_terminator instr)
+          InstructionId.format instr.id Cfg.print_terminator instr)
 
   (* This should remove the equations for the exception value, but we do that in
      [Domain.append_equations] because there we have more information to give if
@@ -1236,7 +1251,7 @@ let save_as_dot_with_equations ~desc ~res_instr ~res_block ?filename cfg msg =
             | `Basic instr -> instr.id
             | `Terminator instr -> instr.id
           in
-          Cfg_dataflow.Instr.Tbl.find_opt res_instr id
+          InstructionId.Tbl.find_opt res_instr id
           |> Format.pp_print_option
                ~none:(fun ppf () -> Format.fprintf ppf "Unknown")
                Equation_set.print ppf);
@@ -1279,7 +1294,7 @@ module Error : sig
 
   type t =
     { source : Source.t;
-      res_instr : Domain.t Cfg_dataflow.Instr.Tbl.t;
+      res_instr : Domain.t InstructionId.Tbl.t;
       res_block : Domain.t Label.Tbl.t;
       desc : Description.t;
       cfg : Cfg_with_layout.t
@@ -1324,7 +1339,7 @@ end = struct
 
   type t =
     { source : Source.t;
-      res_instr : Domain.t Cfg_dataflow.Instr.Tbl.t;
+      res_instr : Domain.t InstructionId.Tbl.t;
       res_block : Domain.t Label.Tbl.t;
       desc : Description.t;
       cfg : Cfg_with_layout.t
@@ -1419,7 +1434,7 @@ let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
       let cfg = Cfg_with_layout.cfg cfg in
       let entry_block = Cfg.entry_label cfg |> Cfg.get_block_exn cfg in
       let entry_id = Cfg.first_instruction_id entry_block in
-      Cfg_dataflow.Instr.Tbl.find res_instr entry_id
+      InstructionId.Tbl.find res_instr entry_id
     in
     verify_entrypoint entrypoint_equations desc cfg
     |> Result.map_error (fun (error : Error.At_entrypoint.t) : Error.t ->
