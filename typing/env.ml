@@ -1370,6 +1370,30 @@ let type_of_cstr path = function
       end
   | _ -> assert false
 
+type unboxed_version_step =
+  | Lacks_unboxed_version
+  | Aliases of Path.t * type_expr list
+  | Has_unboxed_version of type_declaration
+let step_find_unboxed_version decl =
+  match decl.type_unboxed_version with
+  | Some ud -> Has_unboxed_version ud
+  | None ->
+    (* If there's no stored unboxed version, then we must follow aliases. We
+        only follow this alias if the kind is abstract (we could follow all
+        aliases, but this gives better errors when typechecking mutually
+        recursive typedecls). *)
+    match decl.type_kind with
+    | Type_record_unboxed_product _ | Type_variant _ | Type_open
+    | Type_record _ ->
+      Lacks_unboxed_version
+    | Type_abstract _ ->
+      match decl.type_manifest with
+      | None -> Lacks_unboxed_version
+      | Some ty ->
+        match get_desc ty with
+        | Tconstr (path, args, _) -> Aliases (path, args)
+        | _ -> Lacks_unboxed_version
+
 let rec find_type_data path env seen =
   match Path.Map.find path env.local_constraints with
   | decl ->
@@ -1405,67 +1429,49 @@ and find_cstr path name env =
   | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
   | Type_open ->
       raise Not_found
-and find_type_unboxed_version_data path env seen =
+and find_type_unboxed_version path env seen =
   if Path.Set.mem path seen then raise Not_found else
   let seen = Path.Set.add path seen in
-  let tda = find_type_data path env seen in
-  let decl = tda.tda_declaration in
-  let tda_declaration =
-    match decl.type_unboxed_version with
-    | Some ud -> ud
-    | None ->
-      (* If there's no stored unboxed version, then we must follow aliases. We
-         only follow this alias if the kind is abstract (we could follow all
-         aliases, but this gives better errors when typechecking mutually
-         recursive typedecls). *)
-      let decl_path, decl_args =
-        (match decl.type_kind with
-        | Type_record_unboxed_product _ | Type_variant _ | Type_open
-        | Type_record _ ->
-          raise Not_found
-        | Type_abstract _ -> ());
-        match decl.type_manifest with
-        | Some ty ->
-          begin match get_desc ty with
-          | Tconstr (path, args, _) -> path, args
-          | _ -> raise Not_found end
-        | None -> raise Not_found
-      in
-      match find_type_unboxed_version_data decl_path env seen with
-      | { tda_declaration = ud } ->
-        let man =
-          Btype.newgenty
-            (Tconstr (Path.unboxed_version decl_path, decl_args, ref Mnil)) in
-        let jkind = ud.type_jkind in
-        (* As this unboxed version aliases [ud], its params' separabilities can
-           be conservatively set to the max of the separabilities of [ud]
-           (to account for the alias possibly shuffling params).
-        *)
-        let max_sep_of_ud =
-          List.fold_left Separability.max Separability.Ind ud.type_separability
-        in
-        let type_separability =
-          List.map (fun _ -> max_sep_of_ud) decl.type_separability
-        in
-        {
-          type_params = decl.type_params;
-          type_arity = decl.type_arity;
-          type_kind = decl.type_kind;
-          type_jkind = jkind;
-          type_private = decl.type_private;
-          type_manifest = Some man;
-          type_variance = decl.type_variance;
-          (* Variance is the same as the boxed version *)
-          type_separability;
-          type_is_newtype = false;
-          type_expansion_scope = Btype.lowest_level;
-          type_loc = decl.type_loc;
-          type_attributes = decl.type_attributes;
-          type_unboxed_default = false;
-          type_uid = Uid.unboxed_version decl.type_uid;
-          type_unboxed_version = None;
-        }
-  in
+  let decl = (find_type_data path env seen).tda_declaration in
+  match step_find_unboxed_version decl with
+  | Has_unboxed_version ud -> ud
+  | Lacks_unboxed_version -> raise Not_found
+  | Aliases (path, args) ->
+    let ud = find_type_unboxed_version path env seen in
+    let man =
+      Btype.newgenty
+        (Tconstr (Path.unboxed_version path, args, ref Mnil)) in
+    let jkind = ud.type_jkind in
+    (* As this unboxed version aliases [ud], its params' separabilities can
+        be conservatively set to the max of the separabilities of [ud]
+        (to account for the alias possibly shuffling params).
+    *)
+    let max_sep_of_ud =
+      List.fold_left Separability.max Separability.Ind ud.type_separability
+    in
+    let type_separability =
+      List.map (fun _ -> max_sep_of_ud) decl.type_separability
+    in
+    {
+      type_params = decl.type_params;
+      type_arity = decl.type_arity;
+      type_kind = decl.type_kind;
+      type_jkind = jkind;
+      type_private = decl.type_private;
+      type_manifest = Some man;
+      type_variance = decl.type_variance;
+      (* Variance is the same as the boxed version *)
+      type_separability;
+      type_is_newtype = false;
+      type_expansion_scope = Btype.lowest_level;
+      type_loc = decl.type_loc;
+      type_attributes = decl.type_attributes;
+      type_unboxed_default = false;
+      type_uid = Uid.unboxed_version decl.type_uid;
+      type_unboxed_version = None;
+    }
+and find_type_unboxed_version_data path env seen =
+  let tda_declaration = find_type_unboxed_version path env seen in
   let descrs =
     match tda_declaration.type_kind with
     | Type_abstract r -> Type_abstract r
@@ -1477,7 +1483,7 @@ and find_type_unboxed_version_data path env seen =
   {
     tda_declaration;
     tda_descriptions = descrs;
-    tda_shape = tda.tda_shape
+    tda_shape = Shape.leaf tda_declaration.type_uid
   }
 
 let find_modtype_lazy path env =
@@ -3799,9 +3805,9 @@ let lookup_type ~errors ~use ~loc lid env =
     (* To get the hash version, look up without the hash, then look for the
        unboxed version *)
     let path, _ = lookup_type_full ~errors ~use ~loc lid env in
-    match find_type_unboxed_version_data path env Path.Set.empty with
-    | tda ->
-      Path.unboxed_version path, tda.tda_declaration
+    match find_type_unboxed_version path env Path.Set.empty with
+    | decl ->
+      Path.unboxed_version path, decl
     | exception Not_found ->
       may_lookup_error errors loc env (No_unboxed_version lid)
 
