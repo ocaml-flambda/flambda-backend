@@ -1290,7 +1290,7 @@ let get_const_bitmask = function
     Some (x, Nativeint.of_int mask)
   | _ -> None
 
-(** [low_bits ~bits x] is a (hopefully simplified) value which agrees with x on at least
+(** [low_bits ~bits x] is a (potentially simplified) value which agrees with x on at least
     the low [bits] bits. E.g., [low_bits ~bits x & mask = x & mask], where [mask] is a
     bitmask of the low [bits] bits . *)
 let rec low_bits ~bits ~dbg x =
@@ -1299,13 +1299,13 @@ let rec low_bits ~bits ~dbg x =
   then x
   else
     let unused_bits = arch_bits - bits in
-    let does_mask_ignore_low_bits test_mask =
+    let does_mask_keep_low_bits test_mask =
       (* If the mask has all the low bits set, then the low bits are unchanged.
          This could happen from zero-extension. *)
       let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
       Nativeint.equal mask (Nativeint.logand test_mask mask)
     in
-    (* Ignore sign and zero extensions, which do not affect the low bits *)
+    (* Ignore sign and zero extensions which do not affect the low bits *)
     map_tail
       (function
         | Cop
@@ -1316,7 +1316,7 @@ let rec low_bits ~bits ~dbg x =
           low_bits ~bits (lsl_const x (left - right) dbg) ~dbg
         | x -> (
           match get_const_bitmask x with
-          | Some (x, bitmask) when does_mask_ignore_low_bits bitmask ->
+          | Some (x, bitmask) when does_mask_keep_low_bits bitmask ->
             low_bits ~bits x ~dbg
           | _ -> x))
       x
