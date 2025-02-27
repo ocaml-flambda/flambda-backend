@@ -722,5 +722,11 @@ module type S = sig
 
     (** Similar to [apply_right] but for [Alloc] *)
     val apply_right_alloc : t -> Alloc.r -> Alloc.r
+
+    (** [le t0 t1] returns [true] if [t0] allows more mode crossing than [t1]. *)
+    val le : t -> t -> bool
+
+    (** Print the mode crossing by axis. Omit axes that do not cross. *)
+    val print : Format.formatter -> t -> unit
   end
 end

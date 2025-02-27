@@ -3007,6 +3007,11 @@ module Crossing = struct
      - Apply [f] on both [m0] and [m1]
      - Apply [fl ∘ f] on [m0]
      - Apply [fr ∘ f] on [m1]
+
+     Mode crossing forms a lattice: [f0 <= f1] iff [f0] allows more mode
+     crossing than [f1]. Concretely:
+
+     For any [m0, m1], if [f1 m0 <= f1 m1], then [f0 m0 <= f0 m1].
   *)
 
   module Monadic = struct
@@ -3027,6 +3032,9 @@ module Crossing = struct
         fun m ->
           (* The right adjoint of join is a restriction of identity *)
           Mode.join_const c m
+
+    let le (t0 : t) (t1 : t) =
+      match t0, t1 with Join_const c0, Join_const c1 -> Mode.Const.le c1 c0
   end
 
   module Comonadic = struct
@@ -3049,6 +3057,9 @@ module Crossing = struct
 
     let apply_right : t -> _ -> _ = function
       | Meet_const c -> fun m -> Mode.imply c (Mode.meet_const c m)
+
+    let le (t0 : t) (t1 : t) =
+      match t0, t1 with Meet_const c0, Meet_const c1 -> Mode.Const.le c0 c1
   end
 
   type t = (Monadic.t, Comonadic.t) monadic_comonadic
@@ -3080,4 +3091,9 @@ module Crossing = struct
   let apply_right_alloc t m =
     m |> alloc_as_value |> apply_right t
     |> value_to_alloc_r2g (* the right adjoint of [alloc_as_value] *)
+
+  let le t0 t1 =
+    Monadic.le t0.monadic t1.monadic && Comonadic.le t0.comonadic t1.comonadic
+
+  let print ppf t = Modality.Value.Const.print ppf t
 end
