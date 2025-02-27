@@ -182,7 +182,11 @@ module Violation : sig
 
   (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
-  val of_ : ?missing_cmi:Path.t -> violation -> t
+  val of_ :
+    jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
+    ?missing_cmi:Path.t ->
+    violation ->
+    t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool
