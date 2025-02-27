@@ -383,22 +383,6 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 
 module Mod_bounds = struct
   include Types.Jkind_mod_bounds
-  module Locality = Mode.Locality.Const
-  module Linearity = Mode.Linearity.Const
-  module Uniqueness = Mode.Uniqueness.Const_op
-  module Portability = Mode.Portability.Const
-  module Contention = Mode.Contention.Const_op
-  module Yielding = Mode.Yielding.Const
-
-  let debug_print ppf t =
-    Format.fprintf ppf
-      "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ portability = \
-       %a;@ contention = %a;@ yielding = %a;@ externality = %a;@ nullability = \
-       %a }@]"
-      Locality.print (locality t) Linearity.print (linearity t) Uniqueness.print
-      (uniqueness t) Portability.print (portability t) Contention.print
-      (contention t) Yielding.print (yielding t) Externality.print
-      (externality t) Nullability.print (nullability t)
 
   let min =
     create ~locality:Locality.min ~linearity:Linearity.min
@@ -540,7 +524,7 @@ module With_bounds = struct
 
     let print ppf { relevant_axes } =
       let open Format in
-      fprintf ppf "@[{ relevant_axes = %a }]" Axis_set.print relevant_axes
+      fprintf ppf "@[{ relevant_axes = %a }@]" Axis_set.print relevant_axes
 
     let join { relevant_axes = axes1 } { relevant_axes = axes2 } =
       { relevant_axes = Axis_set.union axes1 axes2 }
@@ -618,7 +602,7 @@ module With_bounds = struct
         (pp_print_seq
            ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
            (fun ppf (ty, ti) ->
-             fprintf ppf "@[(%a, %a)]" print_type_expr ty Type_info.print ti))
+             fprintf ppf "@[(%a, %a)@]" print_type_expr ty Type_info.print ti))
         (With_bounds_types.to_seq tys)
 
   let join_bounds =

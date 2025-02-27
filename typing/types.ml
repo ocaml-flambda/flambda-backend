@@ -171,6 +171,27 @@ module Jkind_mod_bounds = struct
         externality = External;
         nullability = Maybe_null } -> true
     | _ -> false
+
+  let debug_print ppf
+        { locality;
+          linearity;
+          uniqueness;
+          portability;
+          contention;
+          yielding;
+          externality;
+          nullability } =
+    Format.fprintf ppf "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ \
+      portability = %a;@ contention = %a;@ yielding = %a;@ externality = %a;@ \
+      nullability = %a }@]"
+      Locality.print locality
+      Linearity.print linearity
+      Uniqueness.print uniqueness
+      Portability.print portability
+      Contention.print contention
+      Yielding.print yielding
+      Externality.print externality
+      Nullability.print nullability
 end
 
 

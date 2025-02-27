@@ -70,40 +70,51 @@ val is_mutable : mutability -> bool
 
 (** The mod-bounds of a jkind *)
 module Jkind_mod_bounds : sig
+  module Locality = Mode.Locality.Const
+  module Linearity = Mode.Linearity.Const
+  module Uniqueness = Mode.Uniqueness.Const_op
+  module Portability = Mode.Portability.Const
+  module Contention = Mode.Contention.Const_op
+  module Yielding = Mode.Yielding.Const
+  module Externality = Jkind_axis.Externality
+  module Nullability = Jkind_axis.Nullability
+
   type t
 
   val create :
-    locality:Mode.Locality.Const.t ->
-    linearity:Mode.Linearity.Const.t ->
-    uniqueness:Mode.Uniqueness.Const.t ->
-    portability:Mode.Portability.Const.t ->
-    contention:Mode.Contention.Const.t ->
-    yielding:Mode.Yielding.Const.t ->
-    externality:Jkind_axis.Externality.t ->
-    nullability:Jkind_axis.Nullability.t ->
+    locality:Locality.t ->
+    linearity:Linearity.t ->
+    uniqueness:Uniqueness.t ->
+    portability:Portability.t ->
+    contention:Contention.t ->
+    yielding:Yielding.t ->
+    externality:Externality.t ->
+    nullability:Nullability.t ->
     t
 
-  val locality : t -> Mode.Locality.Const.t
-  val linearity : t -> Mode.Linearity.Const.t
-  val uniqueness : t -> Mode.Uniqueness.Const.t
-  val portability : t -> Mode.Portability.Const.t
-  val contention : t -> Mode.Contention.Const.t
-  val yielding : t -> Mode.Yielding.Const.t
-  val externality : t -> Jkind_axis.Externality.t
-  val nullability : t -> Jkind_axis.Nullability.t
+  val locality : t -> Locality.t
+  val linearity : t -> Linearity.t
+  val uniqueness : t -> Uniqueness.t
+  val portability : t -> Portability.t
+  val contention : t -> Contention.t
+  val yielding : t -> Yielding.t
+  val externality : t -> Externality.t
+  val nullability : t -> Nullability.t
 
-  val set_locality : Mode.Locality.Const.t -> t -> t
-  val set_linearity : Mode.Linearity.Const.t -> t -> t
-  val set_uniqueness : Mode.Uniqueness.Const.t -> t -> t
-  val set_portability : Mode.Portability.Const.t -> t -> t
-  val set_contention : Mode.Contention.Const.t -> t -> t
-  val set_yielding : Mode.Yielding.Const.t -> t -> t
-  val set_externality : Jkind_axis.Externality.t -> t -> t
-  val set_nullability : Jkind_axis.Nullability.t -> t -> t
+  val set_locality : Locality.t -> t -> t
+  val set_linearity : Linearity.t -> t -> t
+  val set_uniqueness : Uniqueness.t -> t -> t
+  val set_portability : Portability.t -> t -> t
+  val set_contention : Contention.t -> t -> t
+  val set_yielding : Yielding.t -> t -> t
+  val set_externality : Externality.t -> t -> t
+  val set_nullability : Nullability.t -> t -> t
 
   val set_max_in_set : t -> Jkind_axis.Axis_set.t -> t
   val is_max_within_set : t -> Jkind_axis.Axis_set.t -> bool
   val is_max : t -> bool
+
+  val debug_print : Format.formatter -> t -> unit
 end
 
 
