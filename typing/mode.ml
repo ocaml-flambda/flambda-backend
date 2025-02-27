@@ -2512,12 +2512,17 @@ module Const = struct
   let locality_as_regionality = C.locality_as_regionality
 end
 
+let comonadic_locality_as_regionality comonadic =
+  S.Positive.via_monotone Value.Comonadic.Obj.obj
+    (Map_comonadic Locality_as_regionality) comonadic
+
+let comonadic_regional_to_local comonadic =
+  S.Positive.via_monotone Alloc.Comonadic.Obj.obj
+    (Map_comonadic Regional_to_local) comonadic
+
 let alloc_as_value m =
   let { comonadic; monadic } = m in
-  let comonadic =
-    S.Positive.via_monotone Value.Comonadic.Obj.obj
-      (Map_comonadic Locality_as_regionality) comonadic
-  in
+  let comonadic = comonadic_locality_as_regionality comonadic in
   { comonadic; monadic }
 
 let alloc_to_value_l2r m =
@@ -2539,10 +2544,7 @@ let value_to_alloc_r2g : type l r. (l * r) Value.t -> (l * r) Alloc.t =
 
 let value_to_alloc_r2l m =
   let { comonadic; monadic } = m in
-  let comonadic =
-    S.Positive.via_monotone Alloc.Comonadic.Obj.obj
-      (Map_comonadic Regional_to_local) comonadic
-  in
+  let comonadic = comonadic_regional_to_local comonadic in
   { comonadic; monadic }
 
 module Modality = struct
@@ -3091,6 +3093,16 @@ module Crossing = struct
   let apply_right_alloc t m =
     m |> alloc_as_value |> apply_right t
     |> value_to_alloc_r2g (* the right adjoint of [alloc_as_value] *)
+
+  let apply_left_right_alloc t { monadic; comonadic } =
+    let monadic = Monadic.apply_right t.monadic monadic in
+    let comonadic =
+      comonadic |> comonadic_locality_as_regionality
+      |> Comonadic.apply_left t.comonadic
+      |> comonadic_regional_to_local
+      (* the left adjoint of [locality_as_regionality]*)
+    in
+    { monadic; comonadic }
 
   let le t0 t1 =
     Monadic.le t0.monadic t1.monadic && Comonadic.le t0.comonadic t1.comonadic

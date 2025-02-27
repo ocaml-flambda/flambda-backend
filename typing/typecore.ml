@@ -958,12 +958,8 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   if not (is_principal ty) then { monadic; comonadic } else
   let jkind = type_jkind_purely env ty in
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let Jkind.{ upper_bounds; lower_bounds } =
-    Jkind.get_modal_bounds ~jkind_of_type jkind
-  in
-  let comonadic = Alloc.Comonadic.meet_const upper_bounds comonadic in
-  let monadic = Alloc.Monadic.join_const lower_bounds monadic in
-  { monadic; comonadic }
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  Crossing.apply_left_right_alloc crossing { monadic; comonadic }
 
 (** Mode cross a right mode *)
 (* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
