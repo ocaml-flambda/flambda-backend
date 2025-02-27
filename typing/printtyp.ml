@@ -1725,7 +1725,9 @@ let tree_of_type_scheme ty =
 
 let () =
   Env.print_type_expr := type_expr;
-  Jkind.set_outcometree_of_type_scheme tree_of_type_scheme;
+  Jkind.set_outcometree_of_type (fun ty ->
+    prepare_for_printing [ty];
+    tree_of_typexp Type ty);
   Jkind.set_outcometree_of_modalities_new tree_of_modalities_new
 
 (* Print one type declaration *)

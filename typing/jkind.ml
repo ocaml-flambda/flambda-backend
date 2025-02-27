@@ -1098,9 +1098,12 @@ module Context_with_transl = struct
     | Left_jkind (_, ctx) -> ctx
 end
 
-let outcometree_of_type_scheme = ref (fun _ -> assert false)
+(* CR layouts v2.8: This should sometimes be for type schemes, not types
+   (which print weak variables like ['_a] correctly), but this works better
+   for the common case. When we re-do printing, fix. *)
+let outcometree_of_type = ref (fun _ -> assert false)
 
-let set_outcometree_of_type_scheme p = outcometree_of_type_scheme := p
+let set_outcometree_of_type p = outcometree_of_type := p
 
 let outcometree_of_modalities_new = ref (fun _ _ _ -> assert false)
 
@@ -1409,7 +1412,7 @@ module Const = struct
               With_bounds.Type_info.axes_ignored_by_modalities
                 ~mod_bounds:actual.mod_bounds ~type_info
             in
-            ( !outcometree_of_type_scheme type_expr,
+            ( !outcometree_of_type type_expr,
               !outcometree_of_modalities_new
                 Types.Immutable []
                 (modality_to_ignore_axes axes_ignored_by_modalities) ))
@@ -2758,7 +2761,7 @@ module Violation = struct
                               (ty, ({ relevant_axes } : With_bounds_type_info.t))
                             ->
                               match Axis_set.mem relevant_axes axis with
-                              | true -> Some (!outcometree_of_type_scheme ty)
+                              | true -> Some (!outcometree_of_type ty)
                               | false -> None)
                    in
                    let ojkind =
