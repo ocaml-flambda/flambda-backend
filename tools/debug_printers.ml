@@ -21,3 +21,4 @@ let axis_set = Jkind_axis.Axis_set.print
 let layout = Jkind.Layout.Debug_printers.t Jkind.Sort.Debug_printers.t
 let mod_bounds ppf m = Types.Jkind_mod_bounds.debug_print ppf m
 let with_bounds ppf w = Jkind.With_bounds.debug_print ~print_type_expr:type_expr ppf w
+let modalities = Mode.Modality.Value.Const.print
