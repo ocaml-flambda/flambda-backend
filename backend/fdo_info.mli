@@ -33,12 +33,12 @@
 type info = private
   {
     dbg: Debuginfo.t;
-    discriminator: int;
+    discriminator: InstructionId.t;
   }
 type t = info option
 val none : t
 val is_none : t -> bool
-val create : dbg:Debuginfo.t -> discriminator:int -> t
+val create : dbg:Debuginfo.t -> discriminator:InstructionId.t -> t
 
 val equal_info : info -> info -> bool
 val equal : t -> t -> bool

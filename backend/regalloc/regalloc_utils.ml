@@ -77,7 +77,7 @@ let make_log_function : verbose:bool -> label:string -> log_function =
   { log; enabled = verbose }
 
 module Instruction = struct
-  type id = InstructionId.t
+  type id = int (* XXX *)
 
   type t = Cfg.basic Cfg.instruction
 
