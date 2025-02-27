@@ -3993,7 +3993,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let type_unboxed_version =
     match get_desc man with
     | Tconstr (path, args, _) ->
-      begin match Env.find_type path outer_env with
+      begin match Env.find_type path sig_env with
       | { type_unboxed_version = Some decl ; _ } ->
         let man = Ctype.newconstr (Path.unboxed_version path) args in
         let type_kind =
