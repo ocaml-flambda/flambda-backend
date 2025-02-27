@@ -102,6 +102,7 @@ let emit_debug_info_linear i =
   match i.fdo with
   | None -> emit_debug_info i.dbg
   | Some { discriminator; dbg } ->
+    let discriminator = InstructionId.to_int_unsafe discriminator in
     emit_debug_info ~discriminator dbg
 
 let fp = Config.with_frame_pointers
