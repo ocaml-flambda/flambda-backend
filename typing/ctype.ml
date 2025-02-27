@@ -2320,7 +2320,7 @@ let constrain_type_jkind ~fixed env ty jkind =
     if Jkind.is_obviously_max jkind then Ok () else
     if fuel < 0 then
       Error (
-        Jkind.Violation.of_ (
+        Jkind.Violation.of_ ~jkind_of_type (
           Not_a_subjkind (ty's_jkind, jkind, [Constrain_ran_out_of_fuel])))
     else
     match get_desc ty with
@@ -2371,7 +2371,7 @@ let constrain_type_jkind ~fixed env ty jkind =
              arbitrary amounts of expansion and looking through [@@unboxed]
              types. So we don't, settling for the slightly worse error
              message. *)
-          Error (Jkind.Violation.of_
+          Error (Jkind.Violation.of_ ~jkind_of_type
             (Not_a_subjkind (ty's_jkind, jkind, Nonempty_list.to_list sub_failure_reasons)))
        | Has_intersection sub_failure_reasons ->
            let sub_failure_reasons = Nonempty_list.to_list sub_failure_reasons in
@@ -2384,7 +2384,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                in
                if List.for_all Result.is_ok results
                then Ok ()
-               else Error (Jkind.Violation.of_
+               else Error (Jkind.Violation.of_ ~jkind_of_type
                       (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
              in
              begin match Jkind.decompose_product ty's_jkind,
@@ -2403,7 +2403,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                (* Products don't line up. This is only possible if [ty] was
                   given a jkind annotation of the wrong product arity.
                *)
-               Error (Jkind.Violation.of_
+               Error (Jkind.Violation.of_ ~jkind_of_type
                   (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
              end
           in
@@ -2415,11 +2415,14 @@ let constrain_type_jkind ~fixed env ty jkind =
                loop ~fuel ~expanded:true ty (estimate_type_jkind env ty) jkind
              else
                begin match unbox_once env ty with
-               | Missing path -> Error (Jkind.Violation.of_ ~missing_cmi:path
-                                          (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
+               | Missing path -> Error (Jkind.Violation.of_
+                                          ~jkind_of_type ~missing_cmi:path
+                                          (Not_a_subjkind (ty's_jkind, jkind,
+                                                           sub_failure_reasons)))
                | Final_result ->
                  Error
-                   (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
+                   (Jkind.Violation.of_ ~jkind_of_type
+                      (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
                | Stepped ty ->
                  loop ~fuel:(fuel - 1) ~expanded:false ty
                    (estimate_type_jkind env ty) jkind
@@ -2433,7 +2436,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                need to expand many types shallowly, and that's fine. *)
             product ~fuel (List.map snd ltys)
           | _ ->
-            Error (Jkind.Violation.of_
+            Error (Jkind.Violation.of_ ~jkind_of_type
                 (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
   in
   loop ~fuel:100 ~expanded:false ty (estimate_type_jkind env ty) jkind
