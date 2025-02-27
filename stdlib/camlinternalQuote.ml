@@ -1,18 +1,3 @@
-let fold_map_option f acc o =
-  match o with
-  | None -> acc, None
-  | Some x ->
-    let acc, x = f acc x in
-    acc, Some x
-
-let rec fold_left_map_alist f acc l =
-  match l with
-  | [] -> acc, []
-  | (k, x) :: rest ->
-    let acc, x = f acc x in
-    let acc, rest = fold_left_map_alist f acc rest in
-    acc, (k, x) :: rest
-
 module Stamp : sig
   (** [t] is the type of stamps. Stamps have no structure, only a notion
       of identity. *)
@@ -53,7 +38,7 @@ module Loc = struct
   let known ~file ~start_line ~start_col ~end_line ~end_col =
     Known { file; start_line; start_col; end_line; end_col }
 
-  let print fmt = function
+  let print _ = function
     | Unknown -> Format.printf "<unknown>"
     | Known { file; start_line; start_col; end_line; end_col } ->
       if start_line = end_line
@@ -274,7 +259,7 @@ end = struct
 
     let union ~shared t1 t2 =
       Stamp_map.union
-        (fun x v1 v2 ->
+        (fun _ v1 v2 ->
           shared v2;
           Some v1)
         t1 t2
@@ -310,7 +295,7 @@ end = struct
              | None, Some v ->
                right_only v;
                None
-             | Some v, Some _ -> None)
+             | _ -> None)
            t1 t2)
   end
 
@@ -346,7 +331,7 @@ end = struct
 
     let union combine t1 t2 =
       Level_map.union
-        (fun x m1 m2 ->
+        (fun _ m1 m2 ->
           let m =
             Var_map.union
               (fun v data1 data2 ->
@@ -1081,11 +1066,18 @@ module Ident = struct
 
     let free_vars = function Dot (t, _) -> Module.free_vars t
 
+    let of_string s = s
     let with_free_vars t = With_free_vars.mk (free_vars t) t
 
     let with_free_and_bound_vars t =
       With_free_and_bound_vars.with_no_bound_vars (with_free_vars t)
   end
+end
+
+module Variant = struct
+  type t = string
+
+  let of_string s = s
 end
 
 module Ast = struct
@@ -1140,7 +1132,7 @@ module Ast = struct
     | Package of package_type
 
   and row_field =
-    | Tag of string * bool * core_type list
+    | Tag of Variant.t * bool * core_type list
     | Inherit of core_type
 
   and package_type = Ident.Module.t * (fragment * core_type) list
@@ -1161,7 +1153,7 @@ module Ast = struct
     | Interval of constant * constant
     | TuplePat of (tuple_label * pattern) list
     | ConstructPat of Ident.Constructor.t * pattern option
-    | VariantPat of string * pattern option
+    | VariantPat of Variant.t * pattern option
     | RecordPat of (Ident.Field.t * pattern) list * record_flag
     | ArrayPat of pattern list
     | Or of pattern * pattern
@@ -1215,8 +1207,7 @@ module Ast = struct
     | Pack of module_expr
     | OpenExp of override_flag * Ident.Module.t * expression
     | Quote of expression
-    | Escape of expression
-    | Splice of expression * Loc.t
+    | Antiquote of expression * Loc.t
 
   and case =
     { lhs : pattern;
@@ -1292,10 +1283,6 @@ module Constant = struct
   let int64 i = Ast.Int64 i
 
   let nativeint i = Ast.Nativeint i
-end
-
-module Variant = struct
-  type t = (Ast.row_field list * Ast.variant_form) With_free_vars.t
 end
 
 module BindingError = struct
@@ -1388,7 +1375,7 @@ module Pat = struct
 
   let variant label tm =
     let+ pm = optional tm in
-    Ast.VariantPat (label, pm)
+    Ast.VariantPat (Variant.of_string label, pm)
 
   let record fields closed =
     let closed_ast = if closed then Ast.ClosedRec else Ast.OpenRec in
@@ -1424,6 +1411,10 @@ module Pat = struct
 end
 
 module Type = struct
+  module Variant = struct
+    type t = (Ast.row_field With_free_vars.t) list * Ast.variant_form
+  end
+
   type t = Ast.core_type With_free_vars.t
 
   let ( let+ ) m f = With_free_vars.map f m
@@ -1431,6 +1422,8 @@ module Type = struct
   let ( and+ ) = With_free_vars.both
 
   let all = With_free_vars.all
+
+  let optional = With_free_vars.optional
 
   let any = With_free_vars.return Ast.AnyType
 
@@ -1459,9 +1452,10 @@ module Type = struct
     let+ t = typ in
     Ast.Alias (t, tv)
 
-  let variant variant =
-    let+ row_fields, form = variant in
-    Ast.VariantType (row_fields, form)
+  let variant typ =
+    let typ, form = typ in
+    let+ rfs = all typ in
+    Ast.VariantType (rfs, form)
 
   let poly loc names f =
     With_free_vars.type_bindings loc names (fun tvs ->
@@ -1825,11 +1819,7 @@ module Exp = struct
     let+ exp = exp in
     mk (Quote exp) [Quotation]
 
-  let escape exp =
-    let+ exp = exp in
-    mk (Escape exp) []
-
-  let splice code =
+  let antiquote code =
     let+ ({ exp; loc } : Code.code_rep) = code in
-    mk (Splice (exp, loc)) []
+    mk (Antiquote (exp, loc)) []
 end

@@ -228,6 +228,8 @@ end
 
 module Variant : sig
   type t
+
+  val of_string : string -> t
 end
 
 module Pat : sig
@@ -240,8 +242,6 @@ module Pat : sig
   val alias : t -> Var.Value.t -> t
 
   val constant : Constant.t -> t
-
-  val interval : Constant.t -> Constant.t -> t
 
   val tuple : (Label.Nonoptional.t * t) list -> t
 
@@ -257,8 +257,6 @@ module Pat : sig
 
   val lazy_ : t -> t
 
-  val unpack : Var.Module.t -> t
-
   val exception_ : t -> t
 end
 
@@ -268,6 +266,10 @@ end
 
 module Type : sig
   type t
+
+  module Variant : sig
+    type t
+  end
 
   val any : t
 
@@ -347,10 +349,6 @@ and Exp : sig
 
   val constant : Constant.t -> t
 
-  val let_nonbinding : Loc.t -> Pat.t -> t -> t -> t
-
-  val let_simple : Loc.t -> Name.t -> t -> (Var.Value.t -> t) -> t
-
   val let_rec_simple :
     Loc.t -> Name.t list -> (Var.Value.t list -> t list * t) -> t
 
@@ -398,9 +396,7 @@ and Exp : sig
 
   val quote : t -> t
 
-  val escape : t -> t
-
-  val splice : Code.t -> t
+  val antiquote : Code.t -> t
 end
 
 and Code : sig
