@@ -2023,14 +2023,15 @@ let comp_pattern_match pat value =
   | Some pat' -> pattern_match pat' value
   | None -> Ienv.Extension.empty, UF.unused
 
-let value_of_ident ienv unique_use occ path =
+let value_of_ident ienv ?(force_missing = true) unique_use occ path =
   match path with
   | Path.Pident id -> (
     match Ienv.find_opt id ienv with
     (* TODO: for better error message, we should record in ienv why some
        variables are not in it. *)
     | None ->
-      force_aliased_boundary ~reason:Out_of_mod_class unique_use occ;
+      if force_missing
+      then force_aliased_boundary ~reason:Out_of_mod_class unique_use occ;
       None
     | Some paths ->
       let value = Value.existing paths unique_use occ in
@@ -2062,7 +2063,9 @@ let open_variables ienv f =
           (match e.exp_desc with
           | Texp_ident (path, _, _, _, unique_use) -> (
             let occ = Occurrence.mk e.exp_loc in
-            match value_of_ident ienv unique_use occ path with
+            match
+              value_of_ident ienv ~force_missing:false unique_use occ path
+            with
             | None -> ()
             | Some value -> ll := value :: !ll)
           | _ -> ());
