@@ -34,9 +34,3 @@ val meet_shape :
   Type_grammar.t ->
   shape:Type_grammar.t ->
   Typing_env_extension.t Or_bottom.t
-
-val meet_env_extension :
-  Typing_env.Meet_env.t ->
-  Typing_env_extension.t ->
-  Typing_env_extension.t ->
-  Typing_env_extension.t Or_bottom.t
