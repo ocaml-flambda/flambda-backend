@@ -151,6 +151,17 @@ module Jkind_mod_bounds = struct
      Jkind_axis.Externality.(le max (externality t))) &&
     not (mem axes (Nonmodal Nullability)) ||
     Jkind_axis.Nullability.(le max (nullability t))
+
+  let[@inline] is_max = function
+    | { locality = Local;
+        linearity = Once;
+        uniqueness = Unique;
+        portability = Portable;
+        contention = Uncontended;
+        yielding = Yielding;
+        externality = External;
+        nullability = Maybe_null } -> true
+    | _ -> false
 end
 
 
