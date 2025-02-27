@@ -1328,7 +1328,7 @@ module Scalar_type : sig
 
     val nativeint : t
 
-    (** Gets the integral resulting from untagging the integer (if it is tagged).
+    (** Gets the integer resulting from untagging the integeral (if it is tagged).
 
         E.g., you can use [static_cast ~src ~dst:(Untagged (untagged src))] to untag a
         value of type [src]
