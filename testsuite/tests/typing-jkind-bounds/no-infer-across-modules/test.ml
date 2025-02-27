@@ -91,6 +91,16 @@ Line 1, characters 14-25:
                   ^^^^^^^^^^^
 Error: This type "int Define_with_kinds.my_list" should be an instance of type
          "('a : value mod global)"
+       The kind of int Define_with_kinds.my_list is immutable_data.
+       But the kind of int Define_with_kinds.my_list must be a subkind of
+         value mod global
+         because of the definition of require_global at line 9, characters 0-43.
+|}, Principal{|
+Line 1, characters 14-25:
+1 | type t_test = int my_list require_global
+                  ^^^^^^^^^^^
+Error: This type "int Define_with_kinds.my_list" should be an instance of type
+         "('a : value mod global)"
        The kind of int Define_with_kinds.my_list is value.
        But the kind of int Define_with_kinds.my_list must be a subkind of
          value mod global
@@ -99,6 +109,16 @@ Error: This type "int Define_with_kinds.my_list" should be an instance of type
 
 type my_list_test = int ref my_list require_contended
 [%%expect{|
+Line 1, characters 20-35:
+1 | type my_list_test = int ref my_list require_contended
+                        ^^^^^^^^^^^^^^^
+Error: This type "int ref Define_with_kinds.my_list"
+       should be an instance of type "('a : value mod contended)"
+       The kind of int ref Define_with_kinds.my_list is mutable_data.
+       But the kind of int ref Define_with_kinds.my_list must be a subkind of
+         value mod contended
+         because of the definition of require_contended at line 11, characters 0-49.
+|}, Principal{|
 Line 1, characters 20-35:
 1 | type my_list_test = int ref my_list require_contended
                         ^^^^^^^^^^^^^^^
@@ -113,6 +133,17 @@ Error: This type "int ref Define_with_kinds.my_list"
 
 type my_list_test = int my_ref my_list require_contended
 [%%expect{|
+Line 1, characters 20-38:
+1 | type my_list_test = int my_ref my_list require_contended
+                        ^^^^^^^^^^^^^^^^^^
+Error: This type "int Define_with_kinds.my_ref Define_with_kinds.my_list"
+       should be an instance of type "('a : value mod contended)"
+       The kind of int Define_with_kinds.my_ref Define_with_kinds.my_list is
+         mutable_data.
+       But the kind of int Define_with_kinds.my_ref Define_with_kinds.my_list must be a subkind of
+         value mod contended
+         because of the definition of require_contended at line 11, characters 0-49.
+|}, Principal{|
 Line 1, characters 20-38:
 1 | type my_list_test = int my_ref my_list require_contended
                         ^^^^^^^^^^^^^^^^^^
@@ -244,17 +275,16 @@ Line 1, characters 94-95:
                                                                                                   ^
 Error: This value is "nonportable" but expected to be "portable".
 |}, Principal{|
-Line 1, characters 94-95:
+Line 1, characters 13-34:
 1 | let foo (t : #((int -> int) * int) unboxed_record @@ nonportable) = use_portable_three_values t
-                                                                                                  ^
-Error: This expression has type
-         "#((int -> int) * int) Define_with_kinds.unboxed_record"
-       but an expression was expected of type "('a : (value & value) & value)"
-       The kind of #((int -> int) * int) Define_with_kinds.unboxed_record is
-         (value mod contended & value mod contended) & value mod contended.
-       But the kind of #((int -> int) * int) Define_with_kinds.unboxed_record must be a subkind of
-         (value & value) & value
-         because of the definition of use_portable_three_values at line 2, characters 84-95.
+                 ^^^^^^^^^^^^^^^^^^^^^
+Error: This type "#((int -> int) * int)" should be an instance of type
+         "('a : value & value)"
+       The kind of #((int -> int) * int) is value_or_null & value_or_null
+         because it is an unboxed tuple.
+       But the kind of #((int -> int) * int) must be a subkind of
+         value & value
+         because the type argument of Define_with_kinds.unboxed_record has this kind.
 |}]
 (* CR layouts v2.8: Lift bounds outside of products *)
 

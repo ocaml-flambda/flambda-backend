@@ -104,9 +104,22 @@ module Layout : sig
   val of_const : Const.t -> Sort.t t
 
   val sub : Sort.t t -> Sort.t t -> Sub_result.t
+
+  module Debug_printers : sig
+    val t :
+      (Format.formatter -> 'sort -> unit) -> Format.formatter -> 'sort t -> unit
+  end
 end
 
-(** A Jkind.t is a full description of the runtime representation of values
+module With_bounds : sig
+  val debug_print :
+    print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
+    Format.formatter ->
+    ('l * 'r) Types.with_bounds ->
+    unit
+end
+
+(** A [jkind] is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
     [Any] and subjkinds of other sorts, such as [Immediate].
 
@@ -169,7 +182,11 @@ module Violation : sig
 
   (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
-  val of_ : ?missing_cmi:Path.t -> violation -> t
+  val of_ :
+    jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
+    ?missing_cmi:Path.t ->
+    violation ->
+    t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool
@@ -740,8 +757,9 @@ val map_type_expr :
   (allowed * 'r) Types.jkind
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
-    mutation. *)
-val is_max : ('l * allowed) Types.jkind -> bool
+    mutation, preferring a quick check over a thorough one. Might return
+    [false] even when the input is actually the maximum jkind. *)
+val is_obviously_max : ('l * allowed) Types.jkind -> bool
 
 (** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : ('l * allowed) Types.jkind -> bool
