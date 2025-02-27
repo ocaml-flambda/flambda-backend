@@ -153,18 +153,17 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Jkind_mismatch_of_type of type_expr * Env.t * Jkind.Violation.t
-  | Jkind_mismatch_of_path of Path.t * Env.t * Jkind.Violation.t
+  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
   | Jkind_mismatch_due_to_bad_inference of
-      type_expr * Env.t * Jkind.Violation.t * bad_jkind_inference_location
+      type_expr * Jkind.Violation.t * bad_jkind_inference_location
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
-      ; env : Env.t
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Violation.t * string * Env.t * type_expr
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.Const.t * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error

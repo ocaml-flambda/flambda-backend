@@ -21,14 +21,14 @@ open Typedtree
 open Lambda
 
 type error =
-    Non_value_layout of type_expr * Env.t * Jkind.Violation.t option
+    Non_value_layout of type_expr * Jkind.Violation.t option
   | Non_value_sort of Jkind.Sort.t * type_expr
   | Sort_without_extension of
       Jkind.Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Jkind.Sort.t
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
   | Simd_sort_without_extension of Jkind.Sort.t * type_expr option
-  | Not_a_sort of type_expr * Env.t * Jkind.Violation.t
+  | Not_a_sort of type_expr * Jkind.Violation.t
   | Unsupported_sort of Jkind.Sort.Const.t
   | Unsupported_product_in_lazy of Jkind.Sort.Const.t
   | Unsupported_vector_in_product_array
@@ -114,7 +114,7 @@ let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 let type_legacy_sort ~why env loc ty =
   match Ctype.type_legacy_sort ~why env ty with
   | Ok sort -> sort
-  | Error err -> raise (Error (loc, Not_a_sort (ty, env, err)))
+  | Error err -> raise (Error (loc, Not_a_sort (ty, err)))
 
 (* [classification]s are used for two things: things in arrays, and things in
    lazys. In the former case, we need detailed information about unboxed
@@ -469,7 +469,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | Error violation ->
         if (Jkind.Violation.is_missing_cmi violation)
         then raise Missing_cmi_fallback
-        else raise (Error (loc, Non_value_layout (ty, env, Some violation)))
+        else raise (Error (loc, Non_value_layout (ty, Some violation)))
   end;
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_int ->
@@ -837,7 +837,7 @@ let value_kind env loc ty =
     in
     value_kind
   with
-  | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, env, None)))
+  | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
 let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   : Jkind.Sort.Const.t -> _ = function
@@ -1003,7 +1003,7 @@ let rec layout_union l1 l2 =
 open Format
 
 let report_error ppf = function
-  | Non_value_layout (ty, env, err) ->
+  | Non_value_layout (ty, err) ->
       fprintf ppf
         "Non-value detected in [value_kind].@ Please report this error to \
          the Jane Street compilers team.";
@@ -1013,7 +1013,6 @@ let report_error ppf = function
       | Some err ->
         fprintf ppf "@ %a"
         (Jkind.Violation.report_with_offender
-           ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
       end
   | Non_value_sort (sort, ty) ->
@@ -1078,10 +1077,9 @@ let report_error ppf = function
          build file.@ \
          Otherwise, please report this error to the Jane Street compilers team."
         extension verb flags
-  | Not_a_sort (ty, env, err) ->
+  | Not_a_sort (ty, err) ->
       fprintf ppf "A representable layout is required here.@ %a"
         (Jkind.Violation.report_with_offender
-           ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
   | Unsupported_sort const ->
       fprintf ppf "Layout %a is not supported yet."

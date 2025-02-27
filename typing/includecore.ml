@@ -671,7 +671,6 @@ let report_type_mismatch first second decl env ppf err =
   | Parameter_jkind (ty, v) ->
       pr "The problem is in the kinds of a parameter:@,";
       Jkind.Violation.report_with_offender
-        ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
         ~offender:(fun pp -> Printtyp.type_expr pp ty) ppf v
   | Private_variant (_ty1, _ty2, mismatch) ->
       report_private_variant_mismatch first second decl env ppf mismatch
@@ -699,8 +698,7 @@ let report_type_mismatch first second decl env ppf err =
          (choose ord first second) decl
          "has a null constructor"
   | Jkind v ->
-      Jkind.Violation.report_with_name
-        ~jkind_of_type:(Some (Ctype.type_jkind_purely env)) ~name:first ppf v
+      Jkind.Violation.report_with_name ~name:first ppf v
   | Unsafe_mode_crossing mismatch ->
     pr "They have different unsafe mode crossing behavior:@,";
     report_unsafe_mode_crossing_mismatch first second ppf mismatch
