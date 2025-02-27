@@ -620,8 +620,7 @@ val normalize :
 (* pretty printing *)
 
 (** Call these before trying to print. *)
-val set_outcometree_of_type_scheme :
-  (Types.type_expr -> Outcometree.out_type) -> unit
+val set_outcometree_of_type : (Types.type_expr -> Outcometree.out_type) -> unit
 
 val set_outcometree_of_modalities_new :
   (Types.mutability ->
