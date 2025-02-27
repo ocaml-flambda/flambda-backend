@@ -25,10 +25,10 @@
 *)
 
 (** An atomic (mutable) reference to a value of type ['a]. *)
-type !'a t : value mod portable contended
+type (!'a : value_or_null) t : value mod portable contended
 
 (** Create an atomic reference. *)
-val make : 'a -> 'a t @@ nonportable
+val make : ('a : value_or_null) . 'a -> 'a t @@ nonportable
 [@@alert unsafe_multidomain "Use [Atomic.Safe.make]."]
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
@@ -45,19 +45,19 @@ val make : 'a -> 'a t @@ nonportable
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
 
-val make_contended : 'a -> 'a t @@ nonportable
+val make_contended : ('a : value_or_null) . 'a -> 'a t @@ nonportable
 [@@alert unsafe_multidomain "Use [Atomic.Safe.make_contended]."]
 
 (** Get the current value of the atomic reference. *)
-val get : 'a t -> 'a @@ nonportable
+val get : ('a : value_or_null) . 'a t -> 'a @@ nonportable
 [@@alert unsafe_multidomain "Use [Atomic.Safe.get]."]
 
 (** Set a new value for the atomic reference. *)
-external set : 'a t -> 'a -> unit @@ nonportable = "%atomic_set"
+external set : ('a : value_or_null) . 'a t -> 'a -> unit @@ nonportable = "%atomic_set"
 [@@alert unsafe_multidomain "Use [Atomic.Safe.set]."]
 
 (** Set a new value for the atomic reference, and return the current value. *)
-external exchange : 'a t -> 'a -> 'a @@ nonportable = "%atomic_exchange"
+external exchange : ('a : value_or_null) . 'a t -> 'a -> 'a @@ nonportable = "%atomic_exchange"
 [@@alert unsafe_multidomain "Use [Atomic.Safe.exchange]."]
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
@@ -65,13 +65,13 @@ external exchange : 'a t -> 'a -> 'a @@ nonportable = "%atomic_exchange"
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-external compare_and_set : 'a t -> 'a -> 'a -> bool @@ nonportable = "%atomic_cas"
+external compare_and_set : ('a : value_or_null) . 'a t -> 'a -> 'a -> bool @@ nonportable = "%atomic_cas"
 [@@alert unsafe_multidomain "Use [Atomic.Safe.compare_and_set]."]
 
 (** [compare_exchange r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the comparison
     and the set occur atomically. Returns the previous value. *)
-external compare_exchange : 'a t -> 'a -> 'a -> 'a @@ nonportable = "%atomic_compare_exchange"
+external compare_exchange : ('a : value_or_null) . 'a t -> 'a -> 'a -> 'a @@ nonportable = "%atomic_compare_exchange"
 [@@alert unsafe_multidomain "Use [Atomic.Safe.compare_exchange]."]
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
@@ -106,46 +106,46 @@ module Safe : sig @@ portable
 
       The provided value must be [portable] as atomics can freely cross between domains.
   *)
-  val make : 'a @ portable contended -> 'a t
+  val make : ('a : value_or_null) . 'a @ portable contended -> 'a t
 
   (** Like {!make_contended}, but is safe to call in the presence of multiple domains.
 
       The provided value must be [portable] as atomics can freely cross between domains.
   *)
-  val make_contended : 'a @ portable contended -> 'a t
+  val make_contended : ('a : value_or_null) . 'a @ portable contended -> 'a t
 
   (** Like {!get}, but is safe to call in the presence of multiple domains.
 
       The resulting value must be [contended] as the atomics can freely cross between
       domains, so the value may come from another domain. *)
-  val get : 'a t -> 'a @ portable contended
+  val get : ('a : value_or_null) . 'a t -> 'a @ portable contended
 
   (** Like {!set}, but is safe to call in the presence of multiple domains.
 
       The provided value must be [portable] as atomics can freely cross between domains.
   *)
-  external set : 'a t -> 'a @ portable contended -> unit = "%atomic_set"
+  external set : ('a : value_or_null) . 'a t -> 'a @ portable contended -> unit = "%atomic_set"
 
   (** Like {!exchange}, but is safe to call in the presence of multiple domains.
 
       The provided value must be [portable] and the resulting value must be [contended]
       as atomics can freely cross between domains. *)
   external exchange
-    : 'a t -> 'a @ portable contended -> 'a @ portable contended = "%atomic_exchange"
+    : ('a : value_or_null) . 'a t -> 'a @ portable contended -> 'a @ portable contended = "%atomic_exchange"
 
   (** Like {!compare_and_set}, but is safe to call in the presence of multiple domains.
 
       The provided values must be [portable] as atomics can freely cross between domains.
   *)
   external compare_and_set :
-    'a t -> 'a @ portable contended -> 'a @ portable contended -> bool = "%atomic_cas"
+    ('a : value_or_null) . 'a t -> 'a @ portable contended -> 'a @ portable contended -> bool = "%atomic_cas"
 
   (** Like {!compare_exchange}, but is safe to call in the presence of multiple domains.
 
       The provided values must be [portable] and the resulting value must be [contended]
       as atomics can freely cross between domains. *)
   external compare_exchange :
-    'a t -> 'a @ portable contended -> 'a @ portable contended -> 'a @ portable contended
+    ('a : value_or_null) . 'a t -> 'a @ portable contended -> 'a @ portable contended -> 'a @ portable contended
     = "%atomic_compare_exchange"
 end
 
