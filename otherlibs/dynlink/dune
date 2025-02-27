@@ -72,6 +72,7 @@
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (modules
+  z
   binutils
   local_store
   config
@@ -179,6 +180,8 @@
 ;  (package ocaml))
 
 ;; .ml:
+
+(copy_files ../../utils/z.ml)
 
 (copy_files ../../utils/runtimetags.ml)
 
@@ -482,6 +485,8 @@
 
 (copy_files ../../bytecomp/opcodes.mli)
 
+(copy_files ../../utils/z.mli)
+
 (copy_files ../../bytecomp/bytesections.mli)
 
 (copy_files ../../bytecomp/dll.mli)
@@ -606,6 +611,7 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Signature_with_global_bindings.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Bytesections.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Z.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Cmi_format.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
@@ -702,6 +708,7 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Signature_with_global_bindings.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Z.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Cmi_format.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx

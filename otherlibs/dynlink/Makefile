@@ -76,6 +76,7 @@ COMPILERLIBS_INTFS=\
 
 # .ml files from compilerlibs that have corresponding .mli files.
 COMPILERLIBS_SOURCES=\
+  utils/z.ml \
   utils/runtimetags.ml \
   utils/binutils.ml \
   utils/config.ml \
