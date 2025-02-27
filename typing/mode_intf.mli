@@ -682,4 +682,43 @@ module type S = sig
       val max : t
     end
   end
+
+  module Crossing : sig
+    type t
+
+    (* CR zqian: Complete the lattice structure of mode crossing. *)
+
+    (* CR zqian: jkind modal bounds should just be our [t]. In particular, jkind
+       should infer the modal bounds of a type in the form of [Value] instead of
+       [Alloc]. For example, a type could have [regional] modality, in which case
+       it can cross to [regional] but not [global]. *)
+
+    (** Convert from jkind modal bounds. *)
+    val of_bounds :
+      (Alloc.Monadic.Const.t, Alloc.Comonadic.Const.t) monadic_comonadic -> t
+
+    (** [modality m t] gives the mode crossing of [T @@ m] where [T] has mode
+    crossing [t]. *)
+    val modality : Modality.Value.Const.t -> t -> t
+
+    (** Apply mode crossing on a left mode, making it stronger. *)
+    val apply_left : t -> Value.l -> Value.l
+
+    (** Apply mode crossing on a right mode, making it more permissive. *)
+    val apply_right : t -> Value.r -> Value.r
+
+    (* The following works on [Alloc]. Currently types either cross the whole
+       locality, or don't cross any locality, and therefore [alloc_as_value] seems
+       sufficient. *)
+
+    (** Similar to [apply_left] but via [alloc_as_value]. Concretely,
+        [ alloc_as_value(apply_left_alloc t m)
+        = apply_left t (alloc_as_value m)] *)
+    val apply_left_alloc : t -> Alloc.l -> Alloc.l
+
+    (** Similar to [apply_right] but via [alloc_as_value]. Concretely,
+        [ alloc_as_value(apply_right_alloc t m)
+        = apply_right t (alloc_as_value m)] *)
+    val apply_right_alloc : t -> Alloc.r -> Alloc.r
+  end
 end
