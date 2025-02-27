@@ -604,6 +604,10 @@ let arithmetic_conversion dbg src dst arg =
                (C.Scalar_type.Tagged_integer.untagged src)
                dst ->
         Some (Env.Untag arg)
+      | Integral (Untagged src), Integral (Tagged dst)
+        when C.Scalar_type.Integer.equal src
+               (C.Scalar_type.Tagged_integer.untagged dst) ->
+        Some (Env.Tag arg)
       | ( (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)),
           (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)) ) ->
         None
