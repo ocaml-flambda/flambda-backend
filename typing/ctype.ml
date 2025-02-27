@@ -4873,9 +4873,7 @@ let mode_cross_left_alloc env ty mode =
   if not (is_principal ty) then Alloc.disallow_right mode else begin
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
-    let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-    let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-    let crossing = Crossing.of_bounds {monadic; comonadic} in
+    let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
     mode
     |> Alloc.disallow_right
     |> Crossing.apply_left_alloc crossing
@@ -4887,9 +4885,7 @@ let mode_cross_right env ty mode =
   if not (is_principal ty) then Alloc.disallow_left mode else
   let jkind = type_jkind_purely env ty in
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-  let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-  let crossing = Crossing.of_bounds {monadic; comonadic} in
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
   mode
   |> Alloc.disallow_left
   |> Crossing.apply_right_alloc crossing
