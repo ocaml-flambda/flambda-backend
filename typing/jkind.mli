@@ -740,8 +740,9 @@ val map_type_expr :
   (allowed * 'r) Types.jkind
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
-    mutation. *)
-val is_max : ('l * allowed) Types.jkind -> bool
+    mutation, preferring a quick check over a thorough one. Might return
+    [false] even when the input is actually the maximum jkind. *)
+val is_obviously_max : ('l * allowed) Types.jkind -> bool
 
 (** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : ('l * allowed) Types.jkind -> bool

@@ -2318,7 +2318,7 @@ let constrain_type_jkind ~fixed env ty jkind =
   *)
   let rec loop ~fuel ~expanded ty ty's_jkind jkind =
     (* Just succeed if we're comparing against [any] *)
-    if Jkind.is_max jkind then Ok () else
+    if Jkind.is_obviously_max jkind then Ok () else
     if fuel < 0 then
       Error (
         Jkind.Violation.of_ (
