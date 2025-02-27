@@ -1111,8 +1111,6 @@ let outcometree_of_modalities_new = ref (fun _ _ _ -> assert false)
 
 let set_outcometree_of_modalities_new p = outcometree_of_modalities_new := p
 
-let should_print_with_bounds () = true
-
 module Const = struct
   type 'd t = (Layout.Const.t, 'd) Types.layout_and_axes
 
@@ -1329,15 +1327,8 @@ module Const = struct
         terms of [value] (as it appears above), or in terms of [immediate]
         (which would just be [immediate]). Since the latter requires less modes
         to be printed, it is chosen.
-
-        The [jkind_of_type] function is used to normalize when we don't wish
-        to print with-bounds. If it's not supplied, we unconditionally print
-        the with-bounds.
     *)
-    val convert :
-      jkind_of_type:(type_expr -> jkind_l) option ->
-      'd t ->
-      Outcometree.out_jkind_const
+    val convert : 'd t -> Outcometree.out_jkind_const
   end = struct
     type printable_jkind =
       { base : string;
@@ -1437,24 +1428,7 @@ module Const = struct
       | [out] -> Some out
       | [] -> None
 
-    let convert ~jkind_of_type jkind =
-      let jkind =
-        match jkind_of_type with
-        | None ->
-          jkind
-          (* if we can't normalize, then print the with-bounds unconditionally
-             *)
-        | Some jkind_of_type ->
-          if should_print_with_bounds ()
-          then jkind
-          else
-            (* We never care about principality in printing, so the functions
-               passed in don't have the [option] in the right spot. *)
-            let jkind_of_type ty = Some (jkind_of_type ty) in
-            fst
-              (Layout_and_axes.normalize ~jkind_of_type
-                 ~relevant_axes:Axis_set.all ~mode:Ignore_best jkind)
-      in
+    let convert jkind =
       (* For each primitive jkind, we try to print the jkind in terms of it
          (this is possible if the primitive is a subjkind of it). We then choose
          the "simplest". The "simplest" is taken to mean the one with the least
@@ -1523,12 +1497,10 @@ module Const = struct
         base with_tys
   end
 
-  let to_out_jkind_const jkind =
-    To_out_jkind_const.convert ~jkind_of_type:None jkind
+  let to_out_jkind_const jkind = To_out_jkind_const.convert jkind
 
-  let format ~jkind_of_type ppf jkind =
-    To_out_jkind_const.convert ~jkind_of_type jkind
-    |> !Oprint.out_jkind_const ppf
+  let format ppf jkind =
+    To_out_jkind_const.convert jkind |> !Oprint.out_jkind_const ppf
 
   (*******************************)
   (* converting user annotations *)
@@ -1663,7 +1635,7 @@ module Desc = struct
   (* CR layouts v2.8: This will probably need to be overhauled with
      [with]-types. See also [Printtyp.out_jkind_of_desc], which uses the same
      algorithm. *)
-  let format ~jkind_of_type ppf t =
+  let format ppf t =
     let open Format in
     let rec format_desc ~nested ppf (desc : _ t) =
       match desc.layout with
@@ -1676,7 +1648,7 @@ module Desc = struct
           (List.map (fun layout -> { desc with layout }) lays)
       | _ -> (
         match get_const desc with
-        | Some c -> Const.format ~jkind_of_type ppf c
+        | Some c -> Const.format ppf c
         | None -> assert false (* handled above *))
     in
     format_desc ~nested:false ppf t
@@ -2277,8 +2249,7 @@ let decompose_product ({ jkind; _ } as jk) =
    doing so, because it teaches the user that e.g. [value mod local] is better
    off spelled [value]. Possibly remove [jkind.annotation], but only after
    we have a proper printing story. *)
-let format ~jkind_of_type ppf jkind =
-  Desc.format ~jkind_of_type ppf (Jkind_desc.get jkind.jkind)
+let format ppf jkind = Desc.format ppf (Jkind_desc.get jkind.jkind)
 
 let printtyp_path = ref (fun _ _ -> assert false)
 
@@ -2584,7 +2555,7 @@ module Format_history = struct
 
       Consider revisiting that if the current implementation becomes insufficient. *)
 
-  let format_flattened_history ~jkind_of_type ~intro ~layout_or_kind ppf t =
+  let format_flattened_history ~intro ~layout_or_kind ppf t =
     let jkind_desc = Jkind_desc.get t.jkind in
     fprintf ppf "@[<v 2>%t" intro;
     (match t.history with
@@ -2596,8 +2567,7 @@ module Format_history = struct
           reason;
         match reason, Desc.get_const jkind_desc with
         | Concrete_legacy_creation _, Some _ ->
-          fprintf ppf ",@ chosen to have %s %a" layout_or_kind
-            (format ~jkind_of_type) t
+          fprintf ppf ",@ chosen to have %s %a" layout_or_kind format t
         | _ -> ())
     | Interact _ ->
       Misc.fatal_error "Non-flat history in format_flattened_history");
@@ -2619,17 +2589,16 @@ module Format_history = struct
     fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
       in_order t.history
 
-  let format_history ~jkind_of_type ~intro ~layout_or_kind ppf t =
+  let format_history ~intro ~layout_or_kind ppf t =
     if display_histories
     then
       if flattened_histories
-      then format_flattened_history ~jkind_of_type ~intro ~layout_or_kind ppf t
+      then format_flattened_history ~intro ~layout_or_kind ppf t
       else format_history_tree ~intro ~layout_or_kind ppf t
 end
 
-let format_history ~jkind_of_type ~intro ppf t =
-  Format_history.format_history ~jkind_of_type ~intro ~layout_or_kind:"kind" ppf
-    t
+let format_history ~intro ppf t =
+  Format_history.format_history ~intro ~layout_or_kind:"kind" ppf t
 
 (******************************)
 (* errors *)
@@ -2689,79 +2658,75 @@ module Violation = struct
     *)
     match violation with
     | Not_a_subjkind (sub, super, reasons) -> (
-      if should_print_with_bounds ()
-      then
-        let disagreeing_axes =
-          (* Collect all the axes that disagree into a set. If none disagree,
-             then it is [None] *)
-          List.fold_left
-            (fun disagreeing_axes_so_far reason ->
-              match
-                (reason : Sub_failure_reason.t), disagreeing_axes_so_far
-              with
-              | Axis_disagreement (Pack axis), Some disagreeing_axes_so_far ->
-                Some (Axis_set.add disagreeing_axes_so_far axis)
-              | Axis_disagreement (Pack axis), None ->
-                Some (Axis_set.singleton axis)
-              | (Layout_disagreement | Constrain_ran_out_of_fuel), _ ->
-                disagreeing_axes_so_far)
-            None reasons
+      let disagreeing_axes =
+        (* Collect all the axes that disagree into a set. If none disagree,
+           then it is [None] *)
+        List.fold_left
+          (fun disagreeing_axes_so_far reason ->
+            match (reason : Sub_failure_reason.t), disagreeing_axes_so_far with
+            | Axis_disagreement (Pack axis), Some disagreeing_axes_so_far ->
+              Some (Axis_set.add disagreeing_axes_so_far axis)
+            | Axis_disagreement (Pack axis), None ->
+              Some (Axis_set.singleton axis)
+            | (Layout_disagreement | Constrain_ran_out_of_fuel), _ ->
+              disagreeing_axes_so_far)
+          None reasons
+      in
+      let has_modalities =
+        let jkind_has_modalities jkind =
+          List.exists
+            (fun (_, type_info) ->
+              let axes_ignored_by_modalities =
+                With_bounds.Type_info.axes_ignored_by_modalities
+                  ~mod_bounds:jkind.jkind.mod_bounds ~type_info
+              in
+              not (Axis_set.is_empty axes_ignored_by_modalities))
+            (With_bounds.to_list jkind.jkind.with_bounds)
         in
-        let has_modalities =
-          let jkind_has_modalities jkind =
-            List.exists
-              (fun (_, type_info) ->
-                let axes_ignored_by_modalities =
-                  With_bounds.Type_info.axes_ignored_by_modalities
-                    ~mod_bounds:jkind.jkind.mod_bounds ~type_info
-                in
-                not (Axis_set.is_empty axes_ignored_by_modalities))
-              (With_bounds.to_list jkind.jkind.with_bounds)
-          in
-          jkind_has_modalities sub || jkind_has_modalities super
-        in
-        match disagreeing_axes, has_modalities with
-        | None, _ | _, false -> ()
-        | Some disagreeing_axes, true ->
-          (* CR: @\n is discouraged by the documentation, but @;@; seems to emit
-             one newline and then one space rather than two newlines *)
-          fprintf ppf "@\n@\nThe first mode-crosses less than the second along:";
-          Axis_set.to_list disagreeing_axes
-          |> List.iter (fun (Pack axis : Axis.packed) ->
-                 let pp_bound ppf jkind =
-                   let mod_bound = Mod_bounds.get ~axis jkind.mod_bounds in
-                   let (module Axis_ops) = Axis.get axis in
-                   let with_bounds =
-                     match Axis_ops.(le max mod_bound) with
-                     | true ->
-                       (* If the mod_bound is max, then no with-bounds are
-                          relevant *)
-                       []
-                     | false ->
-                       With_bounds.to_list jkind.with_bounds
-                       |> List.filter_map
-                            (fun
-                              (ty, ({ relevant_axes } : With_bounds_type_info.t))
-                            ->
-                              match Axis_set.mem relevant_axes axis with
-                              | true -> Some (!outcometree_of_type ty)
-                              | false -> None)
-                   in
-                   let ojkind =
-                     List.fold_left
-                       (fun acc with_bound ->
-                         Outcometree.Ojkind_const_with (acc, with_bound, []))
-                       (Outcometree.Ojkind_const_mod
-                          (None, [Format.asprintf "%a" Axis_ops.print mod_bound]))
-                       with_bounds
-                   in
-                   !Oprint.out_jkind_const ppf ojkind
+        jkind_has_modalities sub || jkind_has_modalities super
+      in
+      match disagreeing_axes, has_modalities with
+      | None, _ | _, false -> ()
+      | Some disagreeing_axes, true ->
+        (* CR: @\n is discouraged by the documentation, but @;@; seems to emit
+           one newline and then one space rather than two newlines *)
+        fprintf ppf "@\n@\nThe first mode-crosses less than the second along:";
+        Axis_set.to_list disagreeing_axes
+        |> List.iter (fun (Pack axis : Axis.packed) ->
+               let pp_bound ppf jkind =
+                 let mod_bound = Mod_bounds.get ~axis jkind.mod_bounds in
+                 let (module Axis_ops) = Axis.get axis in
+                 let with_bounds =
+                   match Axis_ops.(le max mod_bound) with
+                   | true ->
+                     (* If the mod_bound is max, then no with-bounds are
+                        relevant *)
+                     []
+                   | false ->
+                     With_bounds.to_list jkind.with_bounds
+                     |> List.filter_map
+                          (fun
+                            (ty, ({ relevant_axes } : With_bounds_type_info.t))
+                          ->
+                            match Axis_set.mem relevant_axes axis with
+                            | true -> Some (!outcometree_of_type ty)
+                            | false -> None)
                  in
-                 fprintf ppf "@;  @[<hov 2>%s:@ %a ≰@ %a@]" (Axis.name axis)
-                   pp_bound sub.jkind pp_bound super.jkind))
+                 let ojkind =
+                   List.fold_left
+                     (fun acc with_bound ->
+                       Outcometree.Ojkind_const_with (acc, with_bound, []))
+                     (Outcometree.Ojkind_const_mod
+                        (None, [Format.asprintf "%a" Axis_ops.print mod_bound]))
+                     with_bounds
+                 in
+                 !Oprint.out_jkind_const ppf ojkind
+               in
+               fprintf ppf "@;  @[<hov 2>%s:@ %a ≰@ %a@]" (Axis.name axis)
+                 pp_bound sub.jkind pp_bound super.jkind))
     | No_intersection _ -> ()
 
-  let report_general ~jkind_of_type preamble pp_former former ppf t =
+  let report_general preamble pp_former former ppf t =
     let mismatch_type =
       match t.violation with
       | Not_a_subjkind (k1, k2, _) ->
@@ -2780,7 +2745,7 @@ module Violation = struct
     in
     let format_layout_or_kind ppf jkind =
       match mismatch_type with
-      | Mode -> Format.fprintf ppf "@,%a" (format ~jkind_of_type) jkind
+      | Mode -> Format.fprintf ppf "@,%a" format jkind
       | Layout -> Layout.format ppf jkind.jkind.layout
     in
     let subjkind_format verb k2 =
@@ -2833,13 +2798,13 @@ module Violation = struct
         | _, true -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
-        (Format_history.format_history ~jkind_of_type
+        (Format_history.format_history
            ~intro:
              (dprintf "@[<hov 2>The %s of %a is %a@]" layout_or_kind pp_former
                 former format_layout_or_kind k1)
            ~layout_or_kind)
         k1
-        (Format_history.format_history ~jkind_of_type
+        (Format_history.format_history
            ~intro:
              (dprintf "@[<hov 2>But the %s of %a must %t@]" layout_or_kind
                 pp_former former connective)
@@ -2853,15 +2818,12 @@ module Violation = struct
 
   let pp_t ppf x = fprintf ppf "%t" x
 
-  let report_with_offender ~jkind_of_type ~offender =
-    report_general ~jkind_of_type "" pp_t offender
+  let report_with_offender ~offender = report_general "" pp_t offender
 
-  let report_with_offender_sort ~jkind_of_type ~offender =
-    report_general ~jkind_of_type "A representable layout was expected, but "
-      pp_t offender
+  let report_with_offender_sort ~offender =
+    report_general "A representable layout was expected, but " pp_t offender
 
-  let report_with_name ~jkind_of_type ~name =
-    report_general ~jkind_of_type "" pp_print_string name
+  let report_with_name ~name = report_general "" pp_print_string name
 end
 
 (******************************)

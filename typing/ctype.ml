@@ -3480,7 +3480,7 @@ let add_gadt_equation uenv source destination =
     let jkind = jkind_of_abstract_type_declaration env source in
     let jkind = match Jkind.try_allow_r jkind with
       | None -> Misc.fatal_errorf "Abstract kind with [with]: %a"
-                  (Jkind.format ~jkind_of_type:(Some (type_jkind_purely env)))
+                  Jkind.format
                   jkind
       | Some jkind -> jkind
     in
