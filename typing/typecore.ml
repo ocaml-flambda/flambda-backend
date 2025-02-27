@@ -756,54 +756,62 @@ let type_constant: Typedtree.constant -> type_expr = function
   | Const_unboxed_int64 _ -> instance Predef.type_unboxed_int64
   | Const_unboxed_nativeint _ -> instance Predef.type_unboxed_nativeint
 
-type constant_integer_result =
-  | Int32 of int32
-  | Int64 of int64
-  | Nativeint of nativeint
+type naked_flag = Naked | Value
 
-type constant_integer_error =
-  | Int32_literal_overflow
-  | Int64_literal_overflow
-  | Nativeint_literal_overflow
-  | Unknown_constant_literal
+type integer_width =
+  | Int32
+  | Immediate
+  | Int64
+  | Nativeint
 
-let constant_integer i ~suffix :
-    (constant_integer_result, constant_integer_error) result =
-  match suffix with
-  | 'l' ->
-    begin
-      try Ok (Int32 (Misc.Int_literal_converter.int32 i))
-      with Failure _ -> Error Int32_literal_overflow
-    end
-  | 'L' ->
-    begin
-      try Ok (Int64 (Misc.Int_literal_converter.int64 i))
-      with Failure _ -> Error Int64_literal_overflow
-    end
-  | 'n' ->
-    begin
-      try Ok (Nativeint (Misc.Int_literal_converter.nativeint i))
-      with Failure _ -> Error Nativeint_literal_overflow
-    end
-  | _ -> Error Unknown_constant_literal
+let parse_integer i ~naked ~width : (Typedtree.constant, error) result =
+  let literal_overflow name =
+    let name =
+      match (naked : naked_flag) with
+      | Value -> name
+      | Naked -> name ^ "#"
+    in
+    (Literal_overflow name)
+  in
+  match (width : integer_width) with
+  | Immediate ->
+    (match Misc.Int_literal_converter.int i with
+     | i ->
+       (match naked with
+        | Naked -> failwith "Immediates cannot be naked"
+        | Value -> Ok (Const_int i))
+     | exception Failure _ -> Error (literal_overflow "int"))
+  | Int32 ->
+    (match Misc.Int_literal_converter.int32 i with
+     | i ->
+       Ok (match naked with
+        | Naked -> Const_unboxed_int32 i
+        | Value -> Const_int32 i)
+     | exception Failure _ -> Error (literal_overflow "int32"))
+  | Int64 ->
+    (match Misc.Int_literal_converter.int64 i with
+     | i ->
+       Ok (match naked with
+        | Naked -> Const_unboxed_int64 i
+        | Value -> Const_int64 i)
+     | exception Failure _ -> Error (literal_overflow "int64"))
+  | Nativeint ->
+    (match Misc.Int_literal_converter.nativeint i with
+     | i ->
+       Ok (match naked with
+        | Naked -> Const_unboxed_nativeint i
+        | Value -> Const_nativeint i)
+     | exception Failure _ -> Error (literal_overflow "nativeint"))
 
 let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   function
-  | Pconst_integer (i, Some suffix) ->
-    begin match constant_integer i ~suffix with
-      | Ok (Int32 v) -> Ok (Const_int32 v)
-      | Ok (Int64 v) -> Ok (Const_int64 v)
-      | Ok (Nativeint v) -> Ok (Const_nativeint v)
-      | Error Int32_literal_overflow -> Error (Literal_overflow "int32")
-      | Error Int64_literal_overflow -> Error (Literal_overflow "int64")
-      | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint")
-      | Error Unknown_constant_literal -> Error (Unknown_literal (i, suffix))
-    end
-  | Pconst_integer (i,None) ->
-     begin
-       try Ok (Const_int (Misc.Int_literal_converter.int i))
-       with Failure _ -> Error (Literal_overflow "int")
-     end
+  | Pconst_integer (i, suffix) ->
+    (match suffix with
+     | None -> parse_integer i ~naked:Value ~width:Immediate
+     | Some 'l' -> parse_integer i ~naked:Value ~width:Int32
+     | Some 'L' -> parse_integer i ~naked:Value ~width:Int64
+     | Some 'n' -> parse_integer i ~naked:Value ~width:Nativeint
+     | Some suffix -> Error (Unknown_literal (i, suffix)))
   | Pconst_char c -> Ok (Const_char c)
   | Pconst_string (s,loc,d) -> Ok (Const_string (s,loc,d))
   | Pconst_float (f,None)-> Ok (Const_float f)
@@ -819,16 +827,11 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   | Pconst_unboxed_float (x, Some c) ->
       Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
   | Pconst_unboxed_integer (i, suffix) ->
-      begin match constant_integer i ~suffix with
-      | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
-      | Ok (Int64 v) -> Ok (Const_unboxed_int64 v)
-      | Ok (Nativeint v) -> Ok (Const_unboxed_nativeint v)
-      | Error Int32_literal_overflow -> Error (Literal_overflow "int32#")
-      | Error Int64_literal_overflow -> Error (Literal_overflow "int64#")
-      | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint#")
-      | Error Unknown_constant_literal ->
-          Error (Unknown_literal (Misc.format_as_unboxed_literal i, suffix))
-      end
+    (match suffix with
+     | 'l' -> parse_integer i ~naked:Naked ~width:Int32
+     | 'L' -> parse_integer i ~naked:Naked ~width:Int64
+     | 'n' -> parse_integer i ~naked:Naked ~width:Nativeint
+     | suffix -> Error (Unknown_literal (Misc.format_as_unboxed_literal i, suffix)))
 
 let constant_or_raise env loc cst =
   match constant cst with
@@ -5689,6 +5692,56 @@ and type_expect_
           exp_desc = Texp_constant cst;
           exp_loc = loc; exp_extra = [];
           exp_type = instance Predef.type_string;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
+  )
+  | Pexp_constant(Pconst_integer (i, None) as cst) -> (
+      (* Terrible hack for integer literals *)
+      let ty_exp = expand_head env (protect_expansion env ty_expected) in
+      let width =
+        match get_desc ty_exp with
+        | Tconstr(path, _, _) ->
+          let is expected =
+            Path.same path expected &&
+            (if !Clflags.principal && get_level ty_exp <> generic_level then
+               Location.prerr_warning loc
+                 (Warnings.Not_principal ("this coercion to " ^ Path.name expected));
+             true)
+          in
+          if is Predef.path_int32
+          then Some (Value, Int32, Predef.type_int32)
+          else if is Predef.path_unboxed_int32
+          then Some (Naked, Int32, Predef.type_unboxed_int32)
+          else if is Predef.path_int64
+          then Some (Value, Int64, Predef.type_int64)
+          else if is Predef.path_unboxed_int64
+          then Some (Naked, Int64, Predef.type_unboxed_int64)
+          else if is Predef.path_nativeint
+          then Some (Value, Nativeint, Predef.type_nativeint)
+          else if is Predef.path_unboxed_nativeint
+          then Some (Naked, Nativeint, Predef.type_unboxed_nativeint)
+          else None
+        | _ -> None
+      in
+      match width with
+      | Some (naked, width, tycon) ->
+        let integer =
+          match parse_integer i ~naked ~width with
+          | Ok integer -> integer
+          | Error err -> raise (Error (loc, env, err))
+        in
+        rue {
+          exp_desc = Texp_constant integer;
+          exp_loc = loc; exp_extra = [];
+          exp_type = tycon;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
+      | None ->
+        let cst = constant_or_raise env loc cst in
+        rue {
+          exp_desc = Texp_constant cst;
+          exp_loc = loc; exp_extra = [];
+          exp_type = type_constant cst;
           exp_attributes = sexp.pexp_attributes;
           exp_env = env }
   )
