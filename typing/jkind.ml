@@ -3081,11 +3081,10 @@ let is_void_defaulting = function
    any, and modal upper bounds are constant. *)
 (* The choice of [type_equal] and [jkind_of_type] doesn't matter because there
    are no with-kinds on the left-hand kind. *)
-let is_max jkind =
-  sub
-    ~type_equal:(fun _ _ -> false)
-    ~jkind_of_type:(fun _ -> None)
-    Builtin.any_dummy_jkind jkind
+let is_obviously_max = function
+  | { jkind = { layout = Any; mod_bounds; with_bounds = _ }; _ } ->
+    Mod_bounds.is_max mod_bounds
+  | _ -> false
 
 let has_layout_any jkind =
   match jkind.jkind.layout with Any -> true | _ -> false
