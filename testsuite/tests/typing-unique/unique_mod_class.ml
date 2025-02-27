@@ -162,3 +162,20 @@ let foo (local_ x : string ref) =
 [%%expect{|
 val foo : local_ string ref -> (unit -> < m : string >) = <fun>
 |}]
+
+let () =
+    let module M =
+        struct
+        let () =
+          let x = "hello" in
+          let _ = unique_id x in
+          ()
+        end
+    in ()
+[%%expect{|
+Line 6, characters 28-29:
+6 |           let _ = unique_id x in
+                                ^
+Error: This value is aliased but used as unique.
+Hint: This value comes from outside the current module or class.
+|}]
