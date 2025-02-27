@@ -123,12 +123,18 @@ class Builtin:
     @classmethod
     def of_float(cls, f):
         cls._validate_operand_types((f, float), func_name="of_float")
-        return int(f)
+        try:
+            return int(f)
+        except ValueError:
+            return 0
 
     @classmethod
     def to_float(cls, i):
         cls._validate_operand_types((i, int), func_name="to_float")
-        return float(i)
+        try:
+            return float(i)
+        except OverflowError:
+            return float("-inf") if i < 0 else float("inf")
 
     @classmethod
     def of_string(cls, s):
