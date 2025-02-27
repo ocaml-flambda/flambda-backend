@@ -86,9 +86,8 @@ static void print_log(const char* msg, int newline, va_list ap)
 {
   char buf[GC_LOG_LENGTH];
   int pos = 0;
-  if (caml_verb_gc & 0x1000) {
-    pos += caml_format_timestamp(buf, sizeof(buf),
-                                 caml_verb_gc & 0x2000);
+  if (!(atomic_load_relaxed(&caml_verb_gc) & CAML_GC_MSG_NO_TIMESTAMP)) {
+    pos += caml_format_timestamp(buf, sizeof(buf), 1);
   }
   pos += snprintf(buf+pos, sizeof(buf)-pos,
                   "[%02d] ",

@@ -510,40 +510,50 @@ extern atomic_uintnat caml_verb_gc;
 /* Bits which may be set in caml_verb_gc. The quotations are from the
  * OCaml manual. */
 
-/* "Start and end of major GC cycle" (unused) */
-#define CAML_GC_MSG_MAJOR           0x0001
-/* "Minor collection and major GC slice" (unused) */
-#define CAML_GC_MSG_MINOR           0x0002
-/* "Growing and shrinking of the heap" */
-#define CAML_GC_MSG_HEAPSIZE        0x0004
-/* "Resizing of stacks and memory manager tables" */
-#define CAML_GC_MSG_STACKSIZE       0x0008
-/* "Heap compaction" (unused) */
-#define CAML_GC_MSG_COMPACT         0x0010
-/* "Change of GC parameters" */
-#define CAML_GC_MSG_PARAMS          0x0020
-/* "Computation of major GC slice size" */
-#define CAML_GC_MSG_SLICESIZE       0x0040
-/* "Calling of finalization functions" */
-#define CAML_GC_MSG_FINALIZE        0x0080
-/* "Startup messages" */
-#define CAML_GC_MSG_STARTUP         0x0100
-/* "Computation of compaction-triggering condition" (unused) */
-#define CAML_GC_MSG_COMPACT_TRIGGER 0x0200
-/* "Output GC statistics at program exit" */
-#define CAML_GC_MSG_STATS           0x0400
-/* "GC debugging messages */
-#define CAML_GC_MSG_DEBUG           0x0800
+/* "Main events of each major GC cycle" */
+#define CAML_GC_MSG_MAJOR           0x00001
+/* "Minor collection events" */
+#define CAML_GC_MSG_MINOR           0x00002
+/* "Per-slice events and computations" */
+#define CAML_GC_MSG_SLICE           0x00004
+/* "Heap compaction" */
+#define CAML_GC_MSG_COMPACT         0x00008
+/* "Computation of compaction-triggering condition" */
+#define CAML_GC_MSG_COMPACT_TRIGGER 0x00010
 /* "Address space reservation changes" */
-#define CAML_GC_MSG_ADDRSPACE       0x1000
+#define CAML_GC_MSG_ADDRSPACE       0x00020
+/* "Major domain events (such as creation and termination)" */
+#define CAML_GC_MSG_DOMAIN          0x00040
+/* "Stop-the-world events" */
+#define CAML_GC_MSG_STW             0x00080
+/* "Minor heap events (such as creation and resizing)" */
+#define CAML_GC_MSG_MINOR_HEAP      0x00100
+/* "Major heap events (such as creation and teardown)" */
+#define CAML_GC_MSG_MAJOR_HEAP      0x00200
+/* "Resizing of stacks and GC tables" */
+#define CAML_GC_MSG_STACKSIZE       0x00400
+/* "Output GC statistics at program exit" */
+#define CAML_GC_MSG_STATS           0x00800
+/* "Rare stack overflow conditions" */
+#define CAML_GC_MSG_STACK_OVERFLOW  0x01000
+/* "Change of GC parameters" */
+#define CAML_GC_MSG_PARAMS          0x02000
+/* "Calling of finalization functions" */
+#define CAML_GC_MSG_FINALIZE        0x04000
+/* "Bytecode executable and shared library search at start-up." */
+#define CAML_GC_MSG_STARTUP         0x08000
+/* "GC debugging messages" */
+#define CAML_GC_MSG_DEBUG           0x10000
+/* "Changes to the major GC mark stack." */
+#define CAML_GC_MSG_MARK_STACK      0x20000
+/* "Do not include timestamp and domain ID in log messages." */
+#define CAML_GC_MSG_NO_TIMESTAMP    0x10000000
 
 /* Default set of messages when runtime invoked with -v */
 
-#define CAML_GC_MSG_VERBOSE (CAML_GC_MSG_MAJOR     | \
-                             CAML_GC_MSG_HEAPSIZE  | \
-                             CAML_GC_MSG_STACKSIZE | \
-                             CAML_GC_MSG_COMPACT   | \
-                             CAML_GC_MSG_PARAMS)
+#define CAML_GC_MSG_VERBOSE (CAML_GC_MSG_MAJOR           | \
+                             CAML_GC_MSG_DOMAIN          | \
+                             CAML_GC_MSG_COMPACT)
 
 /* Use to control messages which should be output at any non-zero verbosity */
 
