@@ -182,6 +182,14 @@ Line 1, characters 13-20:
 1 | let foo (t : int ref t @@ contended) = use_uncontended t
                  ^^^^^^^
 Error: This type "int ref" should be an instance of type "('a : immutable_data)"
+       The kind of int ref is mutable_data.
+       But the kind of int ref must be a subkind of immutable_data
+         because of the definition of t at line 1, characters 0-46.
+|}, Principal{|
+Line 1, characters 13-20:
+1 | let foo (t : int ref t @@ contended) = use_uncontended t
+                 ^^^^^^^
+Error: This type "int ref" should be an instance of type "('a : immutable_data)"
        The kind of int ref is value mod many unyielding.
        But the kind of int ref must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-46.
@@ -316,6 +324,14 @@ val foo : int t @ contended -> unit = <fun>
 
 let foo (t : int ref t @@ contended) = use_uncontended t
 [%%expect {|
+Line 1, characters 13-20:
+1 | let foo (t : int ref t @@ contended) = use_uncontended t
+                 ^^^^^^^
+Error: This type "int ref" should be an instance of type "('a : immutable_data)"
+       The kind of int ref is mutable_data.
+       But the kind of int ref must be a subkind of immutable_data
+         because of the definition of t at line 1, characters 0-73.
+|}, Principal{|
 Line 1, characters 13-20:
 1 | let foo (t : int ref t @@ contended) = use_uncontended t
                  ^^^^^^^

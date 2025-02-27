@@ -663,6 +663,15 @@ Line 1, characters 14-19:
 1 | type t_test = int t require_global
                   ^^^^^
 Error: This type "int t" should be an instance of type "('a : value mod global)"
+       The kind of int t is immutable_data
+         because of the definition of t at line 1, characters 0-21.
+       But the kind of int t must be a subkind of value mod global
+         because of the definition of require_global at line 15, characters 0-43.
+|}, Principal{|
+Line 1, characters 14-19:
+1 | type t_test = int t require_global
+                  ^^^^^
+Error: This type "int t" should be an instance of type "('a : value mod global)"
        The kind of int t is value
          because of the definition of t at line 1, characters 0-21.
        But the kind of int t must be a subkind of value mod global
@@ -671,6 +680,15 @@ Error: This type "int t" should be an instance of type "('a : value mod global)"
 
 type t_test = int t require_aliased
 [%%expect {|
+Line 1, characters 14-19:
+1 | type t_test = int t require_aliased
+                  ^^^^^
+Error: This type "int t" should be an instance of type "('a : value mod aliased)"
+       The kind of int t is immutable_data
+         because of the definition of t at line 1, characters 0-21.
+       But the kind of int t must be a subkind of value mod aliased
+         because of the definition of require_aliased at line 16, characters 0-45.
+|}, Principal{|
 Line 1, characters 14-19:
 1 | type t_test = int t require_aliased
                   ^^^^^
