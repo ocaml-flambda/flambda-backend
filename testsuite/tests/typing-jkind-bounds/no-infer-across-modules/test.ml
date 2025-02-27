@@ -286,18 +286,19 @@ Line 1, characters 94-95:
                                                                                                   ^
 Error: This value is "nonportable" but expected to be "portable".
 |}, Principal{|
-Line 1, characters 13-34:
+Line 1, characters 94-95:
 1 | let foo (t : #((int -> int) * int) unboxed_record @@ nonportable) = use_portable_three_values t
-                 ^^^^^^^^^^^^^^^^^^^^^
-Error: This type "#((int -> int) * int)" should be an instance of type
-         "('a : value & value)"
-       The kind of #((int -> int) * int) is
-         immediate with int with int -> int & immediate with int
-         with int -> int
-         because it is an unboxed tuple.
-       But the kind of #((int -> int) * int) must be a subkind of
-         value & value
-         because the type argument of Define_with_kinds.unboxed_record has this kind.
+                                                                                                  ^
+Error: This expression has type
+         "#((int -> int) * int) Define_with_kinds.unboxed_record"
+       but an expression was expected of type "('a : (value & value) & value)"
+       The kind of #((int -> int) * int) Define_with_kinds.unboxed_record is
+         (immutable_data with #((int -> int) * int) & immutable_data
+         with #((int -> int) * int)) & immutable_data
+         with #((int -> int) * int).
+       But the kind of #((int -> int) * int) Define_with_kinds.unboxed_record must be a subkind of
+         (value & value) & value
+         because of the definition of use_portable_three_values at line 2, characters 84-95.
 |}]
 (* CR layouts v2.8: Lift bounds outside of products *)
 
