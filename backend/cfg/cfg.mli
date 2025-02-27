@@ -135,7 +135,7 @@ val replace_successor_labels :
     vice versa. *)
 val can_raise_interproc : basic_block -> bool
 
-val first_instruction_id : basic_block -> int
+val first_instruction_id : basic_block -> InstructionId.t
 
 val first_instruction_stack_offset : basic_block -> int
 
@@ -217,7 +217,7 @@ val make_instruction :
   ?fdo:Fdo_info.t ->
   ?live:Reg.Set.t ->
   stack_offset:int ->
-  id:int ->
+  id:InstructionId.t ->
   ?irc_work_list:irc_work_list ->
   ?ls_order:int ->
   ?available_before:Reg_availability_set.t option ->
@@ -230,11 +230,14 @@ val make_instr :
   'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a instruction
 
 (** These IDs are also used by [make_instr] *)
-val next_instr_id : unit -> int
+val next_instr_id : unit -> InstructionId.t
 
-val reset_next_instr_id : unit -> unit
+val reset_instr_id : unit -> unit
 
 val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block
 
 (** "Contains calls" in the traditional sense as used in upstream [Selectgen]. *)
 val basic_block_contains_calls : basic_block -> bool
+
+(* [max_instr_id cfg] returns the maximum instruction identifier in [cfg]. *)
+val max_instr_id : t -> InstructionId.t

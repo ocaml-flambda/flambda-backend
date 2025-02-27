@@ -1,7 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42-69"]
 
 open! Int_replace_polymorphic_compare
-module Instr = Numbers.Int
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 module type Transfer_domain_S = sig
@@ -33,7 +32,7 @@ module type Dataflow_direction_S = sig
   type context
 
   val transfer_block :
-    update_instr:(int -> instr_domain -> unit) ->
+    update_instr:(InstructionId.t -> instr_domain -> unit) ->
     Transfer_domain.t ->
     Cfg.basic_block ->
     context ->
@@ -57,7 +56,7 @@ module type Dataflow_S = sig
 
   val get_res_block : work_state -> Transfer_domain.t Label.Tbl.t
 
-  val get_res_instr_exn : work_state -> instr_domain Instr.Tbl.t
+  val get_res_instr_exn : work_state -> instr_domain InstructionId.Tbl.t
 
   val run : max_iteration:int -> work_state -> context -> (unit, unit) Result.t
 end
@@ -123,7 +122,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
     { cfg : Cfg.t;
       mutable queue : WorkSet.t;
       map_block : Transfer_domain.t Label.Tbl.t;
-      map_instr : D.instr_domain Instr.Tbl.t option
+      map_instr : D.instr_domain InstructionId.Tbl.t option
     }
 
   type instr_domain = D.instr_domain
@@ -197,11 +196,11 @@ module Make_dataflow (D : Dataflow_direction_S) :
     assert (Label.Tbl.length priorities = Label.Tbl.length cfg.blocks);
     priorities
 
-  let update_instr : work_state -> int -> instr_domain -> unit =
+  let update_instr : work_state -> InstructionId.t -> instr_domain -> unit =
    fun t instr_id value ->
     match t.map_instr with
     | None -> ()
-    | Some map_instr -> Instr.Tbl.replace map_instr instr_id value
+    | Some map_instr -> InstructionId.Tbl.replace map_instr instr_id value
 
   let create :
       Cfg.t ->
@@ -217,7 +216,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
       then
         let map_instr =
           (* CR-soon xclerc for xclerc: review the `16` constant. *)
-          Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks * 16)
+          InstructionId.Tbl.create (Label.Tbl.length cfg.Cfg.blocks * 16)
         in
         Some map_instr
       else None
@@ -345,7 +344,7 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
     type context = T.context
 
     let transfer_block :
-        update_instr:(int -> instr_domain -> unit) ->
+        update_instr:(InstructionId.t -> instr_domain -> unit) ->
         Transfer_domain.t ->
         Cfg.basic_block ->
         context ->
@@ -426,8 +425,8 @@ module type Backward_S = sig
 
   type _ map =
     | Block : domain Label.Tbl.t map
-    | Instr : domain Instr.Tbl.t map
-    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
+    | Instr : domain InstructionId.Tbl.t map
+    | Both : (domain InstructionId.Tbl.t * domain Label.Tbl.t) map
 
   val run :
     Cfg.t ->
@@ -497,7 +496,7 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
     type context = T.context
 
     let transfer_block :
-        update_instr:(int -> instr_domain -> unit) ->
+        update_instr:(InstructionId.t -> instr_domain -> unit) ->
         Transfer_domain.t ->
         Cfg.basic_block ->
         context ->
@@ -532,8 +531,8 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
 
   type _ map =
     | Block : domain Label.Tbl.t map
-    | Instr : domain Instr.Tbl.t map
-    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
+    | Instr : domain InstructionId.Tbl.t map
+    | Both : (domain InstructionId.Tbl.t * domain Label.Tbl.t) map
 
   let run :
       type a.

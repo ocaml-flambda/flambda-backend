@@ -20,10 +20,10 @@ let log :
  fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
 
 let instr_prefix (instr : Cfg.basic Cfg.instruction) =
-  Printf.sprintf "#%04d" instr.id
+  InstructionId.to_string_padded instr.id
 
 let term_prefix (term : Cfg.terminator Cfg.instruction) =
-  Printf.sprintf "#%04d" term.id
+  InstructionId.to_string_padded term.id
 
 let log_body_and_terminator :
     indent:int ->

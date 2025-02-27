@@ -46,14 +46,14 @@ type t =
     adj_set : RegisterStamp.PairSet.t;
     move_list : Instruction.Set.t Reg.Tbl.t;
     stack_slots : Regalloc_stack_slots.t;
-    mutable next_instruction_id : Instruction.id;
+    instruction_id : InstructionId.sequence;
     mutable inst_temporaries : Reg.Set.t;
     mutable block_temporaries : Reg.Set.t
   }
 
 let max_capacity = 1024
 
-let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
+let[@inline] make ~initial ~stack_slots ~last_used () =
   List.iter (Reg.all_registers ()) ~f:(fun reg ->
       reg.Reg.irc_work_list <- Unknown_list;
       reg.Reg.irc_color <- None;
@@ -83,7 +83,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
   let coalesced_nodes = RegWorkList.make ~original_capacity in
   let colored_nodes = Doubly_linked_list.make_empty () in
   let select_stack = [] in
-  let original_capacity = Int.min max_capacity (pred next_instruction_id) in
+  let original_capacity = 1024 (* XXX *) in
   let coalesced_moves = InstructionWorkList.make ~original_capacity in
   let constrained_moves = InstructionWorkList.make ~original_capacity in
   let frozen_moves = InstructionWorkList.make ~original_capacity in
@@ -91,6 +91,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
   let active_moves = InstructionWorkList.make ~original_capacity in
   let adj_set = RegisterStamp.PairSet.make ~num_registers in
   let move_list = Reg.Tbl.create 128 in
+  let instruction_id = InstructionId.make_sequence ~last_used () in
   let inst_temporaries = Reg.Set.empty in
   let block_temporaries = Reg.Set.empty in
   let initial = Doubly_linked_list.of_list initial in
@@ -110,7 +111,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
     adj_set;
     move_list;
     stack_slots;
-    next_instruction_id;
+    instruction_id;
     inst_temporaries;
     block_temporaries
   }
@@ -484,9 +485,7 @@ let[@inline] add_alias _state v u =
 let[@inline] stack_slots state = state.stack_slots
 
 let[@inline] get_and_incr_instruction_id state =
-  let res = state.next_instruction_id in
-  state.next_instruction_id <- succ res;
-  res
+  InstructionId.get_next state.instruction_id
 
 let[@inline] add_inst_temporaries_list state regs =
   state.inst_temporaries
@@ -532,8 +531,8 @@ let[@inline] check_set_and_field_consistency_instr (work_list, set, field_value)
     (fun instr ->
       if instr.Cfg.irc_work_list <> field_value
       then
-        fatal "instruction %d is in %s but its field equals %S" instr.Cfg.id
-          work_list
+        fatal "instruction %a is in %s but its field equals %S"
+          InstructionId.format instr.Cfg.id work_list
           (Cfg.string_of_irc_work_list instr.Cfg.irc_work_list))
     set
 

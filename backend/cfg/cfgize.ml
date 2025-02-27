@@ -29,7 +29,7 @@ module State : sig
 
   val get_catch_handler : t -> handler_id:int -> Label.t
 
-  val get_next_instruction_id : t -> int
+  val get_next_instruction_id : t -> InstructionId.t
 
   val add_exception_handler : t -> Label.t -> unit
 
@@ -42,14 +42,14 @@ end = struct
       blocks : Cfg.basic_block Label.Tbl.t;
       layout : Cfg_with_layout.layout;
       catch_handlers : Label.t Numbers.Int.Tbl.t;
-      mutable next_instruction_id : int;
+      instruction_id : InstructionId.sequence;
       mutable exception_handlers : Label.t list
     }
 
   let make ~fun_name ~tailrec_label ~contains_calls blocks =
     let layout = DLL.make_empty () in
     let catch_handlers = Numbers.Int.Tbl.create 31 in
-    let next_instruction_id = 0 in
+    let instruction_id = InstructionId.make_sequence () in
     let exception_handlers = [] in
     { fun_name;
       tailrec_label;
@@ -57,7 +57,7 @@ end = struct
       blocks;
       layout;
       catch_handlers;
-      next_instruction_id;
+      instruction_id;
       exception_handlers
     }
 
@@ -95,10 +95,7 @@ end = struct
       Misc.fatal_errorf "Cfgize.State.get_handler_label: unknown handler_id %d"
         handler_id
 
-  let get_next_instruction_id t =
-    let res = t.next_instruction_id in
-    t.next_instruction_id <- succ res;
-    res
+  let get_next_instruction_id t = InstructionId.get_next t.instruction_id
 
   let add_exception_handler t lbl =
     t.exception_handlers <- lbl :: t.exception_handlers

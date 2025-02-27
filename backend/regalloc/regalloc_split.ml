@@ -421,8 +421,7 @@ let split_at_destruction_points :
   let state =
     Profile.record ~accumulate:true "state"
       (fun () ->
-        State.make cfg_with_infos
-          ~next_instruction_id:(succ cfg_infos.max_instruction_id))
+        State.make cfg_with_infos ~last_used:cfg_infos.max_instruction_id)
       ()
   in
   if split_debug

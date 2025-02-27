@@ -21,18 +21,6 @@ type compatible_allocations =
     next_cell : cell option
   }
 
-(* [max_instr_id cfg] returns the maximum instruction identifier in [cfg]. *)
-let max_instr_id : Cfg.t -> int =
- fun cfg ->
-  (* CR-someday xclerc for xclerc: factor out with similar function in
-     regalloc/. *)
-  Cfg.fold_blocks cfg ~init:Int.min_int ~f:(fun _label block max_id ->
-      let max_id =
-        DLL.fold_left block.body ~init:max_id ~f:(fun max_id instr ->
-            Int.max max_id instr.Cfg.id)
-      in
-      Int.max max_id block.terminator.id)
-
 (* [find_next_allocation cell] returns the first allocation found by iterating
    from [cell]. *)
 let rec find_next_allocation : cell option -> allocation option =
@@ -130,8 +118,8 @@ let find_compatible_allocations :
     - the "first" allocation is made bigger to account for all allocations;
     - the other allocations are replaced with a reference to the result of the
       previous allocation, with a different offset. *)
-let rec combine : max_instr_id:int ref -> cell option -> unit =
- fun ~max_instr_id cell ->
+let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
+ fun ~instr_id cell ->
   let first_allocation = find_next_allocation cell in
   match first_allocation with
   | None -> ()
@@ -176,7 +164,6 @@ let rec combine : max_instr_id:int ref -> cell option -> unit =
                    mode
                  })
         };
-      incr max_instr_id;
       DLL.insert_after cell
         { first_allocation_instr with
           desc =
@@ -184,14 +171,16 @@ let rec combine : max_instr_id:int ref -> cell option -> unit =
               (Intop_imm (Simple_operation.Iadd, total_size_of_other_allocations));
           arg = [| first_allocation_res0 |];
           res = [| first_allocation_res0 |];
-          id = !max_instr_id
+          id = InstructionId.get_next instr_id
         });
-    combine ~max_instr_id compatible_allocs.next_cell
+    combine ~instr_id compatible_allocs.next_cell
 
 let run : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let max_instr_id = ref (max_instr_id cfg) in
+  let instr_id =
+    InstructionId.make_sequence ~last_used:(Cfg.max_instr_id cfg) ()
+  in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-      combine ~max_instr_id (DLL.hd_cell block.body));
+      combine ~instr_id (DLL.hd_cell block.body));
   cfg_with_layout

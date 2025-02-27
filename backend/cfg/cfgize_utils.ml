@@ -104,8 +104,8 @@ module Stack_offset_and_exn = struct
       when stack_offset <> 0 || List.compare_length_with traps 0 <> 0 ->
       Misc.fatal_errorf
         "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
-         self tailcall (id=%d)"
-        term.id
+         self tailcall (id=%a)"
+        InstructionId.format term.id
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
     | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
@@ -129,8 +129,8 @@ module Stack_offset_and_exn = struct
       | [] ->
         Misc.fatal_errorf
           "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
-           empty stack (id=%d)"
-          instr.id
+           empty stack (id=%a)"
+          InstructionId.format instr.id
       | _ :: traps -> stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op

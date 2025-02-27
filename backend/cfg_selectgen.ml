@@ -1214,7 +1214,9 @@ class virtual selector_generic =
           then
             DLL.filter_left block.body
               ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-                let is_prologue_poll = instr.id = prologue_poll_instr_id in
+                let is_prologue_poll =
+                  InstructionId.equal instr.id prologue_poll_instr_id
+                in
                 if is_prologue_poll then found_prologue_poll := true;
                 not is_prologue_poll);
           if not (Cfg.is_never_terminator block.terminator.desc)
