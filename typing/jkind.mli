@@ -104,9 +104,22 @@ module Layout : sig
   val of_const : Const.t -> Sort.t t
 
   val sub : Sort.t t -> Sort.t t -> Sub_result.t
+
+  module Debug_printers : sig
+    val t :
+      (Format.formatter -> 'sort -> unit) -> Format.formatter -> 'sort t -> unit
+  end
 end
 
-(** A Jkind.t is a full description of the runtime representation of values
+module With_bounds : sig
+  val debug_print :
+    print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
+    Format.formatter ->
+    ('l * 'r) Types.with_bounds ->
+    unit
+end
+
+(** A [jkind] is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
     [Any] and subjkinds of other sorts, such as [Immediate].
 
