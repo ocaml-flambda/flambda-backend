@@ -121,7 +121,7 @@ let minimizers_to_run =
 (* ______ ONE FILE MINIMIZATION ______ *)
 
 (** [one_file_minimize c map file] minimizes [file] in the file set [map]
-  regarding to the command [c] *)
+    regarding to the command [c] *)
 let one_file_minimize c (map : structure Smap.t) file : structure Smap.t * bool
     =
   if !test then (

@@ -220,6 +220,10 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       | Do_not_inline { erase_attribute_if_ignored } ->
         Do_not_inline { erase_attribute = erase_attribute_if_ignored }
       | Inline { unroll_to; was_inline_always } ->
+        if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
+        then
+          Format.eprintf "!!! Inlining %a !!@." Code_id.print
+            (Function_type.code_id function_type);
         let dacc, inlined =
           Inlining_transforms.inline dacc ~apply ~unroll_to ~was_inline_always
             function_type
@@ -277,7 +281,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                   result_types Apply.print apply;
               let denv = DA.denv dacc in
               let denv =
-                DE.add_parameters_with_unknown_types
+                DE.add_parameters_with_unknown_types ~extra:false
                   ~name_mode:Name_mode.in_types denv params
               in
               let params = Bound_parameters.to_list params in
