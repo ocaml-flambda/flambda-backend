@@ -6,6 +6,9 @@
    native;
  } {
    flags = "-extension-universe beta -O3";
+   native;  
+ } {
+   flags = "-extension-universe beta -Oclassic";
    native;
  } {
    flags = "-extension-universe beta";
@@ -34,17 +37,17 @@ let square x = x * x
 (************************************************)
 (* Test: Function inlining with or_null types *)
 
-let add_or_null a b =
+let[@inline] add_or_null a b =
   match (a, b) with
   | (This x, This y) -> This (x + y)
   | _ -> Null
 
-let multiply_or_null a b =
+let[@inline] multiply_or_null a b =
   match (a, b) with
   | (This x, This y) -> This (x *. y)
   | _ -> Null
 
-let divide_or_null a b =
+let[@inline] divide_or_null a b =
   match (a, b) with
   | (This x, This y) -> 
       if y = 0 then Null else This (x / y)
