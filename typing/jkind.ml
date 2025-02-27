@@ -19,6 +19,11 @@ open Types
 
 [@@@warning "+9"]
 
+let print_type_expr : (Format.formatter -> type_expr -> unit) ref =
+  ref (fun _ _ -> assert false)
+
+let set_print_type_expr p = print_type_expr := p
+
 module Nonempty_list = Misc.Nonempty_list
 
 (* A *sort* is the information the middle/back ends need to be able to
@@ -595,7 +600,7 @@ module With_bounds = struct
     | With_bounds tys ->
       With_bounds (With_bounds_types.map_with_key (fun ty ti -> f ty, ti) tys)
 
-  let debug_print (type l r) ~print_type_expr ppf : (l * r) t -> _ =
+  let debug_print (type l r) ppf : (l * r) t -> _ =
     let open Format in
     function
     | No_with_bounds -> fprintf ppf "No_with_bounds"
@@ -604,7 +609,7 @@ module With_bounds = struct
         (pp_print_seq
            ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
            (fun ppf (ty, ti) ->
-             fprintf ppf "@[(%a, %a)@]" print_type_expr ty Type_info.print ti))
+             fprintf ppf "@[(%a, %a)@]" !print_type_expr ty Type_info.print ti))
         (With_bounds_types.to_seq tys)
 
   let join_bounds =
@@ -732,12 +737,10 @@ module Layout_and_axes = struct
       Some { layout; mod_bounds = Obj.magic mod_bounds; with_bounds }
     | None -> None
 
-  let debug_print ~print_type_expr format_layout ppf
-      { layout; mod_bounds; with_bounds } =
+  let debug_print format_layout ppf { layout; mod_bounds; with_bounds } =
     Format.fprintf ppf "{ layout = %a;@ mod_bounds = %a;@ with_bounds = %a }"
       format_layout layout Mod_bounds.debug_print mod_bounds
-      (With_bounds.debug_print ~print_type_expr)
-      with_bounds
+      With_bounds.debug_print with_bounds
 
   type 'r normalize_mode =
     | Require_best : disallowed normalize_mode
@@ -3238,8 +3241,8 @@ module Debug_printers = struct
       fprintf ppf "Tyvar_refinement_intersection"
     | Subjkind -> fprintf ppf "Subjkind"
 
-  let rec history ~print_type_expr ppf =
-    let jkind_desc = Jkind_desc.Debug_printers.t ~print_type_expr in
+  let rec history ppf =
+    let jkind_desc = Jkind_desc.Debug_printers.t in
     function
     | Interact
         { reason;
@@ -3251,11 +3254,11 @@ module Debug_printers = struct
       fprintf ppf
         "Interact {@[reason = %a;@ jkind1 = %a;@ history1 = %a;@ jkind2 = %a;@ \
          history2 = %a}@]"
-        interact_reason reason jkind_desc jkind1 (history ~print_type_expr)
-        history1 jkind_desc jkind2 (history ~print_type_expr) history2
+        interact_reason reason jkind_desc jkind1 history history1 jkind_desc
+        jkind2 history history2
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t (type l r) ~print_type_expr ppf
+  let t (type l r) ppf
       ({ jkind; annotation = a; history = h; has_warned = _; quality = q } :
         (l * r) jkind) : unit =
     fprintf ppf
@@ -3263,21 +3266,17 @@ module Debug_printers = struct
        ; annotation = %a@,\
        ; history = %a@,\
        ; quality = %s@,\
-      \ }@]"
-      (Jkind_desc.Debug_printers.t ~print_type_expr)
-      jkind
+      \ }@]" Jkind_desc.Debug_printers.t jkind
       (pp_print_option Pprintast.jkind_annotation)
-      a (history ~print_type_expr) h
+      a history h
       (match q with Best -> "Best" | Not_best -> "Not_best")
 
   module Const = struct
-    let t ~print_type_expr ppf ({ layout; mod_bounds; with_bounds } : _ Const.t)
-        =
+    let t ppf ({ layout; mod_bounds; with_bounds } : _ Const.t) =
       fprintf ppf
         "@[<v 2>{ layout = %a@,; mod_bounds = %a@,; with_bounds = %a@, }@]"
         Layout.Const.Debug_printers.t layout Mod_bounds.debug_print mod_bounds
-        (With_bounds.debug_print ~print_type_expr)
-        with_bounds
+        With_bounds.debug_print with_bounds
   end
 end
 

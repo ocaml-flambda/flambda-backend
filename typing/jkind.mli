@@ -112,11 +112,7 @@ module Layout : sig
 end
 
 module With_bounds : sig
-  val debug_print :
-    print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
-    Format.formatter ->
-    ('l * 'r) Types.with_bounds ->
-    unit
+  val debug_print : Format.formatter -> ('l * 'r) Types.with_bounds -> unit
 end
 
 (** A [jkind] is a full description of the runtime representation of values
@@ -600,6 +596,14 @@ val set_outcometree_of_modalities_new :
   Outcometree.out_mode_new list) ->
   unit
 
+(** Provides the [Printtyp.path] formatter back up the dependency chain to
+    this module. *)
+val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
+
+(** Provides the [type_expr] formatter back up the dependency chain to this
+    module. *)
+val set_print_type_expr : (Format.formatter -> Types.type_expr -> unit) -> unit
+
 val format : Format.formatter -> 'd Types.jkind -> unit
 
 (** Format the history of this jkind: what interactions it has had and why
@@ -610,10 +614,6 @@ val format : Format.formatter -> 'd Types.jkind -> unit
 *)
 val format_history :
   intro:(Format.formatter -> unit) -> Format.formatter -> 'd Types.jkind -> unit
-
-(** Provides the [Printtyp.path] formatter back up the dependency chain to
-    this module. *)
-val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 
 (******************************)
 (* relations *)
@@ -728,17 +728,9 @@ val is_value_for_printing : ignore_null:bool -> 'd Types.jkind -> bool
 (* debugging *)
 
 module Debug_printers : sig
-  val t :
-    print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
-    Format.formatter ->
-    'd Types.jkind ->
-    unit
+  val t : Format.formatter -> 'd Types.jkind -> unit
 
   module Const : sig
-    val t :
-      print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
-      Format.formatter ->
-      'd Const.t ->
-      unit
+    val t : Format.formatter -> 'd Const.t -> unit
   end
 end
