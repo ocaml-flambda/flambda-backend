@@ -29,15 +29,24 @@ let is_mutable = function
 (* Type expressions for the core language *)
 
 module Jkind_mod_bounds = struct
+  module Locality = Mode.Locality.Const
+  module Linearity = Mode.Linearity.Const
+  module Uniqueness = Mode.Uniqueness.Const_op
+  module Portability = Mode.Portability.Const
+  module Contention = Mode.Contention.Const_op
+  module Yielding = Mode.Yielding.Const
+  module Externality = Jkind_axis.Externality
+  module Nullability = Jkind_axis.Nullability
+
   type t = {
-    locality: Mode.Locality.Const.t;
-    linearity: Mode.Linearity.Const.t;
-    uniqueness: Mode.Uniqueness.Const_op.t;
-    portability: Mode.Portability.Const.t;
-    contention: Mode.Contention.Const_op.t;
-    yielding: Mode.Yielding.Const.t;
-    externality: Jkind_axis.Externality.t;
-    nullability: Jkind_axis.Nullability.t;
+    locality: Locality.t;
+    linearity: Linearity.t;
+    uniqueness: Uniqueness.t;
+    portability: Portability.t;
+    contention: Contention.t;
+    yielding: Yielding.t;
+    externality: Externality.t;
+    nullability: Nullability.t;
   }
 
   let[@inline] locality t = t.locality
@@ -84,42 +93,42 @@ module Jkind_mod_bounds = struct
     if is_empty max_axes then t else
     let locality =
       if mem max_axes (Modal (Comonadic Areality))
-      then Mode.Locality.Const.max
+      then Locality.max
       else t.locality
     in
     let linearity =
       if mem max_axes (Modal (Comonadic Linearity))
-      then Mode.Linearity.Const.max
+      then Linearity.max
       else t.linearity
     in
     let uniqueness =
       if mem max_axes (Modal (Monadic Uniqueness))
-      then Mode.Uniqueness.Const_op.max
+      then Uniqueness.max
       else t.uniqueness
     in
     let portability =
       if mem max_axes (Modal (Comonadic Portability))
-      then Mode.Portability.Const.max
+      then Portability.max
       else t.portability
     in
     let contention =
       if mem max_axes (Modal (Monadic Contention))
-      then Mode.Contention.Const_op.max
+      then Contention.max
       else t.contention
     in
     let yielding =
       if mem max_axes (Modal (Comonadic Yielding))
-      then Mode.Yielding.Const.max
+      then Yielding.max
       else t.yielding
     in
     let externality =
       if mem max_axes (Nonmodal Externality)
-      then Jkind_axis.Externality.max
+      then Externality.max
       else t.externality
     in
     let nullability =
       if mem max_axes (Nonmodal Nullability)
-      then Jkind_axis.Nullability.max
+      then Nullability.max
       else t.nullability
     in
     {
@@ -136,21 +145,21 @@ module Jkind_mod_bounds = struct
   let[@inline] is_max_within_set t axes =
     let open Jkind_axis.Axis_set in
     (not (mem axes (Modal (Comonadic Areality))) ||
-     Mode.Locality.Const.(le max (locality t))) &&
+     Locality.(le max (locality t))) &&
     (not (mem axes (Modal (Comonadic Linearity))) ||
-     Mode.Linearity.Const.(le max (linearity t))) &&
+     Linearity.(le max (linearity t))) &&
     (not (mem axes (Modal (Monadic Uniqueness))) ||
-     Mode.Uniqueness.Const_op.(le max (uniqueness t))) &&
+     Uniqueness.(le max (uniqueness t))) &&
     (not (mem axes (Modal (Comonadic Portability))) ||
-     Mode.Portability.Const.(le max (portability t))) &&
+     Portability.(le max (portability t))) &&
     (not (mem axes (Modal (Monadic Contention))) ||
-     Mode.Contention.Const.(le max (contention t))) &&
+     Contention.(le max (contention t))) &&
     (not (mem axes (Modal (Comonadic Yielding))) ||
-     Mode.Yielding.Const.(le max (yielding t))) &&
+     Yielding.(le max (yielding t))) &&
     (not (mem axes (Nonmodal Externality)) ||
-     Jkind_axis.Externality.(le max (externality t))) &&
-    not (mem axes (Nonmodal Nullability)) ||
-    Jkind_axis.Nullability.(le max (nullability t))
+     Externality.(le max (externality t))) &&
+    (not (mem axes (Nonmodal Nullability)) ||
+     Nullability.(le max (nullability t)))
 
   let[@inline] is_max = function
     | { locality = Local;
