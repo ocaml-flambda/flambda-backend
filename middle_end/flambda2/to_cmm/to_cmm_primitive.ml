@@ -742,7 +742,7 @@ let binary_int_shift_primitive _env dbg kind op x y =
   | (Naked_int64 | Naked_nativeint), Asr -> C.asr_int x y dbg
 
 let binary_int_comp_primitive _env dbg kind cmp x y =
-  let ignore_low_bit_int = C.ignore_low_bits ~bits:1 ~dbg in
+  let ignore_low_bit_int = C.ignore_low_bit_int in
   match
     ( (kind : Flambda_kind.Standard_int.t),
       (cmp : P.signed_or_unsigned P.comparison) )
