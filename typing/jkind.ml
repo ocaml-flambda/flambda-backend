@@ -2669,7 +2669,26 @@ module Violation = struct
      the choice of error message. (Though the [Path.t] payload *is*
      indeed just about the payload.) *)
 
-  let of_ ?missing_cmi violation = { violation; missing_cmi }
+  let of_ ~jkind_of_type ?missing_cmi violation =
+    (* Normalize for better printing *)
+    let violation =
+      match violation with
+      | Not_a_subjkind (jkind1, jkind2, reasons) ->
+        let jkind1 =
+          normalize ~mode:Require_best ~jkind_of_type (disallow_right jkind1)
+        in
+        let jkind2 =
+          normalize ~mode:Require_best ~jkind_of_type (disallow_right jkind2)
+        in
+        Not_a_subjkind (jkind1, jkind2, reasons)
+      | No_intersection (jkind1, jkind2) ->
+        let jkind1 =
+          normalize ~mode:Require_best ~jkind_of_type (disallow_right jkind1)
+        in
+        (* jkind2 can't have with-bounds, by its type *)
+        No_intersection (jkind1, jkind2)
+    in
+    { violation; missing_cmi }
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
@@ -2926,7 +2945,7 @@ let has_intersection t1 t2 =
 
 let intersection_or_error ~type_equal ~jkind_of_type ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
-  | None -> Error (Violation.of_ (No_intersection (t1, t2)))
+  | None -> Error (Violation.of_ ~jkind_of_type (No_intersection (t1, t2)))
   | Some jkind ->
     Ok
       { jkind;
@@ -2977,7 +2996,8 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
   | Sub -> Ok ()
   | Disjoint reason | Has_intersection reason ->
     Error
-      (Violation.of_ (Not_a_subjkind (t1, t2, Nonempty_list.to_list reason)))
+      (Violation.of_ ~jkind_of_type
+         (Not_a_subjkind (t1, t2, Nonempty_list.to_list reason)))
 
 let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
     super =
@@ -2996,7 +3016,7 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
               violation occurred, specifically which axes the violation is
               along. *)
            let best_sub = normalize ~mode:Require_best ~jkind_of_type sub in
-           Violation.of_
+           Violation.of_ ~jkind_of_type
              (Not_a_subjkind (best_sub, super, Nonempty_list.to_list reasons)))
   in
   let* () =
