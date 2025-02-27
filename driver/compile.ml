@@ -49,6 +49,8 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
+       |> Blambda_of_lambda.blambda_of_lambda
+       |> print_if i.ppf_dump Clflags.dump_blambda Printblambda.blambda
        |> Bytegen.compile_implementation i.module_name
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode ->

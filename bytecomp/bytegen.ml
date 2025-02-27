@@ -13,47 +13,83 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(*  bytegen.ml : translation of lambda terms to lists of instructions. *)
+(*  bytegen.ml : translation of blambda terms to lists of instructions. *)
 
 open Misc
-open Asttypes
-open Primitive
 open Lambda
-open Switch
+open Blambda
 open Instruct
 open Debuginfo.Scoped_location
 
 (**** Label generation ****)
 
-let label_counter = ref 0
+type function_to_compile =
+  { params : Ident.t list;  (** function parameters *)
+    body : blambda;  (** the function body *)
+    label : label;  (** the label of the function entry *)
+    entries : closure_entry Ident.tbl;
+        (** the offsets for the free variables
+           and mutually recursive functions *)
+    rec_pos : int  (** rank in recursive definition *)
+  }
 
-let new_label () =
-  incr label_counter; !label_counter
+type t =
+  { compunit_name : Compilation_unit.t;
+        (** Name of current compilation unit (for debugging events) *)
+    next_label : label;
+    functions_to_compile : function_to_compile list;
+        (** Function bodies that remain to be compiled *)
+    max_stack_used : int;
+    cont : instruction list
+  }
+
+let new_label t =
+  let label = t.next_label in
+  label, { t with next_label = label + 1 }
 
 (**** Operations on compilation environments. ****)
 
-let empty_env =
-  { ce_stack = Ident.empty; ce_closure = Not_in_closure }
+type stack_frame =
+  { try_blocks : int list;  (** list of stack size for each nested try block *)
+    size : int  (** stack size during evaluation of the current expression *)
+  }
+
+type static_handler =
+  { handler : label;
+    frame : stack_frame;
+    arity : int
+  }
+
+type stack_info =
+  { frame : stack_frame;
+    static_handlers : (static_label * static_handler) list;
+    env : compilation_env
+  }
+
+let empty_env = { ce_stack = Ident.empty; ce_closure = Not_in_closure }
 
 (* Add a stack-allocated variable *)
 
-let add_var id pos env =
-  { ce_stack = Ident.add id pos env.ce_stack;
-    ce_closure = env.ce_closure }
+let add_var id stack =
+  let size = stack.frame.size + 1 in
+  { stack with
+    env = { stack.env with ce_stack = Ident.add id size stack.env.ce_stack };
+    frame = { stack.frame with size }
+  }
 
-let rec add_vars idlist pos env =
-  match idlist with
-    [] -> env
-  | id :: rem -> add_vars rem (pos + 1) (add_var id pos env)
+let rec add_vars idlist stack =
+  match idlist with [] -> stack | id :: rem -> add_vars rem (add_var id stack)
+
+let pushtrap stack =
+  let { size; try_blocks } = stack.frame in
+  { stack with frame = { size = size + 4; try_blocks = size :: try_blocks } }
 
 (* Compute the closure environment *)
 
 let rec add_positions entries pos_to_entry ~pos ~delta = function
   | [] -> entries, pos
   | id :: rem ->
-    let entries =
-      Ident.add id (pos_to_entry pos) entries
-    in
+    let entries = Ident.add id (pos_to_entry pos) entries in
     add_positions entries pos_to_entry ~pos:(pos + delta) ~delta rem
 
 type function_definition =
@@ -75,187 +111,120 @@ let closure_entries fun_defs fvs =
      Since that was the last function, we don't need the last infix tag
      and start storing free variables at [pos_end_functs - 1]. *)
   let all_entries, _end_pos =
-    add_positions funct_entries (fun pos -> Free_variable pos)
+    add_positions funct_entries
+      (fun pos -> Free_variable pos)
       ~pos:(pos_end_functs - 1) ~delta:1 fvs
   in
   all_entries
 
 (**** Examination of the continuation ****)
 
-(* Return a label to the beginning of the given continuation.
+(** Return a label to the beginning of the given continuation.
    If the sequence starts with a branch, use the target of that branch
    as the label, thus avoiding a jump to a jump. *)
+let label_code t =
+  match t.cont with
+  | (Kbranch lbl | Klabel lbl) :: _ -> lbl, t
+  | cont ->
+    let label, t = new_label t in
+    label, { t with cont = Klabel label :: cont }
 
-let label_code = function
-    Kbranch lbl :: _ as cont -> (lbl, cont)
-  | Klabel lbl :: _ as cont -> (lbl, cont)
-  | cont -> let lbl = new_label() in (lbl, Klabel lbl :: cont)
-
-(* Return a branch to the continuation. That is, an instruction that,
+(** Return a branch to the continuation. That is, an instruction that,
    when executed, branches to the continuation or performs what the
    continuation performs. We avoid generating branches to branches and
    branches to returns. *)
-
-let rec make_branch_2 lbl n cont =
-  function
-    Kreturn m :: _ -> (Kreturn (n + m), cont)
-  | Klabel _ :: c  -> make_branch_2 lbl n cont c
-  | Kpop m :: c    -> make_branch_2 lbl (n + m) cont c
-  | _              ->
-      match lbl with
-        Some lbl -> (Kbranch lbl, cont)
-      | None     -> let lbl = new_label() in (Kbranch lbl, Klabel lbl :: cont)
-
-let make_branch cont =
-  match cont with
-    (Kbranch _ as branch) :: _ -> (branch, cont)
-  | (Kreturn _ as return) :: _ -> (return, cont)
-  | Kraise k :: _ -> (Kraise k, cont)
-  | Klabel lbl :: _ -> make_branch_2 (Some lbl) 0 cont cont
-  | _ ->  make_branch_2 (None) 0 cont cont
+let make_branch t =
+  match t.cont with
+  | ((Kbranch _ | Kraise _) as next) :: _ -> next, t
+  | cont ->
+    let rec look_for_return t n = function
+      | Klabel _ :: cont -> look_for_return t n cont
+      | Kpop m :: cont -> look_for_return t (n + m) cont
+      | Kreturn m :: _ -> Kreturn (n + m), t
+      | _ ->
+        let lbl, t = label_code t in
+        Kbranch lbl, t
+    in
+    look_for_return t 0 cont
 
 (* Avoid a branch to a label that follows immediately *)
 
-let branch_to label cont = match cont with
-| Klabel label0::_ when label = label0 -> cont
-| _ -> Kbranch label::cont
+let branch_to label t =
+  match t.cont with
+  | Klabel label0 :: _ when label = label0 -> t
+  | cont -> { t with cont = Kbranch label :: cont }
 
 (* Discard all instructions up to the next label.
    This function is to be applied to the continuation before adding a
    non-terminating instruction (branch, raise, return) in front of it. *)
 
-let rec discard_dead_code = function
-    [] -> []
-  | (Klabel _ | Krestart | Ksetglobal _) :: _ as cont -> cont
-  | _ :: cont -> discard_dead_code cont
-
-(* Check if we're in tailcall position *)
-
-let rec is_tailcall = function
-    Kreturn _ :: _ -> true
-  | Klabel _ :: c -> is_tailcall c
-  | Kpop _ :: c -> is_tailcall c
-  | _ -> false
-
-(* Will this primitive result in an OCaml call which would benefit
-   from the tail call optimization? *)
-
-let preserve_tailcall_for_prim = function
-    Popaque _ | Psequor | Psequand
-  | Pobj_magic _
-  | Prunstack | Pperform | Presume | Preperform
-  | Pbox_float (_, _) | Punbox_float _
-  | Pbox_vector (_, _) | Punbox_vector _
-  | Pbox_int _ | Punbox_int _ ->
-      true
-  | Pbytes_to_string | Pbytes_of_string
-  | Parray_to_iarray | Parray_of_iarray
-  | Pget_header _
-  | Pignore
-  | Pgetglobal _ | Psetglobal _ | Pgetpredef _
-  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakemixedblock _
-  | Pfield _ | Pfield_computed _ | Psetfield _
-  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
-  | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
-  | Pmake_unboxed_product _ | Punboxed_product_field _
-  | Parray_element_size_in_bytes _
-  | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
-  | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
-  | Pfloatofint (_, _) | Pfloatoffloat32 _ | Pfloat32offloat _
-  | Pnegfloat (_, _) | Pabsfloat (_, _)
-  | Paddfloat (_, _) | Psubfloat (_, _) | Pmulfloat (_, _)
-  | Pdivfloat (_, _) | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
-  | Pstringlength | Pstringrefu  | Pstringrefs
-  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
-  | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
-  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Pmakearray_dynamic _ | Parrayblit _
-  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _
-  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
-  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-  | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _
-  | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
-  | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_f32 _
-  | Pstring_load_64 _ | Pstring_load_128 _
-  | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_f32 _
-  | Pbytes_load_64 _ | Pbytes_load_128 _
-  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _
-  | Pbytes_set_64 _ | Pbytes_set_128 _
-  | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_f32 _
-  | Pbigstring_load_64 _ | Pbigstring_load_128 _
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_f32 _
-  | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
-  | Punboxed_float_array_load_128 _ | Punboxed_float32_array_load_128 _
-  | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
-  | Punboxed_nativeint_array_load_128 _
-  | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-  | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
-  | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-  | Punboxed_nativeint_array_set_128 _
-  | Pbigstring_set_64 _ | Pbigstring_set_128 _
-  | Pprobe_is_enabled _ | Pobj_dup
-  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
-  | Patomic_exchange _ | Patomic_compare_exchange _
-  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add
-  | Patomic_sub | Patomic_land | Patomic_lor
-  | Patomic_lxor | Patomic_load _ | Patomic_set _
-  | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _ ->
-      false
+let rec discard_dead_code t =
+  match t.cont with
+  | (Klabel _ | Krestart | Ksetglobal _) :: _ -> t
+  | ([] as cont) | _ :: cont -> discard_dead_code { t with cont }
 
 (* Add a Kpop N instruction in front of a continuation *)
 
-let rec add_pop n cont =
-  if n = 0 then cont else
-    match cont with
-      Kpop m :: cont -> add_pop (n + m) cont
-    | Kreturn m :: cont -> Kreturn(n + m) :: cont
-    | Kraise _ :: _ -> cont
-    | _ -> Kpop n :: cont
+let rec add_pop n t =
+  if n = 0
+  then t
+  else
+    match t.cont with
+    | Kpop m :: cont -> add_pop (n + m) { t with cont }
+    | Kreturn m :: cont -> { t with cont = Kreturn (n + m) :: cont }
+    | Kraise _ :: _ -> t
+    | cont -> { t with cont = Kpop n :: cont }
 
-(* Add the constant "unit" in front of a continuation *)
+let kconst0 = Kconst (Const_base (Const_int 0))
 
-let add_const_unit = function
-    (Kacc _ | Kconst _ | Kgetglobal _ | Kpush_retaddr _) :: _ as cont -> cont
-  | cont -> Kconst const_unit :: cont
+(** Set the accumulator to an immediate (if it's not about to be overwritten).
+    This avoids space leaks from holding onto an unused reference *)
+let clear_accumulator t =
+  match t.cont with
+  | (Kacc _ | Kconst _ | Kgetglobal _ | Kpush_retaddr _) :: _ -> t
+  | cont -> { t with cont = kconst0 :: cont }
 
-let rec push_dummies n k = match n with
-| 0 -> k
-| _ -> Kconst const_unit::Kpush::push_dummies (n-1) k
-
+let push_dummies n t =
+  match n with
+  | 0 -> t
+  | n ->
+    assert (n >= 0);
+    let rec push n k = if n = 0 then k else push (n - 1) (Kpush :: k) in
+    { t with cont = kconst0 :: push n t.cont }
 
 (**** Merging consecutive events ****)
 
 let copy_event ev kind info repr =
   { ev with
-    ev_pos = 0;                   (* patched in emitcode *)
+    ev_pos = 0;
+    (* patched in emitcode *)
     ev_kind = kind;
     ev_info = info;
-    ev_repr = repr }
+    ev_repr = repr
+  }
 
 let merge_infos ev ev' =
   match ev.ev_info, ev'.ev_info with
-    Event_other, info -> info
+  | Event_other, info -> info
   | info, Event_other -> info
-  | _                 -> fatal_error "Bytegen.merge_infos"
+  | _ -> fatal_error "Bytegen.merge_infos"
 
 let merge_repr ev ev' =
   match ev.ev_repr, ev'.ev_repr with
-    Event_none, x -> x
+  | Event_none, x -> x
   | x, Event_none -> x
   | Event_parent r, Event_child r' when r == r' && !r = 1 -> Event_none
   | Event_child r, Event_parent r' when r == r' -> Event_parent r
-  | _, _          -> fatal_error "Bytegen.merge_repr"
+  | _, _ -> fatal_error "Bytegen.merge_repr"
 
 let merge_events ev ev' =
-  let (maj, min) =
+  let maj, min =
     match ev.ev_kind, ev'.ev_kind with
     (* Discard pseudo-events *)
-      Event_pseudo,  _                              -> ev', ev
-    | _,             Event_pseudo                   -> ev,  ev'
+    | Event_pseudo, _ -> ev', ev
+    | _, Event_pseudo -> ev, ev'
     (* Keep following event, supposedly more informative *)
-    | Event_before,  (Event_after _ | Event_before) -> ev',  ev
+    | Event_before, (Event_after _ | Event_before) -> ev', ev
     (* Discard following events, supposedly less informative *)
     | Event_after _, (Event_after _ | Event_before) -> ev, ev'
   in
@@ -263,33 +232,27 @@ let merge_events ev ev' =
 
 let weaken_event ev cont =
   match ev.ev_kind with
-    Event_after _ ->
-      begin match cont with
-        Kpush :: Kevent ({ev_repr = Event_none} as ev') :: c ->
-          begin match ev.ev_info with
-            Event_return _ ->
-              (* Weaken event *)
-              let repr = ref 1 in
-              let ev =
-                copy_event ev Event_pseudo ev.ev_info (Event_parent repr)
-              and ev' =
-                copy_event ev' ev'.ev_kind ev'.ev_info (Event_child repr)
-              in
-              Kevent ev :: Kpush :: Kevent ev' :: c
-          | _ ->
-              (* Only keep following event, equivalent *)
-              cont
-          end
+  | Event_after _ -> (
+    match cont with
+    | Kpush :: Kevent ({ ev_repr = Event_none } as ev') :: c -> (
+      match ev.ev_info with
+      | Event_return _ ->
+        (* Weaken event *)
+        let repr = ref 1 in
+        let ev = copy_event ev Event_pseudo ev.ev_info (Event_parent repr)
+        and ev' = copy_event ev' ev'.ev_kind ev'.ev_info (Event_child repr) in
+        Kevent ev :: Kpush :: Kevent ev' :: c
       | _ ->
-          Kevent ev :: cont
-      end
-  | _ ->
-      Kevent ev :: cont
+        (* Only keep following event, equivalent *)
+        cont)
+    | _ -> Kevent ev :: cont)
+  | _ -> Kevent ev :: cont
 
-let add_event ev =
-  function
-    Kevent ev' :: cont -> weaken_event (merge_events ev ev') cont
-  | cont               -> weaken_event ev cont
+let add_event ev t =
+  match t.cont with
+  | Kevent ev' :: cont ->
+    { t with cont = weaken_event (merge_events ev ev') cont }
+  | cont -> { t with cont = weaken_event ev cont }
 
 (* Pseudo events are ignored by the debugger. They are only used for
    generating backtraces.
@@ -299,466 +262,120 @@ let add_event ev =
       be generated
    2) we prefer inserting a pseudo event rather than an event after
       to prevent the debugger to stop at every single allocation. *)
-let add_pseudo_event loc modname c =
-  if !Clflags.debug then
+let add_pseudo_event loc t =
+  if not !Clflags.debug
+  then t
+  else
     let ev_defname = string_of_scoped_location ~include_zero_alloc:false loc in
     let ev =
-      { ev_pos = 0;                   (* patched in emitcode *)
-        ev_module = Compilation_unit.full_path_as_string modname;
+      { ev_pos = 0;
+        (* patched in emitcode *)
+        ev_module = Compilation_unit.full_path_as_string t.compunit_name;
         ev_loc = to_location loc;
         ev_defname;
         ev_kind = Event_pseudo;
-        ev_info = Event_other;        (* Dummy *)
-        ev_typenv = Env.Env_empty;    (* Dummy *)
-        ev_typsubst = Subst.identity; (* Dummy *)
-        ev_compenv = empty_env;       (* Dummy *)
-        ev_stacksize = 0;             (* Dummy *)
-        ev_repr = Event_none }        (* Dummy *)
+        ev_info = Event_other;
+        (* Dummy *)
+        ev_typenv = Env.Env_empty;
+        (* Dummy *)
+        ev_typsubst = Subst.identity;
+        (* Dummy *)
+        ev_compenv = empty_env;
+        (* Dummy *)
+        ev_stacksize = 0;
+        (* Dummy *)
+        ev_repr = Event_none
+      }
+      (* Dummy *)
     in
-    add_event ev c
-  else c
+    add_event ev t
 
-(**** Compilation of a lambda expression ****)
+(**** Compilation of a blambda expression ****)
 
-type stack_info = {
-  try_blocks : int list;
-  (* list of stack size for each nested try block *)
-  sz_static_raises : (int * (int * int * int list)) list;
-  (* association staticraise numbers -> (lbl,size of stack, try_blocks *)
-  max_stack_used : int ref;
-  (* Maximal stack size reached during the current function body *)
-}
-
-let create_stack_info () = {
-  try_blocks = [];
-  sz_static_raises = [];
-  max_stack_used = ref 0
-}
-
-(* association staticraise numbers -> (lbl,size of stack, try_blocks *)
-
-let push_static_raise stack_info i lbl_handler sz =
-  { stack_info
-    with
-      sz_static_raises = (i, (lbl_handler, sz, stack_info.try_blocks))
-                         :: stack_info.sz_static_raises
+let push_static_catch si (static_label : static_label) ~handler ~arity =
+  { si with
+    static_handlers =
+      (static_label, { handler; arity; frame = si.frame }) :: si.static_handlers
   }
 
-let find_raise_label stack_info i =
-  try
-    List.assoc i stack_info.sz_static_raises
-  with
-  | Not_found ->
-      Misc.fatal_error
-        ("exit("^Int.to_string i^") outside appropriated catch")
+let find_raise_label stack_info (static_label : static_label) =
+  try List.assoc static_label stack_info.static_handlers
+  with Not_found ->
+    let { static_label } = static_label in
+    Misc.fatal_errorf "exit(%d) outside appropriated catch" static_label
 
 (* Will the translation of l lead to a jump to label ? *)
-let code_as_jump stack_info l sz = match l with
-| Lstaticraise (i,[]) ->
-    let label,size,tb = find_raise_label stack_info i in
-    if sz = size && tb == stack_info.try_blocks then
-      Some label
-    else
-      None
-| _ -> None
+let code_as_jump stack_info = function
+  | Staticraise (l, []) -> (
+    match find_raise_label stack_info l with
+    | { handler; frame; arity } ->
+      assert (arity = 0);
+      if stack_info.frame = frame then Some handler else None)
+  | _ -> None
 
-(* Function bodies that remain to be compiled *)
+let check_stack t stack_info =
+  let sz = stack_info.frame.size in
+  if sz <= t.max_stack_used then t else { t with max_stack_used = sz }
 
-type function_to_compile =
-  { params: Ident.t list;               (* function parameters *)
-    body: lambda;                       (* the function body *)
-    label: label;                       (* the label of the function entry *)
-    entries: closure_entry Ident.tbl;   (* the offsets for the free variables
-                                           and mutually recursive functions *)
-    rec_pos: int }                      (* rank in recursive definition *)
+let push_exact stack n =
+  { stack with frame = { stack.frame with size = stack.frame.size + n } }
 
-let functions_to_compile  = (Stack.create () : function_to_compile Stack.t)
+let push_args stack n =
+  (* the first argument is passed in the accumulator *)
+  if n <= 1 then stack else push_exact stack (n - 1)
 
-(* Name of current compilation unit (for debugging events) *)
+let[@inline always] ( @> ) instr t = { t with cont = instr :: t.cont }
 
-let compunit_name = ref Compilation_unit.dummy
-
-let check_stack stack_info sz =
-  let curr = stack_info.max_stack_used in
-  if sz > !curr then curr := sz
-
-(* Sequence of string tests *)
-
-
-(* Translate a primitive to a bytecode instruction (possibly a call to a C
-   function) *)
-
-let comp_bint_primitive bi suff args =
-  let pref =
-    match bi with Boxed_nativeint -> "caml_nativeint_"
-                | Boxed_int32 -> "caml_int32_"
-                | Boxed_int64 -> "caml_int64_" in
-  Kccall(pref ^ suff, List.length args)
-
-let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
-  let suffix =
-    match index_kind with
-    | Ptagged_int_index -> ""
-    | Punboxed_int_index Unboxed_int64 -> "_indexed_by_int64"
-    | Punboxed_int_index Unboxed_int32 -> "_indexed_by_int32"
-    | Punboxed_int_index Unboxed_nativeint -> "_indexed_by_nativeint"
-  in
-  prefix ^ suffix
-
-let comp_primitive stack_info p sz args =
-  check_stack stack_info sz;
-  match p with
-    Pgetglobal cu -> Kgetglobal cu
-  | Psetglobal cu -> Ksetglobal cu
-  | Pgetpredef id -> Kgetpredef id
-  | Pintcomp cmp -> Kintcomp cmp
-  | Pcompare_ints -> Kccall("caml_int_compare", 2)
-  | Pcompare_floats Boxed_float64 -> Kccall("caml_float_compare", 2)
-  | Pcompare_floats Boxed_float32 -> Kccall("caml_float32_compare", 2)
-  | Pcompare_bints bi -> comp_bint_primitive bi "compare" args
-  | Pfield (n, _ptr, _sem) -> Kgetfield n
-  | Punboxed_product_field (n, _layouts) -> Kgetfield n
-  | Parray_element_size_in_bytes _array_kind ->
-      Kconst (Const_base (Const_int (Sys.word_size / 8)))
-  | Pfield_computed _sem -> Kgetvectitem
-  | Psetfield(n, _ptr, _init) -> Ksetfield n
-  | Psetfield_computed(_ptr, _init) -> Ksetvectitem
-  | Pfloatfield (n, _sem, _mode) -> Kgetfloatfield n
-  | Psetfloatfield (n, _init) -> Ksetfloatfield n
-  (* In bytecode, float#s are boxed.  So, we can use the existing float
-     instructions for the ufloat primitives. *)
-  | Pufloatfield (n, _sem) -> Kgetfloatfield n
-  | Psetufloatfield (n, _init) -> Ksetfloatfield n
-  | Pmixedfield (n, _, _, _sem) ->
-      (* CR layouts: This will need reworking if we ever want bytecode
-         to unbox fields that are written with unboxed types in the source
-         language. *)
-      (* Note, non-value mixed fields are always boxed in bytecode; they
-         aren't stored flat like they are in native code.
-      *)
-      Kgetfield n
-  | Psetmixedfield (n, _, _shape, _init) ->
-      (* See the comment in the [Pmixedfield] case. *)
-      Ksetfield n
-  | Pduprecord _ -> Kccall("caml_obj_dup", 1)
-  | Pccall p -> Kccall(p.prim_name, p.prim_arity)
-  | Pperform ->
-      check_stack stack_info (sz + 4);
-      Kperform
-  | Pnegint -> Knegint
-  | Paddint -> Kaddint
-  | Psubint -> Ksubint
-  | Pmulint -> Kmulint
-  | Pdivint _ -> Kdivint
-  | Pmodint _ -> Kmodint
-  | Pandint -> Kandint
-  | Porint -> Korint
-  | Pxorint -> Kxorint
-  | Plslint -> Klslint
-  | Plsrint -> Klsrint
-  | Pasrint -> Kasrint
-  | Poffsetint n -> Koffsetint n
-  | Poffsetref n -> Koffsetref n
-  | Pintoffloat Boxed_float64 -> Kccall("caml_int_of_float", 1)
-  | Pfloatofint (Boxed_float64, _) -> Kccall("caml_float_of_int", 1)
-  | Pfloatoffloat32 _ -> Kccall("caml_float_of_float32", 1)
-  | Pfloat32offloat _ -> Kccall("caml_float32_of_float", 1)
-  | Pnegfloat (Boxed_float64, _) -> Kccall("caml_neg_float", 1)
-  | Pabsfloat (Boxed_float64, _) -> Kccall("caml_abs_float", 1)
-  | Paddfloat (Boxed_float64, _) -> Kccall("caml_add_float", 2)
-  | Psubfloat (Boxed_float64, _) -> Kccall("caml_sub_float", 2)
-  | Pmulfloat (Boxed_float64, _) -> Kccall("caml_mul_float", 2)
-  | Pdivfloat (Boxed_float64, _) -> Kccall("caml_div_float", 2)
-  | Pintoffloat Boxed_float32 -> Kccall("caml_int_of_float32", 1)
-  | Pfloatofint (Boxed_float32, _) -> Kccall("caml_float32_of_int", 1)
-  | Pnegfloat (Boxed_float32, _) -> Kccall("caml_neg_float32", 1)
-  | Pabsfloat (Boxed_float32, _) -> Kccall("caml_abs_float32", 1)
-  | Paddfloat (Boxed_float32, _) -> Kccall("caml_add_float32", 2)
-  | Psubfloat (Boxed_float32, _) -> Kccall("caml_sub_float32", 2)
-  | Pmulfloat (Boxed_float32, _) -> Kccall("caml_mul_float32", 2)
-  | Pdivfloat (Boxed_float32, _) -> Kccall("caml_div_float32", 2)
-  | Pstringlength -> Kccall("caml_ml_string_length", 1)
-  | Pbyteslength -> Kccall("caml_ml_bytes_length", 1)
-  | Pstringrefs -> Kccall("caml_string_get", 2)
-  | Pbytesrefs -> Kccall("caml_bytes_get", 2)
-  | Pbytessets -> Kccall("caml_bytes_set", 3)
-  | Pstringrefu -> Kgetstringchar
-  | Pbytesrefu -> Kgetbyteschar
-  | Pbytessetu -> Ksetbyteschar
-  | Pstring_load_16 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_string_get16", 2)
-  | Pstring_load_32 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_string_get32", 2)
-  | Pstring_load_f32 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_string_getf32", 2)
-  | Pstring_load_64 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_string_get64", 2)
-  | Pbytes_set_16 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_set16", 3)
-  | Pbytes_set_32 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_set32", 3)
-  | Pbytes_set_f32 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_setf32", 3)
-  | Pbytes_set_64 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_set64", 3)
-  | Pbytes_load_16 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_get16", 2)
-  | Pbytes_load_32 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_get32", 2)
-  | Pbytes_load_f32 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_getf32", 2)
-  | Pbytes_load_64 { index_kind; _ } ->
-      Kccall(indexing_primitive index_kind "caml_bytes_get64", 2)
-  | Parraylength _ -> Kvectlength
-  (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
-     array modes (allocation for [Parrayref{s,u}], modification for
-     [Parrayset{s,u}]). *)
-  | Parrayrefs (Pgenarray_ref _, index_kind, _)
-  | Parrayrefs ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-                | Punboxedfloatarray_ref (Unboxed_float64 | Unboxed_float32)
-                | Punboxedintarray_ref _
-                | Pgcscannableproductarray_ref _
-                | Pgcignorableproductarray_ref _),
-                (Punboxed_int_index _ as index_kind),
-                _) ->
-      Kccall(indexing_primitive index_kind "caml_array_get", 2)
-  | Parrayrefs ((Punboxedfloatarray_ref Unboxed_float64 | Pfloatarray_ref _), Ptagged_int_index, _) ->
-      Kccall("caml_floatarray_get", 2)
-  | Parrayrefs ((Punboxedfloatarray_ref Unboxed_float32 | Punboxedintarray_ref _
-                | Paddrarray_ref | Pintarray_ref
-                | Pgcscannableproductarray_ref _
-                | Pgcignorableproductarray_ref _),
-                Ptagged_int_index,
-                _) ->
-      Kccall("caml_array_get_addr", 2)
-  | Parraysets (Pgenarray_set _, index_kind)
-  | Parraysets ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-                | Punboxedfloatarray_set (Unboxed_float64 | Unboxed_float32)
-                | Punboxedintarray_set _
-                | Pgcscannableproductarray_set _
-                | Pgcignorableproductarray_set _),
-                (Punboxed_int_index _ as index_kind)) ->
-      Kccall(indexing_primitive index_kind "caml_array_set", 3)
-  | Parraysets ((Punboxedfloatarray_set Unboxed_float64 | Pfloatarray_set),
-                Ptagged_int_index) ->
-      Kccall("caml_floatarray_set", 3)
-  | Parraysets ((Punboxedfloatarray_set Unboxed_float32 | Punboxedintarray_set _
-                | Paddrarray_set _ | Pintarray_set
-                | Pgcscannableproductarray_set _
-                | Pgcignorableproductarray_set _),
-                Ptagged_int_index) ->
-    Kccall("caml_array_set_addr", 3)
-  | Parrayrefu (Pgenarray_ref _, index_kind, _)
-  | Parrayrefu ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-                | Punboxedfloatarray_ref (Unboxed_float64 | Unboxed_float32)
-                | Punboxedintarray_ref _
-                | Pgcscannableproductarray_ref _
-                | Pgcignorableproductarray_ref _),
-                (Punboxed_int_index _ as index_kind), _) ->
-      Kccall(indexing_primitive index_kind "caml_array_unsafe_get", 2)
-  | Parrayrefu ((Punboxedfloatarray_ref Unboxed_float64 | Pfloatarray_ref _), Ptagged_int_index, _) ->
-    Kccall("caml_floatarray_unsafe_get", 2)
-  | Parrayrefu ((Punboxedfloatarray_ref Unboxed_float32 | Punboxedintarray_ref _
-                | Paddrarray_ref | Pintarray_ref
-                | Pgcscannableproductarray_ref _
-                | Pgcignorableproductarray_ref _),
-                Ptagged_int_index, _) -> Kgetvectitem
-  | Parraysetu (Pgenarray_set _, index_kind)
-  | Parraysetu ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-                | Punboxedfloatarray_set (Unboxed_float64 | Unboxed_float32)
-                | Punboxedintarray_set _
-                | Pgcscannableproductarray_set _
-                | Pgcignorableproductarray_set _),
-                (Punboxed_int_index _ as index_kind)) ->
-      Kccall(indexing_primitive index_kind "caml_array_unsafe_set", 3)
-  | Parraysetu ((Punboxedfloatarray_set Unboxed_float64 | Pfloatarray_set), Ptagged_int_index) ->
-      Kccall("caml_floatarray_unsafe_set", 3)
-  | Parraysetu ((Punboxedfloatarray_set Unboxed_float32 | Punboxedintarray_set _
-                | Paddrarray_set _ | Pintarray_set
-                | Pgcscannableproductarray_set _
-                | Pgcignorableproductarray_set _),
-                Ptagged_int_index) -> Ksetvectitem
-  | Parrayrefs (Punboxedvectorarray_ref _, _, _) | Parraysets (Punboxedvectorarray_set _, _)
-  | Parrayrefu (Punboxedvectorarray_ref _, _, _) | Parraysetu (Punboxedvectorarray_set _, _) ->
-      fatal_error "SIMD is not supported in bytecode mode."
-  | Pctconst c ->
-     let const_name = match c with
-       | Big_endian -> "big_endian"
-       | Word_size -> "word_size"
-       | Int_size -> "int_size"
-       | Max_wosize -> "max_wosize"
-       | Ostype_unix -> "ostype_unix"
-       | Ostype_win32 -> "ostype_win32"
-       | Ostype_cygwin -> "ostype_cygwin"
-       | Backend_type -> "backend_type"
-       | Runtime5 -> "runtime5" in
-     Kccall(Printf.sprintf "caml_sys_const_%s" const_name, 1)
-  | Pisint _ -> Kisint
-  | Pisout -> Kisout
-  | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
-  | Pintofbint bi -> comp_bint_primitive bi "to_int" args
-  | Pcvtbint(src, dst, _) ->
-      begin match (src, dst) with
-      | (Boxed_int32, Boxed_nativeint) -> Kccall("caml_nativeint_of_int32", 1)
-      | (Boxed_nativeint, Boxed_int32) -> Kccall("caml_nativeint_to_int32", 1)
-      | (Boxed_int32, Boxed_int64) -> Kccall("caml_int64_of_int32", 1)
-      | (Boxed_int64, Boxed_int32) -> Kccall("caml_int64_to_int32", 1)
-      | (Boxed_nativeint, Boxed_int64) -> Kccall("caml_int64_of_nativeint", 1)
-      | (Boxed_int64, Boxed_nativeint) -> Kccall("caml_int64_to_nativeint", 1)
-      | ((Boxed_int32 | Boxed_int64 | Boxed_nativeint), _) ->
-          fatal_error "Bytegen.comp_primitive: invalid Pcvtbint cast"
-      end
-  | Pnegbint (bi,_) -> comp_bint_primitive bi "neg" args
-  | Paddbint (bi,_) -> comp_bint_primitive bi "add" args
-  | Psubbint (bi,_) -> comp_bint_primitive bi "sub" args
-  | Pmulbint (bi,_) -> comp_bint_primitive bi "mul" args
-  | Pdivbint { size = bi } -> comp_bint_primitive bi "div" args
-  | Pmodbint { size = bi } -> comp_bint_primitive bi "mod" args
-  | Pandbint(bi,_) -> comp_bint_primitive bi "and" args
-  | Porbint(bi,_) -> comp_bint_primitive bi "or" args
-  | Pxorbint(bi,_) -> comp_bint_primitive bi "xor" args
-  | Plslbint(bi,_) -> comp_bint_primitive bi "shift_left" args
-  | Plsrbint(bi,_) -> comp_bint_primitive bi "shift_right_unsigned" args
-  | Pasrbint(bi,_) -> comp_bint_primitive bi "shift_right" args
-  | Pbintcomp(_, Ceq) | Punboxed_int_comp(_, Ceq) -> Kccall("caml_equal", 2)
-  | Pbintcomp(_, Cne) | Punboxed_int_comp(_, Cne) -> Kccall("caml_notequal", 2)
-  | Pbintcomp(_, Clt) | Punboxed_int_comp(_, Clt) -> Kccall("caml_lessthan", 2)
-  | Pbintcomp(_, Cgt) | Punboxed_int_comp(_, Cgt) -> Kccall("caml_greaterthan", 2)
-  | Pbintcomp(_, Cle) | Punboxed_int_comp(_, Cle) -> Kccall("caml_lessequal", 2)
-  | Pbintcomp(_, Cge) | Punboxed_int_comp(_, Cge) -> Kccall("caml_greaterequal", 2)
-  | Pbigarrayref(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_get_" ^ Int.to_string n, n + 1)
-  | Pbigarrayset(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_set_" ^ Int.to_string n, n + 2)
-  | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
-  | Pbigarrayset(_, n, _, _) -> Kccall("caml_ba_set_" ^ Int.to_string n, n + 2)
-  | Pbigarraydim(n) -> Kccall("caml_ba_dim_" ^ Int.to_string n, 1)
-  | Pbigstring_load_16{unsafe=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_get16", 2)
-  | Pbigstring_load_32{unsafe=_;mode=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_get32", 2)
-  | Pbigstring_load_f32{unsafe=_;mode=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_getf32", 2)
-  | Pbigstring_load_64{unsafe=_;mode=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_get64", 2)
-  | Pbigstring_set_16{unsafe=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_set16", 3)
-  | Pbigstring_set_32{unsafe=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_set32", 3)
-  | Pbigstring_set_f32{unsafe=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_setf32", 3)
-  | Pbigstring_set_64{unsafe=_;index_kind} ->
-      Kccall(indexing_primitive index_kind "caml_ba_uint8_set64", 3)
-  | Pbswap16 -> Kccall("caml_bswap16", 1)
-  | Pbbswap(bi,_) -> comp_bint_primitive bi "bswap" args
-  | Pint_as_pointer _ -> Kccall("caml_int_as_pointer", 1)
-  | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
-  | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
-  | Parray_to_iarray -> Kccall("caml_iarray_of_array", 1)
-  | Parray_of_iarray -> Kccall("caml_array_of_iarray", 1)
-  | Pget_header _ -> Kccall("caml_get_header", 1)
-  | Pobj_dup -> Kccall("caml_obj_dup", 1)
-  | Patomic_load _ -> Kccall("caml_atomic_load", 1)
-  | Patomic_set _
-  | Patomic_exchange _ -> Kccall("caml_atomic_exchange", 2)
-  | Patomic_compare_exchange _ -> Kccall("caml_atomic_compare_exchange", 3)
-  | Patomic_compare_set _ -> Kccall("caml_atomic_cas", 3)
-  | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
-  | Patomic_add -> Kccall("caml_atomic_add", 2)
-  | Patomic_sub -> Kccall("caml_atomic_sub", 2)
-  | Patomic_land -> Kccall("caml_atomic_land", 2)
-  | Patomic_lor -> Kccall("caml_atomic_lor", 2)
-  | Patomic_lxor -> Kccall("caml_atomic_lxor", 2)
-  | Pdls_get -> Kccall("caml_domain_dls_get", 1)
-  | Ppoll -> Kccall("caml_process_pending_actions_with_root", 1)
-  | Pisnull -> Kccall("caml_is_null", 1)
-  | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
-  | Pbigstring_load_128 _ | Pbigstring_set_128 _
-  | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
-  | Punboxed_float_array_load_128 _ | Punboxed_float32_array_load_128 _
-  | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
-  | Punboxed_nativeint_array_load_128 _
-  | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-  | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
-  | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-  | Punboxed_nativeint_array_set_128 _
-  | Pbox_vector _ | Punbox_vector _ ->
-    fatal_error "SIMD is not supported in bytecode mode."
-  | Preinterpret_tagged_int63_as_unboxed_int64 ->
-    if not (Target_system.is_64_bit ())
-    then
-      Misc.fatal_error
-        "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
-         targets";
-    Kccall("caml_reinterpret_tagged_int63_as_unboxed_int64", 1)
-  | Preinterpret_unboxed_int64_as_tagged_int63 ->
-    if not (Target_system.is_64_bit ())
-    then
-      Misc.fatal_error
-        "Preinterpret_unboxed_int64_as_tagged_int63 can only be used on 64-bit \
-         targets";
-    Kccall("caml_reinterpret_unboxed_int64_as_tagged_int63", 1)
-  | Pmakearray_dynamic(kind, locality, With_initializer) ->
-    if List.compare_length_with args 2 <> 0 then
-      fatal_error "Bytegen.comp_primitive: Pmakearray_dynamic takes two \
-        arguments for [With_initializer]";
-    (* CR layouts v4.0: This is "wrong" for unboxed types. It should construct
-       blocks that can't be marshalled. We've decided to ignore that problem in
-       the short term, as it's unlikely to cause issues - see the internal arrays
-       epic for out plan to deal with it. *)
-    begin match kind with
-    | Punboxedvectorarray _ ->
-      fatal_error "SIMD is not supported in bytecode mode."
-    | Pgenarray | Pintarray | Paddrarray | Punboxedintarray _
-    | Pfloatarray | Punboxedfloatarray _
-    | Pgcscannableproductarray _ | Pgcignorableproductarray _ -> ()
-    end;
-    begin match locality with
-    | Alloc_heap -> Kccall("caml_make_vect", 2)
-    | Alloc_local -> Kccall("caml_make_local_vect", 2)
-    end
-  | Parrayblit { src_mutability = _; dst_array_set_kind } ->
-    begin match dst_array_set_kind with
-    | Punboxedvectorarray_set _ ->
-      fatal_error "SIMD is not supported in bytecode mode."
-    | Pgenarray_set _ | Pintarray_set | Paddrarray_set _
-    | Punboxedintarray_set _ | Pfloatarray_set | Punboxedfloatarray_set _
-    | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ -> ()
-    end;
-    Kccall("caml_array_blit", 5)
-  | Pmakearray_dynamic(_, _, Uninitialized) ->
-    Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
-      translated to Pmakearray_dynamic Initialized earlier on"
-  (* The cases below are handled in [comp_expr] before the [comp_primitive] call
-     (in the order in which they appear below),
-     so they should never be reached in this function. *)
-  | Prunstack | Presume | Preperform
-  | Pignore | Popaque _ | Pobj_magic _
-  | Pnot | Psequand | Psequor
-  | Praise _
-  | Pmakearray _ | Pduparray _
-  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
-  | Pmakeblock _
-  | Pmake_unboxed_product _
-  | Pmakefloatblock _
-  | Pmakeufloatblock _
-  | Pmakemixedblock _
-  | Pprobe_is_enabled _
-  | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
-    ->
-      fatal_error "Bytegen.comp_primitive"
-  | Ppeek _ | Ppoke _ ->
-      fatal_error "Bytegen.comp_primitive: Ppeek/Ppoke not supported in bytecode"
-
-let is_immed n = immed_min <= n && n <= immed_max
-
-let is_nontail = function
-  | Rc_nontail -> true
-  | Rc_normal | Rc_close_at_apply -> false
-
-module Storer =
-  Switch.Store
-    (struct type t = lambda type key = lambda
-      let compare_key = Stdlib.compare
-      let make_key = Lambda.make_key end)
+let comp_primitive stack_info p nargs t =
+  let t = check_stack t stack_info in
+  match (p : Blambda.primitive) with
+  | Getglobal cu -> Kgetglobal cu @> t
+  | Getpredef id -> Kgetpredef id @> t
+  | Boolnot -> (
+    match t.cont with
+    | Kbranchif lbl :: cont -> { t with cont = Kbranchifnot lbl :: cont }
+    | Kbranchifnot lbl :: cont -> { t with cont = Kbranchif lbl :: cont }
+    | _ -> Kboolnot @> t)
+  | Isint -> Kisint @> t
+  | Vectlength -> Kvectlength @> t
+  | Setglobal cu -> Ksetglobal cu @> t
+  | Getfield i -> Kgetfield i @> t
+  | Getfloatfield i -> Kgetfloatfield i @> t
+  | Raise k -> Kraise k @> discard_dead_code t
+  | Offsetint i -> Koffsetint i @> t
+  | Offsetref i -> Koffsetref i @> t
+  | Negint -> Knegint @> t
+  | Addint -> Kaddint @> t
+  | Subint -> Ksubint @> t
+  | Mulint -> Kmulint @> t
+  | Divint -> Kdivint @> t
+  | Modint -> Kmodint @> t
+  | Andint -> Kandint @> t
+  | Orint -> Korint @> t
+  | Xorint -> Kxorint @> t
+  | Lslint -> Klslint @> t
+  | Lsrint -> Klsrint @> t
+  | Asrint -> Kasrint @> t
+  | Intcomp cmp -> Kintcomp cmp @> t
+  | Isout -> Kisout @> t
+  | Getstringchar -> Kgetstringchar @> t
+  | Getbyteschar -> Kgetbyteschar @> t
+  | Getvectitem -> Kgetvectitem @> t
+  | Setfield i -> Ksetfield i @> t
+  | Setfloatfield i -> Ksetfloatfield i @> t
+  | Setvectitem -> Ksetvectitem @> t
+  | Setbyteschar -> Ksetbyteschar @> t
+  | Ccall name -> Kccall (name, nargs) @> t
+  | Makeblock { tag } -> Kmakeblock (nargs, tag) @> t
+  | Makefloatblock -> Kmakefloatblock nargs @> t
+  | Make_faux_mixedblock { total_len; tag } ->
+    (* There is no notion of a mixed block at runtime in bytecode. Further,
+       source-level unboxed types are represented as boxed in bytecode, so
+       no ceremony is needed to box values before inserting them into
+       the (normal, unmixed) block.
+    *)
+    Kmake_faux_mixedblock (total_len, tag) @> t
+  | Check_signals -> Kcheck_signals @> t
 
 (* Compile an expression.
    The value of the expression is left in the accumulator.
@@ -773,713 +390,438 @@ module Storer =
    final compiler. Run them using the final compiler.*)
 (* We cannot use the [float32] or [or_null] types in the compiler. *)
 external is_boot_compiler : unit -> bool = "caml_is_boot_compiler"
+
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
 let rec contains_float32s_or_nulls = function
-  | Const_base (Const_float32 _ | Const_unboxed_float32 _)
-  | Const_null -> true
+  | Const_base (Const_float32 _ | Const_unboxed_float32 _) | Const_null -> true
   | Const_block (_, fields) -> List.exists contains_float32s_or_nulls fields
-  | Const_mixed_block _ ->  Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
+  | Const_mixed_block _ ->
+    Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
   | _ -> false
 
-let rec translate_float32s_or_nulls stack_info env cst sz cont =
+let rec translate_float32s_or_nulls stack cst t =
   match cst with
   | Const_base (Const_float32 f | Const_unboxed_float32 f) ->
     let i = float32_of_string f in
-    Kconst (Const_base (Const_int32 (Obj.obj i))) ::
-    Kccall("caml_float32_of_bits_bytecode", 1) :: cont
+    Kconst (Const_base (Const_int32 (Obj.obj i)))
+    @> Kccall ("caml_float32_of_bits_bytecode", 1)
+    @> t
   | Const_null ->
-    Kconst (Const_base (Const_int 0)) :: Kccall("caml_int_as_pointer", 1) :: cont
+    Kconst (Const_base (Const_int 0)) @> Kccall ("caml_int_as_pointer", 1) @> t
   | Const_block (tag, fields) as cst when contains_float32s_or_nulls cst ->
-    let fields = List.map (fun field -> Lconst field) fields in
-    let cont = Kmakeblock (List.length fields, tag) :: cont in
-    comp_args stack_info env fields sz cont
-  | Const_mixed_block _ -> Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
-  | _ as cst -> Kconst cst :: cont
+    let fields = List.map (fun field -> Const field) fields in
+    let t = Kmakeblock (List.length fields, tag) @> t in
+    comp_args stack fields t
+  | Const_mixed_block _ ->
+    Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
+  | _ as cst -> Kconst cst @> t
 
-and comp_expr stack_info env exp sz cont =
-  check_stack stack_info sz;
-  match exp with
-    Lvar id | Lmutvar id ->
-      begin try
-        let pos = Ident.find_same id env.ce_stack in
-        Kacc(sz - pos) :: cont
-      with Not_found ->
+and comp_expr stack exp t =
+  let t = check_stack t stack in
+  let sz = stack.frame.size in
+  match (exp : Blambda.blambda) with
+  | Var id -> (
+    match Ident.find_same id stack.env.ce_stack with
+    | pos -> Kacc (sz - pos) @> t
+    | exception Not_found -> (
       let not_found () =
-        fatal_error ("Bytegen.comp_expr: var " ^ Ident.unique_name id)
+        Misc.fatal_errorf "Bytegen.comp_expr: var %s" (Ident.unique_name id)
       in
-      match env.ce_closure with
+      match stack.env.ce_closure with
       | Not_in_closure -> not_found ()
-      | In_closure { entries; env_pos } ->
+      | In_closure { entries; env_pos } -> (
         match Ident.find_same id entries with
-        | Free_variable pos ->
-          Kenvacc(pos - env_pos) :: cont
-        | Function pos ->
-          Koffsetclosure(pos - env_pos) :: cont
-        | exception Not_found -> not_found ()
-      end
-  | Lconst cst when is_boot_compiler () ->
-      translate_float32s_or_nulls stack_info env cst sz cont
-  | Lconst cst ->
-      Kconst cst :: cont
-  | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
-      let nargs = List.length args in
-      if is_tailcall cont && not (is_nontail rc) then begin
-        comp_args stack_info env args sz
-          (Kpush :: comp_expr stack_info env func (sz + nargs)
-            (Kappterm(nargs, sz + nargs) :: discard_dead_code cont))
-      end else begin
-        if nargs < 4 then
-          comp_args stack_info env args sz
-            (Kpush ::
-             comp_expr stack_info env func (sz + nargs) (Kapply nargs :: cont))
-        else begin
-          let (lbl, cont1) = label_code cont in
-          Kpush_retaddr lbl ::
-          comp_args stack_info env args (sz + 3)
-            (Kpush :: comp_expr stack_info env func (sz + 3 + nargs)
-                      (Kapply nargs :: cont1))
-        end
-      end
-  | Lsend(kind, met, obj, args, rc, _, _, _) ->
-      assert (kind <> Cached);
-      let nargs = List.length args + 1 in
-      let getmethod, args' =
-        if kind = Self then (Kgetmethod, met::obj::args) else
+        | Free_variable pos -> Kenvacc (pos - env_pos) @> t
+        | Function pos -> Koffsetclosure (pos - env_pos) @> t
+        | exception Not_found -> not_found ())))
+  | Const cst -> (
+    (* avoid loading a constant if the accumulator will obviously be immediately
+       overwritten *)
+    match t.cont with
+    | (Kacc _ | Kconst _ | Kgetglobal _ | Kpush_retaddr _) :: _ -> t
+    | _ ->
+      if is_boot_compiler ()
+      then translate_float32s_or_nulls stack cst t
+      else Kconst cst @> t)
+  | Apply { func; args; tailcall } -> (
+    let nargs = List.length args in
+    match tailcall with
+    | Tailcall ->
+      comp_args stack args
+        (Kpush
+        @> comp_expr (push_args stack nargs) func
+             (Kappterm (nargs, sz + nargs) @> discard_dead_code t))
+    | Nontail ->
+      if nargs < 4
+      then
+        comp_args stack args
+          (Kpush @> comp_expr (push_exact stack nargs) func (Kapply nargs @> t))
+      else
+        let lbl, t = label_code t in
+        let stack = push_exact stack 3 in
+        Kpush_retaddr lbl
+        @> comp_args stack args
+             (Kpush
+             @> comp_expr (push_exact stack nargs) func (Kapply nargs @> t)))
+  | Send { self; met; obj_and_args; tailcall } -> (
+    let nargs = List.length obj_and_args in
+    let getmethod, args =
+      if self
+      then Kgetmethod, met :: obj_and_args
+      else
         match met with
-          Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
-        | _ -> (Kgetdynmet, met::obj::args)
-      in
-      if is_tailcall cont && not (is_nontail rc) then
-        comp_args stack_info env args' sz
-          (getmethod :: Kappterm(nargs, sz + nargs) :: discard_dead_code cont)
+        | Const (Const_base (Const_int n)) -> Kgetpubmet n, obj_and_args
+        | _ -> Kgetdynmet, met :: obj_and_args
+    in
+    match tailcall with
+    | Tailcall ->
+      comp_args stack args
+        (getmethod @> Kappterm (nargs, sz + nargs) @> discard_dead_code t)
+    | Nontail ->
+      if nargs < 4
+      then comp_args stack args (getmethod @> Kapply nargs @> t)
       else
-        if nargs < 4 then
-          comp_args stack_info env args' sz
-            (getmethod :: Kapply nargs :: cont)
-        else begin
-          let (lbl, cont1) = label_code cont in
-          Kpush_retaddr lbl ::
-          comp_args stack_info env args' (sz + 3)
-            (getmethod :: Kapply nargs :: cont1)
-        end
-  | Lfunction{params; body; loc} -> (* assume kind = Curried *)
-      let cont = add_pseudo_event loc !compunit_name cont in
-      let lbl = new_label() in
-      let fv = Ident.Set.elements(free_variables exp) in
-      let entries = closure_entries Single_non_recursive fv in
-      let to_compile =
-        { params = List.map (fun p -> p.name) params; body = body; label = lbl;
-          entries = entries; rec_pos = 0 } in
-      Stack.push to_compile functions_to_compile;
-      comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
-        (Kclosure(lbl, List.length fv) :: cont)
-  | Llet(_, _k, id, arg, body)
-  | Lmutlet(_k, id, arg, body) ->
-      comp_expr stack_info env arg sz
-        (Kpush :: comp_expr stack_info (add_var id (sz+1) env) body (sz+1)
-          (add_pop 1 cont))
-  | Lletrec(decl, body) ->
-      let ndecl = List.length decl in
-      let fv =
-        Ident.Set.elements (free_variables (Lletrec(decl, lambda_unit))) in
-      let rec_idents = List.map (fun { id } -> id) decl in
-      let entries =
-        closure_entries (Multiple_recursive rec_idents) fv
+        let lbl, t = label_code t in
+        Kpush_retaddr lbl
+        @> comp_args (push_exact stack 3) args (getmethod @> Kapply nargs @> t))
+  | Function { params; body; loc; free_variables } ->
+    let fv = Ident.Set.elements free_variables in
+    (* assume kind = Curried *)
+    let label, t = new_label (add_pseudo_event loc t) in
+    let entries = closure_entries Single_non_recursive fv in
+    let t =
+      let to_compile = { params; body; label; entries; rec_pos = 0 } in
+      { t with functions_to_compile = to_compile :: t.functions_to_compile }
+    in
+    comp_args stack
+      (List.map (fun n -> Var n) fv)
+      (Kclosure (label, List.length fv) @> t)
+  | Let { id; arg; body } ->
+    comp_expr stack arg
+      (Kpush @> comp_expr (add_var id stack) body (add_pop 1 t))
+  | Letrec { decls; body; free_variables } ->
+    let ndecl = List.length decls in
+    let fv = Ident.Set.elements free_variables in
+    let rec_idents = List.map (fun decl -> decl.id) decls in
+    let entries = closure_entries (Multiple_recursive rec_idents) fv in
+    let rec comp_fun t rec_pos = function
+      | [] -> t, []
+      | { def = { params; body } } :: rem ->
+        let label, t = new_label t in
+        let to_compile = { params; body; label; entries; rec_pos } in
+        let t =
+          { t with functions_to_compile = to_compile :: t.functions_to_compile }
+        in
+        let t, labels = comp_fun t (rec_pos + 1) rem in
+        t, label :: labels
+    in
+    let t, lbls = comp_fun t 0 decls in
+    comp_args stack
+      (List.map (fun n -> Var n) fv)
+      (Kclosurerec (lbls, List.length fv)
+      @> comp_expr (add_vars rec_idents stack) body (add_pop ndecl t))
+  | Sequand (exp1, exp2) -> (
+    match t.cont with
+    | Kbranchifnot lbl :: _ ->
+      comp_expr stack exp1 (Kbranchifnot lbl @> comp_expr stack exp2 t)
+    | Kbranchif lbl :: cont ->
+      let t = { t with cont } in
+      let lbl2, t = label_code t in
+      comp_expr stack exp1
+        (Kbranchifnot lbl2 @> comp_expr stack exp2 (Kbranchif lbl @> t))
+    | _ ->
+      let lbl, t = label_code t in
+      comp_expr stack exp1 (Kstrictbranchifnot lbl @> comp_expr stack exp2 t))
+  | Sequor (exp1, exp2) -> (
+    match t.cont with
+    | Kbranchif lbl :: _ ->
+      comp_expr stack exp1 (Kbranchif lbl @> comp_expr stack exp2 t)
+    | Kbranchifnot lbl :: cont ->
+      let t = { t with cont } in
+      let lbl2, t = label_code t in
+      comp_expr stack exp1
+        (Kbranchif lbl2 @> comp_expr stack exp2 (Kbranchifnot lbl @> t))
+    | _ ->
+      let lbl, t = label_code t in
+      comp_expr stack exp1 (Kstrictbranchif lbl @> comp_expr stack exp2 t))
+  | Pseudo_event (exp, loc) -> comp_expr stack exp (add_pseudo_event loc t)
+  | Context_switch (Perform, (Tailcall | Nontail), args) ->
+    let t = check_stack t (push_exact stack 4) in
+    comp_args stack args (Kresume @> t)
+  | Context_switch (Resume, tailcall, args) -> (
+    let nargs = List.length args - 1 in
+    assert (nargs = 3);
+    match tailcall with
+    | Tailcall ->
+      (* Resumeterm itself only pushes 2 words, but perform adds another *)
+      let t = check_stack t (push stack 3) in
+      comp_args stack args (Kresumeterm (sz + nargs) @> discard_dead_code t)
+    | Nontail ->
+      (* Resume itself only pushes 2 words, but perform adds another *)
+      let t = check_stack t (push stack (nargs + 3)) in
+      comp_args stack args (Kresume @> t))
+  | Context_switch (Runstack, tailcall, args) -> (
+    kconst0 @> Kpush
+    @>
+    let nargs = List.length args in
+    assert (nargs = 3);
+    match tailcall with
+    | Tailcall ->
+      (* Resumeterm itself only pushes 2 words, but perform adds another *)
+      let t = check_stack t (push stack 3) in
+      comp_args (push stack 1) args
+        (Kresumeterm (sz + nargs) @> discard_dead_code t)
+    | Nontail ->
+      (* Resume itself only pushes 2 words, but perform adds another *)
+      let t = check_stack t (push stack (nargs + 3)) in
+      comp_args (push stack 1) args (Kresume @> t))
+  | Context_switch (Reperform, tailcall, args) -> (
+    let nargs = List.length args - 1 in
+    assert (nargs = 2);
+    let t = check_stack t (push stack 3) in
+    match tailcall with
+    | Nontail -> Misc.fatal_error "Reperform used in non-tail position"
+    | Tailcall ->
+      comp_args stack args (Kreperformterm (sz + nargs) @> discard_dead_code t))
+  | Prim (p, args) ->
+    let nargs = List.length args in
+    comp_args stack args (comp_primitive (push stack (nargs - 1)) p nargs t)
+  | Staticcatch { body; id; args = vars; handler } -> (
+    let nvars = List.length vars in
+    let branch, t = make_branch t in
+    match vars with
+    | [] | _ :: _ :: _ ->
+      let handler, t =
+        label_code (comp_expr (add_vars vars stack) handler (add_pop nvars t))
       in
-      let rec comp_fun pos = function
-          [] -> []
-        | { def = {params; body} } :: rem ->
-            let lbl = new_label() in
-            let to_compile =
-              { params = List.map (fun p -> p.name) params; body = body; label = lbl;
-                entries = entries; rec_pos = pos} in
-            Stack.push to_compile functions_to_compile;
-            lbl :: comp_fun (pos + 1) rem
+      let stack = push_static_catch stack id ~handler ~arity:nvars in
+      push_dummies nvars (comp_expr stack body (add_pop nvars (branch @> t)))
+    | [var] ->
+      (* small optimization for nvars = 1 *)
+      let handler, t =
+        label_code (Kpush @> comp_expr (add_var var stack) handler (add_pop 1 t))
       in
-      let lbls = comp_fun 0 decl in
-      comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
-        (Kclosurerec(lbls, List.length fv) ::
-         (comp_expr stack_info
-            (add_vars rec_idents (sz+1) env) body (sz + ndecl)
-            (add_pop ndecl cont)))
-  | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
-      comp_expr stack_info env arg sz cont
-  | Lprim((Pbox_float ((Boxed_float64 | Boxed_float32), _)
-  | Punbox_float (Boxed_float64 | Boxed_float32)), [arg], _) ->
-      comp_expr stack_info env arg sz cont
-  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
-      comp_expr stack_info env arg sz cont
-  | Lprim(Pignore, [arg], _) ->
-      comp_expr stack_info env arg sz (add_const_unit cont)
-  | Lprim(Pnot, [arg], _) ->
-      let newcont =
-        match cont with
-          Kbranchif lbl :: cont1 -> Kbranchifnot lbl :: cont1
-        | Kbranchifnot lbl :: cont1 -> Kbranchif lbl :: cont1
-        | _ -> Kboolnot :: cont in
-      comp_expr stack_info env arg sz newcont
-  | Lprim(Psequand, [exp1; exp2], _) ->
-      begin match cont with
-        Kbranchifnot lbl :: _ ->
-          comp_expr stack_info env exp1 sz (Kbranchifnot lbl ::
-            comp_expr stack_info env exp2 sz cont)
-      | Kbranchif lbl :: cont1 ->
-          let (lbl2, cont2) = label_code cont1 in
-          comp_expr stack_info env exp1 sz (Kbranchifnot lbl2 ::
-            comp_expr stack_info env exp2 sz (Kbranchif lbl :: cont2))
-      | _ ->
-          let (lbl, cont1) = label_code cont in
-          comp_expr stack_info env exp1 sz (Kstrictbranchifnot lbl ::
-            comp_expr stack_info env exp2 sz cont1)
-      end
-  | Lprim(Psequor, [exp1; exp2], _) ->
-      begin match cont with
-        Kbranchif lbl :: _ ->
-          comp_expr stack_info env exp1 sz (Kbranchif lbl ::
-            comp_expr stack_info env exp2 sz cont)
-      | Kbranchifnot lbl :: cont1 ->
-          let (lbl2, cont2) = label_code cont1 in
-          comp_expr stack_info env exp1 sz (Kbranchif lbl2 ::
-            comp_expr stack_info env exp2 sz (Kbranchifnot lbl :: cont2))
-      | _ ->
-          let (lbl, cont1) = label_code cont in
-          comp_expr stack_info env exp1 sz (Kstrictbranchif lbl ::
-            comp_expr stack_info env exp2 sz cont1)
-      end
-  | Lprim(Praise k, [arg], _) ->
-      comp_expr stack_info env arg sz (Kraise k :: discard_dead_code cont)
-  | Lprim(Paddint, [arg; Lconst(Const_base(Const_int n))], _)
-    when is_immed n ->
-      comp_expr stack_info env arg sz (Koffsetint n :: cont)
-  | Lprim(Psubint, [arg; Lconst(Const_base(Const_int n))], _)
-    when is_immed (-n) ->
-      comp_expr stack_info env arg sz (Koffsetint (-n) :: cont)
-  | Lprim (Poffsetint n, [arg], _)
-    when not (is_immed n) ->
-      comp_expr stack_info env arg sz
-        (Kpush::
-         Kconst (Const_base (Const_int n))::
-         Kaddint::cont)
-  | Lprim ((Pmakefloatblock _ | Pmakeufloatblock _), args, loc) ->
-      (* In bytecode, float# is boxed, so we can treat these two primitives the
-         same. *)
-      let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env args sz
-        (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
-      (* There is no notion of a mixed block at runtime in bytecode. Further,
-         source-level unboxed types are represented as boxed in bytecode, so
-         no ceremony is needed to box values before inserting them into
-         the (normal, unmixed) block.
-      *)
-      let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
-      let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env args sz
-        (Kmake_faux_mixedblock (total_len, tag) :: cont)
-  | Lprim(Pmakearray (kind, _, _), args, loc) ->
-      let cont = add_pseudo_event loc !compunit_name cont in
-      begin match kind with
-      (* arrays of unboxed types have the same representation
-         as the boxed ones on bytecode *)
-      | Pintarray | Paddrarray | Punboxedintarray _
-      | Punboxedfloatarray Unboxed_float32
-      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
-          comp_args stack_info env args sz
-            (Kmakeblock(List.length args, 0) :: cont)
-      | Pfloatarray | Punboxedfloatarray Unboxed_float64 ->
-          comp_args stack_info env args sz
-            (Kmakefloatblock(List.length args) :: cont)
-      | Punboxedvectorarray _ ->
-        fatal_error "SIMD is not supported in bytecode mode."
-      | Pgenarray ->
-          if args = []
-          then Kmakeblock(0, 0) :: cont
-          else comp_args stack_info env args sz
-                 (Kmakeblock(List.length args, 0) ::
-                  Kccall("caml_make_array", 1) :: cont)
-      end
-  | Lprim(Presume, args, _) ->
-      let nargs = List.length args - 1 in
-      assert (nargs = 3);
-      if is_tailcall cont then begin
-        (* Resumeterm itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info 3;
-        comp_args stack_info env args sz
-          (Kresumeterm(sz + nargs) :: discard_dead_code cont)
-      end else begin
-        (* Resume itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info (sz + nargs + 3);
-        comp_args stack_info env args sz (Kresume :: cont)
-      end
-  | Lprim(Prunstack, args, _) ->
-      let nargs = List.length args in
-      assert (nargs = 3);
-      if is_tailcall cont then begin
-        (* Resumeterm itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info 3;
-        Kconst const_unit :: Kpush ::
-          comp_args stack_info env args (sz + 1)
-          (Kresumeterm(sz + nargs) :: discard_dead_code cont)
-      end else begin
-        (* Resume itself only pushes 2 words, but perform adds another *)
-        check_stack stack_info (sz + nargs + 3);
-        Kconst const_unit :: Kpush ::
-          comp_args stack_info env args (sz + 1) (Kresume :: cont)
-      end
-  | Lprim(Preperform, args, _) ->
-      let nargs = List.length args - 1 in
-      assert (nargs = 2);
-      check_stack stack_info (sz + 3);
-      if is_tailcall cont then
-        comp_args stack_info env args sz
-          (Kreperformterm(sz + nargs) :: discard_dead_code cont)
+      let stack = push_static_catch stack id ~handler ~arity:nvars in
+      comp_expr stack body (branch @> t))
+  | Staticraise (id, args) -> (
+    let t = discard_dead_code t in
+    let dst = find_raise_label stack id in
+    assert (List.compare_length_with args dst.arity = 0);
+    (* let { handler; frame = { size; try_blocks = tb } as dst_frame } = *)
+    let t = branch_to dst.handler t in
+    let rec unwind src =
+      if dst.frame.try_blocks == src.try_blocks
+      then add_pop (src.size - dst.frame.size) t
       else
-        fatal_error "Reperform used in non-tail position"
-  | Lprim (Pmakearray_dynamic (kind, locality, Uninitialized), [len], loc) ->
-      (* Use a dummy initializer to implement the "uninitialized" primitive *)
-      let init =
-        match kind with
-        | Pgenarray | Paddrarray | Pintarray | Pfloatarray
-        | Pgcscannableproductarray _ ->
-            Misc.fatal_errorf "Array kind %s should have been ruled out by \
-                the frontend for %%makearray_dynamic_uninit"
-              (Printlambda.array_kind kind)
-        | Punboxedfloatarray Unboxed_float32 ->
-            Lconst (Const_base (Const_float32 "0.0"))
-        | Punboxedfloatarray Unboxed_float64 ->
-            Lconst (Const_base (Const_float "0.0"))
-        | Punboxedintarray Unboxed_int32 ->
-            Lconst (Const_base (Const_int32 0l))
-        | Punboxedintarray Unboxed_int64 ->
-            Lconst (Const_base (Const_int64 0L))
-        | Punboxedintarray Unboxed_nativeint ->
-            Lconst (Const_base (Const_nativeint 0n))
-        | Punboxedvectorarray _ ->
-            fatal_error "SIMD is not supported in bytecode mode."
-        | Pgcignorableproductarray ignorables ->
-            let rec convert_ignorable
-                  (ign : Lambda.ignorable_product_element_kind) =
-              match ign with
-              | Pint_ignorable -> Lconst (Const_base (Const_int 0))
-              | Punboxedfloat_ignorable Unboxed_float32 ->
-                Lconst (Const_base (Const_float32 "0.0"))
-              | Punboxedfloat_ignorable Unboxed_float64 ->
-                Lconst (Const_base (Const_float "0.0"))
-              | Punboxedint_ignorable Unboxed_int32 ->
-                Lconst (Const_base (Const_int32 0l))
-              | Punboxedint_ignorable Unboxed_int64 ->
-                Lconst (Const_base (Const_int64 0L))
-              | Punboxedint_ignorable Unboxed_nativeint ->
-                Lconst (Const_base (Const_nativeint 0n))
-              | Pproduct_ignorable ignorables ->
-                  let fields = List.map convert_ignorable ignorables in
-                  Lprim (Pmakeblock (0, Immutable, None, alloc_heap), fields,
-                    loc)
-            in
-            convert_ignorable (Pproduct_ignorable ignorables)
-      in
-      comp_expr stack_info env
-        (Lprim (Pmakearray_dynamic (kind, locality, With_initializer),
-          [len; init], loc)) sz cont
-  | Lprim (Pmakearray_dynamic (_, _, Uninitialized), _, _loc) ->
-      Misc.fatal_error "Pmakearray_dynamic takes one arg when [Uninitialized]"
-  | Lprim (Pduparray (kind, mutability),
-           [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
-      assert (kind = kind');
-      comp_expr stack_info env
-        (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
-  | Lprim (Pduparray _, [arg], loc) ->
-      let prim_obj_dup =
-        Lambda.simple_prim_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
-      in
-      comp_expr stack_info env (Lprim (Pccall prim_obj_dup, [arg], loc)) sz cont
-  | Lprim (Pduparray _, _, _) ->
-      Misc.fatal_error "Bytegen.comp_expr: Pduparray takes exactly one arg"
-(* Integer first for enabling further optimization (cf. emitcode.ml)  *)
-  | Lprim (Pintcomp c, [arg ; (Lconst _ as k)], _) ->
-      let p = Pintcomp (swap_integer_comparison c)
-      and args = [k ; arg] in
-      let nargs = List.length args - 1 in
-      comp_args stack_info env args sz
-        (comp_primitive stack_info p (sz + nargs - 1) args :: cont)
-  | Lprim (Pfloatcomp (Boxed_float64, cmp), args, _) | Lprim (Punboxed_float_comp (Unboxed_float64, cmp), args, _) ->
-      let cont =
-        match cmp with
-        | CFeq -> Kccall("caml_eq_float", 2) :: cont
-        | CFneq -> Kccall("caml_neq_float", 2) :: cont
-        | CFlt -> Kccall("caml_lt_float", 2) :: cont
-        | CFnlt -> Kccall("caml_lt_float", 2) :: Kboolnot :: cont
-        | CFgt -> Kccall("caml_gt_float", 2) :: cont
-        | CFngt -> Kccall("caml_gt_float", 2) :: Kboolnot :: cont
-        | CFle -> Kccall("caml_le_float", 2) :: cont
-        | CFnle -> Kccall("caml_le_float", 2) :: Kboolnot :: cont
-        | CFge -> Kccall("caml_ge_float", 2) :: cont
-        | CFnge -> Kccall("caml_ge_float", 2) :: Kboolnot :: cont
-      in
-      comp_args stack_info env args sz cont
-  | Lprim (Pfloatcomp (Boxed_float32, cmp), args, _) | Lprim (Punboxed_float_comp (Unboxed_float32, cmp), args, _) ->
-      let cont =
-        match cmp with
-        | CFeq -> Kccall("caml_eq_float32", 2) :: cont
-        | CFneq -> Kccall("caml_neq_float32", 2) :: cont
-        | CFlt -> Kccall("caml_lt_float32", 2) :: cont
-        | CFnlt -> Kccall("caml_lt_float32", 2) :: Kboolnot :: cont
-        | CFgt -> Kccall("caml_gt_float32", 2) :: cont
-        | CFngt -> Kccall("caml_gt_float32", 2) :: Kboolnot :: cont
-        | CFle -> Kccall("caml_le_float32", 2) :: cont
-        | CFnle -> Kccall("caml_le_float32", 2) :: Kboolnot :: cont
-        | CFge -> Kccall("caml_ge_float32", 2) :: cont
-        | CFnge -> Kccall("caml_ge_float32", 2) :: Kboolnot :: cont
-      in
-      comp_args stack_info env args sz cont
-  | Lprim(Pmakeblock(tag, _mut, _, _), args, loc) ->
-      let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env args sz
-        (Kmakeblock(List.length args, tag) :: cont)
-  | Lprim(Pmake_unboxed_product _, args, loc) ->
-      let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env args sz
-        (Kmakeblock(List.length args, 0) :: cont)
-  | Lprim(Pfloatfield (n, _, _), args, loc) ->
-      let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env args sz (Kgetfloatfield n :: cont)
-  | Lprim(p, args, _) ->
-      let nargs = List.length args - 1 in
-      comp_args stack_info env args sz
-        (comp_primitive stack_info p (sz + nargs - 1) args :: cont)
-  | Lstaticcatch (body, (i, vars) , handler, _, _) ->
-      let vars = List.map fst vars in
-      let nvars = List.length vars in
-      let branch1, cont1 = make_branch cont in
-      let r =
-        if nvars <> 1 then begin (* general case *)
-          let lbl_handler, cont2 =
-            label_code
-              (comp_expr
-                stack_info
-                (add_vars vars (sz+1) env)
-                handler (sz+nvars) (add_pop nvars cont1)) in
-          let stack_info =
-            push_static_raise stack_info i lbl_handler (sz+nvars) in
-          push_dummies nvars
-            (comp_expr stack_info env body (sz+nvars)
-            (add_pop nvars (branch1 :: cont2)))
-        end else begin (* small optimization for nvars = 1 *)
-          let var = match vars with [var] -> var | _ -> assert false in
-          let lbl_handler, cont2 =
-            label_code
-              (Kpush::comp_expr stack_info
-                (add_var var (sz+1) env)
-                handler (sz+1) (add_pop 1 cont1)) in
-          let stack_info =
-            push_static_raise stack_info i lbl_handler sz in
-          comp_expr stack_info env body sz (branch1 :: cont2)
-        end in
-      r
-  | Lstaticraise (i, args) ->
-      let cont = discard_dead_code cont in
-      let label,size,tb = find_raise_label stack_info i in
-      let cont = branch_to label cont in
-      let rec loop sz tbb =
-        if tb == tbb then add_pop (sz-size) cont
-        else match tbb with
+        match src.try_blocks with
         | [] -> assert false
-        | try_sz :: tbb -> add_pop (sz-try_sz-4) (Kpoptrap :: loop try_sz tbb)
+        | size :: try_blocks ->
+          add_pop (src.size - size - 4) (Kpoptrap @> unwind { size; try_blocks })
+    in
+    let t = unwind stack.frame in
+    match args with
+    (* optimization, argument passed in accumulator *)
+    | [arg] -> comp_expr stack arg t
+    | args -> comp_exit_args stack args dst.frame.size t)
+  | Trywith { body; param; handler } ->
+    let skip_handler, t = make_branch t in
+    let t = Kpush @> comp_expr (add_var param stack) handler (add_pop 1 t) in
+    let handler, t = label_code t in
+    let t = Kpoptrap @> skip_handler @> t in
+    Kpushtrap handler @> comp_expr (pushtrap stack) body t
+  | Ifthenelse { cond; ifso; ifnot } ->
+    comp_expr stack cond
+      (if ifnot = Const const_unit
+      then
+        let lbl_end, t = label_code t in
+        Kstrictbranchifnot lbl_end @> comp_expr stack ifso t
+      else
+        match code_as_jump stack ifso with
+        | Some label -> Kbranchif label @> comp_expr stack ifnot t
+        | None -> (
+          match code_as_jump stack ifnot with
+          | Some label -> Kbranchifnot label @> comp_expr stack ifso t
+          | None ->
+            let branch_end, t = make_branch t in
+            let lbl_not, t = label_code (comp_expr stack ifnot t) in
+            Kbranchifnot lbl_not @> comp_expr stack ifso (branch_end @> t)))
+  | Sequence (exp1, exp2) -> comp_expr stack exp1 (comp_expr stack exp2 t)
+  | While { cond; body } ->
+    let lbl_loop, t = new_label t in
+    let lbl_test, t = new_label t in
+    Kbranch lbl_test @> Klabel lbl_loop @> Kcheck_signals
+    @> comp_expr stack body
+         (Klabel lbl_test
+         @> comp_expr stack cond (Kbranchif lbl_loop @> clear_accumulator t))
+  | Switch { arg; int_cases; tag_cases; cases } ->
+    let branch, t = make_branch t in
+    let rec make_labels acts t =
+      match acts with
+      | [] -> [], t
+      | act :: acts ->
+        let labels, t = make_labels acts t in
+        let label, t = label_code (comp_expr stack act (branch @> t)) in
+        label :: labels, t
+    in
+    let lbls, t = make_labels (Array.to_list cases) t in
+    let lbls = Array.of_list lbls in
+    (* Build label vectors *)
+    let lbl_blocks = Array.map (Array.get lbls) tag_cases in
+    let lbl_consts = Array.map (Array.get lbls) int_cases in
+    comp_expr stack arg (Kswitch (lbl_consts, lbl_blocks) @> t)
+  | Assign (id, expr) -> (
+    match Ident.find_same id stack.env.ce_stack with
+    | pos -> comp_expr stack expr (Kassign (sz - pos) @> t)
+    | exception Not_found -> Misc.fatal_error "Bytegen.comp_expr: assign")
+  | Event (lam, lev) -> (
+    let ev_defname =
+      string_of_scoped_location ~include_zero_alloc:false lev.lev_loc
+    in
+    let event kind info =
+      { ev_pos = 0;
+        (* patched in emitcode *)
+        ev_module = Compilation_unit.full_path_as_string t.compunit_name;
+        ev_loc = to_location lev.lev_loc;
+        ev_kind = kind;
+        ev_defname;
+        ev_info = info;
+        ev_typenv = Env.summary lev.lev_env;
+        ev_typsubst = Subst.identity;
+        ev_compenv = stack.env;
+        ev_stacksize = sz;
+        ev_repr =
+          (match lev.lev_repr with
+          | None -> Event_none
+          | Some ({ contents = 1 } as repr) when lev.lev_kind = Lev_function ->
+            Event_child repr
+          | Some ({ contents = 1 } as repr) -> Event_parent repr
+          | Some repr when lev.lev_kind = Lev_function -> Event_parent repr
+          | Some repr -> Event_child repr)
+      }
+    in
+    match lev.lev_kind with
+    | Lev_before ->
+      let c = comp_expr stack lam t in
+      let ev = event Event_before Event_other in
+      add_event ev c
+    | Lev_function ->
+      let c = comp_expr stack lam t in
+      let ev = event Event_pseudo Event_function in
+      add_event ev c
+    | Lev_pseudo ->
+      let c = comp_expr stack lam t in
+      let ev = event Event_pseudo Event_other in
+      add_event ev c
+    | Lev_after ty -> (
+      let tailcall =
+        match lam with
+        | Apply { tailcall; _ }
+        | Send { tailcall; _ }
+        | Context_switch (_, tailcall, _) ->
+          tailcall
+        | _ -> Nontail
       in
-      let cont = loop sz stack_info.try_blocks in
-      begin match args with
-      | [arg] -> (* optim, argument passed in accumulator *)
-          comp_expr stack_info env arg sz cont
-      | _ -> comp_exit_args stack_info env args sz size cont
-      end
-  | Ltrywith(body, id, handler, _kind) ->
-      let (branch1, cont1) = make_branch cont in
-      let lbl_handler = new_label() in
-      let body_cont =
-        Kpoptrap :: branch1 ::
-        Klabel lbl_handler :: Kpush ::
-        comp_expr
-          stack_info (add_var id (sz+1) env) handler (sz+1) (add_pop 1 cont1)
-      in
-      let stack_info =
-        { stack_info with try_blocks = sz :: stack_info.try_blocks } in
-      let l = comp_expr stack_info env body (sz+4) body_cont in
-      Kpushtrap lbl_handler :: l
-  | Lifthenelse(cond, ifso, ifnot, _kind) ->
-      comp_binary_test stack_info env cond ifso ifnot sz cont
-  | Lsequence(exp1, exp2) ->
-      comp_expr stack_info env exp1 sz (comp_expr stack_info env exp2 sz cont)
-  | Lwhile {wh_cond; wh_body} ->
-      let lbl_loop = new_label() in
-      let lbl_test = new_label() in
-      Kbranch lbl_test :: Klabel lbl_loop :: Kcheck_signals ::
-        comp_expr stack_info env wh_body sz
-          (Klabel lbl_test ::
-           comp_expr stack_info env wh_cond sz
-
-             (Kbranchif lbl_loop :: add_const_unit cont))
-  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
-      let lbl_loop = new_label() in
-      let lbl_exit = new_label() in
-      let offset = match for_dir with Upto -> 1 | Downto -> -1 in
-      let comp = match for_dir with Upto -> Cgt | Downto -> Clt in
-      comp_expr stack_info env for_from sz
-        (Kpush :: comp_expr stack_info env for_to (sz+1)
-          (Kpush :: Kpush :: Kacc 2 :: Kintcomp comp :: Kbranchif lbl_exit ::
-           Klabel lbl_loop :: Kcheck_signals ::
-           comp_expr stack_info (add_var for_id (sz+1) env) for_body (sz+2)
-             (Kacc 1 :: Kpush :: Koffsetint offset :: Kassign 2 ::
-              Kacc 1 :: Kintcomp Cne :: Kbranchif lbl_loop ::
-              Klabel lbl_exit :: add_const_unit (add_pop 2 cont))))
-  | Lswitch(arg, sw, _loc, _kind) ->
-      let (branch, cont1) = make_branch cont in
-      let c = ref (discard_dead_code cont1) in
-
-(* Build indirection vectors *)
-      let store = Storer.mk_store () in
-      let act_consts = Array.make sw.sw_numconsts 0
-      and act_blocks = Array.make sw.sw_numblocks 0 in
-      begin match sw.sw_failaction with (* default is index 0 *)
-      | Some fail -> ignore (store.act_store () fail)
-      | None      -> ()
-      end ;
-      List.iter
-        (fun (n, act) -> act_consts.(n) <- store.act_store () act) sw.sw_consts;
-      List.iter
-        (fun (n, act) -> act_blocks.(n) <- store.act_store () act) sw.sw_blocks;
-(* Compile and label actions *)
-      let acts = store.act_get () in
-(*
-      let a = store.act_get_shared () in
-      Array.iter
-        (function
-          | Switch.Shared (Lstaticraise _) -> ()
-          | Switch.Shared act ->
-              Printlambda.lambda Format.str_formatter act ;
-              Printf.eprintf "SHARE BYTE:\n%s\n" (Format.flush_str_formatter ())
-          | _ -> ())
-        a ;
-*)
-      let lbls = Array.make (Array.length acts) 0 in
-      for i = Array.length acts-1 downto 0 do
-        let lbl,c1 =
-          label_code (comp_expr stack_info env acts.(i) sz (branch :: !c)) in
-        lbls.(i) <- lbl ;
-        c := discard_dead_code c1
-      done ;
-
-(* Build label vectors *)
-      let lbl_blocks = Array.make sw.sw_numblocks 0 in
-      for i = sw.sw_numblocks - 1 downto 0 do
-        lbl_blocks.(i) <- lbls.(act_blocks.(i))
-      done;
-      let lbl_consts = Array.make sw.sw_numconsts 0 in
-      for i = sw.sw_numconsts - 1 downto 0 do
-        lbl_consts.(i) <- lbls.(act_consts.(i))
-      done;
-      comp_expr stack_info env arg sz (Kswitch(lbl_consts, lbl_blocks) :: !c)
-  | Lstringswitch (arg,sw,d,loc, kind) ->
-      comp_expr stack_info env
-        (Matching.expand_stringswitch loc kind arg sw d) sz cont
-  | Lassign(id, expr) ->
-      begin try
-        let pos = Ident.find_same id env.ce_stack in
-        comp_expr stack_info env expr sz (Kassign(sz - pos) :: cont)
-      with Not_found ->
-        fatal_error "Bytegen.comp_expr: assign"
-      end
-  | Levent(lam, lev) ->
-      let ev_defname = string_of_scoped_location ~include_zero_alloc:false lev.lev_loc in
-      let event kind info =
-        { ev_pos = 0;                   (* patched in emitcode *)
-          ev_module = Compilation_unit.full_path_as_string !compunit_name;
-          ev_loc = to_location lev.lev_loc;
-          ev_kind = kind;
-          ev_defname;
-          ev_info = info;
-          ev_typenv = Env.summary lev.lev_env;
-          ev_typsubst = Subst.identity;
-          ev_compenv = env;
-          ev_stacksize = sz;
-          ev_repr =
-            begin match lev.lev_repr with
-              None ->
-                Event_none
-            | Some ({contents = 1} as repr) when lev.lev_kind = Lev_function ->
-                Event_child repr
-            | Some ({contents = 1} as repr) ->
-                Event_parent repr
-            | Some repr when lev.lev_kind = Lev_function ->
-                Event_parent repr
-            | Some repr ->
-                Event_child repr
-            end }
-      in
-      begin match lev.lev_kind with
-        Lev_before ->
-          let c = comp_expr stack_info env lam sz cont in
-          let ev = event Event_before Event_other in
-          add_event ev c
-      | Lev_function ->
-          let c = comp_expr stack_info env lam sz cont in
-          let ev = event Event_pseudo Event_function in
-          add_event ev c
-      | Lev_pseudo ->
-          let c = comp_expr stack_info env lam sz cont in
-          let ev = event Event_pseudo Event_other in
-          add_event ev c
-      | Lev_after ty ->
-          let preserve_tailcall =
-            match lam with
-            | Lprim(prim, _, _) -> preserve_tailcall_for_prim prim
-            | Lapply {ap_region_close=rc; _}
-            | Lsend(_, _, _, _, rc, _, _, _) ->
-               not (is_nontail rc)
-            | _ -> true
-          in
-          if preserve_tailcall && is_tailcall cont then
-            (* don't destroy tail call opt *)
-            comp_expr stack_info env lam sz cont
-          else begin
-            let info =
-              match lam with
-                Lapply{ap_args = args}  -> Event_return (List.length args)
-              | Lsend(_, _, _, args, _, _, _, _) ->
-                  Event_return (List.length args + 1)
-              | Lprim(_,args,_)         -> Event_return (List.length args)
-              | _                       -> Event_other
-            in
-            let ev = event (Event_after ty) info in
-            let cont1 = add_event ev cont in
-            comp_expr stack_info env lam sz cont1
-          end
-      end
-  | Lifused (_, exp) ->
-      comp_expr stack_info env exp sz cont
-  | Lregion (exp, _) ->
-      comp_expr stack_info env exp sz cont
-  | Lexclave exp ->
-      comp_expr stack_info env exp sz cont
+      match tailcall with
+      (* don't destroy tail call opt *)
+      | Tailcall -> comp_expr stack lam t
+      | Nontail ->
+        let info =
+          match lam with
+          | Apply { args; _ }
+          | Send { obj_and_args = args; _ }
+          | Prim (_, args)
+          | Context_switch (_, _, args) ->
+            Event_return (List.length args)
+          | _ -> Event_other
+        in
+        let ev = event (Event_after ty) info in
+        let t = add_event ev t in
+        comp_expr stack lam t))
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.
    The values of eN ... e2 are pushed on the stack, e2 at top of stack,
    then e3, then ... The value of e1 is left in the accumulator. *)
 
-and comp_args stack_info env argl sz cont =
-  comp_expr_list stack_info env (List.rev argl) sz cont
+and comp_args stack argl t = comp_expr_list stack (List.rev argl) t
 
-and comp_expr_list stack_info env exprl sz cont = match exprl with
-    [] -> cont
-  | [exp] -> comp_expr stack_info env exp sz cont
+and comp_expr_list stack exprl t =
+  match exprl with
+  | [] -> t
+  | [exp] -> comp_expr stack exp t
   | exp :: rem ->
-      comp_expr stack_info env exp sz
-        (Kpush :: comp_expr_list stack_info env rem (sz+1) cont)
+    comp_expr stack exp (Kpush @> comp_expr_list (push stack 1) rem t)
 
-and comp_exit_args stack_info env argl sz pos cont =
-   comp_expr_list_assign stack_info env (List.rev argl) sz pos cont
+and comp_exit_args stack argl pos t =
+  comp_expr_list_assign stack (List.rev argl) pos t
 
-and comp_expr_list_assign stack_info env exprl sz pos cont = match exprl with
-  | [] -> cont
+and comp_expr_list_assign stack exprl pos t =
+  let sz = stack.frame.size in
+  match exprl with
+  | [] -> t
   | exp :: rem ->
-      comp_expr stack_info env exp sz
-        (Kassign (sz-pos)
-         ::comp_expr_list_assign stack_info env rem sz (pos-1) cont)
-
-(* Compile an if-then-else test. *)
-
-and comp_binary_test stack_info env cond ifso ifnot sz cont =
-  let cont_cond =
-    if ifnot = Lconst const_unit then begin
-      let (lbl_end, cont1) = label_code cont in
-      Kstrictbranchifnot lbl_end :: comp_expr stack_info env ifso sz cont1
-    end else
-    match code_as_jump stack_info ifso sz with
-    | Some label ->
-      let cont = comp_expr stack_info env ifnot sz cont in
-      Kbranchif label :: cont
-    | None ->
-        match code_as_jump stack_info ifnot sz with
-        | Some label ->
-            let cont = comp_expr stack_info env ifso sz cont in
-            Kbranchifnot label :: cont
-        | None ->
-            let (branch_end, cont1) = make_branch cont in
-            let (lbl_not, cont2) =
-              label_code(comp_expr stack_info env ifnot sz cont1) in
-            Kbranchifnot lbl_not ::
-            comp_expr stack_info env ifso sz (branch_end :: cont2) in
-
-  comp_expr stack_info env cond sz cont_cond
+    comp_expr stack exp
+      (Kassign (sz - pos) @> comp_expr_list_assign stack rem (pos - 1) t)
 
 (**** Compilation of a code block (with tracking of stack usage) ****)
-
-let comp_block env exp sz cont =
-  let stack_info = create_stack_info () in
-  let code = comp_expr stack_info env exp sz cont in
-  let used_safe = !(stack_info.max_stack_used) + Config.stack_safety_margin in
-  if used_safe > Config.stack_threshold then
-    Kconst(Const_base(Const_int used_safe)) ::
-    Kccall("caml_ensure_stack_capacity", 1) ::
-    code
+let comp_block stack exp t =
+  let t = comp_expr stack exp t in
+  let used_safe = t.max_stack_used + Config.stack_safety_margin in
+  if used_safe <= Config.stack_threshold
+  then t
   else
-    code
+    Kconst (Const_base (Const_int used_safe))
+    @> Kccall ("caml_ensure_stack_capacity", 1)
+    @> t
 
-(**** Compilation of functions ****)
-
-let comp_function tc cont =
-  let arity = List.length tc.params in
-  let ce_stack, _last_pos =
-    add_positions Ident.empty Fun.id ~pos:arity ~delta:(-1) tc.params
-  in
-  let env =
-    { ce_stack;
-      ce_closure =
-        In_closure { entries = tc.entries; env_pos = 3 * tc.rec_pos }
-    }
-  in
-  let cont =
-    comp_block env tc.body arity (Kreturn arity :: cont) in
-  if arity > 1 then
-    Krestart :: Klabel tc.label :: Kgrab(arity - 1) :: cont
-  else
-    Klabel tc.label :: cont
-
-let comp_remainder cont =
-  let c = ref cont in
-  begin try
-    while true do
-      c := comp_function (Stack.pop functions_to_compile) !c
-    done
-  with Stack.Empty ->
-    ()
-  end;
-  !c
+let rec comp_functions t =
+  match t.functions_to_compile with
+  | [] -> t.cont
+  | { params; body; label; entries; rec_pos } :: functions_to_compile ->
+    let t = { t with functions_to_compile; max_stack_used = 0 } in
+    let arity = List.length params in
+    let ce_stack, _last_pos =
+      add_positions Ident.empty Fun.id ~pos:arity ~delta:(-1) params
+    in
+    let env =
+      { ce_stack; ce_closure = In_closure { entries; env_pos = 3 * rec_pos } }
+    in
+    let stack =
+      { env; frame = { size = arity; try_blocks = [] }; static_handlers = [] }
+    in
+    let t = comp_block stack body (Kreturn arity @> t) in
+    let t =
+      if arity > 1
+      then Krestart @> Klabel label @> Kgrab (arity - 1) @> t
+      else Klabel label @> t
+    in
+    comp_functions t
 
 (**** Compilation of a lambda phrase ****)
 
-let reset () =
-  label_counter := 0;
-  compunit_name := Compilation_unit.dummy;
-  Stack.clear functions_to_compile
-
-let compile_gen ?modulename ~init_stack expr =
-  reset ();
-  begin match modulename with
-  | Some name -> compunit_name := name
-  | None -> ()
-  end;
-  Fun.protect ~finally:reset (fun () ->
-  let init_code = comp_block empty_env expr init_stack [] in
-  if Stack.length functions_to_compile > 0 then begin
-    let lbl_init = new_label() in
-    (Kbranch lbl_init :: comp_remainder (Klabel lbl_init :: init_code)),
-    false
-  end else
-    init_code, true)
+let compile_gen ?(modulename = Compilation_unit.dummy) ~init_stack expr =
+  let t =
+    { compunit_name = modulename;
+      next_label = 1;
+      functions_to_compile = [];
+      max_stack_used = 0;
+      cont = []
+    }
+  in
+  let init_stack =
+    { env = empty_env;
+      frame = { size = init_stack; try_blocks = [] };
+      static_handlers = []
+    }
+  in
+  let t = comp_block init_stack expr t in
+  match t.functions_to_compile with
+  | [] -> t.cont, true
+  | _ :: _ ->
+    let goto_init, t = make_branch t in
+    goto_init :: comp_functions t, false
 
 let compile_implementation modulename expr =
   fst (compile_gen ~modulename ~init_stack:0 expr)
 
-let compile_phrase expr =
-  compile_gen ~init_stack:1 expr
+let compile_phrase expr = compile_gen ~init_stack:1 expr
