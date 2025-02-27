@@ -50,30 +50,49 @@ let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
 
 let loopify_decision_for_call dacc apply =
   let denv = DA.denv dacc in
-  match DE.closure_info denv with
-  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+  if not (Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv))
+  then
+    (* During speculative inlining, we are only rebuilding the inlined body, and
+       in particular we run the Flow Analysis on just the inlined body. The Flow
+       Analysis assumes that it sees all of the code being simplified, which is
+       usually true for inlined body since (apart from the return and exn
+       continuations which are treated separately) they are closed. However this
+       is not true for a function being loopified since an apply_expr can be
+       turned into an apply_cont pointing to the `self` continuation, which is
+       missing from the Flow Accumulator. Therefore, during speculative inlining
+       (and thus when we are not rebuilding terms), we disable loopification.
+
+       CR gbury: even if we do not perform the loopification during speculative
+       inlining, we actually do it when rebuilding the term for real. We could
+       continue to not loopify during speculation, but nevertheless try and
+       count the benefit of the loopification (but it may be a bit hack-ish). *)
     Loopify_state.do_not_loopify
-  | Closure { return_continuation; exn_continuation; my_closure; _ } -> (
-    let tenv = DE.typing_env denv in
-    let[@inline always] canon simple =
-      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
-    in
-    match Apply.callee apply with
-    | None -> Loopify_state.do_not_loopify
-    | Some callee ->
-      if Simple.equal (canon (Simple.var my_closure)) (canon callee)
-         && (match Apply.continuation apply with
-            | Never_returns ->
-              (* If we never return, then this call is a tail-call *)
-              true
-            | Return apply_return_continuation ->
-              Continuation.equal apply_return_continuation return_continuation)
-         && Exn_continuation.equal
-              (Apply.exn_continuation apply)
-              (Exn_continuation.create ~exn_handler:exn_continuation
-                 ~extra_args:[])
-      then DE.loopify_state denv
-      else Loopify_state.do_not_loopify)
+  else
+    match DE.closure_info denv with
+    | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure
+      ->
+      Loopify_state.do_not_loopify
+    | Closure { return_continuation; exn_continuation; my_closure; _ } -> (
+      let tenv = DE.typing_env denv in
+      let[@inline always] canon simple =
+        Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
+      in
+      match Apply.callee apply with
+      | None -> Loopify_state.do_not_loopify
+      | Some callee ->
+        if Simple.equal (canon (Simple.var my_closure)) (canon callee)
+           && (match Apply.continuation apply with
+              | Never_returns ->
+                (* If we never return, then this call is a tail-call *)
+                true
+              | Return apply_return_continuation ->
+                Continuation.equal apply_return_continuation return_continuation)
+           && Exn_continuation.equal
+                (Apply.exn_continuation apply)
+                (Exn_continuation.create ~exn_handler:exn_continuation
+                   ~extra_args:[])
+        then DE.loopify_state denv
+        else Loopify_state.do_not_loopify)
 
 let simplify_self_tail_call dacc apply self_cont ~down_to_up =
   Simplify_apply_cont_expr.simplify_apply_cont dacc
