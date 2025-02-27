@@ -108,6 +108,16 @@ Line 1, characters 14-24:
                   ^^^^^^^^^^
 Error: This type "int option" should be an instance of type
          "('a : value mod global)"
+       The kind of int option is immutable_data
+         because it's a boxed variant type.
+       But the kind of int option must be a subkind of value mod global
+         because of the definition of require_global at line 7, characters 0-43.
+|}, Principal{|
+Line 1, characters 14-24:
+1 | type t_test = int option require_global
+                  ^^^^^^^^^^
+Error: This type "int option" should be an instance of type
+         "('a : value mod global)"
        The kind of int option is value
          because it's a boxed variant type.
        But the kind of int option must be a subkind of value mod global
@@ -181,6 +191,15 @@ Error: This type "int ref" should be an instance of type
 
 type t_test = int ref require_contended
 [%%expect {|
+Line 1, characters 14-21:
+1 | type t_test = int ref require_contended
+                  ^^^^^^^
+Error: This type "int ref" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int ref is mutable_data.
+       But the kind of int ref must be a subkind of value mod contended
+         because of the definition of require_contended at line 9, characters 0-49.
+|}, Principal{|
 Line 1, characters 14-21:
 1 | type t_test = int ref require_contended
                   ^^^^^^^
@@ -286,6 +305,16 @@ Line 1, characters 14-22:
                   ^^^^^^^^
 Error: This type "int list" should be an instance of type
          "('a : value mod global)"
+       The kind of int list is immutable_data
+         because it's a boxed variant type.
+       But the kind of int list must be a subkind of value mod global
+         because of the definition of require_global at line 7, characters 0-43.
+|}, Principal{|
+Line 1, characters 14-22:
+1 | type t_test = int list require_global
+                  ^^^^^^^^
+Error: This type "int list" should be an instance of type
+         "('a : value mod global)"
        The kind of int list is value
          because it's a boxed variant type.
        But the kind of int list must be a subkind of value mod global
@@ -362,6 +391,16 @@ Error: This type "int array" should be an instance of type
 
 type t_test = int array require_contended
 [%%expect {|
+Line 1, characters 14-23:
+1 | type t_test = int array require_contended
+                  ^^^^^^^^^
+Error: This type "int array" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int array is mutable_data
+         because it is the primitive value type array.
+       But the kind of int array must be a subkind of value mod contended
+         because of the definition of require_contended at line 9, characters 0-49.
+|}, Principal{|
 Line 1, characters 14-23:
 1 | type t_test = int array require_contended
                   ^^^^^^^^^
@@ -461,6 +500,16 @@ Error: This type "(unit -> unit) iarray" should be an instance of type
 
 type t_test = int iarray require_global
 [%%expect {|
+Line 1, characters 14-24:
+1 | type t_test = int iarray require_global
+                  ^^^^^^^^^^
+Error: This type "int iarray" should be an instance of type
+         "('a : value mod global)"
+       The kind of int iarray is immutable_data
+         because it is the primitive value type iarray.
+       But the kind of int iarray must be a subkind of value mod global
+         because of the definition of require_global at line 7, characters 0-43.
+|}, Principal{|
 Line 1, characters 14-24:
 1 | type t_test = int iarray require_global
                   ^^^^^^^^^^
