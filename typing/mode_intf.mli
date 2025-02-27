@@ -720,5 +720,8 @@ module type S = sig
         [ alloc_as_value(apply_right_alloc t m)
         = apply_right t (alloc_as_value m)] *)
     val apply_right_alloc : t -> Alloc.r -> Alloc.r
+
+    (** [le t0 t1] returns [true] if [t0] allows more mode crossing than [t1]. *)
+    val le : t -> t -> bool
   end
 end
