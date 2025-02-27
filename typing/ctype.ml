@@ -2227,7 +2227,7 @@ let rec estimate_type_jkind ~expand_component env ty =
       (* Checking [has_with_bounds] here is needed for correctness, because
          intersection types sometimes do not unify with themselves. Removing
          this check causes typing-misc/pr7937.ml to fail. *)
-      if Jkind.has_with_bounds jkind
+      if Jkind.has_with_bounds jkind && List.compare_length_with args 0 <> 0
       then
         let level = get_level ty in
         (* CR layouts v2.8: We could possibly skip this substitution if we're
@@ -2318,7 +2318,7 @@ let constrain_type_jkind ~fixed env ty jkind =
   *)
   let rec loop ~fuel ~expanded ty ty's_jkind jkind =
     (* Just succeed if we're comparing against [any] *)
-    if Jkind.is_max jkind then Ok () else
+    if Jkind.is_obviously_max jkind then Ok () else
     if fuel < 0 then
       Error (
         Jkind.Violation.of_ (
