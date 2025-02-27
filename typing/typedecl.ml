@@ -1143,15 +1143,19 @@ let derive_unboxed_versions decls env =
 
 (* Float and [@@unboxed] records are typechecked as boxed records until
    [update_decls_jkind], so their unboxed versions need to be removed
-   afterwards*)
+   afterwards.
+
+   Returns new decls and paths whose unboxed versions got removed. *)
 let remove_unboxed_versions decls =
   List.fold_left_map
     (fun removed (id, d) ->
       match Option.is_some d.type_unboxed_version, gets_unboxed_version d with
       | false, false | true, true -> removed, (id, d)
-      | true, false -> true, (id, { d with type_unboxed_version = None })
+      | true, false ->
+        Path.Set.add (Pident id) removed,
+        (id, { d with type_unboxed_version = None })
       | false, true -> Misc.fatal_error "Typedecl.remove_unboxed_versions")
-    false decls
+    Path.Set.empty decls
 
 (* Generalize a type declaration *)
 
@@ -2049,31 +2053,35 @@ let update_decls_jkind env decls =
        (id, decl, allow_any_crossing, update_decl_jkind env (Pident id) decl))
     decls
 
-let check_unboxed_versions_exist env loc decl =
+let check_unboxed_paths decls ~unboxed_version_banned =
+  (* We iterate on all subexpressions of the declaration to check "in depth"
+     that no non-existent unboxed version is used. *)
   let open Btype in
-  (* We iterate on all subexpressions of the declaration to check
-     "in depth" that no non-existent unboxed version is used. *)
-  let check_ty ty =
+  let checked =
+    (* [checked] remembers the types that the iterator already
+        checked, to avoid looping on cyclic types. *)
+    ref TypeSet.empty
+  in
+  let check_ty loc ty =
     match get_desc ty with
-    | Tconstr((Pextra_ty (path', Punboxed_ty) as path), _, _) ->
-      (try ignore (Env.find_type path env)
-       with Not_found -> raise (Error (loc, No_unboxed_version path')))
+    | Tconstr(Pextra_ty (path, Punboxed_ty), _, _)
+      when unboxed_version_banned path ->
+        raise (Error (loc, No_unboxed_version path))
     | _ -> ()
   in
-  let it =
-    let checked =
-      (* [checked] remembers the types that the iterator already
-         checked, to avoid looping on cyclic types. *)
-      ref TypeSet.empty in
-    {type_iterators with it_type_expr =
-     (fun self ty ->
-       if not (TypeSet.mem ty !checked) then begin
-         check_ty ty;
-         checked := TypeSet.add ty !checked;
-         self.it_do_type_expr self ty
-       end)} in
-  it.it_type_declaration it (Ctype.generic_instance_declaration decl)
-
+  let check_decl d =
+    let it =
+      {type_iterators with it_type_expr =
+        (fun self ty ->
+          if not (TypeSet.mem ty !checked) then begin
+            check_ty d.type_loc ty;
+            checked := TypeSet.add ty !checked;
+            self.it_do_type_expr self ty
+          end)}
+    in
+    it.it_type_declaration it (Ctype.generic_instance_declaration d)
+  in
+  List.iter (fun (_, d) -> check_decl d) decls
 
 (* Note: Well-foundedness for OCaml types
 
@@ -2970,9 +2978,10 @@ let transl_type_decl env rec_flag sdecl_list =
     List.fold_left2
       (enter_type ~abstract_abbrevs:Rec_check_regularity rec_flag)
       env sdecl_list ids_list in
-  List.iter (fun (id, decl) ->
-    check_unboxed_versions_exist new_env (List.assoc id id_loc_list) decl)
-    decls;
+  check_unboxed_paths decls
+    ~unboxed_version_banned:(fun path ->
+       match Env.find_type (Path.unboxed_version path) new_env with
+        | _ -> false | exception Not_found -> true);
   List.iter (fun (id, decl) ->
     check_well_founded_manifest ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id) decl)
@@ -3056,11 +3065,9 @@ let transl_type_decl env rec_flag sdecl_list =
         |> normalize_decl_jkinds new_env shapes
       in
       let removed, decls = remove_unboxed_versions decls in
-      if removed then
-        List.iter (fun (id, decl) ->
-          check_unboxed_recursion_decl ~abs_env new_env
-            (List.assoc id id_loc_list) (Path.Pident id) decl to_check)
-          decls;
+      if not (Path.Set.is_empty removed) then
+        check_unboxed_paths decls
+          ~unboxed_version_banned:(fun p -> Path.Set.mem p removed);
       new_env, update_decls_jkind_reason new_env decls
     with
     | Typedecl_variance.Error (loc, err) ->
