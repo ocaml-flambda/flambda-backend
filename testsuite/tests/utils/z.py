@@ -99,6 +99,11 @@ class Builtin:
             int.to_bytes(i, bytes_, "little", signed=False), "big", signed=False
         )
 
+    @classmethod
+    def bit_length(cls, i):
+        cls._validate_operand_types((i, int), func_name="bit_length")
+        return i.bit_length()
+
     @staticmethod
     def compare(a, b):
         if a < b:

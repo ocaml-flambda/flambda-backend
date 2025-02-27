@@ -33,8 +33,10 @@ let ( * ) a b =
 
 let ( ~- ) x = if x = min_int then invalid_arg "overflow" else Int.neg x
 
-module Nativeint = struct
-  include Nativeint
+module Int64 = struct
+  include Int64
+
+  let size = 64
 
   let size_in_bytes = size / 8
 
@@ -68,17 +70,17 @@ module Nativeint = struct
 
   let zero_extend t ~bits =
     assert (0 < bits && bits < size);
-    let mask = pred (shift_left 1n bits) in
+    let mask = pred (shift_left 1L bits) in
     logand t mask
 end
 
 let num_words ~num_bits =
-  assert (0 <= num_bits && num_bits + Nativeint.size - 1 > 0);
-  (num_bits + Nativeint.size - 1) / Nativeint.size
+  assert (0 <= num_bits && num_bits + Int64.size - 1 > 0);
+  (num_bits + Int64.size - 1) / Int64.size
 
 (** The bits of the number, stored little-endian, meaning the byte at index 0 is the
     least-significant byte. [t] is always stored sign-extended such that its length is an
-    even multiple of [Nativeint.size_in_bytes].
+    even multiple of [Int64.size_in_bytes].
 
     For example, to store the UNSIGNED integer 0xffff_ffff on a 32-bit system, the
     representation would be 4 \xff bytes, followed by 4 \x00 bytes, since that makes the
@@ -92,10 +94,10 @@ let zero = { words = Bytes.empty }
 
 let create_uninitialized num_words =
   assert (num_words >= 0);
-  { words = Bytes.create (num_words * Nativeint.size_in_bytes) }
+  { words = Bytes.create (num_words * Int64.size_in_bytes) }
 
 (** The length in words *)
-let length { words } = Bytes.length words / Nativeint.size_in_bytes
+let length { words } = Bytes.length words / Int64.size_in_bytes
 
 let sign_bit { words } =
   let len = Bytes.length words in
@@ -105,11 +107,8 @@ let equal { words = x } { words = y } = Bytes.equal x y
 
 let get { words } i =
   if i < 0 || i >= length { words } then invalid_arg "Apint.get";
-  let i = i * Nativeint.size_in_bytes in
-  match Nativeint.size with
-  | 32 -> Nativeint.of_int32 (Bytes.get_int32_le words i)
-  | 64 -> Int64.to_nativeint (Bytes.get_int64_le words i)
-  | _ -> assert false
+  let i = i * Int64.size_in_bytes in
+  Bytes.get_int64_le words i
 
 let compare lhs rhs =
   let unsigned_compare lhs rhs =
@@ -117,7 +116,7 @@ let compare lhs rhs =
       if pos < 0
       then 0
       else
-        let cmp = Nativeint.unsigned_compare (get lhs pos) (get rhs pos) in
+        let cmp = Int64.unsigned_compare (get lhs pos) (get rhs pos) in
         if cmp <> 0 then cmp else go lhs rhs ~pos:(pos - 1)
     in
     let len = length lhs in
@@ -134,11 +133,8 @@ let sign t = compare t zero
 
 let set { words } i x =
   if i < 0 || i >= length { words } then invalid_arg "Apint.set";
-  let i = i * Nativeint.size_in_bytes in
-  match Nativeint.size with
-  | 32 -> Bytes.set_int32_le words i (Nativeint.to_int32 x)
-  | 64 -> Bytes.set_int64_le words i (Int64.of_nativeint x)
-  | _ -> assert false
+  let i = i * Int64.size_in_bytes in
+  Bytes.set_int64_le words i x
 
 (* let to_string_hex t =
  *   match length t with
@@ -149,7 +145,7 @@ let set { words } i x =
  *     ^ (List.init len (fun i ->
  *            if i = 0
  *            then Printf.sprintf "%nx" (get t (len - 1 - i))
- *            else Printf.sprintf "%016nx" (get t (len - 1 - i)))
+ *            else Printf.sprintf "%016Lx" (get t (len - 1 - i)))
  *       |> String.concat "") *)
 
 let init num_words ~f =
@@ -161,17 +157,17 @@ let init num_words ~f =
 
 let get_extended { words } i =
   let len = Bytes.length words in
-  if 0 <= i && i < len / Nativeint.size_in_bytes
+  if 0 <= i && i < len / Int64.size_in_bytes
   then get { words } i
   else if i > 0 && sign_bit { words }
-  then -1n
-  else 0n
+  then -1L
+  else 0L
 
 let bit t i =
   if i < 0 then invalid_arg "Apint.bit";
-  let word = get_extended t (i / Nativeint.size) in
-  let mask = Nativeint.shift_left 1n (i mod Nativeint.size) in
-  Nativeint.logand word mask <> 0n
+  let word = get_extended t (i / Int64.size) in
+  let mask = Int64.shift_left 1L (i mod Int64.size) in
+  Int64.logand word mask <> 0L
 
 let blit ~src ~dst ?(src_pos = 0) ?(dst_pos = 0) ~len () =
   assert (src_pos >= 0);
@@ -179,9 +175,9 @@ let blit ~src ~dst ?(src_pos = 0) ?(dst_pos = 0) ~len () =
   assert (len >= 0);
   assert (src_pos <= length src);
   assert (dst_pos <= length dst - len);
-  let src_pos = src_pos * Nativeint.size_in_bytes in
-  let dst_pos = dst_pos * Nativeint.size_in_bytes in
-  let len = len * Nativeint.size_in_bytes in
+  let src_pos = src_pos * Int64.size_in_bytes in
+  let dst_pos = dst_pos * Int64.size_in_bytes in
+  let len = len * Int64.size_in_bytes in
   let blit_len = min len (Bytes.length src.words - src_pos) in
   BytesLabels.blit ~src:src.words ~src_pos ~dst:dst.words ~dst_pos ~len:blit_len;
   let fill_len = len - blit_len in
@@ -194,11 +190,11 @@ let trim t =
     (* The most significant word is redundant if it is the same as the sign bit
        of previous word *)
     if len = 1
-    then get t 0 = 0n
+    then get t 0 = 0L
     else
       let word = get t (len - 1) in
       let prev = get t (len - 2) in
-      word = Nativeint.shift_right prev (Nativeint.size - 1)
+      word = Int64.shift_right prev (Int64.size - 1)
   in
   let rec go t ~len =
     if len = 0
@@ -218,45 +214,46 @@ let bit_length t =
     let most_significant_word = get t (len - 1) in
     let ignored_bits =
       if sign_bit t
-      then Nativeint.count_leading_ones most_significant_word - 1
-      else Nativeint.count_leading_zeros most_significant_word
+      then Int64.count_leading_ones most_significant_word - 1
+      else Int64.count_leading_zeros most_significant_word
     in
-    (len * Nativeint.size) - ignored_bits
+    (len * Int64.size) - ignored_bits
 
 let sign_extend t ~bits =
   if bits < 0 then invalid_arg "Apint.sign_extend";
-  if bits >= length t * Nativeint.size
+  if bits >= length t * Int64.size
   then t
   else
     let len = num_words ~num_bits:bits in
     let dst = create_uninitialized len in
     blit ~src:t ~dst ~len ();
-    if bits mod Nativeint.size <> 0
+    if bits mod Int64.size <> 0
     then
       get t (len - 1)
-      |> Nativeint.sign_extend ~bits:(bits mod Nativeint.size)
+      |> Int64.sign_extend ~bits:(bits mod Int64.size)
       |> set dst (len - 1);
     trim dst
 
-let of_nativeint (const : nativeint) =
-  let t =
-    if const = 0n
-    then zero
-    else
-      let t = create_uninitialized 1 in
-      set t 0 const;
-      t
-  in
-  t
+let of_int64 ?(unsigned = false) i =
+  if i = 0L
+  then zero
+  else if i < 0L && unsigned
+  then init 2 ~f:(function 0 -> i | _ -> 0L)
+  else init 1 ~f:(fun _ -> i)
 
 let of_int ?(unsigned = false) i =
-  let n = Nativeint.of_int i in
-  let n =
-    if unsigned
-    then Nativeint.logand n (Nativeint.trailing_mask ~bits:Sys.int_size)
-    else n
-  in
-  of_nativeint n
+  let i = Int64.of_int i in
+  of_int64
+    (if unsigned
+    then Int64.logand i (Int64.trailing_mask ~bits:Sys.int_size)
+    else i)
+
+let of_nativeint ?(unsigned = false) i =
+  let i = Int64.of_nativeint i in
+  of_int64
+    (if unsigned
+    then Int64.logand i (Int64.trailing_mask ~bits:Nativeint.size)
+    else i)
 
 let one = of_int 1
 
@@ -268,11 +265,11 @@ let make_bitwise_op operator x y =
     ~f:(fun i -> operator (get_extended x i) (get_extended y i))
   |> trim
 
-let logand x y = make_bitwise_op Nativeint.logand x y
+let logand x y = make_bitwise_op Int64.logand x y
 
-let logor x y = make_bitwise_op Nativeint.logor x y
+let logor x y = make_bitwise_op Int64.logor x y
 
-let logxor x y = make_bitwise_op Nativeint.logxor x y
+let logxor x y = make_bitwise_op Int64.logxor x y
 
 let lognot x = logxor x minus_one
 
@@ -282,18 +279,16 @@ let shift_left t amount =
   let dst = create_uninitialized len in
   for i = 0 to len - 1 do
     set dst i
-      (let i = i - (amount / Nativeint.size) in
-       let offset = amount mod Nativeint.size in
+      (let i = i - (amount / Int64.size) in
+       let offset = amount mod Int64.size in
        if offset = 0
        then get_extended t i
        else
          let upper = get_extended t i in
          let lower = get_extended t (i - 1) in
-         let upper = Nativeint.shift_left upper offset in
-         let lower =
-           Nativeint.shift_right_logical lower (Nativeint.size - offset)
-         in
-         Nativeint.logor upper lower)
+         let upper = Int64.shift_left upper offset in
+         let lower = Int64.shift_right_logical lower (Int64.size - offset) in
+         Int64.logor upper lower)
   done;
   let dst = trim dst in
   (* Printf.printf "assert ( %s << %d == %s )\n%!" (to_string_hex t) amount
@@ -310,16 +305,16 @@ let shift_right t amount =
     let dst = create_uninitialized len in
     for i = 0 to len - 1 do
       set dst i
-        (let i = i + (amount / Nativeint.size) in
-         let offset = amount mod Nativeint.size in
+        (let i = i + (amount / Int64.size) in
+         let offset = amount mod Int64.size in
          if offset = 0
          then get_extended t i
          else
            let upper = get_extended t (i + 1) in
            let lower = get_extended t i in
-           let upper = Nativeint.shift_left upper (Nativeint.size - offset) in
-           let lower = Nativeint.shift_right_logical lower offset in
-           Nativeint.logor upper lower)
+           let upper = Int64.shift_left upper (Int64.size - offset) in
+           let lower = Int64.shift_right_logical lower offset in
+           Int64.logor upper lower)
     done;
     trim dst
 
@@ -331,25 +326,20 @@ let add x y =
   else
     let len = Int.max (length x) (length y) + 1 in
     let dst = create_uninitialized len in
-    let carry = ref 0n in
+    let carry = ref 0L in
     for i = 0 to len - 1 do
       let x = get_extended x i in
       let y = get_extended y i in
-      set dst i (Nativeint.add (Nativeint.add x y) !carry);
+      set dst i (Int64.add (Int64.add x y) !carry);
       carry
-        := let low =
-             Nativeint.add (Nativeint.logand 1n x) (Nativeint.logand 1n y)
-           in
-           let low =
-             Nativeint.shift_right_logical (Nativeint.add low !carry) 1
-           in
+        := let low = Int64.add (Int64.logand 1L x) (Int64.logand 1L y) in
+           let low = Int64.shift_right_logical (Int64.add low !carry) 1 in
            let high =
-             Nativeint.add
-               (Nativeint.shift_right_logical x 1)
-               (Nativeint.shift_right_logical y 1)
+             Int64.add
+               (Int64.shift_right_logical x 1)
+               (Int64.shift_right_logical y 1)
            in
-           Nativeint.shift_right_logical (Nativeint.add high low)
-             (Nativeint.size - 1)
+           Int64.shift_right_logical (Int64.add high low) (Int64.size - 1)
     done;
     let dst = trim dst in
     (* Printf.printf "assert ( %s + %s == %s )\n%!" (to_string_hex x)
@@ -369,24 +359,24 @@ let zero_extend t ~bits =
   let dst =
     if bits = 0
     then zero
-    else if bits >= length t * Nativeint.size && compare t zero >= 0
+    else if bits >= length t * Int64.size && compare t zero >= 0
     then t
-    else if bit t (bits - 1) && bits mod Nativeint.size = 0
+    else if bit t (bits - 1) && bits mod Int64.size = 0
     then (
       (* we need an extra word to store a leading zero *)
       let len = 1 + num_words ~num_bits:bits in
       let dst = create_uninitialized len in
       blit ~src:t ~dst ~len:(len - 1) ();
-      set dst (len - 1) 0n;
+      set dst (len - 1) 0L;
       trim dst)
     else
       let len = num_words ~num_bits:bits in
       let dst = create_uninitialized len in
       blit ~src:t ~dst ~len ();
-      if bits mod Nativeint.size <> 0
+      if bits mod Int64.size <> 0
       then
         get_extended t (len - 1)
-        |> Nativeint.zero_extend ~bits:(bits mod Nativeint.size)
+        |> Int64.zero_extend ~bits:(bits mod Int64.size)
         |> set dst (len - 1);
       trim dst
   in
@@ -409,29 +399,14 @@ let byteswap t ~bytes =
     done;
     zero_extend dst ~bits:(bytes * 8)
 
-let of_nativeint ?(unsigned = false) x =
-  let x = of_nativeint x in
-  if unsigned then zero_extend x ~bits:Nativeint.size else x
-
-let of_int64 ?(unsigned = false) i =
-  match Nativeint.size with
-  | 64 -> of_nativeint ~unsigned (Int64.to_nativeint i)
-  | 32 ->
-    let lo = Int64.to_nativeint i in
-    let hi = Int64.to_nativeint (Int64.shift_right_logical i 32) in
-    let lo = of_nativeint lo ~unsigned:true in
-    let hi = of_nativeint hi ~unsigned in
-    logor (shift_left hi 32) lo
-  | _ -> assert false
-
 let rec unsigned_mul x y =
   if x = zero || y = zero
   then zero
   else
     let result =
       let bits = Int.max (bit_length x) (bit_length y) in
-      if bits <= Nativeint.size / 2
-      then of_nativeint (Nativeint.mul (get x 0) (get y 0)) ~unsigned:true
+      if bits <= Int64.size / 2
+      then of_int64 (Int64.mul (get x 0) (get y 0)) ~unsigned:true
       else
         let bits = bits / 2 in
         let x_hi = shift_right x bits in
@@ -575,9 +550,11 @@ let max_int ?(unsigned = false) () ~bits =
   then pred (shift_left one bits)
   else pred (shift_left one (bits - 1))
 
-let to_nativeint t = get_extended t 0
+let to_int64 t = get_extended t 0
 
-let to_int t = Nativeint.to_int (to_nativeint t)
+let to_nativeint t = Int64.to_nativeint (to_int64 t)
+
+let to_int t = Int64.to_int (to_int64 t)
 
 let to_int_exn ?(unsigned = false) t =
   let lo = min_int ~unsigned () ~bits:Sys.int_size in
@@ -593,8 +570,15 @@ let to_nativeint_exn ?(unsigned = false) t =
   then failwith "APInt.to_nativeint_exn"
   else to_nativeint t
 
+let to_int64_exn ?(unsigned = false) t =
+  let lo = min_int ~unsigned () ~bits:Int64.size in
+  let hi = max_int ~unsigned () ~bits:Int64.size in
+  if compare t lo < 0 || compare hi t < 0
+  then failwith "APInt.to_int64_exn"
+  else to_int64 t
+
 let rec to_string t =
-  let sign = compare t zero in
+  let sign = sign t in
   if sign = 0
   then "0"
   else if sign < 0
@@ -615,6 +599,8 @@ let rec to_string t =
     in
     go t ~digits:[]
 
+let mantissa_mask = 0xf_ffff_ffff_ffffL
+
 let of_float f =
   if Float.is_infinite f || Float.abs f < 1.
   then zero
@@ -622,30 +608,32 @@ let of_float f =
     let bits = Int64.bits_of_float f in
     let sign = Int64.logand bits Int64.min_int <> 0L in
     let exponent = Int64.to_int (Int64.shift_right bits 52) land 0x7ff in
-    let mantissa = Int64.logand bits 0xfffffffffffffL in
+    let mantissa = Int64.logand bits mantissa_mask in
     let bias = 1023 in
-    let t = of_int64 (Int64.logor 0x10000000000000L mantissa) in
+    let t = of_int64 (Int64.logor mantissa mantissa_mask) in
     let t = shift_left t exponent in
-    shift_right t (bias + 52)
+    let t = shift_right t (bias + 52) in
+    if sign then neg t else t
 
-(* let rec to_float t =
- *   if t = zero
- *   then 0.
- *   else if sign t < 0
- *   then -.to_float (neg t)
- *   else (
- *     (* positive integers only *)
- *     let bits = bit_length t in
- *     let bias = 1023 in
- *     if bits + bias > 0x7ff
- *     then Float.infinity
- *     (* align the number so that the bit length is exactly 53 *)
- *     else
- *       let mantissa, exponent =
- *         if bits = 53 then
- *           to_int
- *
- *
- *   ) *)
-
-(* let big = of_string "2000000000000000000000000000000000000001" *)
+let to_float t =
+  if t = zero
+  then 0.
+  else
+    let sign_bit, t = if sign t > 0 then 0L, t else Int64.min_int, neg t in
+    let msb = bit_length t - 1 in
+    let exponent =
+      let bias = 1023 in
+      msb + bias
+    in
+    if exponent > 0x7ff
+    then if sign t < 0 then Float.neg_infinity else Float.infinity
+    else
+      let exponent_bits = Int64.shift_left (Int64.of_int exponent) 52 in
+      let mantissa_bits =
+        let mantissa =
+          if msb <= 52 then shift_left t (52 - msb) else shift_right t (msb - 52)
+        in
+        Int64.logand (to_int64 mantissa) mantissa_mask
+      in
+      sign_bit |> Int64.logor exponent_bits |> Int64.logor mantissa_bits
+      |> Int64.float_of_bits

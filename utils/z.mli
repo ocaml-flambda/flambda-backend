@@ -78,6 +78,10 @@ val to_nativeint_exn : ?unsigned:bool -> t -> nativeint
 
 val of_int64 : ?unsigned:bool -> int64 -> t
 
+val to_int64 : t -> int64
+
+val to_int64_exn : ?unsigned:bool -> t -> int64
+
 val sign : t -> int
 
 val of_float : float -> t
