@@ -1109,7 +1109,7 @@ let outcometree_of_modalities_new = ref (fun _ _ _ -> assert false)
 
 let set_outcometree_of_modalities_new p = outcometree_of_modalities_new := p
 
-let should_print_with_bounds () = Language_extension.(is_at_least Layouts Alpha)
+let should_print_with_bounds () = true
 
 module Const = struct
   type 'd t = (Layout.Const.t, 'd) Types.layout_and_axes
