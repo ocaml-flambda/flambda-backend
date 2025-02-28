@@ -161,13 +161,18 @@ type r =
 let r @ portable =
   { f = (fun x -> x);
     a = 42 }
-(* CR mode-crossing: The [m0] in mutable should cross modes upon construction. *)
+(* mutable default to mutable(nonportable), but the field is integer and crosses
+modes *)
 [%%expect{|
 type r = { f : string -> string; mutable a : int; }
-Lines 5-6, characters 2-12:
-5 | ..{ f = (fun x -> x);
-6 |     a = 42 }
-Error: This value is "nonportable" but expected to be "portable".
+val r : r = {f = <fun>; a = 42}
+|}]
+
+let r @ portable =
+  let r = {f = (fun x -> x); a = 42} in
+  {r with f = (fun x -> x)}
+[%%expect{|
+val r : r = {f = <fun>; a = 42}
 |}]
 
 type r =
@@ -176,12 +181,38 @@ type r =
 let r @ portable =
   { f = (fun x -> x);
     g = fun x -> x }
-(* CR mode-crossing: The [m0] in mutable corresponds to the field type wrapped
-   in modality; as a result, it enjoys mode crossing enabled by the modality. *)
+(* mutable defaults to mutable(nonportable), but the field has modality and crosses
+modes. *)
 [%%expect{|
 type r = { f : string -> string; mutable g : string -> string @@ portable; }
-Lines 5-6, characters 2-20:
-5 | ..{ f = (fun x -> x);
-6 |     g = fun x -> x }
+val r : r = {f = <fun>; g = <fun>}
+|}]
+
+let r @ portable =
+  let r = {f = (fun x -> x); g = fun x -> x} in
+  {r with f = fun x -> x}
+[%%expect{|
+val r : r = {f = <fun>; g = <fun>}
+|}]
+
+let r : int array @@ portable = [| 42; 24 |]
+[%%expect{|
+val r : int array = [|42; 24|]
+|}]
+
+(* CR zqian: the following should pass but does not. Would have to shuffle
+things in [type_expect_record]. *)
+type 'a r =
+  { f : string -> string;
+    mutable a : 'a
+  }
+let r : int r @@ portable =
+  { f = (fun x -> x);
+    a = 42 }
+[%%expect{|
+type 'a r = { f : string -> string; mutable a : 'a; }
+Lines 6-7, characters 2-12:
+6 | ..{ f = (fun x -> x);
+7 |     a = 42 }
 Error: This value is "nonportable" but expected to be "portable".
 |}]
