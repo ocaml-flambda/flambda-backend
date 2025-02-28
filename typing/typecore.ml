@@ -939,9 +939,7 @@ let mode_cross_left_value env ty mode =
   else begin
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
-    let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-    let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-    let crossing = Crossing.of_bounds {monadic; comonadic} in
+    let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
     mode
     |> Value.disallow_right
     |> Crossing.apply_left crossing
@@ -971,9 +969,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
    there, too. *)
 let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-  let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-  let crossing = Crossing.of_bounds {monadic; comonadic} in
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
   mode_morph (Crossing.apply_right crossing) expected_mode
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =

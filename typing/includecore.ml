@@ -56,9 +56,7 @@ type mmodes =
    there, too. *)
 let right_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-  let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-  let crossing = Crossing.of_bounds {monadic; comonadic} in
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
   Crossing.apply_right crossing mode
 
 let right_mode_cross env ty mode =
@@ -68,9 +66,7 @@ let right_mode_cross env ty mode =
 
 let left_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-  let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-  let crossing = Crossing.of_bounds {monadic; comonadic} in
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
   Crossing.apply_left crossing mode
 
 let left_mode_cross env ty mode=
