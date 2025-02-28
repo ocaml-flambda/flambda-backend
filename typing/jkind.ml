@@ -778,10 +778,15 @@ module Layout_and_axes = struct
          option) (t : (layout, l * r1) layout_and_axes) :
       (layout, l * r2) layout_and_axes * Fuel_status.t =
     (* handle a few common cases first, before doing anything else *)
+    (* DEBUGGING
+       Format.printf "@[normalize: %a@;  relevant_axes: %a@]@;"
+         With_bounds.debug_print t.with_bounds Jkind_axis.Axis_set.print
+         relevant_axes;
+    *)
     match t with
     | { with_bounds = No_with_bounds; _ } as t -> t, Sufficient_fuel
     | { with_bounds = With_bounds tys; _ } as t
-      when With_bounds_types.is_empty tys ->
+      when Axis_set.is_empty relevant_axes || With_bounds_types.is_empty tys ->
       { t with with_bounds = No_with_bounds }, Sufficient_fuel
     | _ when Mod_bounds.is_max_within_set t.mod_bounds relevant_axes ->
       { t with with_bounds = No_with_bounds }, Sufficient_fuel
