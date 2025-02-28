@@ -32,6 +32,20 @@ let rec list_map_local_input (local_ f) (local_ list) =
 module Iarray = Stdlib_stable.Iarray
 external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
 val iarray : int iarray = [:1; 2; 3; 4; 5:]
+val iarray_local : unit -> local_ int iarray @ unyielding = <fun>
+val ifarray : float iarray = [:1.5; 2.5; 3.5; 4.5; 5.5:]
+val ifarray_local : unit -> local_ float iarray @ unyielding = <fun>
+val marray : int array = [|1; 2; 3; 4; 5|]
+val mfarray : float array = [|1.5; 2.5; 3.5; 4.5; 5.5|]
+external globalize_float : local_ float -> float = "%obj_dup"
+external globalize_string : local_ string -> string = "%obj_dup"
+val globalize_int_iarray : local_ int iarray -> int iarray = <fun>
+val list_map_local_input :
+  local_ (local_ 'a -> 'b) -> local_ 'a list -> 'b list = <fun>
+|}, Principal{|
+module Iarray = Stdlib_stable.Iarray
+external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
+val iarray : int iarray = [:1; 2; 3; 4; 5:]
 val iarray_local : unit -> local_ int iarray = <fun>
 val ifarray : float iarray = [:1.5; 2.5; 3.5; 4.5; 5.5:]
 val ifarray_local : unit -> local_ float iarray = <fun>

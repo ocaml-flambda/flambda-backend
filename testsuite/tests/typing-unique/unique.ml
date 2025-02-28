@@ -385,6 +385,8 @@ let rec bar =
   | Some () -> ()
   | None -> bar (local_ Some ()) [@nontail]
 [%%expect{|
+val bar : local_ unit option @ unique unyielding -> unit = <fun>
+|}, Principal{|
 val bar : local_ unit option @ unique -> unit = <fun>
 |}]
 
