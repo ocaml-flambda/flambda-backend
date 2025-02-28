@@ -51,7 +51,8 @@ let add cl =
       then prev
       else i.dbg
     in
-    i.fdo <- Fdo_info.create ~discriminator:i.id ~dbg;
+    i.fdo
+      <- Fdo_info.create ~discriminator:(InstructionId.to_int_unsafe i.id) ~dbg;
     dbg
   in
   let cfg = CL.cfg cl in
