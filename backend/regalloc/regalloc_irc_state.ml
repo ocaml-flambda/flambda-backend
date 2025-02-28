@@ -83,7 +83,9 @@ let[@inline] make ~initial ~stack_slots ~last_used () =
   let coalesced_nodes = RegWorkList.make ~original_capacity in
   let colored_nodes = Doubly_linked_list.make_empty () in
   let select_stack = [] in
-  let original_capacity = 1024 (* XXX *) in
+  let original_capacity =
+    Int.min max_capacity (InstructionId.to_int_unsafe last_used)
+  in
   let coalesced_moves = InstructionWorkList.make ~original_capacity in
   let constrained_moves = InstructionWorkList.make ~original_capacity in
   let frozen_moves = InstructionWorkList.make ~original_capacity in
