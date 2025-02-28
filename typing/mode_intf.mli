@@ -479,8 +479,6 @@ module type S = sig
 
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
     val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
     (* The following two are about the scenario where we partially apply a

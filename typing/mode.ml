@@ -2436,12 +2436,6 @@ module Value_with (Areality : Areality) = struct
     let monadic = Monadic.imply c.monadic monadic in
     { monadic; comonadic }
 
-  let join_const c { comonadic; monadic } =
-    let c = split c in
-    let comonadic = Comonadic.join_const c.comonadic comonadic in
-    let monadic = Monadic.join_const c.monadic monadic in
-    { monadic; comonadic }
-
   let subtract c { comonadic; monadic } =
     let c = split c in
     let comonadic = Comonadic.subtract c.comonadic comonadic in
