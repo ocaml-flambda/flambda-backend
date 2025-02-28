@@ -541,6 +541,12 @@ val get_modal_bounds :
   'd Types.jkind ->
   modal_bounds
 
+(** Gets the mode crossing for types of this jkind. *)
+val get_mode_crossing :
+  jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
+  'd Types.jkind ->
+  Mode.Crossing.t
+
 val get_externality_upper_bound :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->

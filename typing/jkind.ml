@@ -2212,6 +2212,10 @@ let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
         }
     }
 
+let get_mode_crossing (type l r) ~jkind_of_type (jk : (l * r) jkind) =
+  let { upper_bounds; lower_bounds } = get_modal_bounds ~jkind_of_type jk in
+  Mode.Crossing.of_bounds { monadic = lower_bounds; comonadic = upper_bounds }
+
 let all_except_externality =
   Axis_set.singleton (Nonmodal Externality) |> Axis_set.complement
 

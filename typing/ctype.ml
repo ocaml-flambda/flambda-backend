@@ -4974,18 +4974,10 @@ let mode_cross_left_alloc env ty mode =
   if not (is_principal ty) then Alloc.disallow_right mode else begin
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
-    let Jkind.{ upper_bounds; lower_bounds } =
-      Jkind.get_modal_bounds ~jkind_of_type jkind
-    in
-    let upper_bounds =
-      Alloc.Const.merge
-        { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-    in
-    let lower_bounds =
-      Alloc.Const.merge
-        { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-    in
-    Alloc.subtract lower_bounds (Alloc.meet_const upper_bounds mode)
+    let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+    mode
+    |> Alloc.disallow_right
+    |> Crossing.apply_left_alloc crossing
   end
 
 (* This is very similar to Typecore.expect_mode_cross. Any bugs here
@@ -4994,18 +4986,10 @@ let mode_cross_right env ty mode =
   if not (is_principal ty) then Alloc.disallow_left mode else
   let jkind = type_jkind_purely env ty in
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let Jkind.{ upper_bounds; lower_bounds } =
-    Jkind.get_modal_bounds ~jkind_of_type jkind
-  in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
-  Alloc.imply upper_bounds (Alloc.join_const lower_bounds mode)
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  mode
+  |> Alloc.disallow_left
+  |> Crossing.apply_right_alloc crossing
 
 let submode_with_cross env ~is_ret ty l r =
   let r' = mode_cross_right env ty r in
