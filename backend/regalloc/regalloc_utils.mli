@@ -29,7 +29,7 @@ type log_function =
 val make_log_function : verbose:bool -> label:string -> log_function
 
 module Instruction : sig
-  type id = int
+  type id = InstructionId.t
 
   type t = Cfg.basic Cfg.instruction
 
@@ -44,12 +44,12 @@ module Instruction : sig
   module IdMap : MoreLabels.Map.S with type key = id
 end
 
-val first_instruction_id : Cfg.basic_block -> Instruction.id
+val first_instruction_id : Cfg.basic_block -> InstructionId.t
 
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;
-    max_instruction_id : Instruction.id
+    max_instruction_id : InstructionId.t
   }
 
 (* CR xclerc for xclerc: this function currently reset the worklist to
@@ -84,7 +84,7 @@ module Move : sig
 
   val make_instr :
     t ->
-    id:Instruction.id ->
+    id:InstructionId.t ->
     copy:_ Cfg.instruction ->
     from:Reg.t ->
     to_:Reg.t ->
@@ -167,7 +167,7 @@ val insert_block :
   Cfg.basic_instruction_list ->
   after:Cfg.basic_block ->
   before:Cfg.basic_block option ->
-  next_instruction_id:(unit -> Instruction.id) ->
+  next_instruction_id:(unit -> InstructionId.t) ->
   Cfg.basic_block list
 
 val occurs_array : Reg.t array -> Reg.t -> bool

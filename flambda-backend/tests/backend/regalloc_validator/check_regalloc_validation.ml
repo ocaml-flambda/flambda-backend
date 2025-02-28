@@ -6,7 +6,7 @@ module Instruction = struct
     { mutable desc : 'a;
       mutable arg : Reg.t array;
       mutable res : Reg.t array;
-      mutable id : int
+      mutable id : InstructionId.t
     }
 
   let make ~remove_locs ({ desc; arg; res; id } : 'a t) : 'a instruction =
@@ -232,12 +232,14 @@ let _addr = Array.init 8 (fun _ -> Reg.create Addr)
 
 let float = Array.init 8 (fun _ -> Reg.create Float)
 
-let base_templ () : Cfg_desc.t * (unit -> int) =
+let base_templ () : Cfg_desc.t * (unit -> InstructionId.t) =
   let make_id =
-    let last_id = ref 2 in
+    let seq = InstructionId.make_sequence () in
+    let _zero : InstructionId.t = InstructionId.get_next seq in
+    let _one : InstructionId.t = InstructionId.get_next seq in
+    let _two : InstructionId.t = InstructionId.get_next seq in
     fun () ->
-      last_id := !last_id + 1;
-      !last_id
+      InstructionId.get_next seq
   in
   let make_locs regs f =
     let locs = f (Array.map (fun (r : Reg.t) -> r.typ) regs) in
@@ -828,10 +830,12 @@ let () =
 
 let make_loop ~loop_loc_first n =
   let make_id =
-    let last_id = ref 2 in
+    let seq = InstructionId.make_sequence () in
+    let _zero : InstructionId.t = InstructionId.get_next seq in
+    let _one : InstructionId.t = InstructionId.get_next seq in
+    let _two : InstructionId.t = InstructionId.get_next seq in
     fun () ->
-      last_id := !last_id + 1;
-      !last_id
+      InstructionId.get_next seq
   in
   let make_locs regs f =
     let locs = f (Array.map (fun (r : Reg.t) -> r.typ) regs) in

@@ -7,19 +7,20 @@ type t =
   { mutable intervals : Interval.t list;
     active : ClassIntervals.t array;
     stack_slots : Regalloc_stack_slots.t;
-    mutable next_instruction_id : Instruction.id
+    instruction_id : InstructionId.sequence
   }
 
 let for_fatal t =
   ( List.map t.intervals ~f:Interval.copy,
     Array.map t.active ~f:ClassIntervals.copy )
 
-let[@inline] make ~stack_slots ~next_instruction_id =
+let[@inline] make ~stack_slots ~last_used =
   let intervals = [] in
   let active =
     Array.init Proc.num_register_classes ~f:(fun _ -> ClassIntervals.make ())
   in
-  { intervals; active; stack_slots; next_instruction_id }
+  let instruction_id = InstructionId.make_sequence ~last_used () in
+  { intervals; active; stack_slots; instruction_id }
 
 let[@inline] update_intervals state map =
   let active = state.active in
@@ -61,9 +62,7 @@ let[@inline] active_classes state = state.active
 let[@inline] stack_slots state = state.stack_slots
 
 let[@inline] get_and_incr_instruction_id state =
-  let res = state.next_instruction_id in
-  state.next_instruction_id <- succ res;
-  res
+  InstructionId.get_next state.instruction_id
 
 let rec check_ranges (prev : Range.t) (cell : Range.t DLL.cell option) : int =
   if prev.begin_ > prev.end_

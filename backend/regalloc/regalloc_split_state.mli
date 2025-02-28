@@ -1,6 +1,5 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open Regalloc_utils
 open Regalloc_split_utils
 
 type destructions_at_end = (destruction_kind * Reg.Set.t) Label.Map.t
@@ -26,7 +25,7 @@ val log_renaming_info : indent:int -> t -> unit
      (this set contains the original name of the registers which need
       a phi, i.e. if we need to insert `x = phi(x', x'')` then the set
       contains `x`). *)
-val make : Cfg_with_infos.t -> next_instruction_id:Instruction.id -> t
+val make : Cfg_with_infos.t -> last_used:InstructionId.t -> t
 
 val destructions_at_end : t -> destructions_at_end
 
@@ -36,4 +35,4 @@ val phi_at_beginning : t -> phi_at_beginning
 
 val stack_slots : t -> Regalloc_stack_slots.t
 
-val get_and_incr_instruction_id : t -> Instruction.id
+val get_and_incr_instruction_id : t -> InstructionId.t

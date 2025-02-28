@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
+type liveness = Cfg_liveness.Liveness.domain InstructionId.Tbl.t
 
 let liveness_analysis : Cfg_with_layout.t -> liveness =
  fun cfg_with_layout ->
@@ -51,9 +51,9 @@ let liveness t =
   compute_if_necessary t.liveness ~f:(fun () ->
       liveness_analysis t.cfg_with_layout)
 
-let liveness_find t id = Cfg_dataflow.Instr.Tbl.find (liveness t) id
+let liveness_find t id = InstructionId.Tbl.find (liveness t) id
 
-let liveness_find_opt t id = Cfg_dataflow.Instr.Tbl.find_opt (liveness t) id
+let liveness_find_opt t id = InstructionId.Tbl.find_opt (liveness t) id
 
 let invalidate_liveness t = t.liveness := None
 

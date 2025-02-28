@@ -172,9 +172,11 @@ with type slots := t = struct
      list, the computation could start from both ends. *)
   let build_from_cfg slots cfg_with_infos =
     let intervals = make slots in
-    let live_across (id : Instruction.id) : Reg.Set.t =
+    let live_across (id : InstructionId.t) : Reg.Set.t =
       match Cfg_with_infos.liveness_find_opt cfg_with_infos id with
-      | None -> fatal "missing liveness information for instruction %d" id
+      | None ->
+        fatal "missing liveness information for instruction %a"
+          InstructionId.format id
       | Some { before = _; across } -> across
     in
     let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in

@@ -35,10 +35,10 @@ let build : State.t -> Cfg_with_infos.t -> unit =
  fun state cfg_with_infos ->
   if irc_debug then log ~indent:1 "build";
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
-  let add_edges_live (id : Instruction.id) ~(def : Reg.t array)
+  let add_edges_live (id : InstructionId.t) ~(def : Reg.t array)
       ~(move_src : Reg.t) ~(destroyed : Reg.t array) : unit =
     let destroyed = filter_unavailable destroyed in
-    let live = Cfg_dataflow.Instr.Tbl.find liveness id in
+    let live = InstructionId.Tbl.find liveness id in
     if irc_debug && Reg.set_has_collisions live.across
     then fatal "live set has physical register collisions";
     if Array.length def > 0
@@ -84,7 +84,7 @@ let build : State.t -> Cfg_with_infos.t -> unit =
       if block.is_trap_handler
       then
         let first_id = Cfg.first_instruction_id block in
-        let live = Cfg_dataflow.Instr.Tbl.find liveness first_id in
+        let live = InstructionId.Tbl.find liveness first_id in
         Reg.Set.iter
           (fun reg1 ->
             Array.iter (filter_unavailable Proc.destroyed_at_raise)
@@ -513,9 +513,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   let state =
     State.make
       ~initial:(Reg.Set.elements all_temporaries)
-      ~stack_slots
-      ~next_instruction_id:(succ cfg_infos.max_instruction_id)
-      ()
+      ~stack_slots ~last_used:cfg_infos.max_instruction_id ()
   in
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   (match Reg.Set.elements spilling_because_unused with

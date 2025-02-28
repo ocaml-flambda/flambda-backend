@@ -2807,4 +2807,3 @@ let end_assembly () =
   (* The internal assembler does not work if reset_all is called here *)
   if not !Flambda_backend_flags.internal_assembler then
     reset_all ()
-

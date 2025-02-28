@@ -76,7 +76,7 @@ let make_log_function : verbose:bool -> label:string -> log_function =
   { log; enabled = verbose }
 
 module Instruction = struct
-  type id = int
+  type id = InstructionId.t
 
   type t = Cfg.basic Cfg.instruction
 
@@ -88,14 +88,15 @@ module Instruction = struct
       fdo = Fdo_info.none;
       live = Reg.Set.empty;
       stack_offset = -1;
-      id = -1;
+      id = InstructionId.none;
       irc_work_list = Unknown_list;
       ls_order = -1;
       available_before = None;
       available_across = None
     }
 
-  let compare (left : t) (right : t) : int = Int.compare left.id right.id
+  let compare (left : t) (right : t) : int =
+    InstructionId.compare left.id right.id
 
   module Set = Set.Make (struct
     type nonrec t = t
@@ -103,11 +104,11 @@ module Instruction = struct
     let compare = compare
   end)
 
-  module IdSet = MoreLabels.Set.Make (Int)
-  module IdMap = MoreLabels.Map.Make (Int)
+  module IdSet = MoreLabels.Set.Make (InstructionId)
+  module IdMap = MoreLabels.Map.Make (InstructionId)
 end
 
-let first_instruction_id (block : Cfg.basic_block) : int =
+let first_instruction_id (block : Cfg.basic_block) : InstructionId.t =
   match DLL.hd block.body with
   | None -> block.terminator.id
   | Some instr -> instr.id
@@ -115,14 +116,14 @@ let first_instruction_id (block : Cfg.basic_block) : int =
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;
-    max_instruction_id : Instruction.id
+    max_instruction_id : InstructionId.t
   }
 
 let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
  fun cfg_with_layout ->
   let arg = ref Reg.Set.empty in
   let res = ref Reg.Set.empty in
-  let max_id = ref Int.min_int in
+  let max_id = ref InstructionId.none in
   let add_registers (set : Reg.Set.t ref) (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(fun reg ->
         match reg.Reg.loc with
@@ -130,7 +131,7 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
         | Reg _ | Stack _ -> ())
   in
   let update_max_id (instr : _ Cfg.instruction) : unit =
-    max_id := Int.max !max_id instr.id
+    max_id := InstructionId.max !max_id instr.id
   in
   Cfg_with_layout.iter_instructions
     cfg_with_layout (* CR xclerc for xclerc: use fold *)
@@ -153,7 +154,7 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
 let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
     unit =
   let live =
-    match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
+    match InstructionId.Tbl.find_opt liveness instr.id with
     | None -> Reg.Set.empty
     | Some { before = _; across } -> across
   in
@@ -230,7 +231,7 @@ module Move = struct
 
   let make_instr :
       t ->
-      id:Instruction.id ->
+      id:InstructionId.t ->
       copy:_ Cfg.instruction ->
       from:Reg.t ->
       to_:Reg.t ->
@@ -396,8 +397,10 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
   (* CR xclerc for xclerc: partial duplicate of
      `Asmgen.recompute_liveness_on_cfg` *)
   let set_liveness (instr : _ Cfg.instruction) =
-    match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
-    | None -> fatal "Missing liveness information for instruction %d" instr.id
+    match InstructionId.Tbl.find_opt liveness instr.id with
+    | None ->
+      fatal "Missing liveness information for instruction %a"
+        InstructionId.format instr.id
     | Some { Cfg_liveness.before = _; across } -> instr.live <- across
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
@@ -522,7 +525,7 @@ let insert_block :
     Cfg.basic_instruction_list ->
     after:Cfg.basic_block ->
     before:Cfg.basic_block option ->
-    next_instruction_id:(unit -> Instruction.id) ->
+    next_instruction_id:(unit -> InstructionId.t) ->
     Cfg.basic_block list =
  fun cfg_with_layout body ~after:predecessor_block ~before:only_successor
      ~next_instruction_id ->

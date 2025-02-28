@@ -2749,7 +2749,7 @@ end = struct
       | Ok map ->
         let entry_block = Cfg.get_block_exn fd fd.entry_label in
         let res =
-          Cfg_dataflow.Instr.Tbl.find map (Cfg.first_instruction_id entry_block)
+          InstructionId.Tbl.find map (Cfg.first_instruction_id entry_block)
         in
         report t res ~msg:"Check_cfg_backward result" ~desc:"fundecl" fd.fun_dbg;
         res

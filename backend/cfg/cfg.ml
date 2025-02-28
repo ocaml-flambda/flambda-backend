@@ -218,7 +218,7 @@ let map_first_instruction (block : basic_block) (t : 'a instr_mapper) =
   | None -> t.f block.terminator
   | Some first_instr -> t.f first_instr
 
-let first_instruction_id (block : basic_block) : int =
+let first_instruction_id (block : basic_block) : InstructionId.t =
   map_first_instruction block { f = (fun instr -> instr.id) }
 
 let first_instruction_stack_offset (block : basic_block) : int =
@@ -527,14 +527,11 @@ let make_instruction ~desc ?(arg = [||]) ?(res = [||]) ?(dbg = Debuginfo.none)
     available_across
   }
 
-let next_instr_id = ref 0
+let instr_id = InstructionId.make_sequence ()
 
-let reset_next_instr_id () = next_instr_id := 0
+let reset_instr_id () = InstructionId.reset instr_id
 
-let next_instr_id () : int =
-  let res = !next_instr_id in
-  incr next_instr_id;
-  res
+let next_instr_id () = InstructionId.get_next instr_id
 
 let make_instr desc arg res dbg =
   { desc;
@@ -594,3 +591,13 @@ let basic_block_contains_calls block =
          match[@ocaml.warning "-4"] instr.desc with
          | Op (Alloc _ | Poll) -> true
          | _ -> false)
+
+let max_instr_id t =
+  (* CR-someday xclerc for xclerc: factor out with similar function in
+     regalloc/. *)
+  fold_blocks t ~init:InstructionId.none ~f:(fun _label block max_id ->
+      let max_id =
+        DLL.fold_left block.body ~init:max_id ~f:(fun max_id instr ->
+            InstructionId.max max_id instr.id)
+      in
+      InstructionId.max max_id block.terminator.id)

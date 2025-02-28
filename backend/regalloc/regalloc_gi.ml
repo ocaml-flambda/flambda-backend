@@ -229,7 +229,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
           in
           if occurs
           then (
-            let dummy_liveness_for_log = Cfg_dataflow.Instr.Tbl.create 12 in
+            let dummy_liveness_for_log = InstructionId.Tbl.create 12 in
             log ~indent:0 "block %a has an occurrence of a spilling register"
               Label.format block.start;
             log_body_and_terminator ~indent:1 block.body block.terminator
@@ -257,7 +257,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   if gi_debug then log ~indent:0 "#temporaries=%d" initial_temporaries;
   let state =
     State.make ~stack_slots ~initial_temporaries
-      ~next_instruction_id:(succ cfg_infos.max_instruction_id)
+      ~last_used:cfg_infos.max_instruction_id
   in
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   (match Reg.Set.elements spilling_because_unused with

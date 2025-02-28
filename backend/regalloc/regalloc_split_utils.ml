@@ -79,7 +79,9 @@ let live_at_block_beginning : Cfg_with_infos.t -> Label.t -> Reg.Set.t =
   let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
   let first_id = Cfg.first_instruction_id block in
   match Cfg_with_infos.liveness_find_opt cfg_with_infos first_id with
-  | None -> fatal "liveness information missing for instruction %d" first_id
+  | None ->
+    fatal "liveness information missing for instruction %a" InstructionId.format
+      first_id
   | Some { Cfg_liveness.before; across = _ } -> filter_unknown before
 
 type destruction_kind =

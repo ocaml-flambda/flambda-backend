@@ -71,7 +71,7 @@ module Polls_before_prtc_transfer = struct
 
   type context =
     { future_funcnames : String.Set.t;
-      optimistic_prologue_poll_instr_id : int
+      optimistic_prologue_poll_instr_id : InstructionId.t
     }
 
   type error = |
@@ -81,7 +81,7 @@ module Polls_before_prtc_transfer = struct
    fun dom instr { future_funcnames = _; optimistic_prologue_poll_instr_id } ->
     match instr.desc with
     | Op Poll ->
-      if instr.id = optimistic_prologue_poll_instr_id
+      if InstructionId.equal instr.id optimistic_prologue_poll_instr_id
       then Ok dom
       else Ok Always_polls
     | Op (Alloc _) -> Ok Always_polls
@@ -121,7 +121,7 @@ end
 
 let potentially_recursive_tailcall :
     future_funcnames:String.Set.t ->
-    optimistic_prologue_poll_instr_id:int ->
+    optimistic_prologue_poll_instr_id:InstructionId.t ->
     Cfg.t ->
     Polls_before_prtc_domain.t =
  fun ~future_funcnames ~optimistic_prologue_poll_instr_id cfg ->
@@ -192,16 +192,13 @@ let instr_cfg_with_layout :
     bool =
  fun cfg_with_layout ~safe_map ~back_edges ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let next_instruction_id =
+  let instruction_id =
     lazy
-      (let cfg_infos = Regalloc_utils.collect_cfg_infos cfg_with_layout in
-       ref (succ cfg_infos.max_instruction_id))
+      (let cfg = Cfg_with_layout.cfg cfg_with_layout in
+       InstructionId.make_sequence ~last_used:(Cfg.max_instr_id cfg) ())
   in
   let next_instruction_id () =
-    let next_ref = Lazy.force next_instruction_id in
-    let res = !next_ref in
-    incr next_ref;
-    res
+    InstructionId.get_next (Lazy.force instruction_id)
   in
   Cfg_loop_infos.EdgeSet.fold
     (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
@@ -368,7 +365,7 @@ let instrument_fundecl :
 let requires_prologue_poll :
     future_funcnames:Misc.Stdlib.String.Set.t ->
     fun_name:string ->
-    optimistic_prologue_poll_instr_id:int ->
+    optimistic_prologue_poll_instr_id:InstructionId.t ->
     Cfg.t ->
     bool =
  fun ~future_funcnames ~fun_name ~optimistic_prologue_poll_instr_id cfg ->

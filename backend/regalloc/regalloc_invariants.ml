@@ -6,14 +6,14 @@ let precondition : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   (* note: the `live` field is set, because we want to call the `Deadcode` pass
      before `Cfgize`. *)
-  let desc_is_neither_spill_or_reload (id : Instruction.id) (desc : Cfg.basic) :
-      unit =
+  let desc_is_neither_spill_or_reload (id : InstructionId.t) (desc : Cfg.basic)
+      : unit =
     match desc with
     | Op op -> (
       match op with
       | Move -> ()
-      | Spill -> fatal "instruction %d is a spill" id
-      | Reload -> fatal "instruction %d is a reload" id
+      | Spill -> fatal "instruction %a is a spill" InstructionId.format id
+      | Reload -> fatal "instruction %a is a reload" InstructionId.format id
       | Const_int _ -> ()
       | Const_float32 _ -> ()
       | Const_float _ -> ()
@@ -37,16 +37,17 @@ let precondition : Cfg_with_layout.t -> unit =
         if Arch.operation_can_raise op
         then
           fatal
-            "architecture specific instruction %d that can raise but isn't a \
+            "architecture specific instruction %a that can raise but isn't a \
              terminator"
-            id
+            InstructionId.format id
       | Name_for_debugger _ -> ()
       | Dls_get -> ()
       | Poll -> ()
       | Alloc _ -> ())
     | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> ()
   in
-  let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
+  let register_must_not_be_on_stack (id : InstructionId.t) (reg : Reg.t) : unit
+      =
     match reg.Reg.loc with
     | Unknown -> () (* most registers are not precolored *)
     | Reg _ ->
@@ -57,26 +58,27 @@ let precondition : Cfg_with_layout.t -> unit =
     | Stack (Local _) ->
       (* local stack locations are for spilling, and will be introduced by the
          register allocator *)
-      fatal "instruction %d has a register with a stack location" id
+      fatal "instruction %a has a register with a stack location"
+        InstructionId.format id
   in
-  let registers_must_not_be_on_stack (id : Instruction.id) (regs : Reg.t array)
+  let registers_must_not_be_on_stack (id : InstructionId.t) (regs : Reg.t array)
       : unit =
     ArrayLabels.iter regs ~f:(register_must_not_be_on_stack id)
   in
   (* CR xclerc for xclerc: the check below should not be in this function, since
      it is IRC-specific *)
-  let register_must_be_on_unknown_list (id : Instruction.id) (reg : Reg.t) :
+  let register_must_be_on_unknown_list (id : InstructionId.t) (reg : Reg.t) :
       unit =
     match reg.Reg.irc_work_list with
     | Unknown_list -> ()
     | Precolored -> ()
     | Initial | Simplify | Freeze | Spill | Spilled | Coalesced | Colored
     | Select_stack ->
-      fatal "instruction %d has a register (%a) already in a work list (%S)" id
-        Printreg.reg reg
+      fatal "instruction %a has a register (%a) already in a work list (%S)"
+        InstructionId.format id Printreg.reg reg
         (Reg.string_of_irc_work_list reg.Reg.irc_work_list)
   in
-  let register_must_be_on_unknown_list (id : Instruction.id)
+  let register_must_be_on_unknown_list (id : InstructionId.t)
       (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(register_must_be_on_unknown_list id)
   in
@@ -103,16 +105,16 @@ let precondition : Cfg_with_layout.t -> unit =
 
 let postcondition_layout : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
-  let register_must_not_be_unknown (id : Instruction.id) (reg : Reg.t) : unit =
+  let register_must_not_be_unknown (id : InstructionId.t) (reg : Reg.t) : unit =
     match reg.Reg.loc with
     | Reg _ -> ()
     | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> ()
     | Unknown ->
-      fatal "instruction %d has a register (%a) with an unknown location" id
-        Printreg.reg reg
+      fatal "instruction %a has a register (%a) with an unknown location"
+        InstructionId.format id Printreg.reg reg
   in
-  let registers_must_not_be_unknown (id : Instruction.id) (regs : Reg.t array) :
-      unit =
+  let registers_must_not_be_unknown (id : InstructionId.t) (regs : Reg.t array)
+      : unit =
     ArrayLabels.iter regs ~f:(register_must_not_be_unknown id)
   in
   let num_stack_locals (regs : Reg.t array) : int =
@@ -122,7 +124,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
           acc
         | Stack (Local _) -> succ acc)
   in
-  let arch_constraints (id : Instruction.id) (desc : Cfg.basic)
+  let arch_constraints (id : InstructionId.t) (desc : Cfg.basic)
       (arg : Reg.t array) (res : Reg.t array) : unit =
     match Config.architecture with
     (* CR xclerc for xclerc: what about cross-compilation? *)
@@ -134,12 +136,12 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
            rather than the total number. *)
         if num_locals > 1
         then
-          fatal "instruction %d is a move and refers to %d spilling slots" id
-            num_locals
+          fatal "instruction %a is a move and refers to %d spilling slots"
+            InstructionId.format id num_locals
       | _ -> ())
     | arch -> fatal "unsupported architecture %S" arch
   in
-  let register_classes_must_be_consistent (id : Instruction.id) (reg : Reg.t) :
+  let register_classes_must_be_consistent (id : InstructionId.t) (reg : Reg.t) :
       unit =
     match reg.Reg.loc with
     | Reg phys_reg -> (
@@ -148,12 +150,12 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         ()
       with Invalid_argument _ ->
         fatal
-          "instruction %d assigned %a to register %i, which has an \
+          "instruction %a assigned %a to register %i, which has an \
            incompatible class"
-          id Printreg.reg reg phys_reg)
+          InstructionId.format id Printreg.reg reg phys_reg)
     | Stack _ | Unknown -> ()
   in
-  let register_classes_must_be_consistent (id : Instruction.id)
+  let register_classes_must_be_consistent (id : InstructionId.t)
       (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(register_classes_must_be_consistent id)
   in
