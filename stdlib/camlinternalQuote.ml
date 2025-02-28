@@ -1150,7 +1150,6 @@ module Ast = struct
     | Var of Var.Value.t
     | AliasPat of pattern * Var.Value.t
     | ConstantPat of constant
-    | Interval of constant * constant
     | TuplePat of (tuple_label * pattern) list
     | ConstructPat of Ident.Constructor.t * pattern option
     | VariantPat of Variant.t * pattern option
@@ -1356,8 +1355,6 @@ module Pat = struct
 
   let constant const = return (Ast.ConstantPat const)
 
-  let interval const1 const2 = return (Ast.Interval (const1, const2))
-
   let tuple ts =
     let ps =
       List.map
@@ -1560,23 +1557,18 @@ module Function = struct
     let+ c = With_free_vars.all cl in
     mk [] None (Ast.Pfunction_cases c)
 
-  let param_nonbinding loc lab exp pat rest =
-    let+ ({ params; constraint_; body } : Ast.function_) = rest
-    and+ pat = pat
-    and+ e = With_free_vars.optional exp in
-    let p =
-      With_bound_vars.value_nonbinding
-        ~extra:(BindingError.unexpected_binding_error_at_loc loc)
-        pat
-    in
-    let param = Ast.Pparam_val (Ast.Nolabel, e, p) in
-    mk (param :: params) constraint_ body
-
-  let param_simple lab exp loc name rest =
-    With_free_vars.value_binding loc name (fun var ->
-        let+ ({ params; constraint_; body } : Ast.function_) = rest var
-        and+ e = With_free_vars.optional exp in
-        mk (Ast.Pparam_val (lab, e, Ast.Var var) :: params) constraint_ body)
+  let param lab exp loc names rest =
+    With_free_vars.value_bindings loc names (fun vars ->
+      let (pat, fn) = rest vars in
+      let+ pat = pat
+      and+ ({ params; constraint_; body } : Ast.function_) = fn
+      and+ e = With_free_vars.optional exp in
+      let p =
+        With_bound_vars.value_nonbinding
+          ~extra:(BindingError.unexpected_binding_error_at_loc loc)
+          pat
+      in
+      mk (Ast.Pparam_val (lab, e, p) :: params) constraint_ body)
 
   let newtype loc name f =
     With_free_vars.type_binding loc name (fun typ ->
@@ -1593,8 +1585,6 @@ module Code = struct
   type t = code_rep With_free_vars.t
 
   let ( let+ ) m f = With_free_vars.map f m
-
-  let ( and+ ) = With_free_vars.both
 
   let of_exp exp loc =
     let+ exp = exp in
@@ -1618,7 +1608,7 @@ module Code = struct
                is free"
               Loc.print loc (Var.name var) Loc.print (Var.loc var)
           in
-          failwith (Format.flush_str_formatter ()))
+          failwith msg)
         code
 
     let open_ = With_free_vars.return
@@ -1647,27 +1637,6 @@ module Exp = struct
     mk (Ident id) []
 
   let constant (const : Constant.t) = return (mk (Constant const) [])
-
-  let let_nonbinding loc pat def body =
-    let+ def = def and+ body = body and+ pat = pat in
-    let p =
-      With_bound_vars.value_nonbinding
-        ~extra:(BindingError.unexpected_binding_error_at_loc loc)
-        pat
-    in
-    let vbs = [mk_vb p def] in
-    mk (Let (Nonrecursive, vbs, body)) []
-
-  let let_simple loc name def f =
-    let+ def = def
-    and+ pat, body =
-      With_free_vars.value_binding loc name (fun var ->
-          let+ body = f var in
-          let pat = Ast.Var var in
-          pat, body)
-    in
-    let vbs = [mk_vb pat def] in
-    mk (Let (Nonrecursive, vbs, body)) []
 
   let let_rec_simple loc names f =
     With_free_vars.value_bindings loc names (fun vars ->

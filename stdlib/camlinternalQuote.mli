@@ -257,6 +257,8 @@ module Pat : sig
 
   val lazy_ : t -> t
 
+  val unpack : Var.Module.t -> t
+
   val exception_ : t -> t
 end
 
@@ -334,10 +336,13 @@ and Function : sig
 
   val cases : Case.t list -> t
 
-  val param_nonbinding : Loc.t -> Label.t -> Exp.t option -> Pat.t -> t -> t
-
-  val param_simple :
-    Label.t -> Exp.t option -> Loc.t -> Name.t -> (Var.Value.t -> t) -> t
+  val param :
+    Label.t ->
+    Exp.t option ->
+    Loc.t ->
+    Name.t list ->
+    (Var.Value.t list -> Pat.t * t) ->
+    t
 
   val newtype : Loc.t -> Name.t -> (Var.Type.t -> t) -> t
 end
