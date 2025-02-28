@@ -568,6 +568,10 @@ module With_bounds = struct
     | No_with_bounds -> With_bounds_types.empty
     | With_bounds bounds -> bounds
 
+  let to_seq : type d. d with_bounds -> _ = function
+    | No_with_bounds -> Seq.empty
+    | With_bounds tys -> With_bounds_types.to_seq tys
+
   let to_list : type d. d with_bounds -> _ = function
     | No_with_bounds -> []
     | With_bounds tys -> tys |> With_bounds_types.to_seq |> List.of_seq
@@ -2246,18 +2250,26 @@ let set_externality_upper_bound jk externality_upper_bound =
 let only_nullability = Axis_set.singleton (Nonmodal Nullability)
 
 let get_nullability ~jkind_of_type jk =
-  let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
-          Allowance.right_only jkind_desc),
-        _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-      ~map_type_info:(fun _ ti ->
-        { relevant_axes =
-            (* Optimization: We only care about the nullability axis *)
-            Axis_set.intersection ti.relevant_axes only_nullability
-        })
-      jk.jkind
+  let all_irrelevant =
+    jk.jkind.with_bounds |> With_bounds.to_seq
+    |> Seq.for_all (fun (_, ({ relevant_axes } : With_bounds_type_info.t)) ->
+           not (Axis_set.mem relevant_axes (Nonmodal Nullability)))
   in
-  Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
+  if all_irrelevant
+  then Mod_bounds.nullability jk.jkind.mod_bounds
+  else
+    let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
+            Allowance.right_only jkind_desc),
+          _ ) =
+      Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
+        ~map_type_info:(fun _ ti ->
+          { relevant_axes =
+              (* Optimization: We only care about the nullability axis *)
+              Axis_set.intersection ti.relevant_axes only_nullability
+          })
+        jk.jkind
+    in
+    Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
 
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
