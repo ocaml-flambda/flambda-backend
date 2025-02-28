@@ -366,6 +366,7 @@ module With_bounds_types : sig
     t -> t -> t
   val update : type_expr -> (info option -> info option) -> t -> t
   val find_opt : type_expr -> t -> info option
+  val for_all : (type_expr -> info -> bool) -> t -> bool
 end
 
 val is_commu_ok: commutable -> bool

@@ -568,9 +568,10 @@ module With_bounds = struct
     | No_with_bounds -> With_bounds_types.empty
     | With_bounds bounds -> bounds
 
-  let to_seq : type d. d with_bounds -> _ = function
-    | No_with_bounds -> Seq.empty
-    | With_bounds tys -> With_bounds_types.to_seq tys
+  let for_all (type l r) f (t : (l * r) t) =
+    match t with
+    | No_with_bounds -> true
+    | With_bounds tys -> With_bounds_types.for_all f tys
 
   let to_list : type d. d with_bounds -> _ = function
     | No_with_bounds -> []
@@ -2253,8 +2254,9 @@ let get_nullability ~jkind_of_type jk =
   (* Optimization: Usually, no with-bounds are relevant to nullability. If we check for
      this case, we can avoid calling normalize. *)
   let all_with_bounds_are_irrelevant =
-    jk.jkind.with_bounds |> With_bounds.to_seq
-    |> Seq.for_all (fun (_, ({ relevant_axes } : With_bounds_type_info.t)) ->
+    jk.jkind.with_bounds
+    |> With_bounds.for_all
+         (fun _ ({ relevant_axes } : With_bounds_type_info.t) ->
            not (Axis_set.mem relevant_axes (Nonmodal Nullability)))
   in
   if all_with_bounds_are_irrelevant

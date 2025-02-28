@@ -1159,6 +1159,7 @@ module With_bounds_types : sig
     t -> t -> t
   val update : type_expr -> (info option -> info option) -> t -> t
   val find_opt : type_expr -> t -> info option
+  val for_all : (type_expr -> info -> bool) -> t -> bool
 end = struct
   module M = Map.Make(struct
       type t = type_expr
@@ -1183,6 +1184,7 @@ end = struct
   let merge f t1 t2 = merge f (to_map t1) (to_map t2) |> of_map
   let update te f t = update te f (to_map t) |> of_map
   let find_opt te t = find_opt te (to_map t)
+  let for_all f t = for_all f (to_map t)
 end
 
 (* Constructor and accessors for [row_desc] *)
