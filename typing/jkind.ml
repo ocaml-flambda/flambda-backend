@@ -1441,6 +1441,24 @@ module Const = struct
              | acc, `Valid None -> acc
              | Some acc, `Valid (Some mode) -> Some (mode :: acc))
            (Some [])
+      |> function
+      | None -> None
+      | Some modes -> (
+        match List.mem "global" modes, List.mem "unyielding" modes with
+        | true, true ->
+          (* We default [mod global] to [mod global unyielding],
+             so we don't want to print the latter. *)
+          Some (List.filter (fun m -> m <> "unyielding") modes)
+        | true, false ->
+          (* Otherwise, print [mod global yielding] to indicate [yielding]. *)
+          let rec insert_after_global acc = function
+            | [] -> List.rev acc
+            | "global" :: rest ->
+              List.rev_append acc ["global"; "yielding"] @ rest
+            | x :: rest -> insert_after_global (x :: acc) rest
+          in
+          Some (insert_after_global [] modes)
+        | _, _ -> Some modes)
 
     let modality_to_ignore_axes axes_to_ignore =
       (* The modality is constant along axes to ignore and id along others *)
