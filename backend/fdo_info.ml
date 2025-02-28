@@ -15,7 +15,7 @@
 type info =
   {
     dbg: Debuginfo.t;
-    discriminator: InstructionId.t;
+    discriminator: int;
   }
 type t = info option
 let none = None
@@ -29,7 +29,7 @@ let create ~dbg ~discriminator =
 
 let equal_info left right =
   Debuginfo.(Dbg.compare (get_dbg left.dbg) (get_dbg right.dbg) = 0)
-  && InstructionId.equal left.discriminator right.discriminator
+  && Int.equal left.discriminator right.discriminator
 
 let equal left right =
   Option.equal equal_info left right
