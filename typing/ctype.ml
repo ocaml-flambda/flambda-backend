@@ -1816,14 +1816,14 @@ let instance_prim_mode (desc : Primitive.description) ty =
     let finalret = prim_mode (Some mode_l) (Some mode_y) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
       mode_l mode_y (Alloc.disallow_right Alloc.legacy) finalret ty,
-    Some mode_l
+    Some mode_l, Some mode_y
   else
-    ty, None
+    ty, None, None
 
 let instance_prim (desc : Primitive.description) ty =
   let ty, sort = instance_prim_layout desc ty in
-  let ty, mode = instance_prim_mode desc ty in
-  ty, mode, sort
+  let ty, mode_l, mode_y = instance_prim_mode desc ty in
+  ty, mode_l, mode_y, sort
 
 (**** Instantiation with parameter substitution ****)
 
