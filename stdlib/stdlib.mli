@@ -32,10 +32,10 @@
 
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a @ portable = "%reraise"
+external raise : exn -> 'a @ portable unique = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : exn -> 'a @ portable = "%raise_notrace"
+external raise_notrace : exn -> 'a @ portable unique = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
