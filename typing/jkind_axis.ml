@@ -220,17 +220,9 @@ module Axis_set = struct
 
   let all = create ~f:(fun ~axis:_ -> true)
 
-  let all_monadic_axes =
+  let all_modal_axes =
     create ~f:(fun ~axis ->
-        match axis with
-        | Pack (Modal (Monadic _)) -> true
-        | Pack (Modal (Comonadic _)) | Pack (Nonmodal _) -> false)
-
-  let all_comonadic_axes =
-    create ~f:(fun ~axis ->
-        match axis with
-        | Pack (Modal (Comonadic _)) -> true
-        | Pack (Modal (Monadic _)) | Pack (Nonmodal _) -> false)
+        match axis with Pack (Modal _) -> true | Pack (Nonmodal _) -> false)
 
   let[@inline] singleton axis = add empty axis
 

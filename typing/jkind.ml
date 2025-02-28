@@ -2150,39 +2150,30 @@ let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
 
 let extract_layout jk = jk.jkind.layout
 
-let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
-    Alloc.Comonadic.Const.t =
-  let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
-          (_ * allowed) jkind_desc),
-        _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best
-      ~relevant_axes:Axis_set.all_comonadic_axes ~jkind_of_type jk.jkind
-  in
-  let get axis = Mod_bounds.get mod_bounds ~axis in
-  { areality = get (Modal (Comonadic Areality));
-    linearity = get (Modal (Comonadic Linearity));
-    portability = get (Modal (Comonadic Portability));
-    yielding = get (Modal (Comonadic Yielding))
+type modal_bounds =
+  { upper_bounds : Mode.Alloc.Comonadic.Const.t;
+    lower_bounds : Mode.Alloc.Monadic.Const.t
   }
 
-let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
-    Alloc.Monadic.Const.t =
+let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           (_ * allowed) jkind_desc),
         _ ) =
     Layout_and_axes.normalize ~mode:Ignore_best
-      ~relevant_axes:Axis_set.all_monadic_axes ~jkind_of_type
-      ~map_type_info:(fun _ ti ->
-        { relevant_axes =
-            (* Optimization: We only care about monadic modal axes *)
-            Axis_set.intersection ti.relevant_axes Axis_set.all_monadic_axes
-        })
-      jk.jkind
+      ~relevant_axes:Axis_set.all_modal_axes ~jkind_of_type jk.jkind
   in
-  let get axis = Mod_bounds.get mod_bounds ~axis in
-  { uniqueness = get (Modal (Monadic Uniqueness));
-    contention = get (Modal (Monadic Contention))
-  }
+  Mod_bounds.
+    { upper_bounds =
+        { areality = locality mod_bounds;
+          linearity = linearity mod_bounds;
+          portability = portability mod_bounds;
+          yielding = yielding mod_bounds
+        };
+      lower_bounds =
+        { uniqueness = uniqueness mod_bounds;
+          contention = contention mod_bounds
+        }
+    }
 
 let only_externality = Axis_set.singleton (Nonmodal Externality)
 

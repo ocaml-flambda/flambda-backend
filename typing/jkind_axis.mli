@@ -104,11 +104,8 @@ module Axis_set : sig
   (** A set of all axes *)
   val all : t
 
-  (** A set of all monadic modal axes *)
-  val all_monadic_axes : t
-
-  (** A set of all comonadic modal axes *)
-  val all_comonadic_axes : t
+  (** A set of all modal axes *)
+  val all_modal_axes : t
 
   val print : Format.formatter -> t -> unit
 end
