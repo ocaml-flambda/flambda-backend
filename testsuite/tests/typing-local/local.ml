@@ -378,7 +378,9 @@ val foo : ?x:local_ 'a -> unit -> local_ 'a option = <fun>
 
 let foo ?(local_ x = "hello") () = x;;
 [%%expect{|
-val foo : ?x:local_ string -> unit -> local_ string @ unyielding = <fun>
+val foo :
+  ?x:local_ string -> local_
+  (unit -> local_ string @ unyielding) @ unyielding = <fun>
 |}, Principal{|
 val foo : ?x:local_ string -> unit -> local_ string = <fun>
 |}]
@@ -966,7 +968,7 @@ let foo x = exclave_
   let r = local_ { contents = x } in
   r
 [%%expect{|
-val foo : 'a -> local_ 'a ref = <fun>
+val foo : 'a -> local_ 'a ref @ unyielding = <fun>
 |}]
 
 let foo p x = exclave_
@@ -974,7 +976,7 @@ let foo p x = exclave_
   if p then r
   else r
 [%%expect{|
-val foo : bool -> 'a -> local_ 'a ref = <fun>
+val foo : bool -> 'a -> local_ 'a ref @ unyielding = <fun>
 |}]
 
 (* Non-local regional values can be passed to tail calls *)
@@ -1899,7 +1901,7 @@ let testbool1 f = let local_ r = ref 42 in (f r || false) && true
 
 let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
-val testbool1 : (local_ int ref -> bool) -> bool = <fun>
+val testbool1 : (local_ int ref @ unyielding -> bool) -> bool = <fun>
 Line 3, characters 63-64:
 3 | let testbool2 f = let local_ r = ref 42 in true && (false || f r)
                                                                    ^
@@ -1986,14 +1988,15 @@ let f g n =
   ()
 let z : (int list -> unit) -> int -> unit = f
 [%%expect{|
-val f : (local_ int list -> unit) -> int -> unit = <fun>
+val f : (local_ int list @ unyielding -> unit) -> int -> unit = <fun>
 Line 5, characters 44-45:
 5 | let z : (int list -> unit) -> int -> unit = f
                                                 ^
-Error: This expression has type "(local_ int list -> unit) -> int -> unit"
+Error: This expression has type
+         "(local_ int list @ unyielding -> unit) -> int -> unit"
        but an expression was expected of type
          "(int list -> unit) -> int -> unit"
-       Type "local_ int list -> unit" is not compatible with type
+       Type "local_ int list @ unyielding -> unit" is not compatible with type
          "int list -> unit"
 |}]
 
@@ -2008,10 +2011,11 @@ end
 Line 6, characters 46-47:
 6 |   let z : (int list -> unit) -> int -> unit = f
                                                   ^
-Error: This expression has type "(local_ int list -> unit) -> int -> unit"
+Error: This expression has type
+         "(local_ int list @ unyielding -> unit) -> int -> unit"
        but an expression was expected of type
          "(int list -> unit) -> int -> unit"
-       Type "local_ int list -> unit" is not compatible with type
+       Type "local_ int list @ unyielding -> unit" is not compatible with type
          "int list -> unit"
 |}]
 

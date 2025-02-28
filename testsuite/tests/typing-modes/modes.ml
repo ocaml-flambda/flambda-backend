@@ -394,11 +394,19 @@ type r = { mutable x : string; }
 
 let foo ?(local_ x @ unique once = 42) () = ()
 [%%expect{|
+val foo :
+  ?x:local_ int @ once unique -> local_ (unit -> unit) @ once unyielding =
+  <fun>
+|}, Principal{|
 val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : _ @@ unique once = 42) () = ()
 [%%expect{|
+val foo :
+  ?x:local_ int @ once unique -> local_ (unit -> unit) @ once unyielding =
+  <fun>
+|}, Principal{|
 val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
 |}]
 
@@ -412,11 +420,19 @@ Error: Optional parameters cannot be polymorphic
 
 let foo ?x:(local_ (x,y) @ unique once = (42, 42)) () = ()
 [%%expect{|
+val foo :
+  ?x:local_ int * int @ once unique -> local_ (unit -> unit) @ once
+  unyielding = <fun>
+|}, Principal{|
 val foo : ?x:local_ int * int @ once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : _ @@ unique once = (42, 42)) () = ()
 [%%expect{|
+val foo :
+  ?x:local_ int * int @ once unique -> local_ (unit -> unit) @ once
+  unyielding = <fun>
+|}, Principal{|
 val foo : ?x:local_ int * int @ once unique -> unit -> unit = <fun>
 |}]
 

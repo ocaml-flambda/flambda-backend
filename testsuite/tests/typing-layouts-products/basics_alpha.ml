@@ -67,11 +67,9 @@ Line 3, characters 0-39:
 3 | type t3 : any mod non_null = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod global aliased many contended portable unyielding
-                          external_
+         any_non_null mod global aliased many contended portable external_
          with t1 with t2
-         & any_non_null mod global aliased many contended portable unyielding
-                            external_
+         & any_non_null mod global aliased many contended portable external_
          with t1 with t2
          because it is an unboxed tuple.
        But the kind of type "#(t1 * t2)" must be a subkind of any_non_null
@@ -88,11 +86,9 @@ Line 3, characters 0-45:
 3 | type t3 : any & any mod non_null = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod global aliased many contended portable unyielding
-                          external_
+         any_non_null mod global aliased many contended portable external_
          with t1 with t2
-         & any_non_null mod global aliased many contended portable unyielding
-                            external_
+         & any_non_null mod global aliased many contended portable external_
          with t1 with t2
          because it is an unboxed tuple.
        But the kind of type "#(t1 * t2)" must be a subkind of
@@ -110,11 +106,9 @@ Line 3, characters 0-62:
 3 | type t3 : (any mod non_null) & (any mod non_null) = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod global aliased many contended portable unyielding
-                          external_
+         any_non_null mod global aliased many contended portable external_
          with t1 with t2
-         & any_non_null mod global aliased many contended portable unyielding
-                            external_
+         & any_non_null mod global aliased many contended portable external_
          with t1 with t2
          because it is an unboxed tuple.
        But the kind of type "#(t1 * t2)" must be a subkind of

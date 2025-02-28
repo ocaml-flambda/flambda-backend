@@ -155,8 +155,8 @@ type w2 : value mod global unyielding
 
 [%%expect{|
 type ('a : value mod global) u1
-type ('a : value mod global) u2
-type w1 : value mod global
+type ('a : value mod global yielding) u2
+type w1 : value mod global yielding
 type w2 : value mod global
 |}]
 
@@ -167,7 +167,7 @@ Line 1, characters 11-13:
 1 | type _z1 = w1 u1
                ^^
 Error: This type "w1" should be an instance of type "('a : value mod global)"
-       The kind of w1 is value mod global
+       The kind of w1 is value mod global yielding
          because of the definition of w1 at line 5, characters 0-35.
        But the kind of w1 must be a subkind of value mod global
          because of the definition of u1 at line 1, characters 0-31.

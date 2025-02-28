@@ -313,7 +313,7 @@ module B = struct
   let a t = t.a
 end
 [%%expect{|
-module A : sig type t : mutable_data mod global external_ end
+module A : sig type t : mutable_data mod global yielding external_ end
 module B :
   sig
     type t : value mod contended portable = { a : A.t; }

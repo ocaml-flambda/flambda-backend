@@ -19,7 +19,7 @@ let foo () =
     let local_ y = Some 42 in
     y
 [%%expect{|
-val foo : unit -> local_ int option = <fun>
+val foo : unit -> local_ int option @ unyielding = <fun>
 |}]
 (* sidenote: in the above,
    y escapes the function even though local_
@@ -139,6 +139,9 @@ let foo (local_ x) =
   exclave_ x
 
 [%%expect{|
+type t = { x : int option; }
+val foo : local_ int option -> local_ int option @ unyielding = <fun>
+|}, Principal{|
 type t = { x : int option; }
 val foo : local_ int option -> local_ int option = <fun>
 |}]

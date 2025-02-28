@@ -189,7 +189,7 @@ Line 1, characters 13-20:
 1 | let foo (t : int ref t @@ contended) = use_uncontended t
                  ^^^^^^^
 Error: This type "int ref" should be an instance of type "('a : immutable_data)"
-       The kind of int ref is mutable_data with int @@ many unyielding.
+       The kind of int ref is mutable_data with int @@ unyielding many.
        But the kind of int ref must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-46.
 
@@ -339,7 +339,7 @@ Line 1, characters 13-20:
 1 | let foo (t : int ref t @@ contended) = use_uncontended t
                  ^^^^^^^
 Error: This type "int ref" should be an instance of type "('a : immutable_data)"
-       The kind of int ref is mutable_data with int @@ many unyielding.
+       The kind of int ref is mutable_data with int @@ unyielding many.
        But the kind of int ref must be a subkind of immutable_data
          because of the definition of t at line 1, characters 0-73.
 
