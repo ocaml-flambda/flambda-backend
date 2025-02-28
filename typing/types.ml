@@ -1154,6 +1154,7 @@ module With_bounds_types : sig
   val of_seq : (type_expr * info) Seq.t -> t
   val singleton : type_expr -> info -> t
   val map : (info -> info) -> t -> t
+  val map_with_key : (type_expr -> info -> type_expr * info) -> t -> t
   val merge
     : (type_expr -> info option -> info option -> info option) ->
     t -> t -> t
@@ -1185,6 +1186,10 @@ end = struct
   let update te f t = update te f (to_map t) |> of_map
   let find_opt te t = find_opt te (to_map t)
   let for_all f t = for_all f (to_map t)
+  let map_with_key f t =
+    fold (fun key value acc ->
+      let key, value = f key value in
+      M.add key value acc) (to_map t) M.empty |> of_map
 end
 
 (* Constructor and accessors for [row_desc] *)

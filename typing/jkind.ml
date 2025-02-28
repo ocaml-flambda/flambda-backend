@@ -609,10 +609,7 @@ module With_bounds = struct
   let map_type_expr (type l r) f : (l * r) t -> (l * r) t = function
     | No_with_bounds -> No_with_bounds
     | With_bounds tys ->
-      With_bounds
-        (tys |> With_bounds_types.to_seq
-        |> Seq.map (fun (ty, ti) -> f ty, ti)
-        |> With_bounds_types.of_seq)
+      With_bounds (With_bounds_types.map_with_key (fun ty ti -> f ty, ti) tys)
 
   let debug_print (type l r) ~print_type_expr ppf : (l * r) t -> _ =
     let open Format in
