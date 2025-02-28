@@ -3024,7 +3024,7 @@ module Crossing = struct
 
     let of_bounds c : t = Join_const c
 
-    let modality m t = Modality.concat ~then_:m t
+    let modality m t = Modality.concat ~then_:t m
 
     let apply_left : t -> _ -> _ = function
       | Join_const c -> fun m -> Mode.subtract c (Mode.join_const c m)
@@ -3049,7 +3049,7 @@ module Crossing = struct
       let c = C.apply Mode.Obj.obj (Map_comonadic Locality_as_regionality) c in
       Meet_const c
 
-    let modality m t = Modality.concat ~then_:m t
+    let modality m t = Modality.concat ~then_:t m
 
     let apply_left : t -> _ -> _ = function
       | Meet_const c ->
