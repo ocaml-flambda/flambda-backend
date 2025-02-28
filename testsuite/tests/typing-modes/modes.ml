@@ -392,13 +392,21 @@ type r = { mutable x : string; }
 
 (* patterns *)
 
-let foo ?(local_ x @ unique once = 42) () = ()
+let foo ?(x @ local unique once = 42) () = ()
 [%%expect{|
+val foo :
+  ?x:local_ int @ once unique -> local_ (unit -> unit) @ once unyielding =
+  <fun>
+|}, Principal{|
 val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : _ @@ unique once = 42) () = ()
 [%%expect{|
+val foo :
+  ?x:local_ int @ once unique -> local_ (unit -> unit) @ once unyielding =
+  <fun>
+|}, Principal{|
 val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
 |}]
 

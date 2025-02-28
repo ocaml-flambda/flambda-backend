@@ -210,7 +210,7 @@ type ('a : value mod global) t : value mod global = Foo of 'a
 Line 1, characters 0-61:
 1 | type ('a : value mod global) t : value mod global = Foo of 'a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is value mod unyielding
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
