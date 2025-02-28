@@ -261,6 +261,7 @@
   translmod
   translobj
   translprim
+  translquote
   ;; bytecomp/
   debug_event
   meta

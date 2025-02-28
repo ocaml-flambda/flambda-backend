@@ -8,3 +8,5 @@ transl_list_comprehension.ml
 transl_list_comprehension.mli
 translmode.ml
 translmode.mli
+translquote.ml
+translquote.mli

@@ -24,6 +24,7 @@ open Typedtree
 open Typeopt
 open Lambda
 open Translmode
+open Translquote
 open Debuginfo.Scoped_location
 
 type error =
@@ -1240,8 +1241,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
   | Texp_hole _ ->
       Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
-  | Texp_quotation _ -> failwith "Not implemented yet"
-  | Texp_antiquotation _ -> failwith "Not implemented yet"
+  | Texp_quotation _ -> transl_quote (transl_exp ~scopes sort) e
+  | Texp_antiquotation _ -> failwith "Not implemented yet" (* should fail *)
 
 and pure_module m =
   match m.mod_desc with

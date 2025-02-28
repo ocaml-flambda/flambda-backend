@@ -1,3 +1,2 @@
-
 val transl_quote :
-  (Typedtree.expression -> Lambda.t) -> Typedtree.expression -> Lambda.t
+  (Typedtree.expression -> Lambda.lambda) -> Typedtree.expression -> Lambda.lambda

@@ -2660,7 +2660,7 @@ let report_multi_use inner first_is_of_second =
             match lifter with
             | Closure -> " in a closure that might be called later"
             | Lazy_expr -> " in a lazy expression that might be forced later"
-            | Quotation -> " in a quotation that might be spliced in at a later point"
+            | Quotation -> " in a quotation that might be unquoted in at a later point"
           in
           access ^ lifter)
     | _ -> "used"
