@@ -29,7 +29,7 @@ type log_function =
 val make_log_function : verbose:bool -> label:string -> log_function
 
 module Instruction : sig
-  type id = int
+  type id = InstructionId.t
 
   type t = Cfg.basic Cfg.instruction
 

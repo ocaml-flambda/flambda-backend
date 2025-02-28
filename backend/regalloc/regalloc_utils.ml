@@ -76,7 +76,7 @@ let make_log_function : verbose:bool -> label:string -> log_function =
   { log; enabled = verbose }
 
 module Instruction = struct
-  type id = int (* XXX *)
+  type id = InstructionId.t
 
   type t = Cfg.basic Cfg.instruction
 
@@ -104,8 +104,8 @@ module Instruction = struct
     let compare = compare
   end)
 
-  module IdSet = MoreLabels.Set.Make (Int)
-  module IdMap = MoreLabels.Map.Make (Int)
+  module IdSet = MoreLabels.Set.Make (InstructionId)
+  module IdMap = MoreLabels.Map.Make (InstructionId)
 end
 
 let first_instruction_id (block : Cfg.basic_block) : InstructionId.t =
