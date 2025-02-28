@@ -2984,3 +2984,100 @@ module Modality = struct
       { monadic; comonadic }
   end
 end
+
+module Crossing = struct
+  (* The mode crossing capability of a type [t] is characterized by a monotone
+     function [f] from modes to some lattice [L], in the following way:
+
+     To check [e : t @ m0 <= m1], we should instead check [f m0 <= f m1] to
+     allow more programs.
+
+     For example, if [f] is the identity function, then [t] does not cross modes
+     at all. If [f] maps to the unit lattice (containing only one element), [f
+     m0 <= f m1] always succeeds, which means [t] crosses modes fully.
+
+     In practice, during mode checking we usually have either [m0] or [m1], but
+     not both. In order to perform mode crossing one-sided, we require [f] to
+     have left adjoint [fl] and right adjoint [fr], which gives:
+
+     [f m0 <= f m1] is equivalent to [fl (f m0) <= m1] is equivalent to [m0 <=
+     fr (f m1)]
+
+     Therefore, we can perform any of the following for mode crossing:
+     - Apply [f] on both [m0] and [m1]
+     - Apply [fl ∘ f] on [m0]
+     - Apply [fr ∘ f] on [m1]
+  *)
+
+  module Monadic = struct
+    module Modality = Modality.Monadic.Const
+    module Mode = Value.Monadic
+
+    type t = Modality.t
+
+    let of_bounds c : t = Join_const c
+
+    let modality m t = Modality.concat ~then_:m t
+
+    let apply_left : t -> _ -> _ = function
+      | Join_const c -> fun m -> Mode.subtract c (Mode.join_const c m)
+
+    let apply_right : t -> _ -> _ = function
+      | Join_const c ->
+        fun m ->
+          (* The right adjoint of join is a restriction of identity *)
+          Mode.join_const c m
+  end
+
+  module Comonadic = struct
+    module Modality = Modality.Comonadic.Const
+    module Mode = Value.Comonadic
+
+    type t = Modality.t
+
+    let of_bounds c : t =
+      let c = C.apply Mode.Obj.obj (Map_comonadic Locality_as_regionality) c in
+      Meet_const c
+
+    let modality m t = Modality.concat ~then_:m t
+
+    let apply_left : t -> _ -> _ = function
+      | Meet_const c ->
+        fun m ->
+          (* The left adjoint of meet is a restriction of identity *)
+          Mode.meet_const c m
+
+    let apply_right : t -> _ -> _ = function
+      | Meet_const c -> fun m -> Mode.imply c (Mode.meet_const c m)
+  end
+
+  type t = (Monadic.t, Comonadic.t) monadic_comonadic
+
+  let of_bounds { monadic; comonadic } =
+    let monadic = Monadic.of_bounds monadic in
+    let comonadic = Comonadic.of_bounds comonadic in
+    { monadic; comonadic }
+
+  let modality m { monadic; comonadic } =
+    let monadic = Monadic.modality m.monadic monadic in
+    let comonadic = Comonadic.modality m.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_left t { monadic; comonadic } =
+    let monadic = Monadic.apply_left t.monadic monadic in
+    let comonadic = Comonadic.apply_left t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_right t { monadic; comonadic } =
+    let monadic = Monadic.apply_right t.monadic monadic in
+    let comonadic = Comonadic.apply_right t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_left_alloc t m =
+    m |> alloc_as_value |> apply_left t
+    |> value_to_alloc_r2l (* the left adjoint of [alloc_as_value] *)
+
+  let apply_right_alloc t m =
+    m |> alloc_as_value |> apply_right t
+    |> value_to_alloc_r2g (* the right adjoint of [alloc_as_value] *)
+end

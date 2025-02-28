@@ -56,19 +56,10 @@ type mmodes =
    there, too. *)
 let right_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
-  let lower_bounds = Const.alloc_as_value lower_bounds in
-  Value.imply upper_bounds (Value.join_const lower_bounds mode)
+  let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
+  let crossing = Crossing.of_bounds {monadic; comonadic} in
+  Crossing.apply_right crossing mode
 
 let right_mode_cross env ty mode =
   if not (Ctype.is_principal ty) then mode else
@@ -77,19 +68,10 @@ let right_mode_cross env ty mode =
 
 let left_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
-  let lower_bounds = Const.alloc_as_value lower_bounds in
-  Value.subtract lower_bounds (Value.meet_const upper_bounds mode)
+  let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
+  let crossing = Crossing.of_bounds {monadic; comonadic} in
+  Crossing.apply_left crossing mode
 
 let left_mode_cross env ty mode=
   if not (Ctype.is_principal ty) then mode else

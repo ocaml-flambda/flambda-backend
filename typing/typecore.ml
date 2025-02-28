@@ -939,19 +939,12 @@ let mode_cross_left_value env ty mode =
   else begin
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
-    let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-    let upper_bounds =
-      Alloc.Const.merge
-        { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-    in
-    let upper_bounds = Const.alloc_as_value upper_bounds in
-    let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-    let lower_bounds =
-      Alloc.Const.merge
-        { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-    in
-    let lower_bounds = Const.alloc_as_value lower_bounds in
-    Value.subtract lower_bounds (Value.meet_const upper_bounds mode)
+    let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+    let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
+    let crossing = Crossing.of_bounds {monadic; comonadic} in
+    mode
+    |> Value.disallow_right
+    |> Crossing.apply_left crossing
   end
 
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
@@ -978,23 +971,10 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
    there, too. *)
 let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
-  let lower_bounds = Const.alloc_as_value lower_bounds in
-  mode_morph
-    (fun m ->
-      Value.imply upper_bounds
-        (Value.join_const lower_bounds m))
-    expected_mode
+  let comonadic = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let monadic = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
+  let crossing = Crossing.of_bounds {monadic; comonadic} in
+  mode_morph (Crossing.apply_right crossing) expected_mode
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
