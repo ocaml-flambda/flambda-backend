@@ -97,6 +97,7 @@ let make_log_function : label:string -> log_function =
   in
   { indent; dedent; reset_indentation; log; enabled }
 
+module Instruction = struct
   type id = InstructionId.t
 
   type t = Cfg.basic Cfg.instruction
