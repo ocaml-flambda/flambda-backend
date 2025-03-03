@@ -1207,3 +1207,27 @@ Line 1, characters 65-66:
                                                                      ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
+
+(*********************************************)
+(* Reduction of error seen in the tree *)
+(* This requires the [is_open] technology in Ctype. *)
+
+type 'k t1 = T of Obj.t [@@unboxed]
+
+type 'k t2 = { x : 'k t1 }
+
+type packed = T : _ t2 -> packed [@@unboxed]
+
+type q = { x : packed }
+
+module type S = sig
+  type t = private q
+end with type t = q
+
+[%%expect{|
+type 'k t1 = T of Obj.t [@@unboxed]
+type 'k t2 = { x : 'k t1; }
+type packed = T : 'a t2 -> packed [@@unboxed]
+type q = { x : packed; }
+module type S = sig type t = q end
+|}]
