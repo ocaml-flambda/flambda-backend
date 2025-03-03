@@ -838,6 +838,12 @@ int caml_try_realloc_stack(asize_t required_space)
   new_stack->local_top = old_stack->local_top;
   new_stack->local_limit = old_stack->local_limit;
 
+  // Detach locals stack from old_stack so it will not be freed
+  old_stack->local_arenas = NULL;
+  old_stack->local_sp = 0;
+  old_stack->local_top = NULL;
+  old_stack->local_limit = 0;
+
 #ifdef NATIVE_CODE
   /* There's no need to do another pass rewriting from
      Caml_state->async_exn_handler because every asynchronous exception trap
@@ -896,8 +902,6 @@ int caml_try_realloc_stack(asize_t required_space)
     }
   }
 
-  // XXX mshinwell: should free local arenas when stacks are finished with,
-  // but not at this point!
   caml_free_stack(old_stack);
   Caml_state->current_stack = new_stack;
   return 1;
@@ -919,6 +923,9 @@ void caml_free_stack (struct stack_info* stack)
 
   CAMLassert(stack->magic == 42);
   CAMLassert(cache != NULL);
+
+  // Don't need to update local_sp since this is no longer the current stack.
+  caml_free_local_arenas(stack->local_arenas);
 
   if (stack->cache_bucket != -1) {
     stack->exception_ptr =

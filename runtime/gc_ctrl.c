@@ -364,7 +364,8 @@ void caml_init_gc (void)
 
   caml_max_stack_wsize = caml_params->init_max_stack_wsz;
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-  // XXX this should maybe use the pthreads stack size?
+  // CR mslater: initial fiber stack size should be configurable, and have a smaller
+  // default than the main stack / thread stacks
   caml_fiber_wsz = caml_get_init_stack_wsize(-1);
 #else
   caml_fiber_wsz = (Stack_threshold * 2) / sizeof(value);

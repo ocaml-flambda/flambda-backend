@@ -2130,8 +2130,6 @@ static void domain_terminate (void)
   caml_free_backtrace_buffer(domain_state->backtrace_buffer);
   caml_free_gc_regs_buckets(domain_state->gc_regs_buckets);
 
-  // CR sdolan: free locals stack
-
   /* signal the domain termination to the backup thread
      NB: for a program with no additional domains, the backup thread
      will not have been started */

@@ -1,12 +1,19 @@
 (* TEST
  modules = "test7_.c";
- reason = "CR ocaml 5 effects: re-enable this test";
- skip;
+ runtime5;
+ libunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* Tests nested calls from C (main C) to OCaml (main OCaml) to C (caml_to_c) to
  * OCaml (c_to_caml) to C (printf functions). Effect E is performed in the
  * callback, which does not have a handler. *)
+
+[@@@ocaml.alert "-unsafe_multidomain"]
 
 open Effect
 open Effect.Deep

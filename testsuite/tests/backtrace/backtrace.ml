@@ -23,4 +23,10 @@ let _ =
 (* TEST
  flags = "-g";
  ocamlrunparam += ",b=1";
+ runtime5;
+ {
+   reference="${test_source_directory}/backtrace.byte.reference";
+   bytecode;
+ }
+ { native; }
 *)

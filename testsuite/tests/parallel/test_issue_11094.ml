@@ -1,6 +1,4 @@
 (* TEST
- reason = "CR ocaml 5 effects: re-enable this test";
- skip;
  runtime5;
  {
    bytecode;
@@ -11,6 +9,9 @@
 
 open Effect
 open Effect.Deep
+
+[@@@ocaml.alert "-unsafe_multidomain"]
+[@@@ocaml.alert "-unsafe_parallelism"]
 
 let num_domains = 2
 
@@ -55,7 +56,9 @@ let run =
   in
   let domains =
     Array.init num_domains (fun _ ->
-        Domain.spawn (fun () -> spawn (work 100000)))
+        (* By default, each fiber allocates an 8MB stack, so we can only
+           create ~1000 of them without running out of memory in CI. *)
+        Domain.spawn (fun () -> spawn (work 1000)))
   in
   Array.iter Domain.join domains;
   print_endline "OK"

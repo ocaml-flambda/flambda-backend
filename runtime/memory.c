@@ -536,7 +536,7 @@ CAMLexport caml_local_arenas* caml_get_local_arenas_and_save_local_sp(
   // OCaml code may have updated [Caml_state->local_sp], so sync it to
   // the [stack_info] structure, in the case where we are working with
   // the current stack.
-  // CR mshinwell: should we be using stack->id for the comparison?
+
   if (stack == Caml_state->current_stack && s != NULL) {
     Caml_state->current_stack->local_sp = Caml_state->local_sp;
   }
@@ -562,6 +562,17 @@ CAMLexport void caml_set_local_arenas(caml_local_arenas* s, uintnat local_sp)
   Caml_state->local_sp = Caml_state->current_stack->local_sp;
   Caml_state->local_top = Caml_state->current_stack->local_top;
   Caml_state->local_limit = Caml_state->current_stack->local_limit;
+}
+
+void caml_free_local_arenas(caml_local_arenas* s) {
+
+  if (s == NULL) return;
+
+  for (int i = 0; i < s->count; i++) {
+    caml_stat_free(s->arenas[i].alloc_block);
+  }
+
+  caml_stat_free(s);
 }
 
 void caml_local_realloc(void)

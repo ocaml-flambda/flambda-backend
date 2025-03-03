@@ -235,11 +235,14 @@ enum caml_alloc_small_flags {
 // If the stack is the current stack, the copy of [local_sp] at the
 // root of [Caml_state] is saved in the current [stack_info]
 // structure, as it may have been updated by OCaml code.
-CAMLextern caml_local_arenas* caml_get_local_arenas_and_save_local_sp(
-  struct stack_info*);
+CAMLextern caml_local_arenas* caml_get_local_arenas_and_save_local_sp(struct stack_info*);
 
 // Update the local arenas in [Caml_state].
 CAMLextern void caml_set_local_arenas(caml_local_arenas* s, uintnat local_sp);
+
+// Free local arenas, if any exist. Does nothing if s is NULL.
+// Should only be called when a fiber is being destroyed.
+CAMLextern void caml_free_local_arenas(caml_local_arenas* s);
 
 #endif /* CAML_INTERNALS */
 
