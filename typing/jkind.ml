@@ -1896,7 +1896,7 @@ let add_with_bounds ~modality ~type_expr t =
         ~relevant_for_nullability:`Irrelevant ~type_expr ~modality t.jkind
   }
 
-let has_with_bounds t =
+let has_with_bounds (type r) (t : (_ * r) jkind) =
   match t.jkind.with_bounds with
   | No_with_bounds -> false
   | With_bounds tys -> not (With_bounds_types.is_empty tys)
@@ -2915,7 +2915,10 @@ let round_up (type l r) ~jkind_of_type (t : (allowed * r) jkind) :
     quality = Not_best (* As required by the fact that this is a [jkind_r] *)
   }
 
-let map_type_expr f t = { t with jkind = Jkind_desc.map_type_expr f t.jkind }
+let map_type_expr f t =
+  if has_with_bounds t
+  then { t with jkind = Jkind_desc.map_type_expr f t.jkind }
+  else t (* short circuit this common case *)
 
 (* this is hammered on; it must be fast! *)
 let check_sub ~jkind_of_type sub super =
