@@ -32,4 +32,6 @@ type destruction_kind =
   | Destruction_on_all_paths
   | Destruction_only_on_exceptional_path
 
+val equal_destruction_kind : destruction_kind -> destruction_kind -> bool
+
 val destruction_point_at_end : Cfg.basic_block -> destruction_kind option

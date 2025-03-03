@@ -25,6 +25,7 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module CL = Cfg_with_layout
 module L = Linear
 module DLL = Flambda_backend_utils.Doubly_linked_list

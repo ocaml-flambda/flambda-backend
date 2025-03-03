@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 open! Regalloc_irc_utils
 module State = Regalloc_irc_state
@@ -121,7 +122,7 @@ let simplify : State.t -> unit =
 
 let ok : State.t -> Reg.t -> Reg.t -> bool =
  fun state t r ->
-  t.Reg.irc_work_list = Reg.Precolored
+  Reg.equal_irc_work_list t.Reg.irc_work_list Reg.Precolored
   || t.Reg.degree < k t
   || State.mem_adj_set state t r
 
@@ -288,7 +289,9 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
           then
             log ~indent:2 "register %a has weighted cost %f" Printreg.reg reg
               reg_cost;
-          if reg_cost < curr_min_cost then reg, reg_cost else acc)
+          if Float.compare reg_cost curr_min_cost < 0
+          then reg, reg_cost
+          else acc)
       |> fst)
 
 let select_spill : State.t -> unit =
@@ -374,7 +377,7 @@ module Utils = struct
 
   let log_body_and_terminator = log_body_and_terminator
 
-  let is_spilled reg = reg.Reg.irc_work_list = Reg.Spilled
+  let is_spilled reg = Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Spilled
 
   let set_spilled reg = reg.Reg.spill <- true
 end

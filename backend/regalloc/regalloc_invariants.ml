@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 
 let precondition : Cfg_with_layout.t -> unit =

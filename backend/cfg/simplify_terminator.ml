@@ -25,6 +25,7 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module C = Cfg
 module Dll = Flambda_backend_utils.Doubly_linked_list
 
@@ -86,11 +87,14 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
   match term.desc with
   | Parity_test { ifso; ifnot } ->
     if same_reg ~arg_idx:0
-    then if Nativeint.logand const 1n = 0n then Some ifso else Some ifnot
+    then
+      if Nativeint.equal (Nativeint.logand const 1n) 0n
+      then Some ifso
+      else Some ifnot
     else None
   | Truth_test { ifso; ifnot } ->
     if same_reg ~arg_idx:0
-    then if const <> 0n then Some ifso else Some ifnot
+    then if not (Nativeint.equal const 0n) then Some ifso else Some ifnot
     else None
   | Int_test { lt; eq; gt; is_signed; imm } -> (
     match imm with
@@ -107,7 +111,8 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
         if result < 0 then Some lt else if result > 0 then Some gt else Some eq
       else None)
   | Switch labels ->
-    if same_reg ~arg_idx:0 && const <= Nativeint.of_int Int.max_int
+    if same_reg ~arg_idx:0
+       && Nativeint.compare const (Nativeint.of_int Int.max_int) <= 0
     then
       let idx = Nativeint.to_int const in
       if idx >= 0 && idx < Array.length labels

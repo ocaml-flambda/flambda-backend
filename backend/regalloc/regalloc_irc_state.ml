@@ -1,8 +1,15 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 open! Regalloc_irc_utils
 module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
+
+module List = struct
+  include List
+
+  let is_empty = function [] -> true | _ :: _ -> false
+end
 
 module RegWorkList = ArraySet.Make (struct
   type t = Reg.t
@@ -150,7 +157,7 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
       reg.Reg.degree <- 0);
   Reg.Set.iter
     (fun reg ->
-      assert (reg.Reg.irc_work_list = Reg.Precolored);
+      assert (Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Precolored);
       (match reg.Reg.loc, reg.Reg.irc_color with
       | Reg color, Some color' -> assert (color = color')
       | Reg _, None -> assert false
@@ -175,7 +182,7 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   unknown_reg_work_list state.spilled_nodes;
   RegWorkList.clear state.spilled_nodes;
   RegWorkList.clear state.coalesced_nodes;
-  assert (state.select_stack = []);
+  assert (List.is_empty state.select_stack);
   unknown_instruction_work_list state.coalesced_moves;
   InstructionWorkList.clear state.coalesced_moves;
   unknown_instruction_work_list state.constrained_moves;
@@ -189,10 +196,15 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   RegisterStamp.PairSet.clear state.adj_set;
   Reg.Tbl.clear state.move_list
 
-let[@inline] is_precolored _state reg = reg.Reg.irc_work_list = Reg.Precolored
+let[@inline] is_precolored _state reg =
+  Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Precolored
 
 let[@inline] is_precolored_or_colored _state reg =
-  reg.Reg.irc_work_list = Reg.Precolored || reg.Reg.irc_work_list = Reg.Colored
+  match reg.Reg.irc_work_list with
+  | Precolored | Colored -> true
+  | Unknown_list | Initial | Simplify | Freeze | Spill | Spilled | Coalesced
+  | Select_stack ->
+    false
 
 let[@inline] iter_and_clear_initial state ~f =
   Doubly_linked_list.iter state.initial ~f:(fun reg ->
@@ -218,7 +230,7 @@ let[@inline] is_empty_freeze_work_list state =
   RegWorkList.is_empty state.freeze_work_list
 
 let[@inline] mem_freeze_work_list _state reg =
-  reg.Reg.irc_work_list = Reg.Freeze
+  Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Freeze
 
 let[@inline] add_freeze_work_list state reg =
   reg.Reg.irc_work_list <- Reg.Freeze;
@@ -238,7 +250,8 @@ let[@inline] choose_and_remove_freeze_work_list state =
 let[@inline] is_empty_spill_work_list state =
   RegWorkList.is_empty state.spill_work_list
 
-let[@inline] mem_spill_work_list _state reg = reg.Reg.irc_work_list = Reg.Spill
+let[@inline] mem_spill_work_list _state reg =
+  Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Spill
 
 let[@inline] add_spill_work_list state reg =
   reg.Reg.irc_work_list <- Reg.Spill;
@@ -279,7 +292,7 @@ let[@inline] add_colored_nodes state reg =
   reg.Reg.irc_work_list <- Reg.Colored;
   Doubly_linked_list.add_begin state.colored_nodes reg
 
-let[@inline] is_empty_select_stack state = state.select_stack = []
+let[@inline] is_empty_select_stack state = List.is_empty state.select_stack
 
 let[@inline] push_select_stack state reg =
   reg.Reg.irc_work_list <- Reg.Select_stack;
@@ -324,7 +337,7 @@ let[@inline] choose_and_remove_work_list_moves state =
     res
 
 let[@inline] mem_active_moves _state instr =
-  instr.Cfg.irc_work_list = Cfg.Active
+  Cfg.equal_irc_work_list instr.Cfg.irc_work_list Cfg.Active
 
 let[@inline] add_active_moves state instr =
   instr.Cfg.irc_work_list <- Active;
@@ -466,7 +479,7 @@ let[@inline] union_move_list state reg set =
     Reg.Tbl.replace state.move_list reg (Instruction.Set.union existing set)
 
 let[@inline] rec find_alias state reg =
-  if reg.Reg.irc_work_list = Reg.Coalesced
+  if Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Coalesced
   then
     match reg.Reg.irc_alias with
     | None -> fatal "register %a has no alias" Printreg.reg reg
@@ -512,7 +525,7 @@ let[@inline] diff_all_introduced_temporaries state set =
 let[@inline] check_disjoint sets ~is_disjoint =
   List.iter sets ~f:(fun (name1, set1) ->
       List.iter sets ~f:(fun (name2, set2) ->
-          if name1 < name2
+          if String.compare name1 name2 < 0
           then
             if not (is_disjoint set1 set2)
             then fatal "sets %s and %s are not disjoint" name1 name2))
@@ -520,7 +533,7 @@ let[@inline] check_disjoint sets ~is_disjoint =
 let[@inline] check_set_and_field_consistency_reg (work_list, set, field_value) =
   Reg.Set.iter
     (fun reg ->
-      if reg.Reg.irc_work_list <> field_value
+      if not (Reg.equal_irc_work_list reg.Reg.irc_work_list field_value)
       then
         fatal "register %a is in %s but its field equals %S" Printreg.reg reg
           work_list
@@ -531,7 +544,7 @@ let[@inline] check_set_and_field_consistency_instr (work_list, set, field_value)
     =
   Instruction.Set.iter
     (fun instr ->
-      if instr.Cfg.irc_work_list <> field_value
+      if not (Cfg.equal_irc_work_list instr.Cfg.irc_work_list field_value)
       then
         fatal "instruction %a is in %s but its field equals %S"
           InstructionId.format instr.Cfg.id work_list

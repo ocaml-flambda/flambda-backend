@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module R = Reg
 module RAS = Reg_availability_set
@@ -259,7 +260,8 @@ module Transfer = struct
               let res = instr.res.(i) in
               (* Note that the register classes must be the same, so we don't
                  need to check that. *)
-              if arg.loc <> res.loc then move_to_same_location := false
+              if not (Reg.equal_location arg.loc res.loc)
+              then move_to_same_location := false
             done;
             !move_to_same_location
           in
