@@ -153,6 +153,7 @@ module F :
 module Arg1 : sig type t1 = int -> int type t2 = string end
 module M1 : sig type t3 = F(Arg1).t3 type t4 = F(Arg1).t4 end
 >> Fatal error: Abstract kind with [with]: value mod portable
+with Arg1.t2
 Uncaught exception: Misc.Fatal_error
 
 |}]

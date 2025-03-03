@@ -256,8 +256,9 @@ module Axis_set = struct
   let[@inline] to_list t = List.of_seq (to_seq t)
 
   let print ppf t =
-    Format.pp_print_seq
-      ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-      (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
-      ppf (to_seq t)
+    Format.fprintf ppf "@[{%t}@]" (fun ppf ->
+        Format.pp_print_seq
+          ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
+          (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
+          ppf (to_seq t))
 end

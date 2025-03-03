@@ -104,9 +104,22 @@ module Layout : sig
   val of_const : Const.t -> Sort.t t
 
   val sub : Sort.t t -> Sort.t t -> Sub_result.t
+
+  module Debug_printers : sig
+    val t :
+      (Format.formatter -> 'sort -> unit) -> Format.formatter -> 'sort t -> unit
+  end
 end
 
-(** A Jkind.t is a full description of the runtime representation of values
+module With_bounds : sig
+  val debug_print :
+    print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
+    Format.formatter ->
+    ('l * 'r) Types.with_bounds ->
+    unit
+end
+
+(** A [jkind] is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
     [Any] and subjkinds of other sorts, such as [Immediate].
 
@@ -169,7 +182,11 @@ module Violation : sig
 
   (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
-  val of_ : ?missing_cmi:Path.t -> violation -> t
+  val of_ :
+    jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
+    ?missing_cmi:Path.t ->
+    violation ->
+    t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool
@@ -184,41 +201,18 @@ module Violation : sig
      probably should be rethought at some point. *)
 
   (** Prints a violation and the thing that had an unexpected jkind
-      ([offender], which you supply an arbitrary printer for).
-
-      The [jkind_of_type] allows the printer to normalize with-bounds.  If none
-      is supplied (because you don't have an [env], say), then all with-bounds
-      are printed as-is. If a [jkind_of_type] is supplied, and we're trying to
-      avoid printing with-bounds (because we're not in alpha), then we'll
-      normalize the with-bounds before printing.  Unlike other [jkind_of_type]s,
-      this one does not return a [jkind_l option]; the optionality there is to
-      allow the callback to fail in the case that the type is not principally
-      known. For printing, we do not need to care about principality in this
-      way, so we just unconditionally succeed with a [jkind_l].  *)
+      ([offender], which you supply an arbitrary printer for). *)
   val report_with_offender :
-    jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
-    offender:(Format.formatter -> unit) ->
-    Format.formatter ->
-    t ->
-    unit
+    offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
 
   (** Like [report_with_offender], but additionally prints that the issue is
       that a representable jkind was expected. *)
   val report_with_offender_sort :
-    jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
-    offender:(Format.formatter -> unit) ->
-    Format.formatter ->
-    t ->
-    unit
+    offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
 
   (** Simpler version of [report_with_offender] for when the thing that had an
       unexpected jkind is available as a string. *)
-  val report_with_name :
-    jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
-    name:string ->
-    Format.formatter ->
-    t ->
-    unit
+  val report_with_name : name:string -> Format.formatter -> t -> unit
 end
 
 (******************************)
@@ -497,13 +491,7 @@ module Desc : sig
 
   val get_const : 'd t -> 'd Const.t option
 
-  (* See [Violation.report_with_offender] for comments on the [jkind_of_type]
-     argument. *)
-  val format :
-    jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
-    Format.formatter ->
-    'd t ->
-    unit
+  val format : Format.formatter -> 'd t -> unit
 end
 
 (** Get a description of a jkind. *)
@@ -605,8 +593,7 @@ val normalize :
 (* pretty printing *)
 
 (** Call these before trying to print. *)
-val set_outcometree_of_type_scheme :
-  (Types.type_expr -> Outcometree.out_type) -> unit
+val set_outcometree_of_type : (Types.type_expr -> Outcometree.out_type) -> unit
 
 val set_outcometree_of_modalities_new :
   (Types.mutability ->
@@ -615,29 +602,16 @@ val set_outcometree_of_modalities_new :
   Outcometree.out_mode_new list) ->
   unit
 
-(* See [Violation.report_with_offender] for comments on the [jkind_of_type]
-   argument. *)
-val format :
-  jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
-  Format.formatter ->
-  'd Types.jkind ->
-  unit
+val format : Format.formatter -> 'd Types.jkind -> unit
 
 (** Format the history of this jkind: what interactions it has had and why
     it is the jkind that it is. Might be a no-op: see [display_histories]
     in the implementation of the [Jkind] module.
 
     The [intro] is something like "The jkind of t is".
-
-    See [Violation.report_with_offender] for comments on the [jkind_of_type]
-    argument.
 *)
 val format_history :
-  jkind_of_type:(Types.type_expr -> Types.jkind_l) option ->
-  intro:(Format.formatter -> unit) ->
-  Format.formatter ->
-  'd Types.jkind ->
-  unit
+  intro:(Format.formatter -> unit) -> Format.formatter -> 'd Types.jkind -> unit
 
 (** Provides the [Printtyp.path] formatter back up the dependency chain to
     this module. *)
@@ -740,8 +714,9 @@ val map_type_expr :
   (allowed * 'r) Types.jkind
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
-    mutation. *)
-val is_max : ('l * allowed) Types.jkind -> bool
+    mutation, preferring a quick check over a thorough one. Might return
+    [false] even when the input is actually the maximum jkind. *)
+val is_obviously_max : ('l * allowed) Types.jkind -> bool
 
 (** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : ('l * allowed) Types.jkind -> bool

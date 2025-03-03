@@ -101,6 +101,9 @@ module Axis_set : sig
   (** Create a [t], specify for each axis whether it should be included *)
   val create : f:(axis:Axis.packed -> bool) -> t
 
+  (** A set of all axes *)
+  val all : t
+
   (** A set of all monadic modal axes *)
   val all_monadic_axes : t
 
