@@ -2,7 +2,6 @@
 import ast
 import operator
 import sys
-import inspect
 
 """A reference big-int"""
 
