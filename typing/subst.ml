@@ -59,23 +59,20 @@ let identity =
     last_compose = None;
   }
 
-let add_type_path id p s =
-  let types = Path.Map.add id (Path p) s.types in
-  let types =
+(* Add a replacement for both a path and its unboxed version, even if that
+   unboxed version doesn't exist (as we can't tell here whether it exists).
+   Asserts we never add an unboxed version directly. *)
+let add_type_replacement types id replacement =
+  match replacement with
+  | Path p ->
+    let types = Path.Map.add id (Path p) types in
     if Path.is_unboxed_version p then
       types
     else
       Path.Map.add
         (Path.unboxed_version id) (Path (Path.unboxed_version p)) types
-  in
-  { s with types; last_compose = None }
-
-let add_type id p s =
-  add_type_path (Pident id) p s
-
-let add_type_function id ~params ~body s =
-  let types = Path.Map.add id (Type_function { params; body }) s.types in
-  let types =
+  | Type_function { params; body } ->
+    let types = Path.Map.add id (Type_function { params; body }) types in
     match get_desc body with
     | Tconstr (path, args, _)
       when not (Path.is_unboxed_version path) ->
@@ -86,6 +83,17 @@ let add_type_function id ~params ~body s =
       Path.Map.add
         (Path.unboxed_version id) (Type_function { params; body }) types
     | _ -> types
+
+let add_type_path id p s =
+  let types = add_type_replacement s.types id (Path p) in
+  { s with types; last_compose = None }
+
+let add_type id p s =
+  add_type_path (Pident id) p s
+
+let add_type_function id ~params ~body s =
+  let types =
+    add_type_replacement s.types id (Type_function { params; body })
   in
   { s with types; last_compose = None }
 
@@ -689,6 +697,15 @@ let extension_constructor s ext =
 let merge_path_maps f m1 m2 =
   Path.Map.fold (fun k d accu -> Path.Map.add k (f d) accu) m1 m2
 
+let merge_type_path_maps (f : type_replacement -> type_replacement)  m1 m2 =
+  Path.Map.fold
+    (fun k d accu ->
+      if Path.is_unboxed_version k then
+        accu
+      else
+        add_type_replacement accu k (f d))
+    m1 m2
+
 let keep_latest_loc l1 l2 =
   match l2 with
   | None -> l1
@@ -936,7 +953,7 @@ and compose s1 s2 =
   | Some (t,s) when t == s1 -> s
   | _ ->
       let s =
-        { types = merge_path_maps (type_replacement s2) s1.types s2.types;
+        { types = merge_type_path_maps (type_replacement s2) s1.types s2.types;
           modules = merge_path_maps (module_path s2) s1.modules s2.modules;
           modtypes = merge_path_maps (modtype Keep s2) s1.modtypes s2.modtypes;
           additional_action = begin

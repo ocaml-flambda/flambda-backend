@@ -489,6 +489,15 @@ end
 module type S = sig type u = float# end
 |}]
 
+(* Regression test: make sure substs can compose *)
+module type S = sig
+  type f := int -> int
+  type x := f
+end
+[%%expect{|
+module type S = sig end
+|}]
+
 (****************************)
 (* Module type substitution *)
 
