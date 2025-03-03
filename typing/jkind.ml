@@ -24,6 +24,11 @@ let print_type_expr : (Format.formatter -> type_expr -> unit) ref =
 
 let set_print_type_expr p = print_type_expr := p
 
+let raw_type_expr : (Format.formatter -> type_expr -> unit) ref =
+  ref (fun _ _ -> assert false)
+
+let set_raw_type_expr p = raw_type_expr := p
+
 module Nonempty_list = Misc.Nonempty_list
 
 (* A *sort* is the information the middle/back ends need to be able to
@@ -600,17 +605,21 @@ module With_bounds = struct
     | With_bounds tys ->
       With_bounds (With_bounds_types.map_with_key (fun ty ti -> f ty, ti) tys)
 
+  let debug_print_types ppf tys =
+    let open Format in
+    pp_print_seq
+      ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
+      (fun ppf (ty, ti) ->
+        fprintf ppf "@[(%a, %a)@]" !raw_type_expr ty Type_info.print ti)
+      ppf
+      (With_bounds_types.to_seq tys)
+
   let debug_print (type l r) ppf : (l * r) t -> _ =
     let open Format in
     function
     | No_with_bounds -> fprintf ppf "No_with_bounds"
     | With_bounds tys ->
-      fprintf ppf "With_bounds @[[%a]@]"
-        (pp_print_seq
-           ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
-           (fun ppf (ty, ti) ->
-             fprintf ppf "@[(%a, %a)@]" !print_type_expr ty Type_info.print ti))
-        (With_bounds_types.to_seq tys)
+      fprintf ppf "With_bounds @[[%a]@]" debug_print_types tys
 
   let join_bounds =
     With_bounds_types.merge (fun _ ti1 ti2 ->

@@ -112,6 +112,8 @@ module Layout : sig
 end
 
 module With_bounds : sig
+  val debug_print_types : Format.formatter -> Types.with_bounds_types -> unit
+
   val debug_print : Format.formatter -> ('l * 'r) Types.with_bounds -> unit
 end
 
@@ -604,6 +606,10 @@ val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 (** Provides the [type_expr] formatter back up the dependency chain to this
     module. *)
 val set_print_type_expr : (Format.formatter -> Types.type_expr -> unit) -> unit
+
+(** Provides the [raw_type_expr] formatter back up the dependency chain to this
+    module. *)
+val set_raw_type_expr : (Format.formatter -> Types.type_expr -> unit) -> unit
 
 val format : Format.formatter -> 'd Types.jkind -> unit
 
