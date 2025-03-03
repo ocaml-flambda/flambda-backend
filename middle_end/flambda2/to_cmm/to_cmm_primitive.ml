@@ -598,16 +598,13 @@ let arithmetic_conversion dbg src dst arg =
     let src = numeric_of_standard_int_or_float src in
     let dst = numeric_of_standard_int_or_float dst in
     let extra =
+      (* CR-someday jvanburen: add Env.Tag? *)
       match src, dst with
       | Integral (Tagged src), Integral (Untagged dst)
         when C.Scalar_type.Integer.equal
                (C.Scalar_type.Tagged_integer.untagged src)
                dst ->
         Some (Env.Untag arg)
-      | Integral (Untagged src), Integral (Tagged dst)
-        when C.Scalar_type.Integer.equal src
-               (C.Scalar_type.Tagged_integer.untagged dst) ->
-        Some (Env.Tag arg)
       | ( (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)),
           (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)) ) ->
         None
