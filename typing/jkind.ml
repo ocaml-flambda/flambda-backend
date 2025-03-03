@@ -568,6 +568,11 @@ module With_bounds = struct
     | No_with_bounds -> With_bounds_types.empty
     | With_bounds bounds -> bounds
 
+  let for_all (type l r) f (t : (l * r) t) =
+    match t with
+    | No_with_bounds -> true
+    | With_bounds tys -> With_bounds_types.for_all f tys
+
   let to_list : type d. d with_bounds -> _ = function
     | No_with_bounds -> []
     | With_bounds tys -> tys |> With_bounds_types.to_seq |> List.of_seq
@@ -604,10 +609,7 @@ module With_bounds = struct
   let map_type_expr (type l r) f : (l * r) t -> (l * r) t = function
     | No_with_bounds -> No_with_bounds
     | With_bounds tys ->
-      With_bounds
-        (tys |> With_bounds_types.to_seq
-        |> Seq.map (fun (ty, ti) -> f ty, ti)
-        |> With_bounds_types.of_seq)
+      With_bounds (With_bounds_types.map_with_key (fun ty ti -> f ty, ti) tys)
 
   let debug_print (type l r) ~print_type_expr ppf : (l * r) t -> _ =
     let open Format in
@@ -2246,18 +2248,29 @@ let set_externality_upper_bound jk externality_upper_bound =
 let only_nullability = Axis_set.singleton (Nonmodal Nullability)
 
 let get_nullability ~jkind_of_type jk =
-  let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
-          Allowance.right_only jkind_desc),
-        _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-      ~map_type_info:(fun _ ti ->
-        { relevant_axes =
-            (* Optimization: We only care about the nullability axis *)
-            Axis_set.intersection ti.relevant_axes only_nullability
-        })
-      jk.jkind
+  (* Optimization: Usually, no with-bounds are relevant to nullability. If we check for
+     this case, we can avoid calling normalize. *)
+  let all_with_bounds_are_irrelevant =
+    jk.jkind.with_bounds
+    |> With_bounds.for_all
+         (fun _ ({ relevant_axes } : With_bounds_type_info.t) ->
+           not (Axis_set.mem relevant_axes (Nonmodal Nullability)))
   in
-  Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
+  if all_with_bounds_are_irrelevant
+  then Mod_bounds.nullability jk.jkind.mod_bounds
+  else
+    let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
+            Allowance.right_only jkind_desc),
+          _ ) =
+      Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
+        ~map_type_info:(fun _ ti ->
+          { relevant_axes =
+              (* Optimization: We only care about the nullability axis *)
+              Axis_set.intersection ti.relevant_axes only_nullability
+          })
+        jk.jkind
+    in
+    Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
 
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
