@@ -497,7 +497,7 @@ end = struct
         ()
       | _ ->
         (* CR-soon xclerc for xclerc: avoid polymorphic equality. *)
-        if Stdlib.compare instr.desc old_instr.desc = 0
+        if Stdlib.compare instr.desc old_instr.desc <> 0
         then
           Regalloc_utils.fatal "The desc of instruction with id %a changed"
             InstructionId.format id);
