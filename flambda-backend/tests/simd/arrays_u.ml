@@ -18,6 +18,8 @@ type nonrec int64x2 = int64x2#
 type nonrec float32x4 = float32x4#
 type nonrec float64x2 = float64x2#
 
+module Builtins = Builtins_u
+
 external int8x16_of_int64s : int64 -> int64 -> int8x16 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
 external int8x16_low_int64 : int8x16 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
 external int8x16_high_int64 : int8x16 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
@@ -609,14 +611,21 @@ end
 
 module Float_arrays = struct
 
-  external interleave_low_32 : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_sse_vec128_interleave_low_32"
+  module Float_interleave = struct
+    external interleave_low_32 : float32x4 -> float32x4 -> float32x4
+      = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_32"
     [@@noalloc] [@@unboxed] [@@builtin]
 
-  external interleave_low_64s : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
+    (* Re-exposes SSE and SSE2 intrinisics with a different type. *)
+    external interleave_low_64s : float32x4 -> float32x4 -> float32x4
+      = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_64"
     [@@noalloc] [@@unboxed] [@@builtin]
 
-  external interleave_low_64 : float64x2 -> float64x2 -> float64x2 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
+    external interleave_low_64 : float64x2 -> float64x2 -> float64x2
+      = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_64"
     [@@noalloc] [@@unboxed] [@@builtin]
+  end
+  include Float_interleave
 
   external low_of64 : float -> float64x2 = "caml_vec128_unreachable" "caml_float64x2_low_of_float"
     [@@noalloc] [@@unboxed] [@@builtin]

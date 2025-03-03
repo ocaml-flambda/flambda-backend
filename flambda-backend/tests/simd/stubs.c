@@ -1,9 +1,8 @@
 
+#include <assert.h>
 #include <caml/memory.h>
 #include <caml/simd.h>
 #include <caml/callback.h>
-#include <smmintrin.h>
-#include <assert.h>
 
 value vec128_run_callback(value f)
 {
@@ -18,95 +17,179 @@ value vec128_run_callback_stack_args(value i0, value i1, value i2, value i3, val
   CAMLreturn(caml_callbackN(f, 8, args));
 }
 
-int64_t vec128_low_int64(__m128i v)
+#ifdef __ARM_NEON
+#include <arm_neon.h>
+
+#define simd_add_int64x2 vaddq_s64
+#define simd_extract_float32x4 vget_lane_f32
+#define simd_extract_int64x2 vgetq_lane_s64
+#define simd_extract_int32x4 _mm_extract_epi32
+#define simd_dup_float32x4  _mm_set1_ps?
+#define simd_dup_float64x2 _mm_set1_pd?
+#define simd_low_float64x2 _mm_cvtsd_f64?
+#define simd_float64x2_sqrt _mm_sqrt_pd ?
+#define simd_float64x2_min _mm_min_pd ?
+#define simd_float64x2_max _mm_max_pd ?
+
+#define simd_float32x4_add vaddq_f32
+#define simd_float32x4_sub vsubq_f32
+#define simd_float32x4_mul vmulq_f32
+#define simd_float32x4_div vdivq_f32
+#define simd_float32x4_min vminq_f32
+#define simd_float32x4_max vminq_f32
+#define simd_float32x4_sqrt vsqrtq_f32
+#define simd_float32x4_rcp vrecpeq_f32
+#define simd_float32x4_rsqrt vrsqrteq_f32
+#define simd_float32x4_to_int32x4 vcvtq_s32_f32;
+
+static inline simd_float64x2_t simd_float64x2_round_down(simd_float64x2_t v)
 {
-  return _mm_extract_epi64(v, 0);
+  return _mm_round_pd(v, 0x8); ?
 }
 
-int64_t vec128_high_int64(__m128i v)
+static inline simd_float32x4_t simd_float32x4_round_down(simd_float32x4_t v)
 {
-  return _mm_extract_epi64(v, 1);
+  return _mm_round_ps(v, 0x8);
 }
 
-__m128i vec128_of_int64s(int64_t low, int64_t high)
+int64x2_t vec128_of_int64s(int64_t low, int64_t high)
+{
+    return vcombine_s64(vcreate_s64(high), vcreate_s64(low));
+}
+
+#else /* __ARM_NEON */
+#if defined(__SSE4_2__)
+#include <smmintrin.h>
+
+#define simd_add_int64x2 _mm_add_epi64
+#define simd_extract_float32x4 _mm_extract_ps
+#define simd_extract_int64x2 _mm_extract_epi64
+#define simd_extract_int32x4 _mm_extract_epi32
+#define simd_dup_float32x4 _mm_set1_ps
+#define simd_dup_float64x2 _mm_set1_pd
+#define simd_low_float64x2 _mm_cvtsd_f64
+#define simd_float64x2_sqrt _mm_sqrt_pd
+#define simd_float64x2_min _mm_min_pd
+#define simd_float64x2_max _mm_max_pd
+
+#define simd_float32x4_add _mm_add_ps
+#define simd_float32x4_sub _mm_sub_ps
+#define simd_float32x4_mul _mm_mul_ps
+#define simd_float32x4_div _mm_div_ps
+#define simd_float32x4_min _mm_min_ps
+#define simd_float32x4_max _mm_max_ps
+#define simd_float32x4_sqrt _mm_sqrt_ps
+#define simd_float32x4_rcp _mm_rcp_ps
+#define simd_float32x4_rsqrt _mm_rsqrt_ps
+#define simd_float32x4_to_int32x4 _mm_cvtps_epi32
+
+
+static inline simd_float64x2_t simd_float64x2_round_down(simd_float64x2_t v)
+
+{
+  return _mm_round_pd(v, 0x8);
+}
+
+
+static inline simd_float32x4_t simd_float32x4_round_down(simd_float32x4_t v)
+{
+  return _mm_round_ps(v, 0x8);
+}
+
+simd_int64x2_t vec128_of_int64s(int64_t low, int64_t high)
 {
   return _mm_set_epi64x(high, low);
+}
+
+#else /* __SSE4_2__ */
+#error "Target not supported"
+#endif /* __SSE4_2__ */
+#endif /* __ARM_NEON */
+
+int64_t vec128_low_int64(simd_int64x2_t v)
+{
+  return simd_extract_int64x2(v, 0);
+}
+
+int64_t vec128_high_int64(simd_int64x2_t v)
+{
+  return simd_extract_int64x2(v, 1);
 }
 
 value boxed_combine(value v0, value v1)
 {
   CAMLparam2(v0, v1);
 
-  __m128i l = Vec128_vali(v0);
-  __m128i r = Vec128_vali(v1);
-  __m128i result = _mm_add_epi64(l, r);
+  simd_int64x2_t l = Vec128_vali(v0);
+  simd_int64x2_t r = Vec128_vali(v1);
+  simd_int64x2_t result = simd_add_int64x2(l, r);
 
   CAMLreturn(caml_copy_vec128i(result));
 }
 
-__m128i lots_of_vectors(
-  __m128i v0, __m128i v1, __m128i v2, __m128i v3,
-  __m128i v4, __m128i v5, __m128i v6, __m128i v7,
-  __m128i v8, __m128i v9, __m128i v10, __m128i v11,
-  __m128i v12, __m128i v13, __m128i v14, __m128i v15)
+simd_int64x2_t lots_of_vectors(
+  simd_int64x2_t v0, simd_int64x2_t v1, simd_int64x2_t v2, simd_int64x2_t v3,
+  simd_int64x2_t v4, simd_int64x2_t v5, simd_int64x2_t v6, simd_int64x2_t v7,
+  simd_int64x2_t v8, simd_int64x2_t v9, simd_int64x2_t v10, simd_int64x2_t v11,
+  simd_int64x2_t v12, simd_int64x2_t v13, simd_int64x2_t v14, simd_int64x2_t v15)
 {
-  __m128i x0 = _mm_add_epi64(v0, v1);
-  __m128i x1 = _mm_add_epi64(v2, v3);
-  __m128i x2 = _mm_add_epi64(v4, v5);
-  __m128i x3 = _mm_add_epi64(v6, v7);
-  __m128i x4 = _mm_add_epi64(v8, v9);
-  __m128i x5 = _mm_add_epi64(v10, v11);
-  __m128i x6 = _mm_add_epi64(v12, v13);
-  __m128i x7 = _mm_add_epi64(v14, v15);
-  __m128i y0 = _mm_add_epi64(x0, x1);
-  __m128i y1 = _mm_add_epi64(x2, x3);
-  __m128i y2 = _mm_add_epi64(x4, x5);
-  __m128i y3 = _mm_add_epi64(x6, x7);
-  __m128i z0 = _mm_add_epi64(y0, y1);
-  __m128i z1 = _mm_add_epi64(y2, y3);
-  return _mm_add_epi64(z0, z1);
+  simd_int64x2_t x0 = simd_add_int64x2(v0, v1);
+  simd_int64x2_t x1 = simd_add_int64x2(v2, v3);
+  simd_int64x2_t x2 = simd_add_int64x2(v4, v5);
+  simd_int64x2_t x3 = simd_add_int64x2(v6, v7);
+  simd_int64x2_t x4 = simd_add_int64x2(v8, v9);
+  simd_int64x2_t x5 = simd_add_int64x2(v10, v11);
+  simd_int64x2_t x6 = simd_add_int64x2(v12, v13);
+  simd_int64x2_t x7 = simd_add_int64x2(v14, v15);
+  simd_int64x2_t y0 = simd_add_int64x2(x0, x1);
+  simd_int64x2_t y1 = simd_add_int64x2(x2, x3);
+  simd_int64x2_t y2 = simd_add_int64x2(x4, x5);
+  simd_int64x2_t y3 = simd_add_int64x2(x6, x7);
+  simd_int64x2_t z0 = simd_add_int64x2(y0, y1);
+  simd_int64x2_t z1 = simd_add_int64x2(y2, y3);
+  return simd_add_int64x2(z0, z1);
 }
 
-__m128i vectors_and_floats(
-  __m128i v0, double f0, __m128i v1, double f1,
-  __m128i v2, double f2, __m128i v3, double f3,
-  double f4, __m128i v4, __m128i v5, double f5,
-  double f6, __m128i v6, __m128i v7, double f7,
-  double f8, double f9, __m128i v8, __m128i v9,
-  __m128i v10, double f10, double f11, double f12)
+simd_int64x2_t vectors_and_floats(
+  simd_int64x2_t v0, double f0, simd_int64x2_t v1, double f1,
+  simd_int64x2_t v2, double f2, simd_int64x2_t v3, double f3,
+  double f4, simd_int64x2_t v4, simd_int64x2_t v5, double f5,
+  double f6, simd_int64x2_t v6, simd_int64x2_t v7, double f7,
+  double f8, double f9, simd_int64x2_t v8, simd_int64x2_t v9,
+  simd_int64x2_t v10, double f10, double f11, double f12)
 {
-  __m128i x0 = _mm_add_epi64(v0, v1);
-  __m128i x1 = _mm_add_epi64(v2, v3);
-  __m128i x2 = _mm_add_epi64(v4, v5);
-  __m128i x3 = _mm_add_epi64(v6, v7);
-  __m128i x4 = _mm_add_epi64(v8, v9);
-  __m128i y0 = _mm_add_epi64(x0, x1);
-  __m128i y1 = _mm_add_epi64(x2, x3);
-  __m128i y2 = _mm_add_epi64(v10, x4);
-  __m128i z0 = _mm_add_epi64(y0, y1);
-  __m128i z = _mm_add_epi64(z0, y2);
+  simd_int64x2_t x0 = simd_add_int64x2(v0, v1);
+  simd_int64x2_t x1 = simd_add_int64x2(v2, v3);
+  simd_int64x2_t x2 = simd_add_int64x2(v4, v5);
+  simd_int64x2_t x3 = simd_add_int64x2(v6, v7);
+  simd_int64x2_t x4 = simd_add_int64x2(v8, v9);
+  simd_int64x2_t y0 = simd_add_int64x2(x0, x1);
+  simd_int64x2_t y1 = simd_add_int64x2(x2, x3);
+  simd_int64x2_t y2 = simd_add_int64x2(v10, x4);
+  simd_int64x2_t z0 = simd_add_int64x2(y0, y1);
+  simd_int64x2_t z = simd_add_int64x2(z0, y2);
   double f = f0 + f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8 + f9 + f10 + f11 + f12;
   return vec128_of_int64s((int64_t)f, vec128_low_int64(z) + vec128_high_int64(z));
 }
 
-__m128i vectors_and_floats_and_ints(
-  __m128i v0, double f0, __m128i v1, int64_t i0,
-  __m128i v2, double f1, __m128i v3, int64_t i1,
-  int64_t i2, __m128i v4, __m128i v5, double f2,
-  double f3, __m128i v6, __m128i v7, int64_t i3,
-  int64_t i4, double f4, __m128i v8, __m128i v9,
-  __m128i v10, int64_t i5, int64_t i6, double f5)
+simd_int64x2_t vectors_and_floats_and_ints(
+  simd_int64x2_t v0, double f0, simd_int64x2_t v1, int64_t i0,
+  simd_int64x2_t v2, double f1, simd_int64x2_t v3, int64_t i1,
+  int64_t i2, simd_int64x2_t v4, simd_int64x2_t v5, double f2,
+  double f3, simd_int64x2_t v6, simd_int64x2_t v7, int64_t i3,
+  int64_t i4, double f4, simd_int64x2_t v8, simd_int64x2_t v9,
+  simd_int64x2_t v10, int64_t i5, int64_t i6, double f5)
 {
-  __m128i x0 = _mm_add_epi64(v0, v1);
-  __m128i x1 = _mm_add_epi64(v2, v3);
-  __m128i x2 = _mm_add_epi64(v4, v5);
-  __m128i x3 = _mm_add_epi64(v6, v7);
-  __m128i x4 = _mm_add_epi64(v8, v9);
-  __m128i y0 = _mm_add_epi64(x0, x1);
-  __m128i y1 = _mm_add_epi64(x2, x3);
-  __m128i y2 = _mm_add_epi64(v10, x4);
-  __m128i z0 = _mm_add_epi64(y0, y1);
-  __m128i z = _mm_add_epi64(z0, y2);
+  simd_int64x2_t x0 = simd_add_int64x2(v0, v1);
+  simd_int64x2_t x1 = simd_add_int64x2(v2, v3);
+  simd_int64x2_t x2 = simd_add_int64x2(v4, v5);
+  simd_int64x2_t x3 = simd_add_int64x2(v6, v7);
+  simd_int64x2_t x4 = simd_add_int64x2(v8, v9);
+  simd_int64x2_t y0 = simd_add_int64x2(x0, x1);
+  simd_int64x2_t y1 = simd_add_int64x2(x2, x3);
+  simd_int64x2_t y2 = simd_add_int64x2(v10, x4);
+  simd_int64x2_t z0 = simd_add_int64x2(y0, y1);
+  simd_int64x2_t z = simd_add_int64x2(z0, y2);
   double f = f0 + f1 + f2 + f3 + f4 + f5;
   int64_t i = i0 + i1 + i2 + i3 + i4 + i5 + i6;
   return vec128_of_int64s((int64_t)f + i, vec128_low_int64(z) + vec128_high_int64(z));
@@ -171,6 +254,7 @@ BUILTIN(caml_sse_vec128_high_64_to_low_64);
 BUILTIN(caml_sse_vec128_low_64_to_high_64);
 BUILTIN(caml_sse_vec128_interleave_high_32);
 BUILTIN(caml_sse_vec128_interleave_low_32);
+BUILTIN(caml_simd_vec128_interleave_low_32);
 BUILTIN(caml_sse_vec128_shuffle_32);
 BUILTIN(caml_sse_vec128_movemask_32);
 
@@ -247,6 +331,7 @@ BUILTIN(caml_sse2_vec128_interleave_high_16);
 BUILTIN(caml_sse2_vec128_interleave_low_16);
 BUILTIN(caml_sse2_vec128_interleave_high_64);
 BUILTIN(caml_sse2_vec128_interleave_low_64);
+BUILTIN(caml_simd_vec128_interleave_low_64);
 BUILTIN(caml_sse2_int8x16_avg_unsigned);
 BUILTIN(caml_sse2_int16x8_avg_unsigned);
 BUILTIN(caml_sse2_int8x16_sad_unsigned);
@@ -630,22 +715,22 @@ int64_t int8_mulu_i16(int64_t l, int64_t r) {
 // Float64
 
 double float64_round(double f) {
-  __m128d v = _mm_set1_pd(f);
-  return _mm_cvtsd_f64(_mm_round_pd(v, 0x8));
+  simd_float64x2_t v = simd_dup_float64x2(f);
+  return simd_low_float64x2(simd_float64x2_round_down(v));
 }
 double float64_sqrt(double f) {
-  __m128d v = _mm_set1_pd(f);
-  return _mm_cvtsd_f64(_mm_sqrt_pd(v));
+  simd_float64x2_t v = simd_dup_float64x2(f);
+  return simd_low_float64x2(simd_float64x2_sqrt(v));
 }
 double float64_min(double l, double r) {
-  __m128d lv = _mm_set1_pd(l);
-  __m128d rv = _mm_set1_pd(r);
-  return _mm_cvtsd_f64(_mm_min_pd(lv, rv));
+  simd_float64x2_t lv = simd_dup_float64x2(l);
+  simd_float64x2_t rv = simd_dup_float64x2(r);
+  return simd_low_float64x2(simd_float64x2_min(lv, rv));
 }
 double float64_max(double l, double r) {
-  __m128d lv = _mm_set1_pd(l);
-  __m128d rv = _mm_set1_pd(r);
-  return _mm_cvtsd_f64(_mm_max_pd(lv, rv));
+  simd_float64x2_t lv = simd_dup_float64x2(l);
+  simd_float64x2_t rv = simd_dup_float64x2(r);
+  return simd_low_float64x2(simd_float64x2_max(lv, rv));
 }
 
 
@@ -658,13 +743,13 @@ float float_of_int32(int32_t i) {
   return *(float*)&i;
 }
 
-int32_t test_simd_vec128_extract_ps(__m128 a, intnat i) {
+int32_t test_simd_vec128_extract_ps(simd_float32x4_t a, intnat i) {
   int32_t bits;
   switch (i % 4) {
-    case 0: return (_mm_extract_ps(a, 0));
-    case 1: return (_mm_extract_ps(a, 1));
-    case 2: return (_mm_extract_ps(a, 2));
-    case 3: return (_mm_extract_ps(a, 3));
+    case 0: return (simd_extract_float32x4(a, 0));
+    case 1: return (simd_extract_float32x4(a, 1));
+    case 2: return (simd_extract_float32x4(a, 2));
+    case 3: return (simd_extract_float32x4(a, 3));
     default: assert(0);
   }
 }
@@ -689,36 +774,36 @@ value float32_uord(int32_t l, int32_t r) { return Val_bool(isnan(float_of_int32(
 
 #define FLOAT32_BINOP(name, intrin)              \
   int32_t float32_##name(int32_t l, int32_t r) { \
-    __m128 vl = _mm_set1_ps(float_of_int32(l));  \
-    __m128 vr = _mm_set1_ps(float_of_int32(r));  \
-    return _mm_extract_ps(intrin(vl, vr), 0);    \
+    simd_float32x4_t vl = simd_dup_float32x4(float_of_int32(l));  \
+    simd_float32x4_t vr = simd_dup_float32x4(float_of_int32(r));  \
+    return simd_extract_float32x4(intrin(vl, vr), 0);    \
   }
 
 #define FLOAT32_UNOP(name, intrin)             \
   int32_t float32_##name(int32_t f) {          \
-    __m128 v = _mm_set1_ps(float_of_int32(f)); \
-    return _mm_extract_ps(intrin(v), 0);       \
+    simd_float32x4_t v = simd_dup_float32x4(float_of_int32(f)); \
+    return simd_extract_float32x4(intrin(v), 0);       \
   }
 
 #define FLOAT32_UNOP_INT(name, intrin)         \
   int32_t float32_##name(int32_t f) {          \
-    __m128 v = _mm_set1_ps(float_of_int32(f)); \
-    return _mm_extract_epi32(intrin(v), 0);    \
+    simd_float32x4_t v = simd_dup_float32x4(float_of_int32(f)); \
+    return simd_extract_int32x4(intrin(v), 0);    \
   }
 
-FLOAT32_BINOP(add, _mm_add_ps);
-FLOAT32_BINOP(sub, _mm_sub_ps);
-FLOAT32_BINOP(mul, _mm_mul_ps);
-FLOAT32_BINOP(div, _mm_div_ps);
-FLOAT32_BINOP(min, _mm_min_ps);
-FLOAT32_BINOP(max, _mm_max_ps);
+FLOAT32_BINOP(add, simd_float32x4_add);
+FLOAT32_BINOP(sub, simd_float32x4_sub);
+FLOAT32_BINOP(mul, simd_float32x4_mul);
+FLOAT32_BINOP(div, simd_float32x4_div);
+FLOAT32_BINOP(min, simd_float32x4_min);
+FLOAT32_BINOP(max, simd_float32x4_max);
 
-FLOAT32_UNOP(sqrt, _mm_sqrt_ps);
-FLOAT32_UNOP(rcp, _mm_rcp_ps);
-FLOAT32_UNOP(rsqrt, _mm_rsqrt_ps);
-FLOAT32_UNOP_INT(cvt_i32, _mm_cvtps_epi32);
+FLOAT32_UNOP(sqrt, simd_float32x4_sqrt);
+FLOAT32_UNOP(rcp, simd_float32x4_rcp);
+FLOAT32_UNOP(rsqrt, simd_float32x4_rsqrt);
+FLOAT32_UNOP_INT(cvt_i32, simd_float32x4_to_int32x4);
 
 int32_t float32_round(int32_t f) {
-  __m128 v = _mm_set1_ps(float_of_int32(f));
-  return _mm_extract_ps(_mm_round_ps(v, 0x8), 0);
+  simd_float32x4_t v = simd_dup_float32x4(float_of_int32(f));
+  return simd_extract_float32x4(simd_float32x4_round_down(v), 0);
 }
