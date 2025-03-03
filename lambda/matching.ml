@@ -2130,7 +2130,7 @@ let inline_lazy_force_cond arg pos loc =
     ( Strict,
       Lambda.layout_lazy,
       idarg,
-      arg,
+      Lprim (Popaque Lambda.layout_lazy, [arg], loc),
       Llet
         ( Alias,
           Lambda.layout_int,
