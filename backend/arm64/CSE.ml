@@ -15,6 +15,8 @@
 
 (* CSE for ARM64 *)
 
+open! Int_replace_polymorphic_compare
+
 open Mach
 open CSE_utils
 
@@ -29,7 +31,7 @@ method! class_of_operation op =
 
 method! is_cheap_operation op =
   match op with
-  | Iconst_int n -> n <= 65535n && n >= 0n
+  | Iconst_int n -> Nativeint.compare n 65535n <= 0 && Nativeint.compare n 0n >= 0
   | _ -> false
 
 end
@@ -62,7 +64,7 @@ class cfg_cse = object
 
   method! is_cheap_operation op =
     match op with
-    | Const_int n -> n <= 65535n && n >= 0n
+    | Const_int n -> Nativeint.compare n 65535n <= 0 && Nativeint.compare n 0n >= 0
     | _ -> false
 
 end

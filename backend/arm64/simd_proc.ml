@@ -15,3 +15,5 @@
 [@@@ocaml.warning "+a-40-42"]
 
 (* SIMD register behavior for ARM64 *)
+
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]

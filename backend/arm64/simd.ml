@@ -16,4 +16,6 @@
 
 (* SIMD instructions for ARM64 *)
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 type operation = |

@@ -16,6 +16,8 @@
 
 (* SIMD instruction selection for ARM64 *)
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 let select_operation _ = None
 
 let pseudoregs_for_operation _ arg res = arg, res

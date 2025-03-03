@@ -16,4 +16,6 @@
 
 (* SIMD instruction reload for ARM64 *)
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 let reload_operation _ _ arg res = arg, res
