@@ -220,7 +220,7 @@ module Flat_suffix_element0 = struct
     | Vec128 -> Naked_vec128
     | Word -> Naked_nativeint
     | Value _ ->
-      (* XXX print the value kind *)
+      (* CR: consider printing the value kind *)
       Misc.fatal_error
         "Cannot convert [Value] mixed block elements to flat suffix elements"
 end
@@ -854,17 +854,6 @@ module With_subkind = struct
     | Naked_int64 -> boxed_int64
     | Naked_nativeint -> boxed_nativeint
     | Naked_vec128 -> boxed_vec128
-
-  let of_flat_suffix_element elt =
-    (* XXX this comment is probably irrelevant now that immediates are no longer
-       in flat suffixes *)
-    (* CR vlaviron: We should generate the appropriate subkind for immediates.
-       This requires us to know the nullability, so we need a patch in the
-       front-end for that. *)
-    anything (Flat_suffix_element0.kind elt)
-
-  let _of_lambda_flat_element_kind elt =
-    Flat_suffix_element0.from_lambda elt |> of_flat_suffix_element
 
   let rec from_lambda_value_kind (vk : Lambda.value_kind) =
     let value_subkind : Non_null_value_subkind.t =

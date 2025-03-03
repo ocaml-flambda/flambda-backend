@@ -441,25 +441,6 @@ let mixed_block_shape print_mode ppf shape =
     fprintf ppf ")"
   end
 
-(* XXX { value_prefix_len; flat_suffix } =
-  begin match value_prefix_len with
-    | 0 -> ()
-    | n -> fprintf ppf " (prefix=%d)" n
-  end;
-  match Array.length flat_suffix with
-  | 0 -> ()
-  | 1 ->
-      fprintf ppf " (%a)" flat_element (flat_suffix.(0))
-  | _ -> begin
-    Array.iteri (fun i elt ->
-      if i = 0 then
-        fprintf ppf " (%a" flat_element elt
-      else
-        fprintf ppf ",%a" flat_element elt)
-      flat_suffix;
-    fprintf ppf ")"
-  end *)
-
 let integer_comparison ppf = function
   | Ceq -> fprintf ppf "=="
   | Cne -> fprintf ppf "!="
