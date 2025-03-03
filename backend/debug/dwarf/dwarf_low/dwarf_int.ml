@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Asm_targets
 module Uint64 = Numbers.Uint64
 
@@ -58,7 +59,8 @@ let of_int64_exn i64 =
   match Dwarf_format.get () with
   | Sixty_four -> Sixty_four i64
   | Thirty_two ->
-    if i64 >= -0x8000_0000L && i64 <= 0x7fff_ffffL
+    if Int64.compare i64 (-0x8000_0000L) >= 0
+       && Int64.compare i64 0x7fff_ffffL <= 0
     then Thirty_two (Int64.to_int32 i64)
     else raise Dwarf_format.Too_large_for_thirty_two_bit_dwarf
 
@@ -68,7 +70,8 @@ let of_targetint_exn i =
   | Int64 i64, Sixty_four -> Sixty_four i64
   | Int32 i32, Sixty_four -> Sixty_four (Int64.of_int32 i32)
   | Int64 i64, Thirty_two ->
-    if i64 >= -0x8000_0000L && i64 <= 0x7fff_ffffL
+    if Int64.compare i64 (-0x8000_0000L) >= 0
+       && Int64.compare i64 0x7fff_ffffL <= 0
     then Thirty_two (Int64.to_int32 i64)
     else raise Dwarf_format.Too_large_for_thirty_two_bit_dwarf
 

@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module Int8 = Numbers.Int8
 module Int16 = Numbers.Int16
 

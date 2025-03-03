@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 type t =
   | Simple of Simple_location_description.t
   | Composite of Composite_location_description.t

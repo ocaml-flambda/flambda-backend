@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module Uint64 = Numbers.Uint64
 
 module Class = struct
@@ -808,7 +809,7 @@ module Attribute = struct
 
       let compare = Stdlib.compare
 
-      let equal (t1 : t) t2 = t1 = t2
+      let equal (t1 : t) t2 = Stdlib.compare t1 t2 = 0
 
       let hash _ = failwith "Sealed.hash unsupported"
 

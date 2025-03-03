@@ -12,6 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 module L = Linear
 module V = Backend_var
 

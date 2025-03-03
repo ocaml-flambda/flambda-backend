@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module Operator = Dwarf_operator
 
 type t = Dwarf_operator.t list

@@ -12,6 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open! Dwarf_low
 open! Dwarf_high
 module SLDL = Simple_location_description_lang
