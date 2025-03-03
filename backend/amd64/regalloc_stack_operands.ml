@@ -1,6 +1,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Regalloc_utils
+open! Int_replace_polymorphic_compare
 
 let debug = false
 
@@ -214,7 +215,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     else
       may_use_stack_operand_for_only_result map instr
   | Op (Const_int n) ->
-    if n <= 0x7FFFFFFFn && n >= -0x80000000n then begin
+    if (Nativeint.compare n 0x7FFFFFFFn) <= 0 && (Nativeint.compare n (-0x80000000n)) >= 0 then begin
       may_use_stack_operand_for_only_result map instr
     end else begin
       May_still_have_spilled_registers

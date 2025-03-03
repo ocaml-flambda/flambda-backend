@@ -14,6 +14,8 @@
 (**************************************************************************)
 [@@@ocaml.warning "+4"]
 
+open! Int_replace_polymorphic_compare
+
 module Extension = struct
   module T = struct
     type t =
@@ -29,7 +31,20 @@ module Extension = struct
       | BMI
       | BMI2
 
-    let compare = compare
+    let rank = function
+      | POPCNT -> 0
+      | PREFETCHW -> 1
+      | PREFETCHWT1 -> 2
+      | SSE3 -> 3
+      | SSSE3 -> 4
+      | SSE4_1 -> 5
+      | SSE4_2 -> 6
+      | CLMUL -> 7
+      | LZCNT -> 8
+      | BMI -> 9
+      | BMI2 -> 10
+
+    let compare left right = Int.compare (rank left) (rank right)
   end
 
   include T
@@ -118,6 +133,12 @@ let command_line_options =
 open Format
 
 type sym_global = Global | Local
+
+let equal_sym_global left right =
+  match left, right with
+  | Global, Global
+  | Local, Local -> true
+  | (Global | Local), _ -> false
 
 type addressing_mode =
     Ibased of string * sym_global * int (* symbol + displ *)
@@ -352,7 +373,7 @@ let float_cond_and_need_swap cond =
 let equal_addressing_mode left right =
   match left, right with
   | Ibased (left_sym, left_glob, left_displ), Ibased (right_sym, right_glob, right_displ) ->
-    String.equal left_sym right_sym && left_glob = right_glob && Int.equal left_displ right_displ
+    String.equal left_sym right_sym && equal_sym_global left_glob right_glob && Int.equal left_displ right_displ
   | Iindexed left_displ, Iindexed right_displ ->
     Int.equal left_displ right_displ
   | Iindexed2 left_displ, Iindexed2 right_displ ->

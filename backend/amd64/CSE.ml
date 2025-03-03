@@ -14,6 +14,8 @@
 (**************************************************************************)
 [@@@ocaml.warning "+4"]
 
+open! Int_replace_polymorphic_compare
+
 (* CSE for the AMD64 *)
 
 open Arch
