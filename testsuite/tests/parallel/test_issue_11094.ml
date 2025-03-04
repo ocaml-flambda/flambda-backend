@@ -1,6 +1,6 @@
 (* TEST
  runtime5;
- set OCAMLRUNPARAM = "Xmain_stack_size=1000";
+ set OCAMLRUNPARAM = "Xmain_stack_size=100";
  {
    bytecode;
  }{
