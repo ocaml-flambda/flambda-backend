@@ -38,7 +38,7 @@ let rec e i =
     | Eff1.Value result -> result
     | Eff1.Exception exn -> raise exn
     | Eff1.Operation (Peek, k) ->
-        ignore (Continuation.get_callstack k 100);
+        let _bt, k = Continuation.get_callstack k 100 in
         handle (continue k 42 [])
   in
   Random.int i + handle (Eff1.run (fun h -> d h i))
