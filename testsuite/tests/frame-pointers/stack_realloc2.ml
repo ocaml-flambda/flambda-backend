@@ -9,6 +9,8 @@
 open Effect
 open Effect.Deep
 
+[@@@ocaml.alert "-unsafe_multidomain"]
+
 type _ t += E : int -> int t
 
 external fp_backtrace : string -> unit = "fp_backtrace" [@@noalloc]

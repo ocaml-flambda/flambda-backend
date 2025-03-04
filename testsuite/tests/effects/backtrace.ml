@@ -57,6 +57,8 @@ let _ = main ()
 
 (* TEST
  flags = "-g";
+ (* Turn off optimizations so inlining is consistent *)
+ set OCAMLPARAM = "_,";
  ocamlrunparam += ",b=1";
  runtime5;
  {
