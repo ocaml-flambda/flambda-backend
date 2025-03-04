@@ -5,12 +5,6 @@ open! Regalloc_utils
 open! Regalloc_irc_utils
 module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 
-module List = struct
-  include List
-
-  let is_empty = function [] -> true | _ :: _ -> false
-end
-
 module RegWorkList = ArraySet.Make (struct
   type t = Reg.t
 
