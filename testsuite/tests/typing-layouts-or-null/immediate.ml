@@ -11,7 +11,7 @@ type t_immediate_or_null : immediate_or_null
 type t_immediate_or_null : immediate_or_null
 |}]
 
-(* The sublayout relation. *)
+(* The subkind relation. *)
 
 type ('a : immediate_or_null) accept_immediate_or_null
 [%%expect{|
@@ -47,12 +47,14 @@ Error: This type "t_immediate_or_null" should be an instance of type
 |}]
 
 type ('a : value) accept_value
+[%%expect{|
+type 'a accept_value
+|}]
 
 type should_fail = t_immediate_or_null accept_value
 [%%expect{|
-type 'a accept_value
-Line 3, characters 19-38:
-3 | type should_fail = t_immediate_or_null accept_value
+Line 1, characters 19-38:
+1 | type should_fail = t_immediate_or_null accept_value
                        ^^^^^^^^^^^^^^^^^^^
 Error: This type "t_immediate_or_null" should be an instance of type
          "('a : value)"
