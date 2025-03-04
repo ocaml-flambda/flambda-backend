@@ -97,7 +97,8 @@ let rec bind_atom :
     =
  fun ~order post_level args iterators iterator_names ->
   match args, iterators, iterator_names with
-  | [], [], _ -> ()
+  | [], [], [] -> ()
+  | [], [], _ :: _ -> Misc.fatal_error "Too many names in [bind_atom]"
   | _, _, [] -> Misc.fatal_error "Missing names in [bind_atom]"
   | ( this_arg :: other_args,
       this_iterator :: other_iterators,

@@ -215,7 +215,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         (_, nil) instruction =
      fun iterators refs instruction iterator_names ->
       match iterators, refs, iterator_names with
-      | [iterator], [r], name :: _ ->
+      | [iterator], [r], [name] ->
         open_ { value = iterator; name } { value = r; name = "_" } instruction
           dispatch
       | iterator :: (_ :: _ as iterators), r :: refs, name :: iterator_names ->
@@ -223,7 +223,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
           (open_ { value = iterator; name } { value = r; name = "_" }
              instruction dispatch)
           iterator_names
-      | _, _, [] ->
+      | _, _, [] | [_], [_], _ :: _ :: _ ->
         Misc.fatal_errorf "Incorrect number of names for iterators in [iterate]"
     in
     match rev_iterators with

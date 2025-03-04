@@ -15,6 +15,8 @@
 
 open Datalog_imports
 
+(* Note: we don't use [with_name] here to avoid the extra indirection during
+   execution. *)
 type vm_action =
   | Unless :
       ('t, 'k, 'v) Trie.is_trie
