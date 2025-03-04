@@ -447,7 +447,6 @@ let alloc_cont
       (k : (o, (b, e * es) r) cont) last_fiber =
     match h with
     | H.C h ->
-      cont_set_last_fiber k last_fiber;
       Op(op, h, k, last_fiber)
     | Handler.Dummy ->
         let k = (Obj.magic k : (a, (b, e * es) r) cont) in
@@ -469,7 +468,6 @@ let run_stack
   let effc ((op, h) as perf) k last_fiber =
     match h with
     | H.C h ->
-      cont_set_last_fiber k last_fiber;
       Op(op, h, k, last_fiber)
     | _ -> reperform perf k last_fiber
   in
