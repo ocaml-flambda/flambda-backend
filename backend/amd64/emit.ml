@@ -44,6 +44,9 @@ open! Branch_relaxation
 
 let _label s = D.label ~typ:QWORD s
 
+(* CR-soon xclerc for xclerc: move the functions related to `X86_ast`
+   to a dedicated module. *)
+
 let equal_data_type left right =
   match left, right with
   | NONE, NONE
