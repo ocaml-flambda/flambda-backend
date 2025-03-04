@@ -5,12 +5,6 @@ open! Regalloc_utils
 open! Regalloc_irc_utils
 module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 
-module List = struct
-  include List
-
-  let is_empty = function [] -> true | _ :: _ -> false
-end
-
 module RegWorkList = ArraySet.Make (struct
   type t = Reg.t
 
@@ -182,7 +176,7 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   unknown_reg_work_list state.spilled_nodes;
   RegWorkList.clear state.spilled_nodes;
   RegWorkList.clear state.coalesced_nodes;
-  assert (List.is_empty state.select_stack);
+  assert (Misc.Stdlib.List.is_empty state.select_stack);
   unknown_instruction_work_list state.coalesced_moves;
   InstructionWorkList.clear state.coalesced_moves;
   unknown_instruction_work_list state.constrained_moves;
@@ -292,7 +286,7 @@ let[@inline] add_colored_nodes state reg =
   reg.Reg.irc_work_list <- Reg.Colored;
   Doubly_linked_list.add_begin state.colored_nodes reg
 
-let[@inline] is_empty_select_stack state = List.is_empty state.select_stack
+let[@inline] is_empty_select_stack state = Misc.Stdlib.List.is_empty state.select_stack
 
 let[@inline] push_select_stack state reg =
   reg.Reg.irc_work_list <- Reg.Select_stack;

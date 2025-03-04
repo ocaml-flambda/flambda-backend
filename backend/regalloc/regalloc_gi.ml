@@ -5,12 +5,6 @@ open! Regalloc_utils
 open! Regalloc_gi_utils
 module State = Regalloc_gi_state
 
-module List = struct
-  include List
-
-  let is_empty = function [] -> true | _ :: _ -> false
-end
-
 module Utils = struct
   include Regalloc_gi_utils
 
@@ -35,8 +29,8 @@ let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> bool =
       (module Utils)
       state cfg_with_infos ~spilled_nodes ~block_temporaries:false
   in
-  assert (List.is_empty new_block_temporaries);
-  if not (List.is_empty new_inst_temporaries)
+  assert (Misc.Stdlib.List.is_empty new_block_temporaries);
+  if not (Misc.Stdlib.List.is_empty new_inst_temporaries)
   then Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted
   then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;

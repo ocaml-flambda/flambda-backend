@@ -113,6 +113,10 @@ module Stdlib = struct
 
     type 'a t = 'a list
 
+    let is_empty = function
+      | [] -> true
+      | _ :: _ -> false
+
     let rec compare cmp l1 l2 =
       match l1, l2 with
       | [], [] -> 0
