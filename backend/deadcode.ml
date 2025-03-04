@@ -16,6 +16,7 @@
 (* Dead code elimination: remove pure instructions whose results are
    not used. *)
 
+open! Int_replace_polymorphic_compare
 open Mach
 
 module Int = Numbers.Int

@@ -17,6 +17,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open Mach
 open Format
 open Polling_utils

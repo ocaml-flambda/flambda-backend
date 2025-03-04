@@ -15,6 +15,9 @@
 
 (* Renaming of registers at reload points to split live ranges. *)
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about
+   to be deleted. *)
+
 open Reg
 open Mach
 

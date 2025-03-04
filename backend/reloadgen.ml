@@ -15,6 +15,9 @@
 
 (* Insert load/stores for pseudoregs that got assigned to stack locations. *)
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about
+   to be deleted. *)
+
 open Misc
 open Reg
 open Mach

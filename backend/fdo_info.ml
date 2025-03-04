@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
+
 type info =
   {
     dbg: Debuginfo.t;

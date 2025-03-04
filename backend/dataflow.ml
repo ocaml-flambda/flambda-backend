@@ -13,6 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open Mach
 
 module type DOMAIN = sig

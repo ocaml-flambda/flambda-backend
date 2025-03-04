@@ -16,6 +16,9 @@
 
 (* Linear scan register allocation. *)
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about
+   to be deleted. *)
+
 open Interval
 open Reg
 

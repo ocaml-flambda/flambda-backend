@@ -16,6 +16,7 @@
 
 (* Live intervals for the linear scan register allocator. *)
 
+open! Int_replace_polymorphic_compare
 open Mach
 open Reg
 

@@ -15,6 +15,7 @@
 
 (* Representation of machine code by sequences of pseudoinstructions *)
 
+open! Int_replace_polymorphic_compare
 open Simple_operation
 
 type operation =

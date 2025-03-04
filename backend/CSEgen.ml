@@ -16,6 +16,8 @@
 (* Common subexpression elimination by value numbering over extended
    basic blocks. *)
 
+open! Int_replace_polymorphic_compare
+
 open Mach
 open CSE_utils
 
