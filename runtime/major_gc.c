@@ -150,18 +150,20 @@ static atomic_uintnat num_domains_orphaning_finalisers = 0;
    only used locally during marking */
 static intnat Markwork_sweepwork(intnat sweep_work)
 {
+  /* Currently, mark and sweep units agree, so the conversion is a no-op */
   return sweep_work;
 }
 
 static intnat Sweepwork_markwork(intnat mark_work)
 {
+  /* Currently, mark and sweep units agree, so the conversion is a no-op */
   return mark_work;
 }
 
 /* These two counters keep track of how much work the GC is supposed to
    do in order to keep up with allocation. Both are in sweep work units.
    `total_work_incurred` increases when we allocate: the number of words
-   allocated is converted to GC work units and added to this counter.
+   allocated is converted to sweep work units and added to this counter.
    `total_work_completed` increases when the GC has done some work.
    The difference between the two is how much the GC is lagging behind
    (or in advance of) allocations.
@@ -703,7 +705,7 @@ static void update_major_slice_work(intnat howmuch,
        allocated during the previous cycle.  [heap_size / 150] is really
        [heap_size * (2/3) / 100] (but faster). */
     double custom_max_major =
-      caml_heap_size(Caml_state->shared_heap) / 150 * caml_custom_major_ratio;
+      Bsize_wsize(heap_words) / 150 * caml_custom_major_ratio;
     my_extra_count = Bsize_wsize(my_dependent_count) / custom_max_major;
     if (my_extra_count > 1.0) my_extra_count = 1.0;
 
@@ -1943,7 +1945,8 @@ mark_again:
 
     /* Ephemerons */
     if (caml_gc_phase != Phase_sweep_ephe) {
-      /* Ephemeron Marking */
+      /* Ephemeron Marking
+         This work is accounted as marking work */
       saved_ephe_cycle = atomic_load_acquire(&ephe_cycle_info.ephe_cycle);
       if (domain_state->ephe_info->todo != (value) NULL &&
           saved_ephe_cycle > domain_state->ephe_info->cycle &&
@@ -1984,7 +1987,8 @@ mark_again:
     }
 
     if (caml_gc_phase == Phase_sweep_ephe) {
-      /* Ephemeron Sweeping */
+      /* Ephemeron Sweeping
+         This work is accounted as sweeping work */
 
       if (domain_state->ephe_info->must_sweep_ephe) {
         /* Move the ephemerons on the live list to the todo list. This is
