@@ -286,7 +286,8 @@ let[@inline] add_colored_nodes state reg =
   reg.Reg.irc_work_list <- Reg.Colored;
   Doubly_linked_list.add_begin state.colored_nodes reg
 
-let[@inline] is_empty_select_stack state = Misc.Stdlib.List.is_empty state.select_stack
+let[@inline] is_empty_select_stack state =
+  Misc.Stdlib.List.is_empty state.select_stack
 
 let[@inline] push_select_stack state reg =
   reg.Reg.irc_work_list <- Reg.Select_stack;
