@@ -1432,7 +1432,9 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       Some (Comparison(comp, Compare_ints))
     end else if (is_base_type env p1 Predef.path_int
         || is_base_type env p1 Predef.path_char
-        || (maybe_pointer_type env p1 = Immediate)) then begin
+        || ((* Non-null external types are always represented by tagged integers. *)
+            maybe_pointer_type env p1 = Immediate
+            && Ctype.check_type_nullability env p1 Non_null)) then begin
       Some (Comparison(comp, Compare_ints))
     end else if is_base_type env p1 Predef.path_float then begin
       Some (Comparison(comp, Compare_floats))
