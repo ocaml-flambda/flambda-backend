@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open With_name
+
 module Int = struct
   include Numbers.Int
   module Tree = Patricia_tree.Make (Numbers.Int)
@@ -104,8 +106,15 @@ module Id = struct
   let create_iterator { is_trie; default_value; name; _ } =
     let handler = ref (Trie.empty is_trie) in
     let out = ref default_value in
-    let iterator = Trie.Iterator.create_with_names is_trie handler out name in
-    handler, iterator, out
+    let iterator = Trie.Iterator.create is_trie handler out in
+    let rec get_names : type a. a Trie.Iterator.hlist -> int -> string list =
+      fun (type a) (iterators : a Trie.Iterator.hlist) i : string list ->
+       match iterators with
+       | [] -> []
+       | _ :: iterators ->
+         (name ^ "." ^ string_of_int i) :: get_names iterators (i + 1)
+    in
+    handler, { values = iterator; names = get_names iterator 0 }, out
 end
 
 module VM = Virtual_machine.Make (Trie.Iterator)

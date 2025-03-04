@@ -53,9 +53,4 @@ module Option_ref = struct
     | r :: rs, v :: vs ->
       r.contents <- Some v;
       set rs vs
-
-  type 'a with_name_hlist =
-    { cells : 'a hlist;
-      names : string list
-    }
 end

@@ -122,16 +122,6 @@ module Iterator = struct
     type nonrec 'a t = 'a t
   end)
 
-  type 'a with_name =
-    { iterator : 'a t;
-      name : string
-    }
-
-  type 'a with_name_hlist =
-    { iterators : 'a hlist;
-      names : string list
-    }
-
   let equal_key (type a) (Iterator _ : a t) : a -> a -> bool = Int.equal
 
   let compare_key (type a) (Iterator _ : a t) : a -> a -> int = Int.compare
@@ -169,15 +159,4 @@ module Iterator = struct
 
   let create is_trie this_ref value_handler =
     create is_trie this_ref value_handler
-
-  let create_with_names is_trie this_ref value_handler name_prefix =
-    let iterators = create is_trie this_ref value_handler in
-    let rec get_names : type a. a hlist -> int -> string list =
-      fun (type a) (iterators : a hlist) i : string list ->
-       match iterators with
-       | [] -> []
-       | _ :: iterators ->
-         (name_prefix ^ "." ^ string_of_int i) :: get_names iterators (i + 1)
-    in
-    { iterators; names = get_names iterators 0 }
 end

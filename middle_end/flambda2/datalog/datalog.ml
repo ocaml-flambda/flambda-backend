@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Heterogenous_list
+open With_name
 
 module Parameter = struct
   type 'a t =
@@ -102,19 +103,17 @@ let rec bind_atom :
   | ( this_arg :: other_args,
       this_iterator :: other_iterators,
       this_iterator_name :: other_iterators_names ) -> (
-    let this_iterator : _ Trie.Iterator.with_name =
-      { iterator = this_iterator; name = this_iterator_name }
-    in
+    let this_iterator = { value = this_iterator; name = this_iterator_name } in
     match this_arg with
     | Constant cte ->
       bind_iterator post_level
-        { cell = ref (Some cte); printed_name = "<constant>" }
+        { value = ref (Some cte); name = "<constant>" }
         this_iterator;
       bind_atom ~order post_level other_args other_iterators
         other_iterators_names
     | Parameter param ->
       bind_iterator post_level
-        { cell = param.cell; printed_name = param.name }
+        { value = param.cell; name = param.name }
         this_iterator;
       bind_atom ~order post_level other_args other_iterators
         other_iterators_names
@@ -130,8 +129,8 @@ let rec bind_atom :
         bind_atom ~order post_level other_args other_iterators
           other_iterators_names))
 
-let bind_atom post_level args (iterator : _ Trie.Iterator.with_name_hlist) =
-  bind_atom ~order:Cursor.Order.parameters post_level args iterator.iterators
+let bind_atom post_level args iterator =
+  bind_atom ~order:Cursor.Order.parameters post_level args iterator.values
     iterator.names
 
 let where_atom id args k info =
@@ -155,24 +154,20 @@ let rec find_last_binding0 : type a. order:_ -> _ -> a Term.hlist -> _ =
 let find_last_binding post_level args =
   find_last_binding0 ~order:Cursor.Order.parameters post_level args
 
-let rec compile_terms : type a. a Term.hlist -> a Option_ref.with_name_hlist =
+let rec compile_terms : type a. a Term.hlist -> a Option_ref.hlist with_names =
  fun vars ->
   match vars with
-  | [] -> { cells = []; names = [] }
+  | [] -> { values = []; names = [] }
   | term :: terms -> (
-    let ({ cells; names } : _ Option_ref.with_name_hlist) =
-      compile_terms terms
-    in
+    let { values; names } = compile_terms terms in
     match term with
     | Constant cte ->
-      { cells = ref (Some cte) :: cells; names = "<constant>" :: names }
+      { values = ref (Some cte) :: values; names = "<constant>" :: names }
     | Parameter param ->
-      { cells = param.cell :: cells; names = param.name :: names }
+      { values = param.cell :: values; names = param.name :: names }
     | Variable var ->
-      let ({ cell; printed_name } : _ Named_ref.t) =
-        Cursor.Level.use_output var
-      in
-      { cells = cell :: cells; names = printed_name :: names })
+      let { value; name } = Cursor.Level.use_output var in
+      { values = value :: values; names = name :: names })
 
 let unless_atom id args k info =
   let refs = compile_terms args in

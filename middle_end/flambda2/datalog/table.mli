@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open With_name
+
 module Type : sig
   type (_, _) eq = Equal : ('a, 'a) eq
 end
@@ -56,7 +58,7 @@ module Id : sig
     ('t, 'k, 'v) t
 
   val create_iterator :
-    ('t, 'k, 'v) t -> 't ref * 'k Trie.Iterator.with_name_hlist * 'v ref
+    ('t, 'k, 'v) t -> 't ref * 'k Trie.Iterator.hlist with_names * 'v ref
 end
 
 module Map : sig

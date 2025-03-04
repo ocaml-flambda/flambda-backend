@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Heterogenous_list
+open With_name
 
 type outcome =
   | Accept
@@ -172,16 +173,14 @@ module Make (Iterator : Leapfrog.Iterator) = struct
 
   let dispatch = Dispatch
 
-  let seek (r : _ Named_ref.t) (it : _ Iterator.with_name) k =
-    Seek (r.cell, it.iterator, k, r.printed_name, it.name)
+  let seek r it k = Seek (r.value, it.value, k, r.name, it.name)
 
-  let open_ (i : _ Iterator.with_name) (cell : _ Named_ref.t) a dispatch =
-    Open (i.iterator, cell.cell, a, dispatch, i.name, cell.printed_name)
+  let open_ i cell a dispatch =
+    Open (i.value, cell.value, a, dispatch, i.name, cell.name)
 
   let action a k = Action (a, k)
 
-  let call f ~name (y : _ Option_ref.with_name_hlist) k =
-    Call (f, y.cells, k, name, y.names)
+  let call f ~name y k = Call (f, y.values, k, name, y.names)
 
   let rec refs : type s. s Iterator.hlist -> s Option_ref.hlist = function
     | [] -> []
@@ -192,11 +191,11 @@ module Make (Iterator : Leapfrog.Iterator) = struct
   let iterate :
       type a.
       (a Constant.hlist -> unit) ->
-      a Iterator.with_name_hlist ->
+      a Iterator.hlist with_names ->
       (_, nil) instruction =
    fun f iterators ->
     let iterator_names = iterators.names in
-    let iterators = iterators.iterators in
+    let iterators = iterators.values in
     let rec rev0 :
         type s. s Iterator.hlist -> s Option_ref.hlist -> erev -> erev =
      fun iterators refs acc ->
@@ -218,13 +217,11 @@ module Make (Iterator : Leapfrog.Iterator) = struct
      fun iterators refs instruction iterator_names ->
       match iterators, refs, iterator_names with
       | [iterator], [r], name :: _ ->
-        open_ { iterator; name }
-          { cell = r; printed_name = "_" }
-          instruction dispatch
+        open_ { value = iterator; name } { value = r; name = "_" } instruction
+          dispatch
       | iterator :: (_ :: _ as iterators), r :: refs, name :: iterator_names ->
         loop iterators refs
-          (open_ { iterator; name }
-             { cell = r; printed_name = "_" }
+          (open_ { value = iterator; name } { value = r; name = "_" }
              instruction dispatch)
           iterator_names
       | _, _, [] ->
@@ -235,7 +232,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     | _ :: _ ->
       loop rev_iterators rev_refs
         (call f ~name:"yield"
-           { cells = rs; names = List.map (fun _ -> "_") iterator_names }
+           { values = rs; names = List.map (fun _ -> "_") iterator_names }
            advance)
         (List.rev iterator_names)
 

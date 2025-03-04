@@ -14,14 +14,15 @@
 (**************************************************************************)
 
 open Heterogenous_list
+open With_name
 
 type action
 
 val bind_iterator :
-  'a option Named_ref.t -> 'a Trie.Iterator.with_name -> action
+  'a option ref with_name -> 'a Trie.Iterator.t with_name -> action
 
 val unless :
-  ('t, 'k, 'v) Table.Id.t -> 't ref -> 'k Option_ref.with_name_hlist -> action
+  ('t, 'k, 'v) Table.Id.t -> 't ref -> 'k Option_ref.hlist with_names -> action
 
 type actions
 
@@ -45,12 +46,12 @@ module Level : sig
       {b Note}: This reference is set to any new value found prior to executing
       the associated actions, if any, and can thus be used in actions for this
       level or levels of later orders. *)
-  val use_output : 'a t -> 'a option Named_ref.t
+  val use_output : 'a t -> 'a option ref with_name
 
   (** Actions to execute immediately after a value is found at this level. *)
   val actions : 'a t -> actions
 
-  val add_iterator : 'a t -> 'a Trie.Iterator.with_name -> unit
+  val add_iterator : 'a t -> 'a Trie.Iterator.t with_name -> unit
 
   (** Order of this level. Levels will be iterated over in a nested loop of
       ascending order: if level [order b >= order a], then the loop for [b] is
@@ -65,7 +66,7 @@ val create_context : unit -> context
 val add_new_level : context -> string -> 'a Level.t
 
 val add_iterator :
-  context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.with_name_hlist
+  context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.hlist with_names
 
 val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't ref
 
@@ -84,11 +85,11 @@ type call
 val create_call :
   ('a Constant.hlist -> unit) ->
   name:string ->
-  'a Option_ref.with_name_hlist ->
+  'a Option_ref.hlist with_names ->
   call
 
 val create :
-  ?calls:call list -> ?output:'v Option_ref.with_name_hlist -> context -> 'v t
+  ?calls:call list -> ?output:'v Option_ref.hlist with_names -> context -> 'v t
 
 val naive_fold :
   'v t -> Table.Map.t -> ('v Constant.hlist -> 'a -> 'a) -> 'a -> 'a
@@ -112,7 +113,7 @@ module With_parameters : sig
   val create :
     parameters:'p Option_ref.hlist ->
     ?calls:call list ->
-    ?output:'v Option_ref.with_name_hlist ->
+    ?output:'v Option_ref.hlist with_names ->
     context ->
     ('p, 'v) t
 

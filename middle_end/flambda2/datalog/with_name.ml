@@ -13,7 +13,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type 'a t =
-  { cell : 'a ref;
-    printed_name : string
+type 'a with_name =
+  { value : 'a;
+    name : string
+  }
+
+type 'a with_names =
+  { values : 'a;
+    names : string list
   }
