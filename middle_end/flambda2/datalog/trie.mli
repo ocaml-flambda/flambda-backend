@@ -58,6 +58,4 @@ module Iterator : sig
       called on the last iterator.
   *)
   val create : ('m, 'k, 'v) is_trie -> 'm ref -> 'v ref -> 'k hlist
-  (* val create_with_names : ('m, 'k, 'v) is_trie -> 'm ref -> 'v ref -> string
-     -> 'k with_name_hlist *)
 end
