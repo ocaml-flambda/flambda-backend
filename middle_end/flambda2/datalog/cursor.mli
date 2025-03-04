@@ -17,10 +17,11 @@ open Heterogenous_list
 
 type action
 
-val bind_iterator : 'a option Named_ref.t -> 'a Trie.Iterator.t -> action
+val bind_iterator :
+  'a option Named_ref.t -> 'a Trie.Iterator.with_name -> action
 
 val unless :
-  ('t, 'k, 'v) Table.Id.t -> 't Named_ref.t -> 'k Option_ref.hlist -> action
+  ('t, 'k, 'v) Table.Id.t -> 't ref -> 'k Option_ref.with_name_hlist -> action
 
 type actions
 
@@ -49,7 +50,7 @@ module Level : sig
   (** Actions to execute immediately after a value is found at this level. *)
   val actions : 'a t -> actions
 
-  val add_iterator : 'a t -> 'a Trie.Iterator.t -> unit
+  val add_iterator : 'a t -> 'a Trie.Iterator.with_name -> unit
 
   (** Order of this level. Levels will be iterated over in a nested loop of
       ascending order: if level [order b >= order a], then the loop for [b] is
@@ -63,9 +64,10 @@ val create_context : unit -> context
 
 val add_new_level : context -> string -> 'a Level.t
 
-val add_iterator : context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.hlist
+val add_iterator :
+  context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.with_name_hlist
 
-val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't Named_ref.t
+val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't ref
 
 (** Initial actions are always executed when iterating over a cursor, before
     opening the first level. *)
@@ -80,9 +82,13 @@ val print : Format.formatter -> 'a t -> unit
 type call
 
 val create_call :
-  ('a Constant.hlist -> unit) -> name:string -> 'a Option_ref.hlist -> call
+  ('a Constant.hlist -> unit) ->
+  name:string ->
+  'a Option_ref.with_name_hlist ->
+  call
 
-val create : ?calls:call list -> ?output:'v Option_ref.hlist -> context -> 'v t
+val create :
+  ?calls:call list -> ?output:'v Option_ref.with_name_hlist -> context -> 'v t
 
 val naive_fold :
   'v t -> Table.Map.t -> ('v Constant.hlist -> 'a -> 'a) -> 'a -> 'a
@@ -106,7 +112,7 @@ module With_parameters : sig
   val create :
     parameters:'p Option_ref.hlist ->
     ?calls:call list ->
-    ?output:'v Option_ref.hlist ->
+    ?output:'v Option_ref.with_name_hlist ->
     context ->
     ('p, 'v) t
 

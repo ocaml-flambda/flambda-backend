@@ -97,7 +97,15 @@ module type Iterator = sig
   (** [equal_key it] is a comparison function on iterator keys. *)
   val compare_key : 'a t -> 'a -> 'a -> int
 
-  val print_name : Format.formatter -> 'a t -> unit
+  type 'a with_name =
+    { iterator : 'a t;
+      name : string
+    }
+
+  type 'a with_name_hlist =
+    { iterators : 'a hlist;
+      names : string list
+    }
 end
 
 module Join (Iterator : Iterator) : sig
@@ -114,4 +122,6 @@ module Join (Iterator : Iterator) : sig
       @raise Invalid_argument if [iterators] is empty.
   *)
   val create : 'a Iterator.t list -> 'a t
+
+  val create_with_name : 'a Iterator.with_name list -> 'a with_name
 end

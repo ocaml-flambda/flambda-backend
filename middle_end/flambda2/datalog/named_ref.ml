@@ -14,12 +14,6 @@
 (**************************************************************************)
 
 type 'a t =
-  { mutable contents : 'a;
+  { cell : 'a ref;
     printed_name : string
   }
-
-let[@inline] ( ! ) r = r.contents
-
-let[@inline] ( := ) r x = r.contents <- x
-
-let pp_name ff r = Format.pp_print_string ff r.printed_name

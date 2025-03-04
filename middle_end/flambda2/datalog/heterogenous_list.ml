@@ -39,7 +39,7 @@ end)
 
 module Option_ref = struct
   include Make (struct
-    type 'a t = 'a option Named_ref.t
+    type 'a t = 'a option ref
   end)
 
   let rec get : type s. s hlist -> s Constant.hlist = function
@@ -54,10 +54,8 @@ module Option_ref = struct
       r.contents <- Some v;
       set rs vs
 
-  let rec pp_name_hlist : type s. _ -> s hlist -> unit =
-   fun ff values ->
-    match values with
-    | [] -> ()
-    | [x] -> Named_ref.pp_name ff x
-    | x :: r -> Format.fprintf ff "%a, %a" Named_ref.pp_name x pp_name_hlist r
+  type 'a with_name_hlist =
+    { cells : 'a hlist;
+      names : string list
+    }
 end

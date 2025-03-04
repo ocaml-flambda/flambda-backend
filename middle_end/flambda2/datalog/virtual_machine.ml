@@ -23,10 +23,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
   type 's stack =
     | Stack_nil : nil stack
     | Stack_cons :
-        'a Iterator.t
-        * 'a option Named_ref.t
-        * ('a -> 's) continuation
-        * 's stack
+        'a Iterator.t * 'a option ref * ('a -> 's) continuation * 's stack
         -> ('a -> 's) stack
 
   and 's continuation = 's stack -> unit
@@ -36,13 +33,15 @@ module Make (Iterator : Leapfrog.Iterator) = struct
     | Up : ('x, 's) instruction -> ('x, 'a -> 's) instruction
     | Dispatch : ('a, 'b -> 's) instruction
     | Seek :
-        'b option Named_ref.t * 'b Iterator.t * ('a, 's) instruction
+        'b option ref * 'b Iterator.t * ('a, 's) instruction * string * string
         -> ('a, 's) instruction
     | Open :
         'b Iterator.t
-        * 'b option Named_ref.t
+        * 'b option ref
         * ('a, 'b -> 's) instruction
         * ('a, 'b -> 's) instruction
+        * string
+        * string
         -> ('a, 's) instruction
     | Action : 'a * ('a, 's) instruction -> ('a, 's) instruction
     | Call :
@@ -50,6 +49,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         * 'b Option_ref.hlist
         * ('a, 's) instruction
         * string
+        * string list
         -> ('a, 's) instruction
 
   let pp_instruction pp_act ff instr =
@@ -83,30 +83,31 @@ module Make (Iterator : Leapfrog.Iterator) = struct
               (instr, depth - n)
         in
         print_breaks 1 instr
-      | Open (iterator, var, instr1, Dispatch) ->
-        Format.fprintf ff "%a@[<v 2>@[<hov 2>for %a in %a:@]%a" pp_initiator
-          depth Named_ref.pp_name var Iterator.print_name iterator
-          pp_instruction
+      | Open (_iterator, _var, instr1, Dispatch, iterator_name, var_name) ->
+        Format.fprintf ff "%a@[<v 2>@[<hov 2>for %s in %s:@]%a" pp_initiator
+          depth var_name iterator_name pp_instruction
           (instr1, depth + 1)
-      | Seek (var, iterator, instr) ->
-        Format.fprintf ff "%a@[<v 2>@[<hov 2>for _ in {%a} ⨝ %a:@]%a"
-          pp_initiator depth Named_ref.pp_name var Iterator.print_name iterator
-          pp_instruction
+      | Seek (_var, _iterator, instr, var_name, iterator_name) ->
+        Format.fprintf ff "%a@[<v 2>@[<hov 2>for _ in {%s} ⨝ %s:@]%a"
+          pp_initiator depth var_name iterator_name pp_instruction
           (instr, depth + 1)
       | Dispatch ->
         Format.fprintf ff "%adispatch%a" pp_initiator depth pp_terminators depth
-      | Open (iterator, var, instr1, instr2) ->
+      | Open (_iterator, _var, instr1, instr2, iterator_name, var_name) ->
         Format.fprintf ff
-          "%a@[<v 2>@[<hov 2>open (%a : %a) [@;<1 0>%a@;<1 -2>]@] {%a"
-          pp_initiator depth Named_ref.pp_name var Iterator.print_name iterator
-          pp_instruction (instr2, 0) pp_instruction
+          "%a@[<v 2>@[<hov 2>open (%s : %s) [@;<1 0>%a@;<1 -2>]@] {%a"
+          pp_initiator depth var_name iterator_name pp_instruction (instr2, 0)
+          pp_instruction
           (instr1, depth + 1)
       | Action (a, instr) ->
         Format.fprintf ff "%a@[<v 2>%a@]%a" pp_initiator depth pp_act a
           pp_instruction (instr, depth)
-      | Call (_f, l, instr, name) ->
+      | Call (_f, _l, instr, name, names) ->
         Format.fprintf ff "%a%s (%a)%a" pp_initiator depth name
-          Option_ref.pp_name_hlist l pp_instruction (instr, depth)
+          (Format.pp_print_list
+             ~pp_sep:(fun ff () -> Format.fprintf ff ", ")
+             Format.pp_print_string)
+          names pp_instruction (instr, depth)
     in
     pp_instruction ff (instr, 0)
 
@@ -137,11 +138,11 @@ module Make (Iterator : Leapfrog.Iterator) = struct
       | Up k ->
         let (Stack_cons (_, _, _, stack)) = stack in
         execute k stack
-      | Open (iterator, cell, for_each, k) ->
+      | Open (iterator, cell, for_each, k, _iterator_name, _cell_name) ->
         Iterator.init iterator;
         execute k (Stack_cons (iterator, cell, execute for_each, stack))
-      | Seek (key_ref, iterator, k) -> (
-        let key = Option.get (Named_ref.( ! ) key_ref) in
+      | Seek (key_ref, iterator, k, _key_ref_name, _iterator_name) -> (
+        let key = Option.get !key_ref in
         Iterator.init iterator;
         Iterator.seek iterator key;
         match Iterator.current iterator with
@@ -154,7 +155,7 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         match (evaluate [@inlined hint]) op with
         | Accept -> execute k stack
         | Skip -> advance stack)
-      | Call (f, rs, k, _name) ->
+      | Call (f, rs, k, _name, _names) ->
         f (Option_ref.get rs);
         execute k stack
     in
@@ -171,25 +172,31 @@ module Make (Iterator : Leapfrog.Iterator) = struct
 
   let dispatch = Dispatch
 
-  let seek r it k = Seek (r, it, k)
+  let seek (r : _ Named_ref.t) (it : _ Iterator.with_name) k =
+    Seek (r.cell, it.iterator, k, r.printed_name, it.name)
 
-  let open_ i cell a dispatch = Open (i, cell, a, dispatch)
+  let open_ (i : _ Iterator.with_name) (cell : _ Named_ref.t) a dispatch =
+    Open (i.iterator, cell.cell, a, dispatch, i.name, cell.printed_name)
 
   let action a k = Action (a, k)
 
-  let call f ~name y k = Call (f, y, k, name)
+  let call f ~name (y : _ Option_ref.with_name_hlist) k =
+    Call (f, y.cells, k, name, y.names)
 
   let rec refs : type s. s Iterator.hlist -> s Option_ref.hlist = function
     | [] -> []
-    | _ :: iterators ->
-      { contents = None; printed_name = "_" } :: refs iterators
+    | _ :: iterators -> ref None :: refs iterators
 
   type erev = Erev : 's Iterator.hlist * 's Option_ref.hlist -> erev
 
   let iterate :
       type a.
-      (a Constant.hlist -> unit) -> a Iterator.hlist -> (_, nil) instruction =
+      (a Constant.hlist -> unit) ->
+      a Iterator.with_name_hlist ->
+      (_, nil) instruction =
    fun f iterators ->
+    let iterator_names = iterators.names in
+    let iterators = iterators.iterators in
     let rec rev0 :
         type s. s Iterator.hlist -> s Option_ref.hlist -> erev -> erev =
      fun iterators refs acc ->
@@ -206,16 +213,31 @@ module Make (Iterator : Leapfrog.Iterator) = struct
         (a -> s) Iterator.hlist ->
         (a -> s) Option_ref.hlist ->
         (_, a -> s) instruction ->
+        string list ->
         (_, nil) instruction =
-     fun iterators refs instruction ->
-      match iterators, refs with
-      | [iterator], [r] -> open_ iterator r instruction dispatch
-      | iterator :: (_ :: _ as iterators), r :: refs ->
-        loop iterators refs (open_ iterator r instruction dispatch)
+     fun iterators refs instruction iterator_names ->
+      match iterators, refs, iterator_names with
+      | [iterator], [r], name :: _ ->
+        open_ { iterator; name }
+          { cell = r; printed_name = "_" }
+          instruction dispatch
+      | iterator :: (_ :: _ as iterators), r :: refs, name :: iterator_names ->
+        loop iterators refs
+          (open_ { iterator; name }
+             { cell = r; printed_name = "_" }
+             instruction dispatch)
+          iterator_names
+      | _, _, [] ->
+        Misc.fatal_errorf "Incorrect number of names for iterators in [iterate]"
     in
     match rev_iterators with
     | [] -> Advance
-    | _ :: _ -> loop rev_iterators rev_refs (call f ~name:"yield" rs advance)
+    | _ :: _ ->
+      loop rev_iterators rev_refs
+        (call f ~name:"yield"
+           { cells = rs; names = List.map (fun _ -> "_") iterator_names }
+           advance)
+        (List.rev iterator_names)
 
   type 'a iterator =
     | Iterator of ('a Constant.hlist -> unit) ref * nil continuation

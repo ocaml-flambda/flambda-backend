@@ -56,7 +56,7 @@ module Id : sig
     ('t, 'k, 'v) t
 
   val create_iterator :
-    ('t, 'k, 'v) t -> 't Named_ref.t * 'k Trie.Iterator.hlist * 'v Named_ref.t
+    ('t, 'k, 'v) t -> 't ref * 'k Trie.Iterator.with_name_hlist * 'v ref
 end
 
 module Map : sig

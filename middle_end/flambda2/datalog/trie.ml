@@ -113,8 +113,8 @@ module Iterator = struct
   type _ t =
     | Iterator :
         { mutable iterator : 'v Int.Map.iterator;
-          map : 'v Int.Map.t Named_ref.t;
-          handler : 'v Named_ref.t
+          map : 'v Int.Map.t ref;
+          handler : 'v ref
         }
         -> int t
 
@@ -122,7 +122,15 @@ module Iterator = struct
     type nonrec 'a t = 'a t
   end)
 
-  let print_name (type a) ff (Iterator i : a t) = Named_ref.pp_name ff i.map
+  type 'a with_name =
+    { iterator : 'a t;
+      name : string
+    }
+
+  type 'a with_name_hlist =
+    { iterators : 'a hlist;
+      names : string list
+    }
 
   let equal_key (type a) (Iterator _ : a t) : a -> a -> bool = Int.equal
 
@@ -140,36 +148,36 @@ module Iterator = struct
     i.iterator <- Int.Map.seek i.iterator k
 
   let init (type a) (Iterator i : a t) : unit =
-    i.iterator <- Int.Map.iterator i.map.contents
+    i.iterator <- Int.Map.iterator !(i.map)
 
   let accept (type a) (Iterator i : a t) : unit =
     match Int.Map.current i.iterator with
     | None -> invalid_arg "accept: iterator is exhausted"
-    | Some (_, value) -> i.handler.contents <- value
+    | Some (_, value) -> i.handler := value
 
   let create_iterator cell handler =
     Iterator { iterator = Int.Map.iterator Int.Map.empty; map = cell; handler }
 
-  let rec create :
-      type m k v.
-      (m, k, v) is_trie ->
-      int ->
-      string ->
-      m Named_ref.t ->
-      v Named_ref.t ->
-      k hlist =
-   fun is_trie i name this_ref value_handler ->
+  let rec create : type m k v. (m, k, v) is_trie -> m ref -> v ref -> k hlist =
+   fun is_trie this_ref value_handler ->
     match is_trie with
     | Map_is_trie -> [create_iterator this_ref value_handler]
     | Nested_trie next_trie ->
-      let next_ref : _ Named_ref.t =
-        { contents = empty next_trie;
-          printed_name = name ^ "." ^ string_of_int i
-        }
-      in
+      let next_ref = ref (empty next_trie) in
       create_iterator this_ref next_ref
-      :: create next_trie (i + 1) name next_ref value_handler
+      :: create next_trie next_ref value_handler
 
-  let create is_trie name this_ref value_handler =
-    create is_trie 1 name this_ref value_handler
+  let create is_trie this_ref value_handler =
+    create is_trie this_ref value_handler
+
+  let create_with_names is_trie this_ref value_handler name_prefix =
+    let iterators = create is_trie this_ref value_handler in
+    let rec get_names : type a. a hlist -> int -> string list =
+      fun (type a) (iterators : a hlist) i : string list ->
+       match iterators with
+       | [] -> []
+       | _ :: iterators ->
+         (name_prefix ^ "." ^ string_of_int i) :: get_names iterators (i + 1)
+    in
+    { iterators; names = get_names iterators 0 }
 end

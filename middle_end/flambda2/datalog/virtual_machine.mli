@@ -80,7 +80,7 @@ module Make (Iterator : Leapfrog.Iterator) : sig
 
   val seek :
     'a option Named_ref.t ->
-    'a Iterator.t ->
+    'a Iterator.with_name ->
     ('b, 's) instruction ->
     ('b, 's) instruction
 
@@ -95,7 +95,7 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       [k].
   *)
   val open_ :
-    'i Iterator.t ->
+    'i Iterator.with_name ->
     'i option Named_ref.t ->
     ('a, 'i -> 's) instruction ->
     ('a, 'i -> 's) instruction ->
@@ -116,7 +116,7 @@ module Make (Iterator : Leapfrog.Iterator) : sig
   val call :
     ('a Heterogenous_list.Constant.hlist -> unit) ->
     name:string ->
-    'a Heterogenous_list.Option_ref.hlist ->
+    'a Heterogenous_list.Option_ref.with_name_hlist ->
     ('x, 's) instruction ->
     ('x, 's) instruction
 
@@ -131,7 +131,7 @@ module Make (Iterator : Leapfrog.Iterator) : sig
 
   (** [iterator] is a convenience function for creating a virtual machine that
       iterates over all the values of an iterator heterogenous list. *)
-  val iterator : 's Iterator.hlist -> 's iterator
+  val iterator : 's Iterator.with_name_hlist -> 's iterator
 
   val iter :
     ('y Heterogenous_list.Constant.hlist -> unit) -> 'y iterator -> unit

@@ -18,10 +18,10 @@ open Heterogenous_list
 module Parameter = struct
   type 'a t =
     { name : string;
-      cell : 'a option Named_ref.t
+      cell : 'a option ref
     }
 
-  let create name = { name; cell = { contents = None; printed_name = name } }
+  let create name = { name; cell = ref None }
 
   include Heterogenous_list.Make (struct
     type nonrec 'a t = 'a t
@@ -92,33 +92,47 @@ let bind_iterator actions var iterator =
   Cursor.add_action actions (Cursor.bind_iterator var iterator)
 
 let rec bind_atom :
-    type a. order:_ -> _ -> a Term.hlist -> a Trie.Iterator.hlist -> unit =
- fun ~order post_level args iterators ->
-  match args, iterators with
-  | [], [] -> ()
-  | this_arg :: other_args, this_iterator :: other_iterators -> (
+    type a.
+    order:_ -> _ -> a Term.hlist -> a Trie.Iterator.hlist -> string list -> unit
+    =
+ fun ~order post_level args iterators iterator_names ->
+  match args, iterators, iterator_names with
+  | [], [], _ -> ()
+  | _, _, [] -> Misc.fatal_error "Missing names in [bind_atom]"
+  | ( this_arg :: other_args,
+      this_iterator :: other_iterators,
+      this_iterator_name :: other_iterators_names ) -> (
+    let this_iterator : _ Trie.Iterator.with_name =
+      { iterator = this_iterator; name = this_iterator_name }
+    in
     match this_arg with
     | Constant cte ->
       bind_iterator post_level
-        { contents = Some cte; printed_name = "<constant>" }
+        { cell = ref (Some cte); printed_name = "<constant>" }
         this_iterator;
       bind_atom ~order post_level other_args other_iterators
+        other_iterators_names
     | Parameter param ->
-      bind_iterator post_level param.cell this_iterator;
+      bind_iterator post_level
+        { cell = param.cell; printed_name = param.name }
+        this_iterator;
       bind_atom ~order post_level other_args other_iterators
+        other_iterators_names
     | Variable var ->
       let var_order = Cursor.Level.order var in
       if Cursor.Order.compare var_order order > 0
       then (
         Cursor.Level.add_iterator var this_iterator;
         bind_atom ~order:var_order (Cursor.Level.actions var) other_args
-          other_iterators)
+          other_iterators other_iterators_names)
       else (
         bind_iterator post_level (Cursor.Level.use_output var) this_iterator;
-        bind_atom ~order post_level other_args other_iterators))
+        bind_atom ~order post_level other_args other_iterators
+          other_iterators_names))
 
-let bind_atom post_level args iterator =
-  bind_atom ~order:Cursor.Order.parameters post_level args iterator
+let bind_atom post_level args (iterator : _ Trie.Iterator.with_name_hlist) =
+  bind_atom ~order:Cursor.Order.parameters post_level args iterator.iterators
+    iterator.names
 
 let where_atom id args k info =
   let iterators = Cursor.add_iterator info.context id in
@@ -141,17 +155,24 @@ let rec find_last_binding0 : type a. order:_ -> _ -> a Term.hlist -> _ =
 let find_last_binding post_level args =
   find_last_binding0 ~order:Cursor.Order.parameters post_level args
 
-let rec compile_terms : type a. a Term.hlist -> a Option_ref.hlist =
+let rec compile_terms : type a. a Term.hlist -> a Option_ref.with_name_hlist =
  fun vars ->
   match vars with
-  | [] -> []
+  | [] -> { cells = []; names = [] }
   | term :: terms -> (
+    let ({ cells; names } : _ Option_ref.with_name_hlist) =
+      compile_terms terms
+    in
     match term with
     | Constant cte ->
-      { contents = Some cte; printed_name = "<constant>" }
-      :: compile_terms terms
-    | Parameter param -> param.cell :: compile_terms terms
-    | Variable var -> Cursor.Level.use_output var :: compile_terms terms)
+      { cells = ref (Some cte) :: cells; names = "<constant>" :: names }
+    | Parameter param ->
+      { cells = param.cell :: cells; names = param.name :: names }
+    | Variable var ->
+      let ({ cell; printed_name } : _ Named_ref.t) =
+        Cursor.Level.use_output var
+      in
+      { cells = cell :: cells; names = printed_name :: names })
 
 let unless_atom id args k info =
   let refs = compile_terms args in

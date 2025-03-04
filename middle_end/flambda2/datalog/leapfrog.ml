@@ -30,13 +30,23 @@ module type Iterator = sig
 
   val compare_key : 'a t -> 'a -> 'a -> int
 
-  val print_name : Format.formatter -> 'a t -> unit
+  type 'a with_name =
+    { iterator : 'a t;
+      name : string
+    }
+
+  type 'a with_name_hlist =
+    { iterators : 'a hlist;
+      names : string list
+    }
 end
 
 module Join (Iterator : Iterator) : sig
   include Iterator
 
   val create : 'a Iterator.t list -> 'a t
+
+  val create_with_name : 'a Iterator.with_name list -> 'a with_name
 end = struct
   type 'k t =
     { iterators : 'k Iterator.t array;
@@ -47,12 +57,15 @@ end = struct
     type nonrec 'a t = 'a t
   end)
 
-  let print_name ff { iterators; _ } =
-    for i = 0 to Array.length iterators - 2 do
-      Iterator.print_name ff iterators.(i);
-      Format.pp_print_string ff " ⨝ "
-    done;
-    Iterator.print_name ff iterators.(Array.length iterators - 1)
+  type 'a with_name =
+    { iterator : 'a t;
+      name : string
+    }
+
+  type 'a with_name_hlist =
+    { iterators : 'a hlist;
+      names : string list
+    }
 
   let current (type a) ({ iterators; at_end } : a t) : a option =
     if at_end
@@ -128,13 +141,18 @@ end = struct
     if at_end then invalid_arg "Joined_iterator.accept: iterator is exhausted";
     Array.iter Iterator.accept iterators
 
-  let equal_key { iterators; _ } = Iterator.equal_key iterators.(0)
+  let equal_key ({ iterators; _ } : 'a t) = Iterator.equal_key iterators.(0)
 
-  let compare_key { iterators; _ } = Iterator.compare_key iterators.(0)
+  let compare_key ({ iterators; _ } : 'a t) = Iterator.compare_key iterators.(0)
 
   let create (iterators : _ Iterator.t list) : _ t =
     match iterators with
     | [] -> invalid_arg "Joined_iterator.create: cannot join an empty list"
     | _ -> { iterators = Array.of_list iterators; at_end = false }
+
+  let create_with_name iterators =
+    let names = List.map (fun it -> it.Iterator.name) iterators in
+    let iterators = List.map (fun it -> it.Iterator.iterator) iterators in
+    { iterator = create iterators; name = String.concat " ⨝ " names }
 end
 [@@inline always]

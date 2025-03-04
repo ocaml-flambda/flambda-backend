@@ -17,18 +17,24 @@ open Heterogenous_list
 
 type vm_action =
   | Unless :
-      ('t, 'k, 'v) Trie.is_trie * 't Named_ref.t * 'k Option_ref.hlist
+      ('t, 'k, 'v) Trie.is_trie
+      * 't ref
+      * 'k Option_ref.hlist
+      * string
+      * string list
       -> vm_action
 
 type action =
-  | Bind_iterator : 'a option Named_ref.t * 'a Trie.Iterator.t -> action
+  | Bind_iterator : 'a option Named_ref.t * 'a Trie.Iterator.with_name -> action
   | VM_action : vm_action -> action
 
 let bind_iterator var iterator = Bind_iterator (var, iterator)
 
-let unless id cell args = VM_action (Unless (Table.Id.is_trie id, cell, args))
+let unless id cell (args : _ Option_ref.with_name_hlist) =
+  VM_action
+    (Unless (Table.Id.is_trie id, cell, args.cells, Table.Id.name id, args.names))
 
-type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't Named_ref.t -> binder
+type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't ref -> binder
 
 type actions = { mutable rev_actions : action list }
 
@@ -38,9 +44,12 @@ let add_action actions action =
   actions.rev_actions <- action :: actions.rev_actions
 
 let pp_cursor_action ff = function
-  | Unless (_, t, l) ->
-    Format.fprintf ff "if %a(%a):@ continue" Named_ref.pp_name t
-      Option_ref.pp_name_hlist l
+  | Unless (_, _t, _l, t_name, l_names) ->
+    Format.fprintf ff "if %s(%a):@ continue" t_name
+      (Format.pp_print_list
+         ~pp_sep:(fun ff () -> Format.fprintf ff ", ")
+         Format.pp_print_string)
+      l_names
 
 module Order : sig
   type t
@@ -69,7 +78,7 @@ module Level = struct
     { name : string;
       order : Order.t;
       actions : actions;
-      mutable iterators : 'a Trie.Iterator.t list;
+      mutable iterators : 'a Trie.Iterator.with_name list;
       mutable output : 'a option Named_ref.t option
     }
 
@@ -83,7 +92,7 @@ module Level = struct
     match level.output with
     | None ->
       let output : _ Named_ref.t =
-        { contents = None; printed_name = level.name }
+        { cell = ref None; printed_name = level.name }
       in
       level.output <- Some output;
       output
@@ -151,11 +160,7 @@ let add_iterator context id =
   iterators
 
 let add_naive_binder context id =
-  let handler : _ Named_ref.t =
-    { contents = Trie.empty (Table.Id.is_trie id);
-      printed_name = Table.Id.name id
-    }
-  in
+  let handler = ref (Trie.empty (Table.Id.is_trie id)) in
   add_binder context.naive_binders (Bind_table (id, handler));
   handler
 
@@ -186,7 +191,7 @@ let apply_actions actions instruction =
     (fun instruction action ->
       match action with
       | Bind_iterator (var, iterator) ->
-        VM.seek var (Join_iterator.create [iterator]) instruction
+        VM.seek var (Join_iterator.create_with_name [iterator]) instruction
       | VM_action action -> VM.action action instruction)
     instruction actions.rev_actions
 
@@ -214,17 +219,17 @@ let rec open_rev_vars :
            [ref] for simplicity. *)
         match var.output with
         | Some output -> output
-        | None -> { contents = None; printed_name = "_" }
+        | None -> { cell = ref None; printed_name = "_" }
       in
       match vars with
       | [] ->
         VM.open_
-          (Join_iterator.create var.iterators)
+          (Join_iterator.create_with_name var.iterators)
           cell instruction VM.dispatch
       | _ :: _ as vars ->
         open_rev_vars vars
           (VM.open_
-             (Join_iterator.create var.iterators)
+             (Join_iterator.create_with_name var.iterators)
              cell instruction VM.dispatch)))
 
 (* Optimisation: if we do not use the output from the last variable, we only
@@ -242,7 +247,7 @@ type call =
   | Call :
       { func : 'a Constant.hlist -> unit;
         name : string;
-        args : 'a Option_ref.hlist
+        args : 'a Option_ref.with_name_hlist
       }
       -> call
 
@@ -288,7 +293,7 @@ let bind_table_list binders database =
   List.iter (fun binder -> ignore @@ bind_table binder database) binders
 
 let evaluate = function
-  | Unless (is_trie, cell, args) ->
+  | Unless (is_trie, cell, args, _cell_name, _args_names) ->
     if Option.is_some
          (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
     then Virtual_machine.Skip
