@@ -1,6 +1,11 @@
 (* TEST
+ modules = "nested_fiber_.c";
  runtime5;
- { modules = "nested_fiber_.c"; }
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 external caml_to_c : (unit -> 'a) -> 'a = "caml_to_c"

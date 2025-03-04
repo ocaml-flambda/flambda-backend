@@ -1358,12 +1358,12 @@ CFI_STARTPROC
 #endif
     /* %rax -> fiber, %rbx -> fun, %rdi -> arg */
         andq    $-2, %rax       /* %rax = Ptr_val(%rax) */
-    /* save old stack pointer and exception handler */
+    /* Save old stack pointer and exception handler */
         movq    Caml_state(current_stack), %rcx
         movq    Caml_state(exn_handler), %r10
         movq    %rsp, Stack_sp(%rcx)
         movq    %r10, Stack_exception(%rcx)
-    /* Save local allocations state that the OCaml code might have modified */
+    /* save local allocations state that the OCaml code might have modified */
         movq    Caml_state(local_sp), %r10
         movq    %r10, Stack_local_sp(%rcx)
     /* Load new stack pointer and set parent */

@@ -1127,7 +1127,6 @@ again:
     }
 
     value_ptr scan_end = me.end;
-    CAMLassert(scan_end != NULL);
     if (scan_end - me.start > budget) {
       intnat scan_len = budget < 0 ? 0 : budget;
       scan_end = me.start + scan_len;

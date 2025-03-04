@@ -493,8 +493,8 @@ CAMLprim value caml_atomic_lxor (value ref, value incr)
 CAMLexport int caml_is_stack (value v)
 {
   int i;
-  // We elide a call to caml_get_local_arenas_and_save_local_sp here
-  // for speed, since we never read the local sp.
+  // We elide a call to caml_refresh_locals here for speed, since we never 
+  // read the local sp.
   struct caml_local_arenas* loc = Caml_state->current_stack->local_arenas;
   if (!Is_block(v)) return 0;
   if (Color_hd(Hd_val(v)) != NOT_MARKABLE) return 0;
@@ -528,8 +528,7 @@ CAMLexport void caml_modify_local (value obj, intnat i, value val)
   }
 }
 
-CAMLexport caml_local_arenas* caml_get_local_arenas_and_save_local_sp(
-  struct stack_info* stack)
+CAMLexport caml_local_arenas* caml_refresh_locals(struct stack_info* stack)
 {
   caml_local_arenas* s = stack->local_arenas;
 
@@ -537,14 +536,14 @@ CAMLexport caml_local_arenas* caml_get_local_arenas_and_save_local_sp(
   // the [stack_info] structure, in the case where we are working with
   // the current stack.
 
-  if (stack == Caml_state->current_stack && s != NULL) {
+  if (stack == Caml_state->current_stack) {
     Caml_state->current_stack->local_sp = Caml_state->local_sp;
   }
 
   return s;
 }
 
-CAMLexport void caml_set_local_arenas(caml_local_arenas* s, uintnat local_sp)
+CAMLexport void caml_use_local_arenas(caml_local_arenas* s, uintnat local_sp)
 {
   Caml_state->current_stack->local_arenas = s;
   if (s != NULL) {
@@ -577,8 +576,7 @@ void caml_free_local_arenas(caml_local_arenas* s) {
 
 void caml_local_realloc(void)
 {
-  caml_local_arenas* s =
-    caml_get_local_arenas_and_save_local_sp(Caml_state->current_stack);
+  caml_local_arenas* s = caml_refresh_locals(Caml_state->current_stack);
   intnat i;
   char* arena;
   caml_stat_block block;
@@ -619,7 +617,7 @@ void caml_local_realloc(void)
   s->arenas[s->count-1].length = s->next_length;
   s->arenas[s->count-1].base = arena;
   s->arenas[s->count-1].alloc_block = block;
-  caml_set_local_arenas(s, Caml_state->local_sp);
+  caml_use_local_arenas(s, Caml_state->local_sp);
   CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }
 

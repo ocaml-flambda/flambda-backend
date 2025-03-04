@@ -287,12 +287,12 @@ static void save_runtime_state(void)
   caml_thread_t th = Active_thread;
   CAMLassert(th != NULL);
   th->current_stack = Caml_state->current_stack;
+  th->current_stack->local_sp = Caml_state->local_sp;
   th->c_stack = Caml_state->c_stack;
   th->gc_regs = Caml_state->gc_regs;
   th->gc_regs_buckets = Caml_state->gc_regs_buckets;
   th->exn_handler = Caml_state->exn_handler;
   th->async_exn_handler = Caml_state->async_exn_handler;
-  caml_get_local_arenas_and_save_local_sp(th->current_stack);
   th->local_roots = Caml_state->local_roots;
   th->backtrace_pos = Caml_state->backtrace_pos;
   th->backtrace_buffer = Caml_state->backtrace_buffer;
@@ -315,13 +315,13 @@ static void restore_runtime_state(caml_thread_t th)
   CAMLassert(th != NULL);
   Active_thread = th;
   Caml_state->current_stack = th->current_stack;
+  caml_use_local_arenas(th->current_stack->local_arenas, th->current_stack->local_sp);
   Caml_state->c_stack = th->c_stack;
   Caml_state->gc_regs = th->gc_regs;
   Caml_state->gc_regs_buckets = th->gc_regs_buckets;
   Caml_state->exn_handler = th->exn_handler;
   Caml_state->async_exn_handler = th->async_exn_handler;
   Caml_state->local_roots = th->local_roots;
-  caml_set_local_arenas(th->current_stack->local_arenas, th->current_stack->local_sp);
   Caml_state->backtrace_pos = th->backtrace_pos;
   Caml_state->backtrace_buffer = th->backtrace_buffer;
   caml_modify_generational_global_root

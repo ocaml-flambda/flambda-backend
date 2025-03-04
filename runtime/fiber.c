@@ -591,7 +591,7 @@ void caml_scan_stack(
   struct stack_info* stack, value* gc_regs)
 {
   while (stack != NULL) {
-    caml_local_arenas* locals = caml_get_local_arenas_and_save_local_sp(stack);
+    caml_local_arenas* locals = caml_refresh_locals(stack);
 
     scan_stack_frames(f, fflags, fdata, stack, gc_regs, locals);
 
@@ -718,8 +718,7 @@ CAMLexport void caml_do_local_roots (
   int i, j;
   value* sp;
 #ifdef NATIVE_CODE
-  caml_local_arenas* locals =
-    caml_get_local_arenas_and_save_local_sp(current_stack);
+  caml_local_arenas* locals = caml_refresh_locals(current_stack);
 #endif
 
   for (lr = local_roots; lr != NULL; lr = lr->next) {
@@ -833,7 +832,7 @@ int caml_try_realloc_stack(asize_t required_space)
   new_stack->sp = Stack_high(new_stack) - stack_used;
   Stack_parent(new_stack) = Stack_parent(old_stack);
 
-  new_stack->local_arenas = caml_get_local_arenas_and_save_local_sp(old_stack);
+  new_stack->local_arenas = caml_refresh_locals(old_stack);
   new_stack->local_sp = old_stack->local_sp;
   new_stack->local_top = old_stack->local_top;
   new_stack->local_limit = old_stack->local_limit;
