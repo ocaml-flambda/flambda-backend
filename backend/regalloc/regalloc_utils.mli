@@ -147,6 +147,9 @@ type stack_operands_rewrite =
   | All_spilled_registers_rewritten
   | May_still_have_spilled_registers
 
+val equal_stack_operands_rewrite :
+  stack_operands_rewrite -> stack_operands_rewrite -> bool
+
 (* Substitution/map from registers to their spilled counterparts. *)
 type spilled_map = Substitution.t
 

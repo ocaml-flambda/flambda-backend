@@ -85,6 +85,8 @@ type mutable_flag =
   | Immutable
   | Mutable
 
+val equal_mutable_flag : mutable_flag -> mutable_flag -> bool
+
 val of_ast_mutable_flag : Asttypes.mutable_flag -> mutable_flag
 
 val to_ast_mutable_flag : mutable_flag -> Asttypes.mutable_flag

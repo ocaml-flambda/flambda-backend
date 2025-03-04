@@ -27,6 +27,29 @@ type irc_work_list =
   | Colored
   | Select_stack
 
+let equal_irc_work_list left right =
+  match left, right with
+  | Unknown_list, Unknown_list
+  | Precolored, Precolored
+  | Initial, Initial
+  | Simplify, Simplify
+  | Freeze, Freeze
+  | Spill, Spill
+  | Spilled, Spilled
+  | Coalesced, Coalesced
+  | Colored, Colored
+  | Select_stack, Select_stack -> true
+  | (Unknown_list
+  | Precolored
+  | Initial
+  | Simplify
+  | Freeze
+  | Spill
+  | Spilled
+  | Coalesced
+  | Colored
+  | Select_stack), _ -> false
+
 let string_of_irc_work_list = function
   | Unknown_list -> "unknown_list"
   | Precolored -> "precolored"

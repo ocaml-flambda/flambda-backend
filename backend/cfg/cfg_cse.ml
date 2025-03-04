@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module List = ListLabels
 module Array = ArrayLabels

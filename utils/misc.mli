@@ -116,6 +116,10 @@ module Stdlib : sig
   module List : sig
     type 'a t = 'a list
 
+    val is_empty : 'a list -> bool
+    (** [is_empty l] is true if and only if [l] has no elements. It is equivalent to
+        [compare_length_with l 0 = 0].  *)
+
     val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
     (** The lexicographic order supported by the provided order.
         There is no constraint on the relative lengths of the lists. *)

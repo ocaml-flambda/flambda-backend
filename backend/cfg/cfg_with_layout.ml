@@ -25,6 +25,8 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 let debug = false
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -342,7 +344,7 @@ let save_as_dot ?show_instr ?show_exn ?annotate_instr ?annotate_block
         (* some of all the special characters that confuse assemblers also
            confuse dot. get rid of them.*)
         (X86_proc.string_of_symbol "" t.cfg.fun_name)
-        (if msg = "" then "" else ".")
+        (if String.equal msg "" then "" else ".")
         msg
   in
   if !Cfg.verbose then Printf.printf "Writing cfg for %s to %s\n" msg filename;

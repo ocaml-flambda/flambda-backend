@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module Array = ArrayLabels
 module List = ListLabels
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -496,6 +497,14 @@ let check_same str1 reg1 str2 reg2 =
 type stack_operands_rewrite =
   | All_spilled_registers_rewritten
   | May_still_have_spilled_registers
+
+let equal_stack_operands_rewrite left right =
+  match left, right with
+  | All_spilled_registers_rewritten, All_spilled_registers_rewritten
+  | May_still_have_spilled_registers, May_still_have_spilled_registers ->
+    true
+  | (All_spilled_registers_rewritten | May_still_have_spilled_registers), _ ->
+    false
 
 type spilled_map = Substitution.t
 

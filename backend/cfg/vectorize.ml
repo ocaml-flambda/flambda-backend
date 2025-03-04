@@ -1,5 +1,7 @@
 [@@@ocaml.warning "+a-40-41-42"]
 
+open! Int_replace_polymorphic_compare
+
 (* Finds independent scalar operations within the same basic block and tries to
    use vector operations if possible *)
 (* CR gyorsh: how does the info from [reg_map] flow between blocks? *)
@@ -269,13 +271,14 @@ end = struct
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
       && Arch.equal_addressing_mode_without_displ addressing_mode1
            addressing_mode2
-      && mutability1 = mutability2 && is_atomic1 = is_atomic2
+      && Simple_operation.equal_mutable_flag mutability1 mutability2
+      && Bool.equal is_atomic1 is_atomic2
     | ( Store (memory_chunk1, addressing_mode1, is_assignment1),
         Store (memory_chunk2, addressing_mode2, is_assignment2) ) ->
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
       && Arch.equal_addressing_mode_without_displ addressing_mode1
            addressing_mode2
-      && is_assignment1 = is_assignment2
+      && Bool.equal is_assignment1 is_assignment2
     | Intop intop1, Intop intop2 ->
       Simple_operation.equal_integer_operation intop1 intop2
     | Intop_imm (intop1, _), Intop_imm (intop2, _) ->

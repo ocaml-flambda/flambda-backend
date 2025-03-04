@@ -11,6 +11,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 include Cfg_intf.S
 
@@ -163,7 +164,7 @@ end = struct
 
   let of_reg (reg : Reg.t) =
     let loc = Location.of_reg reg in
-    if Option.is_some loc <> Reg.is_preassigned reg
+    if not (Bool.equal (Option.is_some loc) (Reg.is_preassigned reg))
     then
       Regalloc_utils.fatal
         "Mismatch between register having location (%b) and register being a \
@@ -495,7 +496,8 @@ end = struct
            interference graph, which can lead to cycles. *)
         ()
       | _ ->
-        if instr.desc <> old_instr.desc
+        (* CR-soon xclerc for xclerc: avoid polymorphic equality. *)
+        if Stdlib.compare instr.desc old_instr.desc <> 0
         then
           Regalloc_utils.fatal "The desc of instruction with id %a changed"
             InstructionId.format id);
@@ -844,7 +846,7 @@ end = struct
   let is_empty t =
     let loc_res = Location.Map.is_empty t.for_loc in
     let reg_res = Register.Map.is_empty t.for_reg in
-    assert (loc_res = reg_res);
+    assert (Bool.equal loc_res reg_res);
     loc_res
 
   let subset t1 t2 =

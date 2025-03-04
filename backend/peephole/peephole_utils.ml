@@ -1,4 +1,5 @@
 module DLL = Flambda_backend_utils.Doubly_linked_list
+open! Int_replace_polymorphic_compare
 
 (* CR-someday gtulba-lecu: make sure that this comparison is correct and
    sufficent. Take into consideration using Proc.regs_are_volatile in the
@@ -6,7 +7,7 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
    in amd64 this is not necessary for now. See backend/cfg/cfg_deadcode.ml for
    more details.*)
 let are_equal_regs (reg1 : Reg.t) (reg2 : Reg.t) =
-  Reg.same_loc reg1 reg2 && reg1.typ = reg2.typ
+  Reg.same_loc reg1 reg2 && Cmm.equal_machtype_component reg1.typ reg2.typ
 
 (* CR-soon gtulba-lecu: Delete this when imeplementing auto-generated rules. *)
 let go_back_const = 1

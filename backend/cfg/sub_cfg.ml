@@ -20,6 +20,7 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
 
+open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t =

@@ -211,6 +211,11 @@ type mutable_flag =
   | Immutable
   | Mutable
 
+let equal_mutable_flag left right =
+  match left, right with
+  | Immutable, Immutable | Mutable, Mutable -> true
+  | (Immutable | Mutable), _ -> false
+
 let of_ast_mutable_flag : Asttypes.mutable_flag -> mutable_flag = function
   | Immutable -> Immutable
   | Mutable -> Mutable
