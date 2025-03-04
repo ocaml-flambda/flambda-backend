@@ -61,8 +61,7 @@ struct stack_info {
   int64_t id;
 
   /* Local allocations.
-     Note: [local_arenas] should always be read via
-     [get_local_arenas_and_save_local_sp]. */
+     Note: [local_arenas] should always be read via [caml_refresh_locals]. */
   struct caml_local_arenas* local_arenas;
   intnat local_sp;
   void* local_top;

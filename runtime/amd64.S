@@ -1358,7 +1358,7 @@ CFI_STARTPROC
 #endif
     /* %rax -> fiber, %rbx -> fun, %rdi -> arg */
         andq    $-2, %rax       /* %rax = Ptr_val(%rax) */
-    /* Save old stack pointer and exception handler */
+    /* save old stack pointer and exception handler */
         movq    Caml_state(current_stack), %rcx
         movq    Caml_state(exn_handler), %r10
         movq    %rsp, Stack_sp(%rcx)
