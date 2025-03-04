@@ -15,6 +15,7 @@
 
 (* Pretty-printing of linearized machine code *)
 
+open! Int_replace_polymorphic_compare
 open Format
 open Linear
 

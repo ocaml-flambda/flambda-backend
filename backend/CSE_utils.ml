@@ -1,3 +1,5 @@
+open! Int_replace_polymorphic_compare
+
 type valnum = int
 
 (* Classification of operations *)
@@ -221,6 +223,6 @@ let remove_mutable_load_numbering n =
 
 let kill_addr_regs n =
   { n with num_reg =
-              Reg.Map.filter (fun r _n -> r.Reg.typ <> Cmm.Addr) n.num_reg }
+              Reg.Map.filter (fun r _n -> not (Cmm.equal_machtype_component r.Reg.typ Cmm.Addr)) n.num_reg }
 
 end

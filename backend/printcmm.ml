@@ -15,6 +15,7 @@
 
 (* Pretty-printing of C-- code *)
 
+open! Int_replace_polymorphic_compare
 open Format
 open Cmm
 

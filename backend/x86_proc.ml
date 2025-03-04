@@ -13,6 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open X86_ast
 
 module Section_name = struct
@@ -108,15 +109,18 @@ let windows =
   | _ -> false
 
 let string_of_substring_literal k n s =
+  let between x low high =
+    Char.compare x low >= 0 && Char.compare x high <= 0
+  in
   let b = Buffer.create (n + 2) in
   let last_was_escape = ref false in
   for i = k to k + n - 1 do
     let c = s.[i] in
-    if c >= '0' && c <= '9' then
+    if between c '0' '9' then
       if !last_was_escape
       then Printf.bprintf b "\\%o" (Char.code c)
       else Buffer.add_char b c
-    else if c >= ' ' && c <= '~' && c <> '"' (* '"' *) && c <> '\\' then begin
+    else if between c ' ' '~' && not (Char.equal c '"') (* '"' *) && not (Char.equal c '\\') then begin
       Buffer.add_char b c;
       last_was_escape := false
     end else begin
@@ -136,7 +140,7 @@ let string_of_symbol prefix s =
     | 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
     | _ -> spec := true;
   done;
-  if not !spec then if prefix = "" then s else prefix ^ s
+  if not !spec then if String.equal prefix "" then s else prefix ^ s
   else
     let b = Buffer.create (String.length s + 10) in
     Buffer.add_string b prefix;
