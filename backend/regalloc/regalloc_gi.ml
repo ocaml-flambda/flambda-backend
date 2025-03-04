@@ -5,12 +5,6 @@ open! Regalloc_utils
 open! Regalloc_gi_utils
 module State = Regalloc_gi_state
 
-module List = struct
-  include List
-
-  let is_empty = function [] -> true | _ :: _ -> false
-end
-
 module Utils = struct
   include Regalloc_gi_utils
 
