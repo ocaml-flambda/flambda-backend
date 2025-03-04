@@ -1236,6 +1236,12 @@ module Const = struct
         name = "immediate"
       }
 
+    let immediate_or_null =
+      { jkind =
+          mk_jkind (Base Value) ~mode_crossing:true ~nullability:Maybe_null;
+        name = "immediate_or_null"
+      }
+
     (* [immediate64] describes types that are stored directly (no indirection)
        on 64-bit platforms but indirectly on 32-bit platforms. The key question:
        along which modes should a [immediate64] cross? As of today, all of them,
@@ -1323,6 +1329,7 @@ module Const = struct
         mutable_data;
         void;
         immediate;
+        immediate_or_null;
         immediate64;
         float64;
         float32;
@@ -1552,6 +1559,7 @@ module Const = struct
       | "void" -> Builtin.void.jkind
       | "immediate64" -> Builtin.immediate64.jkind
       | "immediate" -> Builtin.immediate.jkind
+      | "immediate_or_null" -> Builtin.immediate_or_null.jkind
       | "float64" -> Builtin.float64.jkind
       | "float32" -> Builtin.float32.jkind
       | "word" -> Builtin.word.jkind
@@ -1757,6 +1765,8 @@ module Jkind_desc = struct
     let void = of_const Const.Builtin.void.jkind
 
     let immediate = of_const Const.Builtin.immediate.jkind
+
+    let immediate_or_null = of_const Const.Builtin.immediate_or_null.jkind
   end
 
   let product ~jkind_of_first_type tys_modalities layouts =
@@ -1859,6 +1869,11 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
     |> mark_best
+
+  let immediate_or_null ~why =
+    fresh_jkind Jkind_desc.Builtin.immediate_or_null
+      ~annotation:(mk_annot "immediate_or_null")
+      ~why:(Immediate_or_null_creation why)
 
   let product ~jkind_of_first_type ~why tys_modalities layouts =
     let desc = Jkind_desc.product ~jkind_of_first_type tys_modalities layouts in
@@ -2445,6 +2460,12 @@ module Format_history = struct
       fprintf ppf
         "it's an enumeration variant type (all constructors are constant)"
 
+  let format_immediate_or_null_creation_reason ppf :
+      History.immediate_or_null_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive immediate_or_null type %s"
+        (Ident.name id)
+
   let format_value_or_null_creation_reason ppf ~layout_or_kind :
       History.value_or_null_creation_reason -> _ = function
     | Primitive id ->
@@ -2536,6 +2557,8 @@ module Format_history = struct
     | Any_creation any -> format_any_creation_reason ppf any
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
+    | Immediate_or_null_creation immediate ->
+      format_immediate_or_null_creation_reason ppf immediate
     | Void_creation _ -> .
     | Value_or_null_creation value ->
       format_value_or_null_creation_reason ppf value ~layout_or_kind
@@ -3168,6 +3191,10 @@ module Debug_printers = struct
     | Immediate_polymorphic_variant ->
       fprintf ppf "Immediate_polymorphic_variant"
 
+  let immediate_or_null_creation_reason ppf :
+      History.immediate_or_null_creation_reason -> _ = function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
   let value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
@@ -3227,6 +3254,9 @@ module Debug_printers = struct
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
+    | Immediate_or_null_creation immediate ->
+      fprintf ppf "Immediate_or_null_creation %a"
+        immediate_or_null_creation_reason immediate
     | Value_or_null_creation value ->
       fprintf ppf "Value_or_null_creation %a" value_or_null_creation_reason
         value
