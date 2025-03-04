@@ -56,6 +56,8 @@ extern uintnat caml_prelinking_in_use;    /* see startup_nat.c */
 extern uintnat caml_compaction_algorithm; /* see shared_heap.c */
 extern uintnat caml_compact_unmap;        /* see shared_heap.c */
 extern uintnat caml_pool_min_chunk_bsz;  /* see shared_heap.c */
+extern uintnat caml_percent_sweep_per_mark; /* see major_gc.c */
+extern uintnat caml_gc_pacing_policy;       /* see major_gc.c */
 
 CAMLprim value caml_gc_quick_stat(value v)
 {
@@ -435,6 +437,8 @@ static struct gc_tweak gc_tweaks[] = {
   { "pool_min_chunk_size", &caml_pool_min_chunk_bsz, 0 },
   { "main_stack_size", &caml_init_main_stack_wsz, 0 },
   { "thread_stack_size", &caml_init_thread_stack_wsz, 0 },
+  { "percent_sweep_per_mark", &caml_percent_sweep_per_mark, 0 },
+  { "gc_pacing_policy", &caml_gc_pacing_policy, 0 },
 };
 
 enum {N_GC_TWEAKS = sizeof(gc_tweaks)/sizeof(gc_tweaks[0])};
