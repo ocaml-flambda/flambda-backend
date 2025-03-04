@@ -15,7 +15,13 @@
 
 (* Description of primitive functions *)
 
-type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+type unboxed_integer =
+  | Unboxed_int64
+  | Unboxed_nativeint
+  | Unboxed_int32
+  | Unboxed_int16
+  | Unboxed_int8
+
 type unboxed_float = Unboxed_float64 | Unboxed_float32
 type unboxed_vector = Unboxed_vec128
 

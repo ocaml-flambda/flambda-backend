@@ -908,6 +908,7 @@ let rec choice ctx t =
     | Patomic_lor | Patomic_lxor | Patomic_load _ | Patomic_set _
     | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
+    | Puntag_int _ | Ptag_int _
     | Punbox_vector _ | Pbox_vector (_, _)
 
     (* we don't handle array indices as destinations yet *)

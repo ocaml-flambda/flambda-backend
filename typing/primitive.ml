@@ -20,7 +20,13 @@ open Parsetree
 
 module String = Misc.Stdlib.String
 
-type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+type unboxed_integer =
+  | Unboxed_int64
+  | Unboxed_nativeint
+  | Unboxed_int32
+  | Unboxed_int16
+  | Unboxed_int8
+
 type unboxed_float = Unboxed_float64 | Unboxed_float32
 type unboxed_vector = Unboxed_vec128
 
@@ -348,7 +354,10 @@ let unboxed_vector = function
    comparison at no performance loss. We still match on the variants to prove here that
    they are all constant constructors. *)
 let equal_unboxed_integer
-      ((Unboxed_int32 | Unboxed_nativeint | Unboxed_int64) as i1) i2 = i1 = i2
+      ((Unboxed_int8 | Unboxed_int16 | Unboxed_int32 | Unboxed_nativeint
+       | Unboxed_int64) as i1) i2
+  =
+  i1 = i2
 let equal_unboxed_float
       ((Unboxed_float32 | Unboxed_float64) as f1) f2 = f1 = f2
 let compare_unboxed_float
@@ -700,6 +709,14 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr C.word; Same_as_ocaml_repr C.value]
     | "%unbox_nativeint" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.word]
+    | "%tag_int8" ->
+      exactly [Same_as_ocaml_repr C.bits8; Same_as_ocaml_repr C.value]
+    | "%untag_int8" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.bits8]
+    | "%tag_int16" ->
+      exactly [Same_as_ocaml_repr C.bits16; Same_as_ocaml_repr C.value]
+    | "%untag_int16" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.bits16]
     | "%box_int32" ->
       exactly [Same_as_ocaml_repr C.bits32; Same_as_ocaml_repr C.value]
     | "%unbox_int32" ->
