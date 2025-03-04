@@ -3,7 +3,7 @@
  expect;
 *)
 
-type ('a : value) t : value_or_null = 'a or_null [@@or_null_reexport]
+type ('a : value) t : immediate_or_null with 'a = 'a or_null [@@or_null_reexport]
 
 [%%expect{|
 type 'a t = 'a or_null = Null | This of 'a [@@or_null_reexport]
@@ -100,7 +100,7 @@ Line 1, characters 14-25:
                   ^^^^^^^^^^^
 Error: This type "int or_null" should be an instance of type "('a : value)"
        The kind of int or_null is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of int or_null must be a subkind of value
          because the type argument of or_null has kind value.
 |}]
@@ -114,9 +114,9 @@ Line 1, characters 23-31:
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
        The kind of 'a t is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
-         because of the definition of t at line 1, characters 0-69.
+         because of the definition of t at line 1, characters 0-81.
 |}]
 
 let should_also_fail = This Null
@@ -128,9 +128,9 @@ Line 1, characters 28-32:
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
        The kind of 'a t is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
-         because of the definition of t at line 1, characters 0-69.
+         because of the definition of t at line 1, characters 0-81.
 |}]
 
 let mk' n = `Foo (This n)
@@ -193,7 +193,7 @@ Line 1, characters 21-25:
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
        The kind of 'a t is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because it's the type of an array element,
          chosen to have kind value.
@@ -208,7 +208,7 @@ Line 1, characters 19-32:
 Error: This type "float or_null" should be an instance of type
          "('a : any_non_null)"
        The kind of float or_null is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
          because it's the type argument to the array type.
 |}]
@@ -236,7 +236,7 @@ Line 1, characters 21-25:
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
        The kind of 'a t is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because it's the type of an array element,
          chosen to have kind value.
@@ -251,7 +251,7 @@ Line 1, characters 19-32:
 Error: This type "float or_null" should be an instance of type
          "('a : any_non_null)"
        The kind of float or_null is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
          because it's the type argument to the array type.
 |}]
@@ -264,8 +264,8 @@ Line 1, characters 26-42:
 1 | type object_with_null = < x : int or_null; .. >
                               ^^^^^^^^^^^^^^^^
 Error: Object field types must have layout value.
-       The kind of "int or_null" is value_or_null
-         because it is the primitive value_or_null type or_null.
+       The kind of "int or_null" is immediate_or_null
+         because it is the primitive immediate_or_null type or_null.
        But the kind of "int or_null" must be a subkind of value
          because it's the type of an object field.
 |}]
@@ -282,7 +282,7 @@ Line 3, characters 8-9:
             ^
 Error: Variables bound in a class must have layout value.
        The kind of x is value_or_null
-         because it is the primitive value_or_null type or_null.
+         because it is the primitive immediate_or_null type or_null.
        But the kind of x must be a subkind of value
          because it's the type of a class field.
 |}]
