@@ -13,8 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Heterogenous_list
-open With_name
+open Datalog_imports
 
 module Parameter = struct
   type 'a t =

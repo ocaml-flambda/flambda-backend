@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open With_name
+open Datalog_imports
 
 (** Outcome for user-defined actions. *)
 type outcome =
@@ -116,16 +116,15 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       associated with levels in the stack at the point the [call] instruction
       is executed, and {b must not} be [None] at that point. *)
   val call :
-    ('a Heterogenous_list.Constant.hlist -> unit) ->
+    ('a Constant.hlist -> unit) ->
     name:string ->
-    'a Heterogenous_list.Option_ref.hlist with_names ->
+    'a Option_ref.hlist with_names ->
     ('x, 's) instruction ->
     ('x, 's) instruction
 
   type t
 
-  val create :
-    evaluate:('a -> outcome) -> ('a, Heterogenous_list.nil) instruction -> t
+  val create : evaluate:('a -> outcome) -> ('a, nil) instruction -> t
 
   val run : t -> unit
 
@@ -135,6 +134,5 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       iterates over all the values of an iterator heterogenous list. *)
   val iterator : 's Iterator.hlist with_names -> 's iterator
 
-  val iter :
-    ('y Heterogenous_list.Constant.hlist -> unit) -> 'y iterator -> unit
+  val iter : ('y Constant.hlist -> unit) -> 'y iterator -> unit
 end

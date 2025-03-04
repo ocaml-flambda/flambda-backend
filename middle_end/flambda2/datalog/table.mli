@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open With_name
+open Datalog_imports
 
 module Type : sig
   type (_, _) eq = Equal : ('a, 'a) eq
@@ -53,7 +53,7 @@ module Id : sig
   val create :
     name:string ->
     is_trie:('t, 'k, 'v) Trie.is_trie ->
-    print_keys:(Format.formatter -> 'k Heterogenous_list.Constant.hlist -> unit) ->
+    print_keys:(Format.formatter -> 'k Constant.hlist -> unit) ->
     default_value:'v ->
     ('t, 'k, 'v) t
 

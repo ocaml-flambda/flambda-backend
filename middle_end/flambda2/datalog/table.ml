@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open With_name
+open Datalog_imports
 
 module Int = struct
   include Numbers.Int
@@ -60,8 +60,7 @@ module Id = struct
     { id : ('t * 'k) Type.Id.t;
       name : string;
       is_trie : ('t, 'k, 'v) Trie.is_trie;
-      print_keys :
-        Format.formatter -> 'k Heterogenous_list.Constant.hlist -> unit;
+      print_keys : Format.formatter -> 'k Constant.hlist -> unit;
       default_value : 'v
     }
 
