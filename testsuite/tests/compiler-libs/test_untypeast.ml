@@ -67,14 +67,14 @@ run {| fun x y z -> (function w -> x y z w) |};;
 run {| let foo : 'a. 'a -> 'a = fun x -> x in foo |}
 
 [%%expect{|
-- : string = "let (foo : ('a : value) . 'a -> 'a) = fun x -> x in foo"
+- : string = "let foo : ('a : value) . 'a -> 'a = fun x -> x in foo"
 |}];;
 
 run {| let foo : type a . a -> a = fun x -> x in foo |}
 
 [%%expect{|
 - : string =
-"let (foo : ('a : value) . 'a -> 'a) =\n  fun (type a) -> ( (fun x -> x : a -> a)) in\nfoo"
+"let foo : ('a : value) . 'a -> 'a = fun (type a) -> ( (fun x -> x : a -> a)) in\nfoo"
 |}];;
 
 (* CR: untypeast/pprintast are totally busted on programs with modes in value
@@ -89,5 +89,5 @@ Exception: Misc.Fatal_error.
 run {| let foo : 'a . 'a -> 'a @@ portable = fun x -> x in foo |}
 
 [%%expect{|
-- : string = "let (foo : ('a : value) . 'a -> 'a) = fun x -> x in foo"
+- : string = "let foo : ('a : value) . 'a -> 'a = fun x -> x in foo"
 |}];;
