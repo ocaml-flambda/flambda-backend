@@ -75,6 +75,9 @@ struct mark_stack {
 
 uintnat caml_percent_free = Percent_free_def;
 uintnat caml_max_percent_free = Max_percent_free_def;
+uintnat caml_percent_sweep_per_mark = 120; /* TODO: benchmark this value */
+
+uintnat caml_gc_pacing_policy = 0;
 
 /* This variable is only written with the world stopped, so it need not be
    atomic */
@@ -150,14 +153,20 @@ static atomic_uintnat num_domains_orphaning_finalisers = 0;
    only used locally during marking */
 static intnat Markwork_sweepwork(intnat sweep_work)
 {
-  /* Currently, mark and sweep units agree, so the conversion is a no-op */
-  return sweep_work;
+  if (caml_gc_pacing_policy == 0) {
+    return sweep_work;
+  } else {
+    return sweep_work * 100 / (intnat)caml_percent_sweep_per_mark;
+  }
 }
 
 static intnat Sweepwork_markwork(intnat mark_work)
 {
-  /* Currently, mark and sweep units agree, so the conversion is a no-op */
-  return mark_work;
+  if (caml_gc_pacing_policy == 0) {
+    return mark_work;
+  } else {
+    return mark_work * (intnat)caml_percent_sweep_per_mark / 100;
+  }
 }
 
 /* These two counters keep track of how much work the GC is supposed to
@@ -688,6 +697,7 @@ static void update_major_slice_work(intnat howmuch,
 
   intnat new_work;
 
+  if (caml_gc_pacing_policy == 0)
   {
     /* GC pacing policy */
     intnat alloc_work, extra_work;
@@ -770,6 +780,17 @@ static void update_major_slice_work(intnat howmuch,
     }
 
     new_work = max2 (alloc_work, offheap_work);
+  }
+  else
+  {
+    double sweep_per_mark = (double)caml_percent_sweep_per_mark / 100.0;
+    double space_overhead = (double)caml_percent_free / 100.0;
+    double sweep_per_dep_alloc = (1 + 2.0 * sweep_per_mark) / space_overhead;
+    double sweep_per_alloc = 1 + sweep_per_dep_alloc;
+
+    new_work = (intnat)
+      (sweep_per_alloc * my_alloc_count +
+       sweep_per_dep_alloc * my_dependent_count);
   }
 
   atomic_fetch_add (&total_work_incurred, new_work);
