@@ -2,7 +2,7 @@
    readonly_files = "define_with_kinds.ml";
    setup-ocamlc.byte-build-env;
    module = "define_with_kinds.ml";
-   flags = "-infer-with-bounds -extension layouts_beta";
+   flags = "-extension layouts_beta";
    ocamlc.byte;
    flags = "-I ocamlc.byte ocamlc.byte/define_with_kinds.cmo -extension layouts_beta";
    expect;

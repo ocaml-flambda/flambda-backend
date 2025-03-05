@@ -1,6 +1,5 @@
 (* TEST
  include stdlib_upstream_compatible;
- flags = "-infer-with-bounds";
  {
    expect;
  }{

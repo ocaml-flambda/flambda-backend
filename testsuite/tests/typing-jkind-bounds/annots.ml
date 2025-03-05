@@ -1,10 +1,9 @@
 (* TEST
  include stdlib_upstream_compatible;
- flags = "-infer-with-bounds";
  {
    expect;
  }{
-   flags += " -extension layouts_beta";
+   flags = " -extension layouts_beta";
    expect;
  }
 *)
