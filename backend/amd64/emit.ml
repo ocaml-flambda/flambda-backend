@@ -30,6 +30,7 @@ open Linear
 open Emitaux
 
 open X86_ast
+open X86_ast_utils
 open X86_proc
 open X86_dsl
 module String = Misc.Stdlib.String
@@ -43,109 +44,6 @@ module Int = Numbers.Int
 open! Branch_relaxation
 
 let _label s = D.label ~typ:QWORD s
-
-(* CR-soon xclerc for xclerc: move the functions related to `X86_ast`
-   to a dedicated module. *)
-
-let equal_data_type left right =
-  match left, right with
-  | NONE, NONE
-  | REAL4, REAL4
-  | REAL8, REAL8
-  | BYTE, BYTE
-  | WORD, WORD
-  | DWORD, DWORD
-  | QWORD, QWORD
-  | VEC128, VEC128
-  | NEAR, NEAR
-  | PROC, PROC ->
-    true
-  | (NONE
-    | REAL4
-    | REAL8
-    | BYTE
-    | WORD
-    | DWORD
-    | QWORD
-    | VEC128
-    | NEAR
-    | PROC), _ -> false
-
-let equal_reg64 left right =
-  match left, right with
-  | RAX, RAX
-  | RBX, RBX
-  | RCX, RCX
-  | RDX, RDX
-  | RSP, RSP
-  | RBP, RBP
-  | RSI, RSI
-  | RDI, RDI
-  | R8, R8
-  | R9, R9
-  | R10, R10
-  | R11, R11
-  | R12, R12
-  | R13, R13
-  | R14, R14
-  | R15, R15 ->
-    true
-  | (RAX | RBX | RCX | RDX | RSP | RBP | RSI | RDI
-    | R8 | R9 | R10 | R11 | R12 | R13 | R14 | R15), _ -> false
-
-let equal_reg8h left right =
-  match left, right with
-  | AH, AH
-  | BH, BH
-  | CH, CH
-  | DH, DH ->
-    true
-  | (AH | BH | CH | DH), _ -> false
-
-let equal_regf left right =
-  match left, right with
-  | XMM l, XMM r -> Int.equal l r
-
-let equal_arch left right =
-  match left, right with
-  | X64, X64
-  | X86, X86 ->
-    true
-  | (X64 | X86), _ -> false
-
-let equal_addr left right =
-   equal_arch left.arch right.arch
-   && equal_data_type left.typ right.typ
-   && equal_reg64 left.idx right.idx
-   && Int.equal left.scale right.scale
-   && Option.equal equal_reg64 left.base right.base
-   && Option.equal String.equal left.sym right.sym
-   && Int.equal left.displ right.displ
-
-let equal_arg left right =
-  match left, right with
-  | Imm l, Imm r -> Int64.equal l r
-  | Sym l, Sym r -> String.equal l r
-  | Reg8L l, Reg8L r -> equal_reg64 l r
-  | Reg8H l, Reg8H r -> equal_reg8h l r
-  | Reg16 l, Reg16 r -> equal_reg64 l r
-  | Reg32 l, Reg32 r -> equal_reg64 l r
-  | Reg64 l, Reg64 r -> equal_reg64 l r
-  | Regf l, Regf r -> equal_regf l r
-  | Mem _, Mem _ -> assert false (* XXX *)
-  | Mem64_RIP (l_dt, l_s, l_i), Mem64_RIP (r_dt, r_s, r_i) ->
-    equal_data_type l_dt r_dt && String.equal l_s r_s && Int.equal l_i r_i
-  | (Imm _
-  | Sym _
-  | Reg8L _
-  | Reg8H _
-  | Reg16 _
-  | Reg32 _
-  | Reg64 _
-  | Regf _
-  | Mem _
-  | Mem64_RIP _), _ -> false
-
 
 let is_linux = function
   | S_linux -> true
@@ -2811,9 +2709,7 @@ let emit_trap_notes () =
   end
 
 let end_assembly () =
-  begin match !float_constants with
-   | [] -> ()
-   | _ :: _  ->
+  if not (Misc.Stdlib.List.is_empty !float_constants) then begin
     begin match system with
     | S_macosx -> D.section ["__TEXT";"__literal8"] None ["8byte_literals"]
     | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
@@ -2823,9 +2719,7 @@ let end_assembly () =
     D.align ~data:true 8;
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants;
   end;
-  begin match !vec128_constants with
-  | [] -> ()
-  | _ :: _ ->
+  if not (Misc.Stdlib.List.is_empty !vec128_constants) then begin
     begin match system with
     | S_macosx -> D.section ["__TEXT";"__literal16"] None ["16byte_literals"]
     | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []

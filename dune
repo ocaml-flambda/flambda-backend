@@ -494,6 +494,7 @@
   symbol_entry
   symbol_table
   x86_ast
+  x86_ast_utils
   x86_binary_emitter
   x86_dsl
   x86_gas
