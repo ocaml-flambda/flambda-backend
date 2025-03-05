@@ -766,9 +766,9 @@ module Layout_and_axes = struct
       | Sufficient_fuel, Sufficient_fuel -> Sufficient_fuel
   end
 
-  (* Normalize the jkind. If mode is Require_best, only jkinds that are best
-     will be used.  If mode is Ignore_best, then Not_best will be used. Since
-     Ignore_best can use Not_best, the result is guaranteed to have no
+  (* Normalize the jkind. If mode is [Require_best], only jkinds that have quality [Best]
+     will be used.  If mode is [Ignore_best], then jkinds that have quality [Not_best] will also be used. Since
+     [Ignore_best] can use [Not_best] jkinds, the result is guaranteed to have no
      with-bounds.
 
      At each step during normalization, before expanding a type, [map_type_info]
