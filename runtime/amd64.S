@@ -257,8 +257,7 @@
         movq    %rsp, Stack_sp(%r10);                      \
     /* No need to update Stack_local_sp: if the runtime    \
        needs this value, it will copy it out of            \
-       Caml_state first (see                               \
-       caml_get_local_arenas_and_update_local_sp). */      \
+       Caml_state first (see caml_refresh_locals). */      \
     /* Fill in Caml_state->c_stack */                      \
         movq    Caml_state(c_stack), %r11;                 \
         movq    %rsp, Cstack_sp(%r11);                     \
@@ -975,8 +974,7 @@ LBL(108):
     /* Update alloc ptr */
         movq    %r15, Caml_state(young_ptr)
     /* No need to update Stack_local_sp: if the runtime needs this value, it
-       will copy it out of Caml_state first (see
-       caml_get_local_arenas_and_update_local_sp). */
+       will copy it out of Caml_state first (see caml_refresh_locals). */
     /* Return to C stack. */
         movq    Caml_state(current_stack), %r11
         movq    %r10, Stack_sp(%r11)
