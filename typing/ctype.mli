@@ -569,21 +569,26 @@ val package_subtype :
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit
 
+(* A type with whether it has any unbound variables. This could easily
+   be changed to actually track the variables, if there is ever a need. *)
+type open_type_expr = { ty : type_expr; is_open : bool }
+
 val get_unboxed_type_representation :
-  Env.t -> type_expr -> (type_expr, type_expr) result
+  Env.t -> type_expr -> (open_type_expr, open_type_expr) result
     (* [get_unboxed_type_representation] attempts to fully expand the input
        type_expr, descending through [@@unboxed] types.  May fail in the case of
        circular types or very deeply nested unboxed types, in which case it
        returns the most expanded version it was able to compute. *)
 
-val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
+val get_unboxed_type_approximation : Env.t -> type_expr -> open_type_expr
     (* [get_unboxed_type_approximation] does the same thing as
        [get_unboxed_type_representation], but doesn't indicate whether the type
        was fully expanded or not. *)
 
 val contained_without_boxing : Env.t -> type_expr -> type_expr list
     (* Return all types that are directly contained without boxing
-      (or "without indirection" or "flatly") *)
+       (or "without indirection" or "flatly"); in the case of [@@unboxed]
+       existentials, these types might have free variables*)
 
 (* Given the row from a variant type, determine if it is immediate.  Currently
    just checks that all constructors have no arguments, doesn't consider

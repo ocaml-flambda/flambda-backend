@@ -220,17 +220,11 @@ module Axis_set = struct
 
   let all = create ~f:(fun ~axis:_ -> true)
 
-  let all_monadic_axes =
-    create ~f:(fun ~axis ->
-        match axis with
-        | Pack (Modal (Monadic _)) -> true
-        | Pack (Modal (Comonadic _)) | Pack (Nonmodal _) -> false)
+  let equal = Int.equal
 
-  let all_comonadic_axes =
+  let all_modal_axes =
     create ~f:(fun ~axis ->
-        match axis with
-        | Pack (Modal (Comonadic _)) -> true
-        | Pack (Modal (Monadic _)) | Pack (Nonmodal _) -> false)
+        match axis with Pack (Modal _) -> true | Pack (Nonmodal _) -> false)
 
   let[@inline] singleton axis = add empty axis
 
@@ -250,14 +244,17 @@ module Axis_set = struct
 
   let[@inline] complement t = diff all t
 
+  let all_nonmodal_axes = complement all_modal_axes
+
   let[@inline] to_seq t =
     Axis.all |> List.to_seq |> Seq.filter (fun (Axis.Pack axis) -> mem t axis)
 
   let[@inline] to_list t = List.of_seq (to_seq t)
 
   let print ppf t =
-    Format.pp_print_seq
-      ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-      (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
-      ppf (to_seq t)
+    Format.fprintf ppf "@[{%t}@]" (fun ppf ->
+        Format.pp_print_seq
+          ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
+          (fun ppf (Axis.Pack axis) -> Format.fprintf ppf "%s" (Axis.name axis))
+          ppf (to_seq t))
 end

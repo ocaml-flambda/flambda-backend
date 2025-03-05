@@ -662,7 +662,7 @@ and raw_lid_type_list tl =
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%a)"
-        print_name name (Jkind.format ~jkind_of_type:None) jkind
+        print_name name Jkind.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
@@ -695,7 +695,7 @@ and raw_type_desc ppf = function
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
       fprintf ppf "Tunivar (@,%a,@,%a)"
-        print_name name (Jkind.format ~jkind_of_type:None) jkind
+        print_name name Jkind.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -1725,8 +1725,12 @@ let tree_of_type_scheme ty =
 
 let () =
   Env.print_type_expr := type_expr;
-  Jkind.set_outcometree_of_type_scheme tree_of_type_scheme;
-  Jkind.set_outcometree_of_modalities_new tree_of_modalities_new
+  Jkind.set_outcometree_of_type (fun ty ->
+    prepare_for_printing [ty];
+    tree_of_typexp Type ty);
+  Jkind.set_outcometree_of_modalities_new tree_of_modalities_new;
+  Jkind.set_print_type_expr type_expr;
+  Jkind.set_raw_type_expr raw_type_expr
 
 (* Print one type declaration *)
 
@@ -3132,18 +3136,15 @@ let explanation (type variety) intro prev env
   | Errortrace.Bad_jkind (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender
-                 ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Bad_jkind_sort (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender_sort
-                 ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
       let fmt_history t l ppf =
-        Jkind.(format_history ~jkind_of_type:None ~intro:(
-          dprintf "The layout of %a is %a" prepared_type_expr t
-            (format ~jkind_of_type:None) l) ppf l)
+        Jkind.(format_history ~intro:(
+          dprintf "The layout of %a is %a" prepared_type_expr t format l) ppf l)
       in
       Some (dprintf "@ because the layouts of their variables are different.\
                      @ @[<v>%t@;%t@]"
