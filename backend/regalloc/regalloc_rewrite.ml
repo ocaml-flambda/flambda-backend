@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
@@ -73,7 +73,7 @@ let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
   in
   let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell) =
     let inst = DLL.value inst_cell in
-    match inst.desc with
+    match[@ocaml.warning "-4"] inst.desc with
     | Op Reload -> (
       let var = inst.arg.(0) in
       let temp = inst.res.(0) in

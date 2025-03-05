@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 open Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list

@@ -11,6 +11,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+(* CR-soon xclerc for xclerc: try to enable warning 4. *)
+
 open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 include Cfg_intf.S
