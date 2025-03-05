@@ -2220,6 +2220,12 @@ let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
     contention = get (Modal (Monadic Contention))
   }
 
+let get_mode_crossing (type l r) ~jkind_of_type (jk : (l * r) jkind) :
+    Crossing.t =
+  let monadic = get_modal_lower_bounds ~jkind_of_type jk in
+  let comonadic = get_modal_upper_bounds ~jkind_of_type jk in
+  Crossing.of_bounds { monadic; comonadic }
+
 let only_externality = Axis_set.singleton (Nonmodal Externality)
 
 let get_externality_upper_bound ~jkind_of_type jk =

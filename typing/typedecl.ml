@@ -2529,10 +2529,7 @@ let normalize_decl_jkinds env shapes decls =
                   raise(Error(decl.type_loc, Unsafe_mode_crossing_with_with_bounds))
               in
               let umc =
-                Some { modal_upper_bounds =
-                         Jkind.get_modal_upper_bounds ~jkind_of_type type_jkind;
-                       modal_lower_bounds =
-                         Jkind.get_modal_lower_bounds ~jkind_of_type type_jkind }
+                Some (Jkind.get_mode_crossing ~jkind_of_type type_jkind)
               in
               let type_kind =
                 match decl.type_kind with
