@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Datalog_imports
+
 module Type : sig
   type (_, _) eq = Equal : ('a, 'a) eq
 end
@@ -51,12 +53,12 @@ module Id : sig
   val create :
     name:string ->
     is_trie:('t, 'k, 'v) Trie.is_trie ->
-    print_keys:(Format.formatter -> 'k Heterogenous_list.Constant.hlist -> unit) ->
+    print_keys:(Format.formatter -> 'k Constant.hlist -> unit) ->
     default_value:'v ->
     ('t, 'k, 'v) t
 
   val create_iterator :
-    ('t, 'k, 'v) t -> 't Named_ref.t * 'k Trie.Iterator.hlist * 'v Named_ref.t
+    ('t, 'k, 'v) t -> 't ref * 'k Trie.Iterator.hlist with_names * 'v ref
 end
 
 module Map : sig

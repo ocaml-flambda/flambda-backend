@@ -13,22 +13,33 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Heterogenous_list
+open Datalog_imports
 
+(* Note: we don't use [with_name] here to avoid the extra indirection during
+   execution. *)
 type vm_action =
   | Unless :
-      ('t, 'k, 'v) Trie.is_trie * 't Named_ref.t * 'k Option_ref.hlist
+      ('t, 'k, 'v) Trie.is_trie
+      * 't ref
+      * 'k Option_ref.hlist
+      * string
+      * string list
       -> vm_action
 
 type action =
-  | Bind_iterator : 'a option Named_ref.t * 'a Trie.Iterator.t -> action
+  | Bind_iterator :
+      'a option ref with_name * 'a Trie.Iterator.t with_name
+      -> action
   | VM_action : vm_action -> action
 
 let bind_iterator var iterator = Bind_iterator (var, iterator)
 
-let unless id cell args = VM_action (Unless (Table.Id.is_trie id, cell, args))
+let unless id cell args =
+  VM_action
+    (Unless
+       (Table.Id.is_trie id, cell, args.values, Table.Id.name id, args.names))
 
-type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't Named_ref.t -> binder
+type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't ref -> binder
 
 type actions = { mutable rev_actions : action list }
 
@@ -38,9 +49,12 @@ let add_action actions action =
   actions.rev_actions <- action :: actions.rev_actions
 
 let pp_cursor_action ff = function
-  | Unless (_, t, l) ->
-    Format.fprintf ff "if %a(%a):@ continue" Named_ref.pp_name t
-      Option_ref.pp_name_hlist l
+  | Unless (_, _t, _l, t_name, l_names) ->
+    Format.fprintf ff "if %s(%a):@ continue" t_name
+      (Format.pp_print_list
+         ~pp_sep:(fun ff () -> Format.fprintf ff ", ")
+         Format.pp_print_string)
+      l_names
 
 module Order : sig
   type t
@@ -69,8 +83,8 @@ module Level = struct
     { name : string;
       order : Order.t;
       actions : actions;
-      mutable iterators : 'a Trie.Iterator.t list;
-      mutable output : 'a option Named_ref.t option
+      mutable iterators : 'a Trie.Iterator.t with_name list;
+      mutable output : 'a option ref with_name option
     }
 
   let print ppf { name; order; _ } =
@@ -82,9 +96,7 @@ module Level = struct
   let use_output level =
     match level.output with
     | None ->
-      let output : _ Named_ref.t =
-        { contents = None; printed_name = level.name }
-      in
+      let output = { value = ref None; name = level.name } in
       level.output <- Some output;
       output
     | Some output -> output
@@ -151,11 +163,7 @@ let add_iterator context id =
   iterators
 
 let add_naive_binder context id =
-  let handler : _ Named_ref.t =
-    { contents = Trie.empty (Table.Id.is_trie id);
-      printed_name = Table.Id.name id
-    }
-  in
+  let handler = ref (Trie.empty (Table.Id.is_trie id)) in
   add_binder context.naive_binders (Bind_table (id, handler));
   handler
 
@@ -186,7 +194,12 @@ let apply_actions actions instruction =
     (fun instruction action ->
       match action with
       | Bind_iterator (var, iterator) ->
-        VM.seek var (Join_iterator.create [iterator]) instruction
+        let iterator =
+          { value = Join_iterator.create [iterator.value];
+            name = iterator.name
+          }
+        in
+        VM.seek var iterator instruction
       | VM_action action -> VM.action action instruction)
     instruction actions.rev_actions
 
@@ -209,23 +222,24 @@ let rec open_rev_vars :
         Level.print var
     | _ -> (
       let instruction = apply_actions var.actions instruction in
-      let cell : _ Named_ref.t =
+      let cell =
         (* If we do not need the output (we usually do), write it to a dummy
            [ref] for simplicity. *)
         match var.output with
         | Some output -> output
-        | None -> { contents = None; printed_name = "_" }
+        | None -> { value = ref None; name = "_" }
+      in
+      let iterators = List.map (fun it -> it.value) var.iterators in
+      let iterator_names = List.map (fun it -> it.name) var.iterators in
+      let iterator =
+        { value = Join_iterator.create iterators;
+          name = String.concat " ⨝ " iterator_names
+        }
       in
       match vars with
-      | [] ->
-        VM.open_
-          (Join_iterator.create var.iterators)
-          cell instruction VM.dispatch
+      | [] -> VM.open_ iterator cell instruction VM.dispatch
       | _ :: _ as vars ->
-        open_rev_vars vars
-          (VM.open_
-             (Join_iterator.create var.iterators)
-             cell instruction VM.dispatch)))
+        open_rev_vars vars (VM.open_ iterator cell instruction VM.dispatch)))
 
 (* Optimisation: if we do not use the output from the last variable, we only
    need the first matching value of that variable.
@@ -242,7 +256,7 @@ type call =
   | Call :
       { func : 'a Constant.hlist -> unit;
         name : string;
-        args : 'a Option_ref.hlist
+        args : 'a Option_ref.hlist with_names
       }
       -> call
 
@@ -288,7 +302,7 @@ let bind_table_list binders database =
   List.iter (fun binder -> ignore @@ bind_table binder database) binders
 
 let evaluate = function
-  | Unless (is_trie, cell, args) ->
+  | Unless (is_trie, cell, args, _cell_name, _args_names) ->
     if Option.is_some
          (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
     then Virtual_machine.Skip

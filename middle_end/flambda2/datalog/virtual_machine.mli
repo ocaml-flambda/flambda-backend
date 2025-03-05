@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Datalog_imports
+
 (** Outcome for user-defined actions. *)
 type outcome =
   | Accept  (** Accept the currently selected binding. *)
@@ -79,8 +81,8 @@ module Make (Iterator : Leapfrog.Iterator) : sig
   val dispatch : ('a, _ -> 's) instruction
 
   val seek :
-    'a option Named_ref.t ->
-    'a Iterator.t ->
+    'a option ref with_name ->
+    'a Iterator.t with_name ->
     ('b, 's) instruction ->
     ('b, 's) instruction
 
@@ -95,8 +97,8 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       [k].
   *)
   val open_ :
-    'i Iterator.t ->
-    'i option Named_ref.t ->
+    'i Iterator.t with_name ->
+    'i option ref with_name ->
     ('a, 'i -> 's) instruction ->
     ('a, 'i -> 's) instruction ->
     ('a, 's) instruction
@@ -114,16 +116,15 @@ module Make (Iterator : Leapfrog.Iterator) : sig
       associated with levels in the stack at the point the [call] instruction
       is executed, and {b must not} be [None] at that point. *)
   val call :
-    ('a Heterogenous_list.Constant.hlist -> unit) ->
+    ('a Constant.hlist -> unit) ->
     name:string ->
-    'a Heterogenous_list.Option_ref.hlist ->
+    'a Option_ref.hlist with_names ->
     ('x, 's) instruction ->
     ('x, 's) instruction
 
   type t
 
-  val create :
-    evaluate:('a -> outcome) -> ('a, Heterogenous_list.nil) instruction -> t
+  val create : evaluate:('a -> outcome) -> ('a, nil) instruction -> t
 
   val run : t -> unit
 
@@ -131,8 +132,7 @@ module Make (Iterator : Leapfrog.Iterator) : sig
 
   (** [iterator] is a convenience function for creating a virtual machine that
       iterates over all the values of an iterator heterogenous list. *)
-  val iterator : 's Iterator.hlist -> 's iterator
+  val iterator : 's Iterator.hlist with_names -> 's iterator
 
-  val iter :
-    ('y Heterogenous_list.Constant.hlist -> unit) -> 'y iterator -> unit
+  val iter : ('y Constant.hlist -> unit) -> 'y iterator -> unit
 end
