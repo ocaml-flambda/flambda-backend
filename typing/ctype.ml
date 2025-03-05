@@ -2213,12 +2213,6 @@ let rec estimate_type_jkind ~expand_component env ty =
      in
      let layouts = List.map Jkind.extract_layout jkinds in
      Jkind.Builtin.product
-       ~jkind_of_first_type:(fun () ->
-       match jkinds with
-         | first_jkind :: _ -> first_jkind
-         | _ -> Misc.fatal_error
-                  "Ctype.estimate_type_jkind: use of jkind_of_first_type \
-                   with more than 1 type")
        ~why:Unboxed_tuple tys_modalities layouts
   | Tconstr (p, args, _) -> begin try
       let type_decl = Env.find_type p env in
