@@ -1442,6 +1442,7 @@ and find_type_unboxed_version path env seen =
       Btype.newgenty
         (Tconstr (Path.unboxed_version path, args, ref Mnil)) in
     let jkind = ud.type_jkind in
+    (* CR layouts v7.2: compute the exact separability *)
     (* As this unboxed version aliases [ud], its params' separabilities can
         be conservatively set to the max of the separabilities of [ud]
         (to account for the alias possibly shuffling params).
@@ -1470,6 +1471,11 @@ and find_type_unboxed_version path env seen =
       type_uid = Uid.unboxed_version decl.type_uid;
       type_unboxed_version = None;
     }
+(* CR layouts v7.2: this should be reworked to expand abbrevations, e.g.
+   in [type 'a id = 'a and f = float id], [f] can have an unboxed type.
+   Parts of the logic looking at type kinds also belong in Ctype.
+   See https://github.com/ocaml-flambda/flambda-backend/pull/3526#discussion_r1957157050
+*)
 and find_type_unboxed_version_data path env seen =
   let tda_declaration = find_type_unboxed_version path env seen in
   let descrs =
