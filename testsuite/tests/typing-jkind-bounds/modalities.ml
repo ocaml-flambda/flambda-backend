@@ -1,5 +1,5 @@
 (* TEST
-    flags = "-extension layouts_alpha -infer-with-bounds";
+    flags = "-extension layouts_alpha";
     expect;
 *)
 let use_uncontended : 'a @ uncontended -> unit = fun _ -> ()

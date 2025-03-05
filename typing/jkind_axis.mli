@@ -84,6 +84,8 @@ module Axis_set : sig
 
   val mem : t -> _ Axis.t -> bool
 
+  val equal : t -> t -> bool
+
   val union : t -> t -> t
 
   val intersection : t -> t -> t
@@ -101,11 +103,14 @@ module Axis_set : sig
   (** Create a [t], specify for each axis whether it should be included *)
   val create : f:(axis:Axis.packed -> bool) -> t
 
-  (** A set of all monadic modal axes *)
-  val all_monadic_axes : t
+  (** A set of all axes *)
+  val all : t
 
-  (** A set of all comonadic modal axes *)
-  val all_comonadic_axes : t
+  (** A set of all modal axes *)
+  val all_modal_axes : t
+
+  (** A set of all nonmodal axes *)
+  val all_nonmodal_axes : t
 
   val print : Format.formatter -> t -> unit
 end

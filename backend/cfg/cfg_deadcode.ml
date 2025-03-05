@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 

@@ -1,5 +1,4 @@
 (* TEST
-    flags = "-infer-with-bounds";
     expect;
 *)
 
@@ -587,7 +586,7 @@ type ('a : mutable_data) t : immutable_data = { x : 'a }
 Line 1, characters 0-56:
 1 | type ('a : mutable_data) t : immutable_data = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data
+Error: The kind of type "t" is immutable_data with 'a
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -772,7 +771,7 @@ Line 1, characters 17-21:
                      ^^^^
 Error: This type "'a t" should be an instance of type
          "('b : value mod contended)"
-       The kind of 'a t is value mod contended
+       The kind of 'a t is value mod contended with 'a
          because of the definition of t at line 1, characters 0-58.
        But the kind of 'a t must be a subkind of value mod contended
          because of the definition of require_contended at line 6, characters 0-49.
@@ -818,7 +817,7 @@ Line 1, characters 14-26:
                   ^^^^^^^^^^^^
 Error: This type "(int, int) t" should be an instance of type
          "('a : value mod contended)"
-       The kind of (int, int) t is value
+       The kind of (int, int) t is value mod contended with int
          because of the definition of t at line 1, characters 0-53.
        But the kind of (int, int) t must be a subkind of value mod contended
          because of the definition of require_contended at line 6, characters 0-49.
@@ -831,7 +830,7 @@ Line 1, characters 23-33:
                            ^^^^^^^^^^
 Error: This type "('a, 'b) t" should be an instance of type
          "('c : value mod contended)"
-       The kind of ('a, 'b) t is value
+       The kind of ('a, 'b) t is value mod contended with 'a with 'b
          because of the definition of t at line 1, characters 0-53.
        But the kind of ('a, 'b) t must be a subkind of value mod contended
          because of the definition of require_contended at line 6, characters 0-49.
@@ -1021,7 +1020,7 @@ type 'a u = Foo of { x : 'a; }
 Line 2, characters 0-53:
 2 | type 'a t : immutable_data = 'a u = Foo of { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data with 'a
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -1207,4 +1206,28 @@ Line 1, characters 65-66:
 1 | let foo (t : (int, int, _, int) t @@ nonportable) = use_portable t
                                                                      ^
 Error: This value is "nonportable" but expected to be "portable".
+|}]
+
+(*********************************************)
+(* Reduction of error seen in the tree *)
+(* This requires the [is_open] technology in Ctype. *)
+
+type 'k t1 = T of Obj.t [@@unboxed]
+
+type 'k t2 = { x : 'k t1 }
+
+type packed = T : _ t2 -> packed [@@unboxed]
+
+type q = { x : packed }
+
+module type S = sig
+  type t = private q
+end with type t = q
+
+[%%expect{|
+type 'k t1 = T of Obj.t [@@unboxed]
+type 'k t2 = { x : 'k t1; }
+type packed = T : 'a t2 -> packed [@@unboxed]
+type q = { x : packed; }
+module type S = sig type t = q end
 |}]

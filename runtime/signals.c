@@ -703,7 +703,7 @@ static int caml_set_signal_action(int signo, int action)
 CAMLprim value caml_install_signal_handler(value signal_number, value action)
 {
   CAMLparam2 (signal_number, action);
-  CAMLlocal2 (res, tmp_signal_handlers);
+  CAMLlocal1 (res);
   int sig, act, oldact;
 
   sig = caml_convert_signal_number(Int_val(signal_number));

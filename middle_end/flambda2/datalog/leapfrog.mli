@@ -96,8 +96,6 @@ module type Iterator = sig
 
   (** [equal_key it] is a comparison function on iterator keys. *)
   val compare_key : 'a t -> 'a -> 'a -> int
-
-  val print_name : Format.formatter -> 'a t -> unit
 end
 
 module Join (Iterator : Iterator) : sig

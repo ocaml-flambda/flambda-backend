@@ -56,13 +56,14 @@ type mmodes =
    there, too. *)
 let right_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let Jkind.{ upper_bounds; lower_bounds } =
+    Jkind.get_modal_bounds ~jkind_of_type jkind
+  in
   let upper_bounds =
     Alloc.Const.merge
       { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
   in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
   let lower_bounds =
     Alloc.Const.merge
       { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
@@ -77,13 +78,14 @@ let right_mode_cross env ty mode =
 
 let left_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let Jkind.{ upper_bounds; lower_bounds } =
+    Jkind.get_modal_bounds ~jkind_of_type jkind
+  in
   let upper_bounds =
     Alloc.Const.merge
       { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
   in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
   let lower_bounds =
     Alloc.Const.merge
       { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
@@ -671,7 +673,6 @@ let report_type_mismatch first second decl env ppf err =
   | Parameter_jkind (ty, v) ->
       pr "The problem is in the kinds of a parameter:@,";
       Jkind.Violation.report_with_offender
-        ~jkind_of_type:(Some (Ctype.type_jkind_purely env))
         ~offender:(fun pp -> Printtyp.type_expr pp ty) ppf v
   | Private_variant (_ty1, _ty2, mismatch) ->
       report_private_variant_mismatch first second decl env ppf mismatch
@@ -699,8 +700,7 @@ let report_type_mismatch first second decl env ppf err =
          (choose ord first second) decl
          "has a null constructor"
   | Jkind v ->
-      Jkind.Violation.report_with_name
-        ~jkind_of_type:(Some (Ctype.type_jkind_purely env)) ~name:first ppf v
+      Jkind.Violation.report_with_name ~name:first ppf v
   | Unsafe_mode_crossing mismatch ->
     pr "They have different unsafe mode crossing behavior:@,";
     report_unsafe_mode_crossing_mismatch first second ppf mismatch
@@ -1484,8 +1484,9 @@ let type_declarations ?(equality = false) ~loc env ~mark name
          (match name with None -> "_" | Some n -> "'" ^ n)
          Printtyp.type_expr ty
   | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
+     let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
      Some (Parameter_jkind
-             (ty, Jkind.Violation.of_
+             (ty, Jkind.Violation.of_ ~jkind_of_type
                     (Not_a_subjkind (Jkind.disallow_right original_jkind,
                                      Jkind.disallow_left inferred_jkind,
                                      []))))

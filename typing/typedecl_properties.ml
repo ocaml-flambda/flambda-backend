@@ -24,7 +24,7 @@ type ('prop, 'req) property = {
   compute : Env.t -> decl -> 'req -> 'prop;
   update_decl : decl -> 'prop -> decl;
 
-  check : Env.t -> Ident.t -> decl -> 'req -> unit;
+  check : Env.t -> Ident.t -> decl -> 'req * 'req option -> unit;
 }
 
 let add_type ~check id decl env =
@@ -39,25 +39,44 @@ let add_types_to_env decls env =
 
 let compute_property
 : ('prop, 'req) property -> Env.t ->
-  (Ident.t * decl) list -> 'req list -> (Ident.t * decl) list
+  (Ident.t * decl) list -> ('req * 'req option) list -> (Ident.t * decl) list
 = fun property env decls required ->
   (* [decls] and [required] must be lists of the same size,
      with [required] containing the requirement for the corresponding
-     declaration in [decls]. *)
-  let props = List.map (fun (_id, decl) -> property.default decl) decls in
+     declaration in [decls], and if the declaration has an unboxed version,
+     the corresponding requirement for that as well. *)
+  let props =
+    List.map (fun (_id, (decl : decl)) ->
+        property.default decl,
+        Option.map (fun d -> property.default d) decl.type_unboxed_version)
+      decls
+  in
   let rec compute_fixpoint props =
     let new_decls =
-      List.map2 (fun (id, decl) prop ->
-          (id, property.update_decl decl prop))
+      List.map2 (fun (id, (decl : decl)) (prop, prop_u) ->
+        let type_unboxed_version = Option.map (fun d ->
+            property.update_decl d (Option.get prop_u))
+          decl.type_unboxed_version
+        in
+        (id, { (property.update_decl decl prop) with type_unboxed_version }))
         decls props in
     let new_env = add_types_to_env new_decls env in
+    let update_prop decl prop req =
+      property.merge ~prop ~new_prop:(property.compute new_env decl req)
+    in
     let new_props =
       List.map2
-        (fun (_id, decl) (prop, req) ->
-           let new_prop = property.compute new_env decl req in
-           property.merge ~prop ~new_prop)
+        (fun (_id, (decl : decl)) ((prop, prop_u), (req, req_u)) ->
+           update_prop decl prop req,
+           Option.map (fun d ->
+               update_prop d (Option.get prop_u) (Option.get req_u))
+             decl.type_unboxed_version)
         new_decls (List.combine props required) in
-    if not (List.for_all2 property.eq props new_props)
+    if not (List.for_all2
+              (fun (prop, prop_u) (prop', prop_u') ->
+                 property.eq prop prop'
+                 && Option.equal property.eq prop_u prop_u')
+              props new_props)
     then compute_fixpoint new_props
     else begin
       List.iter2
@@ -69,5 +88,8 @@ let compute_property
   compute_fixpoint props
 
 let compute_property_noreq property env decls =
-  let req = List.map (fun _ -> ()) decls in
+  let req = List.map
+    (fun (_, (d : decl)) -> (), Option.map (fun _ -> ()) d.type_unboxed_version)
+    decls
+  in
   compute_property property env decls req

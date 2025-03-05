@@ -14,6 +14,9 @@
 (**************************************************************************)
 [@@@ocaml.warning "+4"]
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about
+   to be deleted. *)
+
 open Cmm
 open Reg
 open Mach

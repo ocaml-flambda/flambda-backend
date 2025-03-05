@@ -88,7 +88,7 @@ and strengthen_lazy_sig' ~aliasable sg p =
     when Btype.is_row_name (Ident.name id) ->
       strengthen_lazy_sig' ~aliasable rem p
   | Sig_type(id, decl, rs, vis) :: rem ->
-      let newdecl =
+      let strengthen_decl path decl =
         match decl.type_manifest, decl.type_private, decl.type_kind with
           Some _, Public, _ -> decl
         | Some _, Private, (Type_record _ | Type_record_unboxed_product _
@@ -96,12 +96,21 @@ and strengthen_lazy_sig' ~aliasable sg p =
           decl
         | _ ->
             let manif =
-              Some(Btype.newgenty(Tconstr(Pdot(p, Ident.name id),
+              Some(Btype.newgenty(Tconstr(path,
                                           decl.type_params, ref Mnil))) in
             if Btype.type_kind_is_abstract decl then
               { decl with type_private = Public; type_manifest = manif }
             else
               { decl with type_manifest = manif }
+      in
+      let path = Pdot(p, Ident.name id) in
+      let new_unboxed_version =
+        Option.map (strengthen_decl (Path.unboxed_version path))
+          decl.type_unboxed_version
+      in
+      let newdecl =
+        strengthen_decl path
+          {decl with type_unboxed_version = new_unboxed_version}
       in
       Sig_type(id, newdecl, rs, vis) ::
         strengthen_lazy_sig' ~aliasable rem p
@@ -298,14 +307,14 @@ let rec sig_make_manifest sg =
   | (Sig_value _ | Sig_class _ | Sig_class_type _) as t :: rem ->
     t :: sig_make_manifest rem
   | Sig_type (id,decl,rs,vis) :: rem ->
-    let newdecl =
+    let decl_make_manifest path decl =
       match decl.type_manifest, decl.type_private, decl.type_kind with
         Some _, Public, _ -> decl
       | Some _, Private,
         (Type_record _ | Type_record_unboxed_product _ | Type_variant _) -> decl
       | _ ->
         let manif =
-          Some (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))
+          Some (Btype.newgenty(Tconstr(path, decl.type_params, ref Mnil)))
         in
         match decl.type_kind with
         | Type_abstract _ ->
@@ -313,6 +322,15 @@ let rec sig_make_manifest sg =
         | (Type_record _ | Type_record_unboxed_product _ | Type_variant _
           | Type_open) ->
           { decl with type_manifest = manif }
+    in
+    let path = Pident id in
+    let new_unboxed_version =
+      Option.map (decl_make_manifest (Path.unboxed_version path))
+        decl.type_unboxed_version
+    in
+    let newdecl =
+      decl_make_manifest path
+        {decl with type_unboxed_version = new_unboxed_version}
     in
     Sig_type(Ident.rename id, newdecl, rs, vis) :: sig_make_manifest rem
   | Sig_typext _ as sigelt :: rem ->
@@ -543,7 +561,18 @@ let enrich_typedecl env p id decl =
               let orig_ty =
                 Btype.newgenty(Tconstr(p, decl.type_params, ref Mnil))
               in
-              {decl with type_manifest = Some orig_ty}
+              let type_unboxed_version =
+                Option.map
+                  (fun d ->
+                    let orig_ty_unboxed =
+                      Btype.newgenty(
+                        Tconstr
+                          (Path.unboxed_version p, decl.type_params, ref Mnil))
+                    in
+                    { d with type_manifest = Some orig_ty_unboxed })
+                  decl.type_unboxed_version
+              in
+              {decl with type_manifest = Some orig_ty; type_unboxed_version}
         end
 
 let rec enrich_modtype env p mty =

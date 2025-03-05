@@ -1,5 +1,6 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
@@ -72,7 +73,7 @@ let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
   in
   let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell) =
     let inst = DLL.value inst_cell in
-    match inst.desc with
+    match[@ocaml.warning "-4"] inst.desc with
     | Op Reload -> (
       let var = inst.arg.(0) in
       let temp = inst.res.(0) in
@@ -107,6 +108,16 @@ let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
     := List.filter
          ~f:(fun temp -> not (Reg.Tbl.mem removed_inst_temporaries temp))
          !new_inst_temporaries
+
+type move_kind =
+  | Load
+  | Store
+
+let equal_move_kind left right =
+  match left, right with
+  | Load, Load -> true
+  | Store, Store -> true
+  | (Load | Store), _ -> false
 
 let rewrite_gen :
     type s.
@@ -168,8 +179,8 @@ let rewrite_gen :
     array_contains_spilled instr.arg || array_contains_spilled instr.res
   in
   let rewrite_instruction ~(direction : direction)
-      ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
-      (instr : _ Cfg.instruction) : unit =
+      ~(sharing : (Reg.t * move_kind) Reg.Tbl.t) (instr : _ Cfg.instruction) :
+      unit =
     let[@inline] rewrite_reg (reg : Reg.t) : Reg.t =
       if Utils.is_spilled reg
       then (
@@ -180,8 +191,8 @@ let rewrite_gen :
         in
         let move, move_dir =
           match direction with
-          | Load_before_cell _ | Load_after_list _ -> Move.Load, `load
-          | Store_after_cell _ | Store_before_list _ -> Move.Store, `store
+          | Load_before_cell _ | Load_after_list _ -> Move.Load, Load
+          | Store_after_cell _ | Store_before_list _ -> Move.Store, Store
         in
         let add_instr, temp =
           match Reg.Tbl.find_opt sharing reg with
@@ -189,14 +200,12 @@ let rewrite_gen :
             let new_temp = make_new_temporary ~move reg in
             Reg.Tbl.add sharing reg (new_temp, move_dir);
             true, new_temp
-          | Some (r, dir) -> dir <> move_dir, r
+          | Some (r, dir) -> not (equal_move_kind dir move_dir), r
         in
         (if add_instr
         then
           let from, to_ =
-            match move_dir with
-            | `load -> spilled, temp
-            | `store -> temp, spilled
+            match move_dir with Load -> spilled, temp | Store -> temp, spilled
           in
           let new_instr =
             Move.make_instr move
@@ -250,8 +259,9 @@ let rewrite_gen :
                round in the same way it would have done to the original
                variable. *)
             if should_coalesce_temp_spills_and_reloads
-               || Regalloc_stack_operands.basic spilled_map instr
-                  = May_still_have_spilled_registers
+               || Regalloc_utils.equal_stack_operands_rewrite
+                    (Regalloc_stack_operands.basic spilled_map instr)
+                    May_still_have_spilled_registers
             then (
               block_rewritten := true;
               let sharing = Reg.Tbl.create 8 in
@@ -264,8 +274,9 @@ let rewrite_gen :
         (* CR-soon mitom: Same issue as short circuiting in basic instruction
            rewriting *)
         if should_coalesce_temp_spills_and_reloads
-           || Regalloc_stack_operands.terminator spilled_map block.terminator
-              = May_still_have_spilled_registers
+           || Regalloc_utils.equal_stack_operands_rewrite
+                (Regalloc_stack_operands.terminator spilled_map block.terminator)
+                May_still_have_spilled_registers
         then (
           block_rewritten := true;
           let sharing = Reg.Tbl.create 8 in

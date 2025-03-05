@@ -59,14 +59,43 @@ let identity =
     last_compose = None;
   }
 
+(* Add a replacement for both a path and its unboxed version, even if that
+   unboxed version doesn't exist (as we can't tell here whether it exists).
+   Asserts we never add an unboxed version directly. *)
+let add_type_replacement types id replacement =
+  match replacement with
+  | Path p ->
+    let types = Path.Map.add id (Path p) types in
+    if Path.is_unboxed_version p then
+      types
+    else
+      Path.Map.add
+        (Path.unboxed_version id) (Path (Path.unboxed_version p)) types
+  | Type_function { params; body } ->
+    let types = Path.Map.add id (Type_function { params; body }) types in
+    match get_desc body with
+    | Tconstr (path, args, _)
+      when not (Path.is_unboxed_version path) ->
+      let body =
+        newty3 ~level:(get_level body) ~scope:(get_scope body)
+          (Tconstr(Path.unboxed_version path, args, ref Mnil))
+      in
+      Path.Map.add
+        (Path.unboxed_version id) (Type_function { params; body }) types
+    | _ -> types
+
 let add_type_path id p s =
-  { s with types = Path.Map.add id (Path p) s.types; last_compose = None }
-let add_type id p s = add_type_path (Pident id) p s
+  let types = add_type_replacement s.types id (Path p) in
+  { s with types; last_compose = None }
+
+let add_type id p s =
+  add_type_path (Pident id) p s
 
 let add_type_function id ~params ~body s =
-  { s with types = Path.Map.add id (Type_function { params; body }) s.types;
-    last_compose = None
-  }
+  let types =
+    add_type_replacement s.types id (Type_function { params; body })
+  in
+  { s with types; last_compose = None }
 
 let add_module_path id p s =
   { s with modules = Path.Map.add id p s.modules; last_compose = None }
@@ -249,7 +278,8 @@ let rec type_path s path =
         fatal_error "Subst.type_path"
      | Pextra_ty (p, extra) ->
          match extra with
-         | Pcstr_ty _ -> Pextra_ty (type_path s p, extra)
+         | Pcstr_ty _ | Punboxed_ty ->
+           Pextra_ty (type_path s p, extra)
          | Pext_ty -> Pextra_ty (value_path s p, extra)
 
 let to_subst_by_type_function s p =
@@ -529,7 +559,7 @@ let constructor_declaration copy_scope s c =
     cd_uid = c.cd_uid;
   }
 
-let type_declaration' copy_scope s decl =
+let rec type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
@@ -570,6 +600,8 @@ let type_declaration' copy_scope s decl =
     type_attributes = attrs s decl.type_attributes;
     type_unboxed_default = decl.type_unboxed_default;
     type_uid = decl.type_uid;
+    type_unboxed_version =
+      Option.map (type_declaration' copy_scope s) decl.type_unboxed_version;
   }
 
 let type_declaration s decl =
@@ -664,6 +696,15 @@ let extension_constructor s ext =
    and return resulting merged map. *)
 let merge_path_maps f m1 m2 =
   Path.Map.fold (fun k d accu -> Path.Map.add k (f d) accu) m1 m2
+
+let merge_type_path_maps (f : type_replacement -> type_replacement)  m1 m2 =
+  Path.Map.fold
+    (fun k d accu ->
+      if Path.is_unboxed_version k then
+        accu
+      else
+        add_type_replacement accu k (f d))
+    m1 m2
 
 let keep_latest_loc l1 l2 =
   match l2 with
@@ -912,7 +953,7 @@ and compose s1 s2 =
   | Some (t,s) when t == s1 -> s
   | _ ->
       let s =
-        { types = merge_path_maps (type_replacement s2) s1.types s2.types;
+        { types = merge_type_path_maps (type_replacement s2) s1.types s2.types;
           modules = merge_path_maps (module_path s2) s1.modules s2.modules;
           modtypes = merge_path_maps (modtype Keep s2) s1.modtypes s2.modtypes;
           additional_action = begin

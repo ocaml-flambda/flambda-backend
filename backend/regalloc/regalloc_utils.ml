@@ -1,5 +1,6 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module Array = ArrayLabels
 module List = ListLabels
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -360,7 +361,7 @@ let remove_prologue : Cfg.basic_block -> bool =
  fun block ->
   let removed = ref false in
   DLL.filter_left block.body ~f:(fun instr ->
-      match instr.Cfg.desc with
+      match[@ocaml.warning "-4"] instr.Cfg.desc with
       | Cfg.Prologue ->
         removed := true;
         false
@@ -466,7 +467,7 @@ let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
       let cost = base_cost * cost_multiplier in
       DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;
       (* Ignore probes *)
-      match block.terminator.desc with
+      match[@ocaml.warning "-4"] block.terminator.desc with
       | Prim { op = Probe _; _ } -> ()
       | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
       | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
@@ -496,6 +497,14 @@ let check_same str1 reg1 str2 reg2 =
 type stack_operands_rewrite =
   | All_spilled_registers_rewritten
   | May_still_have_spilled_registers
+
+let equal_stack_operands_rewrite left right =
+  match left, right with
+  | All_spilled_registers_rewritten, All_spilled_registers_rewritten
+  | May_still_have_spilled_registers, May_still_have_spilled_registers ->
+    true
+  | (All_spilled_registers_rewritten | May_still_have_spilled_registers), _ ->
+    false
 
 type spilled_map = Substitution.t
 

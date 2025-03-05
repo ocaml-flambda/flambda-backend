@@ -1266,7 +1266,7 @@ Line 1, characters 68-69:
 Error: This expression has type "float#" but an expression was expected of type
          "('a : value)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because of the annotation on the wildcard _ at line 1, characters 22-33.
          need a value

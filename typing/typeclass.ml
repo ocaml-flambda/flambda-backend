@@ -1622,6 +1622,7 @@ let temp_abbrev loc id arity uid =
        type_attributes = []; (* or keep attrs from the class decl? *)
        type_unboxed_default = false;
        type_uid = uid;
+       type_unboxed_version = None;
       }
   in
   (!params, ty, ty_td)
@@ -1852,6 +1853,7 @@ let class_infos define_class kind
      type_attributes = []; (* or keep attrs from cl? *)
      type_unboxed_default = false;
      type_uid = dummy_class.cty_uid;
+     type_unboxed_version = None;
     }
   in
   let (cl_params, cl_ty) =
@@ -2367,8 +2369,7 @@ let report_error env ppf =
   | Non_value_binding (nm, err) ->
     fprintf ppf
       "@[Variables bound in a class must have layout value.@ %a@]"
-      (Jkind.Violation.report_with_name
-         ~jkind_of_type:(Some (Ctype.type_jkind_purely env)) ~name:nm) err
+      (Jkind.Violation.report_with_name ~name:nm) err
   | Non_value_let_binding (nm, sort) ->
     fprintf ppf
       "@[The types of variables bound by a 'let' in a class function@ \

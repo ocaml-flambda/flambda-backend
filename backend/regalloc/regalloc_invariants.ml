@@ -1,5 +1,6 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 
 let precondition : Cfg_with_layout.t -> unit =
@@ -130,7 +131,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     (* CR xclerc for xclerc: what about cross-compilation? *)
     | "amd64" | "arm64" -> (
       let num_locals = num_stack_locals arg + num_stack_locals res in
-      match desc with
+      match[@ocaml.warning "-4"] desc with
       | Op (Spill | Reload) ->
         (* CR xclerc for xclerc: should check arg/res according to spill/reload,
            rather than the total number. *)

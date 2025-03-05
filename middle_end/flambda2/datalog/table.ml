@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Datalog_imports
+
 module Int = struct
   include Numbers.Int
   module Tree = Patricia_tree.Make (Numbers.Int)
@@ -58,8 +60,7 @@ module Id = struct
     { id : ('t * 'k) Type.Id.t;
       name : string;
       is_trie : ('t, 'k, 'v) Trie.is_trie;
-      print_keys :
-        Format.formatter -> 'k Heterogenous_list.Constant.hlist -> unit;
+      print_keys : Format.formatter -> 'k Constant.hlist -> unit;
       default_value : 'v
     }
 
@@ -102,14 +103,17 @@ module Id = struct
     | None -> Misc.fatal_error "Inconsistent type for uid."
 
   let create_iterator { is_trie; default_value; name; _ } =
-    let handler : _ Named_ref.t =
-      { contents = Trie.empty is_trie; printed_name = name ^ ".0" }
+    let handler = ref (Trie.empty is_trie) in
+    let out = ref default_value in
+    let iterator = Trie.Iterator.create is_trie handler out in
+    let rec get_names : type a. a Trie.Iterator.hlist -> int -> string list =
+      fun (type a) (iterators : a Trie.Iterator.hlist) i : string list ->
+       match iterators with
+       | [] -> []
+       | _ :: iterators ->
+         (name ^ "." ^ string_of_int i) :: get_names iterators (i + 1)
     in
-    let out : _ Named_ref.t =
-      { contents = default_value; printed_name = name ^ ".output" }
-    in
-    let iterator = Trie.Iterator.create is_trie name handler out in
-    handler, iterator, out
+    handler, { values = iterator; names = get_names iterator 0 }, out
 end
 
 module VM = Virtual_machine.Make (Trie.Iterator)

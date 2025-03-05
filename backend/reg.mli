@@ -27,6 +27,7 @@ type irc_work_list =
   | Coalesced
   | Colored
   | Select_stack
+val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
 val string_of_irc_work_list : irc_work_list -> string
 
 module Raw_name : sig
@@ -83,6 +84,8 @@ and stack_location =
    first thing the callee does is copy them to registers or [Local]
    stack locations.  Neither GC nor thread context switches can occur
    between these two times. *)
+
+val equal_location : location -> location -> bool
 
 val dummy: t
 val create: Cmm.machtype_component -> t

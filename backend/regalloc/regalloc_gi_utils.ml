@@ -1,5 +1,6 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
@@ -734,7 +735,7 @@ module Hardware_registers = struct
         match Lazy.force Selection_heuristics.value with
         | Selection_heuristics.Random_for_testing ->
           Selection_heuristics.random ()
-        | heuristic -> heuristic
+        | (First_available | Best_fit | Worst_fit) as heuristic -> heuristic
       in
       match heuristic with
       | Selection_heuristics.Random_for_testing -> assert false

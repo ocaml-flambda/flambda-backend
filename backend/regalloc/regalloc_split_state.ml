@@ -1,5 +1,6 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 open! Regalloc_split_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -500,8 +501,9 @@ let compute_definitions :
                           Cfg_with_infos.get_block_exn cfg_with_infos
                             predecessor_label
                         in
-                        destruction_point_at_end predecessor_block
-                        = Some Destruction_on_all_paths)
+                        Option.equal equal_destruction_kind
+                          (destruction_point_at_end predecessor_block)
+                          (Some Destruction_on_all_paths))
                       predecessor_labels
                   in
                   (* Should not happen since destruction points currently only

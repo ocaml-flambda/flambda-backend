@@ -939,13 +939,14 @@ let mode_cross_left_value env ty mode =
   else begin
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
-    let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+    let Jkind.{ upper_bounds; lower_bounds } =
+      Jkind.get_modal_bounds ~jkind_of_type jkind
+    in
     let upper_bounds =
       Alloc.Const.merge
         { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
     in
     let upper_bounds = Const.alloc_as_value upper_bounds in
-    let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
     let lower_bounds =
       Alloc.Const.merge
         { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
@@ -967,9 +968,10 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   if not (is_principal ty) then { monadic; comonadic } else
   let jkind = type_jkind_purely env ty in
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let Jkind.{ upper_bounds; lower_bounds } =
+    Jkind.get_modal_bounds ~jkind_of_type jkind
+  in
   let comonadic = Alloc.Comonadic.meet_const upper_bounds comonadic in
-  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
   let monadic = Alloc.Monadic.join_const lower_bounds monadic in
   { monadic; comonadic }
 
@@ -978,13 +980,14 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
    there, too. *)
 let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
+  let Jkind.{ upper_bounds; lower_bounds } =
+    Jkind.get_modal_bounds ~jkind_of_type jkind
+  in
   let upper_bounds =
     Alloc.Const.merge
       { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
   in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds = Jkind.get_modal_lower_bounds ~jkind_of_type jkind in
   let lower_bounds =
     Alloc.Const.merge
       { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
@@ -10319,7 +10322,6 @@ let report_too_many_arg_error ~funct ~func_ty ~previous_arg_loc
     report_this_function funct Printtyp.type_expr func_ty
 
 let report_error ~loc env =
-  let jkind_of_type = Some (Ctype.type_jkind_purely env) in
   function
   | Constructor_arity_mismatch(lid, expected, provided) ->
       Location.errorf ~loc
@@ -10540,8 +10542,7 @@ let report_error ~loc env =
   | Non_value_object (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Object types must have layout value.@ %a"
-        (Jkind.Violation.report_with_name
-           ~jkind_of_type ~name:"the type of this expression")
+        (Jkind.Violation.report_with_name ~name:"the type of this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)
       ()
@@ -10549,7 +10550,6 @@ let report_error ~loc env =
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Variables bound in a \"let rec\" must have layout value.@ %a"
         (fun v -> Jkind.Violation.report_with_offender
-           ~jkind_of_type:None
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty) v) err)
       ()
   | Undefined_method (ty, me, valid_methods) ->
@@ -11001,17 +11001,17 @@ let report_error ~loc env =
   | Function_type_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Function arguments and returns must be representable.@]@ %a"
-        (Jkind.Violation.report_with_offender ~jkind_of_type
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Record_projection_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Records being projected from must be representable.@]@ %a"
-        (Jkind.Violation.report_with_offender ~jkind_of_type
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Record_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Record expressions must be representable.@]@ %a"
-        (Jkind.Violation.report_with_offender ~jkind_of_type
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Invalid_label_for_src_pos arg_label ->
       Location.errorf ~loc
@@ -11040,8 +11040,8 @@ let report_error ~loc env =
          has kind %a, which cannot be the kind of a function.@ \
          (Functions always have kind %a.)@]"
         (Style.as_inline_code Printtyp.type_expr) ty
-        (Style.as_inline_code (Jkind.format ~jkind_of_type)) jkind
-        (Style.as_inline_code (Jkind.format ~jkind_of_type)) Jkind.for_arrow
+        (Style.as_inline_code Jkind.format) jkind
+        (Style.as_inline_code Jkind.format) Jkind.for_arrow
   | Overwrite_of_invalid_term ->
       Location.errorf ~loc
         "Overwriting is only supported on tuples, constructors and boxed records."

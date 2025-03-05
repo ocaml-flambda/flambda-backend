@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-40-42"]
 
+open! Int_replace_polymorphic_compare
+
 (* SIMD instruction selection for AMD64 *)
 
 open Arch

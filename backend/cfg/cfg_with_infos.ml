@@ -1,5 +1,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 type liveness = Cfg_liveness.Liveness.domain InstructionId.Tbl.t
 
 let liveness_analysis : Cfg_with_layout.t -> liveness =

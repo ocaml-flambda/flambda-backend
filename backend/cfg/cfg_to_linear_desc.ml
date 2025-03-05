@@ -1,4 +1,5 @@
 open Cfg_intf.S
+open! Int_replace_polymorphic_compare
 
 let from_basic (basic : basic) : Linear.instruction_desc =
   match basic with

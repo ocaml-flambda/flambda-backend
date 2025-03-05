@@ -362,6 +362,7 @@ let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
 let rec lsl_int c1 c2 dbg =
   match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
   | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
     Cop (Clsl, [c; Cconst_int (n1 + n2, dbg)], dbg)
@@ -1280,35 +1281,108 @@ let addr_array_initialize arr ofs newval dbg =
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
 
-(* low_32 x is a value which agrees with x on at least the low 32 bits *)
-let rec low_32 dbg = function
-  (* Ignore sign and zero extensions, which do not affect the low bits *)
-  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (32, _)], _); Cconst_int (32, _)], _)
-  | Cop (Cand, [x; Cconst_natint (0xFFFFFFFFn, _)], _) ->
-    low_32 dbg x
-  | Clet (id, e, body) -> Clet (id, e, low_32 dbg body)
-  | x -> x
+(** [get_const_bitmask x] returns [Some (y, mask)] if [x] is [y & mask] *)
+let get_const_bitmask = function
+  | Cop (Cand, ([x; Cconst_natint (mask, _)] | [Cconst_natint (mask, _); x]), _)
+    ->
+    Some (x, mask)
+  | Cop (Cand, ([x; Cconst_int (mask, _)] | [Cconst_int (mask, _); x]), _) ->
+    Some (x, Nativeint.of_int mask)
+  | _ -> None
 
-(* sign_extend_32 sign-extends values from 32 bits to the word size. *)
-let sign_extend_32 dbg e =
-  match low_32 dbg e with
-  | Cop
-      ( Cload
-          { memory_chunk = Thirtytwo_unsigned | Thirtytwo_signed;
-            mutability;
-            is_atomic
-          },
-        args,
-        dbg ) ->
-    Cop
-      ( Cload { memory_chunk = Thirtytwo_signed; mutability; is_atomic },
-        args,
-        dbg )
-  | e ->
-    Cop
-      ( Casr,
-        [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
-        dbg )
+(** [low_bits ~bits x] is a (potentially simplified) value which agrees with x on at least
+    the low [bits] bits. E.g., [low_bits ~bits x & mask = x & mask], where [mask] is a
+    bitmask of the low [bits] bits . *)
+let rec low_bits ~bits ~dbg x =
+  assert (bits > 0);
+  if bits >= arch_bits
+  then x
+  else
+    let unused_bits = arch_bits - bits in
+    let does_mask_keep_low_bits test_mask =
+      (* If the mask has all the low bits set, then the low bits are unchanged.
+         This could happen from zero-extension. *)
+      let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
+      Nativeint.equal mask (Nativeint.logand test_mask mask)
+    in
+    (* Ignore sign and zero extensions which do not affect the low bits *)
+    map_tail
+      (function
+        | Cop
+            ( (Casr | Clsr),
+              [Cop (Clsl, [x; Cconst_int (left, _)], _); Cconst_int (right, _)],
+              _ )
+          when 0 <= right && right <= left && left <= unused_bits ->
+          (* these sign-extensions can be replaced with a left shift since we
+             don't care about the high bits that it changed *)
+          low_bits ~bits (lsl_const x (left - right) dbg) ~dbg
+        | x -> (
+          match get_const_bitmask x with
+          | Some (x, bitmask) when does_mask_keep_low_bits bitmask ->
+            low_bits ~bits x ~dbg
+          | _ -> x))
+      x
+
+(** [zero_extend ~bits dbg e] returns [e] with the most significant [arch_bits - bits]
+    bits set to 0 *)
+let zero_extend ~bits ~dbg e =
+  assert (0 < bits && bits <= arch_bits);
+  let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
+  let zero_extend_via_mask e =
+    Cop (Cand, [e; natint_const_untagged dbg mask], dbg)
+  in
+  if bits = arch_bits
+  then e
+  else
+    map_tail
+      (function
+        | Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg) as e
+          -> (
+          let load memory_chunk =
+            Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg)
+          in
+          match memory_chunk, bits with
+          | (Byte_signed | Byte_unsigned), 8 -> load Byte_unsigned
+          | (Sixteen_signed | Sixteen_unsigned), 16 -> load Sixteen_unsigned
+          | (Thirtytwo_signed | Thirtytwo_unsigned), 32 ->
+            load Thirtytwo_unsigned
+          | _ -> zero_extend_via_mask e)
+        | e -> zero_extend_via_mask e)
+      (low_bits ~bits e ~dbg)
+
+let sign_extend ~bits ~dbg e =
+  assert (0 < bits && bits <= arch_bits);
+  let unused_bits = arch_bits - bits in
+  let sign_extend_via_shift e =
+    asr_const (lsl_const e unused_bits dbg) unused_bits dbg
+  in
+  if bits = arch_bits
+  then e
+  else
+    map_tail
+      (function
+        | Cop ((Casr | Clsr), [inner; Cconst_int (n, _)], _) as e
+          when 0 <= n && n < arch_bits ->
+          (* see middle_end/flambda2/z3/sign_extension.py for proof *)
+          if n > unused_bits
+          then
+            (* sign-extension is a no-op since the top n bits already match *)
+            e
+          else
+            let e = lsl_const inner (unused_bits - n) dbg in
+            asr_const e unused_bits dbg
+        | Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg) as e
+          -> (
+          let load memory_chunk =
+            Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg)
+          in
+          match memory_chunk, bits with
+          | (Byte_signed | Byte_unsigned), 8 -> load Byte_signed
+          | (Sixteen_signed | Sixteen_unsigned), 16 -> load Sixteen_signed
+          | (Thirtytwo_signed | Thirtytwo_unsigned), 32 -> load Thirtytwo_signed
+          | _ -> sign_extend_via_shift e)
+        | e -> sign_extend_via_shift e)
+      (low_bits ~bits e ~dbg)
 
 let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
   bind "arr" arr (fun arr ->
@@ -1335,18 +1409,19 @@ let unboxed_int32_array_ref =
 let unboxed_mutable_int32_unboxed_product_array_ref arr ~array_index dbg =
   bind "arr" arr (fun arr ->
       bind "index" array_index (fun index ->
-          sign_extend_32 dbg
+          sign_extend ~bits:32
             (Cop
                ( mk_load_mut Thirtytwo_signed,
                  [array_indexing log2_size_addr arr index dbg],
-                 dbg ))))
+                 dbg ))
+            ~dbg))
 
 let unboxed_mutable_int32_unboxed_product_array_set arr ~array_index ~new_value
     dbg =
   bind "arr" arr (fun arr ->
       bind "index" array_index (fun index ->
           bind "new_value" new_value (fun new_value ->
-              let new_value = sign_extend_32 dbg new_value in
+              let new_value = sign_extend ~bits:32 new_value ~dbg in
               Cop
                 ( Cstore (Word_int, Assignment),
                   [array_indexing log2_size_addr arr index dbg; new_value],
@@ -1448,7 +1523,7 @@ let set_field_unboxed ~dbg memory_chunk block ~index_in_words newval =
     let field_address =
       array_indexing log2_size_addr block index_in_words dbg
     in
-    let newval = if size_in_bytes = 4 then low_32 dbg newval else newval in
+    let newval = low_bits newval ~dbg ~bits:(8 * size_in_bytes) in
     return_unit dbg
       (Cop (Cstore (memory_chunk, Assignment), [field_address; newval], dbg))
 
@@ -1647,16 +1722,12 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-(* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code will
-   need to change. *)
+(* CR layouts 5.1: When we pack int8/16/32s/float32s more efficiently, this code
+   will need to change. *)
 let memory_chunk_size_in_words_for_mixed_block = function
-  | (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed) as
-    memory_chunk ->
-    Misc.fatal_errorf
-      "Fields with memory chunk %s are not allowed in mixed blocks"
-      (Printcmm.chunk memory_chunk)
+  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
   | Thirtytwo_unsigned | Thirtytwo_signed ->
-    (* Int32s are currently stored using a whole word *)
+    (* small integers are currently stored using a whole word *)
     1
   | Single _ | Double ->
     (* Float32s are currently stored using a whole word *)
@@ -1896,107 +1967,6 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_complex32 -> Single { reg = Float64 }
   | Pbigarray_complex64 -> Double
 
-(* the three functions below assume 64-bit words *)
-let () = assert (size_int = 8)
-
-let check_64_bit_target func =
-  if size_int <> 8
-  then
-    Misc.fatal_errorf
-      "Cmm helpers function %s can only be used on 64-bit targets" func
-
-(* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
-(* CR gbury: Why not use Cmm.map_tail here ? It seems designed for that kind of
-   thing (and covers more cases than just Clet). *)
-let rec low_63 dbg e =
-  check_64_bit_target "low_63";
-  match e with
-  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
-    low_63 dbg x
-  | Cop (Cand, [x; Cconst_natint (0x7FFF_FFFF_FFFF_FFFFn, _)], _) ->
-    low_63 dbg x
-  | Clet (id, x, body) -> Clet (id, x, low_63 dbg body)
-  | _ -> e
-
-(* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
-   just tag_int. *)
-let sign_extend_63 dbg e =
-  check_64_bit_target "sign_extend_63";
-  match e with
-  | Cop (Casr, [_; Cconst_int (n, _)], _) when n > 0 && n < 64 ->
-    (* [asr] by a positive constant is sign-preserving. However:
-
-       - Some architectures treat the shift length modulo the word size.
-
-       - OCaml does not define behavior of shifts by more than the word size.
-
-       So we don't make the simplification for shifts of length 64 or more. *)
-    e
-  | _ ->
-    let e = low_63 dbg e in
-    Cop
-      ( Casr,
-        [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
-        dbg )
-
-(* zero_extend_32 zero-extends values from 32 bits to the word size. *)
-let zero_extend_32 dbg e =
-  (* CR mshinwell for gbury: same question as above *)
-  match low_32 dbg e with
-  | Cop
-      ( Cload
-          { memory_chunk = Thirtytwo_signed | Thirtytwo_unsigned;
-            mutability;
-            is_atomic
-          },
-        args,
-        dbg ) ->
-    Cop
-      ( Cload { memory_chunk = Thirtytwo_unsigned; mutability; is_atomic },
-        args,
-        dbg )
-  | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
-
-let zero_extend_63 dbg e =
-  check_64_bit_target "zero_extend_63";
-  let e = low_63 dbg e in
-  Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
-
-let zero_extend ~bits ~dbg e =
-  assert (0 < bits && bits <= arch_bits);
-  if bits = arch_bits
-  then e
-  else
-    match bits with
-    | 63 -> zero_extend_63 dbg e
-    | 32 -> zero_extend_32 dbg e
-    | bits -> Misc.fatal_errorf "zero_extend not implemented for %d bits" bits
-
-let sign_extend ~bits ~dbg e =
-  assert (0 < bits && bits <= arch_bits);
-  if bits = arch_bits
-  then e
-  else
-    match bits with
-    | 63 -> sign_extend_63 dbg e
-    | 32 -> sign_extend_32 dbg e
-    | bits -> Misc.fatal_errorf "sign_extend not implemented for %d bits" bits
-
-let low_bits ~bits ~(dbg : Debuginfo.t) e =
-  assert (0 < bits && bits <= arch_bits);
-  if bits = arch_bits
-  then e
-  else
-    match bits with
-    | 63 -> low_63 dbg e
-    | 32 -> low_32 dbg e
-    | bits -> Misc.fatal_errorf "low_bits not implemented for %d bits" bits
-
-let ignore_low_bits ~bits ~dbg:(_ : Debuginfo.t) e =
-  if bits = 1
-  then ignore_low_bit_int e
-  else Misc.fatal_error "ignore_low_bits expected bits=1 for now"
-
 let and_int e1 e2 dbg =
   let is_mask32 = function
     | Cconst_natint (0xFFFF_FFFFn, _) -> true
@@ -2004,8 +1974,8 @@ let and_int e1 e2 dbg =
     | _ -> false
   in
   match e1, e2 with
-  | e, m when is_mask32 m -> zero_extend_32 dbg e
-  | m, e when is_mask32 m -> zero_extend_32 dbg e
+  | e, m when is_mask32 m -> zero_extend ~bits:32 e ~dbg
+  | m, e when is_mask32 m -> zero_extend ~bits:32 e ~dbg
   | e1, e2 -> Cop (Cand, [e1; e2], dbg)
 
 let or_int e1 e2 dbg = Cop (Cor, [e1; e2], dbg)
@@ -2033,9 +2003,7 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
   let arg' =
     if bi = Primitive.Boxed_int32
     then
-      if big_endian
-      then Cop (Clsl, [arg; Cconst_int (32, dbg)], dbg)
-      else sign_extend_32 dbg arg
+      if big_endian then lsl_const arg 32 dbg else sign_extend ~bits:32 arg ~dbg
     else arg
   in
   Cop
@@ -2079,12 +2047,12 @@ let unbox_int dbg bi =
       when bi = Primitive.Boxed_int32 && big_endian
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
-      sign_extend_32 dbg contents
+      sign_extend ~bits:32 contents ~dbg
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
       when bi = Primitive.Boxed_int32 && (not big_endian)
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
-      sign_extend_32 dbg contents
+      sign_extend ~bits:32 contents ~dbg
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
       when alloc_matches_boxed_int bi ~hdr ~ops ->
       contents
@@ -2100,7 +2068,7 @@ let unbox_int dbg bi =
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
-  if bi = Primitive.Unboxed_int32 then zero_extend_32 dbg arg else arg
+  if bi = Primitive.Unboxed_int32 then zero_extend ~bits:32 arg ~dbg else arg
 
 let unaligned_load_16 ptr idx dbg =
   if Arch.allow_unaligned_access
@@ -4315,7 +4283,7 @@ let make_unboxed_int32_array_payload dbg unboxed_int32_list =
           ( Cor,
             [ (* [a] is sign-extended by default. We need to change it to be
                  zero-extended for the `or` operation to be correct. *)
-              zero_extend_32 dbg a;
+              zero_extend ~bits:32 a ~dbg;
               Cop (Clsl, [b; Cconst_int (32, dbg)], dbg) ],
             dbg )
       in

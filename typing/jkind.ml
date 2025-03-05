@@ -19,6 +19,16 @@ open Types
 
 [@@@warning "+9"]
 
+let print_type_expr : (Format.formatter -> type_expr -> unit) ref =
+  ref (fun _ _ -> assert false)
+
+let set_print_type_expr p = print_type_expr := p
+
+let raw_type_expr : (Format.formatter -> type_expr -> unit) ref =
+  ref (fun _ _ -> assert false)
+
+let set_raw_type_expr p = raw_type_expr := p
+
 module Nonempty_list = Misc.Nonempty_list
 
 (* A *sort* is the information the middle/back ends need to be able to
@@ -383,22 +393,6 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 
 module Mod_bounds = struct
   include Types.Jkind_mod_bounds
-  module Locality = Mode.Locality.Const
-  module Linearity = Mode.Linearity.Const
-  module Uniqueness = Mode.Uniqueness.Const_op
-  module Portability = Mode.Portability.Const
-  module Contention = Mode.Contention.Const_op
-  module Yielding = Mode.Yielding.Const
-
-  let debug_print ppf t =
-    Format.fprintf ppf
-      "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ portability = \
-       %a;@ contention = %a;@ yielding = %a;@ externality = %a;@ nullability = \
-       %a }@]"
-      Locality.print (locality t) Linearity.print (linearity t) Uniqueness.print
-      (uniqueness t) Portability.print (portability t) Contention.print
-      (contention t) Yielding.print (yielding t) Externality.print
-      (externality t) Nullability.print (nullability t)
 
   let min =
     create ~locality:Locality.min ~linearity:Linearity.min
@@ -540,7 +534,7 @@ module With_bounds = struct
 
     let print ppf { relevant_axes } =
       let open Format in
-      fprintf ppf "@[{ relevant_axes = %a }]" Axis_set.print relevant_axes
+      fprintf ppf "@[{ relevant_axes = %a }@]" Axis_set.print relevant_axes
 
     let join { relevant_axes = axes1 } { relevant_axes = axes2 } =
       { relevant_axes = Axis_set.union axes1 axes2 }
@@ -567,6 +561,11 @@ module With_bounds = struct
   let to_best_eff_map = function
     | No_with_bounds -> With_bounds_types.empty
     | With_bounds bounds -> bounds
+
+  let for_all (type l r) f (t : (l * r) t) =
+    match t with
+    | No_with_bounds -> true
+    | With_bounds tys -> With_bounds_types.for_all f tys
 
   let to_list : type d. d with_bounds -> _ = function
     | No_with_bounds -> []
@@ -604,22 +603,23 @@ module With_bounds = struct
   let map_type_expr (type l r) f : (l * r) t -> (l * r) t = function
     | No_with_bounds -> No_with_bounds
     | With_bounds tys ->
-      With_bounds
-        (tys |> With_bounds_types.to_seq
-        |> Seq.map (fun (ty, ti) -> f ty, ti)
-        |> With_bounds_types.of_seq)
+      With_bounds (With_bounds_types.map_with_key (fun ty ti -> f ty, ti) tys)
 
-  let debug_print (type l r) ~print_type_expr ppf : (l * r) t -> _ =
+  let debug_print_types ppf tys =
+    let open Format in
+    pp_print_seq
+      ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
+      (fun ppf (ty, ti) ->
+        fprintf ppf "@[(%a, %a)@]" !raw_type_expr ty Type_info.print ti)
+      ppf
+      (With_bounds_types.to_seq tys)
+
+  let debug_print (type l r) ppf : (l * r) t -> _ =
     let open Format in
     function
     | No_with_bounds -> fprintf ppf "No_with_bounds"
     | With_bounds tys ->
-      fprintf ppf "With_bounds @[[%a]@]"
-        (pp_print_seq
-           ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
-           (fun ppf (ty, ti) ->
-             fprintf ppf "@[(%a, %a)]" print_type_expr ty Type_info.print ti))
-        (With_bounds_types.to_seq tys)
+      fprintf ppf "With_bounds @[[%a]@]" debug_print_types tys
 
   let join_bounds =
     With_bounds_types.merge (fun _ ti1 ti2 ->
@@ -746,16 +746,14 @@ module Layout_and_axes = struct
       Some { layout; mod_bounds = Obj.magic mod_bounds; with_bounds }
     | None -> None
 
-  let debug_print ~print_type_expr format_layout ppf
-      { layout; mod_bounds; with_bounds } =
+  let debug_print format_layout ppf { layout; mod_bounds; with_bounds } =
     Format.fprintf ppf "{ layout = %a;@ mod_bounds = %a;@ with_bounds = %a }"
       format_layout layout Mod_bounds.debug_print mod_bounds
-      (With_bounds.debug_print ~print_type_expr)
-      with_bounds
+      With_bounds.debug_print with_bounds
 
-  type 'd normalize_mode =
-    | Require_best : ('l * disallowed) normalize_mode
-    | Ignore_best : ('l * 'r) normalize_mode
+  type 'r normalize_mode =
+    | Require_best : disallowed normalize_mode
+    | Ignore_best : 'r normalize_mode
 
   module Fuel_status = struct
     type t =
@@ -768,215 +766,247 @@ module Layout_and_axes = struct
       | Sufficient_fuel, Sufficient_fuel -> Sufficient_fuel
   end
 
-  (* Normalize the jkind. If mode is Require_best, only jkinds that are best will be used.
-     If mode is Ignore_best, then Not_best will be used. Since Ignore_best can use
-     Not_best, the result is guaranteed to have no with-bounds.
+  (* Normalize the jkind. If mode is [Require_best], only jkinds that have quality [Best]
+     will be used. If mode is [Ignore_best], then jkinds that have quality [Not_best] will
+     also be used. Since [Ignore_best] can use [Not_best] jkinds, the result is guaranteed
+     to have no with-bounds.
 
-     At each step during normalization, before expanding a type, [map_type_info] is used
-     to map the type-info for the type being expanded. The type can be prevented from
-     being expanded by mapping the relevant axes to an empty set. [map_type_info] is used
-     by sub_jkind_l to remove irrelevant axes. *)
-  let normalize (type layout l1 r1 l2 r2) ~jkind_of_type
-      ~(mode : (l2 * r2) normalize_mode)
+     At each step during normalization, before expanding a type, [map_type_info]
+     is used to map the type-info for the type being expanded. The type can be
+     prevented from being expanded by mapping the relevant axes to an empty
+     set. [map_type_info] is used by sub_jkind_l to remove irrelevant axes.
+
+     The [skip_axes] argument says which axes we can skip normalizing along. The behavior
+     of this function for these axes is undefined; do *not* look at the results for these
+     axes.
+  *)
+  let normalize (type layout l r1 r2) ~jkind_of_type ~(mode : r2 normalize_mode)
+      ~skip_axes
       ?(map_type_info :
          (type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
-         option) (t : (layout, l1 * r1) layout_and_axes) :
-      (layout, l2 * r2) layout_and_axes * Fuel_status.t =
-    (* Sadly, it seems hard (impossible?) to be sure to expand all types
-       here without using a fuel parameter to stop infinite regress. Here
-       is a nasty case:
-
-       {[
-         type zero
-         type 'n succ
-
-         type 'n loopy = Mk of 'n succ loopy list [@@unboxed]
-       ]}
-
-       First off: this type *is* inhabited, because of the [list] intervening
-       type (which can be empty). It's also inhabited by various circular
-       structures.
-
-       But what's the jkind of ['n loopy]? It must be the jkind of
-       ['n succ loopy list], which is [immutable_data with 'n succ loopy].
-       In order to see if we shouldn't mode-cross, we have to expand the
-       ['n succ loopy] in the jkind, but expanding that just yields the need
-       to expand ['n succ succ loopy], and around we go.
-
-       It seems hard to avoid this problem. And so we use fuel. Yet we want
-       both a small amount of fuel (a type like [type t = K of (t * t) list]
-       gets big very quickly) and a lot of fuel (we can imagine using a unit
-       of fuel for each level of a deeply nested record structure). The
-       compromise is to track fuel per type head, where a type head is either
-       the path to a type constructor (like [t] or [loopy]) or a tuple.
-       (We need to include tuples because of the possibility of recursive
-       types and the fact that tuples track their element types in their
-       jkind's with_bounds.)
-
-       The initial fuel per type head is 10, as it seems hard to imagine that
-       we're going to make meaningful progress if we've seen the same type
-       head 10 times in one line of recursive descent. (This "one line of
-       recursive descent" bit is why we recur separately down one type before
-       iterating down the list.)
+         option) (t : (layout, l * r1) layout_and_axes) :
+      (layout, l * r2) layout_and_axes * Fuel_status.t =
+    (* handle a few common cases first, before doing anything else *)
+    (* DEBUGGING
+       Format.printf "@[normalize: %a@;  relevant_axes: %a@]@;"
+         With_bounds.debug_print t.with_bounds Jkind_axis.Axis_set.print
+         relevant_axes;
     *)
-    (* CR reisenberg: document seen_args *)
-    let module Loop_control = struct
-      type t =
-        { tuple_fuel : int;
-          constr : (int * type_expr list) Path.Map.t;
-          fuel_status : Fuel_status.t
-        }
+    match t with
+    | { with_bounds = No_with_bounds; _ } as t -> t, Sufficient_fuel
+    | { with_bounds = With_bounds tys; _ } as t
+      when Axis_set.equal skip_axes Axis_set.all
+           || With_bounds_types.is_empty tys ->
+      { t with with_bounds = No_with_bounds }, Sufficient_fuel
+    | _
+      when Mod_bounds.is_max_within_set t.mod_bounds
+             (Axis_set.complement skip_axes) ->
+      { t with with_bounds = No_with_bounds }, Sufficient_fuel
+    | _ ->
+      (* Sadly, it seems hard (impossible?) to be sure to expand all types
+         here without using a fuel parameter to stop infinite regress. Here
+         is a nasty case:
 
-      type result =
-        | Stop of t (* give up, returning [max] *)
-        | Skip (* skip reducing this type, but otherwise continue *)
-        | Continue of t (* continue, with a new [t] *)
+         {[
+           type zero
+           type 'n succ
 
-      let initial_fuel_per_ty = 2
+           type 'n loopy = Mk of 'n succ loopy list [@@unboxed]
+         ]}
 
-      let starting =
-        { tuple_fuel = initial_fuel_per_ty;
-          constr = Path.Map.empty;
-          fuel_status = Sufficient_fuel
-        }
+         First off: this type *is* inhabited, because of the [list] intervening
+         type (which can be empty). It's also inhabited by various circular
+         structures.
 
-      let rec check ({ tuple_fuel; constr; fuel_status = _ } as t) ty =
-        match Types.get_desc ty with
-        | Tpoly (ty, _) -> check t ty
-        | Ttuple _ ->
-          if tuple_fuel > 0
-          then Continue { t with tuple_fuel = tuple_fuel - 1 }
-          else Stop { t with fuel_status = Ran_out_of_fuel }
-        | Tconstr (p, args, _) -> (
-          match Path.Map.find_opt p constr with
-          | None ->
-            Continue
-              { t with
-                constr = Path.Map.add p (initial_fuel_per_ty, args) constr
-              }
-          | Some (fuel, seen_args) ->
-            if List.for_all2
-                 (fun ty1 ty2 ->
-                   TransientTypeOps.equal (Transient_expr.repr ty1)
-                     (Transient_expr.repr ty2))
-                 seen_args args
-            then Skip
-            else if fuel > 0
-            then
-              Continue
-                { t with constr = Path.Map.add p (fuel - 1, args) constr }
-            else Stop { t with fuel_status = Ran_out_of_fuel })
-        | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
-        | Tvariant _ | Tunivar _ | Tpackage _ ->
-          (* these cases either cannot be infinitely recursive or their jkinds
-             do not have with_bounds *)
-          (* CR layouts v2.8: Some of these might get with-bounds someday. We
-             should double-check before we're done that they haven't. *)
-          Continue t
-        | Tlink _ | Tsubst _ -> Misc.fatal_error "Tlink or Tsubst in normalize"
-    end in
-    let rec loop (ctl : Loop_control.t) bounds_so_far :
-        (type_expr * With_bounds_type_info.t) list ->
-        Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t = function
-      (* early cutoff *)
-      | _ when Mod_bounds.equal Mod_bounds.max bounds_so_far ->
-        (* CR layouts v2.8: we can do better by early-terminating on a per-axis basis *)
-        bounds_so_far, No_with_bounds, Sufficient_fuel
-      | [] -> bounds_so_far, No_with_bounds, ctl.fuel_status
-      | (ty, ti) :: bs -> (
-        (* Map the type's info before expanding the type *)
-        let ti =
-          match map_type_info with
-          | None -> ti
-          | Some map_type_info -> map_type_info ty ti
-        in
-        (* We don't care about axes that are already max because they can't get any
-           better or worse. By ignoring them, we may be able to terminate early *)
-        let ti : With_bounds_type_info.t =
-          { relevant_axes =
-              Axis_set.diff ti.relevant_axes
-                (Mod_bounds.get_max_axes bounds_so_far)
+         But what's the jkind of ['n loopy]? It must be the jkind of
+         ['n succ loopy list], which is [immutable_data with 'n succ loopy].
+         In order to see if we shouldn't mode-cross, we have to expand the
+         ['n succ loopy] in the jkind, but expanding that just yields the need
+         to expand ['n succ succ loopy], and around we go.
+
+         It seems hard to avoid this problem. And so we use fuel. Yet we want
+         both a small amount of fuel (a type like [type t = K of (t * t) list]
+         gets big very quickly) and a lot of fuel (we can imagine using a unit
+         of fuel for each level of a deeply nested record structure). The
+         compromise is to track fuel per type head, where a type head is either
+         the path to a type constructor (like [t] or [loopy]) or a tuple.
+         (We need to include tuples because of the possibility of recursive
+         types and the fact that tuples track their element types in their
+         jkind's with_bounds.)
+
+         The initial fuel per type head is 10, as it seems hard to imagine that
+         we're going to make meaningful progress if we've seen the same type
+         head 10 times in one line of recursive descent. (This "one line of
+         recursive descent" bit is why we recur separately down one type before
+         iterating down the list.)
+      *)
+      (* CR reisenberg: document seen_args *)
+      let module Loop_control = struct
+        type t =
+          { tuple_fuel : int;
+            constr : (int * type_expr list) Path.Map.t;
+            fuel_status : Fuel_status.t
           }
-        in
-        match Axis_set.is_empty ti.relevant_axes with
-        | true ->
-          (* If [ty] is not relevant to any axes, then we can safely drop it and thereby
-             avoid doing the work of expanding it. *)
-          loop ctl bounds_so_far bs
-        | false -> (
-          let join_bounds b1 b2 ~relevant_axes =
-            let value_for_axis (type a) ~(axis : a Axis.t) : a =
-              if Axis_set.mem relevant_axes axis
-              then
-                let (module Bound_ops) = Axis.get axis in
-                Bound_ops.join (Mod_bounds.get ~axis b1)
-                  (Mod_bounds.get ~axis b2)
-              else Mod_bounds.get ~axis b1
-            in
-            Mod_bounds.create
-              ~locality:(value_for_axis ~axis:(Modal (Comonadic Areality)))
-              ~linearity:(value_for_axis ~axis:(Modal (Comonadic Linearity)))
-              ~uniqueness:(value_for_axis ~axis:(Modal (Monadic Uniqueness)))
-              ~portability:
-                (value_for_axis ~axis:(Modal (Comonadic Portability)))
-              ~contention:(value_for_axis ~axis:(Modal (Monadic Contention)))
-              ~yielding:(value_for_axis ~axis:(Modal (Comonadic Yielding)))
-              ~externality:(value_for_axis ~axis:(Nonmodal Externality))
-              ~nullability:(value_for_axis ~axis:(Nonmodal Nullability))
-          in
-          let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality :
-              Mod_bounds.t * (l2 * r2) with_bounds * Fuel_status.t =
-            match quality, mode with
-            | Best, _ | Not_best, Ignore_best ->
-              let bounds_so_far =
-                join_bounds bounds_so_far b_upper_bounds
-                  ~relevant_axes:ti.relevant_axes
-              in
-              (* Descend into the with-bounds of each of our with-bounds types'
-                  with-bounds *)
-              let bounds_so_far, nested_with_bounds, fuel_result1 =
-                loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
-              in
-              (* CR layouts v2.8: we use [new_ctl] here, not [ctl], to avoid big quadratic
-                 stack growth for very widely recursive types. This is sad, since it
-                 prevents us from mode crossing a record with 20 lists with different
-                 payloads, but less sad than a stack overflow of the compiler during type
-                 declaration checking.
 
-                 Ideally, this whole problem goes away once we rethink fuel.
-              *)
-              let bounds, bs', fuel_result2 = loop new_ctl bounds_so_far bs in
-              ( bounds,
-                With_bounds.join nested_with_bounds bs',
-                Fuel_status.both fuel_result1 fuel_result2 )
-            | Not_best, Require_best ->
-              let bounds_so_far, bs', fuel_result =
-                loop new_ctl bounds_so_far bs
-              in
-              bounds_so_far, With_bounds.add ty ti bs', fuel_result
-          in
-          match Loop_control.check ctl ty with
-          | Stop ctl_after_stop ->
-            (* out of fuel, so assume [ty] has the worst possible bounds. *)
-            found_jkind_for_ty ctl_after_stop Mod_bounds.max No_with_bounds
-              Not_best
-          | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
-          | Continue ctl_after_unpacking_b -> (
-            match jkind_of_type ty with
-            | Some b_jkind ->
-              found_jkind_for_ty ctl_after_unpacking_b b_jkind.jkind.mod_bounds
-                b_jkind.jkind.with_bounds b_jkind.quality
+        type result =
+          | Stop of t (* give up, returning [max] *)
+          | Skip (* skip reducing this type, but otherwise continue *)
+          | Continue of t (* continue, with a new [t] *)
+
+        let initial_fuel_per_ty = 2
+
+        let starting =
+          { tuple_fuel = initial_fuel_per_ty;
+            constr = Path.Map.empty;
+            fuel_status = Sufficient_fuel
+          }
+
+        let rec check ({ tuple_fuel; constr; fuel_status = _ } as t) ty =
+          match Types.get_desc ty with
+          | Tpoly (ty, _) -> check t ty
+          | Ttuple _ ->
+            if tuple_fuel > 0
+            then Continue { t with tuple_fuel = tuple_fuel - 1 }
+            else Stop { t with fuel_status = Ran_out_of_fuel }
+          | Tconstr (p, args, _) -> (
+            match Path.Map.find_opt p constr with
             | None ->
-              (* kind of b is not principally known, so we treat it as having the max
-                 bound (only along the axes we care about for this type!) *)
-              found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
-                No_with_bounds Not_best)))
-    in
-    let mod_bounds, with_bounds, fuel_status =
-      loop Loop_control.starting t.mod_bounds
-        (With_bounds.to_list t.with_bounds)
-    in
-    { t with mod_bounds; with_bounds }, fuel_status
+              Continue
+                { t with
+                  constr = Path.Map.add p (initial_fuel_per_ty, args) constr
+                }
+            | Some (fuel, seen_args) ->
+              if List.for_all2
+                   (fun ty1 ty2 ->
+                     TransientTypeOps.equal (Transient_expr.repr ty1)
+                       (Transient_expr.repr ty2))
+                   seen_args args
+              then Skip
+              else if fuel > 0
+              then
+                Continue
+                  { t with constr = Path.Map.add p (fuel - 1, args) constr }
+              else Stop { t with fuel_status = Ran_out_of_fuel })
+          | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
+          | Tvariant _ | Tunivar _ | Tpackage _ ->
+            (* these cases either cannot be infinitely recursive or their jkinds
+               do not have with_bounds *)
+            (* CR layouts v2.8: Some of these might get with-bounds someday. We
+               should double-check before we're done that they haven't. *)
+            Continue t
+          | Tlink _ | Tsubst _ ->
+            Misc.fatal_error "Tlink or Tsubst in normalize"
+      end in
+      let rec loop (ctl : Loop_control.t) bounds_so_far :
+          (type_expr * With_bounds_type_info.t) list ->
+          Mod_bounds.t * (l * r2) with_bounds * Fuel_status.t = function
+        (* early cutoff *)
+        | [] -> bounds_so_far, No_with_bounds, ctl.fuel_status
+        | _ when Mod_bounds.equal Mod_bounds.max bounds_so_far ->
+          (* CR layouts v2.8: we can do better by early-terminating on a per-axis
+             basis *)
+          bounds_so_far, No_with_bounds, Sufficient_fuel
+        | (ty, ti) :: bs -> (
+          (* Map the type's info before expanding the type *)
+          let ti =
+            match map_type_info with
+            | None -> ti
+            | Some map_type_info -> map_type_info ty ti
+          in
+          (* We don't care about axes that are already max because they can't get
+             any better or worse. By ignoring them, we may be able to terminate
+             early *)
+          let ti : With_bounds_type_info.t =
+            { relevant_axes =
+                Axis_set.diff ti.relevant_axes
+                  (Mod_bounds.get_max_axes bounds_so_far)
+            }
+          in
+          match Axis_set.is_empty ti.relevant_axes with
+          | true ->
+            (* If [ty] is not relevant to any axes, then we can safely drop it and
+               thereby avoid doing the work of expanding it. *)
+            loop ctl bounds_so_far bs
+          | false -> (
+            let join_bounds b1 b2 ~relevant_axes =
+              let value_for_axis (type a) ~(axis : a Axis.t) : a =
+                if Axis_set.mem relevant_axes axis
+                then
+                  let (module Bound_ops) = Axis.get axis in
+                  Bound_ops.join (Mod_bounds.get ~axis b1)
+                    (Mod_bounds.get ~axis b2)
+                else Mod_bounds.get ~axis b1
+              in
+              Mod_bounds.create
+                ~locality:(value_for_axis ~axis:(Modal (Comonadic Areality)))
+                ~linearity:(value_for_axis ~axis:(Modal (Comonadic Linearity)))
+                ~uniqueness:(value_for_axis ~axis:(Modal (Monadic Uniqueness)))
+                ~portability:
+                  (value_for_axis ~axis:(Modal (Comonadic Portability)))
+                ~contention:(value_for_axis ~axis:(Modal (Monadic Contention)))
+                ~yielding:(value_for_axis ~axis:(Modal (Comonadic Yielding)))
+                ~externality:(value_for_axis ~axis:(Nonmodal Externality))
+                ~nullability:(value_for_axis ~axis:(Nonmodal Nullability))
+            in
+            let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality
+                : Mod_bounds.t * (l * r2) with_bounds * Fuel_status.t =
+              match quality, mode with
+              | Best, _ | Not_best, Ignore_best ->
+                let bounds_so_far =
+                  join_bounds bounds_so_far b_upper_bounds
+                    ~relevant_axes:ti.relevant_axes
+                in
+                (* Descend into the with-bounds of each of our with-bounds types'
+                    with-bounds *)
+                let bounds_so_far, nested_with_bounds, fuel_result1 =
+                  loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
+                in
+                (* CR layouts v2.8: we use [new_ctl] here, not [ctl], to avoid big
+                   quadratic stack growth for very widely recursive types. This is
+                   sad, since it prevents us from mode crossing a record with 20
+                   lists with different payloads, but less sad than a stack
+                   overflow of the compiler during type declaration checking.
+
+                   Ideally, this whole problem goes away once we rethink fuel.
+                *)
+                let bounds, bs', fuel_result2 = loop new_ctl bounds_so_far bs in
+                ( bounds,
+                  With_bounds.join nested_with_bounds bs',
+                  Fuel_status.both fuel_result1 fuel_result2 )
+              | Not_best, Require_best ->
+                (* CR layouts v2.8: The type annotation on the next line is
+                   necessary only because [loop] is
+                   local. Bizarre. Investigate. *)
+                let bounds_so_far, (bs' : (l * r2) With_bounds.t), fuel_result =
+                  loop new_ctl bounds_so_far bs
+                in
+                bounds_so_far, With_bounds.add ty ti bs', fuel_result
+            in
+            match Loop_control.check ctl ty with
+            | Stop ctl_after_stop ->
+              (* out of fuel, so assume [ty] has the worst possible bounds. *)
+              found_jkind_for_ty ctl_after_stop Mod_bounds.max No_with_bounds
+                Not_best [@nontail]
+            | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
+            | Continue ctl_after_unpacking_b -> (
+              match jkind_of_type ty with
+              | Some b_jkind ->
+                found_jkind_for_ty ctl_after_unpacking_b
+                  b_jkind.jkind.mod_bounds b_jkind.jkind.with_bounds
+                  b_jkind.quality [@nontail]
+              | None ->
+                (* kind of b is not principally known, so we treat it as having
+                   the max bound (only along the axes we care about for this
+                   type!) *)
+                found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
+                  No_with_bounds Not_best [@nontail])))
+      in
+      let mod_bounds = Mod_bounds.set_max_in_set t.mod_bounds skip_axes in
+      let mod_bounds, with_bounds, fuel_status =
+        loop Loop_control.starting mod_bounds
+          (With_bounds.to_list t.with_bounds)
+      in
+      { t with mod_bounds; with_bounds }, fuel_status
 end
 
 (*********************************)
@@ -1087,15 +1117,16 @@ module Context_with_transl = struct
     | Left_jkind (_, ctx) -> ctx
 end
 
-let outcometree_of_type_scheme = ref (fun _ -> assert false)
+(* CR layouts v2.8: This should sometimes be for type schemes, not types
+   (which print weak variables like ['_a] correctly), but this works better
+   for the common case. When we re-do printing, fix. *)
+let outcometree_of_type = ref (fun _ -> assert false)
 
-let set_outcometree_of_type_scheme p = outcometree_of_type_scheme := p
+let set_outcometree_of_type p = outcometree_of_type := p
 
 let outcometree_of_modalities_new = ref (fun _ _ _ -> assert false)
 
 let set_outcometree_of_modalities_new p = outcometree_of_modalities_new := p
-
-let should_print_with_bounds () = Language_extension.(is_at_least Layouts Alpha)
 
 module Const = struct
   type 'd t = (Layout.Const.t, 'd) Types.layout_and_axes
@@ -1313,15 +1344,8 @@ module Const = struct
         terms of [value] (as it appears above), or in terms of [immediate]
         (which would just be [immediate]). Since the latter requires less modes
         to be printed, it is chosen.
-
-        The [jkind_of_type] function is used to normalize when we don't wish
-        to print with-bounds. If it's not supplied, we unconditionally print
-        the with-bounds.
     *)
-    val convert :
-      jkind_of_type:(type_expr -> jkind_l) option ->
-      'd t ->
-      Outcometree.out_jkind_const
+    val convert : 'd t -> Outcometree.out_jkind_const
   end = struct
     type printable_jkind =
       { base : string;
@@ -1398,7 +1422,7 @@ module Const = struct
               With_bounds.Type_info.axes_ignored_by_modalities
                 ~mod_bounds:actual.mod_bounds ~type_info
             in
-            ( !outcometree_of_type_scheme type_expr,
+            ( !outcometree_of_type type_expr,
               !outcometree_of_modalities_new
                 Types.Immutable []
                 (modality_to_ignore_axes axes_ignored_by_modalities) ))
@@ -1421,26 +1445,11 @@ module Const = struct
       | [out] -> Some out
       | [] -> None
 
-    let convert ~jkind_of_type jkind =
-      let jkind =
-        match jkind_of_type with
-        | None ->
-          jkind
-          (* if we can't normalize, then print the with-bounds unconditionally *)
-        | Some jkind_of_type ->
-          if should_print_with_bounds ()
-          then jkind
-          else
-            (* We never care about principality in printing, so the functions
-               passed in don't have the [option] in the right spot. *)
-            let jkind_of_type ty = Some (jkind_of_type ty) in
-            fst
-              (Layout_and_axes.normalize ~jkind_of_type ~mode:Ignore_best jkind)
-      in
-      (* For each primitive jkind, we try to print the jkind in terms of it (this is
-         possible if the primitive is a subjkind of it). We then choose the "simplest". The
-           "simplest" is taken to mean the one with the least number of modes that need to
-         follow the [mod]. *)
+    let convert jkind =
+      (* For each primitive jkind, we try to print the jkind in terms of it
+         (this is possible if the primitive is a subjkind of it). We then choose
+         the "simplest". The "simplest" is taken to mean the one with the least
+         number of modes that need to follow the [mod]. *)
       let simplest =
         Builtin.all
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
@@ -1450,10 +1459,10 @@ module Const = struct
         match simplest with
         | Some simplest -> simplest
         | None -> (
-          (* CR layouts v2.8: sometimes there is no valid way to build a jkind from a
-             built-in abbreviation. For now, we just pretend that the layout name is a valid
-             jkind abbreviation whose modal bounds are all max, even though this is a
-             lie. *)
+          (* CR layouts v2.8: sometimes there is no valid way to build a jkind
+             from a built-in abbreviation. For now, we just pretend that the
+             layout name is a valid jkind abbreviation whose modal bounds are
+             all max, even though this is a lie. *)
           let out_jkind_verbose =
             convert_with_base
               ~base:
@@ -1484,8 +1493,8 @@ module Const = struct
                   }
                 jkind
             in
-            (* convert_with_base is guaranteed to succeed since the layout matches and the
-                 modal bounds are all max *)
+            (* convert_with_base is guaranteed to succeed since the layout
+               matches and the modal bounds are all max *)
             Option.get out_jkind_verbose)
       in
       let base, with_tys =
@@ -1505,12 +1514,10 @@ module Const = struct
         base with_tys
   end
 
-  let to_out_jkind_const jkind =
-    To_out_jkind_const.convert ~jkind_of_type:None jkind
+  let to_out_jkind_const jkind = To_out_jkind_const.convert jkind
 
-  let format ~jkind_of_type ppf jkind =
-    To_out_jkind_const.convert ~jkind_of_type jkind
-    |> !Oprint.out_jkind_const ppf
+  let format ppf jkind =
+    To_out_jkind_const.convert jkind |> !Oprint.out_jkind_const ppf
 
   (*******************************)
   (* converting user annotations *)
@@ -1645,7 +1652,7 @@ module Desc = struct
   (* CR layouts v2.8: This will probably need to be overhauled with
      [with]-types. See also [Printtyp.out_jkind_of_desc], which uses the same
      algorithm. *)
-  let format ~jkind_of_type ppf t =
+  let format ppf t =
     let open Format in
     let rec format_desc ~nested ppf (desc : _ t) =
       match desc.layout with
@@ -1658,7 +1665,7 @@ module Desc = struct
           (List.map (fun layout -> { desc with layout }) lays)
       | _ -> (
         match get_const desc with
-        | Some c -> Const.format ~jkind_of_type ppf c
+        | Some c -> Const.format ppf c
         | None -> assert false (* handled above *))
     in
     format_desc ~nested:false ppf t
@@ -1678,9 +1685,9 @@ module Jkind_desc = struct
   let add_with_bounds ~relevant_for_nullability ~type_expr ~modality t =
     match Types.get_desc type_expr with
     | Tarrow (_, _, _, _) ->
-      (* Optimization: all arrow types have the same (with-bound-free) jkind, so we can just
-         eagerly do a join on the mod-bounds here rather than having to add them to our with
-         bounds only to be normalized away later. *)
+      (* Optimization: all arrow types have the same (with-bound-free) jkind, so
+         we can just eagerly do a join on the mod-bounds here rather than having
+         to add them to our with bounds only to be normalized away later. *)
       { t with mod_bounds = Mod_bounds.join t.mod_bounds Mod_bounds.for_arrow }
     | _ ->
       { t with
@@ -1704,12 +1711,10 @@ module Jkind_desc = struct
       Mod_bounds.get_max_axes bounds2
     in
     let ( ({ layout = lay1; mod_bounds = bounds1; with_bounds = No_with_bounds } :
-            Allowance.right_only jkind_desc),
+            (_ * allowed) jkind_desc),
           _ ) =
-      Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-        ~map_type_info:(fun _ ti ->
-          { relevant_axes = Axis_set.diff ti.relevant_axes axes_max_on_right })
-        sub
+      Layout_and_axes.normalize ~skip_axes:axes_max_on_right ~mode:Ignore_best
+        ~jkind_of_type sub
     in
     let layout = Layout.sub lay1 lay2 in
     let bounds = Mod_bounds.less_or_equal bounds1 bounds2 in
@@ -1754,7 +1759,7 @@ module Jkind_desc = struct
     let immediate = of_const Const.Builtin.immediate.jkind
   end
 
-  let product ~jkind_of_first_type ~jkind_of_type tys_modalities layouts =
+  let product ~jkind_of_first_type tys_modalities layouts =
     (* CR layouts v2.8: We can probably drop this special case once we
        have proper subsumption. The general algorithm gets the right
        jkind, but the subsumption check fails because it can't recognize
@@ -1762,39 +1767,16 @@ module Jkind_desc = struct
     match layouts with
     | [_] -> (jkind_of_first_type ()).jkind
     | _ ->
-      if !Clflags.infer_with_bounds
-      then
-        let layout = Layout.product layouts in
-        let mod_bounds = Mod_bounds.min in
-        let with_bounds =
-          List.fold_right
-            (fun (type_expr, modality) bounds ->
-              With_bounds.add_modality ~relevant_for_nullability:`Relevant
-                ~type_expr ~modality bounds)
-            tys_modalities No_with_bounds
-        in
-        { layout; mod_bounds; with_bounds }
-      else
-        let folder (layouts, mod_boundss, with_boundss) (ty, _) =
-          let { jkind = { layout; mod_bounds; with_bounds };
-                annotation = _;
-                history = _;
-                has_warned = _;
-                quality = _
-              } =
-            jkind_of_type ty
-          in
-          ( layout :: layouts,
-            Mod_bounds.join mod_bounds mod_boundss,
-            With_bounds.join with_bounds with_boundss )
-        in
-        let layouts, mod_bounds, with_bounds =
-          List.fold_left folder
-            ([], Mod_bounds.min, No_with_bounds)
-            tys_modalities
-        in
-        let layouts = List.rev layouts in
-        { layout = Layout.Product layouts; mod_bounds; with_bounds }
+      let layout = Layout.product layouts in
+      let mod_bounds = Mod_bounds.min in
+      let with_bounds =
+        List.fold_right
+          (fun (type_expr, modality) bounds ->
+            With_bounds.add_modality ~relevant_for_nullability:`Relevant
+              ~type_expr ~modality bounds)
+          tys_modalities No_with_bounds
+      in
+      { layout; mod_bounds; with_bounds }
 
   let get t = Layout_and_axes.map Layout.get t
 
@@ -1878,15 +1860,12 @@ module Builtin = struct
       ~why:(Immediate_creation why)
     |> mark_best
 
-  let product ~jkind_of_first_type ~jkind_of_type ~why tys_modalities layouts =
-    let desc =
-      Jkind_desc.product ~jkind_of_first_type ~jkind_of_type tys_modalities
-        layouts
-    in
+  let product ~jkind_of_first_type ~why tys_modalities layouts =
+    let desc = Jkind_desc.product ~jkind_of_first_type tys_modalities layouts in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
-    (* [mark_best] is correct here because the with-bounds of a product jkind include all
-       the components of the product. Accordingly, looking through the product, by one
-       step, never loses any information. *)
+    (* [mark_best] is correct here because the with-bounds of a product jkind
+       include all the components of the product. Accordingly, looking through
+       the product, by one step, never loses any information. *)
     |> mark_best
 
   let product_of_sorts ~why arity =
@@ -1898,9 +1877,10 @@ module Builtin = struct
       { layout; mod_bounds = Mod_bounds.max; with_bounds = No_with_bounds }
     in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
-  (* We do not [mark_best] here because the resulting jkind is used (only) in the middle of
-     type-checking mutually recursive type declarations. See Note [Default jkind in
-     transl_declaration] for more commentary on why we don't want [Best] jkinds there. *)
+  (* We do not [mark_best] here because the resulting jkind is used (only) in
+     the middle of type-checking mutually recursive type declarations. See Note
+     [Default jkind in transl_declaration] for more commentary on why we don't
+     want [Best] jkinds there. *)
 end
 
 let add_nullability_crossing t =
@@ -1919,15 +1899,15 @@ let add_with_bounds ~modality ~type_expr t =
   { t with
     jkind =
       Jkind_desc.add_with_bounds
-      (* We only care about types in fields of unboxed products for the nullability of
-         the overall kind *)
+      (* We only care about types in fields of unboxed products for the
+         nullability of the overall kind *)
         ~relevant_for_nullability:`Irrelevant ~type_expr ~modality t.jkind
   }
 
-let has_with_bounds t =
+let has_with_bounds (type r) (t : (_ * r) jkind) =
   match t.jkind.with_bounds with
   | No_with_bounds -> false
-  | With_bounds _ -> true
+  | With_bounds tys -> not (With_bounds_types.is_empty tys)
 
 (******************************)
 (* construction *)
@@ -1957,7 +1937,8 @@ let of_builtin ~why Const.Builtin.{ jkind; name } =
   jkind |> Layout_and_axes.allow_left |> Layout_and_axes.disallow_right
   |> of_const ~annotation:(mk_annot name)
        ~why
-         (* The [Best] is OK here because this function is used only in Predef. *)
+         (* The [Best] is OK here because this function is used only in
+            Predef. *)
        ~quality:Best
 
 let of_annotated_const ~context ~annotation ~const ~const_loc =
@@ -2031,8 +2012,7 @@ let add_labels_as_with_bounds lbls jkind =
 let for_boxed_record lbls =
   if all_void_labels lbls
   then Builtin.immediate ~why:Empty_record
-  else if !Clflags.infer_with_bounds
-  then
+  else
     let is_mutable = has_mutable_label lbls in
     let base =
       (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
@@ -2040,9 +2020,8 @@ let for_boxed_record lbls =
       |> mark_best
     in
     add_labels_as_with_bounds lbls base
-  else Builtin.value ~why:Boxed_record
 
-let for_unboxed_record ~jkind_of_first_type ~jkind_of_type lbls =
+let for_unboxed_record ~jkind_of_first_type lbls =
   let open Types in
   let tys_modalities =
     List.map (fun lbl -> lbl.ld_type, lbl.ld_modalities) lbls
@@ -2052,8 +2031,8 @@ let for_unboxed_record ~jkind_of_first_type ~jkind_of_type lbls =
       (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
       lbls
   in
-  Builtin.product ~jkind_of_first_type ~jkind_of_type ~why:Unboxed_record
-    tys_modalities layouts
+  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys_modalities
+    layouts
 
 (* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =
@@ -2066,8 +2045,7 @@ let for_boxed_variant cstrs =
          | Cstr_record lbls -> all_void_labels lbls)
        cstrs
   then Builtin.immediate ~why:Enumeration
-  else if !Clflags.infer_with_bounds
-  then
+  else
     let is_mutable =
       List.exists
         (fun cstr ->
@@ -2102,7 +2080,6 @@ let for_boxed_variant cstrs =
         | Cstr_record lbls -> add_labels_as_with_bounds lbls jkind
       in
       List.fold_right add_cstr_args cstrs base
-  else Builtin.value ~why:Boxed_variant
 
 let for_arrow =
   fresh_jkind
@@ -2146,7 +2123,8 @@ let[@inline] normalize ~mode ~jkind_of_type t =
     match mode with Require_best -> Require_best | Ignore_best -> Ignore_best
   in
   let jkind, fuel_result =
-    Layout_and_axes.normalize ~jkind_of_type ~mode t.jkind
+    Layout_and_axes.normalize ~jkind_of_type ~skip_axes:Axis_set.empty ~mode
+      t.jkind
   in
   { t with
     jkind;
@@ -2180,57 +2158,40 @@ let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
 
 let extract_layout jk = jk.jkind.layout
 
-let get_modal_upper_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
-    Alloc.Comonadic.Const.t =
-  let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
-          Allowance.right_only jkind_desc),
-        _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-      ~map_type_info:(fun _ ti ->
-        { relevant_axes =
-            (* Optimization: We only care about comonadic modal axes *)
-            Axis_set.intersection ti.relevant_axes Axis_set.all_comonadic_axes
-        })
-      jk.jkind
-  in
-  let get axis = Mod_bounds.get mod_bounds ~axis in
-  { areality = get (Modal (Comonadic Areality));
-    linearity = get (Modal (Comonadic Linearity));
-    portability = get (Modal (Comonadic Portability));
-    yielding = get (Modal (Comonadic Yielding))
+type modal_bounds =
+  { upper_bounds : Mode.Alloc.Comonadic.Const.t;
+    lower_bounds : Mode.Alloc.Monadic.Const.t
   }
 
-let get_modal_lower_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) :
-    Alloc.Monadic.Const.t =
+let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
-          Allowance.right_only jkind_desc),
+          (_ * allowed) jkind_desc),
         _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-      ~map_type_info:(fun _ ti ->
-        { relevant_axes =
-            (* Optimization: We only care about monadic modal axes *)
-            Axis_set.intersection ti.relevant_axes Axis_set.all_monadic_axes
-        })
-      jk.jkind
+    Layout_and_axes.normalize ~mode:Ignore_best
+      ~skip_axes:Axis_set.all_nonmodal_axes ~jkind_of_type jk.jkind
   in
-  let get axis = Mod_bounds.get mod_bounds ~axis in
-  { uniqueness = get (Modal (Monadic Uniqueness));
-    contention = get (Modal (Monadic Contention))
-  }
+  Mod_bounds.
+    { upper_bounds =
+        { areality = locality mod_bounds;
+          linearity = linearity mod_bounds;
+          portability = portability mod_bounds;
+          yielding = yielding mod_bounds
+        };
+      lower_bounds =
+        { uniqueness = uniqueness mod_bounds;
+          contention = contention mod_bounds
+        }
+    }
 
-let only_externality = Axis_set.singleton (Nonmodal Externality)
+let all_except_externality =
+  Axis_set.singleton (Nonmodal Externality) |> Axis_set.complement
 
 let get_externality_upper_bound ~jkind_of_type jk =
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
-          Allowance.right_only jkind_desc),
+          (_ * allowed) jkind_desc),
         _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-      ~map_type_info:(fun _ ti ->
-        { relevant_axes =
-            (* Optimization: We only care about the externality axis *)
-            Axis_set.intersection ti.relevant_axes only_externality
-        })
-      jk.jkind
+    Layout_and_axes.normalize ~mode:Ignore_best
+      ~skip_axes:all_except_externality ~jkind_of_type jk.jkind
   in
   Mod_bounds.get mod_bounds ~axis:(Nonmodal Externality)
 
@@ -2243,21 +2204,28 @@ let set_externality_upper_bound jk externality_upper_bound =
       }
   }
 
-let only_nullability = Axis_set.singleton (Nonmodal Nullability)
+let all_except_nullability =
+  Axis_set.singleton (Nonmodal Nullability) |> Axis_set.complement
 
 let get_nullability ~jkind_of_type jk =
-  let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
-          Allowance.right_only jkind_desc),
-        _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-      ~map_type_info:(fun _ ti ->
-        { relevant_axes =
-            (* Optimization: We only care about the nullability axis *)
-            Axis_set.intersection ti.relevant_axes only_nullability
-        })
-      jk.jkind
+  (* Optimization: Usually, no with-bounds are relevant to nullability. If we check for
+     this case, we can avoid calling normalize. *)
+  let all_with_bounds_are_irrelevant =
+    jk.jkind.with_bounds
+    |> With_bounds.for_all
+         (fun _ ({ relevant_axes } : With_bounds_type_info.t) ->
+           not (Axis_set.mem relevant_axes (Nonmodal Nullability)))
   in
-  Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
+  if all_with_bounds_are_irrelevant
+  then Mod_bounds.nullability jk.jkind.mod_bounds
+  else
+    let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
+            (_ * allowed) jkind_desc),
+          _ ) =
+      Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
+        ~skip_axes:all_except_nullability jk.jkind
+    in
+    Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
 
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
@@ -2290,8 +2258,7 @@ let decompose_product ({ jkind; _ } as jk) =
    doing so, because it teaches the user that e.g. [value mod local] is better
    off spelled [value]. Possibly remove [jkind.annotation], but only after
    we have a proper printing story. *)
-let format ~jkind_of_type ppf jkind =
-  Desc.format ~jkind_of_type ppf (Jkind_desc.get jkind.jkind)
+let format ppf jkind = Desc.format ppf (Jkind_desc.get jkind.jkind)
 
 let printtyp_path = ref (fun _ _ -> assert false)
 
@@ -2570,6 +2537,9 @@ module Format_history = struct
     | Concrete_legacy_creation concrete ->
       format_concrete_legacy_creation_reason ppf concrete
     | Primitive id -> fprintf ppf "it is the primitive type %s" (Ident.name id)
+    | Unboxed_primitive id ->
+      fprintf ppf "it is the unboxed version of the primitive type %s"
+        (Ident.name id)
     | Imported ->
       fprintf ppf "of %s requirements from an imported definition"
         layout_or_kind
@@ -2597,7 +2567,7 @@ module Format_history = struct
 
       Consider revisiting that if the current implementation becomes insufficient. *)
 
-  let format_flattened_history ~jkind_of_type ~intro ~layout_or_kind ppf t =
+  let format_flattened_history ~intro ~layout_or_kind ppf t =
     let jkind_desc = Jkind_desc.get t.jkind in
     fprintf ppf "@[<v 2>%t" intro;
     (match t.history with
@@ -2609,8 +2579,7 @@ module Format_history = struct
           reason;
         match reason, Desc.get_const jkind_desc with
         | Concrete_legacy_creation _, Some _ ->
-          fprintf ppf ",@ chosen to have %s %a" layout_or_kind
-            (format ~jkind_of_type) t
+          fprintf ppf ",@ chosen to have %s %a" layout_or_kind format t
         | _ -> ())
     | Interact _ ->
       Misc.fatal_error "Non-flat history in format_flattened_history");
@@ -2632,17 +2601,16 @@ module Format_history = struct
     fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
       in_order t.history
 
-  let format_history ~jkind_of_type ~intro ~layout_or_kind ppf t =
+  let format_history ~intro ~layout_or_kind ppf t =
     if display_histories
     then
       if flattened_histories
-      then format_flattened_history ~jkind_of_type ~intro ~layout_or_kind ppf t
+      then format_flattened_history ~intro ~layout_or_kind ppf t
       else format_history_tree ~intro ~layout_or_kind ppf t
 end
 
-let format_history ~jkind_of_type ~intro ppf t =
-  Format_history.format_history ~jkind_of_type ~intro ~layout_or_kind:"kind" ppf
-    t
+let format_history ~intro ppf t =
+  Format_history.format_history ~intro ~layout_or_kind:"kind" ppf t
 
 (******************************)
 (* errors *)
@@ -2668,7 +2636,26 @@ module Violation = struct
      the choice of error message. (Though the [Path.t] payload *is*
      indeed just about the payload.) *)
 
-  let of_ ?missing_cmi violation = { violation; missing_cmi }
+  let of_ ~jkind_of_type ?missing_cmi violation =
+    (* Normalize for better printing *)
+    let violation =
+      match violation with
+      | Not_a_subjkind (jkind1, jkind2, reasons) ->
+        let jkind1 =
+          normalize ~mode:Require_best ~jkind_of_type (disallow_right jkind1)
+        in
+        let jkind2 =
+          normalize ~mode:Require_best ~jkind_of_type (disallow_right jkind2)
+        in
+        Not_a_subjkind (jkind1, jkind2, reasons)
+      | No_intersection (jkind1, jkind2) ->
+        let jkind1 =
+          normalize ~mode:Require_best ~jkind_of_type (disallow_right jkind1)
+        in
+        (* jkind2 can't have with-bounds, by its type *)
+        No_intersection (jkind1, jkind2)
+    in
+    { violation; missing_cmi }
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
@@ -2677,84 +2664,81 @@ module Violation = struct
     | Layout
 
   let report_reason ppf violation =
-    (* Print out per-axis information about why the error occurred. This only happens
-       when modalities are printed because the errors are simple enough when there are no
-       modalities that it makes the error unnecessarily noisy.
+    (* Print out per-axis information about why the error occurred. This only
+       happens when modalities are printed because the errors are simple enough
+       when there are no modalities that it makes the error unnecessarily noisy.
     *)
     match violation with
     | Not_a_subjkind (sub, super, reasons) -> (
-      if should_print_with_bounds ()
-      then
-        let disagreeing_axes =
-          (* Collect all the axes that disagree into a set. If none disagree, then it
-             is [None] *)
-          List.fold_left
-            (fun disagreeing_axes_so_far reason ->
-              match
-                (reason : Sub_failure_reason.t), disagreeing_axes_so_far
-              with
-              | Axis_disagreement (Pack axis), Some disagreeing_axes_so_far ->
-                Some (Axis_set.add disagreeing_axes_so_far axis)
-              | Axis_disagreement (Pack axis), None ->
-                Some (Axis_set.singleton axis)
-              | (Layout_disagreement | Constrain_ran_out_of_fuel), _ ->
-                disagreeing_axes_so_far)
-            None reasons
+      let disagreeing_axes =
+        (* Collect all the axes that disagree into a set. If none disagree,
+           then it is [None] *)
+        List.fold_left
+          (fun disagreeing_axes_so_far reason ->
+            match (reason : Sub_failure_reason.t), disagreeing_axes_so_far with
+            | Axis_disagreement (Pack axis), Some disagreeing_axes_so_far ->
+              Some (Axis_set.add disagreeing_axes_so_far axis)
+            | Axis_disagreement (Pack axis), None ->
+              Some (Axis_set.singleton axis)
+            | (Layout_disagreement | Constrain_ran_out_of_fuel), _ ->
+              disagreeing_axes_so_far)
+          None reasons
+      in
+      let has_modalities =
+        let jkind_has_modalities jkind =
+          List.exists
+            (fun (_, type_info) ->
+              let axes_ignored_by_modalities =
+                With_bounds.Type_info.axes_ignored_by_modalities
+                  ~mod_bounds:jkind.jkind.mod_bounds ~type_info
+              in
+              not (Axis_set.is_empty axes_ignored_by_modalities))
+            (With_bounds.to_list jkind.jkind.with_bounds)
         in
-        let has_modalities =
-          let jkind_has_modalities jkind =
-            List.exists
-              (fun (_, type_info) ->
-                let axes_ignored_by_modalities =
-                  With_bounds.Type_info.axes_ignored_by_modalities
-                    ~mod_bounds:jkind.jkind.mod_bounds ~type_info
-                in
-                not (Axis_set.is_empty axes_ignored_by_modalities))
-              (With_bounds.to_list jkind.jkind.with_bounds)
-          in
-          jkind_has_modalities sub || jkind_has_modalities super
-        in
-        match disagreeing_axes, has_modalities with
-        | None, _ | _, false -> ()
-        | Some disagreeing_axes, true ->
-          (* CR: @\n is discouraged by the documentation, but @;@; seems to emit one newline
-             and then one space rather than two newlines *)
-          fprintf ppf "@\n@\nThe first mode-crosses less than the second along:";
-          Axis_set.to_list disagreeing_axes
-          |> List.iter (fun (Pack axis : Axis.packed) ->
-                 let pp_bound ppf jkind =
-                   let mod_bound = Mod_bounds.get ~axis jkind.mod_bounds in
-                   let (module Axis_ops) = Axis.get axis in
-                   let with_bounds =
-                     match Axis_ops.(le max mod_bound) with
-                     | true ->
-                       (* If the mod_bound is max, then no with-bounds are relevant *)
-                       []
-                     | false ->
-                       With_bounds.to_list jkind.with_bounds
-                       |> List.filter_map
-                            (fun
-                              (ty, ({ relevant_axes } : With_bounds_type_info.t))
-                            ->
-                              match Axis_set.mem relevant_axes axis with
-                              | true -> Some (!outcometree_of_type_scheme ty)
-                              | false -> None)
-                   in
-                   let ojkind =
-                     List.fold_left
-                       (fun acc with_bound ->
-                         Outcometree.Ojkind_const_with (acc, with_bound, []))
-                       (Outcometree.Ojkind_const_mod
-                          (None, [Format.asprintf "%a" Axis_ops.print mod_bound]))
-                       with_bounds
-                   in
-                   !Oprint.out_jkind_const ppf ojkind
+        jkind_has_modalities sub || jkind_has_modalities super
+      in
+      match disagreeing_axes, has_modalities with
+      | None, _ | _, false -> ()
+      | Some disagreeing_axes, true ->
+        (* CR: @\n is discouraged by the documentation, but @;@; seems to emit
+           one newline and then one space rather than two newlines *)
+        fprintf ppf "@\n@\nThe first mode-crosses less than the second along:";
+        Axis_set.to_list disagreeing_axes
+        |> List.iter (fun (Pack axis : Axis.packed) ->
+               let pp_bound ppf jkind =
+                 let mod_bound = Mod_bounds.get ~axis jkind.mod_bounds in
+                 let (module Axis_ops) = Axis.get axis in
+                 let with_bounds =
+                   match Axis_ops.(le max mod_bound) with
+                   | true ->
+                     (* If the mod_bound is max, then no with-bounds are
+                        relevant *)
+                     []
+                   | false ->
+                     With_bounds.to_list jkind.with_bounds
+                     |> List.filter_map
+                          (fun
+                            (ty, ({ relevant_axes } : With_bounds_type_info.t))
+                          ->
+                            match Axis_set.mem relevant_axes axis with
+                            | true -> Some (!outcometree_of_type ty)
+                            | false -> None)
                  in
-                 fprintf ppf "@;  @[<hov 2>%s:@ %a ≰@ %a@]" (Axis.name axis)
-                   pp_bound sub.jkind pp_bound super.jkind))
+                 let ojkind =
+                   List.fold_left
+                     (fun acc with_bound ->
+                       Outcometree.Ojkind_const_with (acc, with_bound, []))
+                     (Outcometree.Ojkind_const_mod
+                        (None, [Format.asprintf "%a" Axis_ops.print mod_bound]))
+                     with_bounds
+                 in
+                 !Oprint.out_jkind_const ppf ojkind
+               in
+               fprintf ppf "@;  @[<hov 2>%s:@ %a ≰@ %a@]" (Axis.name axis)
+                 pp_bound sub.jkind pp_bound super.jkind))
     | No_intersection _ -> ()
 
-  let report_general ~jkind_of_type preamble pp_former former ppf t =
+  let report_general preamble pp_former former ppf t =
     let mismatch_type =
       match t.violation with
       | Not_a_subjkind (k1, k2, _) ->
@@ -2773,7 +2757,7 @@ module Violation = struct
     in
     let format_layout_or_kind ppf jkind =
       match mismatch_type with
-      | Mode -> Format.fprintf ppf "@,%a" (format ~jkind_of_type) jkind
+      | Mode -> Format.fprintf ppf "@,%a" format jkind
       | Layout -> Layout.format ppf jkind.jkind.layout
     in
     let subjkind_format verb k2 =
@@ -2826,13 +2810,13 @@ module Violation = struct
         | _, true -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
-        (Format_history.format_history ~jkind_of_type
+        (Format_history.format_history
            ~intro:
              (dprintf "@[<hov 2>The %s of %a is %a@]" layout_or_kind pp_former
                 former format_layout_or_kind k1)
            ~layout_or_kind)
         k1
-        (Format_history.format_history ~jkind_of_type
+        (Format_history.format_history
            ~intro:
              (dprintf "@[<hov 2>But the %s of %a must %t@]" layout_or_kind
                 pp_former former connective)
@@ -2846,15 +2830,12 @@ module Violation = struct
 
   let pp_t ppf x = fprintf ppf "%t" x
 
-  let report_with_offender ~jkind_of_type ~offender =
-    report_general ~jkind_of_type "" pp_t offender
+  let report_with_offender ~offender = report_general "" pp_t offender
 
-  let report_with_offender_sort ~jkind_of_type ~offender =
-    report_general ~jkind_of_type "A representable layout was expected, but "
-      pp_t offender
+  let report_with_offender_sort ~offender =
+    report_general "A representable layout was expected, but " pp_t offender
 
-  let report_with_name ~jkind_of_type ~name =
-    report_general ~jkind_of_type "" pp_print_string name
+  let report_with_name ~name = report_general "" pp_print_string name
 end
 
 (******************************)
@@ -2871,11 +2852,11 @@ let equal t1 t2 = equate_or_equal ~allow_mutation:true t1 t2
 
 let equate t1 t2 = equate_or_equal ~allow_mutation:true t1 t2
 
-(* Not all jkind history reasons are created equal. Some are more helpful than others.
-    This function encodes that information.
+(* Not all jkind history reasons are created equal. Some are more helpful than
+   others.  This function encodes that information.
 
-    The reason with higher score should get preserved when combined with one of lower
-    score. *)
+    The reason with higher score should get preserved when combined with one of
+    lower score. *)
 let score_reason = function
   (* error_message annotated by the user should always take priority *)
   | Creation (Annotated (With_error_message _, _)) -> 1
@@ -2924,7 +2905,7 @@ let has_intersection t1 t2 =
 
 let intersection_or_error ~type_equal ~jkind_of_type ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
-  | None -> Error (Violation.of_ (No_intersection (t1, t2)))
+  | None -> Error (Violation.of_ ~jkind_of_type (No_intersection (t1, t2)))
   | Some jkind ->
     Ok
       { jkind;
@@ -2947,7 +2928,10 @@ let round_up (type l r) ~jkind_of_type (t : (allowed * r) jkind) :
     quality = Not_best (* As required by the fact that this is a [jkind_r] *)
   }
 
-let map_type_expr f t = { t with jkind = Jkind_desc.map_type_expr f t.jkind }
+let map_type_expr f t =
+  if has_with_bounds t
+  then { t with jkind = Jkind_desc.map_type_expr f t.jkind }
+  else t (* short circuit this common case *)
 
 (* this is hammered on; it must be fast! *)
 let check_sub ~jkind_of_type sub super =
@@ -2975,7 +2959,8 @@ let sub_or_error ~type_equal ~jkind_of_type t1 t2 =
   | Sub -> Ok ()
   | Disjoint reason | Has_intersection reason ->
     Error
-      (Violation.of_ (Not_a_subjkind (t1, t2, Nonempty_list.to_list reason)))
+      (Violation.of_ ~jkind_of_type
+         (Not_a_subjkind (t1, t2, Nonempty_list.to_list reason)))
 
 let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
     super =
@@ -2984,15 +2969,17 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
   let require_le sub_result =
     Sub_result.require_le sub_result
     |> Result.map_error (fun reasons ->
-           (* When we report an error, we want to show the best-normalized version of sub, but
-              the original super. When this check fails, it is usually the case that the super
-              was written by the user and the sub was inferred. Thus, we should display the
-              user-written jkind, but simplify the inferred one, since the inferred one is
-              probably overly complex. *)
+           (* When we report an error, we want to show the best-normalized
+              version of sub, but the original super. When this check fails, it
+              is usually the case that the super was written by the user and the
+              sub was inferred. Thus, we should display the user-written jkind,
+              but simplify the inferred one, since the inferred one is probably
+              overly complex. *)
            (* CR layouts v2.8: It would be useful report to the user why this
-              violation occurred, specifically which axes the violation is along. *)
+              violation occurred, specifically which axes the violation is
+              along. *)
            let best_sub = normalize ~mode:Require_best ~jkind_of_type sub in
-           Violation.of_
+           Violation.of_ ~jkind_of_type
              (Not_a_subjkind (best_sub, super, Nonempty_list.to_list reasons)))
   in
   let* () =
@@ -3010,40 +2997,45 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
       With_bounds.to_best_eff_map best_super.jkind.with_bounds
     in
     let axes_max_on_right =
-      (* If the upper_bound is max on the right, then that axis is irrelevant - the
-         left will always satisfy the right along that axis. This is an optimization,
-         not necessary for correctness *)
+      (* If the upper_bound is max on the right, then that axis is irrelevant -
+         the left will always satisfy the right along that axis. This is an
+         optimization, not necessary for correctness *)
       Mod_bounds.get_max_axes best_super.jkind.mod_bounds
     in
+    let right_bounds_seq = right_bounds |> With_bounds_types.to_seq in
     let ( ({ layout = _;
              mod_bounds = sub_upper_bounds;
              with_bounds = No_with_bounds
            } :
-            Allowance.right_only jkind_desc),
+            (_ * allowed) jkind_desc),
           _ ) =
       (* MB_EXPAND_L *)
       (* Here we progressively expand types on the left.
 
-         Every time we see a type [ty] on the left, we first look to see if [ty] occurs on the
-         right. If it does, then we can skip* [ty]. There is an * on skip because we can
-         actually only skip on a per-axis basis - if [ty] is relevant only along the
-         portability axis on the right, then [ty] is no longer relevant to portability on
-         the left, but it is still relevant to all other axes. So really, we subtract the
-         axes that are relevant to the right from the axes that are relevant to the left.
-         We can also skip [ty] on any axes that are max on the right since anything is
-         <= max. Hence, we can also subtract [axes_max_on_right].
+         Every time we see a type [ty] on the left, we first look to see if [ty]
+         occurs on the right. If it does, then we can skip* [ty]. There is an *
+         on skip because we can actually only skip on a per-axis basis - if [ty]
+         is relevant only along the portability axis on the right, then [ty] is
+         no longer relevant to portability on the left, but it is still relevant
+         to all other axes. So really, we subtract the axes that are relevant to
+         the right from the axes that are relevant to the left.  We can also
+         skip [ty] on any axes that are max on the right since anything is <=
+         max. Hence, we can also subtract [axes_max_on_right].
 
-         After finding which axes [ty] is relevant along, we lookup [ty]'s jkind and join it
-         with the [mod_bounds] along the relevant axes. *)
-      (* [Jkind_desc.map_normalize] handles the stepping, jkind lookups, and joining.
-         [map_type_info] handles looking for [ty] on the right and removing irrelevant axes. *)
-      Layout_and_axes.normalize sub.jkind ~jkind_of_type ~mode:Ignore_best
+         After finding which axes [ty] is relevant along, we lookup [ty]'s jkind
+         and join it with the [mod_bounds] along the relevant axes. *)
+      (* [Jkind_desc.map_normalize] handles the stepping, jkind lookups, and
+         joining.  [map_type_info] handles looking for [ty] on the right and
+         removing irrelevant axes. *)
+      Layout_and_axes.normalize sub.jkind ~skip_axes:axes_max_on_right
+        ~jkind_of_type ~mode:Ignore_best
         ~map_type_info:(fun ty { relevant_axes = left_relevant_axes } ->
           let right_relevant_axes =
-            (* Look for [ty] on the right. There may be multiple occurrences of it on the
-               right; if so, we union together the relevant axes. *)
-            right_bounds |> With_bounds_types.to_seq
-            (* CR layouts v2.8: maybe it's worth memoizing using a best-effort type map? *)
+            (* Look for [ty] on the right. There may be multiple occurrences of
+               it on the right; if so, we union together the relevant axes. *)
+            right_bounds_seq
+            (* CR layouts v2.8: maybe it's worth memoizing using a best-effort
+               type map? *)
             |> Seq.fold_left
                  (fun acc (ty2, ti) ->
                    match type_equal ty ty2 with
@@ -3052,14 +3044,13 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
                    | false -> acc)
                  Axis_set.empty
           in
-          let axes_to_drop =
-            Axis_set.union right_relevant_axes axes_max_on_right
-          in
           (* MB_WITH : drop types from the left that appear on the right *)
-          { relevant_axes = Axis_set.diff left_relevant_axes axes_to_drop })
+          { relevant_axes = Axis_set.diff left_relevant_axes right_relevant_axes
+          })
     in
     let* () =
-      (* MB_MODE : verify that the remaining upper_bounds from sub are <= super's bounds *)
+      (* MB_MODE : verify that the remaining upper_bounds from sub are <=
+         super's bounds *)
       let super_lower_bounds = best_super.jkind.mod_bounds in
       require_le (Mod_bounds.less_or_equal sub_upper_bounds super_lower_bounds)
     in
@@ -3069,15 +3060,12 @@ let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
-(* This doesn't do any mutation because mutating a sort variable can't make it
-   any, and modal upper bounds are constant. *)
-(* The choice of [type_equal] and [jkind_of_type] doesn't matter because there
-   are no with-kinds on the left-hand kind. *)
-let is_max jkind =
-  sub
-    ~type_equal:(fun _ _ -> false)
-    ~jkind_of_type:(fun _ -> None)
-    Builtin.any_dummy_jkind jkind
+let is_obviously_max = function
+  (* This doesn't do any mutation because mutating a sort variable can't make it
+     any, and modal upper bounds are constant. *)
+  | { jkind = { layout = Any; mod_bounds; with_bounds = _ }; _ } ->
+    Mod_bounds.is_max mod_bounds
+  | _ -> false
 
 let has_layout_any jkind =
   match jkind.jkind.layout with Any -> true | _ -> false
@@ -3247,6 +3235,7 @@ module Debug_printers = struct
       fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
         concrete
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.name id)
+    | Unboxed_primitive id -> fprintf ppf "Unboxed_primitive %s" (Ident.name id)
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
@@ -3262,8 +3251,8 @@ module Debug_printers = struct
       fprintf ppf "Tyvar_refinement_intersection"
     | Subjkind -> fprintf ppf "Subjkind"
 
-  let rec history ~print_type_expr ppf =
-    let jkind_desc = Jkind_desc.Debug_printers.t ~print_type_expr in
+  let rec history ppf =
+    let jkind_desc = Jkind_desc.Debug_printers.t in
     function
     | Interact
         { reason;
@@ -3275,11 +3264,11 @@ module Debug_printers = struct
       fprintf ppf
         "Interact {@[reason = %a;@ jkind1 = %a;@ history1 = %a;@ jkind2 = %a;@ \
          history2 = %a}@]"
-        interact_reason reason jkind_desc jkind1 (history ~print_type_expr)
-        history1 jkind_desc jkind2 (history ~print_type_expr) history2
+        interact_reason reason jkind_desc jkind1 history history1 jkind_desc
+        jkind2 history history2
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t (type l r) ~print_type_expr ppf
+  let t (type l r) ppf
       ({ jkind; annotation = a; history = h; has_warned = _; quality = q } :
         (l * r) jkind) : unit =
     fprintf ppf
@@ -3287,21 +3276,17 @@ module Debug_printers = struct
        ; annotation = %a@,\
        ; history = %a@,\
        ; quality = %s@,\
-      \ }@]"
-      (Jkind_desc.Debug_printers.t ~print_type_expr)
-      jkind
+      \ }@]" Jkind_desc.Debug_printers.t jkind
       (pp_print_option Pprintast.jkind_annotation)
-      a (history ~print_type_expr) h
+      a history h
       (match q with Best -> "Best" | Not_best -> "Not_best")
 
   module Const = struct
-    let t ~print_type_expr ppf ({ layout; mod_bounds; with_bounds } : _ Const.t)
-        =
+    let t ppf ({ layout; mod_bounds; with_bounds } : _ Const.t) =
       fprintf ppf
         "@[<v 2>{ layout = %a@,; mod_bounds = %a@,; with_bounds = %a@, }@]"
         Layout.Const.Debug_printers.t layout Mod_bounds.debug_print mod_bounds
-        (With_bounds.debug_print ~print_type_expr)
-        with_bounds
+        With_bounds.debug_print with_bounds
   end
 end
 

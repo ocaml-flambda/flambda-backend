@@ -25,6 +25,8 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
+
 let verbose = ref false
 
 include Cfg_intf.S
@@ -601,3 +603,15 @@ let max_instr_id t =
             InstructionId.max max_id instr.id)
       in
       InstructionId.max max_id block.terminator.id)
+
+let equal_irc_work_list left right =
+  match left, right with
+  | Unknown_list, Unknown_list
+  | Coalesced, Coalesced
+  | Constrained, Constrained
+  | Frozen, Frozen
+  | Work_list, Work_list
+  | Active, Active ->
+    true
+  | (Unknown_list | Coalesced | Constrained | Frozen | Work_list | Active), _ ->
+    false

@@ -75,6 +75,9 @@ struct mark_stack {
 
 uintnat caml_percent_free = Percent_free_def;
 uintnat caml_max_percent_free = Max_percent_free_def;
+uintnat caml_percent_sweep_per_mark = 120; /* TODO: benchmark this value */
+
+uintnat caml_gc_pacing_policy = 0;
 
 /* This variable is only written with the world stopped, so it need not be
    atomic */
@@ -144,19 +147,41 @@ static atomic_uintnat num_domains_to_final_update_last;
    (finalise first) finalisers are processed. */
 static atomic_uintnat num_domains_orphaning_finalisers = 0;
 
+/* The GC uses separate units to count marking work and sweeping work, which are
+   converted with these functions (following the Dest_source convention).
+   In general, sweep units are the default, with conversions to/from mark units
+   only used locally during marking */
+static intnat Markwork_sweepwork(intnat sweep_work)
+{
+  if (caml_gc_pacing_policy == 0) {
+    return sweep_work;
+  } else {
+    return sweep_work * 100 / (intnat)caml_percent_sweep_per_mark;
+  }
+}
+
+static intnat Sweepwork_markwork(intnat mark_work)
+{
+  if (caml_gc_pacing_policy == 0) {
+    return mark_work;
+  } else {
+    return mark_work * (intnat)caml_percent_sweep_per_mark / 100;
+  }
+}
+
 /* These two counters keep track of how much work the GC is supposed to
-   do in order to keep up with allocation. Both are in GC work units.
-   `alloc_counter` increases when we allocate: the number of words allocated
-   is converted to GC work units and added to this counter.
-   `work_counter` increases when the GC has done some work.
+   do in order to keep up with allocation. Both are in sweep work units.
+   `total_work_incurred` increases when we allocate: the number of words
+   allocated is converted to sweep work units and added to this counter.
+   `total_work_completed` increases when the GC has done some work.
    The difference between the two is how much the GC is lagging behind
    (or in advance of) allocations.
    These counters can wrap around (see function `diffmod`) as long as they
    don't get too far apart, which is guaranteed by the limited size of
    memory.
 */
-static atomic_uintnat alloc_counter;
-static atomic_uintnat work_counter;
+static atomic_uintnat total_work_incurred;
+static atomic_uintnat total_work_completed;
 
 gc_phase_t caml_gc_phase;
 
@@ -593,7 +618,7 @@ static inline intnat diffmod (uintnat x1, uintnat x2)
 
 /* Reset the work and alloc counters to be equal to each other, by
  * setting them both equal to the "larger" (in the wrapping-around
- * sense we are using here for work_counter and alloc_counter).
+ * sense we are using here for total_work_completed/incurred).
  *
  * For use at times when we have disturbed the major GC from its usual
  * pacing and tempo, for example, after any synchronous major
@@ -604,14 +629,14 @@ void caml_reset_major_pacing(void)
 {
   bool res;
   do {
-    uintnat alloc = atomic_load(&alloc_counter);
-    uintnat work = atomic_load(&work_counter);
-    uintnat target = alloc;
-    if (diffmod(work, alloc) > 0) {
-      target = work;
+    uintnat incurred = atomic_load(&total_work_incurred);
+    uintnat completed = atomic_load(&total_work_completed);
+    uintnat target = incurred;
+    if (diffmod(completed, incurred) > 0) {
+      target = completed;
     }
-    res = (atomic_compare_exchange_strong(&alloc_counter, &alloc, target) &&
-           atomic_compare_exchange_strong(&work_counter, &work, target));
+    res = (atomic_compare_exchange_strong(&total_work_incurred, &incurred, target) &&
+           atomic_compare_exchange_strong(&total_work_completed, &completed, target));
   } while (!res);
 }
 
@@ -638,16 +663,47 @@ static void update_major_slice_work(intnat howmuch,
                                     int may_access_gc_phase,
                                     bool log_events)
 {
-  double heap_words;
-  intnat alloc_work, extra_work, new_work;
-  intnat my_alloc_count, my_alloc_direct_count;
-  double my_extra_count;
   caml_domain_state *dom_st = Caml_state;
-  uintnat heap_size, heap_sweep_words, total_cycle_work;
 
-  my_alloc_count = dom_st->allocated_words;
-  my_alloc_direct_count = dom_st->allocated_words_direct;
+  uintnat work_done_between_slices =
+    Sweepwork_markwork(mark_work_done_between_slices()) +
+    sweep_work_done_between_slices();
+  atomic_fetch_add (&total_work_completed, work_done_between_slices);
+  dom_st->stat_major_work_done += work_done_between_slices;
+
+  uintnat my_alloc_count = dom_st->allocated_words;
+  uintnat my_alloc_direct_count = dom_st->allocated_words_direct;
+  uintnat my_dependent_count = Wsize_bsize (dom_st->allocated_dependent_bytes);
+  dom_st->stat_major_words += dom_st->allocated_words;
+  dom_st->stat_major_dependent_bytes += dom_st->allocated_dependent_bytes;
+  dom_st->allocated_words = 0;
+  dom_st->allocated_words_direct = 0;
+  dom_st->allocated_dependent_bytes = 0;
+
+  uintnat heap_words = Wsize_bsize(caml_heap_size(dom_st->shared_heap));
+
+  CAML_GC_MESSAGE(
+    SLICESIZE,
+    "Major slice [%c] allocs: "
+    "%"ARCH_INTNAT_PRINTF_FORMAT "u words, "
+    "%"ARCH_INTNAT_PRINTF_FORMAT "u direct, "
+    "%"ARCH_INTNAT_PRINTF_FORMAT "u dependent, "
+    "%"ARCH_INTNAT_PRINTF_FORMAT "u heap\n",
+    caml_gc_phase_char(may_access_gc_phase),
+    my_alloc_count,
+    my_alloc_direct_count,
+    my_dependent_count,
+    heap_words);
+
+  intnat new_work;
+
+  if (caml_gc_pacing_policy == 0)
   {
+    /* GC pacing policy */
+    intnat alloc_work, extra_work;
+    double my_extra_count;
+    uintnat heap_sweep_words, total_cycle_work;
+
     /* The major ratio is a percentage relative to the major heap size.
        A complete GC cycle will be done every time 2/3 of that much
        memory is allocated for blocks in the major heap.  Assuming
@@ -658,134 +714,110 @@ static void update_major_slice_work(intnat howmuch,
        marking phase) before it starts to deallocate dead blocks
        allocated during the previous cycle.  [heap_size / 150] is really
        [heap_size * (2/3) / 100] (but faster). */
-    double max_major =
-      caml_heap_size(Caml_state->shared_heap) / 150 * caml_custom_major_ratio;
-    my_extra_count = (double)dom_st->allocated_dependent_bytes / max_major;
+    double custom_max_major =
+      Bsize_wsize(heap_words) / 150 * caml_custom_major_ratio;
+    my_extra_count = Bsize_wsize(my_dependent_count) / custom_max_major;
     if (my_extra_count > 1.0) my_extra_count = 1.0;
+
+    /*
+       Free memory at the start of the GC cycle (garbage + free list) (assumed):
+                   FM = heap_words * caml_percent_free
+                        / (100 + caml_percent_free)
+
+       Assuming steady state and enforcing a constant allocation rate, then
+       FM is divided in 2/3 for garbage and 1/3 for free list.
+                G = 2 * FM / 3
+       G is also the amount of memory that will be used during this cycle
+       (still assuming steady state).
+
+       Proportion of G consumed since the previous slice:
+                PH = dom_st->allocated_words / G
+                  = dom_st->allocated_words * 3 * (100 + caml_percent_free)
+                    / (2 * heap_words * caml_percent_free)
+       Proportion of extra-heap resources consumed since the previous slice:
+                PE = dom_st->extra_heap_resources
+       Proportion of total work to do in this slice:
+                P  = max (PH, PE)
+       Amount of marking work for the GC cycle:
+                MW = heap_words * 100 / (100 + caml_percent_free)
+       Amount of sweeping work for the GC cycle:
+                SW = heap_sweep_words
+       Amount of total work for the GC cycle:
+                TW = MW + SW
+                = heap_words * 100 / (100 + caml_percent_free) + heap_sweep_words
+
+       Amount of time to spend on this slice:
+                   T = P * TT
+
+       Since we must do TW amount of work in TT time, the amount of work done
+       for this slice is:
+                   S = P * TW
+    */
+    heap_sweep_words = heap_words;
+
+    total_cycle_work =
+      heap_sweep_words + (heap_words * 100 / (100 + caml_percent_free));
+
+    if (heap_words > 0) {
+      double alloc_ratio =
+        total_cycle_work
+        * 3.0 * (100 + caml_percent_free)
+        / heap_words / caml_percent_free / 2.0;
+      alloc_work = (intnat) (my_alloc_count * alloc_ratio);
+    } else {
+      alloc_work = 0;
+    }
+
+    extra_work = (intnat) (my_extra_count * (double) total_cycle_work);
+
+    intnat offheap_work = extra_work;
+    intnat clamp = alloc_work * caml_custom_work_max_multiplier;
+    if (offheap_work > clamp) {
+      CAML_GC_MESSAGE(SLICESIZE, "Work clamped to %"
+                      ARCH_INTNAT_PRINTF_FORMAT "d\n",
+                      clamp);
+      offheap_work = clamp;
+    }
+
+    new_work = max2 (alloc_work, offheap_work);
   }
-  dom_st->stat_major_words += dom_st->allocated_words;
-  dom_st->allocated_words = 0;
-  dom_st->allocated_words_direct = 0;
-  dom_st->allocated_dependent_bytes = 0;
-  /*
-     Free memory at the start of the GC cycle (garbage + free list) (assumed):
-                 FM = heap_words * caml_percent_free
-                      / (100 + caml_percent_free)
+  else
+  {
+    double sweep_per_mark = (double)caml_percent_sweep_per_mark / 100.0;
+    double space_overhead = (double)caml_percent_free / 100.0;
+    double sweep_per_dep_alloc = (1 + 2.0 * sweep_per_mark) / space_overhead;
+    double sweep_per_alloc = 1 + sweep_per_dep_alloc;
 
-     Assuming steady state and enforcing a constant allocation rate, then
-     FM is divided in 2/3 for garbage and 1/3 for free list.
-              G = 2 * FM / 3
-     G is also the amount of memory that will be used during this cycle
-     (still assuming steady state).
-
-     Proportion of G consumed since the previous slice:
-              PH = dom_st->allocated_words / G
-                = dom_st->allocated_words * 3 * (100 + caml_percent_free)
-                  / (2 * heap_words * caml_percent_free)
-     Proportion of extra-heap resources consumed since the previous slice:
-              PE = dom_st->extra_heap_resources
-     Proportion of total work to do in this slice:
-              P  = max (PH, PE)
-     Amount of marking work for the GC cycle:
-              MW = heap_words * 100 / (100 + caml_percent_free)
-     Amount of sweeping work for the GC cycle:
-              SW = heap_sweep_words
-     Amount of total work for the GC cycle:
-              TW = MW + SW
-              = heap_words * 100 / (100 + caml_percent_free) + heap_sweep_words
-
-     Amount of time to spend on this slice:
-                 T = P * TT
-
-     Since we must do TW amount of work in TT time, the amount of work done
-     for this slice is:
-                 S = P * TW
-  */
-  heap_size = caml_heap_size(dom_st->shared_heap);
-  heap_words = (double)Wsize_bsize(heap_size);
-  heap_sweep_words = heap_words;
-
-  total_cycle_work =
-    heap_sweep_words + (heap_words * 100 / (100 + caml_percent_free));
-
-  if (heap_words > 0) {
-    double alloc_ratio =
-      total_cycle_work
-      * 3.0 * (100 + caml_percent_free)
-      / heap_words / caml_percent_free / 2.0;
-    alloc_work = (intnat) (my_alloc_count * alloc_ratio);
-  } else {
-    alloc_work = 0;
-  }
-
-  extra_work = (intnat) (my_extra_count * (double) total_cycle_work);
-
-  CAML_GC_MESSAGE(SLICESIZE,
-                  "heap_words = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
-                  (uintnat)heap_words);
-  CAML_GC_MESSAGE(SLICESIZE,
-                  "allocated_words = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
-                   my_alloc_count);
-  CAML_GC_MESSAGE(SLICESIZE,
-                  "allocated_words_direct = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
-                   my_alloc_direct_count);
-  CAML_GC_MESSAGE(SLICESIZE,
-                  "alloc work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
-                   alloc_work);
-  CAML_GC_MESSAGE(SLICESIZE,
-                  "extra_heap_resources = %" ARCH_INTNAT_PRINTF_FORMAT "uu\n",
-                  (uintnat) (my_extra_count * 1000000));
-  CAML_GC_MESSAGE(SLICESIZE,
-                  "extra work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
-                  extra_work);
-
-  intnat offheap_work = extra_work;
-  intnat clamp = alloc_work * caml_custom_work_max_multiplier;
-  if (offheap_work > clamp) {
-    CAML_GC_MESSAGE(SLICESIZE, "Work clamped to %"
-                    ARCH_INTNAT_PRINTF_FORMAT "d\n",
-                    clamp);
-    offheap_work = clamp;
+    new_work = (intnat)
+      (sweep_per_alloc * my_alloc_count +
+       sweep_per_dep_alloc * my_dependent_count);
   }
 
-  uintnat work_done_between_slices =
-    mark_work_done_between_slices() +
-    sweep_work_done_between_slices();
-  atomic_fetch_add (&work_counter, work_done_between_slices);
-  dom_st->stat_major_work_done += work_done_between_slices;
-
-  new_work = max2 (alloc_work, offheap_work);
-  atomic_fetch_add (&alloc_counter, new_work);
+  atomic_fetch_add (&total_work_incurred, new_work);
 
   if (howmuch == AUTO_TRIGGERED_MAJOR_SLICE ||
       howmuch == GC_CALCULATE_MAJOR_SLICE) {
-    dom_st->slice_target = atomic_load (&alloc_counter);
+    dom_st->slice_target = atomic_load (&total_work_incurred);
     dom_st->slice_budget = 0;
   }else{
     /* forced or opportunistic GC slice with explicit quantity */
-    dom_st->slice_target = atomic_load (&work_counter);  /* already reached */
+    /* already reached slice_target */
+    dom_st->slice_target = atomic_load (&total_work_completed);
     dom_st->slice_budget = howmuch;
   }
 
-  caml_gc_log("Updated major work: [%c] "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "u heap_words, "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "u allocated, "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "d alloc_work, "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "d extra_work,  "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "u work counter %s,  "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "u alloc counter,  "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "u slice target,  "
-              " %"ARCH_INTNAT_PRINTF_FORMAT "d slice budget"
-              ,
-              caml_gc_phase_char(may_access_gc_phase),
-              (uintnat)heap_words, my_alloc_count,
-              alloc_work, extra_work,
-              atomic_load (&work_counter),
-              atomic_load (&work_counter) > atomic_load (&alloc_counter)
-                ? "[ahead]" : "[behind]",
-              atomic_load (&alloc_counter),
-              dom_st->slice_target, dom_st->slice_budget
-              );
+  CAML_GC_MESSAGE(
+    SLICESIZE,
+    "Major slice [%c] work: "
+    "%"ARCH_INTNAT_PRINTF_FORMAT "u work, "
+    "%"ARCH_INTNAT_PRINTF_FORMAT "d new_work, "
+    "%"ARCH_INTNAT_PRINTF_FORMAT "d slice_budget\n",
+    caml_gc_phase_char(may_access_gc_phase),
+    diffmod(atomic_load(&total_work_incurred),
+            atomic_load(&total_work_completed)),
+    new_work,
+    dom_st->slice_budget);
+
   if (log_events) {
     /* TODO: add event logging here (haven't ported upstream events as flambda-backend
      * pacing code is about to change anyway). */
@@ -800,7 +832,7 @@ typedef enum {
   Slice_opportunistic
 } collection_slice_mode;
 
-static intnat get_major_slice_work(collection_slice_mode mode){
+static intnat get_major_slice_sweepwork(collection_slice_mode mode){
   caml_domain_state *dom_st = Caml_state;
 
   if (mode == Slice_interruptible && caml_incoming_interrupts_queued())
@@ -808,7 +840,7 @@ static intnat get_major_slice_work(collection_slice_mode mode){
 
   /* calculate how much work remains to do for this slice */
   intnat budget =
-    max2 (diffmod (dom_st->slice_target, atomic_load (&work_counter)),
+    max2 (diffmod (dom_st->slice_target, atomic_load (&total_work_completed)),
           dom_st->slice_budget);
   return min2(budget, Chunk_size);
 }
@@ -816,7 +848,7 @@ static intnat get_major_slice_work(collection_slice_mode mode){
 /* Register the work done by a chunk of slice.
    Clear requested_global_major_slice if the work counter has caught up with
    the slice's target counter. */
-static void commit_major_slice_work(intnat words_done) {
+static void commit_major_slice_sweepwork(intnat words_done) {
   caml_domain_state *dom_st = Caml_state;
 
   caml_gc_log ("Commit major slice work: "
@@ -824,12 +856,23 @@ static void commit_major_slice_work(intnat words_done) {
                words_done);
 
   dom_st->slice_budget -= words_done;
-  atomic_fetch_add (&work_counter, words_done);
-  if (diffmod (dom_st->slice_target, atomic_load (&work_counter)) <= 0){
+  atomic_fetch_add (&total_work_completed, words_done);
+  if (diffmod (dom_st->slice_target, atomic_load (&total_work_completed)) <= 0){
     /* We've done enough work by ourselves, no need to interrupt the other
        domains. */
     dom_st->requested_global_major_slice = 0;
   }
+}
+
+static intnat get_major_slice_markwork(collection_slice_mode mode)
+{
+  intnat budget = get_major_slice_sweepwork(mode);
+  return Markwork_sweepwork(budget);
+}
+
+static void commit_major_slice_markwork(intnat words_done)
+{
+  commit_major_slice_sweepwork(Sweepwork_markwork(words_done));
 }
 
 static void mark_stack_prune(struct mark_stack* stk);
@@ -1836,7 +1879,7 @@ static void major_collection_slice(intnat howmuch,
    * NB: needed particularly to avoid caml_ev spam when polling */
   if (mode == Slice_opportunistic &&
       !caml_opportunistic_major_work_available(domain_state)) {
-    commit_major_slice_work (0);
+    commit_major_slice_sweepwork (0);
     return;
   }
 
@@ -1847,12 +1890,12 @@ static void major_collection_slice(intnat howmuch,
     if (log_events) CAML_EV_BEGIN(EV_MAJOR_SWEEP);
 
     while (!domain_state->sweeping_done &&
-           (budget = get_major_slice_work(mode)) > 0) {
+           (budget = get_major_slice_sweepwork(mode)) > 0) {
       intnat left = caml_sweep(domain_state->shared_heap, budget);
       intnat work_done = budget - left;
 
       sweep_work += work_done;
-      commit_major_slice_work (work_done);
+      commit_major_slice_sweepwork (work_done);
       if (work_done == 0) {
         domain_state->sweeping_done = 1;
         atomic_fetch_add_verify_ge0(&num_domains_to_sweep, -1);
@@ -1879,11 +1922,11 @@ static void major_collection_slice(intnat howmuch,
 mark_again:
   if (caml_marking_started() &&
       !domain_state->marking_done &&
-      get_major_slice_work(mode) > 0) {
+      get_major_slice_markwork(mode) > 0) {
     if (log_events) CAML_EV_BEGIN(EV_MAJOR_MARK);
 
     while (!domain_state->marking_done &&
-           (budget = get_major_slice_work(mode)) > 0) {
+           (budget = get_major_slice_markwork(mode)) > 0) {
       intnat left = mark(budget);
       intnat work_done = budget - left;
       /* It is possible to call caml_darken directly during marking,
@@ -1892,7 +1935,7 @@ mark_again:
       work_done += mark_work_done_between_slices();
 
       mark_work += work_done;
-      commit_major_slice_work(work_done);
+      commit_major_slice_markwork(work_done);
     }
 
     if (log_events) CAML_EV_END(EV_MAJOR_MARK);
@@ -1901,18 +1944,18 @@ mark_again:
   if (mode != Slice_opportunistic && caml_marking_started()) {
     /* Finalisers */
     if (caml_gc_phase == Phase_mark_final &&
-        get_major_slice_work(mode) > 0 &&
+        get_major_slice_markwork(mode) > 0 &&
         caml_final_update_first(domain_state)) {
       /* This domain has updated finalise first values */
       atomic_fetch_add_verify_ge0(&num_domains_to_final_update_first, -1);
       if (!domain_state->marking_done &&
-          get_major_slice_work(mode) > 0)
+          get_major_slice_markwork(mode) > 0)
         goto mark_again;
     }
 
     /* TODO measure and account for the work of updating finalisers */
     if (caml_gc_phase == Phase_sweep_ephe &&
-        get_major_slice_work(mode) > 0 &&
+        get_major_slice_markwork(mode) > 0 &&
         caml_final_update_last(domain_state)) {
       /* This domain has updated finalise last values */
       atomic_fetch_add_verify_ge0(&num_domains_to_final_update_last, -1);
@@ -1923,23 +1966,24 @@ mark_again:
 
     /* Ephemerons */
     if (caml_gc_phase != Phase_sweep_ephe) {
-      /* Ephemeron Marking */
+      /* Ephemeron Marking
+         This work is accounted as marking work */
       saved_ephe_cycle = atomic_load_acquire(&ephe_cycle_info.ephe_cycle);
       if (domain_state->ephe_info->todo != (value) NULL &&
           saved_ephe_cycle > domain_state->ephe_info->cycle &&
-          get_major_slice_work(mode) > 0) {
+          get_major_slice_markwork(mode) > 0) {
         CAML_EV_BEGIN(EV_MAJOR_EPHE_MARK);
 
         int ephe_completed_marking = 0;
         while (domain_state->ephe_info->todo != (value) NULL &&
                saved_ephe_cycle > domain_state->ephe_info->cycle &&
-               (budget = get_major_slice_work(mode)) > 0) {
+               (budget = get_major_slice_markwork(mode)) > 0) {
           intnat left = ephe_mark(budget, saved_ephe_cycle, EPHE_MARK_DEFAULT);
           intnat work_done = budget - left;
           /* caml_darken is called by ephe_mark, so count the work it does */
           work_done += mark_work_done_between_slices();
           ephe_mark_work += work_done;
-          commit_major_slice_work (work_done);
+          commit_major_slice_markwork(work_done);
 
           // FIXME: Can we delete this?
           if (left > 0) {
@@ -1964,7 +2008,8 @@ mark_again:
     }
 
     if (caml_gc_phase == Phase_sweep_ephe) {
-      /* Ephemeron Sweeping */
+      /* Ephemeron Sweeping
+         This work is accounted as sweeping work */
 
       if (domain_state->ephe_info->must_sweep_ephe) {
         /* Move the ephemerons on the live list to the todo list. This is
@@ -1995,11 +2040,11 @@ mark_again:
         CAML_EV_BEGIN(EV_MAJOR_EPHE_SWEEP);
 
         while (domain_state->ephe_info->todo != 0 &&
-               (budget = get_major_slice_work(mode)) > 0) {
+               (budget = get_major_slice_sweepwork(mode)) > 0) {
           intnat left = ephe_sweep (domain_state, budget);
           intnat work_done = budget - left;
           ephe_sweep_work += work_done;
-          commit_major_slice_work(work_done);
+          commit_major_slice_sweepwork(work_done);
         }
 
         CAML_EV_END(EV_MAJOR_EPHE_SWEEP);
@@ -2022,7 +2067,7 @@ mark_again:
       } else {
         caml_try_run_on_all_domains (&stw_try_complete_gc_phase, 0, 0);
       }
-      if (get_major_slice_work(mode) > 0) goto mark_again;
+      if (get_major_slice_sweepwork(mode) > 0) goto mark_again;
     }
   }
 

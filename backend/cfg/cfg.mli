@@ -241,3 +241,5 @@ val basic_block_contains_calls : basic_block -> bool
 
 (* [max_instr_id cfg] returns the maximum instruction identifier in [cfg]. *)
 val max_instr_id : t -> InstructionId.t
+
+val equal_irc_work_list : irc_work_list -> irc_work_list -> bool

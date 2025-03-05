@@ -1,5 +1,5 @@
 (* TEST
-    flags = "-extension layouts_alpha -infer-with-bounds";
+    flags = "-extension layouts_alpha";
     expect;
 *)
 
@@ -23,7 +23,7 @@ Line 1, characters 0-54:
 1 | type t : immutable_data = int list list list list list
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "int list list list list list" is immutable_data
-         with int list list list list
+         with int list
          because it's a boxed variant type.
        But the kind of type "int list list list list list" must be a subkind of
          immutable_data

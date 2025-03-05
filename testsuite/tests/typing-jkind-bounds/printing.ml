@@ -1,5 +1,5 @@
 (* TEST
-    flags = "-extension layouts_alpha -infer-with-bounds";
+    flags = "-extension layouts_alpha";
     expect;
 *)
 
@@ -164,12 +164,9 @@ Line 3, characters 11-12:
                ^
 Error: This type "a" = "int ref" should be an instance of type
          "('a : immutable_data)"
-       The kind of a is mutable_data with int @@ many.
+       The kind of a is mutable_data.
        But the kind of a must be a subkind of immutable_data
          because of the definition of t at line 2, characters 0-28.
-
-       The first mode-crosses less than the second along:
-         contention: mod uncontended ≰ mod contended
 |}, Principal{|
 type a = int ref
 type ('a : immutable_data) t
@@ -198,15 +195,10 @@ Line 3, characters 11-25:
                ^^^^^^^^^^^^^^
 Error: This type "(int -> int) u" should be an instance of type
          "('a : immutable_data)"
-       The kind of (int -> int) u is immutable_data
-         with int -> int @@ portable
+       The kind of (int -> int) u is value mod contended portable
          because of the definition of u at line 1, characters 0-33.
        But the kind of (int -> int) u must be a subkind of immutable_data
          because of the definition of t at line 2, characters 0-28.
-
-       The first mode-crosses less than the second along:
-         linearity: mod many with int -> int ≰ mod many
-         yielding: mod unyielding with int -> int ≰ mod unyielding
 |}, Principal{|
 type 'a u = Foo of 'a @@ portable
 type ('a : immutable_data) t

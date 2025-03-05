@@ -1,5 +1,6 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open! Regalloc_utils
 
 let split_debug = false
@@ -87,6 +88,15 @@ let live_at_block_beginning : Cfg_with_infos.t -> Label.t -> Reg.Set.t =
 type destruction_kind =
   | Destruction_on_all_paths
   | Destruction_only_on_exceptional_path
+
+let equal_destruction_kind left right =
+  match left, right with
+  | Destruction_on_all_paths, Destruction_on_all_paths
+  | Destruction_only_on_exceptional_path, Destruction_only_on_exceptional_path
+    ->
+    true
+  | (Destruction_on_all_paths | Destruction_only_on_exceptional_path), _ ->
+    false
 
 let destruction_point_at_end : Cfg.basic_block -> destruction_kind option =
  fun block ->

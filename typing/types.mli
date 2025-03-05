@@ -70,36 +70,56 @@ val is_mutable : mutability -> bool
 
 (** The mod-bounds of a jkind *)
 module Jkind_mod_bounds : sig
+  module Locality = Mode.Locality.Const
+  module Linearity = Mode.Linearity.Const
+  module Uniqueness = Mode.Uniqueness.Const_op
+  module Portability = Mode.Portability.Const
+  module Contention = Mode.Contention.Const_op
+  module Yielding = Mode.Yielding.Const
+  module Externality = Jkind_axis.Externality
+  module Nullability = Jkind_axis.Nullability
+
   type t
 
   val create :
-    locality:Mode.Locality.Const.t ->
-    linearity:Mode.Linearity.Const.t ->
-    uniqueness:Mode.Uniqueness.Const.t ->
-    portability:Mode.Portability.Const.t ->
-    contention:Mode.Contention.Const.t ->
-    yielding:Mode.Yielding.Const.t ->
-    externality:Jkind_axis.Externality.t ->
-    nullability:Jkind_axis.Nullability.t ->
+    locality:Locality.t ->
+    linearity:Linearity.t ->
+    uniqueness:Uniqueness.t ->
+    portability:Portability.t ->
+    contention:Contention.t ->
+    yielding:Yielding.t ->
+    externality:Externality.t ->
+    nullability:Nullability.t ->
     t
 
-  val locality : t -> Mode.Locality.Const.t
-  val linearity : t -> Mode.Linearity.Const.t
-  val uniqueness : t -> Mode.Uniqueness.Const.t
-  val portability : t -> Mode.Portability.Const.t
-  val contention : t -> Mode.Contention.Const.t
-  val yielding : t -> Mode.Yielding.Const.t
-  val externality : t -> Jkind_axis.Externality.t
-  val nullability : t -> Jkind_axis.Nullability.t
+  val locality : t -> Locality.t
+  val linearity : t -> Linearity.t
+  val uniqueness : t -> Uniqueness.t
+  val portability : t -> Portability.t
+  val contention : t -> Contention.t
+  val yielding : t -> Yielding.t
+  val externality : t -> Externality.t
+  val nullability : t -> Nullability.t
 
-  val set_locality : Mode.Locality.Const.t -> t -> t
-  val set_linearity : Mode.Linearity.Const.t -> t -> t
-  val set_uniqueness : Mode.Uniqueness.Const.t -> t -> t
-  val set_portability : Mode.Portability.Const.t -> t -> t
-  val set_contention : Mode.Contention.Const.t -> t -> t
-  val set_yielding : Mode.Yielding.Const.t -> t -> t
-  val set_externality : Jkind_axis.Externality.t -> t -> t
-  val set_nullability : Jkind_axis.Nullability.t -> t -> t
+  val set_locality : Locality.t -> t -> t
+  val set_linearity : Linearity.t -> t -> t
+  val set_uniqueness : Uniqueness.t -> t -> t
+  val set_portability : Portability.t -> t -> t
+  val set_contention : Contention.t -> t -> t
+  val set_yielding : Yielding.t -> t -> t
+  val set_externality : Externality.t -> t -> t
+  val set_nullability : Nullability.t -> t -> t
+
+  (** [set_max_in_set bounds axes] sets all the axes in [axes] to their [max] within
+      [bounds] *)
+  val set_max_in_set : t -> Jkind_axis.Axis_set.t -> t
+
+  (** [is_max_within_set bounds axes] returns whether or not all the axes in [axes] are
+      [max] within [bounds] *)
+  val is_max_within_set : t -> Jkind_axis.Axis_set.t -> bool
+  val is_max : t -> bool
+
+  val debug_print : Format.formatter -> t -> unit
 end
 
 
@@ -366,6 +386,8 @@ module With_bounds_types : sig
     t -> t -> t
   val update : type_expr -> (info option -> info option) -> t -> t
   val find_opt : type_expr -> t -> info option
+  val for_all : (type_expr -> info -> bool) -> t -> bool
+  val map_with_key : (type_expr -> info -> type_expr * info) -> t -> t
 end
 
 val is_commu_ok: commutable -> bool
@@ -666,6 +688,16 @@ type type_declaration =
     type_unboxed_default: bool;
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
+    type_unboxed_version : type_declaration option;
+    (* stores the unboxed version of that this type introduces: this is [Some]
+       for predefined types with unboxed versions (e.g. [float]) and boxed
+       records, but [None] for aliases of these types
+
+       invariants:
+       1. there are no "twice-unboxed" types: the [type_declaration] stored here
+          itself has [type_unboxed_version = None].
+       2. the Uid of the unboxed version is [Uid.unboxed_version <uid of boxed>]
+    *)
   }
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind

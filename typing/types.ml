@@ -29,15 +29,24 @@ let is_mutable = function
 (* Type expressions for the core language *)
 
 module Jkind_mod_bounds = struct
+  module Locality = Mode.Locality.Const
+  module Linearity = Mode.Linearity.Const
+  module Uniqueness = Mode.Uniqueness.Const_op
+  module Portability = Mode.Portability.Const
+  module Contention = Mode.Contention.Const_op
+  module Yielding = Mode.Yielding.Const
+  module Externality = Jkind_axis.Externality
+  module Nullability = Jkind_axis.Nullability
+
   type t = {
-    locality: Mode.Locality.Const.t;
-    linearity: Mode.Linearity.Const.t;
-    uniqueness: Mode.Uniqueness.Const.t;
-    portability: Mode.Portability.Const.t;
-    contention: Mode.Contention.Const.t;
-    yielding: Mode.Yielding.Const.t;
-    externality: Jkind_axis.Externality.t;
-    nullability: Jkind_axis.Nullability.t;
+    locality: Locality.t;
+    linearity: Linearity.t;
+    uniqueness: Uniqueness.t;
+    portability: Portability.t;
+    contention: Contention.t;
+    yielding: Yielding.t;
+    externality: Externality.t;
+    nullability: Nullability.t;
   }
 
   let[@inline] locality t = t.locality
@@ -77,6 +86,112 @@ module Jkind_mod_bounds = struct
   let[@inline] set_yielding yielding t = { t with yielding }
   let[@inline] set_externality externality t = { t with externality }
   let[@inline] set_nullability nullability t = { t with nullability }
+
+  let[@inline] set_max_in_set t max_axes =
+    let open Jkind_axis.Axis_set in
+    (* a little optimization *)
+    if is_empty max_axes then t else
+    let locality =
+      if mem max_axes (Modal (Comonadic Areality))
+      then Locality.max
+      else t.locality
+    in
+    let linearity =
+      if mem max_axes (Modal (Comonadic Linearity))
+      then Linearity.max
+      else t.linearity
+    in
+    let uniqueness =
+      if mem max_axes (Modal (Monadic Uniqueness))
+      then Uniqueness.max
+      else t.uniqueness
+    in
+    let portability =
+      if mem max_axes (Modal (Comonadic Portability))
+      then Portability.max
+      else t.portability
+    in
+    let contention =
+      if mem max_axes (Modal (Monadic Contention))
+      then Contention.max
+      else t.contention
+    in
+    let yielding =
+      if mem max_axes (Modal (Comonadic Yielding))
+      then Yielding.max
+      else t.yielding
+    in
+    let externality =
+      if mem max_axes (Nonmodal Externality)
+      then Externality.max
+      else t.externality
+    in
+    let nullability =
+      if mem max_axes (Nonmodal Nullability)
+      then Nullability.max
+      else t.nullability
+    in
+    {
+      locality;
+      linearity;
+      uniqueness;
+      portability;
+      contention;
+      yielding;
+      externality;
+      nullability;
+    }
+
+  let[@inline] is_max_within_set t axes =
+    let open Jkind_axis.Axis_set in
+    (not (mem axes (Modal (Comonadic Areality))) ||
+     Locality.(le max (locality t))) &&
+    (not (mem axes (Modal (Comonadic Linearity))) ||
+     Linearity.(le max (linearity t))) &&
+    (not (mem axes (Modal (Monadic Uniqueness))) ||
+     Uniqueness.(le max (uniqueness t))) &&
+    (not (mem axes (Modal (Comonadic Portability))) ||
+     Portability.(le max (portability t))) &&
+    (not (mem axes (Modal (Monadic Contention))) ||
+     Contention.(le max (contention t))) &&
+    (not (mem axes (Modal (Comonadic Yielding))) ||
+     Yielding.(le max (yielding t))) &&
+    (not (mem axes (Nonmodal Externality)) ||
+     Externality.(le max (externality t))) &&
+    (not (mem axes (Nonmodal Nullability)) ||
+     Nullability.(le max (nullability t)))
+
+  let[@inline] is_max = function
+    | { locality = Local;
+        linearity = Once;
+        uniqueness = Unique;
+        portability = Portable;
+        contention = Uncontended;
+        yielding = Yielding;
+        externality = External;
+        nullability = Maybe_null } -> true
+    | _ -> false
+
+  let debug_print ppf
+        { locality;
+          linearity;
+          uniqueness;
+          portability;
+          contention;
+          yielding;
+          externality;
+          nullability } =
+    Format.fprintf ppf "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ \
+      portability = %a;@ contention = %a;@ yielding = %a;@ externality = %a;@ \
+      nullability = %a }@]"
+      Locality.print locality
+      Linearity.print linearity
+      Uniqueness.print uniqueness
+      Portability.print portability
+      Contention.print contention
+      Yielding.print yielding
+      Externality.print externality
+      Nullability.print nullability
 end
 
 
@@ -361,6 +476,7 @@ type type_declaration =
     type_attributes: Parsetree.attributes;
     type_unboxed_default: bool;
     type_uid: Uid.t;
+    type_unboxed_version : type_declaration option;
  }
 
 and type_decl_kind =
@@ -1154,11 +1270,13 @@ module With_bounds_types : sig
   val of_seq : (type_expr * info) Seq.t -> t
   val singleton : type_expr -> info -> t
   val map : (info -> info) -> t -> t
+  val map_with_key : (type_expr -> info -> type_expr * info) -> t -> t
   val merge
     : (type_expr -> info option -> info option -> info option) ->
     t -> t -> t
   val update : type_expr -> (info option -> info option) -> t -> t
   val find_opt : type_expr -> t -> info option
+  val for_all : (type_expr -> info -> bool) -> t -> bool
 end = struct
   module M = Map.Make(struct
       type t = type_expr
@@ -1183,6 +1301,11 @@ end = struct
   let merge f t1 t2 = merge f (to_map t1) (to_map t2) |> of_map
   let update te f t = update te f (to_map t) |> of_map
   let find_opt te t = find_opt te (to_map t)
+  let for_all f t = for_all f (to_map t)
+  let map_with_key f t =
+    fold (fun key value acc ->
+      let key, value = f key value in
+      M.add key value acc) (to_map t) M.empty |> of_map
 end
 
 (* Constructor and accessors for [row_desc] *)

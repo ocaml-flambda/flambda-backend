@@ -1,5 +1,5 @@
 (* TEST
-    flags = "-extension layouts_alpha -infer-with-bounds";
+    flags = "-extension layouts_alpha";
     expect;
 *)
 
@@ -77,10 +77,13 @@ module Ref : sig type 'a t = 'a ref end
 Line 4, characters 0-38:
 4 | type 'a t : mutable_data = 'a F(Ref).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a F(Ref).t" is immutable_data with 'a Ref.t
+Error: The kind of type "'a F(Ref).t" is mutable_data with 'a @@ many
          because of the definition of t at line 2, characters 2-40.
        But the kind of type "'a F(Ref).t" must be a subkind of mutable_data
          because of the definition of t at line 4, characters 0-38.
+
+       The first mode-crosses less than the second along:
+         portability: mod portable with 'a ≰ mod portable
 |}]
 
 module F (M : sig
@@ -120,8 +123,7 @@ type t : value mod portable = F(Int_abstract).t
 Line 1, characters 0-47:
 1 | type t : value mod portable = F(Int_abstract).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "F(Int_abstract).t" is immediate with Int_abstract.t
-         with Int_abstract.u
+Error: The kind of type "F(Int_abstract).t" is immediate with Int_abstract.u
          because of the definition of t at line 5, characters 2-38.
        But the kind of type "F(Int_abstract).t" must be a subkind of
          value mod portable
