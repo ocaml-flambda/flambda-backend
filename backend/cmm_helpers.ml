@@ -4526,8 +4526,8 @@ module Scalar_type = struct
     let[@inline] static_cast ~dbg ~src ~dst exp =
       if is_promotable ~src ~dst
       then
-        (* since int32# are already stored sign- or zero-extended, this is a
-           no-op. *)
+        (* since cmm expressions representing int32#s are stored sign- or
+           zero-extended, this is a no-op. *)
         exp
       else
         match signedness dst with
