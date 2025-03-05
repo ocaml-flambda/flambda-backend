@@ -744,6 +744,8 @@ let compare_unsafe_mode_crossing umc1 umc2 =
     else
       Some (
         Unsafe_mode_crossing (
+          (* CR layouts v2.8: It'd be nice to specifically highlight the offending axis,
+             rather than printing all axes here. *)
           Mode_crossing_not_equal (
             (umc_to_mod_bound_list umc1),
             (umc_to_mod_bound_list umc2))))
