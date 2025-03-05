@@ -1100,29 +1100,15 @@ val foo : int t @ contended -> unit = <fun>
 (* TEST: tuples *)
 
 type t : immutable_data = int * string
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 0-38:
-1 | type t : immutable_data = int * string
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int * string" is value
-         because it's a tuple type.
-       But the kind of type "int * string" must be a subkind of immutable_data
-         because of the definition of t at line 1, characters 0-38.
+type t = int * string
 |}]
 
 (************)
 
 type ('a : immutable_data, 'b : immutable_data) t : immutable_data = 'a * 'b
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 0-76:
-1 | type ('a : immutable_data, 'b : immutable_data) t : immutable_data = 'a * 'b
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a * 'b" is value
-         because it's a tuple type.
-       But the kind of type "'a * 'b" must be a subkind of immutable_data
-         because of the definition of t at line 1, characters 0-76.
+type ('a : immutable_data, 'b : immutable_data) t = 'a * 'b
 |}]
 
 (************)
@@ -1136,12 +1122,8 @@ let foo (t : int t @@ contended nonportable once) =
   use_uncontended t;
   use_portable t;
   use_many t
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 2, characters 18-19:
-2 |   use_uncontended t;
-                      ^
-Error: This value is "once" but expected to be "many".
+val foo : int t @ once contended -> unit = <fun>
 |}]
 
 let foo (t : int t @@ local) = use_global t [@nontail]
@@ -1191,13 +1173,8 @@ type ('a, 'b, 'c, 'd) t = 'a * ('b * 'c) * 'd
 |}]
 
 let foo (t : (int, int, int, int) t @@ nonportable) = use_portable t
-(* CR layouts v2.8: fix this
- *)
 [%%expect {|
-Line 1, characters 67-68:
-1 | let foo (t : (int, int, int, int) t @@ nonportable) = use_portable t
-                                                                       ^
-Error: This value is "nonportable" but expected to be "portable".
+val foo : (int, int, int, int) t -> unit = <fun>
 |}]
 
 let foo (t : (int, int, _, int) t @@ nonportable) = use_portable t

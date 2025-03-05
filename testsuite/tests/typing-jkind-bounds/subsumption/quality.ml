@@ -395,27 +395,8 @@ end = struct
   type a = int ref * int
   type t
 end
-(* CR layouts v2.8: this should be accepted *)
 [%%expect {|
-Lines 4-7, characters 6-3:
-4 | ......struct
-5 |   type a = int ref * int
-6 |   type t
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type a = int ref * int type t end
-       is not included in
-         sig type a = int ref * int type t : value mod contended with a end
-       Type declarations do not match:
-         type t
-       is not included in
-         type t : value mod contended with a
-       The kind of the first is value
-         because of the definition of t at line 6, characters 2-8.
-       But the kind of the first must be a subkind of value mod contended
-         with a
-         because of the definition of t at line 3, characters 2-37.
+module M : sig type a = int ref * int type t end
 |}]
 
 module M : sig

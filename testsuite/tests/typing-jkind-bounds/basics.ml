@@ -15,7 +15,7 @@ type 'a list : immutable_data with 'a
 type ('a, 'b) either : immutable_data with 'a * 'b
 
 [%%expect{|
-type ('a, 'b) either : immutable_data with 'a * 'b
+type ('a, 'b) either : immutable_data with 'a with 'b
 |}]
 
 type 'a gel : kind_of_ 'a mod global
