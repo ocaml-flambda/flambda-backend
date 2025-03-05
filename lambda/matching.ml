@@ -2333,7 +2333,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
     else
       let lbl = all_labels.(pos) in
       sort_check_not_void head.pat_loc lbl.lbl_sort;
-      let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
+      let ptr, _ = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl.lbl_sort in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree

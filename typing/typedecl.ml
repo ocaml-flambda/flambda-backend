@@ -3114,7 +3114,8 @@ type sort_or_poly = Sort of Jkind.Sort.Const.t | Poly
 let native_repr_of_type env kind ty sort_or_poly =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
   | Untagged, Tconstr (_, _, _) when
-         Typeopt.maybe_pointer_type env ty = Lambda.Immediate
+         Typeopt.maybe_pointer_type env ty
+         = (Lambda.Immediate, Lambda.Non_nullable)
       (* Only allow [@untagged] on immediate values. [maybe_pointer_type]
          currently returns [Immediate] on unboxed number types, which
          do not support [@untagged].

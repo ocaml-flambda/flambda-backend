@@ -102,7 +102,8 @@ let transl_meth_list lst =
             (0, List.map (fun lab -> Const_immstring lab) lst))
 
 let set_inst_var ~scopes obj id expr =
-  Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment modify_heap),
+  let ptr_or_imm, _ = Typeopt.maybe_pointer expr in
+  Lprim(Psetfield_computed (ptr_or_imm, Assignment modify_heap),
     [Lvar obj; Lvar id; transl_exp ~scopes Jkind.Sort.Const.for_instance_var expr],
         Loc_unknown)
 

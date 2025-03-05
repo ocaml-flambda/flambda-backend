@@ -628,7 +628,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       begin match lbl.lbl_repres with
           Record_boxed _
         | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
-          Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, sem), [targ],
+          let ptr_or_imm, _ = maybe_pointer e in
+          Lprim (Pfield (lbl.lbl_pos, ptr_or_imm, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> targ
         | Record_float ->
@@ -644,7 +645,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           Lprim (Pufloatfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
-          Lprim (Pfield (lbl.lbl_pos + 1, maybe_pointer e, sem), [targ],
+          let ptr_or_imm, _ = maybe_pointer e in
+          Lprim (Pfield (lbl.lbl_pos + 1, ptr_or_imm, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
             (* CR layouts v5.9: support this *)
@@ -657,7 +659,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           in
           let read =
             if lbl.lbl_num < value_prefix_len then
-              Mread_value_prefix (maybe_pointer e)
+              let ptr_or_imm, _ = maybe_pointer e in
+              Mread_value_prefix ptr_or_imm
             else
               let flat_read =
                 match flat_suffix.(lbl.lbl_num - value_prefix_len) with
@@ -707,13 +710,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         match lbl.lbl_repres with
           Record_boxed _
         | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
-          Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
+          let ptr_or_imm, _ = maybe_pointer newval in
+          Psetfield(lbl.lbl_pos, ptr_or_imm, mode)
         | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
           assert false
         | Record_float -> Psetfloatfield (lbl.lbl_pos, mode)
         | Record_ufloat -> Psetufloatfield (lbl.lbl_pos, mode)
         | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
-          Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, mode)
+          let ptr_or_imm, _ = maybe_pointer newval in
+          Psetfield (lbl.lbl_pos + 1, ptr_or_imm, mode)
         | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
             (* CR layouts v5.9: support this *)
             fatal_error
@@ -725,7 +730,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           in
           let write =
             if lbl.lbl_num < value_prefix_len then
-              Mwrite_value_prefix (maybe_pointer newval)
+              let ptr_or_imm, _ = maybe_pointer newval in
+              Mwrite_value_prefix ptr_or_imm
             else
               let flat_element = flat_suffix.(lbl.lbl_num - value_prefix_len) in
               Mwrite_flat_suffix flat_element
@@ -1852,7 +1858,8 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
       fun body -> Value_rec_compiler.compile_letrec lam_bds body
 
 and transl_setinstvar ~scopes loc self var expr =
-  Lprim(Psetfield_computed (maybe_pointer expr, Assignment modify_heap),
+  let ptr_or_imm, _ = maybe_pointer expr in
+  Lprim(Psetfield_computed (ptr_or_imm, Assignment modify_heap),
     [self; var; transl_exp ~scopes Jkind.Sort.Const.for_instance_var expr], loc)
 
 (* CR layouts v5: Invariant - this is only called on values.  Relax that. *)
@@ -1879,7 +1886,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             match repres with
               Record_boxed _
             | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
-                let ptr = maybe_pointer expr in
+                let ptr, _ = maybe_pointer expr in
                 Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
             | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
                 assert false
@@ -1889,7 +1896,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 Psetufloatfield (lbl.lbl_pos, Assignment modify_heap)
             | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
                 let pos = lbl.lbl_pos + 1 in
-                let ptr = maybe_pointer expr in
+                let ptr, _ = maybe_pointer expr in
                 Psetfield(pos, ptr, Assignment modify_heap)
             | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
                 (* CR layouts v5.9: support this *)
@@ -1902,7 +1909,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 in
                 let write =
                   if lbl.lbl_num < value_prefix_len then
-                    let ptr = maybe_pointer expr in
+                    let ptr, _ = maybe_pointer expr in
                     Mwrite_value_prefix ptr
                   else
                     let flat_element =
@@ -1952,11 +1959,13 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  match repres with
                    Record_boxed _
                  | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
-                   Pfield (i, maybe_pointer_type env typ, sem)
+                   let ptr, _ = maybe_pointer_type env typ in
+                   Pfield (i, ptr, sem)
                  | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
                    assert false
                  | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
-                     Pfield (i + 1, maybe_pointer_type env typ, sem)
+                   let ptr, _ = maybe_pointer_type env typ in
+                   Pfield (i + 1, ptr, sem)
                  | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
                      (* CR layouts v5.9: support this *)
                      fatal_error
@@ -1973,7 +1982,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                   in
                    let read =
                     if lbl.lbl_num < value_prefix_len then
-                      Mread_value_prefix (maybe_pointer_type env typ)
+                      let ptr, _ = maybe_pointer_type env typ in
+                      Mread_value_prefix ptr
                     else
                       let read =
                         match flat_suffix.(lbl.lbl_num - value_prefix_len) with
