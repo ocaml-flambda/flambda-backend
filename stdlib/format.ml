@@ -821,8 +821,7 @@ let pp_set_margin state n =
 
 
 (** Geometry functions and types *)
-type geometry : value mod portable contended = { max_indent:int; margin: int}
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+type geometry = { max_indent:int; margin: int}
 
 let validate_geometry {margin; max_indent} =
   if max_indent < 2 then

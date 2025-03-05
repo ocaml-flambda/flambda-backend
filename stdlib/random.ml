@@ -375,9 +375,7 @@ let bits32 = apply0 State.bits32
 let bits64 = apply0 State.bits64
 let nativebits = apply0 State.nativebits
 
-let full_init seed =
-  (* CR with-kinds: Unnecessary magic. *)
-  let seed = Obj.magic_portable seed in
+let full_init (seed : int array @@ contended) =
   DLS.access (fun access ->
     State.reinit
       (DLS.get access random_key)
