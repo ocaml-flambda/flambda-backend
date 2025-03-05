@@ -777,8 +777,8 @@ module Layout_and_axes = struct
      set. [map_type_info] is used by sub_jkind_l to remove irrelevant axes.
 
      The [skip_axes] argument says which axes we can skip normalizing along. The behavior
-     of this function for these axes is undefined; do *not* look at the result outside of
-     these axes.
+     of this function for these axes is undefined; do *not* look at the results for these
+     axes.
   *)
   let normalize (type layout l r1 r2) ~jkind_of_type ~(mode : r2 normalize_mode)
       ~skip_axes
@@ -2168,8 +2168,7 @@ let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
           (_ * allowed) jkind_desc),
         _ ) =
     Layout_and_axes.normalize ~mode:Ignore_best
-      ~skip_axes:(Axis_set.complement Axis_set.all_modal_axes)
-      ~jkind_of_type jk.jkind
+      ~skip_axes:Axis_set.all_nonmodal_axes ~jkind_of_type jk.jkind
   in
   Mod_bounds.
     { upper_bounds =
