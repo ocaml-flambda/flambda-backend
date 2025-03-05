@@ -338,9 +338,7 @@ type variant_change =
 
 type unsafe_mode_crossing_mismatch =
   | Mode_crossing_only_on of position
-  | Mode_crossing_not_equal of
-      (* mod bounds on left, mod bounds on right *)
-      string list * string list
+  | Mode_crossing_not_equal of unsafe_mode_crossing * unsafe_mode_crossing
 
 
 type type_mismatch =
@@ -652,14 +650,36 @@ let report_unsafe_mode_crossing_mismatch first second ppf e =
       (choose ord first second)
       (choose_other ord first second)
   | Mode_crossing_not_equal (first_mb, second_mb) ->
+    (* CR layouts v2.8: It'd be nice to specifically highlight the offending axis,
+       rather than printing all axes here. *)
+    let umc_to_mod_bound_list
+          { modal_upper_bounds = { areality; linearity; portability; yielding };
+            modal_lower_bounds = { uniqueness; contention } }
+      =
+      let value_for_axis (type a) (module Ax : Mode_intf.Lattice with type t = a) (ax : a) =
+        if Ax.equal Ax.max ax
+        then None
+        else Some (Format.asprintf "%a" Ax.print ax)
+      in
+      List.filter_map Fun.id
+        [ value_for_axis (module Mode.Locality.Const) areality
+        ; value_for_axis (module Mode.Linearity.Const) linearity
+        ; value_for_axis (module Mode.Portability.Const) portability
+        ; value_for_axis (module Mode.Yielding.Const) yielding
+        ; value_for_axis (module Mode.Uniqueness.Const) uniqueness
+        ; value_for_axis (module Mode.Contention.Const) contention
+        ]
+    in
     pr "Both specify [%@%@unsafe_allow_any_mode_crossing], but their \
-        mod-bounds are not equal:@,";
-    pr "%s has mod-bounds:@ @[<h 4>%a@]@,"
+        mod-bounds are not equal:@ \
+        %s has mod-bounds:@ @[<h 4>%a@]@ \
+        but %s has mod-bounds:@ @[<h 4>%a@]"
       first
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string) first_mb;
-    pr "but %s has mod-bounds:@ @[<h 4>%a@]"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
+      (umc_to_mod_bound_list first_mb)
       second
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string) second_mb
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
+      (umc_to_mod_bound_list second_mb)
 
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -711,9 +731,10 @@ let report_type_mismatch first second decl env ppf err =
   | Jkind v ->
       Jkind.Violation.report_with_name ~name:first ppf v
   | Unsafe_mode_crossing mismatch ->
-    pr "They have different unsafe mode crossing behavior:@,@[<hov 2>";
-    report_unsafe_mode_crossing_mismatch first second ppf mismatch;
-    pr "@]"
+    pr "They have different unsafe mode crossing behavior:@,@[<hov 2>%a@]"
+      (fun ppf (first, second, mismatch) ->
+         report_unsafe_mode_crossing_mismatch first second ppf mismatch)
+      (first, second, mismatch)
 
 let compare_unsafe_mode_crossing umc1 umc2 =
   match umc1, umc2 with
@@ -721,34 +742,12 @@ let compare_unsafe_mode_crossing umc1 umc2 =
   | Some _, None -> Some (Unsafe_mode_crossing (Mode_crossing_only_on First))
   | None, Some _ -> Some (Unsafe_mode_crossing (Mode_crossing_only_on Second))
   | Some umc1, Some umc2 ->
-    let umc_to_mod_bound_list
-          { modal_upper_bounds = { areality; linearity; portability; yielding };
-            modal_lower_bounds = { uniqueness; contention } }
-      =
-      let value_for_axis (type a) (module Ax : Mode_intf.Lattice with type t = a) (ax : a) =
-        if Ax.equal Ax.max ax
-        then None
-        else Some (Format.asprintf "%a" Ax.print ax)
-      in
-      List.filter_map Fun.id
-        [ value_for_axis (module Mode.Locality.Const) areality
-        ; value_for_axis (module Mode.Linearity.Const) linearity
-        ; value_for_axis (module Mode.Portability.Const) portability
-        ; value_for_axis (module Mode.Yielding.Const) yielding
-        ; value_for_axis (module Mode.Uniqueness.Const) uniqueness
-        ; value_for_axis (module Mode.Contention.Const) contention
-        ]
-    in
     if equal_unsafe_mode_crossing umc1 umc2
     then None
     else
       Some (
         Unsafe_mode_crossing (
-          (* CR layouts v2.8: It'd be nice to specifically highlight the offending axis,
-             rather than printing all axes here. *)
-          Mode_crossing_not_equal (
-            (umc_to_mod_bound_list umc1),
-            (umc_to_mod_bound_list umc2))))
+          Mode_crossing_not_equal (umc1, umc2)))
 
 module Record_diffing = struct
 
