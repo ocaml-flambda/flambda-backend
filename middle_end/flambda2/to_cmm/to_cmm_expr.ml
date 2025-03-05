@@ -110,9 +110,9 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
        2. All of the [machtype_component]s are singleton arrays. *)
     Array.map (fun machtype -> [| machtype |]) return_ty
   in
-  (* Returned int32 values need to be sign_extended because it's not clear
-     whether C code that returns an int32 returns one that is sign extended or
-     not. There is no need to wrap other return arities. *)
+  (* Returned small integer values need to be sign-extended because it's not
+     clear whether C code that returns a small integer returns one that is sign
+     extended or not. There is no need to wrap other return arities. *)
   let maybe_sign_extend kind dbg cmm =
     match Flambda_kind.With_subkind.kind kind with
     | Naked_number Naked_int32 -> C.sign_extend ~bits:32 ~dbg cmm
