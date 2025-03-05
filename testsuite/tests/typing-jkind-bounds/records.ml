@@ -205,7 +205,7 @@ type ('a : value mod global) t : value mod global = { x : 'a }
 Line 1, characters 0-62:
 1 | type ('a : value mod global) t : value mod global = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is value mod unyielding
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.

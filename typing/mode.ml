@@ -1715,6 +1715,10 @@ module Yielding = struct
 
   include Common (Obj)
 
+  let yielding = of_const Yielding
+
+  let unyielding = of_const Unyielding
+
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_floor
@@ -2420,16 +2424,16 @@ module Value_with (Areality : Areality) = struct
     let monadic = Monadic.meet_const c.monadic monadic in
     { monadic; comonadic }
 
-  let imply c { comonadic; monadic } =
-    let c = split c in
-    let comonadic = Comonadic.imply c.comonadic comonadic in
-    let monadic = Monadic.imply c.monadic monadic in
-    { monadic; comonadic }
-
   let join_const c { comonadic; monadic } =
     let c = split c in
     let comonadic = Comonadic.join_const c.comonadic comonadic in
     let monadic = Monadic.join_const c.monadic monadic in
+    { monadic; comonadic }
+
+  let imply c { comonadic; monadic } =
+    let c = split c in
+    let comonadic = Comonadic.imply c.comonadic comonadic in
+    let monadic = Monadic.imply c.monadic monadic in
     { monadic; comonadic }
 
   let subtract c { comonadic; monadic } =
@@ -2761,6 +2765,8 @@ module Modality = struct
             (let ax : _ Axis.t = Linearity in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Portability in
+             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
+            (let ax : _ Axis.t = Yielding in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
       let proj ax = function
