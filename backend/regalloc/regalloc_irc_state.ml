@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
@@ -385,13 +385,17 @@ let[@inline] iter_adjacent state reg ~f =
   List.iter (adj_list state reg) ~f:(fun reg ->
       match reg.Reg.irc_work_list with
       | Select_stack | Coalesced -> ()
-      | _ -> f reg)
+      | Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
+      | Spilled | Colored ->
+        f reg)
 
 let[@inline] for_all_adjacent state reg ~f =
   List.for_all (adj_list state reg) ~f:(fun reg ->
       match reg.Reg.irc_work_list with
       | Select_stack | Coalesced -> true
-      | _ -> f reg)
+      | Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
+      | Spilled | Colored ->
+        f reg)
 
 let[@inline] adj_set state = state.adj_set
 
@@ -404,7 +408,7 @@ let[@inline] is_empty_node_moves state reg =
          (fun instr ->
            match instr.irc_work_list with
            | Active | Work_list -> true
-           | _ -> false)
+           | Unknown_list | Coalesced | Constrained | Frozen -> false)
          move_list)
 
 let[@inline] iter_node_moves state reg ~f =
@@ -413,7 +417,9 @@ let[@inline] iter_node_moves state reg ~f =
   | Some move_list ->
     Instruction.Set.iter
       (fun instr ->
-        match instr.irc_work_list with Active | Work_list -> f instr | _ -> ())
+        match instr.irc_work_list with
+        | Active | Work_list -> f instr
+        | Unknown_list | Coalesced | Constrained | Frozen -> ())
       move_list
 
 let[@inline] is_move_related state reg =
@@ -422,7 +428,9 @@ let[@inline] is_move_related state reg =
   | Some move_list ->
     Instruction.Set.exists
       (fun instr ->
-        match instr.irc_work_list with Active | Work_list -> true | _ -> false)
+        match instr.irc_work_list with
+        | Active | Work_list -> true
+        | Unknown_list | Coalesced | Constrained | Frozen -> false)
       move_list
 
 let[@inline] enable_moves_one state reg =
@@ -433,7 +441,7 @@ let[@inline] enable_moves_one state reg =
         m.irc_work_list <- Work_list;
         InstructionWorkList.remove state.active_moves m;
         InstructionWorkList.add state.work_list_moves m
-      | _ -> ())
+      | Unknown_list | Coalesced | Constrained | Frozen | Work_list -> ())
 
 let[@inline] decr_degree state reg =
   let d = reg.Reg.degree in
