@@ -53,9 +53,7 @@ end = struct
 end
 [%%expect{|
 module M :
-  sig
-    type ('a, 'b) t : immutable_data with 'b * 'b constraint 'a = 'b * 'b
-  end
+  sig type ('a, 'b) t : immutable_data with 'b constraint 'a = 'b * 'b end
 |}]
 
 module M : sig
@@ -65,9 +63,7 @@ end = struct
 end
 [%%expect{|
 module M :
-  sig
-    type ('a, 'b) t : immutable_data with 'b * 'b constraint 'a = 'b * 'b
-  end
+  sig type ('a, 'b) t : immutable_data with 'b constraint 'a = 'b * 'b end
 |}]
 
 module M : sig
