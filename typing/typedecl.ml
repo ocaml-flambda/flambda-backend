@@ -1902,12 +1902,6 @@ let rec update_decl_jkind env dpath decl =
           in
           let type_jkind =
             Jkind.for_unboxed_record
-              ~jkind_of_first_type:(fun () ->
-                match lbls with
-                | [lbl] -> Ctype.type_jkind env lbl.ld_type
-                | [] | _ :: _ :: _ -> Misc.fatal_error
-                         "[for_unboxed_record] called [jkind_of_first_type] \
-                         for non-singleton record.")
               lbls
           in
           (* See Note [Quality of jkinds during inference] for more information about when we

@@ -1228,6 +1228,8 @@ let foo y =
   gbl
 [%%expect{|
 val foo : 'a -> 'a = <fun>
+|}, Principal{|
+val foo : '_weak1 -> '_weak1 = <fun>
 |}]
 let foo (local_ gbl) =
   let _ = #{ gbl } in

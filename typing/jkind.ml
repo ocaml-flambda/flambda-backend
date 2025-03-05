@@ -1769,24 +1769,17 @@ module Jkind_desc = struct
     let immediate_or_null = of_const Const.Builtin.immediate_or_null.jkind
   end
 
-  let product ~jkind_of_first_type tys_modalities layouts =
-    (* CR layouts v2.8: We can probably drop this special case once we
-       have proper subsumption. The general algorithm gets the right
-       jkind, but the subsumption check fails because it can't recognize
-       that the one it comes up with is right. *)
-    match layouts with
-    | [_] -> (jkind_of_first_type ()).jkind
-    | _ ->
-      let layout = Layout.product layouts in
-      let mod_bounds = Mod_bounds.min in
-      let with_bounds =
-        List.fold_right
-          (fun (type_expr, modality) bounds ->
-            With_bounds.add_modality ~relevant_for_nullability:`Relevant
-              ~type_expr ~modality bounds)
-          tys_modalities No_with_bounds
-      in
-      { layout; mod_bounds; with_bounds }
+  let product tys_modalities layouts =
+    let layout = Layout.product layouts in
+    let mod_bounds = Mod_bounds.min in
+    let with_bounds =
+      List.fold_right
+        (fun (type_expr, modality) bounds ->
+          With_bounds.add_modality ~relevant_for_nullability:`Relevant
+            ~type_expr ~modality bounds)
+        tys_modalities No_with_bounds
+    in
+    { layout; mod_bounds; with_bounds }
 
   let get t = Layout_and_axes.map Layout.get t
 
@@ -1875,8 +1868,8 @@ module Builtin = struct
       ~annotation:(mk_annot "immediate_or_null")
       ~why:(Immediate_or_null_creation why)
 
-  let product ~jkind_of_first_type ~why tys_modalities layouts =
-    let desc = Jkind_desc.product ~jkind_of_first_type tys_modalities layouts in
+  let product ~why tys_modalities layouts =
+    let desc = Jkind_desc.product tys_modalities layouts in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
     (* [mark_best] is correct here because the with-bounds of a product jkind
        include all the components of the product. Accordingly, looking through
@@ -2036,7 +2029,7 @@ let for_boxed_record lbls =
     in
     add_labels_as_with_bounds lbls base
 
-let for_unboxed_record ~jkind_of_first_type lbls =
+let for_unboxed_record lbls =
   let open Types in
   let tys_modalities =
     List.map (fun lbl -> lbl.ld_type, lbl.ld_modalities) lbls
@@ -2046,8 +2039,7 @@ let for_unboxed_record ~jkind_of_first_type lbls =
       (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
       lbls
   in
-  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys_modalities
-    layouts
+  Builtin.product ~why:Unboxed_record tys_modalities layouts
 
 (* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =

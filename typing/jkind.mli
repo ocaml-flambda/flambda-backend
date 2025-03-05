@@ -335,8 +335,7 @@ module Builtin : sig
     why:History.immediate_or_null_creation_reason -> 'd Types.jkind
 
   (** Build a jkind of unboxed products, from a list of types with
-      their layouts. Errors if zero inputs are given. If only one input
-      is given, returns the result of calling [jkind_of_first_type].
+      their layouts. Errors if zero inputs are given.
 
       Precondition: both input lists are the same length.
 
@@ -346,7 +345,6 @@ module Builtin : sig
       The resulting jkind has quality [Best], because all the components of the product
       are represented in the with-bounds. *)
   val product :
-    jkind_of_first_type:(unit -> Types.jkind_l) ->
     why:History.product_creation_reason ->
     (Types.type_expr * Mode.Modality.Value.Const.t) list ->
     Sort.t Layout.t list ->
@@ -466,13 +464,8 @@ val of_type_decl_default :
 (** Choose an appropriate jkind for a boxed record type *)
 val for_boxed_record : Types.label_declaration list -> Types.jkind_l
 
-(** Choose an appropriate jkind for an unboxed record type. Uses
-    [jkind_of_first_type] only in the singleton case, where the jkind of the
-    unboxed record must match that of the single field. *)
-val for_unboxed_record :
-  jkind_of_first_type:(unit -> Types.jkind_l) ->
-  Types.label_declaration list ->
-  Types.jkind_l
+(** Choose an appropriate jkind for an unboxed record type. *)
+val for_unboxed_record : Types.label_declaration list -> Types.jkind_l
 
 (** Choose an appropriate jkind for a boxed variant type. *)
 val for_boxed_variant : Types.constructor_declaration list -> Types.jkind_l
