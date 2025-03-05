@@ -4604,7 +4604,7 @@ module Scalar_type = struct
 
     let[@inline] signed t = with_signedness t ~signedness:Signed
 
-    let[@inline] unsigned t = with_signedness t ~signedness:Signed
+    let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
 
     let[@inline] equal x y =
       match x, y with
