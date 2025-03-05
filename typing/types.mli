@@ -688,6 +688,16 @@ type type_declaration =
     type_unboxed_default: bool;
     (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
+    type_unboxed_version : type_declaration option;
+    (* stores the unboxed version of that this type introduces: this is [Some]
+       for predefined types with unboxed versions (e.g. [float]) and boxed
+       records, but [None] for aliases of these types
+
+       invariants:
+       1. there are no "twice-unboxed" types: the [type_declaration] stored here
+          itself has [type_unboxed_version = None].
+       2. the Uid of the unboxed version is [Uid.unboxed_version <uid of boxed>]
+    *)
   }
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind

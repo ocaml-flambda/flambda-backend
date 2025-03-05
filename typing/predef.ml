@@ -51,11 +51,6 @@ and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
 
-and ident_unboxed_float = ident_create "float#"
-and ident_unboxed_float32 = ident_create "float32#"
-and ident_unboxed_nativeint = ident_create "nativeint#"
-and ident_unboxed_int32 = ident_create "int32#"
-and ident_unboxed_int64 = ident_create "int64#"
 and ident_or_null = ident_create "or_null"
 
 and ident_int8x16 = ident_create "int8x16"
@@ -64,12 +59,6 @@ and ident_int32x4 = ident_create "int32x4"
 and ident_int64x2 = ident_create "int64x2"
 and ident_float32x4 = ident_create "float32x4"
 and ident_float64x2 = ident_create "float64x2"
-and ident_unboxed_int8x16 = ident_create "int8x16#"
-and ident_unboxed_int16x8 = ident_create "int16x8#"
-and ident_unboxed_int32x4 = ident_create "int32x4#"
-and ident_unboxed_int64x2 = ident_create "int64x2#"
-and ident_unboxed_float32x4 = ident_create "float32x4#"
-and ident_unboxed_float64x2 = ident_create "float64x2#"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
@@ -94,11 +83,6 @@ and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
 and path_lexing_position = Pident ident_lexing_position
 
-and path_unboxed_float = Pident ident_unboxed_float
-and path_unboxed_float32 = Pident ident_unboxed_float32
-and path_unboxed_nativeint = Pident ident_unboxed_nativeint
-and path_unboxed_int32 = Pident ident_unboxed_int32
-and path_unboxed_int64 = Pident ident_unboxed_int64
 and path_or_null = Pident ident_or_null
 
 and path_int8x16 = Pident ident_int8x16
@@ -107,12 +91,19 @@ and path_int32x4 = Pident ident_int32x4
 and path_int64x2 = Pident ident_int64x2
 and path_float32x4 = Pident ident_float32x4
 and path_float64x2 = Pident ident_float64x2
-and path_unboxed_int8x16 = Pident ident_unboxed_int8x16
-and path_unboxed_int16x8 = Pident ident_unboxed_int16x8
-and path_unboxed_int32x4 = Pident ident_unboxed_int32x4
-and path_unboxed_int64x2 = Pident ident_unboxed_int64x2
-and path_unboxed_float32x4 = Pident ident_unboxed_float32x4
-and path_unboxed_float64x2 = Pident ident_unboxed_float64x2
+
+let path_unboxed_float = Path.unboxed_version path_float
+and path_unboxed_float32 = Path.unboxed_version path_float32
+and path_unboxed_nativeint = Path.unboxed_version path_nativeint
+and path_unboxed_int32 = Path.unboxed_version path_int32
+and path_unboxed_int64 = Path.unboxed_version path_int64
+
+and path_unboxed_int8x16 = Path.unboxed_version path_int8x16
+and path_unboxed_int16x8 = Path.unboxed_version path_int16x8
+and path_unboxed_int32x4 = Path.unboxed_version path_int32x4
+and path_unboxed_int64x2 = Path.unboxed_version path_int64x2
+and path_unboxed_float32x4 = Path.unboxed_version path_float32x4
+and path_unboxed_float64x2 = Path.unboxed_version path_float64x2
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_int8 = newgenty (Tconstr(path_int8, [], ref Mnil))
@@ -237,29 +228,68 @@ let mk_add_type add_type =
       ?manifest type_ident
       ?(kind=Type_abstract Definition)
       ~jkind
+      ?unboxed_jkind
       env =
+    let type_uid = Uid.of_predef_id type_ident in
+    let type_unboxed_version = match unboxed_jkind with
+      | None -> None
+      | Some unboxed_jkind ->
+        let type_jkind =
+          Jkind.of_builtin ~why:(Unboxed_primitive type_ident) unboxed_jkind
+        in
+        let type_kind =
+          match kind with
+            | Type_abstract Definition -> Type_abstract Definition
+            | _ ->
+              Misc.fatal_error "Predef.mk_add_type: non-abstract unboxed kind"
+        in
+        let type_manifest =
+          match manifest with
+          | None -> None
+          | Some _ ->
+            Misc.fatal_error "Predef.mk_add_type: non-[None] unboxed manifest"
+        in
+        Some {
+          type_params = [];
+          type_arity = 0;
+          type_kind;
+          type_jkind = Jkind.mark_best type_jkind;
+          type_loc = Location.none;
+          type_private = Asttypes.Public;
+          type_manifest;
+          type_variance = [];
+          type_separability = [];
+          type_is_newtype = false;
+          type_expansion_scope = lowest_level;
+          type_attributes = [];
+          type_unboxed_default = false;
+          type_uid = Uid.unboxed_version type_uid;
+          type_unboxed_version = None;
+        }
+    in
     let decl =
       {type_params = [];
-       type_arity = 0;
-       type_kind = kind;
-       type_jkind = Jkind.mark_best jkind;
-       type_loc = Location.none;
-       type_private = Asttypes.Public;
-       type_manifest = manifest;
-       type_variance = [];
-       type_separability = [];
-       type_is_newtype = false;
-       type_expansion_scope = lowest_level;
-       type_attributes = [];
-       type_unboxed_default = false;
-       type_uid = Uid.of_predef_id type_ident;
+      type_arity = 0;
+      type_kind = kind;
+      type_jkind = Jkind.mark_best jkind;
+      type_loc = Location.none;
+      type_private = Asttypes.Public;
+      type_manifest = manifest;
+      type_variance = [];
+      type_separability = [];
+      type_is_newtype = false;
+      type_expansion_scope = lowest_level;
+      type_attributes = [];
+      type_unboxed_default = false;
+      type_uid;
+      type_unboxed_version;
       }
     in
     add_type type_ident decl env
   in
-  let add_type ?manifest type_ident ?kind ~jkind env =
+  let add_type ?manifest type_ident ?kind ~jkind ?unboxed_jkind env =
     let jkind = Jkind.of_builtin ~why:(Primitive type_ident) jkind in
-    add_type_with_jkind ?manifest type_ident ?kind ~jkind env
+    add_type_with_jkind ?manifest type_ident ?kind ~jkind ?unboxed_jkind env
   in
   add_type_with_jkind, add_type
 
@@ -289,6 +319,7 @@ let mk_add_type1 add_type type_ident
       type_attributes = [];
       type_unboxed_default = false;
       type_uid = Uid.of_predef_id type_ident;
+      type_unboxed_version = None;
     }
   in
   add_type type_ident decl env
@@ -384,10 +415,13 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.value
   |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.value
   |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.float64
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_int32 ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.bits32
   |> add_type ident_int64 ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.bits64
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -408,6 +442,7 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:list_jkind
   |> add_type ident_nativeint
       ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.word
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -457,10 +492,6 @@ let build_initial_env add_type add_extension empty_env =
          add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr:type_int |>
          add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr:type_string)
   |> add_type ident_string ~jkind:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_float ~jkind:Jkind.Const.Builtin.float64
-  |> add_type ident_unboxed_nativeint ~jkind:Jkind.Const.Builtin.word
-  |> add_type ident_unboxed_int32 ~jkind:Jkind.Const.Builtin.bits32
-  |> add_type ident_unboxed_int64 ~jkind:Jkind.Const.Builtin.bits64
   |> add_type ident_bytes ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []])
@@ -492,23 +523,23 @@ let add_simd_stable_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_int8x16 ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.vec128
   |> add_type ident_int16x8 ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.vec128
   |> add_type ident_int32x4 ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.vec128
   |> add_type ident_int64x2 ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.vec128
   |> add_type ident_float32x4 ~jkind:Jkind.Const.Builtin.immutable_data
+      ~unboxed_jkind:Jkind.Const.Builtin.vec128
   |> add_type ident_float64x2 ~jkind:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_int8x16 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int16x8 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int32x4 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int64x2 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_float32x4 ~jkind:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_float64x2 ~jkind:Jkind.Const.Builtin.vec128
+      ~unboxed_jkind:Jkind.Const.Builtin.vec128
 
 let add_small_number_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_float32 ~jkind:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_float32 ~jkind:Jkind.Const.Builtin.float32
+       ~unboxed_jkind:Jkind.Const.Builtin.float32
 
 let add_small_number_beta_extension_types add_type env =
   let _, add_type = mk_add_type add_type in

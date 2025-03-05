@@ -86,7 +86,7 @@ Line 1, characters 27-28:
 Error: This expression has type "float# array"
        but an expression was expected of type "'a array"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value.
 |}];;
 
@@ -98,7 +98,7 @@ Line 1, characters 40-41:
 Error: This expression has type "float# array"
        but an expression was expected of type "'a array"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value.
 |}];;
 
@@ -244,7 +244,7 @@ Line 11, characters 79-82:
 Error: This expression has type "int64#" but an expression was expected of type
          "('a : bits32)"
        The layout of int64# is bits64
-         because it is the primitive type int64#.
+         because it is the unboxed version of the primitive type int64.
        But the layout of int64# must be a sublayout of bits32
          because of the definition of get_third at lines 4-7, characters 16-23.
 |}]
@@ -269,7 +269,7 @@ Line 9, characters 24-35:
 Error: This expression has type "('a : float64)"
        but an expression was expected of type "int32#"
        The layout of int32# is bits32
-         because it is the primitive type int32#.
+         because it is the unboxed version of the primitive type int32.
        But the layout of int32# must be a sublayout of float64
          because of the definition of arr at line 6, characters 12-16.
 |}]
@@ -289,7 +289,7 @@ Line 2, characters 39-44:
 Error: This expression has type "float#" but an expression was expected of type
          "('a : value)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of an array element,
          chosen to have layout value.
@@ -306,7 +306,7 @@ Line 2, characters 39-43:
 Error: This expression has type "int32#" but an expression was expected of type
          "('a : value)"
        The layout of int32# is bits32
-         because it is the primitive type int32#.
+         because it is the unboxed version of the primitive type int32.
        But the layout of int32# must be a sublayout of value
          because it's the type of an array element,
          chosen to have layout value.
@@ -323,7 +323,7 @@ Line 2, characters 39-43:
 Error: This expression has type "int64#" but an expression was expected of type
          "('a : value)"
        The layout of int64# is bits64
-         because it is the primitive type int64#.
+         because it is the unboxed version of the primitive type int64.
        But the layout of int64# must be a sublayout of value
          because it's the type of an array element,
          chosen to have layout value.
@@ -340,7 +340,7 @@ Line 2, characters 39-43:
 Error: This expression has type "nativeint#"
        but an expression was expected of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's the type of an array element,
          chosen to have layout value.
@@ -357,7 +357,7 @@ Line 2, characters 39-45:
 Error: This expression has type "float32#"
        but an expression was expected of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of float32# must be a sublayout of value
          because it's the type of an array element,
          chosen to have layout value.
