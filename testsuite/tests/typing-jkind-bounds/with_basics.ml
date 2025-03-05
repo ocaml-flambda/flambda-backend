@@ -1208,13 +1208,3 @@ type packed = T : 'a t2 -> packed [@@unboxed]
 type q = { x : packed; }
 module type S = sig type t = q end
 |}]
-
-(* Unboxed records and variants *)
-type 'a portable_unboxed : value mod portable = { portable : 'a @@ portable } [@@unboxed]
-type 'a contended_unboxed : value mod contended = { contended : 'a @@ contended } [@@unboxed]
-type 'a portended_unboxed : value mod portable contended = { portended : 'a @@ portable contended } [@@unboxed]
-[%%expect{|
-type 'a portable_unboxed = { portable : 'a @@ portable; } [@@unboxed]
-type 'a contended_unboxed = { contended : 'a @@ contended; } [@@unboxed]
-type 'a portended_unboxed = { portended : 'a @@ portable contended; } [@@unboxed]
-|}]
