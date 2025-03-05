@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-40-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 (* SIMD instruction reload for AMD64 *)
 
 let reload_operation makereg (register_behavior : Simd_proc.register_behavior)

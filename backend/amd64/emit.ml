@@ -19,6 +19,8 @@
    [Flambda_backend_flags] and shared variables.
    For details, see [asmgen.mli]. *)
 
+open! Int_replace_polymorphic_compare
+
 open Cmm
 open Arch
 open Proc
@@ -28,6 +30,7 @@ open Linear
 open Emitaux
 
 open X86_ast
+open X86_ast_utils
 open X86_proc
 open X86_dsl
 module String = Misc.Stdlib.String
@@ -41,6 +44,18 @@ module Int = Numbers.Int
 open! Branch_relaxation
 
 let _label s = D.label ~typ:QWORD s
+
+let is_linux = function
+  | S_linux -> true
+  | _ -> false
+
+let is_macosx = function
+  | S_macosx -> true
+  | _ -> false
+
+let is_win64 = function
+  | S_win64 -> true
+  | _ -> false
 
 (* Override proc.ml *)
 
@@ -143,7 +158,7 @@ let pop r =
 
 (* Symbols *)
 
-let symbol_prefix = if system = S_macosx then "_" else ""
+let symbol_prefix = match system with S_macosx -> "_" | _ -> ""
 
 let emit_symbol s = string_of_symbol symbol_prefix s
 
@@ -652,7 +667,7 @@ let emit_float_test (width : Cmm.float_width)
     | Float32 -> I.ucomiss, I.comiss
   in
   match cmp with
-  | CFeq when arg i 1 = arg i 0 ->
+  | CFeq when equal_arg (arg i 1) (arg i 0) ->
       ucomi (arg i 1) (arg i 0);
       taken NP
   | CFeq ->
@@ -661,7 +676,7 @@ let emit_float_test (width : Cmm.float_width)
       I.jp (label next);           (* skip if unordered *)
       taken E;                     (* branch taken if x=y *)
       def_label next
-  | CFneq when arg i 1 = arg i 0 ->
+  | CFneq when equal_arg (arg i 1) (arg i 0) ->
       ucomi (arg i 1) (arg i 0);
       taken P
   | CFneq ->
@@ -826,8 +841,8 @@ let move (src : Reg.t) (dst : Reg.t) =
   end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
-  assert (src.typ = dst.typ);
-  if (src.loc <> dst.loc) then begin
+  assert (Cmm.equal_machtype_component src.typ dst.typ);
+  if not (Reg.equal_location src.loc dst.loc) then begin
     match src.typ with
     | Int | Val ->
       (* Not calling move because r15 is not in int_reg_name. *)
@@ -1071,11 +1086,11 @@ end = struct
      abstraction barrier of [X86_ast]. *)
   let[@inline always] uses_register register = function
     | Reg8L register' | Reg16 register' | Reg32 register' | Reg64 register' ->
-      register = register'
+      equal_reg64 register register'
     | Mem { idx = register'; base = None; scale; _ } ->
-      scale <> 0 && register = register'
+      scale <> 0 && equal_reg64 register register'
     | Mem { idx = register'; base = Some register''; _ } ->
-      register = register' || register = register''
+      equal_reg64 register register' || equal_reg64 register register''
     | _ -> false
   ;;
 
@@ -1339,7 +1354,7 @@ let emit_simd_instr op i =
   | BMI2 Deposit_64 -> I.pdep (arg i 1) (arg i 0) (res i 0)
   | SSE Round_current_f32_i64 -> I.cvtss2si (arg i 0) (res i 0)
   | SSE Sqrt_scalar_f32 ->
-    if arg i 0 <> res i 0 then
+    if not (equal_arg (arg i 0) (res i 0)) then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.sqrtss (arg i 0) (res i 0)
   | SSE Max_scalar_f32 -> I.maxss (arg i 1) (res i 0)
@@ -1364,7 +1379,7 @@ let emit_simd_instr op i =
   | SSE2 Max_scalar_f64 -> I.maxsd (arg i 1) (res i 0)
   | SSE2 Min_scalar_f64 -> I.minsd (arg i 1) (res i 0)
   | SSE2 Sqrt_scalar_f64 ->
-    if arg i 0 <> res i 0 then
+    if not(equal_arg (arg i 0) (res i 0)) then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.sqrtsd (arg i 0) (res i 0)
   | SSE2 Sqrt_f64 -> I.sqrtpd (arg i 0) (res i 0)
@@ -1522,11 +1537,11 @@ let emit_simd_instr op i =
   | SSE41 Min_unsigned_i16 -> I.pminuw (arg i 1) (res i 0)
   | SSE41 Min_unsigned_i32 -> I.pminud (arg i 1) (res i 0)
   | SSE41 (Round_scalar_f64 n) ->
-    if arg i 0 <> res i 0 then
+    if not (equal_arg (arg i 0) (res i 0)) then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.roundsd n (arg i 0) (res i 0)
   | SSE41 (Round_scalar_f32 n) ->
-    if arg i 0 <> res i 0 then
+    if not (equal_arg (arg i 0) (res i 0)) then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.roundss n (arg i 0) (res i 0)
   | SSE41 (Round_f64 n) -> I.roundpd n (arg i 0) (res i 0)
@@ -1584,7 +1599,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Move | Spill | Reload) ->
       move i.arg.(0) i.res.(0)
   | Lop(Const_int n) ->
-      if n = 0n then begin
+      if Nativeint.equal n 0n then begin
         match i.res.(0).loc with
         | Reg _ ->
           (* Clearing the bottom half also clears the top half (except for
@@ -1593,7 +1608,7 @@ let emit_instr ~first ~fallthrough i =
           I.xor (res32 i 0) (res32 i 0)
         | _ ->
           I.mov (int 0) (res i 0)
-      end else if n > 0n && n <= 0xFFFF_FFFFn then begin
+      end else if Nativeint.compare n 0n > 0 && Nativeint.compare n 0xFFFF_FFFFn <= 0 then begin
         match i.res.(0).loc with
         | Reg _ ->
           (* Similarly, setting only the bottom half clears the top half. *)
@@ -1641,7 +1656,7 @@ let emit_instr ~first ~fallthrough i =
       output_epilogue (fun () -> I.jmp (arg i 0))
   | Lcall_op(Ltailcall_imm { func; }) ->
       begin
-        if func.sym_name = !function_name then
+        if String.equal func.sym_name !function_name then
           match !tailrec_entry_point with
           | None -> Misc.fatal_error "jump to missing tailrec entry point"
           | Some tailrec_entry_point -> I.jmp (label tailrec_entry_point)
@@ -1664,7 +1679,7 @@ let emit_instr ~first ~fallthrough i =
         load_symbol_addr (Cmm.global_symbol func) rax;
         emit_call (Cmm.global_symbol "caml_c_call");
         record_frame i.live (Dbg_other i.dbg);
-        if not Config.runtime5 && system <> S_win64 then begin
+        if not Config.runtime5 && not (is_win64 system) then begin
 
           (* In amd64.S, "caml_c_call" tail-calls the C function (in order to
              produce nicer backtraces), so we need to restore r15 manually after
@@ -1819,7 +1834,7 @@ let emit_instr ~first ~fallthrough i =
       I.movzx al (res i 0)
   | Lop(Intop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
       I.and_ (int n) (res32 i 0)
-  | Lop(Intop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->
+  | Lop(Intop Ixor) when Reg.equal_location i.arg.(1).loc i.res.(0).loc && Reg.is_reg i.res.(0) ->
       I.xor (res32 i 0) (res32 i 0)
   | Lop(Intop(Idiv | Imod)) ->
       I.cqo ();
@@ -1834,7 +1849,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Intop ((Iadd|Isub|Imul|Iand|Ior|Ixor) as op)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (arg i 1) (res i 0)
-  | Lop(Intop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
+  | Lop(Intop_imm(Iadd, n)) when not (Reg.equal_location i.arg.(0).loc i.res.(0).loc) ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
   | Lop(Intop_imm(Iadd, 1) | Intop_imm(Isub, -1)) ->
       I.inc (res i 0)
@@ -1871,7 +1886,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Floatop(width, (Iaddf | Isubf | Imulf | Idivf as floatop))) ->
       instr_for_floatop width floatop (arg i 1) (res i 0)
   | Lop(Opaque) ->
-      assert (i.arg.(0).loc = i.res.(0).loc)
+      assert (Reg.equal_location i.arg.(0).loc i.res.(0).loc)
   | Lop(Specific(Ilea addr)) ->
       I.lea (addressing addr NONE i 0) (res i 0)
   | Lop(Specific(Ioffset_loc(n, addr))) ->
@@ -1964,7 +1979,7 @@ let emit_instr ~first ~fallthrough i =
        I.mov rax (res i 0);
        I.or_ rdx (res i 0))
   | Lop(Specific Irdpmc) ->
-    assert (arg64 i 0 = RCX);
+    assert (equal_reg64 (arg64 i 0) RCX);
     I.rdpmc ();
     let rdx = Reg64 RDX in
     (* The instruction fills in the low 32 bits of the result registers. *)
@@ -2096,7 +2111,7 @@ let emit_instr ~first ~fallthrough i =
          can still be assigned to one of these two registers, so
          we must be careful not to clobber it before use. *)
       let (tmp1, tmp2) =
-        if i.arg.(0).loc = Reg 0 (* rax *)
+        if Reg.equal_location i.arg.(0).loc (Reg 0) (* rax *)
         then (phys_rdx, phys_rax)
         else (phys_rax, phys_rdx) in
 
@@ -2220,7 +2235,7 @@ let fundecl fundecl =
   emit_function_or_basic_block_section_name ();
   D.align ~data:false 16;
   add_def_symbol fundecl.fun_name;
-  if system = S_macosx
+  if is_macosx system
   && not !Clflags.output_c_object
   && is_generic_function fundecl.fun_name
   then (* PR#4690 *)
@@ -2234,7 +2249,7 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-  if Config.runtime5 && (not Config.no_stack_checks) && !Clflags.runtime_variant = "d" then begin
+  if Config.runtime5 && (not Config.no_stack_checks) && String.equal !Clflags.runtime_variant "d" then begin
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   end;
   emit_all ~first:true ~fallthrough:true fundecl.fun_body;
@@ -2314,7 +2329,7 @@ let begin_assembly unix =
   Emitaux.Dwarf_helpers.begin_dwarf ~build_asm_directives ~code_begin ~code_end
     ~file_emitter:D.file;
 
-  if system = S_win64 then begin
+  if is_win64 system then begin
     D.extrn "caml_call_gc" NEAR;
     D.extrn "caml_c_call" NEAR;
     D.extrn "caml_allocN" NEAR;
@@ -2355,7 +2370,7 @@ let begin_assembly unix =
 
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;
-  if system = S_macosx then I.nop (); (* PR#4690 *)
+  if is_macosx system then I.nop (); (* PR#4690 *)
 
   D.label (emit_cmm_symbol call_gc_local_sym);
   cfi_startproc ();
@@ -2694,7 +2709,7 @@ let emit_trap_notes () =
   end
 
 let end_assembly () =
-  if !float_constants <> [] then begin
+  if not (Misc.Stdlib.List.is_empty !float_constants) then begin
     begin match system with
     | S_macosx -> D.section ["__TEXT";"__literal8"] None ["8byte_literals"]
     | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
@@ -2704,7 +2719,7 @@ let end_assembly () =
     D.align ~data:true 8;
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants;
   end;
-  if !vec128_constants <> [] then begin
+  if not (Misc.Stdlib.List.is_empty !vec128_constants) then begin
     begin match system with
     | S_macosx -> D.section ["__TEXT";"__literal16"] None ["16byte_literals"]
     | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
@@ -2723,7 +2738,7 @@ let end_assembly () =
 
   let code_end = Cmm_helpers.make_symbol "code_end" in
   emit_named_text_section code_end;
-  if system = S_macosx then I.nop ();
+  if is_macosx system then I.nop ();
   (* suppress "ld warning: atom sorting error" *)
 
   emit_global_label_for_symbol code_end;
@@ -2755,7 +2770,7 @@ let end_assembly () =
                ConstSub(ConstLabel(emit_label lbl), ConstThis),
                const_32 ofs
              ) in
-           if system = S_macosx then begin
+           if is_macosx system then begin
              incr setcnt;
              let s = Printf.sprintf "L$set$%d" !setcnt in
              D.setvar (s, c);
@@ -2767,20 +2782,22 @@ let end_assembly () =
       efa_string = (fun s -> D.bytes (s ^ "\000"))
     };
 
-  if system = S_linux || system = S_freebsd || system = S_netbsd || system = S_openbsd then begin
+  begin match system with
+  | S_linux | S_freebsd | S_netbsd | S_openbsd ->
     let frametable = emit_symbol (Cmm_helpers.make_symbol "frametable") in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
+  | _ -> ()
   end;
 
   D.data ();
   emit_probe_notes ();
   emit_trap_notes ();
 
-  if system = S_linux then
+  if is_linux system then
     (* Mark stack as non-executable, PR#4564 *)
     D.section [".note.GNU-stack"] (Some "") [ "%progbits" ];
 
-  if system = S_win64 then begin
+  if is_win64 system then begin
     D.comment "External functions";
     String.Set.iter
       (fun s ->

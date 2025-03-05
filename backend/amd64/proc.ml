@@ -16,6 +16,8 @@
 
 (* Description of the AMD64 processor *)
 
+open! Int_replace_polymorphic_compare
+
 open Misc
 open Arch
 open Cmm

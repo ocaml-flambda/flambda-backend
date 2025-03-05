@@ -17,6 +17,9 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about to be
+   deleted. *)
+
 open Arch
 open Selection_utils
 
