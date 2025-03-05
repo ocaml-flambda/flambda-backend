@@ -767,9 +767,9 @@ module Layout_and_axes = struct
   end
 
   (* Normalize the jkind. If mode is [Require_best], only jkinds that have quality [Best]
-     will be used.  If mode is [Ignore_best], then jkinds that have quality [Not_best] will also be used. Since
-     [Ignore_best] can use [Not_best] jkinds, the result is guaranteed to have no
-     with-bounds.
+     will be used. If mode is [Ignore_best], then jkinds that have quality [Not_best] will
+     also be used. Since [Ignore_best] can use [Not_best] jkinds, the result is guaranteed
+     to have no with-bounds.
 
      At each step during normalization, before expanding a type, [map_type_info]
      is used to map the type-info for the type being expanded. The type can be
