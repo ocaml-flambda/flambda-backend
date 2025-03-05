@@ -4552,7 +4552,7 @@ module Scalar_type = struct
   end
 
   (** An {!Integer.t} but with the additional stipulation that its container must
-      reserve its lowest bit to be 1. The [bits] field does not include this bit. *)
+      reserve its lowest bit to be 1. The [bit_width] field includes this bit. *)
   module Tagged_integer = struct
     include Integral_type
 
