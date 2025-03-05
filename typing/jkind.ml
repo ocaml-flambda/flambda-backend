@@ -2049,7 +2049,6 @@ let for_unboxed_record ~jkind_of_first_type lbls =
   Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys_modalities
     layouts
 
-(* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =
   let open Types in
   if List.for_all
@@ -2095,6 +2094,13 @@ let for_boxed_variant cstrs =
         | Cstr_record lbls -> add_labels_as_with_bounds lbls jkind
       in
       List.fold_right add_cstr_args cstrs base
+
+let for_boxed_tuple elts =
+  List.fold_right
+    (fun (_, type_expr) ->
+      add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr)
+    elts
+    (Builtin.immutable_data ~why:Tuple |> mark_best)
 
 let for_arrow =
   fresh_jkind
