@@ -776,12 +776,12 @@ module Layout_and_axes = struct
      prevented from being expanded by mapping the relevant axes to an empty
      set. [map_type_info] is used by sub_jkind_l to remove irrelevant axes.
 
-     The [relevant_axes] argument says which axes we care about. The behavior of
-     this function outside of these axes is undefined; do *not* look at the
-     result outside of these axes.
+     The [skip_axes] argument says which axes we can skip normalizing along. The behavior
+     of this function for these axes is undefined; do *not* look at the result outside of
+     these axes.
   *)
   let normalize (type layout l r1 r2) ~jkind_of_type ~(mode : r2 normalize_mode)
-      ~relevant_axes
+      ~skip_axes
       ?(map_type_info :
          (type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
          option) (t : (layout, l * r1) layout_and_axes) :
@@ -795,9 +795,12 @@ module Layout_and_axes = struct
     match t with
     | { with_bounds = No_with_bounds; _ } as t -> t, Sufficient_fuel
     | { with_bounds = With_bounds tys; _ } as t
-      when Axis_set.is_empty relevant_axes || With_bounds_types.is_empty tys ->
+      when Axis_set.equal skip_axes Axis_set.all
+           || With_bounds_types.is_empty tys ->
       { t with with_bounds = No_with_bounds }, Sufficient_fuel
-    | _ when Mod_bounds.is_max_within_set t.mod_bounds relevant_axes ->
+    | _
+      when Mod_bounds.is_max_within_set t.mod_bounds
+             (Axis_set.complement skip_axes) ->
       { t with with_bounds = No_with_bounds }, Sufficient_fuel
     | _ ->
       (* Sadly, it seems hard (impossible?) to be sure to expand all types
@@ -998,10 +1001,7 @@ module Layout_and_axes = struct
                 found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
                   No_with_bounds Not_best [@nontail])))
       in
-      let mod_bounds =
-        Mod_bounds.set_max_in_set t.mod_bounds
-          (Axis_set.complement relevant_axes)
-      in
+      let mod_bounds = Mod_bounds.set_max_in_set t.mod_bounds skip_axes in
       let mod_bounds, with_bounds, fuel_status =
         loop Loop_control.starting mod_bounds
           (With_bounds.to_list t.with_bounds)
@@ -1713,9 +1713,8 @@ module Jkind_desc = struct
     let ( ({ layout = lay1; mod_bounds = bounds1; with_bounds = No_with_bounds } :
             (_ * allowed) jkind_desc),
           _ ) =
-      Layout_and_axes.normalize
-        ~relevant_axes:(Axis_set.complement axes_max_on_right)
-        ~mode:Ignore_best ~jkind_of_type sub
+      Layout_and_axes.normalize ~skip_axes:axes_max_on_right ~mode:Ignore_best
+        ~jkind_of_type sub
     in
     let layout = Layout.sub lay1 lay2 in
     let bounds = Mod_bounds.less_or_equal bounds1 bounds2 in
@@ -2124,7 +2123,7 @@ let[@inline] normalize ~mode ~jkind_of_type t =
     match mode with Require_best -> Require_best | Ignore_best -> Ignore_best
   in
   let jkind, fuel_result =
-    Layout_and_axes.normalize ~jkind_of_type ~relevant_axes:Axis_set.all ~mode
+    Layout_and_axes.normalize ~jkind_of_type ~skip_axes:Axis_set.empty ~mode
       t.jkind
   in
   { t with
@@ -2169,7 +2168,8 @@ let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
           (_ * allowed) jkind_desc),
         _ ) =
     Layout_and_axes.normalize ~mode:Ignore_best
-      ~relevant_axes:Axis_set.all_modal_axes ~jkind_of_type jk.jkind
+      ~skip_axes:(Axis_set.complement Axis_set.all_modal_axes)
+      ~jkind_of_type jk.jkind
   in
   Mod_bounds.
     { upper_bounds =
@@ -2184,14 +2184,15 @@ let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
         }
     }
 
-let only_externality = Axis_set.singleton (Nonmodal Externality)
+let all_except_externality =
+  Axis_set.singleton (Nonmodal Externality) |> Axis_set.complement
 
 let get_externality_upper_bound ~jkind_of_type jk =
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           (_ * allowed) jkind_desc),
         _ ) =
-    Layout_and_axes.normalize ~mode:Ignore_best ~relevant_axes:only_externality
-      ~jkind_of_type jk.jkind
+    Layout_and_axes.normalize ~mode:Ignore_best
+      ~skip_axes:all_except_externality ~jkind_of_type jk.jkind
   in
   Mod_bounds.get mod_bounds ~axis:(Nonmodal Externality)
 
@@ -2204,7 +2205,8 @@ let set_externality_upper_bound jk externality_upper_bound =
       }
   }
 
-let only_nullability = Axis_set.singleton (Nonmodal Nullability)
+let all_except_nullability =
+  Axis_set.singleton (Nonmodal Nullability) |> Axis_set.complement
 
 let get_nullability ~jkind_of_type jk =
   (* Optimization: Usually, no with-bounds are relevant to nullability. If we check for
@@ -2222,7 +2224,7 @@ let get_nullability ~jkind_of_type jk =
             (_ * allowed) jkind_desc),
           _ ) =
       Layout_and_axes.normalize ~mode:Ignore_best ~jkind_of_type
-        ~relevant_axes:only_nullability jk.jkind
+        ~skip_axes:all_except_nullability jk.jkind
     in
     Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
 
@@ -3023,8 +3025,7 @@ let sub_jkind_l ~type_equal ~jkind_of_type ?(allow_any_crossing = false) sub
       (* [Jkind_desc.map_normalize] handles the stepping, jkind lookups, and
          joining.  [map_type_info] handles looking for [ty] on the right and
          removing irrelevant axes. *)
-      Layout_and_axes.normalize sub.jkind
-        ~relevant_axes:(Axis_set.complement axes_max_on_right)
+      Layout_and_axes.normalize sub.jkind ~skip_axes:axes_max_on_right
         ~jkind_of_type ~mode:Ignore_best
         ~map_type_info:(fun ty { relevant_axes = left_relevant_axes } ->
           let right_relevant_axes =

@@ -220,6 +220,8 @@ module Axis_set = struct
 
   let all = create ~f:(fun ~axis:_ -> true)
 
+  let equal = Int.equal
+
   let all_modal_axes =
     create ~f:(fun ~axis ->
         match axis with Pack (Modal _) -> true | Pack (Nonmodal _) -> false)
@@ -241,6 +243,8 @@ module Axis_set = struct
   let[@inline] is_empty t = Int.equal t 0
 
   let[@inline] complement t = diff all t
+
+  let all_nonmodal_axes = complement all_modal_axes
 
   let[@inline] to_seq t =
     Axis.all |> List.to_seq |> Seq.filter (fun (Axis.Pack axis) -> mem t axis)
