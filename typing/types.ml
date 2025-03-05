@@ -1163,6 +1163,13 @@ module With_bounds_types : sig
   val for_all : (type_expr -> info -> bool) -> t -> bool
 end = struct
   module M = Map.Make(struct
+      (* CR layouts v2.8: A [Map] with mutable values (of which [type_expr] is one) as
+         keys is deeply problematic. And in fact we never actually use this map structure
+         for anything other than deduplication (indeed we can't, because of its
+         best-effort nature). Instead of this structure, we should store the types inside
+         of with-bounds as a (morally immutable) array, and write a [deduplicate]
+         function, private to [Jkind], which uses this map structure to deduplicate the
+         with-bounds, but only during construction and after normalization. *)
       type t = type_expr
 
       let compare = best_effort_compare_type_expr

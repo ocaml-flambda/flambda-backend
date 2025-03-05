@@ -1844,6 +1844,10 @@ let jkind_subst env level params args jkind =
   try
     List.iter2 (!unify_var' uenv) params' args;
     current_level := old_level;
+    (* CR layouts v2.8: It's plausibly worth immediately calling [Jkind.normalize
+       ~mode:Require_best] on this jkind, so that if we do multiple things with it down
+       the road we don't have to normalize each time. But doing so in a way that avoids
+       looping (when normalize calls [jkind_subst] itself) is nontrivial. *)
     jkind'
   with Unify _ ->
     current_level := old_level;
