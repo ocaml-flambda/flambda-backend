@@ -3057,11 +3057,9 @@ let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
-(* This doesn't do any mutation because mutating a sort variable can't make it
-   any, and modal upper bounds are constant. *)
-(* The choice of [type_equal] and [jkind_of_type] doesn't matter because there
-   are no with-kinds on the left-hand kind. *)
 let is_obviously_max = function
+  (* This doesn't do any mutation because mutating a sort variable can't make it
+     any, and modal upper bounds are constant. *)
   | { jkind = { layout = Any; mod_bounds; with_bounds = _ }; _ } ->
     Mod_bounds.is_max mod_bounds
   | _ -> false
