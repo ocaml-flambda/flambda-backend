@@ -1,5 +1,5 @@
 (* TEST
- flags = "-infer-with-bounds -extension small_numbers";
+ flags = "-extension small_numbers";
  expect;
 *)
 

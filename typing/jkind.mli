@@ -348,7 +348,6 @@ module Builtin : sig
       are represented in the with-bounds. *)
   val product :
     jkind_of_first_type:(unit -> Types.jkind_l) ->
-    jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
     why:History.product_creation_reason ->
     (Types.type_expr * Mode.Modality.Value.Const.t) list ->
     Sort.t Layout.t list ->
@@ -473,7 +472,6 @@ val for_boxed_record : Types.label_declaration list -> Types.jkind_l
     unboxed record must match that of the single field. *)
 val for_unboxed_record :
   jkind_of_first_type:(unit -> Types.jkind_l) ->
-  jkind_of_type:(Types.type_expr -> Types.jkind_l) ->
   Types.label_declaration list ->
   Types.jkind_l
 

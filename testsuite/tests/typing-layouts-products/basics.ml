@@ -1818,7 +1818,7 @@ Line 1, characters 19-27:
                        ^^^^^^^^
 Error: This type "string t" = "#(string u * string u)"
        should be an instance of type "('a : any mod global)"
-       The kind of string t is value & value
+       The kind of string t is value_or_null & value_or_null
          because it is an unboxed tuple.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
@@ -1836,7 +1836,7 @@ Line 3, characters 9-30:
 Error: This type "#(int * string * int)" should be an instance of type
          "('a : any mod external_)"
        The kind of #(int * string * int) is
-         immutable_data & immutable_data & immutable_data
+         value_or_null & value_or_null & value_or_null
          because it is an unboxed tuple.
        But the kind of #(int * string * int) must be a subkind of
          any mod external_
@@ -1863,7 +1863,7 @@ Line 1, characters 19-27:
 1 | type should_fail = string t needs_any_mod_global
                        ^^^^^^^^
 Error: This type "string t" should be an instance of type "('a : any mod global)"
-       The kind of string t is value & value
+       The kind of string t is value_or_null & value_or_null
          because of the definition of t at line 2, characters 0-47.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.

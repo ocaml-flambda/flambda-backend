@@ -1,5 +1,4 @@
 (* TEST
-    flags = "-infer-with-bounds";
     expect;
 *)
 

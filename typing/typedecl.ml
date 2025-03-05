@@ -1861,7 +1861,6 @@ let update_decl_jkind env id decl =
           in
           let type_jkind =
             Jkind.for_unboxed_record
-              ~jkind_of_type:(Ctype.type_jkind env)
               ~jkind_of_first_type:(fun () ->
                 match lbls with
                 | [lbl] -> Ctype.type_jkind env lbl.ld_type
