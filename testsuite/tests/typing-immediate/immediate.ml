@@ -160,7 +160,7 @@ end;;
 Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immediate
          because of the annotation on the declaration of the type t.
@@ -174,7 +174,7 @@ end;;
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
+Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immediate
          because of the annotation on the declaration of the type t.
