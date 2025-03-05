@@ -110,7 +110,12 @@ module Jkind_mod_bounds : sig
   val set_externality : Externality.t -> t -> t
   val set_nullability : Nullability.t -> t -> t
 
+  (** [set_max_in_set bounds axes] sets all the axes in [axes] to their [max] within
+      [bounds] *)
   val set_max_in_set : t -> Jkind_axis.Axis_set.t -> t
+
+  (** [is_max_within_set bounds axes] returns whether or not all the axes in [axes] are
+      [max] within [bounds] *)
   val is_max_within_set : t -> Jkind_axis.Axis_set.t -> bool
   val is_max : t -> bool
 
