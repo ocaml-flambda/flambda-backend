@@ -338,7 +338,10 @@ type variant_change =
 
 type unsafe_mode_crossing_mismatch =
   | Mode_crossing_only_on of position
-  | Mode_crossing_not_equal
+  | Mode_crossing_not_equal of
+      (* mod bounds on left, mod bounds on right *)
+      string list * string list
+
 
 type type_mismatch =
   | Arity
@@ -648,9 +651,15 @@ let report_unsafe_mode_crossing_mismatch first second ppf e =
     pr "%s has [%@%@unsafe_allow_any_mode_crossing], but %s does not"
       (choose ord first second)
       (choose_other ord first second)
-  | Mode_crossing_not_equal ->
+  | Mode_crossing_not_equal (first_mb, second_mb) ->
     pr "Both specify [%@%@unsafe_allow_any_mode_crossing], but their \
-        mod-bounds are not equal"
+        mod-bounds are not equal:@,";
+    pr "%s has mod-bounds:@ @[<h 4>%a@]@,"
+      first
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string) first_mb;
+    pr "but %s has mod-bounds:@ @[<h 4>%a@]"
+      second
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string) second_mb
 
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -702,8 +711,9 @@ let report_type_mismatch first second decl env ppf err =
   | Jkind v ->
       Jkind.Violation.report_with_name ~name:first ppf v
   | Unsafe_mode_crossing mismatch ->
-    pr "They have different unsafe mode crossing behavior:@,";
-    report_unsafe_mode_crossing_mismatch first second ppf mismatch
+    pr "They have different unsafe mode crossing behavior:@,@[<hov 2>";
+    report_unsafe_mode_crossing_mismatch first second ppf mismatch;
+    pr "@]"
 
 let compare_unsafe_mode_crossing umc1 umc2 =
   match umc1, umc2 with
@@ -711,9 +721,32 @@ let compare_unsafe_mode_crossing umc1 umc2 =
   | Some _, None -> Some (Unsafe_mode_crossing (Mode_crossing_only_on First))
   | None, Some _ -> Some (Unsafe_mode_crossing (Mode_crossing_only_on Second))
   | Some umc1, Some umc2 ->
-      if equal_unsafe_mode_crossing umc1 umc2
-      then None
-      else Some (Unsafe_mode_crossing Mode_crossing_not_equal)
+    let umc_to_mod_bound_list
+          { modal_upper_bounds = { areality; linearity; portability; yielding };
+            modal_lower_bounds = { uniqueness; contention } }
+      =
+      let value_for_axis (type a) (module Ax : Mode_intf.Lattice with type t = a) (ax : a) =
+        if Ax.equal Ax.max ax
+        then None
+        else Some (Format.asprintf "%a" Ax.print ax)
+      in
+      List.filter_map Fun.id
+        [ value_for_axis (module Mode.Locality.Const) areality
+        ; value_for_axis (module Mode.Linearity.Const) linearity
+        ; value_for_axis (module Mode.Portability.Const) portability
+        ; value_for_axis (module Mode.Yielding.Const) yielding
+        ; value_for_axis (module Mode.Uniqueness.Const) uniqueness
+        ; value_for_axis (module Mode.Contention.Const) contention
+        ]
+    in
+    if equal_unsafe_mode_crossing umc1 umc2
+    then None
+    else
+      Some (
+        Unsafe_mode_crossing (
+          Mode_crossing_not_equal (
+            (umc_to_mod_bound_list umc1),
+            (umc_to_mod_bound_list umc2))))
 
 module Record_diffing = struct
 

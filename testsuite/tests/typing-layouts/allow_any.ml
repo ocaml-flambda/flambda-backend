@@ -297,7 +297,9 @@ Error: Signature mismatch:
          type t : value mod contended = { mutable x : int; }
        [@@unsafe_allow_any_mode_crossing]
        They have different unsafe mode crossing behavior:
-       Both specify [@@unsafe_allow_any_mode_crossing], but their mod-bounds are not equal
+       Both specify [@@unsafe_allow_any_mode_crossing], but their mod-bounds are not equal:
+         the first has mod-bounds: portable unique
+         but the second has mod-bounds: unique
 |}]
 
 module A : sig
