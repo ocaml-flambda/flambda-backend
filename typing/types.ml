@@ -142,6 +142,61 @@ module Jkind_mod_bounds = struct
       nullability;
     }
 
+  let[@inline] set_min_in_set t min_axes =
+    let open Jkind_axis.Axis_set in
+    (* a little optimization *)
+    if is_empty min_axes then t else
+    let locality =
+      if mem min_axes (Modal (Comonadic Areality))
+      then Locality.min
+      else t.locality
+    in
+    let linearity =
+      if mem min_axes (Modal (Comonadic Linearity))
+      then Linearity.min
+      else t.linearity
+    in
+    let uniqueness =
+      if mem min_axes (Modal (Monadic Uniqueness))
+      then Uniqueness.min
+      else t.uniqueness
+    in
+    let portability =
+      if mem min_axes (Modal (Comonadic Portability))
+      then Portability.min
+      else t.portability
+    in
+    let contention =
+      if mem min_axes (Modal (Monadic Contention))
+      then Contention.min
+      else t.contention
+    in
+    let yielding =
+      if mem min_axes (Modal (Comonadic Yielding))
+      then Yielding.min
+      else t.yielding
+    in
+    let externality =
+      if mem min_axes (Nonmodal Externality)
+      then Externality.min
+      else t.externality
+    in
+    let nullability =
+      if mem min_axes (Nonmodal Nullability)
+      then Nullability.min
+      else t.nullability
+    in
+    {
+      locality;
+      linearity;
+      uniqueness;
+      portability;
+      contention;
+      yielding;
+      externality;
+      nullability;
+    }
+
   let[@inline] is_max_within_set t axes =
     let open Jkind_axis.Axis_set in
     (not (mem axes (Modal (Comonadic Areality))) ||
