@@ -395,9 +395,7 @@ module Runtime_5 = struct
 
   let spawn' f =
     do_before_first_spawn ();
-    let pk = DLS.access (fun access -> DLS.get_initial_keys access
-      |> Obj.magic_portable (* CR with-kinds: Unnecessary magic. *))
-    in
+    let pk = DLS.access (fun access -> DLS.get_initial_keys access) in
 
     (* [term_sync] is used to synchronize with the joining domains *)
     let term_sync =
@@ -407,7 +405,6 @@ module Runtime_5 = struct
     in
 
     let body () =
-      let pk = Obj.magic_uncontended pk (* CR with-kinds: Unneccessary magic. *) in
       match
         DLS.create_dls ();
         let access = DLS.Access.Access in
