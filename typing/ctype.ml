@@ -2213,7 +2213,6 @@ let rec estimate_type_jkind ~expand_component env ty =
      in
      let layouts = List.map Jkind.extract_layout jkinds in
      Jkind.Builtin.product
-       ~jkind_of_type:(estimate_type_jkind ~expand_component env)
        ~jkind_of_first_type:(fun () ->
        match jkinds with
          | first_jkind :: _ -> first_jkind
