@@ -712,30 +712,37 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
 let binary_int_shift_primitive _env dbg kind (op : P.int_shift_op) x y =
   (* See comments on [binary_int_arity_primitive], above, about sign extension
      and use of [C.low_bits]. *)
-  let kind = integral_of_standard_int kind in
-  let right_shift_kind signedness =
-    (* right shifts can operate directly on any untagged integers of the correct
-       signedness, as they do not require sign- or zero-extension after the
-       shift *)
-    C.Scalar_type.Integer.with_signedness
-      (C.Scalar_type.Integral.untagged kind)
-      ~signedness
-  in
-  let f, (op_kind : C.Scalar_type.Integer.t) =
+  match[@warning "-fragile-match"] (kind : K.Standard_int.t) with
+  | Tagged_immediate -> (
     match op with
-    | Asr -> C.asr_int, right_shift_kind Signed
-    | Lsr -> C.lsr_int, right_shift_kind Unsigned
-    | Lsl ->
-      (* Left shifts operate on nativeints since they might shift arbitrary bits
-         into the high bits of the register. *)
-      C.lsl_int, C.Scalar_type.Integer.nativeint
-  in
-  C.Scalar_type.Integral.conjugate ~outer:kind ~inner:(Untagged op_kind) ~dbg
-    ~f:(fun x ->
-      (* [kind] only applies to [x], the [y] argument is always a bare
-         register-sized integer *)
-      f x y dbg)
-    x
+    | Lsl -> C.lsl_int_caml_raw x y ~dbg
+    | Lsr -> C.lsr_int_caml_raw x y ~dbg
+    | Asr -> C.asr_int_caml_raw x y ~dbg)
+  | kind ->
+    let kind = integral_of_standard_int kind in
+    let right_shift_kind signedness =
+      (* right shifts can operate directly on any untagged integers of the
+         correct signedness, as they do not require sign- or zero-extension
+         after the shift *)
+      C.Scalar_type.Integer.with_signedness
+        (C.Scalar_type.Integral.untagged kind)
+        ~signedness
+    in
+    let f, (op_kind : C.Scalar_type.Integer.t) =
+      match op with
+      | Asr -> C.asr_int, right_shift_kind Signed
+      | Lsr -> C.lsr_int, right_shift_kind Unsigned
+      | Lsl ->
+        (* Left shifts operate on nativeints since they might shift arbitrary
+           bits into the high bits of the register. *)
+        C.lsl_int, C.Scalar_type.Integer.nativeint
+    in
+    C.Scalar_type.Integral.conjugate ~outer:kind ~inner:(Untagged op_kind) ~dbg
+      ~f:(fun x ->
+        (* [kind] only applies to [x], the [y] argument is always a bare
+           register-sized integer *)
+        f x y dbg)
+      x
 
 let binary_int_comp_primitive _env dbg kind cmp x y =
   match

@@ -334,6 +334,13 @@ let rec add_const c n dbg =
       Cop (Csubi, [Cconst_int (n + x, dbg); c], dbg)
     | Cop (Csubi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_sub n x ->
       add_const c (n - x) dbg
+    | Cop
+        ( Cor,
+          [(Cop (Clsl, [_; Cconst_int (1, _)], _) as inner); Cconst_int (1, _)],
+          _ )
+      when n = -1 ->
+      (* undo setting the tag bit *)
+      inner
     | c -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg)
 
 let incr_int c dbg = add_const c 1 dbg
@@ -388,7 +395,7 @@ let rec lsr_int c1 c2 dbg =
     Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
   | _ -> Cop (Clsr, [c1; c2], dbg)
 
-and asr_int c1 c2 dbg =
+and asr_int c1 c2 dbg : expression =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
   | c1, Cconst_int (n, _) when n > 0 -> (
@@ -398,6 +405,12 @@ and asr_int c1 c2 dbg =
     | Cop (Clsl, [c; Cconst_int (1, _)], _)
       when n = 1 && guaranteed_to_be_small_int c ->
       c
+    | Cop (Cor, [inner; Cconst_int (x, _)], _) ->
+      let inner = asr_const inner n dbg in
+      let x = x asr n in
+      if x = 0 then inner else Cop (Cor, [inner; Cconst_int (x, dbg)], dbg)
+    | Cop (Caddi, [inner; Cconst_int (x, _)], _) ->
+      add_const (asr_const inner n dbg) (x asr n) dbg
     | c1' -> Cop (Casr, [c1'; c2], dbg))
   | Cop (Casr, [x; (Cconst_int _ as y)], z), c2 ->
     Cop (Casr, [Cop (Casr, [x; c2], dbg); y], z)
@@ -412,21 +425,9 @@ and lsl_int c1 c2 dbg =
   | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when Misc.no_overflow_lsl n1 n2 ->
     add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
-  (* move it inside of constant sign- or zero-extensions *)
-  | ( Cop
-        ( ((Casr | Clsr) as outer_op),
-          [ Cop (Clsl, [inner; Cconst_int (inner_const, _)], _);
-            Cconst_int (outer_const, _) ],
-          _ ),
-      c2 )
-    when inner_const >= outer_const -> (
-    let inner = lsl_int inner c2 dbg in
-    let inner = lsl_const inner inner_const dbg in
-    match outer_op with
-    | Casr -> asr_const inner outer_const dbg
-    | Clsr -> lsr_const inner outer_const dbg
-    | _ -> assert false)
   | Cop (Clsl, [x; (Cconst_int _ as y)], z), c2 ->
+    (* prefer putting the constant shift on the outside to help enable further
+       peephole optimizations *)
     Cop (Clsl, [Cop (Clsl, [x; c2], dbg); y], z)
   | _, _ -> Cop (Clsl, [c1; c2], dbg)
 
@@ -479,8 +480,10 @@ let untag_int i dbg =
 
 let mk_not dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    -> (
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        dbg' ) -> (
     match c with
     | Cop (Ccmpi cmp, [c1; c2], dbg'') ->
       tag_int
@@ -820,8 +823,10 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
 
 let test_bool dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], _)
-    ->
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        _ ) ->
     c
   | Cconst_int (n, dbg) ->
     if n = 1 then Cconst_int (0, dbg) else Cconst_int (1, dbg)
@@ -1056,14 +1061,14 @@ let array_indexing ?typ log2size ptr ofs dbg =
     if i = 0
     then ptr
     else Cop (add, [ptr; Cconst_int (i lsl log2size, dbg)], dbg)
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    ->
-    Cop (add, [ptr; lsl_const c log2size dbg], dbg')
-  | Cop (Caddi, [c; Cconst_int (n, _)], dbg') when log2size = 0 ->
-    Cop
-      ( add,
-        [Cop (add, [ptr; untag_int c dbg], dbg); Cconst_int (n asr 1, dbg)],
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (n, _)], _); Cconst_int (1, _)],
         dbg' )
+    when n > 0 ->
+    Cop (add, [ptr; lsl_const c (log2size + n - 1) dbg], dbg')
+  | Cop (Caddi, [c; Cconst_int (n, _)], dbg') when log2size = 0 ->
+    Cop (add, [ptr; untag_int (add_const c n dbg) dbg], dbg')
   | Cop (Caddi, [c; Cconst_int (n, _)], _) ->
     Cop
       ( add,
