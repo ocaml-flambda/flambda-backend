@@ -17,9 +17,11 @@
 
 (* Specific operations for the ARM processor, 64-bit mode *)
 
+open! Int_replace_polymorphic_compare
+
 open Format
 
-let macosx = (Config.system = "macosx")
+let macosx = String.equal Config.system "macosx"
 
 let is_asan_enabled = ref false
 
@@ -257,7 +259,7 @@ let rec run_automata nbits state input =
   if nbits <= 0
   then acc
   else run_automata (nbits - 1)
-                    (if Nativeint.logand input 1n = 0n then next0 else next1)
+                    (if Nativeint.equal (Nativeint.logand input 1n) 0n then next0 else next1)
                     (Nativeint.shift_right_logical input 1)
 
 (* The following function determines a length [e]
@@ -271,7 +273,7 @@ let logical_imm_length x =
     let mask = Nativeint.(sub (shift_left 1n n) 1n) in
     let low_n_bits = Nativeint.(logand x mask) in
     let next_n_bits = Nativeint.(logand (shift_right_logical x n) mask) in
-    low_n_bits = next_n_bits in
+    Nativeint.equal low_n_bits next_n_bits in
   (* If [test n] fails, we know that the length [e] is
      at least [2n].  Hence we test with decreasing values of [n]:
      32, 16, 8, 4, 2. *)
@@ -289,7 +291,7 @@ let logical_imm_length x =
 *)
 
 let is_logical_immediate x =
-  x <> 0n && x <> -1n && run_automata (logical_imm_length x) 0 x
+  not (Nativeint.equal x 0n) && not (Nativeint.equal x (-1n)) && run_automata (logical_imm_length x) 0 x
 
 (* Specific operations that are pure *)
 

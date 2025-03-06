@@ -17,6 +17,8 @@
 
 (* Description of the ARM processor in 64-bit mode *)
 
+open! Int_replace_polymorphic_compare
+
 open Misc
 open Cmm
 open Reg

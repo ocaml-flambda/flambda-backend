@@ -15,6 +15,9 @@
 
 (* Reloading for the ARM 64 bits *)
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about
+   to be deleted. *)
+
 open Reg
 
 class reload = object (self)
