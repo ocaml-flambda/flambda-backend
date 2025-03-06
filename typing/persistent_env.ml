@@ -334,7 +334,6 @@ let acknowledge_import penv ~check modname pers_sig =
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let sign = Signature_with_global_bindings.read_from_cmi cmi in
-  let uid = Shape.Uid.of_compilation_unit_name modname in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
   List.iter
@@ -364,6 +363,17 @@ let acknowledge_import penv ~check modname pers_sig =
     match kind with
     | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Some cmi_impl
     | Parameter -> None, None
+  in
+  let uid =
+    (* Awkwardly, we need to make sure the uid includes the pack prefix, which
+       is only stored in the [cmi_impl], which only exists for the kind
+       [Normal]. (There can be no pack prefix for a parameter, so it's not like
+       we're missing information, but it is awkward.) *)
+    (* CR-someday lmaurer: Just store the pack prefix separately like we used
+       to. Then we wouldn't need [cmi_impl] at all. *)
+    match kind with
+    | Normal { cmi_impl; _ } -> Shape.Uid.of_compilation_unit_id cmi_impl
+    | Parameter -> Shape.Uid.of_compilation_unit_name modname
   in
   let {imports; _} = penv in
   let import =
