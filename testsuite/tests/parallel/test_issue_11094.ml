@@ -1,7 +1,6 @@
 (* TEST
- reason = "CR ocaml 5 effects: re-enable this test";
- skip;
  runtime5;
+ set OCAMLRUNPARAM = "Xmain_stack_size=1000";
  {
    bytecode;
  }{
@@ -11,6 +10,9 @@
 
 open Effect
 open Effect.Deep
+
+[@@@ocaml.alert "-unsafe_multidomain"]
+[@@@ocaml.alert "-unsafe_parallelism"]
 
 let num_domains = 2
 
@@ -55,7 +57,9 @@ let run =
   in
   let domains =
     Array.init num_domains (fun _ ->
-        Domain.spawn (fun () -> spawn (work 100000)))
+        (* With mmaped stacks, the minimum size is a few pages, so we can only create
+           on the order of 10k fibers at once without ooming in CI. *)
+        Domain.spawn (fun () -> spawn (work 10000)))
   in
   Array.iter Domain.join domains;
   print_endline "OK"

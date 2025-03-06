@@ -365,7 +365,13 @@ void caml_init_gc (void)
     caml_norm_minor_heap_size(caml_params->init_minor_heap_wsz);
 
   caml_max_stack_wsize = caml_params->init_max_stack_wsz;
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  // CR mslater: initial fiber stack size should be configurable, and have a smaller
+  // default than the main stack / thread stacks
+  caml_fiber_wsz = caml_get_init_stack_wsize(-1);
+#else
   caml_fiber_wsz = (Stack_threshold * 2) / sizeof(value);
+#endif
   caml_percent_free = norm_pfree (caml_params->init_percent_free);
   caml_max_percent_free = norm_pmax (caml_params->init_max_percent_free);
   caml_gc_log ("Initial stack limit: %"

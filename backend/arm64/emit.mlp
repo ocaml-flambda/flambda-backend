@@ -21,6 +21,8 @@
    [Flambda_backend_flags] and shared variables.
    For details, see [asmgen.mli]. *)
 
+(* CR-soon mshinwell/mslater: needs updating for locals + effects *)
+
 open Misc
 open Cmm
 open Arch

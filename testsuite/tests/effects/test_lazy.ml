@@ -1,9 +1,14 @@
 (* TEST
- skip;
+   runtime5;
+   { bytecode; }
+   { native; }
 *)
 
 open Effect
 open Effect.Deep
+
+[@@@ocaml.alert "-unsafe_multidomain"]
+[@@@ocaml.alert "-unsafe_parallelism"]
 
 type _ t += Stop : unit t
 

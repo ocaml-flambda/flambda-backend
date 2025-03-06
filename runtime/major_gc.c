@@ -1286,7 +1286,7 @@ void caml_darken_cont(value cont)
         value stk = Field(cont, 0);
         if (Ptr_val(stk) != NULL)
           caml_scan_stack(&caml_darken, darken_scanning_flags, Caml_state,
-                          Ptr_val(stk), 0, NULL);
+                          Ptr_val(stk), 0);
         atomic_store_release(Hp_atomic_val(cont),
                              With_status_hd(hd, caml_global_heap_state.MARKED));
         Caml_state->mark_work_done_between_slices += Whsize_hd(hd);
