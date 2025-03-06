@@ -653,6 +653,12 @@ val constrain_type_jkind :
 val check_type_externality :
   Env.t -> type_expr -> Jkind_axis.Externality.t -> bool
 
+(* Check whether a type's nullability is less than some target.
+   Uses get_nullability which is potentially cheaper than calling type_jkind
+   if all with-bounds are irrelevant. *)
+val check_type_nullability :
+  Env.t -> type_expr -> Jkind_axis.Nullability.t -> bool
+
 (* This function should get called after a type is generalized.
 
    It does two things:

@@ -100,7 +100,17 @@ let is_always_gc_ignorable env ty =
 
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
-  if is_always_gc_ignorable env ty then Immediate else Pointer
+  let immediate_or_pointer =
+    match is_always_gc_ignorable env ty with
+    | true -> Immediate
+    | false -> Pointer
+  in
+  let nullable =
+    match Ctype.check_type_nullability env ty Non_null with
+    | true -> Non_nullable
+    | false -> Nullable
+  in
+  immediate_or_pointer, nullable
 
 let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 

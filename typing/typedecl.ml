@@ -883,7 +883,7 @@ let transl_declaration env sdecl (id, uid) =
               { definition = path; expected = Predef.path_or_null }))
           in
           let type_kind = Predef.or_null_kind param in
-          let jkind = Predef.or_null_jkind in
+          let jkind = Predef.or_null_jkind param in
           Ttype_abstract, type_kind, jkind
       | (Ptype_variant _ | Ptype_record _ | Ptype_record_unboxed_product _
         | Ptype_open)
@@ -3283,7 +3283,8 @@ type sort_or_poly = Sort of Jkind.Sort.Const.t | Poly
 let native_repr_of_type env kind ty sort_or_poly =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
   | Untagged, Tconstr (_, _, _) when
-         Typeopt.maybe_pointer_type env ty = Lambda.Immediate
+         Typeopt.maybe_pointer_type env ty
+         = (Lambda.Immediate, Lambda.Non_nullable)
       (* Only allow [@untagged] on immediate values. [maybe_pointer_type]
          currently returns [Immediate] on unboxed number types, which
          do not support [@untagged].

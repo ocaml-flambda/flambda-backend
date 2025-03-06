@@ -1242,7 +1242,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   in
   match prim, param_tys with
   | Primitive (Psetfield(n, Pointer, init), arity), [_; p2] -> begin
-      match maybe_pointer_type env p2 with
+      match fst (maybe_pointer_type env p2) with
       | Pointer -> None
       | Immediate -> Some (Primitive (Psetfield(n, Immediate, init), arity))
     end
@@ -1250,7 +1250,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       (* try strength reduction based on the *result type* *)
       let is_int = match is_function_type env ty with
         | None -> Pointer
-        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
+        | Some (_p1, rhs) -> fst (maybe_pointer_type env rhs) in
       Some (Primitive (Pfield (n, is_int, mut), arity))
   | Primitive (Parraylength t, arity), [p] -> begin
       let loc = to_location loc in
@@ -1379,12 +1379,12 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
                arity), _ ->begin
       let is_int = match is_function_type env ty with
         | None -> Pointer
-        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
+        | Some (_p1, rhs) -> fst (maybe_pointer_type env rhs) in
       Some (Primitive (Patomic_load {immediate_or_pointer = is_int}, arity))
     end
   | Primitive (Patomic_set { immediate_or_pointer = Pointer },
                arity), [_; p2] -> begin
-      match maybe_pointer_type env p2 with
+      match fst (maybe_pointer_type env p2) with
       | Pointer -> None
       | Immediate ->
         Some
@@ -1394,7 +1394,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     end
   | Primitive (Patomic_exchange { immediate_or_pointer = Pointer },
                arity), [_; p2] -> begin
-      match maybe_pointer_type env p2 with
+      match fst (maybe_pointer_type env p2) with
       | Pointer -> None
       | Immediate ->
           Some
@@ -1404,7 +1404,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     end
   | Primitive (Patomic_compare_exchange { immediate_or_pointer = Pointer },
                arity), [_; p2; p3] -> begin
-      match maybe_pointer_type env p2, maybe_pointer_type env p3 with
+      match fst (maybe_pointer_type env p2),
+            fst (maybe_pointer_type env p3) with
       | Pointer, _ | _, Pointer -> None
       | Immediate, Immediate ->
           Some
@@ -1414,7 +1415,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     end
   | Primitive (Patomic_compare_set { immediate_or_pointer = Pointer },
                arity), [_; p2; p3] -> begin
-      match maybe_pointer_type env p2, maybe_pointer_type env p3 with
+      match fst (maybe_pointer_type env p2),
+            fst (maybe_pointer_type env p3) with
       | Pointer, _ | _, Pointer -> None
       | Immediate, Immediate ->
           Some
@@ -1428,7 +1430,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       Some (Comparison(comp, Compare_ints))
     end else if (is_base_type env p1 Predef.path_int
         || is_base_type env p1 Predef.path_char
-        || (maybe_pointer_type env p1 = Immediate)) then begin
+        || ((* Non-null external types are always represented by tagged integers. *)
+            maybe_pointer_type env p1 = (Immediate, Non_nullable))) then begin
       Some (Comparison(comp, Compare_ints))
     end else if is_base_type env p1 Predef.path_float then begin
       Some (Comparison(comp, Compare_floats))
