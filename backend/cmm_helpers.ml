@@ -4532,7 +4532,7 @@ module Scalar_type = struct
     let[@inline] create_exn ~bit_width ~signedness =
       assert (0 < bit_width && bit_width <= arch_bits);
       { bit_width_and_signedness =
-          (bit_width lsl 1) lor int_of_signedness signedness
+          (bit_width lsl 1) + int_of_signedness signedness
       }
   end
 
