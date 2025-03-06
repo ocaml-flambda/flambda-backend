@@ -85,6 +85,8 @@ type should_work = int_or_null accept_immediate_or_null
 type should_work = int_or_null accept_immediate_or_null
 |}]
 
+(* CR layouts v2.8: this is a bug in principal inference with with-kinds. *)
+
 type should_work = int or_null accept_immediate_or_null
 [%%expect{|
 type should_work = int or_null accept_immediate_or_null
