@@ -66,8 +66,6 @@ let main() =
      "-g", Arg.Set Clflags.debug, "";
      "-dcmm", Arg.Set dump_cmm, "";
      "-dcse", Arg.Set dump_cse, "";
-     "-dsel", Arg.Set dump_selection, "";
-     "-dlive", Arg.Unit(fun () -> dump_live := true ), "";
      "-dspill", Arg.Set dump_spill, "";
      "-dsplit", Arg.Set dump_split, "";
      "-dinterf", Arg.Set dump_interf, "";

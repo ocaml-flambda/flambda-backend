@@ -22,7 +22,6 @@ open Misc
 open Arch
 open Cmm
 open Reg
-open Mach
 
 let fp = Config.with_frame_pointers
 
@@ -557,71 +556,10 @@ let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
   | R_RM_to_R
   | R_RM_xmm0_to_fst -> [||]
 
-(* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
-let destroyed_at_oper = function
-    Iop(Icall_ind | Icall_imm _) -> all_phys_regs
-  | Iop(Iextcall {alloc; stack_ofs; }) ->
-      assert (stack_ofs >= 0);
-      if alloc || stack_ofs > 0 then all_phys_regs
-      else destroyed_at_c_call
-  | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
-        -> [| rax; rdx |]
-  | Iop(Istore(Single { reg = Float64 }, _, _))
-        -> destroyed_at_single_float64_store
-  | Iop(Istore( (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single { reg = Float32 } ), _, _))
-  | Iop(Iload { memory_chunk =
-                (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned | Thirtytwo_signed | Single _); _})
-  | Iop(Ispecific (Ifloatarithmem (Float32, _, _)))
-  | Iop(Iintop_atomic _)
-              -> destroyed_at_small_memory_op
-  | Iop(Istore( (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ), _, _))
-  | Iop(Iload { memory_chunk =
-                (Word_int | Word_val | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned ); _})
-  | Iop(Ispecific( Istore_int _))
-  | Iop(Ispecific (Ifloatarithmem (Float64, _, _)))
-  | Iop(Ispecific (Iprefetch _ | Icldemote _))
-                -> destroyed_at_large_memory_op
-  | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
-  | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
-        -> [| rax |]
-  | Iswitch(_, _) -> [| rax; rdx |]
-  | Itrywith _ -> destroyed_at_pushtrap
-  | Iexit (_, traps) when has_pushtrap traps -> destroyed_at_pushtrap
-  | Ireturn traps when has_pushtrap traps -> assert false
-  | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
-  | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
-  | Iop(Ispecific(Isimd op)) ->
-    destroyed_by_simd_op (Simd_proc.register_behavior op)
-  | Iop(Ispecific(Isimd_mem (op,_))) ->
-    destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
-  | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
-                 | Ioffset_loc (_, _) | Ipause | Ibswap _))
-  | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-              | Ipopcnt | Iclz _ | Ictz _ ))
-  | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
-                   | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_))
-  | Iop(Imove | Ispill | Ireload | Ifloatop _
-       | Icsel _
-       | Ireinterpret_cast _ | Istatic_cast _
-       | Iconst_int _ | Iconst_float32 _ | Iconst_float _
-       | Iconst_symbol _ | Iconst_vec128 _
-       | Itailcall_ind | Itailcall_imm _ | Istackoffset _
-       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get)
-  | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
-  | Iexit _ | Iraise _
-  | Iop(Ibeginregion | Iendregion)
-    ->
-    if fp then
-(* prevent any use of the frame pointer ! *)
-      [| rbp |]
-    else
-      [||]
-
 let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
 
-(* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
   | Reloadretaddr ->
@@ -681,8 +619,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Stack_check _ ->
     assert false (* the instruction is added after register allocation *)
 
-(* note: keep this function in sync with `destroyed_at_oper` above,
-   and `is_destruction_point` below. *)
+(* note: keep this function in sync with `is_destruction_point` below. *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
@@ -734,91 +671,6 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Icldemote _ | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
-
-(* Maximal register pressure *)
-
-
-let safe_register_pressure = function
-    Iextcall _ -> if win64 then if fp then 7 else 8 else 0
-  | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
-  | Ireinterpret_cast _ | Istatic_cast _
-  | Ifloatop _
-  | Icsel _
-  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
-  | Iconst_symbol _ | Iconst_vec128 _
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload _ | Istore (_, _, _)
-  | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
-  | Ispecific _ | Iname_for_debugger _
-  | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Idls_get
-    -> if fp then 10 else 11
-
-let max_register_pressure op =
-  let consumes ~int ~float =
-    if fp
-    then [| 12 - int; 16 - float |]
-    else [| 13 - int; 16 - float |]
-  in
-  let simd_max_register_pressure (register_behavior : Simd_proc.register_behavior) =
-    (match register_behavior with
-     | R_RM_rax_rdx_to_xmm0
-     | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
-     | R_RM_rax_rdx_to_rcx
-     | R_RM_to_rcx -> consumes ~int:1 ~float:0
-     | R_to_fst
-     | R_to_R
-     | R_to_RM
-     | RM_to_R
-     | R_R_to_fst
-     | R_RM_to_fst
-     | R_RM_to_R
-     | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
-  in
-  match op with
-  | Iextcall _ ->
-    if win64
-      then consumes ~int:5 ~float:6
-      else consumes ~int:9 ~float:16
-  | Iintop(Idiv | Imod) | Iintop_imm((Idiv | Imod), _) ->
-    consumes ~int:2 ~float:0
-  | Ialloc _ | Ipoll _ ->
-    consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
-  | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
-    consumes ~int:1 ~float:0
-  | Istore(Single { reg = Float64 }, _, _)
-  | Ifloatop ((Float64 | Float32), Icompf _) ->
-    consumes ~int:0 ~float:1
-  | Ispecific(Isimd op) ->
-    simd_max_register_pressure (Simd_proc.register_behavior op)
-  | Ispecific(Isimd_mem (op,_)) ->
-    simd_max_register_pressure (Simd_proc.Mem.register_behavior op)
-  | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-           | Ipopcnt|Iclz _| Ictz _)
-  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
-                | Iasr | Ipopcnt | Iclz _| Ictz _), _)
-  | Iintop_atomic _
-  | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Single { reg = Float32 } | Double
-            | Onetwentyeight_aligned | Onetwentyeight_unaligned),
-            _, _)
-  | Imove | Ispill | Ireload
-  | Ifloatop ((Float64 | Float32), (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf))
-  | Icsel _
-  | Ireinterpret_cast _ | Istatic_cast _
-  | Iconst_int _ | Iconst_float _ | Iconst_float32 _
-  | Iconst_symbol _ | Iconst_vec128 _
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload _
-  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Icldemote _ | Iprefetch _ | Ipause
-             | Irdtsc | Irdpmc | Istore_int (_, _, _)
-             | Ilfence | Isfence | Imfence
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
-             | Ibswap _)
-  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Idls_get
-    -> consumes ~int:0 ~float:0
 
 (* Layout of the stack frame *)
 

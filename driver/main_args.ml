@@ -849,41 +849,11 @@ let mk_dcmm_invariants f =
 let mk_dcmm f =
   "-dcmm", Arg.Unit f, " (undocumented)"
 
-let mk_dsel f =
-  "-dsel", Arg.Unit f, " (undocumented)"
-
-let mk_dcombine f =
-  "-dcombine", Arg.Unit f, " (undocumented)"
-
 let mk_dcse f =
   "-dcse", Arg.Unit f, " (undocumented)"
 
-let mk_dlive f =
-  "-dlive", Arg.Unit f, " (undocumented)"
-
-let mk_dspill f =
-  "-dspill", Arg.Unit f, " (undocumented)"
-
-let mk_dsplit f =
-  "-dsplit", Arg.Unit f, " (undocumented)"
-
-let mk_dinterf f =
-  "-dinterf", Arg.Unit f, " (undocumented)"
-
-let mk_dprefer f =
-  "-dprefer", Arg.Unit f, " (undocumented)"
-
-let mk_dalloc f =
-  "-dalloc", Arg.Unit f, " (undocumented)"
-
-let mk_dreload f =
-  "-dreload", Arg.Unit f, " (undocumented)"
-
 let mk_dlinear f =
   "-dlinear", Arg.Unit f, " (undocumented)"
-
-let mk_dinterval f =
-  "-dinterval", Arg.Unit f, " (undocumented)"
 
 let mk_dstartup f =
   "-dstartup", Arg.Unit f, " (undocumented)"
@@ -1153,18 +1123,8 @@ module type Optcommon_options = sig
   val _dclambda : unit -> unit
   val _dcmm_invariants : unit -> unit
   val _dcmm : unit -> unit
-  val _dsel : unit -> unit
-  val _dcombine : unit -> unit
   val _dcse : unit -> unit
-  val _dlive : unit -> unit
-  val _dspill : unit -> unit
-  val _dsplit : unit -> unit
-  val _dinterf : unit -> unit
-  val _dprefer : unit -> unit
-  val _dalloc : unit -> unit
-  val _dreload : unit -> unit
   val _dlinear :  unit -> unit
-  val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
 end;;
 
@@ -1592,18 +1552,8 @@ struct
     mk_dflambda_verbose F._dflambda_verbose;
 
     mk_dcmm F._dcmm;
-    mk_dsel F._dsel;
-    mk_dcombine F._dcombine;
     mk_dcse F._dcse;
-    mk_dlive F._dlive;
-    mk_dspill F._dspill;
-    mk_dsplit F._dsplit;
-    mk_dinterf F._dinterf;
-    mk_dprefer F._dprefer;
-    mk_dalloc F._dalloc;
-    mk_dreload F._dreload;
     mk_dlinear F._dlinear;
-    mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
@@ -1719,18 +1669,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_drawflambda F._drawflambda;
     mk_dflambda F._dflambda;
     mk_dcmm F._dcmm;
-    mk_dsel F._dsel;
-    mk_dcombine F._dcombine;
     mk_dcse F._dcse;
-    mk_dlive F._dlive;
-    mk_dspill F._dspill;
-    mk_dsplit F._dsplit;
-    mk_dinterf F._dinterf;
-    mk_dprefer F._dprefer;
-    mk_dalloc F._dalloc;
-    mk_dreload F._dreload;
     mk_dlinear F._dlinear;
-    mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dump_pass F._dump_pass;
     mk_debug_ocaml F._debug_ocaml;
@@ -1939,11 +1879,10 @@ module Default = struct
     let _clambda_checks () = clambda_checks := true
     let _classic_inlining () = set_oclassic ()
     let _compact = clear optimize_for_speed
-    let _dalloc = set dump_regalloc
     let _dclambda = set dump_clambda
     let _dcmm = set dump_cmm
+    let _dcse = set dump_cse
     let _dcmm_invariants = set cmm_invariants
-    let _dcombine = set dump_combine
     let _dcse = set dump_cse
     let _dflambda = set dump_flambda
     let _dflambda_heavy_invariants () =
@@ -1955,17 +1894,9 @@ module Default = struct
       flambda_invariant_checks := No_checks
     let _dflambda_verbose () =
       set dump_flambda (); set dump_flambda_verbose ()
-    let _dinterval = set dump_interval
-    let _dinterf = set dump_interf
     let _dlinear = set dump_linear
-    let _dlive () = dump_live := true
-    let _dprefer = set dump_prefer
     let _drawclambda = set dump_rawclambda
     let _drawflambda = set dump_rawflambda
-    let _dreload = set dump_reload
-    let _dsel = set dump_selection
-    let _dspill = set dump_spill
-    let _dsplit = set dump_split
     let _dstartup = set keep_startup_file
     let _dump_pass pass = set_dumped_pass pass true
     let _inline spec =

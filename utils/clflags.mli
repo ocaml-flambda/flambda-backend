@@ -151,20 +151,10 @@ val keep_camlprimc_file : bool ref
 val keep_asm_file : bool ref
 val optimize_for_speed : bool ref
 val dump_cmm : bool ref
-val dump_selection : bool ref
 val dump_cse : bool ref
-val dump_live : bool ref
-val dump_spill : bool ref
-val dump_split : bool ref
-val dump_interf : bool ref
-val dump_prefer : bool ref
-val dump_regalloc : bool ref
-val dump_reload : bool ref
 val dump_linear : bool ref
-val dump_interval : bool ref
 val debug_ocaml : bool ref
 val keep_startup_file : bool ref
-val dump_combine : bool ref
 val native_code : bool ref
 val default_inline_threshold : float
 val inline_threshold : Float_arg_helper.parsed ref

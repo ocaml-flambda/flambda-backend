@@ -14,7 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Mach
 open Linear
 
 module Make (T : Branch_relaxation_intf.S) = struct
