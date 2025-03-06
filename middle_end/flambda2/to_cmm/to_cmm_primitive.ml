@@ -522,31 +522,36 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
+let naked_int32 : C.Scalar_type.Integral.t =
+  Untagged (C.Scalar_type.Integer.create_exn ~bit_width:32 ~signedness:Signed)
+
+let naked_int64 : C.Scalar_type.Integral.t =
+  Untagged (C.Scalar_type.Integer.create_exn ~bit_width:64 ~signedness:Signed)
+
+let naked_nativeint : C.Scalar_type.Integral.t =
+  Untagged C.Scalar_type.Integer.nativeint
+
+let naked_immediate : C.Scalar_type.Integral.t =
+  Untagged C.Scalar_type.Tagged_integer.(untagged immediate)
+
+let tagged_immediate : C.Scalar_type.Integral.t =
+  Tagged C.Scalar_type.Tagged_integer.immediate
+
 let integral_of_standard_int : K.Standard_int.t -> C.Scalar_type.Integral.t =
-  let[@inline] untagged_int bit_width : C.Scalar_type.Integral.t =
-    Untagged (C.Scalar_type.Integer.create_exn ~bit_width ~signedness:Signed)
-  in
   function
-  | Naked_int32 -> untagged_int 32
-  | Naked_int64 -> untagged_int 64
-  | Naked_nativeint -> Untagged C.Scalar_type.Integer.nativeint
-  | Naked_immediate ->
-    Untagged C.Scalar_type.Tagged_integer.(untagged immediate)
-  | Tagged_immediate -> Tagged C.Scalar_type.Tagged_integer.immediate
+  | Naked_int32 -> naked_int32
+  | Naked_int64 -> naked_int64
+  | Naked_nativeint -> naked_nativeint
+  | Naked_immediate -> naked_immediate
+  | Tagged_immediate -> tagged_immediate
 
 let scalar_type_of_standard_int_or_float :
-    K.Standard_int_or_float.t -> C.Scalar_type.t =
-  let[@inline] untagged_int bit_width : C.Scalar_type.t =
-    Integral
-      (Untagged (C.Scalar_type.Integer.create_exn ~bit_width ~signedness:Signed))
-  in
-  function
-  | Naked_int32 -> untagged_int 32
-  | Naked_int64 -> untagged_int 64
-  | Naked_nativeint -> Integral (Untagged C.Scalar_type.Integer.nativeint)
-  | Naked_immediate ->
-    Integral (Untagged C.Scalar_type.Tagged_integer.(untagged immediate))
-  | Tagged_immediate -> Integral (Tagged C.Scalar_type.Tagged_integer.immediate)
+    K.Standard_int_or_float.t -> C.Scalar_type.t = function
+  | Naked_int32 -> Integral naked_int32
+  | Naked_int64 -> Integral naked_int64
+  | Naked_nativeint -> Integral naked_nativeint
+  | Naked_immediate -> Integral naked_immediate
+  | Tagged_immediate -> Integral tagged_immediate
   | Naked_float32 -> Float Float32
   | Naked_float -> Float Float64
 
