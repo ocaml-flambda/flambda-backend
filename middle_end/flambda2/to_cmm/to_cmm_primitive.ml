@@ -534,7 +534,7 @@ let integral_of_standard_int : K.Standard_int.t -> C.Scalar_type.Integral.t =
     Untagged C.Scalar_type.Tagged_integer.(untagged immediate)
   | Tagged_immediate -> Tagged C.Scalar_type.Tagged_integer.immediate
 
-let numeric_of_standard_int_or_float :
+let scalar_type_of_standard_int_or_float :
     K.Standard_int_or_float.t -> C.Scalar_type.t =
   let[@inline] untagged_int bit_width : C.Scalar_type.t =
     Integral
@@ -561,11 +561,9 @@ let unary_int_arith_primitive _env dbg kind op arg =
         arg
     | Untagged src ->
       let bits = C.Scalar_type.Integer.bit_width src in
-      C.Scalar_type.Integer.static_cast arg ~src
-        ~dst:C.Scalar_type.Integer.nativeint ~dbg
-      |> (fun arg -> C.neg_int (C.low_bits ~bits arg ~dbg) dbg)
-      |> C.Scalar_type.Integer.static_cast ~src:C.Scalar_type.Integer.nativeint
-           ~dst:src ~dbg)
+      C.Scalar_type.Integer.conjugate arg ~outer:src
+        ~inner:C.Scalar_type.Integer.nativeint ~dbg ~f:(fun arg ->
+          C.neg_int (C.low_bits ~bits arg ~dbg) dbg))
   | Swap_byte_endianness -> (
     match (kind : K.Standard_int.t) with
     | Tagged_immediate ->
@@ -579,6 +577,8 @@ let unary_int_arith_primitive _env dbg kind op arg =
       C.bswap16 arg dbg
     | Naked_int32 ->
       C.sign_extend (C.bbswap Unboxed_int32 arg dbg) ~bits:32 ~dbg
+    (* int64 and nativeint don't require a sign-extension since they are already
+       register-size, but the code is here for consistency: *)
     | Naked_int64 ->
       C.sign_extend (C.bbswap Unboxed_int64 arg dbg) ~bits:64 ~dbg
     | Naked_nativeint ->
@@ -592,11 +592,11 @@ let unary_float_arith_primitive _env dbg width op arg =
   | Float32, Neg -> C.float32_neg ~dbg arg
 
 let arithmetic_conversion dbg src dst arg =
-  if src == dst
+  if K.Standard_int_or_float.equal src dst
   then None, arg
   else
-    let src = numeric_of_standard_int_or_float src in
-    let dst = numeric_of_standard_int_or_float dst in
+    let src = scalar_type_of_standard_int_or_float src in
+    let dst = scalar_type_of_standard_int_or_float dst in
     let extra =
       (* CR-someday jvanburen: add Env.Tag? *)
       match src, dst with
@@ -617,6 +617,34 @@ let phys_equal _env dbg op x y =
   | Eq -> C.eq ~dbg x y
   | Neq -> C.neq ~dbg x y
 
+let requires_sign_extended_operands : P.binary_int_arith_op -> bool = function
+  | Div | Mod ->
+    (* Note that it would be wrong to apply [C.low_bits] to operands for div and
+       mod.
+
+       Some background: The problem arises in cases like: [(num1 * num2) /
+       num3]. If an overflow occurs in the multiplication, then we must deal
+       with it by sign-extending before the division. Whereas [ (num1 * num2) *
+       num3 ] can delay the sign-extension until the very end, even in the case
+       of overflow in the middle. So in a way, div and mod are regular
+       functions, while all the others are special as they can delay overflow
+       handling.
+
+       Cmm only has [Arch.size_int]-width virtual registers, so we must always
+       do operations on values of that size. (If we had smaller virtual
+       registers, we could use them in Cmm without sign-extension and let the
+       backend insert sign-extensions if it doesn't support operations on n-bit
+       physical registers. There was a prototype developed of this but it was
+       quite complicated and didn't get merged.) *)
+    true
+  | Add | Sub | Mul ->
+    (* https://en.wikipedia.org/wiki/Modular_arithmetic - these operations are
+       compatible with modular arithmetic *)
+    false
+  | And | Or | Xor ->
+    (* bitwise operations are clearly compatible *)
+    false
+
 let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     (op : P.binary_int_arith_op) x y =
   let kind = integral_of_standard_int kind in
@@ -628,42 +656,12 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
       | Untagged _ -> Untagged C.Scalar_type.Integer.nativeint
       | Tagged _ -> Tagged C.Scalar_type.Tagged_integer.immediate
     in
-    let requires_sign_extended_operands =
-      match op with
-      | Div | Mod ->
-        (* Note that it would be wrong to apply [C.low_bits] to operands for div
-           and mod.
-
-           Some background: The problem arises in cases like: [(num1 * num2) /
-           num3]. If an overflow occurs in the multiplication, then we must deal
-           with it by sign-extending before the division. Whereas [ (num1 *
-           num2) * num3 ] can delay the sign-extension until the very end, even
-           in the case of overflow in the middle. So in a way, div and mod are
-           regular functions, while all the others are special as they can delay
-           overflow handling.
-
-           Cmm only has [Arch.size_int]-width virtual registers, so we must
-           always do operations on values of that size. (If we had smaller
-           virtual registers, we could use them in Cmm without sign-extension
-           and let the backend insert sign-extensions if it doesn't support
-           operations on n-bit physical registers. There was a prototype
-           developed of this but it was quite complicated and didn't get
-           merged.) *)
-        true
-      | Add | Sub | Mul ->
-        (* https://en.wikipedia.org/wiki/Modular_arithmetic - these operations
-           are compatible with modular arithmetic *)
-        false
-      | And | Or | Xor ->
-        (* bitwise operations are clearly compatible *)
-        false
-    in
     let[@inline] prepare_operand operand =
       let operand =
         C.Scalar_type.Integral.static_cast ~dbg ~src:kind ~dst:operator_type
           operand
       in
-      if requires_sign_extended_operands
+      if requires_sign_extended_operands op
       then operand
       else
         let bits =

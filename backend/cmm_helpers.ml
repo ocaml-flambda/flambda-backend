@@ -4520,16 +4520,14 @@ module Scalar_type = struct
       bit_width_and_signedness lsr 1
 
     let[@inline] signedness { bit_width_and_signedness } =
-      match (Obj.magic (bit_width_and_signedness land 1) : Signedness.t) with
-      | (Signed | Unsigned) as signedness ->
-        (* If [Signedness.t] ever changes, adjust the representation of [t]
-           accordingly *)
-        signedness
+      match bit_width_and_signedness land 1 with
+      | 0 -> Signedness.Signed
+      | 1 -> Signedness.Unsigned
+      | _ -> assert false
 
-    (** This type annotation proves that [int_of_signedness] is valid *)
-    type signedness_is_immediate = Signedness.t [@@immediate]
-
-    external int_of_signedness : signedness_is_immediate -> int = "%identity"
+    let[@inline] int_of_signedness : Signedness.t -> int = function
+      | Signed -> 0
+      | Unsigned -> 1
 
     let[@inline] create_exn ~bit_width ~signedness =
       assert (0 < bit_width && bit_width <= arch_bits);
