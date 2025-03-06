@@ -1,6 +1,6 @@
 (* TEST
 
-flags = "-extension layouts_beta -bin-annot -bin-annot-occurrences";
+flags = "-bin-annot -bin-annot-occurrences";
 compile_only = "true";
 readonly_files = "index_unboxed_labels.ml";
 setup-ocamlc.byte-build-env;

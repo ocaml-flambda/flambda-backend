@@ -228,14 +228,10 @@ let array_kind_of_elt ~elt_sort env loc ty =
         (type_legacy_sort ~why:Array_element env loc ty)
   in
   let classify_product ty sorts =
-    if Language_extension.(is_at_least Layouts Beta) then
-      if is_always_gc_ignorable env ty then
-        Pgcignorableproductarray (ignorable_product_array_kind loc sorts)
-      else
-        Pgcscannableproductarray (scannable_product_array_kind loc sorts)
+    if is_always_gc_ignorable env ty then
+      Pgcignorableproductarray (ignorable_product_array_kind loc sorts)
     else
-      let sort = Jkind.Sort.of_const (Jkind.Sort.Const.Product sorts) in
-      raise (Error (loc, Sort_without_extension (sort, Alpha, Some ty)))
+      Pgcscannableproductarray (scannable_product_array_kind loc sorts)
   in
   match classify ~classify_product env loc ty elt_sort with
   | Any -> if Config.flat_float_array then Pgenarray else Paddrarray

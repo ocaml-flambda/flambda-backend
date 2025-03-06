@@ -1,7 +1,6 @@
 (* TEST
  include stdlib_stable;
  include stdlib_upstream_compatible;
- flags = "-extension layouts_beta";
  arch_amd64;
  bytecode;
 *)

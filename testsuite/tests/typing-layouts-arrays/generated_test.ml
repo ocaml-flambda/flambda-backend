@@ -2,7 +2,7 @@
  include stdlib_stable;
  include stdlib_upstream_compatible;
  modules = "stubs.c";
- flags = "-extension layouts_beta -extension simd_beta";
+ flags = "-extension simd_beta";
  flambda2;
  stack-allocation;
  arch_amd64;
