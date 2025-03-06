@@ -19,7 +19,6 @@ open! Int_replace_polymorphic_compare
 (* CSE for the AMD64 *)
 
 open Arch
-open Mach
 open CSE_utils
 
 let of_simd_class (cl : Simd.operation_class)  =
@@ -27,48 +26,6 @@ let of_simd_class (cl : Simd.operation_class)  =
   | Pure -> Op_pure
   | Load { is_mutable = true } -> Op_load Mutable
   | Load { is_mutable = false } -> Op_load Immutable
-
-class cse = object
-
-inherit CSEgen.cse_generic as super
-
-method! class_of_operation op =
-  match op with
-  | Ispecific spec ->
-    begin match spec with
-    | Ilea _ | Isextend32 | Izextend32 -> Op_pure
-    | Istore_int(_, _, is_asg) -> Op_store is_asg
-    | Ioffset_loc(_, _) -> Op_store true
-    | Ifloatarithmem _ -> Op_load Mutable
-    | Ibswap _ -> super#class_of_operation op
-    | Irdtsc | Irdpmc
-    | Ilfence | Isfence | Imfence -> Op_other
-    | Isimd op ->
-      of_simd_class (Simd.class_of_operation op)
-    | Isimd_mem (op,_addr) ->
-      of_simd_class (Simd.Mem.class_of_operation op)
-    | Ipause
-    | Icldemote _
-    | Iprefetch _ -> Op_other
-    end
-  | Imove | Ispill | Ireload
-  | Ifloatop _
-  | Icsel _
-  | Ireinterpret_cast _ | Istatic_cast _
-  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
-  | Iconst_symbol _ | Iconst_vec128 _
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
-  | Istackoffset _ | Iload _ | Istore _ | Ialloc _
-  | Iintop _ | Iintop_imm _ | Iintop_atomic _
-  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
-    -> super#class_of_operation op
-
-end
-
-let fundecl f =
-  (new cse)#fundecl f
-
 
 class cfg_cse = object
 
