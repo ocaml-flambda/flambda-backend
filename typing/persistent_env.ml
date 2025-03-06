@@ -104,6 +104,7 @@ type import = {
   imp_impl : CU.t option; (* None iff import is a parameter *)
   imp_raw_sign : Signature_with_global_bindings.t;
   imp_filename : string;
+  imp_uid : Shape.Uid.t;
   imp_visibility: Load_path.visibility;
   imp_crcs : Import_info.Intf.t array;
   imp_flags : Cmi_format.pers_flags list;
@@ -333,6 +334,7 @@ let acknowledge_import penv ~check modname pers_sig =
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let sign = Signature_with_global_bindings.read_from_cmi cmi in
+  let uid = Shape.Uid.of_compilation_unit_name modname in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
   List.iter
@@ -371,6 +373,7 @@ let acknowledge_import penv ~check modname pers_sig =
       imp_impl = impl;
       imp_raw_sign = sign;
       imp_filename = filename;
+      imp_uid = uid;
       imp_visibility = visibility;
       imp_crcs = crcs;
       imp_flags = flags;
@@ -828,6 +831,7 @@ let acknowledge_new_pers_struct penv modname pers_name val_of_pers_sig =
   let is_param = import.imp_is_param in
   let impl = import.imp_impl in
   let filename = import.imp_filename in
+  let uid = import.imp_uid in
   let flags = import.imp_flags in
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
@@ -842,17 +846,6 @@ let acknowledge_new_pers_struct penv modname pers_name val_of_pers_sig =
     match binding with
     | Runtime_parameter id -> Alocal id
     | Constant unit -> Aunit unit
-  in
-  let uid =
-    (* This is source-level information that depends only on the import, not the
-       arguments. (TODO: Consider moving this bit into [acknowledge_import].) *)
-    match import.imp_impl with
-    | Some unit -> Shape.Uid.of_compilation_unit_id unit
-    | None ->
-        (* TODO: [Shape.Uid.of_compilation_unit_id] is actually the wrong type, since
-           parameters should also have uids but they don't have .cmx files and thus
-           they don't have [CU.t]s *)
-        Shape.Uid.internal_not_actually_unique
   in
   let shape =
     match import.imp_impl, import.imp_params with
