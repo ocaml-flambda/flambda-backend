@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+4"]
 
+open! Int_replace_polymorphic_compare
+
 (* CR mshinwell: We need a Cfg version of this pass. *)
 
 module M = Mach
@@ -180,7 +182,8 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
             let res = instr.res.(i) in
             (* Note that the register classes must be the same, so we don't need
                to check that. *)
-            if arg.loc <> res.loc then move_to_same_location := false
+            if not (Reg.equal_location arg.loc res.loc)
+            then move_to_same_location := false
           done;
           !move_to_same_location
         in

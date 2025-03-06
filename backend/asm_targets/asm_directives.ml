@@ -26,6 +26,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
+
 module type S = Asm_directives_intf.S
 
 module type Arg = Asm_directives_intf.Arg

@@ -24,6 +24,8 @@
  *                                                                                *
  **********************************************************************************)
 
+open! Int_replace_polymorphic_compare
+
 let should_be_escaped = function
   | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> false
   | _c -> true

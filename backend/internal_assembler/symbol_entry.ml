@@ -23,6 +23,8 @@
 (* CR mshinwell: fix properly using -enable-dev PR's changes *)
 [@@@ocaml.warning "-27-32"]
 
+open! Int_replace_polymorphic_compare
+
 type t =
   { st_name : Compiler_owee.Owee_buf.u32;
     st_info : Compiler_owee.Owee_buf.u8;

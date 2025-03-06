@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module V = Backend_var
 
 module Debug_info = struct
@@ -123,7 +124,7 @@ let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
      one is of class "Int" and another "Float" on amd64. [register_class] will
      be [Proc.register_class], but cannot be here, due to a circular
      dependency. *)
-  reg1.loc = reg2.loc
+  Reg.equal_location reg1.loc reg2.loc
   &&
   match reg1.loc with
   | Reg _ -> register_class reg1 = register_class reg2

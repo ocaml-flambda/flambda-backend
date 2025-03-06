@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Asm_targets
 module Uint64 = Numbers.Uint64
 

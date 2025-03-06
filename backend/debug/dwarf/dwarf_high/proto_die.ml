@@ -12,6 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 open Dwarf_low
 
@@ -54,7 +55,7 @@ let create ?reference ?(sort_priority = -1) ?location_list_in_debug_loc_table
     ~parent ~tag ~attribute_values () =
   (match parent with
   | None ->
-    if tag <> Dwarf_tag.Compile_unit
+    if Dwarf_tag.compare tag Dwarf_tag.Compile_unit <> 0
     then failwith "only compilation unit proto-DIEs may be without parents"
   | Some _parent -> ());
   let reference =

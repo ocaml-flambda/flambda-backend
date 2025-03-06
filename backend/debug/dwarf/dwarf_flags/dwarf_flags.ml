@@ -1,3 +1,5 @@
+open! Int_replace_polymorphic_compare
+
 type debug_thing =
   | Debug_ocamldebug
   | Debug_js_of_ocaml
@@ -12,6 +14,29 @@ type debug_thing =
   | Debug_dwarf_vars
   | Debug_dwarf_call_sites
   | Debug_dwarf_cmm
+
+let equal_debug_thing left right =
+  match left, right with
+  | Debug_ocamldebug, Debug_ocamldebug
+  | Debug_js_of_ocaml, Debug_js_of_ocaml
+  | Debug_subprocs, Debug_subprocs
+  | Debug_backtraces, Debug_backtraces
+  | Debug_bounds_checking, Debug_bounds_checking
+  | Debug_disable_bytecode_opt, Debug_disable_bytecode_opt
+  | Debug_dwarf_cfi, Debug_dwarf_cfi
+  | Debug_dwarf_loc, Debug_dwarf_loc
+  | Debug_dwarf_functions, Debug_dwarf_functions
+  | Debug_dwarf_scopes, Debug_dwarf_scopes
+  | Debug_dwarf_vars, Debug_dwarf_vars
+  | Debug_dwarf_call_sites, Debug_dwarf_call_sites
+  | Debug_dwarf_cmm, Debug_dwarf_cmm ->
+    true
+  | ( ( Debug_ocamldebug | Debug_js_of_ocaml | Debug_subprocs | Debug_backtraces
+      | Debug_bounds_checking | Debug_disable_bytecode_opt | Debug_dwarf_cfi
+      | Debug_dwarf_loc | Debug_dwarf_functions | Debug_dwarf_scopes
+      | Debug_dwarf_vars | Debug_dwarf_call_sites | Debug_dwarf_cmm ),
+      _ ) ->
+    false
 
 let bytecode_g =
   [ Debug_ocamldebug;
@@ -83,13 +108,17 @@ let debug_thing thing = List.mem thing !current_debug_settings
 
 let set_debug_thing thing =
   let new_settings =
-    List.filter (fun thing' -> thing <> thing') !current_debug_settings
+    List.filter
+      (fun thing' -> not (equal_debug_thing thing thing'))
+      !current_debug_settings
   in
   current_debug_settings := thing :: new_settings
 
 let clear_debug_thing thing =
   let new_settings =
-    List.filter (fun thing' -> thing <> thing') !current_debug_settings
+    List.filter
+      (fun thing' -> not (equal_debug_thing thing thing'))
+      !current_debug_settings
   in
   current_debug_settings := new_settings
 
