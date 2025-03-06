@@ -295,10 +295,68 @@ let available_regs ~stack_slots ~f x =
   then x
   else f x
 
+let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
+  let register_allocator = register_allocator fd_cmm in
+  let cfg_with_infos =
+    cfg_with_layout
+    ++ (fun cfg_with_layout ->
+         match should_vectorize () with
+         | false -> cfg_with_layout
+         | true ->
+           cfg_with_layout
+           ++ cfg_with_layout_profile ~accumulate:true "vectorize"
+                (Vectorize.cfg ppf_dump)
+           ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+                "After vectorize")
+    ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
+         (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
+    ++ cfg_with_layout_profile ~accumulate:true "cfg_zero_alloc_checker"
+         (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump)
+    ++ cfg_with_layout_profile ~accumulate:true "cfg_comballoc"
+         Cfg_comballoc.run
+    ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
+    ++ cfg_with_layout_profile ~accumulate:true "cfg_cse" CSE.cfg_with_layout
+    ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse
+    ++ Cfg_with_infos.make
+    ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
+  in
+  let cfg_description =
+    Regalloc_validate.Description.create
+      (Cfg_with_infos.cfg_with_layout cfg_with_infos)
+  in
+  cfg_with_infos
+  ++ (match register_allocator with
+     | GI -> cfg_with_infos_profile ~accumulate:true "cfg_gi" Regalloc_gi.run
+     | IRC -> cfg_with_infos_profile ~accumulate:true "cfg_irc" Regalloc_irc.run
+     | LS -> cfg_with_infos_profile ~accumulate:true "cfg_ls" Regalloc_ls.run)
+  ++ Cfg_with_infos.cfg_with_layout
+  ++ Profile.record ~accumulate:true "cfg_available_regs"
+       (available_regs
+          ~stack_slots:(fun x ->
+            (Cfg_with_layout.cfg x).Cfg.fun_num_stack_slots)
+          ~f:Cfg_available_regs.run)
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
+       (Regalloc_validate.run cfg_description)
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_simplify"
+       Regalloc_utils.simplify_cfg
+  (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness,
+     otherwise we would have to recompute it here. Recomputing it here breaks
+     the CI because the liveness_analysis algorithm does not work properly after
+     register allocation. *)
+  ++ cfg_with_layout_profile ~accumulate:true "peephole_optimize_cfg"
+       Peephole_optimize.peephole_optimize_cfg
+  ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
+       match !Flambda_backend_flags.cfg_stack_checks with
+       | false -> cfg_with_layout
+       | true -> Cfg_stack_checks.cfg cfg_with_layout)
+  ++ cfg_with_layout_profile ~accumulate:true "save_cfg" save_cfg
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_reorder_blocks"
+       (reorder_blocks_random ppf_dump)
+  ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
+
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
   Reg.reset ();
-  let register_allocator = register_allocator fd_cmm in
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
   ++ (fun (fd_cmm : Cmm.fundecl) ->
@@ -308,77 +366,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_layout ->
          cfg_with_layout
          ++ Profile.record ~accumulate:true "cfg" (fun cfg_with_layout ->
-                let cfg_with_infos =
-                  cfg_with_layout
-                  ++ (fun cfg_with_layout ->
-                       match should_vectorize () with
-                       | false -> cfg_with_layout
-                       | true ->
-                         cfg_with_layout
-                         ++ cfg_with_layout_profile ~accumulate:true "vectorize"
-                              (Vectorize.cfg ppf_dump)
-                         ++ pass_dump_cfg_if ppf_dump
-                              Flambda_backend_flags.dump_cfg "After vectorize")
-                  ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
-                       (Cfg_polling.instrument_fundecl
-                          ~future_funcnames:funcnames)
-                  ++ cfg_with_layout_profile ~accumulate:true
-                       "cfg_zero_alloc_checker"
-                       (Zero_alloc_checker.cfg ~future_funcnames:funcnames
-                          ppf_dump)
-                  ++ cfg_with_layout_profile ~accumulate:true "cfg_comballoc"
-                       Cfg_comballoc.run
-                  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
-                  ++ cfg_with_layout_profile ~accumulate:true "cfg_cse"
-                       CSE.cfg_with_layout
-                  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse
-                  ++ Cfg_with_infos.make
-                  ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode"
-                       Cfg_deadcode.run
-                in
-                let cfg_description =
-                  Regalloc_validate.Description.create
-                    (Cfg_with_infos.cfg_with_layout cfg_with_infos)
-                in
-                cfg_with_infos
-                ++ (match register_allocator with
-                   | GI ->
-                     cfg_with_infos_profile ~accumulate:true "cfg_gi"
-                       Regalloc_gi.run
-                   | IRC ->
-                     cfg_with_infos_profile ~accumulate:true "cfg_irc"
-                       Regalloc_irc.run
-                   | LS ->
-                     cfg_with_infos_profile ~accumulate:true "cfg_ls"
-                       Regalloc_ls.run)
-                ++ Cfg_with_infos.cfg_with_layout
-                ++ Profile.record ~accumulate:true "cfg_available_regs"
-                     (available_regs
-                        ~stack_slots:(fun x ->
-                          (Cfg_with_layout.cfg x).Cfg.fun_num_stack_slots)
-                        ~f:Cfg_available_regs.run)
-                ++ cfg_with_layout_profile ~accumulate:true
-                     "cfg_validate_description"
-                     (Regalloc_validate.run cfg_description)
-                ++ cfg_with_layout_profile ~accumulate:true "cfg_simplify"
-                     Regalloc_utils.simplify_cfg
-                (* CR-someday gtulbalecu: The peephole optimizations must not
-                   affect liveness, otherwise we would have to recompute it
-                   here. Recomputing it here breaks the CI because the
-                   liveness_analysis algorithm does not work properly after
-                   register allocation. *)
-                ++ cfg_with_layout_profile ~accumulate:true
-                     "peephole_optimize_cfg"
-                     Peephole_optimize.peephole_optimize_cfg
-                ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
-                     match !Flambda_backend_flags.cfg_stack_checks with
-                     | false -> cfg_with_layout
-                     | true -> Cfg_stack_checks.cfg cfg_with_layout)
-                ++ cfg_with_layout_profile ~accumulate:true "save_cfg" save_cfg
-                ++ cfg_with_layout_profile ~accumulate:true "cfg_reorder_blocks"
-                     (reorder_blocks_random ppf_dump)
-                ++ Profile.record ~accumulate:true "cfg_to_linear"
-                     Cfg_to_linear.run))
+                compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout))
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "save_linear" save_linear
