@@ -574,13 +574,19 @@ val mcomp : Env.t -> type_expr -> type_expr -> unit
 type open_type_expr = { ty : type_expr; is_open : bool }
 
 val get_unboxed_type_representation :
-  Env.t -> type_expr -> (open_type_expr, open_type_expr) result
+  Env.t ->
+  type_expr ->
+  (open_type_expr * Mode.Modality.Value.Const.t,
+   open_type_expr * Mode.Modality.Value.Const.t) result
     (* [get_unboxed_type_representation] attempts to fully expand the input
        type_expr, descending through [@@unboxed] types.  May fail in the case of
        circular types or very deeply nested unboxed types, in which case it
        returns the most expanded version it was able to compute. *)
 
-val get_unboxed_type_approximation : Env.t -> type_expr -> open_type_expr
+val get_unboxed_type_approximation :
+  Env.t ->
+  type_expr ->
+  open_type_expr * Mode.Modality.Value.Const.t
     (* [get_unboxed_type_approximation] does the same thing as
        [get_unboxed_type_representation], but doesn't indicate whether the type
        was fully expanded or not. *)
