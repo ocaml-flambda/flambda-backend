@@ -64,7 +64,7 @@ Line 1, characters 21-25:
                          ^^^^
 Error: This expression has type "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a or_null is value_or_null
+       The kind of 'a or_null is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a or_null must be a subkind of value
          because it's the type of an array element,
@@ -124,17 +124,13 @@ type should_work = t_value iarray
 
 let should_fail_iarray = [: Null; This 3.4 :]
 
-(* CR layouts v2.8: this error says the kind of ['a or_null] is
-   [value_or_null] because it is a primitive [immediate_or_null] type.
-   This is a general issue with with-kinds. *)
-
 [%%expect{|
 Line 1, characters 28-32:
 1 | let should_fail_iarray = [: Null; This 3.4 :]
                                 ^^^^
 Error: This expression has type "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a or_null is value_or_null
+       The kind of 'a or_null is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a or_null must be a subkind of value
          because it's the type of an array element,

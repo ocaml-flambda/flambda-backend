@@ -99,7 +99,16 @@ Line 1, characters 14-25:
 1 | type nested = int or_null or_null
                   ^^^^^^^^^^^
 Error: This type "int or_null" should be an instance of type "('a : value)"
-       The kind of int or_null is value_or_null
+       The kind of int or_null is immediate_or_null
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of int or_null must be a subkind of value
+         because the type argument of or_null has kind value.
+|}, Principal{|
+Line 1, characters 14-25:
+1 | type nested = int or_null or_null
+                  ^^^^^^^^^^^
+Error: This type "int or_null" should be an instance of type "('a : value)"
+       The kind of int or_null is immediate_or_null with int
          because it is the primitive immediate_or_null type or_null.
        But the kind of int or_null must be a subkind of value
          because the type argument of or_null has kind value.
@@ -113,7 +122,7 @@ Line 1, characters 23-31:
                            ^^^^^^^^
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a t is value_or_null
+       The kind of 'a t is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because of the definition of t at line 1, characters 0-81.
@@ -127,7 +136,7 @@ Line 1, characters 28-32:
                                 ^^^^
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a t is value_or_null
+       The kind of 'a t is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because of the definition of t at line 1, characters 0-81.
@@ -192,7 +201,7 @@ Line 1, characters 21-25:
                          ^^^^
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a t is value_or_null
+       The kind of 'a t is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because it's the type of an array element,
@@ -207,7 +216,18 @@ Line 1, characters 19-32:
                        ^^^^^^^^^^^^^
 Error: This type "float or_null" should be an instance of type
          "('a : any_non_null)"
-       The kind of float or_null is value_or_null
+       The kind of float or_null is
+         value_or_null mod many contended portable unyielding
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of float or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
+|}, Principal{|
+Line 1, characters 19-32:
+1 | type should_fail = float or_null array
+                       ^^^^^^^^^^^^^
+Error: This type "float or_null" should be an instance of type
+         "('a : any_non_null)"
+       The kind of float or_null is immediate_or_null with float
          because it is the primitive immediate_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
          because it's the type argument to the array type.
@@ -235,7 +255,7 @@ Line 1, characters 21-25:
                          ^^^^
 Error: This expression has type "'a t" = "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a t is value_or_null
+       The kind of 'a t is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because it's the type of an array element,
@@ -250,7 +270,18 @@ Line 1, characters 19-32:
                        ^^^^^^^^^^^^^
 Error: This type "float or_null" should be an instance of type
          "('a : any_non_null)"
-       The kind of float or_null is value_or_null
+       The kind of float or_null is
+         value_or_null mod many contended portable unyielding
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of float or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
+|}, Principal{|
+Line 1, characters 19-32:
+1 | type should_fail = float or_null array
+                       ^^^^^^^^^^^^^
+Error: This type "float or_null" should be an instance of type
+         "('a : any_non_null)"
+       The kind of float or_null is immediate_or_null with float
          because it is the primitive immediate_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
          because it's the type argument to the array type.
@@ -268,6 +299,15 @@ Error: Object field types must have layout value.
          because it is the primitive immediate_or_null type or_null.
        But the kind of "int or_null" must be a subkind of value
          because it's the type of an object field.
+|}, Principal{|
+Line 1, characters 26-42:
+1 | type object_with_null = < x : int or_null; .. >
+                              ^^^^^^^^^^^^^^^^
+Error: Object field types must have layout value.
+       The kind of "int or_null" is immediate_or_null with int
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of "int or_null" must be a subkind of value
+         because it's the type of an object field.
 |}]
 
 (* CR layouts v3: instance variables should accept null, but it's low priority. *)
@@ -281,7 +321,7 @@ Line 3, characters 8-9:
 3 |     val x = Null
             ^
 Error: Variables bound in a class must have layout value.
-       The kind of x is value_or_null
+       The kind of x is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of x must be a subkind of value
          because it's the type of a class field.

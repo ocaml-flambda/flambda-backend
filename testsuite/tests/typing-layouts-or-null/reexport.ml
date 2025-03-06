@@ -15,9 +15,9 @@ Lines 2-4, characters 2-16:
 2 | ..type ('a : value) t : immediate_or_null with 'a = 'a or_null =
 3 |     | Null
 4 |     | This of 'a
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data with 'a
          because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of value_or_null
+       But the kind of type "t" must be a subkind of immediate_or_null with 'a
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -71,7 +71,7 @@ Line 1, characters 24-40:
                             ^^^^^^^^^^^^^^^^
 Error: This expression has type "'a Or_null.t" = "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a Or_null.t is value_or_null
+       The kind of 'a Or_null.t is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a Or_null.t must be a subkind of value
          because of the definition of t at line 2, characters 2-83.
@@ -92,7 +92,7 @@ Line 4, characters 24-40:
                             ^^^^^^^^^^^^^^^^
 Error: This expression has type "'a Or_null.t" = "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a Or_null.t is value_or_null
+       The kind of 'a Or_null.t is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a Or_null.t must be a subkind of value
          because of the definition of t at line 2, characters 2-45.
@@ -106,7 +106,7 @@ type 'a t : value = 'a or_null [@@or_null_reexport]
 Line 1, characters 0-51:
 1 | type 'a t : value = 'a or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a or_null" is value_or_null
+Error: The kind of type "'a or_null" is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of type "'a or_null" must be a subkind of value
          because of the definition of t at line 1, characters 0-51.
@@ -153,7 +153,7 @@ Line 4, characters 24-40:
                             ^^^^^^^^^^^^^^^^
 Error: This expression has type "'a Or_null.t" = "'a or_null"
        but an expression was expected of type "('b : value)"
-       The kind of 'a Or_null.t is value_or_null
+       The kind of 'a Or_null.t is immediate_or_null with 'a
          because it is the primitive immediate_or_null type or_null.
        But the kind of 'a Or_null.t must be a subkind of value
          because of the definition of t at line 2, characters 2-63.
