@@ -230,8 +230,6 @@ let list_argument_sort = Jkind.Sort.Const.value
 let list_argument_jkind = Jkind.Builtin.value_or_null ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
 
-let or_null_argument_sort = Jkind.Sort.Const.value
-
 let mk_add_type add_type =
   let add_type_with_jkind
       ?manifest type_ident
@@ -516,6 +514,9 @@ let add_small_number_beta_extension_types add_type env =
   |> add_type ident_int8 ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
 
+
+let or_null_argument_sort = Jkind.Sort.Const.value
+
 let or_null_kind tvar =
   let cstrs =
     [ cstr ident_null [];
@@ -523,8 +524,12 @@ let or_null_kind tvar =
   in
   Type_variant (cstrs, Variant_with_null, None)
 
-let or_null_jkind =
-  Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null)
+let or_null_jkind param =
+  Jkind.Builtin.immediate_or_null ~why:(Primitive ident_or_null) |>
+  Jkind.add_with_bounds
+    ~modality:Mode.Modality.Value.Const.id
+    ~type_expr:param |>
+  Jkind.mark_best
 
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
@@ -539,9 +544,8 @@ let add_or_null add_type env =
      For now, we mark the type argument as [Separability.Ind] to permit
      the most argument types, and forbid arrays from accepting [or_null]s.
      In the future, we will track separability in the jkind system. *)
-  (* CR layouts v2.8: Add baggage and more mode crossing here. *)
   ~kind:or_null_kind
-  ~jkind:(fun _ -> or_null_jkind)
+  ~jkind:or_null_jkind
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

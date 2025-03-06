@@ -273,6 +273,9 @@ module Const : sig
     (** We know for sure that values of types of this jkind are always immediate *)
     val immediate : t
 
+    (** Values of types of this jkind are either immediate or null pointers *)
+    val immediate_or_null : t
+
     (** This is the jkind of unboxed 64-bit floats.  They have sort
     Float64. Mode-crosses. *)
     val float64 : t
@@ -326,6 +329,10 @@ module Builtin : sig
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate :
     why:History.immediate_creation_reason -> ('l * disallowed) Types.jkind
+
+  (** Values of types of this jkind are either immediate or null pointers *)
+  val immediate_or_null :
+    why:History.immediate_or_null_creation_reason -> 'd Types.jkind
 
   (** Build a jkind of unboxed products, from a list of types with
       their layouts. Errors if zero inputs are given. If only one input

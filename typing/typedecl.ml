@@ -846,7 +846,7 @@ let transl_declaration env sdecl (id, uid) =
               { definition = path; expected = Predef.path_or_null }))
           in
           let type_kind = Predef.or_null_kind param in
-          let jkind = Predef.or_null_jkind in
+          let jkind = Predef.or_null_jkind param in
           Ttype_abstract, type_kind, jkind
       | (Ptype_variant _ | Ptype_record _ | Ptype_record_unboxed_product _
         | Ptype_open)
