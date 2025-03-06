@@ -52,30 +52,35 @@ Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 let foo (x : ((int -> int) portable_unboxed) @@ nonportable) = use_portable x
-(* CR layouts v2.8: This should be accepted *)
 [%%expect{|
-Line 1, characters 76-77:
-1 | let foo (x : ((int -> int) portable_unboxed) @@ nonportable) = use_portable x
-                                                                                ^
-Error: This value is "nonportable" but expected to be "portable".
+val foo : (int -> int) portable_unboxed -> unit = <fun>
 |}]
 
 let foo (x : ((int -> int) portable_unboxed portable_unboxed portable_unboxed) @@ nonportable) = use_portable x
-(* CR layouts v2.8: This should be accepted *)
 [%%expect{|
-Line 1, characters 110-111:
-1 | let foo (x : ((int -> int) portable_unboxed portable_unboxed portable_unboxed) @@ nonportable) = use_portable x
-                                                                                                                  ^
-Error: This value is "nonportable" but expected to be "portable".
+val foo :
+  (int -> int) portable_unboxed portable_unboxed portable_unboxed -> unit =
+  <fun>
 |}]
 
 let foo (x : (((int -> int) ref) portable_unboxed contended_unboxed portable_unboxed contended_unboxed) @@ nonportable contended) =
   use_portable x
 (* CR layouts v2.8: This should be accepted *)
 [%%expect{|
-Line 1, characters 85-102:
-1 | let foo (x : (((int -> int) ref) portable_unboxed contended_unboxed portable_unboxed contneded_unboxed) @@ nonportable contended) =
-                                                                                         ^^^^^^^^^^^^^^^^^
-Error: Unbound type constructor "contneded_unboxed"
-Hint: Did you mean "contended_unboxed"?
+Line 2, characters 15-16:
+2 |   use_portable x
+                   ^
+Error: This value is "nonportable" but expected to be "portable".
 |}]
+
+(* CR aspsmith: other tests to add:
+
+   - unboxed modalit(ies) inside unboxed tuple(s)
+   - subkind check (using require_...)
+   - subkind for nesting
+   - [@@unboxed] variants with regular fields
+   - [@@unboxed] variants with single-field inlined records
+   - [@@unboxed] gadt constructors with regular fields
+   - [@@unboxed] gadt constructors with single-field inlined records
+   - unboxed products
+*)

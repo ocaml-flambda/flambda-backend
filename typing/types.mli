@@ -847,8 +847,8 @@ and constructor_arguments =
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
 
-(* Returns the inner type, if unboxed. *)
-val find_unboxed_type : type_declaration -> type_expr option
+(* Returns the inner type and its modalities, if unboxed. *)
+val find_unboxed_type : type_declaration -> (type_expr * Mode.Modality.Value.Const.t) option
 
 type extension_constructor =
   {
