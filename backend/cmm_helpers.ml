@@ -4547,17 +4547,17 @@ module Scalar_type = struct
     let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
 
     (** Determines whether [dst] can represent every value of [src], preserving sign *)
-    let[@inline] is_promotable ~src ~dst =
+    let[@inline] can_cast_without_losing_information ~src ~dst =
       match signedness src, signedness dst with
       | Signed, Signed | Unsigned, Unsigned -> bit_width src <= bit_width dst
       | Unsigned, Signed -> bit_width src < bit_width dst
       | Signed, Unsigned -> false
 
     let[@inline] static_cast ~dbg ~src ~dst exp =
-      if is_promotable ~src ~dst
+      if can_cast_without_losing_information ~src ~dst
       then
-        (* since cmm expressions representing int32#s are stored sign- or
-           zero-extended, this is a no-op. *)
+        (* Since [Bit_width_and_signedness] represents sign- or zero-extended
+           expressions, this is a no-op *)
         exp
       else
         match signedness dst with
@@ -4648,8 +4648,9 @@ module Scalar_type = struct
       | Untagged untagged -> Integer.print ppf untagged
       | Tagged tagged -> Tagged_integer.print ppf tagged
 
-    let[@inline] is_promotable ~src ~dst =
-      Integer.is_promotable ~src:(untagged src) ~dst:(untagged dst)
+    let[@inline] can_cast_without_losing_information ~src ~dst =
+      Integer.can_cast_without_losing_information ~src:(untagged src)
+        ~dst:(untagged dst)
 
     let static_cast ~dbg ~src ~dst exp =
       match src, dst with
@@ -4682,7 +4683,9 @@ module Scalar_type = struct
     | Float src, Float dst -> Float_width.static_cast ~dbg ~src ~dst exp
     | Integral src, Float dst ->
       let float_of_int_arg = Integral.nativeint in
-      if not (Integral.is_promotable ~src ~dst:float_of_int_arg)
+      if not
+           (Integral.can_cast_without_losing_information ~src
+              ~dst:float_of_int_arg)
       then
         Misc.fatal_errorf "static_cast: casting %a to float is not implemented"
           Integral.print src

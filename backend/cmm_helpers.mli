@@ -1279,7 +1279,7 @@ module Scalar_type : sig
 
     val unsigned : t -> t
 
-    val is_promotable : src:t -> dst:t -> bool
+    val can_cast_without_losing_information : src:t -> dst:t -> bool
 
     val static_cast : t static_cast
 
