@@ -1228,6 +1228,22 @@ val dls_get : dbg:Debuginfo.t -> expression
 val poll : dbg:Debuginfo.t -> expression
 
 module Scalar_type : sig
+  (** A static_cast from a larger integral type to a smaller one logically truncates the
+      upper bits. Note that values are stored in registers sign- or zero- extended
+      according to their signdness, so the result may be sign-extended.
+
+      A static_cast from a smaller integral type to an equal or larger sized-integral type
+      sign- or zero-extends the input value according to the sign of the result.
+
+      A static_cast from an integral type to a float is pretty self-explanatory.
+
+      A static_cast from a float to an integral type always rounds toward zero. If the
+      resulting integral does not fit in the destination type, the result is unspecified
+      (although it's generally zero).
+
+      Casting floats to/from unsigned register-width integers is not implemented and will
+      raise in the compiler. *)
+
   type 'a static_cast :=
     dbg:Debuginfo.t -> src:'a -> dst:'a -> expression -> expression
 
@@ -1286,10 +1302,8 @@ module Scalar_type : sig
     val conjugate : t conjugate
   end
 
-  (** An integer that fits into a general-purpose register. It is canonically stored in
-      twos-complement representation, in the lower [bits] bits of its container (whether
-      that be memory or a register), and is sign- or zero-extended as needed, according
-      to [signed]. *)
+  (** An integer stored the lower [bits] bits of a register-width twos-complement integer,
+      and sign- or zero-extended as needed, according to [signedness]. *)
   module Integer : sig
     type t [@@immediate]
 
