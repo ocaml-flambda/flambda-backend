@@ -1,5 +1,4 @@
 (* TEST
-   flags = "-extension layouts_beta";
    {
      reference = "${test_source_directory}/uniform_or_mixed.native.reference";
      compiler_reference2 = "${test_source_directory}/uniform_or_mixed.compiler.reference";
@@ -50,4 +49,3 @@ let () = run "t_uniform3" ((fun x -> x) : t_uniform3)
 let () = run "t_mixed0" ({ x = #4L } : t_mixed0)
 let () = run "t_mixed1" ({ x = ""; y = #5L } : t_mixed1)
 let () = run "t_mixed2" ({ x = ""; y = ""; z = #5L }: t_mixed2)
-

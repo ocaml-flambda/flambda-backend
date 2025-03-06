@@ -1,5 +1,5 @@
 (* TEST
- flags = "-dshape -extension layouts_beta";
+ flags = "-dshape";
  expect;
 *)
 

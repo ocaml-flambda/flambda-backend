@@ -555,19 +555,15 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_nativeint)),
         3)
     | "%makearray_dynamic" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode, With_initializer), 2)
     | "%makearray_dynamic_uninit" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode, Uninitialized), 1)
     | "%arrayblit" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Parrayblit {
         src_mutability = Mutable;
         dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
       }, 5);
     | "%arrayblit_src_immut" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Parrayblit {
         src_mutability = Immutable;
         dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())

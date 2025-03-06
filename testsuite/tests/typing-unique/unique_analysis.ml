@@ -1,11 +1,8 @@
 (* TEST
- flags += "-extension layouts_beta";
  expect;
 *)
 
 (* This file is to test uniqueness_analysis.ml *)
-(* CR layouts v7.1: When tuples are out of beta, this test no longer needs
-   -extension layouts_beta *)
 
 (* First some helper functions *)
 let unique_id : unique_ 'a -> unique_ 'a = fun x -> x

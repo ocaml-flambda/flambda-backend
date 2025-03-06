@@ -711,34 +711,37 @@ Error: "[@layout_poly]" on this external declaration has no
        variable for it to operate on.
 |}]
 
-(********************************************************)
-(* Newer prims are gated to appropriate maturity levels *)
+(*********************************************)
+(* Tuple array prims no longer gated to beta *)
 
 external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
   "%makearray_dynamic"
 [%%expect{|
-Lines 1-2, characters 0-22:
-1 | external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
-2 |   "%makearray_dynamic"
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+external makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array
+  = "%makearray_dynamic" [@@layout_poly]
 |}]
 
 external[@layout_poly] arrayblit :
   ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit =
   "%arrayblit"
 [%%expect{|
-Lines 1-3, characters 0-14:
-1 | external[@layout_poly] arrayblit :
-2 |   ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit =
-3 |   "%arrayblit"
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+external arrayblit :
+  ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit
+  = "%arrayblit" [@@layout_poly]
 |}]
 
-external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
+external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a array =
   "%makearray_dynamic_uninit"
 [%%expect{|
-Lines 1-2, characters 0-29:
-1 | external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
-2 |   "%makearray_dynamic_uninit"
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+external makearray_dynamic : ('a : any_non_null). int -> 'a array
+  = "%makearray_dynamic_uninit" [@@layout_poly]
+|}]
+
+external[@layout_poly] arrayblit_src_immut :
+  ('a : any_non_null). 'a iarray -> int -> 'a array -> int -> int -> unit =
+  "%arrayblit_src_immut"
+[%%expect{|
+external arrayblit_src_immut :
+  ('a : any_non_null). 'a iarray -> int -> 'a array -> int -> int -> unit
+  = "%arrayblit_src_immut" [@@layout_poly]
 |}]

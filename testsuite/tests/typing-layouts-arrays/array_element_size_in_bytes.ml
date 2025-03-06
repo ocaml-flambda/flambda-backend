@@ -1,5 +1,4 @@
 (* TEST
- flags = "-extension layouts_beta";
  flambda2;
  stack-allocation;
  arch_amd64;
