@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension-universe alpha -infer-with-bounds";
+ flags = "-extension-universe alpha";
  expect;
 *)
 
