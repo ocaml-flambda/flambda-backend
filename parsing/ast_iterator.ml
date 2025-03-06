@@ -518,6 +518,7 @@ module E = struct
     | Pexp_letexception (cd, e) ->
         sub.extension_constructor sub cd;
         sub.expr sub e
+    | Pexp_addr e -> sub.expr sub e
     | Pexp_assert e -> sub.expr sub e
     | Pexp_lazy e -> sub.expr sub e
     | Pexp_poly (e, t) ->

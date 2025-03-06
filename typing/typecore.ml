@@ -6501,6 +6501,8 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
 
+  | Pexp_addr _ ->
+      assert false
   | Pexp_assert (e) ->
       let cond =
         type_expect env mode_max e

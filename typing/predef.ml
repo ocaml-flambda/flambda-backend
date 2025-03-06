@@ -40,6 +40,7 @@ and ident_array = ident_create "array"
 and ident_iarray = ident_create "iarray"
 and ident_list = ident_create "list"
 and ident_option = ident_create "option"
+and ident_mptr = ident_create "mptr"
 and ident_nativeint = ident_create "nativeint"
 and ident_int8 = ident_create "int8"
 and ident_int16 = ident_create "int16"
@@ -455,6 +456,13 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.add_with_bounds
            ~modality:Mode.Modality.Value.Const.id
            ~type_expr:param)
+  |> add_type1 ident_mptr
+       ~variance:Variance.null
+       ~separability:Separability.Ind
+       ~jkind:(fun _param ->
+          Jkind.for_mptr
+       )
+       ~param_jkind:(Jkind.Builtin.any ~why:Array_type_argument)
   |> add_type_with_jkind ident_lexing_position
        ~kind:(
          let lbl (field, field_type) =

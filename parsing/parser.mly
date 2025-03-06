@@ -919,6 +919,7 @@ let maybe_pmod_constraint mode expr =
    string that will not trigger a syntax error; see how [not_expecting]
    is used in the definition of [type_variance]. */
 
+%token ADDR                   "addr_"
 %token AMPERAMPER             "&&"
 %token AMPERSAND              "&"
 %token AND                    "and"
@@ -2877,6 +2878,8 @@ fun_expr:
   | FOR ext_attributes pattern EQUAL seq_expr direction_flag seq_expr
     do_done_expr
       { Pexp_for($3, $5, $7, $6, $8), $2 }
+  | ADDR ext_attributes simple_expr %prec below_HASH
+      { Pexp_addr $3, $2 }
   | ASSERT ext_attributes simple_expr %prec below_HASH
       { Pexp_assert $3, $2 }
   | LAZY ext_attributes simple_expr %prec below_HASH

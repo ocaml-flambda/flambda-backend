@@ -2111,6 +2111,14 @@ let for_object =
     }
     ~annotation:None ~why:(Value_creation Object)
 
+let for_mptr =
+  fresh_jkind
+    { layout = Product [Sort (Base Value); Sort (Base Bits64)];
+      mod_bounds = Mod_bounds.max;
+      with_bounds = No_with_bounds
+    }
+    ~annotation:None ~why:(Product_creation Unboxed_tuple)
+
 (******************************)
 (* elimination and defaulting *)
 

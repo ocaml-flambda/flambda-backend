@@ -432,6 +432,9 @@ and expression i ppf x =
       line i ppf "Pexp_letexception\n";
       extension_constructor i ppf cd;
       expression i ppf e;
+  | Pexp_addr (e) ->
+      line i ppf "Pexp_addr\n";
+      expression i ppf e;
   | Pexp_assert (e) ->
       line i ppf "Pexp_assert\n";
       expression i ppf e;

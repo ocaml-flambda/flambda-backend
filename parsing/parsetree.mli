@@ -471,6 +471,7 @@ and expression_desc =
       (** [let module M = ME in E] *)
   | Pexp_letexception of extension_constructor * expression
       (** [let exception C in E] *)
+  | Pexp_addr of expression
   | Pexp_assert of expression
       (** [assert E].
 
