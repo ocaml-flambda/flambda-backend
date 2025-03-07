@@ -338,13 +338,7 @@ let makearray_dynamic_scannable_unboxed_product env
     match lambda_array_kind with
     | Pgcignorableproductarray _ -> false
     | Pgcscannableproductarray kinds ->
-      let rec must_be_scanned (kind : L.scannable_product_element_kind) =
-        match kind with
-        | Pint_scannable -> false
-        | Paddr_scannable -> true
-        | Pproduct_scannable kinds -> List.exists must_be_scanned kinds
-      in
-      List.exists must_be_scanned kinds
+      List.exists L.scannable_product_element_kind_must_be_scanned kinds
     | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
     | Punboxedintarray _ | Punboxedvectorarray _ ->
       Misc.fatal_errorf

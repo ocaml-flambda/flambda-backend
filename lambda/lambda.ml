@@ -2618,3 +2618,11 @@ let rec ignorable_product_element_kind_involves_int
   | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> false
   | Pproduct_ignorable kinds ->
     List.exists ignorable_product_element_kind_involves_int kinds
+
+let rec scannable_product_element_kind_must_be_scanned
+    (kind : scannable_product_element_kind) =
+  match kind with
+  | Pint_scannable -> false
+  | Paddr_scannable -> true
+  | Pproduct_scannable kinds ->
+    List.exists scannable_product_element_kind_must_be_scanned kinds

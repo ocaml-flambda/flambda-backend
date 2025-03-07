@@ -1489,11 +1489,15 @@ let check_valid_reinterpret_set_kinds (array_kind : L.array_kind)
          integer arrays, and no conjuring-up of "valid" OCaml values from such
          arrays. *)
       fail ()
+    | Pgcscannableproductarray_set (_, kinds) ->
+      (* Same comment as previous case *)
+      if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+      then fail ()
     | Pintarray_set | Pfloatarray_set
     | Punboxedfloatarray_set Unboxed_float64
     | Punboxedintarray_set Unboxed_int64
     | Punboxedintarray_set Unboxed_nativeint
-    | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ ->
+    | Pgcignorableproductarray_set _ ->
       ()
     | Punboxedfloatarray_set Unboxed_float32
     | Punboxedintarray_set Unboxed_int32
@@ -1518,11 +1522,15 @@ let check_valid_reinterpret_ref_kinds (array_kind : L.array_kind)
     | Pgenarray_ref _ | Paddrarray_ref ->
       (* See comment above in the "set" case. *)
       fail ()
+    | Pgcscannableproductarray_ref kinds ->
+      (* Same comment as previous case *)
+      if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+      then fail ()
     | Pintarray_ref | Pfloatarray_ref _
     | Punboxedfloatarray_ref Unboxed_float64
     | Punboxedintarray_ref Unboxed_int64
     | Punboxedintarray_ref Unboxed_nativeint
-    | Pgcscannableproductarray_ref _ | Pgcignorableproductarray_ref _ ->
+    | Pgcignorableproductarray_ref _ ->
       ()
     | Punboxedfloatarray_ref Unboxed_float32
     | Punboxedintarray_ref Unboxed_int32

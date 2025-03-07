@@ -1254,3 +1254,6 @@ val primitive_can_raise : primitive -> bool
 val count_initializers_array_kind : array_kind -> int
 val ignorable_product_element_kind_involves_int :
   ignorable_product_element_kind -> bool
+
+val scannable_product_element_kind_must_be_scanned :
+  scannable_product_element_kind -> bool
