@@ -24,11 +24,6 @@ val maybe_pointer_type : Env.t -> Types.type_expr
 val maybe_pointer : Typedtree.expression
   -> Lambda.immediate_or_pointer * Lambda.nullable
 
-val representation_properties_type :
-  Env.t -> Types.type_expr -> Lambda.immediate_or_pointer * Lambda.nullable
-val representation_properties :
-  Typedtree.expression ->  Lambda.immediate_or_pointer * Lambda.nullable
-
 (* Supplying [None] for [elt_sort] should be avoided when possible. It
    will result in a call to [Ctype.type_sort] which can be expensive. *)
 val array_type_kind :

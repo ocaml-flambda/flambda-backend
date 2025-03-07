@@ -555,9 +555,6 @@ val get_externality_upper_bound :
 val set_externality_upper_bound :
   Types.jkind_r -> Jkind_axis.Externality.t -> Types.jkind_r
 
-val set_nullability_upper_bound :
-  Types.jkind_r -> Jkind_axis.Nullability.t -> Types.jkind_r
-
 (** Gets the nullability from a jkind. *)
 val get_nullability :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->

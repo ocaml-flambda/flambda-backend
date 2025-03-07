@@ -677,7 +677,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               ~get_value_kind:(fun i ->
                 if i <> lbl.lbl_num then Lambda.generic_value
                 else
-                  let pointerness, nullable = representation_properties e in
+                  let pointerness, nullable = maybe_pointer e in
                   let raw_kind = match pointerness with
                     | Pointer -> Pgenval
                     | Immediate -> Pintval
@@ -746,7 +746,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                 if i <> lbl.lbl_num then Lambda.generic_value
                 else
                   let pointerness, nullable =
-                    representation_properties newval
+                    maybe_pointer newval
                   in
                   let raw_kind = match pointerness with
                     | Pointer -> Pgenval
@@ -1925,7 +1925,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                       if i <> lbl.lbl_num then Lambda.generic_value
                       else
                         let pointerness, nullable =
-                          representation_properties expr
+                          maybe_pointer expr
                         in
                         let raw_kind = match pointerness with
                           | Pointer -> Pgenval
@@ -1998,7 +1998,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                          if i <> lbl.lbl_num then Lambda.generic_value
                          else
                            let pointerness, nullable =
-                             representation_properties_type env typ
+                             maybe_pointer_type env typ
                            in
                            let raw_kind = match pointerness with
                              | Pointer -> Pgenval

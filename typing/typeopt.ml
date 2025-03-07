@@ -98,9 +98,6 @@ let is_always_gc_ignorable env ty =
   in
   Ctype.check_type_externality env ty ext
 
-let maybe_pointer_scraped_ty env ty =
-  if is_always_gc_ignorable env ty then Immediate else Pointer
-
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
   let immediate_or_pointer =
@@ -116,19 +113,6 @@ let maybe_pointer_type env ty =
   immediate_or_pointer, nullable
 
 let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
-
-let representation_properties_type env ty =
-  let ty = scrape_ty env ty in
-  let pointer = maybe_pointer_scraped_ty env ty in
-  let nullable =
-    if Ctype.check_type_nullability env ty Jkind_axis.Nullability.Non_null
-    then Non_nullable
-    else Nullable
-  in
-  pointer, nullable
-
-let representation_properties exp =
-  representation_properties_type exp.exp_env exp.exp_type
 
 (* CR layouts v2.8: Calling [type_legacy_sort] in [typeopt] is not ideal
    and this function should be removed at some point. To do that, there

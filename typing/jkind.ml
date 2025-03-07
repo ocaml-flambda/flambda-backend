@@ -2219,15 +2219,6 @@ let set_externality_upper_bound jk externality_upper_bound =
       }
   }
 
-let set_nullability_upper_bound jk nullability_upper_bound =
-  { jk with
-    jkind =
-      { jk.jkind with
-        mod_bounds =
-          Mod_bounds.set_nullability nullability_upper_bound jk.jkind.mod_bounds
-      }
-  }
-
 let all_except_nullability =
   Axis_set.singleton (Nonmodal Nullability) |> Axis_set.complement
 
