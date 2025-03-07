@@ -403,6 +403,11 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                  in
                  Oval_lazy v
                end
+
+          | Tconstr (path, [ty_arg], _)
+            when Path.same path Predef.path_code ->
+            Oval_code
+
           | Tconstr(path, ty_list, _) -> begin
               try
                 let decl = Env.find_type path env in
