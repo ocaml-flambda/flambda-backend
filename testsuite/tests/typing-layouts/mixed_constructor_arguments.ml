@@ -780,18 +780,14 @@ type ('a : any) t_gadt_any_reordered =
   | A : float# * 'a tv -> 'a t_gadt_any_reordered
 
 [%%expect{|
-Line 2, characters 29-43:
-2 |   | A : float# * 'a tv -> 'a t_gadt_any_bad
-                                 ^^^^^^^^^^^^^^
-Error: Unbound type constructor "t_gadt_any_bad"
+type ('a : any) t_gadt_any_reordered =
+    A : float# * 'a tv -> 'a t_gadt_any_reordered
 |}]
 
 type ('a : any) t_gadt_any_record_reordered =
   | A : { x : float#; y : 'a tv } -> 'a t_gadt_any_record_reordered
 
 [%%expect{|
-Line 2, characters 40-61:
-2 |   | A : { x : float#; y : 'a tv } -> 'a t_gadt_any_record_bad
-                                            ^^^^^^^^^^^^^^^^^^^^^
-Error: Unbound type constructor "t_gadt_any_record_bad"
+type ('a : any) t_gadt_any_record_reordered =
+    A : { x : float#; y : 'a tv; } -> 'a t_gadt_any_record_reordered
 |}]
