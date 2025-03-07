@@ -398,7 +398,7 @@ let update_type temp_env env id loc =
    be possible.
 *)
 let is_float env ty =
-  match get_desc (Ctype.get_unboxed_type_approximation env ty).ty with
+  match get_desc (fst (Ctype.get_unboxed_type_approximation env ty)).ty with
     Tconstr(p, _, _) -> Path.same p Predef.path_float
   | _ -> false
 
@@ -1690,7 +1690,10 @@ let rec update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type} as lbl], Record_unboxed ->
-      let jkind = Ctype.type_jkind env ld_type in
+      let jkind =
+        Ctype.type_jkind env ld_type |>
+        Jkind.apply_modality lbl.ld_modalities
+      in
       (* This next line is guaranteed to be OK because of a call to
          [check_representable] *)
       let sort = Jkind.sort_of_jkind jkind in
@@ -3294,7 +3297,7 @@ let type_sort_external ~is_layout_poly ~why env loc typ =
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
   let sort_or_poly =
-    match get_desc (Ctype.get_unboxed_type_approximation env ty).ty with
+    match get_desc (fst (Ctype.get_unboxed_type_approximation env ty)).ty with
     (* This only captures tvars with layout [any] explicitly quantified within
        the declaration.
 

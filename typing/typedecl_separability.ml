@@ -57,7 +57,7 @@ let structure : type_definition -> type_structure = fun def ->
       end
   | (Type_record _ | Type_variant _), None -> Algebraic
   | Type_record_unboxed_product _, None -> Algebraic
-  | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some ty ->
+  | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some (ty, _) ->
       let params =
         match def.type_kind with
         | Type_variant ([{cd_res = Some ret_type}], _, _) ->

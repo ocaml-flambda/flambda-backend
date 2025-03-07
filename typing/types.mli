@@ -114,6 +114,10 @@ module Jkind_mod_bounds : sig
       [bounds] *)
   val set_max_in_set : t -> Jkind_axis.Axis_set.t -> t
 
+  (** [set_min_in_set bounds axes] sets all the axes in [axes] to their [min] within
+      [bounds] *)
+  val set_min_in_set : t -> Jkind_axis.Axis_set.t -> t
+
   (** [is_max_within_set bounds axes] returns whether or not all the axes in [axes] are
       [max] within [bounds] *)
   val is_max_within_set : t -> Jkind_axis.Axis_set.t -> bool
@@ -843,8 +847,8 @@ and constructor_arguments =
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
 
-(* Returns the inner type, if unboxed. *)
-val find_unboxed_type : type_declaration -> type_expr option
+(* Returns the inner type and its modalities, if unboxed. *)
+val find_unboxed_type : type_declaration -> (type_expr * Mode.Modality.Value.Const.t) option
 
 type extension_constructor =
   {
