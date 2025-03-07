@@ -114,8 +114,7 @@ external finalise_release : unit -> unit @@ portable = "caml_final_release"
 
 
 type alarm = bool Atomic.t
-type alarm_rec : value mod contended = {active : alarm; f : unit -> unit}
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+type alarm_rec = {active : alarm; f : unit -> unit}
 
 let rec call_alarm arec =
   if Atomic.Safe.get arec.active then begin

@@ -325,7 +325,6 @@ let errors = [| "";
       bytecode executable program file cannot be opened;\n \
       -- too many open files. Try running with OCAMLRUNPARAM=b=2)"
 |]
-|> Obj.magic_portable (* CR with-kinds: Unnecessary magic. *)
 
 let default_uncaught_exception_handler exn raw_backtrace =
   eprintf "Fatal error: exception %s\n" (to_string exn);
