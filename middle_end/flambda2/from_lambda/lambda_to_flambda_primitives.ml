@@ -1473,7 +1473,8 @@ let check_valid_reinterpret_set_kinds (array_kind : L.array_kind)
   let[@inline] fail () =
     Misc.fatal_errorf
       "Unsupported array reinterpret set operation with array_kind %s and\n\
-       array_set_kind %a:@ %a"
+       array_set_kind %a:@ %a.  (If you do not actually want to reinterpret, \
+       use Pnormal_access)"
       (Printlambda.array_kind array_kind)
       Printlambda.array_set_kind array_set_kind Debuginfo.print_compact dbg
   in
@@ -1510,7 +1511,8 @@ let check_valid_reinterpret_ref_kinds (array_kind : L.array_kind)
   let[@inline] fail () =
     Misc.fatal_errorf
       "Unsupported array reinterpret ref operation with array_kind %s and\n\
-       array_ref_kind %a:@ %a"
+       array_ref_kind %a:@ %a.  (If you do not actually want to reinterpret, \
+       use Pnormal_access)"
       (Printlambda.array_kind array_kind)
       Printlambda.array_ref_kind array_ref_kind Debuginfo.print_compact dbg
   in
