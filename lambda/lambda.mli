@@ -121,9 +121,9 @@ type primitive =
   | Pmakefloatblock of mutable_flag * locality_mode
   | Pmakeufloatblock of mutable_flag * locality_mode
   | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
-  | Pfield of int * immediate_or_pointer * field_read_semantics
+  | Pfield of int * immediate_or_pointer * block_shape * field_read_semantics
   | Pfield_computed of field_read_semantics
-  | Psetfield of int * immediate_or_pointer * initialization_or_assignment
+  | Psetfield of int * immediate_or_pointer * block_shape * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
@@ -472,8 +472,20 @@ and layout =
   | Punboxed_product of layout list
   | Pbottom
 
+and known_layout =
+  | Pvalue of value_kind
+  | Punboxed_float of boxed_float
+  | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
+
 and block_shape =
-  value_kind list option
+  | Unknown_all_values
+  | Shape of block_shape_item list
+
+and block_shape_item =
+  | Value of value_kind
+  | Unboxed_product of known_layout list
 
 and flat_element = Types.flat_element =
   | Imm
@@ -496,7 +508,8 @@ and mixed_block_write =
   | Mwrite_flat_suffix of flat_element
 
 and mixed_block_shape =
-  { value_prefix_len : int;
+  { (* CR xclerc: try to find a better name, as this might contain unboxed products *)
+    value_prefix : block_shape;
     (* We use an array just so we can index into the middle. *)
     flat_suffix : flat_element array;
   }
@@ -587,6 +600,7 @@ val layout_of_extern_repr : extern_repr -> layout
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list
+  (* CR xclerc: double check whether `mixed_block_shape` should be changed. *)
   | Const_mixed_block of int * mixed_block_shape * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
