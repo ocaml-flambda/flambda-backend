@@ -88,7 +88,8 @@ type t =
 type t = { f1 : float#; f2 : float#; f3 : float; }
 |}];;
 
-(* The string [f3] can't appear in the flat suffix. *)
+(* The string [f3] can't appear in the flat suffix, thus it will be moved
+   by the middle end into the value prefix. *)
 type t =
   { f1 : float#;
     f2 : float#;
