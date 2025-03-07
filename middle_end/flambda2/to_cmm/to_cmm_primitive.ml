@@ -726,9 +726,10 @@ let binary_int_shift_primitive _env dbg kind (op : P.int_shift_op) x y =
     let right_shift_kind signedness =
       (* right shifts can operate directly on any untagged integers of the
          correct signedness, as they do not require sign- or zero-extension
-         after the shift *)
+         after the shift, since the cmm scalar types are already stored sign- or
+         zero-extended *)
       C.Scalar_type.Integer.with_signedness
-        (C.Scalar_type.Integral.untagged kind)
+        (C.Scalar_type.Integral.untagged_or_identity kind)
         ~signedness
     in
     let f, (op_kind : C.Scalar_type.Integer.t) =

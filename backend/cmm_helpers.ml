@@ -4623,7 +4623,7 @@ module Scalar_type = struct
 
     let nativeint = Untagged Integer.nativeint
 
-    let[@inline] untagged = function
+    let[@inline] untagged_or_identity = function
       | Untagged t -> t
       | Tagged t -> Tagged_integer.untagged t
 
@@ -4653,8 +4653,8 @@ module Scalar_type = struct
       | Tagged tagged -> Tagged_integer.print ppf tagged
 
     let[@inline] can_cast_without_losing_information ~src ~dst =
-      Integer.can_cast_without_losing_information ~src:(untagged src)
-        ~dst:(untagged dst)
+      Integer.can_cast_without_losing_information
+        ~src:(untagged_or_identity src) ~dst:(untagged_or_identity dst)
 
     let static_cast ~dbg ~src ~dst exp =
       match src, dst with

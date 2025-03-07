@@ -1346,12 +1346,12 @@ module Scalar_type : sig
 
     val nativeint : t
 
-    (** Gets the integer resulting from untagging the integeral (if it is tagged).
+    (** Gets the integer resulting from untagging the integeral iff it is tagged.
 
         E.g., you can use [static_cast ~src ~dst:(Untagged (untagged src))] to untag a
-        value of type [src]
-    *)
-    val untagged : t -> Integer.t
+        value of type [src], And in the cas where [src] is already untagged, this becomes
+        the identity function *)
+    val untagged_or_identity : t -> Integer.t
 
     include Integral_ops with type t := t
   end
