@@ -4696,11 +4696,16 @@ module Scalar_type = struct
       match Integral.signedness dst with
       | Unsigned ->
         Misc.fatal_errorf
-          "static_cast: casting floats to unsigned values is undefined"
+          "static_cast: casting floats to unsigned values is not implemented"
       | Signed ->
-        (* we can truncate, but we don't want to promote *)
-        Integral.static_cast ~dbg ~src:Integral.nativeint ~dst
-          (unary (Cstatic_cast (Int_of_float src)) exp ~dbg))
+        (* we can truncate because casting from float -> int is unspecified when
+           the rounded value doesn't fit in the integral type. We can't promote
+           since nativeint is already the largest integral type supported
+           here. *)
+        let src = Integral.nativeint in
+        assert (Integral.can_cast_without_losing_information ~src ~dst);
+        unary (Cstatic_cast (Int_of_float src)) exp ~dbg
+        |> Integral.static_cast ~dbg ~src ~dst)
 
   let[@inline] conjugate ~outer ~inner ~dbg ~f x =
     x
