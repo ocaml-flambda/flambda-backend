@@ -787,7 +787,7 @@ Error: Unbound type constructor "t_gadt_any_bad"
 |}]
 
 type ('a : any) t_gadt_any_record_reordered =
-  | A : { x : float#; y : 'a tv } -> 'a t_gadt_any_record_bad
+  | A : { x : float#; y : 'a tv } -> 'a t_gadt_any_record_reordered
 
 [%%expect{|
 Line 2, characters 40-61:
