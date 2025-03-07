@@ -17,14 +17,13 @@ let camlinternalQuote =
 let combinator modname field =
   lazy
     (let _, env = Lazy.force camlinternalQuote in
-     let lid = Ldot (Lident modname, field) in
-     match Env.lookup_value ~loc:Location.none lid env with
-     | Path.Pdot (Path.Pdot (Path.Pident ident, lab1), lab2), _, _ ->
-       transl_module_path Loc_unknown env
-         (Path.Pdot (Path.Pdot (Path.Pident ident, lab1), lab2))
-     | _ ->
-       fatal_error
-         ("Primitive CamlinternalQuote." ^ modname ^ "." ^ field ^ " not found.")
+     let lid =
+       match unflatten (String.split_on_char '.' modname) with
+       | None -> Lident field
+       | Some lid -> Ldot (lid, field)
+     in
+     match Env.find_value_by_name lid env with
+     | p, _ -> transl_value_path Loc_unknown env p
      | exception Not_found ->
        fatal_error
          ("Primitive CamlinternalQuote." ^ modname ^ "." ^ field ^ " not found."))
@@ -70,7 +69,39 @@ module Label = struct
 end
 
 module Identifier = struct
-  let name = combinator "Ident" "name"
+  module Module = struct
+    let compilation_unit = combinator "Identifier.Module" "compilation_unit"
+
+    let dot = combinator "Identifier.Module" "dot"
+  end
+
+  module Value = struct
+    let dot = combinator "Identifier.Value" "dot"
+
+    let var = combinator "Identifier.Value" "var"
+  end
+
+  module Constructor = struct
+    let dot = combinator "Identifier.Constructor" "dot"
+
+    let false_ = combinator "Identifier.Constructor" "false_"
+
+    let true_ = combinator "Identifier.Constructor" "true_"
+
+    let void = combinator "Identifier.Constructor" "void"
+
+    let nil = combinator "Identifier.Constructor" "nil"
+
+    let cons = combinator "Identifier.Constructor" "cons"
+
+    let none = combinator "Identifier.Constructor" "none"
+
+    let some = combinator "Identifier.Constructor" "some"
+  end
+
+  module Field = struct
+    let dot = combinator "Identifier.Field" "dot"
+  end
 end
 
 module Variant = struct
@@ -124,14 +155,12 @@ module Function = struct
 
   let cases = combinator "Function" "cases"
 
-  let param = combinator "Function" "param_simple"
+  let param = combinator "Function" "param"
 
   let newtype = combinator "Function" "newtype"
 end
 
 module Exp = struct
-  let var = combinator "Exp" "var"
-
   let ident = combinator "Exp" "ident"
 
   let constant = combinator "Exp" "constant"
@@ -168,8 +197,6 @@ module Exp = struct
 
   let while_ = combinator "Exp" "while_"
 
-  let for_nonbinding = combinator "Exp" "for_nonbinding"
-
   let for_simple = combinator "Exp" "for_simple"
 
   let send = combinator "Exp" "send"
@@ -179,8 +206,6 @@ module Exp = struct
   let lazy_ = combinator "Exp" "lazy_"
 
   let open_ = combinator "Exp" "open_"
-
-  let constraint_ = combinator "Exp" "constraint_"
 
   let quote = combinator "Exp" "quote"
 
@@ -206,10 +231,6 @@ let apply loc comb args =
 
 let string loc s = Lconst (Const_base (Const_string (s, loc, None)))
 
-let marshal loc x =
-  let s = Marshal.to_string x [] in
-  string loc s
-
 let true_ = Lconst (Const_base (Const_int 1))
 
 let false_ = Lconst (Const_base (Const_int 0))
@@ -229,6 +250,10 @@ let nil = Lconst (Const_base (Const_int 0))
 
 let cons hd tl =
   Lprim (Pmakeblock (0, Immutable, None, alloc_heap), [hd; tl], Loc_unknown)
+
+let hd l = Lprim (Pfield (0, Immediate, Reads_vary), [l], Loc_unknown)
+
+let tl l = Lprim (Pfield (1, Immediate, Reads_vary), [l], Loc_unknown)
 
 let rec mk_list list =
   match list with [] -> nil | hd :: tl -> cons hd (mk_list tl)
@@ -255,11 +280,6 @@ let func ids body =
 
 let bind id def body = Llet (Strict, Ptop, id, def, body)
 
-let quote_loc (loc : Location.t) =
-  if loc = Location.none
-  then use Loc.unknown
-  else apply loc Loc.known [marshal loc loc]
-
 let quote_constant loc (const : Typedtree.constant) =
   match const with
   | Const_int x -> apply loc Constant.int [Lconst (Const_base (Const_int x))]
@@ -278,6 +298,17 @@ let quote_constant loc (const : Typedtree.constant) =
     apply loc Constant.nativeint [Lconst (Const_base (Const_nativeint x))]
   | _ -> fatal_error "Unsupported constant type detected."
 
+let quote_loc (loc : Location.t) =
+  if loc = Location.none
+  then use Loc.unknown
+  else
+    apply loc Loc.known
+      [ Lconst (Const_base (Const_string (loc.loc_start.pos_fname, loc, None)));
+        Lconst (Const_base (Const_int loc.loc_start.pos_lnum));
+        Lconst (Const_base (Const_int loc.loc_start.pos_cnum));
+        Lconst (Const_base (Const_int loc.loc_end.pos_lnum));
+        Lconst (Const_base (Const_int loc.loc_end.pos_cnum)) ]
+
 let quote_name (str : string loc) =
   apply str.loc Name.mk [string str.loc str.txt]
 
@@ -290,67 +321,106 @@ let quote_method loc (meth : Typedtree.meth) =
   in
   apply loc Method.of_string [string loc name]
 
-let quote_label loc lbl =
-  if lbl = ""
-  then use Label.no_label
-  else apply loc Label.labelled [string loc lbl]
-
 let quote_arg_label loc = function
   | Labelled s -> apply loc Label.labelled [string loc s]
   | Optional s -> apply loc Label.optional [string loc s]
-  | Nolabel -> apply loc Label.no_label []
+  | Nolabel -> Lazy.force Label.no_label
   | _ ->
     fatal_error
       "No support for any types of labels other than Labelled, Nolabel and \
        Optional"
 
-let lid_of_path p =
-  let rec loop = function
-    | Path.Pident id ->
-      if Ident.is_global id then Lident (Ident.name id) else raise Exit
-    | Path.Pdot (p, s) -> Ldot (loop p, s)
-    | _ -> raise Exit
-  in
-  match loop p with lid -> Some lid | exception Exit -> None
+let rec module_for_path loc = function
+  | Path.Pident id ->
+    if Ident.is_global id
+    then
+      apply loc Identifier.Module.compilation_unit [string loc (Ident.name id)]
+    else raise Exit
+  | Path.Pdot (p, s) ->
+    apply loc Identifier.Module.dot [module_for_path loc p; string loc s]
+  | _ -> raise Exit
 
-let lid_of_type_path env ty =
+let value_for_path loc = function
+  | Path.Pident id ->
+    if Ident.is_global id
+    then
+      apply loc Identifier.Value.dot
+        [ apply loc Identifier.Module.compilation_unit [string loc ""];
+          string loc (Ident.name id) ]
+    else raise Exit
+  | Path.Pdot (p, s) ->
+    apply loc Identifier.Value.dot [module_for_path loc p; string loc s]
+  | _ -> raise Exit
+
+let value_for_path_opt loc p =
+  match value_for_path loc p with res -> Some res | exception Exit -> None
+
+let type_path env ty =
   let desc =
     Types.get_desc (Ctype.expand_head_opt env (Ctype.correct_levels ty))
   in
-  match desc with Tconstr (p, _, _) -> lid_of_path p | _ -> None
+  match desc with Tconstr (p, _, _) -> Some p | _ -> None
+
+let quote_record_field env loc lbl_desc =
+  match type_path env lbl_desc.lbl_res with
+  | None -> fatal_error "No global path for record field"
+  | Some (Path.Pident _) ->
+    apply loc Identifier.Field.dot
+      [ apply loc Identifier.Module.compilation_unit [string loc ""];
+        string loc lbl_desc.lbl_name ]
+  | Some (Path.Pdot (p, _)) ->
+    apply loc Identifier.Field.dot
+      [module_for_path loc p; string loc lbl_desc.lbl_name]
+  | _ -> fatal_error "Unsupported constructor type detected."
 
 let quote_constructor env loc constr =
-  let lid =
-    match lid_of_type_path env constr.cstr_res with
-    | None -> fatal_error "No global path for variant constructor"
-    | Some (Lident _) -> Lident constr.cstr_name
-    | Some (Ldot (lid, _)) -> Ldot (lid, constr.cstr_name)
-    | _ -> fatal_error "Unsupported variant constructor type detected."
-  in
-  apply loc Identifier.name [marshal loc lid]
+  match type_path env constr.cstr_res with
+  | None -> fatal_error "No global path for constructor"
+  | Some (Path.Pident _) -> (
+    match constr.cstr_name with
+    | "false" -> Lazy.force Identifier.Constructor.false_
+    | "true" -> Lazy.force Identifier.Constructor.true_
+    | "()" -> Lazy.force Identifier.Constructor.void
+    | "[]" -> Lazy.force Identifier.Constructor.nil
+    | "::" -> Lazy.force Identifier.Constructor.cons
+    | "None" -> Lazy.force Identifier.Constructor.none
+    | "Some" -> Lazy.force Identifier.Constructor.some
+    | _ ->
+      apply loc Identifier.Constructor.dot
+        [ apply loc Identifier.Module.compilation_unit [string loc ""];
+          string loc constr.cstr_name ])
+  | Some (Path.Pdot (p, _)) ->
+    apply loc Identifier.Constructor.dot
+      [module_for_path loc p; string loc constr.cstr_name]
+  | _ -> fatal_error "Unsupported constructor type detected."
 
 let quote_variant loc name = apply loc Variant.of_string [string loc name]
 
-let quote_record_label env loc lbl =
-  let lid =
-    match lid_of_type_path env lbl.lbl_res with
-    | None -> fatal_error "No global path for record label"
-    | Some (Lident _) -> Lident lbl.lbl_name
-    | Some (Ldot (lid, _)) -> Ldot (lid, lbl.lbl_name)
-    | _ -> fatal_error "Unsupported record label detected."
-  in
-  apply loc Identifier.name [marshal loc lid]
+(* let field_for_path loc = function
+ *   | Path.Pident id ->
+ *     if Ident.is_global id then
+ *       apply loc Identifier.Field.dot
+ *         [apply loc Identifier.Module.compilation_unit [string loc ""];
+ *          string loc (Ident.name id)]
+ *     else raise Exit
+ *   | Path.Pdot (p, s) -> apply loc Identifier.Field.dot [module_for_path loc p; string loc s]
+ *   | _ -> raise Exit *)
+
+(* let field_for_path_opt loc p =
+ *   match field_for_path loc p with
+ *   | res -> Some res
+ *   | exception Exit -> None *)
 
 let quote_nonopt loc (lbl : string option) =
   match lbl with
-  | None -> apply loc Label.Nonoptional.no_label []
+  | None -> Lazy.force Label.Nonoptional.no_label
   | Some s -> apply loc Label.Nonoptional.labelled [string loc s]
 
 let rec quote_value_pattern p =
   let env = p.pat_env in
   let loc = p.pat_loc in
   match p.pat_desc with
-  | Tpat_any -> apply loc Pat.any []
+  | Tpat_any -> Lazy.force Pat.any
   | Tpat_var (id, _, _, _) -> apply loc Pat.var [Lvar id]
   | Tpat_alias (pat, id, _, _, _) ->
     let pat = quote_value_pattern pat in
@@ -372,7 +442,13 @@ let rec quote_value_pattern p =
       | [] -> None
       | _ :: _ ->
         let args = List.map quote_value_pattern args in
-        Some (apply loc Pat.tuple [mk_list args])
+        let with_labels =
+          List.map
+            (fun a -> pair (Lazy.force Label.Nonoptional.no_label, a))
+            args
+        in
+        let as_tuple = apply loc Pat.tuple [mk_list with_labels] in
+        Some as_tuple
     in
     apply loc Pat.construct [constr; option args]
   | Tpat_variant (variant, argo, _) ->
@@ -383,7 +459,7 @@ let rec quote_value_pattern p =
     let lbl_pats =
       List.map
         (fun (lid, lbl_desc, pat) ->
-          let lbl = quote_record_label env Asttypes.(lid.loc) lbl_desc in
+          let lbl = quote_record_field env Asttypes.(lid.loc) lbl_desc in
           let pat = quote_value_pattern pat in
           pair (lbl, pat))
         lbl_pats
@@ -404,6 +480,12 @@ let rec quote_value_pattern p =
     apply loc Pat.lazy_ [pat]
   | _ -> fatal_error "Unsupported pattern type (unboxed stuff)"
 
+let rec quote_lid_module loc = function
+  | Lident s -> apply loc Identifier.Module.compilation_unit [string loc s]
+  | Ldot (lid, s) ->
+    apply loc Identifier.Module.dot [quote_lid_module loc lid; string loc s]
+  | _ -> fatal_error "No support for Lapply in quoting modules"
+
 let rec quote_computation_pattern p =
   let loc = p.pat_loc in
   match p.pat_desc with
@@ -417,8 +499,9 @@ let rec quote_computation_pattern p =
 type case_binding =
   | Non_binding of lambda * lambda
   | Simple of lambda * lambda
-  | Pattern of lambda * lambda
-  | Guarded of lambda * lambda
+  | Pattern of lambda * lambda * lambda
+  | Guarded of lambda * lambda * lambda
+  | Refutation of lambda * lambda * lambda
 
 let rec case_binding transl stage case =
   let pat = case.c_lhs in
@@ -427,10 +510,10 @@ let rec case_binding transl stage case =
     let binding_with_computation_pat () =
       match pat_bound_idents pat with
       | [] ->
-        let pat = quote_computation_pattern pat in
         let exp = quote_expression transl stage case.c_rhs in
+        let pat = quote_computation_pattern pat in
         Non_binding (pat, exp)
-      | ids ->
+      | ids -> (
         let names =
           List.map (fun id -> string pat.pat_loc (Ident.name id)) ids
         in
@@ -441,7 +524,19 @@ let rec case_binding transl stage case =
         let body =
           bind pat_id pat (bind exp_id exp (pair (Lvar pat_id, Lvar exp_id)))
         in
-        Pattern (mk_list names, func ids body)
+        match case.c_rhs.exp_desc with
+        | Texp_unreachable ->
+          Refutation
+            ( mk_list names,
+              mk_list [],
+              create_list_param_binding ids (create_list_param_binding [] body)
+            )
+        | _ ->
+          Pattern
+            ( mk_list names,
+              mk_list [],
+              create_list_param_binding ids (create_list_param_binding [] body)
+            ))
     in
     match pat.pat_desc with
     | Tpat_value pat -> (
@@ -466,7 +561,10 @@ let rec case_binding transl stage case =
         (bind guard_id guard
            (bind exp_id exp (triple (Lvar pat_id, Lvar guard_id, Lvar exp_id))))
     in
-    Guarded (mk_list names, func ids body)
+    Guarded
+      ( mk_list names,
+        mk_list [],
+        create_list_param_binding ids (create_list_param_binding [] body) )
 
 and case_value_pattern_binding transl stage case =
   case_binding transl stage
@@ -476,8 +574,12 @@ and quote_case_binding loc cb =
   match cb with
   | Non_binding (pat, exp) -> apply loc Case.nonbinding [quote_loc loc; pat; exp]
   | Simple (name, body) -> apply loc Case.simple [quote_loc loc; name; body]
-  | Pattern (names, body) -> apply loc Case.pattern [quote_loc loc; names; body]
-  | Guarded (names, body) -> apply loc Case.guarded [quote_loc loc; names; body]
+  | Pattern (names_vals, names_mods, body) ->
+    apply loc Case.pattern [quote_loc loc; names_vals; names_mods; body]
+  | Guarded (names_vals, names_mods, body) ->
+    apply loc Case.guarded [quote_loc loc; names_vals; names_mods; body]
+  | Refutation (names_vals, names_mods, body) ->
+    apply loc Case.refutation [quote_loc loc; names_vals; names_mods; body]
 
 and quote_case transl stage loc case =
   quote_case_binding loc (case_binding transl stage case)
@@ -487,6 +589,24 @@ and quote_value_pattern_case transl stage loc case =
 
 and quote_newtype loc ident sloc rest =
   apply loc Function.newtype [quote_loc loc; quote_name sloc; func [ident] rest]
+
+and create_list_param_binding idents body =
+  let fun_body, t_opt =
+    List.fold_right
+      (fun id (body, t_opt) ->
+        let new_t = Ident.create_local "t" in
+        let let_t =
+          match t_opt with
+          | None -> body
+          | Some t -> bind t (tl (Lvar new_t)) body
+        in
+        bind id (hd (Lvar new_t)) let_t, Some new_t)
+      idents (body, None)
+  in
+  let list_arg =
+    match t_opt with None -> Ident.create_local "t" | Some t -> t
+  in
+  func [list_arg] fun_body
 
 and fun_param_binding transl stage loc param frest =
   let with_newtypes =
@@ -504,7 +624,10 @@ and fun_param_binding transl stage loc param frest =
   let names =
     List.map (fun s -> apply loc Name.mk [string loc (Ident.name s)]) idents
   in
-  let fun_rem = func idents (pair (quote_value_pattern pat, with_newtypes)) in
+  let fun_rem =
+    create_list_param_binding idents
+      (pair (quote_value_pattern pat, with_newtypes))
+  in
   apply loc Function.param
     [ quote_arg_label loc param.fp_arg_label;
       option opt_exp;
@@ -531,7 +654,7 @@ and quote_function transl stage loc fn =
     List.fold_right (fun_param_binding transl stage loc) fn.params fn_body
   | _ -> fatal_error "Unexpected usage of quote_function."
 
-and quote_expression_extra transl stage extra lambda =
+and quote_expression_extra _ _ extra lambda =
   let extra, loc, _ = extra in
   match extra with
   | Texp_newtype (id, sloc, _, _) -> quote_newtype loc id sloc lambda
@@ -544,15 +667,14 @@ and quote_expression transl stage e =
   let body =
     match e.exp_desc with
     | Texp_ident (path, _, _, _, _) -> (
-      match lid_of_path path with
-      | Some lid ->
-        let lid = apply loc Identifier.name [marshal loc lid] in
-        apply loc Exp.ident [lid]
+      match value_for_path_opt loc path with
+      | Some ident_val -> apply loc Exp.ident [ident_val]
       | None -> (
         match path with
         | Pident id ->
           (* TODO: properly check stage *)
-          apply loc Exp.var [Lvar id]
+          let v = apply loc Identifier.Value.var [Lvar id; quote_loc loc] in
+          apply loc Exp.ident [v]
         | _ -> fatal_error "No global path for identifier"))
     | Texp_constant const ->
       let const = quote_constant loc const in
@@ -576,7 +698,7 @@ and quote_expression transl stage e =
         in
         let defs_lam = List.map (quote_expression transl stage) defs in
         let frest =
-          func idents
+          create_list_param_binding idents
             (pair (mk_list defs_lam, quote_expression transl stage exp))
         in
         apply loc Exp.let_rec_simple [quote_loc loc; mk_list names_lam; frest]
@@ -591,7 +713,10 @@ and quote_expression transl stage e =
                 idents
             in
             let def = quote_expression transl stage vb.vb_expr in
-            let frest = func idents (pair (quote_value_pattern pat, lexp)) in
+            let frest =
+              create_list_param_binding idents
+                (pair (quote_value_pattern pat, lexp))
+            in
             apply loc Exp.let_ [quote_loc loc; mk_list names_lam; def; frest])
           vbs
           (quote_expression transl stage exp))
@@ -640,7 +765,13 @@ and quote_expression transl stage e =
         | [] -> None
         | _ :: _ ->
           let args = List.map (quote_expression transl stage) args in
-          Some (apply loc Pat.tuple [mk_list args])
+          let with_labels =
+            List.map
+              (fun a -> pair (Lazy.force Label.Nonoptional.no_label, a))
+              args
+          in
+          let as_tuple = apply loc Exp.tuple [mk_list with_labels] in
+          Some as_tuple
       in
       apply loc Exp.construct [constr; option args]
     | Texp_variant (variant, argo) ->
@@ -653,7 +784,7 @@ and quote_expression transl stage e =
       let lbl_exps =
         Array.map
           (fun (lbl, def) ->
-            let lbl = quote_record_label env loc lbl in
+            let lbl = quote_record_field env loc lbl in
             let exp =
               match def with
               | Overridden (_, exp) -> quote_expression transl stage exp
@@ -671,11 +802,11 @@ and quote_expression transl stage e =
       apply loc Exp.record [mk_list (Array.to_list lbl_exps); option base]
     | Texp_field (rcd, lid, lbl, _, _) ->
       let rcd = quote_expression transl stage rcd in
-      let lbl = quote_record_label env lid.loc lbl in
+      let lbl = quote_record_field env lid.loc lbl in
       apply loc Exp.field [rcd; lbl]
     | Texp_setfield (rcd, _, lid, lbl, exp) ->
       let rcd = quote_expression transl stage rcd in
-      let lbl = quote_record_label env lid.loc lbl in
+      let lbl = quote_record_field env lid.loc lbl in
       let exp = quote_expression transl stage exp in
       apply loc Exp.setfield [rcd; lbl; exp]
     | Texp_array (_, _, exps, _) ->
@@ -705,7 +836,8 @@ and quote_expression transl stage e =
       let name = mkloc (Ident.name floop.for_id) loc in
       let name = quote_name name in
       let body = quote_expression transl stage floop.for_body in
-      apply loc Exp.for_simple [name; low; high; dir; func [floop.for_id] body]
+      apply loc Exp.for_simple
+        [quote_loc loc; name; low; high; dir; func [floop.for_id] body]
     | Texp_send (obj, meth, _) ->
       let obj = quote_expression transl stage obj in
       let meth = quote_method loc meth in
@@ -717,7 +849,7 @@ and quote_expression transl stage e =
           match open_decl.open_override with Override -> true | Fresh -> false
         in
         let exp = quote_expression transl stage exp in
-        let lid = apply loc Identifier.name [marshal loc lid] in
+        let lid = quote_lid_module lid.loc lid.txt in
         apply loc Exp.open_ [quote_bool override; lid; exp]
       | _ -> fatal_error "Unsupported module open syntax" (* TODO *))
     | Texp_assert (exp, _) ->
