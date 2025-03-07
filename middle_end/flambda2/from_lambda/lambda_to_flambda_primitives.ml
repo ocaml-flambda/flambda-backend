@@ -1436,17 +1436,29 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
 let check_valid_reinterpret_array_kind (array_kind : L.array_kind) fail =
   (* At the moment we only permit these operations when the array kind implies
      that each element of the array at runtime is 64 bits wide, and the array
-     set kind only involves 64-bit quantities. *)
+     set kind only involves 64-bit quantities.
+
+     Moreover, GC-scannable values are only allowed to be written and read from
+     arrays using reinterpret operations if the kind is immediate. In other
+     words, no squirreling away of GC-able pointers into (e.g.) integer arrays,
+     and no conjuring-up of "valid" OCaml values from such arrays. *)
   (* CR mshinwell: relaxing this to 32 (or 128) bits on both sides is probably
      ok, but for e.g. an int32# array being reinterpreted as int64# * int64#,
      the indices need adjusting (the second component of such a product is at
      index n+2, not n+1, when the first component is at index n). *)
   match array_kind with
-  | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Pgenarray | Paddrarray ->
+    (* GC-scannability restriction, as per comment above *)
+    fail ()
+  | Pgcscannableproductarray kinds ->
+    (* GC-scannability restriction, as per comment above *)
+    if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+    then fail ()
+  | Pintarray | Pfloatarray
   | Punboxedfloatarray Unboxed_float64
   | Punboxedintarray Unboxed_int64
   | Punboxedintarray Unboxed_nativeint
-  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+  | Pgcignorableproductarray _ ->
     (* Recall: unboxed product arrays are always uniformly 64-bit wide for each
        component. *)
     ()
@@ -1484,11 +1496,7 @@ let check_valid_reinterpret_set_kinds (array_kind : L.array_kind)
     check_valid_reinterpret_array_kind array_kind fail;
     match array_set_kind with
     | Pgenarray_set _ | Paddrarray_set _ ->
-      (* For the moment, GC-scannable values are only allowed to be written and
-         read from arrays using reinterpret operations if the kind is immediate.
-         In other words, no squirreling away of GC-able pointers into (e.g.)
-         integer arrays, and no conjuring-up of "valid" OCaml values from such
-         arrays. *)
+      (* See comment above, in [check_valid_reinterpret_array_kind] *)
       fail ()
     | Pgcscannableproductarray_set (_, kinds) ->
       (* Same comment as previous case *)
@@ -1522,7 +1530,7 @@ let check_valid_reinterpret_ref_kinds (array_kind : L.array_kind)
     check_valid_reinterpret_array_kind array_kind fail;
     match array_ref_kind with
     | Pgenarray_ref _ | Paddrarray_ref ->
-      (* See comment above in the "set" case. *)
+      (* See comment above, in [check_valid_reinterpret_array_kind] *)
       fail ()
     | Pgcscannableproductarray_ref kinds ->
       (* Same comment as previous case *)
