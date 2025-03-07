@@ -59,6 +59,7 @@ type out_value =
   | Oval_unboxed_tuple of (string option * out_value) list
   | Oval_variant of string * out_value option
   | Oval_lazy of out_value
+  | Oval_code
 type out_modality_legacy = Ogf_global
 
 type out_modality_new = string

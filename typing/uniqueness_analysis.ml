@@ -673,7 +673,7 @@ end = struct
     | Maybe_aliased ma -> fprintf ppf "Maybe_aliased(%a)" Maybe_aliased.print ma
     | Aliased a -> fprintf ppf "Aliased(%a)" Aliased.print a
     | Maybe_unique mu -> fprintf ppf "Maybe_unique(%a)" Maybe_unique.print mu
-    | Antiquote t -> fprintf ppf "Antiquote(%a)" print t  
+    | Antiquote t -> fprintf ppf "Antiquote(%a)" print t
 
 end
 
