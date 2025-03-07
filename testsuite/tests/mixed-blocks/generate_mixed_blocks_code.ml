@@ -7,6 +7,15 @@
    It is used in [test.ml].
 *)
 
+let () = Random.init 1234567;;
+
+let shuffle : 'a list -> 'a list = fun l ->
+  l
+  |> Array.of_list
+  |> (fun arr -> Array.shuffle ~rand:Random.int arr; arr)
+  |> Array.to_list
+;;
+
 let printf = Printf.printf
 let sprintf = Printf.sprintf
 
@@ -64,7 +73,6 @@ let nonempty_list_enumeration_of_list xs =
 ;;
 
 type flat_element =
-  | Imm
   | Float64
   | Float32
   | Float
@@ -75,16 +83,16 @@ type flat_element =
 
 let allowed_in_flat_float_block = function
   | Float64 | Float -> true
-  | Imm | Float32 | Bits32 | Bits64 | Word | Vec128 -> false
+  | Float32 | Bits32 | Bits64 | Word | Vec128 -> false
 
 let flat_element_is_unboxed = function
   | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 -> true
-  | Imm | Float -> false
+  | Float -> false
 
 let flat_element_is = ((=) : flat_element -> flat_element -> bool)
 let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
 
-let all_flat_elements_bytecode = [ Imm; Float64; Float32; Float; Bits32; Bits64; Word ]
+let all_flat_elements_bytecode = [ Float64; Float32; Float; Bits32; Bits64; Word ]
 
 let all_of_flat_element ~bytecode = if bytecode then all_flat_elements_bytecode else Vec128 :: all_flat_elements_bytecode
 
@@ -125,10 +133,6 @@ let enumeration_of_suffix_except_all_floats_mixed ~bytecode
     all_of_mutability
   : _ Seq.t
   =
-  let flat_element_except_float =
-    all_of_flat_element ~bytecode
-    |> List.filter ~f:(flat_element_is_not Float)
-  in
   nonempty_list_enumeration_of_list
     (list_product (all_of_flat_element ~bytecode) all_of_mutability)
   |> Seq.filter (fun suffix ->
@@ -277,7 +281,6 @@ let value_element_to_type : value_element -> field_or_arg_type = function
   | Str -> Str
 
 let flat_element_to_type : flat_element -> field_or_arg_type = function
-  | Imm -> Imm
   | Float -> Float
   | Float64 -> Float64
   | Float32 -> Float32
@@ -333,7 +336,6 @@ module Mixed_record = struct
           let mutable_ = is_mutable mutability in
           let name =
             match elem with
-            | Imm -> "imm"
             | Bits32 -> "i32_"
             | Bits64 -> "i64_"
             | Word -> "n"
@@ -350,7 +352,7 @@ module Mixed_record = struct
           in
           i+1, field)
     in
-    let fields = prefix_fields @ suffix_fields in
+    let fields = shuffle (prefix_fields @ suffix_fields) in
     { fields; index }
   ;;
 
@@ -423,7 +425,7 @@ module Mixed_variant = struct
               (Nonempty_list.to_list cstr_suffix)
               ~f:flat_element_to_type
           in
-          Args_tuple (prefix_args @ suffix_args)
+          Args_tuple (shuffle (prefix_args @ suffix_args))
       | Cstr_record record ->
           let { fields; _ } : Mixed_record.t = Mixed_record.of_block index record in
           Args_record fields
@@ -604,7 +606,7 @@ let main n ~bytecode =
          print_endline (indent ^ s))
       fmt
   in
-  let print_in_test ?indent s =
+  let _print_in_test ?indent s =
     line ?indent {|let () = print_endline "%s";;|} (String.escaped s)
   in
   let seq_print_in_test ?indent s =

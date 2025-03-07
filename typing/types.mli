@@ -734,10 +734,11 @@ and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
 
 (* A mixed product contains a possibly-empty prefix of values followed by a
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
-   need not be scanned by the garbage collector.
-*)
-and flat_element =
-  | Imm
+   need not be scanned by the garbage collector. The front-end allows elements
+   to appear in any order in a record, and later stages of the compiler
+   re-arrange the block. *)
+and mixed_block_element =
+  | Value
   | Float_boxed
   (* A [Float_boxed] is a float that's stored flat but boxed upon projection. *)
   | Float64
@@ -747,11 +748,7 @@ and flat_element =
   | Vec128
   | Word
 
-and mixed_product_shape =
-  { value_prefix_len : int;
-    (* We use an array just so we can index into the middle. *)
-    flat_suffix : flat_element array;
-  }
+and mixed_product_shape = mixed_block_element array
 
 and type_origin =
     Definition
@@ -1110,18 +1107,12 @@ val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
 
-type mixed_product_element =
-  | Value_prefix
-  | Flat_suffix of flat_element
-
-(** Raises if the int is out of bounds. *)
-val get_mixed_product_element :
-  mixed_product_shape -> int -> mixed_product_element
-
-val equal_flat_element : flat_element -> flat_element -> bool
-val compare_flat_element : flat_element -> flat_element -> int
-val flat_element_to_string : flat_element -> string
-val flat_element_to_lowercase_string : flat_element -> string
+val equal_mixed_block_element :
+  mixed_block_element -> mixed_block_element -> bool
+val compare_mixed_block_element :
+  mixed_block_element -> mixed_block_element -> int
+val mixed_block_element_to_string : mixed_block_element -> string
+val mixed_block_element_to_lowercase_string : mixed_block_element -> string
 
 val equal_unsafe_mode_crossing :
   unsafe_mode_crossing -> unsafe_mode_crossing -> bool

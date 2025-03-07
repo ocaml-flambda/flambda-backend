@@ -2219,15 +2219,6 @@ let set_externality_upper_bound jk externality_upper_bound =
       }
   }
 
-let set_nullability_upper_bound jk nullability_upper_bound =
-  { jk with
-    jkind =
-      { jk.jkind with
-        mod_bounds =
-          Mod_bounds.set_nullability nullability_upper_bound jk.jkind.mod_bounds
-      }
-  }
-
 let all_except_nullability =
   Axis_set.singleton (Nonmodal Nullability) |> Axis_set.complement
 
@@ -2250,6 +2241,12 @@ let get_nullability ~jkind_of_type jk =
         ~skip_axes:all_except_nullability jk.jkind
     in
     Mod_bounds.get mod_bounds ~axis:(Nonmodal Nullability)
+
+let set_nullability_upper_bound jk nullability_upper_bound =
+  let new_bounds =
+    Jkind_mod_bounds.set_nullability nullability_upper_bound jk.jkind.mod_bounds
+  in
+  { jk with jkind = { jk.jkind with mod_bounds = new_bounds } }
 
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 

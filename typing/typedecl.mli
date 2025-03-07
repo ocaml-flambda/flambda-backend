@@ -100,14 +100,6 @@ type mixed_product_violation =
         max_value_prefix_len : int;
         mixed_product_kind : Mixed_product_kind.t;
       }
-  | Flat_field_expected of
-      { boxed_lbl : Ident.t;
-        non_value_lbl : Ident.t;
-      }
-  | Flat_constructor_arg_expected of
-      { boxed_arg : type_expr;
-        non_value_arg : type_expr;
-      }
   | Insufficient_level of
       { required_layouts_level : Language_extension.maturity;
         mixed_product_kind : Mixed_product_kind.t;

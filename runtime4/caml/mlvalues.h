@@ -615,7 +615,8 @@ CAMLextern value caml_set_oo_id(value obj);
    definition so that users can write a semicolon, which is treated
    better by C formatters.)
  */
-#define Assert_mixed_block_layout_v1 _Static_assert(1, "")
+#define Assert_mixed_block_layout_v1 _Static_assert(0, "")
+#define Assert_mixed_block_layout_v2 _Static_assert(1, "")
 
 /* Header for out-of-heap blocks. */
 

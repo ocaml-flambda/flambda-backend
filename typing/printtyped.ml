@@ -207,8 +207,8 @@ let variant_representation i ppf = let open Types in function
   | Variant_extensible -> line i ppf "Variant_inlined\n"
   | Variant_with_null -> line i ppf "Variant_with_null\n"
 
-let flat_element i ppf flat_element =
-  line i ppf "%s\n" (Types.flat_element_to_string flat_element)
+let mixed_block_element i ppf mixed_block_element =
+  line i ppf "%s\n" (Types.mixed_block_element_to_string mixed_block_element)
 
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->
@@ -219,9 +219,9 @@ let record_representation i ppf = let open Types in function
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
   | Record_ufloat -> line i ppf "Record_ufloat\n"
-  | Record_mixed { value_prefix_len; flat_suffix } ->
-    line i ppf "Record_mixed (value_prefix_len %d)\n" value_prefix_len;
-    array (i+1) flat_element ppf flat_suffix
+  | Record_mixed shape ->
+    line i ppf "Record_mixed\n";
+    array (i+1) mixed_block_element ppf shape
 
 let record_unboxed_product_representation i ppf = let open Types in function
   | Record_unboxed_product ->

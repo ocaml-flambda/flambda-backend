@@ -2527,11 +2527,10 @@ let check_type_externality env ty ext =
   | Ok () -> true
   | Error _ -> false
 
-let check_type_nullability env ty nullability =
+let check_type_nullability env ty null =
   let upper_bound =
-    Jkind.set_nullability_upper_bound (Jkind.Builtin.any ~why:Dummy_jkind) nullability
+    Jkind.set_nullability_upper_bound (Jkind.Builtin.any ~why:Dummy_jkind) null
   in
-  (* CR layouts v2.8: We should have a better way to check the upper bound of a jkind along a particular relevant axis than this (also for [check_type_externality], above) *)
   match check_type_jkind env ty upper_bound with
   | Ok () -> true
   | Error _ -> false

@@ -506,9 +506,8 @@ and type_origin =
   | Rec_check_regularity
   | Existential of string
 
-
-and flat_element =
-  | Imm
+and mixed_block_element =
+  | Value
   | Float_boxed
   | Float64
   | Float32
@@ -517,10 +516,7 @@ and flat_element =
   | Vec128
   | Word
 
-and mixed_product_shape =
-  { value_prefix_len : int;
-    flat_suffix : flat_element array;
-  }
+and mixed_product_shape = mixed_block_element array
 
 and record_representation =
   | Record_unboxed
@@ -835,21 +831,21 @@ let compare_tag t1 t2 =
   | Extension _, Null -> -1
   | Null, Extension _ -> 1
 
-let equal_flat_element e1 e2 =
+let equal_mixed_block_element e1 e2 =
   match e1, e2 with
-  | Imm, Imm | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed
+  | Value, Value | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed
   | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
     -> true
-  | (Imm | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64 | Vec128), _
+  | (Value | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64 | Vec128), _
     -> false
 
-let compare_flat_element e1 e2 =
+let compare_mixed_block_element e1 e2 =
   match e1, e2 with
-  | Imm, Imm | Float_boxed, Float_boxed | Float64, Float64 | Float32, Float32
+  | Value, Value | Float_boxed, Float_boxed | Float64, Float64 | Float32, Float32
   | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
     -> 0
-  | Imm, _ -> -1
-  | _, Imm -> 1
+  | Value, _ -> -1
+  | _, Value -> 1
   | Float_boxed, _ -> -1
   | _, Float_boxed -> 1
   | Float64, _ -> -1
@@ -864,11 +860,7 @@ let compare_flat_element e1 e2 =
   | _, Vec128 -> 1
 
 let equal_mixed_product_shape r1 r2 = r1 == r2 ||
-  (* Warning 9 alerts us if we add another field *)
-  let[@warning "+9"] { value_prefix_len = l1; flat_suffix = s1 } = r1
-  and                { value_prefix_len = l2; flat_suffix = s2 } = r2
-  in
-  l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
+  Misc.Stdlib.Array.equal equal_mixed_block_element r1 r2
 
 let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Constructor_uniform_value, Constructor_uniform_value -> true
@@ -1007,17 +999,8 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-type mixed_product_element =
-  | Value_prefix
-  | Flat_suffix of flat_element
-
-let get_mixed_product_element { value_prefix_len; flat_suffix } i =
-  if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
-  if i < value_prefix_len then Value_prefix
-  else Flat_suffix flat_suffix.(i - value_prefix_len)
-
-let flat_element_to_string = function
-  | Imm -> "Imm"
+let mixed_block_element_to_string = function
+  | Value -> "Value"
   | Float_boxed -> "Float_boxed"
   | Float32 -> "Float32"
   | Float64 -> "Float64"
@@ -1026,8 +1009,8 @@ let flat_element_to_string = function
   | Vec128 -> "Vec128"
   | Word -> "Word"
 
-let flat_element_to_lowercase_string = function
-  | Imm -> "imm"
+let mixed_block_element_to_lowercase_string = function
+  | Value -> "value"
   | Float_boxed -> "float"
   | Float32 -> "float32"
   | Float64 -> "float64"

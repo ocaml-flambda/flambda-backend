@@ -1,5 +1,7 @@
 assume_info.ml
 assume_info.mli
+mixed_block_shape.ml
+mixed_block_shape.mli
 transl_array_comprehension.ml
 transl_array_comprehension.mli
 transl_comprehension_utils.ml

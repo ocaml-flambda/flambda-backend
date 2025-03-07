@@ -878,10 +878,9 @@ module Record_diffing = struct
       Some (diffing loc env params1 params2 l r)
 
   let find_mismatch_in_mixed_record_representations
-      ({ value_prefix_len = v1; flat_suffix = s1 } : mixed_product_shape)
-      ({ value_prefix_len = v2; flat_suffix = s2 } : mixed_product_shape)
+      (s1 : mixed_product_shape) (s2 : mixed_product_shape)
     =
-    if v1 = v2 then None
+    if s1 = s2 then None
     else
       let has_float_boxed_on_read fields =
         Array.exists (function

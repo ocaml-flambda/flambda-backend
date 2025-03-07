@@ -429,7 +429,7 @@ let comp_primitive stack_info p sz args =
      instructions for the ufloat primitives. *)
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
-  | Pmixedfield (n, _, _, _sem) ->
+  | Pmixedfield (n, _, _sem) ->
       (* CR layouts: This will need reworking if we ever want bytecode
          to unbox fields that are written with unboxed types in the source
          language. *)
@@ -437,7 +437,7 @@ let comp_primitive stack_info p sz args =
          aren't stored flat like they are in native code.
       *)
       Kgetfield n
-  | Psetmixedfield (n, _, _shape, _init) ->
+  | Psetmixedfield (n, _shape, _init) ->
       (* See the comment in the [Pmixedfield] case. *)
       Ksetfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
@@ -973,7 +973,7 @@ and comp_expr stack_info env exp sz cont =
          no ceremony is needed to box values before inserting them into
          the (normal, unmixed) block.
       *)
-      let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
+      let total_len = Array.length shape in
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmake_faux_mixedblock (total_len, tag) :: cont)

@@ -49,10 +49,7 @@ open Lambda
 type block_size =
   | Regular_block of int
   | Float_record of int
-  (* CR vlaviron: I think we should compute sizes from the shape,
-     not from the arguments.
-     The previous dissect-letrec code used arguments though, copying that for now. *)
-  | Mixed_record of int * Lambda.mixed_block_shape
+  | Mixed_record of Lambda.mixed_block_shape
 
 type size =
   | Unreachable
@@ -241,7 +238,9 @@ let compute_static_size lam =
         | Record_inlined (_, Constructor_mixed shape,
                           (Variant_boxed _ | Variant_extensible))
         | Record_mixed shape ->
-            Block (Mixed_record (size, Lambda.transl_mixed_product_shape shape))
+            Block (Mixed_record (Lambda.transl_mixed_product_shape
+              ~get_value_kind:(fun _i -> Lambda.generic_value)
+              shape))
         | Record_unboxed | Record_ufloat
         | Record_inlined (_, _, (Variant_unboxed | Variant_with_null)) ->
             Misc.fatal_error "size_of_primitive"
@@ -253,7 +252,7 @@ let compute_static_size lam =
            to check the tag here. *)
         Block (Regular_block (List.length args))
     | Pmakemixedblock (_, _, shape, _) ->
-        Block (Mixed_record (List.length args, shape))
+        Block (Mixed_record (shape))
     | Pmakearray (kind, _, _) ->
         let size = List.length args in
         begin match kind with
@@ -939,8 +938,12 @@ let compile_letrec input_bindings body =
           match size with
           | Regular_block size -> alloc_prim, [size]
           | Float_record size -> alloc_float_record_prim, [size]
-          | Mixed_record (size, shape) ->
-              alloc_mixed_record_prim, [size; shape.value_prefix_len]
+          | Mixed_record shape ->
+              let shape = Mixed_block_shape.of_mixed_block_elements shape in
+              let value_prefix_len = Mixed_block_shape.value_prefix_len shape in
+              let flat_suffix_len = Mixed_block_shape.flat_suffix_len shape in
+              let size = value_prefix_len + flat_suffix_len in
+              alloc_mixed_record_prim, [size; value_prefix_len]
         in
         let alloc =
           Lprim (Pccall alloc_prim,
