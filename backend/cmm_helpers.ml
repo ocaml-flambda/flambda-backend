@@ -4702,10 +4702,11 @@ module Scalar_type = struct
            the rounded value doesn't fit in the integral type. We can't promote
            since nativeint is already the largest integral type supported
            here. *)
+        let exp = unary (Cstatic_cast (Int_of_float src)) exp ~dbg in
         let src = Integral.nativeint in
-        assert (Integral.can_cast_without_losing_information ~src ~dst);
-        unary (Cstatic_cast (Int_of_float src)) exp ~dbg
-        |> Integral.static_cast ~dbg ~src ~dst)
+        (* assert that nativeint is indeed the largest integer width *)
+        assert (Integral.can_cast_without_losing_information ~src:dst ~dst:src);
+        Integral.static_cast exp ~dbg ~src ~dst)
 
   let[@inline] conjugate ~outer ~inner ~dbg ~f x =
     x
