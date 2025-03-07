@@ -43,55 +43,6 @@ let boxed_float = function
 let boxed_vector = function
   | Boxed_vec128 -> "vec128"
 
-let rec struct_const ppf = function
-  | Const_base(Const_int n) -> fprintf ppf "%i" n
-  | Const_base(Const_char c) -> fprintf ppf "%C" c
-  | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
-  | Const_immstring s -> fprintf ppf "#%S" s
-  | Const_base(Const_float f) -> fprintf ppf "%s" f
-  | Const_base(Const_float32 f) -> fprintf ppf "%ss" f
-  | Const_base(Const_unboxed_float f) ->
-      fprintf ppf "%s" (Misc.format_as_unboxed_literal f)
-  | Const_base(Const_unboxed_float32 f) ->
-      fprintf ppf "%ss" (Misc.format_as_unboxed_literal f)
-  | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
-  | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
-  | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
-  | Const_base(Const_unboxed_int32 i) ->
-      fprintf ppf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
-  | Const_base(Const_unboxed_int64 i) ->
-      fprintf ppf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
-  | Const_base(Const_unboxed_nativeint i) ->
-      fprintf ppf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
-  | Const_block(tag, []) ->
-      fprintf ppf "[%i]" tag
-  | Const_block(tag, hd::tl) ->
-      fprintf ppf "@[<1>[%i:@ @[%a@]]@]" tag struct_consts (hd, tl)
-  | Const_mixed_block(_, _, []) -> Misc.fatal_error "empty mixed block"
-  | Const_mixed_block(tag, _shape, hd::tl) ->
-      (* CR mshinwell: print the shape? *)
-      fprintf ppf "@[<1>[%i mixed:@ @[%a@]]@]" tag
-        struct_consts (hd, tl)
-  | Const_float_block [] ->
-      fprintf ppf "[|b |]"
-  | Const_float_block (f1 :: fl) ->
-      let floats ppf fl =
-        List.iter (fun f -> fprintf ppf "@ %s" f) fl in
-      fprintf ppf "@[<1>[|b@[%s%a@]|]@]" f1 floats fl
-  | Const_float_array [] ->
-      fprintf ppf "[| |]"
-  | Const_float_array (f1 :: fl) ->
-      let floats ppf fl =
-        List.iter (fun f -> fprintf ppf "@ %s" f) fl in
-      fprintf ppf "@[<1>[|@[%s%a@]|]@]" f1 floats fl
-  | Const_null -> fprintf ppf "<null>"
-
-and struct_consts ppf (hd, tl) =
-  let sconsts ppf scl =
-    List.iter (fun sc -> fprintf ppf "@ %a" struct_const sc) scl
-  in
-  fprintf ppf "%a%a" struct_const hd sconsts tl
-
 let rec scannable_product_element_kinds kinds =
   "[" ^ String.concat "; " (List.map scannable_product_element_kind kinds) ^ "]"
 
@@ -1233,6 +1184,55 @@ let apply_kind name pos mode =
     | Rc_close_at_apply -> name ^ "tail"
   in
   name ^ locality_kind mode
+
+let rec struct_const ppf = function
+  | Const_base(Const_int n) -> fprintf ppf "%i" n
+  | Const_base(Const_char c) -> fprintf ppf "%C" c
+  | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
+  | Const_immstring s -> fprintf ppf "#%S" s
+  | Const_base(Const_float f) -> fprintf ppf "%s" f
+  | Const_base(Const_float32 f) -> fprintf ppf "%ss" f
+  | Const_base(Const_unboxed_float f) ->
+      fprintf ppf "%s" (Misc.format_as_unboxed_literal f)
+  | Const_base(Const_unboxed_float32 f) ->
+      fprintf ppf "%ss" (Misc.format_as_unboxed_literal f)
+  | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
+  | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
+  | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
+  | Const_base(Const_unboxed_int32 i) ->
+      fprintf ppf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
+  | Const_base(Const_unboxed_int64 i) ->
+      fprintf ppf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
+  | Const_base(Const_unboxed_nativeint i) ->
+      fprintf ppf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
+  | Const_block(tag, []) ->
+      fprintf ppf "[%i]" tag
+  | Const_block(tag, hd::tl) ->
+      fprintf ppf "@[<1>[%i:@ @[%a@]]@]" tag struct_consts (hd, tl)
+  | Const_mixed_block(_, _, []) -> Misc.fatal_error "empty mixed block"
+  | Const_mixed_block(tag, _shape, hd::tl) ->
+      (* CR mshinwell: print the shape? *)
+      fprintf ppf "@[<1>[%i mixed:@ @[%a@]]@]" tag
+        struct_consts (hd, tl)
+  | Const_float_block [] ->
+      fprintf ppf "[|b |]"
+  | Const_float_block (f1 :: fl) ->
+      let floats ppf fl =
+        List.iter (fun f -> fprintf ppf "@ %s" f) fl in
+      fprintf ppf "@[<1>[|b@[%s%a@]|]@]" f1 floats fl
+  | Const_float_array [] ->
+      fprintf ppf "[| |]"
+  | Const_float_array (f1 :: fl) ->
+      let floats ppf fl =
+        List.iter (fun f -> fprintf ppf "@ %s" f) fl in
+      fprintf ppf "@[<1>[|@[%s%a@]|]@]" f1 floats fl
+  | Const_null -> fprintf ppf "<null>"
+
+and struct_consts ppf (hd, tl) =
+  let sconsts ppf scl =
+    List.iter (fun sc -> fprintf ppf "@ %a" struct_const sc) scl
+  in
+  fprintf ppf "%a%a" struct_const hd sconsts tl
 
 let rec lam ppf = function
   | Lvar id ->
