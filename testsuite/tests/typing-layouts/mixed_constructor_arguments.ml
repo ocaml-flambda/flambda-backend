@@ -777,7 +777,7 @@ type ('a : any) t_gadt_any_multiple_fields =
 |}]
 
 type ('a : any) t_gadt_any_reordered =
-  | A : float# * 'a tv -> 'a t_gadt_any_bad
+  | A : float# * 'a tv -> 'a t_gadt_any_reordered
 
 [%%expect{|
 Line 2, characters 29-43:
