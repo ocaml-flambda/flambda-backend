@@ -1210,9 +1210,9 @@ let rec struct_const ppf = function
   | Const_block(tag, hd::tl) ->
       fprintf ppf "@[<1>[%i:@ @[%a@]]@]" tag struct_consts (hd, tl)
   | Const_mixed_block(_, _, []) -> Misc.fatal_error "empty mixed block"
-  | Const_mixed_block(tag, _shape, hd::tl) ->
-      (* CR mshinwell: print the shape? *)
-      fprintf ppf "@[<1>[%i mixed:@ @[%a@]]@]" tag
+  | Const_mixed_block(tag, shape, hd::tl) ->
+      fprintf ppf "@[<1>[%i mixed:@ (shape@ %a)@ @[%a@]]@]" tag
+        (mixed_block_shape (fun _ _ -> ())) shape
         struct_consts (hd, tl)
   | Const_float_block [] ->
       fprintf ppf "[|b |]"
