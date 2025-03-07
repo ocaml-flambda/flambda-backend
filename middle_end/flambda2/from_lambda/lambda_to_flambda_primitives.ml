@@ -1433,27 +1433,43 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
       Unary (Opaque_identity { middle_end_only; kind }, arg_component))
     arg kinds
 
-let check_valid_reinterpret_array_kind (array_kind : L.array_kind) fail =
+type scannable =
+  | Gc_scannable
+  | Gc_ignorable
+
+let check_valid_reinterpret_array_kind (array_kind : L.array_kind)
+    (reinterp_access_is_scannable : scannable) fail =
   (* At the moment we only permit these operations when the array kind implies
      that each element of the array at runtime is 64 bits wide, and the array
      set kind only involves 64-bit quantities.
 
      Moreover, GC-scannable values are only allowed to be written and read from
-     arrays using reinterpret operations if the kind is immediate. In other
-     words, no squirreling away of GC-able pointers into (e.g.) integer arrays,
-     and no conjuring-up of "valid" OCaml values from such arrays. *)
+     arrays using reinterpret operations if the kind is immediate; or otherwise
+     if both the array kind *and* the array ref/set kind both indicate
+     GC-scannability.
+
+     In other words, no squirreling away of GC-able pointers into (e.g.) integer
+     arrays, and no conjuring-up of "valid" OCaml values from such arrays.
+     However misaligned reading of valid OCaml values from a scannable array is
+     ok. *)
   (* CR mshinwell: relaxing this to 32 (or 128) bits on both sides is probably
      ok, but for e.g. an int32# array being reinterpreted as int64# * int64#,
      the indices need adjusting (the second component of such a product is at
      index n+2, not n+1, when the first component is at index n). *)
   match array_kind with
-  | Pgenarray | Paddrarray ->
-    (* GC-scannability restriction, as per comment above *)
-    fail ()
-  | Pgcscannableproductarray kinds ->
-    (* GC-scannability restriction, as per comment above *)
-    if List.exists L.scannable_product_element_kind_must_be_scanned kinds
-    then fail ()
+  | Pgenarray | Paddrarray -> (
+    match reinterp_access_is_scannable with
+    | Gc_scannable -> ()
+    | Gc_ignorable ->
+      (* GC-scannability restriction, as per comment above *)
+      fail ())
+  | Pgcscannableproductarray kinds -> (
+    (* Likewise *)
+    match reinterp_access_is_scannable with
+    | Gc_scannable -> ()
+    | Gc_ignorable ->
+      if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+      then fail ())
   | Pintarray | Pfloatarray
   | Punboxedfloatarray Unboxed_float64
   | Punboxedintarray Unboxed_int64
@@ -1493,21 +1509,24 @@ let check_valid_reinterpret_set_kinds (array_kind : L.array_kind)
   match reinterp with
   | Pnormal_access -> ()
   | Preinterp_access -> (
-    check_valid_reinterpret_array_kind array_kind fail;
     match array_set_kind with
     | Pgenarray_set _ | Paddrarray_set _ ->
       (* See comment above, in [check_valid_reinterpret_array_kind] *)
-      fail ()
+      check_valid_reinterpret_array_kind array_kind Gc_scannable fail
     | Pgcscannableproductarray_set (_, kinds) ->
       (* Same comment as previous case *)
-      if List.exists L.scannable_product_element_kind_must_be_scanned kinds
-      then fail ()
+      let scannable =
+        if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+        then Gc_scannable
+        else Gc_ignorable
+      in
+      check_valid_reinterpret_array_kind array_kind scannable fail
     | Pintarray_set | Pfloatarray_set
     | Punboxedfloatarray_set Unboxed_float64
     | Punboxedintarray_set Unboxed_int64
     | Punboxedintarray_set Unboxed_nativeint
     | Pgcignorableproductarray_set _ ->
-      ()
+      check_valid_reinterpret_array_kind array_kind Gc_ignorable fail
     | Punboxedfloatarray_set Unboxed_float32
     | Punboxedintarray_set Unboxed_int32
     | Punboxedvectorarray_set Unboxed_vec128 ->
@@ -1527,21 +1546,24 @@ let check_valid_reinterpret_ref_kinds (array_kind : L.array_kind)
   match reinterp with
   | Pnormal_access -> ()
   | Preinterp_access -> (
-    check_valid_reinterpret_array_kind array_kind fail;
     match array_ref_kind with
     | Pgenarray_ref _ | Paddrarray_ref ->
       (* See comment above, in [check_valid_reinterpret_array_kind] *)
-      fail ()
+      check_valid_reinterpret_array_kind array_kind Gc_scannable fail
     | Pgcscannableproductarray_ref kinds ->
       (* Same comment as previous case *)
-      if List.exists L.scannable_product_element_kind_must_be_scanned kinds
-      then fail ()
+      let scannable =
+        if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+        then Gc_scannable
+        else Gc_ignorable
+      in
+      check_valid_reinterpret_array_kind array_kind scannable fail
     | Pintarray_ref | Pfloatarray_ref _
     | Punboxedfloatarray_ref Unboxed_float64
     | Punboxedintarray_ref Unboxed_int64
     | Punboxedintarray_ref Unboxed_nativeint
     | Pgcignorableproductarray_ref _ ->
-      ()
+      check_valid_reinterpret_array_kind array_kind Gc_ignorable fail
     | Punboxedfloatarray_ref Unboxed_float32
     | Punboxedintarray_ref Unboxed_int32
     | Punboxedvectorarray_ref Unboxed_vec128 ->
