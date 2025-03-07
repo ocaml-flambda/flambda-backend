@@ -21,4 +21,4 @@ val simplify_primitive :
   Flambda_primitive.t ->
   Debuginfo.t ->
   result_var:Bound_var.t ->
-  Simplify_primitive_result.t
+  Simplify_primitive_result.simplified
