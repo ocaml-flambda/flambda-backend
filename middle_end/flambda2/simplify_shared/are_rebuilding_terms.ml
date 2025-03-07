@@ -14,15 +14,26 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = bool
+type t =
+  | Not_rebuilding
+  | Rebuilding_partially
+  | Rebuilding_everything
 
-let of_bool t = t
+let [@ocamlformat "disable"] print ppf = function
+  | Not_rebuilding -> Format.fprintf ppf "%b" false
+  | Rebuilding_partially -> Format.fprintf ppf "partial"
+  | Rebuilding_everything -> Format.fprintf ppf "%b" true
 
-let to_bool t = t
+let not_rebuilding_terms = function
+  | Not_rebuilding -> true
+  | Rebuilding_partially | Rebuilding_everything -> false
 
-let do_not_rebuild_terms t = not (to_bool t)
+let are_rebuilding_partially = function
+  | Not_rebuilding | Rebuilding_everything -> false
+  | Rebuilding_partially -> true
 
-let [@ocamlformat "disable"] print ppf t =
-  Format.fprintf ppf "%b" (to_bool t)
+let rebuild_nothing = Not_rebuilding
 
-let are_rebuilding t = t
+let rebuild_everything = Rebuilding_everything
+
+let partial_rebuilding = Rebuilding_partially
