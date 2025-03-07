@@ -395,7 +395,7 @@ let rec lsr_int c1 c2 dbg =
     Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
   | _ -> Cop (Clsr, [c1; c2], dbg)
 
-and asr_int c1 c2 dbg : expression =
+and asr_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
   | c1, Cconst_int (n, _) when n > 0 -> (
@@ -427,7 +427,7 @@ and lsl_int c1 c2 dbg =
     add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
   | Cop (Cor, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when Misc.no_overflow_lsl n1 n2 ->
-    add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
+    Cop (Cor, [lsl_int c1 c2 dbg; Cconst_int (n1 lsl n2, dbg)], dbg)
   | Cop (Clsl, [x; (Cconst_int _ as y)], z), c2 ->
     (* prefer putting the constant shift on the outside to help enable further
        peephole optimizations *)
