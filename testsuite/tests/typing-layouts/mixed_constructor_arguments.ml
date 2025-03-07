@@ -155,7 +155,8 @@ Error: Extensible types can't have fields of unboxed type.
        Consider wrapping the unboxed fields in a record.
 |}];;
 
-(* The third field can't be flat because a non-float/float# field [d] appears.*)
+(* This record will be reordered, and the the [float] fields still won't be
+   flat because there's a non-[float]/[float#] field. *)
 type t_cstr_multi_boxed_float_bad = A of float * float# * float * int
 
 [%%expect{|
