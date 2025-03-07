@@ -129,9 +129,14 @@ type primitive =
   | Pufloatfield of int * field_read_semantics
   | Pmixedfield of int * mixed_block_shape_with_locality_mode
       * field_read_semantics
+    (** The index to [Pmixedfield] corresponds to an element of the shape, not
+        necessarily the index of the field at runtime, as reordering may take
+        place on entry to Flambda 2. *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
   | Psetmixedfield of int * mixed_block_shape * initialization_or_assignment
+    (** The same comment about the index as for [Pmixedfield] applies to
+        [Psetmixedfield]. *)
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
