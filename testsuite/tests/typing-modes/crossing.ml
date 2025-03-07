@@ -225,77 +225,40 @@ Line 1, characters 76-77:
 Error: This value is "contended" but expected to be "shared".
 |}]
 
-(* Check that all modalities cross modes -- does not currently work *)
+(* Check that all modalities cross modes *)
 
 type t
 type s : value mod global = { v : t @@ global } [@@unboxed]
 [%%expect{|
 type t
-Line 2, characters 0-59:
-2 | type s : value mod global = { v : t @@ global } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is value
-         because of the definition of t at line 1, characters 0-6.
-       But the kind of type "s" must be a subkind of value mod global
-         because of the annotation on the declaration of the type s.
+type s = { global_ v : t; } [@@unboxed]
 |}]
 type s : value mod many = { v : t @@ many } [@@unboxed]
 [%%expect{|
-Line 1, characters 0-55:
-1 | type s : value mod many = { v : t @@ many } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is value
-         because of the definition of t at line 1, characters 0-6.
-       But the kind of type "s" must be a subkind of value mod many
-         because of the annotation on the declaration of the type s.
+type s = { v : t @@ many; } [@@unboxed]
 |}]
 type s : value mod portable = { v : t @@ portable } [@@unboxed]
 [%%expect{|
-Line 1, characters 0-63:
-1 | type s : value mod portable = { v : t @@ portable } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is value
-         because of the definition of t at line 1, characters 0-6.
-       But the kind of type "s" must be a subkind of value mod portable
-         because of the annotation on the declaration of the type s.
+type s = { v : t @@ portable; } [@@unboxed]
 |}]
 type s : value mod unyielding = { v : t @@ unyielding } [@@unboxed]
 [%%expect{|
-Line 1, characters 0-67:
-1 | type s : value mod unyielding = { v : t @@ unyielding } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is value
-         because of the definition of t at line 1, characters 0-6.
-       But the kind of type "s" must be a subkind of value mod unyielding
-         because of the annotation on the declaration of the type s.
+type s = { v : t; } [@@unboxed]
 |}]
 type s : value mod aliased = { v : t @@ aliased } [@@unboxed]
 [%%expect{|
-Line 1, characters 0-61:
-1 | type s : value mod aliased = { v : t @@ aliased } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is value
-         because of the definition of t at line 1, characters 0-6.
-       But the kind of type "s" must be a subkind of value mod aliased
-         because of the annotation on the declaration of the type s.
+type s = { v : t @@ aliased; } [@@unboxed]
 |}]
 type s : value mod contended = { v : t @@ contended } [@@unboxed]
 [%%expect{|
-Line 1, characters 0-65:
-1 | type s : value mod contended = { v : t @@ contended } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is value
-         because of the definition of t at line 1, characters 0-6.
-       But the kind of type "s" must be a subkind of value mod contended
-         because of the annotation on the declaration of the type s.
+type s = { v : t @@ contended; } [@@unboxed]
 |}]
 type s : value mod shared = { v : t @@ shared } [@@unboxed]
+(* CR: This should be accepted *)
 [%%expect{|
-Line 1, characters 0-59:
-1 | type s : value mod shared = { v : t @@ shared } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is value
-         because of the definition of t at line 1, characters 0-6.
-       But the kind of type "s" must be a subkind of value mod shared
-         because of the annotation on the declaration of the type s.
+>> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
+
+If you see this error, please contant the Jane Street compiler team.
+Uncaught exception: Misc.Fatal_error
+
 |}]

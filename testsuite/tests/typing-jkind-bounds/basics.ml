@@ -1160,9 +1160,9 @@ type 'a t : value mod global portable contended many aliased unyielding =
 Lines 1-2, characters 0-66:
 1 | type 'a t : value mod global portable contended many aliased unyielding =
 2 |   { x : 'a @@ global portable contended many aliased } [@@unboxed]
-Error: The kind of type "t" is value
+Error: The kind of type "t" is value mod global aliased many contended portable
          because it instantiates an unannotated type parameter of t,
-         chosen to have kind value.
+         chosen to have kind value mod global aliased many contended portable.
        But the kind of type "t" must be a subkind of
          immutable_data mod global aliased
          because of the annotation on the declaration of the type t.
@@ -1202,16 +1202,8 @@ type ('a : value mod global) t = Foo of 'a [@@unboxed]
 type ('a : value mod contended many) t : value mod contended many aliased =
   { x : 'a @@ aliased } [@@unboxed]
 [%%expect {|
-Lines 1-2, characters 0-35:
-1 | type ('a : value mod contended many) t : value mod contended many aliased =
-2 |   { x : 'a @@ aliased } [@@unboxed]
-Error: The kind of type "t" is value mod many contended
-         because of the annotation on 'a in the declaration of the type t.
-       But the kind of type "t" must be a subkind of
-         value mod aliased many contended
-         because of the annotation on the declaration of the type t.
+type ('a : value mod many contended) t = { x : 'a @@ aliased; } [@@unboxed]
 |}]
-(* CR layouts v2.8: this should be accepted *)
 
 type ('a : value mod external_) t : immediate =
   Foo of 'a @@ global portable contended many aliased [@@unboxed]
