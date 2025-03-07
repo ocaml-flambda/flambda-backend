@@ -902,10 +902,7 @@ module With_subkind = struct
                           mixed_block_shape
                       in
                       let from_mixed_block_element :
-                          _ Lambda.mixed_block_element -> t =
-                        (* CR-soon xclerc for xclerc: is there already a
-                           function for that? *)
-                        function
+                          _ Lambda.mixed_block_element -> t = function
                         | Value (value_kind : Lambda.value_kind) ->
                           from_lambda_value_kind value_kind
                         | Float_boxed _ | Float64 -> naked_float
