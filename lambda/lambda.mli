@@ -192,7 +192,6 @@ type primitive =
       array being *produced* by the duplication. *)
   | Parrayblit of {
       src_mutability : mutable_flag;
-      array_kind : array_kind;
       dst_array_set_kind : array_set_kind;
     }
   (** For [Parrayblit], we record the [array_set_kind] of the destination
@@ -200,6 +199,10 @@ type primitive =
       need to know anything about its locality. We do however request the
       mutability of the source array. *)
   | Parraylength of array_kind
+  (** For [Pnormal_access], the array kind and array ref kinds must be in
+      sync.  This is not currently checked. *)
+  (* CR mshinwell: consider changing these constructors so that for normal
+     accesses only the array_ref_kind is provided? *)
   | Parrayrefu of array_ref_kind * array_kind * array_index_kind * mutable_flag
                   * array_access_reinterp
   (** The [array_kind], not the [array_ref_kind], determines the stride for
@@ -1229,6 +1232,8 @@ val array_set_kind : modify_mode -> array_kind -> array_set_kind
     in the return value always comes from the [locality_mode] parameter. *)
 val array_ref_kind_of_array_set_kind
   : array_set_kind -> locality_mode -> array_ref_kind
+
+val array_kind_of_array_set_kind : array_set_kind -> array_kind
 
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool

@@ -689,10 +689,9 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayblit { src_mutability; array_kind = ak; dst_array_set_kind } ->
-      fprintf ppf "arrayblit[%s %s -> %a]"
+  | Parrayblit { src_mutability; dst_array_set_kind } ->
+      fprintf ppf "arrayblit[%s -> %a]"
         (array_mut src_mutability)
-        (array_kind ak)
         array_set_kind dst_array_set_kind
   | Parrayrefu (rk, ak, idx, mut, reinterp) ->
       fprintf ppf "%s.unsafe_get[%a indexed by %a, array kind %s%s]"

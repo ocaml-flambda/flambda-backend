@@ -1482,7 +1482,14 @@ let check_valid_reinterpret_set_kinds (array_kind : L.array_kind)
   | Preinterp_access -> (
     check_valid_reinterpret_array_kind array_kind fail;
     match array_set_kind with
-    | Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set
+    | Pgenarray_set _ | Paddrarray_set _ ->
+      (* For the moment, GC-scannable values are only allowed to be written and
+         read from arrays using reinterpret operations if the kind is immediate.
+         In other words, no squirreling away of GC-able pointers into (e.g.)
+         integer arrays, and no conjuring-up of "valid" OCaml values from such
+         arrays. *)
+      fail ()
+    | Pintarray_set | Pfloatarray_set
     | Punboxedfloatarray_set Unboxed_float64
     | Punboxedintarray_set Unboxed_int64
     | Punboxedintarray_set Unboxed_nativeint
@@ -1508,7 +1515,10 @@ let check_valid_reinterpret_ref_kinds (array_kind : L.array_kind)
   | Preinterp_access -> (
     check_valid_reinterpret_array_kind array_kind fail;
     match array_ref_kind with
-    | Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
+    | Pgenarray_ref _ | Paddrarray_ref ->
+      (* See comment above in the "set" case. *)
+      fail ()
+    | Pintarray_ref | Pfloatarray_ref _
     | Punboxedfloatarray_ref Unboxed_float64
     | Punboxedintarray_ref Unboxed_int64
     | Punboxedintarray_ref Unboxed_nativeint
@@ -2238,6 +2248,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ~current_region) ]
   | ( Parrayrefs (array_ref_kind, array_kind, index_kind, mut, reinterp),
       [[array]; [index]] ) ->
+    check_valid_reinterpret_ref_kinds array_kind array_ref_kind reinterp dbg;
     reinterpret_not_supported dbg reinterp;
     let array_length_kind = convert_array_kind_for_length array_kind in
     [ check_array_access ~dbg ~array array_length_kind ~index ~index_kind
@@ -2255,6 +2266,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ~new_values) ]
   | ( Parraysets (array_set_kind, array_kind, index_kind, reinterp),
       [[array]; [index]; new_values] ) ->
+    check_valid_reinterpret_set_kinds array_kind array_set_kind reinterp dbg;
     reinterpret_not_supported dbg reinterp;
     let array_length_kind = convert_array_kind_for_length array_kind in
     [ check_array_access ~dbg ~array array_length_kind ~index ~index_kind
@@ -2689,7 +2701,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _,
             _,
             _,
-            _)
+            _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
       | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
       | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),

@@ -465,8 +465,8 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     makearray_dynamic_non_scannable_unboxed_product env lambda_array_kind mode
       ~length ~init loc
 
-let arrayblit env ~(src_mutability : L.mutable_flag) array_kind
-    ~dst_array_set_kind args loc =
+let arrayblit env ~(src_mutability : L.mutable_flag) ~dst_array_set_kind args
+    loc =
   let src_array_ref_kind =
     (* We don't expect any allocation (e.g. occurring from the reading of a
        [float array]) to persist after simplification. We use [alloc_local] just
@@ -474,6 +474,7 @@ let arrayblit env ~(src_mutability : L.mutable_flag) array_kind
        unlikely). *)
     L.array_ref_kind_of_array_set_kind dst_array_set_kind L.alloc_local
   in
+  let array_kind = L.array_kind_of_array_set_kind dst_array_set_kind in
   match args with
   | [src_expr; src_start_pos_expr; dst_expr; dst_start_pos_expr; length_expr] ->
     (* Care: the [args] are arbitrary Lambda expressions, so need to be
@@ -708,11 +709,7 @@ let transform_primitive env (prim : L.primitive) args loc =
   match prim with
   | Pmakearray_dynamic (lambda_array_kind, mode, has_init) ->
     makearray_dynamic env lambda_array_kind mode has_init args loc
-  | Parrayblit
-      { src_mutability;
-        array_kind;
-        dst_array_set_kind;
-      } ->
-    arrayblit env ~src_mutability array_kind ~dst_array_set_kind args loc
+  | Parrayblit { src_mutability; dst_array_set_kind } ->
+    arrayblit env ~src_mutability ~dst_array_set_kind args loc
   | _ -> env, transform_primitive0 env prim args loc
   [@@ocaml.warning "-fragile-match"]

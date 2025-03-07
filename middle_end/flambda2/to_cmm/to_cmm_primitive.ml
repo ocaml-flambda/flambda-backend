@@ -325,8 +325,12 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
       "Cannot use array load kind [Values] on naked number/vector arrays:@ %a"
       Debuginfo.print_compact dbg
   | Naked_int64s, Immediates ->
-    C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:true arr
-      ~array_index:index dbg
+    (* To match the other reinterpret primitives and for safety, we set the
+       bottom bit (without any shift). *)
+    C.or_int
+      (C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:true arr
+         ~array_index:index dbg)
+      (C.int ~dbg 0x1) dbg
   | Naked_int64s, Naked_floats ->
     let index =
       (* The layouts of these arrays differ: the int64# array has an extra field

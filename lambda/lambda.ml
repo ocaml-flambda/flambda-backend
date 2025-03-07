@@ -198,7 +198,6 @@ type primitive =
   | Pduparray of array_kind * mutable_flag
   | Parrayblit of {
       src_mutability : mutable_flag;
-      array_kind : array_kind;
       dst_array_set_kind : array_set_kind;
     }
   | Parraylength of array_kind
@@ -2454,6 +2453,20 @@ let array_set_kind mode = function
   | Punboxedvectorarray vec_kind -> Punboxedvectorarray_set vec_kind
   | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
   | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
+
+let array_kind_of_array_set_kind (kind : array_set_kind) : array_kind =
+  match kind with
+  | Pintarray_set -> Pintarray
+  | Punboxedfloatarray_set uf -> Punboxedfloatarray uf
+  | Punboxedintarray_set ui -> Punboxedintarray ui
+  | Punboxedvectorarray_set uv -> Punboxedvectorarray uv
+  | Pgcscannableproductarray_set (_, scannables) ->
+    Pgcscannableproductarray scannables
+  | Pgcignorableproductarray_set ignorables ->
+    Pgcignorableproductarray ignorables
+  | Pgenarray_set _ -> Pgenarray
+  | Paddrarray_set _ -> Paddrarray
+  | Pfloatarray_set -> Pfloatarray
 
 let array_ref_kind_of_array_set_kind (kind : array_set_kind) mode
       : array_ref_kind =

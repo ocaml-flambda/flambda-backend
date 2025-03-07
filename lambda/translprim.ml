@@ -586,13 +586,11 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%arrayblit" ->
       Primitive (Parrayblit {
         src_mutability = Mutable;
-        array_kind = Pgenarray;
         dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
       }, 5);
     | "%arrayblit_src_immut" ->
       Primitive (Parrayblit {
         src_mutability = Immutable;
-        array_kind = Pgenarray;
         dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
       }, 5);
     | "%array_element_size_in_bytes" ->
@@ -1409,8 +1407,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     Misc.fatal_errorf
       "Wrong arity for Pmakearray_dynamic (arity=%d, args length %d)"
       arity (List.length args)
-  | Primitive (Parrayblit { src_mutability; array_kind; dst_array_set_kind },
-      arity),
+  | Primitive (Parrayblit { src_mutability; dst_array_set_kind }, arity),
     _p1 :: _ :: p2 :: _ ->
     let loc = to_location loc in
     (* We only use the kind of one of two input arrays here. If you've bound the
@@ -1422,12 +1419,10 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     let new_dst_array_set_kind =
       glb_array_set_type loc dst_array_set_kind new_array_kind
     in
-    if array_kind = new_array_kind
-       && dst_array_set_kind = new_dst_array_set_kind
+    if dst_array_set_kind = new_dst_array_set_kind
     then None
     else Some (Primitive (Parrayblit {
       src_mutability;
-      array_kind = new_array_kind;
       dst_array_set_kind = new_dst_array_set_kind }, arity))
   | Primitive (Parray_element_size_in_bytes _, arity), p1 :: _ -> (
       let array_kind =
