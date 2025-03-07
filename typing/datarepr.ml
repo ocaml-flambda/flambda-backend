@@ -70,6 +70,10 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
+      (* CR layouts v2.8: We could call [Jkind.normalize ~mode:Require_best] on this
+         jkind, and plausibly gain some perf wins by building up smaller jkinds that are
+         cheaper to deal with later. But doing so runs into some confusing mutual
+         recursion that's non-trivial to debug. Reinvestigate later *)
       let jkind = Jkind.for_boxed_record lbls in
       let tdecl =
         {
