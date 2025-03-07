@@ -133,10 +133,6 @@ let enumeration_of_suffix_except_all_floats_mixed ~bytecode
     all_of_mutability
   : _ Seq.t
   =
-  let _flat_element_except_float =
-    all_of_flat_element ~bytecode
-    |> List.filter ~f:(flat_element_is_not Float)
-  in
   nonempty_list_enumeration_of_list
     (list_product (all_of_flat_element ~bytecode) all_of_mutability)
   |> Seq.filter (fun suffix ->
