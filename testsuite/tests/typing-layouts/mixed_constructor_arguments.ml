@@ -157,17 +157,17 @@ Error: Extensible types can't have fields of unboxed type.
 
 (* This record will be reordered, and the the [float] fields still won't be
    flat because there's a non-[float]/[float#] field. *)
-type t_cstr_multi_boxed_float_bad = A of float * float# * float * int
+type t_cstr_multi_boxed_float_reordered = A of float * float# * float * int
 
 [%%expect{|
-type t_cstr_multi_boxed_float_bad = A of float * float# * float * int
+type t_cstr_multi_boxed_float_reordered = A of float * float# * float * int
 |}];;
 
-type t_cstr_multi_boxed_float_record_bad = A of { a : float; b : float#;
-                                                  c : float; d : int; }
+type t_cstr_multi_boxed_float_record_reordered = A of { a : float; b : float#;
+                                                        c : float; d : int; }
 
 [%%expect{|
-type t_cstr_multi_boxed_float_record_bad =
+type t_cstr_multi_boxed_float_record_reordered =
     A of { a : float; b : float#; c : float; d : int; }
 |}];;
 
