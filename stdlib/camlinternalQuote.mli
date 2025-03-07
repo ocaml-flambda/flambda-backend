@@ -16,6 +16,8 @@ module Name : sig
   type t
 
   val mk : string -> t
+
+  val print: Format.formatter -> t -> unit
 end
 
 module Var : sig
@@ -40,6 +42,8 @@ module Var : sig
   type t
 
   val name : t -> Name.t
+
+  val print: Format.formatter -> t -> unit
 end
 
 module Constant : sig
@@ -58,9 +62,11 @@ module Constant : sig
   val int64 : int64 -> t
 
   val nativeint : nativeint -> t
+
+  val print: Format.formatter -> t -> unit
 end
 
-module Ident : sig
+module Identifier : sig
   module Module : sig
     type t
 
@@ -69,6 +75,8 @@ module Ident : sig
     val dot : t -> string -> t
 
     val var : Var.Module.t -> Loc.t -> t
+
+    val print: Format.formatter -> t -> unit
   end
 
   module Value : sig
@@ -77,6 +85,8 @@ module Ident : sig
     val dot : Module.t -> string -> t
 
     val var : Var.Value.t -> Loc.t -> t
+
+    val print: Format.formatter -> t -> unit
   end
 
   module Type : sig
@@ -147,12 +157,16 @@ module Ident : sig
     val float32x4 : t
 
     val float64x2 : t
+
+    val print: Format.formatter -> t -> unit
   end
 
   module Module_type : sig
     type t
 
     val dot : Module.t -> string -> t
+
+    val print: Format.formatter -> t -> unit
   end
 
   module Constructor : sig
@@ -197,12 +211,16 @@ module Ident : sig
     val assert_failure : t
 
     val undefined_recursive_module : t
+
+    val print: Format.formatter -> t -> unit
   end
 
   module Field : sig
     type t
 
     val dot : Module.t -> string -> t
+
+    val print: Format.formatter -> t -> unit
   end
 end
 
@@ -224,12 +242,24 @@ module Label : sig
   val labelled : string -> t
 
   val optional : string -> t
+
+  val print: Format.formatter -> t -> unit
 end
 
 module Variant : sig
   type t
 
   val of_string : string -> t
+
+  val print: Format.formatter -> t -> unit
+end
+
+module Method : sig
+  type t
+
+  val of_string : string -> t
+
+  val print: Format.formatter -> t -> unit
 end
 
 module Pat : sig
@@ -245,11 +275,11 @@ module Pat : sig
 
   val tuple : (Label.Nonoptional.t * t) list -> t
 
-  val construct : Ident.Constructor.t -> t option -> t
+  val construct : Identifier.Constructor.t -> t option -> t
 
   val variant : string -> t option -> t
 
-  val record : (Ident.Field.t * t) list -> bool -> t
+  val record : (Identifier.Field.t * t) list -> bool -> t
 
   val array : t list -> t
 
@@ -264,6 +294,8 @@ end
 
 module Fragment : sig
   type t
+
+  val print: Format.formatter -> t -> unit
 end
 
 module Type : sig
@@ -281,7 +313,7 @@ module Type : sig
 
   val tuple : (Label.Nonoptional.t * t) list -> t
 
-  val constr : Ident.Constructor.t -> t list -> t
+  val constr : Identifier.Constructor.t -> t list -> t
 
   val alias : t -> Var.Type.t -> t
 
@@ -289,9 +321,10 @@ module Type : sig
 
   val poly : Loc.t -> Name.t list -> (Var.Type.t list -> t) -> t
 
-  val package : Ident.Module.t -> (Fragment.t * t) list -> t
+  val package : Identifier.Module.t -> (Fragment.t * t) list -> t
 end
 
+(* 10 *)
 module rec Case : sig
   type t
 
@@ -350,7 +383,7 @@ end
 and Exp : sig
   type t
 
-  val ident : Ident.Value.t -> t
+  val ident : Identifier.Value.t -> t
 
   val constant : Constant.t -> t
 
@@ -369,15 +402,15 @@ and Exp : sig
 
   val tuple : (Label.Nonoptional.t * t) list -> t
 
-  val construct : Ident.Constructor.t -> t option -> t
+  val construct : Identifier.Constructor.t -> t option -> t
 
   val variant : Name.t -> t option -> t
 
-  val record : (Ident.Field.t * t) list -> t option -> t
+  val record : (Identifier.Field.t * t) list -> t option -> t
 
-  val field : t -> Ident.Field.t -> t
+  val field : t -> Identifier.Field.t -> t
 
-  val setfield : t -> Ident.Field.t -> t -> t
+  val setfield : t -> Identifier.Field.t -> t -> t
 
   val array : t list -> t
 
@@ -391,17 +424,21 @@ and Exp : sig
 
   val for_simple : Loc.t -> Name.t -> t -> t -> bool -> (Var.Value.t -> t) -> t
 
+  val send : t -> Method.t -> t
+
   val assert_ : t -> t
 
   val lazy_ : t -> t
 
-  val open_ : bool -> Ident.Module.t -> t -> t
+  val open_ : bool -> Identifier.Module.t -> t -> t
 
   val constraint_ : t -> Type_constraint.t -> t
 
   val quote : t -> t
 
   val antiquote : Code.t -> t
+
+  val print: Format.formatter -> t -> unit
 end
 
 and Code : sig
@@ -421,4 +458,6 @@ and Code : sig
 
     val open_ : t -> exp
   end
+
+  val print: Format.formatter -> t -> unit
 end

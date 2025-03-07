@@ -38,15 +38,15 @@ module Loc = struct
   let known ~file ~start_line ~start_col ~end_line ~end_col =
     Known { file; start_line; start_col; end_line; end_col }
 
-  let print _ = function
-    | Unknown -> Format.printf "<unknown>"
+  let print fmt = function
+    | Unknown -> Format.fprintf fmt "<unknown>"
     | Known { file; start_line; start_col; end_line; end_col } ->
       if start_line = end_line
       then
-        Format.printf "File %s, line %d, characters %d-%d" file start_line
+        Format.fprintf fmt "File %s, line %d, characters %d-%d" file start_line
           start_col end_col
       else
-        Format.printf "File %s, lines %d-%d, characters %d-%d" file start_line
+        Format.fprintf fmt "File %s, lines %d-%d, characters %d-%d" file start_line
           end_line start_col end_col
 end
 
@@ -104,6 +104,8 @@ module Name = struct
   type t = string
 
   let mk t = t
+
+  let print fmt s = Format.fprintf fmt "%s" s
 end
 
 module Var : sig
@@ -169,6 +171,8 @@ module Var : sig
   (** [valid t] is [true] if [t]'s binding is still open, and [false] otherwise. Once [t]'s binding has
       been closed there is no valid way to use [t]. *)
   val valid : t -> bool
+
+  val print : Format.formatter -> t -> unit
 
   module Set : sig
     (** [t] is the type of sets of variables. *)
@@ -366,6 +370,8 @@ end = struct
   let level t = t.level
 
   let valid t = Level.check t.level
+
+  let print fmt t = Format.fprintf fmt "%s @ %a" t.name Loc.print (Level.loc t.level)
 
   module Module = struct
     type var = t
@@ -727,7 +733,7 @@ module With_free_and_bound_vars = struct
     With_free_vars.map With_bound_vars.optional (With_free_vars.optional ts)
 end
 
-module Ident = struct
+module Identifier = struct
   module Module : sig
     type t
 
@@ -736,6 +742,8 @@ module Ident = struct
     val dot : t -> string -> t
 
     val var : Var.Module.t -> Loc.t -> t
+
+    val print : Format.formatter -> t -> unit
 
     val free_vars : t -> Loc.t Var.Map.t
 
@@ -751,6 +759,11 @@ module Ident = struct
     let dot t s = Dot (t, s)
 
     let var v loc = Var (v, loc)
+
+    let rec print fmt = function
+      | Compilation_unit s -> Format.fprintf fmt "%s" s
+      | Dot (m, s) -> Format.fprintf fmt "%a.%s" print m s
+      | Var (vm, l) -> Format.fprintf fmt "%a" Var.print (Var.Module.generic vm)
 
     let rec free_vars = function
       | Compilation_unit _ -> Var.Map.empty
@@ -768,6 +781,8 @@ module Ident = struct
     val var : Var.Value.t -> Loc.t -> t
 
     val with_free_vars : t -> t With_free_vars.t
+
+    val print : Format.formatter -> t -> unit
   end = struct
     type t =
       | Dot of Module.t * string
@@ -776,6 +791,10 @@ module Ident = struct
     let dot t s = Dot (t, s)
 
     let var v l = Var (v, l)
+
+    let print fmt = function
+      | Dot (m, s) -> Format.fprintf fmt "%a.%s" Module.print m s
+      | Var (v, _) -> Var.print fmt (Var.Value.generic v)
 
     let free_vars = function
       | Dot (d, s) -> Module.free_vars d
@@ -790,6 +809,8 @@ module Ident = struct
     val dot : Module.t -> string -> t
 
     val var : Var.Type.t -> Loc.t -> t
+
+    val print : Format.formatter -> t -> unit
 
     val with_free_vars : t -> t With_free_vars.t
 
@@ -863,6 +884,11 @@ module Ident = struct
     let dot t s = Dot (t, s)
 
     let var v l = Var (v, l)
+
+    let print fmt = function
+      | Dot (m, s) -> Format.fprintf fmt "%a.%s" Module.print m s
+      | Var (v, _) -> Var.print fmt (Var.Type.generic v)
+      | Builtin s -> Format.fprintf fmt "%s" s
 
     let free_vars = function
       | Dot (t, _) -> Module.free_vars t
@@ -939,11 +965,15 @@ module Ident = struct
 
     val dot : Module.t -> string -> t
 
+    val print : Format.formatter -> t -> unit
+
     val with_free_vars : t -> t With_free_vars.t
   end = struct
     type t = Dot of Module.t * string
 
     let dot t s = Dot (t, s)
+
+    let print fmt (Dot (t, s)) = Format.fprintf fmt "%a.%s" Module.print t s
 
     let free_vars = function Dot (t, _) -> Module.free_vars t
 
@@ -954,6 +984,8 @@ module Ident = struct
     type t
 
     val dot : Module.t -> string -> t
+
+    val print : Format.formatter -> t -> unit
 
     val with_free_vars : t -> t With_free_vars.t
 
@@ -1002,6 +1034,10 @@ module Ident = struct
       | Builtin of string
 
     let dot t s = Dot (t, s)
+
+    let print fmt = function
+      | Dot (m, s) -> Format.fprintf fmt "%a.%s" Module.print m s
+      | Builtin s -> Format.fprintf fmt "%s" s
 
     let free_vars = function
       | Dot (t, _) -> Module.free_vars t
@@ -1056,6 +1092,8 @@ module Ident = struct
 
     val dot : Module.t -> string -> t
 
+    val print : Format.formatter -> t -> unit
+
     val with_free_vars : t -> t With_free_vars.t
 
     val with_free_and_bound_vars : t -> t With_free_and_bound_vars.t
@@ -1064,9 +1102,10 @@ module Ident = struct
 
     let dot t s = Dot (t, s)
 
+    let print fmt (Dot (m, s)) = Format.fprintf fmt "%a.%s" Module.print m s
+
     let free_vars = function Dot (t, _) -> Module.free_vars t
 
-    let of_string s = s
     let with_free_vars t = With_free_vars.mk (free_vars t) t
 
     let with_free_and_bound_vars t =
@@ -1078,6 +1117,16 @@ module Variant = struct
   type t = string
 
   let of_string s = s
+
+  let print fmt s = Format.fprintf fmt "%s" s
+end
+
+module Method = struct
+  type t = string
+
+  let of_string s = s
+
+  let print fmt s = Format.fprintf fmt "%s" s
 end
 
 module Ast = struct
@@ -1125,7 +1174,7 @@ module Ast = struct
     | TypeVar of Var.Type.t
     | Arrow of arg_label * core_type * core_type
     | TupleType of (tuple_label * core_type) list
-    | Constr of Ident.Constructor.t * core_type list
+    | Constr of Identifier.Constructor.t * core_type list
     | Alias of core_type * Var.Type.t
     | VariantType of row_field list * variant_form
     | Poly of Var.Type.t list * core_type
@@ -1135,7 +1184,7 @@ module Ast = struct
     | Tag of Variant.t * bool * core_type list
     | Inherit of core_type
 
-  and package_type = Ident.Module.t * (fragment * core_type) list
+  and package_type = Identifier.Module.t * (fragment * core_type) list
 
   and fragment =
     | Name of Name.t
@@ -1151,9 +1200,9 @@ module Ast = struct
     | AliasPat of pattern * Var.Value.t
     | ConstantPat of constant
     | TuplePat of (tuple_label * pattern) list
-    | ConstructPat of Ident.Constructor.t * pattern option
+    | ConstructPat of Identifier.Constructor.t * pattern option
     | VariantPat of Variant.t * pattern option
-    | RecordPat of (Ident.Field.t * pattern) list * record_flag
+    | RecordPat of (Identifier.Field.t * pattern) list * record_flag
     | ArrayPat of pattern list
     | Or of pattern * pattern
     | ConstraintPat of pattern * core_type
@@ -1180,7 +1229,7 @@ module Ast = struct
     }
 
   and expression_desc =
-    | Ident of Ident.Value.t
+    | Ident of Identifier.Value.t
     | Constant of constant
     | Let of rec_flag * value_binding list * expression
     | Fun of function_
@@ -1188,23 +1237,24 @@ module Ast = struct
     | Match of expression * case list
     | Try of expression * case list
     | Tuple of (tuple_label * expression) list
-    | Construct of Ident.Constructor.t * expression option
+    | Construct of Identifier.Constructor.t * expression option
     | Variant of string * expression option
-    | Record of (Ident.Field.t * expression) list * expression option
-    | Field of expression * Ident.Field.t
-    | Setfield of expression * Ident.Field.t * expression
+    | Record of (Identifier.Field.t * expression) list * expression option
+    | Field of expression * Identifier.Field.t
+    | Setfield of expression * Identifier.Field.t * expression
     | Array of expression list
     | Ifthenelse of expression * expression * expression option
     | Sequence of expression * expression
     | While of expression * expression
     | For of pattern * expression * expression * direction_flag * expression
+    | Send of expression * Method.t
     | ConstraintExp of expression * core_type
     | CoerceExp of expression * core_type option * core_type
     | Letmodule of Var.Module.t * module_expr * expression
     | Assert of expression
     | Lazy of expression
     | Pack of module_expr
-    | OpenExp of override_flag * Ident.Module.t * expression
+    | OpenExp of override_flag * Identifier.Module.t * expression
     | Quote of expression
     | Antiquote of expression * Loc.t
 
@@ -1234,10 +1284,28 @@ module Ast = struct
     }
 
   and module_expr =
-    | ModuleIdent of Ident.Module.t
+    | ModuleIdent of Identifier.Module.t
     | ModuleApply of module_expr * module_expr
     | Apply_unit of module_expr
     | Unpack of expression
+
+  let rec print_vb fmt ({pat; expr} : value_binding) =
+    Format.fprintf fmt "%a = %a" pat_print pat print_exp expr
+
+  and print_const fmt = function
+    | Int i -> Format.fprintf fmt "%d" i
+    | _ -> Format.fprintf fmt "_"
+
+  and pat_print fmt = function
+    | Any -> Format.fprintf fmt "_"
+    | Var v -> Var.print fmt (Var.Value.generic v)
+    | AliasPat (pat, v) -> Format.fprintf fmt "%a as %a" pat_print pat Var.print (Var.Value.generic v)
+    | _ -> Format.fprintf fmt "_"
+
+  and print_exp fmt exp = match exp.desc with
+    | Ident id -> Identifier.Value.print fmt id
+    | Constant c -> print_const fmt c
+    | _ -> Format.fprintf fmt "not yet printed"
 end
 
 module Label = struct
@@ -1260,10 +1328,19 @@ module Label = struct
   let labelled s = Ast.Labelled s
 
   let optional s = Ast.Optional s
+
+  let print fmt = function
+    | Ast.Nolabel -> Format.fprintf fmt ""
+    | Ast.Labelled s -> Format.fprintf fmt "~%s:" s
+    | Ast.Optional s -> Format.fprintf fmt "?%s:" s
 end
 
 module Fragment = struct
   type t = Ast.fragment
+
+  let rec print fmt = function
+    | Ast.Name s -> Format.fprintf fmt "%s" s
+    | Ast.Dot (f, s) -> Format.fprintf fmt "%a.%s" print f s
 end
 
 module Constant = struct
@@ -1282,6 +1359,17 @@ module Constant = struct
   let int64 i = Ast.Int64 i
 
   let nativeint i = Ast.Nativeint i
+
+  let print fmt = function
+    | Ast.Int i -> Format.fprintf fmt "%d" i
+    | Ast.Char c -> Format.fprintf fmt "%c" c
+    | Ast.String (s, o) -> (match o with
+      | None -> Format.fprintf fmt "\"%s\"" s
+      | Some del -> Format.fprintf fmt "{%s|%s|%s}" del s del)
+    | Ast.Float s -> Format.fprintf fmt "%s" s
+    | Ast.Int32 i -> Format.fprintf fmt "%ld" i
+    | Ast.Int64 i -> Format.fprintf fmt "%Ld" i
+    | Ast.Nativeint i -> Format.fprintf fmt "%nd" i
 end
 
 module BindingError = struct
@@ -1379,7 +1467,7 @@ module Pat = struct
     let ts =
       List.map
         (fun (lid, t) ->
-          let+ lbl = Ident.Field.with_free_and_bound_vars lid and+ p = t in
+          let+ lbl = Identifier.Field.with_free_and_bound_vars lid and+ p = t in
           lbl, p)
         fields
     in
@@ -1538,6 +1626,8 @@ module Type_constraint = struct
   let coercion typ1 typ2 =
     let+ typ1 = With_free_vars.optional typ1 and+ typ2 = typ2 in
     Ast.Coerce (typ1, typ2)
+
+  let print _ = ""
 end
 
 module Function = struct
@@ -1563,12 +1653,13 @@ module Function = struct
       let+ pat = pat
       and+ ({ params; constraint_; body } : Ast.function_) = fn
       and+ e = With_free_vars.optional exp in
-      let p =
-        With_bound_vars.value_nonbinding
+      let pat =
+        With_bound_vars.value
           ~extra:(BindingError.unexpected_binding_error_at_loc loc)
-          pat
+          ~missing:BindingError.missing_binding_error pat
+          (List.map Var.Value.generic vars)
       in
-      mk (Ast.Pparam_val (lab, e, p) :: params) constraint_ body)
+      mk (Ast.Pparam_val (lab, e, pat) :: params) constraint_ body)
 
   let newtype loc name f =
     With_free_vars.type_binding loc name (fun typ ->
@@ -1613,6 +1704,10 @@ module Code = struct
 
     let open_ = With_free_vars.return
   end
+
+  let print fmt c =
+    let ast_exp = With_free_vars.value ~free:(fun _ _ -> ()) c in
+    Format.fprintf fmt "[%%quote %a]" Ast.print_exp ast_exp.exp
 end
 
 module Exp = struct
@@ -1633,7 +1728,7 @@ module Exp = struct
   let mk desc attributes : Ast.expression = { desc; attributes }
 
   let ident id =
-    let+ id = Ident.Value.with_free_vars id in
+    let+ id = Identifier.Value.with_free_vars id in
     mk (Ident id) []
 
   let constant (const : Constant.t) = return (mk (Constant const) [])
@@ -1762,6 +1857,10 @@ module Exp = struct
     and+ end_ = end_ in
     mk (For (Var var, begin_, end_, dir, body)) [Loop]
 
+  let send exp meth =
+    let+ exp = exp in
+    mk (Ast.Send (exp, meth)) []
+
   let constraint_ exp constr =
     let+ exp = exp and+ constr = constr in
     let desc =
@@ -1791,4 +1890,8 @@ module Exp = struct
   let antiquote code =
     let+ ({ exp; loc } : Code.code_rep) = code in
     mk (Antiquote (exp, loc)) []
+
+  let print fmt exp =
+    let ast = With_free_vars.value ~free:(fun _ _ -> ()) exp in
+    Ast.print_exp fmt ast
 end
