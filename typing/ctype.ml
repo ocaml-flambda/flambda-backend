@@ -2200,7 +2200,6 @@ let rec get_unboxed_type_representation env ty_prev ty fuel =
       | Ok ({ ty = result; is_open = open2 }, modality') ->
         Ok (
           { ty = result; is_open = open1 || open2 },
-          (* CR aspsmith: test nested modalities! *)
           Mode.Modality.Value.Const.concat modality ~then_:modality'
         )
       | Error _ as err -> err
