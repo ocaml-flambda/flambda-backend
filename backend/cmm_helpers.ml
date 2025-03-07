@@ -334,6 +334,13 @@ let rec add_const c n dbg =
       Cop (Csubi, [Cconst_int (n + x, dbg); c], dbg)
     | Cop (Csubi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_sub n x ->
       add_const c (n - x) dbg
+    | Cop
+        ( Cor,
+          [(Cop (Clsl, [_; Cconst_int (1, _)], _) as inner); Cconst_int (1, _)],
+          _ )
+      when n = -1 ->
+      (* undo setting the tag bit *)
+      inner
     | c -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg)
 
 let incr_int c dbg = add_const c 1 dbg
@@ -360,7 +367,56 @@ let rec sub_int c1 c2 dbg =
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
-let rec lsl_int c1 c2 dbg =
+(* identify cmm operations whose result is guaranteed to be small integers (e.g.
+   in the range [min_int / 4; max_int / 4]) *)
+let guaranteed_to_be_small_int = function
+  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+    (* integer/float comparisons return either [1] or [0]. *)
+    true
+  | _ -> false
+
+let ignore_low_bit_int = function
+  | Cop
+      ( Caddi,
+        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
+        _ )
+    when n > 0 ->
+    c
+  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
+  | c -> c
+
+let rec lsr_int c1 c2 dbg =
+  match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
+  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
+    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
+    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
+  | c1, Cconst_int (n, _) when n > 0 ->
+    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
+  | _ -> Cop (Clsr, [c1; c2], dbg)
+
+and asr_int c1 c2 dbg : expression =
+  match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
+  | c1, Cconst_int (n, _) when n > 0 -> (
+    match ignore_low_bit_int c1 with
+    (* some operations always return small enough integers that it is safe and
+       correct to optimise [asr (lsl x 1) 1] into [x]. *)
+    | Cop (Clsl, [c; Cconst_int (1, _)], _)
+      when n = 1 && guaranteed_to_be_small_int c ->
+      c
+    | Cop (Cor, [inner; Cconst_int (x, _)], _) when n < Sys.int_size ->
+      let inner = asr_const inner n dbg in
+      let x = x asr n in
+      if x = 0 then inner else Cop (Cor, [inner; Cconst_int (x, dbg)], dbg)
+    | c1' -> Cop (Casr, [c1'; c2], dbg))
+  | Cop (Casr, [x; (Cconst_int _ as y)], z), c2 ->
+    (* prefer putting the constant shift on the outside to help enable further
+       peephole optimizations *)
+    Cop (Casr, [Cop (Casr, [x; c2], dbg); y], z)
+  | _ -> Cop (Casr, [c1; c2], dbg)
+
+and lsl_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
   | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
@@ -369,9 +425,20 @@ let rec lsl_int c1 c2 dbg =
   | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when Misc.no_overflow_lsl n1 n2 ->
     add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
+  | Cop (Cor, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
+    when Misc.no_overflow_lsl n1 n2 ->
+    add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
+  | Cop (Clsl, [x; (Cconst_int _ as y)], z), c2 ->
+    (* prefer putting the constant shift on the outside to help enable further
+       peephole optimizations *)
+    Cop (Clsl, [Cop (Clsl, [x; c2], dbg); y], z)
   | _, _ -> Cop (Clsl, [c1; c2], dbg)
 
-let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+and lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+
+and asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
+
+and lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
 let is_power2 n = n = 1 lsl Misc.log2 n
 
@@ -392,57 +459,14 @@ let rec mul_int c1 c2 dbg =
     add_const (mul_int c (Cconst_int (k, dbg)) dbg) (n * k) dbg
   | c1, c2 -> Cop (Cmuli, [c1; c2], dbg)
 
-(* identify cmm operations whose result is guaranteed to be small integers (e.g.
-   in the range [min_int / 4; max_int / 4]) *)
-let guaranteed_to_be_small_int = function
-  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
-    (* integer/float comparisons return either [1] or [0]. *)
-    true
-  | _ -> false
-
-let ignore_low_bit_int = function
-  | Cop
-      ( Caddi,
-        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
-        _ )
-    when n > 0 ->
-    c
-  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
-  | c -> c
-
-let lsr_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | c1, Cconst_int (n, _) when n > 0 ->
-    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
-  | _ -> Cop (Clsr, [c1; c2], dbg)
-
-let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
-
-let asr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> (
-    match ignore_low_bit_int c1 with
-    (* some operations always return small enough integers that it is safe and
-       correct to optimise [asr (lsl x 1) 1] into [x]. *)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
-      when n = 1 && guaranteed_to_be_small_int c ->
-      c
-    | c1' -> Cop (Casr, [c1'; c2], dbg))
-  | _ -> Cop (Casr, [c1; c2], dbg)
-
-let asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
-
 let tag_int i dbg =
   match i with
   | Cconst_int (n, _) -> int_const dbg n
   | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 ->
     Cop
       (Cor, [asr_int c (Cconst_int (n - 1, dbg)) dbg; Cconst_int (1, dbg)], dbg)
+  | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 ->
+    Cop (Cor, [lsr_const c (n - 1) dbg; Cconst_int (1, dbg)], dbg)
   | c -> incr_int (lsl_int c (Cconst_int (1, dbg)) dbg) dbg
 
 let untag_int i dbg =
@@ -450,7 +474,7 @@ let untag_int i dbg =
   | Cconst_int (n, _) -> Cconst_int (n asr 1, dbg)
   | Cop (Cor, [Cop (Casr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Casr, [c; Cconst_int (n + 1, dbg)], dbg)
+    asr_const c (n + 1) dbg
   | Cop (Cor, [Cop (Clsr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
     Cop (Clsr, [c; Cconst_int (n + 1, dbg)], dbg)
@@ -458,8 +482,10 @@ let untag_int i dbg =
 
 let mk_not dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    -> (
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        dbg' ) -> (
     match c with
     | Cop (Ccmpi cmp, [c1; c2], dbg'') ->
       tag_int
@@ -799,8 +825,10 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
 
 let test_bool dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], _)
-    ->
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        _ ) ->
     c
   | Cconst_int (n, dbg) ->
     if n = 1 then Cconst_int (0, dbg) else Cconst_int (1, dbg)
@@ -1035,8 +1063,10 @@ let array_indexing ?typ log2size ptr ofs dbg =
     if i = 0
     then ptr
     else Cop (add, [ptr; Cconst_int (i lsl log2size, dbg)], dbg)
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    ->
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        dbg' ) ->
     Cop (add, [ptr; lsl_const c log2size dbg], dbg')
   | Cop (Caddi, [c; Cconst_int (n, _)], dbg') when log2size = 0 ->
     Cop
@@ -4436,3 +4466,270 @@ let reperform ~dbg ~eff ~cont ~last_fiber =
       dbg )
 
 let poll ~dbg = return_unit dbg (Cop (Cpoll, [], dbg))
+
+module Scalar_type = struct
+  module Float_width = struct
+    type t = Cmm.float_width =
+      | Float64
+      | Float32
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Float64, Float64 -> exp
+      | Float32, Float32 -> exp
+      | Float32, Float64 -> float_of_float32 ~dbg exp
+      | Float64, Float32 -> float32_of_float ~dbg exp
+  end
+
+  module Signedness = struct
+    type t =
+      | Signed
+      | Unsigned
+
+    let equal (x : t) (y : t) = x = y
+
+    let print ppf t =
+      match t with
+      | Signed -> Format.pp_print_string ppf "signed"
+      | Unsigned -> Format.pp_print_string ppf "unsigned"
+  end
+
+  module Bit_width_and_signedness : sig
+    (** An integer with signedness [signedness t] that fits into a general-purpose
+        register. It is canonically stored in twos-complement representation, in the lower
+        [bits] bits of its container (whether that be memory or a register), and is sign-
+        or zero-extended to fill the entire container. *)
+    type t [@@immediate]
+
+    val create_exn : bit_width:int -> signedness:Signedness.t -> t
+
+    val bit_width : t -> int
+
+    val signedness : t -> Signedness.t
+
+    val equal : t -> t -> bool
+  end = struct
+    (* [signedness t] is stored in the low bit of [t], and [bit_width t] is
+       stored in the remaining high bits of [t]. We use this encoding to fit [t]
+       into an immediate value. This is worth trying since we expect to create
+       one of these for ~every integer operation, so it should cut down on
+       garbage *)
+    type t = { bit_width_and_signedness : int } [@@unboxed]
+
+    let[@inline] equal { bit_width_and_signedness = x }
+        { bit_width_and_signedness = y } =
+      Int.equal x y
+
+    let[@inline] bit_width { bit_width_and_signedness } =
+      bit_width_and_signedness lsr 1
+
+    let[@inline] signedness { bit_width_and_signedness } =
+      match bit_width_and_signedness land 1 with
+      | 0 -> Signedness.Signed
+      | 1 -> Signedness.Unsigned
+      | _ -> assert false
+
+    let[@inline] int_of_signedness : Signedness.t -> int = function
+      | Signed -> 0
+      | Unsigned -> 1
+
+    let[@inline] create_exn ~bit_width ~signedness =
+      assert (0 < bit_width && bit_width <= arch_bits);
+      { bit_width_and_signedness =
+          (bit_width lsl 1) + int_of_signedness signedness
+      }
+  end
+
+  module Integral_type = struct
+    include Bit_width_and_signedness
+
+    let[@inline] with_signedness t ~signedness =
+      create_exn ~bit_width:(bit_width t) ~signedness
+
+    let[@inline] signed t = with_signedness t ~signedness:Signed
+
+    let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
+
+    (** Determines whether [dst] can represent every value of [src], preserving sign *)
+    let[@inline] can_cast_without_losing_information ~src ~dst =
+      match signedness src, signedness dst with
+      | Signed, Signed | Unsigned, Unsigned -> bit_width src <= bit_width dst
+      | Unsigned, Signed -> bit_width src < bit_width dst
+      | Signed, Unsigned -> false
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      if can_cast_without_losing_information ~src ~dst
+      then
+        (* Since [Bit_width_and_signedness] represents sign- or zero-extended
+           expressions, this is a no-op *)
+        exp
+      else
+        match signedness dst with
+        | Signed -> sign_extend ~bits:(bit_width dst) exp ~dbg
+        | Unsigned -> zero_extend ~bits:(bit_width dst) exp ~dbg
+
+    let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+      x
+      |> static_cast ~src:outer ~dst:inner ~dbg
+      |> f
+      |> static_cast ~src:inner ~dst:outer ~dbg
+  end
+
+  module Integer = struct
+    include Integral_type
+
+    let print ppf t =
+      Format.fprintf ppf "%a int%d" Signedness.print (signedness t)
+        (bit_width t)
+
+    let nativeint = create_exn ~bit_width:arch_bits ~signedness:Signed
+  end
+
+  (** An {!Integer.t} but with the additional stipulation that its container must
+      reserve its lowest bit to be 1. The [bit_width] field includes this bit. *)
+  module Tagged_integer = struct
+    include Integral_type
+
+    let[@inline] create_exn ~bit_width_including_tag_bit:bit_width ~signedness =
+      assert (bit_width > 1);
+      create_exn ~bit_width ~signedness
+
+    let immediate =
+      create_exn ~bit_width_including_tag_bit:arch_bits ~signedness:Signed
+
+    let[@inline] bit_width_including_tag_bit t = bit_width t
+
+    let[@inline] bit_width_excluding_tag_bit t = bit_width t - 1
+
+    let[@inline] untagged t =
+      Integer.create_exn
+        ~bit_width:(bit_width_excluding_tag_bit t)
+        ~signedness:(signedness t)
+
+    let[@inline] untag ~dbg t exp =
+      match signedness t with
+      | Signed -> asr_const exp 1 dbg
+      | Unsigned -> lsr_const exp 1 dbg
+
+    let print ppf t =
+      Format.fprintf ppf "tagged %a int%d" Signedness.print (signedness t)
+        (bit_width_excluding_tag_bit t)
+  end
+
+  module Integral = struct
+    type t =
+      | Untagged of Integer.t
+      | Tagged of Tagged_integer.t
+
+    let nativeint = Untagged Integer.nativeint
+
+    let[@inline] untagged_or_identity = function
+      | Untagged t -> t
+      | Tagged t -> Tagged_integer.untagged t
+
+    let signedness = function
+      | Untagged t -> Integer.signedness t
+      | Tagged t -> Tagged_integer.signedness t
+
+    let with_signedness t ~signedness =
+      match t with
+      | Untagged t -> Untagged (Integer.with_signedness t ~signedness)
+      | Tagged t -> Tagged (Tagged_integer.with_signedness t ~signedness)
+
+    let[@inline] signed t = with_signedness t ~signedness:Signed
+
+    let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
+
+    let[@inline] equal x y =
+      match x, y with
+      | Untagged x, Untagged y -> Integer.equal x y
+      | Untagged _, _ -> false
+      | Tagged x, Tagged y -> Tagged_integer.equal x y
+      | Tagged _, _ -> false
+
+    let print ppf t =
+      match t with
+      | Untagged untagged -> Integer.print ppf untagged
+      | Tagged tagged -> Tagged_integer.print ppf tagged
+
+    let[@inline] can_cast_without_losing_information ~src ~dst =
+      Integer.can_cast_without_losing_information
+        ~src:(untagged_or_identity src) ~dst:(untagged_or_identity dst)
+
+    let static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Untagged src, Untagged dst -> Integer.static_cast ~dbg ~src ~dst exp
+      | Tagged src, Tagged dst -> Tagged_integer.static_cast ~dbg ~src ~dst exp
+      | Untagged src, Tagged dst ->
+        tag_int
+          (Integer.static_cast ~dbg ~src ~dst:(Tagged_integer.untagged dst) exp)
+          dbg
+      | Tagged src, Untagged dst ->
+        Integer.static_cast ~dbg
+          ~src:(Tagged_integer.untagged src)
+          ~dst
+          (Tagged_integer.untag ~dbg src exp)
+
+    let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+      x
+      |> static_cast ~src:outer ~dst:inner ~dbg
+      |> f
+      |> static_cast ~src:inner ~dst:outer ~dbg
+  end
+
+  type t =
+    | Integral of Integral.t
+    | Float of Float_width.t
+
+  let static_cast ~dbg ~src ~dst exp =
+    match src, dst with
+    | Integral src, Integral dst -> Integral.static_cast ~dbg ~src ~dst exp
+    | Float src, Float dst -> Float_width.static_cast ~dbg ~src ~dst exp
+    | Integral src, Float dst ->
+      let float_of_int_arg = Integral.nativeint in
+      if not
+           (Integral.can_cast_without_losing_information ~src
+              ~dst:float_of_int_arg)
+      then
+        Misc.fatal_errorf "static_cast: casting %a to float is not implemented"
+          Integral.print src
+      else
+        unary (Cstatic_cast (Float_of_int dst)) ~dbg
+          (Integral.static_cast exp ~dbg ~src ~dst:float_of_int_arg)
+    | Float src, Integral dst -> (
+      match Integral.signedness dst with
+      | Unsigned ->
+        Misc.fatal_errorf
+          "static_cast: casting floats to unsigned values is not implemented"
+      | Signed ->
+        (* we can truncate because casting from float -> int is unspecified when
+           the rounded value doesn't fit in the integral type. We can't promote
+           since nativeint is already the largest integral type supported
+           here. *)
+        let exp = unary (Cstatic_cast (Int_of_float src)) exp ~dbg in
+        let src = Integral.nativeint in
+        (* assert that nativeint is indeed the largest integer width *)
+        assert (Integral.can_cast_without_losing_information ~src:dst ~dst:src);
+        Integral.static_cast exp ~dbg ~src ~dst)
+
+  let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+    x
+    |> static_cast ~src:outer ~dst:inner ~dbg
+    |> f
+    |> static_cast ~src:inner ~dst:outer ~dbg
+
+  module Untagged = struct
+    type numeric = t
+
+    type t =
+      | Untagged of Integer.t
+      | Float of float_width
+
+    let to_numeric : t -> numeric = function
+      | Untagged width -> Integral (Untagged width)
+      | Float float -> Float float
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      static_cast ~dbg ~src:(to_numeric src) ~dst:(to_numeric dst) exp
+  end
+end
