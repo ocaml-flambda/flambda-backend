@@ -2267,11 +2267,13 @@ let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
 let apply_modality modality jk =
   let relevant_axes =
-    relevant_axes_for_type ~modality ~relevant_for_nullability:`Irrelevant
+    relevant_axes_for_type ~modality ~relevant_for_nullability:`Relevant
   in
   let mod_bounds =
     Mod_bounds.set_min_in_set jk.jkind.mod_bounds
-      (Axis_set.complement relevant_axes)
+      (Axis_set.remove
+         (Axis_set.complement relevant_axes)
+         (Nonmodal Nullability))
   in
   let with_bounds =
     With_bounds.map
