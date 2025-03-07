@@ -1692,7 +1692,7 @@ let rec update_decl_jkind env dpath decl =
     | [Types.{ld_type} as lbl], Record_unboxed ->
       let jkind =
         Ctype.type_jkind env ld_type |>
-        Jkind.adjust_mod_bounds_for_modalities lbl.ld_modalities
+        Jkind.apply_modality lbl.ld_modalities
       in
       (* This next line is guaranteed to be OK because of a call to
          [check_representable] *)

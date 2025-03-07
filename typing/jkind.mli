@@ -565,9 +565,9 @@ val set_nullability_upper_bound :
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind
 
-(** Set the mod-bounds of a jkind based on a modality that is modifying an [[@@unboxed]]
-    record field of that jkind *)
-val adjust_mod_bounds_for_modalities :
+(** Update a jkind by applying a modality. This modifies the mod-bounds, and propagates
+    the modality to the each of the jkind's with-bounds. *)
+val apply_modality :
   Mode.Modality.Value.Const.t -> 'd Types.jkind -> 'd Types.jkind
 
 (** Extract out component jkinds from the product. Because there are no product

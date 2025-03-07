@@ -629,6 +629,10 @@ module With_bounds = struct
     | With_bounds tys ->
       With_bounds (With_bounds_types.map_with_key (fun ty ti -> f ty, ti) tys)
 
+  let map (type l r) f : (l * r) t -> (l * r) t = function
+    | No_with_bounds -> No_with_bounds
+    | With_bounds tys -> With_bounds (With_bounds_types.map f tys)
+
   let debug_print_types ppf tys =
     let open Format in
     pp_print_seq
@@ -2261,13 +2265,21 @@ let set_nullability_upper_bound jk nullability_upper_bound =
 
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
-let adjust_mod_bounds_for_modalities modality jk =
+let apply_modality modality jk =
+  let relevant_axes =
+    relevant_axes_for_type ~modality ~relevant_for_nullability:`Irrelevant
+  in
   let mod_bounds =
     Mod_bounds.set_min_in_set jk.jkind.mod_bounds
-      (Axis_set.complement
-         (relevant_axes_for_type ~modality ~relevant_for_nullability:`Irrelevant))
+      (Axis_set.complement relevant_axes)
   in
-  { jk with jkind = { jk.jkind with mod_bounds } }
+  let with_bounds =
+    With_bounds.map
+      (fun ti ->
+        { relevant_axes = Axis_set.intersection ti.relevant_axes relevant_axes })
+      jk.jkind.with_bounds
+  in
+  { jk with jkind = { jk.jkind with mod_bounds; with_bounds } }
 
 let get_annotation jk = jk.annotation
 

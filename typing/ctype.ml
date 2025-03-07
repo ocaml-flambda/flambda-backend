@@ -2329,7 +2329,7 @@ let type_jkind env ty =
   estimate_type_jkind_open
     ~expand_component:(get_unboxed_type_approximation env) env
     ty
-  |> Jkind.adjust_mod_bounds_for_modalities modality
+  |> Jkind.apply_modality modality
 
 (* CR layouts v2.8: This function is quite suspect. See Jane Street internal
    gdoc titled "Let's kill type_jkind_purely". *)
