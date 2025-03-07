@@ -1227,6 +1227,8 @@ val dls_get : dbg:Debuginfo.t -> expression
 
 val poll : dbg:Debuginfo.t -> expression
 
+(** This module defines the various kinds of scalars usable in Cmm. It also provides ways
+    to generate expressions to cast between them. *)
 module Scalar_type : sig
   (** A static_cast from a larger integral type to a smaller one logically truncates the
       upper bits. Note that values are stored in registers sign- or zero- extended
@@ -1243,7 +1245,6 @@ module Scalar_type : sig
 
       Casting floats to/from unsigned register-width integers is not implemented and will
       raise in the compiler. *)
-
   type 'a static_cast :=
     dbg:Debuginfo.t -> src:'a -> dst:'a -> expression -> expression
 
@@ -1295,6 +1296,9 @@ module Scalar_type : sig
 
     val unsigned : t -> t
 
+    (** This function relates to the set of possible values that each type can represent.
+        Even if it returns [true], it does not necessarily mean that casting from [src] to
+        [dst] is a no-op. *)
     val can_cast_without_losing_information : src:t -> dst:t -> bool
 
     val static_cast : t static_cast
