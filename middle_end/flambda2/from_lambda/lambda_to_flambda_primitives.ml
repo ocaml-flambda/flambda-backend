@@ -1474,10 +1474,14 @@ let check_valid_reinterpret_array_kind (array_kind : L.array_kind)
   | Punboxedfloatarray Unboxed_float64
   | Punboxedintarray Unboxed_int64
   | Punboxedintarray Unboxed_nativeint
-  | Pgcignorableproductarray _ ->
+  | Pgcignorableproductarray _ -> (
     (* Recall: unboxed product arrays are always uniformly 64-bit wide for each
        component. *)
-    ()
+    match reinterp_access_is_scannable with
+    | Gc_ignorable -> ()
+    | Gc_scannable ->
+      (* GC-scannability restriction, as per comment above *)
+      fail ())
   | Punboxedfloatarray Unboxed_float32
   | Punboxedintarray Unboxed_int32
   | Punboxedvectorarray Unboxed_vec128 ->
