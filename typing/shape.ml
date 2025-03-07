@@ -78,6 +78,9 @@ module Uid = struct
   let of_compilation_unit_id id =
     Compilation_unit (id |> Compilation_unit.full_path_as_string)
 
+  let of_compilation_unit_name name =
+    Compilation_unit (name |> Compilation_unit.Name.to_string)
+
   let of_predef_id id =
     if not (Ident.is_predef id) then
       Misc.fatal_errorf "Types.Uid.of_predef_id %S" (Ident.name id);

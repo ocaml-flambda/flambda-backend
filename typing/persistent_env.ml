@@ -104,6 +104,7 @@ type import = {
   imp_impl : CU.t option; (* None iff import is a parameter *)
   imp_raw_sign : Signature_with_global_bindings.t;
   imp_filename : string;
+  imp_uid : Shape.Uid.t;
   imp_visibility: Load_path.visibility;
   imp_crcs : Import_info.Intf.t array;
   imp_flags : Cmi_format.pers_flags list;
@@ -363,6 +364,17 @@ let acknowledge_import penv ~check modname pers_sig =
     | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Some cmi_impl
     | Parameter -> None, None
   in
+  let uid =
+    (* Awkwardly, we need to make sure the uid includes the pack prefix, which
+       is only stored in the [cmi_impl], which only exists for the kind
+       [Normal]. (There can be no pack prefix for a parameter, so it's not like
+       we're missing information, but it is awkward.) *)
+    (* CR-someday lmaurer: Just store the pack prefix separately like we used
+       to. Then we wouldn't need [cmi_impl] at all. *)
+    match kind with
+    | Normal { cmi_impl; _ } -> Shape.Uid.of_compilation_unit_id cmi_impl
+    | Parameter -> Shape.Uid.of_compilation_unit_name modname
+  in
   let {imports; _} = penv in
   let import =
     { imp_is_param = is_param;
@@ -371,6 +383,7 @@ let acknowledge_import penv ~check modname pers_sig =
       imp_impl = impl;
       imp_raw_sign = sign;
       imp_filename = filename;
+      imp_uid = uid;
       imp_visibility = visibility;
       imp_crcs = crcs;
       imp_flags = flags;
@@ -828,6 +841,7 @@ let acknowledge_new_pers_struct penv modname pers_name val_of_pers_sig =
   let is_param = import.imp_is_param in
   let impl = import.imp_impl in
   let filename = import.imp_filename in
+  let uid = import.imp_uid in
   let flags = import.imp_flags in
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
@@ -842,17 +856,6 @@ let acknowledge_new_pers_struct penv modname pers_name val_of_pers_sig =
     match binding with
     | Runtime_parameter id -> Alocal id
     | Constant unit -> Aunit unit
-  in
-  let uid =
-    (* This is source-level information that depends only on the import, not the
-       arguments. (TODO: Consider moving this bit into [acknowledge_import].) *)
-    match import.imp_impl with
-    | Some unit -> Shape.Uid.of_compilation_unit_id unit
-    | None ->
-        (* TODO: [Shape.Uid.of_compilation_unit_id] is actually the wrong type, since
-           parameters should also have uids but they don't have .cmx files and thus
-           they don't have [CU.t]s *)
-        Shape.Uid.internal_not_actually_unique
   in
   let shape =
     match import.imp_impl, import.imp_params with
