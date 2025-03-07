@@ -65,7 +65,7 @@ type t =
 type t = { a : float; b : float#; c : float; d : int; }
 |}];;
 
-(* String can't appear in the flat suffix *)
+(* Reordered mixed block: the compiler moves the string to before the flat suffix *)
 type t =
   { a : float#;
     b : string;
