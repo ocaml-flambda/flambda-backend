@@ -73,12 +73,8 @@ type 'a portable = { portable : 'a @@ portable; }
 |}]
 
 let foo (x : (int -> int) ref portable @@ nonportable) = use_portable x
-(* CR aspsmith: This should be accepted! *)
 [%%expect{|
-Line 1, characters 70-71:
-1 | let foo (x : (int -> int) ref portable @@ nonportable) = use_portable x
-                                                                          ^
-Error: This value is "nonportable" but expected to be "portable".
+val foo : (int -> int) ref portable -> unit = <fun>
 |}]
 
 (* Product layouts *)
