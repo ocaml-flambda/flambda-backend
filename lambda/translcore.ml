@@ -580,6 +580,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             lam)
           else
             let alloc_mode = transl_alloc_mode (Option.get alloc_mode) in
+            (* CR mshinwell: why are we using generic_value and not an immediate
+               value kind for the poly variant hash? *)
             let makeblock =
               match cstr.cstr_shape with
               | Constructor_uniform_value ->
@@ -597,6 +599,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                       shape
                   in
                   let shape =
+                    (* This corresponds to the poly variant hash.  This will
+                       always stay in the same place because the reordering
+                       sorting is stable and immediates are always put in the
+                       value prefix of a mixed block. *)
                     Array.append [| Lambda.Value Lambda.generic_value |] shape
                   in
                   Pmakemixedblock(0, Immutable, shape, alloc_mode)
