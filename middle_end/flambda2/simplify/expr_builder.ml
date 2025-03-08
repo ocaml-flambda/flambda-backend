@@ -679,6 +679,21 @@ type rewrite_apply_cont_result =
 
 let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 
+let apply_continuation_shortcuts uenv apply_cont =
+  (* CR gbury: when rewriting shortcuts, we may lose some information that was
+     in the kinds of the continuation being rewritten (e.g. is the continuation
+     bein rewritten had more kind/sub-kind information on its parameters than
+     its shortcut). We should think of a way to preserve that information. *)
+  match
+    UE.find_continuation_shortcut uenv (Apply_cont.continuation apply_cont)
+  with
+  | None -> apply_cont
+  | Some shortcut ->
+    let cont, args =
+      UE.apply_continuation_shortcut shortcut (Apply_cont.args apply_cont)
+    in
+    Apply_cont.with_continuation_and_args apply_cont cont ~args
+
 let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
@@ -686,6 +701,7 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
   | Invalid -> Invalid { message = "" }
   | Ok (extra_lets, args) -> (
     let apply_cont = Apply_cont.update_args apply_cont ~args in
+    let apply_cont = apply_continuation_shortcuts (UA.uenv uacc) apply_cont in
     match extra_lets with
     | [] -> Apply_cont apply_cont
     | _ :: _ ->
@@ -722,10 +738,17 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
     | Continuation cont -> cont
     | Apply_cont apply_cont -> Apply_cont.continuation apply_cont
   in
-  let original_cont = cont in
-  let cont = UE.resolve_continuation_aliases uenv cont in
-  match UE.find_apply_cont_rewrite uenv original_cont with
-  | None -> This_continuation cont
+  let[@local] shortcut_this_continuation_if_possible () :
+      rewrite_fixed_arity_continuation0_result =
+    (* Apply the shortcut if we can, but not if we are rewriting a
+       [Continuation] since we would need a wrapper anyways. *)
+    match cont_or_apply_cont with
+    | Continuation cont -> This_continuation cont
+    | Apply_cont apply_cont ->
+      Apply_cont (apply_continuation_shortcuts uenv apply_cont)
+  in
+  match UE.find_apply_cont_rewrite uenv cont with
+  | None -> shortcut_this_continuation_if_possible ()
   | Some rewrite when Apply_cont_rewrite.does_nothing rewrite ->
     let arity_in_rewrite = Apply_cont_rewrite.original_params_arity rewrite in
     if not (Flambda_arity.equal_ignoring_subkinds arity arity_in_rewrite)
@@ -735,7 +758,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
          match arity %a in rewrite:@ %a"
         Flambda_arity.print arity Flambda_arity.print arity_in_rewrite
         Apply_cont_rewrite.print rewrite;
-    This_continuation cont
+    shortcut_this_continuation_if_possible ()
   | Some rewrite -> (
     let new_wrapper params expr ~free_names
         ~cost_metrics:cost_metrics_of_handler =
@@ -759,7 +782,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
         { cont; handler; free_names_of_handler; cost_metrics_of_handler }
     in
     match cont_or_apply_cont with
-    | Continuation cont -> (
+    | Continuation _ -> (
       (* In this case, any generated [Apply_cont] will sit inside a wrapper that
          binds [kinded_params]. *)
       let params =
@@ -832,10 +855,10 @@ let rewrite_fixed_arity_continuation uacc cont ~use_id arity ~around =
     (* CR gbury: add a case to [Flambda.Invalid.t] for invalid extra args after
        unboxing ? *)
     uacc, RE.create_invalid (Message message)
-  | This_continuation cont -> around uacc cont
+  | This_continuation cont -> around cont
   | Apply_cont _ -> assert false
   | New_wrapper new_let_cont ->
-    let body, uacc = around uacc new_let_cont.cont in
+    let body, uacc = around new_let_cont.cont in
     bind_let_cont body uacc new_let_cont
 
 let rewrite_fixed_arity_apply uacc ~use_id arity apply =
@@ -855,12 +878,9 @@ let rewrite_fixed_arity_apply uacc ~use_id arity apply =
       Apply.print apply
   | Some use_id, Return cont ->
     rewrite_fixed_arity_continuation uacc cont ~use_id arity
-      ~around:(fun uacc return_cont ->
-        let exn_cont =
-          UE.resolve_exn_continuation_aliases (UA.uenv uacc)
-            (Apply.exn_continuation apply)
-        in
+      ~around:(fun return_cont ->
         let apply =
-          Apply.with_continuations apply (Return return_cont) exn_cont
+          Apply.with_continuations apply (Return return_cont)
+            (Apply.exn_continuation apply)
         in
         make_apply apply)
