@@ -134,7 +134,7 @@ module Flambda2 = struct
     let cse_depth = 2
     let join_depth = 5
     let function_result_types = Never
-    let meet_algorithm = Basic
+    let meet_algorithm = Advanced
     let enable_reaper = false
     let unicode = true
   end

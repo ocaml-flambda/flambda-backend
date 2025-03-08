@@ -26,12 +26,6 @@ val meet_shape :
   shape:Type_grammar.t ->
   Typing_env.t Or_bottom.t
 
-val meet_env_extension :
-  Typing_env.t ->
-  Typing_env_extension.t ->
-  Typing_env_extension.t ->
-  Typing_env_extension.t Or_bottom.t
-
 val join :
   unit ->
   ?bound_name:Name.t ->

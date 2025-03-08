@@ -21,11 +21,13 @@ val meet :
   Type_grammar.t ->
   (Type_grammar.t * Typing_env.t) Or_bottom.t
 
-(** Least upper bound of many types. *)
-val n_way_join :
-  Join_env.t ->
-  Type_grammar.t Join_env.join_arg list ->
-  Type_grammar.t Or_unknown.t * Join_env.t
+(** Least upper bound of two types. *)
+val join :
+  ?bound_name:Name.t ->
+  Typing_env.Join_env.t ->
+  Type_grammar.t ->
+  Type_grammar.t ->
+  Type_grammar.t Or_unknown.t
 
 val meet_shape :
   Typing_env.t ->
