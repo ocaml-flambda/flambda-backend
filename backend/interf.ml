@@ -16,6 +16,9 @@
 (* Construction of the interference graph.
    Annotate pseudoregs with interference lists and preference lists. *)
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about
+   to be deleted. *)
+
 let check_collisions = false
 
 let assert_no_collisions set =

@@ -18,6 +18,9 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about to be
+   deleted. *)
+
 open Cmm
 module Int = Numbers.Int
 module VP = Backend_var.With_provenance

@@ -16,6 +16,7 @@
 (* Liveness analysis.
    Annotate mach code with the set of regs live at each point. *)
 
+open! Int_replace_polymorphic_compare
 open Mach
 
 module Domain = struct

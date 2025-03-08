@@ -25,6 +25,8 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
+
 let debug = false
 
 module String = Misc.Stdlib.String

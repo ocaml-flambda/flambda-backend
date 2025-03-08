@@ -14,6 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open Mach
 open Linear
 

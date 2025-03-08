@@ -14,6 +14,9 @@
 (**************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+(* note: no `open! Int_replace_polymorphic_compare` as the module is about
+   to be deleted. *)
+
 (* Combine heap allocations occurring in the same basic block *)
 
 open Mach

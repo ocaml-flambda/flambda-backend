@@ -21,6 +21,7 @@
 *)
 
 
+open! Int_replace_polymorphic_compare
 open X86_ast
 open X86_proc
 

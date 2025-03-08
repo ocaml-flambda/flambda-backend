@@ -15,6 +15,8 @@
 
 (* Register allocation by coloring of the interference graph *)
 
+open! Int_replace_polymorphic_compare
+
 module OrderedRegSet =
   Set.Make(struct
     type t = Reg.t
