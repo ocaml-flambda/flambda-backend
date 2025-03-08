@@ -303,6 +303,8 @@ CAMLnoret CAMLextern void caml_raise_unhandled_effect (value effect);
 
 value caml_make_unhandled_effect_exn (value effect);
 
+CAMLextern void caml_unwind_stacks_until_exception_handler (char* trap_pointer);
+
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
 // We can assume that mmap returns page-aligned addresses.
 #define Protected_stack_page(block, page_size) \
