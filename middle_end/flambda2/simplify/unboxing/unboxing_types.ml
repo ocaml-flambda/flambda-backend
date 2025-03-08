@@ -49,6 +49,18 @@ module Extra_param_and_args = struct
       )@]"
       Variable.print param
   (* (Apply_cont_rewrite_id.Map.print EPA.Extra_arg.print) args *)
+
+  let project ~rewrite_id_set t =
+    let keep_map =
+      Apply_cont_rewrite_id.Map.of_set (fun _ -> ()) rewrite_id_set
+    in
+    let args =
+      Apply_cont_rewrite_id.Map.merge
+        (fun _ extra_arg_opt unit_opt ->
+          match unit_opt with Some () -> extra_arg_opt | None -> None)
+        t.args keep_map
+    in
+    { t with args }
 end
 
 type unboxing_decision =
@@ -170,6 +182,64 @@ let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; rewrites_i
     Apply_cont_rewrite_id.Set.print rewrite_ids_seen
     Apply_cont_rewrite_id.Set.print rewrites_ids_known_as_invalid
 
+(* Projection *)
+(* ********** *)
+
+let rec project_unboxing_decision ~rewrite_id_set = function
+  | Unique_tag_and_size { tag; shape; fields } ->
+    let fields = List.map (project_field_decision ~rewrite_id_set) fields in
+    Unique_tag_and_size { tag; shape; fields }
+  | Variant { tag; const_ctors; fields_by_tag } ->
+    let const_ctors =
+      project_const_ctors_decision ~rewrite_id_set const_ctors
+    in
+    let fields_by_tag =
+      Tag.Scannable.Map.map
+        (fun (shape, fields) ->
+          shape, List.map (project_field_decision ~rewrite_id_set) fields)
+        fields_by_tag
+    in
+    Variant { tag; const_ctors; fields_by_tag }
+  | Closure_single_entry { function_slot; vars_within_closure } ->
+    let vars_within_closure =
+      Value_slot.Map.map
+        (project_field_decision ~rewrite_id_set)
+        vars_within_closure
+    in
+    Closure_single_entry { function_slot; vars_within_closure }
+  | Number (kind, epa) ->
+    let epa = Extra_param_and_args.project ~rewrite_id_set epa in
+    Number (kind, epa)
+
+and project_field_decision ~rewrite_id_set { epa; decision; kind } =
+  let epa = Extra_param_and_args.project ~rewrite_id_set epa in
+  let decision = project_decision ~rewrite_id_set decision in
+  { epa; decision; kind }
+
+and project_const_ctors_decision ~rewrite_id_set = function
+  | Zero -> Zero
+  | At_least_one { is_int; ctor } ->
+    let is_int = Extra_param_and_args.project ~rewrite_id_set is_int in
+    let ctor = project_decision ~rewrite_id_set ctor in
+    At_least_one { is_int; ctor }
+
+and project_decision ~rewrite_id_set = function
+  | Do_not_unbox _ as res -> res
+  | Unbox unboxing_decision ->
+    Unbox (project_unboxing_decision ~rewrite_id_set unboxing_decision)
+
+let project ~rewrite_id_set t =
+  { decisions =
+      List.map
+        (fun (bp, decision) -> bp, project_decision ~rewrite_id_set decision)
+        t.decisions;
+    rewrite_ids_seen =
+      Apply_cont_rewrite_id.Set.inter t.rewrite_ids_seen rewrite_id_set;
+    rewrites_ids_known_as_invalid =
+      Apply_cont_rewrite_id.Set.inter t.rewrites_ids_known_as_invalid
+        rewrite_id_set
+  }
+
 module Decisions = struct
   type t = decisions =
     { decisions : (BP.t * decision) list;
@@ -178,4 +248,6 @@ module Decisions = struct
     }
 
   let print = print
+
+  let project = project
 end

@@ -207,6 +207,22 @@ let rename
     my_depth = Variable.rename my_depth
   }
 
+let region_is_renamed_version_of region1 region2 =
+  match region1, region2 with
+  | None, None -> true
+  | Some r1, Some r2 -> Variable.is_renamed_version_of r1 r2
+  | Some _, None | None, Some _ -> false
+
+let is_renamed_version_of t t' =
+  Continuation.is_renamed_version_of t.return_continuation
+    t'.return_continuation
+  && Continuation.is_renamed_version_of t.exn_continuation t'.exn_continuation
+  && Bound_parameters.is_renamed_version_of t.params t'.params
+  && Variable.is_renamed_version_of t.my_closure t'.my_closure
+  && region_is_renamed_version_of t.my_region t'.my_region
+  && region_is_renamed_version_of t.my_ghost_region t'.my_ghost_region
+  && Variable.is_renamed_version_of t.my_depth t'.my_depth
+
 let renaming
     { return_continuation = return_continuation1;
       exn_continuation = exn_continuation1;

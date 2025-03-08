@@ -33,7 +33,7 @@ type rev_expr_holed =
       }
   | Let_cont_rec of
       { invariant_params : Bound_parameters.t;
-        handlers : cont_handler Continuation.Map.t;
+        handlers : cont_handler Continuation.Lmap.t;
         parent : rev_expr_holed
       }
 
