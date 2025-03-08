@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Effects.
 
     @since 5.0 *)
@@ -56,9 +58,12 @@ end
 
 module Continuation : sig
 
-  type (-'a, +'b, 'es) t
+  type (-'a, +'b, 'es) t : value mod contended
   (** [('a, 'b, 'es) continuation] is a delimited continuation that expects an ['a]
-      value and returns a ['b] value. It requires handlers for the effects ['es]. *)
+      value and returns a ['b] value. It requires handlers for the effects ['es].
+
+      Like closures, continuations cross contention and are [portable] if the
+      variables they capture are [portable]. *)
 
   val get_callstack : ('a, 'b, 'es) t -> int -> Printexc.raw_backtrace
   (** [get_callstack c n] returns a description of the top of the call stack on
@@ -103,6 +108,7 @@ val discontinue_with_backtrace :
 
 (** The signature for effects with no type parameters *)
 module type S = sig
+  @@ portable
 
   type t
   (** [t] represents the effect. It only appears as the argument to
@@ -114,6 +120,7 @@ module type S = sig
       with [t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type eff := t
 
@@ -139,6 +146,35 @@ module type S = sig
     (** [handle r f] uses [f] to handle the [Operation] case of [r]. The [Value]
         and [Exception] cases are handled by returning and raising respectively. *)
 
+    module Portable : sig
+      type ('a, 'es) t =
+        | Value : 'a @@ global -> ('a, 'es) t
+        | Exception : exn @@ global -> ('a, 'es) t
+        | Operation :
+            ('o, eff) ops @@ global
+            * ('o, ('a, 'es) t, 'es) Continuation.t @@ portable
+            -> ('a, 'es) t
+            
+      module Contended : sig
+        type ('a, 'es) t =
+          | Value : 'a @@ global -> ('a, 'es) t
+          | Exception : exn @@ global -> ('a, 'es) t
+          | Operation :
+              ('o, eff) ops @@ global contended
+              * ('o Modes.Portable.t, ('a, 'es) t, 'es) Continuation.t @@ portable
+              -> ('a, 'es) t
+      end
+    end
+
+    module Contended : sig
+      type ('a, 'es) t =
+        | Value : 'a @@ global -> ('a, 'es) t
+        | Exception : exn @@ global -> ('a, 'es) t
+        | Operation :
+            ('o, eff) ops @@ global contended
+            * ('o Modes.Portable.t, ('a, 'es) t, 'es) Continuation.t
+            -> ('a, 'es) t
+    end
   end
 
   type ('a, 'es) result = ('a, 'es) Result.t =
@@ -156,6 +192,12 @@ module type S = sig
       is passed a [t Handler.t] so that it can perform operations from effect
       [t]. *)
 
+  val portable_fiber :
+    (t Handler.t @ local -> 'a -> 'b) @ portable
+    -> ('a, ('b, unit) Result.Portable.t, unit) Continuation.t @ portable
+  (** [portable_fiber f] works the same as [fiber], but takes a [portable]
+      closure and creates a [portable] continuation. *)
+
   val fiber_with :
     'es Handler.List.Length.t @ local
     -> ((t * 'es) Handler.List.t @ local -> 'a -> 'b)
@@ -165,10 +207,22 @@ module type S = sig
       list of handlers so that it can perform operations from effect [t] as
       well as from the additional effects ['es]. *)
 
+  val portable_fiber_with :
+    'es Handler.List.Length.t @ local
+    -> ((t * 'es) Handler.List.t @ local -> 'a -> 'b) @ portable
+    -> ('a, ('b, 'es) Result.Portable.t, 'es) Continuation.t @ portable
+  (** [portable_fiber_with l f] works the same as [fiber_with], but takes a
+      [portable] closure and creates a [portable] continuation. *)
+
   val run : (t Handler.t @ local -> 'a) -> ('a, unit) Result.t
   (** [run f] constructs a continuation that runs the computation [f], and
       immediately continues it. [f] is passed a [t Handler.t] so that it can
       perform operations from effect [t]. *)
+
+  val portable_run : (t Handler.t @ local -> 'a) @ portable
+    -> ('a, unit) Result.Portable.t @ portable
+  (** [portable_run f] works the same as [run], but takes a [portable] closure
+      and returns [Result.Portable.t] which can contain [portable] continuations. *)
 
   val run_with :
     'es Handler.List.t @ local
@@ -179,8 +233,81 @@ module type S = sig
       of handlers so that it can perform operations from effect [t] as well as
       from the additional effects ['es]. *)
 
+  val portable_run_with :
+    'es Handler.List.t @ local
+    -> ((t * 'es) Handler.List.t @ local -> 'a) @ portable
+    -> ('a, 'es) Result.Portable.t @ portable
+  (** [portable_run_with hs f] works the same as [run_with], but takes a
+      [portable] closure and returns [Result.Portable.t] which can contain
+      [portable] continuations. *)
+
   val perform : t Handler.t @ local -> ('a, t) ops -> 'a
   (** [perform h e] performs an effect [e] at the handler [h] *)
+
+
+  module Portable : sig
+    val fiber :
+      (t Handler.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a Modes.Portable.t, ('b, unit) Result.Contended.t, unit) Continuation.t
+    (** [fiber f] constructs a continuation that runs the computation [f]. [f]
+        is passed a [t Handler.t] so that it can perform operations from effect
+        [t]. *)
+
+    val portable_fiber :
+      (t Handler.t @ local portable -> 'a @ contended -> 'b) @ portable
+      -> ('a Modes.Portable.t, ('b, unit) Result.Portable.Contended.t, unit) Continuation.t @ portable
+    (** [portable_fiber f] works the same as [fiber], but takes a [portable]
+        closure and creates a [portable] continuation. *)
+
+    val fiber_with :
+      'es Handler.List.Length.t @ local
+      -> ((t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a Modes.Portable.t, ('b, 'es) Result.Contended.t, 'es) Continuation.t
+    (** [fiber_with l f] constructs a continuation that runs the computation [f],
+        which requires handlers for [l] additional effects. [f] is passed a typed
+        list of handlers so that it can perform operations from effect [t] as
+        well as from the additional effects ['es]. *)
+
+    val portable_fiber_with :
+      'es Handler.List.Length.t @ local
+      -> ((t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b) @ portable
+      -> ('a Modes.Portable.t, ('b, 'es) Result.Portable.Contended.t, 'es) Continuation.t @ portable
+    (** [portable_fiber_with l f] works the same as [fiber_with], but takes a
+        [portable] closure and creates a [portable] continuation. *)
+
+    val run : 
+      (t Handler.t @ local portable -> 'a) 
+      -> ('a, unit) Result.Contended.t
+    (** [run f] constructs a continuation that runs the computation [f], and
+        immediately continues it. [f] is passed a [t Handler.t] so that it can
+        perform operations from effect [t]. *)
+
+    val portable_run : 
+      (t Handler.t @ local portable -> 'a) @ portable
+      -> ('a, unit) Result.Portable.Contended.t @ portable
+    (** [portable_run f] works the same as [run], but takes a [portable] closure
+        and returns [Result.Portable.Contended.t] which can contain [portable] continuations. *)
+
+    val run_with :
+      'es Handler.List.t @ local portable
+      -> ((t * 'es) Handler.List.t @ local portable -> 'a)
+      -> ('a, 'es) Result.Contended.t
+    (** [run_with hs f] constructs a continuation that runs the computation [f],
+        and immediately continues it with handlers [hs]. [f] is passed a typed list
+        of handlers so that it can perform operations from effect [t] as well as
+        from the additional effects ['es]. *)
+
+    val portable_run_with :
+      'es Handler.List.t @ local portable
+      -> ((t * 'es) Handler.List.t @ local portable -> 'a) @ portable
+      -> ('a, 'es) Result.Portable.Contended.t @ portable
+    (** [portable_run_with hs f] works the same as [run_with], but takes a
+        [portable] closure and returns [Result.Portable.Contended.t] which can contain
+        [portable] continuations. *)
+
+    val perform : t Handler.t @ local contended -> ('a, t) ops @ portable -> 'a
+    (** [perform h e] performs an effect [e] at the [contended] handler [h] *)      
+  end
 
   module Handler : sig
 
@@ -198,13 +325,12 @@ module type S = sig
         This is not to be confused with the other [Continuation.t] type available in this
         file; external uses will be of the form [This_effect.Continuation.t] and
         [That_effect.Continuation.t], and thus more visually distinct. *)
-
   end
-
 end
 
 (** The signature for effects with one type parameter *)
 module type S1 = sig
+  @@ portable
 
   type 'p t
   (** ['p t] represents the effect. It only appears as the argument to
@@ -216,6 +342,7 @@ module type S1 = sig
       with ['p t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type 'p eff := 'p t
 
@@ -241,6 +368,35 @@ module type S1 = sig
     (** [handle r f] uses [f] to handle the [Operation] case of [r]. The [Value]
         and [Exception] cases are handled by returning and raising respectively. *)
 
+    module Portable : sig
+      type ('a, 'p, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'es) t
+        | Operation :
+            ('o, 'p, 'p eff) ops @@ global
+            * ('o, ('a, 'p, 'es) t, 'es) Continuation.t @@ portable
+            -> ('a, 'p, 'es) t
+            
+      module Contended : sig
+        type ('a, 'p, 'es) t =
+          | Value : 'a @@ global -> ('a, 'p, 'es) t
+          | Exception : exn @@ global -> ('a, 'p, 'es) t
+          | Operation :
+              ('o, 'p, 'p eff) ops @@ global contended
+              * ('o Modes.Portable.t, ('a, 'p, 'es) t, 'es) Continuation.t @@ portable
+              -> ('a, 'p, 'es) t
+      end
+    end
+
+    module Contended : sig
+      type ('a, 'p, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'es) t
+        | Operation :
+            ('o, 'p, 'p eff) ops @@ global contended
+            * ('o Modes.Portable.t, ('a, 'p, 'es) t, 'es) Continuation.t
+            -> ('a, 'p, 'es) t
+    end
   end
 
   type ('a, 'p, 'es) result = ('a, 'p, 'es) Result.t =
@@ -258,6 +414,12 @@ module type S1 = sig
       is passed a [t Handler.t] so that it can perform operations from effect
       [t]. *)
 
+  val portable_fiber :
+    ('p t Handler.t @ local -> 'a -> 'b) @ portable
+    -> ('a, ('b, 'p, unit) Result.Portable.t, unit) Continuation.t @ portable
+  (** [portable_fiber f] works the same as [fiber], but takes a [portable]
+      closure and creates a [portable] continuation. *)
+
   val fiber_with :
     'es Handler.List.Length.t @ local
     -> (('p t * 'es) Handler.List.t @ local -> 'a -> 'b)
@@ -267,9 +429,21 @@ module type S1 = sig
       list of handlers so that it can perform operations from effect [t] as
       well as from the additional effects ['es]. *)
 
+  val portable_fiber_with :
+    'es Handler.List.Length.t @ local
+    -> (('p t * 'es) Handler.List.t @ local -> 'a -> 'b) @ portable
+    -> ('a, ('b, 'p, 'es) Result.Portable.t, 'es) Continuation.t @ portable
+  (** [portable_fiber_with l f] works the same as [fiber_with], but takes a
+      [portable] closure and creates a [portable] continuation. *)
+
   val run : ('p t Handler.t @ local -> 'a) -> ('a, 'p, unit) Result.t
   (** [run f] constructs a continuation that runs the computation [f], and
       immediately continues it. *)
+
+  val portable_run : ('p t Handler.t @ local -> 'a) @ portable
+    -> ('a, 'p, unit) Result.Portable.t @ portable
+  (** [portable_run f] works the same as [run], but takes a [portable] closure
+      and returns [Result.Portable.t] which can contain [portable] continuations. *)
 
   val run_with :
     'es Handler.List.t @ local
@@ -280,8 +454,80 @@ module type S1 = sig
       of handlers so that it can perform operations from effect [t] as well as
       from the additional effects ['es]. *)
 
+  val portable_run_with :
+    'es Handler.List.t @ local
+    -> (('p t * 'es) Handler.List.t @ local -> 'a) @ portable
+    -> ('a, 'p, 'es) Result.Portable.t @ portable
+  (** [portable_run_with hs f] works the same as [run_with], but takes a
+      [portable] closure and returns [Result.Portable.t] which can contain
+      [portable] continuations. *)
+
   val perform : 'p t Handler.t @ local -> ('a, 'p, 'p t) ops -> 'a
   (** [perform h e] performs an effect [e] at the handler [h] *)
+
+  module Portable : sig
+    val fiber :
+      ('p t Handler.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a Modes.Portable.t, ('b, 'p, unit) Result.Contended.t, unit) Continuation.t
+    (** [fiber f] constructs a continuation that runs the computation [f]. [f]
+        is passed a [t Handler.t] so that it can perform operations from effect
+        [t]. *)
+
+    val portable_fiber :
+      ('p t Handler.t @ local portable -> 'a @ contended -> 'b) @ portable
+      -> ('a Modes.Portable.t, ('b, 'p, unit) Result.Portable.Contended.t, unit) Continuation.t @ portable
+    (** [portable_fiber f] works the same as [fiber], but takes a [portable]
+        closure and creates a [portable] continuation. *)
+
+    val fiber_with :
+      'es Handler.List.Length.t @ local
+      -> (('p t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a Modes.Portable.t, ('b, 'p, 'es) Result.Contended.t, 'es) Continuation.t
+    (** [fiber_with l f] constructs a continuation that runs the computation [f],
+        which requires handlers for [l] additional effects. [f] is passed a typed
+        list of handlers so that it can perform operations from effect [t] as
+        well as from the additional effects ['es]. *)
+
+    val portable_fiber_with :
+      'es Handler.List.Length.t @ local
+      -> (('p t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b) @ portable
+      -> ('a Modes.Portable.t, ('b, 'p, 'es) Result.Portable.Contended.t, 'es) Continuation.t @ portable
+    (** [portable_fiber_with l f] works the same as [fiber_with], but takes a
+        [portable] closure and creates a [portable] continuation. *)
+
+    val run : 
+      ('p t Handler.t @ local portable -> 'a) 
+      -> ('a, 'p, unit) Result.Contended.t
+    (** [run f] constructs a continuation that runs the computation [f], and
+        immediately continues it. [f] is passed a [t Handler.t] so that it can
+        perform operations from effect [t]. *)
+
+    val portable_run : 
+      ('p t Handler.t @ local portable -> 'a) @ portable
+      -> ('a, 'p, unit) Result.Portable.Contended.t @ portable
+    (** [portable_run f] works the same as [run], but takes a [portable] closure
+        and returns [Result.Portable.Contended.t] which can contain [portable] continuations. *)
+
+    val run_with :
+      'es Handler.List.t @ local portable
+      -> (('p t * 'es) Handler.List.t @ local portable -> 'a)
+      -> ('a, 'p, 'es) Result.Contended.t
+    (** [run_with hs f] constructs a continuation that runs the computation [f],
+        and immediately continues it with handlers [hs]. [f] is passed a typed list
+        of handlers so that it can perform operations from effect [t] as well as
+        from the additional effects ['es]. *)
+
+    val portable_run_with :
+      'es Handler.List.t @ local portable
+      -> (('p t * 'es) Handler.List.t @ local portable -> 'a) @ portable
+      -> ('a, 'p, 'es) Result.Portable.Contended.t @ portable
+    (** [portable_run_with hs f] works the same as [run_with], but takes a
+        [portable] closure and returns [Result.Portable.Contended.t] which can contain
+        [portable] continuations. *)
+        
+    val perform : 'p t Handler.t @ local contended -> ('a, 'p, 'p t) ops @ portable -> 'a
+    (** [perform h e] performs an effect [e] at the [contended] handler [h] *)
+  end
 
   module Handler : sig
 
@@ -293,13 +539,12 @@ module type S1 = sig
 
     type ('a, 'b, 'p, 'es) t =
       ('a, ('b, 'p, 'es) Result.t, 'es) Continuation.t
-
   end
-
 end
 
 (** The signature for effects with two type parameters *)
 module type S2 = sig
+  @@ portable
 
   type ('p, 'q) t
   (** [('p, 'q) t] represents the effect. It only appears as the argument to
@@ -311,6 +556,7 @@ module type S2 = sig
       with [('p, 'q) t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type ('p, 'q) eff := ('p, 'q) t
 
@@ -336,6 +582,35 @@ module type S2 = sig
     (** [handle r f] uses [f] to handle the [Operation] case of [r]. The [Value]
         and [Exception] cases are handled by returning and raising respectively. *)
 
+    module Portable : sig
+      type ('a, 'p, 'q, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+        | Operation :
+            ('o, 'p, 'q, ('p, 'q) eff) ops @@ global
+            * ('o, ('a, 'p, 'q, 'es) t, 'es) Continuation.t @@ portable
+            -> ('a, 'p, 'q, 'es) t
+            
+      module Contended : sig
+        type ('a, 'p, 'q, 'es) t =
+          | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
+          | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+          | Operation :
+              ('o, 'p, 'q, ('p, 'q) eff) ops @@ global contended
+              * ('o Modes.Portable.t, ('a, 'p, 'q, 'es) t, 'es) Continuation.t @@ portable
+              -> ('a, 'p, 'q, 'es) t
+      end
+    end
+    
+    module Contended : sig
+      type ('a, 'p, 'q, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+        | Operation :
+            ('o, 'p, 'q, ('p, 'q) eff) ops @@ global contended
+            * ('o Modes.Portable.t, ('a, 'p, 'q, 'es) t, 'es) Continuation.t
+            -> ('a, 'p, 'q, 'es) t
+    end
   end
 
   type ('a, 'p, 'q, 'es) result = ('a, 'p, 'q, 'es) Result.t =
@@ -353,6 +628,12 @@ module type S2 = sig
       is passed a [t Handler.t] so that it can perform operations from effect
       [t]. *)
 
+  val portable_fiber :
+    (('p, 'q) t Handler.t @ local -> 'a -> 'b) @ portable
+    -> ('a, ('b, 'p, 'q, unit) Result.Portable.t, unit) Continuation.t @ portable
+  (** [portable_fiber f] works the same as [fiber], but takes a [portable]
+      closure and creates a [portable] continuation. *)
+
   val fiber_with :
     'es Handler.List.Length.t @ local
     -> ((('p, 'q) t * 'es) Handler.List.t @ local -> 'a -> 'b)
@@ -362,11 +643,24 @@ module type S2 = sig
       list of handlers so that it can perform operations from effect [t] as
       well as from the additional effects ['es]. *)
 
+  val portable_fiber_with :
+    'es Handler.List.Length.t @ local
+    -> ((('p, 'q) t * 'es) Handler.List.t @ local -> 'a -> 'b) @ portable
+    -> ('a, ('b, 'p, 'q, 'es) Result.Portable.t, 'es) Continuation.t @ portable
+  (** [portable_fiber_with l f] works the same as [fiber_with], but takes a
+      [portable] closure and creates a [portable] continuation. *)
+
   val run :
     (('p, 'q) t Handler.t @ local -> 'a)
     -> ('a, 'p, 'q, unit) Result.t
   (** [run f] constructs a continuation that runs the computation [f], and
       immediately continues it. *)
+
+  val portable_run :
+    (('p, 'q) t Handler.t @ local -> 'a) @ portable
+    -> ('a, 'p, 'q, unit) Result.Portable.t @ portable
+  (** [portable_run f] works the same as [run], but takes a [portable] closure
+      and returns [Result.Portable.t] which can contain [portable] continuations. *)
 
   val run_with :
     'es Handler.List.t @ local
@@ -377,11 +671,83 @@ module type S2 = sig
       of handlers so that it can perform operations from effect [t] as well as
       from the additional effects ['es]. *)
 
+  val portable_run_with :
+    'es Handler.List.t @ local
+    -> ((('p, 'q) t * 'es) Handler.List.t @ local -> 'a) @ portable
+    -> ('a, 'p, 'q, 'es) Result.Portable.t @ portable
+  (** [portable_run_with hs f] works the same as [run_with], but takes a
+      [portable] closure and returns [Result.Portable.t] which can contain
+      [portable] continuations. *)
+
   val perform :
     ('p, 'q) t Handler.t @ local
     -> ('a, 'p, 'q, ('p, 'q) t) ops
     -> 'a
   (** [perform h e] performs an effect [e] at the handler [h] *)
+
+  module Portable : sig
+    val fiber :
+      (('p, 'q) t Handler.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a Modes.Portable.t, ('b, 'p, 'q, unit) Result.Contended.t, unit) Continuation.t
+    (** [fiber f] constructs a continuation that runs the computation [f]. [f]
+        is passed a [t Handler.t] so that it can perform operations from effect
+        [t]. *)
+
+    val portable_fiber :
+      (('p, 'q) t Handler.t @ local portable -> 'a @ contended -> 'b) @ portable
+      -> ('a Modes.Portable.t, ('b, 'p, 'q, unit) Result.Portable.Contended.t, unit) Continuation.t @ portable
+    (** [portable_fiber f] works the same as [fiber], but takes a [portable]
+        closure and creates a [portable] continuation. *)
+
+    val fiber_with :
+      'es Handler.List.Length.t @ local
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a Modes.Portable.t, ('b, 'p, 'q, 'es) Result.Contended.t, 'es) Continuation.t
+    (** [fiber_with l f] constructs a continuation that runs the computation [f],
+        which requires handlers for [l] additional effects. [f] is passed a typed
+        list of handlers so that it can perform operations from effect [t] as
+        well as from the additional effects ['es]. *)
+
+    val portable_fiber_with :
+      'es Handler.List.Length.t @ local
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b) @ portable
+      -> ('a Modes.Portable.t, ('b, 'p, 'q, 'es) Result.Portable.Contended.t, 'es) Continuation.t @ portable
+    (** [portable_fiber_with l f] works the same as [fiber_with], but takes a
+        [portable] closure and creates a [portable] continuation. *)
+
+    val run : 
+      (('p, 'q) t Handler.t @ local portable -> 'a) 
+      -> ('a, 'p, 'q, unit) Result.Contended.t
+    (** [run f] constructs a continuation that runs the computation [f], and
+        immediately continues it. [f] is passed a [t Handler.t] so that it can
+        perform operations from effect [t]. *)
+
+    val portable_run : 
+      (('p, 'q) t Handler.t @ local portable -> 'a) @ portable
+      -> ('a, 'p, 'q, unit) Result.Portable.Contended.t @ portable
+    (** [portable_run f] works the same as [run], but takes a [portable] closure
+        and returns [Result.Portable.Contended.t] which can contain [portable] continuations. *)
+
+    val run_with :
+      'es Handler.List.t @ local portable
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a)
+      -> ('a, 'p, 'q, 'es) Result.Contended.t
+    (** [run_with hs f] constructs a continuation that runs the computation [f],
+        and immediately continues it with handlers [hs]. [f] is passed a typed list
+        of handlers so that it can perform operations from effect [t] as well as
+        from the additional effects ['es]. *)
+
+    val portable_run_with :
+      'es Handler.List.t @ local portable
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a) @ portable
+      -> ('a, 'p, 'q, 'es) Result.Portable.Contended.t @ portable
+    (** [portable_run_with hs f] works the same as [run_with], but takes a
+        [portable] closure and returns [Result.Portable.Contended.t] which can contain
+        [portable] continuations. *)
+        
+    val perform : ('p, 'q) t Handler.t @ local contended -> ('a, 'p, 'q, ('p, 'q) t) ops @ portable -> 'a
+    (** [perform h e] performs an effect [e] at the [contended] handler [h] *)
+  end
 
   module Handler : sig
 
@@ -393,9 +759,7 @@ module type S2 = sig
 
     type ('a, 'b, 'p, 'q, 'es) t =
       ('a, ('b, 'p, 'q, 'es) Result.t, 'es) Continuation.t
-
   end
-
 end
 
 module type Operations = sig
