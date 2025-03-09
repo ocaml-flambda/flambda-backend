@@ -51,6 +51,7 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
       | Value _ -> true
       | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
         false
+      | Product _ -> assert false (* XXX *)
     in
     if is_value
     then prefix := (elem, idx) :: !prefix
@@ -108,7 +109,8 @@ let reordered_shape_unit t =
       | Float_boxed _ -> Float_boxed ()
       | (Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as elem
         ->
-        elem)
+        elem
+      | Product _ -> assert false (* XXX *))
     t.reordered_shape
 
 let old_index_to_new_index t i = t.old_index_to_new_index.(i)

@@ -490,6 +490,7 @@ and 'a mixed_block_element =
   | Bits64
   | Vec128
   | Word
+  | Product of mixed_block_shape
 
 and mixed_block_shape = unit mixed_block_element array
 
