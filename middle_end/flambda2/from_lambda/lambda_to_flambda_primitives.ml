@@ -1453,7 +1453,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (fun i arg ->
           match Mixed_block_shape.get_reordered shape i with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
-          | Float_boxed _ -> unbox_float arg)
+          | Float_boxed _ -> unbox_float arg
+          | Product _ -> assert false)
         args
     in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1963,6 +1964,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           mixed_block_element ->
           Flat_suffix (K.Flat_suffix_element.from_lambda mixed_block_element)
         | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float
+        | Product _ -> assert false
       in
       let shape =
         K.Mixed_block_shape.from_lambda
@@ -1978,7 +1980,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     | Float_boxed (mode : Lambda.locality_mode) ->
       [box_float mode block_access ~current_region]
     | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
-      [block_access])
+      [block_access]
+    | Product _ -> assert false)
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -2031,7 +2034,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Word ->
               Flat_suffix
                 (K.Flat_suffix_element.from_lambda
-                   (Mixed_block_shape.get_reordered shape field)));
+                   (Mixed_block_shape.get_reordered shape field))
+            | Product _ -> assert false);
           shape =
             K.Mixed_block_shape.from_lambda
               (Mixed_block_shape.reordered_shape shape);
@@ -2044,6 +2048,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       match Mixed_block_shape.get_reordered shape field with
       | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> value
       | Float_boxed _ -> unbox_float value
+      | Product _ -> assert false
     in
     [ Binary
         ( Block_set { kind = block_access; init = init_or_assign; field = imm },

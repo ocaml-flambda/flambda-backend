@@ -753,6 +753,8 @@ and mixed_block_element =
   | Bits64
   | Vec128
   | Word
+  | Product of mixed_product_shape
+  (* Invariant: the array has at least two things in it. *)
 
 and mixed_product_shape = mixed_block_element array
 

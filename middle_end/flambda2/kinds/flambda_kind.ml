@@ -223,6 +223,7 @@ module Flat_suffix_element0 = struct
       (* CR: consider printing the value kind *)
       Misc.fatal_error
         "Cannot convert [Value] mixed block elements to flat suffix elements"
+    | Product _ -> assert false
 end
 
 module Mixed_block_shape = struct
@@ -911,6 +912,7 @@ module With_subkind = struct
                         | Bits64 -> naked_int64
                         | Vec128 -> naked_vec128
                         | Word -> naked_nativeint
+                        | Product _ -> assert false
                       in
                       let fields : t array =
                         Array.map from_mixed_block_element
