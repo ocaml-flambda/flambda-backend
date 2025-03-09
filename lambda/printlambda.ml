@@ -135,7 +135,7 @@ let locality_mode ppf = function
   | Alloc_heap -> fprintf ppf "heap"
   | Alloc_local -> fprintf ppf "local"
 
-let mixed_block_element print_value_kind ppf el =
+let rec mixed_block_element print_value_kind ppf el =
   match el with
   | Value vk -> print_value_kind ppf vk
   | Float_boxed _ -> fprintf ppf "float"
@@ -145,6 +145,10 @@ let mixed_block_element print_value_kind ppf el =
   | Bits64 -> fprintf ppf "bits64"
   | Vec128 -> fprintf ppf "vec128"
   | Word -> fprintf ppf "word"
+  | Product shape ->
+    fprintf ppf "product %a"
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+         (mixed_block_element print_value_kind)) (Array.to_list shape)
 
 let constructor_shape print_value_kind ppf shape =
   match shape with
@@ -367,7 +371,9 @@ let block_shape ppf shape = match shape with
         t;
       Format.fprintf ppf ")"
 
-let mixed_block_element print_mode ppf (elt : _ mixed_block_element) =
+let rec mixed_block_element
+  : 'a. (_ -> 'a -> _) -> _ -> 'a mixed_block_element -> _ =
+  fun print_mode ppf elt ->
   match elt with
   | Value vk -> value_kind value_kind_non_null ppf vk
   | Float_boxed param -> fprintf ppf "float_boxed(%a)" print_mode param
@@ -377,8 +383,12 @@ let mixed_block_element print_mode ppf (elt : _ mixed_block_element) =
   | Bits64 -> fprintf ppf "bits64"
   | Vec128 -> fprintf ppf "vec128"
   | Word -> fprintf ppf "word"
+  | Product shape ->
+    fprintf ppf "product %a" (mixed_block_shape (fun _ _ -> ())) shape
 
-let mixed_block_shape print_mode ppf shape =
+and mixed_block_shape
+  : 'a. (_ -> 'a -> _) -> _ -> 'a mixed_block_element array -> _
+  = fun print_mode ppf shape ->
   match Array.length shape with
   | 0 -> ()
   | 1 -> fprintf ppf " (%a)" (mixed_block_element print_mode) shape.(0)
