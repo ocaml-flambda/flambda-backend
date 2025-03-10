@@ -437,8 +437,9 @@ module F :
     end
 |}]
 
-(***************************************************)
-(* Test 4: Unboxed products don't go in structures *)
+(***************************************************************************)
+(* Test 4: Unboxed products can go blocks that are nominally typed, but not
+   structurally typed. *)
 
 type poly_var_type = [ `Foo of #(int * bool) ]
 [%%expect{|
@@ -492,29 +493,17 @@ Error: This expression has type "#('a * 'b)"
 
 type record = { x : #(int * bool) }
 [%%expect{|
-Line 1, characters 0-35:
-1 | type record = { x : #(int * bool) }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "#(int * bool)" has layout "value & value".
-       Records may not yet contain types of this layout.
+type record = { x : #(int * bool); }
 |}]
 
 type inlined_record = A of { x : #(int * bool) }
 [%%expect{|
-Line 1, characters 22-48:
-1 | type inlined_record = A of { x : #(int * bool) }
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "#(int * bool)" has layout "value & value".
-       Inlined records may not yet contain types of this layout.
+type inlined_record = A of { x : #(int * bool); }
 |}]
 
 type variant = A of #(int * bool)
 [%%expect{|
-Line 1, characters 15-33:
-1 | type variant = A of #(int * bool)
-                   ^^^^^^^^^^^^^^^^^^
-Error: Type "#(int * bool)" has layout "value & value".
-       Variants may not yet contain types of this layout.
+type variant = A of #(int * bool)
 |}]
 
 module type S = sig
@@ -663,33 +652,21 @@ type record_inner = #{ i : int; b : bool }
 type record = { x : record_inner }
 [%%expect{|
 type record_inner = #{ i : int; b : bool; }
-Line 2, characters 0-34:
-2 | type record = { x : record_inner }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "record_inner" has layout "value & value".
-       Records may not yet contain types of this layout.
+type record = { x : record_inner; }
 |}]
 
 type inlined_inner = #{ i : int; b : bool }
 type inlined_record = A of { x : inlined_inner }
 [%%expect{|
 type inlined_inner = #{ i : int; b : bool; }
-Line 2, characters 22-48:
-2 | type inlined_record = A of { x : inlined_inner }
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "inlined_inner" has layout "value & value".
-       Inlined records may not yet contain types of this layout.
+type inlined_record = A of { x : inlined_inner; }
 |}]
 
 type variant_inner = #{ i : int; b : bool }
 type variant = A of variant_inner
 [%%expect{|
 type variant_inner = #{ i : int; b : bool; }
-Line 2, characters 15-33:
-2 | type variant = A of variant_inner
-                   ^^^^^^^^^^^^^^^^^^
-Error: Type "variant_inner" has layout "value & value".
-       Variants may not yet contain types of this layout.
+type variant = A of variant_inner
 |}]
 
 type sig_inner = #{ i : int; b : bool }
