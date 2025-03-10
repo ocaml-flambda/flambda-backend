@@ -375,17 +375,17 @@ let guaranteed_to_be_small_int = function
     true
   | _ -> false
 
+let is_defined_shift n = 0 <= n && n < arch_bits
+
 let ignore_low_bit_int = function
   | Cop
       ( Caddi,
         [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
         _ )
-    when n > 0 ->
+    when n > 0 && is_defined_shift n ->
     c
   | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
   | c -> c
-
-let is_defined_shift n = 0 <= n && n < arch_bits
 
 let[@inline] get_const = function
   | Cconst_int (i, _) -> Some (Nativeint.of_int i)
