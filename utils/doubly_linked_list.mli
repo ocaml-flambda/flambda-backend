@@ -91,6 +91,8 @@ module Cursor : sig
   type 'a t
 
   val value : 'a t -> 'a
+
+  val next : 'a t -> (unit, [`End_of_list]) result
   val delete_and_next : 'a t -> (unit, [`End_of_list]) result
 end
 

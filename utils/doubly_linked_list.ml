@@ -391,6 +391,19 @@ module Cursor = struct
     | Node node -> node.value
   ;;
 
+  let next (t : _ t) =
+    match t.node with
+    | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+    | Node content ->
+      (match content.next with
+       | Empty -> Error `End_of_list
+       | Node _ ->
+         t.node <- content.next;
+         Ok ())
+  ;;
+
   let delete_and_next (t : _ t) =
     remove t.t t.node;
     match t.node with
