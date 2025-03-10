@@ -660,7 +660,7 @@ let max_with_zero ~size_int x =
   ret
 
 (* actual (strict) upper bound for an index in a string-like read/write *)
-let actual_max_length_for_string_like_access ~size_int
+let actual_max_length_for_string_like_access_as_nativeint ~size_int
     ~(access_size : Flambda_primitive.string_accessor_width) length =
   (* offset to subtract from the length depending on the size of the
      read/write *)
@@ -701,7 +701,8 @@ let string_like_access_validity_condition ~size_int ~access_size ~length
     ~index_kind index : H.expr_primitive =
   check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
     ~bound:
-      (actual_max_length_for_string_like_access ~size_int ~access_size length)
+      (actual_max_length_for_string_like_access_as_nativeint ~size_int
+         ~access_size length)
 
 let string_or_bytes_access_validity_condition ~size_int str kind access_size
     ~index_kind index : H.expr_primitive =
