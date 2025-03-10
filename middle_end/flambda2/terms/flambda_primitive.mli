@@ -218,6 +218,22 @@ module Block_access_kind : sig
   val to_block_shape : t -> Flambda_kind.Block_shape.t
 end
 
+module Offset_access_kind : sig
+  type t =
+    | Immediates
+    | Values
+    | Naked_floats
+    | Naked_float32s
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
+    | Naked_vec128s
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
    nativeint. *)
 
@@ -521,6 +537,7 @@ type binary_primitive =
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op
   | Poke of Flambda_kind.Standard_int_or_float.t
+  | Read_offset of Offset_access_kind.t
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -531,6 +548,7 @@ type ternary_primitive =
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set of Block_access_field_kind.t
   | Atomic_compare_exchange of Block_access_field_kind.t
+  | Write_offset of Offset_access_kind.t
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

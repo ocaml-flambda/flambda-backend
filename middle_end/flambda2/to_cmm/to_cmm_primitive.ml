@@ -1034,6 +1034,9 @@ let binary_primitive env dbg f x y =
     in
     C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
     |> C.return_unit dbg
+  | Read_offset _kind ->
+    (* CR rtjoa: do we need to look at the kind? *)
+    C.unaligned_load_64 x y dbg
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -1051,6 +1054,10 @@ let ternary_primitive _env dbg f x y z =
     C.atomic_compare_exchange ~dbg
       (imm_or_ptr block_access_kind)
       x ~old_value:y ~new_value:z
+  | Write_offset _kind ->
+    (* CR rtjoa: do we need to look at the kind to determine whether to call
+       caml_modify? *)
+    C.unaligned_set_64 x y z dbg
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with

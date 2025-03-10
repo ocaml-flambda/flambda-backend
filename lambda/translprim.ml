@@ -380,12 +380,14 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
        {[ external id : float# -> float# = "%opaque" ]}
 
        We don't allow non-value layouts for most primitives. This is checked by
-       [prim_has_valid_reprs] in [typing/primitive.ml].
-
-       We don't extract the argument layouts just because it is not needed by
-       the middle-end. *)
+       [prim_has_valid_reprs] in [typing/primitive.ml]. *)
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
+  in
+  let arg_layouts =
+    List.map
+      (fun (_, repr) -> Lambda.layout_of_extern_repr repr)
+      lambda_prim.prim_native_repr_args
   in
   let prim = match p.prim_name with
     | "%identity" -> Identity
@@ -933,6 +935,15 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
+    | "%obj_unsafe_read_offset_in_bytes" ->
+      (* CR rtjoa: we should give a type error for mixed unboxed products in the
+         first version *)
+      Primitive(Pread_offset layout, 2)
+    | "%obj_unsafe_write_offset_in_bytes" ->
+      (* CR rtjoa: we should give a type error for mixed unboxed products in the
+         first version *)
+      let layout = List.nth arg_layouts 2 in
+      Primitive(Pwrite_offset layout, 3)
     | "%peek" -> Peek None
     | "%poke" -> Poke None
     | s when String.length s > 0 && s.[0] = '%' ->
@@ -1959,6 +1970,7 @@ let lambda_primitive_needs_event_after = function
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _
   | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
+  | Pread_offset _ | Pwrite_offset _
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
     -> false
