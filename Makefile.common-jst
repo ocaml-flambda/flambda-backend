@@ -448,3 +448,30 @@ debug-printers: runtime-stdlib # required for $(ws_main) to work
 	@echo
 	@echo To load into ocamldebug, use:
 	@echo source \"$$(realpath _build/main/$(ocamldir)/tools/debug_printers)\"
+
+# boot-_install installs the bootstrapped compiler into _install. It is mostly
+# just copied from the install phrase.
+# This allows tools/compare.sh to function as expected, which is useful because
+# it allows us to easily run the bootstrapped compiler, especially with
+# tools/compare.sh
+.PHONY: boot-_install
+boot-_install: runtime-stdlib
+	rm -rf _install
+	mkdir -p _install/{bin,lib/ocaml}
+	$(cpl) _build/runtime_stdlib_install/bin/* _install/bin/
+	$(cpl) _build/_bootinstall/bin/* _install/bin/
+	$(cpl) -R _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/* \
+    _install/lib/ocaml/
+	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa}
+	$(cpl) -R _build/_bootinstall/lib/ocaml/* _install/lib/ocaml/
+	rm -f _install/lib/ocaml/{META,dune-package}
+	rm -f _install/lib/ocaml/compiler-libs/*.cmo
+	mkdir _install/lib/stublibs
+	find _build/default -name "dll*.so" \
+       -print0 | xargs -0 -I '{}' cp -f '{}' _install/lib/stublibs
+	mkdir -p _install/lib/ocaml/compiler-libs
+	cp _build/default/parser.cmly _install/lib/ocaml/compiler-libs/
+	find _build/default/ \( -name "flambda2*.cmi" \
+          -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
+          -print0 | xargs -0 -I '{}' cp -f '{}' _install/lib/ocaml/compiler-libs
+
