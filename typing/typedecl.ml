@@ -1900,10 +1900,7 @@ let rec update_decl_jkind env dpath decl =
               {lbl with ld_sort}
             ) lbls
           in
-          let type_jkind =
-            Jkind.for_unboxed_record
-              lbls
-          in
+          let type_jkind = Jkind.for_unboxed_record lbls in
           (* See Note [Quality of jkinds during inference] for more information about when we
              mark jkinds as best *)
           let type_jkind = Jkind.mark_best type_jkind in

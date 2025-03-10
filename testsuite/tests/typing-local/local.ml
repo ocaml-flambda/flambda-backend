@@ -1226,6 +1226,7 @@ val foo : local_ 'a gbl -> 'a = <fun>
 let foo y =
   let #{ gbl } = local_ #{ gbl = y } in
   gbl
+(* CR layouts v2.8: Fix principal case, or convince ourselves that it's expected *)
 [%%expect{|
 val foo : 'a -> 'a = <fun>
 |}, Principal{|
