@@ -897,7 +897,7 @@ module Layout_and_axes = struct
           | Tlink _ | Tsubst _ ->
             Misc.fatal_error "Tlink or Tsubst in normalize"
       end in
-      let rec loop (ctl : Loop_control.t) bounds_so_far :
+      let rec loop (ctl : Loop_control.t) bounds_so_far relevant_axes :
           (type_expr * With_bounds_type_info.t) list ->
           Mod_bounds.t * (l * r2) with_bounds * Fuel_status.t = function
         (* early cutoff *)
@@ -926,7 +926,7 @@ module Layout_and_axes = struct
           | true ->
             (* If [ty] is not relevant to any axes, then we can safely drop it and
                thereby avoid doing the work of expanding it. *)
-            loop ctl bounds_so_far bs
+            loop ctl bounds_so_far relevant_axes bs
           | false -> (
             let join_bounds b1 b2 ~relevant_axes =
               let value_for_axis (type a) ~(axis : a Axis.t) : a =
@@ -952,14 +952,21 @@ module Layout_and_axes = struct
                 : Mod_bounds.t * (l * r2) with_bounds * Fuel_status.t =
               match quality, mode with
               | Best, _ | Not_best, Ignore_best ->
+                (* The relevant axes are the intersection of the relevant axes within our
+                   branch of the with-bounds tree, and the relevant axes on this
+                   particular with-bound *)
+                let next_relevant_axes =
+                  Axis_set.intersection relevant_axes ti.relevant_axes
+                in
                 let bounds_so_far =
                   join_bounds bounds_so_far b_upper_bounds
-                    ~relevant_axes:ti.relevant_axes
+                    ~relevant_axes:next_relevant_axes
                 in
                 (* Descend into the with-bounds of each of our with-bounds types'
                     with-bounds *)
                 let bounds_so_far, nested_with_bounds, fuel_result1 =
-                  loop new_ctl bounds_so_far (With_bounds.to_list b_with_bounds)
+                  loop new_ctl bounds_so_far next_relevant_axes
+                    (With_bounds.to_list b_with_bounds)
                 in
                 (* CR layouts v2.8: we use [new_ctl] here, not [ctl], to avoid big
                    quadratic stack growth for very widely recursive types. This is
@@ -969,7 +976,9 @@ module Layout_and_axes = struct
 
                    Ideally, this whole problem goes away once we rethink fuel.
                 *)
-                let bounds, bs', fuel_result2 = loop new_ctl bounds_so_far bs in
+                let bounds, bs', fuel_result2 =
+                  loop new_ctl bounds_so_far relevant_axes bs
+                in
                 ( bounds,
                   With_bounds.join nested_with_bounds bs',
                   Fuel_status.both fuel_result1 fuel_result2 )
@@ -978,7 +987,7 @@ module Layout_and_axes = struct
                    necessary only because [loop] is
                    local. Bizarre. Investigate. *)
                 let bounds_so_far, (bs' : (l * r2) With_bounds.t), fuel_result =
-                  loop new_ctl bounds_so_far bs
+                  loop new_ctl bounds_so_far relevant_axes bs
                 in
                 bounds_so_far, With_bounds.add ty ti bs', fuel_result
             in
@@ -987,7 +996,7 @@ module Layout_and_axes = struct
               (* out of fuel, so assume [ty] has the worst possible bounds. *)
               found_jkind_for_ty ctl_after_stop Mod_bounds.max No_with_bounds
                 Not_best [@nontail]
-            | Skip -> loop ctl bounds_so_far bs (* skip [b] *)
+            | Skip -> loop ctl bounds_so_far relevant_axes bs (* skip [b] *)
             | Continue ctl_after_unpacking_b -> (
               match jkind_of_type ty with
               | Some b_jkind ->
@@ -1004,6 +1013,7 @@ module Layout_and_axes = struct
       let mod_bounds = Mod_bounds.set_max_in_set t.mod_bounds skip_axes in
       let mod_bounds, with_bounds, fuel_status =
         loop Loop_control.starting mod_bounds
+          (Axis_set.complement skip_axes)
           (With_bounds.to_list t.with_bounds)
       in
       { t with mod_bounds; with_bounds }, fuel_status
