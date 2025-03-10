@@ -385,46 +385,110 @@ let ignore_low_bit_int = function
   | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
   | c -> c
 
+let is_defined_shift n = 0 <= n && n < arch_bits
+
+let[@inline] get_const = function
+  | Cconst_int (i, _) -> Some (Nativeint.of_int i)
+  | Cconst_natint (i, _) -> Some i
+  | _ -> None
+
+let or_int c1 c2 dbg =
+  match get_const c1, get_const c2 with
+  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logor c1 c2)
+  | _, Some 0n | Some -1n, _ -> c1
+  | Some 0n, _ | _, Some -1n -> c2
+  | Some _, None ->
+    (* prefer putting constants on the right *)
+    Cop (Cor, [c2; c1], dbg)
+  | _, _ -> Cop (Cor, [c1; c2], dbg)
+
+let and_int c1 c2 dbg =
+  match get_const c1, get_const c2 with
+  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logand c1 c2)
+  | _, Some 0n | Some -1n, _ -> c2
+  | Some 0n, _ | _, Some -1n -> c1
+  | Some _, None ->
+    (* prefer putting constants on the right *)
+    Cop (Cand, [c2; c1], dbg)
+  | _, _ -> Cop (Cand, [c1; c2], dbg)
+
+let xor_int c1 c2 dbg =
+  match get_const c1, get_const c2 with
+  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logxor c1 c2)
+  | _, Some 0n -> c1
+  | Some 0n, _ -> c2
+  | Some _, None ->
+    (* prefer putting constants on the right *)
+    Cop (Cxor, [c2; c1], dbg)
+  | _, _ -> Cop (Cxor, [c1; c2], dbg)
+
+let replace x ~with_ =
+  match x with
+  | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ | Cvar _ | Ctuple [] ->
+    with_
+  | inner -> Csequence (inner, with_)
+
 let rec lsr_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | c1, Cconst_int (n, _) when n > 0 ->
-    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
-  | _ -> Cop (Clsr, [c1; c2], dbg)
+  | c1, Cconst_int (n, _) when is_defined_shift n -> (
+    let c1 = ignore_low_bit_int c1 in
+    match get_const c1 with
+    | Some x -> natint_const_untagged dbg (Nativeint.shift_right_logical x n)
+    | None -> (
+      match c1 with
+      | Cop (Clsr, [inner; Cconst_int (n', _)], _) when is_defined_shift n' ->
+        if is_defined_shift (n + n')
+        then lsr_const inner (n + n') dbg
+        else replace inner ~with_:(Cconst_int (0, dbg))
+      | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        or_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
+      | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        and_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
+      | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        xor_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
+      | c1 -> Cop (Clsr, [c1; c2], dbg)))
+  | Cop (Clsr, [x; (Cconst_int (n', _) as y)], z), c2 when is_defined_shift n'
+    ->
+    (* prefer putting the constant shift on the outside to help enable further
+       peephole optimizations *)
+    Cop (Clsr, [Cop (Clsr, [x; c2], dbg); y], z)
+  | c1, c2 -> Cop (Clsr, [c1; c2], dbg)
 
 and asr_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
-  | c1, Cconst_int (n, _) when 0 < n && n < arch_bits -> (
-    match ignore_low_bit_int c1 with
-    | Cop (Casr, [inner; Cconst_int (n', _)], _) when 0 <= n' && n' < arch_bits
-      ->
-      asr_const inner (Int.min (n + n') (arch_bits - 1)) dbg
-    | Cop (Clsr, [inner; Cconst_int (n', _)], _) when 0 < n' && n' < arch_bits
-      ->
-      (* If the inner unsigned shift is guaranteed positive, then we know the
-         sign bit is 0 and we can weaken this operation to a logical shift *)
-      if n + n' < arch_bits
-      then lsr_const inner (n + n') dbg
-      else Csequence (inner, Cconst_int (0, dbg))
-    | Cop (Cor, [inner; Cconst_int (x, _)], _) when n <= Sys.int_size ->
-      let inner = asr_const inner n dbg in
-      let x = x asr n in
-      if x = 0 then inner else Cop (Cor, [inner; Cconst_int (x, dbg)], dbg)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
-    (* some operations always return small enough integers that it is safe and
-       correct to optimise [asr (lsl x 1) 1] into [x]. *)
-      when n = 1 && guaranteed_to_be_small_int c ->
-      c
-    | Cop (Cor, [inner; Cconst_int (x, _)], _) when n < Sys.int_size ->
-      let inner = asr_const inner n dbg in
-      let x = x asr n in
-      if x = 0 then inner else Cop (Cor, [inner; Cconst_int (x, dbg)], dbg)
-    | c1' -> Cop (Casr, [c1'; c2], dbg))
-  | Cop (Casr, [x; (Cconst_int _ as y)], z), c2 ->
+  | c1, Cconst_int (n, _) when is_defined_shift n -> (
+    let c1 = ignore_low_bit_int c1 in
+    match get_const c1 with
+    | Some x -> natint_const_untagged dbg (Nativeint.shift_right x n)
+    | None -> (
+      match c1 with
+      | Cconst_int (x, _) -> Cconst_int (x asr n, dbg)
+      | Cconst_natint (x, _) ->
+        natint_const_untagged dbg (Nativeint.shift_right x n)
+      | Cop (Casr, [inner; Cconst_int (n', _)], _) when is_defined_shift n' ->
+        (* saturating add, since the sign bit extends to the left *)
+        asr_const inner (Int.min (n + n') (arch_bits - 1)) dbg
+      | Cop (Clsr, [_; Cconst_int (n', _)], _)
+        when n' > 0 && is_defined_shift n' ->
+        (* If the argument is guaranteed non-negative, then we know the sign bit
+           is 0 and we can weaken this operation to a logical shift *)
+        lsr_const c1 n dbg
+      | Cop (Clsl, [c; Cconst_int (1, _)], _)
+        when n = 1 && guaranteed_to_be_small_int c ->
+        (* some operations always return small enough integers that it is safe
+           and correct to optimise [asr (lsl x 1) 1] into [x]. *)
+        c
+      | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        or_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
+      | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        and_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
+      | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        xor_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
+      | c1 -> Cop (Casr, [c1; c2], dbg)))
+  | Cop (Casr, [x; (Cconst_int (n', _) as y)], z), c2 when is_defined_shift n'
+    ->
     (* prefer putting the constant shift on the outside to help enable further
        peephole optimizations *)
     Cop (Casr, [Cop (Casr, [x; c2], dbg); y], z)
@@ -433,16 +497,27 @@ and asr_int c1 c2 dbg =
 and lsl_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsl, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when Misc.no_overflow_lsl n1 n2 ->
-    add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
-  | Cop (Cor, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when Misc.no_overflow_lsl n1 n2 ->
-    Cop (Cor, [lsl_int c1 c2 dbg; Cconst_int (n1 lsl n2, dbg)], dbg)
-  | Cop (Clsl, [x; (Cconst_int _ as y)], z), c2 ->
+  | c1, Cconst_int (n, _) when is_defined_shift n -> (
+    match get_const c1 with
+    | Some c1 -> natint_const_untagged dbg (Nativeint.shift_left c1 n)
+    | None -> (
+      match c1 with
+      | Cop (Clsl, [inner; Cconst_int (n', _)], dbg) when is_defined_shift n' ->
+        if is_defined_shift (n + n')
+        then lsl_const inner (n + n') dbg
+        else replace inner ~with_:(Cconst_int (0, dbg))
+      | Cop (Caddi, [c1; Cconst_int (offset, _)], _)
+        when Misc.no_overflow_lsl offset n ->
+        add_const (lsl_int c1 c2 dbg) (offset lsl n) dbg
+      | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        or_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
+      | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        and_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
+      | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+        xor_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
+      | c1 -> Cop (Clsl, [c1; c2], dbg)))
+  | Cop (Clsl, [x; (Cconst_int (n', _) as y)], z), c2 when is_defined_shift n'
+    ->
     (* prefer putting the constant shift on the outside to help enable further
        peephole optimizations *)
     Cop (Clsl, [Cop (Clsl, [x; c2], dbg); y], z)
@@ -2020,11 +2095,7 @@ let and_int e1 e2 dbg =
   match e1, e2 with
   | e, m when is_mask32 m -> zero_extend ~bits:32 e ~dbg
   | m, e when is_mask32 m -> zero_extend ~bits:32 e ~dbg
-  | e1, e2 -> Cop (Cand, [e1; e2], dbg)
-
-let or_int e1 e2 dbg = Cop (Cor, [e1; e2], dbg)
-
-let xor_int e1 e2 dbg = Cop (Cxor, [e1; e2], dbg)
+  | e1, e2 -> and_int e1 e2 dbg
 
 (* Boxed integers *)
 
