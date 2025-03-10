@@ -950,6 +950,23 @@ void caml_free_stack (struct stack_info* stack)
   }
 }
 
+void caml_unwind_stacks_until_exception_handler (char* trap_pointer)
+{
+  while (Caml_state->current_stack != NULL) {
+    struct stack_info* current_stack = Caml_state->current_stack;
+
+    if (trap_pointer >= (char*) Stack_base(current_stack)
+        && trap_pointer < (char*) Stack_high(current_stack)) {
+      return;
+    }
+
+    Caml_state->current_stack = Stack_parent(current_stack);
+    caml_free_stack(current_stack);
+  }
+
+  caml_fatal_error("Cannot find trap pointer during unwinding of stacks");
+}
+
 void caml_free_gc_regs_buckets(value *gc_regs_buckets)
 {
   while (gc_regs_buckets != NULL) {
