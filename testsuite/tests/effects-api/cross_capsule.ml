@@ -9,7 +9,7 @@
 
 open Stdlib_alpha
 
-type 'a op = 
+type 'a op =
   | Set : int -> unit op
   | Get : int op
 
@@ -17,16 +17,16 @@ module Eff = Effect.Make(struct
   type 'a t = 'a op
 end)
 
-let store = Atomic.Safe.make 0
+let store = ref 0
 
 let rec handle = function
   | Eff.Result.Contended.Value v -> v
   | Exception e -> raise e
   | Operation (Set n, k) ->
-    Atomic.Safe.set store n;
+    store := n;
     handle (Effect.continue k {portable = () } [])
   | Operation (Get, k) ->
-    let n = Atomic.Safe.get store in
+    let n = !store in
     handle (Effect.continue k {portable = n} [])
 ;;
 
@@ -44,4 +44,3 @@ let () =
   in
   Printf.printf "Get: %d\n" (Eff.Portable.perform h Get)))
 ;;
-
