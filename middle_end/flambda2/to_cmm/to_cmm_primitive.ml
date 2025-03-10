@@ -251,7 +251,7 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
        represented by mixed blocks with tag zero (not custom blocks), and that
        arrays of unboxed products are not packed in any way (e.g. int32#
        elements occupy 64 bits). *)
-    assert (C.wordsize_shift = C.numfloat_shift);
+    assert (C.size_addr = C.size_float);
     C.addr_array_length arr dbg
   | Naked_float32s -> C.unboxed_float32_array_length arr dbg
   | Naked_int32s -> C.unboxed_int32_array_length arr dbg
@@ -861,10 +861,12 @@ let unary_primitive env res dbg f arg =
   | Is_null -> None, res, C.eq ~dbg arg (C.nativeint ~dbg 0n)
   | Get_tag -> None, res, C.get_tag arg dbg
   | Array_length (Array_kind array_kind) ->
-    None, res, array_length ~dbg arg array_kind
+    let len = array_length ~dbg arg array_kind in
+    None, res, C.tag_int len dbg
   | Array_length Float_array_opt_dynamic ->
     (* See flambda2.ml (and comment in [array_length], above). *)
-    None, res, array_length ~dbg arg Values
+    let len = array_length ~dbg arg Values in
+    None, res, C.tag_int len dbg
   | Bigarray_length { dimension } ->
     ( None,
       res,

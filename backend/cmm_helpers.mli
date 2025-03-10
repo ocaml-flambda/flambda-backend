@@ -17,6 +17,10 @@ open Cmm
 
 val arch_bits : int
 
+val size_float : int
+
+val size_addr : int
+
 type arity =
   { function_kind : Lambda.function_kind;
     params_layout : Lambda.layout list;
@@ -201,12 +205,6 @@ val get_header : expression -> Debuginfo.t -> expression
 
 (** Load a block's tag *)
 val get_tag : expression -> Debuginfo.t -> expression
-
-(** Arrays *)
-
-val wordsize_shift : int
-
-val numfloat_shift : int
 
 (** Array loads and stores
 
@@ -448,7 +446,7 @@ val raise_prim : Lambda.raise_kind -> unary_primitive
 (** Unary negation of an OCaml integer *)
 val negint : unary_primitive
 
-(** Return the length of the array argument, as an OCaml integer *)
+(** Return the length of the array argument, as a register-width integer *)
 val addr_array_length : unary_primitive
 
 (** Byte swap primitive Operates on Cmm integers (unboxed values) *)

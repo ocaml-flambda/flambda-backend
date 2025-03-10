@@ -153,7 +153,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
      to be computed differently according to the array kind, in the case where
      the width of a float is not equal to the machine word width (at present,
      this happens only on 32-bit targets). *)
-  if Cmm_helpers.wordsize_shift <> Cmm_helpers.numfloat_shift
+  if Cmm_helpers.size_addr <> Cmm_helpers.size_float
      && Flambda_features.flat_float_array ()
   then
     Misc.fatal_error

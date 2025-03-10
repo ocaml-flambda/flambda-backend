@@ -22,6 +22,10 @@ open Arch
 
 let arch_bits = Arch.size_int * 8
 
+let size_addr = size_addr
+
+let size_float = size_float
+
 type arity =
   { function_kind : Lambda.function_kind;
     params_layout : Lambda.layout list;
@@ -1123,12 +1127,6 @@ let log2_size_addr = Misc.log2 size_addr
 
 let log2_size_float = Misc.log2 size_float
 
-let wordsize_shift = 9
-
-let numfloat_shift = 9 + log2_size_float - log2_size_addr
-
-let addr_array_length_shifted hdr dbg = lsr_const hdr wordsize_shift dbg
-
 (* Produces a pointer to the element of the array [ptr] on the position [ofs]
    with the given element [log2size] log2 element size.
 
@@ -1261,7 +1259,7 @@ let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
                          dbg)
                       (Cvar custom_ops_index_var) dbg ) ) ))
   in
-  tag_int res dbg
+  res
 
 let unboxed_int32_array_length =
   unboxed_packed_array_length
@@ -1278,7 +1276,7 @@ let unboxed_int64_or_nativeint_array_length arr dbg =
         (* need to subtract so as not to count the custom_operations field *)
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
-  tag_int res dbg
+  res
 
 let unboxed_vec128_array_length arr dbg =
   let res =
@@ -1286,7 +1284,7 @@ let unboxed_vec128_array_length arr dbg =
         (* need to subtract so as not to count the custom_operations field *)
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
-  tag_int (lsr_int res (int ~dbg 1) dbg) dbg
+  lsr_int res (int ~dbg 1) dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -3407,9 +3405,7 @@ let raise_prim raise_kind arg dbg =
 
 let negint arg dbg = Cop (Csubi, [Cconst_int (2, dbg); arg], dbg)
 
-let addr_array_length arg dbg =
-  let hdr = get_header_masked arg dbg in
-  Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+let addr_array_length arg dbg = get_size arg dbg
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
