@@ -129,21 +129,22 @@ module Range = struct
   let is_live : t DLL.t -> pos:int -> bool =
    fun l ~pos -> is_live_cell (DLL.hd_cell l) ~pos
 
-  let rec remove_expired_cell : t DLL.cell option -> pos:int -> unit =
-   fun cell ~pos ->
-    match cell with
-    | None -> ()
-    | Some cell ->
-      let value = DLL.value cell in
-      if pos < value.end_
-      then ()
-      else
-        let next = DLL.next cell in
-        DLL.delete_curr cell;
-        remove_expired_cell next ~pos
+  let rec remove_expired_cell : t DLL.Cursor.t  -> pos:int -> unit =
+   fun cursor ~pos ->
+     let value = DLL.Cursor.value cursor in
+     if pos < value.end_
+     then ()
+     else (
+       match DLL.Cursor.delete_and_next cursor with
+       | Error `End_of_list -> ()
+       | Ok () -> remove_expired_cell cursor ~pos)
+  ;;
 
   let remove_expired : t DLL.t -> pos:int -> unit =
-   fun l ~pos -> remove_expired_cell (DLL.hd_cell l) ~pos
+    fun l ~pos ->
+      match DLL.create_hd_cursor l with
+      | Error `Empty -> ()
+      | Ok cursor -> remove_expired_cell cursor ~pos
 end
 
 module Interval = struct
