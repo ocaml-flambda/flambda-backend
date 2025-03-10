@@ -508,6 +508,9 @@ type binary_primitive =
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op
   | Poke of Flambda_kind.Standard_int_or_float.t
+  (* CR rtjoa: don't actually use Array_load_kind. Also we need to support
+     unboxed products. *)
+  | Read_offset of Array_load_kind.t
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =

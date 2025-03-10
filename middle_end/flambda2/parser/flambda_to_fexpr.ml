@@ -608,7 +608,8 @@ let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
   | Bigarray_load _ | Atomic_exchange _ | Atomic_set _ | Atomic_int_arith _
-  | Poke _ ->
+  | Poke _
+  | Read_offset _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)

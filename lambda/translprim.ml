@@ -933,6 +933,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
+    | "%obj_unsafe_read_offset_in_bytes" ->
+      Primitive(Pread_offset layout, 2)
+    | "%obj_unsafe_write_offset_in_bytes" ->
+      Primitive(Pwrite_offset, 3)
     | "%peek" -> Peek None
     | "%poke" -> Poke None
     | s when String.length s > 0 && s.[0] = '%' ->
@@ -1959,6 +1963,7 @@ let lambda_primitive_needs_event_after = function
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _
   | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
+  | Pread_offset _ | Pwrite_offset
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
     -> false

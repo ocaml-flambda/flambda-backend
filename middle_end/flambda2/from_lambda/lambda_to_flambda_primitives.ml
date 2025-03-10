@@ -2460,6 +2460,20 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Ppoke layout, [[ptr]; [new_value]] ->
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
+  | Pread_offset layout, [[ptr]; [i]] ->
+    let kind =
+      match[@warning "-4"] layout with
+      | Punboxed_float Unboxed_float64 -> P.Array_load_kind.Naked_floats
+      | _ -> Misc.fatal_error "unimplemented"
+      (* | Ptop | Pvalue _ |
+       *   | Punboxed_float  _
+       * | Punboxed_int _
+       * | Punboxed_vector _
+       * | Punboxed_product _
+       * | Pbottom *)
+    in
+    [Binary (Read_offset kind, ptr, i)]
+  | Pwrite_offset, _ -> Misc.fatal_error "unimplemented Pwrite_offset primitive"
   | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),
@@ -2536,7 +2550,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
       | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
-      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
+      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _
+      | Pread_offset _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _

@@ -345,6 +345,8 @@ type primitive =
   | Pdls_get
   (* Poll for runtime actions *)
   | Ppoll
+  | Pread_offset of layout
+  | Pwrite_offset
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
@@ -1984,7 +1986,9 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Parray_element_size_in_bytes _
-  | Ppeek _ | Ppoke _ -> None
+  | Ppeek _ | Ppoke _
+  | Pread_offset _ | Pwrite_offset
+    -> None
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if !Clflags.native_code then None
     else
@@ -2152,7 +2156,8 @@ let primitive_can_raise prim =
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
+  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _
+  | Pread_offset _ | Pwrite_offset ->
     false
 
 let constant_layout: constant -> layout = function
@@ -2400,6 +2405,8 @@ let primitive_result_layout (p : primitive) =
       | Ppp_unboxed_nativeint -> layout_unboxed_nativeint
     )
   | Ppoke _ -> layout_unit
+  | Pread_offset layout -> layout
+  | Pwrite_offset -> layout_unit
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

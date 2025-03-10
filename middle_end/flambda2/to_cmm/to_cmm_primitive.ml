@@ -1031,6 +1031,7 @@ let binary_primitive env dbg f x y =
     in
     C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
     |> C.return_unit dbg
+  | Read_offset _ -> assert false
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
