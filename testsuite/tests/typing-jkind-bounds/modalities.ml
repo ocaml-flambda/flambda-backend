@@ -65,6 +65,20 @@ type 'a t = { x : 'a @@ contended; }
 type 'a t = { x : 'a @@ portable; }
 |}]
 
+(* Types with modalities cross even if the inner type doesn't, at deep levels of nesting *)
+
+type 'a portable : value mod portable = { portable : 'a @@ portable }
+[%%expect{|
+type 'a portable = { portable : 'a @@ portable; }
+|}]
+
+let foo (x : (int -> int) ref portable @@ nonportable) = use_portable x
+[%%expect{|
+val foo : (int -> int) ref portable -> unit = <fun>
+|}]
+
+(* Product layouts *)
+
 let use_global : ('a : value & value). 'a @ global -> unit = fun _ -> ()
 let cross_global : ('a : value & value mod global). 'a -> unit = fun _ -> ()
 let use_portable : ('a : value & value). 'a @ portable -> unit = fun _ -> ()
