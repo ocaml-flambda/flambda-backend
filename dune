@@ -434,41 +434,28 @@
   branch_relaxation_intf
   cfg_selectgen
   cfg_selection
-  cfgize
   cfgize_utils
   cmm_helpers
   cmm_builtins
   cmm_invariants
   cmm
   cmmgen_state
-  coloring
-  comballoc
   CSE
   CSE_utils
-  CSEgen
-  dataflow
-  deadcode
   emit
   emitaux
   fdo_info
   generic_fns
   instructionId
-  interf
-  interval
   linear
   internal_assembler
-  linscan
-  liveness
-  mach
   operation
   peephole_optimize
   peephole_rules
   peephole_utils
-  polling
   polling_utils
   printcmm
   printlinear
-  printmach
   printoperation
   printreg
   proc
@@ -480,17 +467,11 @@
   stack_check
   sub_cfg
   reg
-  reload
-  reloadgen
   relocation_entry
   relocation_table
   section_table
   select_utils
-  selectgen
-  selection
   selection_utils
-  spill
-  split
   string_table
   symbol_entry
   symbol_table
@@ -556,7 +537,6 @@
   cfg_format
   ;; backend/debug/
   available_ranges_vars
-  available_regs
   compute_ranges
   compute_ranges_intf
   inlined_frame_ranges

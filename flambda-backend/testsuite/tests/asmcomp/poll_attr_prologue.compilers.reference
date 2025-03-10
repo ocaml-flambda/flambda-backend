@@ -4,6 +4,5 @@ File "poll_attr_prologue.ml", lines 14-17, characters 36-38:
 16 |   | [] -> 0
 17 |   | _ :: tl -> (d[@tailcall]) (x+1) tl
 Error: Function with poll-error attribute contains polling points:
-	inserted poll at File "poll_attr_prologue.ml", lines 14-17, characters 36-38
 	function call at File "poll_attr_prologue.ml", line 17, characters 15-38
 

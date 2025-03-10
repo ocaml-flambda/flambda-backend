@@ -23,7 +23,6 @@ open Misc
 open Cmm
 open Reg
 open Arch
-open Mach
 
 (* Instruction selection *)
 
@@ -360,22 +359,6 @@ let destroyed_at_c_noalloc_call =
      116;117;118;119;120;121;122;123;
      124;125;126;127;128;129;130;131]))
 
-(* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
-let destroyed_at_oper = function
-  | Iop(Icall_ind | Icall_imm _) ->
-      all_phys_regs
-  | Iop(Iextcall {alloc; stack_ofs; }) ->
-    assert (stack_ofs >= 0);
-    if alloc || stack_ofs > 0 then all_phys_regs
-    else destroyed_at_c_noalloc_call
-  | Iop(Ialloc _) | Iop(Ipoll _) ->
-      [| reg_x8 |]
-  | Iop( Istatic_cast (Int_of_float _ | Float_of_int _)
-       | Iload{memory_chunk=Single { reg = Float64 }; _}
-       | Istore(Single { reg = Float64 }, _, _)) ->
-      [| reg_d7 |]            (* d7 / s7 destroyed *)
-  | _ -> [||]
-
 let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
@@ -384,7 +367,6 @@ let destroyed_at_pushtrap = [| |]
 
 let destroyed_at_alloc_or_poll = [| reg_x8 |]
 
-(* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
   | Reloadretaddr ->
@@ -402,8 +384,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     [||]
   | Stack_check _ -> assert false (* not supported *)
 
-(* note: keep this function in sync with `destroyed_at_oper` above,
-   and `is_destruction_point` below. *)
+(* note: keep this function in sync with `is_destruction_point` below. *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
@@ -440,21 +421,6 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     else
     if alloc then true else false
 
-(* Maximal register pressure *)
-
-let safe_register_pressure = function
-  | Iextcall _ -> 7
-  | Ialloc _ | Ipoll _ -> 22
-  | _ -> 23
-
-let max_register_pressure = function
-  | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
-  | Ialloc _ | Ipoll _ -> [| 22; 32 |]
-  | Istatic_cast (Int_of_float _ | Float_of_int _)
-  | Iload{memory_chunk=Single { reg = Float64 }; _}
-  | Istore(Single { reg = Float64 }, _, _) -> [| 23; 31 |]
-  | _ -> [| 23; 32 |]
-
 (* Layout of the stack *)
 
 let initial_stack_offset ~num_stack_slots ~contains_calls =
@@ -473,7 +439,7 @@ let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fun_contains_calls
     || fun_num_stack_slots.(0) > 0
-    || fun_num_stack_slots.(1) > 0
+     || fun_num_stack_slots.(1) > 0
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
