@@ -2245,12 +2245,6 @@ let rec estimate_type_jkind ~(expand_component : type_expr -> open_type_expr) en
      in
      let layouts = List.map Jkind.extract_layout jkinds in
      Jkind.Builtin.product
-       ~jkind_of_first_type:(fun () ->
-       match jkinds with
-         | first_jkind :: _ -> first_jkind
-         | _ -> Misc.fatal_error
-                  "Ctype.estimate_type_jkind: use of jkind_of_first_type \
-                   with more than 1 type")
        ~why:Unboxed_tuple tys_modalities layouts |>
      close_open_jkind ~expand_component ~is_open env
   | Tconstr (p, args, _) -> begin try
