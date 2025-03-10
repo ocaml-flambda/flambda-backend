@@ -334,6 +334,13 @@ let rec add_const c n dbg =
       Cop (Csubi, [Cconst_int (n + x, dbg); c], dbg)
     | Cop (Csubi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_sub n x ->
       add_const c (n - x) dbg
+    | Cop
+        ( Cor,
+          [(Cop (Clsl, [_; Cconst_int (1, _)], _) as inner); Cconst_int (1, _)],
+          _ )
+      when n = -1 ->
+      (* undo setting the tag bit *)
+      inner
     | c -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg)
 
 let incr_int c dbg = add_const c 1 dbg
@@ -360,7 +367,66 @@ let rec sub_int c1 c2 dbg =
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
-let rec lsl_int c1 c2 dbg =
+(* identify cmm operations whose result is guaranteed to be small integers (e.g.
+   in the range [min_int / 4; max_int / 4]) *)
+let guaranteed_to_be_small_int = function
+  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+    (* integer/float comparisons return either [1] or [0]. *)
+    true
+  | _ -> false
+
+let ignore_low_bit_int = function
+  | Cop
+      ( Caddi,
+        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
+        _ )
+    when n > 0 ->
+    c
+  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
+  | c -> c
+
+let rec lsr_int c1 c2 dbg =
+  match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
+  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
+    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
+    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
+  | c1, Cconst_int (n, _) when n > 0 ->
+    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
+  | _ -> Cop (Clsr, [c1; c2], dbg)
+
+and asr_int c1 c2 dbg =
+  match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
+  | c1, Cconst_int (n, _) when 0 < n && n < arch_bits -> (
+    match ignore_low_bit_int c1 with
+    | Cop (Casr, [c; Cconst_int (n', _)], _) when 0 <= n' && n' < arch_bits ->
+      asr_const c (Int.min (n + n') (arch_bits - 1)) dbg
+    | Cop (Clsr, [c; Cconst_int (n', _)], _) when 0 < n' && n' < arch_bits ->
+      (* If the inner unsigned shift is guaranteed positive, then we know the
+         sign bit is 0 and we can weaken this operation to a logical shift *)
+      lsr_const c (n + n') dbg
+    | Cop (Cor, [inner; Cconst_int (x, _)], _) when n <= Sys.int_size ->
+      let inner = asr_const inner n dbg in
+      let x = x asr n in
+      if x = 0 then inner else Cop (Cor, [inner; Cconst_int (x, dbg)], dbg)
+    | Cop (Clsl, [c; Cconst_int (1, _)], _)
+    (* some operations always return small enough integers that it is safe and
+       correct to optimise [asr (lsl x 1) 1] into [x]. *)
+      when n = 1 && guaranteed_to_be_small_int c ->
+      c
+    | Cop (Cor, [inner; Cconst_int (x, _)], _) when n < Sys.int_size ->
+      let inner = asr_const inner n dbg in
+      let x = x asr n in
+      if x = 0 then inner else Cop (Cor, [inner; Cconst_int (x, dbg)], dbg)
+    | c1' -> Cop (Casr, [c1'; c2], dbg))
+  | Cop (Casr, [x; (Cconst_int _ as y)], z), c2 ->
+    (* prefer putting the constant shift on the outside to help enable further
+       peephole optimizations *)
+    Cop (Casr, [Cop (Casr, [x; c2], dbg); y], z)
+  | _ -> Cop (Casr, [c1; c2], dbg)
+
+and lsl_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
   | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
@@ -369,9 +435,20 @@ let rec lsl_int c1 c2 dbg =
   | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when Misc.no_overflow_lsl n1 n2 ->
     add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
+  | Cop (Cor, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
+    when Misc.no_overflow_lsl n1 n2 ->
+    Cop (Cor, [lsl_int c1 c2 dbg; Cconst_int (n1 lsl n2, dbg)], dbg)
+  | Cop (Clsl, [x; (Cconst_int _ as y)], z), c2 ->
+    (* prefer putting the constant shift on the outside to help enable further
+       peephole optimizations *)
+    Cop (Clsl, [Cop (Clsl, [x; c2], dbg); y], z)
   | _, _ -> Cop (Clsl, [c1; c2], dbg)
 
-let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+and lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+
+and asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
+
+and lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
 let is_power2 n = n = 1 lsl Misc.log2 n
 
@@ -392,57 +469,14 @@ let rec mul_int c1 c2 dbg =
     add_const (mul_int c (Cconst_int (k, dbg)) dbg) (n * k) dbg
   | c1, c2 -> Cop (Cmuli, [c1; c2], dbg)
 
-(* identify cmm operations whose result is guaranteed to be small integers (e.g.
-   in the range [min_int / 4; max_int / 4]) *)
-let guaranteed_to_be_small_int = function
-  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
-    (* integer/float comparisons return either [1] or [0]. *)
-    true
-  | _ -> false
-
-let ignore_low_bit_int = function
-  | Cop
-      ( Caddi,
-        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
-        _ )
-    when n > 0 ->
-    c
-  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
-  | c -> c
-
-let lsr_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | c1, Cconst_int (n, _) when n > 0 ->
-    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
-  | _ -> Cop (Clsr, [c1; c2], dbg)
-
-let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
-
-let asr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> (
-    match ignore_low_bit_int c1 with
-    (* some operations always return small enough integers that it is safe and
-       correct to optimise [asr (lsl x 1) 1] into [x]. *)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
-      when n = 1 && guaranteed_to_be_small_int c ->
-      c
-    | c1' -> Cop (Casr, [c1'; c2], dbg))
-  | _ -> Cop (Casr, [c1; c2], dbg)
-
-let asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
-
 let tag_int i dbg =
   match i with
   | Cconst_int (n, _) -> int_const dbg n
   | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 ->
     Cop
       (Cor, [asr_int c (Cconst_int (n - 1, dbg)) dbg; Cconst_int (1, dbg)], dbg)
+  | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 ->
+    Cop (Cor, [lsr_const c (n - 1) dbg; Cconst_int (1, dbg)], dbg)
   | c -> incr_int (lsl_int c (Cconst_int (1, dbg)) dbg) dbg
 
 let untag_int i dbg =
@@ -450,7 +484,7 @@ let untag_int i dbg =
   | Cconst_int (n, _) -> Cconst_int (n asr 1, dbg)
   | Cop (Cor, [Cop (Casr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Casr, [c; Cconst_int (n + 1, dbg)], dbg)
+    asr_const c (n + 1) dbg
   | Cop (Cor, [Cop (Clsr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
     Cop (Clsr, [c; Cconst_int (n + 1, dbg)], dbg)
@@ -458,8 +492,10 @@ let untag_int i dbg =
 
 let mk_not dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    -> (
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        dbg' ) -> (
     match c with
     | Cop (Ccmpi cmp, [c1; c2], dbg'') ->
       tag_int
@@ -799,8 +835,10 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
 
 let test_bool dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], _)
-    ->
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        _ ) ->
     c
   | Cconst_int (n, dbg) ->
     if n = 1 then Cconst_int (0, dbg) else Cconst_int (1, dbg)
@@ -1035,8 +1073,10 @@ let array_indexing ?typ log2size ptr ofs dbg =
     if i = 0
     then ptr
     else Cop (add, [ptr; Cconst_int (i lsl log2size, dbg)], dbg)
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    ->
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        dbg' ) ->
     Cop (add, [ptr; lsl_const c log2size dbg], dbg')
   | Cop (Caddi, [c; Cconst_int (n, _)], dbg') when log2size = 0 ->
     Cop
