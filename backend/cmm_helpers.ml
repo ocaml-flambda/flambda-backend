@@ -400,12 +400,16 @@ and asr_int c1 c2 dbg =
   | c1, Cconst_int (0, _) -> c1
   | c1, Cconst_int (n, _) when 0 < n && n < arch_bits -> (
     match ignore_low_bit_int c1 with
-    | Cop (Casr, [c; Cconst_int (n', _)], _) when 0 <= n' && n' < arch_bits ->
-      asr_const c (Int.min (n + n') (arch_bits - 1)) dbg
-    | Cop (Clsr, [c; Cconst_int (n', _)], _) when 0 < n' && n' < arch_bits ->
+    | Cop (Casr, [inner; Cconst_int (n', _)], _) when 0 <= n' && n' < arch_bits
+      ->
+      asr_const inner (Int.min (n + n') (arch_bits - 1)) dbg
+    | Cop (Clsr, [inner; Cconst_int (n', _)], _) when 0 < n' && n' < arch_bits
+      ->
       (* If the inner unsigned shift is guaranteed positive, then we know the
          sign bit is 0 and we can weaken this operation to a logical shift *)
-      lsr_const c (n + n') dbg
+      if n + n' < arch_bits
+      then lsr_const inner (n + n') dbg
+      else Csequence [inner; Cconst_int (0, dbg)]
     | Cop (Cor, [inner; Cconst_int (x, _)], _) when n <= Sys.int_size ->
       let inner = asr_const inner n dbg in
       let x = x asr n in
