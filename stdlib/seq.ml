@@ -20,11 +20,11 @@ open! Stdlib
 
 (* Module [Seq]: functional iterators *)
 
-type +'a node =
+type ('a : value_or_null) node =
   | Nil
   | Cons of 'a * 'a t
 
-and 'a t = unit -> 'a node
+and ('a : value_or_null) t = unit -> 'a node
 
 let empty () = Nil
 
