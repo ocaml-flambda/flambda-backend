@@ -95,24 +95,35 @@ module Range = struct
 
   let print ppf r = Format.fprintf ppf "[%d,%d]" r.begin_ r.end_
 
-  let rec overlap_cell : t DLL.cell option -> t DLL.cell option -> bool =
-   fun left right ->
-    match left, right with
-    | Some left_cell, Some right_cell ->
-      let left_value = DLL.value left_cell in
-      let right_value = DLL.value right_cell in
+  let rec overlap_cursor : t DLL.Cursor.t -> t DLL.Cursor.t -> bool =
+    fun left right ->
+      let left_value = DLL.Cursor.value left in
+      let right_value = DLL.Cursor.value right in
       if left_value.end_ >= right_value.begin_
          && right_value.end_ >= left_value.begin_
       then true
       else if left_value.end_ < right_value.end_
-      then overlap_cell (DLL.next left_cell) right
+      then (
+        match DLL.Cursor.next left with
+        | Error `End_of_list -> false
+        | Ok () -> overlap_cursor left right)
       else if left_value.end_ > right_value.end_
-      then overlap_cell left (DLL.next right_cell)
-      else overlap_cell (DLL.next left_cell) (DLL.next right_cell)
-    | None, _ | _, None -> false
+      then (
+        match DLL.Cursor.next right with
+        | Error `End_of_list -> false
+        | Ok () -> overlap_cursor left right)
+      else (
+        match DLL.Cursor.next left, DLL.Cursor.next right with
+        | Error `End_of_list, _ | _, Error `End_of_list -> false
+        | Ok (), Ok ()  -> overlap_cursor left right)
+  ;;
 
   let overlap : t DLL.t -> t DLL.t -> bool =
-   fun left right -> overlap_cell (DLL.hd_cell left) (DLL.hd_cell right)
+    fun left right ->
+      match DLL.create_hd_cursor left, DLL.create_hd_cursor right with
+    | Error `Empty, _ | _, Error `Empty -> false
+    | Ok left, Ok right ->
+      overlap_cursor left right
 
   let rec is_live_cursor : t DLL.Cursor.t -> pos:int -> bool =
    fun cursor ~pos ->
