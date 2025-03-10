@@ -153,7 +153,7 @@ static void parse_ocamlrunparam(char_os* opt)
       case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
       case 'h': break; /* init heap size in runtime 4 */
       case 'H': break; /* use huge pages in runtime 4 */
-      case 'i': break; /* heap chunk size in runtime 4 */
+      case 'i': scanmult (opt, &params.init_major_heap_increment); break;
       case 'l': scanmult (opt, &params.init_max_stack_wsz); break;
       case 'm': scanmult (opt, &params.init_custom_minor_ratio); break;
       case 'M': scanmult (opt, &params.init_custom_major_ratio); break;
