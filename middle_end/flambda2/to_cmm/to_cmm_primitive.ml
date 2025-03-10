@@ -322,14 +322,29 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
     Misc.fatal_errorf
       "Cannot use array load kind [Values] on naked number/vector arrays:@ %a"
       Debuginfo.print_compact dbg
-  | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+  | Naked_int64s, Immediates ->
+    (* To match the other reinterpret primitives and for safety, we set the
+       bottom bit (without any shift). *)
+    C.or_int
+      (C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:true arr
+         ~array_index:index dbg)
+      (C.int ~dbg 0x1) dbg
+  | Naked_int64s, Naked_floats ->
+    let index =
+      (* The layouts of these arrays differ: the int64# array has an extra field
+         for the custom operations, which we must skip over when accessing the
+         array like one full of naked floats. *)
+      C.add_int_caml index (C.int_const dbg 1) dbg
+    in
+    C.unboxed_float_array_ref Mutable ~block:arr ~index dbg
+  | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_nativeints
+      | Naked_vec128s ),
       Immediates )
   | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
       | Naked_vec128s ),
       (Naked_int64s | Naked_nativeints) )
-  | ( ( Values | Immediates | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+  | ( ( Values | Immediates | Naked_int32s | Naked_float32s | Naked_nativeints
+      | Naked_vec128s ),
       Naked_floats ) ->
     Misc.fatal_errorf
       "Array reinterpret load operation (array kind %a, array ref kind %a) not \

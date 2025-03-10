@@ -601,7 +601,17 @@ let prim_has_valid_reprs ~loc prim =
         is (Same_as_ocaml_repr C.value);
         any;
         is (Same_as_ocaml_repr C.value)]
-
+    | "%obj_reinterp_array_unsafe_get" ->
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.value);
+        any]
+    | "%obj_reinterp_array_unsafe_set" ->
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.value);
+        any;
+        is (Same_as_ocaml_repr C.value)]
     | "%array_safe_get_indexed_by_int64#" ->
       check [
         is (Same_as_ocaml_repr C.value);
@@ -797,6 +807,8 @@ let prim_can_contain_layout_any prim =
   | "%array_safe_set"
   | "%array_unsafe_get"
   | "%array_unsafe_set"
+  | "%obj_reinterp_array_unsafe_get"
+  | "%obj_reinterp_array_unsafe_set"
   | "%array_safe_get_indexed_by_int64#"
   | "%array_safe_set_indexed_by_int64#"
   | "%array_unsafe_get_indexed_by_int64#"
