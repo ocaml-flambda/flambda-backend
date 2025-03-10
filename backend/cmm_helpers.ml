@@ -398,11 +398,21 @@ let rec lsr_int c1 c2 dbg =
 and asr_int c1 c2 dbg =
   match c1, c2 with
   | c1, Cconst_int (0, _) -> c1
-  | c1, Cconst_int (n, _) when n > 0 -> (
+  | c1, Cconst_int (n, _) when 0 < n && n < arch_bits -> (
     match ignore_low_bit_int c1 with
+    | Cop (Casr, [c; Cconst_int (n', _)], _) when 0 <= n' && n' < arch_bits ->
+      asr_const c (Int.min (n + n') (arch_bits - 1)) dbg
+    | Cop (Clsr, [c; Cconst_int (n', _)], _) when 0 < n' && n' < arch_bits ->
+      (* If the inner unsigned shift is guaranteed positive, then we know the
+         sign bit is 0 and we can weaken this operation to a logical shift *)
+      lsr_const c (n + n') dbg
+    | Cop (Cor, [inner; Cconst_int (x, _)], _) when n <= Sys.int_size ->
+      let inner = asr_const inner n dbg in
+      let x = x asr n in
+      if x = 0 then inner else Cop (Cor, [inner; Cconst_int (x, dbg)], dbg)
+    | Cop (Clsl, [c; Cconst_int (1, _)], _)
     (* some operations always return small enough integers that it is safe and
        correct to optimise [asr (lsl x 1) 1] into [x]. *)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
       when n = 1 && guaranteed_to_be_small_int c ->
       c
     | Cop (Cor, [inner; Cconst_int (x, _)], _) when n < Sys.int_size ->
