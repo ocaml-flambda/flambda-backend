@@ -4222,7 +4222,8 @@ let rec is_nonexpansive exp =
   | Texp_apply (
       { exp_desc = Texp_ident (_, _, {val_kind =
              Val_prim {Primitive.prim_name =
-                         ("%raise" | "%reraise" | "%raise_notrace")}},
+                         ( "%raise" | "%reraise" | "%raise_notrace"
+                         | "%identity" | "%obj_magic")}},
              Id_prim _, _) },
       [Nolabel, Arg (e, _)], _, _, _) ->
      is_nonexpansive e
