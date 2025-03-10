@@ -409,7 +409,7 @@ and asr_int c1 c2 dbg =
          sign bit is 0 and we can weaken this operation to a logical shift *)
       if n + n' < arch_bits
       then lsr_const inner (n + n') dbg
-      else Csequence [inner; Cconst_int (0, dbg)]
+      else Csequence (inner, Cconst_int (0, dbg))
     | Cop (Cor, [inner; Cconst_int (x, _)], _) when n <= Sys.int_size ->
       let inner = asr_const inner n dbg in
       let x = x asr n in
