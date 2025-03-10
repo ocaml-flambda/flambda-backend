@@ -1843,6 +1843,11 @@ let subst env level priv abbrev oty params args body =
     raise Cannot_subst
 
 let jkind_subst env level params args jkind =
+  (* CR layouts v2.8: This function is used a lot, but there is a better way.
+     In the vastly common case, the params are a list of distinct Tvars. In that
+     scenario, we can likely build a copy_scope that will just perform the
+     substitution during the copy, avoiding copying the params and then unifying
+     them. Though we should measure, this should be a nice little speedup. *)
   if List.length params <> List.length args then raise Cannot_subst;
   let old_level = !current_level in
   current_level := level;
