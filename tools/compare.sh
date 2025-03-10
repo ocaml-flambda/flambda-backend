@@ -2,16 +2,18 @@
 
 # we want `read` to respect backslashes
 # shellcheck disable=SC2162
-set -e -u -o pipefail
+set -u -o pipefail
 
 # Use this script to compare the output of an existing compiler
 # with one installed to _install
 #
 # E.g.,
+# autoconf
+# ./configure --prefix="$(pwd)/_install"
 # make boot-_install
 # export OLD='opam exec --switch=MY_OLD_SWITCH ocamlopt.opt --'
-# tools/compare.sh testsuite/tests/lib-int/test.ml -c -dcmm -dump-into-file
-# diff {old,new}.cmx.dump
+# tools/compare.sh testsuite/tests/lib-int/test.ml -c -dcmm
+# diff {old,new}.stderr
 
 # Set these to add paths under the stdlib to the compiler arguments
 read -a LIB <<< "${LIB-}"
@@ -61,7 +63,8 @@ parse_compiler() {
     fi
 
     # overwrite VAR_NAME with the parsed version
-    declare -a -g "$1"=( "${parsed[@]}" )
+    declare -a -g -n dst="$1"
+    dst=( "${parsed[@]}" )
 }
 
 
@@ -117,30 +120,32 @@ construct_command() {
 old="$(
     COMPILER=("${OLD[@]}")
     STDLIB="${OLD_STDLIB-}"
-    construct_command -o old "${@}"
+    construct_command "${@}"
 )" || fail
 new="$(
     COMPILER=("${NEW[@]}")
     STDLIB="${NEW_STDLIB-}"
-    construct_command -o new "${@}"
+    construct_command "${@}"
 )" || fail
 
-verbose_eval() {
+verbose_eval_var() {
     local exit_code
-    printf '%s\n' "$*" >&2
-    eval "$*"
+    cmd="${!1} >${1}.stdout 2>${1}.stderr"
+    printf '%s\n' "${cmd}" >&2
+    eval "${cmd}"
     exit_code=$?
     if [[ ${exit_code} -ne 0 ]]; then
-        printf 'exited with code %d: %s\n' "${exit_code}" "$*" >&2
+        cat "${1}.stderr" >&2
+        printf 'Exited with code %d: %s\n' "${exit_code}" "${cmd}" >&2
     fi
     return "${exit_code}"
 }
 
-verbose_eval "${old}"
-old_exit=$?
+verbose_eval_var old
+old_exit="$?"
 
-verbose_eval "${new}"
-new_exit=$?
+verbose_eval_var new
+new_exit="$?"
 
 if [[ ${old_exit} -ne ${new_exit} ]]; then
     exit 1
