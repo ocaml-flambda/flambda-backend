@@ -21,11 +21,11 @@ open! Stdlib
 
 exception Empty
 
-type 'a cell =
+type ('a : value_or_null) cell =
   | Nil
   | Cons of { content: 'a; mutable next: 'a cell }
 
-type 'a t = {
+type ('a : value_or_null) t = {
   mutable length: int;
   mutable first: 'a cell;
   mutable last: 'a cell

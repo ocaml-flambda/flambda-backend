@@ -29,8 +29,8 @@ let () =
   register_named_value "Pervasives.array_align_error"
     (Invalid_argument "address was misaligned")
 
-external raise : exn -> 'a @ portable @@ portable = "%reraise"
-external raise_notrace : exn -> 'a @ portable @@ portable = "%raise_notrace"
+external raise : ('a : value_or_null). exn -> 'a @ portable @@ portable = "%reraise"
+external raise_notrace : ('a : value_or_null). exn -> 'a @ portable @@ portable = "%raise_notrace"
 
 let failwith s = raise(Failure s)
 let invalid_arg s = raise(Invalid_argument s)
@@ -51,8 +51,10 @@ exception Undefined_recursive_module = Undefined_recursive_module
 
 (* Composition operators *)
 
-external ( |> ) : 'a -> ('a -> 'b) -> 'b @@ portable = "%revapply"
-external ( @@ ) : ('a -> 'b) -> 'a -> 'b @@ portable = "%apply"
+external ( |> ) : ('a : value_or_null) ('b : value_or_null)
+  . 'a -> ('a -> 'b) -> 'b @@ portable = "%revapply"
+external ( @@ ) : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b) -> 'a -> 'b @@ portable = "%apply"
 
 (* Debugging *)
 
@@ -63,25 +65,25 @@ external __MODULE__ : string @@ portable = "%loc_MODULE"
 external __POS__ : string * int * int * int @@ portable = "%loc_POS"
 external __FUNCTION__ : string @@ portable = "%loc_FUNCTION"
 
-external __LOC_OF__ : 'a -> string * 'a @@ portable = "%loc_LOC"
-external __LINE_OF__ : 'a -> int * 'a @@ portable = "%loc_LINE"
-external __POS_OF__ : 'a -> (string * int * int * int) * 'a @@ portable = "%loc_POS"
+external __LOC_OF__ : ('a : value_or_null) . 'a -> string * 'a @@ portable = "%loc_LOC"
+external __LINE_OF__ : ('a : value_or_null) . 'a -> int * 'a @@ portable = "%loc_LINE"
+external __POS_OF__ : ('a : value_or_null) . 'a -> (string * int * int * int) * 'a @@ portable = "%loc_POS"
 
 (* Comparisons *)
 
-external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
-external ( <> ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%notequal"
-external ( < ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%lessthan"
-external ( > ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%greaterthan"
-external ( <= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%lessequal"
-external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%greaterequal"
-external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int @@ portable = "%compare"
+external ( = ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
+external ( <> ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%notequal"
+external ( < ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%lessthan"
+external ( > ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%greaterthan"
+external ( <= ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%lessequal"
+external ( >= ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%greaterequal"
+external compare : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> int @@ portable = "%compare"
 
 let min x y = if x <= y then x else y
 let max x y = if x >= y then x else y
 
-external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%eq"
-external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%noteq"
+external ( == ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%eq"
+external ( != ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%noteq"
 
 (* Boolean operations *)
 
@@ -231,7 +233,7 @@ let char_of_int n =
 
 (* Unit operations *)
 
-external ignore : 'a -> unit @@ portable = "%ignore"
+external ignore : ('a : value_or_null) . 'a -> unit @@ portable = "%ignore"
 external ignore_contended : 'a @ contended -> unit @@ portable = "%ignore"
 
 (* Pair operations *)
@@ -241,16 +243,16 @@ external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) @@ portable = "%field1_
 
 (* References *)
 
-type 'a ref = { mutable contents : 'a }
-external ref : 'a -> ('a ref[@local_opt]) @@ portable = "%makemutable"
-external ( ! ) : ('a ref[@local_opt]) -> 'a @@ portable = "%field0"
-external ( := ) : ('a ref[@local_opt]) -> 'a -> unit @@ portable = "%setfield0"
+type ('a : value_or_null) ref = { mutable contents : 'a }
+external ref : ('a : value_or_null) . 'a -> ('a ref[@local_opt]) @@ portable = "%makemutable"
+external ( ! ) : ('a : value_or_null) . ('a ref[@local_opt]) -> 'a @@ portable = "%field0"
+external ( := ) : ('a : value_or_null) . ('a ref[@local_opt]) -> 'a -> unit @@ portable = "%setfield0"
 external incr : (int ref[@local_opt]) -> unit @@ portable = "%incr"
 external decr : (int ref[@local_opt]) -> unit @@ portable = "%decr"
 
 (* Result type *)
 
-type ('a,'b) result = Ok of 'a | Error of 'b
+type ('a : value_or_null, 'b : value_or_null) result = Ok of 'a | Error of 'b
 
 (* String conversion functions *)
 
@@ -388,7 +390,7 @@ let output_substring oc s ofs len =
 external output_byte : out_channel -> int -> unit @@ portable = "caml_ml_output_char"
 external output_binary_int : out_channel -> int -> unit @@ portable = "caml_ml_output_int"
 
-external marshal_to_channel : out_channel -> 'a -> unit list -> unit @@ portable
+external marshal_to_channel : ('a : value_or_null) . out_channel -> 'a -> unit list -> unit @@ portable
      = "caml_output_value"
 let output_value chan v = marshal_to_channel chan v []
 
@@ -479,7 +481,7 @@ let input_line chan =
 
 external input_byte : in_channel -> int @@ portable = "caml_ml_input_char"
 external input_binary_int : in_channel -> int @@ portable = "caml_ml_input_int"
-external input_value : in_channel -> 'a @@ portable = "caml_input_value"
+external input_value : ('a : value_or_null) . in_channel -> 'a @@ portable = "caml_input_value"
 external seek_in : in_channel -> int -> unit @@ portable = "caml_ml_seek_in"
 external pos_in : in_channel -> int @@ portable = "caml_ml_pos_in"
 external in_channel_length : in_channel -> int @@ portable = "caml_ml_channel_size"

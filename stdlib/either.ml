@@ -15,7 +15,7 @@
 
 [@@@ocaml.flambda_o3]
 
-type ('a, 'b) t = Left of 'a | Right of 'b
+type ('a : value_or_null, 'b : value_or_null) t = Left of 'a | Right of 'b
 
 let left v = Left v
 let right v = Right v

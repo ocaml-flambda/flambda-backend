@@ -18,7 +18,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external id : 'a -> 'a @@ portable = "%identity"
+external id : ('a : value_or_null) . 'a -> 'a @@ portable = "%identity"
 let const c _ = c
 let compose f g x = f (g x)
 let flip f x y = f y x
@@ -31,14 +31,14 @@ let () = Printexc.Safe.register_printer @@ function
 | _ -> None
 
 let protect ~(finally : unit -> unit) work =
-  let finally_no_exn () =
-    try finally () with e ->
-      let bt = Printexc.get_raw_backtrace () in
-      Printexc.raise_with_backtrace (Finally_raised e) bt
-  in
-  match work () with
-  | result -> finally_no_exn () ; result
-  | exception work_exn ->
-      let work_bt = Printexc.get_raw_backtrace () in
-      finally_no_exn () ;
-      Printexc.raise_with_backtrace work_exn work_bt
+    let finally_no_exn () =
+      try finally () with e ->
+        let bt = Printexc.get_raw_backtrace () in
+        Printexc.raise_with_backtrace (Finally_raised e) bt
+    in
+    match work () with
+    | result -> finally_no_exn () ; result
+    | exception work_exn ->
+        let work_bt = Printexc.get_raw_backtrace () in
+        finally_no_exn () ;
+        Printexc.raise_with_backtrace work_exn work_bt
