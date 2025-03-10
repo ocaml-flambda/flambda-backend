@@ -57,3 +57,15 @@ let join ?bound_name central_env ~left_env ~left_ty ~right_env ~right_ty =
 
 let remove_outermost_alias env ty =
   Expand_head.expand_head env ty |> Expand_head.Expanded_type.to_type
+
+module Equal_types_for_debug = struct
+  let equal_type env t1 t2 =
+    Equal_types_for_debug.equal_type
+      ~meet_type:(Meet_and_join.meet_type ())
+      env t1 t2
+
+  let equal_env_extension env ext1 ext2 =
+    Equal_types_for_debug.equal_env_extension
+      ~meet_type:(Meet_and_join.meet_type ())
+      env ext1 ext2
+end
