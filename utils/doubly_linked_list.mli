@@ -86,3 +86,12 @@ val to_list : 'a t -> 'a list
 val transfer : to_:'a t -> from:'a t -> unit -> unit
 
 val map : 'a t -> f:('a -> 'b) -> 'b t
+
+module Cursor : sig
+  type 'a t
+
+  val value : 'a t -> 'a
+  val delete_and_next : 'a t -> (unit, [`End_of_list]) result
+end
+
+val create_hd_cursor : 'a t -> ('a Cursor.t, [`Empty]) result

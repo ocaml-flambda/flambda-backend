@@ -375,3 +375,38 @@ let map t ~f =
   let res = make_empty () in
   iter t ~f:(fun x -> add_end res (f x));
   res
+
+
+module Cursor = struct
+  type nonrec 'a t =
+    { t : 'a t
+    ; mutable node : 'a node
+    }
+
+  let value (t : _ t) =
+    match t.node with
+    | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+    | Node node -> node.value
+  ;;
+
+  let delete_and_next (t : _ t) =
+    remove t.t t.node;
+    match t.node with
+    | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+    | Node content ->
+      (match content.next with
+      | Empty -> Error `End_of_list
+      | Node _ ->
+        t.node <- content.next;
+        Ok ())
+  ;;
+end
+
+let create_hd_cursor t : (_ Cursor.t, [`Empty]) result  =
+  match t.first with
+  | Empty -> Error `Empty
+  | Node _ -> Ok { t; node = t.first }
