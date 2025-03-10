@@ -43,10 +43,9 @@
 atomic_uintnat caml_max_stack_wsize;
 uintnat caml_fiber_wsz;
 
-extern uintnat caml_major_heap_increment; /* percent or words; see major_gc.c */
+extern uintnat caml_major_heap_increment; /* percent or words; see shared_heap.c */
 extern uintnat caml_percent_free;         /*        see major_gc.c */
 extern uintnat caml_max_percent_free;     /*        see major_gc.c */
-extern uintnat caml_allocation_policy;    /*        see freelist.c */
 extern uintnat caml_custom_major_ratio;   /* see custom.c */
 extern uintnat caml_custom_minor_ratio;   /* see custom.c */
 extern uintnat caml_custom_minor_max_bsz; /* see custom.c */
@@ -137,7 +136,7 @@ CAMLprim value caml_gc_get(value v)
 
   res = caml_alloc_tuple (11);
   Store_field (res, 0, Val_long (Caml_state->minor_heap_wsz));          /* s */
-  Store_field (res, 1, Val_long (0));
+  Store_field (res, 1, Val_long (caml_major_heap_increment));           /* i */
   Store_field (res, 2, Val_long (caml_percent_free));                   /* o */
   Store_field (res, 3, Val_long (atomic_load_relaxed(&caml_verb_gc)));  /* v */
   Store_field (res, 4, Val_long (caml_max_percent_free));
@@ -175,15 +174,30 @@ static uintnat norm_custom_min (uintnat p)
 CAMLprim value caml_gc_set(value v)
 {
   uintnat newminwsz = caml_norm_minor_heap_size (Long_val (Field (v, 0)));
+  uintnat newheapincr = Long_val (Field (v, 1));
   uintnat newpf = norm_pfree (Long_val (Field (v, 2)));
   uintnat new_verb_gc = Long_val (Field (v, 3));
   uintnat newpm = norm_pmax (Long_val (Field (v, 4)));
   uintnat new_max_stack_size = Long_val (Field (v, 5));
+  /* ignore fields 6 (allocation policy) and 7 (window size) */
   uintnat new_custom_maj = norm_custom_maj (Long_val (Field (v, 8)));
   uintnat new_custom_min = norm_custom_min (Long_val (Field (v, 9)));
   uintnat new_custom_sz = Long_val (Field (v, 10));
 
   CAML_EV_BEGIN(EV_EXPLICIT_GC_SET);
+
+  if (newheapincr != caml_major_heap_increment) {
+    caml_major_heap_increment = newheapincr;
+    if (newheapincr > 1000) {
+      CAML_GC_MESSAGE(PARAMS, "New heap increment size: %"
+                      ARCH_INTNAT_PRINTF_FORMAT "uk words\n",
+                      caml_major_heap_increment/1024);
+    } else {
+      CAML_GC_MESSAGE(PARAMS, "New heap increment size: %"
+                      ARCH_INTNAT_PRINTF_FORMAT "u%%\n",
+                      caml_major_heap_increment);
+    }
+  }
 
   caml_change_max_stack_size (new_max_stack_size);
 
@@ -378,6 +392,7 @@ void caml_init_gc (void)
   caml_custom_minor_ratio =
       norm_custom_min (caml_params->init_custom_minor_ratio);
   caml_custom_minor_max_bsz = caml_params->init_custom_minor_max_bsz;
+  caml_major_heap_increment = caml_params->init_major_heap_increment;
 
   caml_gc_phase = Phase_sweep_and_mark_main;
   #ifdef NATIVE_CODE
@@ -386,13 +401,6 @@ void caml_init_gc (void)
   caml_init_domains(caml_params->max_domains,
                     caml_params->init_minor_heap_wsz);
   caml_init_gc_stats(caml_params->max_domains);
-
-/*
-  caml_major_heap_increment = major_incr;
-  caml_percent_free = norm_pfree (percent_fr);
-  caml_max_percent_free = norm_pmax (percent_m);
-  caml_init_major_heap (major_heap_size);
-*/
 }
 
 /* FIXME After the startup_aux.c unification, move these functions there. */
@@ -563,7 +571,7 @@ CAMLprim value caml_runtime_parameters (value unit)
   char *no_tweaks = "";
   /* keep in sync with runtime4 and with parse_ocamlrunparam */
   value res = caml_alloc_sprintf
-    ("b=%d,c="F_Z",d="F_Z",e="F_Z",l="F_Z
+    ("b=%d,c="F_Z",d="F_Z",e="F_Z",i="F_Z",l="F_Z
      ",m="F_Z",M="F_Z",n="F_Z",o="F_Z",O="F_Z
      ",p="F_Z",s="F_Z",t="F_Z",v="F_Z",V="F_Z
      ",W="F_Z"%s",
@@ -574,7 +582,7 @@ CAMLprim value caml_runtime_parameters (value unit)
        /* e */ caml_params->runtime_events_log_wsize,
        /* h is runtime 4 init heap size */
        /* H is runtime 4 huge pages */
-       /* i is runtime 4 heap chunk size */
+       /* i */ caml_major_heap_increment,
        /* l */ caml_max_stack_wsize,
        /* m */ caml_custom_minor_ratio,
        /* M */ caml_custom_major_ratio,
