@@ -114,22 +114,26 @@ module Range = struct
   let overlap : t DLL.t -> t DLL.t -> bool =
    fun left right -> overlap_cell (DLL.hd_cell left) (DLL.hd_cell right)
 
-  let rec is_live_cell : t DLL.cell option -> pos:int -> bool =
-   fun cell ~pos ->
-    match cell with
-    | None -> false
-    | Some cell ->
-      let value = DLL.value cell in
-      if pos < value.begin_
-      then false
-      else if pos <= value.end_
-      then true
-      else is_live_cell (DLL.next cell) ~pos
+  let rec is_live_cursor : t DLL.Cursor.t -> pos:int -> bool =
+   fun cursor ~pos ->
+     let value = DLL.Cursor.value cursor in
+     if pos < value.begin_
+     then false
+     else if pos <= value.end_
+     then true
+     else
+       (match DLL.Cursor.next cursor with
+         | Error `End_of_list -> false
+         | Ok () -> is_live_cursor cursor ~pos)
+  ;;
 
   let is_live : t DLL.t -> pos:int -> bool =
-   fun l ~pos -> is_live_cell (DLL.hd_cell l) ~pos
+    fun l ~pos ->
+    match DLL.create_hd_cursor l with
+    | Error `Empty -> false
+    | Ok cursor -> is_live_cursor cursor ~pos
 
-  let rec remove_expired_cell : t DLL.Cursor.t  -> pos:int -> unit =
+  let rec remove_expired_cursor : t DLL.Cursor.t  -> pos:int -> unit =
    fun cursor ~pos ->
      let value = DLL.Cursor.value cursor in
      if pos < value.end_
@@ -137,14 +141,14 @@ module Range = struct
      else (
        match DLL.Cursor.delete_and_next cursor with
        | Error `End_of_list -> ()
-       | Ok () -> remove_expired_cell cursor ~pos)
+       | Ok () -> remove_expired_cursor cursor ~pos)
   ;;
 
   let remove_expired : t DLL.t -> pos:int -> unit =
     fun l ~pos ->
       match DLL.create_hd_cursor l with
       | Error `Empty -> ()
-      | Ok cursor -> remove_expired_cell cursor ~pos
+      | Ok cursor -> remove_expired_cursor cursor ~pos
 end
 
 module Interval = struct
