@@ -72,12 +72,8 @@ type 'a degenerate : immutable_data with 'a = Leaf of 'a | Branch of ('a * 'a) d
 Line 1, characters 0-89:
 1 | type 'a degenerate : immutable_data with 'a = Leaf of 'a | Branch of ('a * 'a) degenerate
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "degenerate" is immutable_data with 'a with 'a * 'a
-         with ('a * 'a) * ('a * 'a)
+Error: The kind of type "degenerate" is immutable_data with 'a
          with (('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a))
-         with ((('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a))) *
-((('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a)))
-
          with (((('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a))) *
  ((('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a)))) *
 (((('a * 'a) * ('a * 'a)) * (('a * 'a) * ('a * 'a))) *

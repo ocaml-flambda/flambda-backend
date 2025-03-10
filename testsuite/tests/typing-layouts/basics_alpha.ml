@@ -490,7 +490,17 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type "int * int" should be an instance of type "('a : immediate)"
-       The kind of int * int is value
+       The kind of int * int is immutable_data
+         because it's a tuple type.
+       But the kind of int * int must be a subkind of immediate
+         because of the definition of t7 at line 1, characters 0-37.
+|}, Principal{|
+type ('a : immediate) t7 = Foo7 of 'a
+Line 3, characters 12-21:
+3 | type t7' = (int * int) t7;;
+                ^^^^^^^^^
+Error: This type "int * int" should be an instance of type "('a : immediate)"
+       The kind of int * int is immutable_data with int
          because it's a tuple type.
        But the kind of int * int must be a subkind of immediate
          because of the definition of t7 at line 1, characters 0-37.

@@ -2228,7 +2228,7 @@ let rec estimate_type_jkind ~(expand_component : type_expr -> open_type_expr) en
   match get_desc ty with
   | Tvar { jkind } -> Jkind.disallow_right jkind
   | Tarrow _ -> Jkind.for_arrow
-  | Ttuple _ -> Jkind.Builtin.value ~why:Tuple
+  | Ttuple elts -> Jkind.for_boxed_tuple elts
   | Tunboxed_tuple ltys ->
      let is_open, tys_modalities =
        List.fold_left_map
