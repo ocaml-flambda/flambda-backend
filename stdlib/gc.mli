@@ -129,9 +129,7 @@ type control =
         number is less than or equal to 1000, it is a percentage of
         the current heap size (i.e. setting it to 100 will double the heap
         size at each increase). If it is more than 1000, it is a fixed
-        number of words that will be added to the heap. Default: 15.
-        This metric is currently not available in OCaml 5: the field value is
-        always [0]. *)
+        number of words that will be added to the heap. Default: 15. *)
 
     space_overhead : int;
     (** The major GC speed is computed from this parameter.

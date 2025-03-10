@@ -199,16 +199,23 @@ void caml_teardown_shared_heap(struct caml_heap_state* heap) {
               released, released_large);
 }
 
-/* TODO: resurrect major_heap_increment */
+uintnat caml_major_heap_increment; /* percent or words */
 
 uintnat new_chunk_bsize(void)
 {
-  uintnat new_pools = pool_freelist.active_pools * 15 / 100;
-  uintnat min_new_pools =
-    Wsize_bsize(caml_pool_min_chunk_bsz) / POOL_WSIZE;
-  if (new_pools < min_new_pools) new_pools = min_new_pools;
+  uintnat new_pools;
+  if (caml_major_heap_increment > 1000) {
+    new_pools =
+      (caml_major_heap_increment + (POOL_WSIZE-1)) / POOL_WSIZE;
+  } else {
+    new_pools = pool_freelist.active_pools * caml_major_heap_increment / 100;
+  }
+  uintnat bsize = Bsize_wsize(new_pools * POOL_WSIZE);
+  if (bsize < caml_pool_min_chunk_bsz) {
+    bsize = caml_pool_min_chunk_bsz;
+  }
 
-  return caml_mem_round_up_mapping_size(Bsize_wsize(POOL_WSIZE) * new_pools);
+  return caml_mem_round_up_mapping_size(bsize);
 }
 
 uintnat caml_shared_heap_grow_bsize(void)
