@@ -380,6 +380,7 @@ let unary_prim_size prim =
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
   | Atomic_load _ | Peek _ -> 1
+  | Make_lazy (_, _alloc_mode) -> alloc_size
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

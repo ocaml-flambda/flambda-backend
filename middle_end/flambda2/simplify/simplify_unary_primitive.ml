@@ -888,6 +888,12 @@ let simplify_mutable_block_load _access_kind ~field:_ ~original_prim dacc
       (P.result_kind' original_prim)
       ~original_term
 
+let simplify_lazy ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 (* CR layouts v3: implement a real simplifier. *)
 let simplify_is_null dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
     ~result_var =
@@ -962,5 +968,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Atomic_load block_access_field_kind ->
       simplify_atomic_load block_access_field_kind ~original_prim
     | Peek _ -> simplify_peek ~original_prim
+    | Make_lazy _ -> simplify_lazy ~original_prim
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var

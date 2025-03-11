@@ -1382,6 +1382,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let shape = convert_block_shape shape ~num_fields:(List.length args) in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Values (tag, shape), mutability, mode), args)]
+  | Pmakelazyblock (lazy_tag, mode), [[arg]] ->
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    [Unary (Make_lazy (lazy_tag, mode), arg)]
   | Pmake_unboxed_product layouts, _ ->
     (* CR mshinwell: this should check the unarized lengths of [layouts] and
        [args] (like [Parray_element_size_in_bytes] below) *)
@@ -2492,7 +2495,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64
-      | Parray_element_size_in_bytes _ | Ppeek _ ),
+      | Parray_element_size_in_bytes _ | Ppeek _ | Pmakelazyblock _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

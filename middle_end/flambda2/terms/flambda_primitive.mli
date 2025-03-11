@@ -24,6 +24,18 @@
 
     No primitive raises an exception. (Bounds checking is handled separately.) *)
 
+module Lazy_block_tag : sig
+  type t = Lambda.lazy_block_tag =
+    | Lazy_tag
+    | Forward_tag
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val to_tag : t -> Tag.t
+end
+
 module Block_kind : sig
   type t =
     | Values of Tag.Scannable.t * Flambda_kind.With_subkind.t list
@@ -439,6 +451,7 @@ type unary_primitive =
   (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
      deleting [Atomic_load] *)
   | Peek of Flambda_kind.Standard_int_or_float.t
+  | Make_lazy of Lazy_block_tag.t * Alloc_mode.For_allocations.t
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"

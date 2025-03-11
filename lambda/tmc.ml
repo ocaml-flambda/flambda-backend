@@ -910,6 +910,9 @@ let rec choice ctx t =
     | Punbox_int _ | Pbox_int _
     | Punbox_vector _ | Pbox_vector (_, _)
 
+    (* it doesn't seem worth it to support lazy blocks for tmc *)
+    | Pmakelazyblock _
+
     (* we don't handle array indices as destinations yet *)
     | (Pmakearray _ | Pduparray _ | Pmakearray_dynamic _)
 

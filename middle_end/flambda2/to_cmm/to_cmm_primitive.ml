@@ -989,6 +989,10 @@ let unary_primitive env res dbg f arg =
       |> C.memory_chunk_of_kind
     in
     None, res, C.load ~dbg memory_chunk Mutable ~addr:arg
+  | Make_lazy (lazy_tag, alloc_mode) ->
+    let mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
+    let tag = Tag.to_int (P.Lazy_block_tag.to_tag lazy_tag) in
+    None, res, C.make_alloc ~mode dbg ~tag [arg]
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
