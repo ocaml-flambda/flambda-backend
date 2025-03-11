@@ -22,6 +22,9 @@ let mk_flambda2_debug f =
 let mk_no_flambda2_debug f =
   "-no-flambda2-debug", Arg.Unit f, " Disable debug output for the Flambda2 pass"
 
+let mk_no_mach_ir f =
+  "-no-mach-ir", Arg.Unit f, " Avoid using the Mach IR"
+
 let mk_ocamlcfg f =
   "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
 
@@ -754,6 +757,8 @@ module type Flambda_backend_options = sig
 
   val gc_timings : unit -> unit
 
+  val no_mach_ir : unit -> unit
+
   val flambda2_debug : unit -> unit
   val no_flambda2_debug : unit -> unit
   val flambda2_join_points : unit -> unit
@@ -882,6 +887,8 @@ struct
     mk_internal_assembler F.internal_assembler;
 
     mk_gc_timings F.gc_timings;
+
+    mk_no_mach_ir F.no_mach_ir;
 
     mk_flambda2_debug F.flambda2_debug;
     mk_no_flambda2_debug F.no_flambda2_debug;
@@ -1083,6 +1090,8 @@ module Flambda_backend_options_impl = struct
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
   let gc_timings = set' Flambda_backend_flags.gc_timings
+
+  let no_mach_ir () = ()
 
   let flambda2_debug = set' Flambda_backend_flags.Flambda2.debug
   let no_flambda2_debug = clear' Flambda_backend_flags.Flambda2.debug
@@ -1324,6 +1333,7 @@ module Extra_params = struct
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
+    | "no-mach-ir" -> Flambda_backend_options_impl.no_mach_ir (); true
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
