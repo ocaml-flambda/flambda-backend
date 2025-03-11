@@ -23,7 +23,7 @@ let mk_no_flambda2_debug f =
   "-no-flambda2-debug", Arg.Unit f, " Disable debug output for the Flambda2 pass"
 
 let mk_no_mach_ir f =
-  "-no-mach-ir", Arg.Unit f, " Avoid using the Mach IR"
+  "-no-mach-ir", Arg.Unit f, " Avoid using the Mach IR (kept temporarily only for backward compatibility, has no effects)"
 
 let mk_ocamlcfg f =
   "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
