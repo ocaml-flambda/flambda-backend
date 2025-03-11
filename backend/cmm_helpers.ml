@@ -401,41 +401,98 @@ let[@inline] get_const = function
   | Cconst_natint (i, _) -> Some i
   | _ -> None
 
-let or_int c1 c2 dbg =
-  match get_const c1, get_const c2 with
-  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logor c1 c2)
-  | _, Some 0n | Some -1n, _ -> c1
-  | Some 0n, _ | _, Some -1n -> c2
-  | Some _, None ->
-    (* prefer putting constants on the right *)
-    Cop (Cor, [c2; c1], dbg)
-  | _, _ -> Cop (Cor, [c1; c2], dbg)
-
-let and_int c1 c2 dbg =
-  match get_const c1, get_const c2 with
-  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logand c1 c2)
-  | _, Some 0n | Some -1n, _ -> c2
-  | Some 0n, _ | _, Some -1n -> c1
-  | Some _, None ->
-    (* prefer putting constants on the right *)
-    Cop (Cand, [c2; c1], dbg)
-  | _, _ -> Cop (Cand, [c1; c2], dbg)
-
-let xor_int c1 c2 dbg =
-  match get_const c1, get_const c2 with
-  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logxor c1 c2)
-  | _, Some 0n -> c1
-  | Some 0n, _ -> c2
-  | Some _, None ->
-    (* prefer putting constants on the right *)
-    Cop (Cxor, [c2; c1], dbg)
-  | _, _ -> Cop (Cxor, [c1; c2], dbg)
-
 let replace x ~with_ =
   match x with
   | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ | Cvar _ | Ctuple [] ->
     with_
   | inner -> Csequence (inner, with_)
+
+let rec xor_const e n dbg =
+  match n with
+  | 0n -> e
+  | n -> (
+    match get_const e with
+    | Some e -> natint_const_untagged dbg (Nativeint.logxor e n)
+    | None -> (
+      let[@local] default () =
+        (* prefer putting constants on the right *)
+        Cop (Cxor, [e; natint_const_untagged dbg n], dbg)
+      in
+      match e with
+      | Cop (Cxor, [x; y], _) -> (
+        match get_const y with
+        | None -> default ()
+        | Some y -> xor_const x (Nativeint.logxor y n) dbg)
+      | _ -> default ()))
+
+let rec or_const e n dbg =
+  match n with
+  | 0n -> e
+  | -1n -> replace e ~with_:(Cconst_int (-1, dbg))
+  | n -> (
+    let[@local] default () =
+      (* prefer putting constants on the right *)
+      Cop (Cor, [e; natint_const_untagged dbg n], dbg)
+    in
+    match get_const e with
+    | Some e -> natint_const_untagged dbg (Nativeint.logor e n)
+    | None -> (
+      match e with
+      | Cop (Cor, [x; y], _) -> (
+        match get_const y with
+        | None -> default ()
+        | Some y -> or_const x (Nativeint.logor y n) dbg)
+      | _ -> default ()))
+
+let rec and_const e n dbg =
+  match n with
+  | 0n -> replace e ~with_:(Cconst_int (0, dbg))
+  | -1n -> e
+  | n -> (
+    match get_const e with
+    | Some e -> natint_const_untagged dbg (Nativeint.logand e n)
+    | None -> (
+      let[@local] default () =
+        (* prefer putting constants on the right *)
+        Cop (Cand, [e; natint_const_untagged dbg n], dbg)
+      in
+      match e with
+      | Cop (Cand, [x; y], dbg) -> (
+        match get_const y with
+        | Some y -> and_const x (Nativeint.logand y n) dbg
+        | None -> default ())
+      | Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg) -> (
+        let[@local] load memory_chunk =
+          Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg)
+        in
+        match memory_chunk, n with
+        | (Byte_signed | Byte_unsigned), 0xffn -> load Byte_unsigned
+        | (Sixteen_signed | Sixteen_unsigned), 0xffffn -> load Sixteen_unsigned
+        | (Thirtytwo_signed | Thirtytwo_unsigned), 0xffff_ffffn ->
+          load Thirtytwo_unsigned
+        | _ -> default ())
+      | _ -> default ()))
+
+let xor_int c1 c2 dbg =
+  match get_const c1, get_const c2 with
+  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logxor c1 c2)
+  | None, Some c2 -> xor_const c1 c2 dbg
+  | Some c1, None -> xor_const c2 c1 dbg
+  | None, None -> Cop (Cxor, [c1; c2], dbg)
+
+let or_int c1 c2 dbg =
+  match get_const c1, get_const c2 with
+  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logor c1 c2)
+  | None, Some c2 -> or_const c1 c2 dbg
+  | Some c1, None -> or_const c2 c1 dbg
+  | None, None -> Cop (Cor, [c1; c2], dbg)
+
+let and_int c1 c2 dbg =
+  match get_const c1, get_const c2 with
+  | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logand c1 c2)
+  | None, Some c2 -> and_const c1 c2 dbg
+  | Some c1, None -> and_const c2 c1 dbg
+  | None, None -> Cop (Cand, [c1; c2], dbg)
 
 let rec lsr_int c1 c2 dbg =
   match c1, c2 with
@@ -2094,17 +2151,6 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_native_int -> Word_int
   | Pbigarray_complex32 -> Single { reg = Float64 }
   | Pbigarray_complex64 -> Double
-
-let and_int e1 e2 dbg =
-  let is_mask32 = function
-    | Cconst_natint (0xFFFF_FFFFn, _) -> true
-    | Cconst_int (n, _) -> Nativeint.of_int n = 0xFFFF_FFFFn
-    | _ -> false
-  in
-  match e1, e2 with
-  | e, m when is_mask32 m -> zero_extend ~bits:32 e ~dbg
-  | m, e when is_mask32 m -> zero_extend ~bits:32 e ~dbg
-  | e1, e2 -> and_int e1 e2 dbg
 
 (* Boxed integers *)
 

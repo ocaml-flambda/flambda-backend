@@ -258,6 +258,12 @@ class selector =
           Ispecific Isextend32, [k]
         | _ -> super#select_operation op args dbg)
       (* Recognize zero extension *)
+      | Clsr -> (
+        match args with
+        | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
+          Ispecific Izextend32, [k]
+        | _ -> super#select_operation op args dbg)
+      (* Recognize zero extension again *)
       | Cand -> (
         match args with
         | [arg; Cconst_int (0xffff_ffff, _)]
