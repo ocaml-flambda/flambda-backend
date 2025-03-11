@@ -852,7 +852,7 @@ static void custom_finalize_minor (caml_domain_state * domain)
   }
 }
 
-static void dependent_finalize_minor (caml_domain_state *domain)
+static void dependent_accounting_minor (caml_domain_state *domain)
 {
   struct caml_dependent_elt *elt;
   for (elt = domain->minor_tables->dependent.base;
@@ -861,10 +861,6 @@ static void dependent_finalize_minor (caml_domain_state *domain)
     CAMLassert (Is_block (*v));
     if (Is_young(*v)) {
       if (get_header_val(*v) == 0) { /* value copied to major heap */
-#ifdef DEBUG
-        domain->minor_dependent_bsz -= elt->mem;
-        /* see assertion below */
-#endif
         /* inlined version of [caml_alloc_dependent_memory] */
         domain->allocated_dependent_bytes += elt->mem;
         domain->stat_promoted_dependent_bytes += elt->mem;
@@ -872,9 +868,9 @@ static void dependent_finalize_minor (caml_domain_state *domain)
       }
     }
   }
-  /* At this point, everything must be finalized or promoted. */
-  CAMLassert (domain->minor_dependent_bsz == 0);
-  domain->minor_dependent_bsz = 0;
+    /* Don't touch minor_dependent_bsz() as it's outside our control
+       (controlled by caml_alloc/free_dependent_memory). It's cleared
+       at the end of the collection. */
 }
 
 /* Increment the counter non-atomically, when it is already known that this
@@ -990,7 +986,7 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
 
   CAML_EV_BEGIN(EV_MINOR_DEPENDENT);
   caml_gc_log("accounting for minor blocks with dependent memory");
-  dependent_finalize_minor(domain);
+  dependent_accounting_minor(domain);
   CAML_EV_END(EV_MINOR_DEPENDENT);
 
   CAML_EV_BEGIN(EV_MINOR_FINALIZERS_ADMIN);
