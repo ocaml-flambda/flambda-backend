@@ -604,30 +604,30 @@ let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
 
 let check_bound ~(index_kind : Lambda.array_index_kind) ~(bound_kind : I.t)
     ~index ~bound : H.expr_primitive =
-  let (comp_kind : I.t), index, bound =
-    let convert_bound_to dst =
-      H.Prim
-        (Unary (Num_conv { src = I_or_f.of_standard_int bound_kind; dst }, bound))
-    in
-    (* The reason why we convert the bound instead of the index value is because
-       of edge cases around large negative numbers.
-
-       Given [-9223372036854775807] as a [Naked_int64] index, its bit
-       representation is
-       [0b1000000000000000000000000000000000000000000000000000000000000001]. If
-       we convert that into a [Tagged_immediate], it becomes [0b11] and the
-       bounds check would pass in cases that we should reject.
-
-       This also has the added benefit of producing better assembly code.
-       Usually saving one instruction compared to tagging the index value. *)
+  let index_kind =
     match index_kind with
-    | Ptagged_int_index ->
-      I.Naked_immediate, untag_int index, convert_bound_to Naked_immediate
-    | Punboxed_int_index bint ->
-      ( standard_int_of_unboxed_integer bint,
-        index,
-        convert_bound_to (standard_int_or_float_of_unboxed_integer bint) )
+    | Ptagged_int_index -> I.Tagged_immediate
+    | Punboxed_int_index width -> standard_int_of_unboxed_integer width
   in
+  let comp_kind : I.t =
+    match index_kind, bound_kind with
+    | Tagged_immediate, Tagged_immediate -> Tagged_immediate
+    | Naked_int64, _ | _, Naked_int64 -> Naked_int64
+    | ( (Naked_nativeint | Tagged_immediate | Naked_immediate | Naked_int32),
+        (Naked_nativeint | Tagged_immediate | Naked_immediate | Naked_int32) )
+      ->
+      Naked_nativeint
+  in
+  let conv x ~src =
+    if I.equal src comp_kind
+    then x
+    else
+      let src = I_or_f.of_standard_int src in
+      let dst = I_or_f.of_standard_int comp_kind in
+      H.Prim (Unary (Num_conv { src; dst }, x))
+  in
+  let index = conv index ~src:index_kind in
+  let bound = conv bound ~src:bound_kind in
   Binary (Int_comp (comp_kind, Yielding_bool (Lt Unsigned)), index, bound)
 
 (* This computes the maximum of a given value [x] with zero, in an optimized
@@ -673,7 +673,14 @@ let actual_max_length_for_string_like_access ~size_int
       | Sixty_four -> 7
       | One_twenty_eight _ -> 15
     in
-    Targetint_31_63.of_int offset
+    Targetint_32_64.of_int offset
+  in
+  (* We need to convert the length into a naked_nativeint because the optimised
+     version of the max_with_zero function needs to be on machine-width integers
+     to work (or at least on an integer number of bytes to work). *)
+  let length =
+    H.Prim
+      (Unary (Num_conv { src = Naked_immediate; dst = Naked_nativeint }, length))
   in
   match access_size with
   | Eight -> length (* micro-optimization *)
@@ -682,31 +689,17 @@ let actual_max_length_for_string_like_access ~size_int
     let reduced_length =
       H.Prim
         (Binary
-           ( Int_arith (Naked_immediate, Sub),
+           ( Int_arith (Naked_nativeint, Sub),
              length,
-             Simple (Simple.const (Reg_width_const.naked_immediate offset)) ))
+             Simple (Simple.const (Reg_width_const.naked_nativeint offset)) ))
     in
-    (* We need to convert the length into a naked_nativeint because the
-       optimised version of the max_with_zero function needs to be on
-       machine-width integers to work (or at least on an integer number of bytes
-       to work). *)
-    let reduced_length_nativeint =
-      H.Prim
-        (Unary
-           ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
-             reduced_length ))
-    in
-    let nativeint_res = max_with_zero ~size_int reduced_length_nativeint in
-    H.Prim
-      (Unary
-         ( Num_conv { src = Naked_nativeint; dst = Naked_immediate },
-           nativeint_res ))
+    max_with_zero ~size_int reduced_length
 
 (* String-like validity conditions *)
 
 let string_like_access_validity_condition ~size_int ~access_size ~length
     ~index_kind index : H.expr_primitive =
-  check_bound ~index_kind ~bound_kind:Naked_immediate ~index
+  check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
     ~bound:
       (actual_max_length_for_string_like_access ~size_int ~access_size length)
 
