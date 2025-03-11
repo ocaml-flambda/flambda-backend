@@ -77,7 +77,13 @@ uintnat caml_percent_free = Percent_free_def;
 uintnat caml_max_percent_free = Max_percent_free_def;
 uintnat caml_percent_sweep_per_mark = 120; /* TODO: benchmark this value */
 
-uintnat caml_gc_pacing_policy = 0;
+/* Allowable values of caml_gc_pacing_policy */
+
+#define GC_PACING_OCAML_53        0 /* Pacing as in OCaml 5.3 */
+#define GC_PACING_2025_SIMPLE     1 /* simple variant of 2025 pacing */
+#define GC_PACING_2025_FULL       2 /* full 2025 pacing (TODO) */
+
+uintnat caml_gc_pacing_policy = GC_PACING_OCAML_53;
 
 /* This variable is only written with the world stopped, so it need not be
    atomic */
@@ -153,7 +159,7 @@ static atomic_uintnat num_domains_orphaning_finalisers = 0;
    only used locally during marking */
 static intnat Markwork_sweepwork(intnat sweep_work)
 {
-  if (caml_gc_pacing_policy == 0) {
+  if (caml_gc_pacing_policy == GC_PACING_OCAML_53) {
     return sweep_work;
   } else {
     return sweep_work * 100 / (intnat)caml_percent_sweep_per_mark;
@@ -162,7 +168,7 @@ static intnat Markwork_sweepwork(intnat sweep_work)
 
 static intnat Sweepwork_markwork(intnat mark_work)
 {
-  if (caml_gc_pacing_policy == 0) {
+  if (caml_gc_pacing_policy == GC_PACING_OCAML_53) {
     return mark_work;
   } else {
     return mark_work * (intnat)caml_percent_sweep_per_mark / 100;
@@ -654,6 +660,114 @@ static uintnat sweep_work_done_between_slices(void)
   return work;
 }
 
+/* Apply the GC pacing policy to determine how much work this domain
+ * should do on a slice, measured in words of sweep-work. Parameters:
+ * - `heap_words` is the total allocated size of this domain's heap.
+ * - `allocated_words` is the number of words allocated on-heap by this
+ *    domain since the last slice.
+ * - `dependent_words` is the number of words allocated off-heap by this
+ *    domain since the last slice. */
+
+static uintnat gc_slice_work(uintnat heap_words,
+                             uintnat allocated_words,
+                             uintnat dependent_words)
+{
+  switch (caml_gc_pacing_policy) {
+    case GC_PACING_OCAML_53: {
+      /* Pacing policy from OCaml 5.3. */
+
+      /* Extra work factor due to dependent allocation. */
+
+      /* The custom major ratio is a percentage relative to the major
+         heap size. A complete GC cycle will be done every time 2/3 of
+         that much memory is allocated in the major heap. Assuming
+         constant allocation and deallocation rates, this means there
+         are at most [M/100 * major-heap-size] bytes of floating
+         garbage at any time. The reason for a factor of 2/3 is,
+         roughly speaking, because the major GC takes 1.5 cycles
+         (previous cycle + marking phase) before it starts to
+         deallocate dead blocks allocated during the previous
+         cycle. */
+      double custom_max_major =
+        Bsize_wsize(heap_words) * (2.0/3) / 100 * caml_custom_major_ratio;
+      double extra_factor = Bsize_wsize(dependent_words) / custom_max_major;
+      if (extra_factor > 1.0) extra_factor = 1.0;
+
+      /*
+         Free memory at the start of the GC cycle (garbage + free list) (assumed):
+                     FM = heap_words * caml_percent_free
+                          / (100 + caml_percent_free)
+
+         Assuming steady state and enforcing a constant allocation rate, then
+         FM is divided in 2/3 for garbage and 1/3 for free list.
+                  G = 2 * FM / 3
+         G is also the amount of memory that will be used during this cycle
+         (still assuming steady state).
+
+         Proportion of G consumed since the previous slice:
+                  PH = dom_st->allocated_words / G
+                    = dom_st->allocated_words * 3 * (100 + caml_percent_free)
+                      / (2 * heap_words * caml_percent_free)
+         Proportion of extra-heap resources consumed since the previous slice:
+                  PE = dom_st->extra_heap_resources
+         Proportion of total work to do in this slice:
+                  P  = max (PH, PE)
+         Amount of marking work for the GC cycle:
+                  MW = heap_words * 100 / (100 + caml_percent_free)
+         Amount of sweeping work for the GC cycle:
+         SW = heap_sweep_words
+         Amount of total work for the GC cycle:
+         TW = MW + SW
+         = heap_words * 100 / (100 + caml_percent_free) + heap_sweep_words
+
+         Amount of work for this slice:
+         S = P * TW
+      */
+      uintnat heap_sweep_words = heap_words;
+
+      uintnat total_cycle_work =
+        heap_sweep_words + (heap_words * 100 / (100 + caml_percent_free));
+
+      uintnat alloc_work;
+      if (heap_words > 0) {
+        double alloc_ratio = /* PH */
+          allocated_words * 3.0 * (100 + caml_percent_free)
+          / (heap_words * caml_percent_free * 2.0);
+        alloc_work = (uintnat) (total_cycle_work * alloc_ratio);
+      } else {
+        alloc_work = 0;
+      }
+
+      uintnat offheap_work = (uintnat) (extra_factor * (double) total_cycle_work);
+      uintnat clamp = alloc_work * caml_custom_work_max_multiplier;
+      if (offheap_work > clamp) {
+        CAML_GC_MESSAGE(POLICY, "Work clamped to %"
+                        ARCH_INTNAT_PRINTF_FORMAT "d\n",
+                        clamp);
+        offheap_work = clamp;
+      }
+
+      return max2 (alloc_work, offheap_work);
+    }
+  case GC_PACING_2025_FULL: /* TODO: separate this out. */
+    /* fall through */
+  case GC_PACING_2025_SIMPLE: {
+    /* Shiny new 2025 Doligez/Dolan pacing policy */
+    double sweep_per_mark = (double)caml_percent_sweep_per_mark / 100.0;
+    double space_overhead = (double)caml_percent_free / 100.0;
+    double sweep_per_dep_alloc = (1 + 2.0 * sweep_per_mark) / space_overhead;
+    double sweep_per_alloc = 1 + sweep_per_dep_alloc;
+
+    return (uintnat) (sweep_per_alloc * allocated_words +
+                      sweep_per_dep_alloc * dependent_words);
+
+  }
+  default:
+    caml_fatal_error("Unknown GC pacing policy %"ARCH_INTNAT_PRINTF_FORMAT"u.",
+                     caml_gc_pacing_policy);
+  }
+}
+
 /* The [log_events] parameter is used to disable writing to the ring, to
       avoid logging events when the calling domain is not part of the
       Stop-The-World (STW) participant set. If the domain is not part of
@@ -681,103 +795,7 @@ static void update_major_slice_work(intnat howmuch,
 
   uintnat heap_words = Wsize_bsize(caml_heap_size(dom_st->shared_heap));
 
-  intnat new_work;
-
-  if (caml_gc_pacing_policy == 0)
-  {
-    /* GC pacing policy */
-    intnat alloc_work, extra_work;
-    double my_extra_count;
-    uintnat heap_sweep_words, total_cycle_work;
-
-    /* The major ratio is a percentage relative to the major heap size.
-       A complete GC cycle will be done every time 2/3 of that much
-       memory is allocated for blocks in the major heap.  Assuming
-       constant allocation and deallocation rates, this means there are
-       at most [M/100 * major-heap-size] bytes of floating garbage at
-       any time.  The reason for a factor of 2/3 (or 1.5) is, roughly
-       speaking, because the major GC takes 1.5 cycles (previous cycle +
-       marking phase) before it starts to deallocate dead blocks
-       allocated during the previous cycle.  [heap_size / 150] is really
-       [heap_size * (2/3) / 100] (but faster). */
-    double custom_max_major =
-      Bsize_wsize(heap_words) / 150 * caml_custom_major_ratio;
-    my_extra_count = Bsize_wsize(my_dependent_count) / custom_max_major;
-    if (my_extra_count > 1.0) my_extra_count = 1.0;
-
-    /*
-       Free memory at the start of the GC cycle (garbage + free list) (assumed):
-                   FM = heap_words * caml_percent_free
-                        / (100 + caml_percent_free)
-
-       Assuming steady state and enforcing a constant allocation rate, then
-       FM is divided in 2/3 for garbage and 1/3 for free list.
-                G = 2 * FM / 3
-       G is also the amount of memory that will be used during this cycle
-       (still assuming steady state).
-
-       Proportion of G consumed since the previous slice:
-                PH = dom_st->allocated_words / G
-                  = dom_st->allocated_words * 3 * (100 + caml_percent_free)
-                    / (2 * heap_words * caml_percent_free)
-       Proportion of extra-heap resources consumed since the previous slice:
-                PE = dom_st->extra_heap_resources
-       Proportion of total work to do in this slice:
-                P  = max (PH, PE)
-       Amount of marking work for the GC cycle:
-                MW = heap_words * 100 / (100 + caml_percent_free)
-       Amount of sweeping work for the GC cycle:
-                SW = heap_sweep_words
-       Amount of total work for the GC cycle:
-                TW = MW + SW
-                = heap_words * 100 / (100 + caml_percent_free) + heap_sweep_words
-
-       Amount of time to spend on this slice:
-                   T = P * TT
-
-       Since we must do TW amount of work in TT time, the amount of work done
-       for this slice is:
-                   S = P * TW
-    */
-    heap_sweep_words = heap_words;
-
-    total_cycle_work =
-      heap_sweep_words + (heap_words * 100 / (100 + caml_percent_free));
-
-    if (heap_words > 0) {
-      double alloc_ratio =
-        total_cycle_work
-        * 3.0 * (100 + caml_percent_free)
-        / heap_words / caml_percent_free / 2.0;
-      alloc_work = (intnat) (my_alloc_count * alloc_ratio);
-    } else {
-      alloc_work = 0;
-    }
-
-    extra_work = (intnat) (my_extra_count * (double) total_cycle_work);
-
-    intnat offheap_work = extra_work;
-    intnat clamp = alloc_work * caml_custom_work_max_multiplier;
-    if (offheap_work > clamp) {
-      CAML_GC_MESSAGE(POLICY, "Work clamped to %"
-                      ARCH_INTNAT_PRINTF_FORMAT "d\n",
-                      clamp);
-      offheap_work = clamp;
-    }
-
-    new_work = max2 (alloc_work, offheap_work);
-  }
-  else
-  {
-    double sweep_per_mark = (double)caml_percent_sweep_per_mark / 100.0;
-    double space_overhead = (double)caml_percent_free / 100.0;
-    double sweep_per_dep_alloc = (1 + 2.0 * sweep_per_mark) / space_overhead;
-    double sweep_per_alloc = 1 + sweep_per_dep_alloc;
-
-    new_work = (intnat)
-      (sweep_per_alloc * my_alloc_count +
-       sweep_per_dep_alloc * my_dependent_count);
-  }
+  uintnat new_work = gc_slice_work(heap_words, my_alloc_count, my_dependent_count);
 
   atomic_fetch_add (&total_work_incurred, new_work);
 
