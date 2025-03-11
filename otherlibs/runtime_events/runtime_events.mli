@@ -88,7 +88,33 @@ Live blocks of a Domain's major heap pools.
 Live blocks of a Domain's major heap large allocations.
 @since 5.1 *)
 | EV_C_REQUEST_MINOR_REALLOC_DEPENDENT_TABLE
-(** Reallocation of the table of dependent memory from minor heap *)
+(**
+   Reallocation of the table of dependent memory from minor heap
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_ALLOC_WORDS
+(**
+Words of heap allocation by this domain since the last major slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_ALLOC_DEPENDENT_WORDS
+(**
+Words of off-heap allocation by this domain since the last major slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_NEW_WORK
+(**
+New GC work incurred by this domain since the last major slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_TOTAL_WORK
+(**
+Total pending GC work (for all domains) at start of slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_BUDGET
+(**
+Work budget for this domain in the current slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_WORK_DONE
+(**
+Total work done by this domain in a slice
+@since 5.4 *)
 
 (** The type for span events emitted by the runtime. *)
 type runtime_phase =
