@@ -1210,6 +1210,8 @@ let compare_unary_primitive p1 p2 =
     Bool.compare ghost1 ghost2
   | End_try_region { ghost = ghost1 }, End_try_region { ghost = ghost2 } ->
     Bool.compare ghost1 ghost2
+  | Peek kind1, Peek kind2 ->
+    Flambda_kind.Standard_int_or_float.compare kind1 kind2
   | ( ( Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _
       | Is_null | Get_tag | String_length _ | Int_as_pointer _
       | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
@@ -1714,6 +1716,8 @@ let compare_binary_primitive p1 p2 =
     Block_access_field_kind.compare block_access_field_kind1
       block_access_field_kind2
   | Atomic_int_arith op1, Atomic_int_arith op2 -> Stdlib.compare op1 op2
+  | Poke kind1, Poke kind2 ->
+    Flambda_kind.Standard_int_or_float.compare kind1 kind2
   | ( ( Block_set _ | Array_load _ | String_or_bigstring_load _
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
       | Float_arith _ | Float_comp _ | Bigarray_get_alignment _
