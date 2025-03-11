@@ -483,6 +483,16 @@ Line 1, characters 11-15:
 Error: The type "M.t" has no unboxed version.
 |}]
 
+type t = s and s = t = { x : int }
+[%%expect{|
+Line 1, characters 0-10:
+1 | type t = s and s = t = { x : int }
+    ^^^^^^^^^^
+Error: The type abbreviation "t" is cyclic:
+         "t" = "s",
+         "s" = "t"
+|}]
+
 (********************)
 (* Module inclusion *)
 
