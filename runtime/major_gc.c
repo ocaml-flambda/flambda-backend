@@ -814,8 +814,17 @@ static void update_major_slice_work(intnat howmuch,
                   dom_st->slice_budget);
 
   if (log_events) {
-    /* TODO: add event logging here (haven't ported upstream events as flambda-backend
-     * pacing code is about to change anyway). */
+    CAML_EV_COUNTER(EV_C_MAJOR_SLICE_ALLOC_WORDS,
+                    my_alloc_count);
+    CAML_EV_COUNTER(EV_C_MAJOR_SLICE_ALLOC_DEPENDENT_WORDS,
+                    my_dependent_count);
+    CAML_EV_COUNTER(EV_C_MAJOR_SLICE_NEW_WORK,
+                    new_work);
+    CAML_EV_COUNTER(EV_C_MAJOR_SLICE_TOTAL_WORK,
+                    (uintnat)diffmod(atomic_load(&total_work_incurred),
+                                     atomic_load(&total_work_completed)));
+    CAML_EV_COUNTER(EV_C_MAJOR_SLICE_BUDGET,
+                    dom_st->slice_budget);
   }
 }
 
@@ -2069,7 +2078,11 @@ mark_again:
   }
 
   call_timing_hook(&caml_major_slice_end_hook);
-  if (log_events) CAML_EV_END(EV_MAJOR_SLICE);
+  if (log_events) {
+    CAML_EV_END(EV_MAJOR_SLICE);
+    CAML_EV_COUNTER(EV_C_MAJOR_SLICE_WORK_DONE,
+                    sweep_work + mark_work + ephe_mark_work + ephe_sweep_work);
+  }
 
 #define F_U "%"ARCH_INTNAT_PRINTF_FORMAT"u"
 
