@@ -49,9 +49,12 @@ To run `add4`, we need to get our hands on a *scheduler*. Each scheduler is
 provided by a library and determines the policy by which tasks get doled out and
 run in domains. For this tutorial, we'll use `parallel_scheduler_queue`, which
 maintains a pool of worker domains that pull tasks from a global queue. You can
-also use `parallel_scheduler_sequential`, which is a “trivial scheduler” that
-runs everything on the primary domain. This is handy if you want to test
+also use `parallel_scheduler_sequential**, which is a trivial “scheduler” that
+just runs everything on the primary domain. This is handy if you want to test
 parallel code without switching to a multicore-enabled runtime.
+
+**[This is a slightly old phrasing: probably we should show `average` working
+fine until we split it across files]**
 
 If we try to call **`[f]`** from our threads, however, we get an error from the
 compiler:
@@ -157,12 +160,13 @@ A data race requires two things:
 The `contended` mode and its opposite, `uncontended`, prevent data races by
 ensuring that this is impossible. To do so, they institute two key rules:
 
-- **Rule 1.** If multiple domains can access the same value, at most one of
-  those domains may consider that value `uncontended`. All the others must
-  consider it `contended`.
-- **Rule 2.** Reading or modifying a `mutable` field is not allowed if the
-  record is `contended`. The same goes for any element of a `contended` array
-  (unless it's an `iarray`, since those are immutable).
+> **Rule 1.** If multiple accesses of the same value may occur in parallel, at
+> most one of them may consider the value `uncontended`. The others must
+> consider it `contended`.
+
+> **Rule 2.** Reading or modifying a `mutable` field is not allowed if the
+> record is `contended`. The same goes for any element of a `contended` array
+> (unless it's an `iarray`, since those are immutable).
 
 Taken together, these two rules guarantee data-race freedom. However, rule 1
 requires quite a bit of machinery to enforce, including other modes such as
@@ -204,16 +208,79 @@ let f (t @ uncontended) =
 ```
 
 Of course, this only helps if it is in fact impossible to call `f` and `g` with
-the same argument in different domains. That's where rule 1 comes in. There's no
-one place where rule 1 is enforced---really, it's an invariant of the whole
-system (language, runtime, and core libraries)---but let's see one example of
-trying to break it:
+the same argument in parallel. That's where rule 1 comes in. There's no one
+place where rule 1 is enforced---really, it's an invariant of the whole system
+(language, runtime, and core libraries)---but let's see one example of trying to
+break it:
 
 ```ocaml
 let () =
   let t = { a : 1; b : 2 } in
-  
+  let (), () = Parallel.fork_join2 par (fun _par -> f t) (fun _par -> g t) in
+  ()
 ```
+
+```
+Error: This value is contended but expected to be uncontended.
+```
+
+When we cover the `portable` mode we'll be able to explain precisely what's
+going on here, but for the moment suffice it to say that `fork_join2` requires
+that it be safe to run `f t` and `g t` in parallel. Treating `t** as `uncontended**
+in both tasks would violate rule 1.
+
+**[Something to connect to:]**
+
+> **Rule 3.** An `uncontended` value may be used as though it is `contended`.
+
+In this way, `contended` is much like `local`: if a function takes a `contended`
+parameter then the caller is _allowed_ to pass a `contended` value but it is not
+required to. Similarly, `uncontended` is like `global`: it is a constraint that
+_must_ be met.
+
+**[Now a bit of explanation leading to ...]**
+
+> **Rule 4.** Any component of a `contended` value is `contended`.
+
+**[... which is easy to justify by rule 1.]**
+
+**[Also:]**
+
+#### The `shared` mode
+
+**[Also mention `shared` in case people see it in errors.]**
+
+### The `portable` and `nonportable` modes
+
+Now that we've covered `contended`, we turn to `portable`. Like `contended`, it
+has two main rules, namely a big-picture safety rule and a more concrete typing rule:
+
+> **Rule 1.** Only a `portable` value is safe to access from outside the domain
+> that created it.
+
+> **Rule 2.** If a `portable` function refers to a value outside of its own
+> definition[^closures], then (a) that value must be `portable`, and (b) the value
+> is treated as `contended`.
+
+[^closures]: For the initiated, “all values outside its definition” means
+every variable that the function closes over (which does include global variables).
+
+
+This covers similar territory to `contended`, but there are important
+differences: if a value isn't `portable` (in which case it has the `nonportable`
+mode), then other domains can't access it _at all._ So something can be
+`portable` and `uncontended`, meaning that value is _safe_ to share with other
+domains, but either no other domain _currently_ has access or every other domain
+sees it as `contended`. (If two domains see the same value as `uncontended` then we
+have A Problem since the Golden Rule no longer protects us from data races.**
+
+**[more words here]**
+
+> **Rule 3.** A `portable` value may be treated as `nonportable`.
+
+> **Rule 4.** Every component of a `portable` value must be `portable`**.
+
+**[Point out that this rule 4 is different from the rule 4 for `contended`]**
 
 <!-- ugh, let's try writing `uncontended` first ...
 ### The `contended` mode
@@ -587,6 +654,52 @@ thing about modalities here, though I _definitely_ want to avoid the _word_
 “modalities.” But it doesn't seem worthwhile.\]**
 /ugh
 --> 
+
 # But what if parallel sequences?
+
+```ocaml
+module Tree = struct
+  type 'a t =
+    | Leaf of 'a
+    | Nodes of 'a t iarray
+end
+
+let average tree =
+  let rec total tree =
+    match tree with
+    | Tree.Leaf x -> ~total:x, ~count:1
+    | Tree.Nodes arr ->
+      let totals_and_counts = Iarray.map ~f:total arr in
+      Iarray.fold
+        totals_and_counts
+        ~init:(~total:0.0, ~count:0)
+        ~f:(fun (~total:total_acc, ~count:count_acc) (~total, ~count) ->
+          ~total:(total +. total_acc), ~count:(count + count_acc))
+  in
+  let ~total, ~count = total tree in
+  total /. (count |> Float.of_int)
+;;
+
+let average_par (par : Parallel.t) tree =
+  let rec (total @ portable) par tree =
+    match tree with
+    | Tree.Leaf x -> ~total:x, ~count:1
+    | Tree.Nodes arr ->
+      let seq = Parallel.Sequence.of_iarray arr in
+      let totals_and_counts = Parallel.Sequence.map' ~f:total seq in
+      (match
+          Parallel.Sequence.reduce
+            par
+            totals_and_counts
+            ~f:(fun (~total:total_acc, ~count:count_acc) (~total, ~count) ->
+              ~total:(total +. total_acc), ~count:(count + count_acc))
+        with
+        | None -> ~total:0.0, ~count:0
+        | Some total_and_count -> total_and_count)
+  in
+  let ~total, ~count = total par tree in
+  total /. (count |> Float.of_int)
+;;
+```
 
 # But what if capsules and locks?
