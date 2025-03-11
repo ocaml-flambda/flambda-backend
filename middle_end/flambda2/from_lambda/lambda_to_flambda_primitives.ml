@@ -675,25 +675,30 @@ let actual_max_length_for_string_like_access_as_nativeint ~size_int
     in
     Targetint_32_64.of_int offset
   in
+  (* We need to convert the length into a naked_nativeint because the optimised
+     version of the max_with_zero function needs to be on machine-width integers
+     to work (or at least on an integer number of bytes to work). *)
+  let length =
+    H.Prim
+      (Unary (Num_conv { src = Naked_immediate; dst = Naked_nativeint }, length))
+  in
   match access_size with
   | Eight -> length (* micro-optimization *)
   | Sixteen | Thirty_two | Single | Sixty_four | One_twenty_eight _ ->
     let offset = length_offset_of_size access_size in
-    H.Prim
-      (Binary
-         ( Int_arith (Naked_nativeint, Sub),
-           length,
-           Simple (Simple.const (Reg_width_const.naked_nativeint offset)) ))
-    |> max_with_zero ~size_int
+    let reduced_length =
+      H.Prim
+        (Binary
+           ( Int_arith (Naked_nativeint, Sub),
+             length,
+             Simple (Simple.const (Reg_width_const.naked_nativeint offset)) ))
+    in
+    max_with_zero ~size_int reduced_length
 
 (* String-like validity conditions *)
 
 let string_like_access_validity_condition ~size_int ~access_size ~length
     ~index_kind index : H.expr_primitive =
-  let length =
-    H.Prim
-      (Unary (Num_conv { src = Naked_immediate; dst = Naked_nativeint }, length))
-  in
   check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
     ~bound:
       (actual_max_length_for_string_like_access_as_nativeint ~size_int
