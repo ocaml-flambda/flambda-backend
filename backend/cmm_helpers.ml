@@ -320,6 +320,8 @@ let add_no_overflow n x c dbg =
   let d = n + x in
   if d = 0 then c else Cop (Caddi, [c; Cconst_int (d, dbg)], dbg)
 
+let is_defined_shift n = 0 <= n && n < arch_bits
+
 let rec add_const c n dbg =
   if n = 0
   then c
@@ -336,11 +338,20 @@ let rec add_const c n dbg =
       add_const c (n - x) dbg
     | Cop
         ( Cor,
-          [(Cop (Clsl, [_; Cconst_int (1, _)], _) as inner); Cconst_int (1, _)],
+          [ (Cop (Clsl, [_; Cconst_int (shift, _)], _) as inner);
+            Cconst_int (offset, _) ],
           _ )
-      when n = -1 ->
-      (* undo setting the tag bit *)
-      inner
+      when is_defined_shift shift
+           && Misc.no_overflow_add n offset
+           && offset asr shift = 0 ->
+      (* if shifting right makes the offset zero, then OR and ADD are
+         equivalent *)
+      let n' = n + offset in
+      if n' = 0
+      then inner
+      else if n' asr shift = 0
+      then Cop (Cor, [c; Cconst_int (n', dbg)], dbg)
+      else Cop (Caddi, [c; Cconst_int (n', dbg)], dbg)
     | c -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg)
 
 let incr_int c dbg = add_const c 1 dbg
@@ -374,8 +385,6 @@ let guaranteed_to_be_small_int = function
     (* integer/float comparisons return either [1] or [0]. *)
     true
   | _ -> false
-
-let is_defined_shift n = 0 <= n && n < arch_bits
 
 let ignore_low_bit_int = function
   | Cop
@@ -448,11 +457,11 @@ let rec lsr_int c1 c2 dbg =
       | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
         xor_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
       | c1 -> Cop (Clsr, [c1; c2], dbg)))
-  | Cop (Clsr, [x; (Cconst_int (n', _) as y)], z), c2 when is_defined_shift n'
-    ->
+  | Cop (Clsr, [x; (Cconst_int (n', _) as y)], dbg'), c2
+    when is_defined_shift n' ->
     (* prefer putting the constant shift on the outside to help enable further
        peephole optimizations *)
-    Cop (Clsr, [Cop (Clsr, [x; c2], dbg); y], z)
+    Cop (Clsr, [Cop (Clsr, [x; c2], dbg); y], dbg')
   | c1, c2 -> Cop (Clsr, [c1; c2], dbg)
 
 and asr_int c1 c2 dbg =
@@ -464,11 +473,11 @@ and asr_int c1 c2 dbg =
     | Some x -> natint_const_untagged dbg (Nativeint.shift_right x n)
     | None -> (
       match c1 with
-      | Cconst_int (x, _) -> Cconst_int (x asr n, dbg)
-      | Cconst_natint (x, _) ->
-        natint_const_untagged dbg (Nativeint.shift_right x n)
       | Cop (Casr, [inner; Cconst_int (n', _)], _) when is_defined_shift n' ->
-        (* saturating add, since the sign bit extends to the left *)
+        (* saturating add, since the sign bit extends to the left. This is
+           different from the logical shifts because arithmetic shifting
+           [arch_bits] times or more is the same as shifting [arch_bits - 1]
+           times *)
         asr_const inner (Int.min (n + n') (arch_bits - 1)) dbg
       | Cop (Clsr, [_; Cconst_int (n', _)], _)
         when n' > 0 && is_defined_shift n' ->
