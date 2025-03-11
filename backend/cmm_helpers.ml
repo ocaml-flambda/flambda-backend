@@ -340,26 +340,22 @@ let[@inline] prefer_or = function
     Cop (Cor, [e; n'], dbg)
   | e -> e
 
-(* let rec map_tail1 e ~f =
- *   match e with
- *   | Clet (id, exp, body) -> Clet (id, exp, map_tail1 body ~f)
- *   | Clet_mut (id, kind, exp, body) -> Clet_mut (id, kind, exp, map_tail1 body ~f)
- *   | Cphantom_let (id, exp, body) -> Cphantom_let (id, exp, map_tail1 body ~f)
- *   | Csequence (e1, e2) -> Csequence (e1, map_tail1 e2 ~f)
- *   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
- *   | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Cassign _ | Ctuple _ | Cop _
- *   | Cifthenelse _ | Cexit _ | Ccatch _ | Ctrywith _ | Cswitch _ ->
- *     f e
- *
- * let map_tail2 x y ~f = map_tail1 y ~f:(fun y -> map_tail1 x ~f:(fun x -> f x y)) *)
+let rec map_tail1 e ~f =
+  match e with
+  | Clet (id, exp, body) -> Clet (id, exp, map_tail1 body ~f)
+  | Clet_mut (id, kind, exp, body) -> Clet_mut (id, kind, exp, map_tail1 body ~f)
+  | Cphantom_let (id, exp, body) -> Cphantom_let (id, exp, map_tail1 body ~f)
+  | Csequence (e1, e2) -> Csequence (e1, map_tail1 e2 ~f)
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Cassign _ | Ctuple _ | Cop _
+  | Cifthenelse _ | Cexit _ | Ccatch _ | Ctrywith _ | Cswitch _ ->
+    f e
+
+let map_tail2 x y ~f = map_tail1 y ~f:(fun y -> map_tail1 x ~f:(fun x -> f x y))
 
 let[@inline] is_constant = function
   | Cconst_int _ | Cconst_natint _ -> true
   | _ -> false
-
-let map_tail1 e ~f = f e
-
-let map_tail2 x y ~f = f x y
 
 let rec add_const c n dbg =
   if n = 0
@@ -557,9 +553,6 @@ let rec lsr_int c1 c2 dbg =
             if is_defined_shift (n + n')
             then lsr_const inner (n + n') dbg
             else replace inner ~with_:(Cconst_int (0, dbg))
-          | Cop (Caddi, [x; (Cconst_int (y, _) as y')], _)
-            when y = (y lsr n) lsl n ->
-            add_int (asr_int x c2 dbg) (asr_int y' c2 dbg) dbg
           | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
             or_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
           | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
@@ -602,9 +595,6 @@ and asr_int c1 c2 dbg =
                safe and correct to combine [asr (lsl x y) z] into [asr x (z -
                y)]. *)
             if x > n then lsl_const c (x - n) dbg else asr_const c (n - x) dbg
-          | Cop (Caddi, [x; (Cconst_int (y, _) as y')], _)
-            when y = (y asr n) lsl n ->
-            add_int (asr_int x c2 dbg) (asr_int y' c2 dbg) dbg
           | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
             or_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
           | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
@@ -1606,7 +1596,8 @@ let rec sign_extend ~bits ~dbg e =
   then e
   else
     map_tail
-      (function
+      (fun e ->
+        match prefer_or e with
         | Cop (Cand, [x; y], _) when is_constant y ->
           and_int (sign_extend ~bits x ~dbg) (sign_extend ~bits y ~dbg) dbg
         | Cop (Cor, [x; y], _) when is_constant y ->
