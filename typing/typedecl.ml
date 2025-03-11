@@ -1096,7 +1096,7 @@ let transl_declaration env sdecl (id, uid) =
     decl, typ_shape
   end
 
-(* Record declarations with representation [Record_unboxed] get an implicit
+(* Record declarations with representation [Record_boxed] get an implicit
    unboxed record stored in [type_unboxed_version]. If that record is also an
    alias, so is its stored unboxed version. E.g. [type t = r = { i : int }]'s
    unboxed version gets kind [#{ i : int}] and manifest [r#].
@@ -1106,6 +1106,7 @@ let transl_declaration env sdecl (id, uid) =
    [type_unboxed_version].
 *)
 let gets_unboxed_version decl =
+  (* This must be kept in sync with the match in [derive_unboxed_version] *)
   match decl.type_kind with
   | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
   | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
@@ -1113,7 +1114,8 @@ let gets_unboxed_version decl =
     false
   | Type_record (_, Record_boxed _, _) ->
     true
-let derive_unboxed_version env unboxed_versions_in_group decl =
+let derive_unboxed_version env path_in_group_has_unboxed_version decl =
+  (* This must be kept in sync with the match in [gets_unboxed_version] *)
   match decl.type_kind with
   | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
   | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
@@ -1153,9 +1155,11 @@ let derive_unboxed_version env unboxed_versions_in_group decl =
     in
     let type_manifest =
       let has_unboxed_version path =
-        Path.Set.mem path unboxed_versions_in_group ||
-        try Option.is_some (Env.find_type path env).type_unboxed_version with
-        | Not_found -> Misc.fatal_error "Typedecl.derive_unboxed_version"
+        match Path.Map.find_opt path path_in_group_has_unboxed_version with
+        | Some b -> b
+        | None ->
+          try Option.is_some (Env.find_type path env).type_unboxed_version with
+          | Not_found -> Misc.fatal_error "Typedecl.derive_unboxed_versions"
       in
       match decl.type_manifest with
       | None -> None
@@ -1163,7 +1167,18 @@ let derive_unboxed_version env unboxed_versions_in_group decl =
         match get_desc ty with
         | Tconstr (path, args, _) when has_unboxed_version path ->
           Some (Ctype.newconstr (Path.unboxed_version path) args)
-        | _ -> None
+        | _ ->
+          (* We're in one of two scenarios:
+
+             1. The manifest is a Tconstr to a type without an unboxed version.
+             2. The manifest is not a Tconstr, and [check_coherence] will reject
+                this declaration later.
+
+             In both cases, we could just not give this type an unboxed version,
+             but it's fine to do so, as we already give unboxed versions to
+             types that don't have one (float and [@@unboxed] records), and this
+             simplifies things. *)
+          None
     in
     Some
       {
@@ -1187,17 +1202,15 @@ let derive_unboxed_version env unboxed_versions_in_group decl =
       }
 
 let derive_unboxed_versions decls env =
-  let unboxed_versions_in_group =
-    Path.Set.of_list
-      (List.filter_map
-         (fun (id, d) ->
-            if gets_unboxed_version d then Some (Path.Pident id) else None)
-        decls)
+  let path_in_group_has_unboxed_version =
+    Path.Map.of_seq
+      (List.to_seq decls |>
+       Seq.map (fun (id, d) -> Path.Pident id, gets_unboxed_version d))
   in
   List.map
     (fun (id, d) ->
        let type_unboxed_version =
-         derive_unboxed_version env unboxed_versions_in_group d
+         derive_unboxed_version env path_in_group_has_unboxed_version d
        in
        id, { d with type_unboxed_version })
     decls
