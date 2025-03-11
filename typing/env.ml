@@ -716,7 +716,8 @@ and label_data = label_description
 and type_data =
   { tda_declaration : type_declaration;
     tda_descriptions : type_descriptions;
-    tda_shape : Shape.t; }
+    tda_shape : Shape.t;
+    tda_unboxed_version_descriptions : type_descriptions option }
 
 and module_data =
   { mda_declaration : Subst.Lazy.module_declaration;
@@ -1353,6 +1354,7 @@ let type_of_cstr path = function
           tda_declaration = decl;
           tda_descriptions = Type_record (labels, repr, umc);
           tda_shape = Shape.leaf decl.type_uid;
+          tda_unboxed_version_descriptions = None;
         }
       | _ -> assert false
       end
@@ -1389,6 +1391,7 @@ let rec find_type_data path env seen =
       tda_declaration = decl;
       tda_descriptions = Type_abstract (Btype.type_origin decl);
       tda_shape = Shape.leaf decl.type_uid;
+      tda_unboxed_version_descriptions = None;
     }
   | exception Not_found -> begin
       match path with
@@ -1467,23 +1470,15 @@ and find_type_unboxed_version path env seen =
 and find_type_unboxed_version_data path env seen =
   let tda_declaration = find_type_unboxed_version path env seen in
   let descrs =
-    match tda_declaration.type_kind with
-    | Type_abstract r -> Type_abstract r
-    | Type_record_unboxed_product (_, repr, umc) ->
-      let lbls =
-        Datarepr.unboxed_labels_of_type
-          (Path.unboxed_version path) tda_declaration
-        |> List.map snd
-      in
-      Type_record_unboxed_product (lbls, repr, umc)
-    | Type_open | Type_record _ | Type_variant _ ->
-      Misc.fatal_error
-        "Env.find_type_data: unexpected unboxed version kind"
+    match (find_type_data path env seen).tda_unboxed_version_descriptions with
+    | Some descrs -> descrs
+    | None -> Type_abstract Definition (* path is an alias *)
   in
   {
     tda_declaration;
     tda_descriptions = descrs;
-    tda_shape = Shape.leaf tda_declaration.type_uid
+    tda_shape = Shape.leaf tda_declaration.type_uid;
+    tda_unboxed_version_descriptions = None
   }
 
 let find_modtype_lazy path env =
@@ -2156,14 +2151,16 @@ let rec components_of_module_maker
               | Type_open -> Type_open
             in
             let descrs = store_decl path final_decl in
-            ignore
-              (Option.map (store_decl (Path.unboxed_version path))
-                 final_decl.type_unboxed_version);
+            let unboxed_descrs =
+              Option.map (store_decl (Path.unboxed_version path))
+                final_decl.type_unboxed_version
+            in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
               { tda_declaration = final_decl;
                 tda_descriptions = descrs;
-                tda_shape = shape; }
+                tda_shape = shape;
+                tda_unboxed_version_descriptions = unboxed_descrs }
             in
             c.comp_types <- NameMap.add (Ident.name id) tda c.comp_types;
             env := store_type_infos ~tda_shape:shape id decl !env
@@ -2435,10 +2432,20 @@ and store_type ~check id info shape env =
     | Type_open -> Type_open, env
   in
   let descrs, env = store_decl (Pident id) info env in
+  let unboxed_descrs, env =
+    match info.type_unboxed_version with
+    | Some uinfo ->
+      let unboxed_descrs, env =
+        store_decl (Path.unboxed_version (Pident id)) uinfo env
+      in
+      Some unboxed_descrs, env
+    | None -> None, env
+  in
   let tda =
     { tda_declaration = info;
       tda_descriptions = descrs;
-      tda_shape = shape }
+      tda_shape = shape;
+      tda_unboxed_version_descriptions = unboxed_descrs }
   in
   Builtin_attributes.mark_alerts_used info.type_attributes;
   { env with
@@ -2455,7 +2462,10 @@ and store_type_infos ~tda_shape id info env =
     {
       tda_declaration = info;
       tda_descriptions = Type_abstract (Btype.type_origin info);
-      tda_shape
+      tda_shape;
+      tda_unboxed_version_descriptions =
+        Option.map (fun uinfo -> Type_abstract (Btype.type_origin uinfo))
+          info.type_unboxed_version;
     }
   in
   { env with
