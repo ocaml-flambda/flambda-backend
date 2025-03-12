@@ -898,6 +898,7 @@ module With_subkind = struct
                       ( Scannable Value_only,
                         List.map from_lambda_value_kind fields )
                     | Constructor_mixed mixed_block_shape ->
+                      let orig_mixed_block_shape = mixed_block_shape in
                       let mixed_block_shape =
                         Mixed_block_lambda_shape.of_mixed_block_elements
                           mixed_block_shape
@@ -915,14 +916,21 @@ module With_subkind = struct
                         | Product _ -> assert false
                       in
                       let fields : t array =
-                        Array.map from_mixed_block_element
-                          (Obj.magic(*XXX*)
-                             mixed_block_shape)
+                        (* XXX share with Pmakemixedblock case in flambda2 *)
+                        let new_indexes_to_old_indexes =
+                          Mixed_block_lambda_shape.new_indexes_to_old_indexes
+                            mixed_block_shape
+                        in
+                        Array.init (Array.length new_indexes_to_old_indexes)
+                          (fun new_index ->
+                            from_mixed_block_element
+                              orig_mixed_block_shape.(new_indexes_to_old_indexes.(
+                                                      new_index)))
                       in
                       let mixed_block_shape =
-                        Mixed_block_shape.from_lambda
-                          (Obj.magic(*XXX*)
-                             mixed_block_shape)
+                        Mixed_block_lambda_shape.flattened_shape_unit
+                          mixed_block_shape
+                        |> Mixed_block_shape.from_lambda
                       in
                       ( Scannable (Mixed_record mixed_block_shape),
                         Array.to_list fields )
