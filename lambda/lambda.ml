@@ -1837,7 +1837,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
-  | Pmixedfield ([field], shape, _) -> (
+  | Pmixedfield (field :: _, shape, _) -> (
       if field < 0 || field >= Array.length shape then
         Misc.fatal_errorf "primitive_may_allocate: field index out of bounds \
           for Pmixedfield:@ %d" field;
@@ -2287,7 +2287,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_vector (v, _) -> layout_boxed_vector v
   | Punbox_vector v -> layout_unboxed_vector (Primitive.unboxed_vector v)
   | Pmixedfield ([i], shape, _) -> layout_of_mixed_block_element shape.(i)
-  | Pmixedfield (_, _shape, _) -> assert false
+  | Pmixedfield (_, _shape, _) -> assert false (* XXX *)
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

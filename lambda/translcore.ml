@@ -60,7 +60,7 @@ let check_record_field_sort loc : Jkind.Sort.Const.t -> _ = function
   | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) -> ()
   | Base Void -> raise (Error (loc, Illegal_void_record_field))
   | Product _ -> ()
-(*
+(* XXX
   | Product _ as c -> raise (Error (loc, Illegal_product_record_field c))
 *)
 
