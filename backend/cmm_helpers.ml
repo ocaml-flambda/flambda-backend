@@ -669,9 +669,9 @@ let tag_int i dbg =
   match i with
   | Cconst_int (n, _) -> int_const dbg n
   | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 ->
-    or_const (asr_const c (n - 1) dbg) 1 dbg
+    or_const (asr_const c (n - 1) dbg) 1n dbg
   | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 ->
-    or_const (lsr_const c (n - 1) dbg) 1 dbg
+    or_const (lsr_const c (n - 1) dbg) 1n dbg
   | c -> incr_int (lsl_const c 1 dbg) dbg
 
 let untag_int i dbg =
@@ -682,8 +682,8 @@ let untag_int i dbg =
     asr_const c (n + 1) dbg
   | Cop (Cor, [Cop (Clsr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Clsr, [c; Cconst_int (n + 1, dbg)], dbg)
-  | c -> asr_int c (Cconst_int (1, dbg)) dbg
+    lsr_const c (n + 1) dbg
+  | c -> asr_const c 1 dbg
 
 let mk_not dbg cmm =
   match cmm with
