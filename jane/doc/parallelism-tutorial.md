@@ -67,6 +67,8 @@ let%expect_test "add4 in parallel" =
 ;;
 ```
 
+**[Switch to work-stealing scheduler]**
+
 This creates a queue-based scheduler, along with a _monitor_ to manage
 exceptions. Then it tells the scheduler to run the `test_add4` function before
 shutting down the scheduler. (Naturally, a real program will want to keep the
@@ -91,6 +93,9 @@ We can use `fork_join2` to parallelize `average`:
     total /. (count |> Float.of_int)
   ;;
 ```
+
+**[Mention that `fork_join2` is smart enough to deal with unbalanced trees
+(heartbeat scheduling)]**
 
 So far, so good. But something annoying happens if we introduce an abstraction
 barrier. Suppose instead of a tree of `float`s we have a tree of `Thing.t`s,
@@ -710,6 +715,10 @@ thing about modalities here, though I _definitely_ want to avoid the _word_
 /ugh
 --> 
 
+# Mode crossing
+
+**[Enough to cover `immutable_data` and `mutable_data`]**
+
 # But what if parallel sequences?
 
 ```ocaml
@@ -756,5 +765,7 @@ let average_par (par : Parallel.t) tree =
   total /. (count |> Float.of_int)
 ;;
 ```
+
+**[Also do version with `unfold` that parallelizes over the whole tree]**
 
 # But what if capsules and locks?
