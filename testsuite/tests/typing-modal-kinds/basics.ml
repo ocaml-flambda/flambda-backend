@@ -897,6 +897,7 @@ Error: This type "int t" should be an instance of type
        But the kind of int t must be a subkind of value mod contended
          because of the definition of require_contended at line 1, characters 0-49.
 |}]
+(* CR layouts v2.8: fix principal mode *)
 
 type t2 = int ref t require_contended
 

@@ -399,8 +399,15 @@ let relevant_axes_of_modality ~relevant_for_nullability ~modality =
       | Modal axis ->
         let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
         let modality = Mode.Modality.Value.Const.proj axis modality in
-        let is_constant = Mode.Modality.is_constant modality in
-        not is_constant
+        not (Mode.Modality.is_constant modality)
+      (* The kind-inference.md document (in the repo) discusses both constant
+         modalities and identity modalities. Of course, reality has modalities
+         (such as [shared]) that are neither constants nor identities. Here, we
+         treat all non-constant modalities the way that the design treats identity
+         modalities. This is safe, because it leads to a minimum of
+         mode-crossing. In the future, we may want to complexify the modal-kinds
+         setup to allow for more mode-crossing in the presence of non-constant
+         non-identity modalities. *)
       | Nonmodal Externality -> true
       | Nonmodal Nullability -> (
         match relevant_for_nullability with
