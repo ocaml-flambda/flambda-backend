@@ -59,6 +59,16 @@ let rec flatten_tree_array arr =
          | Leaf { new_index; _ } -> [new_index]
          | Node { children } -> flatten_tree_array children)
 
+let new_indexes_to_old_indexes t =
+  let old_indexes_to_new_indexes =
+    flatten_tree_array t.forest |> Array.of_list
+  in
+  let result = Array.make (Array.length old_indexes_to_new_indexes) (-1) in
+  Array.iteri
+    (fun old_index new_index -> result.(new_index) <- old_index)
+    old_indexes_to_new_indexes;
+  result
+
 type new_indexes = int list
 
 let lookup_path { forest; _ } path =
