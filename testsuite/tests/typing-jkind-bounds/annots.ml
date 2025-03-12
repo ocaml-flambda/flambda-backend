@@ -1714,17 +1714,9 @@ type packed = T : ('a : float64) . 'a -> packed
 
 let f p =
   match p with
-  | T (type a) (_ : a) -> ()
+  | T (type (a : float64)) (_ : a) -> ()
 
 [%%expect{|
 type packed = T : ('a : float64). 'a -> packed
-Line 5, characters 20-21:
-5 |   | T (type a) (_ : a) -> ()
-                        ^
-Error: This pattern matches values of type "a"
-       but a pattern was expected which matches values of type "('a : float64)"
-       The layout of a is value
-         because it's an unannotated existential type variable.
-       But the layout of a must be a sublayout of float64
-         because of the definition of packed at line 1, characters 0-47.
+val f : packed -> unit = <fun>
 |}]

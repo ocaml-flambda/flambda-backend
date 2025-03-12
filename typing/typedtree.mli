@@ -184,7 +184,9 @@ and 'k pattern_desc =
          *)
   | Tpat_construct :
       Longident.t loc * Types.constructor_description *
-        value general_pattern list * (Ident.t loc list * core_type) option ->
+        value general_pattern list *
+        ((Ident.t loc * Parsetree.jkind_annotation option) list * core_type)
+          option ->
       value pattern_desc
         (** C                             ([], None)
             C P                           ([P], None)
@@ -192,7 +194,9 @@ and 'k pattern_desc =
             C (P : t)                     ([P], Some ([], t))
             C (P1, ..., Pn : t)           ([P1; ...; Pn], Some ([], t))
             C (type a) (P : t)            ([P], Some ([a], t))
-            C (type a) (P1, ..., Pn : t)  ([P1; ...; Pn], Some ([a], t))
+            C (type a) (P1, ..., Pn : t)  ([P1; ...; Pn], Some ([a, None], t))
+            C (type (a : k)) (P1, ..., Pn : t)
+                                   ([P1; ...; Pn], Some ([a, Some k], t))
           *)
   | Tpat_variant :
       label * value general_pattern option * Types.row_desc ref ->

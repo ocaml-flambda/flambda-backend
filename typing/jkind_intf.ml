@@ -231,6 +231,7 @@ module History = struct
     | Constructor_type_parameter :
         Path.t * string
         -> (allowed * allowed) annotation_context
+    | Existential_unpack : string -> (allowed * allowed) annotation_context
     | Univar : string -> (allowed * allowed) annotation_context
     | Type_variable : string -> (allowed * allowed) annotation_context
     | Type_wildcard : Location.t -> (allowed * allowed) annotation_context

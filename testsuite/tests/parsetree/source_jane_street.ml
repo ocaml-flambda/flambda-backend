@@ -177,6 +177,34 @@ external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
 external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
 |}]
 
+type packed1 = T1 : ('a : float64). 'a -> packed1
+
+let f1 p =
+  match p with
+  | T1 (type (a : float64)) (_ : a) -> ()
+
+type packed2 = T2 : 'a 'b. 'a * 'b -> packed2
+
+let f2 p =
+  match p with
+  | T2 (type (a : value) b) (_ : a * b) -> ()
+
+let f3 p =
+  match p with
+  | T2 (type a (b : value)) (_ : a * b) -> ()
+
+let f4 p =
+  match p with
+  | T2 (type (a : value) (b : value)) (_ : a * b) -> ()
+[%%expect{|
+type packed1 = T1 : ('a : float64). 'a -> packed1
+val f1 : packed1 -> unit = <fun>
+type packed2 = T2 : 'a * 'b -> packed2
+val f2 : packed2 -> unit = <fun>
+val f3 : packed2 -> unit = <fun>
+val f4 : packed2 -> unit = <fun>
+|}]
+
 (******************)
 (* Comprehensions *)
 

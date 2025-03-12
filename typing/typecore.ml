@@ -1673,19 +1673,20 @@ let solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty =
 let solve_constructor_annotation
     tps (penv : Pattern_env.t) name_list sty ty_args ty_ex =
   let expansion_scope = penv.equations_scope in
-  let ids =
+  let existentials =
     List.map
-      (fun name ->
-         (* CR layouts v1.5: I expect this needs to change when we allow jkind
-            annotations on explicitly quantified vars in gadt constructors.
-            See: https://github.com/ocaml/ocaml/pull/9584/ *)
-        let decl = new_local_type ~loc:name.loc
-                     Definition
-                     (Jkind.Builtin.value ~why:Existential_type_variable) in
+      (fun (name, jkind_annot_opt) ->
+        let jkind =
+          Jkind.of_annotation_option_default
+            ~context:(Existential_unpack name.txt)
+            ~default:(Jkind.Builtin.value ~why:Existential_type_variable)
+            jkind_annot_opt
+        in
+        let decl = new_local_type ~loc:name.loc Definition jkind in
         let (id, new_env) =
           Env.enter_type ~scope:expansion_scope name.txt decl !!penv in
         Pattern_env.set_env penv new_env;
-        {name with txt = id})
+        {name with txt = id}, jkind_annot_opt)
       name_list
   in
   let cty, ty, force =
@@ -1708,8 +1709,8 @@ let solve_constructor_annotation
           Ttuple tyl -> (List.map snd tyl)
         | _ -> assert false
   in
-  if ids <> [] then ignore begin
-    let ids = List.map (fun x -> x.txt) ids in
+  if existentials <> [] then ignore begin
+    let ids = List.map (fun (x, _) -> x.txt) existentials in
     let rem =
       List.fold_left
         (fun rem tv ->
@@ -1725,7 +1726,7 @@ let solve_constructor_annotation
       raise (Error (cty.ctyp_loc, !!penv,
                     Unbound_existential (ids, ty)))
   end;
-  ty_args, Some (ids, cty)
+  ty_args, Some (existentials, cty)
 
 let solve_Ppat_construct ~refine tps penv loc constr no_existentials
         existential_styp expected_ty =

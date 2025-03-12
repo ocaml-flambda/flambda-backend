@@ -157,8 +157,10 @@ and 'k pattern_desc =
       (string option * value general_pattern * Jkind.sort) list ->
       value pattern_desc
   | Tpat_construct :
-      Longident.t loc * constructor_description * value general_pattern list
-      * (Ident.t loc list * core_type) option ->
+      Longident.t loc * Types.constructor_description *
+        value general_pattern list *
+        ((Ident.t loc * Parsetree.jkind_annotation option) list * core_type)
+          option ->
       value pattern_desc
   | Tpat_variant :
       label * value general_pattern option * row_desc ref ->

@@ -3154,10 +3154,6 @@ labeled_simple_expr:
   | OPTLABEL simple_expr %prec below_HASH
       { (Optional $1, $2) }
 ;
-%inline lident_list:
-  xs = mkrhs(LIDENT)+
-    { xs }
-;
 %inline let_ident:
     val_ident { mkpatvar ~loc:$sloc $1 }
 ;
@@ -3653,7 +3649,7 @@ pattern_gen:
   | mkpat(
       mkrhs(constr_longident) pattern %prec prec_constr_appl
         { Ppat_construct($1, Some ([], $2)) }
-    | constr=mkrhs(constr_longident) LPAREN TYPE newtypes=lident_list RPAREN
+    | constr=mkrhs(constr_longident) LPAREN TYPE newtypes=newtypes RPAREN
         pat=simple_pattern
         { Ppat_construct(constr, Some (newtypes, pat)) }
     | name_tag pattern %prec prec_constr_appl

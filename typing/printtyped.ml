@@ -349,7 +349,13 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       list i pattern ppf po;
       option i
         (fun i ppf (vl,ct) ->
-          let names = List.map (fun {txt} -> "\""^Ident.name txt^"\"") vl in
+          let names =
+            List.map
+              (fun ({txt}, jk) ->
+                 asprintf "\"%s\", %a"
+                   (Ident.name txt) (option i jkind_annotation) jk)
+              vl
+          in
           line i ppf "[%s]\n" (String.concat "; " names);
           core_type i ppf ct)
         ppf vto

@@ -122,7 +122,7 @@ module Pat:
                        -> (string option * pattern) list -> closed_flag
                        -> pattern
     val construct: ?loc:loc -> ?attrs:attrs ->
-      lid -> (str list * pattern) option -> pattern
+      lid -> ((str * jkind_annotation option) list * pattern) option -> pattern
     val variant: ?loc:loc -> ?attrs:attrs -> label -> pattern option -> pattern
     val record: ?loc:loc -> ?attrs:attrs -> (lid * pattern) list -> closed_flag
                 -> pattern

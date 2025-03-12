@@ -290,13 +290,17 @@ and pattern_desc =
           - If Closed, [n >= 2]
           - If Open, [n >= 1]
         *)
-  | Ppat_construct of Longident.t loc * (string loc list * pattern) option
+  | Ppat_construct of
+      Longident.t loc
+      * ((string loc * jkind_annotation option) list * pattern) option
       (** [Ppat_construct(C, args)] represents:
             - [C]               when [args] is [None],
             - [C P]             when [args] is [Some ([], P)]
             - [C (P1, ..., Pn)] when [args] is
                                            [Some ([], Ppat_tuple [P1; ...; Pn])]
-            - [C (type a b) P]  when [args] is [Some ([a; b], P)]
+            - [C (type a b) P]  when [args] is [Some ([a, None; b, None], P)]
+            - [C (type (a : k) b) P]
+                                when [args] is [Some ([a, Some k; b, None], P)]
          *)
   | Ppat_variant of label * pattern option
       (** [Ppat_variant(`A, pat)] represents:
