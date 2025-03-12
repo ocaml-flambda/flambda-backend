@@ -31,13 +31,9 @@
     type definition in the surface language to that representation. *)
 type 'a t
 
+type path
+
 val of_mixed_block_elements : 'a Lambda.mixed_block_element array -> 'a t
-
-(** Applies the permutation corresponding to the reordering to the passed array. *)
-val reorder_array : 'a t -> 'b array -> 'b array
-
-(** Get an element from the {i reordered} shape. *)
-val get_reordered : 'a t -> int -> 'a Lambda.mixed_block_element
 
 val value_prefix : 'a t -> 'a Lambda.mixed_block_element array
 
@@ -50,12 +46,16 @@ val flat_suffix_len : 'a t -> int
 (** Access to the shape passed to [of_mixed_block_elements] to build the value. *)
 val original_shape : 'a t -> 'a Lambda.mixed_block_element array
 
-(** Access to the shape, as reordered to follow the runtime restriction. *)
-val reordered_shape : 'a t -> 'a Lambda.mixed_block_element array
+(** Access to the shape, as flattened and following the runtime restriction. *)
+val flattened_shape : 'a t -> 'a Lambda.mixed_block_element array
 
-(** (Same as [reordered_shape]). *)
-val reordered_shape_unit : 'a t -> unit Lambda.mixed_block_element array
+(** (Same as [flattened_shape]). *)
+val flattened_shape_unit : 'a t -> unit Lambda.mixed_block_element array
 
-val old_index_to_new_index : 'a t -> int -> int
+val new_index_to_old_path : 'a t -> int -> path
 
-val new_index_to_old_index : 'a t -> int -> int
+(** XXX doc. *)
+val old_path_to_new_index : 'a t -> path -> int
+
+(** XXX doc. *)
+val old_path_to_new_indices : 'a t -> path -> int list

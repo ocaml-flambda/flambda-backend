@@ -132,14 +132,14 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * mixed_block_shape_with_locality_mode
+  | Pmixedfield of int list * mixed_block_shape_with_locality_mode
       * field_read_semantics
     (** The index to [Pmixedfield] corresponds to an element of the shape, not
         necessarily the index of the field at runtime, as reordering may take
         place on entry to Flambda 2. *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int * mixed_block_shape * initialization_or_assignment
+  | Psetmixedfield of int list * mixed_block_shape * initialization_or_assignment
     (** The same comment about the index as for [Pmixedfield] applies to
         [Psetmixedfield]. *)
   | Pduprecord of Types.record_representation * int
@@ -490,7 +490,7 @@ and 'a mixed_block_element =
   | Bits64
   | Vec128
   | Word
-  | Product of mixed_block_shape
+  | Product of 'a mixed_block_element array
 
 and mixed_block_shape = unit mixed_block_element array
 
