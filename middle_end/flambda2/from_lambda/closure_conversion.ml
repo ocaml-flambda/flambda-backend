@@ -189,7 +189,9 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       SC.block (Tag.Scannable.create_exn tag) Immutable Value_only fields
     in
     register_const acc dbg const "const_block"
-  | Const_mixed_block (tag, shape, consts) ->
+  | Const_mixed_block (tag, shape, args) ->
+    (* XXX maybe we need to enhance Const_mixed_block to allow for unboxed
+       products - but see CR just below. *)
     let shape = Mixed_block_shape.of_mixed_block_elements shape in
     (* CR mshinwell: why do we need these "const" block cases? *)
     let unbox_float_constant (c : Lambda.structured_constant) :
@@ -208,31 +210,41 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           \       Float_boxed contained the  constant %a"
           Printlambda.structured_constant c
     in
-    let consts =
-      consts
-      |> Array.of_list
-      |> Array.mapi (fun i c ->
-             match (Obj.magic (shape, i) : _ Lambda.mixed_block_element)with
-             | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
-               c
-             | Float_boxed _ -> unbox_float_constant c
-             | Product _ -> assert false)
+    (* XXX factor out, this is also in the Pmakemixedblock case *)
+    let args =
+      let new_indexes_to_old_indexes =
+        Mixed_block_shape.new_indexes_to_old_indexes shape
+      in
+      let args = Array.of_list args in
+      Array.init (Array.length args) (fun new_index ->
+          args.(new_indexes_to_old_indexes.(new_index)))
       |> Array.to_list
     in
-    let shape =
-      K.Mixed_block_shape.from_lambda (Obj.magic(*XXX*) shape)
+    let args =
+      let flattened_shape = Mixed_block_shape.flattened_shape shape in
+      List.mapi
+        (fun new_index arg ->
+          match flattened_shape.(new_index) with
+          | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
+          | Float_boxed _ -> unbox_float_constant arg
+          | Product _ -> assert false)
+        args
+    in
+    let kind_shape =
+      Mixed_block_shape.flattened_shape_unit shape
+      |> K.Mixed_block_shape.from_lambda
     in
     let acc, fields =
       List.fold_left_map
         (fun acc c ->
           let acc, field, _name = declare_const acc dbg c in
           acc, field)
-        acc consts
+        acc args
     in
     let const : SC.t =
       SC.block
         (Tag.Scannable.create_exn tag)
-        Immutable (Mixed_record shape) fields
+        Immutable (Mixed_record kind_shape) fields
     in
     register_const acc dbg const "const_mixed_block"
   | Const_null -> acc, reg_width RWC.const_null, "null"
