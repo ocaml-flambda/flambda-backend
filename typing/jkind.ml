@@ -391,7 +391,9 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 
 (******************************)
 
-let relevant_axes_for_type ~relevant_for_nullability ~modality =
+(* Returns the set of axes that is relevant under a given modality. For example,
+   under the [global] modality, the locality axis is *not* relevant. *)
+let relevant_axes_of_modality ~relevant_for_nullability ~modality =
   Axis_set.create ~f:(fun ~axis:(Pack axis) ->
       match axis with
       | Modal axis -> (
@@ -689,7 +691,7 @@ module With_bounds = struct
   let add_modality ~relevant_for_nullability ~modality ~type_expr
       (t : (allowed * 'r) t) : (allowed * 'r) t =
     let relevant_axes =
-      relevant_axes_for_type ~relevant_for_nullability ~modality
+      relevant_axes_of_modality ~relevant_for_nullability ~modality
     in
     match t with
     | No_with_bounds ->
@@ -2267,13 +2269,11 @@ let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
 let apply_modality modality jk =
   let relevant_axes =
-    relevant_axes_for_type ~modality ~relevant_for_nullability:`Relevant
+    relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
   in
   let mod_bounds =
     Mod_bounds.set_min_in_set jk.jkind.mod_bounds
-      (Axis_set.remove
-         (Axis_set.complement relevant_axes)
-         (Nonmodal Nullability))
+      (Axis_set.complement relevant_axes)
   in
   let with_bounds =
     With_bounds.map
@@ -2282,6 +2282,16 @@ let apply_modality modality jk =
       jk.jkind.with_bounds
   in
   { jk with jkind = { jk.jkind with mod_bounds; with_bounds } }
+
+let apply_modality_to_expected modality jk =
+  let relevant_axes =
+    relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
+  in
+  let mod_bounds =
+    Mod_bounds.set_max_in_set jk.jkind.mod_bounds
+      (Axis_set.complement relevant_axes)
+  in
+  { jk with jkind = { jk.jkind with mod_bounds } }
 
 let get_annotation jk = jk.annotation
 
