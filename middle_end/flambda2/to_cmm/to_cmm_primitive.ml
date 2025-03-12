@@ -737,7 +737,12 @@ let binary_int_shift_primitive _env dbg kind (op : P.int_shift_op) x y =
       | Lsl ->
         (* Left shifts operate on nativeints since they might shift arbitrary
            bits into the high bits of the register. *)
-        C.lsl_int, C.Scalar_type.Integer.nativeint
+        let bits =
+          C.Scalar_type.Integer.bit_width
+            (C.Scalar_type.Integral.untagged_or_identity kind)
+        in
+        let lsl_int x y dbg = C.lsl_int (C.low_bits ~bits x ~dbg) y dbg in
+        lsl_int, C.Scalar_type.Integer.nativeint
     in
     C.Scalar_type.Integral.conjugate ~outer:kind ~inner:(Untagged op_kind) ~dbg
       ~f:(fun x ->

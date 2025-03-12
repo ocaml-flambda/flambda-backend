@@ -251,17 +251,38 @@ class selector =
       | Cbswap { bitwidth } ->
         let bitwidth = select_bitwidth bitwidth in
         Ispecific (Ibswap { bitwidth }), args
-      (* Recognize sign extension *)
       | Casr -> (
+        (* Recognize sign extension (maybe with an auxiliary shift) *)
         match args with
         | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
           Ispecific Isextend32, [k]
+        | [Cop (Clsl, [k; Cconst_int (x, _)], _); Cconst_int (32, _)]
+          when 32 <= x && x < size_int * 8 ->
+          Ispecific Isextend32, [Cop (Clsl, [k; Cconst_int (x - 32, _)], _)]
+        | [ (Cop (Clsl, [_; Cconst_int (32, _)], _) as left_shift);
+            Cconst_int (y, _) ]
+          when 32 <= y && y < size_int * 8 ->
+          self#select_operation op
+            [ Cop (op, [left_shift; Cconst_int (32, dbg)], dbg);
+              Cconst_int (y - 32, dbg) ]
+            dbg
         | _ -> super#select_operation op args dbg)
-      (* Recognize zero extension *)
+      (* Recognize zero extension or masking the low bits (maybe with an
+         auxiliary shift). *)
       | Clsr -> (
         match args with
         | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
           Ispecific Izextend32, [k]
+        | [Cop (Clsl, [k; Cconst_int (x, _)], _); Cconst_int (y, _)]
+          when 32 <= x && x <= y && y < size_int * 8 ->
+          let mask = Nativeint.shift_right_logical Nativeint.minus_one y in
+          let shifted = Cop (Clsr, [k; Cconst_int (y - x, dbg)], dbg) in
+          self#select_operation Cand [shifted; Cconst_natint (mask, dbg)] dbg
+        | [Cop (Clsl, [k; Cconst_int (x, _)], _); Cconst_int (y, _)]
+          when 32 <= y && y <= x && x < size_int * 8 ->
+          let mask = Nativeint.shift_right_logical Nativeint.minus_one y in
+          let masked = Cop (Cand, [k; Cconst_natint (mask, dbg)], dbg) in
+          self#select_operation Clsl [masked; Cconst_int (x - y, dbg)] dbg
         | _ -> super#select_operation op args dbg)
       (* Recognize zero extension again *)
       | Cand -> (
