@@ -242,7 +242,6 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
     old_path_to_new_index;
   Format.eprintf "forest:\n%!";
   print_trees ~indent:0 forest;
-  let _ = assert false in
   { original_shape;
     prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
