@@ -1167,7 +1167,19 @@ Error: The kind of type "t" is value mod global aliased many contended portable
          immutable_data mod global aliased
          because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: this should be accepted *)
+(* CR layouts v2.8: this could be accepted, if we infer ('a : value mod
+   unyielding). We do not currently do this, because we finish inference of the
+   type declaration before ever consulting the jkind annotation. *)
+(* CR layouts v2.8: In addition, the error message is a little sad, in that it
+   reports the jkind of t imprecisely. Really, its jkind should have "mod
+   unyielding with 'a @@ stuff" -- because if 'a mode-crossing yielding, then so
+   does 'a t (and this is true in practice). What's going on here is that the
+   algorithm in typedecl uses the jkind of 'a (which is value) as the jkind of
+   'a t (after taking modalities into account). This is misleading, though
+   understandable. In the end, though, this bug manifests only as a confusing
+   error message, not deeper misbehavior, and so is low priority. When we have
+   [layout_of], we'll be able to give a better jkind to [@@unboxed] types, and
+   this will likely improve. *)
 
 type 'a t : value mod global portable contended many aliased unyielding =
   Foo of 'a @@ global portable contended many aliased [@@unboxed]
