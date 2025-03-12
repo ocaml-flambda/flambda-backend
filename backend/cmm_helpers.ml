@@ -408,18 +408,23 @@ let rec sub_int c1 c2 dbg =
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
-let rec max_bit_length e =
+(** This function conservatively approximates the number of significant bits in its signed
+    argument. That is, it computes the number of bits required to represent the absolute
+    value of its argument. *)
+let rec max_signed_bit_length e =
   match prefer_or e with
   | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
     (* integer/float comparisons return either [1] or [0]. *)
     1
   | Cop (Cand, [_; Cconst_int (n, _)], _) when n > 0 -> 1 + Misc.log2 n
   | Cop (Clsl, [c; Cconst_int (n, _)], _) when is_defined_shift n ->
-    Int.min arch_bits (max_bit_length c + n)
-  | Cop ((Casr | Clsr), [c; Cconst_int (n, _)], _) when is_defined_shift n ->
-    Int.max 0 (max_bit_length c - n)
+    Int.min arch_bits (max_signed_bit_length c + n)
+  | Cop (Casr, [c; Cconst_int (n, _)], _) when is_defined_shift n ->
+    Int.max 0 (max_signed_bit_length c - n)
+  | Cop (Clsr, [c; Cconst_int (n, _)], _) when is_defined_shift n ->
+    if n = 0 then max_signed_bit_length c else arch_bits - n
   | Cop ((Cand | Cor | Cxor), [x; y], _) ->
-    Int.max (max_bit_length x) (max_bit_length y)
+    Int.max (max_signed_bit_length x) (max_signed_bit_length y)
   | _ -> arch_bits
 
 let ignore_low_bit_int = function
@@ -590,7 +595,8 @@ and asr_int c1 c2 dbg =
                bit is 0 and we can weaken this operation to a logical shift *)
             lsr_const c1 n dbg
           | Cop (Clsl, [c; Cconst_int (x, _)], _)
-            when is_defined_shift x && max_bit_length c + x < arch_bits ->
+            when is_defined_shift x && max_signed_bit_length c + x < arch_bits
+            ->
             (* some operations always return small enough integers that it is
                safe and correct to combine [asr (lsl x y) z] into [asr x (z -
                y)]. *)
