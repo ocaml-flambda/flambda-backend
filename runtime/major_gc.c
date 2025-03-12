@@ -83,7 +83,7 @@ uintnat caml_percent_sweep_per_mark = 120; /* TODO: benchmark this value */
 #define GC_PACING_2025_SIMPLE     1 /* simple variant of 2025 pacing */
 #define GC_PACING_2025_FULL       2 /* full 2025 pacing (TODO) */
 
-uintnat caml_gc_pacing_policy = GC_PACING_OCAML_53;
+uintnat caml_gc_pacing_policy = GC_PACING_2025_SIMPLE;
 
 /* This variable is only written with the world stopped, so it need not be
    atomic */
