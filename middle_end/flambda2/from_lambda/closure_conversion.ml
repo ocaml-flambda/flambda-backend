@@ -209,10 +209,10 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           Printlambda.structured_constant c
     in
     let consts =
-      consts |> Array.of_list
-      |> Mixed_block_shape.reorder_array shape
+      consts
+      |> Array.of_list
       |> Array.mapi (fun i c ->
-             match Mixed_block_shape.get_reordered shape i with
+             match (Obj.magic (shape, i) : _ Lambda.mixed_block_element)with
              | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
                c
              | Float_boxed _ -> unbox_float_constant c
@@ -220,7 +220,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       |> Array.to_list
     in
     let shape =
-      K.Mixed_block_shape.from_lambda (Mixed_block_shape.reordered_shape shape)
+      K.Mixed_block_shape.from_lambda (Obj.magic(*XXX*) shape)
     in
     let acc, fields =
       List.fold_left_map
