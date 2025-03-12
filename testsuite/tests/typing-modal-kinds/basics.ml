@@ -835,3 +835,81 @@ let arrow_left () =
 [%%expect{|
 val arrow_left : unit -> unit -> unit = <fun>
 |}]
+
+(*******************)
+(* shared modality *)
+
+type t = { x : int ref @@ shared }
+
+[%%expect{|
+>> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
+
+If you see this error, please contant the Jane Street compiler team.
+Uncaught exception: Misc.Fatal_error
+
+|}]
+
+type t : value mod contended = { x : int ref @@ shared }
+
+[%%expect{|
+>> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
+
+If you see this error, please contant the Jane Street compiler team.
+Uncaught exception: Misc.Fatal_error
+
+|}]
+
+type ('a : value mod contented) require_contended
+
+[%%expect{|
+Line 1, characters 21-30:
+1 | type ('a : value mod contented) require_contended
+                         ^^^^^^^^^
+Error: Unrecognized modifier contented.
+|}]
+
+type t2 = t require_contended
+
+[%%expect{|
+Line 1, characters 12-29:
+1 | type t2 = t require_contended
+                ^^^^^^^^^^^^^^^^^
+Error: Unbound type constructor "require_contended"
+|}]
+
+type 'a t = { x : 'a @@ shared }
+
+[%%expect{|
+>> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
+
+If you see this error, please contant the Jane Street compiler team.
+Uncaught exception: Misc.Fatal_error
+
+|}]
+
+type t2 = int t require_contended
+
+[%%expect{|
+Line 1, characters 16-33:
+1 | type t2 = int t require_contended
+                    ^^^^^^^^^^^^^^^^^
+Error: Unbound type constructor "require_contended"
+|}]
+
+type t2 = int ref t require_contended
+
+[%%expect{|
+Line 1, characters 20-37:
+1 | type t2 = int ref t require_contended
+                        ^^^^^^^^^^^^^^^^^
+Error: Unbound type constructor "require_contended"
+|}]
+
+type t2 = int t ref require_contended
+
+[%%expect{|
+Line 1, characters 20-37:
+1 | type t2 = int t ref require_contended
+                        ^^^^^^^^^^^^^^^^^
+Error: Unbound type constructor "require_contended"
+|}]
