@@ -669,11 +669,10 @@ let tag_int i dbg =
   match i with
   | Cconst_int (n, _) -> int_const dbg n
   | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 ->
-    Cop
-      (Cor, [asr_int c (Cconst_int (n - 1, dbg)) dbg; Cconst_int (1, dbg)], dbg)
+    or_const (asr_const c (n - 1) dbg) 1 dbg
   | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 ->
-    Cop (Cor, [lsr_const c (n - 1) dbg; Cconst_int (1, dbg)], dbg)
-  | c -> incr_int (lsl_int c (Cconst_int (1, dbg)) dbg) dbg
+    or_const (lsr_const c (n - 1) dbg) 1 dbg
+  | c -> incr_int (lsl_const c 1 dbg) dbg
 
 let untag_int i dbg =
   match i with
