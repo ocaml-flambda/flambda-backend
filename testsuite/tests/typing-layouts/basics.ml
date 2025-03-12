@@ -2897,3 +2897,21 @@ let f (x : ('a : value mod uncontended)) = x ()
 val f : (unit -> 'a) -> 'a = <fun>
 val f : (unit -> 'a) -> 'a = <fun>
 |}]
+
+(********************************************************************)
+(* Test 47: not changing the kinds of existentially bound variables *)
+
+(* this uses products only to avoid the separability restriction *)
+type t1 = T1 : ('a : value). #('a * 'a) -> t1 [@@unboxed]
+type ('a : immediate & immediate) t2
+
+[%%expect{|
+type t1 = T1 : #('a * 'a) -> t1 [@@unboxed]
+type ('a : immediate & immediate) t2
+|}]
+
+type t3 = t1 t2  (* it is important to reject this *)
+
+[%%expect{|
+type t3 = t1 t2
+|}]
