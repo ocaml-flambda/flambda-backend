@@ -565,6 +565,19 @@ val set_nullability_upper_bound :
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind
 
+(** Change a jkind to be appropriate for a type that appears under a
+    modality. This means that the jkind will definitely cross the axes
+    modified by the modality, by setting the mod-bounds appropriately
+    and propagating the modality into any with-bounds. *)
+val apply_modality_l :
+  Mode.Modality.Value.Const.t -> (allowed * 'r) Types.jkind -> Types.jkind_l
+
+(** Change a jkind to be appropriate for an expectation of a type under
+    a modality. This means that the jkind's axes affected by the modality
+    will all be top. The with-bounds are left unchanged. *)
+val apply_modality_r :
+  Mode.Modality.Value.Const.t -> ('l * allowed) Types.jkind -> Types.jkind_r
+
 (** Extract out component jkinds from the product. Because there are no product
     jkinds, this is a bit of a lie: instead, this decomposes the layout but just
     reuses the non-layout parts of the original jkind. Never does any mutation.

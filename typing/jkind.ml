@@ -391,6 +391,32 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 
 (******************************)
 
+(* Returns the set of axes that is relevant under a given modality. For example,
+   under the [global] modality, the locality axis is *not* relevant. *)
+let relevant_axes_of_modality ~relevant_for_nullability ~modality =
+  Axis_set.create ~f:(fun ~axis:(Pack axis) ->
+      match axis with
+      | Modal axis -> (
+        let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
+        let modality = Mode.Modality.Value.Const.proj axis modality in
+        let is_constant = Mode.Modality.is_constant modality in
+        let is_id = Mode.Modality.is_id modality in
+        match is_constant, is_id with
+        | true, _ -> false
+        | _, true -> true
+        | false, false ->
+          Misc.fatal_errorf
+            "Don't yet know how to interpret non-constant, non-identity \
+             modalities, but got %a along axis %a.\n\n\
+             If you see this error, please contant the Jane Street compiler \
+             team."
+            Mode.Modality.print modality Mode.Value.print_axis axis)
+      | Nonmodal Externality -> true
+      | Nonmodal Nullability -> (
+        match relevant_for_nullability with
+        | `Relevant -> true
+        | `Irrelevant -> false))
+
 module Mod_bounds = struct
   include Types.Jkind_mod_bounds
 
@@ -605,6 +631,10 @@ module With_bounds = struct
     | With_bounds tys ->
       With_bounds (With_bounds_types.map_with_key (fun ty ti -> f ty, ti) tys)
 
+  let map (type l r) f : (l * r) t -> (l * r) t = function
+    | No_with_bounds -> No_with_bounds
+    | With_bounds tys -> With_bounds (With_bounds_types.map f tys)
+
   let debug_print_types ppf tys =
     let open Format in
     pp_print_seq
@@ -661,28 +691,7 @@ module With_bounds = struct
   let add_modality ~relevant_for_nullability ~modality ~type_expr
       (t : (allowed * 'r) t) : (allowed * 'r) t =
     let relevant_axes =
-      Jkind_axis.Axis_set.create ~f:(fun ~axis:(Pack axis) ->
-          match axis with
-          | Modal axis -> (
-            let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
-            let modality = Mode.Modality.Value.Const.proj axis modality in
-            let is_constant = Mode.Modality.is_constant modality in
-            let is_id = Mode.Modality.is_id modality in
-            match is_constant, is_id with
-            | true, _ -> false
-            | _, true -> true
-            | false, false ->
-              Misc.fatal_errorf
-                "Don't yet know how to interpret non-constant, non-identity \
-                 modalities, but got %a along axis %a.\n\n\
-                 If you see this error, please contant the Jane Street \
-                 compiler team."
-                Mode.Modality.print modality Value.print_axis axis)
-          | Nonmodal Externality -> true
-          | Nonmodal Nullability -> (
-            match relevant_for_nullability with
-            | `Relevant -> true
-            | `Irrelevant -> false))
+      relevant_axes_of_modality ~relevant_for_nullability ~modality
     in
     match t with
     | No_with_bounds ->
@@ -2257,6 +2266,33 @@ let set_nullability_upper_bound jk nullability_upper_bound =
   { jk with jkind = { jk.jkind with mod_bounds = new_bounds } }
 
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
+
+let apply_modality_l modality jk =
+  let relevant_axes =
+    relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
+  in
+  let mod_bounds =
+    Mod_bounds.set_min_in_set jk.jkind.mod_bounds
+      (Axis_set.complement relevant_axes)
+  in
+  let with_bounds =
+    With_bounds.map
+      (fun ti ->
+        { relevant_axes = Axis_set.intersection ti.relevant_axes relevant_axes })
+      jk.jkind.with_bounds
+  in
+  { jk with jkind = { jk.jkind with mod_bounds; with_bounds } }
+  |> disallow_right
+
+let apply_modality_r modality jk =
+  let relevant_axes =
+    relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
+  in
+  let mod_bounds =
+    Mod_bounds.set_max_in_set jk.jkind.mod_bounds
+      (Axis_set.complement relevant_axes)
+  in
+  { jk with jkind = { jk.jkind with mod_bounds } } |> disallow_left
 
 let get_annotation jk = jk.annotation
 

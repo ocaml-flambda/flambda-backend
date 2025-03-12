@@ -569,18 +569,25 @@ val package_subtype :
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit
 
-(* A type with whether it has any unbound variables. This could easily
-   be changed to actually track the variables, if there is ever a need. *)
-type open_type_expr = { ty : type_expr; is_open : bool }
+(* represents a type that has been extracted from wrappers that
+   do not change its runtime representation, such as [@@unboxed]
+   types and [Tpoly]s *)
+type unwrapped_type_expr =
+  { ty : type_expr
+  ; is_open : bool  (* are there any unbound variables in this type? *)
+  ; modality : Mode.Modality.Value.Const.t }
 
 val get_unboxed_type_representation :
-  Env.t -> type_expr -> (open_type_expr, open_type_expr) result
+  Env.t ->
+  type_expr ->
+  (unwrapped_type_expr, unwrapped_type_expr) result
     (* [get_unboxed_type_representation] attempts to fully expand the input
        type_expr, descending through [@@unboxed] types.  May fail in the case of
        circular types or very deeply nested unboxed types, in which case it
        returns the most expanded version it was able to compute. *)
 
-val get_unboxed_type_approximation : Env.t -> type_expr -> open_type_expr
+val get_unboxed_type_approximation :
+  Env.t -> type_expr -> unwrapped_type_expr
     (* [get_unboxed_type_approximation] does the same thing as
        [get_unboxed_type_representation], but doesn't indicate whether the type
        was fully expanded or not. *)

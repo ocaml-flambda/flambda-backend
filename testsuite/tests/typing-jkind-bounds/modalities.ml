@@ -102,22 +102,6 @@ let foo (t : string t @@ local) = cross_global t
 
 [%%expect{|
 val foo : local_ string t -> unit = <fun>
-|}, Principal{|
-Line 1, characters 47-48:
-1 | let foo (t : string t @@ local) = cross_global t
-                                                   ^
-Error: This expression has type "string t"
-       but an expression was expected of type
-         "('a : value mod global & value mod global)"
-       The kind of string t is
-         immediate with string @@ global & immediate with string @@ global
-         because of the definition of t at line 4, characters 0-51.
-       But the kind of string t must be a subkind of
-         value mod global & value mod global
-         because of the definition of cross_global at line 2, characters 4-16.
-
-       The first mode-crosses less than the second along:
-         nullability: mod non_null with string ≰ mod non_null
 |}]
 
 let foo (t : string t @@ nonportable) = use_portable t
