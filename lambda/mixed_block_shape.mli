@@ -27,8 +27,8 @@
  ******************************************************************************)
 
 (** A mixed block shape is essentially the runtime representation of a block
-    ({i i.e.}) value prefix and flat suffix), and the permutation from the
-    type definition in the surface language to that representation. *)
+    ({i i.e.}) value prefix and flat suffix), after flattening of products
+    and reordering of the type definition in the surface language. *)
 type 'a t
 
 type path = int list (* XXX try and make abstract *)
@@ -46,13 +46,11 @@ val flat_suffix_len : 'a t -> int
 (** Access to the shape passed to [of_mixed_block_elements] to build the value. *)
 val original_shape : 'a t -> 'a Lambda.mixed_block_element array
 
-(* XXX add "reordered" into the name *)
-
 (** Access to the shape, as flattened and following the runtime restriction. *)
-val flattened_shape : 'a t -> 'a Lambda.mixed_block_element array
+val flattened_and_reordered_shape : 'a t -> 'a Lambda.mixed_block_element array
 
 (** (Same as [flattened_shape]). *)
-val flattened_shape_unit : 'a t -> unit Lambda.mixed_block_element array
+val flattened_and_reordered_shape_unit : 'a t -> unit Lambda.mixed_block_element array
 
 
 

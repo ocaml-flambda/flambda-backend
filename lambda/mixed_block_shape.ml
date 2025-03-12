@@ -48,7 +48,7 @@ type 'a t =
     original_shape : 'a shape;
     prefix : 'a shape; (* invariant: no `Product` *)
     suffix : 'a shape; (* invariant: no `Product` *)
-    flattened_shape : 'a shape; (* invariant: no `Product` *)
+    flattened_and_reordered_shape : 'a shape; (* invariant: no `Product` *)
     new_index_to_old_path : path array;
     old_path_to_new_index : (path, int) Hashtbl.t;
     forest : 'a tree array
@@ -248,7 +248,7 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
   { original_shape;
     prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
-    flattened_shape = Array.map fst flattened_and_reordered_shape;
+    flattened_and_reordered_shape = Array.map fst flattened_and_reordered_shape;
     new_index_to_old_path;
     old_path_to_new_index;
     forest
@@ -264,9 +264,9 @@ let flat_suffix_len t = Array.length t.suffix
 
 let original_shape t = t.original_shape
 
-let flattened_shape t = t.flattened_shape
+let flattened_and_reordered_shape t = t.flattened_and_reordered_shape
 
-let flattened_shape_unit t =
+let flattened_and_reordered_shape_unit t =
   Array.map
     (fun (elt : _ Lambda.mixed_block_element) : unit Lambda.mixed_block_element ->
       match elt with
@@ -275,4 +275,4 @@ let flattened_shape_unit t =
       | (Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as elem
         ->
         elem)
-    t.flattened_shape
+    t.flattened_and_reordered_shape
