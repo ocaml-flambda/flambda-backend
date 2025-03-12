@@ -83,7 +83,7 @@ uintnat caml_percent_sweep_per_mark = 120; /* TODO: benchmark this value */
 #define GC_PACING_OCAML_53        0 /* Pacing as in OCaml 5.3 (plus mark-delay) */
 #define GC_PACING_2025            1 /* 2025 pacing */
 
-uintnat caml_gc_pacing_policy = GC_PACING_OCAML_53;
+uintnat caml_gc_pacing_policy = GC_PACING_2025;
 
 /* The degree to which space_overhead should be dynamically adjusted according
    to the promotion rate.
