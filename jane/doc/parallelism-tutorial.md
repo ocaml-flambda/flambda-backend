@@ -49,21 +49,76 @@ To run `add4`, we need to get our hands on a *scheduler*. Each scheduler is
 provided by a library and determines the policy by which tasks get doled out and
 run in domains. For this tutorial, we'll use `parallel_scheduler_queue`, which
 maintains a pool of worker domains that pull tasks from a global queue. You can
-also use `parallel_scheduler_sequential**, which is a trivial “scheduler” that
-just runs everything on the primary domain. This is handy if you want to test
-parallel code without switching to a multicore-enabled runtime.
+also use the `parallel` library's own `Parallel.Scheduler.Sequential`, which is
+a trivial scheduler that just runs everything on the primary domain. This is
+handy if you want to test parallel code without switching to a multicore-enabled
+runtime.
 
-**[This is a slightly old phrasing: probably we should show `average` working
-fine until we split it across files]**
+```ocaml
+let test_add4 par = add4 par 1 10 100 1000
 
-If we try to call **`[f]`** from our threads, however, we get an error from the
-compiler:
+let%expect_test "add4 in parallel" =
+  let scheduler = Parallel_scheduler_queue.create () in
+  let monitor = Parallel.Monitor.create_root () in
+  let result = Parallel_scheduler_queue.schedule scheduler ~monitor ~f:test_add4 in
+  Parallel_scheduler_queue.stop scheduler;
+  print_s [%message (result : int)];
+  [%expect {| (result 1111) |}];
+;;
+```
 
-**\[error\]**
+This creates a queue-based scheduler, along with a _monitor_ to manage
+exceptions. Then it tells the scheduler to run the `test_add4` function before
+shutting down the scheduler. (Naturally, a real program will want to keep the
+monitor and scheduler around longer!) To test using the sequential scheduler
+instead, we would simply replace `Parallel_scheduler_queue` with
+`Parallel.Scheduler.Sequential`.
 
-What this is saying in essence is that the arguments to `Parallel.fork_join2`
-must be *portable*, which is to say, declared to be safe to call from any
-thread. Writing such a declaration is easy enough:
+We can use `fork_join2` to parallelize `average`:
+
+```ocaml
+  let average_par (par : Parallel.t) tree =
+    let rec total par tree =
+      match tree with
+      | Tree.Leaf x -> ~total:x, ~count:1
+      | Tree.Node (l, r) ->
+        let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
+          Parallel.fork_join2 par (fun par -> total par l) (fun par -> total par r)
+        in
+        ~total:(total_l +. total_r), ~count:(count_l + count_r)
+    in
+    let ~total, ~count = total par tree in
+    total /. (count |> Float.of_int)
+  ;;
+```
+
+So far, so good. But something annoying happens if we introduce an abstraction
+barrier. Suppose instead of a tree of `float`s we have a tree of `Thing.t`s,
+and we want to take the average `price` of those `Thing.t`s. In particular,
+suppose `thing.mli` leaves `type t` abstract and provides a projection `price`:
+
+```ocaml
+val create : price:float -> mood:Mood.t -> t
+```
+
+Then we only need to change one line in `average_par` to take the average
+`price`:
+
+```ocaml
+      | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
+```
+
+But now we get an error from the compiler:
+
+```
+The value Thing.price is nonportable, so cannot be used inside a function that
+is portable.
+```
+
+What this is saying is that the arguments to `Parallel.fork_join2` must be
+*portable**, which is to say, declared to be safe to call from any thread.
+**[Here begins old placeholder text that doesn't really make sense now**]:
+Writing such a declaration is easy enough:
 
 **\[naively modify program\]**
 
@@ -278,7 +333,7 @@ have A Problem since the Golden Rule no longer protects us from data races.**
 
 > **Rule 3.** A `portable` value may be treated as `nonportable`.
 
-> **Rule 4.** Every component of a `portable` value must be `portable`**.
+> **Rule 4.** Every component of a `portable` value must be `portable`.
 
 **[Point out that this rule 4 is different from the rule 4 for `contended`]**
 
