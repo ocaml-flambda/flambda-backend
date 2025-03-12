@@ -59,3 +59,7 @@ val old_path_to_new_index : 'a t -> path -> int
 
 (** XXX doc. *)
 val old_path_to_new_indices : 'a t -> path -> int list
+
+type new_indexes = int list
+
+val lookup_path : 'a t -> int list -> new_indexes
