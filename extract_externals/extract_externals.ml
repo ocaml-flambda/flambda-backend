@@ -49,7 +49,7 @@ let parse_arguments () =
 
 
 (* Pretty Printing for Externals in Readable Format*)
-(*
+
 let pp_ext_funs ~human_readable fmt extfuns =
   let pp_extfun_serialized fmt extfuns =
     Format.pp_print_string fmt (Shapes.serialize_extfuns extfuns)
@@ -64,7 +64,7 @@ let output_shapes ~output_file ~human_readable externals =
   match output_file with
   | None -> pp_ext_funs ~human_readable Format.std_formatter externals
   | Some file ->
-    Out_channel.with_file ~binary:false file ~f:(fun out ->
+    Out_channel.with_open_bin file (fun out ->
       let fmt = Format.formatter_of_out_channel out in
       pp_ext_funs ~human_readable fmt externals;
       Format.pp_print_newline fmt ();
@@ -89,11 +89,12 @@ let extract_shapes_from_cmts ~includes ~verbose files =
   Clflags.include_dirs := includes @ !Clflags.include_dirs;
   Compmisc.init_path ();
   List.iter
-    ~f:(fun file ->
-      if not (String.is_suffix file ~suffix:".cmt")
-      then raise_s [%sexp "input error: only .cmt files will be parsed", (file : string)])
+    (fun file ->
+      if not (String.ends_with file ~suffix:".cmt")
+      then
+        Misc.fatal_errorf "File %s is not a .cmt file; aborting" file)
     files;
-  List.concat_map ~f:(extract_shapes_from_cmt ~verbose) files
+  List.concat_map (extract_shapes_from_cmt ~verbose) files
 ;;
 
 
@@ -108,9 +109,15 @@ let extract_and_output_from_cmts ~human_readable ~includes ~output_file ~verbose
     ~output_file
     ~human_readable
     { version = externals_version; extfuns = externals }
-;; *)
+;;
 
-let _ = parse_arguments ();
-  let _ = Traverse_typed_tree.test in
-  Format.printf "Easily readable: %b, verbose: %b, output file: %s, include dirs: %s, files: %s@."
-        !easily_readable !verbose (match !output_file with None -> "None" | Some s -> s) (String.concat "," !include_dirs) (String.concat "," !files)
+let _ =
+  parse_arguments ();
+  extract_and_output_from_cmts
+    ~human_readable:!easily_readable
+    ~includes:!include_dirs
+    ~output_file:!output_file
+    ~verbose:!verbose
+    !files
+  (* Format.printf "Easily readable: %b, verbose: %b, output file: %s, include dirs: %s, files: %s@."
+        !easily_readable !verbose (match !output_file with None -> "None" | Some s -> s) (String.concat "," !include_dirs) (String.concat "," !files) *)

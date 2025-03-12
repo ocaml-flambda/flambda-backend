@@ -14,9 +14,9 @@
 (**************************************************************************)
 
 
-open Types
-open Shapes
-open Typedtree
+open! Types
+open! Shapes
+open! Typedtree
 
 
 (* Helper utility for debugging. *)
@@ -53,23 +53,28 @@ let rec batch_add_subst args vals subst =
    links, and [@@unboxed] types. The returned type will therefore be none
    of these cases (except in case of missing cmis). *)
 let scrape_ty env ty =
-  let ty =
-    match get_desc ty with
-    | Tpoly (ty, _) -> ty
-    | _ -> ty
-  in
+let ty =
   match get_desc ty with
-  | Tconstr _ ->
-    let ty = Ctype.expand_head_opt env (Ctype.correct_levels ty) in
-    (match get_desc ty with
-     | Tconstr (p, _, _) ->
-       (match find_unboxed_type (Env.find_type p env) with
-        | Some _ -> Ctype.get_unboxed_type_approximation env ty
-        | None -> ty
-        | exception Not_found -> ty)
-     | _ -> ty)
+  | Tpoly(ty, _) -> ty
   | _ -> ty
+in
+match get_desc ty with
+| Tconstr _ ->
+    let ty = Ctype.correct_levels ty in
+    let ty' = Ctype.expand_head_opt env ty in
+    begin match get_desc ty' with
+    | Tconstr (p, _, _) ->
+        begin match find_unboxed_type (Env.find_type p env) with
+        | Some _ -> (Ctype.get_unboxed_type_approximation env ty').ty
+        | None -> ty'
+        | exception Not_found -> ty (* missing cmi file *)
+        end
+    | _ ->
+        ty'
+    end
+| _ -> ty
 ;;
+
 
 let scrape_poly env ty =
   let ty = scrape_ty env ty in
@@ -398,14 +403,12 @@ let extract_external_declaration outp (v : value_description) =
   let cname, _native_cname, tail =
     match v.val_prim with
     | [] ->
+      (* FIXME: Test this error. *)
+      Misc.fatal_errorf "Missing name %s %d %s"
+        v.val_loc.loc_start.pos_fname
+        v.val_loc.loc_start.pos_lnum
+        v.val_name.txt
       (* The compiler does not allow it. *)
-      let open Core in
-      raise_s
-        [%sexp
-          "Missing name"
-          , (v.val_loc.loc_start.pos_fname : string)
-          , (v.val_loc.loc_start.pos_lnum : int)
-          , (v.val_name.txt : string)]
     | name :: "noalloc" :: name2 :: "float" :: tail -> name, name2, tail
     | name :: "noalloc" :: name2 :: tail -> name, name2, tail
     | name :: name2 :: "float" :: tail -> name, name2, tail
@@ -422,13 +425,12 @@ let extract_external_declaration outp (v : value_description) =
      | tail ->
        (* The compiler currently accepts and silently ignores this case but the checker
         should reject it. *)
-       let open Core in
-       raise_s
-         [%sexp
-           "Unexpected names"
-           , (v.val_loc.loc_start.pos_fname : string)
-           , (v.val_loc.loc_start.pos_lnum : int)
-           , (String.concat ~sep:" " tail : string)]);
+        (* FIXME: Test this error. *)
+        Misc.fatal_errorf "Unexpected names %s %d %a"
+        v.val_loc.loc_start.pos_fname
+        v.val_loc.loc_start.pos_lnum
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
+        tail);
     (* TODO: Add support for extracting/checking the native code name. *)
     let args, ret = split_external_type v.val_desc in
     let arg_shapes = List.map argument_shape args in
