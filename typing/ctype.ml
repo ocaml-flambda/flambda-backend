@@ -2341,10 +2341,6 @@ let estimate_type_jkind =
   let expand_component ty = { ty; is_open = false } in
   estimate_type_jkind ~expand_component
 
-let estimate_type_jkind_open =
-  let expand_component ty = { ty; is_open = false } in
-  estimate_type_jkind_open ~expand_component
-
 (**** checking jkind relationships ****)
 
 (* The ~fixed argument controls what effects this may have on `ty`.  If false,
@@ -2370,10 +2366,13 @@ let constrain_type_jkind ~fixed env ty jkind =
      like this that can occur, though, and may need a more principled solution
      later).
 
-     As this unboxes types, it might unbox an existential type. We thus keep
-     track of whether [ty] [is_open].
+     As this unboxes types, it might unbox an existential type. It is thus
+     possible that [ty] (and, accordingly, [ty's_jkind]) mentions existential
+     variables. However, other than in error messages, these variables do not
+     escape this function, and so this is OK. (And in error messages, it's fine,
+     too.)
   *)
-  let rec loop ~fuel ~expanded ty ~is_open ty's_jkind jkind =
+  let rec loop ~fuel ~expanded ty ty's_jkind jkind =
     (* Just succeed if we're comparing against [any] *)
     if Jkind.is_obviously_max jkind then Ok () else
     if fuel < 0 then
@@ -2386,6 +2385,8 @@ let constrain_type_jkind ~fixed env ty jkind =
        the call to [intersection_or_error]. And even if [ty] has unbound
        variables, [ty's_jkind] can't have any variables in it, so we're OK. *)
     | Tvar { jkind = ty's_jkind } when not fixed ->
+       (* CR layouts: reisenberg thinks this must treat existentially bound
+          variables as fixed. *)
        (* Unfixed tyvars are special in at least two ways:
 
           1) Suppose we're processing [type 'a t = 'a list]. The ['a] on the
@@ -2414,11 +2415,8 @@ let constrain_type_jkind ~fixed env ty jkind =
 
     (* Handle the [Tpoly] case out here so [Tvar]s wrapped in [Tpoly]s can get
        the treatment above. *)
-    | Tpoly (t, bound_vars) ->
-      let is_open =
-        is_open || match bound_vars with | [] -> false | _ :: _ -> true
-      in
-      loop ~fuel ~expanded:false t ~is_open ty's_jkind jkind
+    | Tpoly (t, _) ->
+      loop ~fuel ~expanded:false t ty's_jkind jkind
 
     | _ ->
        match
@@ -2443,7 +2441,7 @@ let constrain_type_jkind ~fixed env ty jkind =
              let recur ty's_jkinds jkinds =
                let results =
                  Misc.Stdlib.List.map3
-                   (loop ~fuel ~expanded:false ~is_open) tys ty's_jkinds jkinds
+                   (loop ~fuel ~expanded:false) tys ty's_jkinds jkinds
                in
                if List.for_all Result.is_ok results
                then Ok ()
@@ -2475,8 +2473,7 @@ let constrain_type_jkind ~fixed env ty jkind =
              if not expanded
              then
                let ty = expand_head_opt env ty in
-               loop ~fuel ~expanded:true ty ~is_open
-                 (estimate_type_jkind_open env { ty; is_open }) jkind
+               loop ~fuel ~expanded:true ty (estimate_type_jkind env ty) jkind
              else
                begin match unbox_once env ty with
                | Missing path -> Error (Jkind.Violation.of_
@@ -2487,10 +2484,11 @@ let constrain_type_jkind ~fixed env ty jkind =
                  Error
                    (Jkind.Violation.of_ ~jkind_of_type
                       (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
-               | Stepped { ty; is_open = is_open2 } ->
-                 let is_open = is_open || is_open2 in
-                 loop ~fuel:(fuel - 1) ~expanded:false ty ~is_open
-                   (estimate_type_jkind_open env { ty; is_open }) jkind
+               (* See comment at the top of [loop]: we don't care about
+                  open-ness here. *)
+               | Stepped { ty; is_open = _ } ->
+                 loop ~fuel:(fuel - 1) ~expanded:false ty
+                   (estimate_type_jkind env ty) jkind
                | Stepped_record_unboxed_product tys ->
                  product ~fuel:(fuel - 1) tys
                end
@@ -2504,8 +2502,7 @@ let constrain_type_jkind ~fixed env ty jkind =
             Error (Jkind.Violation.of_ ~jkind_of_type
                 (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
   in
-  loop ~fuel:100 ~expanded:false ty ~is_open:false
-    (estimate_type_jkind env ty) jkind
+  loop ~fuel:100 ~expanded:false ty (estimate_type_jkind env ty) jkind
 
 let type_sort ~why ~fixed env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
