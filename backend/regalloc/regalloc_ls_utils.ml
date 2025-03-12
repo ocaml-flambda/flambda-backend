@@ -96,70 +96,66 @@ module Range = struct
   let print ppf r = Format.fprintf ppf "[%d,%d]" r.begin_ r.end_
 
   let rec overlap_cursor : t DLL.Cursor.t -> t DLL.Cursor.t -> bool =
-    fun left right ->
-      let left_value = DLL.Cursor.value left in
-      let right_value = DLL.Cursor.value right in
-      if left_value.end_ >= right_value.begin_
-         && right_value.end_ >= left_value.begin_
-      then true
-      else if left_value.end_ < right_value.end_
-      then (
-        match DLL.Cursor.next left with
-        | Error `End_of_list -> false
-        | Ok () -> overlap_cursor left right)
-      else if left_value.end_ > right_value.end_
-      then (
-        match DLL.Cursor.next right with
-        | Error `End_of_list -> false
-        | Ok () -> overlap_cursor left right)
-      else (
-        match DLL.Cursor.next left, DLL.Cursor.next right with
-        | Error `End_of_list, _ | _, Error `End_of_list -> false
-        | Ok (), Ok ()  -> overlap_cursor left right)
-  ;;
+   fun left right ->
+    let left_value = DLL.Cursor.value left in
+    let right_value = DLL.Cursor.value right in
+    if left_value.end_ >= right_value.begin_
+       && right_value.end_ >= left_value.begin_
+    then true
+    else if left_value.end_ < right_value.end_
+    then
+      match DLL.Cursor.next left with
+      | Error `End_of_list -> false
+      | Ok () -> overlap_cursor left right
+    else if left_value.end_ > right_value.end_
+    then
+      match DLL.Cursor.next right with
+      | Error `End_of_list -> false
+      | Ok () -> overlap_cursor left right
+    else
+      match DLL.Cursor.next left, DLL.Cursor.next right with
+      | Error `End_of_list, _ | _, Error `End_of_list -> false
+      | Ok (), Ok () -> overlap_cursor left right
 
   let overlap : t DLL.t -> t DLL.t -> bool =
-    fun left right ->
-      match DLL.create_hd_cursor left, DLL.create_hd_cursor right with
+   fun left right ->
+    match DLL.create_hd_cursor left, DLL.create_hd_cursor right with
     | Error `Empty, _ | _, Error `Empty -> false
-    | Ok left, Ok right ->
-      overlap_cursor left right
+    | Ok left, Ok right -> overlap_cursor left right
 
   let rec is_live_cursor : t DLL.Cursor.t -> pos:int -> bool =
    fun cursor ~pos ->
-     let value = DLL.Cursor.value cursor in
-     if pos < value.begin_
-     then false
-     else if pos <= value.end_
-     then true
-     else
-       (match DLL.Cursor.next cursor with
-         | Error `End_of_list -> false
-         | Ok () -> is_live_cursor cursor ~pos)
-  ;;
+    let value = DLL.Cursor.value cursor in
+    if pos < value.begin_
+    then false
+    else if pos <= value.end_
+    then true
+    else
+      match DLL.Cursor.next cursor with
+      | Error `End_of_list -> false
+      | Ok () -> is_live_cursor cursor ~pos
 
   let is_live : t DLL.t -> pos:int -> bool =
-    fun l ~pos ->
+   fun l ~pos ->
     match DLL.create_hd_cursor l with
     | Error `Empty -> false
     | Ok cursor -> is_live_cursor cursor ~pos
 
-  let rec remove_expired_cursor : t DLL.Cursor.t  -> pos:int -> unit =
+  let rec remove_expired_cursor : t DLL.Cursor.t -> pos:int -> unit =
    fun cursor ~pos ->
-     let value = DLL.Cursor.value cursor in
-     if pos < value.end_
-     then ()
-     else (
-       match DLL.Cursor.delete_and_next cursor with
-       | Error `End_of_list -> ()
-       | Ok () -> remove_expired_cursor cursor ~pos)
-  ;;
+    let value = DLL.Cursor.value cursor in
+    if pos < value.end_
+    then ()
+    else
+      match DLL.Cursor.delete_and_next cursor with
+      | Error `End_of_list -> ()
+      | Ok () -> remove_expired_cursor cursor ~pos
 
   let remove_expired : t DLL.t -> pos:int -> unit =
-    fun l ~pos ->
-      match DLL.create_hd_cursor l with
-      | Error `Empty -> ()
-      | Ok cursor -> remove_expired_cursor cursor ~pos
+   fun l ~pos ->
+    match DLL.create_hd_cursor l with
+    | Error `Empty -> ()
+    | Ok cursor -> remove_expired_cursor cursor ~pos
 end
 
 module Interval = struct
