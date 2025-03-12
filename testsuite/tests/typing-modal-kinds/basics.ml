@@ -842,74 +842,107 @@ val arrow_left : unit -> unit -> unit = <fun>
 type t = { x : int ref @@ shared }
 
 [%%expect{|
->> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
-
-If you see this error, please contant the Jane Street compiler team.
-Uncaught exception: Misc.Fatal_error
-
+type t = { x : int ref @@ shared; }
 |}]
 
 type t : value mod contended = { x : int ref @@ shared }
 
 [%%expect{|
->> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
-
-If you see this error, please contant the Jane Street compiler team.
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 0-56:
+1 | type t : value mod contended = { x : int ref @@ shared }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is mutable_data
+         because it's a boxed record type.
+       But the kind of type "t" must be a subkind of value mod contended
+         because of the annotation on the declaration of the type t.
 |}]
 
-type ('a : value mod contented) require_contended
+type ('a : value mod contended) require_contended
 
 [%%expect{|
-Line 1, characters 21-30:
-1 | type ('a : value mod contented) require_contended
-                         ^^^^^^^^^
-Error: Unrecognized modifier contented.
+type ('a : value mod contended) require_contended
 |}]
 
 type t2 = t require_contended
 
 [%%expect{|
-Line 1, characters 12-29:
+Line 1, characters 10-11:
 1 | type t2 = t require_contended
-                ^^^^^^^^^^^^^^^^^
-Error: Unbound type constructor "require_contended"
+              ^
+Error: This type "t" should be an instance of type "('a : value mod contended)"
+       The kind of t is mutable_data
+         because of the definition of t at line 1, characters 0-34.
+       But the kind of t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
 |}]
 
 type 'a t = { x : 'a @@ shared }
 
 [%%expect{|
->> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
-
-If you see this error, please contant the Jane Street compiler team.
-Uncaught exception: Misc.Fatal_error
-
+type 'a t = { x : 'a @@ shared; }
 |}]
 
 type t2 = int t require_contended
 
 [%%expect{|
-Line 1, characters 16-33:
+type t2 = int t require_contended
+|}, Principal{|
+Line 1, characters 10-15:
 1 | type t2 = int t require_contended
-                    ^^^^^^^^^^^^^^^^^
-Error: Unbound type constructor "require_contended"
+              ^^^^^
+Error: This type "int t" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int t is immutable_data with int
+         because of the definition of t at line 1, characters 0-32.
+       But the kind of int t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
 |}]
 
 type t2 = int ref t require_contended
 
 [%%expect{|
-Line 1, characters 20-37:
+Line 1, characters 10-19:
 1 | type t2 = int ref t require_contended
-                        ^^^^^^^^^^^^^^^^^
-Error: Unbound type constructor "require_contended"
+              ^^^^^^^^^
+Error: This type "int ref t" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int ref t is mutable_data
+         because of the definition of t at line 1, characters 0-32.
+       But the kind of int ref t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+|}, Principal{|
+Line 1, characters 10-19:
+1 | type t2 = int ref t require_contended
+              ^^^^^^^^^
+Error: This type "int ref t" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int ref t is immutable_data with int ref
+         because of the definition of t at line 1, characters 0-32.
+       But the kind of int ref t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
 |}]
 
 type t2 = int t ref require_contended
 
 [%%expect{|
-Line 1, characters 20-37:
+Line 1, characters 10-19:
 1 | type t2 = int t ref require_contended
-                        ^^^^^^^^^^^^^^^^^
-Error: Unbound type constructor "require_contended"
+              ^^^^^^^^^
+Error: This type "int t ref" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int t ref is mutable_data.
+       But the kind of int t ref must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+|}, Principal{|
+Line 1, characters 10-19:
+1 | type t2 = int t ref require_contended
+              ^^^^^^^^^
+Error: This type "int t ref" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int t ref is mutable_data with int t @@ many.
+       But the kind of int t ref must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+
+       The first mode-crosses less than the second along:
+         contention: mod uncontended ≰ mod contended
 |}]

@@ -396,21 +396,11 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 let relevant_axes_of_modality ~relevant_for_nullability ~modality =
   Axis_set.create ~f:(fun ~axis:(Pack axis) ->
       match axis with
-      | Modal axis -> (
+      | Modal axis ->
         let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
         let modality = Mode.Modality.Value.Const.proj axis modality in
         let is_constant = Mode.Modality.is_constant modality in
-        let is_id = Mode.Modality.is_id modality in
-        match is_constant, is_id with
-        | true, _ -> false
-        | _, true -> true
-        | false, false ->
-          Misc.fatal_errorf
-            "Don't yet know how to interpret non-constant, non-identity \
-             modalities, but got %a along axis %a.\n\n\
-             If you see this error, please contant the Jane Street compiler \
-             team."
-            Mode.Modality.print modality Mode.Value.print_axis axis)
+        not is_constant
       | Nonmodal Externality -> true
       | Nonmodal Nullability -> (
         match relevant_for_nullability with
