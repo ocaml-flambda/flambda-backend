@@ -528,8 +528,9 @@ let primitive ppf = function
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
   | Pmixedfield (n, shape, sem) ->
-      fprintf ppf "mixedfield%a %i %a"
-        field_read_semantics sem n
+      fprintf ppf "mixedfield%a %a %a"
+        field_read_semantics sem
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) n
         (mixed_block_shape
           (fun ppf mode -> fprintf ppf "%s" (locality_mode_if_local mode)))
         shape
@@ -559,8 +560,9 @@ let primitive ppf = function
         | Assignment Modify_heap -> ""
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
-      fprintf ppf "setmixedfield%s %i %a"
-        init n
+      fprintf ppf "setmixedfield%s %a %a"
+        init
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) n
         (mixed_block_shape (fun _ _ -> ())) shape
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"

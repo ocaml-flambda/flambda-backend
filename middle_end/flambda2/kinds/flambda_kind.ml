@@ -916,12 +916,12 @@ module With_subkind = struct
                       in
                       let fields : t array =
                         Array.map from_mixed_block_element
-                          (Mixed_block_lambda_shape.reordered_shape
+                          (Obj.magic(*XXX*)
                              mixed_block_shape)
                       in
                       let mixed_block_shape =
                         Mixed_block_shape.from_lambda
-                          (Mixed_block_lambda_shape.reordered_shape
+                          (Obj.magic(*XXX*)
                              mixed_block_shape)
                       in
                       ( Scannable (Mixed_record mixed_block_shape),
