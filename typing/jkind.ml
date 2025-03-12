@@ -2267,7 +2267,7 @@ let set_nullability_upper_bound jk nullability_upper_bound =
 
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
-let apply_modality modality jk =
+let apply_modality_l modality jk =
   let relevant_axes =
     relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
   in
@@ -2282,8 +2282,9 @@ let apply_modality modality jk =
       jk.jkind.with_bounds
   in
   { jk with jkind = { jk.jkind with mod_bounds; with_bounds } }
+  |> disallow_right
 
-let apply_modality_to_expected modality jk =
+let apply_modality_r modality jk =
   let relevant_axes =
     relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
   in
@@ -2291,7 +2292,7 @@ let apply_modality_to_expected modality jk =
     Mod_bounds.set_max_in_set jk.jkind.mod_bounds
       (Axis_set.complement relevant_axes)
   in
-  { jk with jkind = { jk.jkind with mod_bounds } }
+  { jk with jkind = { jk.jkind with mod_bounds } } |> disallow_left
 
 let get_annotation jk = jk.annotation
 

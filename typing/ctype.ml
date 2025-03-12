@@ -2327,7 +2327,7 @@ let estimate_type_jkind_unwrapped
       ~expand_component env { ty; is_open; modality } =
   estimate_type_jkind ~expand_component env ty |>
   close_open_jkind ~expand_component ~is_open env |>
-  Jkind.apply_modality modality
+  Jkind.apply_modality_l modality
 
 
 let type_jkind env ty =
@@ -2463,7 +2463,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                  Misc.Stdlib.List.map3
                    (fun { ty; is_open = _; modality } ty's_jkind jkind ->
                       let jkind =
-                        Jkind.apply_modality_to_expected modality jkind
+                        Jkind.apply_modality_r modality jkind
                       in
                       loop ~fuel ~expanded:false ~is_open ty ty's_jkind jkind)
                    tys ty's_jkinds jkinds
@@ -2512,7 +2512,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                       (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
                | Stepped { ty; is_open = is_open2; modality } ->
                  let is_open = is_open || is_open2 in
-                 let jkind = Jkind.apply_modality_to_expected modality jkind in
+                 let jkind = Jkind.apply_modality_r modality jkind in
                  loop ~fuel:(fuel - 1) ~expanded:false ty ~is_open
                    (estimate_type_jkind env ty) jkind
                | Stepped_record_unboxed_product tys_modalities ->
@@ -2530,7 +2530,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                 (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
   in
   loop ~fuel:100 ~expanded:false ty ~is_open:false
-    (estimate_type_jkind env ty) jkind
+    (estimate_type_jkind env ty) (Jkind.disallow_left jkind)
 
 let type_sort ~why ~fixed env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
