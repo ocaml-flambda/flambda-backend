@@ -28,6 +28,9 @@
 
 type path = int list
 
+let string_of_path path =
+  String.concat ", " (List.map string_of_int path)
+
 type 'a shape = 'a Lambda.mixed_block_element array
 
 type 'a shape_with_paths = ('a Lambda.mixed_block_element * path) array
@@ -42,22 +45,23 @@ type 'a tree =
 type 'a t =
   { (* CR-soon xclerc for xclerc: once the nesting/flattening work is done,
        revisit this record to only keep the fields actually needed. *)
-    original_shape : 'a shape; (* OK *)
+    original_shape : 'a shape;
     prefix : 'a shape; (* invariant: no `Product` *)
     suffix : 'a shape; (* invariant: no `Product` *)
     flattened_shape : 'a shape; (* invariant: no `Product` *)
     new_index_to_old_path : path array;
-    (* CR-soon xclerc for xclerc: consider building a tree rather than a hashtable. *)
     old_path_to_new_index : (path, int) Hashtbl.t;
     forest : 'a tree array
   }
 
+let _XXX t = t.old_path_to_new_index, t.new_index_to_old_path
+
 let rec flatten_tree_array arr =
   Array.to_list arr
   |> List.concat_map (fun tree ->
-         match tree with
-         | Leaf { new_index; _ } -> [new_index]
-         | Node { children } -> flatten_tree_array children)
+    match tree with
+    | Leaf { new_index; _ } -> [new_index]
+    | Node { children } -> flatten_tree_array children)
 
 let new_indexes_to_old_indexes t =
   let old_indexes_to_new_indexes =
@@ -85,8 +89,6 @@ let lookup_path { forest; _ } path =
       | _ :: _, Leaf _ -> Misc.fatal_error "Invalid path"
     in
     lookup_path' path tree
-
-let _XXX t = t.forest
 
 let concat_arrays : 'a array array -> 'a array =
  fun arrays ->
@@ -144,10 +146,7 @@ let rec build_tree_one :
   | Word -> (
     let path = List.rev (index :: path) in
     match Hashtbl.find_opt old_path_to_new_index path with
-    | None ->
-      Format.eprintf "XXX path=%s\n%!"
-        (String.concat ", " (List.map string_of_int path));
-      assert false
+    | None -> Misc.fatal_errorf "unknown path %s" (string_of_path path)
     | Some new_index -> Leaf { element; new_index })
   | Product sub_elements ->
     let children =
@@ -166,6 +165,7 @@ and build_tree_list :
       build_tree_one old_path_to_new_index path i sub_element)
     sub_elements
 
+(*
 let print_indentation k =
   for _ = 1 to k do
     Format.eprintf "  "
@@ -181,7 +181,7 @@ let print_element (element : 'a Lambda.mixed_block_element) new_index =
   | Bits64 -> Format.eprintf "Bits64 (new_index=%d)\n%!" new_index
   | Vec128 -> Format.eprintf "Vec128 (new_index=%d)\n%!" new_index
   | Word -> Format.eprintf "Word (new_index=%d)\n%!" new_index
-  | Product _ -> assert false
+  | Product _ -> Misc.fatal_errorf "unexpected product"
 
 let rec print_tree ~indent ~index tree =
   match tree with
@@ -196,6 +196,7 @@ let rec print_tree ~indent ~index tree =
 
 and print_trees ~indent trees =
   Array.iteri (fun index tree -> print_tree ~indent ~index tree) trees
+*)
 
 let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
   let flattened_shape_with_paths = flatten_list original_shape in
@@ -227,6 +228,7 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
       Hashtbl.replace old_path_to_new_index old_path new_index)
     flattened_and_reordered_shape;
   let forest = build_tree_list old_path_to_new_index [] original_shape in
+  (*
   Format.eprintf "new_index_to_old_path:\n%!";
   Array.iteri
     (fun index path ->
@@ -241,7 +243,8 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
         index)
     old_path_to_new_index;
   Format.eprintf "forest:\n%!";
-  print_trees ~indent:0 forest;
+     print_trees ~indent:0 forest;
+  *)
   { original_shape;
     prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
@@ -273,14 +276,3 @@ let flattened_shape_unit t =
         ->
         elem)
     t.flattened_shape
-
-let new_index_to_old_path t i = t.new_index_to_old_path.(i)
-
-let old_path_to_new_index t p =
-  match Hashtbl.find_opt t.old_path_to_new_index p with
-  | Some i -> i
-  | None ->
-    Misc.fatal_errorf "invalid path (%s)"
-      (String.concat ", " (List.map string_of_int p))
-
-let old_path_to_new_indices _t _p = assert false

@@ -31,7 +31,7 @@
     type definition in the surface language to that representation. *)
 type 'a t
 
-type path
+type path = int list (* XXX try and make abstract *)
 
 val of_mixed_block_elements : 'a Lambda.mixed_block_element array -> 'a t
 
@@ -54,16 +54,10 @@ val flattened_shape : 'a t -> 'a Lambda.mixed_block_element array
 (** (Same as [flattened_shape]). *)
 val flattened_shape_unit : 'a t -> unit Lambda.mixed_block_element array
 
-val new_index_to_old_path : 'a t -> int -> path
 
-(** XXX doc. *)
-val old_path_to_new_index : 'a t -> path -> int
 
-(** XXX doc. *)
-val old_path_to_new_indices : 'a t -> path -> int list
+type new_indexes = int list (* XXX try and make abstract *)
 
-type new_indexes = int list
-
-val lookup_path : 'a t -> int list -> new_indexes
+val lookup_path : 'a t -> path -> new_indexes
 
 val new_indexes_to_old_indexes : 'a t -> int array
