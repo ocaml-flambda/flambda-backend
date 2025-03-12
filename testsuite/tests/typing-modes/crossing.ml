@@ -253,12 +253,10 @@ type s : value mod contended = { v : t @@ contended } [@@unboxed]
 [%%expect{|
 type s = { v : t @@ contended; } [@@unboxed]
 |}]
-type s : value mod shared = { v : t @@ shared } [@@unboxed]
-(* CR: This should be accepted *)
+type s : value = { v : t @@ shared } [@@unboxed]
+(* CR layouts: Ideally, this should have a better jkind than [value], but we
+   don't yet support the interaction between middle modes (like [shared]) and
+   modal kinds. *)
 [%%expect{|
->> Fatal error: Don't yet know how to interpret non-constant, non-identity modalities, but got join_with(shared) along axis contention.
-
-If you see this error, please contant the Jane Street compiler team.
-Uncaught exception: Misc.Fatal_error
-
+type s = { v : t @@ shared; } [@@unboxed]
 |}]
