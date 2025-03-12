@@ -1786,6 +1786,7 @@ let rec update_decl_jkind env dpath decl =
          mutable non_float64_unboxed_fields : bool;
       }
   end in
+  let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
 
   (* returns updated labels, updated rep, and updated jkind *)
   let update_record_kind loc lbls rep =
@@ -1904,10 +1905,28 @@ let rec update_decl_jkind env dpath decl =
          Change when we allow users to write their own null constructors. *)
       (* CR layouts v3.3: use [any_non_null]. *)
       cstrs, rep, Jkind.Builtin.value_or_null ~why:(Primitive Predef.ident_or_null)
-    | [{Types.cd_args} as cstr], Variant_unboxed -> begin
+    | [{Types.cd_args; cd_res} as cstr], Variant_unboxed -> begin
+        let has_existentials =
+          Option.is_some cd_res &&
+          match Env.find_type_descrs dpath env with
+          | Type_variant ([{ cstr_existentials }], _, _) ->
+            not (Misc.Stdlib.List.is_empty cstr_existentials)
+          | _ -> assert false
+          | exception Not_found -> assert false
+        in
+        let get_jkind ty =
+          let jkind = Ctype.type_jkind env ty in
+          if has_existentials
+            (* if there are existentials, then we don't want them to leak
+               into the with-bounds, where they might be out of scope *)
+            (* CR layouts v2.8: Do better, by rounding up only the soon-to-be
+               out-of-scope variables. *)
+          then Jkind.round_up ~jkind_of_type jkind |> Jkind.disallow_right
+          else jkind
+        in
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _} as arg] -> begin
-            let jkind = Ctype.type_jkind env ty in
+            let jkind = get_jkind ty in
             let sort = Jkind.sort_of_jkind jkind in
             let ca_sort = Jkind.Sort.default_to_value_and_get sort in
             [{ cstr with Types.cd_args =
@@ -1915,7 +1934,7 @@ let rec update_decl_jkind env dpath decl =
             Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
-            let jkind = Ctype.type_jkind env ld_type in
+            let jkind = get_jkind ld_type in
             let sort = Jkind.sort_of_jkind jkind in
             let ld_sort = Jkind.Sort.default_to_value_and_get sort in
             [{ cstr with Types.cd_args =
@@ -2030,7 +2049,6 @@ let rec update_decl_jkind env dpath decl =
     Jkind.Layout.sub new_decl.type_jkind.jkind.layout decl.type_jkind.jkind.layout
   with
   | Not_le reason ->
-    let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
     raise (Error (
       decl.type_loc,
       Jkind_mismatch_of_path (

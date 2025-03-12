@@ -575,7 +575,10 @@ val mcomp : Env.t -> type_expr -> type_expr -> unit
    types and [Tpoly]s *)
 type unwrapped_type_expr =
   { ty : type_expr
-  ; is_open : bool  (* are there any unbound variables in this type? *)
+  ; bound_vars : Btype.TypeSet.t
+  (* vars in scope in [ty] but not in the context to which this
+     [unwrapped_type_expr] is returned. These come from unwrapped existential
+     variables and variables bound in [Tpoly] nodes. *)
   ; modality : Mode.Modality.Value.Const.t }
 
 val get_unboxed_type_representation :
