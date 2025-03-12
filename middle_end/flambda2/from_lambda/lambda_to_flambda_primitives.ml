@@ -1443,18 +1443,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
   | Pmakemixedblock (tag, mutability, shape, mode), _ ->
     let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    (* XXX check that the length of [args] = length of flattened [shape] *)
     let args =
-      List.flatten args |> Array.of_list
-      (* XXX |> Mixed_block_shape.reorder_array shape *)
+      let new_indexes_to_old_indexes =
+        Mixed_block_shape.new_indexes_to_old_indexes shape
+      in
+      let args = List.flatten args |> Array.of_list in
+      Array.init (Array.length args) (fun new_index ->
+          args.(new_indexes_to_old_indexes.(new_index)))
       |> Array.to_list
     in
     let args =
+      let flattened_shape = Mixed_block_shape.flattened_shape shape in
       List.mapi
-        (fun i arg ->
-          match
-            (* XXX Mixed_block_shape.get_reordered*)
-            (Obj.magic (shape, i) : _ Lambda.mixed_block_element)
-          with
+        (fun new_index arg ->
+          match flattened_shape.(new_index) with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
           | Float_boxed _ -> unbox_float arg
           | Product _ -> assert false)
@@ -1463,8 +1466,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     let tag = Tag.Scannable.create_exn tag in
-    let shape = K.Mixed_block_shape.from_lambda (Obj.magic (*XXX*) shape) in
-    [Variadic (Make_block (Mixed (tag, shape), mutability, mode), args)]
+    let kind_shape =
+      Mixed_block_shape.flattened_shape_unit shape
+      |> K.Mixed_block_shape.from_lambda
+    in
+    [Variadic (Make_block (Mixed (tag, kind_shape), mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -2025,48 +2031,52 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ( Block_set { kind = block_access; init = init_or_assign; field = imm },
           block,
           value ) ]
-  | ( Psetmixedfield (field, shape, initialization_or_assignment),
+  | ( Psetmixedfield (field_path, shape, initialization_or_assignment),
       [[block]; [value]] ) ->
     let shape = Mixed_block_shape.of_mixed_block_elements shape in
-    let field = Obj.magic (*XXX*) (shape, field) in
-    let imm = Targetint_31_63.of_int field in
-    check_non_negative_imm imm "Psetmixedfield";
-    let block_access : P.Block_access_kind.t =
-      Mixed
-        { field_kind =
-            (match
-               (*XXX Mixed_block_shape.get_reordered*)
-               (Obj.magic (shape, field) : _ Lambda.mixed_block_element)
-             with
-            | Value (value_kind : Lambda.value_kind) ->
-              P.Mixed_block_access_field_kind.Value_prefix
-                (convert_block_access_field_kind_from_value_kind value_kind)
-            | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
-            | Word ->
-              Flat_suffix
-                (K.Flat_suffix_element.from_lambda
-                   ((* XXX Mixed_block_shape.get_reordered*) Obj.magic
-                      (shape, field)))
-            | Product _ -> assert false);
-          shape = K.Mixed_block_shape.from_lambda (Obj.magic (*XXX*) shape);
-          tag = Unknown;
-          size = Unknown
-        }
+    let flattened_shape = Mixed_block_shape.flattened_shape shape in
+    let kind_shape =
+      Mixed_block_shape.flattened_shape_unit shape
+      |> K.Mixed_block_shape.from_lambda
     in
-    let init_or_assign = convert_init_or_assign initialization_or_assignment in
-    let value : H.simple_or_prim =
-      match
-        (*XXXMixed_block_shape.get_reordered*)
-        (Obj.magic (shape, field) : _ Lambda.mixed_block_element)
-      with
-      | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> value
-      | Float_boxed _ -> unbox_float value
-      | Product _ -> assert false
-    in
-    [ Binary
-        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
-          block,
-          value ) ]
+    let new_indexes = Mixed_block_shape.lookup_path shape field_path in
+    List.map
+      (fun new_index : H.expr_primitive ->
+        let imm = Targetint_31_63.of_int new_index in
+        check_non_negative_imm imm "Psetmixedfield";
+        let block_access : P.Block_access_kind.t =
+          Mixed
+            { field_kind =
+                (match flattened_shape.(new_index) with
+                | Value value_kind ->
+                  Value_prefix
+                    (convert_block_access_field_kind_from_value_kind value_kind)
+                | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
+                  mixed_block_element ->
+                  Flat_suffix
+                    (K.Flat_suffix_element.from_lambda mixed_block_element)
+                | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float
+                | Product _ -> assert false);
+              shape = kind_shape;
+              tag = Unknown;
+              size = Unknown
+            }
+        in
+        let init_or_assign =
+          convert_init_or_assign initialization_or_assignment
+        in
+        let value : H.simple_or_prim =
+          match flattened_shape.(new_index) with
+          | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+            value
+          | Float_boxed _ -> unbox_float value
+          | Product _ -> assert false
+        in
+        Binary
+          ( Block_set { kind = block_access; init = init_or_assign; field = imm },
+            block,
+            value ))
+      new_indexes
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
