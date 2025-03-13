@@ -156,6 +156,15 @@ type ('a, 'b : float64, 'c : any) t13
 type ('a, 'b : float64, 'c : any) t13
 |}]
 
+(* testing line break *)
+type ('a, 'b : float64, 'c : any, 'd, 'e, 'f, 'g, 'h, 'i, 'j : bits64, 'k, 'l, 'm) t14
+
+[%%expect{|
+type ('a, 'b : float64, 'c : any, 'd, 'e, 'f, 'g, 'h, 'i, 'j : bits64, 'k,
+      'l, 'm)
+     t14
+|}]
+
 type t = #(int * float#)
 
 let f xs = match xs with
