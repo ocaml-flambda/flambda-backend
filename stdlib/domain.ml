@@ -228,9 +228,7 @@ module Runtime_5 = struct
     let init () = create_dls ()
 
     (* CR with-kinds: Remove [Key] wrapper. *)
-    type 'a key : value mod portable contended =
-        Key of (int * (Access.t -> 'a) Modes.Portable.t) [@@unboxed]
-    [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
+    type 'a key = int * (Access.t -> 'a) Modes.Portable.t
 
     let key_counter = Atomic.Safe.make 0
 
@@ -247,7 +245,7 @@ module Runtime_5 = struct
 
     let new_key' ?split_from_parent init_orphan =
       let idx = Atomic.fetch_and_add key_counter 1 in
-      let k = Key (idx, { Modes.Portable.portable = init_orphan }) in
+      let k = idx, { Modes.Portable.portable = init_orphan } in
       begin match split_from_parent with
       | None -> ()
       | Some split -> add_parent_key (KI(k, split))
@@ -282,7 +280,7 @@ module Runtime_5 = struct
         else maybe_grow idx
       end
 
-    let set (type a) (_ : Access.t) (Key (idx, _init)) (x : a) =
+    let set (type a) (_ : Access.t) (idx, _init) (x : a) =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
       * [x], which may be a [float] and conclude that the [st] is a float array.
@@ -299,7 +297,7 @@ module Runtime_5 = struct
         true
       ) else false
 
-    let get (type a) access (Key (idx, init) : a key) : a =
+    let get (type a) access ((idx, init) : a key) : a =
       let st = maybe_grow idx in
       let obj = st.(idx) in
       if Obj_opt.is_some obj
