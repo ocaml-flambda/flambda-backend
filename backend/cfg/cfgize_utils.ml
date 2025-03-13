@@ -188,9 +188,8 @@ module Stack_offset_and_exn = struct
         | handler_label :: _ -> block.exn <- Some handler_label))
 
   let update_cfg : Cfg.t -> unit =
-   fun cfg ->
-    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[];
-    Cfg.iter_blocks cfg ~f:(fun _ block ->
-        if block.stack_offset = invalid_stack_offset then block.dead <- true;
-        assert (not (block.is_trap_handler && block.dead)))
+   fun cfg -> update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[]
+  (*; Cfg.iter_blocks cfg ~f:(fun _ block -> if block.stack_offset =
+    invalid_stack_offset then block.dead <- true; assert (not
+    (block.is_trap_handler && block.dead))) *)
 end

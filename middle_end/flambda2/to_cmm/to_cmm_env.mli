@@ -328,21 +328,12 @@ val add_inline_cont :
   handler_body:Flambda.Expr.t ->
   t
 
-(** Register the given continuation as an exception handler and set up the extra
-    Cmm mutable variables needed for any extra arguments. *)
-val add_exn_handler :
-  t ->
-  Continuation.t ->
-  [`Unarized] Flambda_arity.t ->
-  t * (Backend_var.t * Flambda_kind.With_subkind.t) list
+(** Register the given continuation as an exception handler. *)
+val add_exn_handler : t -> Continuation.t -> [`Unarized] Flambda_arity.t -> t
 
 (** Return whether the given continuation has been registered as an exception
     handler. *)
 val is_exn_handler : t -> Continuation.t -> bool
-
-(** Return the Cmm mutable variables associated with the given exception
-    handler. *)
-val get_exn_extra_args : t -> Continuation.t -> Backend_var.t list
 
 (** Return the binding for a given continuation, describing whether it is to be
     compiled as a jump or inlined, etc. Produces a fatal error if given an

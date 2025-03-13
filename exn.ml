@@ -1,0 +1,16 @@
+let [@inline never] print_endline x = print_endline x
+
+let g () = failwith "foo"
+
+let f () =
+  let r = ref "foo" in
+  let s = ref "bar" in
+  try
+    (g [@inlined never]) ()
+  with exn -> (
+    print_endline ((Printexc.to_string [@inlined never]) exn);
+    print_endline !r;
+    print_endline !s
+  )
+
+let () = f ()

@@ -180,9 +180,7 @@ class selector =
       | Cconst_symbol (_, _)
       | Cvar _
       | Clet (_, _, _)
-      | Clet_mut (_, _, _, _)
       | Cphantom_let (_, _, _)
-      | Cassign (_, _)
       | Ctuple _
       | Cop (_, _, _)
       | Csequence (_, _)
@@ -190,7 +188,7 @@ class selector =
       | Cswitch (_, _, _, _, _)
       | Ccatch (_, _, _, _)
       | Cexit (_, _, _)
-      | Ctrywith (_, _, _, _, _, _) ->
+      | Ctrywith (_, _, _, _, _, _, _) ->
         super#select_store is_assign addr exp
 
     method! select_operation op args dbg ~label_after =

@@ -314,10 +314,6 @@ let rec expr ppf = function
      fprintf ppf
       "@[<2>(let@ @[<2>%a@ %a@]@ %a)@]"
       VP.print id expr def sequence body
-  | Clet_mut(id, kind, def, body) ->
-    fprintf ppf
-      "@[<2>(let_mut@ @[<2>%a: %a@ %a@]@ %a)@]"
-      VP.print id machtype kind expr def sequence body
   | Cphantom_let(var, def, (Cphantom_let(_, _, _) as body)) ->
       let print_binding var ppf def =
         fprintf ppf "@[<2>%a@ %a@]" VP.print var
@@ -337,8 +333,6 @@ let rec expr ppf = function
       VP.print var
       phantom_defining_expr_opt def
       sequence body
-  | Cassign(id, exp) ->
-      fprintf ppf "@[<2>(assign @[<2>%a@ %a@])@]" V.print id expr exp
   | Ctuple el ->
       let tuple ppf el =
        let first = ref true in
@@ -407,9 +401,11 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, exn_cont, id, e2, dbg, _value_kind) ->
+  | Ctrywith(e1, exn_cont, id, extra_args, e2, dbg, _value_kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -2>with(%d)@ %a@ "
-            sequence e1 exn_cont VP.print id;
+            sequence e1 exn_cont
+            (Format.pp_print_list ~pp_sep:Format.pp_print_space VP.print)
+            (id :: (List.map fst extra_args));
       with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
             fprintf ppf "%a)@]" sequence e2);
 
