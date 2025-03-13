@@ -717,10 +717,10 @@ module type S = sig
        [alloc_as_value] are indistinguishable. Currently types cross locality
        either fully or fully not, and therefore [alloc_as_value] seems sufficient. *)
 
-    (** Similar to [apply_left] but for [Alloc] *)
+    (** Similar to [apply_left] but for [Alloc] via [alloc_as_value] *)
     val apply_left_alloc : t -> Alloc.l -> Alloc.l
 
-    (** Similar to [apply_right] but for [Alloc] *)
+    (** Similar to [apply_right] but for [Alloc] via [alloc_as_value] *)
     val apply_right_alloc : t -> Alloc.r -> Alloc.r
 
     (** Apply mode crossong on the left comonadic fragment, and the right

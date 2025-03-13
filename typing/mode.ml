@@ -3086,13 +3086,24 @@ module Crossing = struct
     let comonadic = Comonadic.apply_right t.comonadic comonadic in
     { monadic; comonadic }
 
+  (* Our mode crossing is for [Value] modes, but can be extended to [Alloc]
+     modes via [alloc_as_value], defined as follows:
+
+     Given a mode crossing [f] for [Value], and we are to check [Alloc] submoding
+     [m0 <= m1], we will instead check
+     [f (alloc_as_value m0) <= f (alloc_as_value m1)].
+
+     By adjunction tricks, this is equivalent to
+     - [ m0 <= regional_to_global ∘ fr ∘ f ∘ alloc_as_value m1 ]
+     - [ regional_to_local ∘ fl ∘ f ∘ alloc_as_value m0 <= m1 ]
+     where [regional_to_global] is the right adjoint of [alloc_as_value], and
+     [regional_to_local] the left adjoint. *)
+
   let apply_left_alloc t m =
-    m |> alloc_as_value |> apply_left t
-    |> value_to_alloc_r2l (* the left adjoint of [alloc_as_value] *)
+    m |> alloc_as_value |> apply_left t |> value_to_alloc_r2l
 
   let apply_right_alloc t m =
-    m |> alloc_as_value |> apply_right t
-    |> value_to_alloc_r2g (* the right adjoint of [alloc_as_value] *)
+    m |> alloc_as_value |> apply_right t |> value_to_alloc_r2g
 
   let apply_left_right_alloc t { monadic; comonadic } =
     let monadic = Monadic.apply_right t.monadic monadic in
