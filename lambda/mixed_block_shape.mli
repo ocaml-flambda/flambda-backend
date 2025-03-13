@@ -28,10 +28,12 @@
 
 (** A mixed block shape is essentially the runtime representation of a block
     ({i i.e.}) value prefix and flat suffix), after flattening of products
-    and reordering of the type definition in the surface language. *)
+    and reordering of the type definition in the surface language.. *)
 type 'a t
 
-type path = int list (* XXX try and make abstract *)
+(* CR-soon xclerc for xclerc: make abstract, and move to `Lambda`,
+   where it should be used in `Pmixedfield` and `Psetmixedfield`. *)
+type path = int list
 
 val of_mixed_block_elements : 'a Lambda.mixed_block_element array -> 'a t
 
@@ -43,19 +45,20 @@ val value_prefix_len : 'a t -> int
 
 val flat_suffix_len : 'a t -> int
 
-(** Access to the shape passed to [of_mixed_block_elements] to build the value. *)
-val original_shape : 'a t -> 'a Lambda.mixed_block_element array
-
-(** Access to the shape, as flattened and following the runtime restriction. *)
+(** Access to the shape, as flattened and reordered to follow the runtime restriction. *)
 val flattened_and_reordered_shape : 'a t -> 'a Lambda.mixed_block_element array
 
 (** (Same as [flattened_shape]). *)
 val flattened_and_reordered_shape_unit : 'a t -> unit Lambda.mixed_block_element array
 
+(* CR-soon xclerc for xclerc: make abstract? *)
+type new_indexes = int list
 
-
-type new_indexes = int list (* XXX try and make abstract *)
-
+(** Return the list of indices in the runtime representation for to access the values
+    corresponding to the passed path. A path does not have to lead to a single value
+    when products are involved.*)
 val lookup_path : 'a t -> path -> new_indexes
 
+(** Return an array corresponding to a map from old indices to new indices. Can only
+    be used if the block values are already been flattened. *)
 val new_indexes_to_old_indexes : 'a t -> int array

@@ -1393,24 +1393,7 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
-(* XXX is it still useful? *)
-let rec transl_mixed_product_shape ~get_value_kind shape =
-  Array.mapi (fun i (elt : Types.mixed_block_element) ->
-    match elt with
-    | Value -> Value (get_value_kind i)
-    | Float_boxed -> Float_boxed ()
-    | Float64 -> Float64
-    | Float32 -> Float32
-    | Bits32 -> Bits32
-    | Bits64 -> Bits64
-    | Vec128 -> Vec128
-    | Word -> Word
-    | Product shapes ->
-      let get_value_kind _ = generic_value in
-      Product (transl_mixed_product_shape ~get_value_kind shapes)
-  ) shape
-
-let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
+let rec transl_mixed_product_shape_gen ~get_value_kind ~get_mode shape =
   Array.mapi (fun i (elt : Types.mixed_block_element) ->
     match elt with
     | Value -> Value (get_value_kind i)
@@ -1423,8 +1406,14 @@ let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
     | Word -> Word
     | Product shapes ->
       let get_value_kind _ = generic_value in
-      Product (transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shapes)
+      Product (transl_mixed_product_shape_gen ~get_value_kind ~get_mode shapes)
   ) shape
+
+let transl_mixed_product_shape ~get_value_kind shape =
+  transl_mixed_product_shape_gen ~get_value_kind ~get_mode:(fun _ -> ()) shape
+
+let transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
+  transl_mixed_product_shape_gen ~get_value_kind ~get_mode shape
 
 (* Compile a sequence of expressions *)
 
