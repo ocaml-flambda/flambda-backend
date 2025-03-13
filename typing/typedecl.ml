@@ -1110,18 +1110,18 @@ let gets_unboxed_version decl =
   match decl.type_kind with
   | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
   | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                    | Record_ufloat | Record_mixed _), _)->
+                    | Record_ufloat), _)->
     false
-  | Type_record (_, Record_boxed _, _) ->
+  | Type_record (_, (Record_boxed _ | Record_mixed _), _) ->
     true
 let derive_unboxed_version env path_in_group_has_unboxed_version decl =
   (* This must be kept in sync with the match in [gets_unboxed_version] *)
   match decl.type_kind with
   | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
   | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                    | Record_ufloat | Record_mixed _), _)->
+                    | Record_ufloat), _)->
     None
-  | Type_record (lbls, Record_boxed _, umc) ->
+  | Type_record (lbls, (Record_boxed _ | Record_mixed _), umc) ->
     let keep_attribute a =
       (* If we keep [@deprecated_mutable], then a record that aliases
          a record with a [@deprecated_mutable] label will cause two alerts,
