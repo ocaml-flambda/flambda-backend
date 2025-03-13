@@ -3119,5 +3119,14 @@ module Crossing = struct
   let le t0 t1 =
     Monadic.le t0.monadic t1.monadic && Comonadic.le t0.comonadic t1.comonadic
 
-  let print ppf t = Modality.Value.Const.print ppf t
+  let print ppf t =
+    let print_atom ppf = function
+      | Modality.Atom (ax, Join_with c) -> C.print (Value.proj_obj ax) ppf c
+      | Modality.Atom (ax, Meet_with c) -> C.print (Value.proj_obj ax) ppf c
+    in
+    let l =
+      t |> Modality.Value.Const.to_list
+      |> List.filter (fun t -> not @@ Modality.is_id t)
+    in
+    Format.(pp_print_list ~pp_sep:pp_print_space print_atom ppf l)
 end

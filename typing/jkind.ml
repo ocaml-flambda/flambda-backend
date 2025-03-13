@@ -2187,11 +2187,6 @@ let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
 
 let extract_layout jk = jk.jkind.layout
 
-type modal_bounds =
-  { upper_bounds : Mode.Alloc.Comonadic.Const.t;
-    lower_bounds : Mode.Alloc.Monadic.Const.t
-  }
-
 let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
   let ( ({ layout = _; mod_bounds; with_bounds = No_with_bounds } :
           (_ * allowed) jkind_desc),
@@ -2200,21 +2195,21 @@ let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
       ~skip_axes:Axis_set.all_nonmodal_axes ~jkind_of_type jk.jkind
   in
   Mod_bounds.
-    { upper_bounds =
+    { comonadic =
         { areality = locality mod_bounds;
           linearity = linearity mod_bounds;
           portability = portability mod_bounds;
           yielding = yielding mod_bounds
         };
-      lower_bounds =
+      monadic =
         { uniqueness = uniqueness mod_bounds;
           contention = contention mod_bounds
         }
     }
 
 let get_mode_crossing (type l r) ~jkind_of_type (jk : (l * r) jkind) =
-  let { upper_bounds; lower_bounds } = get_modal_bounds ~jkind_of_type jk in
-  Mode.Crossing.of_bounds { monadic = lower_bounds; comonadic = upper_bounds }
+  let bounds = get_modal_bounds ~jkind_of_type jk in
+  Mode.Crossing.of_bounds bounds
 
 let all_except_externality =
   Axis_set.singleton (Nonmodal Externality) |> Axis_set.complement
