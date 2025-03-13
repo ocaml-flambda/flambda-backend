@@ -227,7 +227,6 @@ module Runtime_5 = struct
 
     let init () = create_dls ()
 
-    (* CR with-kinds: Remove [Key] wrapper. *)
     type 'a key = int * (Access.t -> 'a) Modes.Portable.t
 
     let key_counter = Atomic.Safe.make 0
