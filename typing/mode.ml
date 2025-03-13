@@ -3013,7 +3013,8 @@ module Crossing = struct
      Mode crossing forms a lattice: [f0 <= f1] iff [f0] allows more mode
      crossing than [f1]. Concretely:
 
-     For any [m0, m1], if [f1 m0 <= f1 m1], then [f0 m0 <= f0 m1].
+     [f0 <= f1] iff, for any [m0, m1], if [f1 m0 <= f1 m1],
+     then [f0 m0 <= f0 m1].
   *)
 
   module Monadic = struct

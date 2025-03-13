@@ -713,7 +713,7 @@ module type S = sig
     val apply_right : t -> Value.r -> Value.r
 
     (* We extend mode crossing on [Value] to [Alloc] via [alloc_as_value].
-       Concretely, two [Alloc] modes are indistinguishable if their image under
+       Concretely, two [Alloc] modes are indistinguishable if their images under
        [alloc_as_value] are indistinguishable. Currently types cross locality
        either fully or fully not, and therefore [alloc_as_value] seems sufficient. *)
 
