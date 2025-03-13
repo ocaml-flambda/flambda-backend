@@ -183,7 +183,7 @@ class virtual selector_generic :
     method emit_expr_aux_raise :
       environment ->
       Lambda.raise_kind ->
-      Cmm.expression ->
+      Cmm.expression list ->
       Debuginfo.t ->
       Reg.t array option
 
@@ -244,6 +244,7 @@ class virtual selector_generic :
       Cmm.expression ->
       Cmm.trywith_shared_label ->
       Backend_var.With_provenance.t ->
+      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
       Cmm.expression ->
       Debuginfo.t ->
       Cmm.kind_for_unboxing ->
@@ -297,6 +298,7 @@ class virtual selector_generic :
       Cmm.expression ->
       Cmm.trywith_shared_label ->
       Backend_var.With_provenance.t ->
+      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
       Cmm.expression ->
       Debuginfo.t ->
       Cmm.kind_for_unboxing ->

@@ -358,11 +358,8 @@ type expression =
   | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
-  | Clet_mut of Backend_var.With_provenance.t * machtype
-                * expression * expression
   | Cphantom_let of Backend_var.With_provenance.t
       * phantom_defining_expr option * expression
-  | Cassign of Backend_var.t * expression
   | Ctuple of expression list
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
@@ -377,8 +374,9 @@ type expression =
         * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_shared_label
-      * Backend_var.With_provenance.t * expression * Debuginfo.t
-      * kind_for_unboxing
+      * Backend_var.With_provenance.t
+      * (Backend_var.With_provenance.t * machtype) list
+      * expression * Debuginfo.t * kind_for_unboxing
 
 type codegen_option =
   | Reduce_code_size
@@ -426,7 +424,7 @@ let reset () =
   Label.reset ()
 
 let iter_shallow_tail f = function
-  | Clet(_, _, body) | Cphantom_let (_, _, body) | Clet_mut(_, _, _, body) ->
+  | Clet(_, _, body) | Cphantom_let (_, _, body) ->
       f body;
       true
   | Cifthenelse(_cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _value_kind) ->
@@ -443,7 +441,7 @@ let iter_shallow_tail f = function
       List.iter (fun (_, _, h, _dbg, _) -> f h) handlers;
       f body;
       true
-  | Ctrywith(e1, _kind, _id, e2, _dbg, _value_kind) ->
+  | Ctrywith(e1, _kind, _id, _extra_args, e2, _dbg, _value_kind) ->
       f e1;
       f e2;
       true
@@ -456,7 +454,6 @@ let iter_shallow_tail f = function
   | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _
-  | Cassign _
   | Ctuple _
   | Cop _ ->
       false
@@ -464,8 +461,6 @@ let iter_shallow_tail f = function
 let map_shallow_tail ?kind f = function
   | Clet(id, exp, body) ->
       Clet(id, exp, f body)
-  | Clet_mut(id, kind, exp, body) ->
-      Clet_mut(id, kind, exp, f body)
   | Cphantom_let(id, exp, body) ->
       Cphantom_let (id, exp, f body)
   | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg, kind_before) ->
@@ -488,8 +483,8 @@ let map_shallow_tail ?kind f = function
       in
       Ccatch(rec_flag, List.map map_h handlers, f body,
              Option.value kind ~default:kind_before)
-  | Ctrywith(e1, kind', id, e2, dbg, kind_before) ->
-      Ctrywith(f e1, kind', id, f e2, dbg,
+  | Ctrywith(e1, kind', id,extra_args, e2, dbg, kind_before) ->
+      Ctrywith(f e1, kind', id,extra_args, f e2, dbg,
               Option.value kind ~default:kind_before)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
@@ -500,7 +495,6 @@ let map_shallow_tail ?kind f = function
   | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _
-  | Cassign _
   | Ctuple _
   | Cop _ as cmm -> cmm
 
@@ -512,7 +506,6 @@ let map_tail ?kind f =
     | Cconst_float _
     | Cconst_symbol _
     | Cvar _
-    | Cassign _
     | Ctuple _
     | Cop _ as c ->
         f c
@@ -523,11 +516,7 @@ let map_tail ?kind f =
 let iter_shallow f = function
   | Clet (_id, e1, e2) ->
       f e1; f e2
-  | Clet_mut (_id, _kind, e1, e2) ->
-      f e1; f e2
   | Cphantom_let (_id, _de, e) ->
-      f e
-  | Cassign (_id, e) ->
       f e
   | Ctuple el ->
       List.iter f el
@@ -544,7 +533,7 @@ let iter_shallow f = function
       List.iter iter_h hl; f body
   | Cexit (_n, el, _traps) ->
       List.iter f el
-  | Ctrywith (e1, _kind, _id, e2, _dbg, _value_kind) ->
+  | Ctrywith (e1, _kind, _id,_extra_args, e2, _dbg, _value_kind) ->
       f e1; f e2
   | Cconst_int _
   | Cconst_natint _
@@ -558,12 +547,8 @@ let iter_shallow f = function
 let map_shallow f = function
   | Clet (id, e1, e2) ->
       Clet (id, f e1, f e2)
-  | Clet_mut (id, kind, e1, e2) ->
-      Clet_mut (id, kind, f e1, f e2)
   | Cphantom_let (id, de, e) ->
       Cphantom_let (id, de, f e)
-  | Cassign (id, e) ->
-      Cassign (id, f e)
   | Ctuple el ->
       Ctuple (List.map f el)
   | Cop (op, el, dbg) ->
@@ -581,8 +566,8 @@ let map_shallow f = function
       Ccatch (rf, List.map map_h hl, f body, kind)
   | Cexit (n, el, traps) ->
       Cexit (n, List.map f el, traps)
-  | Ctrywith (e1, kind, id, e2, dbg, value_kind) ->
-      Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
+  | Ctrywith (e1, kind, id, extra_args, e2, dbg, value_kind) ->
+      Ctrywith (f e1, kind, id, extra_args,f e2, dbg, value_kind)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float32 _
