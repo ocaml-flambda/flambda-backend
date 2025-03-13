@@ -1080,7 +1080,7 @@ type unary_primitive =
   | Get_header
   | Atomic_load of Block_access_field_kind.t
   | Peek of Flambda_kind.Standard_int_or_float.t
-  | Make_lazy of Lazy_block_tag.t * Alloc_mode.For_allocations.t
+  | Make_lazy of Lazy_block_tag.t
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -1236,11 +1236,8 @@ let compare_unary_primitive p1 p2 =
     Bool.compare ghost1 ghost2
   | Peek kind1, Peek kind2 ->
     Flambda_kind.Standard_int_or_float.compare kind1 kind2
-  | Make_lazy (lazy_tag1, alloc_mode1), Make_lazy (lazy_tag2, alloc_mode2) ->
-    let c = Lazy_block_tag.compare lazy_tag1 lazy_tag2 in
-    if c <> 0
-    then c
-    else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+  | Make_lazy lazy_tag1, Make_lazy lazy_tag2 ->
+    Lazy_block_tag.compare lazy_tag1 lazy_tag2
   | ( ( Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _
       | Is_null | Get_tag | String_length _ | Int_as_pointer _
       | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
@@ -1318,9 +1315,8 @@ let print_unary_primitive ppf p =
   | Peek kind ->
     fprintf ppf "@[(Peek@ %a)@]"
       Flambda_kind.Standard_int_or_float.print_lowercase kind
-  | Make_lazy (lazy_tag, alloc_mode) ->
-    fprintf ppf "@[<hov 1>(Make_lazy@ %a@ %a)@]" Lazy_block_tag.print lazy_tag
-      Alloc_mode.For_allocations.print alloc_mode
+  | Make_lazy lazy_tag ->
+    fprintf ppf "@[<hov 1>(Make_lazy@ %a)@]" Lazy_block_tag.print lazy_tag
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -1487,13 +1483,8 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Atomic_load _ | Peek _ ->
     (* For the moment, prevent [Peek] from being moved. *)
     Arbitrary_effects, Has_coeffects, Strict
-  | Make_lazy (_, alloc_mode) ->
-    let coeffects : Coeffects.t =
-      match alloc_mode with
-      | Heap -> Coeffects.No_coeffects
-      | Local _ -> Coeffects.Has_coeffects
-    in
-    Effects.Only_generative_effects Mutable, coeffects, Placement.Strict
+  | Make_lazy _ ->
+    Only_generative_effects Mutable, No_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1535,10 +1526,9 @@ let free_names_unary_primitive p =
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Obj_dup | Get_header
   | Atomic_load (_ : Block_access_field_kind.t)
-  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     Name_occurrences.empty
-  | Make_lazy (_, alloc_mode) ->
-    Alloc_mode.For_allocations.free_names alloc_mode
 
 let apply_renaming_unary_primitive p renaming =
   match p with
@@ -1552,11 +1542,6 @@ let apply_renaming_unary_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Int_as_pointer alloc_mode'
-  | Make_lazy (tag, alloc_mode) ->
-    let alloc_mode' =
-      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
-    in
-    if alloc_mode == alloc_mode' then p else Make_lazy (tag, alloc_mode')
   | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Is_null
   | Get_tag | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
@@ -1564,14 +1549,14 @@ let apply_renaming_unary_primitive p renaming =
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
   | Atomic_load (_ : Block_access_field_kind.t)
-  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     p
 
 let ids_for_export_unary_primitive p =
   match p with
   | Box_number (_, alloc_mode)
-  | Int_as_pointer alloc_mode
-  | Make_lazy (_, alloc_mode) ->
+  | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Is_null
   | Get_tag | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _
@@ -1580,7 +1565,8 @@ let ids_for_export_unary_primitive p =
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
   | Atomic_load (_ : Block_access_field_kind.t)
-  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     Ids_for_export.empty
 
 type binary_int_arith_op =

@@ -1138,11 +1138,11 @@ and comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, tag) :: cont)
-  | Lprim (Pmakelazyblock (Lazy_tag, _), args, loc) ->
+  | Lprim (Pmakelazyblock Lazy_tag, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, Config.lazy_tag) :: cont)
-  | Lprim (Pmakelazyblock (Forward_tag, _), args, loc) ->
+  | Lprim (Pmakelazyblock Forward_tag, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, Obj.forward_tag) :: cont)

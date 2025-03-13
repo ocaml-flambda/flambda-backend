@@ -451,7 +451,7 @@ type unary_primitive =
   (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
      deleting [Atomic_load] *)
   | Peek of Flambda_kind.Standard_int_or_float.t
-  | Make_lazy of Lazy_block_tag.t * Alloc_mode.For_allocations.t
+  | Make_lazy of Lazy_block_tag.t
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
