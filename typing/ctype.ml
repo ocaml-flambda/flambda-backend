@@ -1466,14 +1466,6 @@ let instance_parameterized_type ?keep_names sch_args sch =
     (ty_args, ty)
   )
 
-let instance_parameterized_type_ex ?keep_names sch_args sch ~existentials =
-  For_copy.with_scope (fun copy_scope ->
-    let ty_args = List.map (fun t -> copy ?keep_names copy_scope t) sch_args in
-    let ty = copy copy_scope sch in
-    let existentials = List.map (copy copy_scope) existentials in
-    (ty_args, ty, existentials)
-  )
-
 let instance_parameterized_kind args jkind =
   For_copy.with_scope (fun copy_scope ->
     let ty_args = List.map (fun t -> copy copy_scope t) args in
@@ -1845,7 +1837,7 @@ let instance_prim (desc : Primitive.description) ty =
 let unify_var' = (* Forward declaration *)
   ref (fun _env _ty1 _ty2 -> assert false)
 
-let subst env level priv abbrev oty params args body ~existentials =
+let subst env level priv abbrev oty params args body =
   if List.length params <> List.length args then raise Cannot_subst;
   let old_level = !current_level in
   current_level := level;
@@ -1862,8 +1854,7 @@ let subst env level priv abbrev oty params args body ~existentials =
         | _ -> assert false
   in
   abbreviations := abbrev;
-  let (params', body', existentials') =
-    instance_parameterized_type_ex params body ~existentials
+  let (params', body') = instance_parameterized_type params body
   in
   abbreviations := ref Mnil;
   let uenv = Expression {env; in_subst = true} in
@@ -1871,7 +1862,7 @@ let subst env level priv abbrev oty params args body ~existentials =
     !unify_var' uenv body0 body';
     List.iter2 (!unify_var' uenv) params' args;
     current_level := old_level;
-    (body', existentials')
+    body'
   with Unify _ ->
     current_level := old_level;
     undo_abbrev ();
@@ -1927,11 +1918,11 @@ let jkind_subst env level params args jkind =
    it ensures invariants on types are enforced (decreasing levels), and we don't
    care about efficiency here.
 *)
-let apply ?(use_current_level = false) env params body args ~existentials =
+let apply ?(use_current_level = false) env params body args =
   simple_abbrevs := Mnil;
   let level = if use_current_level then !current_level else generic_level in
   try
-    subst env level Public (ref Mnil) None params args body ~existentials
+    subst env level Public (ref Mnil) None params args body
   with
     Cannot_subst -> raise Cannot_apply
 
@@ -2010,10 +2001,9 @@ let expand_abbrev_gen kind find_type_expansion env ty =
       | (params, body, lv) ->
           (* prerr_endline
              ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
-          let ty', _existentials =
+          let ty' =
             try
               subst env level kind abbrev (Some ty) params args body
-                ~existentials:[]
             with Cannot_subst -> raise_escape_exn Constraint
           in
           (* For gadts, remember type as non exportable *)
@@ -2180,7 +2170,10 @@ let unbox_once env ty =
     | exception Not_found -> Missing p
     | decl ->
       let apply ty2 existentials =
-        apply env decl.type_params ty2 args ~existentials
+        (* put [existentials] first as they're often empty. This will
+           unify the copied existentials with the originals after the copy, thus
+           preserving their identity. *)
+        apply env (existentials @ decl.type_params) ty2 (existentials @ args)
       in
       begin match find_unboxed_type decl with
       | Some (ty2, modality) ->
@@ -2194,9 +2187,8 @@ let unbox_once env ty =
           | Type_record_unboxed_product _ | Type_open -> []
           | exception Not_found -> (* but we found it earlier! *) assert false
         in
-        let substed_ty, substed_existentials = apply ty2 existentials in
-        Stepped { ty = substed_ty;
-                  bound_vars = mk_bound_vars substed_existentials;
+        Stepped { ty = apply ty2 existentials;
+                  bound_vars = mk_bound_vars existentials;
                   modality }
       | None -> begin match decl.type_kind with
         | Type_record_unboxed_product ([_], Record_unboxed_product, _) ->
@@ -2205,7 +2197,7 @@ let unbox_once env ty =
         | Type_record_unboxed_product
             ((_::_::_ as lbls), Record_unboxed_product, _) ->
           Stepped_record_unboxed_product
-            (List.map (fun ld -> { ty = fst (apply ld.ld_type []);
+            (List.map (fun ld -> { ty = apply ld.ld_type [];
                                    bound_vars = TypeSet.empty;
                                    modality = ld.ld_modalities }) lbls)
         | Type_record_unboxed_product ([], _, _) ->
@@ -6211,10 +6203,10 @@ let rec build_subtype env (visited : transient_expr list)
       begin try match get_desc t' with
         Tobject _ when posi && not (opened_object t') ->
           let cl_abbr, body = find_cltype_for_path env p in
-          let ty, _existentials =
+          let ty =
             try
               subst env !current_level Public abbrev None
-                cl_abbr.type_params tl body ~existentials:[]
+                cl_abbr.type_params tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
             match get_desc ty with
@@ -7189,9 +7181,6 @@ let print_global_state fmt global_state =
     print_field fmt "global_level" global_level;
   in
   Format.fprintf fmt "@[<1>{@;%a}@]" print_fields global_state
-
-let apply ?use_current_level env params body args =
-  fst (apply ?use_current_level env params body args ~existentials:[])
 
               (*******************************)
               (* checking declaration jkinds *)
