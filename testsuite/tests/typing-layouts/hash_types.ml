@@ -146,28 +146,25 @@ val f : 'a rep -> int = <fun>
 (***********************************)
 (* Implicit unboxed records basics *)
 
-(* Boxed records get implicit unboxed records *)
+(* Boxed, including mixed-block, records get implicit unboxed records *)
 type r = { i : int ; s : string }
 type u : immediate & value = r#
 [%%expect{|
 type r = { i : int; s : string; }
 type u = r#
 |}]
+type r = { s : string ; f : float# }
+type u = r#
+[%%expect{|
+type r = { s : string; f : float#; }
+type u = r#
+|}]
 
-(* But not mixed block, float, or [@@unboxed] records *)
+(* But not float or [@@unboxed] records *)
 type r = { f : float ; f2 : float }
 type bad = r#
 [%%expect{|
 type r = { f : float; f2 : float; }
-Line 2, characters 11-13:
-2 | type bad = r#
-               ^^
-Error: The type "r" has no unboxed version.
-|}]
-type r = { s : string ; f : float# }
-type bad = r#
-[%%expect{|
-type r = { s : string; f : float#; }
 Line 2, characters 11-13:
 2 | type bad = r#
                ^^
@@ -414,23 +411,19 @@ and r = { x : int; y : float; }
 and q = r#
 |}]
 
-(* Mixed blocks don't get unboxed records *)
-type bad = r# t
+type u = r# t
 and r = {x:int; y:float#}
 [%%expect{|
-Line 1, characters 0-15:
-1 | type bad = r# t
-    ^^^^^^^^^^^^^^^
-Error: The type "r" has no unboxed version.
+type u = r# t
+and r = { x : int; y : float#; }
 |}]
-type s = bad t
+type s = u t
 and r = {x:int; y:float#}
-and bad = r#
+and u = r#
 [%%expect{|
-Line 3, characters 0-12:
-3 | and bad = r#
-    ^^^^^^^^^^^^
-Error: The type "r" has no unboxed version.
+type s = u t
+and r = { x : int; y : float#; }
+and u = r#
 |}]
 
 type s_bad = r# t

@@ -53,6 +53,8 @@ open Stdlib_upstream_compatible
 
 type ints = { x : int ; y : int }
 
+let print_floatu prefix x =
+  Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
 let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
 let print_int prefix x = Printf.printf "%s: %d\n" prefix x
 let print_ints prefix #{ x; y } = Printf.printf "%s: [%d %d]\n" prefix x y
@@ -60,10 +62,10 @@ let print_ints prefix #{ x; y } = Printf.printf "%s: [%d %d]\n" prefix x y
 (********************************************************)
 (* Test 1: Basic functions manipulating unboxed records *)
 
-type float_int = { f : float ; i : int }
+type float_int = { f : float# ; i : int }
 
 (* takes an unboxed record *)
-let mult_float_by_int #{ f ; i } = Float.(mul f (of_int i))
+let mult_float_by_int #{ f ; i } = Float_u.(mul f (of_int i))
 
 (* returns a unboxed record *)
 let div_mod m n = #{ x = m/n; y = m mod n }
@@ -85,10 +87,10 @@ let add_some_stuff x y =
   #{ res1 = a+b+c; res23 = #{ res2 = d+e+f; res3 = g+h+i } }
 
 let test1 () =
-  let pi = 3.14 in
-  print_float "Test 1, twice pi inlined"
+  let pi = #3.14 in
+  print_floatu "Test 1, twice pi inlined"
     ((mult_float_by_int [@inlined]) #{ f = pi; i = 2 });
-  print_float "Test 1, twice pi not inlined"
+  print_floatu "Test 1, twice pi not inlined"
     ((mult_float_by_int [@inlined never]) #{ f = pi; i = 2 });
   print_ints "Test 1, 14/3 inlined" ((div_mod [@inlined hint]) 14 3);
   print_ints "Test 1, 14/3 not inlined" ((div_mod [@inlined never]) 14 3);
@@ -110,41 +112,41 @@ let _ = test1 ()
 (**********************************)
 (* Test 2: higher-order functions *)
 
-type ff' = { f : float ; f' : float * unit }
+type ff' = { f : float# ; f' : float * unit }
 type t = #{ i : int ; ff' : ff'# }
 
 let[@inline never] add_t
     #{ i = i1; ff' = #{ f = f1; f' = f1', ()}}
     #{ i = i2; ff' = #{ f = f2; f' = f2', ()}}
   =
-  #{ i = i1 + i2; ff' = #{ f = Float.add f1 f2; f' =  f1' +. f2', ()}}
+  #{ i = i1 + i2; ff' = #{ f = Float_u.add f1 f2; f' =  f1' +. f2', ()}}
 
 let[@inline never] sub_t
     #{ i = i1; ff' = #{ f = f1; f' = f1', ()}}
     #{ i = i2; ff' = #{ f = f2; f' = f2', ()}}
   =
-  #{ i = i1 - i2; ff' = #{ f = Float.sub f1 f2; f' =  f1' -. f2', ()}}
+  #{ i = i1 - i2; ff' = #{ f = Float_u.sub f1 f2; f' =  f1' -. f2', ()}}
 
 let[@inline never] twice f (x : t) = f (f x)
 
 let[@inline never] compose f g (x : t) = f (g x)
 
 let t_sum #{ i; ff' = #{ f ; f' = f', () }} =
-  ((Float.of_int i) +. (f +. f'))
+  ((Float.of_int i) +. (Float_u.to_float f +. f'))
 
 let print_t_sum prefix t = Printf.printf "%s: %.2f\n" prefix (t_sum t)
 
 let[@inline never] twice_on_pi f =
-  let pi = #{ i = 1; ff' = #{ f = 2.0; f' = 0.14, () } } in
+  let pi = #{ i = 1; ff' = #{ f = #2.0; f' = 0.14, () } } in
   twice f pi
 
 let times_four =
   twice (fun x -> add_t x x)
 
 let _ =
-  let pi = #{ i = 1; ff' = #{ f = 2.0; f' = 0.14, () } } in
-  let one = #{ i = 0; ff' = #{ f = 1.0; f' = 0.0, () } } in
-  let zero = #{ i = 0; ff' = #{ f = 0.0; f' = 0.0, () } } in
+  let pi = #{ i = 1; ff' = #{ f = #2.0; f' = 0.14, () } } in
+  let one = #{ i = 0; ff' = #{ f = #1.0; f' = 0.0, () } } in
+  let zero = #{ i = 0; ff' = #{ f = #0.0; f' = 0.0, () } } in
 
   print_t_sum "Test 2, add pi twice"
     (twice (fun x -> add_t x pi) zero);
@@ -155,7 +157,7 @@ let _ =
   print_t_sum "Test 2, increment pi four times"
     (twice_on_pi (twice (fun x -> add_t one x)));
   print_t_sum "Test 2, e times four"
-    (times_four #{ i = 1; ff' = #{ f = 1.0 ; f' = 2.72, () } });
+    (times_four #{ i = 1; ff' = #{ f = #1.0 ; f' = 2.72, () } });
   print_t_sum "Test 2, pi times sixteen"
     (twice_on_pi times_four);
   print_t_sum "Test 2, pi times sixteen again"
@@ -166,15 +168,15 @@ let _ =
      let add_two_after = compose add_two in
      let minus_four =
        add_two_after
-         (twice (fun x -> add_t x #{ i = -1; ff' = #{f = -1.0; f' = -1.0, () } }))
+         (twice (fun x -> add_t x #{ i = -1; ff' = #{f = -#1.0; f' = -1.0, () } }))
      in
      minus_four pi)
 
 (***************************************)
 (* Test 3: unboxed records in closures *)
 
-type int_floatu = { i : int ; f : float }
-type floatarray_floatu = { fa : float array ; f : float }
+type int_floatu = { i : int ; f : float# }
+type floatarray_floatu = { fa : float array ; f : float# }
 
 (* [go]'s closure should have an unboxed record with an [int] (immediate), a
    [float] (float64) and a [float array] (value). *)
@@ -186,8 +188,8 @@ let[@inline never] f3 bounds steps_init () =
     then init
     else begin
       let acc = go (k + 1) in
-      steps.(k) <- acc;
-      Float.add m acc
+      steps.(k) <- Float_u.to_float acc;
+      Float_u.add m acc
     end
   in
   go 0
@@ -205,10 +207,10 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
       let #{ i = x6_1; ff' = #{ f = x6_2; f' = x6_3, () } } = x6 in
       let #{ i = x8_1; ff' = #{ f = x8_2; f' = x8_3, () } } = x8 in
       let sum =
-        Float.of_int x2_1 +. x2_2 +. x2_3 +.
-        Float.of_int x4_1 +. x4_2 +. x4_3 +.
-        Float.of_int x6_1 +. x6_2 +. x6_3 +.
-        Float.of_int x8_1 +. x8_2 +. x8_3
+        Float.of_int x2_1 +. Float_u.to_float x2_2 +. x2_3 +.
+        Float.of_int x4_1 +. Float_u.to_float x4_2 +. x4_3 +.
+        Float.of_int x6_1 +. Float_u.to_float x6_2 +. x6_3 +.
+        Float.of_int x8_1 +. Float_u.to_float x8_2 +. x8_3
       in
       let acc = go (k + 1) in
       steps.(k) <- acc;
@@ -220,8 +222,8 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
 let test3 () =
   (* Test f3 *)
   let steps = Array.init 10 (fun _ -> 0.0) in
-  let five_pi = f3 #{ i = 5; f = 3.14} #{ fa = steps ; f = 0.0 } in
-  print_float "Test 3, 5 * pi: " (five_pi ());
+  let five_pi = f3 #{ i = 5; f = #3.14} #{ fa = steps ; f = #0.0 } in
+  print_floatu "Test 3, 5 * pi: " (five_pi ());
   Array.iteri (Printf.printf "  Test 3, step %d: %.2f\n") steps;
 
   (* Test f3_manyargs
@@ -241,10 +243,10 @@ let test3 () =
   let x9 = 42.0 in
 
   (* these sum to 3 *)
-  let x2 = #{ i = 7; ff' = #{ f = 40.0 ; f' = 2.0, () } } in
-  let x4 = #{ i = -23; ff' = #{ f = 100.0 ; f' = 9.0, () } } in
-  let x6 = #{ i = -242; ff' = #{ f = 5.5 ; f' = 84.5, () } } in
-  let x8 = #{ i = -2; ff' = #{ f = 20.0 ; f' = 2.0, () } } in
+  let x2 = #{ i = 7; ff' = #{ f = #40.0 ; f' = 2.0, () } } in
+  let x4 = #{ i = -23; ff' = #{ f = #100.0 ; f' = 9.0, () } } in
+  let x6 = #{ i = -242; ff' = #{ f = #5.5 ; f' = 84.5, () } } in
+  let x8 = #{ i = -2; ff' = #{ f = #20.0 ; f' = 2.0, () } } in
 
   let f3_manyargs =
     f3_manyargs #{ x = 4; y = 8} x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
@@ -259,8 +261,8 @@ let _ = test3 ()
 type tt = #{ x1 : t ; x2 : t }
 
 let[@inline never] test4 () =
-  let one = #{ i = -1; ff' = #{ f = 1.33 ; f' = 0.67, () } } in
-  let two = #{ i = -5; ff' = #{ f = 12.7 ; f' = -5.7, () } } in
+  let one = #{ i = -1; ff' = #{ f = #1.33 ; f' = 0.67, () } } in
+  let two = #{ i = -5; ff' = #{ f = #12.7 ; f' = -5.7, () } } in
 
   (* Simple indirect call *)
   let[@inline never] go f = f one two in
@@ -270,9 +272,9 @@ let[@inline never] test4 () =
 
   (* partial application to an unboxed record and with one remaining *)
   let steps = Array.init 10 (fun _ -> 0.0) in
-  let f = Sys.opaque_identity (f3 #{ i = 5 ; f = 3.14 }) in
-  let five_pi = f #{ fa = steps ; f = 0.0 } in
-  print_float "Test 4, 5 * pi: " (five_pi ());
+  let f = Sys.opaque_identity (f3 #{ i = 5 ; f = #3.14 }) in
+  let five_pi = f #{ fa = steps ; f = #0.0 } in
+  print_floatu "Test 4, 5 * pi: " (five_pi ());
   Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps;
 
   (* That test again, but making f3 also opaque to prevent expansion of the
@@ -280,9 +282,9 @@ let[@inline never] test4 () =
   let f3 = Sys.opaque_identity f3 in
 
   let steps = Array.init 10 (fun _ -> 0.0) in
-  let f = Sys.opaque_identity (f3 #{ i = 5 ; f = 3.14 }) in
-  let five_pi = f #{ fa = steps ; f = 0.0 } in
-  print_float "Test 4, 5 * pi: " (five_pi ());
+  let f = Sys.opaque_identity (f3 #{ i = 5 ; f = #3.14 }) in
+  let five_pi = f #{ fa = steps ; f = #0.0 } in
+  print_floatu "Test 4, 5 * pi: " (five_pi ());
   Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps
 
 let _ = test4 ()
@@ -297,9 +299,9 @@ let[@inline never] f5 n m =
   go
 
 let test5 () =
-  let one = #{ i = -1; ff' = #{ f = 1.33 ; f' = 0.67, () } } in
-  let pi = #{ i = 1; ff' = #{ f = 2.0 ; f' = 0.14, () } } in
-  let e = #{ i = 1; ff' = #{ f = 0.1 ; f' = 1.62, () } } in
+  let one = #{ i = -1; ff' = #{ f = #1.33 ; f' = 0.67, () } } in
+  let pi = #{ i = 1; ff' = #{ f = #2.0 ; f' = 0.14, () } } in
+  let e = #{ i = 1; ff' = #{ f = #0.1 ; f' = 1.62, () } } in
   let _ : unit =
     f5 pi e
       (fun n s m -> print_t_sum s (add_t n m)) "Test 5, pi+e+1"
@@ -337,9 +339,9 @@ let f6_3 n k = object
 end
 
 let test6 () =
-  let one = #{ i = -1; ff' = #{ f = 1.33 ; f' = 0.67, () } } in
-  let pi = #{ i = 1; ff' = #{ f = 2.0 ; f' = 0.14, () } } in
-  let e = #{ i = 1; ff' = #{ f = 0.1 ; f' = 1.62, () } } in
+  let one = #{ i = -1; ff' = #{ f = #1.33 ; f' = 0.67, () } } in
+  let pi = #{ i = 1; ff' = #{ f = #2.0 ; f' = 0.14, () } } in
+  let e = #{ i = 1; ff' = #{ f = #0.1 ; f' = 1.62, () } } in
   let add3 n (m, k) = n + m + k in
 
   (* (3.14 - 2.72) + 1 = 1.42 *)
@@ -348,15 +350,15 @@ let test6 () =
     (o#f6_m1 pi e one);
 
   (* 4.25 * 8 = 34 *)
-  let t_4_25 = #{ i = 2; ff' = #{ f = 1.1 ; f' = 1.15, () } } in
+  let t_4_25 = #{ i = 2; ff' = #{ f = #1.1 ; f' = 1.15, () } } in
   let o = (Sys.opaque_identity f6_2) (4,7) in
   let result = o#f6_m2 8 t_4_25 (fun x -> add_t x x) in
   print_t_sum "Test 6, 34.00" result;
 
   (* (1 + 2 + 3 + (-2) + (-12) + 4) * (2.72 + (-1) + 10) = -46.88 *)
   let o = (Sys.opaque_identity f6_3) (1,2) 3 in
-  let negative_one = #{ i = -3; ff' = #{ f = 1.33 ; f' = 0.67, () } } in
-  let ten = #{ i = -1; ff' = #{ f = 13.2 ; f' = -2.2, () } } in
+  let negative_one = #{ i = -3; ff' = #{ f = #1.33 ; f' = 0.67, () } } in
+  let ten = #{ i = -1; ff' = #{ f = #13.2 ; f' = -2.2, () } } in
   let result =
     o#f6_m3 (-2) e
       (fun[@inline never] i m1 m2 n m3 ->
@@ -371,25 +373,25 @@ let _ = test6 ()
 (* Test 7: letop with unboxed records *)
 
 let ( let* ) x f =
-  let one = #{ i = 0; ff' = #{ f = 1.0 ; f' = 0.0, () } } in
+  let one = #{ i = 0; ff' = #{ f = #1.0 ; f' = 0.0, () } } in
   f (add_t x one)
 
 let _ =
-  let* pi_plus_one = #{ i = 1; ff' = #{ f = 2.0 ; f' = 0.14, () } } in
+  let* pi_plus_one = #{ i = 1; ff' = #{ f = #2.0 ; f' = 0.14, () } } in
   print_t_sum "Test 7, 4.14" pi_plus_one
 
 let ( let* ) x (f : _ -> t) =
-  let one = #{ i = 0; ff' = #{ f = 1.0 ; f' = 0.0, () } } in
+  let one = #{ i = 0; ff' = #{ f = #1.0 ; f' = 0.0, () } } in
   add_t one (f x)
 let ( and* ) x y = (x, t_sum y)
 let _ =
-  let one = #{ i = 0; ff' = #{ f = 1.0 ; f' = 0.0, () } } in
-  let e = #{ i = 1; ff' = #{ f = 0.1 ; f' = 1.62, () } } in
+  let one = #{ i = 0; ff' = #{ f = #1.0 ; f' = 0.0, () } } in
+  let e = #{ i = 1; ff' = #{ f = #0.1 ; f' = 1.62, () } } in
   let result =
     let* x = 42
     and* y = one
     and* z = e in
-    #{ i = 42; ff' = #{ f = y ; f' = z, () } }
+    #{ i = 42; ff' = #{ f = Float_u.of_float y ; f' = z, () } }
   in
   print_t_sum "Test 7, 46.72" result
 
@@ -538,8 +540,8 @@ let[@inline never] f3 (bounds : int_floatu#) (steps_init :floatarray_floatu#) ()
     else begin
       let acc = go (k + 1) in
       let steps = steps_init.#fa in
-      steps.(k) <- acc;
-      Float.add m acc
+      steps.(k) <- Float_u.to_float acc;
+      Float_u.add m acc
     end
   in
   go 0
@@ -557,10 +559,10 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
       let #{ i = x6_1; ff' = #{ f = x6_2; f' = x6_3, () } } = x6 in
       let #{ i = x8_1; ff' = #{ f = x8_2; f' = x8_3, () } } = x8 in
       let sum =
-        Float.of_int x2_1 +. x2_2 +. x2_3 +.
-        Float.of_int x4_1 +. x4_2 +. x4_3 +.
-        Float.of_int x6_1 +. x6_2 +. x6_3 +.
-        Float.of_int x8_1 +. x8_2 +. x8_3
+        Float.of_int x2_1 +. Float_u.to_float x2_2 +. x2_3 +.
+        Float.of_int x4_1 +. Float_u.to_float x4_2 +. x4_3 +.
+        Float.of_int x6_1 +. Float_u.to_float x6_2 +. x6_3 +.
+        Float.of_int x8_1 +. Float_u.to_float x8_2 +. x8_3
       in
       let acc = go (k + 1) in
       steps.(k) <- acc;
@@ -572,8 +574,8 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
 let test12 () =
   (* Test f3 *)
   let steps = Array.init 10 (fun _ -> 0.0) in
-  let five_pi = f3 #{ i = 5; f = 3.14} #{ fa = steps ; f = 0.0 } in
-  print_float "Test 12, 5 * pi: " (five_pi ());
+  let five_pi = f3 #{ i = 5; f = #3.14} #{ fa = steps ; f = #0.0 } in
+  print_floatu "Test 12, 5 * pi: " (five_pi ());
   Array.iteri (Printf.printf "  Test 12, step %d: %.2f\n") steps;
 
   (* Test f3_manyargs
@@ -593,14 +595,14 @@ let test12 () =
   let x9 = 42.0 in
 
   (* these sum to 3 *)
-  let x2 = #{ i = 7; ff' = #{ f = 40.0 ; f' = 2.0, () } } in
-  let x4 = #{ #{ x2 with i = -23 } with ff' = #{ f = 100.0 ; f' = 9.0, () } } in
+  let x2 = #{ i = 7; ff' = #{ f = #40.0 ; f' = 2.0, () } } in
+  let x4 = #{ #{ x2 with i = -23 } with ff' = #{ f = #100.0 ; f' = 9.0, () } } in
   let x6 = #{
     #{ (Sys.opaque_identity x4) with i = -242 }
-    with ff' = #{ f = 5.5 ; f' = 84.5, () }
+    with ff' = #{ f = #5.5 ; f' = 84.5, () }
   } in
   let x8 =
-    #{ i = -2; ff' = #{ (Sys.opaque_identity x2.#ff') with f = 20.0 } } in
+    #{ i = -2; ff' = #{ (Sys.opaque_identity x2.#ff') with f = #20.0 } } in
   let f3_manyargs =
     f3_manyargs #{ x = 4; y = 8} x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
   print_float "Test 3, 610.68: " (f3_manyargs ());
