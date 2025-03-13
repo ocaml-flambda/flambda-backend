@@ -17,11 +17,10 @@
 
 open! Stdlib
 
-type backend_type : value mod portable contended =
+type backend_type =
   | Native
   | Bytecode
   | Other of string
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 (* System interface *)
 
 external get_config: unit -> string * int * bool @@ portable = "caml_sys_get_config"
@@ -109,11 +108,10 @@ external readdir : string -> string array @@ portable = "caml_sys_read_directory
 
 let interactive = ref false
 
-type signal_behavior : value mod contended =
+type signal_behavior =
     Signal_default
   | Signal_ignore
   | Signal_handle of (int -> unit)
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
 module Safe = struct
   external signal
@@ -185,13 +183,12 @@ type extra_prefix = Plus | Tilde
 
 type extra_info = extra_prefix * string
 
-type ocaml_release_info : value mod portable contended = {
+type ocaml_release_info = {
   major : int;
   minor : int;
   patchlevel : int;
   extra : extra_info option
 }
-[@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
 let ocaml_release = {
   major = @OCAML_VERSION_MAJOR@;
