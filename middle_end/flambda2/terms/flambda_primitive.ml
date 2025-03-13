@@ -1483,8 +1483,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Atomic_load _ | Peek _ ->
     (* For the moment, prevent [Peek] from being moved. *)
     Arbitrary_effects, Has_coeffects, Strict
-  | Make_lazy _ ->
-    Only_generative_effects Mutable, No_coeffects, Strict
+  | Make_lazy _ -> Only_generative_effects Mutable, No_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1555,8 +1554,7 @@ let apply_renaming_unary_primitive p renaming =
 
 let ids_for_export_unary_primitive p =
   match p with
-  | Box_number (_, alloc_mode)
-  | Int_as_pointer alloc_mode ->
+  | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Is_null
   | Get_tag | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _
