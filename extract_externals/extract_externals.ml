@@ -75,10 +75,10 @@ let output_shapes ~output_file ~human_readable externals =
 let extract_shapes_from_cmt ~verbose file =
   match Cmt_format.read_cmt file with
   | exception Sys_error s ->
-    if verbose then Format.eprintf "Exception raised while reading .cmt file: %s" s;
+    if verbose then Format.eprintf "Exception raised while reading .cmt file: %s\n" s;
     []
   | exception _ ->
-    if verbose then Format.eprintf "Exception raised while reading .cmt file %s" file;
+    if verbose then Format.eprintf "Exception raised while reading .cmt file %s\n" file;
     []
   | { cmt_annots = Implementation tt; _ } ->
     Traverse_typed_tree.extract_from_typed_tree tt
