@@ -570,12 +570,20 @@ val package_subtype :
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit
 
+(* A set of bound variables *)
+module Bound_vars : sig
+  type t
+
+  val is_empty : t -> bool
+  val mem : t -> type_expr -> bool
+end
+
 (* represents a type that has been extracted from wrappers that
    do not change its runtime representation, such as [@@unboxed]
    types and [Tpoly]s *)
 type unwrapped_type_expr =
   { ty : type_expr
-  ; bound_vars : Btype.TypeSet.t
+  ; bound_vars : Bound_vars.t
   (* vars in scope in [ty] but not in the context to which this
      [unwrapped_type_expr] is returned. These come from unwrapped existential
      variables and variables bound in [Tpoly] nodes. *)

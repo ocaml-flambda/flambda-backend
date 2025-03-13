@@ -1854,8 +1854,7 @@ let subst env level priv abbrev oty params args body =
         | _ -> assert false
   in
   abbreviations := abbrev;
-  let (params', body') = instance_parameterized_type params body
-  in
+  let (params', body') = instance_parameterized_type params body in
   abbreviations := ref Mnil;
   let uenv = Expression {env; in_subst = true} in
   try
@@ -2142,16 +2141,66 @@ let expand_head_opt env ty =
 let is_principal ty =
   not !Clflags.principal || get_level ty = generic_level
 
+module Bound_vars : sig
+  type t
+
+  val empty : t
+  val of_list : type_expr list -> t
+  val add : t -> type_expr list -> t
+  val union : t -> t -> t
+  val mem : t -> type_expr -> bool
+  val is_empty : t -> bool
+end = struct
+  (* It is rare to care about which variables have been bound. This
+     implementation prioritizes the common case of caring only about the
+     presence of variables. *)
+  type t = { is_empty : bool; var_set : TypeSet.t Lazy.t }
+
+  let empty = { is_empty = true; var_set = Lazy.from_val TypeSet.empty }
+
+  let of_list = function
+    | [] -> empty
+    | new_ones ->
+      let var_set =
+        lazy (TypeSet.of_list (List.map Transient_expr.repr new_ones))
+      in
+      { is_empty = false; var_set }
+
+  let add t = function
+    | [] -> t
+    | new_ones ->
+      let var_set = lazy begin
+        let new_ones_set =
+          TypeSet.of_list (List.map Transient_expr.repr new_ones)
+        in
+        TypeSet.union new_ones_set (Lazy.force t.var_set)
+      end in
+      { is_empty = false; var_set }
+
+  let union ({ is_empty = empty1; var_set = set1 } as t1)
+        ({ is_empty = empty2; var_set = set2 } as t2) =
+    match empty1, empty2 with
+    | true, true -> empty
+    | true, false -> t2
+    | false, true -> t1
+    | false, false ->
+      let var_set = lazy (TypeSet.union (Lazy.force set1) (Lazy.force set2)) in
+      { is_empty = false; var_set }
+
+  let mem { is_empty; var_set } ty =
+    not is_empty &&
+    TypeSet.mem ty (Lazy.force var_set)
+
+  let is_empty { is_empty } = is_empty
+end
+
 type unwrapped_type_expr =
   { ty : type_expr
-  ; bound_vars : TypeSet.t
+  ; bound_vars : Bound_vars.t
   ; modality : Mode.Modality.Value.Const.t }
 
 let mk_unwrapped_type_expr ty =
-  { ty; bound_vars = TypeSet.empty; modality = Mode.Modality.Value.Const.id }
-
-let mk_bound_vars vars_list =
-  TypeSet.of_list (List.map Transient_expr.repr vars_list)
+  { ty; bound_vars = Bound_vars.empty; modality = Mode.Modality.Value.Const.id }
 
 type unbox_result =
   (* unboxing process made a step: either an unboxing or removal of a [Tpoly] *)
@@ -2188,7 +2237,7 @@ let unbox_once env ty =
           | exception Not_found -> (* but we found it earlier! *) assert false
         in
         Stepped { ty = apply ty2 existentials;
-                  bound_vars = mk_bound_vars existentials;
+                  bound_vars = Bound_vars.of_list existentials;
                   modality }
       | None -> begin match decl.type_kind with
         | Type_record_unboxed_product ([_], Record_unboxed_product, _) ->
@@ -2198,7 +2247,7 @@ let unbox_once env ty =
             ((_::_::_ as lbls), Record_unboxed_product, _) ->
           Stepped_record_unboxed_product
             (List.map (fun ld -> { ty = apply ld.ld_type [];
-                                   bound_vars = TypeSet.empty;
+                                   bound_vars = Bound_vars.empty;
                                    modality = ld.ld_modalities }) lbls)
         | Type_record_unboxed_product ([], _, _) ->
           Misc.fatal_error "Ctype.unboxed_once: fieldless record"
@@ -2209,7 +2258,7 @@ let unbox_once env ty =
     end
   | Tpoly (ty, bound_vars) ->
     Stepped { ty;
-              bound_vars = mk_bound_vars bound_vars;
+              bound_vars = Bound_vars.of_list bound_vars;
               modality = Mode.Modality.Value.Const.id }
   | _ -> Final_result
 
@@ -2240,7 +2289,7 @@ let rec get_unboxed_type_representation
     let ty = expand_head_opt env ty in
     match unbox_once env ty with
     | Stepped { ty = ty2; bound_vars = bound_vars2; modality = modality2 } ->
-      let bound_vars = TypeSet.union bound_vars bound_vars2 in
+      let bound_vars = Bound_vars.union bound_vars bound_vars2 in
       let modality =
         Mode.Modality.Value.Const.concat modality ~then_:modality2
       in
@@ -2253,7 +2302,7 @@ let rec get_unboxed_type_representation
 let get_unboxed_type_representation env ty =
   (* Do not give too much fuel: PR#7424 *)
   get_unboxed_type_representation
-    ~bound_vars:TypeSet.empty
+    ~bound_vars:Bound_vars.empty
     ~modality:Mode.Modality.Value.Const.id
     env ty ty 100
 
@@ -2292,8 +2341,8 @@ let rec estimate_type_jkind ~expand_component env ty =
             let { ty; bound_vars = bound_vars2; modality } =
               expand_component ty
             in
-            TypeSet.union bound_vars1 bound_vars2, (ty, modality))
-         TypeSet.empty ltys
+            Bound_vars.union bound_vars1 bound_vars2, (ty, modality))
+         Bound_vars.empty ltys
      in
      (* CR layouts v2.8: This pretty ridiculous use of [estimate_type_jkind]
         just to throw most of it away will go away once we get [layout_of]. *)
@@ -2350,7 +2399,7 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
 and close_open_jkind ~expand_component ~bound_vars env jkind =
-  if not (TypeSet.is_empty bound_vars)
+  if not (Bound_vars.is_empty bound_vars)
   (* if the type has free variables, we can't let these leak into with-bounds *)
     (* CR layouts v2.8: Do better, by rounding only the bound variables up. *)
   then
@@ -2422,7 +2471,7 @@ let constrain_type_jkind ~fixed env ty jkind =
      later).
 
      As this unboxes types, it might unbox an existential type. We thus keep
-     track of the variables bound as we unbox (and look through [Tpoly]s.
+     track of the variables bound as we unbox (and look through [Tpoly]s).
      Comparing these variables in jkinds is fine, and they can't escape from
      this function (except harmlessly in error messages). However, we must be
      sure not to change the kinds of these bound variables; that's the only
@@ -2447,7 +2496,7 @@ let constrain_type_jkind ~fixed env ty jkind =
        the call to [intersection_or_error]. And even if [ty] has unbound
        variables, [ty's_jkind] can't have any variables in it, so we're OK. *)
     | Tvar { jkind = ty's_jkind } when not fixed &&
-                                       not (TypeSet.mem ty bound_vars) ->
+                                       not (Bound_vars.mem bound_vars ty) ->
        (* Unfixed tyvars are special in at least two ways:
 
           1) Suppose we're processing [type 'a t = 'a list]. The ['a] on the
@@ -2477,7 +2526,7 @@ let constrain_type_jkind ~fixed env ty jkind =
     (* Handle the [Tpoly] case out here so [Tvar]s wrapped in [Tpoly]s can get
        the treatment above. *)
     | Tpoly (t, bound_vars2) ->
-      let bound_vars = TypeSet.union bound_vars (mk_bound_vars bound_vars2) in
+      let bound_vars = Bound_vars.add bound_vars bound_vars2 in
       loop ~fuel ~expanded:false t ~bound_vars ty's_jkind jkind
 
     | _ ->
@@ -2504,7 +2553,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                let results =
                  Misc.Stdlib.List.map3
                    (fun { ty; bound_vars = bound_vars2; modality } ty's_jkind jkind ->
-                      let bound_vars = TypeSet.union bound_vars bound_vars2 in
+                      let bound_vars = Bound_vars.union bound_vars bound_vars2 in
                       let jkind =
                         Jkind.apply_modality_r modality jkind
                       in
@@ -2554,7 +2603,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                    (Jkind.Violation.of_ ~jkind_of_type
                       (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
                | Stepped { ty; bound_vars = bound_vars2; modality } ->
-                 let bound_vars = TypeSet.union bound_vars bound_vars2 in
+                 let bound_vars = Bound_vars.union bound_vars bound_vars2 in
                  let jkind = Jkind.apply_modality_r modality jkind in
                  loop ~fuel:(fuel - 1) ~expanded:false ty ~bound_vars
                    (estimate_type_jkind env ty) jkind
@@ -2572,7 +2621,7 @@ let constrain_type_jkind ~fixed env ty jkind =
             Error (Jkind.Violation.of_ ~jkind_of_type
                 (Not_a_subjkind (ty's_jkind, jkind, sub_failure_reasons)))
   in
-  loop ~fuel:100 ~expanded:false ty ~bound_vars:TypeSet.empty
+  loop ~fuel:100 ~expanded:false ty ~bound_vars:Bound_vars.empty
     (estimate_type_jkind env ty) (Jkind.disallow_left jkind)
 
 let type_sort ~why ~fixed env ty =
