@@ -91,9 +91,9 @@ let extract_shapes_from_cmts ~includes ~verbose files =
   List.iter
     (fun file ->
       if not (String.ends_with file ~suffix:".cmt")
-      then
-        Misc.fatal_errorf "File %s is not a .cmt file; aborting" file)
-    files;
+        then
+          Misc.fatal_errorf "File %s is not a .cmt file; aborting\n" file)
+      files;
   List.concat_map (extract_shapes_from_cmt ~verbose) files
 ;;
 
