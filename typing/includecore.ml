@@ -56,20 +56,8 @@ type mmodes =
    there, too. *)
 let right_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let Jkind.{ upper_bounds; lower_bounds } =
-    Jkind.get_modal_bounds ~jkind_of_type jkind
-  in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
-  let lower_bounds = Const.alloc_as_value lower_bounds in
-  Value.imply upper_bounds (Value.join_const lower_bounds mode)
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  Crossing.apply_right crossing mode
 
 let right_mode_cross env ty mode =
   if not (Ctype.is_principal ty) then mode else
@@ -78,20 +66,8 @@ let right_mode_cross env ty mode =
 
 let left_mode_cross_jkind env jkind mode =
   let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
-  let Jkind.{ upper_bounds; lower_bounds } =
-    Jkind.get_modal_bounds ~jkind_of_type jkind
-  in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
-  let lower_bounds = Const.alloc_as_value lower_bounds in
-  Value.subtract lower_bounds (Value.meet_const upper_bounds mode)
+  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  Crossing.apply_left crossing mode
 
 let left_mode_cross env ty mode=
   if not (Ctype.is_principal ty) then mode else
@@ -652,34 +628,12 @@ let report_unsafe_mode_crossing_mismatch first second ppf e =
   | Mode_crossing_not_equal (first_mb, second_mb) ->
     (* CR layouts v2.8: It'd be nice to specifically highlight the offending axis,
        rather than printing all axes here. *)
-    let umc_to_mod_bound_list
-          { modal_upper_bounds = { areality; linearity; portability; yielding };
-            modal_lower_bounds = { uniqueness; contention } }
-      =
-      let value_for_axis (type a) (module Ax : Mode_intf.Lattice with type t = a) (ax : a) =
-        if Ax.equal Ax.max ax
-        then None
-        else Some (Format.asprintf "%a" Ax.print ax)
-      in
-      List.filter_map Fun.id
-        [ value_for_axis (module Mode.Locality.Const) areality
-        ; value_for_axis (module Mode.Linearity.Const) linearity
-        ; value_for_axis (module Mode.Portability.Const) portability
-        ; value_for_axis (module Mode.Yielding.Const) yielding
-        ; value_for_axis (module Mode.Uniqueness.Const) uniqueness
-        ; value_for_axis (module Mode.Contention.Const) contention
-        ]
-    in
     pr "Both specify [%@%@unsafe_allow_any_mode_crossing], but their \
         mod-bounds are not equal:@ \
         %s has mod-bounds:@ @[<h 4>%a@]@ \
         but %s has mod-bounds:@ @[<h 4>%a@]"
-      first
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
-      (umc_to_mod_bound_list first_mb)
-      second
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
-      (umc_to_mod_bound_list second_mb)
+      first Mode.Crossing.print first_mb
+      second Mode.Crossing.print second_mb
 
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in

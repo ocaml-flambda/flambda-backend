@@ -682,4 +682,58 @@ module type S = sig
       val max : t
     end
   end
+
+  module Crossing : sig
+    (** The mode crossing capability pertaining to a type.
+
+    Some modes might be indistinguishable for values of some type, in which case
+    the actual/expected mode of values can be adjusted accordingly to make more
+    programs mode-check. The adjustment is called mode crossing. *)
+    type t
+
+    (* CR zqian: Complete the lattice structure of mode crossing. *)
+
+    (* CR zqian: jkind modal bounds should just be our [t]. In particular, jkind
+       should infer the modal bounds of a type in the form of [Value] instead of
+       [Alloc]. For example, a type could have [regional] modality, in which case
+       it can cross to [regional] but not [global]. *)
+
+    (** Convert from jkind modal bounds. *)
+    val of_bounds :
+      (Alloc.Monadic.Const.t, Alloc.Comonadic.Const.t) monadic_comonadic -> t
+
+    (** [modality m t] gives the mode crossing of type [T] wrapped in modality
+    [m] where [T] has mode crossing [t]. *)
+    val modality : Modality.Value.Const.t -> t -> t
+
+    (** Apply mode crossing on a left mode, making it stronger. *)
+    val apply_left : t -> Value.l -> Value.l
+
+    (** Apply mode crossing on a right mode, making it more permissive. *)
+    val apply_right : t -> Value.r -> Value.r
+
+    (* We extend mode crossing on [Value] to [Alloc] via [alloc_as_value].
+       Concretely, two [Alloc] modes are indistinguishable if their images under
+       [alloc_as_value] are indistinguishable. Currently types cross locality
+       either fully or fully not, and therefore [alloc_as_value] seems sufficient. *)
+
+    (** Similar to [apply_left] but for [Alloc] via [alloc_as_value] *)
+    val apply_left_alloc : t -> Alloc.l -> Alloc.l
+
+    (** Similar to [apply_right] but for [Alloc] via [alloc_as_value] *)
+    val apply_right_alloc : t -> Alloc.r -> Alloc.r
+
+    (** Apply mode crossong on the left comonadic fragment, and the right
+        monadic fragment. *)
+    val apply_left_right_alloc :
+      t ->
+      (Alloc.Monadic.r, Alloc.Comonadic.l) monadic_comonadic ->
+      (Alloc.Monadic.r, Alloc.Comonadic.l) monadic_comonadic
+
+    (** [le t0 t1] returns [true] if [t0] allows more mode crossing than [t1]. *)
+    val le : t -> t -> bool
+
+    (** Print the mode crossing by axis. Omit axes that do not cross. *)
+    val print : Format.formatter -> t -> unit
+  end
 end

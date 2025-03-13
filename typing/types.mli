@@ -706,9 +706,7 @@ type type_declaration =
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and unsafe_mode_crossing =
-  { modal_upper_bounds : Mode.Alloc.Comonadic.Const.t;
-    modal_lower_bounds : Mode.Alloc.Monadic.Const.t }
+and unsafe_mode_crossing = Mode.Crossing.t
 
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin

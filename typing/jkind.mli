@@ -527,19 +527,11 @@ val get_layout : 'd Types.jkind -> Layout.Const.t option
 (** Gets the layout of a jkind, without looking through sort variables. *)
 val extract_layout : 'd Types.jkind -> Sort.t Layout.t
 
-(** This could be [Mode.monadic_comonadic], but redefining here makes the
-    upper-bound/lower-bound distinction more obvious. *)
-type modal_bounds =
-  { upper_bounds : Mode.Alloc.Comonadic.Const.t;
-    lower_bounds : Mode.Alloc.Monadic.Const.t
-  }
-
-(** Gets the maximum comonadic modes and the minimum monadic modes for types
-    of this jkind. *)
-val get_modal_bounds :
+(** Gets the mode crossing for types of this jkind. *)
+val get_mode_crossing :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
-  modal_bounds
+  Mode.Crossing.t
 
 val get_externality_upper_bound :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->

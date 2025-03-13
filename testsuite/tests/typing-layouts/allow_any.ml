@@ -298,8 +298,8 @@ Error: Signature mismatch:
        [@@unsafe_allow_any_mode_crossing]
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their mod-bounds are not equal:
-         the first has mod-bounds: portable unique
-         but the second has mod-bounds: unique
+         the first has mod-bounds: portable contended
+         but the second has mod-bounds: contended
 |}]
 
 module A : sig
