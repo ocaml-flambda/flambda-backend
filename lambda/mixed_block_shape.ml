@@ -28,8 +28,7 @@
 
 type path = int list
 
-let string_of_path path =
-  String.concat ", " (List.map string_of_int path)
+let string_of_path path = String.concat ", " (List.map string_of_int path)
 
 type 'a shape = 'a Lambda.mixed_block_element array
 
@@ -49,7 +48,7 @@ type 'a t =
     suffix : 'a shape; (* invariant: only unboxed elements, no `Product` *)
     flattened_and_reordered_shape : 'a shape; (* invariant: no `Product` *)
     forest : 'a tree array;
-    new_indexes_to_old_indexes : int array;
+    new_indexes_to_old_indexes : int array
   }
 
 let concat_arrays : 'a array array -> 'a array =
@@ -93,7 +92,7 @@ let rec flatten_one :
     |> Array.map (fun (sub_element, path) -> sub_element, index :: path)
 
 and flatten_list : 'a Lambda.mixed_block_element array -> 'a shape_with_paths =
-  fun sub_elements -> Array.mapi flatten_one sub_elements |> concat_arrays
+ fun sub_elements -> Array.mapi flatten_one sub_elements |> concat_arrays
 
 (* CR xclerc for xclerc: should/could be merged with the flattening. *)
 let rec build_tree_one :
@@ -130,9 +129,9 @@ and build_tree_list :
 let rec flatten_tree_array arr =
   Array.to_list arr
   |> List.concat_map (fun tree ->
-    match tree with
-    | Leaf { new_index; _ } -> [new_index]
-    | Node { children } -> flatten_tree_array children)
+         match tree with
+         | Leaf { new_index; _ } -> [new_index]
+         | Node { children } -> flatten_tree_array children)
 
 let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
   let flattened_shape_with_paths = flatten_list original_shape in
@@ -164,12 +163,13 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
       Hashtbl.replace old_path_to_new_index old_path new_index)
     flattened_and_reordered_shape;
   let forest = build_tree_list old_path_to_new_index [] original_shape in
-  let old_indexes_to_new_indexes =
-    flatten_tree_array forest |> Array.of_list
+  let old_indexes_to_new_indexes = flatten_tree_array forest |> Array.of_list in
+  let new_indexes_to_old_indexes =
+    Array.make (Array.length old_indexes_to_new_indexes) (-1)
   in
-  let new_indexes_to_old_indexes = Array.make (Array.length old_indexes_to_new_indexes) (-1) in
   Array.iteri
-    (fun old_index new_index -> new_indexes_to_old_indexes.(new_index) <- old_index)
+    (fun old_index new_index ->
+      new_indexes_to_old_indexes.(new_index) <- old_index)
     old_indexes_to_new_indexes;
   { prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;

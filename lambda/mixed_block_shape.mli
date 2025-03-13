@@ -49,7 +49,8 @@ val flat_suffix_len : 'a t -> int
 val flattened_and_reordered_shape : 'a t -> 'a Lambda.mixed_block_element array
 
 (** (Same as [flattened_shape]). *)
-val flattened_and_reordered_shape_unit : 'a t -> unit Lambda.mixed_block_element array
+val flattened_and_reordered_shape_unit :
+  'a t -> unit Lambda.mixed_block_element array
 
 (* CR-soon xclerc for xclerc: make abstract? *)
 type new_indexes = int list

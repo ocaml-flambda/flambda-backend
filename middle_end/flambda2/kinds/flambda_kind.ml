@@ -915,8 +915,8 @@ module With_subkind = struct
                         | Product _ -> assert false
                       in
                       let flattened_shape_unit =
-                        Mixed_block_lambda_shape.flattened_and_reordered_shape_unit
-                          mixed_block_shape
+                        Mixed_block_lambda_shape
+                        .flattened_and_reordered_shape_unit mixed_block_shape
                       in
                       let fields : t array =
                         (* XXX share with Pmakemixedblock case in flambda2 *)

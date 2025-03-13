@@ -221,7 +221,9 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       |> Array.to_list
     in
     let args =
-      let flattened_shape = Mixed_block_shape.flattened_and_reordered_shape shape in
+      let flattened_shape =
+        Mixed_block_shape.flattened_and_reordered_shape shape
+      in
       List.mapi
         (fun new_index arg ->
           match flattened_shape.(new_index) with

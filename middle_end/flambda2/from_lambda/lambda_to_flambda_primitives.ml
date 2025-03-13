@@ -1459,7 +1459,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       |> Array.to_list
     in
     let args =
-      let flattened_shape = Mixed_block_shape.flattened_and_reordered_shape shape in
+      let flattened_shape =
+        Mixed_block_shape.flattened_and_reordered_shape shape
+      in
       List.mapi
         (fun new_index arg ->
           match flattened_shape.(new_index) with
@@ -1962,7 +1964,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     ]
   | Pmixedfield (field_path, shape, sem), [[arg]] ->
     let shape = Mixed_block_shape.of_mixed_block_elements shape in
-    let flattened_shape = Mixed_block_shape.flattened_and_reordered_shape shape in
+    let flattened_shape =
+      Mixed_block_shape.flattened_and_reordered_shape shape
+    in
     let kind_shape =
       Mixed_block_shape.flattened_and_reordered_shape_unit shape
       |> K.Mixed_block_shape.from_lambda
@@ -2039,7 +2043,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | ( Psetmixedfield (field_path, shape, initialization_or_assignment),
       [[block]; [value]] ) ->
     let shape = Mixed_block_shape.of_mixed_block_elements shape in
-    let flattened_shape = Mixed_block_shape.flattened_and_reordered_shape shape in
+    let flattened_shape =
+      Mixed_block_shape.flattened_and_reordered_shape shape
+    in
     let kind_shape =
       Mixed_block_shape.flattened_and_reordered_shape_unit shape
       |> K.Mixed_block_shape.from_lambda
