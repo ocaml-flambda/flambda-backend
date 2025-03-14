@@ -124,31 +124,50 @@ let is_trap_handler t label =
 
 (* Printing utilities for debug *)
 
+let all_blocks_used_as_exn_successor t =
+  let blocks = ref Label.Set.empty in
+  DLL.iter t.layout ~f:(fun block_label ->
+      blocks
+        := Label.Set.union !blocks
+             (Cfg.successor_labels ~normal:false ~exn:true
+                (Cfg.get_block_exn t.cfg block_label)));
+  !blocks
+
 let dump ppf t ~msg =
   let open Format in
-  fprintf ppf "\ncfg for %s\n" msg;
-  fprintf ppf "%s\n" t.cfg.fun_name;
-  fprintf ppf "layout.length=%d\n" (DLL.length t.layout);
-  fprintf ppf "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
+  fprintf ppf "\n%t%s%s%t (Cfg, layout length %d, num blocks %d)\n"
+    Cfg_colours.function_name
+    (if String.length msg = 0 then "" else msg ^ " ")
+    t.cfg.fun_name Cfg_colours.pop (DLL.length t.layout)
+    (Label.Tbl.length t.cfg.blocks);
+  let all_blocks_used_as_exn_successor = all_blocks_used_as_exn_successor t in
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
-    fprintf ppf "\n%a:\n" Label.format label;
-    let pp_with_id ppf ~pp (instr : _ Cfg.instruction) =
-      fprintf ppf "(id:%a) %a\n" InstructionId.format instr.id pp instr
+    let succ = Cfg.successor_labels ~normal:true ~exn:false block in
+    fprintf ppf "@[<h>%t%a%t@ %t%a\u{2190}-%t%t.%t%t-\u{2192}%a"
+      (if Label.Set.mem label all_blocks_used_as_exn_successor
+      then Cfg_colours.block_label_exn
+      else Cfg_colours.block_label)
+      Label.format label Cfg_colours.pop Cfg_colours.pred_succ Label.Set.print
+      block.predecessors Cfg_colours.pop Cfg_colours.block_label Cfg_colours.pop
+      Cfg_colours.pred_succ Label.Set.print succ;
+    let exn_succ = Cfg.successor_labels ~normal:false ~exn:true block in
+    if (not (Label.Set.is_empty exn_succ))
+       && not (Label.Set.equal succ exn_succ)
+    then fprintf ppf " -\u{2192}e%a" Label.Set.print exn_succ;
+    fprintf ppf "%t@]\n" Cfg_colours.pop;
+    let pp_with_id ~sep ppf ~pp (instr : _ Cfg.instruction) =
+      fprintf ppf "%t%a%t %a%s" Cfg_colours.instr_id InstructionId.format
+        instr.id Cfg_colours.pop pp instr sep
     in
-    DLL.iter ~f:(pp_with_id ppf ~pp:Cfg.print_basic) block.body;
-    pp_with_id ppf ~pp:Cfg.print_terminator block.terminator;
-    fprintf ppf "\npredecessors:";
-    Label.Set.iter (fprintf ppf " %a" Label.format) block.predecessors;
-    fprintf ppf "\nsuccessors:";
-    Label.Set.iter
-      (fprintf ppf " %a" Label.format)
-      (Cfg.successor_labels ~normal:true ~exn:false block);
-    fprintf ppf "\nexn-successors:";
-    Label.Set.iter
-      (fprintf ppf " %a" Label.format)
-      (Cfg.successor_labels ~normal:false ~exn:true block);
-    fprintf ppf "\n"
+    DLL.iter ~f:(pp_with_id ~sep:"\n" ppf ~pp:Cfg.print_basic) block.body;
+    pp_with_id ~sep:"" ppf ~pp:Cfg.print_terminator block.terminator
+    (* fprintf ppf "\npredecessors:"; Label.Set.iter (fprintf ppf " %a"
+       Label.format) block.predecessors; fprintf ppf "\nsuccessors:";
+       Label.Set.iter (fprintf ppf " %a" Label.format) (Cfg.successor_labels
+       ~normal:true ~exn:false block); fprintf ppf "\nexn-successors:";
+       Label.Set.iter (fprintf ppf " %a" Label.format) (Cfg.successor_labels
+       ~normal:false ~exn:true block); *)
   in
   DLL.iter ~f:print_block t.layout
 

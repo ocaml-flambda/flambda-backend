@@ -13,7 +13,7 @@ let to_string = Int.to_string
 
 let to_string_padded t = Printf.sprintf "#%04d" t
 
-let format fmt t = Format.fprintf fmt "%d" t
+let format fmt t = Format.fprintf fmt "%10d" t
 
 type sequence = { mutable next : t }
 
