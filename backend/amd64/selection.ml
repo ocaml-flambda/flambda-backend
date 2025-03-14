@@ -194,7 +194,7 @@ class selector =
     method! select_operation op args dbg =
       match op with
       (* Recognize the LEA instruction *)
-      | Caddi | Caddv | Cadda | Csubi -> (
+      | Caddi | Caddv | Cadda | Csubi | Cor -> (
         match self#select_addressing Word_int (Cop (op, args, dbg)) with
         | Iindexed _, _ | Iindexed2 0, _ -> super#select_operation op args dbg
         | ( ((Iindexed2 _ | Iscaled _ | Iindexed2scaled _ | Ibased _) as addr),
@@ -258,6 +258,12 @@ class selector =
           Ispecific Isextend32, [k]
         | _ -> super#select_operation op args dbg)
       (* Recognize zero extension *)
+      | Clsr -> (
+        match args with
+        | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
+          Ispecific Izextend32, [k]
+        | _ -> super#select_operation op args dbg)
+      (* Recognize zero extension again *)
       | Cand -> (
         match args with
         | [arg; Cconst_int (0xffff_ffff, _)]
