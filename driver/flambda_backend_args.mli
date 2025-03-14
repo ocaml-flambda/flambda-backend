@@ -91,6 +91,7 @@ module type Flambda_backend_options = sig
   val no_flambda2_result_types : unit -> unit
   val flambda2_basic_meet : unit -> unit
   val flambda2_advanced_meet : unit -> unit
+  val flambda2_join_algorithm : string -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit

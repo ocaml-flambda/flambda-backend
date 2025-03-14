@@ -18,18 +18,18 @@ module Typing_env = struct
   include Typing_env
 
   let add_equation t name ty =
-    add_equation t name ty ~meet_type:Meet_and_join.meet_type
+    add_equation t name ty ~meet_type:(Meet.meet_type ())
 
   let add_equations_on_params t ~params ~param_types =
     add_equations_on_params t ~params ~param_types
-      ~meet_type:Meet_and_join.meet_type
+      ~meet_type:(Meet.meet_type ())
 
   let add_env_extension t extension =
-    add_env_extension t extension ~meet_type:Meet_and_join.meet_type
+    add_env_extension t extension ~meet_type:(Meet.meet_type ())
 
   let add_env_extension_with_extra_variables t extension =
     add_env_extension_with_extra_variables t extension
-      ~meet_type:Meet_and_join.meet_type
+      ~meet_type:(Meet.meet_type ())
 
   module Alias_set = Aliases.Alias_set
 end
@@ -43,7 +43,7 @@ type typing_env_extension = Typing_env_extension.t
 include Type_grammar
 include More_type_creators
 include Expand_head
-include Meet_and_join
+include Meet
 include Provers
 include Reify
 include Join_levels
@@ -54,10 +54,9 @@ let remove_outermost_alias env ty =
 
 module Equal_types_for_debug = struct
   let equal_type env t1 t2 =
-    Equal_types_for_debug.equal_type ~meet_type:Meet_and_join.meet_type env t1
-      t2
+    Equal_types_for_debug.equal_type ~meet_type:(Meet.meet_type ()) env t1 t2
 
   let equal_env_extension env ext1 ext2 =
-    Equal_types_for_debug.equal_env_extension ~meet_type:Meet_and_join.meet_type
-      env ext1 ext2
+    Equal_types_for_debug.equal_env_extension ~meet_type:(Meet.meet_type ()) env
+      ext1 ext2
 end
