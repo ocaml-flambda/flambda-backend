@@ -128,7 +128,7 @@ let dummy_table =
     initializers = [];
     size = 0 }
 
-let table_count = Atomic.Safe.make 0
+let table_count = Atomic.make 0
 
 (* dummy_met should be a pointer, so use an atom *)
 let dummy_met : item = Obj.magic_portable (of_repr (Obj.new_block 0 0))
@@ -169,8 +169,8 @@ let put array label element =
 
 (**** Classes ****)
 
-let method_count = Atomic.Safe.make 0
-let inst_var_count = Atomic.Safe.make 0
+let method_count = Atomic.make 0
+let inst_var_count = Atomic.make 0
 
 (* type t *)
 type meth = item
@@ -628,5 +628,6 @@ type stats =
   { classes: int; methods: int; inst_vars: int; }
 
 let stats () =
-  { classes = Atomic.Safe.get table_count;
-    methods = Atomic.Safe.get method_count; inst_vars = Atomic.Safe.get inst_var_count; }
+  { classes = Atomic.Safe.get_contended table_count;
+    methods = Atomic.Safe.get_contended method_count;
+    inst_vars = Atomic.Safe.get_contended inst_var_count; }
