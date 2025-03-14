@@ -87,6 +87,8 @@ module Decisions : sig
     }
 
   val print : Format.formatter -> t -> unit
+
+  val project : rewrite_id_set:Apply_cont_rewrite_id.Set.t -> t -> t
 end
 
 (* Decision update pass.

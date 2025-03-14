@@ -283,6 +283,12 @@ let compute_static_size lam =
            so we should never end up here; but these are constants anyway. *)
         Constant
 
+    | Popaque _ ->
+      begin match args with
+      | [arg] -> compute_expression_size env arg
+      | _ -> Misc.fatal_error "letrec: Popaque applied to multiple arguments"
+      end
+
     | Pbytes_to_string
     | Pbytes_of_string
     | Pgetglobal _
@@ -354,7 +360,6 @@ let compute_static_size lam =
     | Patomic_compare_exchange _
     | Patomic_compare_set _
     | Patomic_fetch_add
-    | Popaque _
     | Pdls_get
     | Ppeek _
     | Ppoke _ ->

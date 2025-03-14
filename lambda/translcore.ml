@@ -1053,7 +1053,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                      Lambda.layout_lazy_contents
                                      (transl_exp ~scopes Jkind.Sort.Const.for_lazy_body e))
          in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
+         Lprim (Popaque Lambda.layout_lazy,
+                [ Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
+                        of_location ~scopes e.exp_loc) ],
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->

@@ -512,7 +512,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
            (Bound_parameters.to_list params))
     in
     let handlers =
-      Continuation.Map.mapi
+      Continuation.Lmap.mapi
         (fun cont handler ->
           let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
           let bound_parameters = filter_params cont bound_parameters in
@@ -522,9 +522,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
         handlers
     in
     let invariant_params =
-      filter_params
-        (fst (Continuation.Map.min_binding handlers))
-        invariant_params
+      filter_params (fst (Continuation.Lmap.choose handlers)) invariant_params
     in
     let let_cont_expr =
       RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
