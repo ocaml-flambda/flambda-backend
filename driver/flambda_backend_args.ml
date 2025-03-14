@@ -254,20 +254,12 @@ let mk_no_flambda2_result_types f =
 
 let mk_flambda2_basic_meet f =
   "-flambda2-basic-meet", Arg.Unit f,
-  Printf.sprintf " Use a basic meet algorithm%s (Flambda 2 only)"
-    (format_default (
-      match Flambda2.Default.meet_algorithm with
-      | Basic -> true
-      | Advanced -> false))
+  Printf.sprintf " Use a basic meet algorithm (deprecated) (Flambda 2 only)"
 ;;
 
 let mk_flambda2_advanced_meet f =
   "-flambda2-advanced-meet", Arg.Unit f,
-  Printf.sprintf " Use an advanced meet algorithm%s (Flambda 2 only)"
-    (format_default (
-      match Flambda2.Default.meet_algorithm with
-      | Basic -> false
-      | Advanced -> true))
+  Printf.sprintf " Use an advanced meet algorithm (deprecated) (Flambda 2 only)"
 ;;
 
 
@@ -1115,10 +1107,8 @@ module Flambda_backend_options_impl = struct
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.All_functions
   let no_flambda2_result_types () =
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
-  let flambda2_basic_meet () =
-    Flambda2.meet_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Basic
-  let flambda2_advanced_meet () =
-    Flambda2.meet_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Advanced
+  let flambda2_basic_meet () = ()
+  let flambda2_advanced_meet () = ()
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -1444,10 +1434,7 @@ module Extra_params = struct
       true
     | "flambda2-meet-algorithm" ->
       (match String.lowercase_ascii v with
-      | "basic" ->
-        Flambda2.meet_algorithm := Flambda_backend_flags.(Set Basic)
-      | "advanced" ->
-        Flambda2.meet_algorithm := Flambda_backend_flags.(Set Advanced)
+      | "basic" | "advanced" -> ()
       | _ ->
         Misc.fatal_error "Syntax: flambda2-meet_algorithm=basic|advanced");
       true
@@ -1472,7 +1459,6 @@ module Extra_params = struct
     | "flambda2-expert-cont-lifting-budget" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-         if i <> 0 then Flambda2.meet_algorithm := Flambda_backend_flags.(Set Advanced);
          Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set i
       | None -> ()
       end;
