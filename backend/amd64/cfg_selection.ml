@@ -180,9 +180,7 @@ class selector =
       | Cconst_symbol (_, _)
       | Cvar _
       | Clet (_, _, _)
-      | Clet_mut (_, _, _, _)
       | Cphantom_let (_, _, _)
-      | Cassign (_, _)
       | Ctuple _
       | Cop (_, _, _)
       | Csequence (_, _)

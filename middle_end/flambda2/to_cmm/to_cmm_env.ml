@@ -146,9 +146,6 @@ type t =
        handler inlined, or else reached via a jump. *)
     exn_handlers : Continuation.Set.t;
     (* All continuations that act as exception handlers. *)
-    exn_conts_extra_args : Backend_var.t list Continuation.Map.t;
-    (* Mutable variables used for compiling the "extra arguments" to exception
-       handlers. *)
     vars_extra : extra_info Variable.Map.t;
     (* Extra information associated with Flambda variables. *)
     vars : (Cmm.expression * free_vars) Variable.Map.t;
@@ -254,8 +251,7 @@ let create offsets functions_info ~trans_prim ~return_continuation
     vars_extra = Variable.Map.empty;
     vars = Variable.Map.empty;
     conts;
-    exn_handlers = Continuation.Set.singleton exn_continuation;
-    exn_conts_extra_args = Continuation.Map.empty
+    exn_handlers = Continuation.Set.singleton exn_continuation
   }
 
 let enter_function_body env ~return_continuation ~return_continuation_arity
@@ -393,25 +389,9 @@ let add_exn_handler env k arity =
   in
   match Flambda_arity.unarized_components arity with
   | [] -> Misc.fatal_error "Exception handlers must have at least one parameter"
-  | [_] -> env, []
-  | _ :: extra_args ->
-    let mut_vars =
-      List.map
-        (fun kind -> Backend_var.create_local "exn_extra_arg", kind)
-        extra_args
-    in
-    let vars_only = List.map fst mut_vars in
-    let exn_conts_extra_args =
-      Continuation.Map.add k vars_only env.exn_conts_extra_args
-    in
-    { env with exn_conts_extra_args }, mut_vars
+  | [_] | _ :: _ -> env
 
 let is_exn_handler t cont = Continuation.Set.mem cont t.exn_handlers
-
-let get_exn_extra_args env k =
-  match Continuation.Map.find k env.exn_conts_extra_args with
-  | exception Not_found -> []
-  | extra_args -> extra_args
 
 (* Variable binding (for potential inlining). Also see [To_cmm_effects]. *)
 
@@ -428,8 +408,8 @@ let is_cmm_simple cmm =
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
     true
-  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
-  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
+  | Clet _ | Cphantom_let _ | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _
+  | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     false
 
 (* Helper function to create bindings *)
