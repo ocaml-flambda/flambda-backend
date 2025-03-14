@@ -18,7 +18,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-type 'a t = { mutable c : 'a list; mutable len : int; }
+type ('a : value_or_null) t = { mutable c : 'a list; mutable len : int; }
 
 exception Empty
 

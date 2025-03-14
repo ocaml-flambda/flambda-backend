@@ -92,14 +92,14 @@ open! Stdlib
 
     @since 4.07 *)
 
-type 'a t = unit -> 'a node
+type ('a : value_or_null) t = unit -> 'a node
 (** A sequence [xs] of type ['a t] is a delayed list of elements of
     type ['a]. Such a sequence is queried by performing a function
     application [xs()]. This function application returns a node,
     allowing the caller to determine whether the sequence is empty
     or nonempty, and in the latter case, to obtain its head and tail. *)
 
-and +'a node =
+and ('a : value_or_null) node =
   | Nil
   | Cons of 'a * 'a t (**)
 (** A node is either [Nil], which means that the sequence is empty,
@@ -134,7 +134,7 @@ and +'a node =
    None of the functions in this section is lazy. These functions
    are consumers: they force some computation to take place. *)
 
-val is_empty : 'a t -> bool
+val is_empty : ('a : value_or_null). 'a t -> bool
 (** [is_empty xs] determines whether the sequence [xs] is empty.
 
     It is recommended that the sequence [xs] be persistent.
@@ -144,7 +144,7 @@ val is_empty : 'a t -> bool
 
     @since 4.14 *)
 
-val uncons : 'a t -> ('a * 'a t) option
+val uncons : ('a : value_or_null). 'a t -> ('a * 'a t) option
 (** If [xs] is empty, then [uncons xs] is [None].
 
     If [xs] is nonempty, then [uncons xs] is [Some (x, ys)] where [x] is the
@@ -152,21 +152,22 @@ val uncons : 'a t -> ('a * 'a t) option
 
     @since 4.14 *)
 
-val length : 'a t -> int
+val length : ('a : value_or_null). 'a t -> int
 (** [length xs] is the length of the sequence [xs].
 
     The sequence [xs] must be finite.
 
     @since 4.14 *)
 
-val iter : ('a -> unit) -> 'a t -> unit
+val iter : ('a : value_or_null). ('a -> unit) -> 'a t -> unit
 (** [iter f xs] invokes [f x] successively
     for every element [x] of the sequence [xs],
     from left to right.
 
     It terminates only if the sequence [xs] is finite. *)
 
-val fold_left : ('acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
+val fold_left : ('acc : value_or_null) ('a : value_or_null)
+  . ('acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
 (** [fold_left f _ xs] invokes [f _ x] successively
     for every element [x] of the sequence [xs],
     from left to right.
@@ -175,7 +176,7 @@ val fold_left : ('acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
 
     It terminates only if the sequence [xs] is finite. *)
 
-val iteri : (int -> 'a -> unit) -> 'a t -> unit
+val iteri : ('a : value_or_null). (int -> 'a -> unit) -> 'a t -> unit
 (** [iteri f xs] invokes [f i x] successively
     for every element [x] located at index [i] in the sequence [xs].
 
@@ -186,7 +187,8 @@ val iteri : (int -> 'a -> unit) -> 'a t -> unit
 
     @since 4.14 *)
 
-val fold_lefti : ('acc -> int -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
+val fold_lefti : ('acc : value_or_null) ('a : value_or_null)
+  . ('acc -> int -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
 (** [fold_lefti f _ xs] invokes [f _ i x] successively
     for every element [x] located at index [i] of the sequence [xs].
 
@@ -199,7 +201,7 @@ val fold_lefti : ('acc -> int -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
 
     @since 4.14 *)
 
-val for_all : ('a -> bool) -> 'a t -> bool
+val for_all : ('a : value_or_null). ('a -> bool) -> 'a t -> bool
 (** [for_all p xs] determines whether all elements [x] of the sequence [xs]
     satisfy [p x].
 
@@ -207,7 +209,7 @@ val for_all : ('a -> bool) -> 'a t -> bool
 
     @since 4.14 *)
 
-val exists : ('a -> bool) -> 'a t -> bool
+val exists : ('a : value_or_null). ('a -> bool) -> 'a t -> bool
 (** [exists xs p] determines whether at least one element [x]
     of the sequence [xs] satisfies [p x].
 
@@ -215,7 +217,7 @@ val exists : ('a -> bool) -> 'a t -> bool
 
     @since 4.14 *)
 
-val find : ('a -> bool) -> 'a t -> 'a option
+val find : ('a : value_or_null). ('a -> bool) -> 'a t -> 'a option
 (** [find p xs] returns [Some x], where [x] is the first element of the
     sequence [xs] that satisfies [p x], if there is such an element.
 
@@ -225,7 +227,7 @@ val find : ('a -> bool) -> 'a t -> 'a option
 
     @since 4.14 *)
 
-val find_index : ('a -> bool) -> 'a t -> int option
+val find_index : ('a : value_or_null). ('a -> bool) -> 'a t -> int option
 (** [find_index p xs] returns [Some i], where [i] is the index of the first
     element of the sequence [xs] that satisfies [p x], if there is such an
     element.
@@ -236,7 +238,8 @@ val find_index : ('a -> bool) -> 'a t -> int option
 
     @since 5.1 *)
 
-val find_map : ('a -> 'b option) -> 'a t -> 'b option
+val find_map : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b option) -> 'a t -> 'b option
 (** [find_map f xs] returns [Some y], where [x] is the first element of the
     sequence [xs] such that [f x = Some _], if there is such an element,
     and where [y] is defined by [f x = Some y].
@@ -247,7 +250,8 @@ val find_map : ('a -> 'b option) -> 'a t -> 'b option
 
     @since 4.14 *)
 
-val find_mapi : (int -> 'a -> 'b option) -> 'a t -> 'b option
+val find_mapi : ('a : value_or_null) ('b : value_or_null)
+  . (int -> 'a -> 'b option) -> 'a t -> 'b option
 (** Same as [find_map], but the predicate is applied to the index of
    the element as first argument (counting from 0), and the element
    itself as second argument.
@@ -256,7 +260,8 @@ val find_mapi : (int -> 'a -> 'b option) -> 'a t -> 'b option
 
    @since 5.1 *)
 
-val iter2 : ('a -> 'b -> unit) -> 'a t -> 'b t -> unit
+val iter2 : ('a : value_or_null) ('b : value_or_null).
+  ('a -> 'b -> unit) -> 'a t -> 'b t -> unit
 (** [iter2 f xs ys] invokes [f x y] successively for every pair [(x, y)] of
     elements drawn synchronously from the sequences [xs] and [ys].
 
@@ -272,7 +277,9 @@ val iter2 : ('a -> 'b -> unit) -> 'a t -> 'b t -> unit
 
     @since 4.14 *)
 
-val fold_left2 : ('acc -> 'a -> 'b -> 'acc) -> 'acc -> 'a t -> 'b t -> 'acc
+val fold_left2 : ('acc : value_or_null) ('a : value_or_null) 
+  ('b : value_or_null).
+  ('acc -> 'a -> 'b -> 'acc) -> 'acc -> 'a t -> 'b t -> 'acc
 (** [fold_left2 f _ xs ys] invokes [f _ x y] successively
     for every pair [(x, y)] of elements drawn synchronously
     from the sequences [xs] and [ys].
@@ -291,7 +298,8 @@ val fold_left2 : ('acc -> 'a -> 'b -> 'acc) -> 'acc -> 'a t -> 'b t -> 'acc
 
     @since 4.14 *)
 
-val for_all2 : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
+val for_all2 : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
 (** [for_all2 p xs ys] determines whether all pairs [(x, y)] of elements
     drawn synchronously from the sequences [xs] and [ys] satisfy [p x y].
 
@@ -309,7 +317,8 @@ val for_all2 : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
 
     @since 4.14 *)
 
-val exists2 : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
+val exists2 : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
 (** [exists2 p xs ys] determines whether some pair [(x, y)] of elements
     drawn synchronously from the sequences [xs] and [ys] satisfies [p x y].
 
@@ -323,7 +332,8 @@ val exists2 : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
 
     @since 4.14 *)
 
-val equal : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
+val equal : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
 (** Provided the function [eq] defines an equality on elements,
     [equal eq xs ys] determines whether the sequences [xs] and [ys]
     are pointwise equal.
@@ -332,7 +342,8 @@ val equal : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
 
     @since 4.14 *)
 
-val compare : ('a -> 'b -> int) -> 'a t -> 'b t -> int
+val compare : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b -> int) -> 'a t -> 'b t -> int
 (** Provided the function [cmp] defines a preorder on elements,
     [compare cmp xs ys] compares the sequences [xs] and [ys]
     according to the lexicographic preorder.
@@ -348,15 +359,15 @@ val compare : ('a -> 'b -> int) -> 'a t -> 'b t -> int
 (** The functions in this section are lazy: that is, they return sequences
     whose elements are computed only when demanded. *)
 
-val empty : 'a t
+val empty : ('a : value_or_null) . 'a t
 (** [empty] is the empty sequence.
     It has no elements. Its length is 0. *)
 
-val return : 'a -> 'a t
+val return : ('a : value_or_null) . 'a -> 'a t
 (** [return x] is the sequence whose sole element is [x].
     Its length is 1. *)
 
-val cons : 'a -> 'a t -> 'a t
+val cons : ('a : value_or_null). 'a -> 'a t -> 'a t
 (** [cons x xs] is the sequence that begins with the element [x],
     followed with the sequence [xs].
 
@@ -367,7 +378,7 @@ val cons : 'a -> 'a t -> 'a t
 
     @since 4.11 *)
 
-val init : int -> (int -> 'a) -> 'a t
+val init : ('a : value_or_null). int -> (int -> 'a) -> 'a t
 (** [init n f] is the sequence [f 0; f 1; ...; f (n-1)].
 
     [n] must be nonnegative.
@@ -379,7 +390,8 @@ val init : int -> (int -> 'a) -> 'a t
 
     @since 4.14 *)
 
-val unfold : ('b -> ('a * 'b) option) -> 'b -> 'a t
+val unfold : ('a : value_or_null) ('b : value_or_null)
+  . ('b -> ('a * 'b) option) -> 'b -> 'a t
 (** [unfold] constructs a sequence
     out of a step function and an initial state.
 
@@ -393,7 +405,7 @@ val unfold : ('b -> ('a * 'b) option) -> 'b -> 'a t
 
     @since 4.11 *)
 
-val repeat : 'a -> 'a t
+val repeat : ('a : value_or_null). 'a -> 'a t
 (** [repeat x] is the infinite sequence
     where the element [x] is repeated indefinitely.
 
@@ -401,7 +413,7 @@ val repeat : 'a -> 'a t
 
     @since 4.14 *)
 
-val forever : (unit -> 'a) -> 'a t
+val forever : ('a : value_or_null). (unit -> 'a) -> 'a t
 (** [forever f] is an infinite sequence where every element is produced
     (on demand) by the function call [f()].
 
@@ -412,7 +424,7 @@ val forever : (unit -> 'a) -> 'a t
 
     @since 4.14 *)
 
-val cycle : 'a t -> 'a t
+val cycle : ('a : value_or_null). 'a t -> 'a t
 (** [cycle xs] is the infinite sequence that consists of an infinite
     number of repetitions of the sequence [xs].
 
@@ -425,7 +437,7 @@ val cycle : 'a t -> 'a t
 
     @since 4.14 *)
 
-val iterate : ('a -> 'a) -> 'a -> 'a t
+val iterate : ('a : value_or_null). ('a -> 'a) -> 'a -> 'a t
 (** [iterate f x] is the infinite sequence whose elements are
     [x], [f x], [f (f x)], and so on.
 
@@ -439,14 +451,16 @@ val iterate : ('a -> 'a) -> 'a -> 'a t
 (** The functions in this section are lazy: that is, they return sequences
     whose elements are computed only when demanded. *)
 
-val map : ('a -> 'b) -> 'a t -> 'b t
+val map : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b) -> 'a t -> 'b t
 (** [map f xs] is the image of the sequence [xs] through the
     transformation [f].
 
     If [xs] is the sequence [x0; x1; ...] then
     [map f xs] is the sequence [f x0; f x1; ...]. *)
 
-val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
+val mapi : ('a : value_or_null) ('b : value_or_null)
+  . (int -> 'a -> 'b) -> 'a t -> 'b t
 (** [mapi] is analogous to [map], but applies the function [f] to
     an index and an element.
 
@@ -454,21 +468,23 @@ val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
 
     @since 4.14 *)
 
-val filter : ('a -> bool) -> 'a t -> 'a t
+val filter : ('a : value_or_null). ('a -> bool) -> 'a t -> 'a t
 (** [filter p xs] is the sequence of the elements [x] of [xs]
     that satisfy [p x].
 
     In other words, [filter p xs] is the sequence [xs],
     deprived of the elements [x] such that [p x] is false. *)
 
-val filter_map : ('a -> 'b option) -> 'a t -> 'b t
+val filter_map : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b option) -> 'a t -> 'b t
 (** [filter_map f xs] is the sequence of the elements [y] such that
     [f x = Some y], where [x] ranges over [xs].
 
     [filter_map f xs] is equivalent to
     [map Option.get (filter Option.is_some (map f xs))]. *)
 
-val scan : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b t
+val scan : ('a : value_or_null) ('b : value_or_null)
+  . ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b t
 (** If [xs] is a sequence [[x0; x1; x2; ...]], then
     [scan f a0 xs] is a sequence of accumulators
     [[a0; a1; a2; ...]]
@@ -487,7 +503,7 @@ val scan : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b t
 
     @since 4.14 *)
 
-val take : int -> 'a t -> 'a t
+val take : ('a : value_or_null). int -> 'a t -> 'a t
 (** [take n xs] is the sequence of the first [n] elements of [xs].
 
     If [xs] has fewer than [n] elements,
@@ -499,7 +515,7 @@ val take : int -> 'a t -> 'a t
 
     @since 4.14 *)
 
-val drop : int -> 'a t -> 'a t
+val drop : ('a : value_or_null). int -> 'a t -> 'a t
 (** [drop n xs] is the sequence [xs], deprived of its first [n] elements.
 
     If [xs] has fewer than [n] elements,
@@ -516,19 +532,19 @@ val drop : int -> 'a t -> 'a t
 
     @since 4.14 *)
 
-val take_while : ('a -> bool) -> 'a t -> 'a t
+val take_while : ('a : value_or_null). ('a -> bool) -> 'a t -> 'a t
 (** [take_while p xs] is the longest prefix of the sequence [xs]
     where every element [x] satisfies [p x].
 
     @since 4.14 *)
 
-val drop_while : ('a -> bool) -> 'a t -> 'a t
+val drop_while : ('a : value_or_null). ('a -> bool) -> 'a t -> 'a t
 (** [drop_while p xs] is the sequence [xs], deprived of the prefix
     [take_while p xs].
 
     @since 4.14 *)
 
-val group : ('a -> 'a -> bool) -> 'a t -> 'a t t
+val group : ('a : value_or_null). ('a -> 'a -> bool) -> 'a t -> 'a t t
 (** Provided the function [eq] defines an equality on elements,
     [group eq xs] is the sequence of the maximal runs
     of adjacent duplicate elements of the sequence [xs].
@@ -543,7 +559,7 @@ val group : ('a -> 'a -> bool) -> 'a t -> 'a t t
 
     @since 4.14 *)
 
-val memoize : 'a t -> 'a t
+val memoize : ('a : value_or_null). 'a t -> 'a t
 (** The sequence [memoize xs] has the same elements as the sequence [xs].
 
     Regardless of whether [xs] is ephemeral or persistent,
@@ -563,7 +579,7 @@ exception Forced_twice
 
     @since 4.14 *)
 
-val once : 'a t -> 'a t
+val once : ('a : value_or_null). 'a t -> 'a t
 (** The sequence [once xs] has the same elements as the sequence [xs].
 
     Regardless of whether [xs] is ephemeral or persistent,
@@ -577,7 +593,7 @@ val once : 'a t -> 'a t
 
     @since 4.14 *)
 
-val transpose : 'a t t -> 'a t t
+val transpose : ('a : value_or_null). 'a t t -> 'a t t
 (** If [xss] is a matrix (a sequence of rows), then [transpose xss] is
     the sequence of the columns of the matrix [xss].
 
@@ -591,14 +607,14 @@ val transpose : 'a t t -> 'a t t
 
 (** {1 Combining sequences} *)
 
-val append : 'a t -> 'a t -> 'a t
+val append : ('a : value_or_null). 'a t -> 'a t -> 'a t
 (** [append xs ys] is the concatenation of the sequences [xs] and [ys].
 
     Its elements are the elements of [xs], followed by the elements of [ys].
 
     @since 4.11 *)
 
-val concat : 'a t t -> 'a t
+val concat : ('a : value_or_null). 'a t t -> 'a t
 (** If [xss] is a sequence of sequences,
     then [concat xss] is its concatenation.
 
@@ -607,17 +623,20 @@ val concat : 'a t t -> 'a t
 
     @since 4.13 *)
 
-val flat_map : ('a -> 'b t) -> 'a t -> 'b t
+val flat_map : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b t) -> 'a t -> 'b t
 (** [flat_map f xs] is equivalent to [concat (map f xs)]. *)
 
-val concat_map : ('a -> 'b t) -> 'a t -> 'b t
+val concat_map : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b t) -> 'a t -> 'b t
 (** [concat_map f xs] is equivalent to [concat (map f xs)].
 
     [concat_map] is an alias for [flat_map].
 
     @since 4.13 *)
 
-val zip : 'a t -> 'b t -> ('a * 'b) t
+val zip : ('a : value_or_null) ('b : value_or_null)
+  . 'a t -> 'b t -> ('a * 'b) t
 (** [zip xs ys] is the sequence of pairs [(x, y)]
     drawn synchronously from the sequences [xs] and [ys].
 
@@ -629,7 +648,8 @@ val zip : 'a t -> 'b t -> ('a * 'b) t
 
     @since 4.14 *)
 
-val map2 : ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+val map2 : ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
+  . ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 (** [map2 f xs ys] is the sequence of the elements [f x y],
     where the pairs [(x, y)] are drawn synchronously from the
     sequences [xs] and [ys].
@@ -642,7 +662,7 @@ val map2 : ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 
     @since 4.14 *)
 
-val interleave : 'a t -> 'a t -> 'a t
+val interleave : ('a : value_or_null). 'a t -> 'a t -> 'a t
 (** [interleave xs ys] is the sequence that begins with the first element of
     [xs], continues with the first element of [ys], and so on.
 
@@ -651,7 +671,8 @@ val interleave : 'a t -> 'a t -> 'a t
 
     @since 4.14 *)
 
-val sorted_merge : ('a -> 'a -> int) -> 'a t -> 'a t -> 'a t
+val sorted_merge : ('a : value_or_null).
+  ('a -> 'a -> int) -> 'a t -> 'a t -> 'a t
 (** If the sequences [xs] and [ys] are sorted according to the total preorder
     [cmp], then [sorted_merge cmp xs ys] is the sorted sequence obtained by
     merging the sequences [xs] and [ys].
@@ -660,7 +681,8 @@ val sorted_merge : ('a -> 'a -> int) -> 'a t -> 'a t -> 'a t
 
     @since 4.14 *)
 
-val product : 'a t -> 'b t -> ('a * 'b) t
+val product : ('a : value_or_null) ('b : value_or_null).
+  'a t -> 'b t -> ('a * 'b) t
 (** [product xs ys] is the Cartesian product of the sequences [xs] and [ys].
 
     For every element [x] of [xs] and for every element [y] of [ys],
@@ -674,7 +696,9 @@ val product : 'a t -> 'b t -> ('a * 'b) t
 
     @since 4.14 *)
 
-val map_product : ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+val map_product : ('a : value_or_null) ('b : value_or_null) 
+  ('c : value_or_null).
+  ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 (** The sequence [map_product f xs ys] is the image through [f]
     of the Cartesian product of the sequences [xs] and [ys].
 
@@ -694,7 +718,8 @@ val map_product : ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 
 (** {1 Splitting a sequence into two sequences} *)
 
-val unzip : ('a * 'b) t -> 'a t * 'b t
+val unzip : ('a : value_or_null) ('b : value_or_null)
+  . ('a * 'b) t -> 'a t * 'b t
 (** [unzip] transforms a sequence of pairs into a pair of sequences.
 
     [unzip xs] is equivalent to [(map fst xs, map snd xs)].
@@ -708,12 +733,15 @@ val unzip : ('a * 'b) t -> 'a t * 'b t
 
     @since 4.14 *)
 
-val split : ('a * 'b) t -> 'a t * 'b t
+val split : ('a : value_or_null) ('b : value_or_null)
+  . ('a * 'b) t -> 'a t * 'b t
 (** [split] is an alias for [unzip].
 
     @since 4.14 *)
 
-val partition_map : ('a -> ('b, 'c) Either.t) -> 'a t -> 'b t * 'c t
+val partition_map : ('a : value_or_null) ('b : value_or_null) 
+  ('c : value_or_null).
+  ('a -> ('b, 'c) Either.t) -> 'a t -> 'b t * 'c t
 (** [partition_map f xs] returns a pair of sequences [(ys, zs)], where:
 
     - [ys] is the sequence of the elements [y] such that
@@ -735,7 +763,7 @@ val partition_map : ('a -> ('b, 'c) Either.t) -> 'a t -> 'b t * 'c t
 
     @since 4.14 *)
 
-val partition : ('a -> bool) -> 'a t -> 'a t * 'a t
+val partition : ('a : value_or_null). ('a -> bool) -> 'a t -> 'a t * 'a t
 (** [partition p xs] returns a pair of the subsequence of the elements
     of [xs] that satisfy [p] and the subsequence of the elements of
     [xs] that do not satisfy [p].
@@ -761,7 +789,7 @@ val partition : ('a -> bool) -> 'a t -> 'a t * 'a t
     is ephemeral: the sequence that it represents can be consumed at most
     once. *)
 
-val of_dispenser : (unit -> 'a option) -> 'a t
+val of_dispenser : ('a : value_or_null). (unit -> 'a option) -> 'a t
 (** [of_dispenser it] is the sequence of the elements produced by the
     dispenser [it]. It is an ephemeral sequence: it can be consumed at most
     once. If a persistent sequence is needed, use
@@ -769,7 +797,7 @@ val of_dispenser : (unit -> 'a option) -> 'a t
 
     @since 4.14 *)
 
-val to_dispenser : 'a t -> (unit -> 'a option)
+val to_dispenser : ('a : value_or_null). 'a t -> (unit -> 'a option)
 (** [to_dispenser xs] is a fresh dispenser on the sequence [xs].
 
     This dispenser has mutable internal state,

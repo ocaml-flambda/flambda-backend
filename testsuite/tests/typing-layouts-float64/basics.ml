@@ -779,7 +779,7 @@ Line 1, characters 28-29:
 1 | let f13_1 (x : t_float64) = x = x;;
                                 ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value.
@@ -791,7 +791,7 @@ Line 1, characters 36-37:
 1 | let f13_2 (x : t_float64) = compare x x;;
                                         ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value.
@@ -803,7 +803,7 @@ Line 1, characters 45-46:
 1 | let f13_3 (x : t_float64) = Marshal.to_bytes x;;
                                                  ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value.
