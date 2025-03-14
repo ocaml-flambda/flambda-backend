@@ -437,9 +437,16 @@ let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
 let value_binding sub vb =
   let loc = sub.location sub vb.vb_loc in
   let attrs = sub.attributes sub vb.vb_attributes in
-  Vb.mk ~loc ~attrs
-    (sub.pat sub vb.vb_pat)
-    (sub.expr sub vb.vb_expr)
+  let pat = sub.pat sub vb.vb_pat in
+  let pat, value_constraint, modes =
+    match pat.ppat_desc with
+    | Ppat_constraint (pat, Some ({ ptyp_desc = Ptyp_poly _; _ } as cty),
+                       modes) ->
+      let constr = Pvc_constraint {locally_abstract_univars = []; typ = cty } in
+      pat, Some constr, modes
+    | _ -> pat, None, []
+  in
+  Vb.mk ~loc ~attrs ?value_constraint ~modes pat (sub.expr sub vb.vb_expr)
 
 let comprehension sub comp =
   let iterator = function
