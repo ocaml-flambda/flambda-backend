@@ -22,7 +22,9 @@ open Printf
 
 type t = exn = ..
 
-let printers : (exn -> string option) Modes.Immutable.t list Atomic.t = Atomic.make []
+type printers : immutable_data = (exn -> string option) Modes.Immutable.t list
+
+let printers : printers Atomic.t = Atomic.make []
 
 let locfmt () = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
 
@@ -50,7 +52,7 @@ let fields x =
 
 let use_printers x =
   let rec conv = function
-    | { Modes.Portable.portable = hd } :: tl ->
+    | { Modes.Immutable.immutable = hd } :: tl ->
         (match hd x with
          | None | exception _ -> conv tl
          | Some s -> Some s)
@@ -287,7 +289,7 @@ external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 
 let rec register_printer_safe fn =
   let old_printers = Atomic.Safe.get_contended printers in
-  let new_printers = { Modes.Portable.portable = fn } :: old_printers in
+  let new_printers = { Modes.Immutable.immutable = fn } :: old_printers in
   let success = Atomic.Safe.compare_and_set_contended printers old_printers new_printers in
   if not success then register_printer_safe fn
 
@@ -338,10 +340,11 @@ let default_uncaught_exception_handler exn raw_backtrace =
     prerr_endline errors.(abs status);
   flush stderr
 
-let uncaught_exception_handler = Atomic.make default_uncaught_exception_handler
+let uncaught_exception_handler =
+  Atomic.make { Modes.Immutable.immutable = default_uncaught_exception_handler }
 
-let set_uncaught_exception_handler_safe fn = Atomic.Safe.set_contended uncaught_exception_handler fn
-
+let set_uncaught_exception_handler_safe fn =
+  Atomic.Safe.set_contended uncaught_exception_handler { Modes.Immutable.immutable = fn }
 
 let set_uncaught_exception_handler_unsafe fn =
   set_uncaught_exception_handler_safe (Obj.magic_portable fn)
@@ -366,7 +369,7 @@ let handle_uncaught_exception' exn debugger_in_use =
     in
     (try Stdlib.do_at_exit () with _ -> ());
     try
-      (Atomic.Safe.get_contended uncaught_exception_handler) exn raw_backtrace
+      (Atomic.Safe.get_contended uncaught_exception_handler).immutable exn raw_backtrace
     with exn' ->
       let raw_backtrace' = try_get_raw_backtrace () in
       eprintf "Fatal error: exception %s\n" (to_string exn);

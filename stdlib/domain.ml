@@ -94,12 +94,12 @@ module Runtime_4 = struct
   (******** Callbacks **********)
 
   (* first spawn, domain startup and at exit functionality *)
-  let first_domain_spawned = Atomic.Safe.make false
+  let first_domain_spawned = Atomic.make false
 
   let first_spawn_function = ref (fun () -> ())
 
   let before_first_spawn f =
-    if Atomic.Safe.get first_domain_spawned then
+    if Atomic.Safe.get_contended first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
       let old_f = !first_spawn_function in
@@ -229,17 +229,19 @@ module Runtime_5 = struct
 
     type 'a key = int * (Access.t -> 'a) Modes.Portable.t
 
-    let key_counter = Atomic.Safe.make 0
+    let key_counter = Atomic.make 0
 
-    type key_initializer : value mod portable contended =
+    type key_initializer : immutable_data =
         KI: 'a key * ('a -> (Access.t -> 'a) @ portable) @@ portable -> key_initializer
     [@@unsafe_allow_any_mode_crossing "CR with-kinds"]
 
-    let parent_keys = Atomic.Safe.make ([] : key_initializer list)
+    type key_initializer_list : immutable_data = key_initializer list
+
+    let parent_keys = Atomic.make ([] : key_initializer_list)
 
     let rec add_parent_key ki =
-      let l = Atomic.Safe.get parent_keys in
-      if not (Atomic.Safe.compare_and_set parent_keys l (ki :: l))
+      let l = Atomic.Safe.get_contended parent_keys in
+      if not (Atomic.Safe.compare_and_set_contended parent_keys l (ki :: l))
       then add_parent_key ki
 
     let new_key' ?split_from_parent init_orphan =
@@ -333,8 +335,7 @@ module Runtime_5 = struct
     let get_initial_keys access : key_value list =
       List.map
         (fun (KI (k, split)) -> KV (k, (split (get access k))))
-        (* CR with-kinds: Unnecessary magic. *)
-        (Obj.magic_uncontended (Atomic.Safe.get parent_keys))
+        (Atomic.Safe.get_contended parent_keys)
 
     let set_initial_keys access (l: key_value list) =
       List.iter (fun (KV (k, v)) -> set access k (v access)) l
@@ -351,12 +352,12 @@ module Runtime_5 = struct
   (******** Callbacks **********)
 
   (* first spawn, domain startup and at exit functionality *)
-  let first_domain_spawned = Atomic.Safe.make false
+  let first_domain_spawned = Atomic.make false
 
   let first_spawn_function = Obj.magic_portable (ref (fun () -> ()))
 
   let before_first_spawn f =
-    if Atomic.Safe.get first_domain_spawned then
+    if Atomic.Safe.get_contended first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
       let old_f = !first_spawn_function in
@@ -365,8 +366,8 @@ module Runtime_5 = struct
     end
 
   let do_before_first_spawn () =
-    if not (Atomic.Safe.get first_domain_spawned) then begin
-      Atomic.Safe.set first_domain_spawned true;
+    if not (Atomic.Safe.get_contended first_domain_spawned) then begin
+      Atomic.Safe.set_contended first_domain_spawned true;
       let first_spawn_function = Obj.magic_uncontended first_spawn_function in
       !first_spawn_function();
       (* Release the old function *)
