@@ -25,6 +25,26 @@ type classification_for_printing =
   | Destructive
   | Neither
 
+module Lazy_block_tag = struct
+  type t = Lambda.lazy_block_tag =
+    | Lazy_tag
+    | Forward_tag
+
+  let print ppf t =
+    match t with
+    | Lazy_tag -> Format.fprintf ppf "Lazy_block"
+    | Forward_tag -> Format.fprintf ppf "Forward_block"
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Lazy_tag, Lazy_tag | Forward_tag, Forward_tag -> 0
+    | Lazy_tag, Forward_tag -> -1
+    | Forward_tag, Lazy_tag -> 1
+
+  let to_tag t =
+    match t with Lazy_tag -> Tag.lazy_tag | Forward_tag -> Tag.forward_tag
+end
+
 module Block_kind = struct
   type t =
     | Values of Tag.Scannable.t * K.With_subkind.t list
@@ -57,7 +77,7 @@ module Block_kind = struct
          @[<hov 1>(shape@ @[<hov 1>(%a)@])@])@]"
        Tag.Scannable.print tag
        (Format.pp_print_list ~pp_sep:Format.pp_print_space
-      K.print) (Array.to_list (K.Mixed_block_shape.field_kinds shape))
+          K.print) (Array.to_list (K.Mixed_block_shape.field_kinds shape))
 
   let compare t1 t2 =
     match t1, t2 with
@@ -1060,6 +1080,7 @@ type unary_primitive =
   | Get_header
   | Atomic_load of Block_access_field_kind.t
   | Peek of Flambda_kind.Standard_int_or_float.t
+  | Make_lazy of Lazy_block_tag.t
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -1091,7 +1112,9 @@ let unary_primitive_eligible_for_cse p ~arg =
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
-  | End_region _ | End_try_region _ | Obj_dup | Atomic_load _ | Peek _ -> false
+  | End_region _ | End_try_region _ | Obj_dup | Atomic_load _ | Peek _
+  | Make_lazy _ ->
+    false
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -1126,6 +1149,7 @@ let compare_unary_primitive p1 p2 =
     | Atomic_load _ -> 27
     | Is_null -> 28
     | Peek _ -> 29
+    | Make_lazy _ -> 30
   in
   match p1, p2 with
   | ( Block_load { kind = kind1; mut = mut1; field = field1 },
@@ -1212,6 +1236,8 @@ let compare_unary_primitive p1 p2 =
     Bool.compare ghost1 ghost2
   | Peek kind1, Peek kind2 ->
     Flambda_kind.Standard_int_or_float.compare kind1 kind2
+  | Make_lazy lazy_tag1, Make_lazy lazy_tag2 ->
+    Lazy_block_tag.compare lazy_tag1 lazy_tag2
   | ( ( Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _
       | Is_null | Get_tag | String_length _ | Int_as_pointer _
       | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
@@ -1219,7 +1245,7 @@ let compare_unary_primitive p1 p2 =
       | Bigarray_length _ | Unbox_number _ | Box_number _ | Untag_immediate
       | Tag_immediate | Project_function_slot _ | Project_value_slot _
       | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
-      | Obj_dup | Get_header | Atomic_load _ | Peek _ ),
+      | Obj_dup | Get_header | Atomic_load _ | Peek _ | Make_lazy _ ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -1289,6 +1315,8 @@ let print_unary_primitive ppf p =
   | Peek kind ->
     fprintf ppf "@[(Peek@ %a)@]"
       Flambda_kind.Standard_int_or_float.print_lowercase kind
+  | Make_lazy lazy_tag ->
+    fprintf ppf "@[<hov 1>(Make_lazy@ %a)@]" Lazy_block_tag.print lazy_tag
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -1324,6 +1352,7 @@ let arg_kind_of_unary_primitive p =
   | Get_header -> K.value
   | Atomic_load _ -> K.value
   | Peek _ -> K.naked_nativeint
+  | Make_lazy _ -> K.value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
@@ -1362,6 +1391,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Get_header -> Singleton K.naked_nativeint
   | Atomic_load _ -> Singleton K.value
   | Peek kind -> Singleton (K.Standard_int_or_float.to_kind kind)
+  | Make_lazy _ -> Singleton K.value
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1453,6 +1483,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Atomic_load _ | Peek _ ->
     (* For the moment, prevent [Peek] from being moved. *)
     Arbitrary_effects, Has_coeffects, Strict
+  | Make_lazy _ -> Only_generative_effects Mutable, No_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1471,6 +1502,7 @@ let unary_classify_for_printing p =
   | End_region _ | End_try_region _ -> Neither
   | Get_header -> Neither
   | Peek _ -> Neither
+  | Make_lazy _ -> Constructive
 
 let free_names_unary_primitive p =
   match p with
@@ -1493,7 +1525,8 @@ let free_names_unary_primitive p =
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Obj_dup | Get_header
   | Atomic_load (_ : Block_access_field_kind.t)
-  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1515,7 +1548,8 @@ let apply_renaming_unary_primitive p renaming =
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
   | Atomic_load (_ : Block_access_field_kind.t)
-  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     p
 
 let ids_for_export_unary_primitive p =
@@ -1529,7 +1563,8 @@ let ids_for_export_unary_primitive p =
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
   | Atomic_load (_ : Block_access_field_kind.t)
-  | Peek (_ : Flambda_kind.Standard_int_or_float.t) ->
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     Ids_for_export.empty
 
 type binary_int_arith_op =

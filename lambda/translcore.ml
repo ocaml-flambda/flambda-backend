@@ -1012,8 +1012,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* We don't need to wrap with Popaque: this forward
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
-         Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                          alloc_heap),
+         Lprim(Pmakelazyblock Forward_tag,
                 [transl_exp ~scopes Jkind.Sort.Const.for_lazy_body e],
                of_location ~scopes e.exp_loc)
       | `Identifier `Forward_value ->
@@ -1023,11 +1022,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             optimisation in Flambda, but the concept of a mutable
             block doesn't really match what is going on here.  This
             value may subsequently turn into an immediate... *)
-         Lprim (Popaque Lambda.layout_lazy,
-                [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                                  alloc_heap),
-                       [transl_exp ~scopes Jkind.Sort.Const.for_lazy_body e],
-                       of_location ~scopes e.exp_loc)],
+         Lprim(Pmakelazyblock Forward_tag,
+                [transl_exp ~scopes Jkind.Sort.Const.for_lazy_body e],
                 of_location ~scopes e.exp_loc)
       | `Identifier `Other ->
          transl_exp ~scopes Jkind.Sort.Const.for_lazy_body e
@@ -1053,7 +1049,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                      Lambda.layout_lazy_contents
                                      (transl_exp ~scopes Jkind.Sort.Const.for_lazy_body e))
          in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
+          Lprim(Pmakelazyblock Lazy_tag, [fn],
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->

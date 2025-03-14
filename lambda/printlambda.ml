@@ -469,6 +469,10 @@ let primitive ppf = function
   | Pmakemixedblock (tag, Mutable, abs, mode) ->
      fprintf ppf "make%amixedblock %i Mutable%a"
         locality_mode mode tag (mixed_block_shape (fun _ _ -> ())) abs
+  | Pmakelazyblock Lazy_tag ->
+      fprintf ppf "makelazyblock"
+  | Pmakelazyblock Forward_tag ->
+      fprintf ppf "makeforwardblock"
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with
@@ -918,6 +922,7 @@ let name_of_primitive = function
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pmakeufloatblock _ -> "Pmakeufloatblock"
   | Pmakemixedblock _ -> "Pmakemixedblock"
+  | Pmakelazyblock _ -> "Pmakelazyblock"
   | Pfield _ -> "Pfield"
   | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"

@@ -153,7 +153,7 @@ let preserve_tailcall_for_prim = function
   | Pget_header _
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
-  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakemixedblock _
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakemixedblock _ | Pmakelazyblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
@@ -741,6 +741,7 @@ let comp_primitive stack_info p sz args =
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
+  | Pmakelazyblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
     ->
@@ -1137,6 +1138,14 @@ and comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, tag) :: cont)
+  | Lprim (Pmakelazyblock Lazy_tag, args, loc) ->
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args stack_info env args sz
+        (Kmakeblock(List.length args, Config.lazy_tag) :: cont)
+  | Lprim (Pmakelazyblock Forward_tag, args, loc) ->
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args stack_info env args sz
+        (Kmakeblock(List.length args, Obj.forward_tag) :: cont)
   | Lprim(Pmake_unboxed_product _, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
