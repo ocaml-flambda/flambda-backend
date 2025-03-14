@@ -101,21 +101,11 @@ type 'a meet_return_value =
   | Both_inputs
   | New_result of 'a
 
-type meet_type_new =
+type meet_type =
   t ->
   Type_grammar.t ->
   Type_grammar.t ->
   (Type_grammar.t meet_return_value * t) Or_bottom.t
-
-type meet_type_old =
-  Meet_env.t ->
-  Type_grammar.t ->
-  Type_grammar.t ->
-  (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
-
-type meet_type =
-  | New of meet_type_new
-  | Old of meet_type_old
 
 val print : Format.formatter -> t -> unit
 
