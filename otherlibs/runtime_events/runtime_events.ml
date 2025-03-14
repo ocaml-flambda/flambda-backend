@@ -34,6 +34,12 @@ type runtime_counter =
 | EV_C_MAJOR_HEAP_POOL_LIVE_BLOCKS
 | EV_C_MAJOR_HEAP_LARGE_BLOCKS
 | EV_C_REQUEST_MINOR_REALLOC_DEPENDENT_TABLE
+| EV_C_MAJOR_SLICE_ALLOC_WORDS
+| EV_C_MAJOR_SLICE_ALLOC_DEPENDENT_WORDS
+| EV_C_MAJOR_SLICE_NEW_WORK
+| EV_C_MAJOR_SLICE_TOTAL_WORK
+| EV_C_MAJOR_SLICE_BUDGET
+| EV_C_MAJOR_SLICE_WORK_DONE
 
 type runtime_phase =
 | EV_EXPLICIT_GC_SET
@@ -126,6 +132,18 @@ let runtime_counter_name counter =
       "major_heap_large_blocks"
   | EV_C_REQUEST_MINOR_REALLOC_DEPENDENT_TABLE ->
       "request_minor_realloc_dependent_table"
+  | EV_C_MAJOR_SLICE_ALLOC_WORDS ->
+    "major_slice_alloc_words"
+  | EV_C_MAJOR_SLICE_ALLOC_DEPENDENT_WORDS ->
+    "major_slice_alloc_dependent_words"
+  | EV_C_MAJOR_SLICE_NEW_WORK ->
+    "major_slice_new_work"
+  | EV_C_MAJOR_SLICE_TOTAL_WORK ->
+    "major_slice_total_work"
+  | EV_C_MAJOR_SLICE_BUDGET ->
+    "major_slice_budget"
+  | EV_C_MAJOR_SLICE_WORK_DONE ->
+    "major_slice_work_done"
 
 let runtime_phase_name phase =
   match phase with
