@@ -45,7 +45,7 @@ let reg ppf r =
     | Vec128 -> "X"
     | Valx2 -> "VV"
     | Float32 -> "S");
-  fprintf ppf "/%i" r.stamp;
+  fprintf ppf "%t/%i%t" Cfg_colours.reg_stamp r.stamp Cfg_colours.pop;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
     ~unknown:(fun _ -> ())
