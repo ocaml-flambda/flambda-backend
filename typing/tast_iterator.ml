@@ -262,8 +262,13 @@ let pat
   | Tpat_construct (lid, _, l, vto) ->
       iter_loc sub lid;
       List.iter (sub.pat sub) l;
-      Option.iter (fun (ids, ct) ->
-        List.iter (iter_loc sub) ids; sub.typ sub ct) vto
+      Option.iter (fun (vs, ct) ->
+        List.iter
+          (fun (v, jk) ->
+             iter_loc sub v;
+             Option.iter (sub.jkind_annotation sub) jk)
+          vs;
+        sub.typ sub ct) vto
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
   | Tpat_record (l, _) ->
       List.iter (fun (lid, _, i) -> iter_loc sub lid; sub.pat sub i) l

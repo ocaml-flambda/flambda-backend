@@ -569,8 +569,12 @@ module P = struct
         iter_loc sub l;
         iter_opt
           (fun (vl,p) ->
-            List.iter (iter_loc sub) vl;
-            sub.pat sub p)
+             List.iter
+               (fun (v,j) ->
+                  iter_loc sub v;
+                  iter_opt (sub.jkind_annotation sub) j)
+               vl;
+             sub.pat sub p)
           p
     | Ppat_variant (_l, p) -> iter_opt (sub.pat sub) p
     | Ppat_record (lpl, _cf)

@@ -349,8 +349,11 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       list i pattern ppf po;
       option i
         (fun i ppf (vl,ct) ->
-          let names = List.map (fun {txt} -> "\""^Ident.name txt^"\"") vl in
-          line i ppf "[%s]\n" (String.concat "; " names);
+          line i ppf "vars%a\n"
+            (fun ppf ->
+              List.iter (fun ({txt}, jk) ->
+                typevar_jkind ~print_quote:false ppf (Ident.name txt, jk)))
+            vl;
           core_type i ppf ct)
         ppf vto
   | Tpat_variant (l, po, _) ->

@@ -309,7 +309,11 @@ let pat
         (List.map (fun (label, p, sort) -> label, sub.pat sub p, sort) l)
     | Tpat_construct (loc, cd, l, vto) ->
         let vto = Option.map (fun (vl,cty) ->
-          List.map (map_loc sub) vl, sub.typ sub cty) vto in
+          List.map
+            (fun (v, jk) ->
+               (map_loc sub v,
+                Option.map (sub.jkind_annotation sub) jk))
+            vl, sub.typ sub cty) vto in
         Tpat_construct (map_loc sub loc, cd, List.map (sub.pat sub) l, vto)
     | Tpat_variant (l, po, rd) ->
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)

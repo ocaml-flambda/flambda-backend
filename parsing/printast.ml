@@ -255,7 +255,11 @@ and pattern i ppf x =
       line i ppf "Ppat_construct %a\n" fmt_longident_loc li;
       option i
         (fun i ppf (vl, p) ->
-          list i string_loc ppf vl;
+          list i
+            (fun i ppf (v, jk) ->
+               string_loc i ppf v;
+               jkind_annotation_opt i ppf jk)
+            ppf vl;
           pattern i ppf p)
         ppf po
   | Ppat_variant (l, po) ->

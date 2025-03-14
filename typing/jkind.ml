@@ -2455,6 +2455,7 @@ module Format_history = struct
     | Constructor_type_parameter (cstr, name) ->
       fprintf ppf "@[%s@ in the declaration of constructor@ %a@]" name
         !printtyp_path cstr
+    | Existential_unpack name -> fprintf ppf "the existential variable %s" name
     | Univar name -> fprintf ppf "the universal variable %s" name
     | Type_variable name -> fprintf ppf "the type variable %s" name
     | Type_wildcard loc ->
@@ -3205,6 +3206,7 @@ module Debug_printers = struct
     | Newtype_declaration name -> fprintf ppf "Newtype_declaration %s" name
     | Constructor_type_parameter (cstr, name) ->
       fprintf ppf "Constructor_type_parameter (%a, %S)" Path.print cstr name
+    | Existential_unpack name -> fprintf ppf "Existential_unpack %s" name
     | Univar name -> fprintf ppf "Univar %S" name
     | Type_variable name -> fprintf ppf "Type_variable %S" name
     | Type_wildcard loc ->

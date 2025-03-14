@@ -105,8 +105,6 @@ let ident_of_name ppf txt =
     else "(%s)"
   in fprintf ppf format txt
 
-let ident_of_name_loc ppf s = ident_of_name ppf s.txt
-
 let protect_longident ppf print_longident longprefix txt =
     if not (needs_parens txt) then
       fprintf ppf "%a.%a" print_longident longprefix ident_of_name txt
@@ -499,6 +497,8 @@ and name_jkind f (name, jkind) =
         ident_of_name name
         (jkind_annotation reset_ctxt) jkind
 
+and name_loc_jkind f (str, jkind) = name_jkind f (str.txt,jkind)
+
 and core_type ctxt f x =
   let filtered_attrs = filter_curry_attrs x.ptyp_attributes in
   if filtered_attrs <> [] then begin
@@ -686,7 +686,7 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
                pp f "%a@;%a"  longident_loc li (simple_pattern ctxt) x
            | Some (vl, x) ->
                pp f "%a@ (type %a)@;%a" longident_loc li
-                 (list ~sep:"@ " ident_of_name_loc) vl
+                 (list ~sep:"@ " name_loc_jkind) vl
                  (simple_pattern ctxt) x
            | None -> pp f "%a" longident_loc li)
     | _ -> simple_pattern ctxt f x

@@ -372,7 +372,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
             None -> None
           | Some (vl, ty) ->
               let vl =
-                List.map (fun x -> {x with txt = Ident.name x.txt}) vl
+                List.map (fun (x, jk) -> {x with txt = Ident.name x.txt}, jk) vl
               in
               Some (vl, sub.typ sub ty)
         in
