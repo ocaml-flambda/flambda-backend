@@ -35,12 +35,6 @@ val meet_shape :
   shape:Type_grammar.t ->
   Typing_env.t Or_bottom.t
 
-val meet_env_extension :
-  Typing_env.t ->
-  Typing_env_extension.t ->
-  Typing_env_extension.t ->
-  Typing_env_extension.t Or_bottom.t
-
 (* This function has a slightly different interface; it is meant to be used only
    by functions in Typing_env *)
 val meet_type :
