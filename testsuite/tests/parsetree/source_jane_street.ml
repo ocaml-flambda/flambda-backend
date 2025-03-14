@@ -183,6 +183,10 @@ let f1 p =
   match p with
   | T1 (type (a : float64)) (_ : a) -> ()
 
+let f1_no_parens p =
+  match p with
+  | T1 (type a : float64) (_ : a) -> ()
+
 type packed2 = T2 : 'a 'b. 'a * 'b -> packed2
 
 let f2 p =
@@ -199,6 +203,7 @@ let f4 p =
 [%%expect{|
 type packed1 = T1 : ('a : float64). 'a -> packed1
 val f1 : packed1 -> unit = <fun>
+val f1_no_parens : packed1 -> unit = <fun>
 type packed2 = T2 : 'a * 'b -> packed2
 val f2 : packed2 -> unit = <fun>
 val f3 : packed2 -> unit = <fun>

@@ -3652,6 +3652,10 @@ pattern_gen:
     | constr=mkrhs(constr_longident) LPAREN TYPE newtypes=newtypes RPAREN
         pat=simple_pattern
         { Ppat_construct(constr, Some (newtypes, pat)) }
+    | constr=mkrhs(constr_longident)
+        LPAREN TYPE ty=mkrhs(LIDENT) COLON jkind=jkind_annotation RPAREN
+        pat=simple_pattern
+        { Ppat_construct(constr, Some ([(ty,Some jkind)], pat)) }
     | name_tag pattern %prec prec_constr_appl
         { Ppat_variant($1, Some $2) }
     ) { $1 }
