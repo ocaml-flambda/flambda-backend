@@ -672,7 +672,6 @@ static void update_major_slice_work(intnat howmuch,
   dom_st->stat_major_work_done += work_done_between_slices;
 
   uintnat my_alloc_count = dom_st->allocated_words;
-  uintnat my_alloc_direct_count = dom_st->allocated_words_direct;
   uintnat my_dependent_count = Wsize_bsize (dom_st->allocated_dependent_bytes);
   dom_st->stat_major_words += dom_st->allocated_words;
   dom_st->stat_major_dependent_bytes += dom_st->allocated_dependent_bytes;
@@ -686,12 +685,10 @@ static void update_major_slice_work(intnat howmuch,
     SLICESIZE,
     "Major slice [%c] allocs: "
     "%"ARCH_INTNAT_PRINTF_FORMAT "u words, "
-    "%"ARCH_INTNAT_PRINTF_FORMAT "u direct, "
     "%"ARCH_INTNAT_PRINTF_FORMAT "u dependent, "
     "%"ARCH_INTNAT_PRINTF_FORMAT "u heap\n",
     caml_gc_phase_char(may_access_gc_phase),
     my_alloc_count,
-    my_alloc_direct_count,
     my_dependent_count,
     heap_words);
 
