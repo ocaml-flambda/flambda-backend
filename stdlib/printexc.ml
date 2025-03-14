@@ -22,7 +22,7 @@ open Printf
 
 type t = exn = ..
 
-let printers = Atomic.Safe.make []
+let printers : (exn -> string option) Modes.Immutable.t list Atomic.t = Atomic.make []
 
 let locfmt () = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
 
@@ -50,12 +50,12 @@ let fields x =
 
 let use_printers x =
   let rec conv = function
-    | hd :: tl ->
+    | { Modes.Portable.portable = hd } :: tl ->
         (match hd x with
          | None | exception _ -> conv tl
          | Some s -> Some s)
     | [] -> None in
-  conv (Atomic.Safe.get printers)
+  conv (Atomic.Safe.get_contended printers)
 
 let destruct_ext_constructor x =
   if Obj.tag x <> 0 then
@@ -286,9 +286,9 @@ external record_backtrace: bool -> unit @@ portable = "caml_record_backtrace"
 external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 
 let rec register_printer_safe fn =
-  let old_printers = Atomic.Safe.get printers in
-  let new_printers = fn :: old_printers in
-  let success = Atomic.Safe.compare_and_set printers old_printers new_printers in
+  let old_printers = Atomic.Safe.get_contended printers in
+  let new_printers = { Modes.Portable.portable = fn } :: old_printers in
+  let success = Atomic.Safe.compare_and_set_contended printers old_printers new_printers in
   if not success then register_printer_safe fn
 
 let register_printer_unsafe fn = register_printer_safe (Obj.magic_portable fn)
@@ -338,9 +338,9 @@ let default_uncaught_exception_handler exn raw_backtrace =
     prerr_endline errors.(abs status);
   flush stderr
 
-let uncaught_exception_handler = Atomic.Safe.make default_uncaught_exception_handler
+let uncaught_exception_handler = Atomic.make default_uncaught_exception_handler
 
-let set_uncaught_exception_handler_safe fn = Atomic.Safe.set uncaught_exception_handler fn
+let set_uncaught_exception_handler_safe fn = Atomic.Safe.set_contended uncaught_exception_handler fn
 
 
 let set_uncaught_exception_handler_unsafe fn =
@@ -366,7 +366,7 @@ let handle_uncaught_exception' exn debugger_in_use =
     in
     (try Stdlib.do_at_exit () with _ -> ());
     try
-      (Atomic.Safe.get uncaught_exception_handler) exn raw_backtrace
+      (Atomic.Safe.get_contended uncaught_exception_handler) exn raw_backtrace
     with exn' ->
       let raw_backtrace' = try_get_raw_backtrace () in
       eprintf "Fatal error: exception %s\n" (to_string exn);
