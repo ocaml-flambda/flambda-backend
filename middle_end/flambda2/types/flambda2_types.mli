@@ -249,15 +249,6 @@ val meet : Typing_env.t -> t -> t -> (t * Typing_env.t) Or_bottom.t
 
 val meet_shape : Typing_env.t -> t -> shape:t -> Typing_env.t Or_bottom.t
 
-val join :
-  ?bound_name:Name.t ->
-  Typing_env.t ->
-  left_env:Typing_env.t ->
-  left_ty:t ->
-  right_env:Typing_env.t ->
-  right_ty:t ->
-  t
-
 val cut_and_n_way_join :
   Typing_env.t ->
   (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t) list ->
@@ -798,3 +789,10 @@ val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> unit proof_of_property
 
 val remove_outermost_alias : Typing_env.t -> t -> t
+
+module Equal_types_for_debug : sig
+  val equal_type : Typing_env.t -> Type_grammar.t -> Type_grammar.t -> bool
+
+  val equal_env_extension :
+    Typing_env.t -> Typing_env_extension.t -> Typing_env_extension.t -> bool
+end

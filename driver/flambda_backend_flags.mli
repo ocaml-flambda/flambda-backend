@@ -81,7 +81,7 @@ val long_frames_threshold : int ref
 val caml_apply_inline_fast_path : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
-type meet_algorithm = Basic | Advanced
+type join_algorithm = Binary | N_way | Checked
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
@@ -108,8 +108,8 @@ module Flambda2 : sig
     val backend_cse_at_toplevel : bool
     val cse_depth : int
     val join_depth : int
+    val join_algorithm : join_algorithm
     val function_result_types : function_result_types
-    val meet_algorithm : meet_algorithm
     val enable_reaper : bool
 
     val unicode : bool
@@ -125,8 +125,8 @@ module Flambda2 : sig
     backend_cse_at_toplevel : bool;
     cse_depth : int;
     join_depth : int;
+    join_algorithm : join_algorithm;
     function_result_types : function_result_types;
-    meet_algorithm : meet_algorithm;
     enable_reaper : bool;
 
     unicode : bool;
@@ -135,7 +135,6 @@ module Flambda2 : sig
   val default_for_opt_level : opt_level or_default -> flags
 
   val function_result_types : function_result_types or_default ref
-  val meet_algorithm : meet_algorithm or_default ref
 
   val classic_mode : bool or_default ref
   val join_points : bool or_default ref
@@ -143,6 +142,7 @@ module Flambda2 : sig
   val backend_cse_at_toplevel : bool or_default ref
   val cse_depth : int or_default ref
   val join_depth : int or_default ref
+  val join_algorithm : join_algorithm or_default ref
   val enable_reaper : bool or_default ref
 
   val unicode : bool or_default ref
