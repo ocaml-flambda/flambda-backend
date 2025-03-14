@@ -205,10 +205,20 @@ type primitive =
       need to know anything about its locality. We do however request the
       mutability of the source array. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
-  | Parraysetu of array_set_kind * array_index_kind
-  | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
-  | Parraysets of array_set_kind * array_index_kind
+  (** For [Pnormal_access], the array kind and array ref kinds must be in
+      sync.  This is not currently checked. *)
+  (* CR mshinwell: consider changing these constructors so that for normal
+     accesses only the array_ref_kind is provided? *)
+  | Parrayrefu of array_ref_kind * array_kind * array_index_kind * mutable_flag
+                  * array_access_reinterp
+  (** The [array_kind], not the [array_ref_kind], determines the stride for
+      the array index.  Likewise for the other array get/set primitives. *)
+  | Parraysetu of array_set_kind * array_kind * array_index_kind
+                  * array_access_reinterp
+  | Parrayrefs of array_ref_kind * array_kind * array_index_kind * mutable_flag
+                  * array_access_reinterp
+  | Parraysets of array_set_kind * array_kind * array_index_kind
+                  * array_access_reinterp
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the argument is a null pointer *)
@@ -439,6 +449,14 @@ and scannable_product_element_kind =
 and array_index_kind =
   | Ptagged_int_index
   | Punboxed_int_index of unboxed_integer
+
+(** [array_access_reinterp] records whether the user wrote a normal array access
+    like ["%array_unsafe_get"] or one of the special reinterpret primitives like
+    ["%obj_reinterp_unsafe_get"]. These are both the same lambda primitive,
+    which has an argument of this type to distinguish them. This information is
+    needed for checks during specialization ([Translprim.specialize_primitive]),
+    but is not needed by the translation to flambda2. *)
+and array_access_reinterp = Pnormal_access | Preinterp_access
 
 (** [Nullable] value kinds allow the special Null value in addition to the
     values of its underlying type. [Non_nullable] only allows values of the
@@ -1203,6 +1221,8 @@ val array_set_kind : modify_mode -> array_kind -> array_set_kind
 val array_ref_kind_of_array_set_kind
   : array_set_kind -> locality_mode -> array_ref_kind
 
+val array_kind_of_array_set_kind : array_set_kind -> array_kind
+
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool
 
@@ -1222,3 +1242,6 @@ val primitive_can_raise : primitive -> bool
 val count_initializers_array_kind : array_kind -> int
 val ignorable_product_element_kind_involves_int :
   ignorable_product_element_kind -> bool
+
+val scannable_product_element_kind_must_be_scanned :
+  scannable_product_element_kind -> bool
