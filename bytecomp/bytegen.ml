@@ -429,17 +429,6 @@ let comp_primitive stack_info p sz args =
      instructions for the ufloat primitives. *)
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
-  | Pmixedfield (n, _, _sem) ->
-      (* CR layouts: This will need reworking if we ever want bytecode
-         to unbox fields that are written with unboxed types in the source
-         language. *)
-      (* Note, non-value mixed fields are always boxed in bytecode; they
-         aren't stored flat like they are in native code.
-      *)
-      Kgetfield n
-  | Psetmixedfield (n, _shape, _init) ->
-      (* See the comment in the [Pmixedfield] case. *)
-      Ksetfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
   | Pperform ->
@@ -741,6 +730,8 @@ let comp_primitive stack_info p sz args =
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
+  | Pmixedfield _
+  | Psetmixedfield _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
     ->
@@ -1144,6 +1135,24 @@ and comp_expr stack_info env exp sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
+  | Lprim(Pmixedfield (path, _shape, _sem), args, _) ->
+    (* CR layouts: This will need reworking if we ever want bytecode
+       to unbox fields that are written with unboxed types in the source
+       language. *)
+    (* Note, non-value mixed fields are always boxed in bytecode; they
+       aren't stored flat like they are in native code.
+    *)
+    comp_args stack_info env args sz
+      ((List.map (fun i -> Kgetfield i) path ) @ cont)
+  | Lprim(Psetmixedfield (path, _shape, _init), args, _) ->
+    (* See the comment in the [Pmixedfield] case. *)
+    let prefix_gets, set =
+      match List.rev path with
+      | [] -> assert false
+      | hd :: tl -> List.rev tl, hd
+    in
+    comp_args stack_info env args sz
+      ((List.map (fun i -> Kgetfield i) prefix_gets) @ [Ksetfield set] @ cont)
   | Lprim(p, args, _) ->
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz

@@ -27,17 +27,15 @@
  ******************************************************************************)
 
 (** A mixed block shape is essentially the runtime representation of a block
-    ({i i.e.}) value prefix and flat suffix), and the permutation from the
-    type definition in the surface language to that representation. *)
+    ({i i.e.}) value prefix and flat suffix), after flattening of products
+    and reordering of the type definition in the surface language.. *)
 type 'a t
 
+(* CR-soon xclerc for xclerc: make abstract, and move to `Lambda`,
+   where it should be used in `Pmixedfield` and `Psetmixedfield`. *)
+type path = int list
+
 val of_mixed_block_elements : 'a Lambda.mixed_block_element array -> 'a t
-
-(** Applies the permutation corresponding to the reordering to the passed array. *)
-val reorder_array : 'a t -> 'b array -> 'b array
-
-(** Get an element from the {i reordered} shape. *)
-val get_reordered : 'a t -> int -> 'a Lambda.mixed_block_element
 
 val value_prefix : 'a t -> 'a Lambda.mixed_block_element array
 
@@ -47,15 +45,21 @@ val value_prefix_len : 'a t -> int
 
 val flat_suffix_len : 'a t -> int
 
-(** Access to the shape passed to [of_mixed_block_elements] to build the value. *)
-val original_shape : 'a t -> 'a Lambda.mixed_block_element array
+(** Access to the shape, as flattened and reordered to follow the runtime restriction. *)
+val flattened_and_reordered_shape : 'a t -> 'a Lambda.mixed_block_element array
 
-(** Access to the shape, as reordered to follow the runtime restriction. *)
-val reordered_shape : 'a t -> 'a Lambda.mixed_block_element array
+(** (Same as [flattened_shape]). *)
+val flattened_and_reordered_shape_unit :
+  'a t -> unit Lambda.mixed_block_element array
 
-(** (Same as [reordered_shape]). *)
-val reordered_shape_unit : 'a t -> unit Lambda.mixed_block_element array
+(* CR-soon xclerc for xclerc: make abstract? *)
+type new_indexes = int list
 
-val old_index_to_new_index : 'a t -> int -> int
+(** Return the list of indices in the runtime representation for to access the values
+    corresponding to the passed path. A path does not have to lead to a single value
+    when products are involved.*)
+val lookup_path : 'a t -> path -> new_indexes
 
-val new_index_to_old_index : 'a t -> int -> int
+(** Return an array corresponding to a map from old indices to new indices. Can only
+    be used if the block values are already been flattened. *)
+val new_indexes_to_old_indexes : 'a t -> int array

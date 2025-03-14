@@ -223,6 +223,7 @@ module Flat_suffix_element0 = struct
       (* CR: consider printing the value kind *)
       Misc.fatal_error
         "Cannot convert [Value] mixed block elements to flat suffix elements"
+    | Product _ -> assert false
 end
 
 module Mixed_block_shape = struct
@@ -911,16 +912,25 @@ module With_subkind = struct
                         | Bits64 -> naked_int64
                         | Vec128 -> naked_vec128
                         | Word -> naked_nativeint
+                        | Product _ -> assert false
+                      in
+                      let flattened_shape_unit =
+                        Mixed_block_lambda_shape
+                        .flattened_and_reordered_shape_unit mixed_block_shape
                       in
                       let fields : t array =
-                        Array.map from_mixed_block_element
-                          (Mixed_block_lambda_shape.reordered_shape
-                             mixed_block_shape)
+                        (* XXX share with Pmakemixedblock case in flambda2 *)
+                        let new_indexes_to_old_indexes =
+                          Mixed_block_lambda_shape.new_indexes_to_old_indexes
+                            mixed_block_shape
+                        in
+                        Array.init (Array.length new_indexes_to_old_indexes)
+                          (fun new_index ->
+                            from_mixed_block_element
+                              flattened_shape_unit.(new_index))
                       in
                       let mixed_block_shape =
-                        Mixed_block_shape.from_lambda
-                          (Mixed_block_lambda_shape.reordered_shape
-                             mixed_block_shape)
+                        flattened_shape_unit |> Mixed_block_shape.from_lambda
                       in
                       ( Scannable (Mixed_record mixed_block_shape),
                         Array.to_list fields )
