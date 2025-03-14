@@ -1712,7 +1712,13 @@ module Jkind_desc = struct
       (* Optimization: all arrow types have the same (with-bound-free) jkind, so
          we can just eagerly do a join on the mod-bounds here rather than having
          to add them to our with bounds only to be normalized away later. *)
-      { t with mod_bounds = Mod_bounds.join t.mod_bounds Mod_bounds.for_arrow }
+      { t with
+        mod_bounds =
+          Mod_bounds.join t.mod_bounds
+            (Mod_bounds.set_min_in_set Mod_bounds.for_arrow
+               (Axis_set.complement
+                  (relevant_axes_of_modality ~modality ~relevant_for_nullability)))
+      }
     | _ ->
       { t with
         with_bounds =
