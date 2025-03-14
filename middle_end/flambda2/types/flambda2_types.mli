@@ -249,15 +249,6 @@ val meet : Typing_env.t -> t -> t -> (t * Typing_env.t) Or_bottom.t
 
 val meet_shape : Typing_env.t -> t -> shape:t -> Typing_env.t Or_bottom.t
 
-val join :
-  ?bound_name:Name.t ->
-  Typing_env.t ->
-  left_env:Typing_env.t ->
-  left_ty:t ->
-  right_env:Typing_env.t ->
-  right_ty:t ->
-  t
-
 val cut_and_n_way_join :
   Typing_env.t ->
   (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t) list ->
