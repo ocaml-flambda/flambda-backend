@@ -6,11 +6,13 @@ let use_uncontended : 'a @ uncontended -> unit = fun _ -> ()
 let use_portable : 'a @ portable -> unit = fun _ -> ()
 let cross_contended : ('a : value mod contended) -> unit = fun _ -> ()
 type ('a : value mod contended) require_contended
+type ('a : value mod portable) require_portable
 [%%expect{|
 val use_uncontended : 'a -> unit = <fun>
 val use_portable : 'a @ portable -> unit = <fun>
 val cross_contended : ('a : value mod contended). 'a -> unit = <fun>
 type ('a : value mod contended) require_contended
+type ('a : value mod portable) require_portable
 |}]
 
 type 'a t = { contended : 'a @@ contended }
@@ -75,6 +77,17 @@ type 'a portable = { portable : 'a @@ portable; }
 let foo (x : (int -> int) ref portable @@ nonportable) = use_portable x
 [%%expect{|
 val foo : (int -> int) ref portable -> unit = <fun>
+|}]
+
+(* The portable modality works on arrow types *)
+
+type t : value mod portable = { f : int -> int @@ portable }
+type _foo = t require_portable
+let foo (t : t @@ nonportable) = use_portable t
+[%%expect{|
+type t = { f : int -> int @@ portable; }
+type _foo = t require_portable
+val foo : t -> unit = <fun>
 |}]
 
 (* Product layouts *)
