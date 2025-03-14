@@ -65,6 +65,7 @@ struct caml_exception_context {
   struct longjmp_buffer* jmp;
   struct caml__roots_block* local_roots;
   volatile value* exn_bucket;
+  struct stack_info* current_stack;
 };
 
 /* Global variables moved to Caml_state in 4.10 */
