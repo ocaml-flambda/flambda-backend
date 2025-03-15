@@ -61,7 +61,9 @@ type 'repr description_gen = private
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: (mode * 'repr) list;
     prim_native_repr_res: mode * 'repr;
-    prim_is_layout_poly: bool }
+    prim_is_layout_poly: bool;
+    dummy_field : unit;
+  }
 
 type description = native_repr description_gen
 
