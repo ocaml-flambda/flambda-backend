@@ -375,7 +375,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
       #endif
     }
 
-  } else if (tag >= No_scan_tag) {
+  } else if (!Scannable_tag(tag)) {
     sz = Wosize_hd (hd);
     st->live_bytes += Bhsize_hd(hd);
     result = alloc_shared(st->domain, sz, tag, Reserved_hd(hd));

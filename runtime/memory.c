@@ -493,7 +493,7 @@ CAMLprim value caml_atomic_lxor (value ref, value incr)
 CAMLexport int caml_is_stack (value v)
 {
   int i;
-  // We elide a call to caml_refresh_locals here for speed, since we never 
+  // We elide a call to caml_refresh_locals here for speed, since we never
   // read the local sp.
   struct caml_local_arenas* loc = Caml_state->current_stack->local_arenas;
   if (!Is_block(v)) return 0;
@@ -685,7 +685,7 @@ Caml_inline value alloc_shr(mlsize_t wosize, tag_t tag, reserved_t reserved,
   }
 
 #ifdef DEBUG
-  if (tag < No_scan_tag) {
+  if (Scannable_tag(tag)) {
     /* We don't check the reserved bits here because this is OK even for mixed
        blocks. */
     mlsize_t i;
