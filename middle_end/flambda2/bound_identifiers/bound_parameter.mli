@@ -34,10 +34,6 @@ val kind : t -> Flambda_kind.With_subkind.t
 (** Replace the kind of the given parameter. *)
 val with_kind : t -> Flambda_kind.With_subkind.t -> t
 
-(** Returns [true] iff the provided kinded parameters have the same kind and
-    subkind. *)
-val equal_kinds : t -> t -> bool
-
 val rename : t -> t
 
 include Container_types.S with type t := t

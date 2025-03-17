@@ -56,8 +56,6 @@ let with_kind t kind = { t with kind }
 
 let rename t = { t with param = Variable.rename t.param }
 
-let equal_kinds t1 t2 = Flambda_kind.With_subkind.equal t1.kind t2.kind
-
 let free_names ({ param = _; kind = _ } as t) =
   Name_occurrences.singleton_variable (var t) Name_mode.normal
 

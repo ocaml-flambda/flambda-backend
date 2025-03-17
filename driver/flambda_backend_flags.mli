@@ -111,8 +111,8 @@ module Flambda2 : sig
     val function_result_types : function_result_types
     val meet_algorithm : meet_algorithm
     val enable_reaper : bool
-
     val unicode : bool
+    val kind_checks : bool
   end
 
   (* CR-someday lmaurer: We could eliminate most of the per-flag boilerplate using GADTs
@@ -128,8 +128,8 @@ module Flambda2 : sig
     function_result_types : function_result_types;
     meet_algorithm : meet_algorithm;
     enable_reaper : bool;
-
     unicode : bool;
+    kind_checks : bool;
   }
 
   val default_for_opt_level : opt_level or_default -> flags
@@ -144,8 +144,8 @@ module Flambda2 : sig
   val cse_depth : int or_default ref
   val join_depth : int or_default ref
   val enable_reaper : bool or_default ref
-
   val unicode : bool or_default ref
+  val kind_checks : bool or_default ref
 
   module Dump : sig
     type target = Nowhere | Main_dump_stream | File of Misc.filepath
