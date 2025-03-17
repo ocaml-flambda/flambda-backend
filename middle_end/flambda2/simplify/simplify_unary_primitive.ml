@@ -172,6 +172,8 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty ~result_var =
   let ty =
     let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
+    (* The following functions already check kinds, but we will only get here if
+       the kinds are correct (see [Simplify_primitive]). *)
     match boxable_number_kind with
     | Naked_float32 -> T.box_float32 naked_number_ty alloc_mode
     | Naked_float -> T.box_float naked_number_ty alloc_mode
@@ -185,7 +187,11 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
 
 let simplify_tag_immediate dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty
     ~result_var =
-  let ty = T.tag_immediate naked_number_ty in
+  let ty =
+    (* The following function checks the kind, but we will only get here if the
+       kind is correct (see [Simplify_primitive]). *)
+    T.tag_immediate naked_number_ty
+  in
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:true dacc
 

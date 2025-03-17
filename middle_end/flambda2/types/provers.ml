@@ -31,8 +31,10 @@ let is_bottom = Expand_head.is_bottom
 let expand_head env ty =
   Expand_head.expand_head env ty |> Expand_head.Expanded_type.descr_oub
 
-let wrong_kind kind_string t =
-  Misc.fatal_errorf "Kind error: expected [%s]:@ %a" kind_string TG.print t
+let wrong_kind kind_string t default =
+  if Flambda_features.kind_checks ()
+  then Misc.fatal_errorf "Kind error: expected [%s]:@ %a" kind_string TG.print t
+  else default
 
 type 'a meet_shortcut =
   | Known_result of 'a
@@ -69,7 +71,7 @@ let gen_value_to_gen prove_gen env t : _ generic_proof =
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
     ->
-    wrong_kind "Value" t
+    wrong_kind "Value" t (Invalid : _ generic_proof)
 
 let gen_value_to_proof prove_gen env t : _ proof_of_property =
   match expand_head env t with
@@ -82,7 +84,7 @@ let gen_value_to_proof prove_gen env t : _ proof_of_property =
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
     ->
-    wrong_kind "Value" t
+    wrong_kind "Value" t (Unknown : _ proof_of_property)
 
 let gen_value_to_meet prove_gen env t : _ meet_shortcut =
   match expand_head env t with
@@ -93,12 +95,16 @@ let gen_value_to_meet prove_gen env t : _ meet_shortcut =
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
     ->
-    wrong_kind "Value" t
+    wrong_kind "Value" t (Invalid : _ meet_shortcut)
 
 let prove_equals_to_simple_of_kind env t kind : Simple.t proof_of_property =
   let original_kind = TG.kind t in
   if not (K.equal original_kind kind)
-  then wrong_kind (Format.asprintf "%a" K.print kind) t
+  then
+    wrong_kind
+      (Format.asprintf "%a" K.print kind)
+      t
+      (Unknown : _ proof_of_property)
   else
     (* CR pchambart: add TE.get_alias_opt *)
     match TG.get_alias_exn t with
@@ -195,7 +201,7 @@ let prove_is_null_generic env t : _ generic_proof =
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
     ->
-    wrong_kind "Value" t
+    wrong_kind "Value" t (Invalid : _ generic_proof)
 
 let meet_is_null env t = as_meet_shortcut (prove_is_null_generic env t)
 
@@ -235,7 +241,7 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   | Naked_immediate Bottom -> Invalid
   | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ ->
-    wrong_kind "Naked_immediate" t
+    wrong_kind "Naked_immediate" t (Invalid : _ generic_proof)
 
 let meet_naked_immediates env t =
   as_meet_shortcut (prove_naked_immediates_generic env t)
@@ -321,7 +327,7 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
       | Nativeint -> "Naked_nativeint"
       | Vec128 -> "Naked_vec128"
     in
-    wrong_kind kind_string t
+    wrong_kind kind_string t (Invalid : _ meet_shortcut)
   in
   match expand_head env t with
   | Value _ -> wrong_kind ()
@@ -789,7 +795,7 @@ let[@inline always] meet_boxed_number_containing_simple
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
     ->
-    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
+    wrong_kind "Value" t (Invalid : _ meet_shortcut)
 
 let meet_boxed_float32_containing_simple =
   meet_boxed_number_containing_simple
@@ -958,7 +964,7 @@ let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
   | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
   | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _
   | Region _ ->
-    wrong_kind "Rec_info" t
+    wrong_kind "Rec_info" t (Invalid : _ meet_shortcut)
 
 let prove_alloc_mode_of_boxed_number_value _env
     (value_head : TG.head_of_kind_value_non_null) :
@@ -1047,12 +1053,12 @@ let prove_physical_equality env t1 t2 =
         | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
         | Region _ ),
         _ ) ->
-      wrong_kind "Value" t1
+      wrong_kind "Value" t1 (Unknown : _ proof_of_property)
     | ( _,
         ( Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
         | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
         | Region _ ) ) ->
-      wrong_kind "Value" t2
+      wrong_kind "Value" t2 (Unknown : _ proof_of_property)
     | Value (Unknown | Bottom), _ | _, Value (Unknown | Bottom) -> Unknown
     | Value (Ok head1), Value (Ok head2) -> (
       match head1, head2 with

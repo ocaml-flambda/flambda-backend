@@ -26,6 +26,8 @@ let simplify_field_of_block dacc (field, expected_kind) =
   let field =
     Simple.With_debuginfo.create simple (Simple.With_debuginfo.dbg field)
   in
+  (* We should always be at toplevel here and therefore not under any GADT
+     refinement. As such this kind check should always be ok. *)
   if not (K.equal (T.kind ty) expected_kind)
   then
     Misc.fatal_errorf

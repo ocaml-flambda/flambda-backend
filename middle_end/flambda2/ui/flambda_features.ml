@@ -99,6 +99,10 @@ let unicode () =
   !Flambda_backend_flags.Flambda2.unicode
   |> with_default ~f:(fun d -> d.unicode)
 
+let kind_checks () =
+  !Flambda_backend_flags.Flambda2.kind_checks
+  |> with_default ~f:(fun d -> d.kind_checks)
+
 let check_invariants () =
   match !Clflags.flambda_invariant_checks with
   | No_checks | Light_checks -> false

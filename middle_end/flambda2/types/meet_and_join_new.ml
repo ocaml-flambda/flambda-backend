@@ -489,6 +489,8 @@ let join_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
     else Unknown
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
+  (* Kind mismatches should have been caught (either turned into Invalid or a
+     fatal error) before we get here. *)
   if not (K.equal (TG.kind t1) (TG.kind t2))
   then
     Misc.fatal_errorf "Kind mismatch upon meet:@ %a@ versus@ %a" TG.print t1
@@ -1533,6 +1535,8 @@ and meet_type env t1 t2 : _ Or_bottom.t =
     | Bottom _ -> Bottom
 
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
+  (* Kind mismatches should have been caught (either turned into Invalid or a
+     fatal error) before we get here. *)
   if not (K.equal (TG.kind t1) (TG.kind t2))
   then
     Misc.fatal_errorf "Kind mismatch upon join:@ %a@ versus@ %a" TG.print t1

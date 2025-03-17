@@ -137,6 +137,8 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
     if TG.is_obviously_bottom t then Bottom else Ok (t, env_extension)
 
 and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
+  (* Kind mismatches should have been caught (either turned into Invalid or a
+     fatal error) before we get here. *)
   if not (K.equal (TG.kind t1) (TG.kind t2))
   then
     Misc.fatal_errorf "Kind mismatch upon meet:@ %a@ versus@ %a" TG.print t1
@@ -1165,6 +1167,8 @@ and meet_env_extension (env : Meet_env.t) t1 t2 : TEE.t Or_bottom.t =
   else try Ok (meet_env_extension0 env t1 t2 []) with Bottom_meet -> Bottom
 
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
+  (* Kind mismatches should have been caught (either turned into Invalid or a
+     fatal error) before we get here. *)
   if not (K.equal (TG.kind t1) (TG.kind t2))
   then
     Misc.fatal_errorf "Kind mismatch upon join:@ %a@ versus@ %a" TG.print t1

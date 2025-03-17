@@ -583,6 +583,14 @@ let mk_flambda2_unicode f =
     \     Flambda 2 code"
 ;;
 
+let mk_flambda2_kind_checks f =
+  "-flambda2-kind-checks", Arg.Unit f, " Perform kind checks on Flambda 2\n\
+    \     code (may cause fatal errors with layout-poly GADT code)"
+
+let mk_no_flambda2_kind_checks f =
+  "-no-flambda2-kind-checks", Arg.Unit f, " Elide kind checks on Flambda 2\n\
+    \     code"
+
 let mk_drawfexpr f =
   "-drawfexpr", Arg.Unit f, " Like -drawflambda but outputs fexpr language\n\
     \     (Flambda 2 only)"
@@ -813,6 +821,8 @@ module type Flambda_backend_options = sig
 
   val flambda2_unicode : unit -> unit
 
+  val flambda2_kind_checks : unit -> unit
+
   val drawfexpr : unit -> unit
   val drawfexpr_to : string -> unit
   val dfexpr : unit -> unit
@@ -971,6 +981,8 @@ struct
     mk_flambda2_inlining_report_bin F.flambda2_inlining_report_bin;
 
     mk_flambda2_unicode F.flambda2_unicode;
+
+    mk_flambda2_kind_checks F.flambda2_kind_checks;
 
     mk_drawfexpr F.drawfexpr;
     mk_drawfexpr_to F.drawfexpr_to;
@@ -1225,6 +1237,8 @@ module Flambda_backend_options_impl = struct
   let flambda2_inlining_report_bin = set' Flambda2.Inlining.report_bin
 
   let flambda2_unicode = set Flambda2.unicode
+
+  let flambda2_kind_checks = set Flambda2.kind_checks
 
   let drawfexpr () = Flambda2.Dump.rawfexpr := Flambda2.Dump.Main_dump_stream
   let drawfexpr_to file = Flambda2.Dump.rawfexpr := Flambda2.Dump.File file

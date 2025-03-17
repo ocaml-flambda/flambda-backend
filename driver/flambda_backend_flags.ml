@@ -131,6 +131,7 @@ module Flambda2 = struct
     let meet_algorithm = Basic
     let enable_reaper = false
     let unicode = true
+    let kind_checks = false
   end
 
   type flags = {
@@ -144,6 +145,7 @@ module Flambda2 = struct
     meet_algorithm : meet_algorithm;
     enable_reaper : bool;
     unicode : bool;
+    kind_checks : bool;
   }
 
   let default = {
@@ -157,6 +159,7 @@ module Flambda2 = struct
     meet_algorithm = Default.meet_algorithm;
     enable_reaper = Default.enable_reaper;
     unicode = Default.unicode;
+    kind_checks = Default.kind_checks;
   }
 
   let oclassic = {
@@ -187,6 +190,7 @@ module Flambda2 = struct
   let cse_depth = ref Default
   let join_depth = ref Default
   let unicode = ref Default
+  let kind_checks = ref Default
   let function_result_types = ref Default
   let meet_algorithm = ref Default
   let enable_reaper = ref Default

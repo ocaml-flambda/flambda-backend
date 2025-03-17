@@ -39,6 +39,7 @@ let [@ocamlformat "disable"] print ppf { continuation; arity; uses; } =
 let add_use t kind ~env_at_use id ~arg_types =
   try
     let arity = T.arity_of_list arg_types in
+    (* Kinds will always match at join points *)
     if not (Flambda_arity.equal_ignoring_subkinds arity t.arity)
     then
       Misc.fatal_errorf
@@ -60,6 +61,7 @@ let add_use t kind ~env_at_use id ~arg_types =
 
 let union t1 t2 =
   assert (Continuation.equal t1.continuation t2.continuation);
+  (* Kinds will always match at join points *)
   assert (Flambda_arity.equal_ignoring_subkinds t1.arity t2.arity);
   { continuation = t1.continuation; arity = t1.arity; uses = t1.uses @ t2.uses }
 

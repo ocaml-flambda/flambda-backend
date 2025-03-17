@@ -133,6 +133,8 @@ module type Flambda_backend_options = sig
 
   val flambda2_unicode : unit -> unit
 
+  val flambda2_kind_checks : unit -> unit
+
   val drawfexpr : unit -> unit
   val drawfexpr_to : string -> unit
   val dfexpr : unit -> unit

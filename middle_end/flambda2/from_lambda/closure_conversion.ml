@@ -1224,6 +1224,8 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             | Unit -> Flambda_kind.value
             | Singleton result_kind -> result_kind
           in
+          (* This kind check is always ok since it happens prior to any beta
+             reduction. *)
           if not (Flambda_kind.equal kind result_kind)
           then
             Misc.fatal_errorf

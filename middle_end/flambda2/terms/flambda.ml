@@ -1456,6 +1456,9 @@ module Invalid = struct
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * Named.t
     | Closure_type_was_invalid of Apply_expr.t
+    | Application_argument_kind_mismatch of Apply_expr.t
+    | Application_result_kind_mismatch of Apply_expr.t
+    | Extcall_argument_kind_mismatch of Apply_expr.t
     | Partial_application_mode_mismatch of Apply_expr.t
     | Partial_application_mode_mismatch_in_lambda of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
@@ -1482,6 +1485,21 @@ module Invalid = struct
     | Closure_type_was_invalid apply_expr ->
       Format.asprintf
         "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
+        Apply_expr.print apply_expr
+    | Application_argument_kind_mismatch apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Application_argument_kind_mismatch@ @[<hov 1>(apply_expr@ \
+         %a)@])@]"
+        Apply_expr.print apply_expr
+    | Application_result_kind_mismatch apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Application_result_kind_mismatch@ @[<hov 1>(apply_expr@ \
+         %a)@])@]"
+        Apply_expr.print apply_expr
+    | Extcall_argument_kind_mismatch apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Extcall_argument_kind_mismatch@ @[<hov 1>(apply_expr@ \
+         %a)@])@]"
         Apply_expr.print apply_expr
     | Partial_application_mode_mismatch apply_expr ->
       Format.asprintf
