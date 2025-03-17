@@ -539,8 +539,10 @@ and print ppf (t : expr) =
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
   | Invalid { message } ->
-    fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%s@])@]"
-      Flambda_colours.invalid_keyword Flambda_colours.pop message
+    fprintf ppf "@[<hov 1>(%tinvalid%t@ @[<v>%a@])@]"
+      Flambda_colours.invalid_keyword Flambda_colours.pop
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
+      (String.split_on_char '\n' message)
 
 and print_continuation_handler (recursive : Recursive.t) invariant_params ppf k
     ({ cont_handler_abst = _; is_exn_handler; is_cold } as t) occurrences ~first
@@ -1456,9 +1458,12 @@ module Invalid = struct
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * Named.t
     | Closure_type_was_invalid of Apply_expr.t
-    | Application_argument_kind_mismatch of Apply_expr.t
-    | Application_result_kind_mismatch of Apply_expr.t
-    | Extcall_argument_kind_mismatch of Apply_expr.t
+    | Application_argument_kind_mismatch of
+        [`Unarized] Flambda_arity.t * Apply_expr.t
+    | Application_result_kind_mismatch of
+        [`Unarized] Flambda_arity.t * Apply_expr.t
+    | Extcall_argument_kind_mismatch of
+        [`Unarized] Flambda_arity.t * Apply_expr.t
     | Partial_application_mode_mismatch of Apply_expr.t
     | Partial_application_mode_mismatch_in_lambda of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
@@ -1486,21 +1491,21 @@ module Invalid = struct
       Format.asprintf
         "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
         Apply_expr.print apply_expr
-    | Application_argument_kind_mismatch apply_expr ->
+    | Application_argument_kind_mismatch (args_arity, apply_expr) ->
       Format.asprintf
-        "@[<hov 1>(Application_argument_kind_mismatch@ @[<hov 1>(apply_expr@ \
-         %a)@])@]"
-        Apply_expr.print apply_expr
-    | Application_result_kind_mismatch apply_expr ->
+        "@[<hov 1>(Application_argument_kind_mismatch@ @[<hov 1>(args_arity@ \
+         %a)@ (apply_expr@ %a)@])@]"
+        Flambda_arity.print args_arity Apply_expr.print apply_expr
+    | Application_result_kind_mismatch (result_arity, apply_expr) ->
       Format.asprintf
-        "@[<hov 1>(Application_result_kind_mismatch@ @[<hov 1>(apply_expr@ \
-         %a)@])@]"
-        Apply_expr.print apply_expr
-    | Extcall_argument_kind_mismatch apply_expr ->
+        "@[<hov 1>(Application_result_kind_mismatch@ @[<hov 1>(result_arity@ \
+         %a)@ (apply_expr@ %a)@])@]"
+        Flambda_arity.print result_arity Apply_expr.print apply_expr
+    | Extcall_argument_kind_mismatch (args_arity, apply_expr) ->
       Format.asprintf
-        "@[<hov 1>(Extcall_argument_kind_mismatch@ @[<hov 1>(apply_expr@ \
-         %a)@])@]"
-        Apply_expr.print apply_expr
+        "@[<hov 1>(Extcall_argument_kind_mismatch@ @[<hov 1>(args_arity@ %a)@ \
+         (apply_expr@ %a)@])@]"
+        Flambda_arity.print args_arity Apply_expr.print apply_expr
     | Partial_application_mode_mismatch apply_expr ->
       Format.asprintf
         "@[<hov 1>(Partial_application_mode_mismatch@ @[<hov 1>(apply_expr@ \

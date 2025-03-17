@@ -855,7 +855,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
               result_arity_of_application Apply.print apply
           else
             replace_apply_by_invalid dacc ~down_to_up
-              (Application_result_kind_mismatch apply)
+              (Application_result_kind_mismatch (result_arity, apply))
         else
           simplify_direct_full_application ~simplify_expr dacc apply
             (Some function_decl) ~params_arity ~result_arity ~result_types
@@ -1056,7 +1056,11 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       in
       down_to_up dacc ~rebuild)
 
-let simplify_apply_shared dacc apply : _ Or_invalid.t =
+type ('a, 'b) simplify_apply_shared_result =
+  | Ok of 'a
+  | Invalid of 'b
+
+let simplify_apply_shared dacc apply : _ simplify_apply_shared_result =
   let callee_ty, simplified_callee =
     match Apply.callee apply with
     | None -> None, None
@@ -1085,7 +1089,11 @@ let simplify_apply_shared dacc apply : _ Or_invalid.t =
     (Flambda_arity.unarize (Apply.args_arity apply))
     arg_types;
   if !kind_mismatch
-  then Invalid
+  then
+    Invalid
+      (List.map T.kind arg_types
+      |> List.map K.With_subkind.anything
+      |> Flambda_arity.create_singletons)
   else
     let inlining_state =
       Inlining_state.meet
@@ -1191,7 +1199,7 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
     if not (Flambda_features.kind_checks ())
     then
       replace_apply_by_invalid dacc ~down_to_up
-        (Extcall_argument_kind_mismatch apply)
+        (Extcall_argument_kind_mismatch (args_arity_from_types, apply))
     else
       Misc.fatal_errorf
         "Arity %a of [Apply] arguments doesn't match parameter arity %a of C \
@@ -1304,9 +1312,9 @@ let simplify_effect_op dacc apply (op : Call_kind.Effect.t) ~down_to_up =
 
 let simplify_apply ~simplify_expr dacc apply ~down_to_up =
   match simplify_apply_shared dacc apply with
-  | Invalid ->
+  | Invalid args_arity ->
     replace_apply_by_invalid dacc ~down_to_up
-      (Application_argument_kind_mismatch apply)
+      (Application_argument_kind_mismatch (args_arity, apply))
   | Ok (dacc, callee_ty, apply, arg_types) -> (
     match Apply.call_kind apply with
     | Function { function_call; alloc_mode = apply_alloc_mode } ->
