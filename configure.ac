@@ -2640,7 +2640,7 @@ AS_IF([test x"$enable_frame_pointers" = "xyes" -o x"$enable_address_sanitizer" =
 ## Address Sanitizer
 
 AS_IF([test x"$enable_address_sanitizer" = "xyes"],
-  [AS_CASE(["$host,$cc_basename"],
+  [AS_CASE(["$host,$ocaml_cc_vendor"],
     [x86_64-*-linux*,gcc-*|x86_64-*-linux*,clang-*],
       [common_cflags="$common_cflags -fsanitize=address -fsanitize-recover=address"
        oc_ldflags="$oc_ldflags -fsanitize=address -fsanitize-recover=address"
