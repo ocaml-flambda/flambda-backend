@@ -324,7 +324,16 @@ module Type : sig
   val package : Identifier.Module.t -> (Fragment.t * t) list -> t
 end
 
-(* 10 *)
+module Module : sig
+  type t
+
+  val ident : Identifier.Module.t -> t
+
+  val apply : t -> t -> t
+
+  val apply_unit : t -> t
+end
+
 module rec Case : sig
   type t
 
@@ -380,6 +389,18 @@ and Function : sig
   val newtype : Loc.t -> Name.t -> (Var.Type.t -> t) -> t
 end
 
+and Comprehension : sig
+  type t
+
+  val body : Exp.t -> t
+
+  val add_when_clause : Exp.t -> t -> t
+
+  val add_for_range : Loc.t -> Name.t -> Exp.t -> Exp.t -> bool -> (Var.Value.t -> t) -> t
+
+  val add_for_in : Loc.t -> Exp.t -> Name.t list -> (Var.Value.t list -> Pat.t * t) -> t
+end
+
 and Exp : sig
   type t
 
@@ -430,9 +451,37 @@ and Exp : sig
 
   val lazy_ : t -> t
 
-  val open_ : bool -> Identifier.Module.t -> t -> t
+  val open_ : bool -> Module.t -> t -> t
+
+  val letmodule : Loc.t -> Name.t option -> Module.t -> (Var.Module.t option -> t) -> t
 
   val constraint_ : t -> Type_constraint.t -> t
+
+  val new_ : Identifier.Value.t -> t
+
+  val pack : Module.t -> t
+
+  val unreachable : t
+
+  val src_pos : t
+
+  val extension_constructor : Identifier.Constructor.t -> t
+
+  val let_exception : Name.t -> t -> t
+
+  val let_op : Loc.t -> Identifier.Value.t list -> Name.t list -> t -> (Var.Value.t list -> Pat.t * t) -> t
+
+  val exclave : t -> t
+
+  val list_comprehension : Comprehension.t -> t
+
+  val array_comprehension : Comprehension.t -> t
+
+  val unboxed_tuple : (Label.Nonoptional.t * t) list -> t
+
+  val unboxed_record_product : (Identifier.Field.t * t) list -> t option -> t
+
+  val unboxed_field : t -> Identifier.Field.t -> t
 
   val quote : t -> t
 

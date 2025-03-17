@@ -1250,11 +1250,23 @@ module Ast = struct
     | Send of expression * Method.t
     | ConstraintExp of expression * core_type
     | CoerceExp of expression * core_type option * core_type
-    | Letmodule of Var.Module.t * module_expr * expression
+    | Letmodule of Var.Module.t option * module_expr * expression
     | Assert of expression
     | Lazy of expression
     | Pack of module_expr
-    | OpenExp of override_flag * Identifier.Module.t * expression
+    | OpenExp of override_flag * module_expr * expression
+    | New of Identifier.Value.t
+    | Unreachable
+    | Src_pos
+    | Exclave of expression
+    | Unboxed_tuple of (tuple_label * expression) list
+    | Unboxed_record_product of (Identifier.Field.t * expression) list * expression option
+    | Unboxed_field of expression * Identifier.Field.t
+    | Let_op of Identifier.Value.t list * value_binding list * expression
+    | Let_exception of Name.t * expression
+    | Extension_constructor of Identifier.Constructor.t
+    | List_comprehension of comprehension
+    | Array_comprehension of comprehension
     | Quote of expression
     | Antiquote of expression * Loc.t
 
@@ -1287,7 +1299,15 @@ module Ast = struct
     | ModuleIdent of Identifier.Module.t
     | ModuleApply of module_expr * module_expr
     | Apply_unit of module_expr
-    | Unpack of expression
+
+  and comprehension_clause =
+    | Range of Var.Value.t * expression * expression * direction_flag
+    | In of pattern * expression
+
+  and comprehension =
+    | Body of expression
+    | When of comprehension * expression
+    | For of comprehension * comprehension_clause
 
   let rec print_vb fmt ({pat; expr} : value_binding) =
     Format.fprintf fmt "%a = %a" pat_print pat print_exp expr
@@ -1559,6 +1579,27 @@ module Type = struct
     Ast.Package (m, specs)
 end
 
+module Module = struct
+  type t = Ast.module_expr With_free_vars.t
+
+  let ( let+ ) m f = With_free_vars.map f m
+
+  let ( and+ ) = With_free_vars.both
+
+  let return = With_free_vars.return
+
+  let ident id = return (Ast.ModuleIdent id)
+
+  let apply func arg =
+    let+ func = func
+    and+ arg = arg
+    in Ast.ModuleApply (func, arg)
+
+  let apply_unit func =
+    let+ func = func
+    in Ast.Apply_unit func
+end
+
 module Case = struct
   type t = Ast.case With_free_vars.t
 
@@ -1665,6 +1706,49 @@ module Function = struct
     With_free_vars.type_binding loc name (fun typ ->
         let+ ({ params; constraint_; body } : Ast.function_) = f typ in
         mk (Ast.Pparam_newtype typ :: params) constraint_ body)
+end
+
+module Comprehension = struct
+  type t = Ast.comprehension With_free_vars.t
+
+  let ( let+ ) m f = With_free_vars.map f m
+
+  let ( and+ ) = With_free_vars.both
+
+  let body exp =
+    let+ exp = exp
+    in Ast.Body exp
+
+  let add_when_clause exp compr =
+    let+ exp = exp
+    and+ compr = compr
+    in Ast.When (compr, exp)
+
+  let add_for_range loc name start stop direction compr =
+    With_free_vars.value_binding loc name
+      (fun var ->
+         let+ start = start
+         and+ stop = stop
+         and+ compr = compr var
+         in
+         let dir = if direction then Ast.Upto else Ast.Downto
+         in Ast.For (compr, Ast.Range (var, start, stop, dir)))
+
+  let add_for_in loc exp names compr =
+    With_free_vars.value_bindings loc names
+      (fun vars ->
+         let (pat, compr) = compr vars in
+         let+ pat = pat
+         and+ compr = compr
+         and+ exp = exp
+         in
+         let p =
+         With_bound_vars.value
+           ~extra:(BindingError.unexpected_binding_error_at_loc loc)
+           ~missing:BindingError.missing_binding_error pat
+           (List.map Var.Value.generic vars)
+         in
+         Ast.For (compr, Ast.In (p, exp)))
 end
 
 module Code = struct
@@ -1880,8 +1964,99 @@ module Exp = struct
 
   let open_ override m rhs =
     let flag = if override then Ast.Override else Ast.Fresh in
-    let+ exp = rhs in
+    let+ exp = rhs
+    and+ m = m in
     mk (OpenExp (flag, m, exp)) []
+
+  let letmodule loc name_opt mod_exp body =
+    let+ mod_exp = mod_exp
+    and+ (var, body) =
+      match name_opt with
+      | None ->
+        let+ body = body None
+        in (None, body)
+      | Some name ->
+        With_free_vars.module_binding loc name
+          (fun m ->
+             let+ body = body (Some m)
+             in (Some m, body))
+    in
+    mk (Letmodule (var, mod_exp, body)) []
+
+  let constraint_ exp constr =
+    let+ exp = exp
+    and+ constr = constr
+    in match constr with
+    | Ast.Coerce (ty_opt, ty_to) -> mk (Ast.CoerceExp (exp, ty_opt, ty_to)) []
+    | Ast.Constraint ty -> mk (Ast.ConstraintExp (exp, ty)) []
+
+  let new_ class_id = return (mk (Ast.New class_id) [])
+
+  let pack m =
+    let+ m = m in
+    mk (Ast.Pack m) []
+
+  let unreachable = return (mk Ast.Unreachable [])
+
+  let src_pos = return (mk Ast.Src_pos [])
+
+  let exclave exp =
+    let+ exp = exp
+    in mk (Ast.Exclave exp) []
+
+  let list_comprehension compr =
+    let+ compr = compr
+    in mk (Ast.List_comprehension compr) []
+
+  let array_comprehension compr =
+    let+ compr = compr
+    in mk (Ast.Array_comprehension compr) []
+
+  let unboxed_tuple fs =
+    let entries =
+      List.map
+        (fun (lab, exp) ->
+           let+ exp = exp in
+           lab, exp)
+        fs
+    in
+    let+ entries = all entries in
+    mk (Ast.Unboxed_tuple entries) []
+
+  let unboxed_record_product entries exp =
+    let entries =
+      List.map
+        (fun (field, e) ->
+           let+ e = e in
+           field, e)
+        entries
+    in
+    let+ entries = all entries and+ exp = optional exp in
+    mk (Ast.Unboxed_record_product (entries, exp)) []
+
+  let unboxed_field exp field =
+    let+ exp = exp in
+    mk (Ast.Unboxed_field (exp, field)) []
+
+  let extension_constructor ident =
+    return (mk (Ast.Extension_constructor ident) [])
+
+  let let_exception name exp =
+    let+ exp = exp
+    in mk (Ast.Let_exception (name, exp)) []
+
+  let let_op loc idents names def f =
+    With_free_vars.value_bindings loc names (fun vars ->
+      let pat, body = f vars in
+      let+ pat, body = With_free_vars.both pat body and+ def = def in
+      let pat =
+        With_bound_vars.value
+          ~extra:(BindingError.unexpected_binding_error_at_loc loc)
+          ~missing:BindingError.missing_binding_error pat
+          (List.map Var.Value.generic vars)
+      in
+      let vbs = [mk_vb pat def] in
+      mk (Ast.Let_op (idents, vbs, body)) [])
 
   let quote exp =
     let+ exp = exp in

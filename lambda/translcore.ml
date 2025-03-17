@@ -1242,7 +1242,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_hole _ ->
       Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
   | Texp_quotation _ -> transl_quote (transl_exp ~scopes sort) e
-  | Texp_antiquotation _ -> failwith "Not implemented yet" (* should fail *)
+  | Texp_antiquotation _ -> failwith "Cannot unqoute outside of a quotation context."
+(* TODO: do the correct error reporting *)
 
 and pure_module m =
   match m.mod_desc with

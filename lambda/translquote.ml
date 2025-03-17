@@ -160,6 +160,28 @@ module Function = struct
   let newtype = combinator "Function" "newtype"
 end
 
+module Module = struct
+  let ident = combinator "Module" "ident"
+
+  let apply = combinator "Module" "apply"
+
+  let apply_unit = combinator "Module" "apply_unit"
+end
+
+module Comprehension = struct
+  module ClauseBinding = struct
+    let range = combinator "Comprehension.ClauseBinding" "range"
+
+    let in_ = combinator "Comprehension.ClauseBinding" "in_"
+  end
+
+  let body = combinator "Comprehension" "body"
+
+  let add_when_clause = combinator "Comprehension" "add_when_clause"
+
+  let add_for_clause = combinator "Comprehension" "add_for_clause"
+end
+
 module Exp = struct
   let ident = combinator "Exp" "ident"
 
@@ -199,11 +221,43 @@ module Exp = struct
 
   let for_simple = combinator "Exp" "for_simple"
 
+  let unboxed_tuple = combinator "Exp" "unboxed_tuple"
+
+  let unboxed_record_product = combinator "Exp" "unboxed_record_product"
+
+  let unboxed_field = combinator "Exp" "unboxed_field"
+
+  let pack = combinator "Exp" "pack"
+
+  let unreachable = combinator "Exp" "unreachable"
+
+  let src_pos = combinator "Exp" "src_pos"
+
+  let exclave = combinator "Exp" "exclave"
+
+  let extension_constructor = combinator "Exp" "extension_constructor"
+
+  let probe = combinator "Exp" "probe"
+
+  let probe_is_enabled = combinator "Exp" "probe_is_enabled"
+
+  let list_comprehension = combinator "Exp" "list_comprehension"
+
+  let array_comprehension = combinator "Exp" "array_comprehension"
+
+  let let_exception = combinator "Exp" "let_exception"
+
+  let let_op = combinator "Exp" "let_op"
+
+  let new_ = combinator "Exp" "new_"
+
   let send = combinator "Exp" "send"
 
   let assert_ = combinator "Exp" "assert_"
 
   let lazy_ = combinator "Exp" "lazy_"
+
+  let letmodule = combinator "Exp" "letmodule"
 
   let open_ = combinator "Exp" "open_"
 
@@ -377,39 +431,34 @@ let quote_constructor env loc constr =
   match type_path env constr.cstr_res with
   | None -> fatal_error "No global path for constructor"
   | Some (Path.Pident _) -> (
-    match constr.cstr_name with
-    | "false" -> Lazy.force Identifier.Constructor.false_
-    | "true" -> Lazy.force Identifier.Constructor.true_
-    | "()" -> Lazy.force Identifier.Constructor.void
-    | "[]" -> Lazy.force Identifier.Constructor.nil
-    | "::" -> Lazy.force Identifier.Constructor.cons
-    | "None" -> Lazy.force Identifier.Constructor.none
-    | "Some" -> Lazy.force Identifier.Constructor.some
-    | _ ->
-      apply loc Identifier.Constructor.dot
-        [ apply loc Identifier.Module.compilation_unit [string loc ""];
-          string loc constr.cstr_name ])
+      match constr.cstr_name with
+      | "false" -> Lazy.force Identifier.Constructor.false_
+      | "true" -> Lazy.force Identifier.Constructor.true_
+      | "()" -> Lazy.force Identifier.Constructor.void
+      | "[]" -> Lazy.force Identifier.Constructor.nil
+      | "::" -> Lazy.force Identifier.Constructor.cons
+      | "None" -> Lazy.force Identifier.Constructor.none
+      | "Some" -> Lazy.force Identifier.Constructor.some
+      | _ ->
+        apply loc Identifier.Constructor.dot
+          [ apply loc Identifier.Module.compilation_unit [string loc ""];
+            string loc constr.cstr_name ])
   | Some (Path.Pdot (p, _)) ->
     apply loc Identifier.Constructor.dot
       [module_for_path loc p; string loc constr.cstr_name]
   | _ -> fatal_error "Unsupported constructor type detected."
 
+let quote_ext_constructor loc = function
+  | Path.Pident id -> (
+      apply loc Identifier.Constructor.dot
+        [ apply loc Identifier.Module.compilation_unit [string loc ""];
+          string loc (Ident.name id) ])
+  | Path.Pdot (p, s) ->
+    apply loc Identifier.Constructor.dot
+      [module_for_path loc p; string loc s]
+  | _ -> fatal_error "Unsupported constructor type detected."
+
 let quote_variant loc name = apply loc Variant.of_string [string loc name]
-
-(* let field_for_path loc = function
- *   | Path.Pident id ->
- *     if Ident.is_global id then
- *       apply loc Identifier.Field.dot
- *         [apply loc Identifier.Module.compilation_unit [string loc ""];
- *          string loc (Ident.name id)]
- *     else raise Exit
- *   | Path.Pdot (p, s) -> apply loc Identifier.Field.dot [module_for_path loc p; string loc s]
- *   | _ -> raise Exit *)
-
-(* let field_for_path_opt loc p =
- *   match field_for_path loc p with
- *   | res -> Some res
- *   | exception Exit -> None *)
 
 let quote_nonopt loc (lbl : string option) =
   match lbl with
@@ -480,11 +529,12 @@ let rec quote_value_pattern p =
     apply loc Pat.lazy_ [pat]
   | _ -> fatal_error "Unsupported pattern type (unboxed stuff)"
 
-let rec quote_lid_module loc = function
-  | Lident s -> apply loc Identifier.Module.compilation_unit [string loc s]
-  | Ldot (lid, s) ->
-    apply loc Identifier.Module.dot [quote_lid_module loc lid; string loc s]
-  | _ -> fatal_error "No support for Lapply in quoting modules"
+let rec quote_module_path loc = function
+  | Path.Pident s ->
+    apply loc Identifier.Module.compilation_unit [string loc (Ident.name s)]
+  | Path.Pdot (p, s) ->
+    apply loc Identifier.Module.dot [quote_module_path loc p; string loc s]
+  | _ -> fatal_error "No support for Papply in quoting modules"
 
 let rec quote_computation_pattern p =
   let loc = p.pat_loc in
@@ -654,6 +704,51 @@ and quote_function transl stage loc fn =
     List.fold_right (fun_param_binding transl stage loc) fn.params fn_body
   | _ -> fatal_error "Unexpected usage of quote_function."
 
+and quote_module_exp transl stage loc mod_exp =
+  match mod_exp.mod_desc with
+  | Tmod_ident (path, _) ->
+    let m = quote_module_path loc path in
+    apply loc Module.ident [m]
+  | Tmod_apply (funct, arg, _) ->
+    let transl_funct = quote_module_exp transl stage loc funct in
+    let transl_arg = quote_module_exp transl stage loc arg in
+    apply loc Module.apply [transl_funct; transl_arg]
+  | Tmod_apply_unit funct ->
+    let transl_funct = quote_module_exp transl stage loc funct in
+    apply loc Module.apply_unit [transl_funct]
+  | Tmod_constraint (mod_exp, _, _, _) ->
+    quote_module_exp transl stage loc mod_exp
+  | Tmod_structure _ | Tmod_functor _ -> fatal_error "Cannot quote struct..end blocks"
+  | Tmod_unpack _ -> fatal_error "No support for unpacking first-class modules"
+
+and quote_comprehension transl stage loc {comp_body; comp_clauses} =
+  let add_clause body = function
+    | Texp_comp_when exp ->
+      let exp = quote_expression transl stage exp in
+      apply loc Comprehension.add_when_clause [body; exp]
+    | Texp_comp_for clause_bindings ->
+      let bindings =
+        List.map
+          (fun clb -> match clb.comp_cb_iterator with
+             | Texp_comp_range rcd ->
+               let start = quote_expression transl stage rcd.start
+               and stop = quote_expression transl stage rcd.stop
+               and direction = match rcd.direction with | Upto -> true | Downto -> false
+               in
+               apply loc Comprehension.ClauseBinding.range
+                 [quote_loc loc; quote_name (mkloc (Ident.name rcd.ident) loc);
+                  start; stop; quote_bool direction]
+             | Texp_comp_in {pattern; sequence} ->
+               let exp = quote_expression transl stage sequence in
+               apply loc Comprehension.ClauseBinding.in_
+                 [quote_loc loc; quote_value_pattern pattern; exp])
+          clause_bindings
+      in
+      apply loc Comprehension.add_for_clause [body; mk_list bindings]
+  in
+  let body = apply loc Comprehension.body [quote_expression transl stage comp_body] in
+  List.fold_left (fun body clause -> add_clause body clause) body comp_clauses
+
 and quote_expression_extra _ _ extra lambda =
   let extra, loc, _ = extra in
   match extra with
@@ -661,21 +756,27 @@ and quote_expression_extra _ _ extra lambda =
   | _ ->
     failwith "Not implemented yet" (* TODO: type constraints and the rest *)
 
+and quote_value_ident_path loc path =
+  match value_for_path_opt loc path with
+  | Some ident_val ->
+    (Format.printf "I AM HERE: %a\n" Printlambda.lambda ident_val;
+     apply loc Exp.ident [ident_val])
+  | None ->
+    match path with
+    | Pident id ->
+      let v = apply loc Identifier.Value.var [Lvar id; quote_loc loc] in
+      apply loc Exp.ident [v]
+    | p ->
+      Format.printf "    [%a]\n\n" Path.print p;
+      fatal_error "No global path for identifier"
+
 and quote_expression transl stage e =
   let env = e.exp_env in
   let loc = e.exp_loc in
   let body =
     match e.exp_desc with
-    | Texp_ident (path, _, _, _, _) -> (
-      match value_for_path_opt loc path with
-      | Some ident_val -> apply loc Exp.ident [ident_val]
-      | None -> (
-        match path with
-        | Pident id ->
-          (* TODO: properly check stage *)
-          let v = apply loc Identifier.Value.var [Lvar id; quote_loc loc] in
-          apply loc Exp.ident [v]
-        | _ -> fatal_error "No global path for identifier"))
+    | Texp_ident (path, _, _, _, _) ->
+      quote_value_ident_path loc path
     | Texp_constant const ->
       let const = quote_constant loc const in
       apply loc Exp.constant [const]
@@ -842,16 +943,18 @@ and quote_expression transl stage e =
       let obj = quote_expression transl stage obj in
       let meth = quote_method loc meth in
       apply loc Exp.send [obj; meth]
-    | Texp_open (open_decl, exp) -> (
-      match open_decl.open_expr.mod_desc with
-      | Tmod_ident (_, lid) ->
-        let override =
-          match open_decl.open_override with Override -> true | Fresh -> false
-        in
-        let exp = quote_expression transl stage exp in
-        let lid = quote_lid_module lid.loc lid.txt in
-        apply loc Exp.open_ [quote_bool override; lid; exp]
-      | _ -> fatal_error "Unsupported module open syntax" (* TODO *))
+    | Texp_open (open_decl, exp) ->
+      let override =
+        match open_decl.open_override with Override -> true | Fresh -> false
+      in
+      let module_exp = quote_module_exp transl stage loc open_decl.open_expr in
+      let exp = quote_expression transl stage exp in
+      fatal_error "No support for opening modules yet. Will be translated to letmodule."
+    | Texp_letmodule(ident, _, _, mod_exp, body) ->
+      let name = Option.map (fun id -> quote_name (mkloc (Ident.name id) loc)) ident in
+      let mod_exp = quote_module_exp transl stage loc mod_exp in
+      let body = quote_expression transl stage body in
+      apply loc Exp.letmodule [option name; mod_exp; body]
     | Texp_assert (exp, _) ->
       let exp = quote_expression transl stage exp in
       apply loc Exp.assert_ [exp]
@@ -867,14 +970,85 @@ and quote_expression transl stage e =
         let exp = quote_expression transl (stage + 1) exp in
         apply loc Exp.antiquote [exp]
       else transl exp
-    | Texp_new _ | Texp_instvar _ | Texp_setinstvar _ | Texp_override _
-    | Texp_letmodule _ | Texp_object _ | Texp_pack _ | Texp_unreachable
-    | Texp_src_pos | Texp_unboxed_tuple _ | Texp_record_unboxed_product _
-    | Texp_unboxed_field _ | Texp_list_comprehension _
-    | Texp_array_comprehension _ | Texp_letexception _ | Texp_letop _
-    | Texp_extension_constructor _ | Texp_probe _ | Texp_probe_is_enabled _
-    | Texp_exclave _ | Texp_overwrite _ | Texp_hole _ ->
-      fatal_error "Expression cannot be quoted"
+    | Texp_new (path, _, _, _) ->
+      apply loc Exp.new_ [quote_value_ident_path loc path]
+    | Texp_pack m ->
+      apply loc Exp.pack [quote_module_exp transl stage loc m]
+    | Texp_unreachable ->
+      Lazy.force Exp.unreachable
+    | Texp_src_pos ->
+      Lazy.force Exp.src_pos
+    | Texp_exclave e ->
+      apply loc Exp.exclave [quote_expression transl stage e]
+    | Texp_extension_constructor (lid, path) ->
+      apply loc Exp.extension_constructor
+        [quote_loc lid.loc; quote_ext_constructor loc path]
+    | Texp_unboxed_tuple ts ->
+      let tups =
+        List.map
+          (fun (lab_opt, exp, _)
+            -> pair (quote_nonopt loc lab_opt, quote_expression transl stage exp))
+          ts
+      in
+      apply loc Exp.unboxed_tuple [mk_list tups]
+    | Texp_record_unboxed_product record ->
+      let lbl_exps =
+        Array.map
+          (fun (lbl, def) ->
+             let lbl = quote_record_field env loc lbl in
+             let exp =
+               match def with
+               | Overridden (_, exp) -> quote_expression transl stage exp
+               | Kept _ ->
+                 fatal_error "No support for record update syntax in quotations"
+             in
+             pair (lbl, exp))
+          record.fields
+      in
+      let base =
+        Option.map
+          (fun (e, _) -> quote_expression transl stage e)
+          record.extended_expression
+      in
+      apply loc Exp.unboxed_record_product [mk_list (Array.to_list lbl_exps); option base]
+    | Texp_unboxed_field (rcd, _, lid, lbl, _) ->
+      let rcd = quote_expression transl stage rcd in
+      let lbl = quote_record_field env lid.loc lbl in
+      apply loc Exp.unboxed_field [rcd; lbl]
+    | Texp_letexception (ext_const, exp) ->
+      let exp = quote_expression transl stage exp in
+      apply loc Exp.let_exception [quote_name ext_const.ext_name; exp]
+    | Texp_letop rcd ->
+      let let_l = value_for_path rcd.let_.bop_loc rcd.let_.bop_op_path
+      and ands_l = List.map (fun bop -> value_for_path bop.bop_loc bop.bop_op_path) rcd.ands
+      in
+      let let_ands = mk_list (let_l :: ands_l)
+      and idents = pat_bound_idents rcd.body.c_lhs
+      in
+      let names_lam =
+        List.map
+          (fun s -> apply loc Name.mk [string loc (Ident.name s)])
+          idents
+      in
+      let pat = rcd.body.c_lhs in
+      let body =
+        create_list_param_binding idents
+          (pair (quote_value_pattern pat, quote_expression transl stage rcd.body.c_rhs))
+      in apply loc Exp.let_op [quote_loc loc; let_ands; mk_list names_lam; body]
+    | Texp_list_comprehension compr ->
+      apply loc Exp.list_comprehension [quote_comprehension transl stage loc compr]
+    | Texp_array_comprehension (_, _, compr) ->
+      apply loc Exp.array_comprehension [quote_comprehension transl stage loc compr]
+    | Texp_overwrite _ ->
+      fatal_error "Not implemented yet"
+    | Texp_hole _ ->
+      fatal_error "No support for typed holes inside quotations."
+    | Texp_instvar _ | Texp_setinstvar _ | Texp_override _ ->
+      fatal_error "Should not encounter OOP syntax in quotes."
+    | Texp_object _ ->
+      fatal_error "Cannot quote object construction."
+    | Texp_probe _ | Texp_probe_is_enabled _ ->
+      fatal_error "Cannot quote probing constructs."
   in
   List.fold_right (quote_expression_extra transl stage) e.exp_extra body
 
