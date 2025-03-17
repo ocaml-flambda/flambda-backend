@@ -539,8 +539,10 @@ and print ppf (t : expr) =
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
   | Invalid { message } ->
-    fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%s@])@]"
-      Flambda_colours.invalid_keyword Flambda_colours.pop message
+    fprintf ppf "@[<hov 1>(%tinvalid%t@ @[<v>%a@])@]"
+      Flambda_colours.invalid_keyword Flambda_colours.pop
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
+      (String.split_on_char '\n' message)
 
 and print_continuation_handler (recursive : Recursive.t) invariant_params ppf k
     ({ cont_handler_abst = _; is_exn_handler; is_cold } as t) occurrences ~first
