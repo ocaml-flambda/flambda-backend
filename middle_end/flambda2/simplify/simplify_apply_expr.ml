@@ -1146,8 +1146,8 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   DE.check_simple_is_bound denv obj;
   let args_arity = Apply.args_arity apply in
   let args_arity_from_types = T.arity_of_list arg_types in
-  (* Nothing layout-poly can be done with method calls, so this kind check is
-     always ok. *)
+  (* Method calls are not currently refined by the front end, so we can have a
+     kind check in place here at all times. *)
   if not
        (Flambda_arity.equal_ignoring_subkinds args_arity_from_types
           (Flambda_arity.unarize_t args_arity))
