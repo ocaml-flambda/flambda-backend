@@ -34,13 +34,17 @@ let easily_readable = ref false
 let verbose = ref false
 let output_file = ref None
 let include_dirs = ref []
+let hidden_include_dirs = ref []
+let open_modules = ref []
 let files = ref []
 
 let spec_list = [
   ("-readable", Arg.Set easily_readable, "Output in easily readable format");
   ("-verbose", Arg.Set verbose, "Print errors instead of failing silently");
   ("-output-file", Arg.String (fun s -> output_file := Some s), "Optional output file; prints to stdout if not present");
-  ("-I", Arg.String (fun s -> include_dirs := !include_dirs @ [s]), "A directory with .cmi files to include for lookups");
+  ("-I", Arg.String (fun s -> include_dirs := List.rev_append (String.split_on_char ',' s) !include_dirs), "A directory with .cmi files to include for lookups");
+  ("-H", Arg.String (fun s -> hidden_include_dirs := List.rev_append (String.split_on_char ',' s) !hidden_include_dirs), "Hidden includes");
+  ("-open", Arg.String (fun s -> open_modules := List.rev_append (String.split_on_char ',' s) !open_modules), "Modules to open")
 ]
 
 let parse_arguments () =
@@ -87,6 +91,8 @@ let extract_shapes_from_cmt ~verbose file =
 
 let extract_shapes_from_cmts ~includes ~verbose files =
   Clflags.include_dirs := includes @ !Clflags.include_dirs;
+  Clflags.open_modules := !open_modules @ !Clflags.open_modules;
+  Clflags.hidden_include_dirs := !hidden_include_dirs @ !Clflags.hidden_include_dirs;
   Compmisc.init_path ();
   List.iter
     (fun file ->
