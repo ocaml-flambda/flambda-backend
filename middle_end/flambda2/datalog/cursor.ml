@@ -292,11 +292,8 @@ let create ?(calls = []) ?output context =
 
 let bind_table (Bind_table (id, handler)) database =
   let table = Table.Map.get id database in
-  if Trie.is_empty (Table.Id.is_trie id) table
-  then false
-  else (
-    handler.contents <- Table.Map.get id database;
-    true)
+  handler := table;
+  not (Trie.is_empty (Table.Id.is_trie id) table)
 
 let bind_table_list binders database =
   List.iter (fun binder -> ignore @@ bind_table binder database) binders
