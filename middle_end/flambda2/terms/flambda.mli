@@ -113,8 +113,6 @@ module Invalid : sig
         [`Unarized] Flambda_arity.t * Apply_expr.t
     | Application_result_kind_mismatch of
         [`Unarized] Flambda_arity.t * Apply_expr.t
-    | Extcall_argument_kind_mismatch of
-        [`Unarized] Flambda_arity.t * Apply_expr.t
     | Partial_application_mode_mismatch of Apply_expr.t
     | Partial_application_mode_mismatch_in_lambda of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t

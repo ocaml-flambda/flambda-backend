@@ -1128,8 +1128,7 @@ let rebuild_non_ocaml_function_call apply ~use_id ~exn_cont_use_id uacc
   in
   after_rebuild expr uacc
 
-let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
-    ~down_to_up =
+let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~down_to_up =
   fail_if_probe apply;
   let callee_kind = T.kind callee_ty in
   if not (K.is_value callee_kind)
@@ -1144,19 +1143,6 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   in
   let denv = DA.denv dacc in
   DE.check_simple_is_bound denv obj;
-  let args_arity = Apply.args_arity apply in
-  let args_arity_from_types = T.arity_of_list arg_types in
-  (* Method calls are not currently refined by the front end, so we can have a
-     kind check in place here at all times. *)
-  if not
-       (Flambda_arity.equal_ignoring_subkinds args_arity_from_types
-          (Flambda_arity.unarize_t args_arity))
-  then
-    Misc.fatal_errorf
-      "Arity %a of [Apply] arguments doesn't match parameter arity %a of \
-       method:@ %a"
-      Flambda_arity.print args_arity Flambda_arity.print args_arity Apply.print
-      apply;
   let dacc, use_id =
     DA.record_continuation_use dacc apply_cont
       (Non_inlinable { escaping = true })
@@ -1184,79 +1170,61 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
 let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
     =
   fail_if_probe apply;
-  let args_arity = Apply.args_arity apply in
   let return_arity = Apply.return_arity apply in
   let callee_kind = T.kind callee_ty in
   if not (K.is_value callee_kind)
   then
     Misc.fatal_errorf "C callees must be of kind [Value], not %a: %a" K.print
       callee_kind T.print callee_ty;
-  let args_arity_from_types = T.arity_of_list arg_types in
-  if not
-       (Flambda_arity.equal_ignoring_subkinds args_arity_from_types
-          (Flambda_arity.unarize_t args_arity))
-  then
-    if not (Flambda_features.kind_checks ())
-    then
-      replace_apply_by_invalid dacc ~down_to_up
-        (Extcall_argument_kind_mismatch (args_arity_from_types, apply))
-    else
-      Misc.fatal_errorf
-        "Arity %a of [Apply] arguments doesn't match parameter arity %a of C \
-         callee:@ %a"
-        Flambda_arity.print args_arity Flambda_arity.print args_arity
-        Apply.print apply
-  else
-    let simplified =
-      Simplify_extcall.simplify_extcall dacc apply ~callee_ty ~arg_types
+  let simplified =
+    Simplify_extcall.simplify_extcall dacc apply ~callee_ty ~arg_types
+  in
+  match simplified with
+  | Specialised (dacc, expr, operation) ->
+    let down_to_up dacc ~rebuild =
+      let rebuild uacc ~after_rebuild =
+        let uacc = UA.notify_removed uacc ~operation in
+        rebuild uacc ~after_rebuild
+      in
+      down_to_up dacc ~rebuild
     in
-    match simplified with
-    | Specialised (dacc, expr, operation) ->
-      let down_to_up dacc ~rebuild =
-        let rebuild uacc ~after_rebuild =
-          let uacc = UA.notify_removed uacc ~operation in
-          rebuild uacc ~after_rebuild
+    simplify_expr dacc expr ~down_to_up
+  | Unchanged { return_types } ->
+    let dacc, use_id =
+      match Apply.continuation apply with
+      | Return apply_continuation ->
+        let apply_continuation_arg_types =
+          let from_arity = T.unknown_types_from_arity return_arity in
+          match return_types with
+          | Unknown -> from_arity
+          | Known return_types ->
+            assert (List.compare_lengths return_types from_arity = 0);
+            return_types
         in
-        down_to_up dacc ~rebuild
-      in
-      simplify_expr dacc expr ~down_to_up
-    | Unchanged { return_types } ->
-      let dacc, use_id =
-        match Apply.continuation apply with
-        | Return apply_continuation ->
-          let apply_continuation_arg_types =
-            let from_arity = T.unknown_types_from_arity return_arity in
-            match return_types with
-            | Unknown -> from_arity
-            | Known return_types ->
-              assert (List.compare_lengths return_types from_arity = 0);
-              return_types
-          in
-          let dacc, use_id =
-            DA.record_continuation_use dacc apply_continuation
-              (Non_inlinable { escaping = true })
-              ~env_at_use:(DA.denv dacc) ~arg_types:apply_continuation_arg_types
-          in
-          dacc, Some use_id
-        | Never_returns -> dacc, None
-      in
-      let dacc, exn_cont_use_id =
-        DA.record_continuation_use dacc
-          (Exn_continuation.exn_handler (Apply.exn_continuation apply))
-          (Non_inlinable { escaping = true })
-          ~env_at_use:(DA.denv dacc)
-          ~arg_types:
-            (T.unknown_types_from_arity
-               (Exn_continuation.arity (Apply.exn_continuation apply)))
-      in
-      let dacc =
-        record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
-      in
-      down_to_up dacc
-        ~rebuild:
-          (rebuild_non_ocaml_function_call apply ~use_id ~exn_cont_use_id)
-    | Invalid ->
-      replace_apply_by_invalid dacc ~down_to_up (Closure_type_was_invalid apply)
+        let dacc, use_id =
+          DA.record_continuation_use dacc apply_continuation
+            (Non_inlinable { escaping = true })
+            ~env_at_use:(DA.denv dacc) ~arg_types:apply_continuation_arg_types
+        in
+        dacc, Some use_id
+      | Never_returns -> dacc, None
+    in
+    let dacc, exn_cont_use_id =
+      DA.record_continuation_use dacc
+        (Exn_continuation.exn_handler (Apply.exn_continuation apply))
+        (Non_inlinable { escaping = true })
+        ~env_at_use:(DA.denv dacc)
+        ~arg_types:
+          (T.unknown_types_from_arity
+             (Exn_continuation.arity (Apply.exn_continuation apply)))
+    in
+    let dacc =
+      record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
+    in
+    down_to_up dacc
+      ~rebuild:(rebuild_non_ocaml_function_call apply ~use_id ~exn_cont_use_id)
+  | Invalid ->
+    replace_apply_by_invalid dacc ~down_to_up (Closure_type_was_invalid apply)
 
 let simplify_effect_op dacc apply (op : Call_kind.Effect.t) ~down_to_up =
   fail_if_probe apply;
@@ -1328,8 +1296,7 @@ let simplify_apply ~simplify_expr dacc apply ~down_to_up =
           Misc.fatal_errorf "No callee provided for method call:@ %a"
             Apply.print apply
       in
-      simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types
-        ~down_to_up
+      simplify_method_call dacc apply ~callee_ty ~kind ~obj ~down_to_up
     | C_call
         { needs_caml_c_call = _;
           is_c_builtin = _;
