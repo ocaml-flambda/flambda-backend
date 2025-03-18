@@ -225,10 +225,12 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       |> Array.to_list
     in
     let args =
-      let flattened_shape = Mixed_block_shape.flattened_shape shape in
+      let flattened_reordered_shape =
+        Mixed_block_shape.flattened_reordered_shape shape
+      in
       List.mapi
         (fun new_index arg ->
-          match flattened_shape.(new_index) with
+          match flattened_reordered_shape.(new_index) with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
           | Float_boxed _ -> unbox_float_constant arg)
         args
