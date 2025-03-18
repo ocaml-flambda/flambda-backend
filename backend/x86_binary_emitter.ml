@@ -2136,10 +2136,6 @@ let assemble_instr b loc = function
   | TZCNT (src, dst) -> emit_tzcnt b ~dst ~src
   | LZCNT (src, dst) -> emit_lzcnt b ~dst ~src
 
-let is_win32 = function
-  | S_win32 -> true
-  | _ -> false
-
 let assemble_line b loc ins =
   try
     match ins with
