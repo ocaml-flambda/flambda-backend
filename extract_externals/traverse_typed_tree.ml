@@ -45,7 +45,7 @@ let rec batch_add_subst args vals subst =
   | a :: args', v :: vals' -> batch_add_subst args' vals' (add_subst a v subst)
   | _, _ -> subst
 
-(* NOTE: The following is adapted from the `typeopt.ml` in the compiler. *)
+(* NOTE: The following is adapted from the `typeopt.ml`. *)
 
 (* Expand a type, looking through ordinary synonyms, private synonyms,
    links, and [@@unboxed] types. The returned type will therefore be none
