@@ -18,13 +18,13 @@ open Format
 
 (* Convert environment summaries to environments *)
 
-val env_from_summary : Env.summary -> Subst.t -> Env.t
+val env_from_summary : allow_missing_modules:bool -> Env.summary -> Subst.t -> Env.t
 
 (* Empty the environment caches. To be called when load_path changes. *)
 
 val reset_cache: preserve_persistent_env:bool -> unit
 
-val env_of_only_summary : Env.t -> Env.t
+val env_of_only_summary : ?allow_missing_modules:bool -> Env.t -> Env.t
 
 (* Error report *)
 
