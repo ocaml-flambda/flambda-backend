@@ -18,6 +18,10 @@
 open! Int_replace_polymorphic_compare
 open CSE_utils
 
+let of_simd_class (cl : Simd.operation_class)  =
+  match cl with
+  | Pure -> Op_pure
+
 class cfg_cse = object
 
   inherit Cfg_cse.cse_generic as super
@@ -39,7 +43,8 @@ class cfg_cse = object
        | Isqrtf
        | Ibswap _
        | Imove32
-       | Isignext _ -> Op_pure)
+       | Isignext _ -> Op_pure
+       | Isimd op -> of_simd_class (Simd.class_of_operation op))
     | Move | Spill | Reload
     | Floatop _
     | Csel _
