@@ -29,6 +29,7 @@ external obj : t -> 'a @@ portable = "%obj_magic"
 external magic : 'a -> 'b @@ portable = "%obj_magic"
 external magic_portable : ('a[@local_opt]) -> ('a[@local_opt]) @ portable @@ portable = "%identity"
 external magic_uncontended : ('a[@local_opt]) @ contended -> ('a[@local_opt]) @@ portable = "%identity"
+external magic_at_portended : ('a[@local_opt]) @ portable contended -> ('b[@local_opt]) @ portable contended @@ portable = "%identity"
 external is_int : t -> bool @@ portable = "%obj_is_int"
 let [@inline always] is_block a = not (is_int a)
 external tag : t -> int @@ portable = "caml_obj_tag" [@@noalloc]
