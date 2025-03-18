@@ -14,13 +14,12 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+[@@@ocaml.warning "+a-40-41-42"]
 (* Description of the ARM processor in 64-bit mode *)
 
 open! Int_replace_polymorphic_compare
 
 open Misc
-open Cmm
 open Reg
 open Arch
 
@@ -63,7 +62,7 @@ let float_reg_name =
 let num_register_classes = 2
 
 let register_class r =
-  match (r.typ : machtype_component) with
+  match (r.typ : Cmm.machtype_component) with
   | Val | Int | Addr  -> 0
   | Float -> 1
   | Vec128 ->
@@ -79,7 +78,7 @@ let register_class r =
 let num_stack_slot_classes = 2
 
 let stack_slot_class typ =
-  match (typ : machtype_component) with
+  match (typ : Cmm.machtype_component) with
   | Val | Int | Addr  -> 0
   | Float -> 1
   | Vec128 ->
@@ -121,7 +120,7 @@ let first_available_register =
   [| 0; 100 |]
 
 let register_name ty r =
-  match (ty : machtype_component) with
+  match (ty : Cmm.machtype_component) with
   | Val | Int | Addr ->
     int_reg_name.(r - first_available_register.(0))
   | Float ->
@@ -162,7 +161,7 @@ let precolored_regs =
   fun () -> phys_regs
 
 let phys_reg ty n =
-  match (ty : machtype_component) with
+  match (ty : Cmm.machtype_component) with
   | Int | Addr | Val -> hard_int_reg.(n)
   | Float -> hard_float_reg.(n - 100)
   | Vec128 ->
@@ -226,7 +225,7 @@ let calling_conventions
   let float = ref first_float in
   let ofs = ref first_stack in
   for i = 0 to Array.length arg - 1 do
-    match (arg.(i) : machtype_component) with
+    match (arg.(i) : Cmm.machtype_component) with
     | Val | Int | Addr ->
         loc.(i) <- loc_int last_int make_stack int ofs
     | Float ->
@@ -295,7 +294,7 @@ let external_calling_conventions
   let float = ref first_float in
   let ofs = ref 0 in
   List.iteri (fun i ty_arg ->
-    begin match ty_arg with
+    begin match (ty_arg : Cmm.exttype) with
     | XInt | XInt64 ->
         loc.(i) <- [| loc_int last_int make_stack int ofs |]
     | XInt32 ->
@@ -367,6 +366,8 @@ let destroyed_at_pushtrap = [| |]
 
 let destroyed_at_alloc_or_poll = [| reg_x8 |]
 
+let destroy_neon_reg7 = [| reg_d7 |]
+
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
   | Reloadretaddr ->
@@ -376,12 +377,42 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
-  | Op( Static_cast (Int_of_float _ | Float_of_int _)
-      | Load {memory_chunk = Single { reg = Float64 }; _ }
-      | Store(Single { reg = Float64 }, _, _)) ->
-    [| reg_d7 |]
-  | Op _ | Poptrap | Prologue ->
-    [||]
+  | Op(Load {memory_chunk = Single { reg = Float64 }; _ }
+      | Store(Single { reg = Float64 }, _, _))
+    -> destroy_neon_reg7
+  | Op (Load {memory_chunk=Single {reg=Float32}; _ })
+  | Op (Store (Single {reg=Float32}, _, _))
+  | Op (Load
+          {memory_chunk=(Byte_unsigned|Byte_signed|Sixteen_unsigned|
+                         Sixteen_signed|Thirtytwo_unsigned|Thirtytwo_signed|
+                         Word_int|Word_val|Double|Onetwentyeight_unaligned|
+                         Onetwentyeight_aligned);
+           _ })
+  | Op (Store
+          ((Byte_unsigned|Byte_signed|Sixteen_unsigned|Sixteen_signed|
+            Thirtytwo_unsigned|Thirtytwo_signed|Word_int|Word_val|Double|
+            Onetwentyeight_unaligned|Onetwentyeight_aligned),
+           _, _))
+    -> [||]
+  | Op (Static_cast
+          (Int_of_float _ | Float_of_int _
+          | Float_of_float32|Float32_of_float))
+    -> [||]
+  | Op (Static_cast
+          (V128_of_scalar _|Scalar_of_v128 _))
+  | Op (Specific _
+        | Move | Spill | Reload
+        | Floatop _
+        | Csel _
+        | Reinterpret_cast _ | Const_int _
+        | Const_float32 _ | Const_float _
+        | Const_symbol _ | Const_vec128 _
+        | Stackoffset _
+        | Intop _ | Intop_imm _ | Intop_atomic _
+        | Name_for_debugger _ | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Dls_get)
+  | Poptrap | Prologue
+    -> [||]
   | Stack_check _ -> assert false (* not supported *)
 
 (* note: keep this function in sync with `is_destruction_point` below. *)
@@ -414,8 +445,8 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
   | Tailcall_func _ | Prim {op = Probe _; _}
   | Specific_can_raise _ ->
     false
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _}
+  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _}; _} ->
     if more_destruction_points then
       true
     else
@@ -485,7 +516,7 @@ let assemble_file infile outfile =
 
 let init () = ()
 
-let operation_supported = function
+let operation_supported : Cmm.operation -> bool = function
   | Cpopcnt
   | Cprefetch _ | Catomic _
   (* CR mslater: (float32) arm64 *)

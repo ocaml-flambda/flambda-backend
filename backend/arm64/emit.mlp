@@ -14,7 +14,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+[@@@ocaml.warning "+a-9-40-41-42"]
 (* Emission of ARM assembly code, 64-bit mode *)
 
 (* Correctness: carefully consider any use of [Config], [Clflags],
@@ -24,20 +24,12 @@
 (* CR-soon mshinwell/mslater: needs updating for locals + effects *)
 
 open Misc
-open Cmm
 open Arch
 open Proc
 open Reg
 open Simple_operation
 open Linear
 open Emitaux
-
-let command_line_options =
-  [ ( "-fno-asan",
-      Arg.Unit ignore,
-      "AddressSanitizer is currently only supported on X86-64; \
-       this flag does nothing on other architectures." ) ]
-;;
 
 (* Tradeoff between code size and code speed *)
 
@@ -86,8 +78,8 @@ let emit_symbol_size sym =
 (* Output a pseudo-register *)
 
 let emit_reg = function
-    {loc = Reg r; typ} -> emit_string (register_name typ r)
-  | _ -> fatal_error "Emit.emit_reg"
+    {loc = Reg r; typ; _} -> emit_string (register_name typ r)
+  | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_reg"
 
 (* Likewise, but with the 32-bit name of the register *)
 
@@ -98,8 +90,8 @@ let int_reg_name_w =
      "w26"; "w27"; "w28"; "w16"; "w17" |]
 
 let emit_wreg = function
-    {loc = Reg r} -> emit_string int_reg_name_w.(r)
-  | _ -> fatal_error "Emit.emit_wreg"
+    {loc = Reg r; _} -> emit_string int_reg_name_w.(r)
+  | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_wreg"
 
 (* Layout of the stack frame *)
 
@@ -138,10 +130,10 @@ let emit_stack r =
   | Stack (Domainstate n) ->
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       `[{emit_reg reg_domain_state_ptr}, #{emit_int ofs}]`
-  | Stack s ->
+  | Stack ((Local _ | Incoming _ | Outgoing _) as s) ->
       let ofs = slot_offset s (stack_slot_class r.typ) in
       `[sp, #{emit_int ofs}]`
-  | _ -> fatal_error "Emit.emit_stack"
+  | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
 
 (* Output an addressing mode *)
 
@@ -162,7 +154,7 @@ let emit_addressing addr r =
 (* Record live pointers at call points *)
 
 let record_frame_label live dbg =
-  let lbl = new_label () in
+  let lbl = Cmm.new_label () in
   let live_offset = ref [] in
   Reg.Set.iter
     (function
@@ -261,7 +253,8 @@ let name_for_int_operation = function
   | Ilsr -> "lsr"
   | Iasr -> "asr"
   | Iclz { arg_is_non_zero = _ } -> "clz"
-  | _ -> assert false
+  | Ipopcnt -> "cnt"
+  | Ictz _ | Icomp _ | Imod | Imulh _-> assert false
 
 (* Decompose an integer constant into four 16-bit shifted fragments.
    Omit the fragments that are equal to "default" (16 zeros or 16 ones). *)
@@ -389,7 +382,7 @@ let float_literal f =
   try
     List.assoc f !float_literals
   with Not_found ->
-    let lbl = new_label() in
+    let lbl = Cmm.new_label() in
     float_literals := (f, lbl) :: !float_literals;
     lbl
 
@@ -436,7 +429,19 @@ let num_call_gc_points instr =
        before branch relaxation. *)
     | Lop (Specific (Ifar_alloc _))
     | Lop (Specific (Ifar_poll _)) -> assert false
-    | _ -> loop instr.next call_gc
+    | Lop (Alloc { mode = (Local | Heap); _ })
+    | Lop (Specific
+             (Imuladd|Imulsub|Inegmulf|Imuladdf|Inegmuladdf|Imulsubf|Inegmulsubf|
+              Isqrtf|Imove32|Ishiftarith (_, _)|Ibswap _|Isignext _))
+    | Lop (Move|Spill|Reload|Opaque|Begin_region|End_region|Dls_get|Const_int _|
+           Const_float32 _|Const_float _|Const_symbol _|Const_vec128 _|Stackoffset _|
+           Load _|Store (_, _, _)|Intop _|Intop_imm (_, _)|Intop_atomic _|
+           Floatop (_, _)|Csel _|Reinterpret_cast _|Static_cast _|Probe_is_enabled _|
+           Name_for_debugger _)
+    | Lprologue|Lreloadretaddr|Lreturn|Lentertrap|Lpoptrap|Lcall_op _|Llabel _|
+    Lbranch _|Lcondbranch (_, _)|Lcondbranch3 (_, _, _)|Lswitch _|
+    Ladjust_stack_offset _|Lpushtrap _|Lraise _|Lstackcheck _
+      -> loop instr.next call_gc
   in
   loop instr 0
 
@@ -485,7 +490,16 @@ module BR = Branch_relaxation.Make (struct
       | Lcondbranch (Ioddtest, _)
       | Lcondbranch (Ieventest, _) -> Some TB
       | Lcondbranch3 _ -> Some Bcc
-      | _ -> None
+      | Lop (Specific _|Move|Spill|Reload|Opaque|Begin_region|End_region
+            |Dls_get|Const_int _|
+            Const_float32 _|Const_float _|Const_symbol _|Const_vec128 _|Stackoffset _|
+            Load _|Store (_, _, _)|Intop _|Intop_imm (_, _)|Intop_atomic _|
+            Floatop (_, _)|Csel _|Reinterpret_cast _|Static_cast _|Probe_is_enabled _|
+            Name_for_debugger _)
+      | Lprologue|Lend|Lreloadretaddr|Lreturn|Lentertrap|Lpoptrap|Lcall_op _
+      | Llabel _|Lbranch _|Lswitch _|Ladjust_stack_offset _|Lpushtrap _|Lraise _
+      |Lstackcheck _
+        -> None
   end
 
   let offset_pc_at_branch = 0
@@ -496,6 +510,14 @@ module BR = Branch_relaxation.Make (struct
 
   let epilogue_size () =
     if !contains_calls then 3 else 2
+
+  let memory_access_size (memory_chunk : Cmm.memory_chunk) =
+    match memory_chunk with
+    | Single { reg = Float64 } -> 2
+    | Single { reg = Float32 } -> 1
+    | Byte_unsigned|Byte_signed|Sixteen_unsigned|Sixteen_signed|
+      Thirtytwo_unsigned|Thirtytwo_signed|Word_int|Word_val|Double|
+      Onetwentyeight_unaligned|Onetwentyeight_aligned -> 1
 
   let instr_size = function
     | Lend -> 0
@@ -519,30 +541,33 @@ module BR = Branch_relaxation.Make (struct
     | Lcall_op (Ltailcall_ind) -> epilogue_size ()
     | Lcall_op (Ltailcall_imm { func; _ }) ->
       if func.sym_name = !function_name then 1 else epilogue_size ()
-    | Lcall_op (Lextcall {alloc; stack_ofs} ) ->
+    | Lcall_op (Lextcall {alloc; stack_ofs; func=_; ty_res=_; ty_args=_; returns=_; } ) ->
       if Config.runtime5 && stack_ofs > 0 then 5
       else if alloc then 3
       else 5
     | Lop (Stackoffset _) -> 2
-    | Lop (Load  { memory_chunk; addressing_mode; is_atomic }) ->
+    | Lop (Load  { memory_chunk; addressing_mode; is_atomic; mutability=_ }) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
       and barrier = if is_atomic then 1 else 0
-      and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
+      and single = memory_access_size memory_chunk in
       based + barrier + single
     | Lop (Store (memory_chunk, addressing_mode, assignment)) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
       and barrier =
         match memory_chunk, assignment with
         | (Word_int | Word_val), true -> 1
-        | _ -> 0
-      and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
+        | (Word_int | Word_val), false -> 0
+        | (Byte_unsigned|Byte_signed|Sixteen_unsigned|Sixteen_signed|
+           Thirtytwo_unsigned|Thirtytwo_signed|Single _|Double|
+           Onetwentyeight_unaligned|Onetwentyeight_aligned),_ -> 0
+      and single = memory_access_size memory_chunk in
       based + barrier + single
     | Lop (Alloc { mode = Local; _ }) -> 9
-    | Lop (Alloc _) when !fastcode_flag -> 5
+    | Lop (Alloc { mode = Heap;_ }) when !fastcode_flag -> 5
     | Lop (Specific (Ifar_alloc _)) when !fastcode_flag -> 6
     | Lop Poll -> 3
     | Lop (Specific (Ifar_poll _)) -> 4
-    | Lop (Alloc { bytes = num_bytes; _ })
+    | Lop (Alloc { mode = Heap; bytes = num_bytes; _ })
     | Lop (Specific (Ifar_alloc { bytes = num_bytes; _ })) ->
       begin match num_bytes with
       | 16 | 24 | 32 -> 1
@@ -560,12 +585,14 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Intop (Imulh _)) -> 1
     | Lop (Intop (Iclz _)) -> 1
     | Lop (Intop (Ictz _)) -> 2
-    | Lop (Intop _) -> 1
-    | Lop (Intop_imm _) -> 1
     | Lop (Floatop (Float64, (Iabsf | Inegf)) | Specific Isqrtf) -> 1
     | Lop (Floatop (Float32, (Iabsf | Inegf))) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
+    | Lop (Intop (Iadd|Isub|Imul|Idiv|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr|Ipopcnt)) -> 1
+    | Lop (Intop_imm
+             ((Iadd|Isub|Imul|Idiv|Imod|Imulh _|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr
+              | Iclz _ | Ictz _ |Ipopcnt),_)) -> 1
     | Lop (Reinterpret_cast (Value_of_int | Int_of_value |
                               Float_of_int64 | Int64_of_float)) -> 1
     | Lop (Reinterpret_cast (Float32_of_float | Float_of_float32 |
@@ -637,7 +664,7 @@ module BR = Branch_relaxation.Make (struct
     Lop (Specific (Ifar_alloc { bytes = num_bytes; dbginfo }))
 end)
 
-let name_for_float_comparison = function
+let name_for_float_comparison : Cmm.float_comparison -> string = function
   | CFeq -> "eq"
   | CFneq -> "ne"
   | CFlt -> "cc"
@@ -663,9 +690,9 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     `	sub	{emit_reg r}, {emit_reg r}, #{emit_int n}\n`;
     `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
     `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
-    let lbl_call = new_label () in
+    let lbl_call = Cmm.new_label () in
     `	b.lt	{emit_label lbl_call}\n`;
-    let lbl_after_alloc = new_label () in
+    let lbl_after_alloc = Cmm.new_label () in
     `{emit_label lbl_after_alloc}:\n`;
     `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_top_offset}]\n`;
     `	add	{emit_reg r}, {emit_reg r}, {emit_reg reg_tmp1}\n`;
@@ -679,8 +706,8 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       record_frame_label i.live (Dbg_alloc dbginfo)
     in
     if !fastcode_flag then begin
-      let lbl_after_alloc = new_label() in
-      let lbl_call_gc = new_label() in
+      let lbl_after_alloc = Cmm.new_label() in
+      let lbl_call_gc = Cmm.new_label() in
       (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
          so it is reasonable to assume n < 0x1_000.  This makes
          the generated code simpler. *)
@@ -692,7 +719,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       if not far then begin
         `	b.lo	{emit_label lbl_call_gc}\n`
       end else begin
-        let lbl = new_label () in
+        let lbl = Cmm.new_label () in
         `	b.cs	{emit_label lbl}\n`;
         `	b	{emit_label lbl_call_gc}\n`;
         `{emit_label lbl}:\n`
@@ -717,9 +744,9 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
 
 let assembly_code_for_poll i ~far ~return_label =
   let lbl_frame = record_frame_label i.live (Dbg_alloc []) in
-  let lbl_call_gc = new_label() in
+  let lbl_call_gc = Cmm.new_label() in
   let lbl_after_poll = match return_label with
-  | None -> new_label()
+  | None -> Cmm.new_label()
   | Some lbl -> lbl in
   let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
     `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
@@ -739,7 +766,7 @@ let assembly_code_for_poll i ~far ~return_label =
         `	b	{emit_label lbl_call_gc}\n`;
         `{emit_label lbl_after_poll}:\n`
     | Some return_label ->
-        let lbl = new_label () in
+        let lbl = Cmm.new_label () in
         `	b.ls	{emit_label lbl}\n`;
         `	b	{emit_label return_label}\n`;
         `{emit_label lbl}:	b	{emit_label lbl_call_gc}\n`
@@ -783,7 +810,8 @@ let move src dst =
       `	ldr	{emit_reg dst}, {emit_stack src}\n`
     | _ ->
       assert false
-  end
+  end[@@warning "-4"]
+
 (* Output the assembly code for an instruction *)
 
 let emit_instr i =
@@ -830,8 +858,10 @@ let emit_instr i =
               `	str	{emit_wreg src}, {emit_stack dst}\n`
           | {loc = Stack _}, {loc = Reg _} ->
               `	ldr	{emit_wreg dst}, {emit_stack src}\n`
-          | _ ->
-              assert false
+          | {loc = Stack _}, {loc = Stack _}
+          | _, {loc = Unknown}
+          | {loc = Unknown}, _
+            -> assert false
         end
     | Lop(Const_int n) ->
         emit_intconst i.res.(0) n
@@ -901,13 +931,13 @@ let emit_instr i =
         emit_stack_adjustment (-n);
         stack_offset := !stack_offset + n
     | Lop(Load { memory_chunk; addressing_mode; is_atomic }) ->
-        assert(memory_chunk = Word_int || memory_chunk = Word_val || is_atomic = false);
+        assert(memory_chunk = Cmm.Word_int || memory_chunk = Cmm.Word_val || is_atomic = false);
         let dst = i.res.(0) in
         let base =
           match addressing_mode with
           | Iindexed _ -> i.arg.(0)
           | Ibased(s, ofs) ->
-              assert (not !Clflags.dlcode);  (* see selection.ml *)
+              assert (not !Clflags.dlcode);  (* see selection_utils.ml *)
               `	adrp	{emit_reg reg_tmp1}, {emit_symbol_offset s ofs}\n`;
               reg_tmp1 in
         begin match memory_chunk with
@@ -1024,22 +1054,42 @@ let emit_instr i =
     | Lop(Intop (Iclz _ as op)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Intop op) ->
+    | Lop(Intop ((Iadd|Isub|Imul|Idiv|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr|Ipopcnt) as op)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
     | Lop(Intop_imm(op, n)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
-    | Lop(Floatop (Float64, (Iabsf | Inegf)) | Specific Isqrtf as op) ->
-        let instr = (match op with
-                     | Floatop (Float64, Iabsf) -> "fabs"
-                     | Floatop (Float64, Inegf) -> "fneg"
-                     | Specific Isqrtf          -> "fsqrt"
-                     | _                        -> assert false) in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
     | Lop(Floatop (Float32, (Iabsf | Inegf))) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 is not supported on this architecture"
+    | Lop(Floatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
+        (* CR mslater: (float32) arm64 *)
+        Misc.fatal_error "float32 is not supported on this architecture"
+    | Lop(Specific Isqrtf) ->
+      `	fsqrt	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Floatop ((Float64), Iabsf)) ->
+      `	fabs	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Floatop ((Float64), Inegf)) ->
+      `	fneg	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Floatop ((Float64), Iaddf)) ->
+     `	fadd	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Floatop ((Float64), Isubf)) ->
+     `	fsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Floatop ((Float64), Imulf)) ->
+     `	fmul	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Floatop ((Float64), Idivf)) ->
+     `	fdiv	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Specific Inegmulf) ->
+     `	fnmul	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Specific(Imuladdf)) ->
+     `	fmadd	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Specific(Inegmuladdf)) ->
+     `	fnmadd	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Specific(Imulsubf)) ->
+     `	fmsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Specific(Inegmulsubf)) ->
+     `	fnmsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
     | Lop(Reinterpret_cast (Int_of_value | Value_of_int)) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
@@ -1052,27 +1102,7 @@ let emit_instr i =
               `	ldr	{emit_reg dst}, {emit_stack src}\n`
           | _ ->
               assert false
-        end
-    | Lop(Floatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Specific Inegmulf as op) ->
-        let instr = (match op with
-                     | Floatop (Float64, Iaddf) -> "fadd"
-                     | Floatop (Float64, Isubf) -> "fsub"
-                     | Floatop (Float64, Imulf) -> "fmul"
-                     | Floatop (Float64, Idivf) -> "fdiv"
-                     | Specific Inegmulf        -> "fnmul"
-                     | _                        -> assert false) in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
-    | Lop(Floatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
-        (* CR mslater: (float32) arm64 *)
-        Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop(Specific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf as op)) ->
-        let instr = (match op with
-                     | Imuladdf    -> "fmadd"
-                     | Inegmuladdf -> "fnmadd"
-                     | Imulsubf    -> "fmsub"
-                     | Inegmulsubf -> "fnmsub"
-                     | _ -> assert false) in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+        end[@warning "-4"]
     | Lop(Opaque) ->
         assert (i.arg.(0).loc = i.res.(0).loc)
     | Lop(Specific(Ishiftarith(op, shift))) ->
@@ -1083,12 +1113,10 @@ let emit_instr i =
         if shift >= 0
         then `, lsl #{emit_int shift}\n`
         else `, asr #{emit_int (-shift)}\n`
-    | Lop(Specific(Imuladd | Imulsub as op)) ->
-        let instr = (match op with
-                       Imuladd -> "madd"
-                     | Imulsub -> "msub"
-                     | _ -> assert false) in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
+    | Lop(Specific(Imuladd)) ->
+      `	madd	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
+    | Lop(Specific(Imulsub)) ->
+      `	msub	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
     | Lop(Specific(Ibswap { bitwidth })) ->
         begin match bitwidth with
         | Sixteen ->
@@ -1194,7 +1222,7 @@ let emit_instr i =
         | Some lbl -> `	b.gt	{emit_label lbl}\n`
         end
     | Lswitch jumptbl ->
-        let lbltbl = new_label() in
+        let lbltbl = Cmm.new_label() in
         `	adr	{emit_reg reg_tmp1}, {emit_label lbltbl}\n`;
         `	add	{emit_reg reg_tmp1}, {emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, lsl #2\n`;
         `	br	{emit_reg reg_tmp1}\n`;
@@ -1203,7 +1231,7 @@ let emit_instr i =
             `	b	{emit_label jumptbl.(j)}\n`
         done
 (* Alternative:
-        let lbltbl = new_label() in
+        let lbltbl = Cmm.new_label() in
         `	adr	{emit_reg reg_tmp1}, {emit_label lbltbl}\n`;
         `	ldr	{emit_wreg reg_tmp2}, [{emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, lsl #2]\n`;
         `	add	{emit_reg reg_tmp1}, {emit_wreg reg_tmp2}, sxtb\n`;
@@ -1245,7 +1273,7 @@ let emit_instr i =
           `	br	{emit_reg reg_tmp1}\n`
       end
     | Lstackcheck { max_frame_size_bytes; } ->
-      let overflow = new_label () and ret = new_label () in
+      let overflow = Cmm.new_label () and ret = Cmm.new_label () in
       let threshold_offset =
         Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size
       in
@@ -1323,7 +1351,8 @@ let fundecl fundecl =
 
 (* Emission of data *)
 
-let emit_item = function
+let emit_item (d : Cmm.data_item) =
+  match d with
   | Cdefine_symbol s ->
     if !Clflags.dlcode || s.sym_global = Cmm.Global then begin
       (* GOT relocations against non-global symbols don't seem to work
