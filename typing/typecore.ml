@@ -1012,14 +1012,14 @@ let mutable_mode m0 =
 
 (** Takes the mutability, the type and the modalities of a field, and expected
     mode of the record (adjusted for allocation), check that the construction
-    would be allowed. *)
-let check_construct_mutability ~loc ~env mutability ty ?modalities argument_mode =
+    would be allowed. This applies to mutable arrays similarly. *)
+let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
       let m0 = mode_cross_left_value env ty ?modalities m0 in
-      submode ~loc ~env m0 argument_mode
+      submode ~loc ~env m0 block_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
@@ -5453,17 +5453,17 @@ and type_expect_
           if not is_boxed then
             raise (Error (loc, env, Overwrite_of_invalid_term));
       end;
-      let alloc_mode, argument_mode =
+      let alloc_mode, record_mode =
         if is_boxed then
-          let alloc_mode, argument_mode = register_allocation expected_mode in
-          Some alloc_mode, argument_mode
+          let alloc_mode, record_mode = register_allocation expected_mode in
+          Some alloc_mode, record_mode
         else
           None, expected_mode
       in
       let type_label_exp overwrite ((_, label, _) as x) =
         check_construct_mutability ~loc ~env label.lbl_mut label.lbl_arg
-          ~modalities:label.lbl_modalities argument_mode;
-        let argument_mode = mode_modality label.lbl_modalities argument_mode in
+          ~modalities:label.lbl_modalities record_mode;
+        let argument_mode = mode_modality label.lbl_modalities record_mode in
         type_label_exp ~overwrite true env argument_mode loc ty_record x record_form
       in
       let overwrites =
@@ -5510,9 +5510,9 @@ and type_expect_
               check_project_mutability ~loc:extended_expr_loc ~env lbl.lbl_mut mode;
               let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
               check_construct_mutability ~loc:record_loc ~env lbl.lbl_mut
-                lbl.lbl_arg ~modalities:lbl.lbl_modalities argument_mode;
+                lbl.lbl_arg ~modalities:lbl.lbl_modalities record_mode;
               let argument_mode =
-                mode_modality lbl.lbl_modalities argument_mode
+                mode_modality lbl.lbl_modalities record_mode
               in
               submode ~loc:extended_expr_loc ~env mode argument_mode;
               Kept (ty_arg1, lbl.lbl_mut,
