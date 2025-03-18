@@ -65,47 +65,41 @@ let float32_reg_name =
      "s16"; "s17"; "s18"; "s19"; "s20"; "s21"; "s22"; "s23";
      "s24"; "s25"; "s26"; "s27"; "s28"; "s29"; "s30"; "s31" |]
 
+let vec128_reg_name =
+  [| "q0";  "q1";  "q2";  "q3";  "q4";  "q5";  "q6";  "q7";
+     "q8";  "q9";  "q10"; "q11"; "q12"; "q13"; "q14"; "q15";
+     "q16"; "q17"; "q18"; "q19"; "q20"; "q21"; "q22"; "q23";
+     "q24"; "q25"; "q26"; "q27"; "q28"; "q29"; "q30"; "q31" |]
+
 let num_register_classes = 2
 
 let register_class_of_machtype_component typ =
   match (typ : Cmm.machtype_component) with
   | Val | Int | Addr  -> 0
-  | Vec128 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got vec128 register"
-  | Valx2 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got valx2 register"
   | Float | Float32 -> 1
+  | Vec128 -> 1
+  | Valx2 -> 1
 
 let register_class r =
   register_class_of_machtype_component r.typ
 
-let num_stack_slot_classes = 2
+let num_stack_slot_classes = 3
 
 let stack_slot_class typ =
   match (typ : Cmm.machtype_component) with
   | Val | Int | Addr  -> 0
-  | Vec128 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got vec128 register"
-  | Valx2 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got valx2 register"
   | Float | Float32 -> 1
+  | Vec128 -> 3
+  | Valx2 -> 3
 
 let types_are_compatible left right =
   match left.typ, right.typ with
   | (Int | Val | Addr), (Int | Val | Addr)
   | Float, Float -> true
   | Float32, Float32 -> true
-  | Vec128, _ | _, Vec128 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got vec128 register"
-  | Valx2, _ | _, Valx2 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got valx2 register"
-  | (Int | Val | Addr | Float | Float32), _ -> false
+  | Vec128, Vec128 -> true
+  | Valx2,Valx2 -> true
+  | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
 
 let stack_class_tag c =
   match c with
@@ -125,14 +119,10 @@ let register_name ty r =
     int_reg_name.(r - first_available_register.(0))
   | Float ->
     float_reg_name.(r - first_available_register.(1))
-  | Vec128 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got vec128 register"
   | Float32 ->
     float32_reg_name.(r - first_available_register.(1))
-  | Valx2 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got valx2 register"
+  | Vec128 | Valx2 ->
+    vec128_reg_name.(r - first_available_register.(1))
 
 
 (* Representation of hard registers by pseudo-registers *)
@@ -150,8 +140,10 @@ v
 let hard_int_reg = hard_reg_gen Int (Array.length int_reg_name)
 let hard_float_reg = hard_reg_gen Float (Array.length float_reg_name)
 let hard_float32_reg = hard_reg_gen Float32 (Array.length float32_reg_name)
+let hard_vec128_reg = hard_reg_gen Vec128 (Array.length vec128_reg_name)
+
 let all_phys_regs =
-  Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; ]
+  Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; hard_vec128_reg; ]
 
 let precolored_regs =
   let phys_regs = Reg.set_of_array all_phys_regs in
@@ -161,13 +153,8 @@ let phys_reg ty n =
   match (ty : Cmm.machtype_component) with
   | Int | Addr | Val -> hard_int_reg.(n)
   | Float -> hard_float_reg.(n - 100)
-  | Vec128 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got vec128 register"
-  | Valx2 ->
-    (* CR mslater: (SIMD) arm64 *)
-    fatal_error "arm64: got valx2 register"
   | Float32 -> hard_float32_reg.(n - 100)
+  | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
 
 let gc_regs_offset _ =
     fatal_error "arm64: gc_reg_offset unreachable"
@@ -204,6 +191,8 @@ let loc_float_gen kind size last_float make_stack float ofs =
 let loc_float = loc_float_gen Float Arch.size_float
 (* float32 slots still take up a full word *)
 let loc_float32 = loc_float_gen Float32 Arch.size_float
+let loc_vec128 = loc_float_gen Vec128 Arch.size_vec128
+
 let loc_int32 last_int make_stack int ofs =
   if !int <= last_int then begin
     let l = phys_reg Int !int in
@@ -227,14 +216,13 @@ let calling_conventions
     | Float ->
         loc.(i) <- loc_float last_float make_stack float ofs
     | Vec128 ->
-        (* CR mslater: (SIMD) arm64 *)
-        fatal_error "arm64: got vec128 register"
+        loc.(i) <- loc_vec128 last_float make_stack float ofs
     | Float32 ->
         loc.(i) <- loc_float32 last_float make_stack float ofs
     | Valx2 ->
-      (* CR mslater: (SIMD) arm64 *)
-      fatal_error "arm64: got valx2 register"
+        Misc.fatal_error "Unexpected machtype_component Valx2"
   done;
+  (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
 let incoming ofs =
@@ -297,8 +285,7 @@ let external_calling_conventions
     | XFloat ->
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
     | XVec128 ->
-        (* CR mslater: (SIMD) arm64 *)
-        fatal_error "arm64: got vec128 register"
+        loc.(i) <- [| loc_vec128 last_float make_stack float ofs |]
     | XFloat32 ->
         loc.(i) <- [| loc_float32 last_float make_stack float ofs |]
     end)
@@ -356,11 +343,12 @@ let destroyed_at_c_noalloc_call =
     Array.map (phys_reg Int) int_regs_destroyed_at_c_noalloc_call;
     Array.map (phys_reg Float) float_regs_destroyed_at_c_noalloc_call;
     Array.map (phys_reg Float32) float_regs_destroyed_at_c_noalloc_call;
+    Array.map (phys_reg Vec128) float_regs_destroyed_at_c_noalloc_call;
   ]
 
 (* CSE needs to know that all versions of neon are destroyed. *)
 let destroy_neon_reg n =
-  [| phys_reg Float (100 + n); phys_reg Float32 (100 + n); |]
+  [| phys_reg Float (100 + n); phys_reg Float32 (100 + n); phys_reg Vec128 (100 + n); |]
 
 let destroy_neon_reg7 = destroy_neon_reg 7
 
@@ -521,9 +509,8 @@ let assemble_file infile outfile =
 let init () = ()
 
 let operation_supported : Cmm.operation -> bool = function
+  | Cprefetch _ | Catomic _ -> false
   | Cpopcnt
-  | Cprefetch _ | Catomic _
-  (* CR mslater: (float32) arm64 *)
   | Cnegf Float32 | Cabsf Float32 | Caddf Float32
   | Csubf Float32 | Cmulf Float32 | Cdivf Float32
   | Cpackf32
@@ -533,7 +520,6 @@ let operation_supported : Cmm.operation -> bool = function
   | Cstatic_cast (Float_of_float32 | Float32_of_float |
                   Int_of_float Float32 | Float_of_int Float32 |
                   V128_of_scalar _ | Scalar_of_v128 _)
-    -> false   (* Not implemented *)
   | Cclz _ | Cctz _ | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
