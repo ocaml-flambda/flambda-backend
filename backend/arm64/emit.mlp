@@ -31,6 +31,8 @@ open Simple_operation
 open Linear
 open Emitaux
 
+module I = Arm64_ast.Instruction_name
+
 (* Tradeoff between code size and code speed *)
 
 let fastcode_flag = ref true
@@ -432,7 +434,7 @@ let num_call_gc_points instr =
     | Lop (Alloc { mode = (Local | Heap); _ })
     | Lop (Specific
              (Imuladd|Imulsub|Inegmulf|Imuladdf|Inegmuladdf|Imulsubf|Inegmulsubf|
-              Isqrtf|Imove32|Ishiftarith (_, _)|Ibswap _|Isignext _))
+              Isqrtf|Imove32|Ishiftarith (_, _)|Ibswap _|Isignext _|Isimd _))
     | Lop (Move|Spill|Reload|Opaque|Begin_region|End_region|Dls_get|Const_int _|
            Const_float32 _|Const_float _|Const_symbol _|Const_vec128 _|Stackoffset _|
            Load _|Store (_, _, _)|Intop _|Intop_imm (_, _)|Intop_atomic _|
@@ -455,6 +457,183 @@ let max_out_of_line_code_offset ~num_call_gc =
     assert (max_offset >= 0);
     max_offset
   end
+
+module DSL : sig
+
+  val check_reg : Cmm.machtype_component -> Reg.t -> unit
+  val emit_reg : Reg.t -> Arm64_ast.Operand.t
+  val emit_reg_d : Reg.t -> Arm64_ast.Operand.t
+  val emit_reg_s : Reg.t -> Arm64_ast.Operand.t
+  val emit_reg_w : Reg.t -> Arm64_ast.Operand.t
+  val emit_reg_v2d : Reg.t -> Arm64_ast.Operand.t
+  val imm : int -> Arm64_ast.Operand.t
+  val ins : I.t -> Arm64_ast.Operand.t array -> unit
+
+  val simd_instr : Simd.operation -> Linear.instruction -> unit
+  val simd_instr_size : Simd.operation -> int
+
+end [@warning "-32"]  = struct
+  include Arm64_ast.DSL
+  let check_reg typ reg =
+   (* same type and not on stack *)
+   assert (Cmm.equal_machtype_component typ reg.typ);
+   assert (Reg.is_reg reg);
+   ()
+
+  (* see [Proc.int_reg_name]  *)
+  let int_reg_name_to_index =
+  [| 0;  1;  2; 3; 4; 5; 6 ; 7;    (* 0 - 7 *)
+     8; 9; 10; 11; 12; 13; 14; 15; (* 8 - 15 *)
+     19; 20; 21; 22; 23; 24; 25;   (* 16 - 22 *)
+     26; 27; 28;                   (* 23 - 25 *)
+     16; 17; |]                    (* 26 - 27 *)
+
+
+  let reg_index reg =
+    match reg with
+    | {loc = Reg r; _} ->
+      let reg_class = Proc.register_class reg in
+      r - Proc.first_available_register.(reg_class)
+    | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.reg"
+
+  let bt reg f  =
+    try f ()
+     with (Invalid_argument s) as e -> (
+     Format.printf "Invalid_argument: %s\n Reg=%a" s Printreg.reg reg;
+     raise e)
+
+  let emit_reg_v2s reg = bt reg (fun () -> reg_v2s (reg_index reg))
+
+  let emit_reg_v4s reg = bt reg (fun () -> reg_v4s (reg_index reg))
+
+  let emit_reg_v2d reg = bt reg (fun () -> reg_v2d (reg_index reg) )
+
+  let emit_reg_w reg = bt reg (fun () -> reg_w int_reg_name_to_index.(reg_index reg))
+
+  let emit_reg_s reg = bt reg (fun () -> reg_s (reg_index reg))
+
+  let emit_reg_d reg = bt reg (fun () -> reg_d (reg_index reg))
+
+  let emit_reg reg =
+    bt reg (fun () ->
+    (* use machtype to select register name *)
+    let index = reg_index reg in
+    match reg.typ with
+    | Val | Int | Addr ->
+      reg_x (int_reg_name_to_index.(index))
+    | Float ->
+      reg_d index
+    | Float32 ->
+      reg_s index
+    | Vec128
+    | Valx2 ->
+      reg_q index)
+
+  let check_instr (register_behavior : Simd_proc.register_behavior) i =
+    (* Ensure that operation size and register size match.
+       On arm64, operation size is encoded solely into the operands
+       (unlike amd64 where the opcode itself usually indicates operation size). *)
+    match register_behavior with
+    | Rf32x2_Rf32x2_to_Rf32x2 ->
+      (* float32x2 is represented as Float machtype *)
+      check_reg Float i.arg.(0);
+      check_reg Float i.arg.(1);
+      check_reg Float i.res.(0);
+    | Rf32x4_Rf32x4_to_Rf32x4
+    | Rf64x2_Rf64x2_to_Rf64x2
+    | Ri64x2_Ri64x2_to_Ri64x2  ->
+      check_reg Vec128 i.arg.(0);
+      check_reg Vec128 i.arg.(1);
+      check_reg Vec128 i.res.(0);
+    | Rf32_Rf32_to_Rf32 ->
+      check_reg Float32 i.arg.(0);
+      check_reg Float32 i.arg.(1);
+      check_reg Float32 i.res.(0)
+    | Rf32_to_Rf32 ->
+      check_reg Float32 i.arg.(0);
+      check_reg Float32 i.res.(0)
+    | Rf32_to_Ri64 ->
+      check_reg Float32 i.arg.(0);
+      check_reg Int i.res.(0)
+
+  let src_operands ops =
+    (* returns a copy of [ops] without the first operand, which is assumed to be the
+       destination operand. *)
+    Array.sub ops 1 (Array.length ops - 1)
+
+  let emit_regs_binary i =
+    [| emit_reg i.res.(0); emit_reg i.arg.(0); emit_reg i.arg.(1) |]
+
+  let emit_regs_unary i =
+    [| emit_reg i.res.(0); emit_reg i.arg.(0); |]
+
+  let ins name ops = print_ins name ops |> Emitaux.emit_string
+
+  let ins_cond name cond ops = print_ins_cond name cond ops |> Emitaux.emit_string
+
+  let emit_operands (register_behavior : Simd_proc.register_behavior) i =
+    match register_behavior with
+    | Rf32x2_Rf32x2_to_Rf32x2 ->
+      (* Special case: f32 argument is represented by machtype Float (to avoid classifying
+         it as a reinterpret cast), and uses vector f32x2 register in the instruction
+         encoding. *)
+      [| emit_reg_v2s i.res.(0); emit_reg_v2s i.arg.(0); emit_reg_v2s i.arg.(1)|]
+    | Rf32x4_Rf32x4_to_Rf32x4 ->
+      [| emit_reg_v4s i.res.(0); emit_reg_v4s i.arg.(0); emit_reg_v4s i.arg.(1)|]
+    | Ri64x2_Ri64x2_to_Ri64x2
+    | Rf64x2_Rf64x2_to_Rf64x2 ->
+      [| emit_reg_v2d i.res.(0); emit_reg_v2d i.arg.(0); emit_reg_v2d i.arg.(1)|]
+    | Rf32_Rf32_to_Rf32 ->
+      emit_regs_binary i
+    | Rf32_to_Rf32
+    | Rf32_to_Ri64 ->
+      emit_regs_unary i
+
+  let simd_instr_size (op : Simd.operation)  =
+    match op with
+    | Min_scalar_f32 | Max_scalar_f32 -> 2
+    | Round_f32 _ | Round_f32_i64 | Zip1_f32 | Zip1q_f32 | Zip1q_f64 | Zip2q_f64
+    | Fmin_f32 | Fmax_f32 | Addq_i64 | Subq_i64 -> 1
+
+  let emit_rounding_mode (rm : Simd.Rounding_mode.t) : I.Rounding_mode.t =
+    match rm with
+    | Neg_inf -> I.Rounding_mode.M
+    | Pos_inf -> I.Rounding_mode.P
+    | Zero -> I.Rounding_mode.Z
+    | Current -> I.Rounding_mode.X
+
+  let simd_instr (op : Simd.operation) i =
+    let b = Simd_proc.register_behavior op in
+    check_instr b i;
+    let operands = emit_operands b i in
+    match op with
+    (* min/max: generate a sequence that matches the weird semantics of amd64 instruction
+       "minss", even when the flag [FPCR.AH] is not set. A separate intrinsics generates
+       fmin/fmax arm64 instructions directly. *)
+    | Min_scalar_f32 ->
+      ins I.FCMP (src_operands operands);
+      ins_cond I.FCSEL I.Cond.MI operands;
+    | Max_scalar_f32 ->
+      ins I.FCMP (src_operands operands);
+      ins_cond I.FCSEL I.Cond.GT operands;
+    | Round_f32 rm ->
+      ins (I.FRINT (emit_rounding_mode rm)) operands
+    | Round_f32_i64 ->
+      ins I.FCVTNS operands
+    | Fmin_f32 ->
+      ins I.FMIN operands
+    | Fmax_f32 ->
+      ins I.FMAX operands
+    | Zip1_f32    | Zip1q_f32
+    | Zip1q_f64  ->
+      ins I.ZIP1 operands
+    | Zip2q_f64  ->
+      ins I.ZIP2 operands
+    | Addq_i64 ->
+      ins I.ADD operands
+    | Subq_i64 ->
+      ins I.SUB operands
+end
 
 module BR = Branch_relaxation.Make (struct
   (* CR-someday mshinwell: B and BL have +/- 128Mb ranges; for the moment we
@@ -656,6 +835,8 @@ module BR = Branch_relaxation.Make (struct
       | Lambda.Raise_notrace -> 4
       end
     | Lstackcheck _ -> 5
+    | Lop (Specific (Isimd simd)) ->
+      DSL.simd_instr_size simd
 
   let relax_poll ~return_label =
     Lop (Specific (Ifar_poll { return_label }))
@@ -1129,6 +1310,8 @@ let emit_instr i =
         end
     | Lop(Specific(Isignext size)) ->
         `	sbfm	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #0, #{emit_int (size - 1)}\n`
+    | Lop(Specific(Isimd simd)) ->
+      DSL.simd_instr simd i
     | Lop (Name_for_debugger _) -> ()
     | Lcall_op (Lprobe _) | Lop (Probe_is_enabled _) ->
       fatal_error ("Probes not supported.")
