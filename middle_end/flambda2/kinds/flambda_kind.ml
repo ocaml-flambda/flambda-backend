@@ -211,7 +211,8 @@ module Flat_suffix_element0 = struct
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
     | Naked_vec128 -> Format.pp_print_string ppf "Naked_vec128"
 
-  let from_lambda (elt : _ Lambda.mixed_block_element) =
+  let from_singleton_mixed_block_element
+      (elt : _ Mixed_block_lambda_shape.Singleton_mixed_block_element.t) =
     match elt with
     | Float_boxed _ | Float64 -> Naked_float
     | Float32 -> Naked_float32
@@ -223,7 +224,6 @@ module Flat_suffix_element0 = struct
       (* CR: consider printing the value kind *)
       Misc.fatal_error
         "Cannot convert [Value] mixed block elements to flat suffix elements"
-    | Product _ -> assert false
 end
 
 module Mixed_block_shape = struct
@@ -304,17 +304,12 @@ module Mixed_block_shape = struct
       Misc.Stdlib.Array.compare Flat_suffix_element0.compare flat_suffix1
         flat_suffix2
 
-  let from_lambda (shape : Lambda.mixed_block_shape) : t =
-    let shape =
-      Mixed_block_shape.of_mixed_block_elements
-        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
-        shape
-    in
+  let from_mixed_block_shape (shape : _ Mixed_block_lambda_shape.t) : t =
     let value_prefix_kinds =
       Array.map (fun _ -> value) (Mixed_block_shape.value_prefix shape)
     in
     let flat_suffix =
-      Array.map Flat_suffix_element0.from_lambda
+      Array.map Flat_suffix_element0.from_singleton_mixed_block_element
         (Mixed_block_shape.flat_suffix shape)
     in
     let flat_suffix_kinds = Array.map Flat_suffix_element0.kind flat_suffix in
@@ -934,9 +929,8 @@ module With_subkind = struct
                                                       new_index)))
                       in
                       let mixed_block_shape =
-                        Mixed_block_lambda_shape.flattened_shape_unit
+                        Mixed_block_shape.from_mixed_block_shape
                           mixed_block_shape
-                        |> Mixed_block_shape.from_lambda
                       in
                       ( Scannable (Mixed_record mixed_block_shape),
                         Array.to_list fields )

@@ -28,10 +28,6 @@
 
 type path = int list
 
-type 'a shape = 'a Lambda.mixed_block_element array
-
-type 'a shape_with_paths = ('a Lambda.mixed_block_element * path) array
-
 module Singleton_mixed_block_element = struct
   type 'a t =
     | Value of Lambda.value_kind
@@ -56,6 +52,10 @@ module Singleton_mixed_block_element = struct
     | Vec128 -> Format.fprintf ppf "Vec128"
     | Word -> Format.fprintf ppf "Word"
 end
+
+type 'a shape = 'a Singleton_mixed_block_element.t array
+
+type 'a shape_with_paths = ('a Singleton_mixed_block_element.t * path) array
 
 type 'a tree =
   | Leaf of
@@ -138,14 +138,30 @@ let lookup_path_producing_new_indexes ({ forest; _ } as t) path =
     in
     lookup_path' path tree
 
+type ('a, 'b) singleton_or_product =
+  | Singleton of 'a
+  | Product of 'b
+
+let singleton_or_product_of_mixed_block_element
+    (elt : _ Lambda.mixed_block_element) :
+    (_ Singleton_mixed_block_element.t, _) singleton_or_product =
+  match elt with
+  | Value vk -> Singleton (Value vk)
+  | Float_boxed locality -> Singleton (Float_boxed locality)
+  | Float64 -> Singleton Float64
+  | Float32 -> Singleton Float32
+  | Bits32 -> Singleton Bits32
+  | Bits64 -> Singleton Bits64
+  | Vec128 -> Singleton Vec128
+  | Word -> Singleton Word
+  | Product sub_elements -> Product sub_elements
+
 (* CR-soon xclerc for xclerc: it is probably quite inefficient to map/concat repeatedly. *)
 let rec flatten_one :
     int -> 'a Lambda.mixed_block_element -> 'a shape_with_paths =
  fun index element ->
-  match element with
-  | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
-  | Word ->
-    [| element, [index] |]
+  match singleton_or_product_of_mixed_block_element element with
+  | Singleton element -> [| element, [index] |]
   | Product sub_elements ->
     flatten_list sub_elements
     |> Array.map (fun (sub_element, path) -> sub_element, index :: path)
@@ -153,10 +169,6 @@ let rec flatten_one :
 and flatten_list : 'a Lambda.mixed_block_element array -> 'a shape_with_paths =
  fun sub_elements ->
   Array.mapi flatten_one sub_elements |> Misc.Stdlib.Array.concat_arrays
-
-type ('a, 'b) singleton_or_product =
-  | Singleton of 'a
-  | Product of 'b
 
 (* CR xclerc for xclerc: should/could be merged with the flattening. *)
 let rec build_tree_one :
@@ -166,20 +178,7 @@ let rec build_tree_one :
     'a Lambda.mixed_block_element ->
     'a tree =
  fun old_path_to_new_index path index element ->
-  let singleton_or_product :
-      ('a Singleton_mixed_block_element.t, _) singleton_or_product =
-    match element with
-    | Value vk -> Singleton (Value vk)
-    | Float_boxed locality -> Singleton (Float_boxed locality)
-    | Float64 -> Singleton Float64
-    | Float32 -> Singleton Float32
-    | Bits32 -> Singleton Bits32
-    | Bits64 -> Singleton Bits64
-    | Vec128 -> Singleton Vec128
-    | Word -> Singleton Word
-    | Product sub_elements -> Product sub_elements
-  in
-  match singleton_or_product with
+  match singleton_or_product_of_mixed_block_element element with
   | Singleton element -> (
     let path = List.rev (index :: path) in
     match Hashtbl.find_opt old_path_to_new_index path with
@@ -204,7 +203,8 @@ and build_tree_list :
       build_tree_one old_path_to_new_index path i sub_element)
     sub_elements
 
-let of_mixed_block_elements ~print_locality (original_shape : 'a shape) : 'a t =
+let of_mixed_block_elements ~print_locality
+    (original_shape : 'a Lambda.mixed_block_element array) : 'a t =
   let flattened_shape_with_paths = flatten_list original_shape in
   let prefix = ref [] in
   let suffix = ref [] in
@@ -215,7 +215,6 @@ let of_mixed_block_elements ~print_locality (original_shape : 'a shape) : 'a t =
       | Value _ -> true
       | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
         false
-      | Product _ -> Misc.fatal_error "broken invariant"
     in
     if is_value
     then prefix := (elem, path) :: !prefix
@@ -254,10 +253,10 @@ let flattened_shape t = t.flattened_shape
 
 let flattened_shape_unit t =
   Array.map
-    (fun (elt : _ Lambda.mixed_block_element) : unit Lambda.mixed_block_element ->
+    (fun (elt : _ Singleton_mixed_block_element.t) :
+         unit Singleton_mixed_block_element.t ->
       match elt with
       | Float_boxed _ -> Float_boxed ()
-      | Product _sub_elems -> Misc.fatal_errorf "broken invariant:@ %a" print t
       | (Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as elem
         ->
         elem)

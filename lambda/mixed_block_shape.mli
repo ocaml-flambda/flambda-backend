@@ -55,9 +55,9 @@ val of_mixed_block_elements :
   'a Lambda.mixed_block_element array ->
   'a t
 
-val value_prefix : 'a t -> 'a Lambda.mixed_block_element array
+val value_prefix : 'a t -> 'a Singleton_mixed_block_element.t array
 
-val flat_suffix : 'a t -> 'a Lambda.mixed_block_element array
+val flat_suffix : 'a t -> 'a Singleton_mixed_block_element.t array
 
 val value_prefix_len : 'a t -> int
 
@@ -66,10 +66,10 @@ val flat_suffix_len : 'a t -> int
 (* XXX add "reordered" into the name *)
 
 (** Access to the shape, as flattened and following the runtime restriction. *)
-val flattened_shape : 'a t -> 'a Lambda.mixed_block_element array
+val flattened_shape : 'a t -> 'a Singleton_mixed_block_element.t array
 
 (** (Same as [flattened_shape]). *)
-val flattened_shape_unit : 'a t -> unit Lambda.mixed_block_element array
+val flattened_shape_unit : 'a t -> unit Singleton_mixed_block_element.t array
 
 val lookup_path_producing_new_indexes : 'a t -> int list -> int list
 
