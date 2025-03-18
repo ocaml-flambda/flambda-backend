@@ -16,7 +16,7 @@ module Eff = Effect.Make(struct
 end)
 
 let rec handle n = function
-  | Eff.Result.Portable.Value v -> v
+  | Eff.Portable.Result.Value v -> v
   | Exception e -> raise e
   | Operation (Jump, k) ->
     let f () = handle (n + 1) (Effect.continue k (n + 1) []) in
@@ -24,7 +24,7 @@ let rec handle n = function
 ;;
 
 let () =
-  handle 0 (Eff.portable_run (fun h ->
+  handle 0 (Eff.Portable.run (fun h ->
     print_endline "Starting in domain 0";
     let jump () =
       let n = Eff.perform h Jump in
