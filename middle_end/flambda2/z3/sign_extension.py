@@ -29,10 +29,15 @@ class Op:
 
     def experimental_sign_extend(self, bits) -> BitVecRef:
         unused_bits = self.size() - bits
+
         return If(
-            self.shift_right > unused_bits,
-            self.as_ast(),
-            (self.inner << (unused_bits - self.shift_right)) >> unused_bits,
+            self.shift_right == unused_bits,
+            If(self.arith, self.as_ast(), self.inner >> unused_bits),
+            If(
+                self.shift_right > unused_bits,
+                self.as_ast(),
+                (self.inner << (unused_bits - self.shift_right)) >> unused_bits,
+            ),
         )
 
 

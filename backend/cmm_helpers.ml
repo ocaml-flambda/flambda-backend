@@ -320,58 +320,388 @@ let add_no_overflow n x c dbg =
   let d = n + x in
   if d = 0 then c else Cop (Caddi, [c; Cconst_int (d, dbg)], dbg)
 
+let is_defined_shift n = 0 <= n && n < arch_bits
+
+(** returns true only if [e + n] is definitely the same as [e | n] *)
+let[@inline] can_interchange_add_with_or e n =
+  match e with
+  | Cop (Clsl, [_; Cconst_int (x, _)], _) -> is_defined_shift x && n asr x = 0
+  | _ -> false
+
+let[@inline] prefer_add = function
+  | Cop (Cor, [e; (Cconst_int (n, _) as n')], dbg)
+    when can_interchange_add_with_or e n ->
+    Cop (Caddi, [e; n'], dbg)
+  | e -> e
+
+let[@inline] prefer_or = function
+  | Cop (Caddi, [e; (Cconst_int (n, _) as n')], dbg)
+    when can_interchange_add_with_or e n ->
+    Cop (Cor, [e; n'], dbg)
+  | e -> e
+
+let rec map_tail1 e ~f =
+  match e with
+  | Clet (id, exp, body) -> Clet (id, exp, map_tail1 body ~f)
+  | Clet_mut (id, kind, exp, body) -> Clet_mut (id, kind, exp, map_tail1 body ~f)
+  | Cphantom_let (id, exp, body) -> Cphantom_let (id, exp, map_tail1 body ~f)
+  | Csequence (e1, e2) -> Csequence (e1, map_tail1 e2 ~f)
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Cassign _ | Ctuple _ | Cop _
+  | Cifthenelse _ | Cexit _ | Ccatch _ | Ctrywith _ | Cswitch _ ->
+    f e
+
+let map_tail2 x y ~f = map_tail1 y ~f:(fun y -> map_tail1 x ~f:(fun x -> f x y))
+
+let[@inline] is_constant = function
+  | Cconst_int _ | Cconst_natint _ -> true
+  | _ -> false
+
 let rec add_const c n dbg =
   if n = 0
   then c
   else
-    match c with
-    | Cconst_int (x, _) when Misc.no_overflow_add x n -> Cconst_int (x + n, dbg)
-    | Cop (Caddi, [Cconst_int (x, _); c], _) when Misc.no_overflow_add n x ->
-      add_no_overflow n x c dbg
-    | Cop (Caddi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_add n x ->
-      add_no_overflow n x c dbg
-    | Cop (Csubi, [Cconst_int (x, _); c], _) when Misc.no_overflow_add n x ->
-      Cop (Csubi, [Cconst_int (n + x, dbg); c], dbg)
-    | Cop (Csubi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_sub n x ->
-      add_const c (n - x) dbg
-    | c -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg)
+    map_tail1 c ~f:(fun c ->
+        match prefer_add c with
+        | Cconst_int (x, _) when Misc.no_overflow_add x n ->
+          Cconst_int (x + n, dbg)
+        | Cop (Caddi, [Cconst_int (x, _); c], _) when Misc.no_overflow_add n x
+          ->
+          add_no_overflow n x c dbg
+        | Cop (Caddi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_add n x
+          ->
+          add_no_overflow n x c dbg
+        | Cop (Csubi, [Cconst_int (x, _); c], _) when Misc.no_overflow_add n x
+          ->
+          Cop (Csubi, [Cconst_int (n + x, dbg); c], dbg)
+        | Cop (Csubi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_sub n x
+          ->
+          add_const c (n - x) dbg
+        | _ -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg))
 
 let incr_int c dbg = add_const c 1 dbg
 
 let decr_int c dbg = add_const c (-1) dbg
 
 let rec add_int c1 c2 dbg =
-  match c1, c2 with
-  | Cconst_int (n, _), c | c, Cconst_int (n, _) -> add_const c n dbg
-  | Cop (Caddi, [c1; Cconst_int (n1, _)], _), c2 ->
-    add_const (add_int c1 c2 dbg) n1 dbg
-  | c1, Cop (Caddi, [c2; Cconst_int (n2, _)], _) ->
-    add_const (add_int c1 c2 dbg) n2 dbg
-  | _, _ -> Cop (Caddi, [c1; c2], dbg)
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match prefer_add c1, prefer_add c2 with
+      | Cconst_int (n, _), c | c, Cconst_int (n, _) -> add_const c n dbg
+      | Cop (Caddi, [c1; Cconst_int (n1, _)], _), c2 ->
+        add_const (add_int c1 c2 dbg) n1 dbg
+      | c1, Cop (Caddi, [c2; Cconst_int (n2, _)], _) ->
+        add_const (add_int c1 c2 dbg) n2 dbg
+      | _, _ -> Cop (Caddi, [c1; c2], dbg))
 
 let rec sub_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (n2, _) when n2 <> min_int -> add_const c1 (-n2) dbg
-  | c1, Cop (Caddi, [c2; Cconst_int (n2, _)], _) when n2 <> min_int ->
-    add_const (sub_int c1 c2 dbg) (-n2) dbg
-  | Cop (Caddi, [c1; Cconst_int (n1, _)], _), c2 ->
-    add_const (sub_int c1 c2 dbg) n1 dbg
-  | c1, c2 -> Cop (Csubi, [c1; c2], dbg)
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match c1, c2 with
+      | c1, Cconst_int (n2, _) when n2 <> min_int -> add_const c1 (-n2) dbg
+      | c1, Cop (Caddi, [c2; Cconst_int (n2, _)], _) when n2 <> min_int ->
+        add_const (sub_int c1 c2 dbg) (-n2) dbg
+      | Cop (Caddi, [c1; Cconst_int (n1, _)], _), c2 ->
+        add_const (sub_int c1 c2 dbg) n1 dbg
+      | c1, c2 -> Cop (Csubi, [c1; c2], dbg))
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
-let rec lsl_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsl, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when Misc.no_overflow_lsl n1 n2 ->
-    add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
-  | _, _ -> Cop (Clsl, [c1; c2], dbg)
+let rec max_bit_length e ~signed =
+  match prefer_or e with
+  | Clet (_, _, body)
+  | Clet_mut (_, _, _, body)
+  | Cphantom_let (_, _, body)
+  | Csequence (_, body) ->
+    max_bit_length body ~signed
+  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+    (* integer/float comparisons return either [1] or [0]. *)
+    1
+  | Cconst_int (n, _) ->
+    if n = 0
+    then 0
+    else if n > 0
+    then 1 + Misc.log2 n
+    else if signed
+    then 1 + Misc.log2 (lnot n)
+    else arch_bits
+  | Cop (Clsl, [c; Cconst_int (n, _)], _) when is_defined_shift n ->
+    Int.min arch_bits (n + max_bit_length c ~signed)
+  | Cop (Clsr, [c; Cconst_int (n, _)], _) when is_defined_shift n ->
+    if n = 0
+    then max_bit_length c ~signed
+    else Int.max 0 (max_bit_length c ~signed:false - n)
+  | Cop (Casr, [c; Cconst_int (n, _)], _) when is_defined_shift n ->
+    let inner = max_bit_length c ~signed in
+    if n = 0
+    then inner
+    else if signed || inner < arch_bits
+    then Int.max 0 (inner - n)
+    else arch_bits
+  | Cop (Cxor, [x; Cconst_int (-1, _)], _) when signed ->
+    max_bit_length x ~signed
+  | Cop (Cor, [x; y], _) ->
+    Int.max (max_bit_length x ~signed) (max_bit_length y ~signed)
+  | Cop (Cand, [x; y], _) ->
+    Int.min (max_bit_length x ~signed:false) (max_bit_length y ~signed:false)
+  | _ -> arch_bits
 
-let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+let ignore_low_bit_int = function
+  | Cop
+      ( Caddi,
+        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
+        _ )
+    when n > 0 && is_defined_shift n ->
+    c
+  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
+  | c -> c
+
+let[@inline] get_const = function
+  | Cconst_int (i, _) -> Some (Nativeint.of_int i)
+  | Cconst_natint (i, _) -> Some i
+  | _ -> None
+
+let[@inline] is_small_constant x =
+  Sys.int_size <= 32 || (-0x8000_0000 <= x && x < 0x8000_0000)
+
+let replace x ~with_ =
+  match x with
+  | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ | Cvar _ | Ctuple [] ->
+    with_
+  | inner -> Csequence (inner, with_)
+
+let rec xor_const e n dbg =
+  match n with
+  | 0n -> e
+  | n ->
+    map_tail1 e ~f:(fun e ->
+        match get_const e with
+        | Some e -> natint_const_untagged dbg (Nativeint.logxor e n)
+        | None -> (
+          let[@local] default () =
+            (* prefer putting constants on the right *)
+            Cop (Cxor, [e; natint_const_untagged dbg n], dbg)
+          in
+          match e with
+          | Cop (Cxor, [x; y], _) -> (
+            match get_const y with
+            | None -> default ()
+            | Some y -> xor_const x (Nativeint.logxor y n) dbg)
+          | _ -> default ()))
+
+and or_const e n dbg =
+  match n with
+  | 0n -> e
+  | -1n -> replace e ~with_:(Cconst_int (-1, dbg))
+  | n ->
+    map_tail1 e ~f:(fun e ->
+        let[@local] default () =
+          (* prefer putting constants on the right *)
+          Cop (Cor, [e; natint_const_untagged dbg n], dbg)
+        in
+        match get_const e with
+        | Some e -> natint_const_untagged dbg (Nativeint.logor e n)
+        | None -> (
+          match e with
+          | Cop (Cor, [x; y], _) -> (
+            match get_const y with
+            | None -> default ()
+            | Some y -> or_const x (Nativeint.logor y n) dbg)
+          | _ -> default ()))
+
+and and_const e n dbg =
+  match n with
+  | 0n -> replace e ~with_:(Cconst_int (0, dbg))
+  | -1n -> e
+  | n ->
+    map_tail1 e ~f:(fun e ->
+        match get_const e with
+        | Some e -> natint_const_untagged dbg (Nativeint.logand e n)
+        | None -> (
+          if Nativeint.logand n (Nativeint.succ n) = 0n
+          then
+            (* [n] is a power of 2 minus 1, since we already checked it's not 0
+               or -1 *)
+            let keep_bits = 1 + Misc.log2_nativeint n in
+            let unused_bits = arch_bits - keep_bits in
+            lsr_const (lsl_const e unused_bits dbg) unused_bits dbg
+          else
+            let[@local] default () =
+              (* prefer putting constants on the right *)
+              Cop (Cand, [e; natint_const_untagged dbg n], dbg)
+            in
+            match e with
+            | Cop (Cand, [x; y], dbg) -> (
+              match get_const y with
+              | Some y -> and_const x (Nativeint.logand y n) dbg
+              | None -> default ())
+            | Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg)
+              -> (
+              let[@local] load memory_chunk =
+                Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg)
+              in
+              match memory_chunk, n with
+              | (Byte_signed | Byte_unsigned), 0xffn -> load Byte_unsigned
+              | (Sixteen_signed | Sixteen_unsigned), 0xffffn ->
+                load Sixteen_unsigned
+              | (Thirtytwo_signed | Thirtytwo_unsigned), 0xffff_ffffn ->
+                load Thirtytwo_unsigned
+              | _ -> default ())
+            | _ -> default ()))
+
+and xor_int c1 c2 dbg =
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match get_const c1, get_const c2 with
+      | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logxor c1 c2)
+      | None, Some c2 -> xor_const c1 c2 dbg
+      | Some c1, None -> xor_const c2 c1 dbg
+      | None, None -> Cop (Cxor, [c1; c2], dbg))
+
+and or_int c1 c2 dbg =
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match get_const c1, get_const c2 with
+      | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logor c1 c2)
+      | None, Some c2 -> or_const c1 c2 dbg
+      | Some c1, None -> or_const c2 c1 dbg
+      | None, None -> Cop (Cor, [c1; c2], dbg))
+
+and and_int c1 c2 dbg =
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match get_const c1, get_const c2 with
+      | Some c1, Some c2 -> natint_const_untagged dbg (Nativeint.logand c1 c2)
+      | None, Some c2 -> and_const c1 c2 dbg
+      | Some c1, None -> and_const c2 c1 dbg
+      | None, None -> Cop (Cand, [c1; c2], dbg))
+
+and lsr_int c1 c2 dbg =
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match c1, c2 with
+      | c1, Cconst_int (0, _) -> c1
+      | c1, Cconst_int (n, _) when is_defined_shift n -> (
+        let c1 = ignore_low_bit_int c1 in
+        match get_const c1 with
+        | Some x ->
+          natint_const_untagged dbg (Nativeint.shift_right_logical x n)
+        | None -> (
+          match prefer_or c1 with
+          | Cop (Clsr, [inner; Cconst_int (n', _)], _) when is_defined_shift n'
+            ->
+            if is_defined_shift (n + n')
+            then lsr_const inner (n + n') dbg
+            else replace inner ~with_:(Cconst_int (0, dbg))
+          | Cop (Clsl, [c; Cconst_int (x, _)], _)
+            when is_defined_shift x
+                 && max_bit_length c ~signed:false + x <= arch_bits ->
+            (* some operations always return small enough integers that it is
+               safe and correct to combine [asr (lsl x y) z] into [asr x (z -
+               y)]. *)
+            if x > n then lsl_const c (x - n) dbg else asr_const c (n - x) dbg
+          | Cop
+              ( Clsl,
+                [ Cop ((Casr | Clsr), [inner; Cconst_int (x, _)], _);
+                  Cconst_int (y, _) ],
+                _ )
+            when 0 <= x && x <= y && y <= n ->
+            lsr_const (lsl_const inner (y - x) dbg) n dbg
+          | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            or_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
+          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            and_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
+          | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            xor_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
+          | _ -> Cop (Clsr, [c1; c2], dbg)))
+      | Cop (Clsr, [x; (Cconst_int (n', _) as y)], dbg'), c2
+        when is_defined_shift n' ->
+        (* prefer putting the constant shift on the outside to help enable
+           further peephole optimizations *)
+        Cop (Clsr, [Cop (Clsr, [x; c2], dbg); y], dbg')
+      | c1, c2 -> Cop (Clsr, [c1; c2], dbg))
+
+and asr_int c1 c2 dbg =
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match c1, c2 with
+      | c1, Cconst_int (0, _) -> c1
+      | c1, Cconst_int (n, _) when is_defined_shift n -> (
+        let c1 = ignore_low_bit_int c1 in
+        match get_const c1 with
+        | Some x -> natint_const_untagged dbg (Nativeint.shift_right x n)
+        | None -> (
+          match prefer_or c1 with
+          | Cop (Casr, [inner; Cconst_int (n', _)], _) when is_defined_shift n'
+            ->
+            (* saturating add, since the sign bit extends to the left. This is
+               different from the logical shifts because arithmetic shifting
+               [arch_bits] times or more is the same as shifting [arch_bits - 1]
+               times *)
+            asr_const inner (Int.min (n + n') (arch_bits - 1)) dbg
+          | Cop (Clsr, [_; Cconst_int (n', _)], _)
+            when n' > 0 && is_defined_shift n' ->
+            (* If the argument is guaranteed non-negative, then we know the sign
+               bit is 0 and we can weaken this operation to a logical shift *)
+            lsr_const c1 n dbg
+          | Cop (Clsl, [c; Cconst_int (x, _)], _)
+            when is_defined_shift x
+                 && max_bit_length c ~signed:true + x < arch_bits ->
+            (* some operations always return small enough integers that it is
+               safe and correct to combine [asr (lsl x y) z] into [asr x (z -
+               y)]. *)
+            if x > n then lsl_const c (x - n) dbg else asr_const c (n - x) dbg
+          | Cop
+              ( Clsl,
+                [ Cop ((Casr | Clsr), [inner; Cconst_int (x, _)], _);
+                  Cconst_int (y, _) ],
+                _ )
+            when 0 <= x && x <= y && y <= n ->
+            lsr_const (lsl_const inner (y - x) dbg) n dbg
+          | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            or_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
+          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            and_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
+          | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            xor_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
+          | _ -> Cop (Casr, [c1; c2], dbg)))
+      | Cop (Casr, [x; (Cconst_int (n', _) as y)], z), c2
+        when is_defined_shift n' ->
+        (* prefer putting the constant shift on the outside to help enable
+           further peephole optimizations *)
+        Cop (Casr, [Cop (Casr, [x; c2], dbg); y], z)
+      | _ -> Cop (Casr, [c1; c2], dbg))
+
+and lsl_int c1 c2 dbg =
+  map_tail2 c1 c2 ~f:(fun c1 c2 ->
+      match c1, c2 with
+      | c1, Cconst_int (0, _) -> c1
+      | c1, Cconst_int (n, _) when is_defined_shift n -> (
+        match get_const c1 with
+        | Some c1 -> natint_const_untagged dbg (Nativeint.shift_left c1 n)
+        | None -> (
+          match c1 with
+          | Cop (Clsl, [inner; Cconst_int (n', _)], dbg)
+            when is_defined_shift n' ->
+            if is_defined_shift (n + n')
+            then lsl_const inner (n + n') dbg
+            else replace inner ~with_:(Cconst_int (0, dbg))
+          | Cop (Caddi, [c1; Cconst_int (offset, _)], _)
+            when Misc.no_overflow_lsl offset n
+                 && is_small_constant (offset lsl n) ->
+            add_const (lsl_int c1 c2 dbg) (offset lsl n) dbg
+          | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            or_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
+          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            and_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
+          | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
+            xor_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
+          | c1 -> Cop (Clsl, [c1; c2], dbg)))
+      | Cop (Clsl, [x; (Cconst_int (n', _) as y)], z), c2
+        when is_defined_shift n' ->
+        (* prefer putting the constant shift on the outside to help enable
+           further peephole optimizations *)
+        Cop (Clsl, [Cop (Clsl, [x; c2], dbg); y], z)
+      | _, _ -> Cop (Clsl, [c1; c2], dbg))
+
+and lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+
+and asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
+
+and lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
 let is_power2 n = n = 1 lsl Misc.log2 n
 
@@ -392,74 +722,32 @@ let rec mul_int c1 c2 dbg =
     add_const (mul_int c (Cconst_int (k, dbg)) dbg) (n * k) dbg
   | c1, c2 -> Cop (Cmuli, [c1; c2], dbg)
 
-(* identify cmm operations whose result is guaranteed to be small integers (e.g.
-   in the range [min_int / 4; max_int / 4]) *)
-let guaranteed_to_be_small_int = function
-  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
-    (* integer/float comparisons return either [1] or [0]. *)
-    true
-  | _ -> false
-
-let ignore_low_bit_int = function
-  | Cop
-      ( Caddi,
-        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
-        _ )
-    when n > 0 ->
-    c
-  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
-  | c -> c
-
-let lsr_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | c1, Cconst_int (n, _) when n > 0 ->
-    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
-  | _ -> Cop (Clsr, [c1; c2], dbg)
-
-let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
-
-let asr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> (
-    match ignore_low_bit_int c1 with
-    (* some operations always return small enough integers that it is safe and
-       correct to optimise [asr (lsl x 1) 1] into [x]. *)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
-      when n = 1 && guaranteed_to_be_small_int c ->
-      c
-    | c1' -> Cop (Casr, [c1'; c2], dbg))
-  | _ -> Cop (Casr, [c1; c2], dbg)
-
-let asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
-
 let tag_int i dbg =
   match i with
   | Cconst_int (n, _) -> int_const dbg n
   | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 ->
-    Cop
-      (Cor, [asr_int c (Cconst_int (n - 1, dbg)) dbg; Cconst_int (1, dbg)], dbg)
-  | c -> incr_int (lsl_int c (Cconst_int (1, dbg)) dbg) dbg
+    or_const (asr_const c (n - 1) dbg) 1n dbg
+  | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 ->
+    or_const (lsr_const c (n - 1) dbg) 1n dbg
+  | c -> incr_int (lsl_const c 1 dbg) dbg
 
 let untag_int i dbg =
   match i with
   | Cconst_int (n, _) -> Cconst_int (n asr 1, dbg)
   | Cop (Cor, [Cop (Casr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Casr, [c; Cconst_int (n + 1, dbg)], dbg)
+    asr_const c (n + 1) dbg
   | Cop (Cor, [Cop (Clsr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Clsr, [c; Cconst_int (n + 1, dbg)], dbg)
-  | c -> asr_int c (Cconst_int (1, dbg)) dbg
+    lsr_const c (n + 1) dbg
+  | c -> asr_const c 1 dbg
 
 let mk_not dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    -> (
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        dbg' ) -> (
     match c with
     | Cop (Ccmpi cmp, [c1; c2], dbg'') ->
       tag_int
@@ -785,7 +1073,7 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
           let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
           let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
           let t = add_int c1 t dbg in
-          let t = Cop (Cand, [t; Cconst_natint (Nativeint.neg n, dbg)], dbg) in
+          let t = and_const t (Nativeint.neg n) dbg in
           sub_int c1 t dbg)
     else
       bind "dividend" c1 (fun c1 ->
@@ -799,8 +1087,10 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
 
 let test_bool dbg cmm =
   match cmm with
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], _)
-    ->
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        _ ) ->
     c
   | Cconst_int (n, dbg) ->
     if n = 1 then Cconst_int (0, dbg) else Cconst_int (1, dbg)
@@ -1035,8 +1325,10 @@ let array_indexing ?typ log2size ptr ofs dbg =
     if i = 0
     then ptr
     else Cop (add, [ptr; Cconst_int (i lsl log2size, dbg)], dbg)
-  | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    ->
+  | Cop
+      ( (Caddi | Cor),
+        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
+        dbg' ) ->
     Cop (add, [ptr; lsl_const c log2size dbg], dbg')
   | Cop (Caddi, [c; Cconst_int (n, _)], dbg') when log2size = 0 ->
     Cop
@@ -1299,11 +1591,11 @@ let rec low_bits ~bits ~dbg x =
   then x
   else
     let unused_bits = arch_bits - bits in
-    let does_mask_keep_low_bits test_mask =
+    let does_mask_keep_low_bits mask =
       (* If the mask has all the low bits set, then the low bits are unchanged.
          This could happen from zero-extension. *)
-      let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
-      Nativeint.equal mask (Nativeint.logand test_mask mask)
+      let low_bits = Nativeint.pred (Nativeint.shift_left 1n bits) in
+      Nativeint.equal low_bits (Nativeint.logand mask low_bits)
     in
     (* Ignore sign and zero extensions which do not affect the low bits *)
     map_tail
@@ -1350,7 +1642,7 @@ let zero_extend ~bits ~dbg e =
         | e -> zero_extend_via_mask e)
       (low_bits ~bits e ~dbg)
 
-let sign_extend ~bits ~dbg e =
+let rec sign_extend ~bits ~dbg e =
   assert (0 < bits && bits <= arch_bits);
   let unused_bits = arch_bits - bits in
   let sign_extend_via_shift e =
@@ -1360,11 +1652,24 @@ let sign_extend ~bits ~dbg e =
   then e
   else
     map_tail
-      (function
-        | Cop ((Casr | Clsr), [inner; Cconst_int (n, _)], _) as e
+      (fun e ->
+        match prefer_or e with
+        | Cop (Cand, [x; y], _) when is_constant y ->
+          and_int (sign_extend ~bits x ~dbg) (sign_extend ~bits y ~dbg) dbg
+        | Cop (Cor, [x; y], _) when is_constant y ->
+          or_int (sign_extend ~bits x ~dbg) (sign_extend ~bits y ~dbg) dbg
+        | Cop (Cxor, [x; y], _) when is_constant y ->
+          xor_int (sign_extend ~bits x ~dbg) (sign_extend ~bits y ~dbg) dbg
+        | Cop (((Casr | Clsr) as op), [inner; Cconst_int (n, _)], _) as e
           when 0 <= n && n < arch_bits ->
           (* see middle_end/flambda2/z3/sign_extension.py for proof *)
-          if n > unused_bits
+          if n = unused_bits
+          then
+            match op with
+            | Casr -> e
+            | Clsr -> asr_const inner unused_bits dbg
+            | _ -> assert false
+          else if n > unused_bits
           then
             (* sign-extension is a no-op since the top n bits already match *)
             e
@@ -1966,21 +2271,6 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_native_int -> Word_int
   | Pbigarray_complex32 -> Single { reg = Float64 }
   | Pbigarray_complex64 -> Double
-
-let and_int e1 e2 dbg =
-  let is_mask32 = function
-    | Cconst_natint (0xFFFF_FFFFn, _) -> true
-    | Cconst_int (n, _) -> Nativeint.of_int n = 0xFFFF_FFFFn
-    | _ -> false
-  in
-  match e1, e2 with
-  | e, m when is_mask32 m -> zero_extend ~bits:32 e ~dbg
-  | m, e when is_mask32 m -> zero_extend ~bits:32 e ~dbg
-  | e1, e2 -> Cop (Cand, [e1; e2], dbg)
-
-let or_int e1 e2 dbg = Cop (Cor, [e1; e2], dbg)
-
-let xor_int e1 e2 dbg = Cop (Cxor, [e1; e2], dbg)
 
 (* Boxed integers *)
 
@@ -4436,3 +4726,270 @@ let reperform ~dbg ~eff ~cont ~last_fiber =
       dbg )
 
 let poll ~dbg = return_unit dbg (Cop (Cpoll, [], dbg))
+
+module Scalar_type = struct
+  module Float_width = struct
+    type t = Cmm.float_width =
+      | Float64
+      | Float32
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Float64, Float64 -> exp
+      | Float32, Float32 -> exp
+      | Float32, Float64 -> float_of_float32 ~dbg exp
+      | Float64, Float32 -> float32_of_float ~dbg exp
+  end
+
+  module Signedness = struct
+    type t =
+      | Signed
+      | Unsigned
+
+    let equal (x : t) (y : t) = x = y
+
+    let print ppf t =
+      match t with
+      | Signed -> Format.pp_print_string ppf "signed"
+      | Unsigned -> Format.pp_print_string ppf "unsigned"
+  end
+
+  module Bit_width_and_signedness : sig
+    (** An integer with signedness [signedness t] that fits into a general-purpose
+        register. It is canonically stored in twos-complement representation, in the lower
+        [bits] bits of its container (whether that be memory or a register), and is sign-
+        or zero-extended to fill the entire container. *)
+    type t [@@immediate]
+
+    val create_exn : bit_width:int -> signedness:Signedness.t -> t
+
+    val bit_width : t -> int
+
+    val signedness : t -> Signedness.t
+
+    val equal : t -> t -> bool
+  end = struct
+    (* [signedness t] is stored in the low bit of [t], and [bit_width t] is
+       stored in the remaining high bits of [t]. We use this encoding to fit [t]
+       into an immediate value. This is worth trying since we expect to create
+       one of these for ~every integer operation, so it should cut down on
+       garbage *)
+    type t = { bit_width_and_signedness : int } [@@unboxed]
+
+    let[@inline] equal { bit_width_and_signedness = x }
+        { bit_width_and_signedness = y } =
+      Int.equal x y
+
+    let[@inline] bit_width { bit_width_and_signedness } =
+      bit_width_and_signedness lsr 1
+
+    let[@inline] signedness { bit_width_and_signedness } =
+      match bit_width_and_signedness land 1 with
+      | 0 -> Signedness.Signed
+      | 1 -> Signedness.Unsigned
+      | _ -> assert false
+
+    let[@inline] int_of_signedness : Signedness.t -> int = function
+      | Signed -> 0
+      | Unsigned -> 1
+
+    let[@inline] create_exn ~bit_width ~signedness =
+      assert (0 < bit_width && bit_width <= arch_bits);
+      { bit_width_and_signedness =
+          (bit_width lsl 1) + int_of_signedness signedness
+      }
+  end
+
+  module Integral_type = struct
+    include Bit_width_and_signedness
+
+    let[@inline] with_signedness t ~signedness =
+      create_exn ~bit_width:(bit_width t) ~signedness
+
+    let[@inline] signed t = with_signedness t ~signedness:Signed
+
+    let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
+
+    (** Determines whether [dst] can represent every value of [src], preserving sign *)
+    let[@inline] can_cast_without_losing_information ~src ~dst =
+      match signedness src, signedness dst with
+      | Signed, Signed | Unsigned, Unsigned -> bit_width src <= bit_width dst
+      | Unsigned, Signed -> bit_width src < bit_width dst
+      | Signed, Unsigned -> false
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      if can_cast_without_losing_information ~src ~dst
+      then
+        (* Since [Bit_width_and_signedness] represents sign- or zero-extended
+           expressions, this is a no-op *)
+        exp
+      else
+        match signedness dst with
+        | Signed -> sign_extend ~bits:(bit_width dst) exp ~dbg
+        | Unsigned -> zero_extend ~bits:(bit_width dst) exp ~dbg
+
+    let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+      x
+      |> static_cast ~src:outer ~dst:inner ~dbg
+      |> f
+      |> static_cast ~src:inner ~dst:outer ~dbg
+  end
+
+  module Integer = struct
+    include Integral_type
+
+    let print ppf t =
+      Format.fprintf ppf "%a int%d" Signedness.print (signedness t)
+        (bit_width t)
+
+    let nativeint = create_exn ~bit_width:arch_bits ~signedness:Signed
+  end
+
+  (** An {!Integer.t} but with the additional stipulation that its container must
+      reserve its lowest bit to be 1. The [bit_width] field includes this bit. *)
+  module Tagged_integer = struct
+    include Integral_type
+
+    let[@inline] create_exn ~bit_width_including_tag_bit:bit_width ~signedness =
+      assert (bit_width > 1);
+      create_exn ~bit_width ~signedness
+
+    let immediate =
+      create_exn ~bit_width_including_tag_bit:arch_bits ~signedness:Signed
+
+    let[@inline] bit_width_including_tag_bit t = bit_width t
+
+    let[@inline] bit_width_excluding_tag_bit t = bit_width t - 1
+
+    let[@inline] untagged t =
+      Integer.create_exn
+        ~bit_width:(bit_width_excluding_tag_bit t)
+        ~signedness:(signedness t)
+
+    let[@inline] untag ~dbg t exp =
+      match signedness t with
+      | Signed -> asr_const exp 1 dbg
+      | Unsigned -> lsr_const exp 1 dbg
+
+    let print ppf t =
+      Format.fprintf ppf "tagged %a int%d" Signedness.print (signedness t)
+        (bit_width_excluding_tag_bit t)
+  end
+
+  module Integral = struct
+    type t =
+      | Untagged of Integer.t
+      | Tagged of Tagged_integer.t
+
+    let nativeint = Untagged Integer.nativeint
+
+    let[@inline] untagged_or_identity = function
+      | Untagged t -> t
+      | Tagged t -> Tagged_integer.untagged t
+
+    let signedness = function
+      | Untagged t -> Integer.signedness t
+      | Tagged t -> Tagged_integer.signedness t
+
+    let with_signedness t ~signedness =
+      match t with
+      | Untagged t -> Untagged (Integer.with_signedness t ~signedness)
+      | Tagged t -> Tagged (Tagged_integer.with_signedness t ~signedness)
+
+    let[@inline] signed t = with_signedness t ~signedness:Signed
+
+    let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
+
+    let[@inline] equal x y =
+      match x, y with
+      | Untagged x, Untagged y -> Integer.equal x y
+      | Untagged _, _ -> false
+      | Tagged x, Tagged y -> Tagged_integer.equal x y
+      | Tagged _, _ -> false
+
+    let print ppf t =
+      match t with
+      | Untagged untagged -> Integer.print ppf untagged
+      | Tagged tagged -> Tagged_integer.print ppf tagged
+
+    let[@inline] can_cast_without_losing_information ~src ~dst =
+      Integer.can_cast_without_losing_information
+        ~src:(untagged_or_identity src) ~dst:(untagged_or_identity dst)
+
+    let static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Untagged src, Untagged dst -> Integer.static_cast ~dbg ~src ~dst exp
+      | Tagged src, Tagged dst -> Tagged_integer.static_cast ~dbg ~src ~dst exp
+      | Untagged src, Tagged dst ->
+        tag_int
+          (Integer.static_cast ~dbg ~src ~dst:(Tagged_integer.untagged dst) exp)
+          dbg
+      | Tagged src, Untagged dst ->
+        Integer.static_cast ~dbg
+          ~src:(Tagged_integer.untagged src)
+          ~dst
+          (Tagged_integer.untag ~dbg src exp)
+
+    let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+      x
+      |> static_cast ~src:outer ~dst:inner ~dbg
+      |> f
+      |> static_cast ~src:inner ~dst:outer ~dbg
+  end
+
+  type t =
+    | Integral of Integral.t
+    | Float of Float_width.t
+
+  let static_cast ~dbg ~src ~dst exp =
+    match src, dst with
+    | Integral src, Integral dst -> Integral.static_cast ~dbg ~src ~dst exp
+    | Float src, Float dst -> Float_width.static_cast ~dbg ~src ~dst exp
+    | Integral src, Float dst ->
+      let float_of_int_arg = Integral.nativeint in
+      if not
+           (Integral.can_cast_without_losing_information ~src
+              ~dst:float_of_int_arg)
+      then
+        Misc.fatal_errorf "static_cast: casting %a to float is not implemented"
+          Integral.print src
+      else
+        unary (Cstatic_cast (Float_of_int dst)) ~dbg
+          (Integral.static_cast exp ~dbg ~src ~dst:float_of_int_arg)
+    | Float src, Integral dst -> (
+      match Integral.signedness dst with
+      | Unsigned ->
+        Misc.fatal_errorf
+          "static_cast: casting floats to unsigned values is not implemented"
+      | Signed ->
+        (* we can truncate because casting from float -> int is unspecified when
+           the rounded value doesn't fit in the integral type. We can't promote
+           since nativeint is already the largest integral type supported
+           here. *)
+        let exp = unary (Cstatic_cast (Int_of_float src)) exp ~dbg in
+        let src = Integral.nativeint in
+        (* assert that nativeint is indeed the largest integer width *)
+        assert (Integral.can_cast_without_losing_information ~src:dst ~dst:src);
+        Integral.static_cast exp ~dbg ~src ~dst)
+
+  let[@inline] conjugate ~outer ~inner ~dbg ~f x =
+    x
+    |> static_cast ~src:outer ~dst:inner ~dbg
+    |> f
+    |> static_cast ~src:inner ~dst:outer ~dbg
+
+  module Untagged = struct
+    type numeric = t
+
+    type t =
+      | Untagged of Integer.t
+      | Float of float_width
+
+    let to_numeric : t -> numeric = function
+      | Untagged width -> Integral (Untagged width)
+      | Float float -> Float float
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      static_cast ~dbg ~src:(to_numeric src) ~dst:(to_numeric dst) exp
+  end
+end
