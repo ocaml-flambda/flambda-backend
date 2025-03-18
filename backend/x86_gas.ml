@@ -413,9 +413,10 @@ let print_line b = function
   | Align (_data,n) ->
       (* MacOSX assembler interprets the integer n as a 2^n alignment *)
       let n =
-        match system with
-        | S_macosx -> Misc.log2 n
-        | _ -> n
+        if is_macosx system then
+          Misc.log2 n
+        else
+         n
       in
       bprintf b "\t.align\t%d" n
   | Byte n -> bprintf b "\t.byte\t%a" cst n
