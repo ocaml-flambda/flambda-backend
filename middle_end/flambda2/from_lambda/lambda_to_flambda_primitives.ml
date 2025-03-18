@@ -1453,10 +1453,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       |> Array.to_list
     in
     let args =
-      let flattened_shape = Mixed_block_shape.flattened_shape shape in
+      let flattened_reordered_shape =
+        Mixed_block_shape.flattened_reordered_shape shape
+      in
       List.mapi
         (fun new_index arg ->
-          match flattened_shape.(new_index) with
+          match flattened_reordered_shape.(new_index) with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
           | Float_boxed _ -> unbox_float arg)
         args
@@ -1963,7 +1965,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Mixed_block_shape.of_mixed_block_elements shape
         ~print_locality:Printlambda.locality_mode
     in
-    let flattened_shape = Mixed_block_shape.flattened_shape shape in
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
+    in
     let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     let new_indexes =
       Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
@@ -1975,7 +1979,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         let mutability = convert_field_read_semantics sem in
         let block_access : P.Block_access_kind.t =
           let field_kind : P.Mixed_block_access_field_kind.t =
-            match flattened_shape.(new_index) with
+            match flattened_reordered_shape.(new_index) with
             | Value value_kind ->
               Value_prefix
                 (convert_block_access_field_kind_from_value_kind value_kind)
@@ -1994,7 +1998,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             ( Block_load { kind = block_access; mut = mutability; field = imm },
               arg )
         in
-        match flattened_shape.(new_index) with
+        match flattened_reordered_shape.(new_index) with
         | Float_boxed (mode : Lambda.locality_mode) ->
           box_float mode block_access ~current_region
         | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
@@ -2041,7 +2045,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Mixed_block_shape.of_mixed_block_elements shape
         ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
     in
-    let flattened_shape = Mixed_block_shape.flattened_shape shape in
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
+    in
     let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     let new_indexes =
       Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
@@ -2053,7 +2059,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         let block_access : P.Block_access_kind.t =
           Mixed
             { field_kind =
-                (match flattened_shape.(new_index) with
+                (match flattened_reordered_shape.(new_index) with
                 | Value value_kind ->
                   Value_prefix
                     (convert_block_access_field_kind_from_value_kind value_kind)
@@ -2072,7 +2078,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           convert_init_or_assign initialization_or_assignment
         in
         let value : H.simple_or_prim =
-          match flattened_shape.(new_index) with
+          match flattened_reordered_shape.(new_index) with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
             value
           | Float_boxed _ -> unbox_float value

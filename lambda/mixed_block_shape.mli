@@ -63,13 +63,12 @@ val value_prefix_len : 'a t -> int
 
 val flat_suffix_len : 'a t -> int
 
-(* XXX add "reordered" into the name *)
-
 (** Access to the shape, as flattened and following the runtime restriction. *)
-val flattened_shape : 'a t -> 'a Singleton_mixed_block_element.t array
+val flattened_reordered_shape : 'a t -> 'a Singleton_mixed_block_element.t array
 
-(** (Same as [flattened_shape]). *)
-val flattened_shape_unit : 'a t -> unit Singleton_mixed_block_element.t array
+(** (Same as [flattened_reordered_shape]). *)
+val flattened_reordered_shape_unit :
+  'a t -> unit Singleton_mixed_block_element.t array
 
 val lookup_path_producing_new_indexes : 'a t -> int list -> int list
 
