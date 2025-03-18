@@ -206,8 +206,6 @@ type emit_frame_actions =
     efa_string : string -> unit
   }
 
-let is_empty = function [] -> true | _ :: _ -> false
-
 let emit_frames a =
   let filenames = Hashtbl.create 7 in
   let label_filename name =
@@ -371,8 +369,8 @@ let emit_frames a =
       in
       let info =
         if is_fully_packable
-        then fully_pack_info rs d (not (is_empty rest))
-        else partially_pack_info rs d (not (is_empty rest))
+        then fully_pack_info rs d (not (Misc.Stdlib.List.is_empty rest))
+        else partially_pack_info rs d (not (Misc.Stdlib.List.is_empty rest))
       in
       let loc =
         if is_fully_packable
