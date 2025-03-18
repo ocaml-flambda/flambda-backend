@@ -67,7 +67,7 @@ type 'a tree =
 type 'a t =
   { prefix : 'a shape; (* invariant: no `Product` *)
     suffix : 'a shape; (* invariant: no `Product` *)
-    flattened_shape : 'a shape; (* invariant: no `Product` *)
+    flattened_reordered_shape : 'a shape; (* invariant: no `Product` *)
     forest : 'a tree array;
     print_locality : Format.formatter -> 'a -> unit
   }
@@ -205,11 +205,11 @@ and build_tree_list :
 
 let of_mixed_block_elements ~print_locality
     (original_shape : 'a Lambda.mixed_block_element array) : 'a t =
-  let flattened_shape_with_paths = flatten_list original_shape in
+  let flattened_reordered_shape_with_paths = flatten_list original_shape in
   let prefix = ref [] in
   let suffix = ref [] in
-  for idx = Array.length flattened_shape_with_paths - 1 downto 0 do
-    let elem, path = flattened_shape_with_paths.(idx) in
+  for idx = Array.length flattened_reordered_shape_with_paths - 1 downto 0 do
+    let elem, path = flattened_reordered_shape_with_paths.(idx) in
     let is_value =
       match elem with
       | Value _ -> true
@@ -236,7 +236,7 @@ let of_mixed_block_elements ~print_locality
   let _ = assert false in
   { prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
-    flattened_shape = Array.map fst flattened_and_reordered_shape;
+    flattened_reordered_shape = Array.map fst flattened_and_reordered_shape;
     forest;
     print_locality
   }
@@ -249,9 +249,9 @@ let value_prefix_len t = Array.length t.prefix
 
 let flat_suffix_len t = Array.length t.suffix
 
-let flattened_shape t = t.flattened_shape
+let flattened_reordered_shape t = t.flattened_reordered_shape
 
-let flattened_shape_unit t =
+let flattened_reordered_shape_unit t =
   Array.map
     (fun (elt : _ Singleton_mixed_block_element.t) :
          unit Singleton_mixed_block_element.t ->
@@ -260,4 +260,4 @@ let flattened_shape_unit t =
       | (Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as elem
         ->
         elem)
-    t.flattened_shape
+    t.flattened_reordered_shape
