@@ -286,6 +286,9 @@ module Stdlib : sig
         [f e == e] then [map_sharing f a == a] *)
 
     val of_list_map : ('a -> 'b) -> 'a list -> 'b array
+
+    val concat_arrays : 'a array array -> 'a array
+    (** Concatenate an array of arrays into a single array. *)
   end
 
 (** {2 Extensions to the String module} *)
