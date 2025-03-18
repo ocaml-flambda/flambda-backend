@@ -52,17 +52,17 @@ let print_indentation ppf k =
   done
 
 let print_element ppf (element : 'a Lambda.mixed_block_element) new_index =
+  let fprintf = Format.fprintf in
   match element with
-  | Value _ -> Format.fprintf ppf "Value (new_index=%d)\n%!" new_index
-  | Float_boxed _ ->
-    Format.fprintf ppf "Float_boxed _ (new_index=%d)\n%!" new_index
-  | Float64 -> Format.fprintf ppf "Float64 (new_index=%d)\n%!" new_index
-  | Float32 -> Format.fprintf ppf "Float32 (new_index=%d)\n%!" new_index
-  | Bits32 -> Format.fprintf ppf "Bits32 (new_index=%d)\n%!" new_index
-  | Bits64 -> Format.fprintf ppf "Bits64 (new_index=%d)\n%!" new_index
-  | Vec128 -> Format.fprintf ppf "Vec128 (new_index=%d)\n%!" new_index
-  | Word -> Format.fprintf ppf "Word (new_index=%d)\n%!" new_index
-  | Product _ -> assert false
+  | Value _ -> fprintf ppf "Value (new_index=%d)\n%!" new_index
+  | Float_boxed _ -> fprintf ppf "Float_boxed _ (new_index=%d)\n%!" new_index
+  | Float64 -> fprintf ppf "Float64 (new_index=%d)\n%!" new_index
+  | Float32 -> fprintf ppf "Float32 (new_index=%d)\n%!" new_index
+  | Bits32 -> fprintf ppf "Bits32 (new_index=%d)\n%!" new_index
+  | Bits64 -> fprintf ppf "Bits64 (new_index=%d)\n%!" new_index
+  | Vec128 -> fprintf ppf "Vec128 (new_index=%d)\n%!" new_index
+  | Word -> fprintf ppf "Word (new_index=%d)\n%!" new_index
+  | Product _ -> fprintf ppf "<invariant failed>"
 
 let rec print_tree ~indent ~index ppf tree =
   match tree with
@@ -99,9 +99,10 @@ let new_indexes_to_old_indexes t =
     old_indexes_to_new_indexes;
   result
 
-let lookup_path_producing_new_indexes { forest; _ } path =
+let lookup_path_producing_new_indexes ({ forest; _ } as t) path =
+  let original_path = path in
   match path with
-  | [] -> Misc.fatal_error "No path provided"
+  | [] -> Misc.fatal_errorf "No path provided:@ %a" print t
   | index :: path ->
     let tree = forest.(index) in
     let rec lookup_path' path tree =
@@ -110,7 +111,10 @@ let lookup_path_producing_new_indexes { forest; _ } path =
       | index :: path, Node { children; _ } ->
         lookup_path' path children.(index)
       | [], Node { children } -> flatten_tree_array children
-      | _ :: _, Leaf _ -> Misc.fatal_error "Invalid path"
+      | _ :: _, Leaf _ ->
+        Misc.fatal_errorf "Invalid path:@ %a@ shape: %a"
+          (Format.pp_print_list Format.pp_print_int)
+          original_path print t
     in
     lookup_path' path tree
 
@@ -216,7 +220,7 @@ let flattened_shape_unit t =
     (fun (elt : _ Lambda.mixed_block_element) : unit Lambda.mixed_block_element ->
       match elt with
       | Float_boxed _ -> Float_boxed ()
-      | Product _sub_elems -> Misc.fatal_error "broken invariant"
+      | Product _sub_elems -> Misc.fatal_errorf "broken invariant:@ %a" print t
       | (Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as elem
         ->
         elem)
