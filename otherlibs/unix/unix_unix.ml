@@ -962,12 +962,12 @@ end = struct
     | Some mutex -> Mutex.protect mutex f
 end
 
-let popen_mutex = lazy (Mutex.create ())
+let popen_mutex = Mutex.create ()
 
 let open_proc prog args envopt proc input output error =
   let pid =
     create_process_gen prog args envopt input output error in
-  Mutex.protect (Lazy.force popen_mutex) (fun () ->
+  Mutex.protect popen_mutex (fun () ->
     Hashtbl.add popen_processes proc pid)
 
 let open_process_args_in prog args =
@@ -1058,14 +1058,14 @@ let open_process_full cmd =
 
 let find_proc_id fun_name proc =
   try
-    Mutex.protect (Lazy.force popen_mutex) (fun () ->
+    Mutex.protect popen_mutex (fun () ->
       Hashtbl.find popen_processes proc
     )
   with Not_found ->
     raise(Unix_error(EBADF, fun_name, ""))
 
 let remove_proc_id proc =
-  Mutex.protect (Lazy.force popen_mutex) (fun () ->
+  Mutex.protect popen_mutex (fun () ->
     Hashtbl.remove popen_processes proc
   )
 
