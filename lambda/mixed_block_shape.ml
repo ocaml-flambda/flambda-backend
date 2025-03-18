@@ -205,11 +205,11 @@ and build_tree_list :
 
 let of_mixed_block_elements ~print_locality
     (original_shape : 'a Lambda.mixed_block_element array) : 'a t =
-  let flattened_reordered_shape_with_paths = flatten_list original_shape in
+  let flattened_shape_with_paths = flatten_list original_shape in
   let prefix = ref [] in
   let suffix = ref [] in
-  for idx = Array.length flattened_reordered_shape_with_paths - 1 downto 0 do
-    let elem, path = flattened_reordered_shape_with_paths.(idx) in
+  for idx = Array.length flattened_shape_with_paths - 1 downto 0 do
+    let elem, path = flattened_shape_with_paths.(idx) in
     let is_value =
       match elem with
       | Value _ -> true
@@ -222,21 +222,21 @@ let of_mixed_block_elements ~print_locality
   done;
   let prefix = Array.of_list !prefix in
   let suffix = Array.of_list !suffix in
-  let flattened_and_reordered_shape = Array.append prefix suffix in
+  let flattened_reordered_shape = Array.append prefix suffix in
   let new_index_to_old_path =
-    Array.make (Array.length flattened_and_reordered_shape) []
+    Array.make (Array.length flattened_reordered_shape) []
   in
   let old_path_to_new_index = Hashtbl.create (Array.length original_shape) in
   Array.iteri
     (fun new_index (_elem, old_path) ->
       new_index_to_old_path.(new_index) <- old_path;
       Hashtbl.replace old_path_to_new_index old_path new_index)
-    flattened_and_reordered_shape;
+    flattened_reordered_shape;
   let forest = build_tree_list old_path_to_new_index [] original_shape in
   let _ = assert false in
   { prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
-    flattened_reordered_shape = Array.map fst flattened_and_reordered_shape;
+    flattened_reordered_shape = Array.map fst flattened_reordered_shape;
     forest;
     print_locality
   }
