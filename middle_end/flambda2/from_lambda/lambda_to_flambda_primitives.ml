@@ -1962,7 +1962,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Mixed_block_shape.flattened_shape_unit shape
       |> K.Mixed_block_shape.from_lambda
     in
-    let new_indexes = Mixed_block_shape.lookup_path shape field_path in
+    let new_indexes =
+      Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
+    in
     List.map
       (fun new_index ->
         let imm = Targetint_31_63.of_int new_index in
@@ -2039,7 +2041,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Mixed_block_shape.flattened_shape_unit shape
       |> K.Mixed_block_shape.from_lambda
     in
-    let new_indexes = Mixed_block_shape.lookup_path shape field_path in
+    let new_indexes =
+      Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
+    in
     List.map
       (fun new_index : H.expr_primitive ->
         let imm = Targetint_31_63.of_int new_index in
