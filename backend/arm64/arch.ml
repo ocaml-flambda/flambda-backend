@@ -14,7 +14,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+[@@@ocaml.warning "+a-40-41-42"]
 (* Specific operations for the ARM processor, 64-bit mode *)
 
 open! Int_replace_polymorphic_compare
@@ -122,7 +122,7 @@ let print_specific_operation printreg op ppf arg =
   match op with
   | Ifar_poll _ ->
     fprintf ppf "(far) poll"
-  | Ifar_alloc { bytes; } ->
+  | Ifar_alloc { bytes; dbginfo = _ } ->
     fprintf ppf "(far) alloc %i" bytes
   | Ishiftarith(op, shift) ->
       let op_name = function
@@ -352,5 +352,6 @@ let equal_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
   | Ibased (var1, _), Ibased (var2, _) -> String.equal var1 var2
   | (Iindexed _ | Ibased _), _ -> false
 
-let addressing_offset_in_bytes _ _  ~arg_offset_in_bytes:_  _ _ =
-  None   (* conservative *)
+let addressing_offset_in_bytes (_addressing_mode_1: addressing_mode)
+      (_addressing_mode_2 : addressing_mode) ~arg_offset_in_bytes:_ _ _ =
+  None
