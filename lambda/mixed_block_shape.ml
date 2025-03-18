@@ -40,15 +40,9 @@ type 'a tree =
   | Node of { children : 'a tree array }
 
 type 'a t =
-  { (* CR-soon xclerc for xclerc: once the nesting/flattening work is done,
-       revisit this record to only keep the fields actually needed. *)
-    original_shape : 'a shape; (* OK *)
-    prefix : 'a shape; (* invariant: no `Product` *)
+  { prefix : 'a shape; (* invariant: no `Product` *)
     suffix : 'a shape; (* invariant: no `Product` *)
     flattened_shape : 'a shape; (* invariant: no `Product` *)
-    new_index_to_old_path : path array;
-    (* CR-soon xclerc for xclerc: consider building a tree rather than a hashtable. *)
-    old_path_to_new_index : (path, int) Hashtbl.t;
     forest : 'a tree array
   }
 
@@ -243,12 +237,9 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
   Format.eprintf "forest:\n%!";
   print_trees ~indent:0 forest;
   let _ = assert false in
-  { original_shape;
-    prefix = Array.map fst prefix;
+  { prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
     flattened_shape = Array.map fst flattened_and_reordered_shape;
-    new_index_to_old_path;
-    old_path_to_new_index;
     forest
   }
 
@@ -259,8 +250,6 @@ let flat_suffix t = t.suffix
 let value_prefix_len t = Array.length t.prefix
 
 let flat_suffix_len t = Array.length t.suffix
-
-let original_shape t = t.original_shape
 
 let flattened_shape t = t.flattened_shape
 
@@ -274,14 +263,3 @@ let flattened_shape_unit t =
         ->
         elem)
     t.flattened_shape
-
-let new_index_to_old_path t i = t.new_index_to_old_path.(i)
-
-let old_path_to_new_index t p =
-  match Hashtbl.find_opt t.old_path_to_new_index p with
-  | Some i -> i
-  | None ->
-    Misc.fatal_errorf "invalid path (%s)"
-      (String.concat ", " (List.map string_of_int p))
-
-let old_path_to_new_indices _t _p = assert false
