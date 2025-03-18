@@ -65,9 +65,9 @@ type 'a tree =
   | Node of { children : 'a tree array }
 
 type 'a t =
-  { prefix : 'a shape; (* invariant: no `Product` *)
-    suffix : 'a shape; (* invariant: no `Product` *)
-    flattened_reordered_shape : 'a shape; (* invariant: no `Product` *)
+  { prefix : 'a shape;
+    suffix : 'a shape;
+    flattened_reordered_shape : 'a shape;
     forest : 'a tree array;
     print_locality : Format.formatter -> 'a -> unit
   }
