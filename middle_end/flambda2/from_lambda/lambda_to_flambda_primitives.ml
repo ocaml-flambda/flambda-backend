@@ -1442,7 +1442,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
   | Pmakemixedblock (tag, mutability, shape, mode), _ ->
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+        shape
+    in
     (* XXX check that the length of [args] = length of flattened [shape] *)
     let args =
       let new_indexes_to_old_indexes =
@@ -1956,7 +1960,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
     ]
   | Pmixedfield (field_path, shape, sem), [[arg]] ->
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements shape
+        ~print_locality:Printlambda.locality_mode
+    in
     let flattened_shape = Mixed_block_shape.flattened_shape shape in
     let kind_shape =
       Mixed_block_shape.flattened_shape_unit shape
@@ -2035,7 +2042,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           value ) ]
   | ( Psetmixedfield (field_path, shape, initialization_or_assignment),
       [[block]; [value]] ) ->
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements shape
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+    in
     let flattened_shape = Mixed_block_shape.flattened_shape shape in
     let kind_shape =
       Mixed_block_shape.flattened_shape_unit shape

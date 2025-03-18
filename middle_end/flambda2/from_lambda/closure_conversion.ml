@@ -192,7 +192,11 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
   | Const_mixed_block (tag, shape, args) ->
     (* XXX maybe we need to enhance Const_mixed_block to allow for unboxed
        products - but see CR just below. *)
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+        shape
+    in
     (* CR mshinwell: why do we need these "const" block cases? *)
     let unbox_float_constant (c : Lambda.structured_constant) :
         Lambda.structured_constant =

@@ -32,9 +32,34 @@ type 'a shape = 'a Lambda.mixed_block_element array
 
 type 'a shape_with_paths = ('a Lambda.mixed_block_element * path) array
 
+module Singleton_mixed_block_element = struct
+  type 'a t =
+    | Value of Lambda.value_kind
+    | Float_boxed of 'a
+    | Float64
+    | Float32
+    | Bits32
+    | Bits64
+    | Vec128
+    | Word
+
+  let print print_locality ppf t =
+    match t with
+    | Value vk ->
+      Format.fprintf ppf "@[<hov 1>(Value %a)@]" Printlambda.value_kind vk
+    | Float_boxed locality ->
+      Format.fprintf ppf "@[<hov 1>(Float_boxed %a)@]" print_locality locality
+    | Float64 -> Format.fprintf ppf "Float64"
+    | Float32 -> Format.fprintf ppf "Float32"
+    | Bits32 -> Format.fprintf ppf "Bits32"
+    | Bits64 -> Format.fprintf ppf "Bits64"
+    | Vec128 -> Format.fprintf ppf "Vec128"
+    | Word -> Format.fprintf ppf "Word"
+end
+
 type 'a tree =
   | Leaf of
-      { element : 'a Lambda.mixed_block_element;
+      { element : 'a Singleton_mixed_block_element.t;
         new_index : int
       }
   | Node of { children : 'a tree array }
@@ -43,7 +68,8 @@ type 'a t =
   { prefix : 'a shape; (* invariant: no `Product` *)
     suffix : 'a shape; (* invariant: no `Product` *)
     flattened_shape : 'a shape; (* invariant: no `Product` *)
-    forest : 'a tree array
+    forest : 'a tree array;
+    print_locality : Format.formatter -> 'a -> unit
   }
 
 let print_indentation ppf k =
@@ -51,36 +77,30 @@ let print_indentation ppf k =
     Format.fprintf ppf "  "
   done
 
-let print_element ppf (element : 'a Lambda.mixed_block_element) new_index =
-  let fprintf = Format.fprintf in
-  match element with
-  | Value _ -> fprintf ppf "Value (new_index=%d)\n%!" new_index
-  | Float_boxed _ -> fprintf ppf "Float_boxed _ (new_index=%d)\n%!" new_index
-  | Float64 -> fprintf ppf "Float64 (new_index=%d)\n%!" new_index
-  | Float32 -> fprintf ppf "Float32 (new_index=%d)\n%!" new_index
-  | Bits32 -> fprintf ppf "Bits32 (new_index=%d)\n%!" new_index
-  | Bits64 -> fprintf ppf "Bits64 (new_index=%d)\n%!" new_index
-  | Vec128 -> fprintf ppf "Vec128 (new_index=%d)\n%!" new_index
-  | Word -> fprintf ppf "Word (new_index=%d)\n%!" new_index
-  | Product _ -> fprintf ppf "<invariant failed>"
+let print_element print_locality ppf element new_index =
+  Format.fprintf ppf "%a (new_index=%d)\n%!"
+    (Singleton_mixed_block_element.print print_locality)
+    element new_index
 
-let rec print_tree ~indent ~index ppf tree =
+let rec print_tree print_locality ~indent ~index ppf tree =
   match tree with
   | Leaf { element; new_index } ->
     print_indentation ppf indent;
     Format.fprintf ppf "[%d] " index;
-    print_element ppf element new_index
+    print_element print_locality ppf element new_index
   | Node { children } ->
     print_indentation ppf indent;
     Format.fprintf ppf "[%d]\n%!" index;
-    print_trees ~indent:(succ indent) ppf children
+    print_trees print_locality ~indent:(succ indent) ppf children
 
-and print_trees ~indent ppf trees =
-  Array.iteri (fun index tree -> print_tree ~indent ~index ppf tree) trees
+and print_trees print_locality ~indent ppf trees =
+  Array.iteri
+    (fun index tree -> print_tree print_locality ~indent ~index ppf tree)
+    trees
 
-let print ppf { forest; _ } =
+let print ppf { forest; print_locality; _ } =
   Format.fprintf ppf "forest:\n%!";
-  print_trees ~indent:0 ppf forest
+  print_trees print_locality ~indent:0 ppf forest
 
 let rec flatten_tree_array arr =
   Array.to_list arr
@@ -134,6 +154,10 @@ and flatten_list : 'a Lambda.mixed_block_element array -> 'a shape_with_paths =
  fun sub_elements ->
   Array.mapi flatten_one sub_elements |> Misc.Stdlib.Array.concat_arrays
 
+type ('a, 'b) singleton_or_product =
+  | Singleton of 'a
+  | Product of 'b
+
 (* CR xclerc for xclerc: should/could be merged with the flattening. *)
 let rec build_tree_one :
     (path, int) Hashtbl.t ->
@@ -142,9 +166,21 @@ let rec build_tree_one :
     'a Lambda.mixed_block_element ->
     'a tree =
  fun old_path_to_new_index path index element ->
-  match element with
-  | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
-  | Word -> (
+  let singleton_or_product :
+      ('a Singleton_mixed_block_element.t, _) singleton_or_product =
+    match element with
+    | Value vk -> Singleton (Value vk)
+    | Float_boxed locality -> Singleton (Float_boxed locality)
+    | Float64 -> Singleton Float64
+    | Float32 -> Singleton Float32
+    | Bits32 -> Singleton Bits32
+    | Bits64 -> Singleton Bits64
+    | Vec128 -> Singleton Vec128
+    | Word -> Singleton Word
+    | Product sub_elements -> Product sub_elements
+  in
+  match singleton_or_product with
+  | Singleton element -> (
     let path = List.rev (index :: path) in
     match Hashtbl.find_opt old_path_to_new_index path with
     | None ->
@@ -168,7 +204,7 @@ and build_tree_list :
       build_tree_one old_path_to_new_index path i sub_element)
     sub_elements
 
-let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
+let of_mixed_block_elements ~print_locality (original_shape : 'a shape) : 'a t =
   let flattened_shape_with_paths = flatten_list original_shape in
   let prefix = ref [] in
   let suffix = ref [] in
@@ -202,7 +238,8 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
   { prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
     flattened_shape = Array.map fst flattened_and_reordered_shape;
-    forest
+    forest;
+    print_locality
   }
 
 let value_prefix t = t.prefix
