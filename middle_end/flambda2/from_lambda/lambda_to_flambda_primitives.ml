@@ -1458,17 +1458,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (fun new_index arg ->
           match flattened_shape.(new_index) with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
-          | Float_boxed _ -> unbox_float arg
-          | Product _ -> assert false)
+          | Float_boxed _ -> unbox_float arg)
         args
     in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     let tag = Tag.Scannable.create_exn tag in
-    let kind_shape =
-      Mixed_block_shape.flattened_shape_unit shape
-      |> K.Mixed_block_shape.from_lambda
-    in
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     [Variadic (Make_block (Mixed (tag, kind_shape), mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
@@ -1968,10 +1964,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~print_locality:Printlambda.locality_mode
     in
     let flattened_shape = Mixed_block_shape.flattened_shape shape in
-    let kind_shape =
-      Mixed_block_shape.flattened_shape_unit shape
-      |> K.Mixed_block_shape.from_lambda
-    in
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     let new_indexes =
       Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
     in
@@ -1989,9 +1982,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
               mixed_block_element ->
               Flat_suffix
-                (K.Flat_suffix_element.from_lambda mixed_block_element)
+                (K.Flat_suffix_element.from_singleton_mixed_block_element
+                   mixed_block_element)
             | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float
-            | Product _ -> assert false
           in
           Mixed
             { tag = Unknown; field_kind; shape = kind_shape; size = Unknown }
@@ -2005,8 +1998,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Float_boxed (mode : Lambda.locality_mode) ->
           box_float mode block_access ~current_region
         | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
-          block_access
-        | Product _ -> assert false)
+          block_access)
       new_indexes
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
@@ -2050,10 +2042,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
     in
     let flattened_shape = Mixed_block_shape.flattened_shape shape in
-    let kind_shape =
-      Mixed_block_shape.flattened_shape_unit shape
-      |> K.Mixed_block_shape.from_lambda
-    in
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     let new_indexes =
       Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
     in
@@ -2071,9 +2060,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                 | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
                   mixed_block_element ->
                   Flat_suffix
-                    (K.Flat_suffix_element.from_lambda mixed_block_element)
-                | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float
-                | Product _ -> assert false);
+                    (K.Flat_suffix_element.from_singleton_mixed_block_element
+                       mixed_block_element)
+                | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float);
               shape = kind_shape;
               tag = Unknown;
               size = Unknown
@@ -2087,7 +2076,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
             value
           | Float_boxed _ -> unbox_float value
-          | Product _ -> assert false
         in
         Binary
           ( Block_set { kind = block_access; init = init_or_assign; field = imm },

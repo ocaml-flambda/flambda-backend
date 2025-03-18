@@ -230,14 +230,10 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
         (fun new_index arg ->
           match flattened_shape.(new_index) with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
-          | Float_boxed _ -> unbox_float_constant arg
-          | Product _ -> assert false)
+          | Float_boxed _ -> unbox_float_constant arg)
         args
     in
-    let kind_shape =
-      Mixed_block_shape.flattened_shape_unit shape
-      |> K.Mixed_block_shape.from_lambda
-    in
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     let acc, fields =
       List.fold_left_map
         (fun acc c ->
