@@ -181,7 +181,6 @@ and flatten_list : 'a Lambda.mixed_block_element array -> 'a shape_with_paths =
  fun sub_elements ->
   Array.mapi flatten_one sub_elements |> Misc.Stdlib.Array.concat_arrays
 
-(* CR xclerc for xclerc: should/could be merged with the flattening. *)
 let rec build_tree_one :
     (path, int) Hashtbl.t ->
     path ->
