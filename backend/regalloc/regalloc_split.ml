@@ -5,6 +5,7 @@ open! Regalloc_utils
 open! Regalloc_split_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module State = Regalloc_split_state
+module Substitution = Regalloc_substitution
 
 (* [remove_from_bindings state label ~field ~extract bindings] removes registers
    in a set from [bindings]. The set is determined by (i) calling [field] on
