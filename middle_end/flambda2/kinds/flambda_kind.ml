@@ -305,7 +305,11 @@ module Mixed_block_shape = struct
         flat_suffix2
 
   let from_lambda (shape : Lambda.mixed_block_shape) : t =
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+        shape
+    in
     let value_prefix_kinds =
       Array.map (fun _ -> value) (Mixed_block_shape.value_prefix shape)
     in
@@ -901,6 +905,8 @@ module With_subkind = struct
                       let orig_mixed_block_shape = mixed_block_shape in
                       let mixed_block_shape =
                         Mixed_block_lambda_shape.of_mixed_block_elements
+                          ~print_locality:(fun ppf () ->
+                            Format.fprintf ppf "()")
                           mixed_block_shape
                       in
                       let from_mixed_block_element :
