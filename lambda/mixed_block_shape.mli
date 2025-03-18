@@ -33,6 +33,8 @@ type 'a t
 
 type path
 
+val print : Format.formatter -> _ t -> unit
+
 val of_mixed_block_elements : 'a Lambda.mixed_block_element array -> 'a t
 
 val value_prefix : 'a t -> 'a Lambda.mixed_block_element array
