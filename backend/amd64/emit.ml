@@ -45,18 +45,6 @@ open! Branch_relaxation
 
 let _label s = D.label ~typ:QWORD s
 
-let is_linux = function
-  | S_linux -> true
-  | _ -> false
-
-let is_macosx = function
-  | S_macosx -> true
-  | _ -> false
-
-let is_win64 = function
-  | S_win64 -> true
-  | _ -> false
-
 (* Override proc.ml *)
 
 let int_reg_name =
