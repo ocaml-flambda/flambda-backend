@@ -2,17 +2,17 @@
 Tests of subst:
 
 X { (X Unit) } = Unit
-Y{X} { (X Unit) } = Y[X:Unit]
-Y[X:Unit] { (X String) } = Y[X:Unit]
-Y[X:Unit] { (Y[X:Unit] String) } = String
-M{X}{Y:Y{X}} { (X A) } = M[X:A]{Y:Y[X:A]}
-M{X}{Y:Y{X}} { (X A) (Y B) } = M[X:A][Y:B]
+Y { (X Unit) } = Y
+Y { (X String) } = Y
+M{X}{Y} { (X A) } = M[X:A]{Y}
+M{X}{Y} { (X A) (Y B) } = M[X:A][Y:B]
 X { (I Unit) } = X
-Y{X} { (I Unit) } = Y{X}
-Print{Conv[O:String]:Conv[O:String]{I}}{I}
-  { (I Unit) }
+Y { (I Unit) } = Y
+Print{Conv}{I} { (I Unit) } = Print[I:Unit]{Conv}
+Print{Conv}{I}
+  { (Conv Opaque{I}) (I Option{I}) }
   =
-  Print[I:Unit]{Conv[O:String]:Conv[I:Unit][O:String]}
+  Print[Conv:Opaque{I}][I:Option{I}]
 
 Tests of check:
 
@@ -22,7 +22,6 @@ check { (X String) } [] = false
 check { (X String) } [ X ] = true
 check { (I Unit) } [ I ] = true
 check { (I Unit) } [ O ] = false
-check { (I Unit) } [ Conv{I}{O}; I ] = true
-check { (Conv Opaque{I}) (O String) } [ Conv{I}{O}; I; O ] = true
-check { (Conv[O:String] Opaque{I}) } [ Conv{I}{O}; I; O ] = false
-check { (Conv[O:String] Opaque{I}) } [ Conv[O:String]{I}; I ] = true
+check { (I Unit) } [ Conv; I ] = true
+check { (I Option{I}) } [ Conv; I ] = true
+check { (I Option[I:Unit]) } [ Conv; I ] = true

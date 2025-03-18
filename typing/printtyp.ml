@@ -451,7 +451,8 @@ let instance_name global =
     String.concat "" (head :: List.map string_of_arg args)
   and string_of_arg arg =
     let ({ param; value } : Global_module.Name.argument) = arg in
-    sprintf "(%s)(%s)" (string_of_global param) (string_of_global value)
+    sprintf "(%s)(%s)"
+      (Global_module.Parameter_name.to_string param) (string_of_global value)
   in
   let printed_name =
     string_of_global global ^ " [@jane.non_erasable.instances]"

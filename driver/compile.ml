@@ -108,10 +108,7 @@ let implementation_aux ~start_from ~source_file ~output_prefix
     let backend info typed =
       let as_arg_for =
         !Clflags.as_argument_for
-        |> Option.map (fun param ->
-          (* Currently, parameters don't have parameters, so we assume the argument
-             list is empty *)
-          Global_module.Name.create_no_args param)
+        |> Option.map Global_module.Parameter_name.of_string
       in
       let bytecode = to_bytecode info typed ~as_arg_for in
       emit_bytecode info bytecode

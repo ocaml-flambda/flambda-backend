@@ -96,13 +96,13 @@ type error =
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Global_module.Name.t
+  | Cannot_find_argument_type of Global_module.Parameter_name.t
   | Inconsistent_argument_types of {
-      new_arg_type : Global_module.Name.t option;
-      old_arg_type : Global_module.Name.t option;
+      new_arg_type : Global_module.Parameter_name.t option;
+      old_arg_type : Global_module.Parameter_name.t option;
       old_source_file : Misc.filepath;
     }
-  | Duplicate_parameter_name of Global_module.Name.t
+  | Duplicate_parameter_name of Global_module.Parameter_name.t
   | Submode_failed of Mode.Value.error
   | Modal_module_not_supported
 
@@ -357,7 +357,7 @@ let rec instance_name ~loc env syntax =
   let args =
     List.map
       (fun (param, value) : Global_module.Name.argument ->
-         { param = Global_module.Name.create_no_args param;
+         { param = Global_module.Parameter_name.of_string param;
            value = instance_name ~loc env value })
       args
   in
@@ -3739,9 +3739,9 @@ let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
 let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
   match arg_module_opt with
   | None -> None
-  | Some arg_module ->
+  | Some arg_param ->
       let arg_import =
-        Compilation_unit.Name.of_global_name_no_args_exn arg_module
+        Compilation_unit.Name.of_parameter_name arg_param
       in
       (* CR lmaurer: This "look for known name in path" code is duplicated
          all over the place. *)
@@ -3751,8 +3751,9 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
           Load_path.find_normalized (basename ^ ".cmi")
         with Not_found ->
           raise(Error(Location.none, Env.empty,
-                      Cannot_find_argument_type arg_module)) in
+                      Cannot_find_argument_type arg_param)) in
       let arg_cmi = Unit_info.Artifact.from_filename arg_filename in
+      let arg_module = Global_module.Name.of_parameter_name arg_param in
       let arg_sig = Env.read_signature arg_module arg_cmi in
       if not (Env.is_parameter_unit arg_module) then
         raise (Error (Location.none, env,
@@ -3821,7 +3822,7 @@ let type_implementation target modulename initial_env ast =
       end else begin
         let arg_type =
           !Clflags.as_argument_for
-          |> Option.map (fun name -> Global_module.Name.create_no_args name)
+          |> Option.map Global_module.Parameter_name.of_string
         in
         let cu_name = Compilation_unit.name modulename in
         let basename = cu_name |> Compilation_unit.Name.to_string in
@@ -3853,7 +3854,7 @@ let type_implementation target modulename initial_env ast =
           if Env.is_parameter_unit global_name then
             error (Cannot_implement_parameter (cu_name, source_intf));
           let arg_type_from_cmi = Env.implemented_parameter global_name in
-          if not (Option.equal Global_module.Name.equal
+          if not (Option.equal Global_module.Parameter_name.equal
                     arg_type arg_type_from_cmi) then
             error (Inconsistent_argument_types
                      { new_arg_type = arg_type; old_source_file = source_intf;
@@ -3979,7 +3980,7 @@ let type_interface ~sourcefile modulename env ast =
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
-    |> Option.map (fun name -> Global_module.Name.create_no_args name)
+    |> Option.map Global_module.Parameter_name.of_string
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
@@ -4403,7 +4404,7 @@ let report_error ~loc _env = function
         | None -> Format.fprintf ppf "without -as-argument-for"
         | Some arg_type ->
             Format.fprintf ppf "with -as-argument-for %a"
-              Global_module.Name.print arg_type
+              Global_module.Parameter_name.print arg_type
       in
       Location.errorf ~loc
         "Inconsistent usage of -as-argument-for. Interface@ %s@ was compiled \
@@ -4414,11 +4415,11 @@ let report_error ~loc _env = function
   | Cannot_find_argument_type arg_type ->
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
-        (Style.as_inline_code Global_module.Name.print) arg_type
+        (Style.as_inline_code Global_module.Parameter_name.print) arg_type
   | Duplicate_parameter_name name ->
       Location.errorf ~loc
         "This instance has multiple arguments with the name %a."
-        (Style.as_inline_code Global_module.Name.print) name
+        (Style.as_inline_code Global_module.Parameter_name.print) name
   | Submode_failed (Error (ax, {left; right})) ->
       Location.errorf ~loc
         "This value is %a, but expected to be %a because it is inside a module."

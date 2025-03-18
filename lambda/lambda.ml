@@ -931,7 +931,7 @@ type program =
     code : lambda }
 
 type arg_descr =
-  { arg_param: Global_module.Name.t;
+  { arg_param: Global_module.Parameter_name.t;
     arg_block_idx: int; }
 
 let const_int n = Const_base (Const_int n)
