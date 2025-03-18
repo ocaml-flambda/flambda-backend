@@ -63,9 +63,7 @@ let new_indexes_to_old_indexes t =
     old_indexes_to_new_indexes;
   result
 
-type new_indexes = int list
-
-let lookup_path { forest; _ } path =
+let lookup_path_producing_new_indexes { forest; _ } path =
   match path with
   | [] -> Misc.fatal_error "No path provided"
   | index :: path ->
