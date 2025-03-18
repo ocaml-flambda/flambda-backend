@@ -156,7 +156,8 @@ let singleton_or_product_of_mixed_block_element
   | Word -> Singleton Word
   | Product sub_elements -> Product sub_elements
 
-(* CR-soon xclerc for xclerc: it is probably quite inefficient to map/concat repeatedly. *)
+(* CR-soon xclerc for xclerc: it is probably quite inefficient to map/concat
+   repeatedly. *)
 let rec flatten_one :
     int -> 'a Lambda.mixed_block_element -> 'a shape_with_paths =
  fun index element ->
