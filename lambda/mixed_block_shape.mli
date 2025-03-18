@@ -66,10 +66,6 @@ val flat_suffix_len : 'a t -> int
 (** Access to the shape, as flattened and following the runtime restriction. *)
 val flattened_reordered_shape : 'a t -> 'a Singleton_mixed_block_element.t array
 
-(** Same as [flattened_reordered_shape] except for the type. *)
-val flattened_reordered_shape_unit :
-  'a t -> unit Singleton_mixed_block_element.t array
-
 val lookup_path_producing_new_indexes : 'a t -> int list -> int list
 
 val new_indexes_to_old_indexes : 'a t -> int array
