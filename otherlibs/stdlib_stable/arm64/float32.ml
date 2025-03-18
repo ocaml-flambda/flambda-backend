@@ -247,6 +247,24 @@ let[@inline] max (x : t) (y : t) =
   else x
 
 module With_weird_nan_behavior = struct
+  (* arm64 implementation is [fcmp; fcsel]
+
+     The behavior of min/max instructions on arm64 and amd64
+     is not the same in a subtle way:
+
+     (arm64) fmin, fmax:
+     Negative zero compares less than positive zero.
+
+     (amd64) minss, maxsss:
+     If the values being compared are both 0.0s (of either sign), the
+     value in the second source operand is returned.
+
+     On arm64, if the flag [FPCR.AH] is set, arm64 behavior matches amd64,
+     but unfortunately the default for macos on arm64 is [FPCR.AH=0].
+     This causes some tests to fail when builtin is compiled to
+     [fmin/fmax] on arm64. Specifically, tests that fail have one
+     of their inputs as negative zero, for example: [min -0.0 +0.0].
+  *)
   external min : t -> t -> t
     = "caml_simd_float32_min_bytecode" "caml_simd_float32_min"
     [@@noalloc] [@@unboxed] [@@builtin]
@@ -281,19 +299,21 @@ external iround_current : t -> int64
   = "caml_simd_cast_float32_int64_bytecode" "caml_simd_cast_float32_int64"
   [@@noalloc] [@@unboxed] [@@builtin]
 
-external round_intrinsic : (int[@untagged]) -> (t[@unboxed]) -> (t[@unboxed])
-  = "caml_sse41_float32_round_bytecode" "caml_sse41_float32_round"
+external round_current : (t[@unboxed]) -> (t[@unboxed])
+  = "caml_simd_float32_round_current_bytecode" "caml_simd_float32_round_current"
   [@@noalloc] [@@builtin]
 
-(* On amd64, these constants also imply _MM_FROUND_NO_EXC (suppress exceptions). *)
-let round_neg_inf = 0x9
-let round_pos_inf = 0xA
-let round_zero = 0xB
-let round_current_mode = 0xC
-let[@inline] round_current x = round_intrinsic round_current_mode x
-let[@inline] round_down x = round_intrinsic round_neg_inf x
-let[@inline] round_up x = round_intrinsic round_pos_inf x
-let[@inline] round_towards_zero x = round_intrinsic round_zero x
+external round_down : (t[@unboxed]) -> (t[@unboxed])
+  = "caml_simd_float32_round_neg_inf_bytecode" "caml_simd_float32_round_neg_inf"
+  [@@noalloc] [@@builtin]
+
+external round_up : (t[@unboxed]) -> (t[@unboxed])
+  = "caml_simd_float32_round_pos_inf_bytecode" "caml_simd_float32_round_pos_inf"
+  [@@noalloc] [@@builtin]
+
+external round_towards_zero : (t[@unboxed]) -> (t[@unboxed])
+  = "caml_simd_float32_round_towards_zero_bytecode" "caml_simd_float32_round_towards_zero"
+  [@@noalloc] [@@builtin]
 
 external seeded_hash_param : int -> int -> int -> 'a -> int = "caml_hash_exn"
   [@@noalloc]
