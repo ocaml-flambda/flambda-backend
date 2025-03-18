@@ -80,8 +80,6 @@ let lookup_path { forest; _ } path =
     in
     lookup_path' path tree
 
-let _XXX t = t.forest
-
 let concat_arrays : 'a array array -> 'a array =
  fun arrays ->
   (* CR-soon xclerc for xclerc: should we simply use the following?
