@@ -233,7 +233,6 @@ let of_mixed_block_elements ~print_locality
       Hashtbl.replace old_path_to_new_index old_path new_index)
     flattened_reordered_shape;
   let forest = build_tree_list old_path_to_new_index [] original_shape in
-  let _ = assert false in
   { prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
     flattened_reordered_shape = Array.map fst flattened_reordered_shape;
