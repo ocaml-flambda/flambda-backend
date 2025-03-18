@@ -51,8 +51,6 @@ val flattened_shape : 'a t -> 'a Lambda.mixed_block_element array
 (** (Same as [flattened_shape]). *)
 val flattened_shape_unit : 'a t -> unit Lambda.mixed_block_element array
 
-type new_indexes = int list
-
-val lookup_path : 'a t -> int list -> new_indexes
+val lookup_path_producing_new_indexes : 'a t -> int list -> int list
 
 val new_indexes_to_old_indexes : 'a t -> int array
