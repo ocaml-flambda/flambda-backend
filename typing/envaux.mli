@@ -24,6 +24,8 @@ val env_from_summary : allow_missing_modules:bool -> Env.summary -> Subst.t -> E
 
 val reset_cache: preserve_persistent_env:bool -> unit
 
+(* Reconstructs an environment from a summary. The Boolean [allow_missing_modules]
+   controls whether missing modules trigger an exception or fail silently. *)
 val env_of_only_summary : ?allow_missing_modules:bool -> Env.t -> Env.t
 
 (* Error report *)
