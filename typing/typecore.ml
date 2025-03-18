@@ -930,16 +930,19 @@ let has_poly_constraint spat =
     end
   | _ -> false
 
-(** Mode cross a left mode *)
-(* This is very similar to Ctype.mode_cross_left_alloc. Any bugs here are likely
-   bugs there, too. *)
-let mode_cross_left_value env ty mode =
+(** Cross a left mode according to a type wrapped in modalities. *)
+let mode_cross_left_value env ty ?modalities mode =
   if not (is_principal ty) then
     Value.disallow_right mode
   else begin
     let jkind = type_jkind_purely env ty in
     let jkind_of_type = type_jkind_purely_if_principal env in
     let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+    let crossing =
+      match modalities with
+      | None -> crossing
+      | Some m -> Crossing.modality m crossing
+    in
     mode
     |> Value.disallow_right
     |> Crossing.apply_left crossing
@@ -1007,14 +1010,16 @@ let mutable_mode m0 =
   in
   m0 |> Const.alloc_as_value |> Value.of_const
 
-(** Takes the mutability on a field, and expected mode of the record (adjusted
-    for allocation), check that the construction would be allowed. *)
-let check_construct_mutability ~loc ~env mutability argument_mode =
+(** Takes the mutability, the type and the modalities of a field, and expected
+    mode of the record (adjusted for allocation), check that the construction
+    would be allowed. This applies to mutable arrays similarly. *)
+let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
-      submode ~loc ~env m0 argument_mode
+      let m0 = mode_cross_left_value env ty ?modalities m0 in
+      submode ~loc ~env m0 block_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
@@ -5448,16 +5453,17 @@ and type_expect_
           if not is_boxed then
             raise (Error (loc, env, Overwrite_of_invalid_term));
       end;
-      let alloc_mode, argument_mode =
+      let alloc_mode, record_mode =
         if is_boxed then
-          let alloc_mode, argument_mode = register_allocation expected_mode in
-          Some alloc_mode, argument_mode
+          let alloc_mode, record_mode = register_allocation expected_mode in
+          Some alloc_mode, record_mode
         else
           None, expected_mode
       in
       let type_label_exp overwrite ((_, label, _) as x) =
-        check_construct_mutability ~loc ~env label.lbl_mut argument_mode;
-        let argument_mode = mode_modality label.lbl_modalities argument_mode in
+        check_construct_mutability ~loc ~env label.lbl_mut label.lbl_arg
+          ~modalities:label.lbl_modalities record_mode;
+        let argument_mode = mode_modality label.lbl_modalities record_mode in
         type_label_exp ~overwrite true env argument_mode loc ty_record x record_form
       in
       let overwrites =
@@ -5503,9 +5509,10 @@ and type_expect_
                 unify_exp_types record_loc env (instance ty_expected) ty_res2);
               check_project_mutability ~loc:extended_expr_loc ~env lbl.lbl_mut mode;
               let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-              check_construct_mutability ~loc:record_loc ~env lbl.lbl_mut argument_mode;
+              check_construct_mutability ~loc:record_loc ~env lbl.lbl_mut
+                lbl.lbl_arg ~modalities:lbl.lbl_modalities record_mode;
               let argument_mode =
-                mode_modality lbl.lbl_modalities argument_mode
+                mode_modality lbl.lbl_modalities record_mode
               in
               submode ~loc:extended_expr_loc ~env mode argument_mode;
               Kept (ty_arg1, lbl.lbl_mut,
@@ -9428,7 +9435,7 @@ and type_generic_array
       ~attributes
       sargl
   =
-  let alloc_mode, argument_mode = register_allocation expected_mode in
+  let alloc_mode, array_mode = register_allocation expected_mode in
   let type_ =
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
@@ -9436,13 +9443,13 @@ and type_generic_array
   let modalities =
     Typemode.transl_modalities ~maturity:Stable mutability [] []
   in
-  check_construct_mutability ~loc ~env mutability argument_mode;
-  let argument_mode = mode_modality modalities argument_mode in
+  let argument_mode = mode_modality modalities array_mode in
   let jkind, elt_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
+  check_construct_mutability ~loc ~env mutability ty array_mode;
   let argument_mode = expect_mode_cross env ty argument_mode in
   let argl =
     List.map

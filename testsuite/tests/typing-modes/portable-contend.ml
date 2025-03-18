@@ -162,14 +162,8 @@ let foo () =
     let bar () = let _ = r.b in () in
     let _ @ portable = bar in
     ()
-(* CR zqian: currently mutable(legacy) means all records constructed are nonportable,
-   and the above bar is closing over an nonportable record. Once we allow mutable()
-   syntax, we can test this. *)
 [%%expect{|
-Line 2, characters 23-61:
-2 |     let r @ portable = {a = best_bytes (); b = best_bytes ()} in
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is "nonportable" but expected to be "portable".
+val foo : unit -> unit = <fun>
 |}]
 
 
