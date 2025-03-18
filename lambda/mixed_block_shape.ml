@@ -144,9 +144,8 @@ let rec build_tree_one :
     let path = List.rev (index :: path) in
     match Hashtbl.find_opt old_path_to_new_index path with
     | None ->
-      Format.eprintf "XXX path=%s\n%!"
-        (String.concat ", " (List.map string_of_int path));
-      assert false
+      Misc.fatal_errorf "build_tree_one: path=%s\n%!"
+        (String.concat ", " (List.map string_of_int path))
     | Some new_index -> Leaf { element; new_index })
   | Product sub_elements ->
     let children =
