@@ -43,9 +43,6 @@ val value_prefix_len : 'a t -> int
 
 val flat_suffix_len : 'a t -> int
 
-(** Access to the shape passed to [of_mixed_block_elements] to build the value. *)
-val original_shape : 'a t -> 'a Lambda.mixed_block_element array
-
 (* XXX add "reordered" into the name *)
 
 (** Access to the shape, as flattened and following the runtime restriction. *)
@@ -53,14 +50,6 @@ val flattened_shape : 'a t -> 'a Lambda.mixed_block_element array
 
 (** (Same as [flattened_shape]). *)
 val flattened_shape_unit : 'a t -> unit Lambda.mixed_block_element array
-
-val new_index_to_old_path : 'a t -> int -> path
-
-(** XXX doc. *)
-val old_path_to_new_index : 'a t -> path -> int
-
-(** XXX doc. *)
-val old_path_to_new_indices : 'a t -> path -> int list
 
 type new_indexes = int list
 
