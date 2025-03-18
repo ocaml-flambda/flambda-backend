@@ -366,7 +366,7 @@ let value_kind env ty =
 
 (* functionality on top of [value_kind] to extract shapes from typed trees *)
 let shape_from_core_type (ct : Typedtree.core_type) : type_shape =
-  let env' = Environments.env_of_only_summary ct.ctyp_env in
+  let env' = Envaux.env_of_only_summary ~allow_missing_modules:true ct.ctyp_env in
   value_kind env' ct.ctyp_type
 ;;
 
