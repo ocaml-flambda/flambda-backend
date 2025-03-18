@@ -250,14 +250,3 @@ let value_prefix_len t = Array.length t.prefix
 let flat_suffix_len t = Array.length t.suffix
 
 let flattened_reordered_shape t = t.flattened_reordered_shape
-
-let flattened_reordered_shape_unit t =
-  Array.map
-    (fun (elt : _ Singleton_mixed_block_element.t) :
-         unit Singleton_mixed_block_element.t ->
-      match elt with
-      | Float_boxed _ -> Float_boxed ()
-      | (Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as elem
-        ->
-        elem)
-    t.flattened_reordered_shape
