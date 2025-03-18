@@ -75,22 +75,18 @@ let parse_arguments () =
 
 (* Pretty Printing for Externals in Readable Format*)
 
-let pp_ext_funs ~human_readable fmt extfuns =
-  let pp_extfun_serialized fmt extfuns =
-    Format.pp_print_string fmt (Shapes.serialize_extfuns extfuns)
-  in
-  let pp_extfun_readable fmt extfuns = pp_extfuns fmt extfuns in
-  if human_readable
-  then pp_extfun_readable fmt extfuns
-  else pp_extfun_serialized fmt extfuns
+let pp_ext_funs ~readable fmt extfuns =
+  if readable
+  then Shapes.print_extfuns_readable fmt extfuns
+  else Shapes.print_extfuns fmt extfuns
 
-let output_shapes ~output_file ~human_readable externals =
+let output_shapes ~output_file ~readable externals =
   match output_file with
-  | None -> pp_ext_funs ~human_readable Format.std_formatter externals
+  | None -> pp_ext_funs ~readable Format.std_formatter externals
   | Some file ->
     Out_channel.with_open_bin file (fun out ->
         let fmt = Format.formatter_of_out_channel out in
-        pp_ext_funs ~human_readable fmt externals;
+        pp_ext_funs ~readable fmt externals;
         Format.pp_print_newline fmt ();
         Out_channel.flush out)
 
@@ -124,13 +120,13 @@ let extract_shapes_from_cmts ~includes ~verbose files =
 
 let externals_version = "v0.1"
 
-let extract_and_output_from_cmts ~human_readable ~includes ~output_file ~verbose
-    files =
+let extract_and_output_from_cmts ~readable ~includes ~output_file ~verbose files
+    =
   let externals = extract_shapes_from_cmts ~includes ~verbose files in
-  output_shapes ~output_file ~human_readable
+  output_shapes ~output_file ~readable
     { version = externals_version; extfuns = externals }
 
 let _ =
   parse_arguments ();
-  extract_and_output_from_cmts ~human_readable:!easily_readable
+  extract_and_output_from_cmts ~readable:!easily_readable
     ~includes:!include_dirs ~output_file:!output_file ~verbose:!verbose !files

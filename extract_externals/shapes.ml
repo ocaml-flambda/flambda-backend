@@ -75,6 +75,31 @@ and print_shape_list ppf shapes =
        print_shapes)
     shapes
 
+let rec print_shape_readable fmt (sh : type_shape) =
+  match sh with
+  | Any -> Format.pp_print_string fmt "*"
+  | Imm -> Format.pp_print_string fmt "imm"
+  | Nativeint -> Format.pp_print_string fmt "native"
+  | Double -> Format.pp_print_string fmt "double"
+  | Int64 -> Format.pp_print_string fmt "int64"
+  | Int32 -> Format.pp_print_string fmt "int32"
+  | String -> Format.pp_print_string fmt "string"
+  | Block None -> Format.pp_print_string fmt "block"
+  | Block (Some (tag, shapes)) ->
+    Format.fprintf fmt "block[%d]%a" tag print_shapes_readable shapes
+  | FloatArray -> Format.pp_print_string fmt "float_array"
+  | Obj -> Format.pp_print_string fmt "object"
+  | Array s -> Format.fprintf fmt "array(%a)" print_shape_readable s
+  | Closure -> Format.pp_print_string fmt "closure"
+  | Or (s1, s2) ->
+    Format.fprintf fmt "%a ∨ %a" print_shape_readable s1 print_shape_readable s2
+
+and print_shapes_readable fmt shapes =
+  Format.fprintf fmt "(%a)"
+    (Format.pp_print_list print_shape_readable ~pp_sep:(fun fmt () ->
+         Format.pp_print_string fmt "; "))
+    shapes
+
 (* TODO: check which shapes exceptions should have *)
 type fn_type_shapes =
   { arguments : type_shape list;
@@ -85,6 +110,10 @@ let print_fn_type_shapes ppf { arguments; return } =
   Format.fprintf ppf
     "@[<hov 1>(@[<hov 1>(arguments@ %a)@]@ @[<hov 1>(return@ %a)@])@]"
     print_shape_list arguments print_shapes return
+
+let print_fn_type_shapes_readable fmt { arguments; return } =
+  Format.fprintf fmt "args%a -> %a" print_shapes_readable arguments
+    print_shape_readable return
 
 (** An [extfun_desc] describes the information that we know about an external function. To
     enable extensions in the future, we define it as a record of options. This enables
@@ -101,6 +130,11 @@ let print_extfun_desc ppf { shape } =
     Format.fprintf ppf "@[<hov 1>(@[<hov 1>(shape@ %a)@])@]"
       print_fn_type_shapes shape
 
+let print_extfun_desc_readable fmt { shape } =
+  match shape with
+  | None -> Format.fprintf fmt "*"
+  | Some shape -> Format.fprintf fmt "%a" print_fn_type_shapes_readable shape
+
 type extfun =
   { name : string;  (** C name of the function *)
     desc : extfun_desc
@@ -109,6 +143,9 @@ type extfun =
 let print_ext_fun ppf { name; desc } =
   Format.fprintf ppf "@[<hov 1>(@[<hov 1>(name@ %s)@]@ @[<hov 1>(desc@ %a)@])@]"
     name print_extfun_desc desc
+
+let print_ext_fun_readable fmt { name; desc } =
+  Format.fprintf fmt "%s: %a" name print_extfun_desc_readable desc
 
 type extfuns =
   { version : string;
@@ -123,43 +160,7 @@ let print_extfuns ppf { version; extfuns } =
        print_ext_fun)
     extfuns
 
-let serialize_extfuns exts = Format.asprintf "%a" print_extfuns exts
-
-(* FIXME: clean up the readable version to be parallel to the serialized version *)
-let rec pp_shape fmt (sh : type_shape) =
-  match sh with
-  | Any -> Format.pp_print_string fmt "*"
-  | Imm -> Format.pp_print_string fmt "imm"
-  | Nativeint -> Format.pp_print_string fmt "native"
-  | Double -> Format.pp_print_string fmt "double"
-  | Int64 -> Format.pp_print_string fmt "int64"
-  | Int32 -> Format.pp_print_string fmt "int32"
-  | String -> Format.pp_print_string fmt "string"
-  | Block None -> Format.pp_print_string fmt "block"
-  | Block (Some (tag, shapes)) ->
-    Format.fprintf fmt "block[%d](%a)" tag
-      (Format.pp_print_list pp_shape ~pp_sep:(fun fmt () ->
-           Format.pp_print_string fmt "; "))
-      shapes
-  | FloatArray -> Format.pp_print_string fmt "float_array"
-  | Obj -> Format.pp_print_string fmt "object"
-  | Array s -> Format.fprintf fmt "array(%a)" pp_shape s
-  | Closure -> Format.pp_print_string fmt "closure"
-  | Or (s1, s2) -> Format.fprintf fmt "%a ∨ %a" pp_shape s1 pp_shape s2
-
-let pp_extfun_desc fmt desc =
-  match desc with
-  | { shape = Some { arguments; return }; _ } ->
-    Format.fprintf fmt "args(%a) -> %a"
-      (Format.pp_print_list pp_shape ~pp_sep:(fun fmt () ->
-           Format.pp_print_string fmt "; "))
-      arguments pp_shape return
-  | { shape = None; _ } -> Format.fprintf fmt "*"
-
-let pp_ext_fun fmt ext =
-  Format.fprintf fmt "%s: %a" ext.name pp_extfun_desc ext.desc
-
-let pp_extfuns fmt exts =
+let print_extfuns_readable fmt exts =
   Format.fprintf fmt "Version %s@\n%a" exts.version
-    (Format.pp_print_list ~pp_sep:Format.pp_print_newline pp_ext_fun)
+    (Format.pp_print_list ~pp_sep:Format.pp_print_newline print_ext_fun_readable)
     exts.extfuns

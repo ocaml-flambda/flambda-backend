@@ -78,13 +78,7 @@ type extfuns =
     extfuns : extfun list
   }
 
-val pp_shape : Format.formatter -> type_shape -> unit
+(* functions for serializing external functions *)
+val print_extfuns : Format.formatter -> extfuns -> unit
 
-val pp_extfun_desc : Format.formatter -> extfun_desc -> unit
-
-val pp_ext_fun : Format.formatter -> extfun -> unit
-
-val pp_extfuns : Format.formatter -> extfuns -> unit
-
-(* functions for serializing/unserializing an external function *)
-val serialize_extfuns : extfuns -> string
+val print_extfuns_readable : Format.formatter -> extfuns -> unit
