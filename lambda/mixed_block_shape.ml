@@ -72,6 +72,16 @@ type 'a t =
     print_locality : Format.formatter -> 'a -> unit
   }
 
+let value_prefix t = t.prefix
+
+let flat_suffix t = t.suffix
+
+let value_prefix_len t = Array.length t.prefix
+
+let flat_suffix_len t = Array.length t.suffix
+
+let flattened_reordered_shape t = t.flattened_reordered_shape
+
 let print_indentation ppf k =
   for _ = 1 to k do
     Format.fprintf ppf "  "
@@ -240,13 +250,3 @@ let of_mixed_block_elements ~print_locality
     forest;
     print_locality
   }
-
-let value_prefix t = t.prefix
-
-let flat_suffix t = t.suffix
-
-let value_prefix_len t = Array.length t.prefix
-
-let flat_suffix_len t = Array.length t.suffix
-
-let flattened_reordered_shape t = t.flattened_reordered_shape
