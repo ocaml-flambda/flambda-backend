@@ -377,10 +377,10 @@ let extract_external_declaration outp (v : value_description) =
   let cname, _native_cname, tail =
     match v.val_prim with
     | [] ->
-      (* FIXME: Test this error. *)
-      Misc.fatal_errorf "Missing name %s %d %s" v.val_loc.loc_start.pos_fname
-        v.val_loc.loc_start.pos_lnum v.val_name.txt
       (* The compiler does not allow it. *)
+      Misc.fatal_errorf "Missing name at %s:%d, found %s"
+        v.val_loc.loc_start.pos_fname v.val_loc.loc_start.pos_lnum
+        v.val_name.txt
     | name :: "noalloc" :: name2 :: "float" :: tail -> name, name2, tail
     | name :: "noalloc" :: name2 :: tail -> name, name2, tail
     | name :: name2 :: "float" :: tail -> name, name2, tail
@@ -397,8 +397,7 @@ let extract_external_declaration outp (v : value_description) =
     | tail ->
       (* The compiler currently accepts and silently ignores this case but the checker
          should reject it. *)
-      (* FIXME: Test this error. *)
-      Misc.fatal_errorf "Unexpected names %s %d %a"
+      Misc.fatal_errorf "Unexpected names at %s:%d, found %a"
         v.val_loc.loc_start.pos_fname v.val_loc.loc_start.pos_lnum
         (Format.pp_print_list ~pp_sep:Format.pp_print_space
            Format.pp_print_string)
