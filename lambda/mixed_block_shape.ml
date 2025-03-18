@@ -46,6 +46,42 @@ type 'a t =
     forest : 'a tree array
   }
 
+let print_indentation ppf k =
+  for _ = 1 to k do
+    Format.fprintf ppf "  "
+  done
+
+let print_element ppf (element : 'a Lambda.mixed_block_element) new_index =
+  match element with
+  | Value _ -> Format.fprintf ppf "Value (new_index=%d)\n%!" new_index
+  | Float_boxed _ ->
+    Format.fprintf ppf "Float_boxed _ (new_index=%d)\n%!" new_index
+  | Float64 -> Format.fprintf ppf "Float64 (new_index=%d)\n%!" new_index
+  | Float32 -> Format.fprintf ppf "Float32 (new_index=%d)\n%!" new_index
+  | Bits32 -> Format.fprintf ppf "Bits32 (new_index=%d)\n%!" new_index
+  | Bits64 -> Format.fprintf ppf "Bits64 (new_index=%d)\n%!" new_index
+  | Vec128 -> Format.fprintf ppf "Vec128 (new_index=%d)\n%!" new_index
+  | Word -> Format.fprintf ppf "Word (new_index=%d)\n%!" new_index
+  | Product _ -> assert false
+
+let rec print_tree ~indent ~index ppf tree =
+  match tree with
+  | Leaf { element; new_index } ->
+    print_indentation ppf indent;
+    Format.fprintf ppf "[%d] " index;
+    print_element ppf element new_index
+  | Node { children } ->
+    print_indentation ppf indent;
+    Format.fprintf ppf "[%d]\n%!" index;
+    print_trees ~indent:(succ indent) ppf children
+
+and print_trees ~indent ppf trees =
+  Array.iteri (fun index tree -> print_tree ~indent ~index ppf tree) trees
+
+let print ppf { forest; _ } =
+  Format.fprintf ppf "forest:\n%!";
+  print_trees ~indent:0 ppf forest
+
 let rec flatten_tree_array arr =
   Array.to_list arr
   |> List.concat_map (fun tree ->
@@ -129,37 +165,6 @@ and build_tree_list :
       build_tree_one old_path_to_new_index path i sub_element)
     sub_elements
 
-let print_indentation k =
-  for _ = 1 to k do
-    Format.eprintf "  "
-  done
-
-let print_element (element : 'a Lambda.mixed_block_element) new_index =
-  match element with
-  | Value _ -> Format.eprintf "Value (new_index=%d)\n%!" new_index
-  | Float_boxed _ -> Format.eprintf "Float_boxed _ (new_index=%d)\n%!" new_index
-  | Float64 -> Format.eprintf "Float64 (new_index=%d)\n%!" new_index
-  | Float32 -> Format.eprintf "Float32 (new_index=%d)\n%!" new_index
-  | Bits32 -> Format.eprintf "Bits32 (new_index=%d)\n%!" new_index
-  | Bits64 -> Format.eprintf "Bits64 (new_index=%d)\n%!" new_index
-  | Vec128 -> Format.eprintf "Vec128 (new_index=%d)\n%!" new_index
-  | Word -> Format.eprintf "Word (new_index=%d)\n%!" new_index
-  | Product _ -> assert false
-
-let rec print_tree ~indent ~index tree =
-  match tree with
-  | Leaf { element; new_index } ->
-    print_indentation indent;
-    Format.eprintf "[%d] " index;
-    print_element element new_index
-  | Node { children } ->
-    print_indentation indent;
-    Format.eprintf "[%d]\n%!" index;
-    print_trees ~indent:(succ indent) children
-
-and print_trees ~indent trees =
-  Array.iteri (fun index tree -> print_tree ~indent ~index tree) trees
-
 let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
   let flattened_shape_with_paths = flatten_list original_shape in
   let prefix = ref [] in
@@ -190,21 +195,6 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
       Hashtbl.replace old_path_to_new_index old_path new_index)
     flattened_and_reordered_shape;
   let forest = build_tree_list old_path_to_new_index [] original_shape in
-  Format.eprintf "new_index_to_old_path:\n%!";
-  Array.iteri
-    (fun index path ->
-      Format.eprintf "  - %d -> %s\n%!" index
-        (String.concat ", " (List.map string_of_int path)))
-    new_index_to_old_path;
-  Format.eprintf "old_path_to_new_index:\n%!";
-  Hashtbl.iter
-    (fun path index ->
-      Format.eprintf "  - %s -> %d\n%!"
-        (String.concat ", " (List.map string_of_int path))
-        index)
-    old_path_to_new_index;
-  Format.eprintf "forest:\n%!";
-  print_trees ~indent:0 forest;
   let _ = assert false in
   { prefix = Array.map fst prefix;
     suffix = Array.map fst suffix;
