@@ -1004,7 +1004,9 @@ and print_out_type_decl kwd ppf td =
     | _ -> ()
   in
   let print_name_params ppf =
-    fprintf ppf "%s %t%a" kwd type_defined print_manifest td.otype_type
+    fprintf ppf "%s %t%a%a" kwd type_defined
+      print_out_jkind_annot td.otype_jkind
+      print_manifest td.otype_type
   in
   let ty =
     match td.otype_type with
@@ -1051,9 +1053,8 @@ and print_out_type_decl kwd ppf td =
   let print_out_attrs ppf =
     List.iter (fun a -> fprintf ppf "@ [@@@@%s]" a.oattr_name)
   in
-  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t%t@]%a"
+  fprintf ppf "@[<2>@[<hv 2>%t%a@]%t%t%t@]%a"
     print_name_params
-    print_out_jkind_annot td.otype_jkind
     print_out_tkind ty
     print_constraints
     print_unboxed
