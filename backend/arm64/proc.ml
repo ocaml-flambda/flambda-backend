@@ -89,8 +89,8 @@ let stack_slot_class typ =
   match (typ : Cmm.machtype_component) with
   | Val | Int | Addr  -> 0
   | Float | Float32 -> 1
-  | Vec128 -> 3
-  | Valx2 -> 3
+  | Vec128 -> 2
+  | Valx2 -> 2
 
 let types_are_compatible left right =
   match left.typ, right.typ with
@@ -105,6 +105,7 @@ let stack_class_tag c =
   match c with
   | 0 -> "i"
   | 1 -> "f"
+  | 2 -> "x"
   | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers =
@@ -449,6 +450,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
 let initial_stack_offset ~num_stack_slots ~contains_calls =
   (8 * num_stack_slots.(0))
   + (8 * num_stack_slots.(1))
+  + (16 * num_stack_slots.(2))
   + if contains_calls then 8 else 0
 
 let trap_frame_size_in_bytes = 16
@@ -485,9 +487,12 @@ let slot_offset (loc : Reg.stack_location) ~stack_class ~stack_offset
   | Local n ->
       let offset =
         stack_offset +
+        (* Preserves original ordering: int below float. *)
         (match stack_class with
-        | 0 -> n * 8
-        | 1 -> fun_num_stack_slots.(0) * 8 + n * 8
+        | 2 -> n * 16
+        | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
+        | 1 -> fun_num_stack_slots.(2) * 16 +
+               fun_num_stack_slots.(0) * 8 + n * 8
         | _ -> Misc.fatal_errorf "Unknown stack class %d" stack_class)
       in
       Bytes_relative_to_stack_pointer offset
