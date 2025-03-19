@@ -28,7 +28,7 @@
 type !'a t : mutable_data with 'a
 
 (** Create an atomic reference. *)
-val make : 'a -> 'a t
+external make : 'a -> ('a t[@local_opt]) = "%makemutable"
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -44,74 +44,75 @@ val make : 'a -> 'a t
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
 
-val make_contended : 'a -> 'a t
+external make_contended : 'a -> ('a t[@local_opt]) = "caml_atomic_make_contended"
 
 (** Get the current value of the atomic reference. *)
-val get : 'a t -> 'a
+val get : 'a t @ local -> 'a
 
 (** Set a new value for the atomic reference. *)
-external set : 'a t -> 'a -> unit = "%atomic_set"
+external set : 'a t @ local -> 'a -> unit = "%atomic_set"
 
 (** Set a new value for the atomic reference, and return the current value. *)
-external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
+external exchange : 'a t @ local -> 'a -> 'a = "%atomic_exchange"
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-external compare_and_set : 'a t -> 'a -> 'a -> bool = "%atomic_cas"
+external compare_and_set : 'a t @ local -> 'a -> 'a -> bool = "%atomic_cas"
 
 (** [compare_exchange r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the comparison
     and the set occur atomically. Returns the previous value. *)
-external compare_exchange : 'a t -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
+external compare_exchange : 'a t @ local -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
-val fetch_and_add : int t @ contended -> int -> int
+val fetch_and_add : int t @ contended local -> int -> int
 
 (** [add r i] atomically adds [i] onto [r]. *)
-val add : int t @ contended -> int -> unit
+val add : int t @ contended local -> int -> unit
 
 (** [sub r i] atomically subtracts [i] onto [r]. *)
-val sub : int t @ contended -> int -> unit
+val sub : int t @ contended local -> int -> unit
 
 (** [logand r i] atomically bitwise-ands [i] onto [r]. *)
-val logand : int t @ contended -> int -> unit
+val logand : int t @ contended local -> int -> unit
 
 (** [logor r i] atomically bitwise-ors [i] onto [r]. *)
-val logor : int t @ contended -> int -> unit
+val logor : int t @ contended local -> int -> unit
 
 (** [logxor r i] atomically bitwise-xors [i] onto [r]. *)
-val logxor : int t @ contended -> int -> unit
+val logxor : int t @ contended local -> int -> unit
 
 (** [incr r] atomically increments the value of [r] by [1]. *)
-val incr : int t @ contended -> unit
+val incr : int t @ contended local -> unit
 
 (** [decr r] atomically decrements the value of [r] by [1]. *)
-val decr : int t @ contended -> unit
+val decr : int t @ contended local -> unit
 
 (** Submodule containing non-backwards-compatible functions which enforce thread safety
     via modes. *)
 module Contended : sig
   (** Like {!get}, but can be called on an atomic that came from another domain. *)
-  val get : ('a : immutable_data). 'a t @ contended -> 'a
+  val get : ('a : immutable_data). 'a t @ contended local -> 'a
 
   (** Like {!set}, but can be called on an atomic that came from another domain. *)
   external set
-    : ('a : immutable_data). 'a t @ contended -> 'a -> unit = "%atomic_set"
+    : ('a : immutable_data). 'a t @ contended local -> 'a -> unit = "%atomic_set"
 
   (** Like {!exchange}, but can be called on an atomic that came from another domain. *)
-  external exchange : ('a : immutable_data). 'a t @ contended -> 'a -> 'a = "%atomic_exchange"
+  external exchange : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a
+    = "%atomic_exchange"
 
   (** Like {!compare_and_set}, but can be called on an atomic that came from another domain. *)
   external compare_and_set
-    : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> bool = "%atomic_cas"
+    : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a -> bool = "%atomic_cas"
 
   (** Like {!compare_exchange}, but can be called on an atomic that came from another domain. *)
   external compare_exchange
-    : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> 'a
+    : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a -> 'a
     = "%atomic_compare_exchange"
 end
 
