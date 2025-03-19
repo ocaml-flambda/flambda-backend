@@ -401,7 +401,7 @@ let vec128_literal f = add_literal vec128_literals f
 let emit_literals p align emit_literal =
   if !p <> [] then begin
     if macosx then
-    `	.section	__TEXT,__literal8,8byte_literals\n`;
+    `	.section	__TEXT,__literal{emit_int align},{emit_int align}byte_literals\n`;
     `	.balign	{emit_int align}\n`;
     List.iter emit_literal !p;
     p := []
