@@ -877,7 +877,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
     `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_limit_offset}]\n`;
     `	ldr	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
-    `	sub	{emit_reg r}, {emit_reg r}, #{emit_int n}\n`;
+    emit_subimm r r n;
     `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
     `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
     let lbl_call = Cmm.new_label () in
@@ -904,7 +904,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
       let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
       `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-      `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
+      emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
       if not far then begin
         `	b.lo	{emit_label lbl_call_gc}\n`
