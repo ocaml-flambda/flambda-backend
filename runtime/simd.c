@@ -26,7 +26,7 @@
 // SIMD is only supported on 64-bit targets
 #define Max_unboxed_vec128_array_wosize    (Max_custom_array_wosize / 2)
 
-#ifdef ARCH_SSE2
+#if defined(ARCH_SSE2) || defined(__ARM_NEON)
 
 CAMLexport value caml_copy_vec128(simd_float32x4_t v) {
     value res = caml_alloc_small(2, Abstract_tag);
@@ -127,4 +127,4 @@ CAMLprim value caml_make_unboxed_vec128_vect_bytecode(value len) {
   caml_failwith("SIMD is not supported on this platform.");
 }
 
-#endif
+#endif // defined(ARCH_SSE2) || defined(__ARM_NEON)
