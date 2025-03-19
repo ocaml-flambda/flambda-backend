@@ -1,3 +1,7 @@
+[@@@ocaml.warning "+a-37-40-41-42"]
+
+open! Int_replace_polymorphic_compare
+
 let check_index first last index =
   if index < first || index > last
   then Misc.fatal_errorf "Illegal register index %d" index ()
@@ -49,7 +53,7 @@ module Neon_reg_name = struct
 
   let last = 31
 
-  let check_index t index = check_index 0 last index
+  let check_index _t index = check_index 0 last index
 
   let name t index =
     match t with
@@ -287,7 +291,6 @@ module Instruction_name = struct
     | FCMP -> "fcmp"
     | FCSEL -> "fcsel"
 
-  let print ppf t = Format.fprintf ppf "%s" (to_string t)
 end
 
 module Operand = struct
@@ -472,7 +475,6 @@ module Asm = struct
     (* MacOS only *)
     | Direct_assignment of string * constant
 
-  type prog = line list
 
   let print_line ppf line =
     match line with
@@ -556,7 +558,7 @@ module DSL = struct
 
   let reg_q index = reg_q_operands.(index)
 
-  let reg_w index = reg_w_operands.(index)
+  let reg_w index = reg_w_operands.(index) [@@warning "-32"]
 
   let reg_x index = reg_x_operands.(index)
 
@@ -564,7 +566,7 @@ module DSL = struct
 
   let imm n = Operand.Imm n
 
-  let ins name operands = Asm.Ins { name; operands }
+  let ins name operands = Asm.Ins (Instruction.create name operands)
 
   let ins_cond name cond operands =
     let operands = Array.append operands [| Operand.Cond cond |] in

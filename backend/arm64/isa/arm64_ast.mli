@@ -1,3 +1,5 @@
+[@@@ocaml.warning "+a"]
+
 (* The same physical register has different names in the assembly encoding of
    instructions. The name determines the type of data the instruction operates
    on. *)
