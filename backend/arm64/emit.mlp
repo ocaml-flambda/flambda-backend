@@ -496,26 +496,19 @@ end [@warning "-32"]  = struct
       r - Proc.first_available_register.(reg_class)
     | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.reg"
 
-  let bt reg f  =
-    try f ()
-     with (Invalid_argument s) as e -> (
-     Format.printf "Invalid_argument: %s\n Reg=%a" s Printreg.reg reg;
-     raise e)
+  let emit_reg_v2s reg = reg_v2s (reg_index reg)
 
-  let emit_reg_v2s reg = bt reg (fun () -> reg_v2s (reg_index reg))
+  let emit_reg_v4s reg = reg_v4s (reg_index reg)
 
-  let emit_reg_v4s reg = bt reg (fun () -> reg_v4s (reg_index reg))
+  let emit_reg_v2d reg = reg_v2d (reg_index reg)
 
-  let emit_reg_v2d reg = bt reg (fun () -> reg_v2d (reg_index reg) )
+  let emit_reg_w reg = reg_w int_reg_name_to_index.(reg_index reg)
 
-  let emit_reg_w reg = bt reg (fun () -> reg_w int_reg_name_to_index.(reg_index reg))
+  let emit_reg_s reg = reg_s (reg_index reg)
 
-  let emit_reg_s reg = bt reg (fun () -> reg_s (reg_index reg))
-
-  let emit_reg_d reg = bt reg (fun () -> reg_d (reg_index reg))
+  let emit_reg_d reg = reg_d (reg_index reg)
 
   let emit_reg reg =
-    bt reg (fun () ->
     (* use machtype to select register name *)
     let index = reg_index reg in
     match reg.typ with
@@ -527,7 +520,7 @@ end [@warning "-32"]  = struct
       reg_s index
     | Vec128
     | Valx2 ->
-      reg_q index)
+      reg_q index
 
   let check_instr (register_behavior : Simd_proc.register_behavior) i =
     (* Ensure that operation size and register size match.
