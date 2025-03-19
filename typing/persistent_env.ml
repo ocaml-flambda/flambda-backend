@@ -593,15 +593,6 @@ and compute_global penv modname ~params ~check ~allow_excess_args =
                              filename = pn.pn_import.imp_filename })
               | Some ty -> ty
             in
-            let _ : Global_module.t =
-              (* CR-soon lmaurer: It's wholly unnecessary to do this, since the only
-                 point is to learn what parameters [actual_type] has, but it can't have
-                 parameters because a parameter can't have parameters. It does have the
-                 side effect of loading the .cmi, though, so I'm keeping it for now so
-                 that introducing [Parameter_name.t] is a pure refactor. *)
-              global_of_global_name ~allow_excess_args penv ~check
-                (actual_type |> Global_module.Name.of_parameter_name)
-            in
             if not (Global_module.Parameter_name.equal expected_type actual_type)
             then begin
               raise (Error (Argument_type_mismatch {
