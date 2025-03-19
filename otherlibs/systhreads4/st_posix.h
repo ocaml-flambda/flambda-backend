@@ -541,7 +541,6 @@ value caml_thread_sigmask(value cmd, value sigs) /* ML */
 
 value caml_wait_signal(value sigs) /* ML */
 {
-#ifdef HAS_SIGWAIT
   sigset_t set;
   int retcode, signo;
 
@@ -551,8 +550,4 @@ value caml_wait_signal(value sigs) /* ML */
   caml_leave_blocking_section();
   st_check_error(retcode, "Thread.wait_signal");
   return Val_int(caml_rev_convert_signal_number(signo));
-#else
-  caml_invalid_argument("Thread.wait_signal not implemented");
-  return Val_int(0);            /* not reached */
-#endif
 }
