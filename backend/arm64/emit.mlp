@@ -480,20 +480,26 @@ end [@warning "-32"]  = struct
    assert (Reg.is_reg reg);
    ()
 
-  (* see [Proc.int_reg_name]  *)
-  let int_reg_name_to_index =
+  (* See [Proc.int_reg_name]. *)
+  let int_reg_name_to_arch_index =
   [| 0;  1;  2; 3; 4; 5; 6 ; 7;    (* 0 - 7 *)
      8; 9; 10; 11; 12; 13; 14; 15; (* 8 - 15 *)
      19; 20; 21; 22; 23; 24; 25;   (* 16 - 22 *)
      26; 27; 28;                   (* 23 - 25 *)
      16; 17; |]                    (* 26 - 27 *)
 
+  let reg_name_to_arch_index reg_class name_index =
+    match reg_class with
+    | 0  (* general-purpose registers *) -> int_reg_name_to_arch_index.(name_index)
+    | 1  (* neon registers *) -> name_index
+    | _ -> assert false
 
   let reg_index reg =
     match reg with
     | {loc = Reg r; _} ->
       let reg_class = Proc.register_class reg in
-      r - Proc.first_available_register.(reg_class)
+      let name_index = r - Proc.first_available_register.(reg_class) in
+      reg_name_to_arch_index reg_class name_index
     | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.reg"
 
   let emit_reg_v2s reg = reg_v2s (reg_index reg)
@@ -502,7 +508,7 @@ end [@warning "-32"]  = struct
 
   let emit_reg_v2d reg = reg_v2d (reg_index reg)
 
-  let emit_reg_w reg = reg_w int_reg_name_to_index.(reg_index reg)
+  let emit_reg_w reg = reg_w (reg_index reg)
 
   let emit_reg_s reg = reg_s (reg_index reg)
 
@@ -513,7 +519,7 @@ end [@warning "-32"]  = struct
     let index = reg_index reg in
     match reg.typ with
     | Val | Int | Addr ->
-      reg_x (int_reg_name_to_index.(index))
+      reg_x index
     | Float ->
       reg_d index
     | Float32 ->
