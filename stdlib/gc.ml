@@ -117,12 +117,12 @@ type alarm = bool Atomic.t Modes.Immutable.t
 type alarm_rec = {active : alarm; f : unit -> unit}
 
 let rec call_alarm arec =
-  if Atomic.Safe.get_contended arec.active.immutable then begin
+  if Atomic.Contended.get arec.active.immutable then begin
     let finally () = finalise call_alarm arec in
     Fun.protect ~finally arec.f
   end
 
-let delete_alarm a = Atomic.Safe.set_contended a.Modes.Immutable.immutable false
+let delete_alarm a = Atomic.Contended.set a.Modes.Immutable.immutable false
 
 (* We use [@inline never] to ensure [arec] is never statically allocated
    (which would prevent installation of the finaliser). *)
@@ -143,7 +143,7 @@ module Safe = struct
     "caml_final_register_called_without_value"
 
   let rec call_alarm (arec : alarm_rec) =
-    if Atomic.Safe.get_contended arec.active.immutable then begin
+    if Atomic.Contended.get arec.active.immutable then begin
       let finally () = finalise call_alarm arec in
       Fun.protect ~finally arec.f
     end

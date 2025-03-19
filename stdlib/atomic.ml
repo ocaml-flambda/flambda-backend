@@ -31,10 +31,10 @@ external logxor : int t @ contended -> int -> unit @@ portable = "%atomic_lxor"
 let incr r = add r 1
 let decr r = sub r 1
 
-module Safe = struct
-  external get_contended : ('a : immutable_data). 'a t @ contended -> 'a @@ portable = "%atomic_load"
-  external set_contended : ('a : immutable_data). 'a t @ contended -> 'a -> unit @@ portable = "%atomic_set"
-  external exchange_contended : ('a : immutable_data). 'a t @ contended -> 'a -> 'a @@ portable = "%atomic_exchange"
-  external compare_and_set_contended : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> bool @@ portable = "%atomic_cas"
-  external compare_exchange_contended : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> 'a @@ portable = "%atomic_compare_exchange"
+module Contended = struct
+  external get : ('a : immutable_data). 'a t @ contended -> 'a @@ portable = "%atomic_load"
+  external set : ('a : immutable_data). 'a t @ contended -> 'a -> unit @@ portable = "%atomic_set"
+  external exchange : ('a : immutable_data). 'a t @ contended -> 'a -> 'a @@ portable = "%atomic_exchange"
+  external compare_and_set : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> bool @@ portable = "%atomic_cas"
+  external compare_exchange : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> 'a @@ portable = "%atomic_compare_exchange"
 end

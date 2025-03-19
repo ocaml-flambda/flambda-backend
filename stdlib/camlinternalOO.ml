@@ -628,6 +628,6 @@ type stats =
   { classes: int; methods: int; inst_vars: int; }
 
 let stats () =
-  { classes = Atomic.Safe.get_contended table_count;
-    methods = Atomic.Safe.get_contended method_count;
-    inst_vars = Atomic.Safe.get_contended inst_var_count; }
+  { classes = Atomic.Contended.get table_count;
+    methods = Atomic.Contended.get method_count;
+    inst_vars = Atomic.Contended.get inst_var_count; }

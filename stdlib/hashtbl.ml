@@ -59,8 +59,8 @@ let randomized_default =
 
 let randomized = Atomic.make randomized_default
 
-let randomize () = Atomic.Safe.set_contended randomized true
-let is_randomized () = Atomic.Safe.get_contended randomized
+let randomize () = Atomic.Contended.set randomized true
+let is_randomized () = Atomic.Contended.get randomized
 
 module DLS = Domain.Safe.DLS
 

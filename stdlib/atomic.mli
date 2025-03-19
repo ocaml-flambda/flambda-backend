@@ -94,23 +94,23 @@ val decr : int t @ contended -> unit
 
 (** Submodule containing non-backwards-compatible functions which enforce thread safety
     via modes. *)
-module Safe : sig
+module Contended : sig
   (** Like {!get}, but can be called on an atomic that came from another domain. *)
-  val get_contended : ('a : immutable_data). 'a t @ contended -> 'a
+  val get : ('a : immutable_data). 'a t @ contended -> 'a
 
   (** Like {!set}, but can be called on an atomic that came from another domain. *)
-  external set_contended
+  external set
     : ('a : immutable_data). 'a t @ contended -> 'a -> unit = "%atomic_set"
 
   (** Like {!exchange}, but can be called on an atomic that came from another domain. *)
-  external exchange_contended : ('a : immutable_data). 'a t @ contended -> 'a -> 'a = "%atomic_exchange"
+  external exchange : ('a : immutable_data). 'a t @ contended -> 'a -> 'a = "%atomic_exchange"
 
   (** Like {!compare_and_set}, but can be called on an atomic that came from another domain. *)
-  external compare_and_set_contended
+  external compare_and_set
     : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> bool = "%atomic_cas"
 
   (** Like {!compare_exchange}, but can be called on an atomic that came from another domain. *)
-  external compare_exchange_contended
+  external compare_exchange
     : ('a : immutable_data). 'a t @ contended -> 'a -> 'a -> 'a
     = "%atomic_compare_exchange"
 end
