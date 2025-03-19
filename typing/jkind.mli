@@ -360,12 +360,9 @@ end
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd Types.jkind -> 'd Types.jkind
 
-(** Forcibly change the mod-bounds of a [t] based on the mod-bounds of
-    [from].
-
-    Returns [Error ()] if [from] contains with-bounds. *)
-val unsafely_set_mod_bounds :
-  from:'d Types.jkind -> 'd Types.jkind -> ('d Types.jkind, unit) Result.t
+(** Forcibly change the mod- and with-bounds of a [t] based on the mod- and with-bounds of [from]. *)
+val unsafely_set_bounds :
+  from:'d Types.jkind -> 'd Types.jkind -> 'd Types.jkind
 
 (** Take an existing [jkind_l] and add some with-bounds. *)
 val add_with_bounds :

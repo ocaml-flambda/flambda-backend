@@ -537,7 +537,10 @@ type type_declaration =
 and type_decl_kind =
   (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and unsafe_mode_crossing = Mode.Crossing.t
+and unsafe_mode_crossing =
+  { unsafe_mod_bounds : Mode.Crossing.t
+  ; unsafe_with_bounds : (allowed * disallowed) with_bounds
+  }
 
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
@@ -1073,9 +1076,6 @@ let mixed_block_element_to_lowercase_string = function
   | Vec128 -> "vec128"
   | Word -> "word"
 
-let equal_unsafe_mode_crossing umc1 umc2 =
-  Misc.Le_result.equal ~le:Mode.Crossing.le umc1 umc2
-
 (**** Definitions for backtracking ****)
 
 type change =
@@ -1295,6 +1295,7 @@ module With_bounds_types : sig
 
   val empty : t
   val is_empty : t -> bool
+  val cardinal : t -> int
   val to_seq : t -> (type_expr * info) Seq.t
   val of_list : (type_expr * info) list -> t
   val of_seq : (type_expr * info) Seq.t -> t
@@ -1307,6 +1308,7 @@ module With_bounds_types : sig
   val update : type_expr -> (info option -> info option) -> t -> t
   val find_opt : type_expr -> t -> info option
   val for_all : (type_expr -> info -> bool) -> t -> bool
+  val exists : (type_expr -> info -> bool) -> t -> bool
 end = struct
   module M = Map.Make(struct
       (* CR layouts v2.8: A [Map] with mutable values (of which [type_expr] is one) as
@@ -1330,6 +1332,7 @@ end = struct
 
   let empty = empty |> of_map
   let is_empty t = t |> to_map |> is_empty
+  let cardinal t = t |> to_map |> cardinal
   let to_seq t = t |> to_map |> to_seq
   let of_seq s = of_seq s |> of_map
   let of_list l = l |> List.to_seq |> of_seq
@@ -1339,11 +1342,29 @@ end = struct
   let update te f t = update te f (to_map t) |> of_map
   let find_opt te t = find_opt te (to_map t)
   let for_all f t = for_all f (to_map t)
+  let exists f t = exists f (to_map t)
   let map_with_key f t =
     fold (fun key value acc ->
       let key, value = f key value in
       M.add key value acc) (to_map t) M.empty |> of_map
 end
+
+let equal_unsafe_mode_crossing
+      ~type_equal
+      { unsafe_mod_bounds = mc1; unsafe_with_bounds = wb2 }
+      umc2 =
+  Misc.Le_result.equal ~le:Mode.Crossing.le mc1 umc2.unsafe_mod_bounds
+  && (match wb2, umc2.unsafe_with_bounds with
+    | No_with_bounds, No_with_bounds -> true
+    | No_with_bounds, With_bounds _ | With_bounds _, No_with_bounds -> false
+    | With_bounds wb1, With_bounds wb2 ->
+      Int.equal (With_bounds_types.cardinal wb1) (With_bounds_types.cardinal wb2)
+      && With_bounds_types.for_all
+           (fun ty1 _info ->
+              With_bounds_types.exists
+                (fun ty2 _info -> type_equal ty1 ty2)
+                wb2)
+           wb1)
 
 (* Constructor and accessors for [row_desc] *)
 
