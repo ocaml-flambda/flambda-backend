@@ -431,6 +431,7 @@ module Asm = struct
     | ConstAdd of constant * constant
     | ConstSub of constant * constant
 
+  (* CR gyorsh: use inline record for Section and File constructors. *)
   type line =
     | Ins of Instruction.t
     | Align of bool * int
