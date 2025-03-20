@@ -67,8 +67,8 @@ let float32_reg_name =
 
 let num_register_classes = 2
 
-let register_class r =
-  match (r.typ : Cmm.machtype_component) with
+let register_class_of_machtype_component typ =
+  match (typ : Cmm.machtype_component) with
   | Val | Int | Addr  -> 0
   | Vec128 ->
     (* CR mslater: (SIMD) arm64 *)
@@ -77,6 +77,9 @@ let register_class r =
     (* CR mslater: (SIMD) arm64 *)
     fatal_error "arm64: got valx2 register"
   | Float | Float32 -> 1
+
+let register_class r =
+  register_class_of_machtype_component r.typ
 
 let num_stack_slot_classes = 2
 
@@ -134,22 +137,19 @@ let register_name ty r =
 
 (* Representation of hard registers by pseudo-registers *)
 
-let hard_int_reg =
-  let v = Array.make 28 Reg.dummy in
-  for i = 0 to 27 do
-    v.(i) <- Reg.at_location Int (Reg i)
-  done;
-  v
 
-let hard_float_reg_gen kind =
-  let v = Array.make 32 Reg.dummy in
-  for i = 0 to 31 do
-    v.(i) <- Reg.at_location kind (Reg(100 + i))
+let hard_reg_gen typ n =
+  let reg_class = register_class_of_machtype_component typ in
+  let first = first_available_register.(reg_class) in
+  let v = Array.make n Reg.dummy in
+  for i = 0 to n - 1 do
+    v.(i) <- Reg.at_location typ (Reg(first + i))
   done;
-  v
+v
 
-let hard_float_reg = hard_float_reg_gen Float
-let hard_float32_reg = hard_float_reg_gen Float32
+let hard_int_reg = hard_reg_gen Int (Array.length int_reg_name)
+let hard_float_reg = hard_reg_gen Float (Array.length float_reg_name)
+let hard_float32_reg = hard_reg_gen Float32 (Array.length float32_reg_name)
 let all_phys_regs =
   Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; ]
 
