@@ -406,8 +406,9 @@ let print_instruction ppf i = print_instruction' ppf i
 let can_raise_terminator (i : terminator) =
   match i with
   | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
-  | Prim { op = External _ | Probe _; label_after = _ } ->
+  | Prim { op = Probe _; label_after = _ } ->
     true
+  | Prim { op = External { alloc; _ }; label_after = _ } -> alloc
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     true
