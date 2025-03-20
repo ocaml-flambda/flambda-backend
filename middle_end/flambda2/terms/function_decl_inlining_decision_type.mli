@@ -36,6 +36,8 @@ val print : Format.formatter -> t -> unit
 
 val report : Format.formatter -> t -> unit
 
+val is_stub : t -> bool
+
 val must_be_inlined : t -> bool
 
 val has_attribute_inline : t -> bool
