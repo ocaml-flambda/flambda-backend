@@ -33,11 +33,9 @@
 
 typedef __m128 simd_poly128_t;
 typedef __m128 simd_float32x4_t;
-typedef __m128 simd_float32x2_t;
 typedef __m128d simd_float64x2_t;
 typedef __m128i simd_int128_t;
 typedef __m128i simd_int64x2_t;
-typedef __m128i simd_int32x4_t;
 
 #define Vec128_val(v)  _mm_loadu_ps((const float*)Bp_val(v))
 #define Vec128_vald(v) _mm_loadu_pd((const double*)Bp_val(v))
@@ -53,7 +51,6 @@ typedef __m128i simd_int32x4_t;
 
 typedef poly128_t simd_poly128_t;
 typedef float32x4_t simd_float32x4_t;
-typedef float32x2_t simd_float32x2_t;
 typedef float64x2_t simd_float64x2_t;
 typedef poly128_t simd_int128_t;
 typedef int64x2_t simd_int64x2_t;
