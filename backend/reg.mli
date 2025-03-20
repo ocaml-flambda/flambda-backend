@@ -49,8 +49,7 @@ type t =
     mutable interf: t list;               (* Other regs live simultaneously *)
     mutable prefer: (t * int) list;       (* Preferences for other regs *)
     mutable degree: int;                  (* Number of other regs live sim. *)
-    mutable spill_cost: int;              (* Estimate of spilling cost *)
-    mutable visited: int }                (* For graph walks *)
+    mutable spill_cost: int; }            (* Estimate of spilling cost *)
 
 and location =
     Unknown
@@ -120,10 +119,6 @@ val reset: unit -> unit
 val all_registers: unit -> t list
 val num_registers: unit -> int
 val reinit: unit -> unit
-
-val mark_visited : t -> unit
-val is_visited : t -> bool
-val clear_visited_marks : unit -> unit
 
 val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool
