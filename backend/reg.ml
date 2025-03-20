@@ -209,12 +209,12 @@ let first_virtual_reg_stamp = ref (-1)
 let is_stack t =
   match t.loc with
   | Stack _ -> true
-  | _ -> false
+  | Reg _ | Unknown -> false
 
 let is_reg t =
   match t.loc with
   | Reg _ -> true
-  | _ -> false
+  | Stack _ | Unknown -> false
 
 let reset() =
   (* When reset() is called for the first time, the current stamp reflects
