@@ -92,7 +92,6 @@ type t =
     mutable spill: bool;
     mutable part: int option;
     mutable interf: t list;
-    mutable prefer: (t * int) list;
     mutable degree: int;
     mutable spill_cost: int; }
 
@@ -112,7 +111,7 @@ type reg = t
 let dummy =
   { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
     irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-    spill = false; interf = []; prefer = []; degree = 0; spill_cost = 0;
+    spill = false; interf = []; degree = 0; spill_cost = 0;
     part = None;
   }
 
@@ -124,7 +123,7 @@ let create ty =
   let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
             loc = Unknown;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; prefer = []; degree = 0;
+            spill = false; interf = []; degree = 0;
             spill_cost = 0; part = None; } in
   reg_list := r :: !reg_list;
   incr currstamp;
@@ -150,7 +149,7 @@ let clone r =
 let at_location ty loc =
   let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; prefer = []; degree = 0;
+            spill = false; interf = []; degree = 0;
             spill_cost = 0; part = None; } in
   hw_reg_list := r :: !hw_reg_list;
   incr currstamp;
@@ -221,7 +220,6 @@ let reinit_reg r =
   r.irc_color <- None;
   r.irc_alias <- None;
   r.interf <- [];
-  r.prefer <- [];
   r.degree <- 0;
   (* Preserve the very high spill costs introduced by the reloading pass *)
   if r.spill_cost >= 100000
