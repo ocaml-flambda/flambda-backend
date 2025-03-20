@@ -463,12 +463,28 @@ let translate_apply env res apply =
     in
     let extra_args = List.rev extra_args_rev in
     let exn_var = Backend_var.create_local "*exn*" in
+    let result_var = Backend_var.create_local "*res*" in
+    let result_type =
+      Apply.return_arity apply |> C.extended_machtype_of_return_arity
+      |> C.Extended_machtype.to_machtype
+    in
+    let pop_handler_params =
+      [Backend_var.With_provenance.create result_var, result_type]
+    in
     let handler_cont = Lambda.next_raise_count () in
     let push_cont = Lambda.next_raise_count () in
+    let pop_cont = Lambda.next_raise_count () in
+    let call_and_pop = C.cexit pop_cont [call] [Pop handler_cont] in
     let body =
       C.create_ccatch ~rec_flag:false
         ~body:(C.cexit push_cont [] [Push handler_cont])
-        ~handlers:[C.handler ~dbg push_cont [] call false (* is_cold *)]
+        ~handlers:[C.handler ~dbg push_cont [] call_and_pop false (* is_cold *)]
+    in
+    let body =
+      C.create_ccatch ~rec_flag:false ~body
+        ~handlers:
+          [ C.handler ~dbg pop_cont pop_handler_params (Cvar result_var)
+              false (* is_cold *) ]
     in
     let handler =
       (* This exception handler has no extra args, but reraises to the one which
