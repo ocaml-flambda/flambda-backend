@@ -92,10 +92,8 @@ type t =
     mutable spill: bool;
     mutable part: int option;
     mutable interf: t list;
-    mutable prefer: (t * int) list;
     mutable degree: int;
-    mutable spill_cost: int;
-    mutable visited: int }
+    mutable spill_cost: int; }
 
 and location =
     Unknown
@@ -113,35 +111,20 @@ type reg = t
 let dummy =
   { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
     irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-    spill = false; interf = []; prefer = []; degree = 0; spill_cost = 0;
-    visited = 0; part = None;
+    spill = false; interf = []; degree = 0; spill_cost = 0;
+    part = None;
   }
 
 let currstamp = ref 0
 let reg_list = ref([] : t list)
 let hw_reg_list = ref ([] : t list)
 
-let visit_generation = ref 1
-
-(* Any visited value not equal to !visit_generation counts as "unvisited" *)
-let unvisited = 0
-
-let mark_visited r =
-  r.visited <- !visit_generation
-
-let is_visited r =
-  r.visited = !visit_generation
-
-let clear_visited_marks () =
-  incr visit_generation
-
-
 let create ty =
   let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
             loc = Unknown;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; prefer = []; degree = 0;
-            spill_cost = 0; visited = unvisited; part = None; } in
+            spill = false; interf = []; degree = 0;
+            spill_cost = 0; part = None; } in
   reg_list := r :: !reg_list;
   incr currstamp;
   r
@@ -166,8 +149,8 @@ let clone r =
 let at_location ty loc =
   let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; prefer = []; degree = 0;
-            spill_cost = 0; visited = unvisited; part = None; } in
+            spill = false; interf = []; degree = 0;
+            spill_cost = 0; part = None; } in
   hw_reg_list := r :: !hw_reg_list;
   incr currstamp;
   r
@@ -226,10 +209,7 @@ let reset() =
     assert (!reg_list = []) (* Only hard regs created before now *)
   end;
   currstamp := !first_virtual_reg_stamp;
-  reg_list := [];
-  visit_generation := 1;
-  !hw_reg_list |> List.iter (fun r ->
-    r.visited <- unvisited)
+  reg_list := []
 
 let all_registers() = !reg_list
 let num_registers() = !currstamp
@@ -240,7 +220,6 @@ let reinit_reg r =
   r.irc_color <- None;
   r.irc_alias <- None;
   r.interf <- [];
-  r.prefer <- [];
   r.degree <- 0;
   (* Preserve the very high spill costs introduced by the reloading pass *)
   if r.spill_cost >= 100000
