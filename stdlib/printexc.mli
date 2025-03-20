@@ -178,7 +178,8 @@ val raw_backtrace_to_string: raw_backtrace -> string
     @since 4.01
 *)
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable
+external raise_with_backtrace: ('a : value_or_null)
+  . exn -> raw_backtrace -> 'a @ portable
   = "%raise_with_backtrace"
 (** Reraise the exception using the given raw_backtrace for the
     origin of the exception
