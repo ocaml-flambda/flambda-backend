@@ -17,6 +17,7 @@
 #define CAML_ATOMIC_H
 
 #include "config.h"
+#include "misc.h"
 
 /* On platforms supporting C11 atomics, this file just includes <stdatomic.h>.
 
@@ -94,6 +95,29 @@ typedef struct { intnat repr; } atomic_intnat;
   atomic_store_explicit((p), (v), memory_order_release)
 #define atomic_store_relaxed(p, v)                      \
   atomic_store_explicit((p), (v), memory_order_relaxed)
+
+Caml_inline void caml_atomic_counter_init(atomic_uintnat* counter, uintnat n)
+{
+  atomic_store_release(counter, n);
+}
+
+/* atomically decrements the counter and returns the new value */
+
+Caml_inline uintnat caml_atomic_counter_decr(atomic_uintnat* counter)
+{
+  uintnat old = atomic_fetch_sub(counter, 1);
+  CAMLassert (old > 0);
+  return old-1;
+}
+
+/* atomically increments the counter and returns the new value */
+
+Caml_inline uintnat caml_atomic_counter_incr(atomic_uintnat* counter)
+{
+  uintnat old = atomic_fetch_add(counter, 1);
+  CAMLassert(old+1 != 0);
+  return old+1;
+}
 
 #endif /* CAML_INTERNALS */
 

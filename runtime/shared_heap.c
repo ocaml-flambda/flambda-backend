@@ -2185,7 +2185,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
   caml_global_barrier(participating_count);
   if (participants[0] == Caml_state) {
      /* We are done, increment the compaction count */
-    atomic_fetch_add(&caml_compactions_count, 1);
+    (void)caml_atomic_counter_incr(&caml_compactions_count);
     CAML_GC_MESSAGE(COMPACT,
                     "Compaction %lu completed (algorithm %lu).\n",
                     caml_compactions_count,
