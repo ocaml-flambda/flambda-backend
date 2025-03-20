@@ -131,9 +131,6 @@ let register_name ty r =
     (* CR mslater: (SIMD) arm64 *)
     fatal_error "arm64: got valx2 register"
 
-(* CR gyorsh for xclerc: [rotate_registers] used in [coloring] on Mach,
-   but not in IRC on CFG. Are we dropping an optimization here? *)
-let rotate_registers = true
 
 (* Representation of hard registers by pseudo-registers *)
 
