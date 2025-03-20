@@ -31,15 +31,13 @@ let is_offset chunk n =
      (* 12 bits unsigned, scaled by chunk size *)
      | Byte_unsigned | Byte_signed -> n < 0x1000
      | Sixteen_unsigned | Sixteen_signed -> n land 1 = 0 && n lsr 1 < 0x1000
-     | Thirtytwo_unsigned | Thirtytwo_signed | Single { reg = Float64 } ->
+     | Thirtytwo_unsigned | Thirtytwo_signed
+     | Single { reg = Float64 | Float32 } ->
        n land 3 = 0 && n lsr 2 < 0x1000
      | Word_int | Word_val | Double -> n land 7 = 0 && n lsr 3 < 0x1000
      | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
        (* CR mslater: (SIMD) arm64 *)
        Misc.fatal_error "arm64: got 128 bit memory chunk"
-     | Single { reg = Float32 } ->
-       (* CR mslater: (float32) arm64 *)
-       Misc.fatal_error "arm64: got float32 memory chunk"
 
 let is_logical_immediate_int n = Arch.is_logical_immediate (Nativeint.of_int n)
 

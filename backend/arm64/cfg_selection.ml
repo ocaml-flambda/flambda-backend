@@ -159,8 +159,9 @@ class selector =
         | [Cop (Cmulf Float64, args, _); arg] ->
           specific Inegmulsubf, arg :: args
         | _ -> super#select_operation op args dbg ~label_after)
+      | Cpackf32 -> specific (Isimd Zip1_f32), args
       (* Recognize floating-point square root *)
-      | Cextcall { func = "sqrt" } -> specific Isqrtf, args
+      | Cextcall { func = "sqrt" | "sqrtf" } -> specific Isqrtf, args
       | Cextcall { func; builtin = true; _ } -> (
         match Simd_selection.select_operation_cfg func args with
         | Some (op, args) -> Basic (Op op), args

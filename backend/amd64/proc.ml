@@ -140,10 +140,6 @@ let register_name ty r =
   | Float | Float32 | Vec128 | Valx2 ->
     float_reg_name.(r - first_available_register.(1))
 
-(* Pack registers starting at %rax so as to reduce the number of REX
-   prefixes and thus improve code density *)
-let rotate_registers = false
-
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
