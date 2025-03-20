@@ -55,8 +55,6 @@
 
 (copy_files# backend/regalloc/*.ml{,i})
 
-(copy_files# "backend/arm64/isa/*.ml{,i}")
-
 (copy_files# file_formats/*.ml{,i})
 
 (copy_files# lambda/*.ml{,i})
