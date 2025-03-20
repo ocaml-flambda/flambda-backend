@@ -57,10 +57,10 @@ let randomized_default =
     try Sys.getenv "CAMLRUNPARAM" with Not_found -> "" in
   String.contains params 'R'
 
-let randomized = Atomic.Safe.make randomized_default
+let randomized = Atomic.make randomized_default
 
-let randomize () = Atomic.Safe.set randomized true
-let is_randomized () = Atomic.Safe.get randomized
+let randomize () = Atomic.Contended.set randomized true
+let is_randomized () = Atomic.Contended.get randomized
 
 module DLS = Domain.Safe.DLS
 
