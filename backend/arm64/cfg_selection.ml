@@ -161,6 +161,10 @@ class selector =
         | _ -> super#select_operation op args dbg ~label_after)
       (* Recognize floating-point square root *)
       | Cextcall { func = "sqrt" } -> specific Isqrtf, args
+      | Cextcall { func; builtin = true; _ } -> (
+        match Simd_selection.select_operation_cfg func args with
+        | Some (op, args) -> Basic (Op op), args
+        | None -> super#select_operation op args dbg ~label_after)
       (* Recognize bswap instructions *)
       | Cbswap { bitwidth } ->
         let bitwidth = select_bitwidth bitwidth in
