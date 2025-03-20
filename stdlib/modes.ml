@@ -12,6 +12,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Aliased = struct
+  type 'a t = { aliased : 'a @@ aliased } [@@unboxed]
+  (** Wraps values in the [aliased] mode, even in a [unique] context. *)
+end
+
 module Global = struct
   type 'a t = { global : 'a @@ global } [@@unboxed]
 end

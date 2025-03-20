@@ -18,6 +18,11 @@
     This module provides types that wrap a value in a different mode from its context. In
     the standard OCaml compiler, these types are all no-op wrappers. *)
 
+module Aliased : sig
+  type 'a t = { aliased : 'a @@ aliased } [@@unboxed]
+  (** Wraps values in the [aliased] mode, even in a [unique] context. *)
+end
+
 module Global : sig
   type 'a t = { global : 'a @@ global } [@@unboxed]
   (** Wraps values in the [global] mode, even in a [local] context. *)
