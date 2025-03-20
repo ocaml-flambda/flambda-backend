@@ -57,8 +57,6 @@ module Reg : sig
 end
 
 module Instruction_name : sig
-  (** mnemonic *)
-
   module Cond : sig
     type t =
       | EQ
@@ -87,6 +85,7 @@ module Instruction_name : sig
       | N
   end
 
+  (** mnemonic *)
   type t =
     (* base *)
     | NOP

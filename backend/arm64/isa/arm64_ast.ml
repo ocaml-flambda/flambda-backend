@@ -290,7 +290,6 @@ module Instruction_name = struct
     | ZIP2 -> "zip2"
     | FCMP -> "fcmp"
     | FCSEL -> "fcsel"
-
 end
 
 module Operand = struct
@@ -307,8 +306,7 @@ module Operand = struct
         | UXTB (* 000 *)
         | UXTH (* 001 *)
         | UXTW (* 010 *)
-        | UXTX
-        (* 011 *)
+        | UXTX (* 011 *)
         (* alias for LSL, requires shift *)
         | SXTB (* 100 *)
         | SXTH (* 101 *)
@@ -474,7 +472,6 @@ module Asm = struct
     | Type of string * string
     (* MacOS only *)
     | Direct_assignment of string * constant
-
 
   let print_line ppf line =
     match line with
