@@ -248,15 +248,10 @@ end = struct
         affect the output. *)
   end
 
-  module type Effs = sig
-    type e
-    type es
-  end
-
-  module CREATE(X : Effs) :
-    Create with type e = X.e and type es = X.es = struct
-      type nonrec e = X.e
-      type nonrec es = X.es
+  let[@inline] create (type e es) () : (module Create with type e = e and type es = es) =
+    let module Create = struct
+      type nonrec e = e
+      type nonrec es = es
 
       type 'e t' += C : ('e, e * es) Raw_handler.t -> 'e t'
 
@@ -286,26 +281,8 @@ end = struct
                 { h = C h } :: loop (Handler_index.succ i) rest
         in
         loop Handler_index.one t [@nontail]
-  end
-
-  (* [create] uses a functor for efficient compilation.
-     However, functors are not [portable], while an equivalent implementation
-     creating the first-class module directly would be. *)
-  let[@inline] create (type e es) () : (module Create with type e = e and type es = es) =
-    let module Create = CREATE(struct
-      type nonrec e = e
-      type nonrec es = es
-    end) in
+    end in
     (module Create)
-
-  (* Mark [create] as [portable]. To bypass the value restriction, we
-     pack the function into a polymorphic record field. *)
-  type create = { create : 'e 'es . unit
-    -> (module Create with type e = 'e and type es = 'es) }
-    [@@unboxed]
-
-  let create = Obj.magic_portable { create }
-  let[@inline] create () = create.create ()
 end
 
 module Mapping : sig
