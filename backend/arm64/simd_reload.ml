@@ -19,10 +19,7 @@
 open! Int_replace_polymorphic_compare [@@warning "-66"]
 
 let reload_operation makereg op arg res =
-  let stackp r =
-    Reg.is_stack r
-    (* match r.Reg.loc with Stack _ -> true | Reg _ | Unknown -> false *)
-  in
+  let stackp r = Reg.is_stack r in
   let ensure_reg reg = if stackp reg then makereg reg else reg in
   match Simd_proc.register_behavior op with
   (* Argument and result must be in registers. *)
