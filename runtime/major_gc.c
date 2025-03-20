@@ -1355,7 +1355,7 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
   mlsize_t size, i;
   caml_domain_state* domain_state = Caml_state;
   int alive_data;
-  intnat marked = 0, trivial_data = 0, made_live = 0;
+  intnat marked = 0, made_live = 0;
 
   CAMLassert(caml_marking_started());
   if (domain_state->ephe_info->cursor.cycle == for_cycle &&
@@ -1411,7 +1411,6 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
       /* Not yet known whether this ephemeron's keys/block will be marked,
          but since the data is trivial nothing will happen if they are,
          so remove it from the todo list */
-      trivial_data++;
       keep = false;
     } else if (force_alive || alive_data) {
       /* This ephemeron's keys & block are marked, so mark the data,
