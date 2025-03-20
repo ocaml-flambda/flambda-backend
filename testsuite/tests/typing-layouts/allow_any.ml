@@ -125,7 +125,7 @@ module M1 :
   end
 module M2 :
   sig
-    type t = M1.t : value mod contended = { mutable contents : string; }
+    type t : value mod contended = M1.t = { mutable contents : string; }
     [@@unsafe_allow_any_mode_crossing]
   end
 |}]
