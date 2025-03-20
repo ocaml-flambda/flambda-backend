@@ -22,7 +22,7 @@ open Printf
 
 type t = exn = ..
 
-type printers : immutable_data = (exn -> string option) Modes.Immutable.t list
+type printers = (exn -> string option) Modes.Portended.t list
 
 let printers : printers Atomic.t = Atomic.make []
 
@@ -52,7 +52,7 @@ let fields x =
 
 let use_printers x =
   let rec conv = function
-    | { Modes.Immutable.immutable = hd } :: tl ->
+    | { Modes.Portended.portended = hd } :: tl ->
         (match hd x with
          | None | exception _ -> conv tl
          | Some s -> Some s)
@@ -289,7 +289,7 @@ external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 
 let rec register_printer_safe fn =
   let old_printers = Atomic.Contended.get printers in
-  let new_printers = { Modes.Immutable.immutable = fn } :: old_printers in
+  let new_printers = { Modes.Portended.portended = fn } :: old_printers in
   let success = Atomic.Contended.compare_and_set printers old_printers new_printers in
   if not success then register_printer_safe fn
 
@@ -341,10 +341,10 @@ let default_uncaught_exception_handler exn raw_backtrace =
   flush stderr
 
 let uncaught_exception_handler =
-  Atomic.make { Modes.Immutable.immutable = default_uncaught_exception_handler }
+  Atomic.make { Modes.Portended.portended = default_uncaught_exception_handler }
 
 let set_uncaught_exception_handler_safe fn =
-  Atomic.Contended.set uncaught_exception_handler { Modes.Immutable.immutable = fn }
+  Atomic.Contended.set uncaught_exception_handler { Modes.Portended.portended = fn }
 
 let set_uncaught_exception_handler_unsafe fn =
   set_uncaught_exception_handler_safe (Obj.magic_portable fn)
@@ -369,7 +369,7 @@ let handle_uncaught_exception' exn debugger_in_use =
     in
     (try Stdlib.do_at_exit () with _ -> ());
     try
-      (Atomic.Contended.get uncaught_exception_handler).immutable exn raw_backtrace
+      (Atomic.Contended.get uncaught_exception_handler).portended exn raw_backtrace
     with exn' ->
       let raw_backtrace' = try_get_raw_backtrace () in
       eprintf "Fatal error: exception %s\n" (to_string exn);

@@ -38,7 +38,3 @@ module Portended : sig
       context. A ['a Portended.t] is equivalent to a ['a Portable.t Contended.t] and a
       ['a Contended.t Portable.t], but much more ergonomic to work with. *)
 end
-
-module Immutable : sig
-  type 'a t : immutable_data = { immutable : 'a @@ many portable contended unyielding } [@@unboxed]
-end

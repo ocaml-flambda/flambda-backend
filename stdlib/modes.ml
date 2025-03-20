@@ -27,7 +27,3 @@ end
 module Portended = struct
   type 'a t = { portended : 'a @@ portable contended } [@@unboxed]
 end
-
-module Immutable = struct
-  type 'a t = { immutable : 'a @@ many portable contended unyielding } [@@unboxed]
-end

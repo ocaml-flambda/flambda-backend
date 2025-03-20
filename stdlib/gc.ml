@@ -113,21 +113,21 @@ external finalise_last : (unit -> unit) -> 'a -> unit =
 external finalise_release : unit -> unit @@ portable = "caml_final_release"
 
 
-type alarm = bool Atomic.t Modes.Immutable.t
+type alarm = bool Atomic.t Modes.Portended.t
 type alarm_rec = {active : alarm; f : unit -> unit}
 
 let rec call_alarm arec =
-  if Atomic.Contended.get arec.active.immutable then begin
+  if Atomic.Contended.get arec.active.portended then begin
     let finally () = finalise call_alarm arec in
     Fun.protect ~finally arec.f
   end
 
-let delete_alarm a = Atomic.Contended.set a.Modes.Immutable.immutable false
+let delete_alarm a = Atomic.Contended.set a.Modes.Portended.portended false
 
 (* We use [@inline never] to ensure [arec] is never statically allocated
    (which would prevent installation of the finaliser). *)
 let [@inline never] create_alarm f =
-  let alarm = { Modes.Immutable.immutable = (Atomic.make true : bool Atomic.t) } in
+  let alarm = { Modes.Portended.portended = (Atomic.make true : bool Atomic.t) } in
   Domain.at_exit (fun () -> delete_alarm alarm);
   let arec = { active = alarm; f = f } in
   finalise call_alarm arec;
@@ -143,7 +143,7 @@ module Safe = struct
     "caml_final_register_called_without_value"
 
   let rec call_alarm (arec : alarm_rec) =
-    if Atomic.Contended.get arec.active.immutable then begin
+    if Atomic.Contended.get arec.active.portended then begin
       let finally () = finalise call_alarm arec in
       Fun.protect ~finally arec.f
     end
@@ -151,7 +151,7 @@ module Safe = struct
   (* We use [@inline never] to ensure [arec] is never statically allocated
      (which would prevent installation of the finaliser). *)
   let [@inline never] create_alarm f =
-    let alarm = { Modes.Immutable.immutable = (Atomic.make true : bool Atomic.t) } in
+    let alarm = { Modes.Portended.portended = (Atomic.make true : bool Atomic.t) } in
     Domain.Safe.at_exit (fun () -> delete_alarm alarm);
     let arec = { active = alarm; f = f } in
     finalise call_alarm arec;

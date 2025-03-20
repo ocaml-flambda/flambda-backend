@@ -32,9 +32,9 @@ let incr r = add r 1
 let decr r = sub r 1
 
 module Contended = struct
-  external get : ('a : immutable_data). 'a t @ contended local -> 'a @@ portable = "%atomic_load"
-  external set : ('a : immutable_data). 'a t @ contended local -> 'a -> unit @@ portable = "%atomic_set"
-  external exchange : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a @@ portable = "%atomic_exchange"
-  external compare_and_set : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a -> bool @@ portable = "%atomic_cas"
-  external compare_exchange : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a -> 'a @@ portable = "%atomic_compare_exchange"
+  external get : ('a : value mod contended). 'a t @ contended local -> 'a @@ portable = "%atomic_load"
+  external set : ('a : value mod portable). 'a t @ contended local -> 'a -> unit @@ portable = "%atomic_set"
+  external exchange : ('a : value mod contended portable). 'a t @ contended local -> 'a -> 'a @@ portable = "%atomic_exchange"
+  external compare_and_set : ('a : value mod portable). 'a t @ contended local -> 'a -> 'a -> bool @@ portable = "%atomic_cas"
+  external compare_exchange : ('a : value mod contended portable). 'a t @ contended local -> 'a -> 'a -> 'a @@ portable = "%atomic_compare_exchange"
 end

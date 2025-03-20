@@ -96,23 +96,23 @@ val decr : int t @ contended local -> unit
     via modes. *)
 module Contended : sig
   (** Like {!get}, but can be called on an atomic that came from another domain. *)
-  val get : ('a : immutable_data). 'a t @ contended local -> 'a
+  val get : ('a : value mod contended). 'a t @ contended local -> 'a
 
   (** Like {!set}, but can be called on an atomic that came from another domain. *)
   external set
-    : ('a : immutable_data). 'a t @ contended local -> 'a -> unit = "%atomic_set"
+    : ('a : value mod portable). 'a t @ contended local -> 'a -> unit = "%atomic_set"
 
   (** Like {!exchange}, but can be called on an atomic that came from another domain. *)
-  external exchange : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a
+  external exchange : ('a : value mod contended portable). 'a t @ contended local -> 'a -> 'a
     = "%atomic_exchange"
 
   (** Like {!compare_and_set}, but can be called on an atomic that came from another domain. *)
   external compare_and_set
-    : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a -> bool = "%atomic_cas"
+    : ('a : value mod portable). 'a t @ contended local -> 'a -> 'a -> bool = "%atomic_cas"
 
   (** Like {!compare_exchange}, but can be called on an atomic that came from another domain. *)
   external compare_exchange
-    : ('a : immutable_data). 'a t @ contended local -> 'a -> 'a -> 'a
+    : ('a : value mod contended portable). 'a t @ contended local -> 'a -> 'a -> 'a
     = "%atomic_compare_exchange"
 end
 
