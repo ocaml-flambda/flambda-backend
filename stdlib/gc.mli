@@ -136,12 +136,15 @@ type control =
 
     space_overhead : int;
     (** The major GC speed is computed from this parameter.
-       This is the memory that will be "wasted" because the GC does not
-       immediately collect unreachable blocks.  It is expressed as a
-       percentage of the memory used for live data.
-       The GC will work more (use more CPU time and collect
-       blocks more eagerly) if [space_overhead] is smaller.
-       Default: 120. *)
+        This is the memory that will be "wasted" because the GC does not
+        immediately collect unreachable blocks.  It is expressed as a
+        percentage of the memory used for live data.
+        The GC will work more (use more CPU time and collect
+        blocks more eagerly) if [space_overhead] is smaller.
+        On runtime 4 this doesn't account correctly for bigarrays; you
+        may find the GC works much harder than necessary to satisfy this
+        parameter.
+        Runtime 4 default: 100. Runtime 5 default: 80. *)
 
     verbose : int;
     (** This value controls the GC messages on standard error output.
