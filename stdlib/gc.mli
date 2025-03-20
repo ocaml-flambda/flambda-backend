@@ -122,7 +122,7 @@ type control =
     (** The size (in words) of the minor heap.  Changing
        this parameter will trigger a minor collection. The total size of the
        minor heap used by this program is the sum of the heap sizes of the
-       active domains. Default: 256k. *)
+       active domains. Default: 1M. *)
 
     major_heap_increment : int;
     (** How much to add to the major heap when increasing it. If this
