@@ -43,6 +43,7 @@ struct caml_params {
   uintnat init_percent_free;
   uintnat init_max_percent_free;
   uintnat init_minor_heap_wsz;
+  uintnat init_major_heap_increment;
   uintnat init_custom_major_ratio;
   uintnat init_custom_minor_ratio;
   uintnat init_custom_minor_max_bsz;

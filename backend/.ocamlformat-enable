@@ -10,6 +10,8 @@ arm64/selection_utils.ml
 arm64/simd*.ml
 arm64/stack_check.ml
 arm64/vectorize_specific.ml
+arm64_ast.ml
+arm64_ast.mli
 asm_targets/**/*.ml
 asm_targets/**/*.mli
 cfg/**/*.ml

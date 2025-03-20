@@ -410,6 +410,7 @@ type reloc =
     expr : constant;
   }
 
+(* CR gyorsh: use inline record for Section and File constructors. *)
 type asm_line =
   | Ins of instruction
 

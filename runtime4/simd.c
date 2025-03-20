@@ -26,21 +26,21 @@
 // SIMD is only supported on 64-bit targets
 #define Max_unboxed_vec128_array_wosize    (Max_custom_array_wosize / 2)
 
-#ifdef ARCH_SSE2
+#if defined(ARCH_SSE2) || defined(__ARM_NEON)
 
-CAMLexport value caml_copy_vec128(__m128 v) {
+CAMLexport value caml_copy_vec128(simd_float32x4_t v) {
     value res = caml_alloc_small(2, Abstract_tag);
     Store_vec128_val(res, v);
     return res;
 }
 
-CAMLexport value caml_copy_vec128i(__m128i v) {
+CAMLexport value caml_copy_vec128i(simd_int128_t v) {
     value res = caml_alloc_small(2, Abstract_tag);
     Store_vec128_vali(res, v);
     return res;
 }
 
-CAMLexport value caml_copy_vec128d(__m128d v) {
+CAMLexport value caml_copy_vec128d(simd_float64x2_t v) {
     value res = caml_alloc_small(2, Abstract_tag);
     Store_vec128_vald(res, v);
     return res;
@@ -67,9 +67,9 @@ CAMLexport struct custom_operations caml_unboxed_vec128_array_ops = {
 CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
                                              value ofs2, value n) {
     // Need to skip the custom_operations field
-    memmove((__m128 *)((uintnat *)a2 + 1) + Long_val(ofs2),
-            (__m128 *)((uintnat *)a1 + 1) + Long_val(ofs1),
-            Long_val(n) * sizeof(__m128));
+    memmove((simd_poly128_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
+            (simd_poly128_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
+            Long_val(n) * sizeof(simd_poly128_t));
     return Val_unit;
 }
 
@@ -125,4 +125,4 @@ CAMLprim value caml_make_unboxed_vec128_vect_bytecode(value len) {
   caml_failwith("SIMD is not supported on this platform.");
 }
 
-#endif
+#endif // defined(ARCH_SSE2) || defined(__ARM_NEON)

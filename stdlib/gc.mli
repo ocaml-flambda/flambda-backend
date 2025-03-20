@@ -130,8 +130,9 @@ type control =
         the current heap size (i.e. setting it to 100 will double the heap
         size at each increase). If it is more than 1000, it is a fixed
         number of words that will be added to the heap. Default: 15.
-        This metric is currently not available in OCaml 5: the field value is
-        always [0]. *)
+
+        In runtime5, the "current heap size" metric does not include those
+        allocations of more than 128 words. *)
 
     space_overhead : int;
     (** The major GC speed is computed from this parameter.

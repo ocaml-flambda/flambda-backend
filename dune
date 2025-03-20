@@ -482,6 +482,7 @@
   x86_gas
   x86_masm
   x86_proc
+  arm64_ast
   zero_alloc_checker
   zero_alloc_info
   ;; backend/cfg
