@@ -201,7 +201,7 @@ void caml_teardown_shared_heap(struct caml_heap_state* heap) {
 
 uintnat caml_major_heap_increment; /* percent or words */
 
-uintnat new_chunk_bsize(void)
+static uintnat new_chunk_bsize(void)
 {
   uintnat new_pools;
   if (caml_major_heap_increment > 1000) {
