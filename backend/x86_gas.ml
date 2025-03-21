@@ -13,6 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open X86_ast
 open X86_proc
 
@@ -77,7 +78,7 @@ and scst b = function
   | ConstThis -> Buffer.add_string b "."
   | ConstLabel l -> Buffer.add_string b l
   | ConstLabelOffset (l, o) -> Buffer.add_string b l; opt_displ b o
-  | Const n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L ->
+  | Const n when Int64.compare n 0x7FFF_FFFFL <= 0 && Int64.compare n (-0x8000_0000L) >= 0 ->
       Buffer.add_string b (Int64.to_string n)
   | Const n -> bprintf b "0x%Lx" n
   | ConstAdd (c1, c2) -> bprintf b "(%a + %a)" scst c1 scst c2
@@ -167,7 +168,7 @@ let print_instr b = function
   | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
   | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2
   | MOV ((Imm n as arg1), (Reg64 _ as arg2))
-    when not (n <= 0x7FFF_FFFFL && n >= -0x8000_0000L) ->
+    when not (Int64.compare n 0x7FFF_FFFFL <= 0 && Int64.compare n (-0x8000_0000L) >= 0) ->
       i2 b "movabsq" arg1 arg2
   | MOV ((Sym _ as arg1), (Reg64 _ as arg2)) when windows ->
       i2 b "movabsq" arg1 arg2
@@ -411,12 +412,18 @@ let print_line b = function
 
   | Align (_data,n) ->
       (* MacOSX assembler interprets the integer n as a 2^n alignment *)
-      let n = if system = S_macosx then Misc.log2 n else n in
+      let n =
+        if is_macosx system then
+          Misc.log2 n
+        else
+         n
+      in
       bprintf b "\t.align\t%d" n
   | Byte n -> bprintf b "\t.byte\t%a" cst n
   | Bytes s ->
-      if system = S_solaris then buf_bytes_directive b ".byte" s
-      else
+      (match system with
+      | S_solaris -> buf_bytes_directive b ".byte" s
+      | _ ->
         (* Very long lines can cause gas to be extremely slow so split up large
           string literals. It turns out that gas reads files in 32kb chunks
           so splitting the string into blocks of 25k characters should be close
@@ -432,7 +439,7 @@ let print_line b = function
         in
         let i = chunk 0 in
         bprintf b "\t.ascii\t\"%s\""
-          (string_of_substring_literal i (String.length s - i) s)
+          (string_of_substring_literal i (String.length s - i) s))
   | Comment s -> bprintf b "\t\t\t\t/* %s */" s
   | Global s -> bprintf b "\t.globl\t%s" s
   | Protected s -> bprintf b "\t.protected\t%s" s;
@@ -455,11 +462,13 @@ let print_line b = function
       | _ -> bprintf b ",%s" (String.concat "," args)
       end
   | Space n ->
-      if system = S_solaris then bprintf b "\t.zero\t%d" n
-      else bprintf b "\t.space\t%d" n
+      (match system with
+      | S_solaris -> bprintf b "\t.zero\t%d" n
+      | _ -> bprintf b "\t.space\t%d" n)
   | Word n ->
-      if system = S_solaris then bprintf b "\t.value\t%a" cst n
-      else bprintf b "\t.word\t%a" cst n
+      (match system with
+      | S_solaris -> bprintf b "\t.value\t%a" cst n
+      | _ -> bprintf b "\t.word\t%a" cst n)
 
   | Uleb128 n -> bprintf b "\t.uleb128\t%a" cst n
   | Sleb128 n -> bprintf b "\t.sleb128\t%a" cst n

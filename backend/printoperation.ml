@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Format
 
 let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =

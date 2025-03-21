@@ -17,6 +17,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
+
 module S = Misc.Stdlib.String
 
 type ustructured_constant =
