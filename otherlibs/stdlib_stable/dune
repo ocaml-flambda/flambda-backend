@@ -30,30 +30,12 @@
  (library_flags
   (:standard -linkall)))
 
-;; CR-someday gyorsh: factor out common code from arm64 and amd64 subdirectories.
-;; for now, just keep the interfaces in sync
-(rule
- (alias   runtest)
- (action (diff amd64/float32.mli arm64/float32.mli)))
-
-(rule
- (alias   runtest)
- (action (diff amd64/float32_u.mli arm64/float32_u.mli)))
-
-(rule
- (alias   runtest)
- (action (diff amd64/float32_u.ml arm64/float32_u.ml)))
-
-(rule
- (alias   runtest)
- (action (diff amd64/stdlib_stable.mli arm64/stdlib_stable.mli)))
-
 (copy_files#
  (enabled_if
    (or
     (= %{architecture} "amd64")
     (= %{architecture} "arm64")))
-  (files "%{env:ARCH=amd64}/*.ml{,i}"))
+  (files "native/*.ml{,i}"))
 
 (rule
  (targets stdlib_stable.ml stdlib_stable.mli)
