@@ -110,3 +110,6 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
   | Dls_get -> fprintf ppf "dls_get"
   | Poll -> fprintf ppf "poll call"
   | Probe_is_enabled { name } -> fprintf ppf "probe_is_enabled \"%s\"" name
+(* let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
+   fprintf ppf "%t%a%t" Cfg_colours.operation (operation ~print_reg op arg) res
+   Cfg_colours.pop *)
