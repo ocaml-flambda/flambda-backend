@@ -205,10 +205,14 @@ type primitive =
       dst_array_set_kind : array_set_kind;
     }
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
-  | Parraysetu of array_set_kind * array_index_kind
-  | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
-  | Parraysets of array_set_kind * array_index_kind
+  | Parrayrefu of array_ref_kind * array_kind * array_index_kind * mutable_flag
+                * array_access_reinterp
+  | Parraysetu of array_set_kind * array_kind * array_index_kind
+                * array_access_reinterp
+  | Parrayrefs of array_ref_kind * array_kind * array_index_kind * mutable_flag
+                * array_access_reinterp
+  | Parraysets of array_set_kind * array_kind * array_index_kind
+                * array_access_reinterp
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the argument is a null pointer *)
@@ -464,6 +468,8 @@ and scannable_product_element_kind =
 and array_index_kind =
   | Ptagged_int_index
   | Punboxed_int_index of unboxed_integer
+
+and array_access_reinterp = Pnormal_access | Preinterp_access
 
 and unboxed_float = Primitive.unboxed_float =
   | Unboxed_float64
@@ -1882,14 +1888,14 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
       | Punboxedvectorarray_ref _
       | Pgcscannableproductarray_ref _
-      | Pgcignorableproductarray_ref _), _, _)
+      | Pgcignorableproductarray_ref _), _, _, _, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
       | Punboxedvectorarray_ref _
       | Pgcscannableproductarray_ref _
-      | Pgcignorableproductarray_ref _), _, _) -> None
-  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
-  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
+      | Pgcignorableproductarray_ref _), _, _, _, _) -> None
+  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _, _, _)
+  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _, _, _) -> Some m
   | Pisint _ | Pisnull | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -2295,7 +2301,8 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu (array_ref_kind, _, _) | Parrayrefs (array_ref_kind, _, _) ->
+  | Parrayrefu (array_ref_kind, _, _, _, _)
+  | Parrayrefs (array_ref_kind, _, _, _, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
@@ -2467,6 +2474,20 @@ let array_set_kind mode = function
   | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
   | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
 
+let array_kind_of_array_set_kind (kind : array_set_kind) : array_kind =
+  match kind with
+  | Pintarray_set -> Pintarray
+  | Punboxedfloatarray_set uf -> Punboxedfloatarray uf
+  | Punboxedintarray_set ui -> Punboxedintarray ui
+  | Punboxedvectorarray_set uv -> Punboxedvectorarray uv
+  | Pgcscannableproductarray_set (_, scannables) ->
+    Pgcscannableproductarray scannables
+  | Pgcignorableproductarray_set ignorables ->
+    Pgcignorableproductarray ignorables
+  | Pgenarray_set _ -> Pgenarray
+  | Paddrarray_set _ -> Paddrarray
+  | Pfloatarray_set -> Pfloatarray
+
 let array_ref_kind_of_array_set_kind (kind : array_set_kind) mode
       : array_ref_kind =
   match kind with
@@ -2617,3 +2638,11 @@ let rec ignorable_product_element_kind_involves_int
   | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> false
   | Pproduct_ignorable kinds ->
     List.exists ignorable_product_element_kind_involves_int kinds
+
+let rec scannable_product_element_kind_must_be_scanned
+    (kind : scannable_product_element_kind) =
+  match kind with
+  | Pint_scannable -> false
+  | Paddr_scannable -> true
+  | Pproduct_scannable kinds ->
+    List.exists scannable_product_element_kind_must_be_scanned kinds

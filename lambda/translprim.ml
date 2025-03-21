@@ -494,65 +494,90 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%array_length" -> Primitive ((Parraylength gen_array_kind), 1)
     | "%array_safe_get" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Ptagged_int_index, Mutable)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, gen_array_kind,
+          Ptagged_int_index, Mutable, Pnormal_access)), 2)
     | "%array_safe_set" ->
       Primitive
-        (Parraysets (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index),
+        (Parraysets (gen_array_set_kind (get_first_arg_mode ()), gen_array_kind,
+          Ptagged_int_index, Pnormal_access),
          3)
     | "%array_unsafe_get" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Ptagged_int_index, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, gen_array_kind,
+          Ptagged_int_index, Mutable, Pnormal_access), 2)
+    | "%obj_reinterp_array_unsafe_get" ->
+      Primitive
+        (Parrayrefu (gen_array_ref_kind mode, gen_array_kind,
+          Ptagged_int_index, Mutable, Preinterp_access), 2)
     | "%array_unsafe_set" ->
       Primitive
-        ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index)),
+        ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()),
+          gen_array_kind, Ptagged_int_index, Pnormal_access)),
+        3)
+    | "%obj_reinterp_array_unsafe_set" ->
+      Primitive
+        ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()),
+          gen_array_kind, Ptagged_int_index, Preinterp_access)),
         3)
     | "%array_safe_get_indexed_by_int64#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int64, Mutable)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, gen_array_kind,
+          Punboxed_int_index Unboxed_int64, Mutable, Pnormal_access)), 2)
     | "%array_safe_set_indexed_by_int64#" ->
       Primitive
         (Parraysets
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int64),
+          (gen_array_set_kind (get_first_arg_mode ()), gen_array_kind,
+          Punboxed_int_index Unboxed_int64, Pnormal_access),
          3)
     | "%array_unsafe_get_indexed_by_int64#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int64, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, gen_array_kind,
+          Punboxed_int_index Unboxed_int64, Mutable, Pnormal_access), 2)
     | "%array_unsafe_set_indexed_by_int64#" ->
       Primitive
         ((Parraysetu
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int64)),
+          (gen_array_set_kind (get_first_arg_mode ()), gen_array_kind,
+            Punboxed_int_index Unboxed_int64, Pnormal_access)),
         3)
     | "%array_safe_get_indexed_by_int32#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int32, Mutable)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, gen_array_kind,
+          Punboxed_int_index Unboxed_int32, Mutable, Pnormal_access)), 2)
     | "%array_safe_set_indexed_by_int32#" ->
       Primitive
         (Parraysets
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int32),
+          (gen_array_set_kind (get_first_arg_mode ()), gen_array_kind,
+            Punboxed_int_index Unboxed_int32, Pnormal_access),
          3)
     | "%array_unsafe_get_indexed_by_int32#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int32, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, gen_array_kind,
+          Punboxed_int_index Unboxed_int32, Mutable, Pnormal_access), 2)
     | "%array_unsafe_set_indexed_by_int32#" ->
       Primitive
         ((Parraysetu
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int32)),
+          (gen_array_set_kind (get_first_arg_mode ()), gen_array_kind,
+            Punboxed_int_index Unboxed_int32, Pnormal_access)),
         3)
     | "%array_safe_get_indexed_by_nativeint#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Unboxed_nativeint, Mutable)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, gen_array_kind,
+          Punboxed_int_index Unboxed_nativeint, Mutable, Pnormal_access)), 2)
     | "%array_safe_set_indexed_by_nativeint#" ->
       Primitive
         (Parraysets
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_nativeint),
+          (gen_array_set_kind (get_first_arg_mode ()), gen_array_kind,
+            Punboxed_int_index Unboxed_nativeint, Pnormal_access),
          3)
     | "%array_unsafe_get_indexed_by_nativeint#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Unboxed_nativeint, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, gen_array_kind,
+          Punboxed_int_index Unboxed_nativeint, Mutable, Pnormal_access), 2)
     | "%array_unsafe_set_indexed_by_nativeint#" ->
       Primitive
         ((Parraysetu
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_nativeint)),
+          (gen_array_set_kind (get_first_arg_mode ()), gen_array_kind,
+            Punboxed_int_index Unboxed_nativeint, Pnormal_access)),
         3)
     | "%makearray_dynamic" ->
       Primitive (Pmakearray_dynamic (gen_array_kind, mode, With_initializer), 2)
@@ -572,19 +597,27 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       (* The array kind will be filled in later *)
       Primitive (Parray_element_size_in_bytes Pgenarray, 1)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
-    | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
+    | "%obj_field" ->
+      Primitive ((Parrayrefu (Pgenarray_ref mode, gen_array_kind,
+        Ptagged_int_index, Mutable, Pnormal_access)), 2)
     | "%obj_set_field" ->
       Primitive
-        ((Parraysetu (Pgenarray_set (get_first_arg_mode ()), Ptagged_int_index)), 3)
-    | "%floatarray_length" -> Primitive ((Parraylength Pfloatarray), 1)
+        ((Parraysetu (Pgenarray_set (get_first_arg_mode ()),
+          gen_array_kind, Ptagged_int_index, Pnormal_access)), 3)
+    | "%floatarray_length" ->
+      Primitive ((Parraylength Pfloatarray), 1)
     | "%floatarray_safe_get" ->
-      Primitive ((Parrayrefs (Pfloatarray_ref mode, Ptagged_int_index, Mutable)), 2)
+      Primitive ((Parrayrefs (Pfloatarray_ref mode, Pfloatarray,
+        Ptagged_int_index, Mutable, Pnormal_access)), 2)
     | "%floatarray_safe_set" ->
-      Primitive (Parraysets (Pfloatarray_set, Ptagged_int_index), 3)
+      Primitive (Parraysets (Pfloatarray_set, Pfloatarray, Ptagged_int_index,
+                             Pnormal_access), 3)
     | "%floatarray_unsafe_get" ->
-      Primitive ((Parrayrefu (Pfloatarray_ref mode, Ptagged_int_index, Mutable)), 2)
+      Primitive ((Parrayrefu (Pfloatarray_ref mode, Pfloatarray,
+                              Ptagged_int_index, Mutable, Pnormal_access)), 2)
     | "%floatarray_unsafe_set" ->
-      Primitive ((Parraysetu (Pfloatarray_set, Ptagged_int_index)), 3)
+      Primitive ((Parraysetu (Pfloatarray_set, Pfloatarray,
+                              Ptagged_int_index, Pnormal_access)), 3)
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
     | "%is_null" -> Primitive (Pisnull, 1)
     | "%lazy_force" -> Lazy_force pos
@@ -1263,39 +1296,83 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if t = array_type then None
       else Some (Primitive (Parraylength array_type, arity))
     end
-  | Primitive (Parrayrefu (rt, index_kind, mut), arity), p1 :: _ -> begin
+  | Primitive (Parrayrefu (rt, array_kind, index_kind, mut, reinterp), arity),
+    p1 :: _ ->
+    begin
       let loc = to_location loc in
+      let array_type = array_type_kind ~elt_sort:None env loc p1 in
       let array_ref_type =
-        glb_array_ref_type loc rt (array_type_kind ~elt_sort:None env loc p1)
+        match reinterp with
+        | Pnormal_access -> glb_array_ref_type loc rt array_type
+        | Preinterp_access ->
+          let array_elt_kind = array_kind_of_elt ~elt_sort:None env loc rest_ty in
+          glb_array_ref_type loc rt array_elt_kind
       in
+      let array_kind' = glb_array_type loc array_kind array_type in
       let array_mut = array_type_mut env p1 in
-      if rt = array_ref_type && mut = array_mut then None
-      else Some (Primitive (Parrayrefu (array_ref_type, index_kind, array_mut), arity))
+      if rt = array_ref_type && array_kind = array_kind' && mut = array_mut then
+        None
+      else
+        Some (Primitive (Parrayrefu (array_ref_type, array_kind', index_kind,
+                                     array_mut, reinterp),
+                         arity))
     end
-  | Primitive (Parraysetu (st, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parraysetu (st, array_kind, index_kind, reinterp), arity),
+    p1 :: _ :: p3 :: _ -> begin
       let loc = to_location loc in
+      let array_type = array_type_kind ~elt_sort:None env loc p1 in
       let array_set_type =
-        glb_array_set_type loc st (array_type_kind ~elt_sort:None env loc p1)
+        match reinterp with
+        | Pnormal_access -> glb_array_set_type loc st array_type
+        | Preinterp_access ->
+          let array_elt_kind = array_kind_of_elt ~elt_sort:None env loc p3 in
+          glb_array_set_type loc st array_elt_kind
       in
-      if st = array_set_type then None
-      else Some (Primitive (Parraysetu (array_set_type, index_kind), arity))
+      let array_kind' = glb_array_type loc array_kind array_type in
+      if st = array_set_type && array_kind = array_kind' then None
+      else
+        Some (Primitive (Parraysetu (array_set_type, array_kind', index_kind,
+                                     reinterp),
+                         arity))
     end
-  | Primitive (Parrayrefs (rt, index_kind, mut), arity), p1 :: _ -> begin
+  | Primitive (Parrayrefs (rt, array_kind, index_kind, mut, reinterp), arity),
+    p1 :: _ ->
+    begin
       let loc = to_location loc in
+      let array_type = array_type_kind ~elt_sort:None env loc p1 in
       let array_ref_type =
-        glb_array_ref_type loc rt (array_type_kind ~elt_sort:None env loc p1)
+        match reinterp with
+        | Pnormal_access -> glb_array_ref_type loc rt array_type
+        | Preinterp_access ->
+          let array_elt_kind = array_kind_of_elt ~elt_sort:None env loc rest_ty in
+          glb_array_ref_type loc rt array_elt_kind
       in
+      let array_kind' = glb_array_type loc array_kind array_type in
       let array_mut = array_type_mut env p1 in
-      if rt = array_ref_type && mut = array_mut then None
-      else Some (Primitive (Parrayrefs (array_ref_type, index_kind, array_mut), arity))
+      if rt = array_ref_type && array_kind = array_kind' && mut = array_mut
+      then None
+      else
+        Some (Primitive (Parrayrefs (array_ref_type, array_kind', index_kind,
+                                     array_mut, reinterp),
+                         arity))
     end
-  | Primitive (Parraysets (st, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parraysets (st, array_kind, index_kind, reinterp), arity),
+    p1 :: _ :: p3 :: _ -> begin
       let loc = to_location loc in
+      let array_type = array_type_kind ~elt_sort:None env loc p1 in
       let array_set_type =
-        glb_array_set_type loc st (array_type_kind ~elt_sort:None env loc p1)
+        match reinterp with
+        | Pnormal_access -> glb_array_set_type loc st array_type
+        | Preinterp_access ->
+          let array_elt_kind = array_kind_of_elt ~elt_sort:None env loc p3 in
+          glb_array_set_type loc st array_elt_kind
       in
-      if st = array_set_type then None
-      else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
+      let array_kind' = glb_array_type loc array_kind array_type in
+      if st = array_set_type && array_kind = array_kind' then None
+      else
+        Some (Primitive (Parraysets (array_set_type, array_kind', index_kind,
+                                    reinterp),
+                         arity))
     end
   | Primitive (Pmakearray_dynamic (array_kind, mode, With_initializer), 2),
     _ :: p2 :: [] -> begin
@@ -1338,13 +1415,15 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
        kind.  If you haven't, then taking the glb of both would be just as
        likely to compound your error (e.g., by treating a Pgenarray as a
        Pfloatarray) as to help you. *)
-    let array_kind = array_type_kind ~elt_sort:None env loc p2 in
+    let new_array_kind = array_type_kind ~elt_sort:None env loc p2 in
     let new_dst_array_set_kind =
-      glb_array_set_type loc dst_array_set_kind array_kind
+      glb_array_set_type loc dst_array_set_kind new_array_kind
     in
-    if dst_array_set_kind = new_dst_array_set_kind then None
+    if dst_array_set_kind = new_dst_array_set_kind
+    then None
     else Some (Primitive (Parrayblit {
-      src_mutability; dst_array_set_kind = new_dst_array_set_kind }, arity))
+      src_mutability;
+      dst_array_set_kind = new_dst_array_set_kind }, arity))
   | Primitive (Parray_element_size_in_bytes _, arity), p1 :: _ -> (
       let array_kind =
         array_type_kind ~elt_sort:None env (to_location loc) p1
@@ -1898,7 +1977,7 @@ let lambda_primitive_needs_event_after = function
   | Pstringrefs | Pbytesrefs
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Pmakearray_dynamic (Pgenarray, _, _)
-  | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _)
+  | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _, _, _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
