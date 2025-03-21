@@ -45,7 +45,6 @@ type t =
     mutable irc_color : int option;       (* Current color (IRC only) *)
     mutable irc_alias : t option;         (* Current alias (IRC only) *)
     mutable spill: bool;                  (* "true" to force stack allocation  *)
-    mutable part: int option;             (* Zero-based index of part of value *)
     mutable interf: t list;               (* Other regs live simultaneously *)
     mutable degree: int;                  (* Number of other regs live sim. *)
     mutable spill_cost: int; }            (* Estimate of spilling cost *)
@@ -116,7 +115,6 @@ val set_has_collisions : Set.t -> bool
 
 val reset: unit -> unit
 val all_registers: unit -> t list
-val num_registers: unit -> int
 val reinit: unit -> unit
 
 val same_phys_reg : t -> t -> bool

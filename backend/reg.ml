@@ -90,7 +90,6 @@ type t =
     mutable irc_color : int option;
     mutable irc_alias : t option;
     mutable spill: bool;
-    mutable part: int option;
     mutable interf: t list;
     mutable degree: int;
     mutable spill_cost: int; }
@@ -112,7 +111,6 @@ let dummy =
   { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
     irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
     spill = false; interf = []; degree = 0; spill_cost = 0;
-    part = None;
   }
 
 let currstamp = ref 0
@@ -124,7 +122,7 @@ let create ty =
             loc = Unknown;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
             spill = false; interf = []; degree = 0;
-            spill_cost = 0; part = None; } in
+            spill_cost = 0; } in
   reg_list := r :: !reg_list;
   incr currstamp;
   r
@@ -150,7 +148,7 @@ let at_location ty loc =
   let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
             spill = false; interf = []; degree = 0;
-            spill_cost = 0; part = None; } in
+            spill_cost = 0; } in
   hw_reg_list := r :: !hw_reg_list;
   incr currstamp;
   r
@@ -177,15 +175,10 @@ let name t =
   match Raw_name.to_string t.raw_name with
   | None -> ""
   | Some raw_name ->
-    let with_spilled =
       if t.spill then
         "spilled-" ^ raw_name
       else
         raw_name
-    in
-    match t.part with
-    | None -> with_spilled
-    | Some part -> with_spilled ^ "#" ^ Int.to_string part
 
 let first_virtual_reg_stamp = ref (-1)
 
