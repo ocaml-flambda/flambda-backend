@@ -67,11 +67,6 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
   let uenv = UA.uenv uacc in
   let cont = AC.continuation apply_cont in
   let rewrite = UE.find_apply_cont_rewrite uenv cont in
-  (* CR gbury: when rewriting aliases, we may lose some information that was in
-     the kinds of the continuation being rewritten (e.g. is the continuation
-     bein rewritten had more kind/sub-kind information on its parameters than
-     its alias). We should think of a way to preserve that information. *)
-  let cont = UE.resolve_continuation_aliases uenv cont in
   let create_apply_cont ~apply_cont_to_expr =
     (* The function returned by this code accepts another function, which will
        be called with the [Apply_cont] expression after subjecting it to any
@@ -103,7 +98,14 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
     in
     after_rebuild expr uacc
   in
-  match UE.find_continuation uenv cont with
+  (* We need to look up the continuation before applying any rewrites, which
+     means we must manually resolve any relevant shortcut. *)
+  let shortcut_cont =
+    match UE.find_continuation_shortcut uenv cont with
+    | Some { continuation; _ } -> continuation
+    | None -> cont
+  in
+  match UE.find_continuation uenv shortcut_cont with
   | Linearly_used_and_inlinable
       { params; handler; free_names_of_handler; cost_metrics_of_handler } ->
     (* We must not fail to inline here, since we've already decided that the
@@ -119,6 +121,12 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
        (branches can be moved by the backend, their runtime depends on the
        branch predictor...). Underestimating the number of removed branches is
        fine. *)
+    if not (Continuation.equal cont shortcut_cont)
+    then
+      Misc.fatal_errorf
+        "Non-linear shortcut from %a to linear continuation %a would break \
+         linearity."
+        Continuation.print cont Continuation.print shortcut_cont;
     inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
       ~free_names_of_handler ~cost_metrics_of_handler
   | Invalid { arity = _ } ->
