@@ -86,7 +86,7 @@ let join_types ~env_at_fork envs_with_levels =
            could do better. *)
         TE.add_env_extension_maybe_bottom base_env
           (TEE.from_map joined_types)
-          ~meet_type:(Meet_and_join.meet_type ())
+          ~meet_type:Meet_and_join.meet_type
       in
       let join_types name joined_ty use_ty =
         let same_unit =
@@ -143,7 +143,7 @@ let join_types ~env_at_fork envs_with_levels =
             Join_env.create base_env ~left_env ~right_env:env_at_use
           in
           match
-            (Meet_and_join.join ()) ~bound_name:name join_env joined_ty use_ty
+            Meet_and_join.join ~bound_name:name join_env joined_ty use_ty
           with
           | Known joined_ty -> Some joined_ty
           | Unknown -> None
@@ -332,7 +332,7 @@ let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params ~cut_after
   in
   let result_env =
     TE.add_env_extension_from_level definition_typing_env level
-      ~meet_type:(Meet_and_join.meet_type ())
+      ~meet_type:Meet_and_join.meet_type
   in
   TE.compute_joined_aliases result_env alias_candidates
     (List.map (fun (env_at_use, _, _, _) -> env_at_use) after_cuts)

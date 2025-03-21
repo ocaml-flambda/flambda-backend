@@ -269,8 +269,6 @@ let () =
   meet_variants_don't_lose_aliases ();
   Format.eprintf "@.MEET TWO BLOCKS@\n@.";
   test_meet_two_blocks ();
-  (* The following tests require the advanced meet. *)
-  Flambda_backend_flags.(Flambda2.meet_algorithm := Set Advanced);
   Format.eprintf "@.MEET ALIAS TO RECOVER @\n@.";
   test_meet_recover_alias ();
   Format.eprintf "@.MEET BOTTOM AFTER ALIAS@\n@.";
