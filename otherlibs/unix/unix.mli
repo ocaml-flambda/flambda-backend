@@ -322,7 +322,7 @@ val nice : int -> int
 (** {1 Basic file input/output} *)
 
 
-type file_descr
+type file_descr : immediate
 (** The abstract type of file descriptors. *)
 
 val stdin : file_descr
