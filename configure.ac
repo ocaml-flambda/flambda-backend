@@ -2647,7 +2647,7 @@ AS_IF([test x"$enable_address_sanitizer" = "xyes"],
        address_sanitizer=true
       AC_DEFINE([WITH_ADDRESS_SANITIZER])
       AC_MSG_NOTICE([using Address Sanitizer])],
-    [AC_MSG_ERROR([Address Sanitizer is not supported on this platform])]
+      [AC_MSG_ERROR([Address Sanitizer is not supported on this platform: "$host,$ocaml_cc_vendor"])]
   )],
   [AC_MSG_NOTICE([not using Address Sanitizer])
   address_sanitizer=false])
