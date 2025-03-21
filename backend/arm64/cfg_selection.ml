@@ -173,6 +173,52 @@ class selector =
       (* Other operations are regular *)
       | _ -> super#select_operation op args dbg ~label_after
 
+    method! emit_stores env dbg data regs_addr =
+      let offset = ref (-Arch.size_int) in
+      let base =
+        assert (Array.length regs_addr = 1);
+        ref regs_addr
+      in
+      List.iter
+        (fun arg ->
+          match self#emit_expr env arg ~bound_name:None with
+          | None -> assert false
+          | Some regs ->
+            for i = 0 to Array.length regs - 1 do
+              let r = regs.(i) in
+              let kind =
+                match r.Reg.typ with
+                | Float -> Double
+                | Float32 -> Single { reg = Float32 }
+                | Vec128 ->
+                  (* 128-bit memory operations are default unaligned. Aligned
+                     (big)array operations are handled separately via cmm. *)
+                  Onetwentyeight_unaligned
+                | Val | Addr | Int -> Word_val
+                | Valx2 ->
+                  Misc.fatal_error "Unexpected machtype_component Valx2"
+              in
+              if not (Selection_utils.is_offset kind !offset)
+              then (
+                let tmp = self#regs_for typ_int in
+                self#insert_debug env
+                  (self#lift_op
+                     (self#make_const_int (Nativeint.of_int !offset)))
+                  dbg [||] tmp;
+                self#insert_debug env
+                  (self#lift_op (Operation.Intop Iadd))
+                  dbg (Array.append !base tmp) tmp;
+                base := tmp;
+                offset := 0);
+              self#insert_debug env
+                (self#make_store kind (Iindexed !offset) false)
+                dbg
+                (Array.append [| r |] !base)
+                [||];
+              offset := !offset + Select_utils.size_component r.Reg.typ
+            done)
+        data
+
     method! insert_move_extcall_arg env ty_arg src dst =
       let ty_arg_is_int32 =
         match ty_arg with
