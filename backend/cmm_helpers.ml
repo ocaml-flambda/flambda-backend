@@ -2721,101 +2721,108 @@ let send kind met obj args args_type result akind dbg =
  *)
 
 let cache_public_method meths tag cache dbg =
-  let raise_num = Lambda.next_raise_count () in
   let cconst_int i = Cconst_int (i, dbg) in
-  let li = V.create_local "*li*"
-  and hi = V.create_local "*hi*"
-  and mi = V.create_local "*mi*"
-  and tagged = V.create_local "*tagged*" in
+  let found_cont = Lambda.next_raise_count () in
+  let result_label_index = V.create_local "*result_index*" in
+  let result = V.create_local "*result*" in
+  let found_expr =
+    (* We need to store in the cache and return the offset, in bytes, of the
+       label we found, compared to the first label (not the start of the array),
+       and add one to make it scannable. So from the label index in the method
+       array, we shift by [log2_size_addr] to get an offset in bytes, add one
+       for tagging, and subtract [3 * size_addr] which is the offset of the
+       first label. *)
+    Clet
+      ( VP.create result,
+        Cop
+          ( Caddi,
+            [ lsl_const (Cvar result_label_index) log2_size_addr dbg;
+              cconst_int (1 - (3 * size_addr)) ],
+            dbg ),
+        Csequence
+          ( Cop (Cstore (Word_int, Assignment), [cache; Cvar result], dbg),
+            Cvar result ) )
+  in
+  let loop_cont = Lambda.next_raise_count () in
+  let li = V.create_local "*li*" in
+  let hi = V.create_local "*hi*" in
+  let mi = V.create_local "*mi*" in
+  let check_cont = Lambda.next_raise_count () in
+  let check_li = V.create_local "*check_li*" in
+  let check_hi = V.create_local "*check_hi*" in
+  let check_expr =
+    (* Here we check whether the interval [li; hi] is a singleton, and exit the
+       loop if so. *)
+    Cifthenelse
+      ( Cop (Ccmpi Cge, [Cvar check_li; Cvar check_hi], dbg),
+        dbg,
+        Cexit (Lbl found_cont, [Cvar check_li], []),
+        dbg,
+        Cexit (Lbl loop_cont, [Cvar check_li; Cvar check_hi], []),
+        dbg,
+        Any )
+  in
+  let dichotomy_expr =
+    Clet
+      ( VP.create mi,
+        Cop
+          ( Cor,
+            [ Cop
+                (Clsr, [Cop (Caddi, [Cvar li; Cvar hi], dbg); cconst_int 1], dbg);
+              cconst_int 1 ],
+            dbg ),
+        Cifthenelse
+          ( Cop
+              ( Ccmpi Clt,
+                [ tag;
+                  Cop
+                    ( mk_load_mut Word_int,
+                      [ Cop
+                          ( Cadda,
+                            [meths; lsl_const (Cvar mi) log2_size_addr dbg],
+                            dbg ) ],
+                      dbg ) ],
+                dbg ),
+            dbg,
+            (* tag < a.(mi) : interval is now [ li; mi - 2 ] *)
+            Cexit
+              ( Lbl check_cont,
+                [Cvar li; Cop (Csubi, [Cvar mi; cconst_int 2], dbg)],
+                [] ),
+            dbg,
+            (* tag >= a.(mi) : interval is now [ mi; hi ] *)
+            Cexit (Lbl check_cont, [Cvar mi; Cvar hi], []),
+            dbg,
+            Any ) )
+  in
+  let loop_body =
+    ccatch
+      ( check_cont,
+        [VP.create check_li, typ_int; VP.create check_hi, typ_int],
+        dichotomy_expr,
+        check_expr,
+        dbg,
+        Any,
+        false )
+  in
   let li_vp = VP.create li in
   let hi_vp = VP.create hi in
-  let cont = Lambda.next_raise_count () in
-  let new_li = V.create_local "*new_li*" in
-  let new_hi = V.create_local "*new_hi*" in
-  let li_return = V.create_local "*li_return*" in
-  Clet
-    ( VP.create new_li,
-      ccatch
-        ( raise_num,
-          [VP.create li_return, typ_int],
-          Ccatch
-            ( Recursive,
-              [ ( cont,
-                  [li_vp, typ_int; hi_vp, typ_int],
-                  Clet
-                    ( VP.create mi,
-                      Cop
-                        ( Cor,
-                          [ Cop
-                              ( Clsr,
-                                [ Cop (Caddi, [Cvar li; Cvar hi], dbg);
-                                  cconst_int 1 ],
-                                dbg );
-                            cconst_int 1 ],
-                          dbg ),
-                      Cifthenelse
-                        ( Cop
-                            ( Ccmpi Clt,
-                              [ tag;
-                                Cop
-                                  ( mk_load_mut Word_int,
-                                    [ Cop
-                                        ( Cadda,
-                                          [ meths;
-                                            lsl_const (Cvar mi) log2_size_addr
-                                              dbg ],
-                                          dbg ) ],
-                                    dbg ) ],
-                              dbg ),
-                          dbg,
-                          Clet
-                            ( VP.create new_hi,
-                              Cop (Csubi, [Cvar mi; cconst_int 2], dbg),
-                              Cifthenelse
-                                (* here, [li] remains unchanged, but [hi] has
-                                   been replaced by [mi - 2] aka [new_hi]. *)
-                                ( Cop (Ccmpi Cge, [Cvar li; Cvar new_hi], dbg),
-                                  dbg,
-                                  Cexit (Lbl raise_num, [Cvar li], []),
-                                  dbg,
-                                  Cexit (Lbl cont, [Cvar li; Cvar new_hi], []),
-                                  dbg,
-                                  Any ) ),
-                          dbg,
-                          Cifthenelse
-                            (* here, we have replaced [li] by [mi]; [hi] remains
-                               unchanged. *)
-                            ( Cop (Ccmpi Cge, [Cvar mi; Cvar hi], dbg),
-                              dbg,
-                              Cexit (Lbl raise_num, [Cvar li], []),
-                              dbg,
-                              Cexit (Lbl cont, [Cvar mi; Cvar hi], []),
-                              dbg,
-                              Any ),
-                          dbg,
-                          Any ) ),
-                  dbg,
-                  false ) ],
-              (* Start the first iteration of the loop *)
-              Cexit
-                ( Lbl cont,
-                  [cconst_int 3; Cop (mk_load_mut Word_int, [meths], dbg)],
-                  [] ),
-              Any ),
-          Cvar li_return,
-          dbg,
-          Any,
-          false ),
-      Clet
-        ( VP.create tagged,
-          Cop
-            ( Caddi,
-              [ lsl_const (Cvar new_li) log2_size_addr dbg;
-                cconst_int (1 - (3 * size_addr)) ],
-              dbg ),
-          Csequence
-            ( Cop (Cstore (Word_int, Assignment), [cache; Cvar tagged], dbg),
-              Cvar tagged ) ) )
+  ccatch
+    ( found_cont,
+      [VP.create result_label_index, typ_int],
+      Ccatch
+        ( Recursive,
+          [loop_cont, [li_vp, typ_int; hi_vp, typ_int], loop_body, dbg, false],
+          (* Start the first iteration of the loop *)
+          Cexit
+            ( Lbl loop_cont,
+              [cconst_int 3; Cop (mk_load_mut Word_int, [meths], dbg)],
+              [] ),
+          Any ),
+      found_expr,
+      dbg,
+      Any,
+      false )
 
 let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
 
