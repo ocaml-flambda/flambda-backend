@@ -6,6 +6,9 @@
  }
 *)
 
+(* NOTE: When adding tests to this file, also update
+   [typing-layouts-products/basics_implicit_unboxed_records.ml] *)
+
 open Stdlib_upstream_compatible
 
 (**************************************************************************)
@@ -248,12 +251,18 @@ Error:
          because of the definition of t1 at line 1, characters 0-38.
 |}]
 
-(* CR layouts v7.2: the following should typecheck. *)
 type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
 and r = #{ i : int ; f : float# }
 [%%expect{|
 type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r
 and r = #{ i : int; f : float#; }
+|}]
+
+type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
+and r = #{ i : int }
+[%%expect{|
+type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r
+and r = #{ i : int; }
 |}]
 
 (*******************)
@@ -399,6 +408,7 @@ type u : immediate
 type t = #{ x : float#; y : u; }
 |}]
 
+(********************)
 (* Recursive groups *)
 
 type ('a : float64) t_float64_id = 'a
@@ -610,11 +620,7 @@ Error: This expression has type "t",
 
 let _ = #{ b = 5 }
 [%%expect{|
-Line 1, characters 11-12:
-1 | let _ = #{ b = 5 }
-               ^
-Error: Unbound unboxed record field "b"
-Hint: There is a boxed record field with this name.
+- : t# = #{b = 5}
 |}]
 
 let _ = { u = 5 }
@@ -637,13 +643,10 @@ Hint: There is an unboxed record field with this name.
 
 let bad_get t = t.#b
 [%%expect{|
-Line 1, characters 19-20:
-1 | let bad_get t = t.#b
-                       ^
-Error: Unbound unboxed record field "b"
-Hint: There is a boxed record field with this name.
+val bad_get : t# -> int = <fun>
 |}]
 
+(*****************************************************************************)
 (* Initial expressions for functionally updated records are always evaluated *)
 
 type t = #{ x : string }

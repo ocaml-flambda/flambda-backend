@@ -1,0 +1,4 @@
+File "implicit_unboxed_records.ml", line 60, characters 22-31:
+60 | let print_ints prefix #{ x; y } = Printf.printf "%s: [%d %d]\n" prefix x y
+                           ^^^^^^^^^
+Error: This construct requires the stable version of the extension "layouts", which is disabled and cannot be used
