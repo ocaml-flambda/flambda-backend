@@ -42,7 +42,10 @@ type 'a environment =
     static_exceptions : 'a static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
-    trap_stack : Simple_operation.trap_stack
+    trap_stack : Simple_operation.trap_stack;
+    regs_for_exception_extra_args : Reg.t array Int.Map.t
+        (** For each exception handler, any registers that are to be used to hold
+            extra arguments. *)
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -66,6 +69,18 @@ let env_find_mut id env =
   | Asttypes.Immutable ->
     Misc.fatal_errorf "Selectgen.env_find_mut: %a is not mutable" V.print id);
   regs, provenance
+
+let env_add_regs_for_exception_extra_args id extra_args env =
+  { env with
+    regs_for_exception_extra_args =
+      Int.Map.add id extra_args env.regs_for_exception_extra_args
+  }
+
+let env_find_regs_for_exception_extra_args id env =
+  try Int.Map.find id env.regs_for_exception_extra_args
+  with Not_found ->
+    Misc.fatal_errorf
+      "Could not find exception extra args registers for continuation %d" id
 
 let _env_find_with_provenance id env = V.Map.find id env.vars
 
@@ -132,7 +147,8 @@ let pop_all_traps env =
 let env_empty =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
-    trap_stack = Uncaught
+    trap_stack = Uncaught;
+    regs_for_exception_extra_args = Int.Map.empty
   }
 
 let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
@@ -428,7 +444,7 @@ class virtual ['env, 'op, 'instr] common_selector =
       | Cconst_vec128 _ -> true
       | Cvar _ -> true
       | Ctuple el -> List.for_all self#is_simple_expr el
-      | Clet (_id, arg, body) | Clet_mut (_id, _, arg, body) ->
+      | Clet (_id, arg, body) ->
         self#is_simple_expr arg && self#is_simple_expr body
       | Cphantom_let (_var, _defining_expr, body) -> self#is_simple_expr body
       | Csequence (e1, e2) -> self#is_simple_expr e1 && self#is_simple_expr e2
@@ -452,9 +468,7 @@ class virtual ['env, 'op, 'instr] common_selector =
         | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
         | Cstatic_cast _ | Ctuple_field _ | Ccmpf _ | Cdls_get ->
           List.for_all self#is_simple_expr args)
-      | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-        ->
-        false
+      | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> false
 
     (* Analyses the effects and coeffects of an expression. This is used across
        a whole list of expressions with a view to determining which expressions
@@ -475,7 +489,7 @@ class virtual ['env, 'op, 'instr] common_selector =
       | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ ->
         EC.none
       | Ctuple el -> EC.join_list_map el self#effects_of
-      | Clet (_id, arg, body) | Clet_mut (_id, _, arg, body) ->
+      | Clet (_id, arg, body) ->
         EC.join (self#effects_of arg) (self#effects_of body)
       | Cphantom_let (_var, _defining_expr, body) -> self#effects_of body
       | Csequence (e1, e2) -> EC.join (self#effects_of e1) (self#effects_of e2)
@@ -507,7 +521,7 @@ class virtual ['env, 'op, 'instr] common_selector =
             EC.none
         in
         EC.join from_op (EC.join_list_map args self#effects_of)
-      | Cassign _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> EC.arbitrary
+      | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> EC.arbitrary
 
     (* Says whether an integer constant is a suitable immediate argument for the
        given integer operation *)
@@ -873,38 +887,15 @@ class virtual ['env, 'op, 'instr] common_selector =
         match self#emit_expr env e1 ~bound_name:(Some v) with
         | None -> None
         | Some r1 -> self#emit_expr_aux (self#bind_let env v r1) e2 ~bound_name)
-      | Clet_mut (v, k, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:(Some v) with
-        | None -> None
-        | Some r1 ->
-          self#emit_expr_aux (self#bind_let_mut env v k r1) e2 ~bound_name)
       | Cphantom_let (_var, _defining_expr, body) ->
         self#emit_expr_aux env body ~bound_name
-      | Cassign (v, e1) -> (
-        let rv, provenance =
-          try env_find_mut v env
-          with Not_found ->
-            Misc.fatal_error ("Selection.emit_expr: unbound var " ^ V.name v)
-        in
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> None
-        | Some r1 ->
-          (if Option.is_some provenance
-          then
-            let naming_op =
-              self#make_name_for_debugger ~ident:v ~provenance
-                ~which_parameter:None ~is_assignment:true ~regs:r1
-            in
-            self#insert_debug env naming_op Debuginfo.none [||] [||]);
-          self#insert_moves env r1 rv;
-          ret [||])
       | Ctuple [] -> ret [||]
       | Ctuple exp_list -> (
         match self#emit_parts_list env exp_list with
         | None -> None
         | Some (simple_list, ext_env) ->
           ret (self#emit_tuple ext_env simple_list))
-      | Cop (Craise k, [arg], dbg) -> self#emit_expr_aux_raise env k arg dbg
+      | Cop (Craise k, args, dbg) -> self#emit_expr_aux_raise env k args dbg
       | Cop (Copaque, args, dbg) -> (
         match self#emit_parts_list env args with
         | None -> None
@@ -941,14 +932,14 @@ class virtual ['env, 'op, 'instr] common_selector =
         self#emit_expr_aux_catch env bound_name rec_flag handlers body
           value_kind
       | Cexit (lbl, args, traps) -> self#emit_expr_aux_exit env lbl args traps
-      | Ctrywith (e1, exn_cont, v, e2, dbg, value_kind) ->
-        self#emit_expr_aux_trywith env bound_name e1 exn_cont v e2 dbg
-          value_kind
+      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
+        self#emit_expr_aux_trywith env bound_name e1 exn_cont v ~extra_args e2
+          dbg value_kind
 
     method virtual emit_expr_aux_raise
         : 'env environment ->
           Lambda.raise_kind ->
-          expression ->
+          expression list ->
           Debuginfo.t ->
           Reg.t array option
 
@@ -1009,6 +1000,7 @@ class virtual ['env, 'op, 'instr] common_selector =
           expression ->
           trywith_shared_label ->
           VP.t ->
+          extra_args:(VP.t * machtype) list ->
           expression ->
           Debuginfo.t ->
           kind_for_unboxing ->
@@ -1022,10 +1014,6 @@ class virtual ['env, 'op, 'instr] common_selector =
         match self#emit_expr env e1 ~bound_name:None with
         | None -> ()
         | Some r1 -> self#emit_tail (self#bind_let env v r1) e2)
-      | Clet_mut (v, k, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> ()
-        | Some r1 -> self#emit_tail (self#bind_let_mut env v k r1) e2)
       | Cphantom_let (_var, _defining_expr, body) -> self#emit_tail env body
       | Cop ((Capply (ty, Rc_normal) as op), args, dbg) ->
         self#emit_tail_apply env ty op args dbg
@@ -1041,11 +1029,11 @@ class virtual ['env, 'op, 'instr] common_selector =
       | Ccatch (_, [], e1, _) -> self#emit_tail env e1
       | Ccatch (rec_flag, handlers, e1, value_kind) ->
         self#emit_tail_catch env rec_flag handlers e1 value_kind
-      | Ctrywith (e1, exn_cont, v, e2, dbg, value_kind) ->
-        self#emit_tail_trywith env e1 exn_cont v e2 dbg value_kind
+      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
+        self#emit_tail_trywith env e1 exn_cont v ~extra_args e2 dbg value_kind
       | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _
-      | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Cassign _
-      | Ctuple _ | Cexit _ ->
+      | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Ctuple _
+      | Cexit _ ->
         self#emit_return env exp (pop_all_traps env)
 
     method virtual emit_tail_apply
@@ -1094,6 +1082,7 @@ class virtual ['env, 'op, 'instr] common_selector =
           expression ->
           trywith_shared_label ->
           VP.t ->
+          extra_args:(VP.t * machtype) list ->
           expression ->
           Debuginfo.t ->
           kind_for_unboxing ->

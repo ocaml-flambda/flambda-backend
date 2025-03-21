@@ -428,11 +428,6 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       in
       C.resume ~dbg ~stack ~f ~arg ~last_fiber, free_vars, env, res, Ece.all)
 
-(* Function calls that have an exn continuation with extra arguments must be
-   wrapped with assignments for the mutable variables used to pass the extra
-   arguments. *)
-(* CR mshinwell: Add first-class support in Cmm for the concept of an exception
-   handler with extra arguments. *)
 let translate_apply env res apply =
   let dbg = Env.add_inlined_debuginfo env (Apply.dbg apply) in
   warn_if_unused_inlined_attribute apply ~dbg_with_inlined:dbg;
@@ -440,37 +435,73 @@ let translate_apply env res apply =
     translate_apply0 ~dbg_with_inlined:dbg env res apply
   in
   let k_exn = Apply.exn_continuation apply in
-  let mut_vars =
-    Exn_continuation.exn_handler k_exn |> Env.get_exn_extra_args env
-  in
   let extra_args = Exn_continuation.extra_args k_exn in
-  if List.compare_lengths extra_args mut_vars = 0
-  then
-    (* Note wrt evaluation order: this is correct for the same reason as
-       `To_cmm_shared.simple_list`, namely the first simple translated (and
-       potentially inlined/substituted) is evaluted last. *)
-    let aux (call, env, res, free_vars) (arg, _k) v =
-      let To_cmm_env.
-            { env;
-              res;
-              expr = { cmm = arg; free_vars = arg_free_vars; effs = _ }
-            } =
-        C.simple ~dbg env res arg
-      in
-      let free_vars = Backend_var.Set.union free_vars arg_free_vars in
-      C.sequence (C.assign v arg) call, env, res, free_vars
-    in
-    let call, env, res, free_vars =
-      List.fold_left2 aux (call, env, res, free_vars) extra_args mut_vars
-    in
-    call, free_vars, env, res, effs
+  if Misc.Stdlib.List.is_empty extra_args
+  then call, free_vars, env, res, effs
   else
-    Misc.fatal_errorf
-      "Length of [extra_args] in exception continuation %a@ does not match \
-       those in the environment (%a)@ for application expression:@ %a"
-      Exn_continuation.print k_exn
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
-      mut_vars Apply.print apply
+    (* If there are extra args, create a wrapper continuation, as we do when
+       inlining a function into a context where the exception continuation takes
+       extra args. *)
+    let env, res, free_vars, effs, extra_args_rev =
+      (* Obtain the Cmm expressions for the extra args *)
+      List.fold_left
+        (fun (env, res, free_vars, effs, extra_args_rev)
+             (extra_arg_simple, _kind) ->
+          let { To_cmm_env.env;
+                res;
+                expr = { cmm = extra_arg; free_vars = free_vars'; effs = effs' }
+              } =
+            C.simple ~dbg env res extra_arg_simple
+          in
+          ( env,
+            res,
+            Backend_var.Set.union free_vars free_vars',
+            Ece.join effs effs',
+            extra_arg :: extra_args_rev ))
+        (env, res, free_vars, effs, [])
+        extra_args
+    in
+    let extra_args = List.rev extra_args_rev in
+    let exn_var = Backend_var.create_local "*exn*" in
+    let result_var = Backend_var.create_local "*res*" in
+    let result_type =
+      Apply.return_arity apply |> C.extended_machtype_of_return_arity
+      |> C.Extended_machtype.to_machtype
+    in
+    let pop_handler_params =
+      [Backend_var.With_provenance.create result_var, result_type]
+    in
+    let handler_cont = Lambda.next_raise_count () in
+    let push_cont = Lambda.next_raise_count () in
+    let pop_cont = Lambda.next_raise_count () in
+    let call_and_pop = C.cexit pop_cont [call] [Pop handler_cont] in
+    let body =
+      C.create_ccatch ~rec_flag:false
+        ~body:(C.cexit push_cont [] [Push handler_cont])
+        ~handlers:[C.handler ~dbg push_cont [] call_and_pop false (* is_cold *)]
+    in
+    let body =
+      C.create_ccatch ~rec_flag:false ~body
+        ~handlers:
+          [ C.handler ~dbg pop_cont pop_handler_params (Cvar result_var)
+              false (* is_cold *) ]
+    in
+    let handler =
+      (* This exception handler has no extra args, but reraises to the one which
+         does. The exception arising from the function application is in
+         [exn_var]. *)
+      C.raise_prim Raise_reraise (Cvar exn_var) ~extra_args dbg
+    in
+    let cmm =
+      (* Catch any exceptions from the function application and send them to our
+         handler *)
+      C.trywith
+        ~exn_var:(Backend_var.With_provenance.create exn_var)
+        ~extra_args:[] ~dbg:(Apply.dbg apply) ~body ~handler_cont ~handler ()
+    in
+    cmm, free_vars, env, res, effs
+
+(* Helpers for the translation of [Switch] expressions. *)
 
 (* Helpers for translating [Apply_cont] expressions *)
 
@@ -500,14 +531,8 @@ let translate_raise ~dbg_with_inlined:dbg env res apply exn_handler args =
       C.simple_list ~dbg env res extra
     in
     let free_vars = Backend_var.Set.union exn_free_vars extra_free_vars in
-    let mut_vars = Env.get_exn_extra_args env exn_handler in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    let cmm =
-      List.fold_left2
-        (fun expr arg v -> C.sequence (C.assign v arg) expr)
-        (C.raise_prim raise_kind exn dbg)
-        extra mut_vars
-    in
+    let cmm = C.raise_prim raise_kind exn ~extra_args:extra dbg in
     let cmm, free_vars = wrap cmm free_vars in
     cmm, free_vars, res
   | [] ->
@@ -791,12 +816,7 @@ and let_cont_not_inlined env res k handler body =
   cmm, free_vars, res
 
 (* Exception continuations are translated using delayed Ctrywith blocks. The
-   exception handler parts of these blocks are identified by the [catch_id]s.
-
-   Additionally, exception continuations can have extra args, which are passed
-   through the try-with using mutable Cmm variables. Thus the exception handler
-   must first read the contents of those extra args (eagerly, in order to
-   minmize the lifetime of the mutable variables). *)
+   exception handler parts of these blocks are identified by the [catch_id]s. *)
 and let_cont_exn_handler env res k body vars handler free_vars_of_handler
     ~catch_id arity =
   let exn_var, extra_params =
@@ -808,17 +828,15 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
         "Exception continuation %a should have at least one argument"
         Continuation.print k
   in
-  let env_body, mut_vars = Env.add_exn_handler env k arity in
-  let handler =
-    (* Wrap the exn handler with reads of the mutable variables *)
-    List.fold_left2
-      (fun handler (mut_var, _) (extra_param, _) ->
-        (* We introduce these mutable cmm variables at very precise points, and
-           without going through the delayed let-bindings of the [env], so we do
-           not consider them when computing the [free_vars]. *)
-        C.letin extra_param ~defining_expr:(C.var mut_var) ~body:handler)
-      handler mut_vars extra_params
+  let extra_params =
+    List.filter_map
+      (fun (var, (param_type : _ Env.param_type)) ->
+        match param_type with
+        | Param machtype -> Some (var, machtype)
+        | Skip_param -> None)
+      extra_params
   in
+  let env_body = Env.add_exn_handler env k arity in
   let body, free_vars_of_body, res = expr env_body res body in
   let free_vars =
     Backend_var.Set.union free_vars_of_body
@@ -828,34 +846,10 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
   (* CR gbury: once we get proper debuginfo here, remember to apply
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
-  let trywith =
-    C.trywith ~dbg ~body ~exn_var ~handler_cont:catch_id ~handler ()
-  in
-  (* Define and initialize the mutable Cmm variables for extra args *)
-  let cmm =
-    List.fold_left
-      (fun cmm (mut_var, kind) ->
-        (* CR mshinwell: Fix [provenance] *)
-        let mut_var =
-          Backend_var.With_provenance.create ?provenance:None mut_var
-        in
-        let dummy_value =
-          match K.With_subkind.kind kind with
-          | Value -> C.int ~dbg 1
-          | Naked_number Naked_float -> C.float ~dbg 0.
-          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
-          | Naked_number
-              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
-            C.int ~dbg 0
-          | Naked_number Naked_vec128 -> C.vec128 ~dbg { high = 0L; low = 0L }
-          | Region | Rec_info ->
-            Misc.fatal_errorf "No dummy value available for kind %a"
-              K.With_subkind.print kind
-        in
-        C.letin_mut mut_var (C.machtype_of_kind kind) dummy_value cmm)
-      trywith mut_vars
-  in
-  cmm, free_vars, res
+  ( C.trywith ~dbg ~body ~exn_var ~extra_args:extra_params
+      ~handler_cont:catch_id ~handler (),
+    free_vars,
+    res )
 
 and let_cont_rec env res invariant_params conts body =
   (* Flush the env now to avoid inlining something inside of a recursive
