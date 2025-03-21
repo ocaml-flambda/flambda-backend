@@ -1355,7 +1355,7 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
   mlsize_t size, i;
   caml_domain_state* domain_state = Caml_state;
   int alive_data;
-  intnat marked = 0, made_live = 0;
+  uintnat examined = 0, trivial_data = 0, marked_data = 0;
 
   CAMLassert(caml_marking_started());
   if (domain_state->ephe_info->cursor.cycle == for_cycle &&
@@ -1411,12 +1411,13 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
       /* Not yet known whether this ephemeron's keys/block will be marked,
          but since the data is trivial nothing will happen if they are,
          so remove it from the todo list */
+      ++ trivial_data;
       keep = false;
     } else if (force_alive || alive_data) {
       /* This ephemeron's keys & block are marked, so mark the data,
          and remove it from the todo list */
       caml_darken (domain_state, data, 0);
-      made_live++;
+      ++ marked_data;
       keep = false;
     } else {
       /* Leave this ephemeron on the todo list */
@@ -1430,15 +1431,15 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
       domain_state->ephe_info->live = v;
       *prev_linkp = todo;
     }
-    marked++;
+    ++ examined;
   }
 
-  caml_gc_log("Mark Ephemeron: %s. Ephemeron cycle=%"ARCH_INTNAT_PRINTF_FORMAT"d "
-              "examined=%"ARCH_INTNAT_PRINTF_FORMAT"d "
-              "marked=%"ARCH_INTNAT_PRINTF_FORMAT"d",
-              domain_state->ephe_info->cursor.cycle == for_cycle ?
-              "Continued from cursor" : "Discarded cursor",
-              for_cycle, marked, made_live);
+#define F_U "%"ARCH_INTNAT_PRINTF_FORMAT"u"
+  CAML_GC_MESSAGE(SLICE, "Marked ephemerons: %s. Ephemeron cycle "F_U
+                  " examined "F_U" trivial data "F_U" marked data "F_U"\n",
+                  domain_state->ephe_info->cursor.cycle == for_cycle ?
+                  "Continued from cursor" : "Discarded cursor",
+                  for_cycle, examined, trivial_data, marked_data);
 
   domain_state->ephe_info->cursor.cycle = for_cycle;
   domain_state->ephe_info->cursor.todop = prev_linkp;
