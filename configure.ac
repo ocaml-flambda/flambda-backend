@@ -2640,14 +2640,13 @@ AS_IF([test x"$enable_frame_pointers" = "xyes" -o x"$enable_address_sanitizer" =
 ## Address Sanitizer
 
 AS_IF([test x"$enable_address_sanitizer" = "xyes"],
-  [AS_CASE(["$host,$ocaml_cc_vendor"],
-    [x86_64-*-linux*,gcc-*|x86_64-*-linux*,clang-*],
+  [AX_CHECK_COMPILE_FLAG([-fsanitize=address -fsanitize-recover=address],
       [common_cflags="$common_cflags -fsanitize=address -fsanitize-recover=address"
        oc_ldflags="$oc_ldflags -fsanitize=address -fsanitize-recover=address"
        address_sanitizer=true
       AC_DEFINE([WITH_ADDRESS_SANITIZER])
       AC_MSG_NOTICE([using Address Sanitizer])],
-    [AC_MSG_ERROR([Address Sanitizer is not supported on this platform])]
+      [AC_MSG_ERROR([Address Sanitizer is not supported by this compiler])]
   )],
   [AC_MSG_NOTICE([not using Address Sanitizer])
   address_sanitizer=false])

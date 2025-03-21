@@ -493,7 +493,7 @@ CAMLprim value caml_atomic_lxor (value ref, value incr)
 CAMLexport int caml_is_stack (value v)
 {
   int i;
-  // We elide a call to caml_refresh_locals here for speed, since we never 
+  // We elide a call to caml_refresh_locals here for speed, since we never
   // read the local sp.
   struct caml_local_arenas* loc = Caml_state->current_stack->local_arenas;
   if (!Is_block(v)) return 0;
@@ -1081,11 +1081,17 @@ __asan_default_options(void) {
          "detect_stack_use_after_return=false";
 }
 
-#define CREATE_ASAN_REPORT_WRAPPER(memory_access, size) \
-void __asan_report_ ## memory_access ## size ## _noabort(const void* addr); \
-CAMLexport void __attribute__((preserve_all)) caml_asan_report_ ## memory_access ## size ## _noabort(const void* addr) { \
-  return __asan_report_ ## memory_access ## size ## _noabort(addr); \
-}
+#ifdef __clang___
+#define ASAN_REPORT_WRAPPER_ATTRIBUTES preserve_all
+#else
+#define ASAN_REPORT_WRAPPER_ATTRIBUTES
+#endif
+
+#define CREATE_ASAN_REPORT_WRAPPER(memory_access, size)                 \
+  void __asan_report_ ## memory_access ## size ## _noabort(const void* addr); \
+  CAMLexport void __attribute__((ASAN_REPORT_WRAPPER_ATTRIBUTES)) caml_asan_report_ ## memory_access ## size ## _noabort(const void* addr) { \
+    return __asan_report_ ## memory_access ## size ## _noabort(addr);   \
+  }
 
 CREATE_ASAN_REPORT_WRAPPER(load, 1)
 CREATE_ASAN_REPORT_WRAPPER(load, 2)
@@ -1099,4 +1105,5 @@ CREATE_ASAN_REPORT_WRAPPER(store, 8)
 CREATE_ASAN_REPORT_WRAPPER(store, 16)
 
 #undef CREATE_ASAN_REPORT_WRAPPER
+#undef ASAN_REPORT_WRAPPER_ATTRIBUTES
 #endif

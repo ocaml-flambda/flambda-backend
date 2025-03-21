@@ -3,11 +3,17 @@
 
 #ifdef WITH_ADDRESS_SANITIZER
 
-#define CREATE_ASAN_REPORT_WRAPPER(memory_access, size) \
-void __asan_report_ ## memory_access ## size ## _noabort(const void* addr); \
-CAMLexport void __attribute__((preserve_all)) caml_asan_report_ ## memory_access ## size ## _noabort(const void* addr) { \
-  return __asan_report_ ## memory_access ## size ## _noabort(addr); \
-}
+#ifdef __clang___
+#define ASAN_REPORT_WRAPPER_ATTRIBUTES preserve_all
+#else
+#define ASAN_REPORT_WRAPPER_ATTRIBUTES
+#endif
+
+#define CREATE_ASAN_REPORT_WRAPPER(memory_access, size)                 \
+  void __asan_report_ ## memory_access ## size ## _noabort(const void* addr); \
+  CAMLexport void __attribute__((ASAN_REPORT_WRAPPER_ATTRIBUTES)) caml_asan_report_ ## memory_access ## size ## _noabort(const void* addr) { \
+    return __asan_report_ ## memory_access ## size ## _noabort(addr);   \
+  }
 
 CREATE_ASAN_REPORT_WRAPPER(load, 1)
 CREATE_ASAN_REPORT_WRAPPER(load, 2)
@@ -21,6 +27,7 @@ CREATE_ASAN_REPORT_WRAPPER(store, 8)
 CREATE_ASAN_REPORT_WRAPPER(store, 16)
 
 #undef CREATE_ASAN_REPORT_WRAPPER
+#undef ASAN_REPORT_WRAPPER_ATTRIBUTES
 
 #else
 // Prevents triggering [-Wempty-translation-unit], which is enabled by [-Wpedantic].
