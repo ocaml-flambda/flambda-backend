@@ -5,6 +5,15 @@
  (wrapped false)
  (modules test_helpers))
 
+(library
+ (name simd_test_builtins)
+ (wrapped false)
+ (modules builtins builtins_u))
+
+(copy_files#
+  (files "%{env:ARCH=amd64}/*.ml{,i}"))
+
+
 ; Stubs
 
 (foreign_library
@@ -12,40 +21,45 @@
  (language c)
  (names stubs)
  (flags
-  (:standard -msse4.2))
+   (:standard
+     (:include flags.sexp)))
  (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+
+(rule
+ (targets flags.sexp)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")))
+ (action
+  (with-stdout-to
+   flags.sexp
+   (echo "-msse4.2"))))
+
+(rule
+ (targets flags.sexp)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{architecture} "amd64")))
+ (action
+  (with-stdout-to
+   flags.sexp
+   (echo "()"))))
 
 ; Tests with external assembler
 
 (executables
- (names
-  basic
-  basic_u
-  ops
-  ops_u
-  arrays
-  arrays_u
-  scalar_ops
-  consts
-  consts_u
-  callback)
- (modules
-  basic
-  basic_u
-  ops
-  ops_u
-  arrays
-  arrays_u
-  scalar_ops
-  consts
-  consts_u
-  callback)
- (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
+ (names basic basic_u ops ops_u arrays arrays_u scalar_ops consts consts_u callback)
+ (modules basic basic_u ops ops_u arrays arrays_u scalar_ops consts consts_u callback)
+ (libraries simd_test_helpers simd_test_builtins stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs))
 
 (rule
- (enabled_if
-  (= %{context_name} "main"))
+(enabled_if
+  (and
+    (<> %{system} macosx)
+    (= %{architecture} amd64)))
  (targets
   basic.out
   basic_u.out
@@ -104,8 +118,8 @@
  (alias runtest)
  (enabled_if
   (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+    (<> %{system} macosx)
+    (= %{architecture} amd64)))
  (action
   (progn
    (diff empty.expected basic.out)
@@ -180,14 +194,16 @@
   arrays_u_nodynlink
   scalar_ops_nodynlink
   callback_nodynlink)
- (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
+ (libraries simd_test_helpers simd_test_builtins stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -nodynlink)))
 
 (rule
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+    (<> %{system} macosx)
+    (= %{architecture} amd64)))
  (targets
   basic_nodynlink.out
   basic_u_nodynlink.out
@@ -245,8 +261,8 @@
  (alias runtest)
  (enabled_if
   (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+    (<> %{system} macosx)
+    (= %{architecture} amd64)))
  (action
   (progn
    (diff empty.expected basic_nodynlink.out)
@@ -260,13 +276,15 @@
    (diff empty.expected consts_u_nodynlink.out)
    (diff empty.expected callback_nodynlink.out))))
 
-; Tests with probes / internal assembler - not supported on macOS
+; Tests with probes / internal assembler - not supported on macOS or arm64
 
 (executable
  (name probes)
  (modules probes)
  (enabled_if
-  (<> %{system} macosx))
+  (and
+    (<> %{system} macosx)
+    (= %{architecture} amd64)))
  (foreign_archives stubs))
 
 (rule
@@ -326,9 +344,11 @@
   arrays_u_internal
   scalar_ops_internal
   callback_internal)
- (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
+ (libraries simd_test_helpers simd_test_builtins stdlib_stable stdlib_upstream_compatible)
  (enabled_if
-  (<> %{system} macosx))
+  (and
+   (<> %{system} macosx)
+   (<> %{system} arm64)))
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -internal-assembler)))
@@ -337,7 +357,8 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (<> %{system} macosx)))
+   (<> %{system} macosx)
+   (= %{architecture} amd64)))
  (targets
   probes.out
   basic_internal.out
