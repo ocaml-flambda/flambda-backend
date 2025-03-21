@@ -211,7 +211,8 @@ module Flat_suffix_element0 = struct
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
     | Naked_vec128 -> Format.pp_print_string ppf "Naked_vec128"
 
-  let from_lambda (elt : _ Lambda.mixed_block_element) =
+  let from_singleton_mixed_block_element
+      (elt : _ Mixed_block_lambda_shape.Singleton_mixed_block_element.t) =
     match elt with
     | Float_boxed _ | Float64 -> Naked_float
     | Float32 -> Naked_float32
@@ -303,13 +304,12 @@ module Mixed_block_shape = struct
       Misc.Stdlib.Array.compare Flat_suffix_element0.compare flat_suffix1
         flat_suffix2
 
-  let from_lambda (shape : Lambda.mixed_block_shape) : t =
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
+  let from_mixed_block_shape (shape : _ Mixed_block_lambda_shape.t) : t =
     let value_prefix_kinds =
       Array.map (fun _ -> value) (Mixed_block_shape.value_prefix shape)
     in
     let flat_suffix =
-      Array.map Flat_suffix_element0.from_lambda
+      Array.map Flat_suffix_element0.from_singleton_mixed_block_element
         (Mixed_block_shape.flat_suffix shape)
     in
     let flat_suffix_kinds = Array.map Flat_suffix_element0.kind flat_suffix in
@@ -897,8 +897,11 @@ module With_subkind = struct
                       ( Scannable Value_only,
                         List.map from_lambda_value_kind fields )
                     | Constructor_mixed mixed_block_shape ->
+                      let orig_mixed_block_shape = mixed_block_shape in
                       let mixed_block_shape =
                         Mixed_block_lambda_shape.of_mixed_block_elements
+                          ~print_locality:(fun ppf () ->
+                            Format.fprintf ppf "()")
                           mixed_block_shape
                       in
                       let from_mixed_block_element :
@@ -911,16 +914,23 @@ module With_subkind = struct
                         | Bits64 -> naked_int64
                         | Vec128 -> naked_vec128
                         | Word -> naked_nativeint
+                        | Product _ -> assert false
                       in
                       let fields : t array =
-                        Array.map from_mixed_block_element
-                          (Mixed_block_lambda_shape.reordered_shape
-                             mixed_block_shape)
+                        (* XXX share with Pmakemixedblock case in flambda2 *)
+                        let new_indexes_to_old_indexes =
+                          Mixed_block_lambda_shape.new_indexes_to_old_indexes
+                            mixed_block_shape
+                        in
+                        Array.init (Array.length new_indexes_to_old_indexes)
+                          (fun new_index ->
+                            from_mixed_block_element
+                              orig_mixed_block_shape.(new_indexes_to_old_indexes.(
+                                                      new_index)))
                       in
                       let mixed_block_shape =
-                        Mixed_block_shape.from_lambda
-                          (Mixed_block_lambda_shape.reordered_shape
-                             mixed_block_shape)
+                        Mixed_block_shape.from_mixed_block_shape
+                          mixed_block_shape
                       in
                       ( Scannable (Mixed_record mixed_block_shape),
                         Array.to_list fields )

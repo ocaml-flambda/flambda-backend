@@ -611,10 +611,15 @@ and value_kind_mixed_block_field env ~loc ~visited ~depth ~num_nodes_visited
   : int * unit Lambda.mixed_block_element =
   match field with
   | Value ->
-    let num_nodes_visited, kind =
-      value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
-    in
-    num_nodes_visited, Value kind
+    begin match ty with
+    | Some ty ->
+      let num_nodes_visited, kind =
+        value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+      in
+      num_nodes_visited, Value kind
+    | None -> num_nodes_visited, Value (nullable Pgenval)
+    (* XXX consider if we want to bother doing better here. *)
+    end
   | Float_boxed -> num_nodes_visited, Float_boxed ()
   | Float64 -> num_nodes_visited, Float64
   | Float32 -> num_nodes_visited, Float32
@@ -622,6 +627,14 @@ and value_kind_mixed_block_field env ~loc ~visited ~depth ~num_nodes_visited
   | Bits64 -> num_nodes_visited, Bits64
   | Vec128 -> num_nodes_visited, Vec128
   | Word -> num_nodes_visited, Word
+  | Product fs ->
+    let num_nodes_visited, kinds =
+      Array.fold_left_map (fun num_nodes_visited field ->
+        value_kind_mixed_block_field env ~loc ~visited ~depth ~num_nodes_visited
+          field None
+      ) num_nodes_visited fs
+    in
+    num_nodes_visited, Product kinds
 
 and value_kind_mixed_block
       env ~loc ~visited ~depth ~num_nodes_visited ~shape types =
@@ -689,7 +702,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
                 ~depth ~num_nodes_visited
           | Constructor_mixed shape ->
               value_kind_mixed_block env ~loc ~visited ~depth ~num_nodes_visited
-                ~shape (List.map field_to_type fields)
+                ~shape (List.map (fun f -> Some (field_to_type f)) fields)
         in
         (false, num_nodes_visited), fields
       | Cstr_record labels ->
@@ -707,7 +720,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
                 ~depth ~num_nodes_visited
           | Constructor_mixed shape ->
               value_kind_mixed_block env ~loc ~visited ~depth ~num_nodes_visited
-                ~shape (List.map field_to_type labels)
+                ~shape (List.map (fun f -> Some (field_to_type f)) labels)
         in
         (is_mutable, num_nodes_visited), fields
     in
@@ -822,7 +835,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_mixed shape ->
             let types = List.map (fun label -> label.Types.ld_type) labels in
             value_kind_mixed_block env ~loc ~visited ~depth ~num_nodes_visited
-              ~shape types
+              ~shape (List.map (fun t -> Some t) types)
         in
         let non_consts =
           match rep with
