@@ -1031,16 +1031,12 @@ let emit_reinterpret_cast (cast : Cmm.reinterpret_cast) i =
        if distinct then (
         DSL.check_reg Float src;
         DSL.check_reg Float32 dst;
-        (* CR melse: I think this might be broken - maybe we need to do fmov dN,
-           dM without referring to single-precision registers? *)
-          DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg src |])
+        DSL.ins I.FCVT [| DSL.emit_reg dst; DSL.emit_reg src |])
     | Float_of_float32 ->
       if distinct then (
         DSL.check_reg Float32 src;
         DSL.check_reg Float dst;
-        (* CR melse: I think this might be broken - maybe we need to do fmov dN,
-           dM without referring to single-precision registers? *)
-        DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg src |])
+        DSL.ins I.FCVT [| DSL.emit_reg dst; DSL.emit_reg src |])
     | V128_of_v128 ->
       if distinct then (
         DSL.check_reg Vec128 src;
