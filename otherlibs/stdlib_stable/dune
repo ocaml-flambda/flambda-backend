@@ -30,25 +30,6 @@
  (library_flags
   (:standard -linkall)))
 
-(copy_files#
- (enabled_if
-   (or
-    (= %{architecture} "amd64")
-    (= %{architecture} "arm64")))
-  (files "native/*.ml{,i}"))
-
-(rule
- (targets stdlib_stable.ml stdlib_stable.mli)
- (deps generic/stdlib_stable.ml generic/stdlib_stable.mli)
- (enabled_if
-  (and
-    (<> %{architecture} "amd64")
-    (<> %{architecture} "arm64")))
- (action
-  (progn
-   (copy generic/stdlib_stable.ml stdlib_stable.ml)
-   (copy generic/stdlib_stable.mli stdlib_stable.mli))))
-
 (rule
  (deps
   (:first-dep ../to_install.sh)
