@@ -2,7 +2,11 @@
  readonly_files = "main.c asan_report_wrappers.c";
  arguments = "-DSORT -DFUN=quicksort main.c asan_report_wrappers.c";
  asmgen;
+ skip;
+ reason="Needs rewriting to not use Cassign";
 *)
+
+(* CR mshinwell: rewrite to not use Cassign *)
 
 (**************************************************************************)
 (*                                                                        *)
