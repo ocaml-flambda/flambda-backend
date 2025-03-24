@@ -189,5 +189,4 @@ let _ =
     Compilation_unit.create Compilation_unit.Prefix.empty linkage_name
   in
   Compilation_unit.set_current (Some comp_unit);
-  Flambda_backend_flags.(Flambda2.meet_algorithm := Set Advanced);
   test_double_recursion ()

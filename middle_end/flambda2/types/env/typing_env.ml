@@ -271,15 +271,7 @@ type 'a meet_return_value =
   | Both_inputs
   | New_result of 'a
 
-type meet_type_new =
-  t -> TG.t -> TG.t -> (TG.t meet_return_value * t) Or_bottom.t
-
-type meet_type_old =
-  Meet_env.t -> TG.t -> TG.t -> (TG.t * Typing_env_extension.t) Or_bottom.t
-
-type meet_type =
-  | New of meet_type_new
-  | Old of meet_type_old
+type meet_type = t -> TG.t -> TG.t -> (TG.t meet_return_value * t) Or_bottom.t
 
 module Join_env : sig
   type t
@@ -840,7 +832,7 @@ and replace_equation_or_add_alias_to_const t name ty =
     | Bottom ->
       Misc.fatal_error "Unexpected bottom while adding alias to constant.")
 
-and add_non_alias_equation ~original_name ~raise_on_bottom t lhs_simple rhs_ty
+and add_non_alias_equation ~raise_on_bottom t lhs_simple rhs_ty
     ~(meet_type : meet_type) =
   (* We are about to add a non-alias type on a canonical *simple*. This type
      might have been provided by the caller of [add_equation], or it might come
@@ -860,41 +852,20 @@ and add_non_alias_equation ~original_name ~raise_on_bottom t lhs_simple rhs_ty
      no type to record for [c], however we still need to check that [c] is
      compatible with the previous type of [p].
 
-     Note that, when using the old meet, we only call [meet] if the canonical
-     name after orienting the equation is different from the original name given
-     by the caller. In the situation where the names are the same, we assume
-     that the caller already took care of only giving a type that is more
-     precise than the existing one.
-
      Note also that [p] and [x] may have different name modes! *)
   let[@inline always] name eqn_name ty =
-    match meet_type with
-    | New meet_type_new -> (
-      let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-      match meet_type_new t ty existing_ty with
-      | Bottom ->
-        if raise_on_bottom
-        then raise Bottom_equation
-        else replace_equation t eqn_name (MTC.bottom (TG.kind ty))
-      | Ok (meet_ty, env) -> (
-        match meet_ty with
-        | Left_input -> replace_equation_or_add_alias_to_const env eqn_name ty
-        | Right_input | Both_inputs -> env
-        | New_result ty' ->
-          replace_equation_or_add_alias_to_const env eqn_name ty'))
-    | Old meet_type_old -> (
-      if Name.equal original_name eqn_name
-      then replace_equation_or_add_alias_to_const t eqn_name ty
-      else
-        let env = Meet_env.create t in
-        let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-        match meet_type_old env ty existing_ty with
-        | Bottom -> replace_equation t eqn_name (MTC.bottom (TG.kind ty))
-        | Ok (meet_ty, env_extension) ->
-          let t =
-            add_env_extension ~raise_on_bottom t env_extension ~meet_type
-          in
-          replace_equation_or_add_alias_to_const t eqn_name meet_ty)
+    let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+    match meet_type t ty existing_ty with
+    | Bottom ->
+      if raise_on_bottom
+      then raise Bottom_equation
+      else replace_equation t eqn_name (MTC.bottom (TG.kind ty))
+    | Ok (meet_ty, env) -> (
+      match meet_ty with
+      | Left_input -> replace_equation_or_add_alias_to_const env eqn_name ty
+      | Right_input | Both_inputs -> env
+      | New_result ty' ->
+        replace_equation_or_add_alias_to_const env eqn_name ty')
   in
   let[@inline always] const const ty =
     (* If we are applying an alias-to-constant type to a name, the constant
@@ -902,17 +873,9 @@ and add_non_alias_equation ~original_name ~raise_on_bottom t lhs_simple rhs_ty
        This merely reduces to checking that the type is compatible (e.g. if we
        are adding [x : (= 0)] in a context where [x : { 1, 2 }] holds). *)
     let existing_ty = MTC.type_for_const const in
-    match meet_type with
-    | New meet_type_new -> (
-      match meet_type_new t ty existing_ty with
-      | Bottom -> if raise_on_bottom then raise Bottom_equation else t
-      | Ok (_, env) -> env)
-    | Old meet_type_old -> (
-      let env = Meet_env.create t in
-      match meet_type_old env ty existing_ty with
-      | Bottom -> t
-      | Ok (_, env_extension) ->
-        add_env_extension ~raise_on_bottom t env_extension ~meet_type)
+    match meet_type t ty existing_ty with
+    | Bottom -> if raise_on_bottom then raise Bottom_equation else t
+    | Ok (_, env) -> env
   in
   pattern_match_equation lhs_simple rhs_ty ~name ~const
 
@@ -1002,8 +965,7 @@ and orient_and_add_equation ~raise_on_bottom t name ty ~meet_type =
   match inputs with
   | None -> t
   | Some (simple, t, ty) ->
-    add_non_alias_equation ~original_name:name ~raise_on_bottom t simple ty
-      ~meet_type
+    add_non_alias_equation ~raise_on_bottom t simple ty ~meet_type
 
 and[@inline always] add_equation ~raise_on_bottom t name ty ~meet_type =
   match orient_and_add_equation ~raise_on_bottom t name ty ~meet_type with

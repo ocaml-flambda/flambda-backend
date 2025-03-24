@@ -59,9 +59,7 @@ let add_equation (simple : Simple.t) ty_of_simple env ~meet_type :
     let ty_of_name =
       TG.apply_coercion ty_of_simple coercion_from_simple_to_name
     in
-    match
-      TE.add_equation_strict env name ty_of_name ~meet_type:(TE.New meet_type)
-    with
+    match TE.add_equation_strict env name ty_of_name ~meet_type with
     | Ok env -> Ok (New_result (), env)
     | Bottom -> Bottom (New_result ())
   in
@@ -297,7 +295,7 @@ let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
   let direct_return r =
     map_env r ~f:(fun scoped_env ->
         TE.add_env_extension_strict initial_env (to_extension scoped_env)
-          ~meet_type:(New meet_type))
+          ~meet_type)
   in
   let env_a, env_b = Or_bottom.Ok env, Or_bottom.Ok env in
   let env_a, env_b =
@@ -305,18 +303,18 @@ let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
     | No_extensions -> env_a, env_b
     | Ext { when_a; when_b } ->
       ( Or_bottom.bind env_a ~f:(fun env ->
-            TE.add_env_extension_strict env when_a ~meet_type:(New meet_type)),
+            TE.add_env_extension_strict env when_a ~meet_type),
         Or_bottom.bind env_b ~f:(fun env ->
-            TE.add_env_extension_strict env when_b ~meet_type:(New meet_type)) )
+            TE.add_env_extension_strict env when_b ~meet_type) )
   in
   let env_a, env_b =
     match extensions2 with
     | No_extensions -> env_a, env_b
     | Ext { when_a; when_b } ->
       ( Or_bottom.bind env_a ~f:(fun env ->
-            TE.add_env_extension_strict env when_a ~meet_type:(New meet_type)),
+            TE.add_env_extension_strict env when_a ~meet_type),
         Or_bottom.bind env_b ~f:(fun env ->
-            TE.add_env_extension_strict env when_b ~meet_type:(New meet_type)) )
+            TE.add_env_extension_strict env when_b ~meet_type) )
   in
   let a_result : _ meet_result =
     match env_a with
@@ -387,8 +385,7 @@ let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
     let result_env =
       (* Not strict, as we don't expect to be able to get bottom equations from
          joining non-bottom ones *)
-      TE.add_env_extension initial_env result_extension
-        ~meet_type:(New meet_type)
+      TE.add_env_extension initial_env result_extension ~meet_type
     in
     Ok (result, result_env)
 
@@ -1238,13 +1235,11 @@ and meet_row_like :
       | Ok (maps_to_result, env) -> (
         let env : _ Or_bottom.t =
           match
-            TE.add_env_extension_strict env case1.env_extension
-              ~meet_type:(New meet_type)
+            TE.add_env_extension_strict env case1.env_extension ~meet_type
           with
           | Bottom -> Bottom
           | Ok env ->
-            TE.add_env_extension_strict env case2.env_extension
-              ~meet_type:(New meet_type)
+            TE.add_env_extension_strict env case2.env_extension ~meet_type
         in
         match env with
         | Bottom -> bottom_case (New_result ())
@@ -1286,7 +1281,7 @@ and meet_row_like :
         | Unknown -> (
           match
             TE.add_env_extension_strict base_env other_case.env_extension
-              ~meet_type:(New meet_type)
+              ~meet_type
           with
           | Bottom -> None
           | Ok env ->
@@ -1305,7 +1300,7 @@ and meet_row_like :
         | Unknown -> (
           match
             TE.add_env_extension_strict base_env other_case.env_extension
-              ~meet_type:(New meet_type)
+              ~meet_type
           with
           | Bottom -> None
           | Ok env ->
@@ -1321,8 +1316,7 @@ and meet_row_like :
         Some Unknown
       | Known case, Unknown -> (
         match
-          TE.add_env_extension_strict base_env case.env_extension
-            ~meet_type:(New meet_type)
+          TE.add_env_extension_strict base_env case.env_extension ~meet_type
         with
         | Bottom -> None
         | Ok env ->
@@ -1331,8 +1325,7 @@ and meet_row_like :
           Some (Known case))
       | Unknown, Known case -> (
         match
-          TE.add_env_extension_strict base_env case.env_extension
-            ~meet_type:(New meet_type)
+          TE.add_env_extension_strict base_env case.env_extension ~meet_type
         with
         | Bottom -> None
         | Ok env ->
@@ -1368,8 +1361,7 @@ and meet_row_like :
     let env : _ Or_bottom.t =
       match !result_env with
       | No_result -> Bottom
-      | Extension ext ->
-        TE.add_env_extension_strict initial_env ext ~meet_type:(New meet_type)
+      | Extension ext -> TE.add_env_extension_strict initial_env ext ~meet_type
     in
     let match_with_input v =
       match !result_is_t1, !result_is_t2 with
@@ -2313,22 +2305,3 @@ let meet_shape env t ~shape : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
   else match meet env t shape with Bottom -> Bottom | Ok (_, env) -> Ok env
-
-let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
-  if TE.is_bottom env
-  then Bottom
-  else
-    let scope = TE.current_scope env in
-    let scoped_env = TE.increment_scope env in
-    match
-      TE.add_env_extension_strict scoped_env ext1 ~meet_type:(New meet_type)
-    with
-    | Bottom -> Bottom
-    | Ok scoped_env -> (
-      match
-        TE.add_env_extension_strict scoped_env ext2 ~meet_type:(New meet_type)
-      with
-      | Bottom -> Bottom
-      | Ok scoped_env ->
-        let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
-        Ok env_extension)
