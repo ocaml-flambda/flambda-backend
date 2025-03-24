@@ -1,6 +1,5 @@
 (* TEST
    runtime5;
-   arch_amd64;
    stack-allocation;
    { native; }
 *)
