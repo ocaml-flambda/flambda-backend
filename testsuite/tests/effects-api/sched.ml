@@ -7,6 +7,21 @@
 
 module Effect = Stdlib_alpha.Effect
 
+module Uniqueue : sig
+  type 'a t
+
+  val create : unit -> 'a t
+  val push : 'a @ once unique -> 'a t -> unit
+  val pop : 'a t -> 'a @ once unique
+  val is_empty : 'a t -> bool
+end = struct
+  type 'a t = 'a Queue.t
+  let create () = Queue.create ()
+  let push v t = Queue.push (Obj.magic_many v) t
+  let pop t = Obj.magic_unique (Queue.pop t)
+  let is_empty t = Queue.is_empty t
+end
+
 type ('a, 'e) op =
   | Yield : (unit, 'e) op
   | Fork : (local_ 'e Effect.Handler.t -> string) -> (unit, 'e) op
@@ -24,13 +39,13 @@ exception Pong
 let say = print_string
 
 let run main =
-  let run_q = Queue.create () in
-  let enqueue k = Queue.push k run_q in
+  let run_q = Uniqueue.create () in
+  let enqueue k = Uniqueue.push k run_q in
   let rec dequeue () =
-    if Queue.is_empty run_q then
+    if Uniqueue.is_empty run_q then
       `Finished
     else
-      handle (Effect.continue (Queue.pop run_q) () [])
+      handle (Effect.continue (Uniqueue.pop run_q) () [])
   and spawn f =
     handle (Eff.run f)
   and handle = function

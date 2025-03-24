@@ -7,6 +7,53 @@
 
 module Effect = Stdlib_alpha.Effect
 
+module Uniqueue : sig
+  type 'a t
+
+  val create : unit -> 'a t
+  val push : 'a @ once unique -> 'a t -> unit
+  val pop : 'a t -> 'a @ once unique
+  val is_empty : 'a t -> bool
+end = struct
+  type 'a t = 'a Queue.t
+  let create () = Queue.create ()
+  let push v t = Queue.push (Obj.magic_many v) t
+  let pop t = Obj.magic_unique (Queue.pop t)
+  let is_empty t = Queue.is_empty t
+end
+
+module Exchanger : sig
+  type 'a t
+
+  val mk : 'a @ once unique -> 'a t
+  val swap : 'a @ once unique -> 'a t -> 'a @ once unique
+end = struct
+  type 'a t = 'a ref
+  let mk v = ref (Obj.magic_many v)
+  let swap v t =
+    let res = Obj.magic_unique !t in
+    t := Obj.magic_many v;
+    res
+end
+
+module OnceSeq : sig
+  type 'a node
+
+  type 'a t = unit -> 'a node @ once
+
+  val nil : 'a node
+  val cons : 'a @ once -> 'a t @ once -> 'a node @ once
+  val to_dispenser : 'a t @ once -> (unit -> 'a option @ once)
+end = struct
+  type 'a node = 'a Seq.node
+
+  type 'a t = unit -> 'a node @ once
+
+  let nil = Seq.Nil
+  let cons h t = Seq.Cons (h, fun () -> Obj.magic_many (t ()))
+  let to_dispenser t = Seq.to_dispenser (Obj.magic_many (fun () -> Obj.magic_many (t ())))
+end
+
 open Effect
 
 type 'a op1 = Xchg : int -> int op1
@@ -52,7 +99,7 @@ let () =
 ;;
 
 type 'a status =
-  | Complete of 'a
+  | Complete of 'a @@ global aliased
   | Suspended of
       { msg : int
       ; cont : (int, 'a, unit) Eff1.Continuation.t
@@ -99,23 +146,23 @@ let xchg h v = Eff2.perform h (Xchg v)
 
 (* A concurrent round-robin scheduler *)
 let run main : unit =
-  let exchanger : (int * (int, unit, unit) Eff2.Continuation.t) option ref =
-    ref None
+  let exchanger : (int * (int, unit, unit) Eff2.Continuation.t) option Exchanger.t =
+    Exchanger.mk None
   in
   (* waiting exchanger *)
-  let run_q = Queue.create () in
+  let run_q = Uniqueue.create () in
   (* scheduler queue *)
   let dequeue () =
-    if Queue.is_empty run_q
+    if Uniqueue.is_empty run_q
     then () (* done *)
     else (
-      let task = Queue.pop run_q in
+      let task = Uniqueue.pop run_q in
       task ())
   in
-  let rec enqueue : type a. (a, _, _) Eff2.Continuation.t -> a -> unit =
+  let rec enqueue : type a. (a, _, _) Eff2.Continuation.t @ once unique -> a -> unit =
     fun k v ->
       let task () = handle (continue k v []) in
-      Queue.push task run_q
+      Uniqueue.push task run_q
   and handle = function
     | Eff2.Value () -> dequeue ()
     | Eff2.Exception e ->
@@ -128,14 +175,13 @@ let run main : unit =
         enqueue k ();
         handle (Eff2.run f)
     | Eff2.Operation(Xchg n, k) -> begin
-        match !exchanger with
+        match Exchanger.swap None exchanger with
         | Some (n', k') ->
-            exchanger := None;
             enqueue k' n;
             handle (continue k n' [])
-        | None ->
-            exchanger := Some (n, k);
-            dequeue ()
+        | None -> 
+          let _ = Exchanger.swap (Some (n, k)) exchanger in
+          dequeue ()
       end
   in
   handle (Eff2.run main)
@@ -215,7 +261,8 @@ let () =
         | Eff1.Value x -> x
         | Eff1.Exception e -> raise e
         | Eff1.Operation(Xchg _, k) ->
-          handle (continue k 21 []) + handle (continue k 21 [])
+            handle (continue (Obj.magic_unique k) 21 [])
+          + handle (continue (Obj.magic_unique k) 21 [])
        in
        handle (Eff1.run (fun h -> Eff1.perform h (Xchg 0)))
   with
@@ -231,13 +278,13 @@ module Eff5 = Effect.Make1 (struct
     type ('a, 'p) t = ('a, 'p) op5
   end)
 
-let invert (type a) ~(iter : local_ (a -> unit) -> unit) : a Seq.t =
+let invert (type a) ~(iter : local_ (a -> unit) -> unit) : a OnceSeq.t =
   fun () ->
     let rec handle = function
-      | Eff5.Value () -> Seq.Nil
+      | Eff5.Value () -> OnceSeq.nil
       | Eff5.Exception e -> raise e
       | Eff5.Operation(Yield v, k) ->
-          Seq.Cons (v, fun () -> handle (continue k () []))
+          OnceSeq.cons v (fun () -> handle (continue k () []))
     in
     handle (Eff5.run (fun h -> iter (fun x -> Eff5.perform h (Yield x))[@nontail]))
 ;;
@@ -246,7 +293,7 @@ let string_iter f s =
   for i = 0 to String.length s - 1 do f (String.unsafe_get s i) done
 
 let s = invert ~iter:(fun yield -> string_iter yield "OCaml")
-let next = Seq.to_dispenser s
+let next = OnceSeq.to_dispenser s
 
 let rec loop () =
   match next () with
