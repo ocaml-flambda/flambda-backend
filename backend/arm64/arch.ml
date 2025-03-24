@@ -83,7 +83,7 @@ let size_float = 8
 
 let size_vec128 = 16
 
-let allow_unaligned_access = true 
+let allow_unaligned_access = true
 
 (* Behavior of division *)
 
@@ -93,10 +93,9 @@ let division_crashes_on_overflow = false
 
 let identity_addressing = Iindexed 0
 
-let offset_addressing addr delta =
-  match addr with
-  | Iindexed n -> Iindexed(n + delta)
-  | Ibased(s, n) -> Ibased(s, n + delta)
+let offset_addressing _addr _delta =
+  (* Resulting offset might not be representable.  *)
+  Misc.fatal_error "Arch.offset_addressing not supported"
 
 let num_args_addressing = function
   | Iindexed _ -> 1

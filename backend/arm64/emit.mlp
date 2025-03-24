@@ -383,28 +383,41 @@ let function_name = ref ""
 let tailrec_entry_point = ref None
 (* Pending floating-point literals *)
 let float_literals = ref ([] : (int64 * label) list)
+let vec128_literals = ref ([] : (Cmm.vec128_bits * label) list)
 
 (* Label a floating-point literal *)
-let float_literal f =
+let add_literal p f =
   try
-    List.assoc f !float_literals
+    List.assoc f !p
   with Not_found ->
     let lbl = Cmm.new_label() in
-    float_literals := (f, lbl) :: !float_literals;
+    p := (f, lbl) :: !p;
     lbl
 
+let float_literal f = add_literal float_literals f
+let vec128_literal f = add_literal vec128_literals f
+
 (* Emit all pending literals *)
-let emit_literals() =
-  if !float_literals <> [] then begin
+let emit_literals p align emit_literal =
+  if !p <> [] then begin
     if macosx then
-      `	.section	__TEXT,__literal8,8byte_literals\n`;
-    `	.align	3\n`;
-    List.iter
-      (fun (f, lbl) ->
-        `{emit_label lbl}:`; emit_float64_directive ".quad" f)
-      !float_literals;
-    float_literals := []
+    `	.section	__TEXT,__literal{emit_int align},{emit_int align}byte_literals\n`;
+    `	.balign	{emit_int align}\n`;
+    List.iter emit_literal !p;
+    p := []
   end
+
+let emit_float_literal (f, lbl) =
+     `{emit_label lbl}:`; emit_float64_directive ".quad" f
+
+let emit_vec128_literal (({ high; low; } : Cmm.vec128_bits), lbl) =
+     `{emit_label lbl}:\n`;
+     emit_float64_directive ".quad" low;
+     emit_float64_directive ".quad" high
+
+let emit_literals () =
+  emit_literals float_literals size_float emit_float_literal;
+  emit_literals vec128_literals size_vec128 emit_vec128_literal
 
 (* Emit code to load the address of a symbol *)
 
@@ -710,10 +723,8 @@ module BR = Branch_relaxation.Make (struct
       num_instructions_for_intconst n
     | Lop (Const_float32 _) -> 2
     | Lop (Const_float _) -> 2
+    | Lop (Const_vec128 _) -> 2
     | Lop (Const_symbol _) -> 2
-    | Lop (Const_vec128 _) ->
-      (* CR mslater: (SIMD) arm64 *)
-      Misc.fatal_error "SIMD is not supported on this architecture"
     | Lop (Intop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
@@ -866,7 +877,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
     `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_limit_offset}]\n`;
     `	ldr	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
-    `	sub	{emit_reg r}, {emit_reg r}, #{emit_int n}\n`;
+    emit_subimm r r n;
     `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
     `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
     let lbl_call = Cmm.new_label () in
@@ -893,7 +904,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
       let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
       `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-      `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
+      emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
       if not far then begin
         `	b.lo	{emit_label lbl_call_gc}\n`
@@ -1064,9 +1075,16 @@ let emit_instr i =
           let lbl = float_literal f in
           emit_load_literal i.res.(0) lbl
         end
-    | Lop(Const_vec128 _) ->
-        (* CR mslater: (SIMD) arm64 *)
-        Misc.fatal_error "SIMD is not supported on this architecture"
+    | Lop(Const_vec128 ({high; low} as l)) ->
+      DSL.check_reg Vec128 i.res.(0);
+      begin match (high, low) with
+      | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L ->
+          let dst = DSL.emit_reg_v2d i.res.(0) in
+          DSL.ins I.MOVI [| dst; DSL.imm 0  |]
+      | _ ->
+          let lbl = vec128_literal l in
+          emit_load_literal i.res.(0) lbl
+      end
     | Lop(Const_symbol s) ->
         emit_load_symbol_addr i.res.(0) s.sym_name
     | Lcall_op(Lcall_ind) ->
@@ -1157,8 +1175,9 @@ let emit_instr i =
             DSL.check_reg Float32 dst;
             ` ldr {emit_reg dst}, {emit_addressing addressing_mode base}\n`
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
-            (* CR mslater: (SIMD) arm64 *)
-            fatal_error "arm64: got 128 bit memory chunk"
+            (* CR gyorsh: check alignment *)
+            DSL.check_reg Vec128 dst;
+            ` ldr {emit_reg dst}, {emit_addressing addressing_mode base}\n`
         end
     | Lop(Store(size, addr, assignment)) ->
       (* NB: assignments other than Word_int and Word_val do not follow the
@@ -1192,8 +1211,9 @@ let emit_instr i =
           DSL.check_reg Float32 src;
           ` str {emit_reg src}, {emit_addressing addr base}\n`
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
-            (* CR mslater: (SIMD) arm64 *)
-            fatal_error "arm64: got 128 bit memory chunk"
+          (* CR gyorsh: check alignment *)
+          DSL.check_reg Vec128 src;
+          ` str {emit_reg src}, {emit_addressing addr base}\n`
         end
     | Lop(Alloc { bytes = n; dbginfo; mode = Heap }) ->
         assembly_code_for_allocation i ~n ~local:false ~far:false ~dbginfo
@@ -1548,9 +1568,9 @@ let emit_item (d : Cmm.data_item) =
   | Cint n -> `	.quad	{emit_nativeint n}\n`
   | Csingle f -> emit_float32_directive ".long" (Int32.bits_of_float f)
   | Cdouble f -> emit_float64_directive ".quad" (Int64.bits_of_float f)
-  | Cvec128 _ ->
-    (* CR mslater: (SIMD) arm64 *)
-    Misc.fatal_error "SIMD is not supported on this architecture"
+  | Cvec128 { high; low; } ->
+     emit_float64_directive ".quad" low;
+     emit_float64_directive ".quad" high;
   | Csymbol_address s -> `	.quad	{emit_symbol s.sym_name}\n`
   | Csymbol_offset (s, o) -> `	.quad	{emit_symbol s.sym_name}+{emit_int o}\n`
   | Cstring s -> emit_string_directive "	.ascii  " s
