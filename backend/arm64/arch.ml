@@ -94,6 +94,7 @@ let division_crashes_on_overflow = false
 let identity_addressing = Iindexed 0
 
 let offset_addressing _addr _delta =
+  (* Resulting offset might not be representable.  *)
   Misc.fatal_error "Arch.offset_addressing not supported"
 
 let num_args_addressing = function

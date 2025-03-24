@@ -174,6 +174,8 @@ class selector =
       | _ -> super#select_operation op args dbg ~label_after
 
     method! emit_stores env dbg data regs_addr =
+      (* Override [emit_stores] to ensure that addressing mode always uses a
+         legal offset. *)
       let offset = ref (-Arch.size_int) in
       let base =
         assert (Array.length regs_addr = 1);
@@ -200,6 +202,7 @@ class selector =
               in
               if not (Selection_utils.is_offset kind !offset)
               then (
+                (* Use a temporary to store the address [!base + offset]. *)
                 let tmp = self#regs_for typ_int in
                 self#insert_debug env
                   (self#lift_op
@@ -208,6 +211,7 @@ class selector =
                 self#insert_debug env
                   (self#lift_op (Operation.Intop Iadd))
                   dbg (Array.append !base tmp) tmp;
+                (* Use the temporary as the new base address. *)
                 base := tmp;
                 offset := 0);
               self#insert_debug env
