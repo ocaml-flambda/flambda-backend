@@ -127,7 +127,7 @@ module Runtime_4 = struct
   (* Unimplemented functions *)
   let not_implemented () =
     failwith "Multi-domain functionality not supported in runtime4"
-  type !'a t : value mod contended portable
+  type !'a t
   type id = int
   let spawn' _ = not_implemented ()
   let join _ = not_implemented ()
@@ -150,13 +150,12 @@ module Runtime_5 = struct
       | Running
       | Finished of ('a, exn) result [@warning "-unused-constructor"]
 
-    type 'a term_sync : value mod contended portable = {
+    type 'a term_sync = {
       (* protected by [mut] *)
       mutable state : 'a state [@warning "-unused-field"] ;
       mut : Mutex.t ;
       cond : Condition.t ;
     }
-    [@@unsafe_allow_any_mode_crossing "mutable state is protected by mutex"]
 
     external spawn : (unit -> 'a) @ portable -> 'a term_sync -> t @@ portable
       = "caml_domain_spawn"
@@ -473,7 +472,7 @@ module type S = sig
     val init : unit -> unit
   end
 
-  type !'a t : value mod contended portable
+  type !'a t
   val spawn' : (DLS.Access.t -> 'a) @ portable -> 'a t @@ portable
   val join : 'a t -> 'a @@ portable
   type id = private int

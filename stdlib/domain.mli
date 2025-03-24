@@ -27,7 +27,7 @@
 
     @since 5.0 *)
 
-type !'a t : value mod contended portable
+type !'a t
 (** A domain of type ['a t] runs independently, eventually producing a
     result of type 'a, or an exception *)
 
