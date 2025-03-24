@@ -205,6 +205,8 @@ let prove_is_null_generic env t : _ generic_proof =
 
 let meet_is_null env t = as_meet_shortcut (prove_is_null_generic env t)
 
+let prove_is_null env t = as_property (prove_is_null_generic env t)
+
 let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   match expand_head env t with
   | Naked_immediate (Ok (Naked_immediates is)) ->

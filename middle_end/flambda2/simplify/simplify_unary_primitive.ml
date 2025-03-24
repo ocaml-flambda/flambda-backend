@@ -900,11 +900,15 @@ let simplify_lazy ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     (P.result_kind' original_prim)
     ~original_term
 
-(* CR layouts v3: implement a real simplifier. *)
-let simplify_is_null dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
+let simplify_is_null dacc ~original_term ~arg:_ ~arg_ty:scrutinee_ty
     ~result_var =
-  simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
-    ~result_var ~make_shape:(fun scrutinee -> T.is_null ~scrutinee)
+  match T.prove_is_null (DA.typing_env dacc) scrutinee_ty with
+  | Proved b ->
+    let ty = T.this_naked_immediate (Targetint_31_63.bool b) in
+    let dacc = DA.add_variable dacc result_var ty in
+    SPR.create original_term ~try_reify:false dacc
+  | Unknown ->
+    SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
 
 let simplify_peek ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     ~result_var =

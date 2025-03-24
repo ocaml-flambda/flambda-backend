@@ -636,6 +636,8 @@ val prove_unique_fully_constructed_immutable_heap_block :
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 
+val prove_is_null : Typing_env.t -> t -> bool proof_of_property
+
 (* Returns the result of [Is_flat_float_array] *)
 val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
 
