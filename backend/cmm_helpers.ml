@@ -681,10 +681,6 @@ let rec mul_int c1 c2 dbg =
 let tag_int i dbg =
   match i with
   | Cconst_int (n, _) -> int_const dbg n
-  | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 && is_defined_shift n ->
-    or_const (asr_const c (n - 1) dbg) 1n dbg
-  | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 && is_defined_shift n ->
-    or_const (lsr_const c (n - 1) dbg) 1n dbg
   | c -> incr_int (lsl_const c 1 dbg) dbg
 
 let untag_int i dbg =
