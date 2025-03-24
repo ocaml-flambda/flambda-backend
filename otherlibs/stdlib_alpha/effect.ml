@@ -472,7 +472,7 @@ let run_stack
     | _ -> reperform perf k last_fiber
   in
   let s = alloc_stack valuec exnc {effc} in
-  runstack s (fun h -> f h) h
+  runstack s f h
 
 type (-'a, +'b, 'e, 'es) continuation =
   Cont :
