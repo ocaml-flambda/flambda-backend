@@ -1,4 +1,8 @@
-(* TEST *)
+(* TEST
+   runtime5;
+   bytecode;
+   native;
+*)
 
 open Effect
 open Effect.Deep
