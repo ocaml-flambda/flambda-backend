@@ -61,23 +61,19 @@ let () =
   | _ -> assert false
 ;;
 
-external to_bytes : ('a : value_or_null) . 'a -> int list -> bytes = "caml_output_value_to_bytes"
-
-external from_bytes_unsafe : ('a : value_or_null) . bytes -> int -> 'a = "caml_input_value_from_bytes"
-
-let z = to_bytes (This "foo") []
+let z = Marshal.to_bytes (This "foo") []
 
 let () =
-  match from_bytes_unsafe z 0 with
+  match Marshal.from_bytes z 0 with
     | This "foo" -> ()
     | This _ -> assert false
     | Null -> assert false
 ;;
 
-let w = to_bytes Null []
+let w = Marshal.to_bytes Null []
 
 let () =
-  match from_bytes_unsafe w 0 with
+  match Marshal.from_bytes w 0 with
     | Null -> ()
     | This _ -> assert false
 ;;
@@ -148,15 +144,12 @@ let () =
   | _ -> assert false
 ;;
 
-external equal : ('a : value_or_null) . 'a -> 'a -> bool = "%eq"
-external compare : ('a : value_or_null) . 'a -> 'a -> int = "%compare"
-
 let () =
-  assert (equal Null Null);
-  assert (equal (This 4) (This 4));
-  assert (not (equal Null (This 4)));
-  assert (not (equal (This 8) Null));
-  assert (not (equal (This 4) (This 5)));
+  assert (Null = Null);
+  assert (This 4 = This 4);
+  assert (Null <> This 4);
+  assert (This 8 <> Null);
+  assert (This 4 <> This 5);
 ;;
 
 let () =
