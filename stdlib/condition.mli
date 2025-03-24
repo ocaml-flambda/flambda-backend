@@ -143,7 +143,7 @@ open! Stdlib
    that would be a problematic situation,
    known as a {i deadlock}. *)
 
-type t : immutable_data
+type t : value mod portable contended
 (** The type of condition variables. *)
 
 val create : unit -> t
