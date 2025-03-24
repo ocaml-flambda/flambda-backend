@@ -40,6 +40,7 @@
 #include "caml/startup_aux.h"
 #include "caml/weak.h"
 #include "caml/custom.h"
+#include "caml/minor_gc.h"
 
 /* NB the MARK_STACK_INIT_SIZE must be larger than the number of objects
    that can be in a pool, see POOL_WSIZE */
@@ -80,10 +81,15 @@ uintnat caml_percent_sweep_per_mark = 120; /* TODO: benchmark this value */
 /* Allowable values of caml_gc_pacing_policy */
 
 #define GC_PACING_OCAML_53        0 /* Pacing as in OCaml 5.3 (plus mark-delay) */
-#define GC_PACING_2025_SIMPLE     1 /* simple variant of 2025 pacing */
-#define GC_PACING_2025_FULL       2 /* full 2025 pacing (TODO) */
+#define GC_PACING_2025            1 /* 2025 pacing */
 
 uintnat caml_gc_pacing_policy = GC_PACING_OCAML_53;
+
+/* The degree to which space_overhead should be dynamically adjusted according
+   to the promotion rate.
+
+   (0 = disabled, 50 = theoretically optimal space/time tradeoff) */
+uintnat caml_gc_overhead_adjustment = 0;
 
 /* This variable is only written with the world stopped, so it need not be
    atomic */
@@ -670,7 +676,9 @@ static uintnat sweep_work_done_between_slices(void)
 
 static uintnat gc_slice_work(uintnat heap_words,
                              uintnat allocated_words,
-                             uintnat dependent_words)
+                             uintnat allocated_direct_words,
+                             uintnat dependent_words,
+                             uintnat minor_words)
 {
   switch (caml_gc_pacing_policy) {
     case GC_PACING_OCAML_53: {
@@ -749,12 +757,32 @@ static uintnat gc_slice_work(uintnat heap_words,
 
       return max2 (alloc_work, offheap_work);
     }
-  case GC_PACING_2025_FULL: /* TODO: separate this out. */
-    /* fall through */
-  case GC_PACING_2025_SIMPLE: {
+  case GC_PACING_2025: {
     /* Shiny new 2025 Doligez/Dolan pacing policy */
     double sweep_per_mark = (double)caml_percent_sweep_per_mark / 100.0;
     double space_overhead = (double)caml_percent_free / 100.0;
+    if (caml_gc_overhead_adjustment != 0) {
+      /* In theory, we should adjust according to the allocation rate.
+
+         However, this produces a dependence on real time, making the GC
+         nondeterministic even for single-threaded programs and doing weird
+         things for programs which pause in I/O for a long time.
+
+         Instead, we use minor heap allocation as a proxy for time, so instead
+         of measuring the allocation rate we measure the promotion rate.
+
+         The promotion rate is scaled so that the nominal promotion rate of 10%
+         comes out as 1.0, and direct-to-major allocations are deemed to have
+         this nominal promotion rate. */
+      double scaled_prom_rate =
+        (10.0 * allocated_words) /
+        (10.0 * allocated_direct_words + minor_words);
+      /* Clamp to some reasonable range */
+      if (scaled_prom_rate > 10.) scaled_prom_rate = 10.;
+      if (scaled_prom_rate < 0.1) scaled_prom_rate = 0.1;
+      space_overhead *= pow(scaled_prom_rate,
+                            caml_gc_overhead_adjustment * 1e-2);
+    }
     double sweep_per_dep_alloc = (1 + 2.0 * sweep_per_mark) / space_overhead;
     double sweep_per_alloc = 1 + sweep_per_dep_alloc;
 
@@ -786,16 +814,26 @@ static void update_major_slice_work(intnat howmuch,
   dom_st->stat_major_work_done += work_done_between_slices;
 
   uintnat my_alloc_count = dom_st->allocated_words;
+  uintnat my_alloc_direct_count = dom_st->allocated_words_direct;
   uintnat my_dependent_count = Wsize_bsize (dom_st->allocated_dependent_bytes);
+  uintnat last_minor_words = dom_st->minor_words_at_last_slice;
+  uintnat curr_minor_words = caml_minor_words_allocated();
+  uintnat my_minor_count = curr_minor_words - last_minor_words;
   dom_st->stat_major_words += dom_st->allocated_words;
   dom_st->stat_major_dependent_bytes += dom_st->allocated_dependent_bytes;
   dom_st->allocated_words = 0;
   dom_st->allocated_words_direct = 0;
   dom_st->allocated_dependent_bytes = 0;
+  dom_st->minor_words_at_last_slice = curr_minor_words;
 
   uintnat heap_words = Wsize_bsize(caml_heap_size(dom_st->shared_heap));
 
-  uintnat new_work = gc_slice_work(heap_words, my_alloc_count, my_dependent_count);
+  uintnat new_work =
+    gc_slice_work(heap_words,
+                  my_alloc_count,
+                  my_alloc_direct_count,
+                  my_dependent_count,
+                  my_minor_count);
 
   atomic_fetch_add (&total_work_incurred, new_work);
 
@@ -813,7 +851,9 @@ static void update_major_slice_work(intnat howmuch,
   CAML_GC_MESSAGE(POLICY, "Major slice [%c] work. Policy="
                   "%"ARCH_INTNAT_PRINTF_FORMAT "u. Allocation: "
                   "%"ARCH_INTNAT_PRINTF_FORMAT "u words, "
-                  "%"ARCH_INTNAT_PRINTF_FORMAT "u dependent. Heap: "
+                  "%"ARCH_INTNAT_PRINTF_FORMAT "u direct, "
+                  "%"ARCH_INTNAT_PRINTF_FORMAT "u dependent, "
+                  "%"ARCH_INTNAT_PRINTF_FORMAT "u minor. Heap: "
                   "%"ARCH_INTNAT_PRINTF_FORMAT "u words. Work: "
                   "%"ARCH_INTNAT_PRINTF_FORMAT "d work, "
                   "%"ARCH_INTNAT_PRINTF_FORMAT "d new_work, "
@@ -821,7 +861,9 @@ static void update_major_slice_work(intnat howmuch,
                   caml_gc_phase_char(may_access_gc_phase),
                   caml_gc_pacing_policy,
                   my_alloc_count,
+                  my_alloc_direct_count,
                   my_dependent_count,
+                  my_minor_count,
                   heap_words,
                   diffmod(atomic_load(&total_work_incurred),
                           atomic_load(&total_work_completed)),

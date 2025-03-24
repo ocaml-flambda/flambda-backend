@@ -151,6 +151,13 @@ Caml_inline void add_to_dependent_table (struct caml_dependent_table *tbl,
   elt->mem = mem;
 }
 
+Caml_inline uintnat caml_minor_words_allocated(void)
+{
+  return (Caml_state->stat_minor_words
+          + (Wsize_bsize((uintnat)Caml_state->young_end -
+                         (uintnat)Caml_state->young_ptr)));
+}
+
 #endif /* CAML_INTERNALS */
 
 #endif /* CAML_MINOR_GC_H */
