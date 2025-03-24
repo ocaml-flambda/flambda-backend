@@ -438,6 +438,11 @@ let[@inline] get_const = function
   | Cconst_natint (i, _) -> Some i
   | _ -> None
 
+let[@inline] const_exn = function
+  | Cconst_int (i, _) -> Nativeint.of_int i
+  | Cconst_natint (i, _) -> i
+  | _ -> Misc.fatal_error "const_exn: not a constant"
+
 let replace x ~with_ =
   match x with
   | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ | Cvar _ | Ctuple [] ->
@@ -554,12 +559,12 @@ let rec lsr_int c1 c2 dbg =
             if is_defined_shift (n + n')
             then lsr_const inner (n + n') dbg
             else replace inner ~with_:(Cconst_int (0, dbg))
-          | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            or_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
-          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            and_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
-          | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            xor_int (lsr_int x c2 dbg) (lsr_int y c2 dbg) dbg
+          | Cop ((Cor | Cxor), [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_right_logical (const_exn y) n = 0n ->
+            lsr_int x c2 dbg
+          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_right (const_exn y) n = 0n ->
+            replace x ~with_:(Cconst_int (0, dbg))
           | _ -> Cop (Clsr, [c1; c2], dbg)))
       | Cop (Clsr, [x; (Cconst_int (n', _) as y)], dbg'), c2
         when is_defined_shift n' ->
@@ -597,12 +602,18 @@ and asr_int c1 c2 dbg =
                safe and correct to combine [asr (lsl x y) z] into [asr x (z -
                y)]. *)
             if x > n then lsl_const c (x - n) dbg else asr_const c (n - x) dbg
-          | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            or_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
-          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            and_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
-          | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            xor_int (asr_int x c2 dbg) (asr_int y c2 dbg) dbg
+          | Cop ((Cor | Cxor), [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_right (const_exn y) n = 0n ->
+            asr_int x c2 dbg
+          | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_right (const_exn y) n = -1n ->
+            replace x ~with_:(Cconst_int (-1, dbg))
+          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_right (const_exn y) n = -1n ->
+            asr_int x c2 dbg
+          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_right (const_exn y) n = 0n ->
+            replace x ~with_:(Cconst_int (0, dbg))
           | _ -> Cop (Casr, [c1; c2], dbg)))
       | Cop (Casr, [x; (Cconst_int (n', _) as y)], z), c2
         when is_defined_shift n' ->
@@ -628,12 +639,12 @@ and lsl_int c1 c2 dbg =
           | Cop (Caddi, [c1; Cconst_int (offset, _)], _)
             when Misc.no_overflow_lsl offset n ->
             add_const (lsl_int c1 c2 dbg) (offset lsl n) dbg
-          | Cop (Cor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            or_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
-          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            and_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
-          | Cop (Cxor, [x; ((Cconst_int _ | Cconst_natint _) as y)], _) ->
-            xor_int (lsl_int x c2 dbg) (lsl_int y c2 dbg) dbg
+          | Cop ((Cor | Cxor), [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_left (const_exn y) n = 0n ->
+            lsl_int x c2 dbg
+          | Cop (Cand, [x; ((Cconst_int _ | Cconst_natint _) as y)], _)
+            when Nativeint.shift_left (const_exn y) n = 0n ->
+            replace x ~with_:(Cconst_int (0, dbg))
           | c1 -> Cop (Clsl, [c1; c2], dbg)))
       | Cop (Clsl, [x; (Cconst_int (n', _) as y)], dbg'), c2
         when is_defined_shift n' ->
