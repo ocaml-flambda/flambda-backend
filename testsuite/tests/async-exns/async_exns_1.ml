@@ -20,9 +20,14 @@ let[@inline never] allocate_bytes finished =
 
    Furthermore, such asynchronous exception having been caught, make sure
    that a normal exception raise works properly.
+
+   The outer handler is equipped with exception extra args, to make sure
+   these work properly (c.f. testsuite/tests/exception-extra-args/).
 *)
-exception Ok
+exception Ok of string
 let () =
+  let extra_arg1 = ref "WRONG1" in
+  let extra_arg2 = ref "WRONG2" in
   try
     let finished = ref false in
     let r = allocate_bytes finished in
@@ -30,18 +35,23 @@ let () =
       Sys.with_async_exns (fun () ->
         try
           r := None;
+          extra_arg1 := Sys.opaque_identity "O";
           while true do
             (* This allocation will eventually trigger the finaliser *)
+            extra_arg2 := Sys.opaque_identity "K";
             let _ = Sys.opaque_identity (42, Random.int 42) in
             ()
           done
         with exn -> Printf.printf "1. wrong handler\n%!"; assert false
       )
     with
-    | Sys.Break -> assert !finished; raise Ok
+    | Sys.Break ->
+      (* This exception handler has two extra args *)
+      let s = !extra_arg1 ^ !extra_arg2 in
+      assert !finished; raise (Ok s)
     | _ -> assert false
   with
-  | Ok -> Printf.printf "1. OK\n%!"
+  | Ok s -> Printf.printf "1. %s\n%!" s
   | _ -> assert false
 
 (* Ensure that [Sys.Break] can be raised and caught as a normal exception. *)
