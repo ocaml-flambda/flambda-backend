@@ -785,20 +785,14 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Reinterpret_cast (Value_of_int | Int_of_value |
                               Float_of_int64 | Int64_of_float)) -> 1
     | Lop (Reinterpret_cast (Float32_of_float | Float_of_float32 |
-                              Float32_of_int32 | Int32_of_float32)) ->
-      (* CR mslater: (float32) arm64 *)
-      Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Reinterpret_cast V128_of_v128) ->
-      (* CR mslater: (SIMD) arm64 *)
-      Misc.fatal_error "SIMD is not supported on this architecture"
+                              Float32_of_int32 | Int32_of_float32)) -> 1
+    | Lop (Reinterpret_cast V128_of_v128) -> 1
     | Lop (Static_cast (Float_of_int Float64 | Int_of_float Float64)) -> 1
     | Lop (Static_cast (Float_of_int Float32 | Int_of_float Float32 |
-                         Float_of_float32 | Float32_of_float)) ->
-      (* CR mslater: (float32) arm64 *)
-      Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Static_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
-      (* CR mslater: (SIMD) arm64 *)
-      Misc.fatal_error "SIMD is not supported on this architecture"
+                         Float_of_float32 | Float32_of_float)) -> 1
+    | Lop (Static_cast (Scalar_of_v128 (Int8x16 | Int16x8))) -> 2
+    | Lop (Static_cast (Scalar_of_v128 (Int32x4 | Int64x2 | Float32x4 | Float64x2))) -> 1
+    | Lop (Static_cast (V128_of_scalar _ )) -> 1
     | Lop (Floatop (Float64, (Iaddf | Isubf | Imulf | Idivf))) -> 1
     | Lop (Floatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) -> 1
     | Lop (Specific Inegmulf) -> 1
@@ -986,21 +980,137 @@ let emit_load_literal dst lbl =
     `	ldr	{emit_reg dst}, [{emit_reg reg_tmp1}, #:lo12:{emit_label lbl}]\n`
   end
 
+let move (src : Reg.t) (dst : Reg.t) =
+  let distinct = not (Reg.same_loc src dst) in
+  if distinct then
+  match src.typ, src.loc, dst.typ, dst.loc with
+  | Float, Reg _, Float, Reg _
+  | Float32, Reg _, Float32, Reg _
+     ->
+     DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg src |]
+  | (Vec128|Valx2), Reg _, (Vec128|Valx2), Reg _ ->
+     DSL.ins I.MOV [| DSL.emit_reg_v2d dst; DSL.emit_reg_v2d src |]
+  | (Int | Val | Addr), Reg _, (Int | Val | Addr), Reg _ ->
+      DSL.ins I.MOV [| DSL.emit_reg dst; DSL.emit_reg src |]
+  | _, Reg _, _, Stack _ ->
+     `	str	{emit_reg src}, {emit_stack dst}\n`
+  | _, Stack _, _, Reg _ ->
+     `	ldr	{emit_reg dst}, {emit_stack src}\n`
+  | _, Stack _, _, Stack _ ->
+      Misc.fatal_errorf
+      "Illegal move between registers (%a to %a)\n"
+      Printreg.reg src Printreg.reg dst
+  | _, Unknown, _, (Reg _ | Stack _ | Unknown)
+  | _, (Reg _ | Stack _), _, Unknown ->
+      Misc.fatal_errorf
+      "Illegal move with an unknown register location (%a to %a)\n"
+      Printreg.reg src Printreg.reg dst
+  | (Float | Float32 | Vec128 | Int | Val | Addr | Valx2), (Reg _), _, _ ->
+      Misc.fatal_errorf
+       "Illegal move between registers of differing types (%a to %a)\n"
+       Printreg.reg src Printreg.reg dst
 
-let move src dst =
-  if src.loc <> dst.loc then begin
-    match (src, dst) with
-    | {loc = Reg _; typ = Float}, {loc = Reg _} ->
-      `	fmov	{emit_reg dst}, {emit_reg src}\n`
-    | {loc = Reg _}, {loc = Reg _} ->
-      `	mov	{emit_reg dst}, {emit_reg src}\n`
-    | {loc = Reg _}, {loc = Stack _} ->
-      `	str	{emit_reg src}, {emit_stack dst}\n`
-    | {loc = Stack _}, {loc = Reg _} ->
-      `	ldr	{emit_reg dst}, {emit_stack src}\n`
-    | _ ->
-      assert false
-  end[@@warning "-4"]
+let emit_reinterpret_cast (cast : Cmm.reinterpret_cast) i =
+    let src = i.arg.(0) in
+    let dst = i.res.(0) in
+    let distinct = not (Reg.same_loc src dst) in
+    match cast with
+    | Int64_of_float ->
+      DSL.check_reg Float src;
+      DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg src |]
+    | Float_of_int64 ->
+      DSL.check_reg Float dst;
+      DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg src |]
+    | Float32_of_int32 ->
+      DSL.check_reg Float32 dst;
+      DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg_w src |]
+    | Int32_of_float32 ->
+      DSL.check_reg Float32 src;
+      DSL.ins I.FMOV [| DSL.emit_reg_w dst; DSL.emit_reg src |]
+    | Float32_of_float ->
+       if distinct then (
+        DSL.check_reg Float src;
+        DSL.check_reg Float32 dst;
+        DSL.ins I.MOV [| DSL.emit_reg_d dst; DSL.emit_reg_d src |])
+    | Float_of_float32 ->
+      if distinct then (
+        DSL.check_reg Float32 src;
+        DSL.check_reg Float dst;
+        DSL.ins I.MOV [| DSL.emit_reg_d dst; DSL.emit_reg_d src |])
+    | V128_of_v128 ->
+      if distinct then (
+        DSL.check_reg Vec128 src;
+        DSL.check_reg Vec128 dst;
+        DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg src |])
+    | Int_of_value | Value_of_int -> move src dst
+
+let emit_static_cast (cast : Cmm.static_cast) i =
+    let dst = i.res.(0) in
+    let src = i.arg.(0) in
+    let distinct = not (Reg.same_loc src dst) in
+    match cast with
+    | Int_of_float Float64 ->
+       DSL.check_reg Float src;
+       DSL.ins I.FCVTZS[| DSL.emit_reg dst; DSL.emit_reg src |]
+    | Int_of_float Float32 ->
+       DSL.check_reg Float32 src;
+       DSL.ins I.FCVTZS[| DSL.emit_reg dst; DSL.emit_reg src |]
+    | Float_of_int Float64 ->
+      DSL.check_reg Float dst;
+      DSL.ins I.SCVTF [| DSL.emit_reg dst; DSL.emit_reg src |];
+    | Float_of_int Float32 ->
+      DSL.check_reg Float32 dst;
+      DSL.ins I.SCVTF [| DSL.emit_reg dst; DSL.emit_reg src |];
+    | Float_of_float32 ->
+      DSL.check_reg Float dst;
+      DSL.check_reg Float32 src;
+      DSL.ins I.FCVT [| DSL.emit_reg dst; DSL.emit_reg src |];
+    | Float32_of_float ->
+      DSL.check_reg Float32 dst;
+      DSL.check_reg Float src;
+      DSL.ins I.FCVT [| DSL.emit_reg dst; DSL.emit_reg src |];
+    | Scalar_of_v128 v ->
+      DSL.check_reg Vec128 src;
+      begin match v with
+       | Int8x16 ->
+         DSL.ins I.FMOV [| DSL.emit_reg_w dst; DSL.emit_reg_s src |];
+         DSL.ins I.UXTB [| DSL.emit_reg dst; DSL.emit_reg_w dst; |];
+       | Int16x8 ->
+         DSL.ins I.FMOV [| DSL.emit_reg_w dst; DSL.emit_reg_s src |];
+         DSL.ins I.UXTH [| DSL.emit_reg dst; DSL.emit_reg_w dst; |];
+       | Int32x4 ->
+         DSL.ins I.FMOV [| DSL.emit_reg_w dst; DSL.emit_reg_s src |]
+       | Int64x2 ->
+         DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg_d src |]
+       | Float32x4 ->
+         if distinct then (
+           DSL.check_reg Float32 dst;
+           DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg_s src |])
+       | Float64x2 ->
+         if distinct then (
+           DSL.check_reg Float dst;
+           DSL.ins I.FMOV [| DSL.emit_reg dst ; DSL.emit_reg_d src |])
+      end
+    | V128_of_scalar v ->
+       DSL.check_reg Vec128 dst;
+       begin match v with
+       | Int8x16 ->
+         DSL.ins I.FMOV [| DSL.emit_reg_s dst; DSL.emit_reg_w src |];
+       | Int16x8 ->
+         DSL.ins I.FMOV [| DSL.emit_reg_s dst; DSL.emit_reg_w src |];
+       | Int32x4 ->
+         DSL.ins I.FMOV [| DSL.emit_reg_s dst; DSL.emit_reg_w src |]
+       | Int64x2 ->
+         DSL.ins I.FMOV [| DSL.emit_reg_d dst; DSL.emit_reg src |]
+       | Float32x4 ->
+         if distinct then (
+           DSL.check_reg Float32 src;
+           DSL.ins I.FMOV [| DSL.emit_reg_s dst; DSL.emit_reg src |])
+       | Float64x2 ->
+         if distinct then (
+           DSL.check_reg Float src;
+           DSL.ins I.FMOV [| DSL.emit_reg_d dst ; DSL.emit_reg src |])
+      end
 
 (* Output the assembly code for an instruction *)
 
@@ -1020,22 +1130,10 @@ let emit_instr i =
     | Lop(Intop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
-    | Lop (Reinterpret_cast (Int64_of_float | Float_of_int64)) ->
-        `	fmov {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Static_cast (Int_of_float Float64)) ->
-        `	fcvtzs {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Static_cast (Float_of_int Float64)) ->
-        `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop (Reinterpret_cast (Float32_of_float | Float_of_float32 |
-                              Int32_of_float32 | Float32_of_int32))
-    | Lop (Static_cast (Float_of_int Float32 | Int_of_float Float32 |
-                          Float_of_float32 | Float32_of_float)) ->
-        (* CR mslater: (float32) arm64 *)
-        Misc.fatal_error "float32 not supported on this architecture"
-    | Lop(Reinterpret_cast V128_of_v128)
-    | Lop(Static_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
-        (* CR mslater: (SIMD) arm64 *)
-        Misc.fatal_error "SIMD is not supported on this architecture"
+    | Lop (Reinterpret_cast cast) ->
+      emit_reinterpret_cast cast i
+    | Lop (Static_cast cast) ->
+      emit_static_cast cast i
     | Lop(Move | Spill | Reload) ->
         move i.arg.(0) i.res.(0)
     | Lop(Specific Imove32) ->
@@ -1294,19 +1392,6 @@ let emit_instr i =
      `	fmsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
     | Lop(Specific(Inegmulsubf)) ->
      `	fnmsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Reinterpret_cast (Int_of_value | Value_of_int)) ->
-        let src = i.arg.(0) and dst = i.res.(0) in
-        if src.loc <> dst.loc then begin
-          match (src, dst) with
-          | {loc = Reg _}, {loc = Reg _} ->
-              `	mov	{emit_reg dst}, {emit_reg src}\n`
-          | {loc = Reg _}, {loc = Stack _} ->
-              `	str	{emit_reg src}, {emit_stack dst}\n`
-          | {loc = Stack _}, {loc = Reg _} ->
-              `	ldr	{emit_reg dst}, {emit_stack src}\n`
-          | _ ->
-              assert false
-        end[@warning "-4"]
     | Lop(Opaque) ->
         assert (i.arg.(0).loc = i.res.(0).loc)
     | Lop(Specific(Ishiftarith(op, shift))) ->
