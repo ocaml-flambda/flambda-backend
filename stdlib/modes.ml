@@ -27,3 +27,11 @@ end
 module Portended = struct
   type 'a t = { portended : 'a @@ portable contended } [@@unboxed]
 end
+
+module Aliased = struct
+  type 'a t = { aliased : 'a @@ aliased } [@@unboxed]
+end
+
+module Shared = struct
+  type 'a t = { shared : 'a @@ shared } [@@unboxed]
+end

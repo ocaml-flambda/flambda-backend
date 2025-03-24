@@ -56,7 +56,7 @@ module Id : sig
 
   (** {1:ids Type identifiers} *)
 
-  type !'a t
+  type !'a t : immutable_data
   (** The type for identifiers for type ['a]. *)
 
   val make : unit -> 'a t

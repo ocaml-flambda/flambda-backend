@@ -32,18 +32,18 @@
 
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a @ portable = "%reraise"
+external raise : exn -> 'a @ portable unique = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : exn -> 'a @ portable = "%raise_notrace"
+external raise_notrace : exn -> 'a @ portable unique = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
 
-val invalid_arg : string -> 'a @ portable
+val invalid_arg : string -> 'a @ portable unique
 (** Raise exception [Invalid_argument] with the given string. *)
 
-val failwith : string -> 'a @ portable
+val failwith : string -> 'a @ portable unique
 (** Raise exception [Failure] with the given string. *)
 
 exception Exit
@@ -717,18 +717,13 @@ val char_of_int : int -> char
 
 (** {1 Unit operations} *)
 
-external ignore : 'a -> unit = "%ignore"
+external ignore : 'a @ contended local once -> unit = "%ignore"
 (** Discard the value of its argument and return [()].
    For instance, [ignore(f x)] discards the result of
    the side-effecting function [f].  It is equivalent to
    [f x; ()], except that the latter may generate a
    compiler warning; writing [ignore(f x)] instead
    avoids the warning. *)
-
-external ignore_contended : 'a @ contended -> unit = "%ignore"
-(** Like {!ignore}, but takes a [contended] value. This is technically strictly stronger
-    than [ignore], but changing [ignore] in place causes backwards compatibility issues
-    due to type inference. *)
 
 (** {1 String conversion functions} *)
 

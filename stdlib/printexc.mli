@@ -116,7 +116,7 @@ val use_printers: exn -> string option
 
 (** {1 Raw backtraces} *)
 
-type raw_backtrace
+type raw_backtrace : mutable_data
 (** The type [raw_backtrace] stores a backtrace in a low-level format,
     which can be converted to usable form using [raw_backtrace_entries]
     and [backtrace_slots_of_raw_entry] below.
@@ -178,7 +178,7 @@ val raw_backtrace_to_string: raw_backtrace -> string
     @since 4.01
 *)
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable
+external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable unique
   = "%raise_with_backtrace"
 (** Reraise the exception using the given raw_backtrace for the
     origin of the exception
@@ -232,7 +232,7 @@ val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit @@ no
     and extract information from them in a programmer-friendly format.
 *)
 
-type backtrace_slot
+type backtrace_slot : immutable_data
 (** The abstract type [backtrace_slot] represents a single slot of
     a backtrace.
 
@@ -341,7 +341,7 @@ end
 
 (** {1 Raw backtrace slots} *)
 
-type raw_backtrace_slot
+type raw_backtrace_slot : immutable_data
 (** This type is used to iterate over the slots of a [raw_backtrace].
     For most purposes, [backtrace_slots_of_raw_entry] is easier to use.
 

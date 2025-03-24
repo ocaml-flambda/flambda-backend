@@ -49,7 +49,7 @@ open! Stdlib
     with a {!Mutex.t}).
 *)
 
-type t
+type t : mutable_data
 (** The abstract type of buffers. *)
 
 val create : int -> t

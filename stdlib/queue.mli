@@ -36,7 +36,7 @@ open! Stdlib
     with a {!Mutex.t}).
 *)
 
-type !'a t
+type !'a t : mutable_data with 'a
 (** The type of queues containing elements of type ['a]. *)
 
 

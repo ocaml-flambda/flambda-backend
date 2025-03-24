@@ -35,7 +35,7 @@ open! Stdlib
     with a {!Mutex.t}).
 *)
 
-type !'a t
+type !'a t : mutable_data with 'a
 (** The type of stacks containing elements of type ['a]. *)
 
 exception Empty

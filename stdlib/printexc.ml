@@ -106,7 +106,7 @@ let catch fct arg =
     eprintf "Uncaught exception: %s\n" (to_string x);
     exit 2
 
-type raw_backtrace_slot
+type raw_backtrace_slot : immutable_data
 type raw_backtrace_entry = private int
 type raw_backtrace = raw_backtrace_entry array
 
@@ -115,7 +115,7 @@ let raw_backtrace_entries bt = bt
 external get_raw_backtrace:
   unit -> raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable @@ portable
+external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable unique @@ portable
   = "%raise_with_backtrace"
 
 (* Disable warning 37: values are constructed in the runtime *)

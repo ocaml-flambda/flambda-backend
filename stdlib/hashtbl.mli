@@ -64,7 +64,7 @@ open! Stdlib
 (** {1 Generic interface} *)
 
 
-type (!'a, !'b) t
+type (!'a, !'b) t : mutable_data with 'a with 'b
 (** The type of hash tables from type ['a] to type ['b]. *)
 
 val create : ?random: (* thwart tools/sync_stdlib_docs *) bool ->
