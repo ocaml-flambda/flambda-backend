@@ -712,7 +712,7 @@ Line 1, characters 27-28:
 1 | let f13_1 (x : t_bits32) = x = x;;
                                ^
 Error: This expression has type "t_bits32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value.
@@ -724,7 +724,7 @@ Line 1, characters 35-36:
 1 | let f13_2 (x : t_bits32) = compare x x;;
                                        ^
 Error: This expression has type "t_bits32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value.
@@ -736,7 +736,7 @@ Line 1, characters 44-45:
 1 | let f13_3 (x : t_bits32) = Marshal.to_bytes x;;
                                                 ^
 Error: This expression has type "t_bits32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value.

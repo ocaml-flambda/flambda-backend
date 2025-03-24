@@ -18,7 +18,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external id : 'a -> 'a @@ portable = "%identity"
+external id : ('a : value_or_null) . 'a -> 'a @@ portable = "%identity"
 let const c _ = c
 let compose f g x = f (g x)
 let flip f x y = f y x

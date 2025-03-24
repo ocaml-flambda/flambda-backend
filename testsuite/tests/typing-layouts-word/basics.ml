@@ -719,7 +719,7 @@ Line 1, characters 25-26:
 1 | let f13_1 (x : t_word) = x = x;;
                              ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value.
@@ -731,7 +731,7 @@ Line 1, characters 33-34:
 1 | let f13_2 (x : t_word) = compare x x;;
                                      ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value.
@@ -743,7 +743,7 @@ Line 1, characters 42-43:
 1 | let f13_3 (x : t_word) = Marshal.to_bytes x;;
                                               ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value.

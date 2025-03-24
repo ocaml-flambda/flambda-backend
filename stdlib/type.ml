@@ -17,27 +17,29 @@ open! Stdlib
 
 (* Type equality witness *)
 
-type (_, _) eq = Equal: ('a, 'a) eq
+type (_ : value_or_null, _ : value_or_null) eq = 
+  Equal: ('a : value_or_null) . ('a , 'a) eq
 
 (* Type identifiers *)
 
 module Id = struct
-  type _ id = ..
+  type (_ : value_or_null) id = ..
   module type ID = sig
-    type t
+    type t : value_or_null
     type _ id += Id : t id
   end
 
-  type !'a t = (module ID with type t = 'a)
+  type (!'a : value_or_null) t = (module ID with type t = 'a)
 
-  let make (type a) () : a t =
+  let make (type a : value_or_null) () : a t =
     (module struct type t = a type _ id += Id : t id end)
 
-  let[@inline] uid (type a) ((module A) : a t) =
+  let[@inline] uid (type a : value_or_null) ((module A) : a t) =
     Obj.Extension_constructor.id (Obj.Extension_constructor.of_val A.Id)
 
   let provably_equal
-      (type a b) ((module A) : a t) ((module B) : b t) : (a, b) eq option
+      (type a : value_or_null) (type b : value_or_null)
+      ((module A) : a t) ((module B) : b t) : (a, b) eq option
     =
     match A.Id with B.Id -> Some Equal | _ -> None
 end

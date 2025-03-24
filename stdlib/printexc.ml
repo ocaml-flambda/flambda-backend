@@ -115,7 +115,8 @@ let raw_backtrace_entries bt = bt
 external get_raw_backtrace:
   unit -> raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable @@ portable
+external raise_with_backtrace: ('a : value_or_null)
+  . exn -> raw_backtrace -> 'a @ portable @@ portable
   = "%raise_with_backtrace"
 
 (* Disable warning 37: values are constructed in the runtime *)
