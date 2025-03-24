@@ -773,11 +773,8 @@ class virtual selector_generic =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
       let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
-      let rv_list =
-        List.map
-          (fun machtype -> self#regs_for machtype)
-          (typ_val :: List.map snd extra_args)
-      in
+      let exn_bucket_in_handler = self#regs_for typ_val in
+      let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let r2, s2 =
           self#emit_sequence env_handler e2 ~bound_name ~at_start:(fun seq ->
@@ -805,12 +802,8 @@ class virtual selector_generic =
         let s1 : Sub_cfg.t = s1#extract in
         let s2 : Sub_cfg.t = s2#extract in
         Sub_cfg.mark_as_trap_handler s2 ~exn_label;
-        List.iter2
-          (fun arg_reg rv ->
-            Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move) arg_reg rv
-              Debuginfo.none)
-          ([| Proc.loc_exn_bucket |] :: extra_arg_regs_split)
-          rv_list;
+        Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move)
+          [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none;
         Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
         sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg;
         r
