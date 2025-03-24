@@ -175,8 +175,6 @@ let () = test_higher_order ()
 (************************************************)
 (* Test: Closures capturing or_null values *)
 
-type 'a nref = { mutable v : 'a or_null }
-
 let test_closures () =
   let[@inline never] increment_by offset x =
     match (x, offset) with
@@ -192,14 +190,14 @@ let test_closures () =
   print_int_or_null "Closure Test, increment 10 with null offset" (inc_by_null (This 10));
 
   let[@inline never] make_accumulator initial =
-    let state = { v = initial } in
+    let state = ref initial in
     fun x ->
       match x with
       | This n ->
-          (match state.v with
+          (match !state with
           | This m ->
               let result = This (n + m) in
-              state.v <- result;
+              state := result;
               result
           | Null -> Null)
       | Null -> Null

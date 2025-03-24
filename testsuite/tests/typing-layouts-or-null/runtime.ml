@@ -118,28 +118,26 @@ let () =
   | _ -> assert false
 ;;
 
-type 'a nref = { mutable v : 'a or_null }
-
-let x : string nref = { v = Null }
+let x = ref Null
 
 let () =
-  match x.v with
+  match !x with
   | Null -> ()
   | _ -> assert false
 ;;
 
-let () = x.v <- This "foo"
+let () = x := This "foo"
 
 let () =
-  match x.v with
+  match !x with
   | This "foo" -> ()
   | _ -> assert false
 ;;
 
-let () = x.v <- Null
+let () = x := Null
 
 let () =
-  match x.v with
+  match !x with
   | Null -> ()
   | _ -> assert false
 ;;
