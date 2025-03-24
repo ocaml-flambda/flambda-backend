@@ -392,8 +392,14 @@ type ('a, 'e) perform = ('a, 'e) op * 'e Handler.t'
 
 external perform : ('a, 'e) perform -> 'a = "%perform"
 
+(* Stacks are represented as tagged pointers, and garbage collection
+   invalidates them. Therefore, no allocations must happen between
+   creation and use of a [stack]. *)
 type (-'a, +'b) stack : immediate
 
+(* Stacks are represented as tagged pointers, and garbage collection
+   invalidates them. Therefore, no allocations must happen between
+   creation and use of a [stack]. *)
 type last_fiber : immediate
 
 external resume : ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b = "%resume"
@@ -421,6 +427,18 @@ external alloc_stack :
   (exn -> 'b) ->
   'b effc ->
   ('a, 'b) stack = "caml_alloc_stack"
+
+(* Allocate a stack and immediately run [f x] using that stuck.
+   No allocations must happen between [alloc_stack] and [runstack].
+   [with_stack] is marked as [@inline never] to avoid reordering. *)
+let[@inline never] with_stack valuec exnc effc f x =
+  runstack (alloc_stack valuec exnc effc) f x
+
+(* Retrieve the stack from a [cont]inuation and run [f x] using it.
+   No allocations must happen between [take_cont_noexc] and [resume].
+   [with_cont] is marked as [@inline never] to avoid reordering. *)
+let[@inline never] with_cont cont f x =
+  resume (take_cont_noexc cont) f x (cont_last_fiber cont)
 
 type (+'a, 'es) r =
   | Val : global_ 'a -> ('a, 'es) r
@@ -454,10 +472,9 @@ let alloc_cont
         raise_notrace (Ready__ k)
     | _ -> reperform perf k last_fiber
   in
-  let s = alloc_stack valuec exnc {effc} in
   let dummy_op : (a, e) op = Obj.magic () in
   let p = dummy_op, Handler.Dummy in
-  match runstack s (fun () -> f h (perform p)) () with
+  match with_stack valuec exnc {effc} (fun () -> f h (perform p)) () with
   | _ -> assert false
   | exception Ready__ k -> k
 
@@ -471,8 +488,7 @@ let run_stack
       Op(op, h, k, last_fiber)
     | _ -> reperform perf k last_fiber
   in
-  let s = alloc_stack valuec exnc {effc} in
-  runstack s (fun h -> f h) h
+  with_stack valuec exnc {effc} f h
 
 type (-'a, +'b, 'e, 'es) continuation =
   Cont :
@@ -510,7 +526,7 @@ let rec handle :
 
 let resume (Cont { cont; mapping }) f x (local_ handlers) =
   Mapping.set handlers mapping;
-  handle mapping (resume (take_cont_noexc cont) f x (cont_last_fiber cont))
+  handle mapping (with_cont cont f x)
 
 let continue k v (local_ hs) = resume k (fun x -> x) v hs
 
