@@ -443,7 +443,8 @@ type unary_primitive = expression -> Debuginfo.t -> expression
 val int_as_pointer : unary_primitive
 
 (** Raise primitive *)
-val raise_prim : Lambda.raise_kind -> unary_primitive
+val raise_prim :
+  Lambda.raise_kind -> extra_args:expression list -> unary_primitive
 
 (** Unary negation of an OCaml integer *)
 val negint : unary_primitive
@@ -629,17 +630,6 @@ val letin :
   body:expression ->
   expression
 
-(** [letin_mut v ty e body] binds a mutable variable [v] of machtype [ty] to [e]
-    in [body]. (For immutable variables, use [Cmm_helpers.letin].) *)
-val letin_mut :
-  Backend_var.With_provenance.t ->
-  machtype ->
-  expression ->
-  expression ->
-  expression
-
-val assign : Backend_var.t -> expression -> expression
-
 (** Create a sequence of expressions. Will erase void expressions as needed. *)
 val sequence : expression -> expression -> expression
 
@@ -659,6 +649,7 @@ val trywith :
   dbg:Debuginfo.t ->
   body:expression ->
   exn_var:Backend_var.With_provenance.t ->
+  extra_args:(Backend_var.With_provenance.t * machtype) list ->
   handler_cont:trywith_shared_label ->
   handler:expression ->
   unit ->

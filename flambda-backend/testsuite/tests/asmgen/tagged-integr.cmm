@@ -1,8 +1,12 @@
 (* TEST
+ reason="Needs rewriting to not use Cassign";
+ skip;
  readonly_files = "main.c asan_report_wrappers.c";
  arguments = "-DINT_FLOAT -DFUN=test main.c asan_report_wrappers.c";
  asmgen;
 *)
+
+(* CR mshinwell: rewrite to not use Cassign *)
 
 (**************************************************************************)
 (*                                                                        *)

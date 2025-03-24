@@ -66,8 +66,9 @@ and instrument = function
   | Cifthenelse (cond, t_dbg, t, f_dbg, f, dbg, kind) ->
      Cifthenelse (instrument cond, t_dbg, with_afl_logging t t_dbg,
        f_dbg, with_afl_logging f f_dbg, dbg, kind)
-  | Ctrywith (e, kind, ex, handler, dbg, value_kind) ->
-     Ctrywith (instrument e, kind, ex, with_afl_logging handler dbg, dbg, value_kind)
+  | Ctrywith (e, kind, ex, extra_args, handler, dbg, value_kind) ->
+     Ctrywith (instrument e, kind, ex,
+       extra_args, with_afl_logging handler dbg, dbg, value_kind)
   | Cswitch (e, cases, handlers, dbg, value_kind) ->
      let handlers =
        Array.map (fun (handler, handler_dbg) ->
@@ -79,11 +80,8 @@ and instrument = function
 
   (* these cases add no logging, but instrument subexpressions *)
   | Clet (v, e, body) -> Clet (v, instrument e, instrument body)
-  | Clet_mut (v, k, e, body) ->
-    Clet_mut (v, k, instrument e, instrument body)
   | Cphantom_let (v, defining_expr, body) ->
     Cphantom_let (v, defining_expr, instrument body)
-  | Cassign (v, e) -> Cassign (v, instrument e)
   | Ctuple es -> Ctuple (List.map instrument es)
   | Cop (op, es, dbg) -> Cop (op, List.map instrument es, dbg)
   | Csequence (e1, e2) -> Csequence (instrument e1, instrument e2)

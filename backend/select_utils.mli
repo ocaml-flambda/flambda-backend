@@ -35,7 +35,8 @@ type 'a environment =
     static_exceptions : 'a static_handler Numbers.Int.Map.t;
         (** Which registers must be populated when jumping to the given
           handler. *)
-    trap_stack : Simple_operation.trap_stack
+    trap_stack : Simple_operation.trap_stack;
+    regs_for_exception_extra_args : Reg.t array Numbers.Int.Map.t
   }
 
 val env_add :
@@ -64,6 +65,12 @@ val env_find_static_exception :
 
 val env_enter_trywith :
   'a environment -> Cmm.trywith_shared_label -> 'a -> 'a environment
+
+val env_add_regs_for_exception_extra_args :
+  Cmm.trywith_shared_label -> Reg.t array -> 'a environment -> 'a environment
+
+val env_find_regs_for_exception_extra_args :
+  Cmm.trywith_shared_label -> _ environment -> Reg.t array
 
 val env_set_trap_stack :
   'a environment -> Simple_operation.trap_stack -> 'a environment
@@ -296,7 +303,7 @@ class virtual ['env, 'op, 'instr] common_selector :
     method virtual emit_expr_aux_raise :
       'env environment ->
       Lambda.raise_kind ->
-      Cmm.expression ->
+      Cmm.expression list ->
       Debuginfo.t ->
       Reg.t array option
 
@@ -357,6 +364,7 @@ class virtual ['env, 'op, 'instr] common_selector :
       Cmm.expression ->
       Cmm.trywith_shared_label ->
       Backend_var.With_provenance.t ->
+      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
       Cmm.expression ->
       Debuginfo.t ->
       Cmm.kind_for_unboxing ->
@@ -410,6 +418,7 @@ class virtual ['env, 'op, 'instr] common_selector :
       Cmm.expression ->
       Cmm.trywith_shared_label ->
       Backend_var.With_provenance.t ->
+      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
       Cmm.expression ->
       Debuginfo.t ->
       Cmm.kind_for_unboxing ->
