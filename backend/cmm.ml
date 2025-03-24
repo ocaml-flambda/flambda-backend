@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
+
 type machtype_component = Cmx_format.machtype_component =
   | Val
   | Addr

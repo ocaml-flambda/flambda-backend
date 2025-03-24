@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "-40"]
 
+open! Int_replace_polymorphic_compare
+
 module Int = Numbers.Int
 
 (* Check a number of continuation-related invariants *)

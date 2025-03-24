@@ -13,6 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open X86_ast
 open X86_proc
 
@@ -56,7 +57,7 @@ let arg_mem b {arch; typ; idx; scale; base; sym; displ} =
   | Some s -> Buffer.add_string b s
   end;
   if scale <> 0 then begin
-    if sym <> None then Buffer.add_char b '+';
+    if Option.is_some sym then Buffer.add_char b '+';
     Buffer.add_string b (string_of_register idx);
     if scale <> 1 then bprintf b "*%d" scale;
   end;
@@ -74,7 +75,7 @@ let arg_mem b {arch; typ; idx; scale; base; sym; displ} =
 
 let arg b = function
   | Sym s -> bprintf b "OFFSET %s" s
-  | Imm n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L -> bprintf b "%Ld" n
+  | Imm n when Int64.compare n 0x7FFF_FFFFL <= 0 && Int64.compare n (-0x8000_0000L) >= 0 -> bprintf b "%Ld" n
   | Imm int -> bprintf b "0%LxH" int (* force ml64 to use mov reg, imm64 *)
   | Reg8L x -> Buffer.add_string b (string_of_reg8l x)
   | Reg8H x -> Buffer.add_string b (string_of_reg8h x)
@@ -104,7 +105,7 @@ and scst b = function
       Buffer.add_string b l;
       if o > 0 then bprintf b "+%d" o
       else if o < 0 then bprintf b "%d" o
-  | Const n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L ->
+  | Const n when Int64.compare n 0x7FFF_FFFFL <= 0 && Int64.compare n (-0x8000_0000L) >= 0 ->
       Buffer.add_string b (Int64.to_string n)
   | Const n -> bprintf b "0%LxH" n
   | ConstAdd (c1, c2) -> bprintf b "(%a + %a)" scst c1 scst c2
@@ -166,7 +167,7 @@ let print_instr b = function
   | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
   | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2
   | MOV (Imm n as arg1, Reg64 r) when
-      n >= 0x8000_0000L && n <= 0xFFFF_FFFFL ->
+      Int64.compare n 0x8000_0000L >= 0 && Int64.compare n 0xFFFF_FFFFL <= 0 ->
       (* Work-around a bug in ml64.  Use a mov to the corresponding
          32-bit lower register when the constant fits in 32-bit.
          The associated higher 32-bit register will be zeroed. *)

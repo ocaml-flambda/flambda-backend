@@ -17,6 +17,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 module String = Misc.Stdlib.String
 
 let function_is_assumed_to_never_poll func =
