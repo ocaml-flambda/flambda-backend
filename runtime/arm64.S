@@ -198,6 +198,9 @@ G(name):
 #define Stack_exception(reg)    [reg, #8]
 #define Stack_handler(reg)      [reg, #16]
 #define Stack_handler_from_cont(reg) [reg, #15]
+#define Stack_local_sp(reg)     [reg, #64]
+#define Stack_local_top(reg)    [reg, #72]
+#define Stack_local_limit(reg)  [reg, #80]
 
 /* struct c_stack_link */
 #define Cstack_stack(reg)       [reg]
@@ -224,6 +227,9 @@ G(name):
         ldr     TMP, Caml_state(current_stack)
         mov     TMP2, sp
         str     TMP2, Stack_sp(TMP)
+    /* No need to update Stack_local_sp: if the runtime
+       needs this value, it will copy it out of
+       Caml_state first (see caml_refresh_locals). */
     /* Fill in Caml_state->c_stack */
         ldr     TMP2, Caml_state(c_stack)
         str     TMP, Cstack_stack(TMP2)
@@ -744,6 +750,8 @@ L(jump_to_caml):
         mov     DOMAIN_STATE_PTR, TMP
     /* Reload allocation pointer */
         ldr     ALLOC_PTR, Caml_state(young_ptr)
+    /* No need to update Stack_local_sp: if the runtime needs this value, it
+       will copy it out of Caml_state first (see caml_refresh_locals). */
     /* Build (16-byte aligned) struct c_stack_link on the C stack */
         ldr     x8, Caml_state(c_stack)
         ldr     x9, Caml_state(async_exn_handler)
@@ -1050,12 +1058,24 @@ END_FUNCTION(caml_callback3_asm)
         mov     TMP, sp
         str     TMP, Stack_sp(\old_stack)
         str     TRAP_PTR, Stack_exception(\old_stack)
+    /* Save any local allocations state from Caml_state
+       which the OCaml code might have changed. */
+        ldr     TMP, Caml_state(local_sp)
+        str     TMP, Stack_local_sp(\old_stack)
     /* switch stacks */
         str     \new_stack, Caml_state(current_stack)
         ldr     TMP, Stack_sp(\new_stack)
         mov     sp, TMP
     /* restore exn_handler for new stack */
         ldr     TRAP_PTR, Stack_exception(\new_stack)
+    /* Restore all local allocations state, since this
+       is now a different stack */
+        ldr     TMP, Stack_local_sp(\new_stack)
+        str     TMP, Caml_state(local_sp)
+        ldr     TMP, Stack_local_top(\new_stack)
+        str     TMP, Caml_state(local_top)
+        ldr     TMP, Stack_local_limit(\new_stack)
+        str     TMP, Caml_state(local_limit)
     /* Restore frame pointer and return address for new_stack */
         ldp     x29, x30, [sp], 16
         CFI_ADJUST(-16)
@@ -1241,11 +1261,21 @@ FUNCTION(caml_runstack)
         mov     TMP, sp
         str     TMP, Stack_sp(x8)
         str     TRAP_PTR, Stack_exception(x8)
+    /* save local allocations state that the OCaml code might have modified */
+        ldr     TMP, Caml_state(local_sp)
+        str     TMP, Stack_local_sp(x8)
     /* Load new stack pointer and set parent */
         ldr     TMP, Stack_handler(x0)
         str     x8, Handler_parent(TMP)
         str     x0, Caml_state(current_stack)
         ldr     x9, Stack_sp(x0) /* x9 := sp of new stack */
+    /* Load all local allocations state for the new stack */
+        ldr     TMP, Stack_local_sp(x0)
+        str     TMP, Caml_state(local_sp)
+        ldr     TMP, Stack_local_top(x0)
+        str     TMP, Caml_state(local_top)
+        ldr     TMP, Stack_local_limit(x0)
+        str     TMP, Caml_state(local_limit)
     /* Create an exception handler on the target stack
        after 16byte DWARF & gc_regs block (which is unused here) */
         sub     x9, x9, 32
@@ -1277,11 +1307,21 @@ L(frame_runstack):
 1:
         mov     x20, x0     /* save return across C call */
         ldr     x0, Caml_state(current_stack) /* arg to caml_free_stack */
+    /* The old (currently the current) stack is about to be freed, so
+       there is nothing to do in terms of local allocations state. */
     /* restore parent stack and exn_handler into Caml_state */
         ldr     TMP, Handler_parent(x8)
         str     TMP, Caml_state(current_stack)
         ldr     TRAP_PTR, Stack_exception(TMP)
         str     TRAP_PTR, Caml_state(exn_handler)
+    /* Restore all local allocations state for the new stack.
+       The new stack is in TMP. */
+        ldr     TMP2, Stack_local_sp(TMP)
+        str     TMP2, Caml_state(local_sp)
+        ldr     TMP2, Stack_local_top(TMP)
+        str     TMP2, Caml_state(local_top)
+        ldr     TMP2, Stack_local_limit(TMP)
+        str     TMP2, Caml_state(local_limit)
     /* free old stack by switching directly to c_stack;
        is a no-alloc call */
         ldr     x21, Stack_sp(TMP) /* saved across C call */
