@@ -21,7 +21,7 @@
 
 (** {1:witness Type equality witness} *)
 
-type (_ : value_or_null, _ : value_or_null) eq = 
+type (_ : value_or_null, _ : value_or_null) eq =
   Equal: ('a : value_or_null) . ('a, 'a) eq (** *)
 (** The purpose of [eq] is to represent type equalities that may not otherwise
     be known by the type checker (e.g. because they may depend on dynamic data).
@@ -57,7 +57,7 @@ module Id : sig
 
   (** {1:ids Type identifiers} *)
 
-  type (!'a : value_or_null) t
+  type (!'a : value_or_null) t : immutable_data
   (** The type for identifiers for type ['a]. *)
 
   val make : ('a : value_or_null) . unit -> 'a t

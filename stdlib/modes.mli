@@ -38,3 +38,11 @@ module Portended : sig
       context. A ['a Portended.t] is equivalent to a ['a Portable.t Contended.t] and a
       ['a Contended.t Portable.t], but much more ergonomic to work with. *)
 end
+
+module Aliased : sig
+  type 'a t = { aliased : 'a @@ aliased } [@@unboxed]
+end
+
+module Shared : sig
+  type 'a t = { shared : 'a @@ shared } [@@unboxed]
+end

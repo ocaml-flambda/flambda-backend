@@ -272,7 +272,7 @@ val fortran_layout : fortran_layout layout
 
 module Genarray :
   sig
-  type (!'a, !'b, !'c) t : value mod portable
+  type (!'a, !'b, !'c) t : mutable_data
   (** The type [Genarray.t] is the type of Bigarrays with variable
      numbers of dimensions.  Any number of dimensions between 0 and 16
      is supported.
@@ -522,7 +522,7 @@ module Genarray :
    faster operations, and more precise static type-checking.
    @since 4.05 *)
 module Array0 : sig
-  type (!'a, !'b, !'c) t : value mod portable
+  type (!'a, !'b, !'c) t : mutable_data
   (** The type of zero-dimensional Bigarrays whose elements have
      OCaml type ['a], representation kind ['b], and memory layout ['c]. *)
 
@@ -586,7 +586,7 @@ end
    Statically knowing the number of dimensions of the array allows
    faster operations, and more precise static type-checking. *)
 module Array1 : sig
-  type (!'a, !'b, !'c) t : value mod portable
+  type (!'a, !'b, !'c) t : mutable_data
   (** The type of one-dimensional Bigarrays whose elements have
      OCaml type ['a], representation kind ['b], and memory layout ['c]. *)
 
@@ -699,7 +699,7 @@ end
    case of two-dimensional arrays. *)
 module Array2 :
   sig
-    type (!'a, !'b, !'c) t : value mod portable
+    type (!'a, !'b, !'c) t : mutable_data
   (** The type of two-dimensional Bigarrays whose elements have
      OCaml type ['a], representation kind ['b], and memory layout ['c]. *)
 
@@ -832,7 +832,7 @@ end
    of three-dimensional arrays. *)
 module Array3 :
   sig
-    type (!'a, !'b, !'c) t : value mod portable
+    type (!'a, !'b, !'c) t : mutable_data
   (** The type of three-dimensional Bigarrays whose elements have
      OCaml type ['a], representation kind ['b], and memory layout ['c]. *)
 
