@@ -1473,6 +1473,9 @@ let instance_parameterized_kind args jkind =
     (ty_args, jkind)
   )
 
+let map_unsafe_mode_crossing f umc =
+  { umc with unsafe_with_bounds = Jkind.With_bounds.map_type_expr f umc.unsafe_with_bounds }
+
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
 let map_kind f = function
   | (Type_abstract _ | Type_open) as k -> k
@@ -1484,19 +1487,19 @@ let map_kind f = function
               cd_args = map_type_expr_cstr_args f c.cd_args;
               cd_res = Option.map f c.cd_res
              })
-          cl, rep, mc)
+          cl, rep, Option.map (map_unsafe_mode_crossing f) mc)
   | Type_record (fl, rr, mc) ->
       Type_record (
         List.map
           (fun l ->
              {l with ld_type = f l.ld_type}
-          ) fl, rr, mc)
+          ) fl, rr, Option.map (map_unsafe_mode_crossing f) mc)
   | Type_record_unboxed_product (fl, rr, mc) ->
       Type_record_unboxed_product (
         List.map
           (fun l ->
              {l with ld_type = f l.ld_type}
-          ) fl, rr, mc)
+          ) fl, rr, Option.map (map_unsafe_mode_crossing f) mc)
 
 
 let instance_declaration decl =
@@ -3389,16 +3392,6 @@ and mcomp_row type_pairs env row1 row2 =
       | _ -> ())
     pairs
 
-and mcomp_unsafe_mode_crossing umc1 umc2 =
-  match umc1, umc2 with
-  | None, None -> ()
-  | Some _, None -> raise Incompatible
-  | None, Some _ -> raise Incompatible
-  | Some umc1, Some umc2 ->
-      if equal_unsafe_mode_crossing umc1 umc2
-      then ()
-      else raise Incompatible
-
 and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
   try
     let decl = Env.find_type p1 env in
@@ -3419,22 +3412,19 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
       raise Incompatible
     else
       match decl.type_kind, decl'.type_kind with
-      | Type_record (lst,r,umc), Type_record (lst',r',umc')
+      | Type_record (lst,r,_), Type_record (lst',r',_)
         when equal_record_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
-          mcomp_record_description type_pairs env lst lst';
-          mcomp_unsafe_mode_crossing umc umc'
-      | Type_record_unboxed_product (lst,r,umc),
-        Type_record_unboxed_product (lst',r',umc')
+          mcomp_record_description type_pairs env lst lst'
+      | Type_record_unboxed_product (lst,r,_),
+        Type_record_unboxed_product (lst',r',_)
         when equal_record_unboxed_product_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
-          mcomp_record_description type_pairs env lst lst';
-          mcomp_unsafe_mode_crossing umc umc'
-      | Type_variant (v1,r,umc), Type_variant (v2,r',umc')
+          mcomp_record_description type_pairs env lst lst'
+      | Type_variant (v1,r,_), Type_variant (v2,r',_)
         when equal_variant_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_variant_description type_pairs env v1 v2;
-          mcomp_unsafe_mode_crossing umc umc'
       | Type_open, Type_open ->
           mcomp_list type_pairs env tl1 tl2
       | Type_abstract _, Type_abstract _ -> check_jkinds ()

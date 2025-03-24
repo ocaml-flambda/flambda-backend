@@ -54,14 +54,12 @@ Error: The layout of type "t" is value
          because of the annotation on the declaration of the type t.
 |}]
 
-(* Annotations with with-bounds aren't allowed *)
+(* Annotations with with-bounds are allowed *)
 type 'a t : value mod uncontended with 'a = { mutable contents : 'a }
 [@@unsafe_allow_any_mode_crossing]
 [%%expect{|
-Lines 1-2, characters 0-34:
-1 | type 'a t : value mod uncontended with 'a = { mutable contents : 'a }
-2 | [@@unsafe_allow_any_mode_crossing]
-Error: [@@unsafe_allow_any_mode_crossing] is not allowed with a kind annotation containing with-bounds.
+type 'a t : value with 'a = { mutable contents : 'a; }
+[@@unsafe_allow_any_mode_crossing]
 |}]
 
 (* Abstract types in signatures should work with the unsafe kind *)
@@ -297,9 +295,9 @@ Error: Signature mismatch:
          type t : value mod contended = { mutable x : int; }
        [@@unsafe_allow_any_mode_crossing]
        They have different unsafe mode crossing behavior:
-       Both specify [@@unsafe_allow_any_mode_crossing], but their mod-bounds are not equal:
-         the first has mod-bounds: portable contended
-         but the second has mod-bounds: contended
+       Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
+         the first has: portable contended with   but the second has:
+         contended with
 |}]
 
 module A : sig
@@ -322,4 +320,90 @@ module B :
     [@@unsafe_allow_any_mode_crossing]
     val a : t -> A.t
   end
+|}]
+
+(* Adding with-bounds using unsafe-allow-any *)
+
+type ('a, 'k) imm : immutable_data with 'a = { inner : 'a }
+type 'a t : immutable_data with 'a = P : ('a, 'k) imm -> 'a t
+[@@unsafe_allow_any_mode_crossing]
+[%%expect{|
+type ('a, 'k) imm = { inner : 'a; }
+type 'a t : immutable_data with 'a = P : ('a, 'k) imm -> 'a t
+[@@unsafe_allow_any_mode_crossing]
+|}]
+
+let f (x : int t @@ contended) = use_uncontended x
+[%%expect{|
+val f : int t @ contended -> int t = <fun>
+|}]
+
+let bad (x : int ref t @@ contended) = use_uncontended x
+[%%expect{|
+Line 1, characters 55-56:
+1 | let bad (x : int ref t @@ contended) = use_uncontended x
+                                                           ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+(* Reexporting after adding with-bounds *)
+module B = struct
+  type 'a t_reexported : immutable_data with 'a = 'a t = P : ('a, 'k) imm -> 'a t_reexported
+  [@@unsafe_allow_any_mode_crossing]
+end
+[%%expect{|
+module B :
+  sig
+    type 'a t_reexported
+      : immutable_data
+      with 'a =
+      'a t =
+        P : ('a, 'k) imm -> 'a t_reexported
+    [@@unsafe_allow_any_mode_crossing]
+  end
+|}]
+
+let f (x : int B.t_reexported @@ contended) = use_uncontended x
+[%%expect{|
+val f : int B.t_reexported @ contended -> int B.t_reexported = <fun>
+|}]
+
+let bad (x : int ref B.t_reexported @@ contended) = use_uncontended x
+[%%expect{|
+Line 1, characters 68-69:
+1 | let bad (x : int ref B.t_reexported @@ contended) = use_uncontended x
+                                                                        ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+type 'a bad_reexport : immutable_data = 'a t = P : ('a, 'k) imm -> 'a bad_reexport
+[@@unsafe_allow_any_mode_crossing]
+[%%expect{|
+Lines 1-2, characters 0-34:
+1 | type 'a bad_reexport : immutable_data = 'a t = P : ('a, 'k) imm -> 'a bad_reexport
+2 | [@@unsafe_allow_any_mode_crossing]
+Error: This variant or record definition does not match that of type "'a t"
+       They have different unsafe mode crossing behavior:
+       Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
+         the original has: many portable contended with with 'a
+         but this has: many portable contended with
+|}]
+
+type ('a, 'b) arity_2 : immutable_data with 'b = { x : 'a }
+[@@unsafe_allow_any_mode_crossing]
+
+type ('a, 'b) bad_reexport_2 : immutable_data with 'a = ('a, 'b) arity_2 = { x : 'a }
+[@@unsafe_allow_any_mode_crossing]
+[%%expect{|
+type ('a, 'b) arity_2 : immutable_data with 'b = { x : 'a; }
+[@@unsafe_allow_any_mode_crossing]
+Lines 4-5, characters 0-34:
+4 | type ('a, 'b) bad_reexport_2 : immutable_data with 'a = ('a, 'b) arity_2 = { x : 'a }
+5 | [@@unsafe_allow_any_mode_crossing]
+Error: This variant or record definition does not match that of type
+         "('a, 'b) arity_2"
+       They have different unsafe mode crossing behavior:
+       Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
+         the original has: many portable contended with with 'b
+         but this has: many portable contended with with 'a
 |}]
