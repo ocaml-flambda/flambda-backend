@@ -55,10 +55,10 @@ Error: The layout of type "t" is value
 |}]
 
 (* Annotations with with-bounds are allowed *)
-type 'a t : value mod uncontended with 'a = { mutable contents : 'a }
+type 'a t : value mod contended with 'a = { mutable contents : 'a }
 [@@unsafe_allow_any_mode_crossing]
 [%%expect{|
-type 'a t : value with 'a = { mutable contents : 'a; }
+type 'a t : value mod contended with 'a = { mutable contents : 'a; }
 [@@unsafe_allow_any_mode_crossing]
 |}]
 
@@ -296,8 +296,8 @@ Error: Signature mismatch:
        [@@unsafe_allow_any_mode_crossing]
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
-         the first has: portable contended with   but the second has:
-         contended with
+         the first has: mod portable contended
+         but the second has: mod contended
 |}]
 
 module A : sig
@@ -385,8 +385,8 @@ Lines 1-2, characters 0-34:
 Error: This variant or record definition does not match that of type "'a t"
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
-         the original has: many portable contended with with 'a
-         but this has: many portable contended with
+         the original has: mod many portable contended with 'a
+         but this has: mod many portable contended
 |}]
 
 type ('a, 'b) arity_2 : immutable_data with 'b = { x : 'a }
@@ -404,6 +404,6 @@ Error: This variant or record definition does not match that of type
          "('a, 'b) arity_2"
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
-         the original has: many portable contended with with 'b
-         but this has: many portable contended with with 'a
+         the original has: mod many portable contended with 'b
+         but this has: mod many portable contended with 'a
 |}]
