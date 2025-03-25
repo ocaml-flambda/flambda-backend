@@ -460,7 +460,7 @@ val max : t -> t -> t
 
 module With_weird_nan_behavior : sig
   external min : t -> t -> t
-    = "caml_sse_float32_min_bytecode" "caml_sse_float32_min"
+    = "caml_simd_float32_min_bytecode" "caml_simd_float32_min"
     [@@noalloc] [@@unboxed] [@@builtin]
   (** [min x y] returns the minimum of [x] and [y].
       If either [x] or [y] is [nan], [y] is returned.
@@ -468,7 +468,7 @@ module With_weird_nan_behavior : sig
       The amd64 flambda-backend compiler translates this call to MINSS. *)
 
   external max : t -> t -> t
-    = "caml_sse_float32_max_bytecode" "caml_sse_float32_max"
+    = "caml_simd_float32_max_bytecode" "caml_simd_float32_max"
     [@@noalloc] [@@unboxed] [@@builtin]
   (** [max x y] returns the maximum of [x] and [y].
       If either [x] or [y] is [nan], [y] is returned.
@@ -495,7 +495,7 @@ val min_max_num : t -> t -> t * t
    and [min_max_num nan y = (y, y)]. *)
 
 external iround_current : t -> int64
-  = "caml_sse_cast_float32_int64_bytecode" "caml_sse_cast_float32_int64"
+  = "caml_simd_cast_float32_int64_bytecode" "caml_simd_cast_float32_int64"
   [@@noalloc] [@@unboxed] [@@builtin]
 (** Rounds a [float32] to an [int64] using the current rounding mode. The default
     rounding mode on amd64 is "round half to even", and we expect that no
