@@ -22,7 +22,13 @@ val make_empty : unit -> _ t
 
 val make_single : 'a -> 'a t
 
+val add_list : 'a t -> 'a list -> unit
+
 val of_list : 'a list -> 'a t
+
+val add_array : 'a t -> 'a array -> unit
+
+val of_array : 'a array -> 'a t
 
 val clear : 'a t -> unit
 
@@ -37,8 +43,6 @@ val last_cell : 'a t -> 'a cell option
 val add_begin : 'a t -> 'a -> unit
 
 val add_end : 'a t -> 'a -> unit
-
-val add_list : 'a t -> 'a list -> unit
 
 val is_empty : 'a t -> bool
 
@@ -86,3 +90,10 @@ val to_list : 'a t -> 'a list
 val transfer : to_:'a t -> from:'a t -> unit -> unit
 
 val map : 'a t -> f:('a -> 'b) -> 'b t
+
+val copy : 'a t -> 'a t
+
+(* Deletes the passed cell and all the cells after it. *)
+val cut : 'a cell -> unit
+
+val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
