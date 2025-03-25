@@ -13,4 +13,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val extract_from_typed_tree : Typedtree.structure -> Shapes.extfun list
+val extract_from_typed_tree : Typedtree.structure -> Value_shapes.extfun list

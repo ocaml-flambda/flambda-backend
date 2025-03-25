@@ -14,7 +14,7 @@
 (**************************************************************************)
 
 open! Types
-open! Shapes
+open! Value_shapes
 open! Typedtree
 
 (* Helper utility for debugging. *)
@@ -144,8 +144,8 @@ let array_type_kind env ty =
 
 (* Invariant:
    [value_kind] functions may only be called on types with layout  value. *)
-let rec value_kind env (subst : type_shape Subst.t) ~visited ~depth ty :
-    type_shape =
+let rec value_kind env (subst : value_shape Subst.t) ~visited ~depth ty :
+    value_shape =
   let[@inline] cannot_proceed () =
     Numbers.Int.Set.mem (get_id ty) visited || depth >= 2
   in
@@ -340,7 +340,7 @@ let value_kind env ty =
   value_kind env identity_subst ~visited:Numbers.Int.Set.empty ~depth:(-1) ty
 
 (* functionality on top of [value_kind] to extract shapes from typed trees *)
-let shape_from_core_type (ct : Typedtree.core_type) : type_shape =
+let shape_from_core_type (ct : Typedtree.core_type) : value_shape =
   let env' =
     Envaux.env_of_only_summary ~allow_missing_modules:true ct.ctyp_env
   in

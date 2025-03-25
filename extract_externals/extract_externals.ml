@@ -26,7 +26,7 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
-open! Shapes
+open! Value_shapes
 
 (* Argument Parsing *)
 let easily_readable = ref false
@@ -77,8 +77,8 @@ let parse_arguments () =
 
 let pp_ext_funs ~readable fmt extfuns =
   if readable
-  then Shapes.print_extfuns_readable fmt extfuns
-  else Shapes.print_extfuns fmt extfuns
+  then Value_shapes.print_extfuns_readable fmt extfuns
+  else Value_shapes.print_extfuns fmt extfuns
 
 let output_shapes ~output_file ~readable externals =
   match output_file with

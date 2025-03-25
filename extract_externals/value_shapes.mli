@@ -26,7 +26,11 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
-type type_shape =
+(** This file defines a representation of the runtime shapes of OCaml values.
+    These shapes are different from (and unrelated to) the shapes defined in
+    [typing/shape.mli]. *)
+
+type value_shape =
   | Value  (** anything of C type [value] *)
   | Imm  (** immediate, tagged with a one at the end *)
   | Nativeint
@@ -37,7 +41,7 @@ type type_shape =
   | String
       (** block of a char pointer with a size, representing both Bytes.t and String.t *)
   | FloatArray  (** block containing native doubles *)
-  | Block of (int * type_shape list) option
+  | Block of (int * value_shape list) option
       (** Block whose tag is below no-scan tag (i.e., a normal ocaml block value). If the
       argment is [None], then the block could have any tag and any elements. If the
       argument is [Some (t, shs)], then [t] is the tag of the block and [shs] contains the
@@ -47,24 +51,24 @@ type type_shape =
       To represent arrays (which are blocks with tag 0 at run time, but whose size is not
       statically known), there is a separate construtor, [Array sh], which keeps track of
       the shapes of the elements. *)
-  | Array of type_shape
+  | Array of value_shape
       (** Block with tag 0 and a fixed size (not known statically). The shape of the
           elements is given by the argument. *)
   | Closure  (** Block with closure tag. *)
   | Obj  (** Block with object tag. *)
-  | Or of type_shape * type_shape
+  | Or of value_shape * value_shape
       (** Disjunction between two shapes for (e.g., variant types) *)
 
-type fn_type_shapes =
-  { arguments : type_shape list;
-    return : type_shape
+type fn_value_shapes =
+  { arguments : value_shape list;
+    return : value_shape
   }
 
 (** An [extfun_desc] describes the information that we know about an external function. To
     enable extensions in the future, we define it as a record of options. This enables
     adding new, optional fields in the future without breaking the serialized form. *)
 type extfun_desc =
-  { shape : fn_type_shapes option
+  { shape : fn_value_shapes option
         (** If the shape is not present, then we fallback on the arity of the C code. *)
   }
 

@@ -26,7 +26,7 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
-type type_shape =
+type value_shape =
   | Value  (** anything of C type [value] *)
   | Imm  (** immediate, tagged with a one at the end *)
   | Nativeint
@@ -37,7 +37,7 @@ type type_shape =
   | String
       (** block of a char pointer with a size, representing both Bytes.t and String.t *)
   | FloatArray  (** block containing native doubles *)
-  | Block of (int * type_shape list) option
+  | Block of (int * value_shape list) option
       (** Block whose tag is below no-scan tag (i.e., a normal ocaml block value). If the
      argment is [None], then the block could have any tag and any elements. If the
      argument is [Some (t, shs)], then [t] is the tag of the block and [shs] contains the
@@ -47,15 +47,15 @@ type type_shape =
      To represent arrays (which are blocks with tag 0 at run time, but whose size is not
      statically known), there is a separate construtor, [Array sh], which keeps track of
      the shapes of the elements. *)
-  | Array of type_shape
+  | Array of value_shape
       (** Block with tag 0 and a fixed size (not known statically). The shape of the
          elements is given by the argument. *)
   | Closure  (** Block with closure tag. *)
   | Obj  (** Block with object tag. *)
-  | Or of type_shape * type_shape
+  | Or of value_shape * value_shape
       (** Disjunction between two shapes for (e.g., variant types) *)
 
-let rec print_shapes ppf (sh : type_shape) =
+let rec print_shapes ppf (sh : value_shape) =
   match sh with
   | Value -> Format.fprintf ppf "@[<hov 1>Value@]"
   | Imm -> Format.fprintf ppf "@[<hov 1>Imm@]"
@@ -82,7 +82,7 @@ and print_shape_list ppf shapes =
        print_shapes)
     shapes
 
-let rec print_shape_readable fmt (sh : type_shape) =
+let rec print_shape_readable fmt (sh : value_shape) =
   match sh with
   | Value -> Format.pp_print_string fmt "*"
   | Imm -> Format.pp_print_string fmt "imm"
@@ -108,17 +108,17 @@ and print_shapes_readable fmt shapes =
     shapes
 
 (* TODO: check which shapes exceptions should have *)
-type fn_type_shapes =
-  { arguments : type_shape list;
-    return : type_shape
+type fn_value_shapes =
+  { arguments : value_shape list;
+    return : value_shape
   }
 
-let print_fn_type_shapes ppf { arguments; return } =
+let print_fn_value_shapes ppf { arguments; return } =
   Format.fprintf ppf
     "@[<hov 1>(@[<hov 1>(arguments@ %a)@]@ @[<hov 1>(return@ %a)@])@]"
     print_shape_list arguments print_shapes return
 
-let print_fn_type_shapes_readable fmt { arguments; return } =
+let print_fn_value_shapes_readable fmt { arguments; return } =
   Format.fprintf fmt "args%a -> %a" print_shapes_readable arguments
     print_shape_readable return
 
@@ -126,7 +126,7 @@ let print_fn_type_shapes_readable fmt { arguments; return } =
     enable extensions in the future, we define it as a record of options. This enables
     adding new, optional fields in the future without breaking the serialized form. *)
 type extfun_desc =
-  { shape : fn_type_shapes option
+  { shape : fn_value_shapes option
         (** If the shape is not present, then we fallback on the arity of the C code. *)
   }
 
@@ -135,12 +135,12 @@ let print_extfun_desc ppf { shape } =
   | None -> Format.fprintf ppf "@[<hov 1>()@]"
   | Some shape ->
     Format.fprintf ppf "@[<hov 1>(@[<hov 1>(shape@ %a)@])@]"
-      print_fn_type_shapes shape
+      print_fn_value_shapes shape
 
 let print_extfun_desc_readable fmt { shape } =
   match shape with
   | None -> Format.fprintf fmt "*"
-  | Some shape -> Format.fprintf fmt "%a" print_fn_type_shapes_readable shape
+  | Some shape -> Format.fprintf fmt "%a" print_fn_value_shapes_readable shape
 
 type extfun =
   { name : string;  (** C name of the function *)

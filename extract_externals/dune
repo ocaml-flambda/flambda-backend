@@ -13,7 +13,7 @@
 (executable
  (name extract_externals)
  (modes byte native)
- (modules extract_externals shapes traverse_typed_tree)
+ (modules extract_externals value_shapes traverse_typed_tree)
  (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
 
 (install
