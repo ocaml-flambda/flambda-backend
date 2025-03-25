@@ -1047,10 +1047,9 @@ let ternary_primitive _env dbg f x y z =
     C.atomic_compare_and_set ~dbg
       (imm_or_ptr block_access_kind)
       x ~old_value:y ~new_value:z
-  | Atomic_compare_exchange block_access_kind ->
-    C.atomic_compare_exchange ~dbg
-      (imm_or_ptr block_access_kind)
-      x ~old_value:y ~new_value:z
+  | Atomic_compare_exchange { atomic_kind = _; args_kind } ->
+    C.atomic_compare_exchange ~dbg (imm_or_ptr args_kind) x ~old_value:y
+      ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with

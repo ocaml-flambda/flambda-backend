@@ -2410,12 +2410,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           atomic,
           new_value ) ]
   | ( Patomic_compare_exchange { immediate_or_pointer },
-      [[atomic]; [old_value]; [new_value]] ) ->
+      [[atomic]; [comparison_value]; [new_value]] ) ->
+    let access_kind = convert_block_access_field_kind immediate_or_pointer in
     [ Ternary
         ( Atomic_compare_exchange
-            (convert_block_access_field_kind immediate_or_pointer),
+            { atomic_kind = access_kind; args_kind = access_kind },
           atomic,
-          old_value,
+          comparison_value,
           new_value ) ]
   | ( Patomic_compare_set { immediate_or_pointer },
       [[atomic]; [old_value]; [new_value]] ) ->
