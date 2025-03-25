@@ -303,8 +303,7 @@ let name_regs id rv =
   then rv.(0).Reg.raw_name <- Reg.Raw_name.create_from_var id
   else
     for i = 0 to Array.length rv - 1 do
-      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id;
-      rv.(i).Reg.part <- Some i
+      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id
     done
 
 (* Name of function being compiled *)
