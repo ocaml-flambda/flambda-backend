@@ -163,33 +163,31 @@ CAMLexport void (*caml_leave_blocking_section_hook)(void) =
 
 static int check_pending_actions(caml_domain_state * dom_st);
 
-CAMLexport void caml_enter_blocking_section(void)
-{
-  caml_domain_state * domain = Caml_state;
-  while (1){
-    if (Caml_state->in_minor_collection)
-      caml_fatal_error("caml_enter_blocking_section from inside minor GC");
-    /* Process all pending signals now */
-    if (check_pending_actions(domain)) {
-      /* First reset young_limit, and set action_pending in case there
-         are further async callbacks pending beyond OCaml signal
-         handlers. */
-      caml_handle_gc_interrupt();
-      caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
-    }
-    caml_enter_blocking_section_hook ();
-    /* Check again if a signal arrived in the meanwhile. If none,
-       done; otherwise, try again. Since we do not hold the domain
-       lock, we cannot read [young_ptr] and we cannot call
-       [Caml_check_gc_interrupt]. */
-    if (atomic_load_relaxed(&domain->young_limit) != UINTNAT_MAX) break;
-    caml_leave_blocking_section_hook ();
-  }
-}
-
 CAMLexport void caml_enter_blocking_section_no_pending(void)
 {
   caml_enter_blocking_section_hook ();
+}
+
+CAMLexport void caml_enter_blocking_section(void)
+{
+  if (Caml_state->in_minor_collection)
+    caml_fatal_error("caml_enter_blocking_section from inside minor GC");
+
+  /* Execute pending signal handlers until there are no more remaining.
+     We check [action_pending] as it's faster than the signals check. */
+  while (Caml_check_gc_interrupt(Caml_state)
+    || (Caml_state->action_pending && caml_check_pending_signals())) {
+    /* First reset young_limit, and set action_pending in case there
+       are further async callbacks pending beyond OCaml signal
+       handlers. */
+    caml_handle_gc_interrupt();
+    caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
+  }
+
+  /* Drop the systhreads lock */
+  caml_enter_blocking_section_no_pending ();
+  /* Any pending actions that happen at this point onwards can be handled by
+     another thread, or by this thread upon leaving the blocking section. */
 }
 
 CAMLexport void caml_leave_blocking_section(void)
