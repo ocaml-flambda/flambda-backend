@@ -57,7 +57,7 @@ type value_shape =
   | Closure  (** Block with closure tag. *)
   | Obj  (** Block with object tag. *)
   | Or of value_shape * value_shape
-      (** Disjunction between two shapes for (e.g., variant types) *)
+      (** Disjunction between two shapes for, e.g., variant types. *)
 
 type fn_value_shapes =
   { arguments : value_shape list;
