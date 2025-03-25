@@ -5,6 +5,6 @@ c_fun
 caml_c_call
 camlStack_realloc__f_comp_5_16_code
 caml_runstack
-camlStdlib__Effect__match_with_7_32_code
+camlStdlib__Effect__with_stack_1_29_code
 camlStack_realloc__entry
 caml_program

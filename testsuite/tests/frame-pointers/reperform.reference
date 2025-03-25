@@ -6,7 +6,7 @@ camlReperform__foo_0_8_code
 camlReperform__foo_0_8_code
 camlReperform__foo_0_8_code
 caml_runstack
-camlStdlib__Effect__match_with_7_32_code
+camlStdlib__Effect__with_stack_1_29_code
 camlReperform__bar_1_9_code
 camlReperform__bar_1_9_code
 camlReperform__bar_1_9_code
@@ -14,6 +14,6 @@ camlReperform__bar_1_9_code
 camlReperform__bar_1_9_code
 camlReperform__bar_1_9_code
 caml_runstack
-camlStdlib__Effect__try_with_9_34_code
+camlStdlib__Effect__with_stack_1_29_code
 camlReperform__entry
 caml_program
