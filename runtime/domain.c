@@ -1830,8 +1830,13 @@ void caml_reset_young_limit(caml_domain_state * dom_st)
      long-running C code (that may regularly poll with
      caml_process_pending_actions), we want to force a query of all
      callbacks at every minor collection or major slice (similarly to
-     the OCaml behaviour). */
-  caml_set_action_pending(dom_st);
+     the OCaml behaviour).
+
+     We don't need to check for internally triggered pending actions
+     (Memprof and finalisers), because they will already have set
+     action_pending if needed. */
+  if (caml_check_pending_signals() || Caml_state->requested_external_interrupt)
+    caml_set_action_pending(dom_st);
 }
 
 void caml_update_young_limit_after_c_call(caml_domain_state * dom_st)
