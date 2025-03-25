@@ -910,6 +910,24 @@ let simplify_is_null dacc ~original_term ~arg:_ ~arg_ty:scrutinee_ty ~result_var
   | Unknown ->
     SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
 
+let simplify_is_immediate dacc ~original_term ~arg:_ ~arg_ty:scrutinee_ty
+    ~result_var =
+  let typing_env = DA.typing_env dacc in
+  match
+    ( T.prove_is_int typing_env scrutinee_ty,
+      T.prove_is_null typing_env scrutinee_ty )
+  with
+  | Proved true, _ | _, Proved true ->
+    let ty = T.this_naked_immediate (Targetint_31_63.bool true) in
+    let dacc = DA.add_variable dacc result_var ty in
+    SPR.create original_term ~try_reify:false dacc
+  | Proved false, Proved false ->
+    let ty = T.this_naked_immediate (Targetint_31_63.bool false) in
+    let dacc = DA.add_variable dacc result_var ty in
+    SPR.create original_term ~try_reify:false dacc
+  | Unknown, Unknown | Unknown, Proved false | Proved false, Unknown ->
+    SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
+
 let simplify_peek ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     ~result_var =
   SPR.create_unknown dacc ~result_var
@@ -938,6 +956,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Untag_immediate -> simplify_untag_immediate
     | Is_int { variant_only } -> simplify_is_int ~variant_only
     | Is_null -> simplify_is_null
+    | Is_immediate -> simplify_is_immediate
     | Get_tag -> simplify_get_tag
     | Array_length array_kind -> simplify_array_length array_kind
     | String_length _ -> simplify_string_length

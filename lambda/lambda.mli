@@ -213,6 +213,8 @@ type primitive =
   | Pisint of { variant_only : bool }
   (* Test if the argument is a null pointer *)
   | Pisnull
+  (* Test if the argument is an immediate (integer or null pointer) *)
+  | Pisimmediate
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
