@@ -16,13 +16,21 @@ val prev : 'a cell -> 'a cell option
 
 val next : 'a cell -> 'a cell option
 
+val cut_from : 'a cell -> unit
+
 type 'a t
 
 val make_empty : unit -> _ t
 
 val make_single : 'a -> 'a t
 
+val add_list : 'a t -> 'a list -> unit
+
 val of_list : 'a list -> 'a t
+
+val add_array : 'a t -> 'a array -> unit
+
+val of_array : 'a array -> 'a t
 
 val clear : 'a t -> unit
 
@@ -37,8 +45,6 @@ val last_cell : 'a t -> 'a cell option
 val add_begin : 'a t -> 'a -> unit
 
 val add_end : 'a t -> 'a -> unit
-
-val add_list : 'a t -> 'a list -> unit
 
 val is_empty : 'a t -> bool
 
@@ -93,7 +99,12 @@ module Cursor : sig
   val value : 'a t -> 'a
 
   val next : 'a t -> (unit, [`End_of_list]) result
+
   val delete_and_next : 'a t -> (unit, [`End_of_list]) result
 end
 
 val create_hd_cursor : 'a t -> ('a Cursor.t, [`Empty]) result
+
+val copy : 'a t -> 'a t
+
+val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool

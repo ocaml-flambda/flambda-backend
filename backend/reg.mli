@@ -114,6 +114,7 @@ val set_has_collisions : Set.t -> bool
 
 val reset: unit -> unit
 val all_registers: unit -> t list
+val num_registers: unit -> int
 val reinit: unit -> unit
 
 val same_phys_reg : t -> t -> bool
