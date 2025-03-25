@@ -1295,7 +1295,6 @@ module With_bounds_types : sig
 
   val empty : t
   val is_empty : t -> bool
-  val cardinal : t -> int
   val to_seq : t -> (type_expr * info) Seq.t
   val of_list : (type_expr * info) list -> t
   val of_seq : (type_expr * info) Seq.t -> t
@@ -1332,7 +1331,6 @@ end = struct
 
   let empty = empty |> of_map
   let is_empty t = t |> to_map |> is_empty
-  let cardinal t = t |> to_map |> cardinal
   let to_seq t = t |> to_map |> to_seq
   let of_seq s = of_seq s |> of_map
   let of_list l = l |> List.to_seq |> of_seq
@@ -1358,13 +1356,21 @@ let equal_unsafe_mode_crossing
     | No_with_bounds, No_with_bounds -> true
     | No_with_bounds, With_bounds _ | With_bounds _, No_with_bounds -> false
     | With_bounds wb1, With_bounds wb2 ->
-      Int.equal (With_bounds_types.cardinal wb1) (With_bounds_types.cardinal wb2)
+      (* It's tough (impossible?) to do better than a double subset check here because of
+         the fact that these maps are best-effort. But in practice these will usually not
+         be huge, and the attribute triggering this check is (hopefully) rare. *)
+      With_bounds_types.for_all
+        (fun ty1 _info ->
+           With_bounds_types.exists
+             (fun ty2 _info -> type_equal ty1 ty2)
+             wb2)
+        wb1
       && With_bounds_types.for_all
-           (fun ty1 _info ->
-              With_bounds_types.exists
-                (fun ty2 _info -> type_equal ty1 ty2)
-                wb2)
-           wb1)
+        (fun ty2 _info ->
+           With_bounds_types.exists
+             (fun ty1 _info -> type_equal ty1 ty2)
+             wb1)
+        wb2)
 
 (* Constructor and accessors for [row_desc] *)
 
