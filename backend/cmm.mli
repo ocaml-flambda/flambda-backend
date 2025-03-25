@@ -107,8 +107,6 @@ type exit_label =
   | Return_lbl
   | Lbl of Lambda.static_label
 
-type rec_flag = Nonrecursive | Recursive
-
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 type atomic_op =
@@ -332,6 +330,8 @@ type vec128_bits = { low : int64; high: int64 }
 
 val global_symbol : string -> symbol
 
+type ccatch_flag = Normal | Recursive | Exn_handler
+
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
 type expression =
@@ -353,20 +353,11 @@ type expression =
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
       * Debuginfo.t
   | Ccatch of
-      rec_flag
+      ccatch_flag
         * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of expression * trywith_shared_label
-      * Backend_var.With_provenance.t
-      * (Backend_var.With_provenance.t * machtype) list
-      * expression * Debuginfo.t
-    (** Ctrywith uses "delayed handlers":
-        The body starts with the previous exception handler, and only after
-        going through an explicit Push-annotated Cexit will this handler become
-        active.  This allows for sharing a single handler in several places, or
-        having multiple entry and exit points to a single trywith block. *)
 
 type codegen_option =
   | Reduce_code_size
@@ -418,6 +409,13 @@ val ccatch :
      Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
        * expression * expression * Debuginfo.t
        * bool
+  -> expression
+
+val ctrywith :
+     expression * trywith_shared_label
+       * Backend_var.With_provenance.t
+       * (Backend_var.With_provenance.t * machtype) list
+       * expression * Debuginfo.t
   -> expression
 
 val reset : unit -> unit

@@ -70,7 +70,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
       | Cstatic_cast _ | Ctuple_field _ | Ccmpf _ | Cdls_get ->
         List.for_all is_simple_expr args)
-    | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> false
+    | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ -> false
 
   and is_simple_expr expr =
     match Target.is_simple_expr expr with
@@ -126,7 +126,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           EC.none
       in
       EC.join from_op (EC.join_list_map args effects_of)
-    | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> EC.arbitrary
+    | Cswitch _ | Ccatch _ | Cexit _ -> EC.arbitrary
 
   and effects_of (expr : Cmm.expression) =
     match Target.effects_of expr with
@@ -753,8 +753,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Ccatch (rec_flag, handlers, body) ->
       emit_expr_catch env sub_cfg bound_name rec_flag handlers body
     | Cexit (lbl, args, traps) -> emit_expr_exit env sub_cfg lbl args traps
-    | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg) ->
-      emit_expr_trywith env sub_cfg bound_name e1 exn_cont v ~extra_args e2 dbg
 
   (* Emit an expression in tail position of a function. *)
   and emit_tail env sub_cfg (exp : Cmm.expression) =
@@ -777,8 +775,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Ccatch (_, [], e1) -> emit_tail env sub_cfg e1
     | Ccatch (rec_flag, handlers, e1) ->
       emit_tail_catch env sub_cfg rec_flag handlers e1
-    | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg) ->
-      emit_tail_trywith env sub_cfg e1 exn_cont v ~extra_args e2 dbg
     | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
     | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Ctuple _ | Cexit _ ->
       emit_return env sub_cfg exp (SU.pop_all_traps env)
@@ -791,13 +787,13 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       | Uncaught ->
         (* Function-level or toplevel exception continuations never have extra
            args. *)
-        [||]
+        []
       | Specific_trap (cont, _trap_stack) ->
         SU.env_find_regs_for_exception_extra_args cont env
     in
     (* Populate the distinguished extra args registers, for the current
        exception handler, with the extra args for this particular raise. *)
-    let rd = Array.append [| Proc.loc_exn_bucket |] extra_args_regs in
+    let rd = Array.concat ([| Proc.loc_exn_bucket |] :: extra_args_regs) in
     Array.iter2
       (fun r1 rd -> SU.insert env sub_cfg (Op Move) [| r1 |] [| rd |])
       r1 rd;
@@ -993,7 +989,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       Sub_cfg.join ~from:(Array.to_list subs) ~to_:sub_cfg;
       r
 
-  and emit_expr_catch env sub_cfg bound_name (_rec_flag : Cmm.rec_flag) handlers
+  and emit_expr_catch env sub_cfg bound_name (flag : Cmm.ccatch_flag) handlers
       body =
     let handlers =
       List.map
@@ -1020,8 +1016,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         (env, Int.Map.empty) handlers
     in
     let r_body, sub_body = emit_new_sub_cfg env body ~bound_name in
-    let translate_one_handler nfail
-        (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
+    let translate_one_handler _nfail
+        (trap_info, (ids, rs, e2, _dbg, _is_cold, label)) =
       assert (List.length ids = List.length rs);
       let trap_stack =
         match (!trap_info : SU.trap_stack_info) with
@@ -1056,7 +1052,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
                     [||] [||])
               ids_and_rs)
       in
-      (nfail, trap_stack, is_cold, label), (r, sub)
+      (rs, label), (r, sub)
     in
     let rec build_all_reachable_handlers ~already_built ~not_built =
       let not_built, to_build =
@@ -1085,8 +1081,19 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     assert (Sub_cfg.exit_has_never_terminator sub_cfg);
     let sub_handlers =
       List.map
-        (fun ((_, _, _, label), (_, sub_handler)) ->
-          Sub_cfg.add_empty_block_at_start sub_handler ~label;
+        (fun ((rs, label), (_, sub_handler)) ->
+          begin match flag with
+          | Normal | Recursive -> Sub_cfg.add_empty_block_at_start sub_handler ~label
+          | Exn_handler ->
+            Sub_cfg.mark_as_trap_handler sub_handler ~exn_label:label;
+            let exn_bucket_in_handler =
+              match rs with
+              | [] -> Misc.fatal_error "Exception handler with no parameters"
+              | r :: _ -> r
+            in
+            Sub_cfg.add_instruction_at_start sub_handler (Cfg.Op Move)
+              [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
+          end;
           sub_handler)
         l
     in
@@ -1142,7 +1149,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
             Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
           traps;
         Sub_cfg.update_exit_terminator sub_cfg (Always handler.label);
-        SU.set_traps nfail handler.SU.traps_ref env.SU.trap_stack traps;
+        SU.set_traps env nfail handler.SU.traps_ref env.SU.trap_stack traps;
         Never_returns
       | Return_lbl -> (
         match simple_list with
@@ -1153,99 +1160,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         | _ :: _ :: _ ->
           Misc.fatal_error "Selection.emit_expr: Return with too many arguments"
         ))
-
-  and emit_expr_trywith env sub_cfg bound_name e1 exn_cont v ~extra_args e2
-      (_dbg : Debuginfo.t) =
-    (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-    assert (Sub_cfg.exit_has_never_terminator sub_cfg);
-    let exn_label = Cmm.new_label () in
-    (* For each exception handler having extra arguments, distinguished
-       registers corresponding to such arguments are created. They are populated
-       at each raise site, which is the only place Cmm allows extra arguments to
-       be involved in a raise. Any function call that involves extra arguments
-       on its exception continuation has to compiled using a wrapper; see
-       [To_cmm_expr.translate_apply]. *)
-    let extra_arg_regs_split =
-      List.map (fun (_param, machtype) -> SU.regs_for machtype) extra_args
-    in
-    let extra_arg_regs = Array.concat extra_arg_regs_split in
-    let env_body = SU.env_enter_trywith env exn_cont exn_label in
-    let env_body =
-      SU.env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
-    in
-    let r1, sub1 = emit_new_sub_cfg env_body e1 ~bound_name in
-    let exn_bucket_in_handler = SU.regs_for Cmm.typ_val in
-    let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
-    let with_handler env_handler e2 =
-      let r2, sub2 =
-        emit_new_sub_cfg env_handler e2 ~bound_name ~at_start:(fun sub_cfg ->
-            List.iter2
-              (fun v regs ->
-                let provenance = VP.provenance v in
-                if Option.is_some provenance
-                then
-                  let var = VP.var v in
-                  let naming_op =
-                    Operation.Name_for_debugger
-                      { ident = var;
-                        provenance;
-                        which_parameter = None;
-                        is_assignment = false;
-                        regs
-                      }
-                  in
-                  insert_debug env sub_cfg (Op naming_op) Debuginfo.none [||]
-                    [||])
-              (v :: List.map fst extra_args)
-              rv_list)
-      in
-      let r = SU.join env r1 sub1 r2 sub2 ~bound_name in
-      Sub_cfg.mark_as_trap_handler sub2 ~exn_label;
-      Sub_cfg.add_instruction_at_start sub2 (Op Move) [| Proc.loc_exn_bucket |]
-        exn_bucket_in_handler Debuginfo.none;
-      Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label sub1));
-      Sub_cfg.join ~from:[sub1; sub2] ~to_:sub_cfg;
-      r
-    in
-    let env =
-      List.fold_left2
-        (fun env var regs -> SU.env_add var regs env)
-        env
-        (v :: List.map fst extra_args)
-        rv_list
-    in
-    match SU.env_find_static_exception exn_cont env_body with
-    | { traps_ref = { contents = Reachable ts }; _ } ->
-      with_handler (SU.env_set_trap_stack env ts) e2
-    | { traps_ref = { contents = Unreachable }; _ } ->
-      let dummy_constant : Cmm.expression = Cconst_int (1, Debuginfo.none) in
-      let segfault : Cmm.expression =
-        Cop
-          ( Cload
-              { memory_chunk = Word_int;
-                mutability = Mutable;
-                is_atomic = false
-              },
-            [Cconst_int (0, Debuginfo.none)],
-            Debuginfo.none )
-      in
-      let dummy_raise : Cmm.expression =
-        Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
-      in
-      let unreachable : Cmm.expression =
-        (* The use of a raise operation means that this handler is known not to
-           return, making it compatible with any layout for the body or
-           surrounding code. We also set the trap stack to [Uncaught] to ensure
-           that we don't introduce spurious control-flow edges inside the
-           function. *)
-        Csequence (segfault, dummy_raise)
-      in
-      let env = SU.env_set_trap_stack env Uncaught in
-      with_handler env unreachable
-      (* Misc.fatal_errorf "Selection.emit_expr: \ * Unreachable exception
-         handler %d" lbl *)
-    | exception Not_found ->
-      Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
   and emit_new_sub_cfg ?at_start env exp ~bound_name : _ * Sub_cfg.t =
     let sub_cfg = Sub_cfg.make_empty () in
@@ -1353,7 +1267,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
       Sub_cfg.join_tail ~from:(Array.to_list sub_cases) ~to_:sub_cfg
 
-  and emit_tail_catch env sub_cfg (_rec_flag : Cmm.rec_flag) handlers e1 =
+  and emit_tail_catch env sub_cfg (flag : Cmm.ccatch_flag) handlers e1 =
     let handlers =
       List.map
         (fun (nfail, ids, e2, dbg, is_cold) ->
@@ -1378,8 +1292,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     in
     assert (Sub_cfg.exit_has_never_terminator sub_cfg);
     let s_body = emit_tail_new_sub_cfg env e1 in
-    let translate_one_handler nfail
-        (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
+    let translate_one_handler _nfail
+        (trap_info, (ids, rs, e2, _dbg, _is_cold, label)) =
       assert (List.length ids = List.length rs);
       let trap_stack =
         match (!trap_info : SU.trap_stack_info) with
@@ -1414,8 +1328,14 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
                     [||] [||])
               ids_and_rs)
       in
+      (* CR vlaviron: I hit an issue in the non-tail case where this
+         [add_empty_block_at_start] call interfered with the
+         [mark_as_trap_handler] call for the exception case (creating two
+         blocks with the same label). I suspect the issue should occur here
+         too but happens to never be triggered in the compiler itself and its
+         testsuite. *)
       Sub_cfg.add_empty_block_at_start seq ~label;
-      nfail, trap_stack, seq, is_cold
+      label, rs, seq
     in
     let rec build_all_reachable_handlers ~already_built ~not_built =
       let not_built, to_build =
@@ -1435,95 +1355,34 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         in
         build_all_reachable_handlers ~already_built ~not_built
     in
-    let new_handlers : (int * Operation.trap_stack * Sub_cfg.t * bool) list =
+    let new_handlers : (Cmm.label * Reg.t array list * Sub_cfg.t) list =
       build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
       (* Note: we're dropping unreachable handlers here *)
     in
     assert (Sub_cfg.exit_has_never_terminator sub_cfg);
     let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
     Sub_cfg.update_exit_terminator sub_cfg term_desc;
-    let s_handlers = List.map (fun (_, _, s, _) -> s) new_handlers in
+    let s_handlers =
+      List.map
+        (fun (label, rs, s) ->
+           let () =
+             match flag with
+             | Normal | Recursive -> ()
+             | Exn_handler ->
+               Sub_cfg.mark_as_trap_handler s ~exn_label:label;
+               let exn_bucket_in_handler =
+                 match rs with
+                 | [] ->
+                   Misc.fatal_error "Exception handler with no parameters"
+                 | r :: _ -> r
+               in
+               Sub_cfg.add_instruction_at_start s (Cfg.Op Move)
+                 [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
+           in
+           s)
+        new_handlers
+    in
     Sub_cfg.join_tail ~from:(s_body :: s_handlers) ~to_:sub_cfg
-
-  and emit_tail_trywith env sub_cfg e1 exn_cont v ~extra_args e2
-      (_dbg : Debuginfo.t) =
-    (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-    assert (Sub_cfg.exit_has_never_terminator sub_cfg);
-    let exn_label = Cmm.new_label () in
-    (* See comment in emit_expr_trywith about extra args *)
-    let extra_arg_regs_split =
-      List.map (fun (_param, machtype) -> SU.regs_for machtype) extra_args
-    in
-    let extra_arg_regs = Array.concat extra_arg_regs_split in
-    let env_body = SU.env_enter_trywith env exn_cont exn_label in
-    let env_body =
-      SU.env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
-    in
-    let s1 : Sub_cfg.t = emit_tail_new_sub_cfg env_body e1 in
-    let exn_bucket_in_handler = SU.regs_for Cmm.typ_val in
-    let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
-    let with_handler env_handler e2 =
-      let s2 : Sub_cfg.t =
-        emit_tail_new_sub_cfg env_handler e2 ~at_start:(fun sub_cfg ->
-            List.iter2
-              (fun v regs ->
-                let provenance = VP.provenance v in
-                if Option.is_some provenance
-                then
-                  let var = VP.var v in
-                  let naming_op =
-                    Operation.Name_for_debugger
-                      { ident = var;
-                        provenance;
-                        which_parameter = None;
-                        is_assignment = false;
-                        regs
-                      }
-                  in
-                  insert_debug env sub_cfg (Op naming_op) Debuginfo.none [||]
-                    [||])
-              (v :: List.map fst extra_args)
-              rv_list)
-      in
-      Sub_cfg.mark_as_trap_handler s2 ~exn_label;
-      Sub_cfg.add_instruction_at_start s2 (Op Move) [| Proc.loc_exn_bucket |]
-        exn_bucket_in_handler Debuginfo.none;
-      Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
-      Sub_cfg.join_tail ~from:[s1; s2] ~to_:sub_cfg
-    in
-    let env =
-      List.fold_left2
-        (fun env var regs -> SU.env_add var regs env)
-        env
-        (v :: List.map fst extra_args)
-        rv_list
-    in
-    match SU.env_find_static_exception exn_cont env_body with
-    | { traps_ref = { contents = Reachable ts }; _ } ->
-      with_handler (SU.env_set_trap_stack env ts) e2
-    | { traps_ref = { contents = Unreachable }; _ } ->
-      (* Note: The following [unreachable] expression has machtype [|Int|], but
-         this might not be the correct machtype for this function's return
-         value. It doesn't matter at runtime since the expression cannot return,
-         but if we start checking (or joining) the machtypes of the different
-         tails we will need to implement something like the [emit_expr] version
-         above, that hides the machtype. *)
-      let unreachable =
-        Cmm.(
-          Cop
-            ( Cload
-                { memory_chunk = Word_int;
-                  mutability = Mutable;
-                  is_atomic = false
-                },
-              [Cconst_int (0, Debuginfo.none)],
-              Debuginfo.none ))
-      in
-      with_handler env unreachable
-    (* Misc.fatal_errorf "Selection.emit_expr: \ Unreachable exception handler
-       %d" lbl *)
-    | exception Not_found ->
-      Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
   and emit_tail_new_sub_cfg ?at_start env exp : Sub_cfg.t =
     let sub_cfg = Sub_cfg.make_empty () in

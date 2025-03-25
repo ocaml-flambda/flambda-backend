@@ -50,9 +50,6 @@ type environment =
         (** Which registers must be populated when jumping to the given
         handler. *)
     trap_stack : Operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t;
-        (** For each exception handler, any registers that are to be used to hold
-            extra arguments. *)
     tailrec_label : Label.t
   }
 
@@ -78,15 +75,13 @@ let env_find_mut id env =
     Misc.fatal_errorf "Selectgen.env_find_mut: %a is not mutable" V.print id);
   regs, provenance
 
-let env_add_regs_for_exception_extra_args id extra_args env =
-  { env with
-    regs_for_exception_extra_args =
-      Int.Map.add id extra_args env.regs_for_exception_extra_args
-  }
-
 let env_find_regs_for_exception_extra_args id env =
-  try Int.Map.find id env.regs_for_exception_extra_args
-  with Not_found ->
+  match Int.Map.find id env.static_exceptions with
+  | { regs = _exn :: extra_args; _ } -> extra_args
+  | { regs = []; _ } ->
+    Misc.fatal_errorf "Exception handler for continuation %d has no parameters"
+      id
+  | exception Not_found ->
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
 
@@ -94,19 +89,14 @@ let env_find_static_exception id env =
   try Int.Map.find id env.static_exceptions
   with Not_found -> Misc.fatal_errorf "Not found static exception id=%d" id
 
-let env_enter_trywith env id label =
-  let env, _ = env_add_static_exception id [] env label in
-  env
-
 let env_set_trap_stack env trap_stack = { env with trap_stack }
 
-let rec combine_traps trap_stack = function
-  | [] -> trap_stack
-  | Push t :: l -> combine_traps (Operation.Specific_trap (t, trap_stack)) l
-  | Pop _ :: l -> (
+let combine_trap trap_stack = function
+  | Push t -> Operation.Specific_trap (t, trap_stack)
+  | Pop _ -> (
     match (trap_stack : Operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
-    | Specific_trap (_, ts) -> combine_traps ts l)
+    | Specific_trap (_, ts) -> ts)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
@@ -116,8 +106,29 @@ let print_traps ppf traps =
   in
   Format.fprintf ppf "(%a)" print_traps traps
 
-let set_traps nfail traps_ref base_traps exit_traps =
-  let traps = combine_traps base_traps exit_traps in
+let rec set_traps env nfail traps_ref base_traps exit_traps =
+  let traps =
+    (* CR vlaviron: This weird piece of code is here to handle exception
+       handlers that are not reachable but occur in trap actions. The "right"
+       thing would be to remove traps pointing to handlers that are unreachable,
+       and I think this could be done at the end of [emit_fundecl] when we
+       iterate on all blocks, but for now I instead add this little hack that
+       treats every [Push] trap action as potentially raising, which makes us
+       treat the associated handler as reachable with a correct trap stack,
+       avoiding the problem. This required making [set_traps] recursive, which
+       is not very satisfying. *)
+    List.fold_left
+      (fun trap_stack trap ->
+        (match trap with
+        | Push lbl -> (
+          match env_find_static_exception lbl env with
+          | { traps_ref; _ } -> set_traps env lbl traps_ref trap_stack []
+          | exception Not_found ->
+            Misc.fatal_errorf "Trap %d not registered in env" lbl)
+        | Pop _ -> ());
+        combine_trap trap_stack trap)
+      base_traps exit_traps
+  in
   match !traps_ref with
   | Unreachable ->
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
@@ -137,7 +148,7 @@ let set_traps_for_raise env =
   | Uncaught -> ()
   | Specific_trap (lbl, _) -> (
     match env_find_static_exception lbl env with
-    | s -> set_traps lbl s.traps_ref ts [Pop lbl]
+    | s -> set_traps env lbl s.traps_ref ts [Pop lbl]
     | exception Not_found ->
       Misc.fatal_errorf "Trap %d not registered in env" lbl)
 
@@ -155,7 +166,6 @@ let env_create ~tailrec_label =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
     trap_stack = Uncaught;
-    regs_for_exception_extra_args = Int.Map.empty;
     tailrec_label
   }
 

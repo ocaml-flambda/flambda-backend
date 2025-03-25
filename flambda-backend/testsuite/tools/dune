@@ -13,7 +13,7 @@
 
 (executable
  (name codegen_main)
- (modes byte)
+ (modes native)
  (libraries ocamlcommon ocamloptcomp unix)
  (modules codegen_main lexcmm parsecmm parsecmmaux))
 

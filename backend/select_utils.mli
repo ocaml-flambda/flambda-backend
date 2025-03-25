@@ -43,7 +43,6 @@ type environment =
       (Reg.t array * V.Provenance.t option * Asttypes.mutable_flag) V.Map.t;
     static_exceptions : static_handler Int.Map.t;
     trap_stack : Operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t;
     tailrec_label : Label.t
   }
 
@@ -68,25 +67,18 @@ val env_find : V.Map.key -> environment -> Reg.t array
 val env_find_mut :
   V.Map.key -> environment -> Reg.t array * Backend_var.Provenance.t option
 
-val env_add_regs_for_exception_extra_args :
-  Int.Map.key -> Reg.t array -> environment -> environment
-
 val env_find_regs_for_exception_extra_args :
-  Int.Map.key -> environment -> Reg.t array
+  Cmm.trywith_shared_label -> environment -> Reg.t array list
 
 val env_find_static_exception : Int.Map.key -> environment -> static_handler
 
-val env_enter_trywith : environment -> Int.Map.key -> Label.t -> environment
-
 val env_set_trap_stack : environment -> Operation.trap_stack -> environment
-
-val combine_traps :
-  Operation.trap_stack -> Cmm.trap_action list -> Operation.trap_stack
 
 val print_traps : Format.formatter -> Operation.trap_stack -> unit
 
 val set_traps :
-  int ->
+  environment ->
+  Lambda.static_label ->
   trap_stack_info ref ->
   Operation.trap_stack ->
   Cmm.trap_action list ->
