@@ -220,7 +220,7 @@ let print0 ~sections ~print_typing_env ~print_code ~print_offsets ppf t =
     Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
       Flambda2_types.Typing_env.Serializable.print typing_env;
   if print_code
-  then Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
+  then Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print_view code;
   if print_offsets
   then
     Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
