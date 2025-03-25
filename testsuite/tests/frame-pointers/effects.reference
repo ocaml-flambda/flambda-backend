@@ -1,31 +1,31 @@
 # computation f
 camlEffects__f_0_6_code
 caml_runstack
-camlStdlib__Effect__match_with_7_32_code
+camlStdlib__Effect__with_stack_1_29_code
 camlEffects__entry
 caml_program
 # perform effect (E 0)
 # caught effect (E 0). continuing...
 camlEffects__h_effect_e_2_8_code
-camlStdlib__Effect__match_with_7_32_code
+camlStdlib__Effect__with_stack_1_29_code
 camlEffects__entry
 caml_program
 # perform returns 1
 camlEffects__f_0_6_code
 caml_runstack
 camlEffects__h_effect_e_2_8_code
-camlStdlib__Effect__match_with_7_32_code
+camlStdlib__Effect__with_stack_1_29_code
 camlEffects__entry
 caml_program
 # done 2
 camlEffects__v_retc_4_9_code
 camlEffects__h_effect_e_2_8_code
-camlStdlib__Effect__match_with_7_32_code
+camlStdlib__Effect__with_stack_1_29_code
 camlEffects__entry
 caml_program
 # continue returns 3
 camlEffects__h_effect_e_2_8_code
-camlStdlib__Effect__match_with_7_32_code
+camlStdlib__Effect__with_stack_1_29_code
 camlEffects__entry
 caml_program
 # result=4

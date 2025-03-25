@@ -392,17 +392,12 @@ type ('a, 'e) perform = ('a, 'e) op * 'e Handler.t'
 
 external perform : ('a, 'e) perform -> 'a = "%perform"
 
-type (-'a, +'b) stack : immediate
-
-type last_fiber : immediate
-
-external resume : ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b = "%resume"
-external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b = "%runstack"
-
 type (-'a, +'b) cont
 
-external take_cont_noexc : ('a, 'b) cont -> ('a, 'b) stack =
-  "caml_continuation_use_noexc" [@@noalloc]
+(* A last_fiber is a tagged pointer, so does not keep the fiber alive.
+   It must never be the sole reference to the fiber, and is only used to cache
+   the final fiber in the linked list formed by [cont.fiber->parent]. *)
+type last_fiber : immediate
 
 external get_cont_callstack :
   ('a, 'b) cont -> int -> Printexc.raw_backtrace =
@@ -416,11 +411,37 @@ type 'b effc =
   { effc : 'o 'e. ('o, 'e) perform -> ('o, 'b) cont -> last_fiber -> 'b }
   [@@unboxed][@@warning "-69"]
 
-external alloc_stack :
-  ('a -> 'b) ->
-  (exn -> 'b) ->
-  'b effc ->
-  ('a, 'b) stack = "caml_alloc_stack"
+module Must_not_enter_gc = struct
+
+  (* Stacks are represented as tagged pointers, so do not keep the fiber alive.
+     We must not enter the GC between the creation and use of a [stack]. *)
+  type (-'a, +'b) stack : immediate
+
+  external alloc_stack :
+    ('a -> 'b) ->
+    (exn -> 'b) ->
+    'b effc ->
+    ('a, 'b) stack = "caml_alloc_stack"
+
+  external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b = "%runstack"
+
+  external take_cont_noexc : ('a, 'b) cont -> ('a, 'b) stack =
+    "caml_continuation_use_noexc" [@@noalloc]
+
+  external resume : ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b = "%resume"
+
+  (* Allocate a stack and immediately run [f x] using that stack.
+     We must not enter the GC between [alloc_stack] and [runstack].
+     [with_stack] is marked as [@inline never] to avoid reordering. *)
+  let[@inline never] with_stack valuec exnc effc f x =
+    runstack (alloc_stack valuec exnc effc) f x
+
+  (* Retrieve the stack from a [cont]inuation and run [f x] using it.
+     We must not enter the GC between [take_cont_noexc] and [resume].
+     [with_cont] is marked as [@inline never] to avoid reordering. *)
+  let[@inline never] with_cont cont f x =
+    resume (take_cont_noexc cont) f x (cont_last_fiber cont)
+end
 
 type (+'a, 'es) r =
   | Val : global_ 'a -> ('a, 'es) r
@@ -454,10 +475,9 @@ let alloc_cont
         raise_notrace (Ready__ k)
     | _ -> reperform perf k last_fiber
   in
-  let s = alloc_stack valuec exnc {effc} in
   let dummy_op : (a, e) op = Obj.magic () in
   let p = dummy_op, Handler.Dummy in
-  match runstack s (fun () -> f h (perform p)) () with
+  match Must_not_enter_gc.with_stack valuec exnc {effc} (fun () -> f h (perform p)) () with
   | _ -> assert false
   | exception Ready__ k -> k
 
@@ -471,8 +491,7 @@ let run_stack
       Op(op, h, k, last_fiber)
     | _ -> reperform perf k last_fiber
   in
-  let s = alloc_stack valuec exnc {effc} in
-  runstack s f h
+  Must_not_enter_gc.with_stack valuec exnc {effc} f h
 
 type (-'a, +'b, 'e, 'es) continuation =
   Cont :
@@ -510,7 +529,7 @@ let rec handle :
 
 let resume (Cont { cont; mapping }) f x (local_ handlers) =
   Mapping.set handlers mapping;
-  handle mapping (resume (take_cont_noexc cont) f x (cont_last_fiber cont))
+  handle mapping (Must_not_enter_gc.with_cont cont f x)
 
 let continue k v (local_ hs) = resume k (fun x -> x) v hs
 
