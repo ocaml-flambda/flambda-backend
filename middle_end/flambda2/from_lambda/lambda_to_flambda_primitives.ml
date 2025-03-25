@@ -215,14 +215,51 @@ module Array_ref_kind = struct
   type t =
     | No_float_array_opt of no_float_array_opt
     | Naked_floats_to_be_boxed of L.locality_mode
+
+  let print ppf t =
+    match t with
+    | No_float_array_opt kind ->
+      let rec print_no_float_array_opt ppf kind =
+        match kind with
+        | Immediates -> Format.fprintf ppf "Immediates"
+        | Values -> Format.fprintf ppf "Values"
+        | Naked_floats -> Format.fprintf ppf "Naked_floats"
+        | Naked_float32s -> Format.fprintf ppf "Naked_float32s"
+        | Naked_int32s -> Format.fprintf ppf "Naked_int32s"
+        | Naked_int64s -> Format.fprintf ppf "Naked_int64s"
+        | Naked_nativeints -> Format.fprintf ppf "Naked_nativeints"
+        | Naked_vec128s -> Format.fprintf ppf "Naked_vec128s"
+        | Unboxed_product kinds ->
+          Format.fprintf ppf "@[<hov 1>(Unboxed_product (%a))@]"
+            (Format.pp_print_list
+               ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
+               print_no_float_array_opt)
+            kinds
+      in
+      Format.fprintf ppf "@[<hov 1>(No_float_array_opt %a)@]"
+        print_no_float_array_opt kind
+    | Naked_floats_to_be_boxed mode ->
+      Format.fprintf ppf "@[<hov 1>(Naked_floats_to_be_boxed %a)@]"
+        Printlambda.locality_mode mode
 end
 
-type converted_array_ref_kind =
-  | Array_ref_kind of Array_ref_kind.t
-  | Float_array_opt_dynamic_ref of L.locality_mode
+module Converted_array_ref_kind = struct
+  type t =
+    | Array_ref_kind of Array_ref_kind.t
+    | Float_array_opt_dynamic_ref of L.locality_mode
 
-let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
-    =
+  let print ppf t =
+    match t with
+    | Array_ref_kind kind ->
+      Format.fprintf ppf "@[<hov 1>(Array_ref_kind %a)@]" Array_ref_kind.print
+        kind
+    | Float_array_opt_dynamic_ref mode ->
+      Format.fprintf ppf "@[<hov 1>(Float_array_opt_dynamic_ref %a)@]"
+        Printlambda.locality_mode mode
+end
+
+let convert_array_ref_kind (kind : L.array_ref_kind) :
+    Converted_array_ref_kind.t =
   match kind with
   | Pgenarray_ref mode ->
     (* CR mshinwell: We can't check this because of the translations of
@@ -306,28 +343,6 @@ let convert_array_ref_kind_to_array_kind (array_ref_kind : Array_ref_kind.t) :
     | Unboxed_product kinds ->
       Unboxed_product (List.map convert_unboxed_product_array_ref_kind kinds))
 
-let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
-    =
-  match convert_array_ref_kind array_ref_kind with
-  | Float_array_opt_dynamic_ref _ -> Float_array_opt_dynamic
-  | Array_ref_kind array_ref_kind -> (
-    match array_ref_kind with
-    | Naked_floats_to_be_boxed _ -> Array_kind Naked_floats
-    | No_float_array_opt nfo -> (
-      match nfo with
-      | Values -> Array_kind Values
-      | Immediates -> Array_kind Immediates
-      | Naked_floats -> Array_kind Naked_floats
-      | Naked_float32s -> Array_kind Naked_float32s
-      | Naked_int32s -> Array_kind Naked_int32s
-      | Naked_int64s -> Array_kind Naked_int64s
-      | Naked_nativeints -> Array_kind Naked_nativeints
-      | Naked_vec128s -> Array_kind Naked_vec128s
-      | Unboxed_product kinds ->
-        Array_kind
-          (Unboxed_product
-             (List.map convert_unboxed_product_array_ref_kind kinds))))
-
 module Array_set_kind = struct
   type no_float_array_opt =
     | Immediates
@@ -343,14 +358,52 @@ module Array_set_kind = struct
   type t =
     | No_float_array_opt of no_float_array_opt
     | Naked_floats_to_be_unboxed
+
+  let print ppf t =
+    match t with
+    | No_float_array_opt kind ->
+      let rec print_no_float_array_opt ppf kind =
+        match kind with
+        | Immediates -> Format.fprintf ppf "Immediates"
+        | Values mode ->
+          Format.fprintf ppf "@[<hov 1>(Values %a)@]" P.Init_or_assign.print
+            mode
+        | Naked_floats -> Format.fprintf ppf "Naked_floats"
+        | Naked_float32s -> Format.fprintf ppf "Naked_float32s"
+        | Naked_int32s -> Format.fprintf ppf "Naked_int32s"
+        | Naked_int64s -> Format.fprintf ppf "Naked_int64s"
+        | Naked_nativeints -> Format.fprintf ppf "Naked_nativeints"
+        | Naked_vec128s -> Format.fprintf ppf "Naked_vec128s"
+        | Unboxed_product kinds ->
+          Format.fprintf ppf "@[<hov 1>(Unboxed_product (%a))@]"
+            (Format.pp_print_list
+               ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
+               print_no_float_array_opt)
+            kinds
+      in
+      Format.fprintf ppf "@[<hov 1>(No_float_array_opt %a)@]"
+        print_no_float_array_opt kind
+    | Naked_floats_to_be_unboxed ->
+      Format.fprintf ppf "Naked_floats_to_be_unboxed"
 end
 
-type converted_array_set_kind =
-  | Array_set_kind of Array_set_kind.t
-  | Float_array_opt_dynamic_set of Alloc_mode.For_assignments.t
+module Converted_array_set_kind = struct
+  type t =
+    | Array_set_kind of Array_set_kind.t
+    | Float_array_opt_dynamic_set of Alloc_mode.For_assignments.t
 
-let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
-    =
+  let print ppf t =
+    match t with
+    | Array_set_kind kind ->
+      Format.fprintf ppf "@[<hov 1>(Array_set_kind %a)@]" Array_set_kind.print
+        kind
+    | Float_array_opt_dynamic_set mode ->
+      Format.fprintf ppf "@[<hov 1>(Float_array_opt_dynamic_set %a)@]"
+        Alloc_mode.For_assignments.print mode
+end
+
+let convert_array_set_kind (kind : L.array_set_kind) :
+    Converted_array_set_kind.t =
   match kind with
   | Pgenarray_set mode ->
     (* CR mshinwell: see CR in [convert_array_ref_kind] above
@@ -433,26 +486,6 @@ let convert_array_set_kind_to_array_kind (array_set_kind : Array_set_kind.t) :
     | Naked_vec128s -> Naked_vec128s
     | Unboxed_product kinds ->
       Unboxed_product (List.map convert_unboxed_product_array_set_kind kinds))
-
-let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
-    =
-  match convert_array_set_kind array_set_kind with
-  | Float_array_opt_dynamic_set _ -> Float_array_opt_dynamic
-  | Array_set_kind Naked_floats_to_be_unboxed -> Array_kind Naked_floats
-  | Array_set_kind (No_float_array_opt nfo) -> (
-    match nfo with
-    | Values _ -> Array_kind Values
-    | Immediates -> Array_kind Immediates
-    | Naked_floats -> Array_kind Naked_floats
-    | Naked_float32s -> Array_kind Naked_float32s
-    | Naked_int32s -> Array_kind Naked_int32s
-    | Naked_int64s -> Array_kind Naked_int64s
-    | Naked_nativeints -> Array_kind Naked_nativeints
-    | Naked_vec128s -> Array_kind Naked_vec128s
-    | Unboxed_product kinds ->
-      Array_kind
-        (Unboxed_product (List.map convert_unboxed_product_array_set_kind kinds))
-    )
 
 type converted_duplicate_array_kind =
   | Duplicate_array_kind of P.Duplicate_array_kind.t
@@ -1149,13 +1182,19 @@ let rec array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
     in
     let unarized = List.concat_map unarize_kind array_ref_kinds in
     let index : H.expr_primitive =
+      (* Recall: the multiplier for the index is taken from the _array kind_,
+         not the array ref kind. *)
       let multiplier =
-        List.length unarized |> Targetint_31_63.of_int |> Simple.const_int
+        P.Array_kind.width_in_scalars array_kind
+        |> Targetint_31_63.of_int |> Simple.const_int
       in
       Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
     in
     let indexes =
-      (* Reminder: all of the unarized components are machine word width. *)
+      (* Reminder: all of the unarized components are machine word width.
+
+         The number of indexes is determined by the number of unarized
+         components, not by anything to do with the array kind. *)
       compute_array_indexes ~index:(Prim index) ~num_elts:(List.length unarized)
     in
     List.concat_map
@@ -1186,6 +1225,8 @@ let array_load_unsafe ~array ~index ~mut array_kind array_load_kind
     ~current_region
   |> H.maybe_create_unboxed_product
 
+(* CR mshinwell: try to refactor array_get_unsafe and array_set_unsafe to use
+   mostly the same code *)
 let rec array_set_unsafe dbg ~array ~index array_kind
     (array_set_kind : Array_set_kind.t) ~new_values : H.expr_primitive list =
   let[@local] normal_case array_set_kind new_values =
@@ -1217,13 +1258,19 @@ let rec array_set_unsafe dbg ~array ~index array_kind
     in
     let unarized = List.concat_map unarize_kind array_set_kinds in
     let index : H.expr_primitive =
+      (* Recall: the multiplier for the index is taken from the _array kind_,
+         not the array ref kind. *)
       let multiplier =
-        List.length unarized |> Targetint_31_63.of_int |> Simple.const_int
+        P.Array_kind.width_in_scalars array_kind
+        |> Targetint_31_63.of_int |> Simple.const_int
       in
       Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
     in
     let indexes =
-      (* Reminder: all of the unarized components are machine word width. *)
+      (* Reminder: all of the unarized components are machine word width.
+
+         The number of indexes is determined by the number of unarized
+         components, not by anything to do with the array kind. *)
       compute_array_indexes ~index:(Prim index) ~num_elts:(List.length unarized)
     in
     if List.compare_lengths indexes new_values <> 0
@@ -1256,13 +1303,19 @@ let array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values =
   array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values
   |> H.maybe_create_unboxed_product
 
-let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
-    H.expr_primitive =
-  match convert_array_ref_kind array_ref_kind with
-  | Array_ref_kind array_ref_kind ->
-    let array_kind = convert_array_ref_kind_to_array_kind array_ref_kind in
+let[@inline always] match_on_array_ref_kind dbg ~array array_kind array_ref_kind
+    f : H.expr_primitive =
+  let array_kind = convert_array_kind array_kind in
+  let array_ref_kind = convert_array_ref_kind array_ref_kind in
+  match array_kind, array_ref_kind with
+  | ( Array_kind array_kind,
+      Array_ref_kind (No_float_array_opt _ as array_ref_kind) ) ->
     f array_kind array_ref_kind
-  | Float_array_opt_dynamic_ref mode ->
+  | Array_kind Naked_floats, Array_ref_kind (Naked_floats_to_be_boxed mode) ->
+    f P.Array_kind.Naked_floats (Array_ref_kind.Naked_floats_to_be_boxed mode)
+  | Float_array_opt_dynamic, Array_ref_kind array_ref_kind ->
+    f (convert_array_ref_kind_to_array_kind array_ref_kind) array_ref_kind
+  | Float_array_opt_dynamic, Float_array_opt_dynamic_ref mode ->
     (* CR keryan: we should push the ITE as low as possible to avoid duplicating
        too much *)
     If_then_else
@@ -1274,14 +1327,31 @@ let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
         (* There are never any unboxed products in this case, so we always have
            a singleton. *)
         [K.With_subkind.any_value] )
+  | ( Array_kind
+        (( Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
+         | Naked_int64s | Naked_nativeints | Naked_vec128s | Unboxed_product _
+           ) as array_kind),
+      ( Array_ref_kind (Naked_floats_to_be_boxed _)
+      | Float_array_opt_dynamic_ref _ ) ) ->
+    Misc.fatal_errorf
+      "Inconsistency between array kind and array load kind at@ %a:@ array \
+       kind:@ %a@ array load kind:@ %a"
+      Debuginfo.print_compact dbg P.Array_kind.print array_kind
+      Converted_array_ref_kind.print array_ref_kind
 
-let[@inline always] match_on_array_set_kind ~array array_set_kind f :
-    H.expr_primitive =
-  match convert_array_set_kind array_set_kind with
-  | Array_set_kind array_set_kind ->
-    let array_kind = convert_array_set_kind_to_array_kind array_set_kind in
+let[@inline always] match_on_array_set_kind dbg ~array array_kind array_set_kind
+    f : H.expr_primitive =
+  let array_kind = convert_array_kind array_kind in
+  let array_set_kind = convert_array_set_kind array_set_kind in
+  match array_kind, array_set_kind with
+  | ( Array_kind array_kind,
+      Array_set_kind (No_float_array_opt _ as array_set_kind) ) ->
     f array_kind array_set_kind
-  | Float_array_opt_dynamic_set mode ->
+  | Array_kind Naked_floats, Array_set_kind Naked_floats_to_be_unboxed ->
+    f P.Array_kind.Naked_floats Array_set_kind.Naked_floats_to_be_unboxed
+  | Float_array_opt_dynamic, Array_set_kind array_set_kind ->
+    f (convert_array_set_kind_to_array_kind array_set_kind) array_set_kind
+  | Float_array_opt_dynamic, Float_array_opt_dynamic_set mode ->
     (* CR keryan: we should push the ITE as low as possible to avoid duplicating
        too much *)
     If_then_else
@@ -1293,6 +1363,17 @@ let[@inline always] match_on_array_set_kind ~array array_set_kind f :
         (* There are never any unboxed products in this case, so we always have
            a singleton. *)
         [K.With_subkind.tagged_immediate] )
+  | ( Array_kind
+        (( Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
+         | Naked_int64s | Naked_nativeints | Naked_vec128s | Unboxed_product _
+           ) as array_kind),
+      (Array_set_kind Naked_floats_to_be_unboxed | Float_array_opt_dynamic_set _)
+    ) ->
+    Misc.fatal_errorf
+      "Inconsistency between array kind and array load kind at@ %a:@ array \
+       kind:@ %a@ array load kind:@ %a"
+      Debuginfo.print_compact dbg P.Array_kind.print array_kind
+      Converted_array_set_kind.print array_set_kind
 
 (* Safe arith (div/mod by zero) *)
 let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2
@@ -1354,6 +1435,144 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
       let kind = K.With_subkind.kind kind in
       Unary (Opaque_identity { middle_end_only; kind }, arg_component))
     arg kinds
+
+type scannable =
+  | Gc_scannable
+  | Gc_ignorable
+
+let check_valid_reinterpret_array_kind (array_kind : L.array_kind)
+    (reinterp_access_is_scannable : scannable) fail =
+  (* At the moment we only permit these operations when the array kind implies
+     that each element of the array at runtime is 64 bits wide, and the array
+     set kind only involves 64-bit quantities.
+
+     Moreover, GC-scannable values are only allowed to be written and read from
+     arrays using reinterpret operations if the kind is immediate; or otherwise
+     if both the array kind *and* the array ref/set kind both indicate
+     GC-scannability.
+
+     In other words, no squirreling away of GC-able pointers into (e.g.) integer
+     arrays, and no conjuring-up of "valid" OCaml values from such arrays.
+     However misaligned reading of valid OCaml values from a scannable array is
+     ok. *)
+  (* CR mshinwell: relaxing this to 32 (or 128) bits on both sides is probably
+     ok, but for e.g. an int32# array being reinterpreted as int64# * int64#,
+     the indices need adjusting (the second component of such a product is at
+     index n+2, not n+1, when the first component is at index n). *)
+  match array_kind with
+  | Pgenarray | Paddrarray -> (
+    match reinterp_access_is_scannable with
+    | Gc_scannable -> ()
+    | Gc_ignorable ->
+      (* GC-scannability restriction, as per comment above *)
+      fail ())
+  | Pgcscannableproductarray kinds -> (
+    (* Likewise *)
+    match reinterp_access_is_scannable with
+    | Gc_scannable -> ()
+    | Gc_ignorable ->
+      if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+      then fail ())
+  | Pintarray | Pfloatarray
+  | Punboxedfloatarray Unboxed_float64
+  | Punboxedintarray Unboxed_int64
+  | Punboxedintarray Unboxed_nativeint
+  | Pgcignorableproductarray _ -> (
+    (* Recall: unboxed product arrays are always uniformly 64-bit wide for each
+       component. *)
+    match reinterp_access_is_scannable with
+    | Gc_ignorable -> ()
+    | Gc_scannable ->
+      (* GC-scannability restriction, as per comment above *)
+      fail ())
+  | Punboxedfloatarray Unboxed_float32
+  | Punboxedintarray Unboxed_int32
+  | Punboxedvectorarray Unboxed_vec128 ->
+    fail ()
+
+(* We need to think carefully about the bounds checking code before enabling
+   reinterpret for safe array ops *)
+let reinterpret_not_supported dbg (reinterp : L.array_access_reinterp) =
+  match reinterp with
+  | Pnormal_access -> ()
+  | Preinterp_access ->
+    Misc.fatal_errorf
+      "Reinterpret array operations with bounds checks are not yet supported, \
+       please use the unsafe versions and do your own bounds check beforehand \
+       if necessary:@ %a"
+      Debuginfo.print_compact dbg
+
+let check_valid_reinterpret_set_kinds (array_kind : L.array_kind)
+    (array_set_kind : L.array_set_kind) (reinterp : L.array_access_reinterp) dbg
+    =
+  let[@inline] fail () =
+    Misc.fatal_errorf
+      "Unsupported array reinterpret set operation with array_kind %s and\n\
+       array_set_kind %a:@ %a"
+      (Printlambda.array_kind array_kind)
+      Printlambda.array_set_kind array_set_kind Debuginfo.print_compact dbg
+  in
+  match reinterp with
+  | Pnormal_access -> ()
+  | Preinterp_access -> (
+    match array_set_kind with
+    | Pgenarray_set _ | Paddrarray_set _ ->
+      (* See comment above, in [check_valid_reinterpret_array_kind] *)
+      check_valid_reinterpret_array_kind array_kind Gc_scannable fail
+    | Pgcscannableproductarray_set (_, kinds) ->
+      (* Same comment as previous case *)
+      let scannable =
+        if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+        then Gc_scannable
+        else Gc_ignorable
+      in
+      check_valid_reinterpret_array_kind array_kind scannable fail
+    | Pintarray_set | Pfloatarray_set
+    | Punboxedfloatarray_set Unboxed_float64
+    | Punboxedintarray_set Unboxed_int64
+    | Punboxedintarray_set Unboxed_nativeint
+    | Pgcignorableproductarray_set _ ->
+      check_valid_reinterpret_array_kind array_kind Gc_ignorable fail
+    | Punboxedfloatarray_set Unboxed_float32
+    | Punboxedintarray_set Unboxed_int32
+    | Punboxedvectorarray_set Unboxed_vec128 ->
+      fail ())
+
+let check_valid_reinterpret_ref_kinds (array_kind : L.array_kind)
+    (array_ref_kind : L.array_ref_kind) (reinterp : L.array_access_reinterp) dbg
+    =
+  let[@inline] fail () =
+    Misc.fatal_errorf
+      "Unsupported array reinterpret ref operation with array_kind %s and\n\
+       array_ref_kind %a:@ %a"
+      (Printlambda.array_kind array_kind)
+      Printlambda.array_ref_kind array_ref_kind Debuginfo.print_compact dbg
+  in
+  match reinterp with
+  | Pnormal_access -> ()
+  | Preinterp_access -> (
+    match array_ref_kind with
+    | Pgenarray_ref _ | Paddrarray_ref ->
+      (* See comment above, in [check_valid_reinterpret_array_kind] *)
+      check_valid_reinterpret_array_kind array_kind Gc_scannable fail
+    | Pgcscannableproductarray_ref kinds ->
+      (* Same comment as previous case *)
+      let scannable =
+        if List.exists L.scannable_product_element_kind_must_be_scanned kinds
+        then Gc_scannable
+        else Gc_ignorable
+      in
+      check_valid_reinterpret_array_kind array_kind scannable fail
+    | Pintarray_ref | Pfloatarray_ref _
+    | Punboxedfloatarray_ref Unboxed_float64
+    | Punboxedintarray_ref Unboxed_int64
+    | Punboxedintarray_ref Unboxed_nativeint
+    | Pgcignorableproductarray_ref _ ->
+      check_valid_reinterpret_array_kind array_kind Gc_ignorable fail
+    | Punboxedfloatarray_ref Unboxed_float32
+    | Punboxedintarray_ref Unboxed_int32
+    | Punboxedvectorarray_ref Unboxed_vec128 ->
+      fail ())
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
@@ -2076,32 +2295,42 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     ->
     [ checked_arith_op ~dbg (Some Boxed_nativeint) Mod (Some mode) arg1 arg2
         ~current_region ]
-  | Parrayrefu (array_ref_kind, index_kind, mut), [[array]; [index]] ->
+  | ( Parrayrefu (array_ref_kind, array_kind, index_kind, mut, reinterp),
+      [[array]; [index]] ) ->
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
-    [ match_on_array_ref_kind ~array array_ref_kind
+    check_valid_reinterpret_ref_kinds array_kind array_ref_kind reinterp dbg;
+    [ match_on_array_ref_kind dbg ~array array_kind array_ref_kind
         (array_load_unsafe ~array ~mut
            ~index:(convert_index_to_tagged_int ~index ~index_kind)
            ~current_region) ]
-  | Parrayrefs (array_ref_kind, index_kind, mut), [[array]; [index]] ->
-    let array_length_kind = convert_array_ref_kind_for_length array_ref_kind in
+  | ( Parrayrefs (array_ref_kind, array_kind, index_kind, mut, reinterp),
+      [[array]; [index]] ) ->
+    check_valid_reinterpret_ref_kinds array_kind array_ref_kind reinterp dbg;
+    reinterpret_not_supported dbg reinterp;
+    let array_length_kind = convert_array_kind_for_length array_kind in
     [ check_array_access ~dbg ~array array_length_kind ~index ~index_kind
         ~size_int
-        (match_on_array_ref_kind ~array array_ref_kind
+        (match_on_array_ref_kind dbg ~array array_kind array_ref_kind
            (array_load_unsafe ~array ~mut
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
               ~current_region)) ]
-  | Parraysetu (array_set_kind, index_kind), [[array]; [index]; new_values] ->
-    [ match_on_array_set_kind ~array array_set_kind
+  | ( Parraysetu (array_set_kind, array_kind, index_kind, reinterp),
+      [[array]; [index]; new_values] ) ->
+    check_valid_reinterpret_set_kinds array_kind array_set_kind reinterp dbg;
+    [ match_on_array_set_kind dbg ~array array_kind array_set_kind
         (array_set_unsafe dbg ~array
            ~index:(convert_index_to_tagged_int ~index ~index_kind)
            ~new_values) ]
-  | Parraysets (array_set_kind, index_kind), [[array]; [index]; new_values] ->
-    let array_length_kind = convert_array_set_kind_for_length array_set_kind in
+  | ( Parraysets (array_set_kind, array_kind, index_kind, reinterp),
+      [[array]; [index]; new_values] ) ->
+    check_valid_reinterpret_set_kinds array_kind array_set_kind reinterp dbg;
+    reinterpret_not_supported dbg reinterp;
+    let array_length_kind = convert_array_kind_for_length array_kind in
     [ check_array_access ~dbg ~array array_length_kind ~index ~index_kind
         ~size_int
-        (match_on_array_set_kind ~array array_set_kind
+        (match_on_array_set_kind dbg ~array array_kind array_set_kind
            (array_set_unsafe dbg ~array
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
               ~new_values)) ]
@@ -2520,12 +2749,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Punboxedintarray_ref _ | Punboxedvectorarray_ref _
             | Pgcscannableproductarray_ref _ | Pgcignorableproductarray_ref _ ),
             _,
+            _,
+            _,
             _ )
       | Parrayrefs
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ | Punboxedvectorarray_ref _
             | Pgcscannableproductarray_ref _ | Pgcignorableproductarray_ref _ ),
+            _,
+            _,
             _,
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
@@ -2546,12 +2779,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Pfloatarray_set | Punboxedfloatarray_set _
             | Punboxedintarray_set _ | Punboxedvectorarray_set _
             | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ ),
+            _,
+            _,
             _ )
       | Parraysets
           ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
             | Pfloatarray_set | Punboxedfloatarray_set _
             | Punboxedintarray_set _ | Punboxedvectorarray_set _
             | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ ),
+            _,
+            _,
             _ )
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _ | Pbytes_set_64 _
       | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
