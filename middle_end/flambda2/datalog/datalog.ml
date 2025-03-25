@@ -49,6 +49,8 @@ module Term = struct
     | var :: vars -> Parameter var :: parameters vars
 end
 
+type atom = Atom : ('t, 'k, unit) Table.Id.t * 'k Term.hlist -> atom
+
 module String = struct
   include Heterogenous_list.Make (struct
     type 'a t = string

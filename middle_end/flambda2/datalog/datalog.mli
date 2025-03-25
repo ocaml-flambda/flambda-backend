@@ -27,6 +27,8 @@ module Term : sig
   val constant : 'a -> 'a t
 end
 
+type atom = Atom : ('t, 'k, unit) Table.Id.t * 'k Term.hlist -> atom
+
 module String : sig
   include Heterogenous_list.S with type 'a t := string
 end

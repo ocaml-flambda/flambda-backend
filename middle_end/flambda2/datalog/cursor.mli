@@ -95,6 +95,40 @@ val naive_fold :
 
 val naive_iter : 'v t -> Table.Map.t -> ('v Constant.hlist -> unit) -> unit
 
+(** Run a [cursor] using seminaive evaluation.
+
+    Seminaive evaluation aims at iterating over the {b new} outputs of the query
+    obtained by incrementally updating the database.
+
+    [previous] represents the old state of the database -- outputs derived
+    only from facts in [previous] are not found by seminaive evaluation.
+
+    [current] represents the new state of the database, obtained by adding the
+    [diff] to [previous]. We are only interested in outputs derived from at
+    least one (but maybe more than one) fact in [diff].
+
+    Seminaive evaluation is built on the bilinearity of the join operator with
+    respect to the database concatenation operator [+].
+    Suppose that we have a binary query on [P] and [Q]; the output is computed
+    by iterating over [join(P, Q)]. If [P = P + ΔP] and [Q = P + ΔQ], we can
+    rewrite:
+
+    ```
+    join(P + ΔP, Q + ΔQ) = join(P, Q) + join(ΔP, Q) + join(P + ΔP, ΔQ)
+    ```
+
+    Seminaive evaluation ignores the [join(P, Q)] term and only computes the
+    last two terms. Note that the term [join(P + ΔP, ΔQ)] does not need to be
+    further decomposed, so that in the general case we only need to combine
+    linearly many terms of the form:
+
+    ```
+    join(P₁ + ΔP₁, …, Pᵢ-₁ + ΔPᵢ-₁, ΔPᵢ, Pᵢ+₁, …, Pₙ
+    ```
+
+    The terms on the left use the [current] databse, the middle term uses the
+    [diff] database, and the terms on the right use the [previous] database.
+*)
 val seminaive_run :
   'v t ->
   previous:Table.Map.t ->
