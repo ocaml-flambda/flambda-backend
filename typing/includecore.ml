@@ -314,8 +314,7 @@ type variant_change =
 
 type unsafe_mode_crossing_mismatch =
   | Mode_crossing_only_on of position
-  | Mode_crossing_not_equal of unsafe_mode_crossing * unsafe_mode_crossing
-
+  | Bounds_not_equal of unsafe_mode_crossing * unsafe_mode_crossing
 
 type type_mismatch =
   | Arity
@@ -618,6 +617,11 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
     second
     (kind_to_string kind2)
 
+let print_unsafe_mode_crossing ppf umc =
+  Format.fprintf ppf "mod %a@ %a"
+    Mode.Crossing.print umc.unsafe_mod_bounds
+    Jkind.With_bounds.format umc.unsafe_with_bounds
+
 let report_unsafe_mode_crossing_mismatch first second ppf e =
   let pr fmt = Format.fprintf ppf fmt in
   match e with
@@ -625,15 +629,15 @@ let report_unsafe_mode_crossing_mismatch first second ppf e =
     pr "%s has [%@%@unsafe_allow_any_mode_crossing], but %s does not"
       (choose ord first second)
       (choose_other ord first second)
-  | Mode_crossing_not_equal (first_mb, second_mb) ->
+  | Bounds_not_equal (first_umc, second_umc) ->
     (* CR layouts v2.8: It'd be nice to specifically highlight the offending axis,
        rather than printing all axes here. *)
     pr "Both specify [%@%@unsafe_allow_any_mode_crossing], but their \
-        mod-bounds are not equal:@ \
-        %s has mod-bounds:@ @[<h 4>%a@]@ \
-        but %s has mod-bounds:@ @[<h 4>%a@]"
-      first Mode.Crossing.print first_mb
-      second Mode.Crossing.print second_mb
+        bounds are not equal@,\
+        @[%s has:@ %a@]@ \
+        @[but %s has:@ %a@]"
+      first print_unsafe_mode_crossing first_umc
+      second print_unsafe_mode_crossing second_umc
 
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -685,23 +689,25 @@ let report_type_mismatch first second decl env ppf err =
   | Jkind v ->
       Jkind.Violation.report_with_name ~name:first ppf v
   | Unsafe_mode_crossing mismatch ->
-    pr "They have different unsafe mode crossing behavior:@,@[<hov 2>%a@]"
+    pr "They have different unsafe mode crossing behavior:@,@[<v 2>%a@]"
       (fun ppf (first, second, mismatch) ->
          report_unsafe_mode_crossing_mismatch first second ppf mismatch)
       (first, second, mismatch)
 
-let compare_unsafe_mode_crossing umc1 umc2 =
+let compare_unsafe_mode_crossing ~env umc1 umc2 =
   match umc1, umc2 with
   | None, None -> None
   | Some _, None -> Some (Unsafe_mode_crossing (Mode_crossing_only_on First))
   | None, Some _ -> Some (Unsafe_mode_crossing (Mode_crossing_only_on Second))
   | Some umc1, Some umc2 ->
-    if equal_unsafe_mode_crossing umc1 umc2
+    if equal_unsafe_mode_crossing
+         ~type_equal:(Ctype.type_equal env)
+         umc1 umc2
     then None
     else
       Some (
         Unsafe_mode_crossing (
-          Mode_crossing_not_equal (umc1, umc2)))
+          Bounds_not_equal (umc1, umc2)))
 
 module Record_diffing = struct
 
@@ -1444,18 +1450,18 @@ let type_declarations ?(equality = false) ~loc env ~mark name
               cstrs2
               rep1
               rep2)
-          (fun () -> compare_unsafe_mode_crossing umc1 umc2)
+          (fun () -> compare_unsafe_mode_crossing ~env umc1 umc2)
       end
     | (Type_record(labels1,rep1,umc1), Type_record(labels2,rep2,umc2)) -> begin
         Misc.Stdlib.Option.first_some
           (mark_and_compare_records Legacy labels1 rep1 labels2 rep2)
-          (fun () -> compare_unsafe_mode_crossing umc1 umc2)
+          (fun () -> compare_unsafe_mode_crossing ~env umc1 umc2)
       end
     | (Type_record_unboxed_product(labels1,rep1,umc1),
        Type_record_unboxed_product(labels2,rep2,umc2)) -> begin
         Misc.Stdlib.Option.first_some
           (mark_and_compare_records Unboxed_product labels1 rep1 labels2 rep2)
-          (fun () -> compare_unsafe_mode_crossing umc1 umc2)
+          (fun () -> compare_unsafe_mode_crossing ~env umc1 umc2)
       end
     | (Type_open, Type_open) -> None
     | (_, _) -> Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))

@@ -107,7 +107,7 @@ type private_object_mismatch =
 
 type unsafe_mode_crossing_mismatch =
   | Mode_crossing_only_on of position
-  | Mode_crossing_not_equal of unsafe_mode_crossing * unsafe_mode_crossing
+  | Bounds_not_equal of unsafe_mode_crossing * unsafe_mode_crossing
 
 type type_mismatch =
   | Arity

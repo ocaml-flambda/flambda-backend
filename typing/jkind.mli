@@ -111,10 +111,23 @@ module Layout : sig
   end
 end
 
+module Mod_bounds : sig
+  type t = Types.Jkind_mod_bounds.t
+
+  val to_mode_crossing : t -> Mode.Crossing.t
+end
+
 module With_bounds : sig
   val debug_print_types : Format.formatter -> Types.with_bounds_types -> unit
 
   val debug_print : Format.formatter -> ('l * 'r) Types.with_bounds -> unit
+
+  val map_type_expr :
+    (Types.type_expr -> Types.type_expr) ->
+    ('l * 'r) Types.with_bounds ->
+    ('l * 'r) Types.with_bounds
+
+  val format : Format.formatter -> ('l * 'r) Types.with_bounds -> unit
 end
 
 (** A [jkind] is a full description of the runtime representation of values
@@ -360,12 +373,9 @@ end
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd Types.jkind -> 'd Types.jkind
 
-(** Forcibly change the mod-bounds of a [t] based on the mod-bounds of
-    [from].
-
-    Returns [Error ()] if [from] contains with-bounds. *)
-val unsafely_set_mod_bounds :
-  from:'d Types.jkind -> 'd Types.jkind -> ('d Types.jkind, unit) Result.t
+(** Forcibly change the mod- and with-bounds of a [t] based on the mod- and with-bounds of [from]. *)
+val unsafely_set_bounds :
+  from:'d Types.jkind -> 'd Types.jkind -> 'd Types.jkind
 
 (** Take an existing [jkind_l] and add some with-bounds. *)
 val add_with_bounds :
@@ -532,6 +542,8 @@ val get_mode_crossing :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   'd Types.jkind ->
   Mode.Crossing.t
+
+val to_unsafe_mode_crossing : Types.jkind_l -> Types.unsafe_mode_crossing
 
 val get_externality_upper_bound :
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
