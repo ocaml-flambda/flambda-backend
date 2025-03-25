@@ -220,7 +220,7 @@ class virtual selector_generic :
     method emit_expr_aux_catch :
       environment ->
       Backend_var.With_provenance.t option ->
-      Cmm.rec_flag ->
+      Cmm.ccatch_flag ->
       (Lambda.static_label
       * (Backend_var.With_provenance.t * Cmm.machtype) list
       * Cmm.expression
@@ -236,18 +236,6 @@ class virtual selector_generic :
       Cmm.exit_label ->
       Cmm.expression list ->
       Cmm.trap_action list ->
-      Reg.t array option
-
-    method emit_expr_aux_trywith :
-      environment ->
-      Backend_var.With_provenance.t option ->
-      Cmm.expression ->
-      Cmm.trywith_shared_label ->
-      Backend_var.With_provenance.t ->
-      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
-      Cmm.expression ->
-      Debuginfo.t ->
-      Cmm.kind_for_unboxing ->
       Reg.t array option
 
     method emit_tail : environment -> Cmm.expression -> unit
@@ -282,7 +270,7 @@ class virtual selector_generic :
 
     method emit_tail_catch :
       environment ->
-      Cmm.rec_flag ->
+      Cmm.ccatch_flag ->
       (Lambda.static_label
       * (Backend_var.With_provenance.t * Cmm.machtype) list
       * Cmm.expression
@@ -290,17 +278,6 @@ class virtual selector_generic :
       * bool)
       list ->
       Cmm.expression ->
-      Cmm.kind_for_unboxing ->
-      unit
-
-    method emit_tail_trywith :
-      environment ->
-      Cmm.expression ->
-      Cmm.trywith_shared_label ->
-      Backend_var.With_provenance.t ->
-      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
-      Cmm.expression ->
-      Debuginfo.t ->
       Cmm.kind_for_unboxing ->
       unit
 

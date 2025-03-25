@@ -43,9 +43,6 @@ type 'a environment =
         (** Which registers must be populated when jumping to the given
         handler. *)
     trap_stack : Simple_operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t
-        (** For each exception handler, any registers that are to be used to hold
-            extra arguments. *)
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -70,15 +67,13 @@ let env_find_mut id env =
     Misc.fatal_errorf "Selectgen.env_find_mut: %a is not mutable" V.print id);
   regs, provenance
 
-let env_add_regs_for_exception_extra_args id extra_args env =
-  { env with
-    regs_for_exception_extra_args =
-      Int.Map.add id extra_args env.regs_for_exception_extra_args
-  }
-
 let env_find_regs_for_exception_extra_args id env =
-  try Int.Map.find id env.regs_for_exception_extra_args
-  with Not_found ->
+  match Int.Map.find id env.static_exceptions with
+  | { regs = _exn :: extra_args; _ } -> extra_args
+  | { regs = []; _ } ->
+    Misc.fatal_errorf
+      "Exception handler for continuation %d has no parameters" id
+  | exception Not_found ->
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
 
@@ -86,20 +81,15 @@ let _env_find_with_provenance id env = V.Map.find id env.vars
 
 let env_find_static_exception id env = Int.Map.find id env.static_exceptions
 
-let env_enter_trywith env id extra =
-  let env, _ = env_add_static_exception id [] env extra in
-  env
-
 let env_set_trap_stack env trap_stack = { env with trap_stack }
 
-let rec combine_traps trap_stack = function
-  | [] -> trap_stack
-  | Push t :: l ->
-    combine_traps (Simple_operation.Specific_trap (t, trap_stack)) l
-  | Pop _ :: l -> (
+let combine_trap trap_stack = function
+  | Push t ->
+    Simple_operation.Specific_trap (t, trap_stack)
+  | Pop _ -> (
     match (trap_stack : Simple_operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
-    | Specific_trap (_, ts) -> combine_traps ts l)
+    | Specific_trap (_, ts) -> ts)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
@@ -109,8 +99,23 @@ let print_traps ppf traps =
   in
   Format.fprintf ppf "(%a)" print_traps traps
 
-let set_traps nfail traps_ref base_traps exit_traps =
-  let traps = combine_traps base_traps exit_traps in
+let rec set_traps env nfail traps_ref base_traps exit_traps =
+  let traps =
+    List.fold_left (fun trap_stack trap ->
+        begin match trap with
+        | Push lbl ->
+            begin match env_find_static_exception lbl env with
+            | { traps_ref; _ } ->
+                set_traps env lbl traps_ref trap_stack []
+            | exception Not_found ->
+                Misc.fatal_errorf "Trap %d not registered in env" lbl
+            end
+        | Pop _ -> ()
+        end;
+        combine_trap trap_stack trap)
+      base_traps
+      exit_traps
+  in
   match !traps_ref with
   | Unreachable ->
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
@@ -130,7 +135,7 @@ let set_traps_for_raise env =
   | Uncaught -> ()
   | Specific_trap (lbl, _) -> (
     match env_find_static_exception lbl env with
-    | s -> set_traps lbl s.traps_ref ts [Pop lbl]
+    | s -> set_traps env lbl s.traps_ref ts [Pop lbl]
     | exception Not_found ->
       Misc.fatal_errorf "Trap %d not registered in env" lbl)
 
@@ -148,7 +153,6 @@ let env_empty =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
     trap_stack = Uncaught;
-    regs_for_exception_extra_args = Int.Map.empty
   }
 
 let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
@@ -468,7 +472,7 @@ class virtual ['env, 'op, 'instr] common_selector =
         | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
         | Cstatic_cast _ | Ctuple_field _ | Ccmpf _ | Cdls_get ->
           List.for_all self#is_simple_expr args)
-      | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> false
+      | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ -> false
 
     (* Analyses the effects and coeffects of an expression. This is used across
        a whole list of expressions with a view to determining which expressions
@@ -521,7 +525,7 @@ class virtual ['env, 'op, 'instr] common_selector =
             EC.none
         in
         EC.join from_op (EC.join_list_map args self#effects_of)
-      | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> EC.arbitrary
+      | Cswitch _ | Ccatch _ | Cexit _ -> EC.arbitrary
 
     (* Says whether an integer constant is a suitable immediate argument for the
        given integer operation *)
@@ -928,13 +932,10 @@ class virtual ['env, 'op, 'instr] common_selector =
         self#emit_expr_aux_switch env bound_name esel index ecases dbg
           value_kind
       | Ccatch (_, [], e1, _) -> self#emit_expr_aux env e1 ~bound_name
-      | Ccatch (rec_flag, handlers, body, value_kind) ->
-        self#emit_expr_aux_catch env bound_name rec_flag handlers body
+      | Ccatch (catch_flag, handlers, body, value_kind) ->
+        self#emit_expr_aux_catch env bound_name catch_flag handlers body
           value_kind
       | Cexit (lbl, args, traps) -> self#emit_expr_aux_exit env lbl args traps
-      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
-        self#emit_expr_aux_trywith env bound_name e1 exn_cont v ~extra_args e2
-          dbg value_kind
 
     method virtual emit_expr_aux_raise
         : 'env environment ->
@@ -976,7 +977,7 @@ class virtual ['env, 'op, 'instr] common_selector =
     method virtual emit_expr_aux_catch
         : 'env environment ->
           VP.t option ->
-          rec_flag ->
+          ccatch_flag ->
           (Lambda.static_label
           * (VP.t * machtype) list
           * expression
@@ -992,18 +993,6 @@ class virtual ['env, 'op, 'instr] common_selector =
           exit_label ->
           expression list ->
           trap_action list ->
-          Reg.t array option
-
-    method virtual emit_expr_aux_trywith
-        : 'env environment ->
-          VP.t option ->
-          expression ->
-          trywith_shared_label ->
-          VP.t ->
-          extra_args:(VP.t * machtype) list ->
-          expression ->
-          Debuginfo.t ->
-          kind_for_unboxing ->
           Reg.t array option
 
     (* Emit an expression in tail position of a function, closing all regions in
@@ -1027,10 +1016,8 @@ class virtual ['env, 'op, 'instr] common_selector =
       | Cswitch (esel, index, ecases, dbg, value_kind) ->
         self#emit_tail_switch env esel index ecases dbg value_kind
       | Ccatch (_, [], e1, _) -> self#emit_tail env e1
-      | Ccatch (rec_flag, handlers, e1, value_kind) ->
-        self#emit_tail_catch env rec_flag handlers e1 value_kind
-      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
-        self#emit_tail_trywith env e1 exn_cont v ~extra_args e2 dbg value_kind
+      | Ccatch (catch_flag, handlers, e1, value_kind) ->
+        self#emit_tail_catch env catch_flag handlers e1 value_kind
       | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _
       | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Ctuple _
       | Cexit _ ->
@@ -1066,7 +1053,7 @@ class virtual ['env, 'op, 'instr] common_selector =
 
     method virtual emit_tail_catch
         : 'env environment ->
-          rec_flag ->
+          ccatch_flag ->
           (Lambda.static_label
           * (VP.t * machtype) list
           * expression
@@ -1074,17 +1061,6 @@ class virtual ['env, 'op, 'instr] common_selector =
           * bool)
           list ->
           expression ->
-          kind_for_unboxing ->
-          unit
-
-    method virtual emit_tail_trywith
-        : 'env environment ->
-          expression ->
-          trywith_shared_label ->
-          VP.t ->
-          extra_args:(VP.t * machtype) list ->
-          expression ->
-          Debuginfo.t ->
           kind_for_unboxing ->
           unit
 

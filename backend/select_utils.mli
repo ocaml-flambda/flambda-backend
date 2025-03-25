@@ -36,7 +36,6 @@ type 'a environment =
         (** Which registers must be populated when jumping to the given
           handler. *)
     trap_stack : Simple_operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Numbers.Int.Map.t
   }
 
 val env_add :
@@ -63,19 +62,14 @@ val env_find_mut :
 val env_find_static_exception :
   Lambda.static_label -> 'a environment -> 'a static_handler
 
-val env_enter_trywith :
-  'a environment -> Cmm.trywith_shared_label -> 'a -> 'a environment
-
-val env_add_regs_for_exception_extra_args :
-  Cmm.trywith_shared_label -> Reg.t array -> 'a environment -> 'a environment
-
 val env_find_regs_for_exception_extra_args :
-  Cmm.trywith_shared_label -> _ environment -> Reg.t array
+  Cmm.trywith_shared_label -> _ environment -> Reg.t array list
 
 val env_set_trap_stack :
   'a environment -> Simple_operation.trap_stack -> 'a environment
 
 val set_traps :
+  'a environment ->
   Lambda.static_label ->
   trap_stack_info ref ->
   Simple_operation.trap_stack ->
@@ -340,7 +334,7 @@ class virtual ['env, 'op, 'instr] common_selector :
     method virtual emit_expr_aux_catch :
       'env environment ->
       Backend_var.With_provenance.t option ->
-      Cmm.rec_flag ->
+      Cmm.ccatch_flag ->
       (Lambda.static_label
       * (Backend_var.With_provenance.t * Cmm.machtype) list
       * Cmm.expression
@@ -356,18 +350,6 @@ class virtual ['env, 'op, 'instr] common_selector :
       Cmm.exit_label ->
       Cmm.expression list ->
       Cmm.trap_action list ->
-      Reg.t array option
-
-    method virtual emit_expr_aux_trywith :
-      'env environment ->
-      Backend_var.With_provenance.t option ->
-      Cmm.expression ->
-      Cmm.trywith_shared_label ->
-      Backend_var.With_provenance.t ->
-      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
-      Cmm.expression ->
-      Debuginfo.t ->
-      Cmm.kind_for_unboxing ->
       Reg.t array option
 
     method emit_tail : 'env environment -> Cmm.expression -> unit
@@ -402,7 +384,7 @@ class virtual ['env, 'op, 'instr] common_selector :
 
     method virtual emit_tail_catch :
       'env environment ->
-      Cmm.rec_flag ->
+      Cmm.ccatch_flag ->
       (Lambda.static_label
       * (Backend_var.With_provenance.t * Cmm.machtype) list
       * Cmm.expression
@@ -410,17 +392,6 @@ class virtual ['env, 'op, 'instr] common_selector :
       * bool)
       list ->
       Cmm.expression ->
-      Cmm.kind_for_unboxing ->
-      unit
-
-    method virtual emit_tail_trywith :
-      'env environment ->
-      Cmm.expression ->
-      Cmm.trywith_shared_label ->
-      Backend_var.With_provenance.t ->
-      extra_args:(Backend_var.With_provenance.t * Cmm.machtype) list ->
-      Cmm.expression ->
-      Debuginfo.t ->
       Cmm.kind_for_unboxing ->
       unit
 
