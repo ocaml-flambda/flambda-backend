@@ -114,6 +114,7 @@ and string acc = parse
     { let space =
         match blank with None -> "" | Some blank -> String.make 1 blank
       in
+      Lexing.new_line lexbuf;
       string (acc ^ space) lexbuf }
   | '\\'
     {string (acc ^ "\\") lexbuf}
@@ -137,6 +138,11 @@ and comment = parse
     {
       let pos = List.hd !comment_start_pos in
       lexer_error_at pos "unterminated comment"
+    }
+  | newline
+    {
+      Lexing.new_line lexbuf;
+      comment lexbuf
     }
   | _
     {
