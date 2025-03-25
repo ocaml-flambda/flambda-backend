@@ -341,7 +341,7 @@ let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
   | Block_load { kind; _ } -> block_load kind
   | Duplicate_array _ | Duplicate_block _ -> needs_caml_c_call_extcall_size + 1
-  | Is_int _ | Is_null -> 1
+  | Is_int _ | Is_null | Is_immediate -> 1
   | Get_tag -> 2
   | Array_length array_kind -> (
     match array_kind with

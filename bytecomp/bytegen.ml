@@ -171,7 +171,8 @@ let preserve_tailcall_for_prim = function
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
   | Pmakearray_dynamic _ | Parrayblit _
-  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _
+  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisimmediate | Pisout
+  | Pbintofint _ | Pintofbint _
   | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
   | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
   | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _
@@ -670,6 +671,7 @@ let comp_primitive stack_info p sz args =
   | Pdls_get -> Kccall("caml_domain_dls_get", 1)
   | Ppoll -> Kccall("caml_process_pending_actions_with_root", 1)
   | Pisnull -> Kccall("caml_is_null", 1)
+  | Pisimmediate -> Kccall("caml_is_immediate", 1)
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
   | Pbigstring_load_128 _ | Pbigstring_set_128 _
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _

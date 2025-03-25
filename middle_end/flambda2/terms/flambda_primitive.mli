@@ -374,6 +374,7 @@ type unary_primitive =
       }
   | Is_int of { variant_only : bool }
   | Is_null
+  | Is_immediate
   | Get_tag
   | Array_length of Array_kind_for_length.t
       (** The unarized length of an array.  So for an example an array of
