@@ -175,7 +175,7 @@ Line 3, characters 11-12:
                ^
 Error: This type "a" = "int ref" should be an instance of type
          "('a : immutable_data)"
-       The kind of a is mutable_data with int @@ many.
+       The kind of a is mutable_data with int @@ many unyielding.
        But the kind of a must be a subkind of immutable_data
          because of the definition of t at line 2, characters 0-28.
 
@@ -335,15 +335,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t : mutable_data with 'a end
        is not included in
-         sig type 'a t : mutable_data with 'a @@ many end
+         sig type 'a t : mutable_data with 'a @@ many unyielding end
        Type declarations do not match:
          type 'a t : mutable_data with 'a
        is not included in
-         type 'a t : mutable_data with 'a @@ many
+         type 'a t : mutable_data with 'a @@ many unyielding
        The kind of the first is mutable_data with 'a
          because of the definition of t at line 4, characters 2-34.
        But the kind of the first must be a subkind of mutable_data
-         with 'a @@ many
+         with 'a @@ many unyielding
          because of the definition of t at line 2, characters 2-40.
 
        The first mode-crosses less than the second along:
@@ -415,14 +415,14 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : mutable_data with 'a @@ many end
+         sig type 'a t : mutable_data with 'a @@ many unyielding end
        is not included in
          sig type 'a t : immutable_data with 'a end
        Type declarations do not match:
-         type 'a t : mutable_data with 'a @@ many
+         type 'a t : mutable_data with 'a @@ many unyielding
        is not included in
          type 'a t : immutable_data with 'a
-       The kind of the first is mutable_data with 'a @@ many
+       The kind of the first is mutable_data with 'a @@ many unyielding
          because of the definition of t at line 4, characters 2-40.
        But the kind of the first must be a subkind of immutable_data with 'a
          because of the definition of t at line 2, characters 2-56.
