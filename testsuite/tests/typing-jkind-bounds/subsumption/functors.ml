@@ -58,7 +58,8 @@ module Ref : sig type 'a t = 'a ref end
 Line 4, characters 0-48:
 4 | type 'a t : immutable_data with 'a = 'a F(Ref).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a F(Ref).t" is mutable_data with 'a @@ many
+Error: The kind of type "'a F(Ref).t" is mutable_data
+         with 'a @@ many unyielding
          because of the definition of t at line 2, characters 2-40.
        But the kind of type "'a F(Ref).t" must be a subkind of immutable_data
          with 'a
@@ -77,7 +78,8 @@ module Ref : sig type 'a t = 'a ref end
 Line 4, characters 0-38:
 4 | type 'a t : mutable_data = 'a F(Ref).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "'a F(Ref).t" is mutable_data with 'a @@ many
+Error: The kind of type "'a F(Ref).t" is mutable_data
+         with 'a @@ many unyielding
          because of the definition of t at line 2, characters 2-40.
        But the kind of type "'a F(Ref).t" must be a subkind of mutable_data
          because of the definition of t at line 4, characters 0-38.
