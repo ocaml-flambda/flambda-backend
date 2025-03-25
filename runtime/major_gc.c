@@ -671,6 +671,8 @@ static uintnat sweep_work_done_between_slices(void)
  * - `heap_words` is the total allocated size of this domain's heap.
  * - `allocated_words` is the number of words allocated on-heap by this
  *    domain since the last slice.
+ * - `allocated_direct_words` is the number of words allocated directly to
+ *   the major heap (not promoted) since the last slice.
  * - `dependent_words` is the number of words allocated off-heap by this
  *    domain since the last slice. */
 
@@ -774,14 +776,16 @@ static uintnat gc_slice_work(uintnat heap_words,
          The promotion rate is scaled so that the nominal promotion rate of 10%
          comes out as 1.0, and direct-to-major allocations are deemed to have
          this nominal promotion rate. */
-      double scaled_prom_rate =
-        (10.0 * allocated_words) /
-        (10.0 * allocated_direct_words + minor_words);
-      /* Clamp to some reasonable range */
-      if (scaled_prom_rate > 10.) scaled_prom_rate = 10.;
-      if (scaled_prom_rate < 0.1) scaled_prom_rate = 0.1;
-      space_overhead *= pow(scaled_prom_rate,
-                            caml_gc_overhead_adjustment * 1e-2);
+      double denominator = 10.0 * allocated_direct_words + minor_words;
+      if (denominator != 0.0) {
+        double scaled_prom_rate =
+          (10.0 * allocated_words) / denominator;
+        /* Clamp to some reasonable range */
+        if (scaled_prom_rate > 10.) scaled_prom_rate = 10.;
+        if (scaled_prom_rate < 0.1) scaled_prom_rate = 0.1;
+        space_overhead *= pow(scaled_prom_rate,
+                              caml_gc_overhead_adjustment * 1e-2);
+      }
     }
     double sweep_per_dep_alloc = (1 + 2.0 * sweep_per_mark) / space_overhead;
     double sweep_per_alloc = 1 + sweep_per_dep_alloc;
