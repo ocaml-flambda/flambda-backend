@@ -167,7 +167,7 @@ let rec value_kind env (subst : type_shape Subst.t) ~visited ~depth ty :
   | Tconstr (p, [ty'], _)
     when Path.same p Predef.path_array || Path.same p Predef.path_iarray -> (
     if cannot_proceed ()
-    then Array Any
+    then Array Value
     else
       let visited = Numbers.Int.Set.add (get_id ty) visited in
       let depth = depth + 1 in
@@ -178,10 +178,10 @@ let rec value_kind env (subst : type_shape Subst.t) ~visited ~depth ty :
       | NoFloatArray -> Array sh)
   | Tconstr (p, args, _) -> (
     if cannot_proceed ()
-    then Any
+    then Value
     else
       match Env.find_type p env with
-      | exception Not_found -> Any
+      | exception Not_found -> Value
       | decl -> (
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         let arg_shapes =
@@ -207,7 +207,7 @@ let rec value_kind env (subst : type_shape Subst.t) ~visited ~depth ty :
           Misc.fatal_error
             "Traverse_typed_tree.value_kind: non-unary unboxed record can't \
              have kind value"
-        | Type_abstract _ -> Any
+        | Type_abstract _ -> Value
         | Type_open ->
           (* open types are variants so should always
              be either a block or an immediate.
@@ -232,8 +232,9 @@ let rec value_kind env (subst : type_shape Subst.t) ~visited ~depth ty :
   | Tobject _ -> Obj
   | Tvar _ | Tunivar _ -> (
     if cannot_proceed ()
-    then Any
-    else match lookup_subst (get_id ty) subst with None -> Any | Some sh -> sh)
+    then Value
+    else
+      match lookup_subst (get_id ty) subst with None -> Value | Some sh -> sh)
   | Tpoly _ -> assert false (* handled by [scrape_ty] currently *)
   | Tfield _ | Tnil | Tlink _ | Tsubst _ -> assert false
   (* NOTE: we should never encounter those in an external declaration *)

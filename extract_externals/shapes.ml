@@ -27,22 +27,29 @@
  ******************************************************************************)
 
 type type_shape =
-  | Any  (** anything of C type [value] *)
+  | Value  (** anything of C type [value] *)
   | Imm  (** immediate, tagged with a one at the end *)
-  | Nativeint  (** block to a native word (= 64-bit) integer *)
-  | Double  (** block to a native double *)
-  | Int64  (** block to a 64-bit integer *)
-  | Int32  (** block to a 32-bit integer *)
-  | String  (** block to a char pointer with a size *)
+  | Nativeint
+      (** block of a native word integer, e.g., 64-bit integer on amd64 target *)
+  | Double  (** block of a native double *)
+  | Int64  (** block of a 64-bit integer *)
+  | Int32  (** block of a 32-bit integer *)
+  | String
+      (** block of a char pointer with a size, representing both Bytes.t and String.t *)
   | FloatArray  (** block containing native doubles *)
   | Block of (int * type_shape list) option
-      (** Block below no-scan tag. If the argment is [None], then the block could have any
-    tag and any elements. If the argument is [Some (t, shs)], then [t] is the tag of the
-    block and [shs] contains the shapes of its fields. The length of the block is known
-    statically. Otherwise, it must be an array (see below). *)
+      (** Block whose tag is below no-scan tag (i.e., a normal ocaml block value). If the
+     argment is [None], then the block could have any tag and any elements. If the
+     argument is [Some (t, shs)], then [t] is the tag of the block and [shs] contains the
+     shapes of its fields. In the case of [Some (t, shs)], the number of
+     fields is known statically (i.e., the length of the list [shs]).
+
+     To represent arrays (which are blocks with tag 0 at run time, but whose size is not
+     statically known), there is a separate construtor, [Array sh], which keeps track of
+     the shapes of the elements. *)
   | Array of type_shape
       (** Block with tag 0 and a fixed size (not known statically). The shape of the
-    elements is given by the argument. *)
+         elements is given by the argument. *)
   | Closure  (** Block with closure tag. *)
   | Obj  (** Block with object tag. *)
   | Or of type_shape * type_shape
@@ -50,7 +57,7 @@ type type_shape =
 
 let rec print_shapes ppf (sh : type_shape) =
   match sh with
-  | Any -> Format.fprintf ppf "@[<hov 1>Any@]"
+  | Value -> Format.fprintf ppf "@[<hov 1>Value@]"
   | Imm -> Format.fprintf ppf "@[<hov 1>Imm@]"
   | Nativeint -> Format.fprintf ppf "@[<hov 1>Nativeint@]"
   | Double -> Format.fprintf ppf "@[<hov 1>Double@]"
@@ -77,7 +84,7 @@ and print_shape_list ppf shapes =
 
 let rec print_shape_readable fmt (sh : type_shape) =
   match sh with
-  | Any -> Format.pp_print_string fmt "*"
+  | Value -> Format.pp_print_string fmt "*"
   | Imm -> Format.pp_print_string fmt "imm"
   | Nativeint -> Format.pp_print_string fmt "native"
   | Double -> Format.pp_print_string fmt "double"

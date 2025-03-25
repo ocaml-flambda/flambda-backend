@@ -27,7 +27,7 @@
  ******************************************************************************)
 
 type type_shape =
-  | Any  (** anything of type [value] *)
+  | Value  (** anything of C type [value] *)
   | Imm  (** immediate, tagged with a one at the end *)
   | Nativeint
       (** block of a native word integer, e.g., 64-bit integer on amd64 target *)
@@ -41,7 +41,7 @@ type type_shape =
       (** Block whose tag is below no-scan tag (i.e., a normal ocaml block value). If the
       argment is [None], then the block could have any tag and any elements. If the
       argument is [Some (t, shs)], then [t] is the tag of the block and [shs] contains the
-      shapes of its fields. Fittingly, in the case of [Some (t, shs)], the number of
+      shapes of its fields. In the case of [Some (t, shs)], the number of
       fields is known statically (i.e., the length of the list [shs]).
 
       To represent arrays (which are blocks with tag 0 at run time, but whose size is not
