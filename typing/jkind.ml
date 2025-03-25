@@ -2245,6 +2245,11 @@ let get_mode_crossing (type l r) ~jkind_of_type (jk : (l * r) jkind) =
   let bounds = get_modal_bounds ~jkind_of_type jk in
   Mode.Crossing.of_bounds bounds
 
+let to_unsafe_mode_crossing jkind =
+  { unsafe_mod_bounds = Mod_bounds.to_mode_crossing jkind.jkind.mod_bounds;
+    unsafe_with_bounds = jkind.jkind.with_bounds
+  }
+
 let all_except_externality =
   Axis_set.singleton (Nonmodal Externality) |> Axis_set.complement
 

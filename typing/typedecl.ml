@@ -2584,10 +2584,7 @@ let normalize_decl_jkinds env shapes decls =
           let type_jkind =
             Jkind.unsafely_set_bounds ~from:original_decl.type_jkind decl.type_jkind
           in
-          let umc = Some {
-            unsafe_mod_bounds = Jkind.Mod_bounds.to_mode_crossing type_jkind.jkind.mod_bounds;
-            unsafe_with_bounds = type_jkind.jkind.with_bounds
-          } in
+          let umc = Some (Jkind.to_unsafe_mode_crossing type_jkind) in
           let type_kind =
             match decl.type_kind with
             | Type_abstract _ | Type_open -> assert false (* Checked above *)
