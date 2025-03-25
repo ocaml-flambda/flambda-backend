@@ -533,7 +533,6 @@ val f : (('a, 'b) M7.t, ('a, 'b) M8.t) eq -> unit = <fun>
 |}]
 
 let f (type a b) (eq : ((a, b) M7.t, (a, b) M9.t) eq) = match eq with Refl -> ()
-(* CR layouts v2.8: Plausibly this should be refutable, but maybe that's impossible? *)
 [%%expect{|
 val f : (('a, 'b) M7.t, ('a, 'b) M9.t) eq -> unit = <fun>
 |}]
