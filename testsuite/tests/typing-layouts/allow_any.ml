@@ -407,3 +407,133 @@ Error: This variant or record definition does not match that of type
          the original has: mod many portable contended with 'b
          but this has: mod many portable contended with 'a
 |}]
+
+(* mcomp *)
+
+type (_, _) eq = Refl : ('a, 'a) eq
+
+module M1 = struct
+  type 'a t : value mod contended = { x : 'a }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M2 = struct
+  type 'a t : value mod contended = { x : 'a }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M3 = struct
+  type 'a t : value mod portable = { x : 'a }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M4 = struct
+  type 'a t : value mod contended with 'a = { mutable x : 'a }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M5 = struct
+  type 'a t : value mod contended with 'a = { mutable x : 'a }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M6 = struct
+  type 'a t : immutable_data with 'a = { mutable x : 'a }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M7 = struct
+  type ('a, 'b) t : value mod contended with 'a = { mutable x : 'b }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M8 = struct
+  type ('a, 'b) t : value mod contended with 'a = { mutable x : 'b }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+module M9 = struct
+  type ('a, 'b) t : value mod contended with 'b = { mutable x : 'b }
+  [@@unsafe_allow_any_mode_crossing]
+end
+
+[%%expect{|
+type (_, _) eq = Refl : ('a, 'a) eq
+module M1 :
+  sig
+    type 'a t : value mod contended = { x : 'a; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M2 :
+  sig
+    type 'a t : value mod contended = { x : 'a; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M3 :
+  sig
+    type 'a t : value mod portable = { x : 'a; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M4 :
+  sig
+    type 'a t : value mod contended with 'a = { mutable x : 'a; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M5 :
+  sig
+    type 'a t : value mod contended with 'a = { mutable x : 'a; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M6 :
+  sig
+    type 'a t : immutable_data with 'a = { mutable x : 'a; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M7 :
+  sig
+    type ('a, 'b) t : value mod contended with 'a = { mutable x : 'b; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M8 :
+  sig
+    type ('a, 'b) t : value mod contended with 'a = { mutable x : 'b; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+module M9 :
+  sig
+    type ('a, 'b) t : value mod contended with 'b = { mutable x : 'b; }
+    [@@unsafe_allow_any_mode_crossing]
+  end
+|}]
+
+
+let f (type a) (eq : (a M1.t, a M2.t) eq) = match eq with Refl -> ()
+[%%expect{|
+val f : ('a M1.t, 'a M2.t) eq -> unit = <fun>
+|}]
+
+let f (eq : ('a M1.t, 'a M3.t) eq) = match eq with _ -> .
+[%%expect{|
+val f : ('a M1.t, 'a M3.t) eq -> 'b = <fun>
+|}]
+
+let f (type a) (eq : (a M4.t, a M5.t) eq) = match eq with Refl -> ()
+[%%expect{|
+val f : ('a M4.t, 'a M5.t) eq -> unit = <fun>
+|}]
+
+let f (type a) (eq : (a M4.t, a M6.t) eq) = match eq with _ -> .
+[%%expect{|
+val f : ('a M4.t, 'a M6.t) eq -> 'b = <fun>
+|}]
+
+let f (type a b) (eq : ((a, b) M7.t, (a, b) M8.t) eq) = match eq with Refl -> ()
+[%%expect{|
+val f : (('a, 'b) M7.t, ('a, 'b) M8.t) eq -> unit = <fun>
+|}]
+
+let f (type a b) (eq : ((a, b) M7.t, (a, b) M9.t) eq) = match eq with Refl -> ()
+(* CR layouts v2.8: Plausibly this should be refutable, but maybe that's impossible? *)
+[%%expect{|
+val f : (('a, 'b) M7.t, ('a, 'b) M9.t) eq -> unit = <fun>
+|}]
