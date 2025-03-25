@@ -163,10 +163,13 @@ CAMLexport void (*caml_leave_blocking_section_hook)(void) =
 
 static int check_pending_actions(caml_domain_state * dom_st);
 
+CAMLexport void caml_enter_blocking_section_no_pending(void)
+{
+  caml_enter_blocking_section_hook ();
+}
+
 CAMLexport void caml_enter_blocking_section(void)
 {
-  caml_domain_state * domain = Caml_state;
-
   if (Caml_state->in_minor_collection)
     caml_fatal_error("caml_enter_blocking_section from inside minor GC");
 
@@ -182,14 +185,9 @@ CAMLexport void caml_enter_blocking_section(void)
   }
 
   /* Drop the systhreads lock */
-  caml_enter_blocking_section_hook ();
+  caml_enter_blocking_section_no_pending ();
   /* Any pending actions that happen at this point onwards can be handled by
      another thread, or by this thread upon leaving the blocking section. */
-}
-
-CAMLexport void caml_enter_blocking_section_no_pending(void)
-{
-  caml_enter_blocking_section_hook ();
 }
 
 CAMLexport void caml_leave_blocking_section(void)
