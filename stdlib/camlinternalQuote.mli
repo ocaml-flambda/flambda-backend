@@ -17,7 +17,7 @@ module Name : sig
 
   val mk : string -> t
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 module Var : sig
@@ -33,7 +33,13 @@ module Var : sig
     val name : t -> Name.t
   end
 
-  module Type : sig
+  module Type_constr : sig
+    type t
+
+    val name : t -> Name.t
+  end
+
+  module Type_var : sig
     type t
 
     val name : t -> Name.t
@@ -43,7 +49,7 @@ module Var : sig
 
   val name : t -> Name.t
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 module Constant : sig
@@ -63,7 +69,7 @@ module Constant : sig
 
   val nativeint : nativeint -> t
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 module Identifier : sig
@@ -75,8 +81,6 @@ module Identifier : sig
     val dot : t -> string -> t
 
     val var : Var.Module.t -> Loc.t -> t
-
-    val print: Format.formatter -> t -> unit
   end
 
   module Value : sig
@@ -85,8 +89,6 @@ module Identifier : sig
     val dot : Module.t -> string -> t
 
     val var : Var.Value.t -> Loc.t -> t
-
-    val print: Format.formatter -> t -> unit
   end
 
   module Type : sig
@@ -94,7 +96,7 @@ module Identifier : sig
 
     val dot : Module.t -> string -> t
 
-    val var : Var.Type.t -> Loc.t -> t
+    val var : Var.Type_constr.t -> Loc.t -> t
 
     val int : t
 
@@ -157,16 +159,12 @@ module Identifier : sig
     val float32x4 : t
 
     val float64x2 : t
-
-    val print: Format.formatter -> t -> unit
   end
 
   module Module_type : sig
     type t
 
     val dot : Module.t -> string -> t
-
-    val print: Format.formatter -> t -> unit
   end
 
   module Constructor : sig
@@ -211,16 +209,12 @@ module Identifier : sig
     val assert_failure : t
 
     val undefined_recursive_module : t
-
-    val print: Format.formatter -> t -> unit
   end
 
   module Field : sig
     type t
 
     val dot : Module.t -> string -> t
-
-    val print: Format.formatter -> t -> unit
   end
 end
 
@@ -242,8 +236,6 @@ module Label : sig
   val labelled : string -> t
 
   val optional : string -> t
-
-  val print: Format.formatter -> t -> unit
 end
 
 module Variant : sig
@@ -251,7 +243,7 @@ module Variant : sig
 
   val of_string : string -> t
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 module Method : sig
@@ -259,7 +251,7 @@ module Method : sig
 
   val of_string : string -> t
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 module Pat : sig
@@ -295,33 +287,51 @@ end
 module Fragment : sig
   type t
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
-module Type : sig
-  type t
-
-  module Variant : sig
+module rec Variant_type : sig
+  module Variant_form : sig
     type t
+
+    val fixed : t
+
+    val open_ : t
+
+    val closed : string list -> t
   end
 
-  val any : t
+  module Row_field : sig
+    type t
 
-  val var : Var.Type.t -> t
+    val inherit_row_field : Type.t -> t
+
+    val tag_row_field : Variant.t -> bool -> Type.t list -> t
+  end
+
+  type t
+
+  val of_row_fields_list : Row_field.t list -> Variant_form.t -> t
+end
+
+and Type : sig
+  type t
+
+  val var : Var.Type_var.t option -> t
 
   val arrow : Label.t -> t -> t -> t
 
   val tuple : (Label.Nonoptional.t * t) list -> t
 
-  val constr : Identifier.Constructor.t -> t list -> t
+  val constr : Identifier.Type.t -> t list -> t
 
-  val alias : t -> Var.Type.t -> t
+  val alias : t -> Var.Type_var.t -> t
 
-  val variant : Variant.t -> t
+  val variant : Variant_type.t -> t
 
-  val poly : Loc.t -> Name.t list -> (Var.Type.t list -> t) -> t
+  val poly : Loc.t -> Name.t list -> (Var.Type_constr.t list -> t) -> t
 
-  val package : Identifier.Module.t -> (Fragment.t * t) list -> t
+  val package : Identifier.Module_type.t -> (Fragment.t * t) list -> t
 end
 
 module Module : sig
@@ -374,9 +384,9 @@ end
 and Function : sig
   type t
 
-  val body : Exp.t -> t
+  val body : Exp.t -> Type_constraint.t option -> t
 
-  val cases : Case.t list -> t
+  val cases : Case.t list -> Type_constraint.t option -> t
 
   val param :
     Label.t ->
@@ -386,7 +396,7 @@ and Function : sig
     (Var.Value.t list -> Pat.t * t) ->
     t
 
-  val newtype : Loc.t -> Name.t -> (Var.Type.t -> t) -> t
+  val newtype : Loc.t -> Name.t -> (Var.Type_var.t -> t) -> t
 end
 
 and Comprehension : sig
@@ -394,11 +404,13 @@ and Comprehension : sig
 
   val body : Exp.t -> t
 
-  val add_when_clause : Exp.t -> t -> t
+  val when_clause : Exp.t -> t -> t
 
-  val add_for_range : Loc.t -> Name.t -> Exp.t -> Exp.t -> bool -> (Var.Value.t -> t) -> t
+  val for_range :
+    Loc.t -> Name.t -> Exp.t -> Exp.t -> bool -> (Var.Value.t -> t) -> t
 
-  val add_for_in : Loc.t -> Exp.t -> Name.t list -> (Var.Value.t list -> Pat.t * t) -> t
+  val for_in :
+    Loc.t -> Exp.t -> Name.t list -> (Var.Value.t list -> Pat.t * t) -> t
 end
 
 and Exp : sig
@@ -411,7 +423,13 @@ and Exp : sig
   val let_rec_simple :
     Loc.t -> Name.t list -> (Var.Value.t list -> t list * t) -> t
 
-  val let_ : Loc.t -> Name.t list -> t -> (Var.Value.t list -> Pat.t * t) -> t
+  val let_ :
+    Loc.t ->
+    Name.t list ->
+    Name.t list ->
+    t ->
+    (Var.Value.t list -> Var.Module.t list -> Pat.t * t) ->
+    t
 
   val function_ : Function.t -> t
 
@@ -451,9 +469,8 @@ and Exp : sig
 
   val lazy_ : t -> t
 
-  val open_ : bool -> Module.t -> t -> t
-
-  val letmodule : Loc.t -> Name.t option -> Module.t -> (Var.Module.t option -> t) -> t
+  val letmodule :
+    Loc.t -> Name.t option -> Module.t -> (Var.Module.t option -> t) -> t
 
   val constraint_ : t -> Type_constraint.t -> t
 
@@ -465,11 +482,20 @@ and Exp : sig
 
   val src_pos : t
 
+  val stack : t -> t
+
   val extension_constructor : Identifier.Constructor.t -> t
 
   val let_exception : Name.t -> t -> t
 
-  val let_op : Loc.t -> Identifier.Value.t list -> Name.t list -> t -> (Var.Value.t list -> Pat.t * t) -> t
+  val let_op :
+    Loc.t ->
+    Identifier.Value.t list ->
+    Name.t list ->
+    Name.t list ->
+    t ->
+    (Var.Value.t list -> Var.Module.t list -> Pat.t * t) ->
+    t
 
   val exclave : t -> t
 
@@ -487,7 +513,7 @@ and Exp : sig
 
   val antiquote : Code.t -> t
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 and Code : sig
@@ -496,7 +522,7 @@ and Code : sig
   val of_exp : Exp.t -> Loc.t -> t
 
   val of_exp_with_type_vars :
-    Loc.t -> Name.t list -> (Var.Type.t list -> Exp.t) -> t
+    Loc.t -> Name.t list -> (Var.Type_constr.t list -> Exp.t) -> t
 
   module Closed : sig
     type exp = t
@@ -508,5 +534,5 @@ and Code : sig
     val open_ : t -> exp
   end
 
-  val print: Format.formatter -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
