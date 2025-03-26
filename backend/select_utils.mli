@@ -35,7 +35,7 @@ type 'a environment =
     static_exceptions : 'a static_handler Numbers.Int.Map.t;
         (** Which registers must be populated when jumping to the given
           handler. *)
-    trap_stack : Simple_operation.trap_stack;
+    trap_stack : Simple_operation.trap_stack
   }
 
 val env_add :

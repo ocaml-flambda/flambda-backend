@@ -3811,14 +3811,15 @@ let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
   Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
 
 let trywith ~dbg ~body ~exn_var ~extra_args ~handler_cont ~handler () =
-  Ccatch (Exn_handler,
-          [ handler_cont,
-            (exn_var, typ_val) :: extra_args,
-            handler,
-            dbg,
-            false (* is_cold *) ],
-          body,
-          Any)
+  Ccatch
+    ( Exn_handler,
+      [ ( handler_cont,
+          (exn_var, typ_val) :: extra_args,
+          handler,
+          dbg,
+          false (* is_cold *) ) ],
+      body,
+      Any )
 
 type static_handler =
   int

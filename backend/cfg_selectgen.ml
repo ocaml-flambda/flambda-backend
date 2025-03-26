@@ -587,8 +587,8 @@ class virtual selector_generic =
         sub_cfg <- Sub_cfg.join ~from:(Array.to_list subs) ~to_:sub_cfg;
         r
 
-    method emit_expr_aux_catch env bound_name (flag : Cmm.ccatch_flag)
-        handlers body (_value_kind : Cmm.kind_for_unboxing) =
+    method emit_expr_aux_catch env bound_name (flag : Cmm.ccatch_flag) handlers
+        body (_value_kind : Cmm.kind_for_unboxing) =
       let handlers =
         List.map
           (fun (nfail, ids, e2, dbg, is_cold) ->
@@ -688,8 +688,7 @@ class virtual selector_generic =
           (fun ((rs, label), (_, sub_handler)) ->
             let seq : Sub_cfg.t = sub_handler#extract in
             match flag with
-            | Normal | Recursive ->
-              Sub_cfg.add_empty_block_at_start seq ~label
+            | Normal | Recursive -> Sub_cfg.add_empty_block_at_start seq ~label
             | Exn_handler ->
               Sub_cfg.mark_as_trap_handler seq ~exn_label:label;
               let exn_bucket_in_handler =
@@ -963,6 +962,12 @@ class virtual selector_generic =
                       [||] [||])
                 ids_and_rs)
         in
+        (* CR vlaviron: I hit an issue in the non-tail case where this
+           [add_empty_block_at_start] call interfered with the
+           [mark_as_trap_handler] call for the exception case (creating two
+           blocks with the same label). I suspect the issue should occur here
+           too but happens to never be triggered in the compiler itself and its
+           testsuite. *)
         let seq = Sub_cfg.add_empty_block_at_start seq ~label in
         label, rs, seq
       in
@@ -986,8 +991,7 @@ class virtual selector_generic =
           in
           build_all_reachable_handlers ~already_built ~not_built
       in
-      let new_handlers :
-          (Cmm.label * Reg.t array list * Sub_cfg.t) list =
+      let new_handlers : (Cmm.label * Reg.t array list * Sub_cfg.t) list =
         build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
         (* Note: we're dropping unreachable handlers here *)
       in
@@ -995,7 +999,8 @@ class virtual selector_generic =
       let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
       Sub_cfg.update_exit_terminator sub_cfg term_desc;
       let s_handlers =
-        List.map (fun (label, rs, s) ->
+        List.map
+          (fun (label, rs, s) ->
             let () =
               match flag with
               | Normal | Recursive -> ()
@@ -1003,7 +1008,8 @@ class virtual selector_generic =
                 Sub_cfg.mark_as_trap_handler s ~exn_label:label;
                 let exn_bucket_in_handler =
                   match rs with
-                  | [] -> Misc.fatal_error "Exception handler with no parameters"
+                  | [] ->
+                    Misc.fatal_error "Exception handler with no parameters"
                   | r :: _ -> r
                 in
                 Sub_cfg.add_instruction_at_start s (Cfg.Op Move)

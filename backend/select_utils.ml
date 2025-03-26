@@ -42,7 +42,7 @@ type 'a environment =
     static_exceptions : 'a static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
-    trap_stack : Simple_operation.trap_stack;
+    trap_stack : Simple_operation.trap_stack
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -71,8 +71,8 @@ let env_find_regs_for_exception_extra_args id env =
   match Int.Map.find id env.static_exceptions with
   | { regs = _exn :: extra_args; _ } -> extra_args
   | { regs = []; _ } ->
-    Misc.fatal_errorf
-      "Exception handler for continuation %d has no parameters" id
+    Misc.fatal_errorf "Exception handler for continuation %d has no parameters"
+      id
   | exception Not_found ->
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
@@ -84,8 +84,7 @@ let env_find_static_exception id env = Int.Map.find id env.static_exceptions
 let env_set_trap_stack env trap_stack = { env with trap_stack }
 
 let combine_trap trap_stack = function
-  | Push t ->
-    Simple_operation.Specific_trap (t, trap_stack)
+  | Push t -> Simple_operation.Specific_trap (t, trap_stack)
   | Pop _ -> (
     match (trap_stack : Simple_operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
@@ -101,20 +100,26 @@ let print_traps ppf traps =
 
 let rec set_traps env nfail traps_ref base_traps exit_traps =
   let traps =
-    List.fold_left (fun trap_stack trap ->
-        begin match trap with
-        | Push lbl ->
-            begin match env_find_static_exception lbl env with
-            | { traps_ref; _ } ->
-                set_traps env lbl traps_ref trap_stack []
-            | exception Not_found ->
-                Misc.fatal_errorf "Trap %d not registered in env" lbl
-            end
-        | Pop _ -> ()
-        end;
+    (* CR vlaviron: This weird piece of code is here to handle exception
+       handlers that are not reachable but occur in trap actions. The "right"
+       thing would be to remove traps pointing to handlers that are unreachable,
+       and I think this could be done at the end of [emit_fundecl] when we
+       iterate on all blocks, but for now I instead add this little hack that
+       treats every [Push] trap action as potentially raising, which makes us
+       treat the associated handler as reachable with a correct trap stack,
+       avoiding the problem. This required making [set_traps] recursive, which
+       is not very satisfying. *)
+    List.fold_left
+      (fun trap_stack trap ->
+        (match trap with
+        | Push lbl -> (
+          match env_find_static_exception lbl env with
+          | { traps_ref; _ } -> set_traps env lbl traps_ref trap_stack []
+          | exception Not_found ->
+            Misc.fatal_errorf "Trap %d not registered in env" lbl)
+        | Pop _ -> ());
         combine_trap trap_stack trap)
-      base_traps
-      exit_traps
+      base_traps exit_traps
   in
   match !traps_ref with
   | Unreachable ->
@@ -152,7 +157,7 @@ let pop_all_traps env =
 let env_empty =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
-    trap_stack = Uncaught;
+    trap_stack = Uncaught
   }
 
 let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
