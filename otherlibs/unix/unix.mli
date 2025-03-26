@@ -28,6 +28,8 @@
    manual/src/library/libunix.etex
 *)
 
+@@ portable
+
 (** Interface to the Unix system.
 
    To use the labeled version of this module, add [module Unix][ = ][UnixLabels]
@@ -131,7 +133,7 @@ exception Unix_error of error * string * string
 val error_message : error -> string
 (** Return a string describing the given error code. *)
 
-val handle_unix_error : ('a -> 'b) -> 'a -> 'b
+val handle_unix_error : ('a -> 'b) -> 'a -> 'b @@ nonportable
 (** [handle_unix_error f x] applies [f] to [x] and returns the result.
    If the exception {!Unix_error} is raised, it prints a message
    describing the error and exits with code 2. *)
@@ -322,7 +324,7 @@ val nice : int -> int
 (** {1 Basic file input/output} *)
 
 
-type file_descr
+type file_descr : value mod contended portable
 (** The abstract type of file descriptors. *)
 
 val stdin : file_descr
@@ -1411,7 +1413,7 @@ val getgrgid : int -> group_entry
 (** {1 Internet addresses} *)
 
 
-type inet_addr
+type inet_addr : value mod contended portable
 (** The abstract type of Internet addresses. *)
 
 val inet_addr_of_string : string -> inet_addr
@@ -1683,7 +1685,7 @@ val shutdown_connection : in_channel -> unit
    connection is over. *)
 
 val establish_server :
-  (in_channel -> out_channel -> unit) -> sockaddr -> unit
+  (in_channel -> out_channel -> unit) -> sockaddr -> unit @@ nonportable
 (** Establish a server on the given address.
    The function given as first argument is called for each connection
    with two buffered channels connected to the client. A new process

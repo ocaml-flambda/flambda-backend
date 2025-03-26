@@ -18,19 +18,19 @@
 
 [@@@ocaml.flambda_o3]
 
-type t
+type t : value mod contended portable
 
 external thread_initialize : unit -> unit = "caml_thread_initialize"
 external thread_cleanup : unit -> unit @@ portable = "caml_thread_cleanup"
-external thread_new : (unit -> unit) -> t = "caml_thread_new"
-external thread_uncaught_exception : exn -> unit =
+external thread_new : (unit -> unit) -> t @@ portable = "caml_thread_new"
+external thread_uncaught_exception : exn -> unit @@ portable =
             "caml_thread_uncaught_exception"
 
-external yield : unit -> unit = "caml_thread_yield"
-external self : unit -> t = "caml_thread_self" [@@noalloc]
-external id : t -> int = "caml_thread_id" [@@noalloc]
-external join : t -> unit = "caml_thread_join"
-external exit_stub : unit -> unit = "caml_thread_exit"
+external yield : unit -> unit @@ portable = "caml_thread_yield"
+external self : unit -> t @@ portable = "caml_thread_self" [@@noalloc]
+external id : t -> int @@ portable = "caml_thread_id" [@@noalloc]
+external join : t -> unit @@ portable = "caml_thread_join"
+external exit_stub : unit -> unit @@ portable = "caml_thread_exit"
 
 (* For new, make sure the function passed to thread_new never
    raises an exception. *)
@@ -39,9 +39,9 @@ let[@inline never] check_memprof_cb () = ref ()
 
 let default_uncaught_exception_handler = thread_uncaught_exception
 
-let uncaught_exception_handler = ref default_uncaught_exception_handler
+let uncaught_exception_handler = Atomic.make { Modes.Portable.portable = default_uncaught_exception_handler }
 
-let set_uncaught_exception_handler fn = uncaught_exception_handler := fn
+let set_uncaught_exception_handler (fn @ portable) = Atomic.Contended.set uncaught_exception_handler { Modes.Portable.portable = fn }
 
 exception Exit
 
@@ -58,7 +58,7 @@ let create fn arg =
         let raw_backtrace = Printexc.get_raw_backtrace () in
         flush stdout; flush stderr;
         try
-          !uncaught_exception_handler exn
+          (Atomic.Contended.get uncaught_exception_handler).portable exn
         with
         | Exit -> ()
         | exn' ->
@@ -71,6 +71,10 @@ let create fn arg =
             (id (self ())) (Printexc.to_string exn');
           Printexc.print_backtrace stdout;
           flush stderr)
+
+module Portable = struct
+  let create = create
+end
 
 let exit () =
   ignore (Sys.opaque_identity (check_memprof_cb ()));
@@ -119,6 +123,6 @@ let select = Unix.select
 
 let wait_pid p = Unix.waitpid [] p
 
-external sigmask : Unix.sigprocmask_command -> int list -> int list
+external sigmask : Unix.sigprocmask_command -> int list -> int list @@ portable
    = "caml_thread_sigmask"
-external wait_signal : int list -> int = "caml_wait_signal"
+external wait_signal : int list -> int @@ portable = "caml_wait_signal"
