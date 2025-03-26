@@ -41,3 +41,10 @@ let () =
   assert (Float32_u.to_int one = 1)
 ;;
 
+(* Test that [Or_null] is exported. *)
+
+let () =
+  match Or_null.null with
+  | Null -> ()
+  | This _ -> assert false
+;;

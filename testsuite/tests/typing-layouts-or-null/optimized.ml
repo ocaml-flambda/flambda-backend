@@ -2,16 +2,14 @@
  reference = "${test_source_directory}/optimized.reference";
  flambda2;
  {
-   flags = "-extension-universe beta";
    native;
  } {
-   flags = "-extension-universe beta -O3";
+   flags = "-O3";
    native;
  } {
-   flags = "-extension-universe beta -Oclassic";
+   flags = "-Oclassic";
    native;
  } {
-   flags = "-extension-universe beta";
    bytecode;
  }
 *)
