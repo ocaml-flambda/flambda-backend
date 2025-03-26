@@ -22,7 +22,7 @@ Error: Annotation check for zero_alloc strict failed on function Test_custom_err
 This annotation is for testing custom error messages.
 
 File "test_custom_error_msg.ml", line 8, characters 22-39:
-Error: called function may allocate on a path to exceptional return (external call to caml_format_int) (test_custom_error_msg.ml:8,22--39;stdlib.ml:275,2--19)
+Error: called function may allocate on a path to exceptional return (external call to caml_format_int) (test_custom_error_msg.ml:8,22--39;stdlib.ml:280,2--19)
 
 File "test_custom_error_msg.ml", line 8, characters 13-40:
 Error: allocation of 24 bytes on a path to exceptional return

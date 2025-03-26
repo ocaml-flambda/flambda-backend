@@ -29,8 +29,12 @@ let () =
   register_named_value "Pervasives.array_align_error"
     (Invalid_argument "address was misaligned")
 
-external raise : ('a : value_or_null). exn -> 'a @ portable @@ portable = "%reraise"
-external raise_notrace : ('a : value_or_null). exn -> 'a @ portable @@ portable = "%raise_notrace"
+external raise :
+  ('a : value_or_null). exn -> 'a @ portable unique @@ portable
+  = "%reraise"
+external raise_notrace :
+  ('a : value_or_null). exn -> 'a @ portable unique @@ portable
+  = "%raise_notrace"
 
 let failwith s = raise(Failure s)
 let invalid_arg s = raise(Invalid_argument s)
@@ -233,8 +237,9 @@ let char_of_int n =
 
 (* Unit operations *)
 
-external ignore : ('a : value_or_null) . 'a -> unit @@ portable = "%ignore"
-external ignore_contended : 'a @ contended -> unit @@ portable = "%ignore"
+external ignore : ('a : value_or_null). 'a -> unit @@ portable = "%ignore"
+external ignore_contended : ('a : value_or_null).
+  'a @ contended local once -> unit @@ portable = "%ignore"
 
 (* Pair operations *)
 

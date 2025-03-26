@@ -32,18 +32,19 @@
 
 (** {1 Exceptions} *)
 
-external raise : ('a : value_or_null). exn -> 'a @ portable = "%reraise"
+external raise : ('a : value_or_null). exn -> 'a @ portable unique = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : ('a : value_or_null). exn -> 'a @ portable = "%raise_notrace"
+external raise_notrace : ('a : value_or_null). exn -> 'a @ portable unique
+  = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
 
-val invalid_arg : ('a : value_or_null) . string -> 'a @ portable
+val invalid_arg : ('a : value_or_null) . string -> 'a @ portable unique
 (** Raise exception [Invalid_argument] with the given string. *)
 
-val failwith : ('a : value_or_null) . string -> 'a @ portable
+val failwith : ('a : value_or_null) . string -> 'a @ portable unique
 (** Raise exception [Failure] with the given string. *)
 
 exception Exit
@@ -727,10 +728,11 @@ external ignore : ('a : value_or_null) . 'a -> unit = "%ignore"
    compiler warning; writing [ignore(f x)] instead
    avoids the warning. *)
 
-external ignore_contended : 'a @ contended -> unit = "%ignore"
-(** Like {!ignore}, but takes a [contended] value. This is technically strictly stronger
-    than [ignore], but changing [ignore] in place causes backwards compatibility issues
-    due to type inference. *)
+external ignore_contended : ('a : value_or_null) . 'a @ contended local once -> unit
+  = "%ignore"
+(** Like {!ignore}, but takes a [contended local once] value. This is technically strictly
+    stronger than [ignore], but changing [ignore] in place causes backwards compatibility
+    issues due to type inference. *)
 
 (** {1 String conversion functions} *)
 
