@@ -4,17 +4,6 @@ open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let equal_list_dll eq list dll =
-  let rec aux eq list cell =
-    match list, cell with
-    | [], None -> true
-    | _ :: _, None | [], Some _ -> false
-    | hd :: tl, Some cell ->
-      let value = DLL.value cell in
-      eq hd value && aux eq tl (DLL.next cell)
-  in
-  aux eq list (DLL.hd_cell dll)
-
 let ls_debug = false
 
 let bool_of_param param_name =
@@ -262,23 +251,12 @@ end
 
 module ClassIntervals = struct
   type t =
-    { mutable fixed_list : Interval.t list;
-      mutable active_list : Interval.t list;
-      mutable inactive_list : Interval.t list;
-      fixed_dll : Interval.t DLL.t;
+    { fixed_dll : Interval.t DLL.t;
       active_dll : Interval.t DLL.t;
       inactive_dll : Interval.t DLL.t
     }
 
   let print ppf t =
-    Format.fprintf ppf "fixed_list(%d): %a\n" (List.length t.fixed_list)
-      Interval.List.print t.fixed_list;
-    Format.fprintf ppf "active_list(%d): %a\n"
-      (List.length t.active_list)
-      Interval.List.print t.active_list;
-    Format.fprintf ppf "inactive_list(%d): %a\n"
-      (List.length t.inactive_list)
-      Interval.List.print t.inactive_list;
     Format.fprintf ppf "fixed_dll(%d): %a\n" (DLL.length t.fixed_dll)
       Interval.DLL.print t.fixed_dll;
     Format.fprintf ppf "active_dll(%d): %a\n" (DLL.length t.active_dll)
@@ -287,90 +265,22 @@ module ClassIntervals = struct
       (DLL.length t.inactive_dll)
       Interval.DLL.print t.inactive_dll
 
-  let check_consistency t msg =
-    let consistent_fixed =
-      equal_list_dll Interval.equal t.fixed_list t.fixed_dll
-    in
-    let consistent_active =
-      equal_list_dll Interval.equal t.active_list t.active_dll
-    in
-    let consistent_inactive =
-      equal_list_dll Interval.equal t.inactive_list t.inactive_dll
-    in
-    if not (consistent_fixed && consistent_active && consistent_inactive)
-    then (
-      print Format.err_formatter t;
-      Misc.fatal_errorf
-        "Regalloc_ls_utils.ClassIntervals.check_consistency \
-         %S(consistent_fixed=%B consistent_active=%B consistent_inactive=%B)"
-        msg consistent_fixed consistent_active consistent_inactive)
-
   let make () =
-    let res =
-      { fixed_list = [];
-        active_list = [];
-        inactive_list = [];
-        fixed_dll = DLL.make_empty ();
-        active_dll = DLL.make_empty ();
-        inactive_dll = DLL.make_empty ()
-      }
-    in
-    check_consistency res "make/end";
-    res
+    { fixed_dll = DLL.make_empty ();
+      active_dll = DLL.make_empty ();
+      inactive_dll = DLL.make_empty ()
+    }
 
   let copy t =
-    check_consistency t "copy/begin";
-    let res =
-      { fixed_list = List.map t.fixed_list ~f:Interval.copy;
-        active_list = List.map t.active_list ~f:Interval.copy;
-        inactive_list = List.map t.inactive_list ~f:Interval.copy;
-        fixed_dll = DLL.map t.fixed_dll ~f:Interval.copy;
-        active_dll = DLL.map t.active_dll ~f:Interval.copy;
-        inactive_dll = DLL.map t.inactive_dll ~f:Interval.copy
-      }
-    in
-    check_consistency res "copy/end";
-    res
+    { fixed_dll = DLL.map t.fixed_dll ~f:Interval.copy;
+      active_dll = DLL.map t.active_dll ~f:Interval.copy;
+      inactive_dll = DLL.map t.inactive_dll ~f:Interval.copy
+    }
 
   let clear t =
-    check_consistency t "clear/begin";
-    t.fixed_list <- [];
-    t.active_list <- [];
-    t.inactive_list <- [];
     DLL.clear t.fixed_dll;
     DLL.clear t.active_dll;
-    DLL.clear t.inactive_dll;
-    check_consistency t "clear/end"
-
-  module List = struct
-    let rec release_expired_active t ~pos l =
-      match l with
-      | [] -> []
-      | hd :: tl ->
-        if hd.Interval.end_ >= pos
-        then (
-          Interval.remove_expired hd ~pos;
-          if Interval.is_live hd ~pos
-          then hd :: release_expired_active t ~pos tl
-          else (
-            t.inactive_list <- Interval.List.insert_sorted t.inactive_list hd;
-            release_expired_active t ~pos tl))
-        else []
-
-    let rec release_expired_inactive t ~pos l =
-      match l with
-      | [] -> []
-      | hd :: tl ->
-        if hd.Interval.end_ >= pos
-        then (
-          Interval.remove_expired hd ~pos;
-          if not (Interval.is_live hd ~pos)
-          then hd :: release_expired_inactive t ~pos tl
-          else (
-            t.active_list <- Interval.List.insert_sorted t.active_list hd;
-            release_expired_inactive t ~pos tl))
-        else []
-  end
+    DLL.clear t.inactive_dll
 
   module DLL = struct
     let release_expired_active (t : t) ~(pos : int) (l : Interval.t DLL.t) :
@@ -417,14 +327,9 @@ module ClassIntervals = struct
   end
 
   let release_expired_intervals t ~pos =
-    check_consistency t "release_expired_intervals/begin";
-    t.fixed_list <- Interval.List.release_expired_fixed t.fixed_list ~pos;
-    t.active_list <- List.release_expired_active t ~pos t.active_list;
-    t.inactive_list <- List.release_expired_inactive t ~pos t.inactive_list;
     Interval.DLL.release_expired_fixed t.fixed_dll ~pos;
     DLL.release_expired_active t ~pos t.active_dll;
-    DLL.release_expired_inactive t ~pos t.inactive_dll;
-    check_consistency t "release_expired_intervals/end"
+    DLL.release_expired_inactive t ~pos t.inactive_dll
 end
 
 let log_interval ~indent ~kind (interval : Interval.t) =
@@ -437,10 +342,6 @@ let log_interval ~indent ~kind (interval : Interval.t) =
       if !first then first := false else Buffer.add_string ranges ", ";
       Buffer.add_string ranges (Printf.sprintf "[%d..%d]" begin_ end_));
   log ~indent:(succ indent) "%s" (Buffer.contents ranges)
-
-let log_interval_list ~indent ~kind (intervals : Interval.t list) =
-  List.iter intervals ~f:(fun (interval : Interval.t) ->
-      log_interval ~indent ~kind interval)
 
 let log_interval_dll ~indent ~kind (intervals : Interval.t DLL.t) =
   DLL.iter intervals ~f:(fun (interval : Interval.t) ->
