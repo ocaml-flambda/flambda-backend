@@ -2,7 +2,6 @@
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files} stubs.c";
  include stdlib_upstream_compatible;
- arch_amd64;
  flambda2;
  {
    flags = "-extension layouts_beta -extension simd_beta";
@@ -22,10 +21,10 @@ module Int64x2_I = struct
   external box : int64x2# -> int64x2 = "%box_vec128"
   external unbox : int64x2 -> int64x2# = "%unbox_vec128"
 
-  external interleave_low_64 : t -> t -> t = "" "caml_sse2_vec128_interleave_low_64"
+  external interleave_low_64 : t -> t -> t = "" "caml_simd_vec128_interleave_low_64"
     [@@noalloc] [@@unboxed] [@@builtin]
 
-  external interleave_high_64 : t -> t -> t = "" "caml_sse2_vec128_interleave_high_64"
+  external interleave_high_64 : t -> t -> t = "" "caml_simd_vec128_interleave_high_64"
     [@@noalloc] [@@unboxed] [@@builtin]
 
   external low_of : int64 -> t = "" "caml_int64x2_low_of_int64"
@@ -37,10 +36,10 @@ module Int64x2_I = struct
   external const1 : int64 -> t = "" "caml_int64x2_const1"
     [@@noalloc] [@@unboxed] [@@builtin]
 
-  external add : t -> t -> t = "" "caml_sse2_int64x2_add"
+  external add : t -> t -> t = "" "caml_simd_int64x2_add"
     [@@noalloc] [@@unboxed] [@@builtin]
 
-  external sub : t -> t -> t = "" "caml_sse2_int64x2_sub"
+  external sub : t -> t -> t = "" "caml_simd_int64x2_sub"
     [@@noalloc] [@@unboxed] [@@builtin]
 
   let neg x = sub (const1 0L) x

@@ -601,15 +601,12 @@ let main ~bytecode =
  include stdlib_stable;
  include stdlib_upstream_compatible;|};
   if bytecode then (
-    (* CR layouts: enable for arm64 once float32 is available *)
-    line {| arch_amd64;|};
     line {| bytecode;|};
   ) else (
     line {| modules = "stubs.c";|};
     line {| flags = "-extension simd_beta";|};
     line {| flambda2;|};
     line {| stack-allocation;|};
-    line {| arch_amd64;|};
     line {| native;|};
   );
   line {|*)|};

@@ -626,17 +626,11 @@ let main n ~bytecode =
  include stdlib_stable;
  include stdlib_upstream_compatible;|};
   if bytecode then (
-    (* CR layouts: this test only runs on AMD64 because ARM64
-       does not support float32# (including in bytecode).
-       Split off the non-float32# parts into a separate test
-       that runs everywhere. *)
-    line {| arch_amd64;|};
     line {| bytecode;|};
   ) else (
     line {| modules = "stubs.c";|};
     line {| flags = "-extension simd_beta";|};
     line {| flambda2;|};
-    line {| arch_amd64;|};
     line {| native;|};
   );
   line {|*)|};
@@ -655,8 +649,8 @@ let main n ~bytecode =
   if not bytecode then (
     line {|external box_int64x2 : int64x2# -> int64x2 = "%%box_vec128"|};
     line {|external unbox_int64x2 : int64x2 -> int64x2# = "%%unbox_vec128"|};
-    line {|external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_sse2_vec128_interleave_low_64" [@@unboxed] [@@builtin]|};
-    line {|external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_sse2_vec128_interleave_high_64" [@@unboxed] [@@builtin]|};
+    line {|external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_low_64" [@@unboxed] [@@builtin]|};
+    line {|external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_high_64" [@@unboxed] [@@builtin]|};
     line {|external int64x2_of_int64 : int64 -> int64x2# = "" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]|};
     line {|external int64_of_int64x2 : int64x2# -> int64 = "" "caml_int64x2_low_to_int64" [@@unboxed] [@@builtin]|};
     line {|let create_int64x2 () =
