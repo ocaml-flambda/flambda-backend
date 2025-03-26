@@ -76,6 +76,13 @@ let rec select_addr exp =
     | ( ((Asymbol _ | Aadd (_, _) | Ascaledadd (_, _, _)), _),
         ((Asymbol _ | Alinear _ | Aadd (_, _) | Ascaledadd (_, _, _)), _) ) ->
       Aadd (arg1, arg2), 0)
+  | Cmm.Cop (Cor, [arg; Cconst_int (1, _)], _)
+  | Cmm.Cop (Cor, [Cconst_int (1, _); arg], _) -> (
+    (* optimize tagging integers *)
+    match select_addr arg with
+    | Ascale (e, scale), off when scale mod 2 = 0 ->
+      Ascale (e, scale), off lor 1
+    | _ -> default)
   | _ -> default
 
 (* Special constraints on operand and result registers *)
