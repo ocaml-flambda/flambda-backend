@@ -69,14 +69,6 @@ module Interval : sig
 
   val remove_expired : t -> pos:int -> unit
 
-  module List : sig
-    val print : Format.formatter -> t list -> unit
-
-    val release_expired_fixed : t list -> pos:int -> t list
-
-    val insert_sorted : t list -> t -> t list
-  end
-
   module DLL : sig
     val print : Format.formatter -> t DLL.t -> unit
 

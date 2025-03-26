@@ -198,29 +198,6 @@ module Interval = struct
   let remove_expired : t -> pos:int -> unit =
    fun t ~pos -> Range.remove_expired t.ranges ~pos
 
-  module List = struct
-    let print ppf l =
-      List.iter l ~f:(fun i -> Format.fprintf ppf "- %a\n" print i)
-
-    let rec release_expired_fixed l ~pos =
-      match l with
-      | [] -> []
-      | hd :: tl ->
-        if hd.end_ >= pos
-        then (
-          remove_expired hd ~pos;
-          hd :: release_expired_fixed tl ~pos)
-        else []
-
-    let rec insert_sorted l interval =
-      match l with
-      | [] -> [interval]
-      | hd :: tl ->
-        if hd.end_ <= interval.end_
-        then interval :: l
-        else hd :: insert_sorted tl interval
-  end
-
   module DLL = struct
     let print ppf l =
       DLL.iter l ~f:(fun i -> Format.fprintf ppf "- %a\n" print i)
