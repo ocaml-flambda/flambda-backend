@@ -548,6 +548,11 @@ module DSL = struct
   let reg_v4s index =
     Operand.Reg (Reg.create (Reg_name.Neon (Vector V4S)) index)
 
+  let reg_v8b index =
+    Operand.Reg (Reg.create (Reg_name.Neon (Vector V8B)) index)
+
+  let reg_b index = Operand.Reg (Reg.create (Reg_name.Neon (Scalar B)) index)
+
   let reg_v2d index = reg_v2d_operands.(index)
 
   let reg_s index = reg_s_operands.(index)

@@ -255,7 +255,7 @@ let name_for_int_operation = function
   | Ilsr -> "lsr"
   | Iasr -> "asr"
   | Iclz { arg_is_non_zero = _ } -> "clz"
-  | Ipopcnt -> "cnt"
+  | Ipopcnt
   | Ictz _ | Icomp _ | Imod | Imulh _-> assert false
 
 (* Decompose an integer constant into four 16-bit shifted fragments.
@@ -774,11 +774,15 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Intop Imod) -> 2
     | Lop (Intop (Imulh _)) -> 1
     | Lop (Intop (Iclz _)) -> 1
-    | Lop (Intop (Ictz _)) -> 2
-    | Lop (Intop (Iadd|Isub|Imul|Idiv|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr|Ipopcnt)) -> 1
+    | Lop (Intop (Iadd|Isub|Imul|Idiv|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr)) -> 1
+    | Lop (Intop Ipopcnt) ->
+      if !Arch.feat_cssc then 1 else 4
+    | Lop (Intop Ictz _) ->
+      if !Arch.feat_cssc then 1 else 2
+    | Lop (Intop_imm ((Iclz _ | Ictz _ |Ipopcnt), _)) -> assert false
     | Lop (Intop_imm
              ((Iadd|Isub|Imul|Idiv|Imod|Imulh _|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr
-              | Iclz _ | Ictz _ |Ipopcnt),_)) -> 1
+              ),_)) -> 1
     | Lop (Floatop (Float64, (Iabsf | Inegf))) -> 1
     | Lop (Floatop (Float32, (Iabsf | Inegf))) -> 1
     | Lop (Specific Isqrtf) -> 1
@@ -1357,12 +1361,25 @@ let emit_instr i =
     | Lop(Intop (Ictz _)) ->
         (* `ctz Rd, Rn` is optionally supported from Armv8.7, but rbit and clz
            are supported in all ARMv8 CPUs. *)
-        ` rbit {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
-        ` clz  {emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
-    | Lop(Intop (Iclz _ as op)) ->
-        let instr = name_for_int_operation op in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Intop ((Iadd|Isub|Imul|Idiv|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr|Ipopcnt) as op)) ->
+        if !Arch.feat_cssc then
+           `	ctz	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
+        else (
+        `	rbit	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
+        `	clz	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
+        )
+    | Lop(Intop (Iclz _)) ->
+        `	clz	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Intop Ipopcnt) ->
+       if !Arch.feat_cssc then
+         DSL.ins I.CNT [|DSL.emit_reg i.res.(0); DSL.emit_reg i.arg.(0) |]
+       else (
+         let tmp = 7 in
+         let tmp_v8b = Arm64_ast.DSL.reg_v8b tmp in
+         DSL.ins I.FMOV [| Arm64_ast.DSL.reg_d tmp; DSL.emit_reg i.arg.(0) |];
+         DSL.ins I.CNT  [| tmp_v8b; tmp_v8b; |];
+         DSL.ins I.ADDV [| Arm64_ast.DSL.reg_b tmp; tmp_v8b |];
+         DSL.ins I.FMOV [| DSL.emit_reg i.res.(0); Arm64_ast.DSL.reg_s tmp |])
+    | Lop(Intop ((Iadd|Isub|Imul|Idiv|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr) as op)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
     | Lop(Intop_imm(op, n)) ->

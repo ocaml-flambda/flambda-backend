@@ -19,7 +19,7 @@
 
 val macosx : bool
 val is_asan_enabled : bool ref
-
+val feat_cssc : bool ref
 (* Machine-specific command-line options *)
 
 val command_line_options : (string * Arg.spec * string) list
