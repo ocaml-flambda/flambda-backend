@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Effects.
 
     @since 5.0 *)
@@ -56,9 +58,12 @@ end
 
 module Continuation : sig
 
-  type (-'a, +'b, 'es) t
+  type (-'a, +'b, 'es) t : value mod contended
   (** [('a, 'b, 'es) continuation] is a delimited continuation that expects an ['a]
-      value and returns a ['b] value. It requires handlers for the effects ['es]. *)
+      value and returns a ['b] value. It requires handlers for the effects ['es].
+
+      Continuations cross contention and and are [portable] if created from
+      a [portable] closure. *)
 
   val get_callstack : ('a, 'b, 'es) t -> int -> Printexc.raw_backtrace
   (** [get_callstack c n] returns a description of the top of the call stack on
@@ -103,6 +108,7 @@ val discontinue_with_backtrace :
 
 (** The signature for effects with no type parameters *)
 module type S = sig
+  @@ portable
 
   type t
   (** [t] represents the effect. It only appears as the argument to
@@ -114,6 +120,7 @@ module type S = sig
       with [t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type eff := t
 
@@ -138,7 +145,6 @@ module type S = sig
     val handle : ('a, 'es) t -> ('a, 'es) handler -> 'a
     (** [handle r f] uses [f] to handle the [Operation] case of [r]. The [Value]
         and [Exception] cases are handled by returning and raising respectively. *)
-
   end
 
   type ('a, 'es) result = ('a, 'es) Result.t =
@@ -182,6 +188,140 @@ module type S = sig
   val perform : t Handler.t @ local -> ('a, t) ops -> 'a
   (** [perform h e] performs an effect [e] at the handler [h] *)
 
+  module Contended : sig
+    module Result : sig
+      type eff := t
+
+      type ('a, 'es) t =
+        | Value : 'a @@ global -> ('a, 'es) t
+        | Exception : exn @@ global -> ('a, 'es) t
+        | Operation :
+            ('o, eff) ops @@ global contended
+            * ('o Modes.Portable.t, ('a, 'es) t, 'es) Continuation.t
+            -> ('a, 'es) t
+    end
+
+    val fiber :
+      ('a : value mod portable) 'b.
+      (t Handler.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a, ('b, unit) Result.t, unit) Continuation.t
+    (** [fiber f] works as the non-contended version, but provides
+        a [portable] handler at the cost of requiring a [value mod portable]
+        argument and returning a [Contended.Result.t]. *)
+
+    val fiber_with :
+      ('a : value mod portable) 'b 'es.
+      'es Handler.List.Length.t @ local
+      -> ((t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a, ('b, 'es) Result.t, 'es) Continuation.t
+    (** [fiber_with l f] works as the non-contended version, but provides
+        [portable] handlers at the cost of requiring a [value mod portable]
+        argument and returning a [Contended.Result.t]. *)
+
+    val run :
+      (t Handler.t @ local portable -> 'a)
+      -> ('a, unit) Result.t
+    (** [run f] works as the non-contended version, but provides
+        a [portable] handler and returns a [Contended.Result.t]. *)
+
+    val run_with :
+      'es Handler.List.t @ local portable
+      -> ((t * 'es) Handler.List.t @ local portable -> 'a)
+      -> ('a, 'es) Result.t
+    (** [run_with hs f] works as the non-contended version, but provides
+        [portable] handlers and returns a [Contended.Result.t]. *)
+
+    val perform :
+      t Handler.t @ local contended ->
+      ('a, t) ops @ portable ->
+      'a @ contended
+    (** [perform h e] performs an effect [e] at the [contended] handler [h] *)
+  end
+
+  module Portable : sig
+    module Result : sig
+      type eff := t
+
+      type ('a, 'es) t =
+        | Value : 'a @@ global -> ('a, 'es) t
+        | Exception : exn @@ global -> ('a, 'es) t
+        | Operation :
+            ('o, eff) ops @@ global
+            * ('o, ('a, 'es) t, 'es) Continuation.t @@ portable
+            -> ('a, 'es) t
+    end
+
+    val fiber :
+      (t Handler.t @ local -> 'a -> 'b) @ portable
+      -> ('a, ('b, unit) Result.t, unit) Continuation.t @ portable
+    (** [fiber f] works as the non-portable version, but takes a [portable]
+        closure and creates a [portable] continuation. *)
+
+    val fiber_with :
+      'es Handler.List.Length.t @ local
+      -> ((t * 'es) Handler.List.t @ local -> 'a -> 'b) @ portable
+      -> ('a, ('b, 'es) Result.t, 'es) Continuation.t @ portable
+    (** [fiber_with l f] works as the non-portable version, but takes a
+        [portable] closure and creates a [portable] continuation. *)
+
+    val run : (t Handler.t @ local -> 'a) @ portable
+      -> ('a, unit) Result.t
+    (** [run f] works as the non-portable version, but takes a [portable] closure
+        and returns [Portable.Result.t] which can contain [portable] continuations. *)
+
+    val run_with :
+      'es Handler.List.t @ local
+      -> ((t * 'es) Handler.List.t @ local -> 'a) @ portable
+      -> ('a, 'es) Result.t
+    (** [run_with hs f] works as the non-portable version, but takes a
+        [portable] closure and returns [Portable.Result.t] which can contain
+        [portable] continuations. *)
+
+    module Contended : sig
+      module Result : sig
+        type eff := t
+
+        type ('a, 'es) t =
+          | Value : 'a @@ global -> ('a, 'es) t
+          | Exception : exn @@ global -> ('a, 'es) t
+          | Operation :
+              ('o, eff) ops @@ global contended
+              * ('o Modes.Portable.t, ('a, 'es) t, 'es) Continuation.t @@ portable
+              -> ('a, 'es) t
+      end
+
+      val fiber :
+        ('a : value mod portable) 'b.
+        (t Handler.t @ local portable -> 'a @ contended -> 'b) @ portable
+        -> ('a, ('b, unit) Result.t, unit) Continuation.t @ portable
+      (** [fiber f] works as the non-contended portable version, but provides
+          a [portable] handler at the cost of requiring a [value mod portable]
+          argument and returning a [Portable.Contended.Result.t]. *)
+
+      val fiber_with :
+        ('a : value mod portable) 'b 'es.
+        'es Handler.List.Length.t @ local
+        -> ((t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b) @ portable
+        -> ('a, ('b, 'es) Result.t, 'es) Continuation.t @ portable
+      (** [fiber_with l f] works as the non-contended portable version, but provides
+          [portable] handlers at the cost of requiring a [value mod portable]
+          argument and returning a [Portable.Contended.Result.t]. *)
+
+      val run :
+        (t Handler.t @ local portable -> 'a) @ portable
+        -> ('a, unit) Result.t
+      (** [run f] works as the non-contended portable version, but provides
+          a [portable] handler and returns a [Portable.Contended.Result.t]. *)
+
+      val run_with :
+        'es Handler.List.t @ local portable
+        -> ((t * 'es) Handler.List.t @ local portable -> 'a) @ portable
+        -> ('a, 'es) Result.t
+      (** [run_with hs f] works as the non-contended portable version, but provides
+          [portable] handlers and returns a [Portable.Contended.Result.t]. *)
+    end
+  end
+
   module Handler : sig
 
     type nonrec t = t Handler.t
@@ -198,13 +338,12 @@ module type S = sig
         This is not to be confused with the other [Continuation.t] type available in this
         file; external uses will be of the form [This_effect.Continuation.t] and
         [That_effect.Continuation.t], and thus more visually distinct. *)
-
   end
-
 end
 
 (** The signature for effects with one type parameter *)
 module type S1 = sig
+  @@ portable
 
   type 'p t
   (** ['p t] represents the effect. It only appears as the argument to
@@ -216,6 +355,7 @@ module type S1 = sig
       with ['p t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type 'p eff := 'p t
 
@@ -240,7 +380,6 @@ module type S1 = sig
     val handle : ('a, 'p, 'es) t -> ('a, 'p, 'es) handler -> 'a
     (** [handle r f] uses [f] to handle the [Operation] case of [r]. The [Value]
         and [Exception] cases are handled by returning and raising respectively. *)
-
   end
 
   type ('a, 'p, 'es) result = ('a, 'p, 'es) Result.t =
@@ -283,6 +422,140 @@ module type S1 = sig
   val perform : 'p t Handler.t @ local -> ('a, 'p, 'p t) ops -> 'a
   (** [perform h e] performs an effect [e] at the handler [h] *)
 
+  module Contended : sig
+    module Result : sig
+      type 'p eff := 'p t
+
+      type ('a, 'p, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'es) t
+        | Operation :
+            ('o, 'p, 'p eff) ops @@ global contended
+            * ('o Modes.Portable.t, ('a, 'p, 'es) t, 'es) Continuation.t
+            -> ('a, 'p, 'es) t
+    end
+
+    val fiber :
+      ('a : value mod portable) 'b 'p.
+      ('p t Handler.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a, ('b, 'p, unit) Result.t, unit) Continuation.t
+    (** [fiber f] works as the non-contended version, but provides
+        a [portable] handler at the cost of requiring a [value mod portable]
+        argument and returning a [Contended.Result.t]. *)
+
+    val fiber_with :
+      ('a : value mod portable) 'b 'p 'es.
+      'es Handler.List.Length.t @ local
+      -> (('p t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a, ('b, 'p, 'es) Result.t, 'es) Continuation.t
+    (** [fiber_with l f] works as the non-contended version, but provides
+        [portable] handlers at the cost of requiring a [value mod portable]
+        argument and returning a [Contended.Result.t]. *)
+
+    val run :
+      ('p t Handler.t @ local portable -> 'a)
+      -> ('a, 'p, unit) Result.t
+    (** [run f] works as the non-contended version, but provides
+        a [portable] handler and returns a [Contended.Result.t]. *)
+
+    val run_with :
+      'es Handler.List.t @ local portable
+      -> (('p t * 'es) Handler.List.t @ local portable -> 'a)
+      -> ('a, 'p, 'es) Result.t
+    (** [run_with hs f] works as the non-contended version, but provides
+        [portable] handlers and returns a [Contended.Result.t]. *)
+
+    val perform :
+      'p t Handler.t @ local contended ->
+      ('a, 'p, 'p t) ops @ portable ->
+      'a @ contended
+    (** [perform h e] performs an effect [e] at the [contended] handler [h] *)
+  end
+
+  module Portable : sig
+    module Result : sig
+      type 'p eff := 'p t
+
+      type ('a, 'p, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'es) t
+        | Operation :
+            ('o, 'p, 'p eff) ops @@ global
+            * ('o, ('a, 'p, 'es) t, 'es) Continuation.t @@ portable
+            -> ('a, 'p, 'es) t
+    end
+
+    val fiber :
+      ('p t Handler.t @ local -> 'a -> 'b) @ portable
+      -> ('a, ('b, 'p, unit) Result.t, unit) Continuation.t @ portable
+    (** [fiber f] works as the non-portable version, but takes a [portable]
+        closure and creates a [portable] continuation. *)
+
+    val fiber_with :
+      'es Handler.List.Length.t @ local
+      -> (('p t * 'es) Handler.List.t @ local -> 'a -> 'b) @ portable
+      -> ('a, ('b, 'p, 'es) Result.t, 'es) Continuation.t @ portable
+    (** [fiber_with l f] works as the non-portable version, but takes a
+        [portable] closure and creates a [portable] continuation. *)
+
+    val run : ('p t Handler.t @ local -> 'a) @ portable
+      -> ('a, 'p, unit) Result.t
+    (** [run f] works as the non-portable version, but takes a [portable] closure
+        and returns [Portable.Result.t] which can contain [portable] continuations. *)
+
+    val run_with :
+      'es Handler.List.t @ local
+      -> (('p t * 'es) Handler.List.t @ local -> 'a) @ portable
+      -> ('a, 'p, 'es) Result.t
+    (** [run_with hs f] works as the non-portable version, but takes a
+        [portable] closure and returns [Portable.Result.t] which can contain
+        [portable] continuations. *)
+
+    module Contended: sig
+      module Result : sig
+        type 'p eff := 'p t
+
+        type ('a, 'p, 'es) t =
+          | Value : 'a @@ global -> ('a, 'p, 'es) t
+          | Exception : exn @@ global -> ('a, 'p, 'es) t
+          | Operation :
+              ('o, 'p, 'p eff) ops @@ global contended
+              * ('o Modes.Portable.t, ('a, 'p, 'es) t, 'es) Continuation.t @@ portable
+              -> ('a, 'p, 'es) t
+      end
+
+      val fiber :
+        ('a : value mod portable) 'b 'p.
+        ('p t Handler.t @ local portable -> 'a @ contended -> 'b) @ portable
+        -> ('a, ('b, 'p, unit) Result.t, unit) Continuation.t @ portable
+      (** [fiber f] works as the non-contended portable version, but provides
+          a [portable] handler at the cost of requiring a [value mod portable]
+          argument and returning a [Portable.Contended.Result.t]. *)
+
+      val fiber_with :
+        ('a : value mod portable) 'b 'p 'es.
+        'es Handler.List.Length.t @ local
+        -> (('p t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b) @ portable
+        -> ('a, ('b, 'p, 'es) Result.t, 'es) Continuation.t @ portable
+      (** [fiber_with l f] works as the non-contended portable version, but provides
+          [portable] handlers at the cost of requiring a [value mod portable]
+          argument and returning a [Portable.Contended.Result.t]. *)
+
+      val run :
+        ('p t Handler.t @ local portable -> 'a) @ portable
+        -> ('a, 'p, unit) Result.t
+      (** [run f] works as the non-contended portable version, but provides
+          a [portable] handler and returns a [Portable.Contended.Result.t]. *)
+
+      val run_with :
+        'es Handler.List.t @ local portable
+        -> (('p t * 'es) Handler.List.t @ local portable -> 'a) @ portable
+        -> ('a, 'p, 'es) Result.t
+      (** [run_with hs f] works as the non-contended portable version, but provides
+          [portable] handlers and returns a [Portable.Contended.Result.t]. *)
+    end
+  end
+
   module Handler : sig
 
     type nonrec 'p t = 'p t Handler.t
@@ -293,13 +566,12 @@ module type S1 = sig
 
     type ('a, 'b, 'p, 'es) t =
       ('a, ('b, 'p, 'es) Result.t, 'es) Continuation.t
-
   end
-
 end
 
 (** The signature for effects with two type parameters *)
 module type S2 = sig
+  @@ portable
 
   type ('p, 'q) t
   (** [('p, 'q) t] represents the effect. It only appears as the argument to
@@ -311,6 +583,7 @@ module type S2 = sig
       with [('p, 'q) t] to tie the knot on recursive operations. *)
 
   module Result : sig
+    @@ portable
 
     type ('p, 'q) eff := ('p, 'q) t
 
@@ -335,7 +608,6 @@ module type S2 = sig
     val handle : ('a, 'p, 'q, 'es) t -> ('a, 'p, 'q, 'es) handler -> 'a
     (** [handle r f] uses [f] to handle the [Operation] case of [r]. The [Value]
         and [Exception] cases are handled by returning and raising respectively. *)
-
   end
 
   type ('a, 'p, 'q, 'es) result = ('a, 'p, 'q, 'es) Result.t =
@@ -383,6 +655,141 @@ module type S2 = sig
     -> 'a
   (** [perform h e] performs an effect [e] at the handler [h] *)
 
+  module Contended : sig
+    module Result : sig
+      type ('p, 'q) eff := ('p, 'q) t
+
+      type ('a, 'p, 'q, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+        | Operation :
+            ('o, 'p, 'q, ('p, 'q) eff) ops @@ global contended
+            * ('o Modes.Portable.t, ('a, 'p, 'q, 'es) t, 'es) Continuation.t
+            -> ('a, 'p, 'q, 'es) t
+    end
+
+    val fiber :
+      ('a : value mod portable) 'b 'p 'q.
+      (('p, 'q) t Handler.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a, ('b, 'p, 'q, unit) Result.t, unit) Continuation.t
+    (** [fiber f] works as the non-contended version, but provides
+        a [portable] handler at the cost of requiring a [value mod portable]
+        argument and returning a [Contended.Result.t]. *)
+
+    val fiber_with :
+      ('a : value mod portable) 'b 'p 'q 'es.
+      'es Handler.List.Length.t @ local
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b)
+      -> ('a, ('b, 'p, 'q, 'es) Result.t, 'es) Continuation.t
+    (** [fiber_with l f] works as the non-contended version, but provides
+        [portable] handlers at the cost of requiring a [value mod portable]
+        argument and returning a [Contended.Result.t]. *)
+
+    val run :
+      (('p, 'q) t Handler.t @ local portable -> 'a)
+      -> ('a, 'p, 'q, unit) Result.t
+    (** [run f] works as the non-contended version, but provides
+        a [portable] handler and returns a [Contended.Result.t]. *)
+
+    val run_with :
+      'es Handler.List.t @ local portable
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a)
+      -> ('a, 'p, 'q, 'es) Result.t
+    (** [run_with hs f] works as the non-contended version, but provides
+        [portable] handlers and returns a [Contended.Result.t]. *)
+
+    val perform :
+      ('p, 'q) t Handler.t @ local contended ->
+      ('a, 'p, 'q, ('p, 'q) t) ops @ portable ->
+      'a @ contended
+    (** [perform h e] performs an effect [e] at the [contended] handler [h] *)
+  end
+
+  module Portable : sig
+    module Result : sig
+      type ('p, 'q) eff := ('p, 'q) t
+
+      type ('a, 'p, 'q, 'es) t =
+        | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
+        | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+        | Operation :
+            ('o, 'p, 'q, ('p, 'q) eff) ops @@ global
+            * ('o, ('a, 'p, 'q, 'es) t, 'es) Continuation.t @@ portable
+            -> ('a, 'p, 'q, 'es) t
+    end
+
+    val fiber :
+      (('p, 'q) t Handler.t @ local -> 'a -> 'b) @ portable
+      -> ('a, ('b, 'p, 'q, unit) Result.t, unit) Continuation.t @ portable
+    (** [fiber f] works as the non-portable version, but takes a [portable]
+        closure and creates a [portable] continuation. *)
+
+    val fiber_with :
+      'es Handler.List.Length.t @ local
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local -> 'a -> 'b) @ portable
+      -> ('a, ('b, 'p, 'q, 'es) Result.t, 'es) Continuation.t @ portable
+    (** [fiber_with l f] works as the non-portable version, but takes a
+        [portable] closure and creates a [portable] continuation. *)
+
+    val run :
+      (('p, 'q) t Handler.t @ local -> 'a) @ portable
+      -> ('a, 'p, 'q, unit) Result.t
+    (** [run f] works as the non-portable version, but takes a [portable] closure
+        and returns [Portable.Result.t] which can contain [portable] continuations. *)
+
+    val run_with :
+      'es Handler.List.t @ local
+      -> ((('p, 'q) t * 'es) Handler.List.t @ local -> 'a) @ portable
+      -> ('a, 'p, 'q, 'es) Result.t
+    (** [run_with hs f] works as the non-portable version, but takes a
+        [portable] closure and returns [Portable.Result.t] which can contain
+        [portable] continuations. *)
+
+    module Contended : sig
+      module Result : sig
+        type ('p, 'q) eff := ('p, 'q) t
+
+        type ('a, 'p, 'q, 'es) t =
+          | Value : 'a @@ global -> ('a, 'p, 'q, 'es) t
+          | Exception : exn @@ global -> ('a, 'p, 'q, 'es) t
+          | Operation :
+              ('o, 'p, 'q, ('p, 'q) eff) ops @@ global contended
+              * ('o Modes.Portable.t, ('a, 'p, 'q, 'es) t, 'es) Continuation.t @@ portable
+              -> ('a, 'p, 'q, 'es) t
+      end
+
+      val fiber :
+        ('a : value mod portable) 'b 'p 'q.
+        (('p, 'q) t Handler.t @ local portable -> 'a @ contended -> 'b) @ portable
+        -> ('a, ('b, 'p, 'q, unit) Result.t, unit) Continuation.t @ portable
+      (** [fiber f] works as the non-contended portable version, but provides
+          a [portable] handler at the cost of requiring a [value mod portable]
+          argument and returning a [Portable.Contended.Result.t]. *)
+
+      val fiber_with :
+        ('a : value mod portable) 'b 'p 'q 'es.
+        'es Handler.List.Length.t @ local
+        -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a @ contended -> 'b) @ portable
+        -> ('a, ('b, 'p, 'q, 'es) Result.t, 'es) Continuation.t @ portable
+      (** [fiber_with l f] works as the non-contended portable version, but provides
+          [portable] handlers at the cost of requiring a [value mod portable]
+          argument and returning a [Portable.Contended.Result.t]. *)
+
+      val run :
+        (('p, 'q) t Handler.t @ local portable -> 'a) @ portable
+        -> ('a, 'p, 'q, unit) Result.t
+      (** [run f] works as the non-contended portable version, but provides
+          a [portable] handler and returns a [Portable.Contended.Result.t]. *)
+
+      val run_with :
+        'es Handler.List.t @ local portable
+        -> ((('p, 'q) t * 'es) Handler.List.t @ local portable -> 'a) @ portable
+        -> ('a, 'p, 'q, 'es) Result.t
+      (** [run_with hs f] works as the non-contended portable version, but provides
+          [portable] handlers and returns a [Portable.Contended.Result.t]. *)
+    end
+  end
+
   module Handler : sig
 
     type nonrec ('p, 'q) t = ('p, 'q) t Handler.t
@@ -393,9 +800,7 @@ module type S2 = sig
 
     type ('a, 'b, 'p, 'q, 'es) t =
       ('a, ('b, 'p, 'q, 'es) Result.t, 'es) Continuation.t
-
   end
-
 end
 
 module type Operations = sig
