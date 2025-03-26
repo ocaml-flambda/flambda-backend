@@ -1,5 +1,3 @@
-open Stdlib
-
 [@@@ocaml.warning "-unused-value-declaration"]
 [@@@ocaml.warning "-unused-module"]
 
@@ -756,12 +754,10 @@ module Float32x4 = struct
 
     let check_cmp msg scalar vector f0 f1 =
         failmsg := (fun () -> Printf.printf "check_cmp %s\n" msg);
-        let expect, expect_mask =
-            let r0, m0 = if scalar f0 f1 then 0xffffffffl, 1 else 0l, 0 in
-            let r1, m1 = if scalar f1 f0 then 0xffffffffl, 1 else 0l, 0 in
-            Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4,
-            m0 lor (m1 lsl 1) lor (m0 lsl 2) lor (m1 lsl 3)
-        in
+        let r0, m0 = if scalar f0 f1 then 0xffffffffl, 1 else 0l, 0 in
+        let r1, m1 = if scalar f1 f0 then 0xffffffffl, 1 else 0l, 0 in
+        let expect = Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4 in
+        let expect_mask = m0 lor (m1 lsl 1) lor (m0 lsl 2) lor (m1 lsl 3) in
         let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
         let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
         let result = vector v1 v2 in
@@ -963,11 +959,10 @@ module Float64x2 = struct
 
     let check_cmp msg scalar vector f0 f1 =
         failmsg := (fun () -> Printf.printf "check_cmp64 %s: %f | %f\n%!" msg f0 f1);
-        let expect, expect_mask =
-            let r0, m0 = if scalar f0 f1 then 0xffffffffffffffffL, 1 else 0L, 0 in
-            let r1, m1 = if scalar f1 f0 then 0xffffffffffffffffL, 1 else 0L, 0 in
-            int64x2_of_int64s r0 r1, m0 lor (m1 lsl 1)
-        in
+        let r0, m0 = if scalar f0 f1 then 0xffffffffffffffffL, 1 else 0L, 0 in
+        let r1, m1 = if scalar f1 f0 then 0xffffffffffffffffL, 1 else 0L, 0 in
+        let expect = int64x2_of_int64s r0 r1 in
+        let expect_mask = m0 lor (m1 lsl 1) in
         let v1 = to_float64x2 f0 f1 in
         let v2 = to_float64x2 f1 f0 in
         let result = vector v1 v2 in
