@@ -382,8 +382,6 @@ type ('a, 'e) perform = ('a, 'e) op * 'e Handler.t'
 
 external perform_ : ('a, 'e) perform -> 'a @@ portable = "%perform"
 
-type (-'a, +'b) cont
-
 (* A last_fiber is a tagged pointer, so does not keep the fiber alive.
    It must never be the sole reference to the fiber, and is only used to cache
    the final fiber in the linked list formed by [cont.fiber->parent]. *)
