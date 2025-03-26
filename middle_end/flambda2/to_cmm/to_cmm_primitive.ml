@@ -651,14 +651,9 @@ let requires_sign_extended_operands : P.binary_int_arith_op -> bool = function
 let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     (op : P.binary_int_arith_op) x y =
   let kind = integral_of_standard_int kind in
-  let[@local] wrap f =
+  let[@local] wrap operator_type operator =
     (* We cast the operands to the width that the operator expects, apply the
        operator, and cast the result back. *)
-    let operator_type : C.Scalar_type.Integral.t =
-      match kind with
-      | Untagged _ -> Untagged C.Scalar_type.Integer.nativeint
-      | Tagged _ -> Tagged C.Scalar_type.Tagged_integer.immediate
-    in
     let[@inline] prepare_operand operand =
       let operand =
         C.Scalar_type.Integral.static_cast ~dbg ~src:kind ~dst:operator_type
@@ -677,7 +672,7 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     in
     let x = prepare_operand x in
     let y = prepare_operand y in
-    let result = f x y dbg in
+    let result = operator x y dbg in
     C.Scalar_type.Integral.static_cast ~dbg ~src:operator_type ~dst:kind result
     (* Operations on integer arguments must return something in the range of
        their values, hence the [static_cast] here. The [C.low_bits] operations
@@ -687,6 +682,10 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
   in
   match kind with
   | Tagged _ -> (
+    let wrap f =
+      (* the operators below operate on tagged immediates directly *)
+      wrap tagged_immediate f
+    in
     match op with
     | Add -> wrap C.add_int_caml
     | Sub -> wrap C.sub_int_caml
@@ -697,6 +696,10 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     | Or -> wrap C.or_int_caml
     | Xor -> wrap C.xor_int_caml)
   | Untagged untagged -> (
+    let wrap f =
+      (* the operators below operate on register-width naked nativeints *)
+      wrap naked_nativeint f
+    in
     let dividend_cannot_be_min_int =
       C.Scalar_type.Integer.bit_width untagged < C.arch_bits
     in
