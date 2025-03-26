@@ -30,7 +30,8 @@ module Id = struct
   end
 
   type (!'a : value_or_null) t : immutable_data =
-    T : (module ID with type t = 'a) -> 'a t [@@unboxed]
+    T : ('a : value_or_null).
+      (module ID with type t = 'a) -> 'a t [@@unboxed]
   [@@unsafe_allow_any_mode_crossing]
 
   let make (type a : value_or_null) () : a t =
