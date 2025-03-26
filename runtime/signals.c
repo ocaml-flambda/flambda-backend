@@ -48,14 +48,45 @@ CAMLexport atomic_uintnat caml_pending_signals[NSIG_WORDS];
 
 static caml_plat_mutex signal_install_mutex = CAML_PLAT_MUTEX_INITIALIZER;
 
+/* Check whether there is an unblocked pending signal.
+   This is relatively expensive, so only call it once we're sure there's
+   at least one pending signal. */
+#ifdef POSIX_SIGNALS
+static bool check_pending_unblocked_signals(void)
+{
+  sigset_t set;
+  pthread_sigmask(/* dummy */ SIG_BLOCK, NULL, &set);
+  for (int i = 0; i < NSIG_WORDS; i++) {
+    uintnat curr = atomic_load_relaxed(&caml_pending_signals[i]);
+    if (curr == 0) continue;
+    /* Scan curr for bits set */
+    for (int j = 0; j < BITS_PER_WORD; j++) {
+      uintnat mask = (uintnat)1 << j;
+      int signo = i * BITS_PER_WORD + j + 1;
+      if ((curr & mask) != 0 && !sigismember(&set, signo))
+        return true;
+    }
+  }
+  return false;
+}
+#endif
+
 CAMLexport int caml_check_pending_signals(void)
 {
   int i;
+  bool pending = false;
   for (i = 0; i < NSIG_WORDS; i++) {
     if (atomic_load_relaxed(&caml_pending_signals[i]))
-      return 1;
+      pending = true;
   }
-  return 0;
+#ifdef POSIX_SIGNALS
+  if (pending) {
+    /* Do a more expensive check to see whether these signals are
+       actually pending handling or are currently blocked */
+    pending = check_pending_unblocked_signals();
+  }
+#endif
+  return (int)pending;
 }
 
 /* Execute all pending signals */
