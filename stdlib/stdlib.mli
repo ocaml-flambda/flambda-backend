@@ -720,14 +720,19 @@ val char_of_int : int -> char
 
 (** {1 Unit operations} *)
 
-external ignore : ('a : value_or_null) . 'a @ contended local once -> unit
-  = "%ignore"
+external ignore : ('a : value_or_null) . 'a -> unit = "%ignore"
 (** Discard the value of its argument and return [()].
    For instance, [ignore(f x)] discards the result of
    the side-effecting function [f].  It is equivalent to
    [f x; ()], except that the latter may generate a
    compiler warning; writing [ignore(f x)] instead
    avoids the warning. *)
+
+external ignore_contended : ('a : value_or_null) . 'a @ contended local once -> unit
+  = "%ignore"
+(** Like {!ignore}, but takes a [contended local once] value. This is technically strictly
+    stronger than [ignore], but changing [ignore] in place causes backwards compatibility
+    issues due to type inference. *)
 
 (** {1 String conversion functions} *)
 
