@@ -139,7 +139,6 @@ type error =
       }
   | Non_abstract_reexport of Path.t
   | Unsafe_mode_crossing_on_invalid_type_kind
-  | Unsafe_mode_crossing_with_with_bounds
   | Illegal_baggage of jkind_l
   | No_unboxed_version of Path.t
 
@@ -2558,16 +2557,16 @@ let normalize_decl_jkinds env shapes decls =
       (* If the jkind has changed, check that it is a subjkind of the original jkind
         that we computed, either from a user-written annotation or as a dummy jkind.
 
-        (see Note [Default jkinds in transl_declaration]) *)
+         (see Note [Default jkinds in transl_declaration]) *)
       (* CR layouts v2.8: it almost definitely has changed, but also we probably trust
-        the new jkind (we really only want this check here to check against the
-        user-written annotation). We might be able to do a better job here and save
-        some work. *)
+         the new jkind (we really only want this check here to check against the
+         user-written annotation). We might be able to do a better job here and save
+         some work. *)
       let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
       let type_equal = Ctype.type_equal env in
       match
         (* CR layouts v2.8: Consider making a function that doesn't compute
-          histories for this use-case, which doesn't need it. *)
+           histories for this use-case, which doesn't need it. *)
         Jkind.sub_jkind_l
           ~type_equal
           ~jkind_of_type
@@ -2577,22 +2576,15 @@ let normalize_decl_jkinds env shapes decls =
       with
       | Ok _ ->
         if allow_any_crossing then
-          (* If the user is asking us to allow any crossing, we use the modal bounds from
-              the annotation rather than the modal bounds inferred from the type_kind.
-              However, we /only/ take the modal bounds, not the layout - because we still
-              want to be able to eg locally use a type declared as layout [any] as [value]
-              if that's its actual layout! *)
+          (* If the user is asking us to allow any crossing, we use the mod- and
+             with-bounds from the annotation rather than the modal bounds inferred from
+             the type_kind. However, we /only/ take the bounds, not the layout - because
+             we still want to be able to eg locally use a type declared as layout [any] as
+             [value] if that's its actual layout! *)
           let type_jkind =
-            match
-              Jkind.unsafely_set_mod_bounds
-                ~from:original_decl.type_jkind
-                decl.type_jkind
-            with
-            | Ok jkind -> jkind
-            | Error () ->
-              raise(Error(decl.type_loc, Unsafe_mode_crossing_with_with_bounds))
+            Jkind.unsafely_set_bounds ~from:original_decl.type_jkind decl.type_jkind
           in
-          let umc = Some (Jkind.get_mode_crossing ~jkind_of_type type_jkind) in
+          let umc = Some (Jkind.to_unsafe_mode_crossing type_jkind) in
           let type_kind =
             match decl.type_kind with
             | Type_abstract _ | Type_open -> assert false (* Checked above *)
@@ -2621,15 +2613,15 @@ let normalize_decl_jkinds env shapes decls =
   in
   Misc.Stdlib.List.fold_left_map2
     (fun env (id, original_decl, allow_any_crossing, decl) shape ->
-      let decl =
-        normalize_decl_jkind env original_decl allow_any_crossing decl
-          (Pident id)
-      in
-      (* Add the decl with the normalized kind back to the environment, so that later
-        kinds don't have to normalize this kind if they mention this type in their
-        with-bounds *)
-      let env = add_type ~check:false ~shape:shape id decl env in
-      env, (id, decl)
+       let decl =
+         normalize_decl_jkind env original_decl allow_any_crossing decl
+           (Pident id)
+       in
+       (* Add the decl with the normalized kind back to the environment, so that later
+          kinds don't have to normalize this kind if they mention this type in their
+          with-bounds *)
+       let env = add_type ~check:false ~shape:shape id decl env in
+       env, (id, decl)
     )
     env
     decls
@@ -4582,10 +4574,6 @@ let report_error ppf = function
       "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed on this kind of \
        type declaration.@ Only records, unboxed products, and variants are \
        supported.@]"
-  | Unsafe_mode_crossing_with_with_bounds ->
-    fprintf ppf
-      "@[[%@%@unsafe_allow_any_mode_crossing] is not allowed with a kind \
-       annotation containing with-bounds.@]"
   | Illegal_baggage jkind ->
     fprintf ppf
       "@[Illegal %a in kind annotation of an abbreviation:@ %a@]"

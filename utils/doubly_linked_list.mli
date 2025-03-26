@@ -97,3 +97,14 @@ val copy : 'a t -> 'a t
 val cut : 'a cell -> unit
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+module Cursor : sig
+  type 'a t
+
+  val value : 'a t -> 'a
+
+  val next : 'a t -> (unit, [`End_of_list]) result
+  val delete_and_next : 'a t -> (unit, [`End_of_list]) result
+end
+
+val create_hd_cursor : 'a t -> ('a Cursor.t, [`Empty]) result

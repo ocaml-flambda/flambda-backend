@@ -41,6 +41,9 @@ val create_unit :
   original_term:Flambda.Named.t ->
   t
 
+(** [original_term] is in the majority of cases the pre-simplification term
+    corresponding to the primitive, but it is fine for it to be a new term,
+    whose type is unknown. *)
 val create_unknown :
   Downwards_acc.t ->
   result_var:Bound_var.t ->

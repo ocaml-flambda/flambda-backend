@@ -2925,7 +2925,7 @@ let add_language_extension_types env =
     |> add SIMD Stable Predef.add_simd_stable_extension_types
     |> add Small_numbers Stable Predef.add_small_number_extension_types
     |> add Small_numbers Beta Predef.add_small_number_beta_extension_types
-    |> add Layouts Beta Predef.add_or_null)
+    |> add Layouts Stable Predef.add_or_null)
 
 (* Some predefined types are part of language extensions, and we don't want to
    make them available in the initial environment if those extensions are not

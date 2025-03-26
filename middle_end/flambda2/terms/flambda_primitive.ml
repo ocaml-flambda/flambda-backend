@@ -1926,7 +1926,10 @@ type ternary_primitive =
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set of Block_access_field_kind.t
-  | Atomic_compare_exchange of Block_access_field_kind.t
+  | Atomic_compare_exchange of
+      { atomic_kind : Block_access_field_kind.t;
+        args_kind : Block_access_field_kind.t
+      }
 
 let ternary_primitive_eligible_for_cse p =
   match p with
@@ -1963,10 +1966,12 @@ let compare_ternary_primitive p1 p2 =
       Atomic_compare_and_set block_access_field_kind2 ) ->
     Block_access_field_kind.compare block_access_field_kind1
       block_access_field_kind2
-  | ( Atomic_compare_exchange block_access_field_kind1,
-      Atomic_compare_exchange block_access_field_kind2 ) ->
-    Block_access_field_kind.compare block_access_field_kind1
-      block_access_field_kind2
+  | ( Atomic_compare_exchange
+        { atomic_kind = atomic_kind1; args_kind = args_kind1 },
+      Atomic_compare_exchange
+        { atomic_kind = atomic_kind2; args_kind = args_kind2 } ) ->
+    let c = Block_access_field_kind.compare atomic_kind1 atomic_kind2 in
+    if c <> 0 then c else Block_access_field_kind.compare args_kind1 args_kind2
   | ( ( Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
       | Atomic_compare_and_set _ | Atomic_compare_exchange _ ),
       _ ) ->
@@ -1992,9 +1997,11 @@ let print_ternary_primitive ppf p =
   | Atomic_compare_and_set block_access_field_kind ->
     Format.fprintf ppf "@[(Atomic_compare_and_set@ %a)@]"
       Block_access_field_kind.print block_access_field_kind
-  | Atomic_compare_exchange block_access_field_kind ->
-    Format.fprintf ppf "@[(Atomic_compare_exchange@ %a)@]"
-      Block_access_field_kind.print block_access_field_kind
+  | Atomic_compare_exchange { atomic_kind; args_kind } ->
+    Format.fprintf ppf
+      "@[(Atomic_compare_exchange@ (atomic_kind@ %a)@ (args_kind@ %a))@]"
+      Block_access_field_kind.print atomic_kind Block_access_field_kind.print
+      args_kind
 
 let args_kind_of_ternary_primitive p =
   match p with

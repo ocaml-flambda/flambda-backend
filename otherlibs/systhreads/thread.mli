@@ -13,14 +13,35 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Lightweight threads for Posix [1003.1c] and Win32. *)
 
-type t
+type t : value mod contended portable
 (** The type of thread handles. *)
 
 (** {1 Thread creation and termination} *)
 
-val create : ('a -> 'b) -> 'a -> t
+module Portable : sig
+  val create : ('a -> 'b) @ portable -> 'a -> t
+  (** [Thread.Portable.create funct arg] creates a new thread of control,
+     in which the function application [funct arg]
+     is executed concurrently with the other threads of the domain.
+     The application of [Thread.create]
+     returns the handle of the newly created thread.
+     The new thread terminates when the application [funct arg]
+     returns, either normally or by raising the {!Thread.Exit} exception
+     or by raising any other uncaught exception.
+     In the last case, the uncaught exception is printed on standard error,
+     but not propagated back to the parent thread. Similarly, the
+     result of the application [funct arg] is discarded and not
+     directly accessible to the parent thread.
+
+     See also {!Domain.spawn} if you want parallel execution instead.
+     *)
+end
+
+val create : ('a -> 'b) -> 'a -> t @@ nonportable
 (** [Thread.create funct arg] creates a new thread of control,
    in which the function application [funct arg]
    is executed concurrently with the other threads of the domain.
@@ -166,7 +187,7 @@ val default_uncaught_exception_handler : exn -> unit
 (** [Thread.default_uncaught_exception_handler] will print the thread's id,
     exception and backtrace (if available). *)
 
-val set_uncaught_exception_handler : (exn -> unit) -> unit
+val set_uncaught_exception_handler : (exn -> unit) @ portable -> unit
 (** [Thread.set_uncaught_exception_handler fn] registers [fn] as the handler
     for uncaught exceptions.
 

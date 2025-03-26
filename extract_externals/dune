@@ -1,0 +1,24 @@
+;**************************************************************************)
+;*                                                                        *)
+;*                                 OCaml                                  *)
+;*                                                                        *)
+;*   Copyright 2025 Jane Street Group LLC                                 *)
+;*                                                                        *)
+;*   All rights reserved.  This file is distributed under the terms of    *)
+;*   the GNU Lesser General Public License version 2.1, with the          *)
+;*   special exception on linking described in the file LICENSE.          *)
+;*                                                                        *)
+;**************************************************************************)
+
+(executable
+ (name extract_externals)
+ (modes byte native)
+ (modules extract_externals value_shapes traverse_typed_tree)
+ (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
+
+(install
+ (files
+  (extract_externals.bc as extract_externals.byte)
+  (extract_externals.exe as extract_externals.opt))
+ (section bin)
+ (package ocaml))

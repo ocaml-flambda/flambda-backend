@@ -194,7 +194,7 @@ class selector =
     method! select_operation op args dbg ~label_after =
       match op with
       (* Recognize the LEA instruction *)
-      | Caddi | Caddv | Cadda | Csubi -> (
+      | Caddi | Caddv | Cadda | Csubi | Cor -> (
         match self#select_addressing Word_int (Cop (op, args, dbg)) with
         | Iindexed _, _ | Iindexed2 0, _ ->
           super#select_operation op args dbg ~label_after
@@ -252,13 +252,18 @@ class selector =
       | Cbswap { bitwidth } ->
         let bitwidth = select_bitwidth bitwidth in
         specific (Ibswap { bitwidth }), args
-      (* Recognize sign extension *)
       | Casr -> (
+        (* Recognize sign extension *)
         match args with
         | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
           specific Isextend32, [k]
         | _ -> super#select_operation op args dbg ~label_after)
       (* Recognize zero extension *)
+      | Clsr -> (
+        match args with
+        | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
+          specific Izextend32, [k]
+        | _ -> super#select_operation op args dbg ~label_after)
       | Cand -> (
         match args with
         | [arg; Cconst_int (0xffff_ffff, _)]

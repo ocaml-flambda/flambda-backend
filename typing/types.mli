@@ -706,7 +706,10 @@ type type_declaration =
 
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and unsafe_mode_crossing = Mode.Crossing.t
+and unsafe_mode_crossing =
+  { unsafe_mod_bounds : Mode.Crossing.t
+  ; unsafe_with_bounds : (allowed * disallowed) with_bounds
+  }
 
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
@@ -1117,6 +1120,7 @@ val mixed_block_element_to_string : mixed_block_element -> string
 val mixed_block_element_to_lowercase_string : mixed_block_element -> string
 
 val equal_unsafe_mode_crossing :
+  type_equal:(type_expr -> type_expr -> bool) ->
   unsafe_mode_crossing -> unsafe_mode_crossing -> bool
 
 (**** Utilities for backtracking ****)

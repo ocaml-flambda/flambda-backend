@@ -530,7 +530,15 @@ type ternary_primitive =
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set of Block_access_field_kind.t
-  | Atomic_compare_exchange of Block_access_field_kind.t
+  | Atomic_compare_exchange of
+      { atomic_kind : Block_access_field_kind.t;
+            (** The kind of values which the atomic can hold. *)
+        args_kind : Block_access_field_kind.t
+            (** The kind of values which the compare-exchange operation is to
+                be used with on this particular occasion.  Note that this might
+                be [Immediate] even though the atomic is marked as [Any_value],
+                for example. *)
+      }
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

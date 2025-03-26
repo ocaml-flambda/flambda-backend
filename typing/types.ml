@@ -537,7 +537,10 @@ type type_declaration =
 and type_decl_kind =
   (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and unsafe_mode_crossing = Mode.Crossing.t
+and unsafe_mode_crossing =
+  { unsafe_mod_bounds : Mode.Crossing.t
+  ; unsafe_with_bounds : (allowed * disallowed) with_bounds
+  }
 
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
@@ -1073,9 +1076,6 @@ let mixed_block_element_to_lowercase_string = function
   | Vec128 -> "vec128"
   | Word -> "word"
 
-let equal_unsafe_mode_crossing umc1 umc2 =
-  Misc.Le_result.equal ~le:Mode.Crossing.le umc1 umc2
-
 (**** Definitions for backtracking ****)
 
 type change =
@@ -1307,6 +1307,7 @@ module With_bounds_types : sig
   val update : type_expr -> (info option -> info option) -> t -> t
   val find_opt : type_expr -> t -> info option
   val for_all : (type_expr -> info -> bool) -> t -> bool
+  val exists : (type_expr -> info -> bool) -> t -> bool
 end = struct
   module M = Map.Make(struct
       (* CR layouts v2.8: A [Map] with mutable values (of which [type_expr] is one) as
@@ -1339,11 +1340,37 @@ end = struct
   let update te f t = update te f (to_map t) |> of_map
   let find_opt te t = find_opt te (to_map t)
   let for_all f t = for_all f (to_map t)
+  let exists f t = exists f (to_map t)
   let map_with_key f t =
     fold (fun key value acc ->
       let key, value = f key value in
       M.add key value acc) (to_map t) M.empty |> of_map
 end
+
+let equal_unsafe_mode_crossing
+      ~type_equal
+      { unsafe_mod_bounds = mc1; unsafe_with_bounds = wb2 }
+      umc2 =
+  Misc.Le_result.equal ~le:Mode.Crossing.le mc1 umc2.unsafe_mod_bounds
+  && (match wb2, umc2.unsafe_with_bounds with
+    | No_with_bounds, No_with_bounds -> true
+    | No_with_bounds, With_bounds _ | With_bounds _, No_with_bounds -> false
+    | With_bounds wb1, With_bounds wb2 ->
+      (* It's tough (impossible?) to do better than a double subset check here because of
+         the fact that these maps are best-effort. But in practice these will usually not
+         be huge, and the attribute triggering this check is (hopefully) rare. *)
+      With_bounds_types.for_all
+        (fun ty1 _info ->
+           With_bounds_types.exists
+             (fun ty2 _info -> type_equal ty1 ty2)
+             wb2)
+        wb1
+      && With_bounds_types.for_all
+        (fun ty2 _info ->
+           With_bounds_types.exists
+             (fun ty1 _info -> type_equal ty1 ty2)
+             wb1)
+        wb2)
 
 (* Constructor and accessors for [row_desc] *)
 

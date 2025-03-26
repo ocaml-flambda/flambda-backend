@@ -243,7 +243,7 @@ type s = { v : t @@ portable; } [@@unboxed]
 |}]
 type s : value mod unyielding = { v : t @@ unyielding } [@@unboxed]
 [%%expect{|
-type s = { v : t; } [@@unboxed]
+type s = { v : t @@ unyielding; } [@@unboxed]
 |}]
 type s : value mod aliased = { v : t @@ aliased } [@@unboxed]
 [%%expect{|

@@ -547,6 +547,18 @@ module Mod_bounds = struct
       ~uniqueness:Uniqueness.min ~portability:Portability.max
       ~contention:Contention.min ~yielding:Yielding.max
       ~externality:Externality.max ~nullability:Nullability.Non_null
+
+  let to_mode_crossing t =
+    Mode.Crossing.of_bounds
+      Types.Jkind_mod_bounds.
+        { comonadic =
+            { areality = locality t;
+              linearity = linearity t;
+              portability = portability t;
+              yielding = yielding t
+            };
+          monadic = { uniqueness = uniqueness t; contention = contention t }
+        }
 end
 
 module With_bounds = struct
@@ -696,6 +708,28 @@ module With_bounds = struct
         (With_bounds_types.singleton type_expr
            ({ relevant_axes } : With_bounds_type_info.t))
     | With_bounds tys -> With_bounds (add_bound type_expr { relevant_axes } tys)
+
+  let format (type l r) ppf (t : (l * r) t) =
+    match t with
+    | No_with_bounds -> ()
+    | With_bounds wbs ->
+      let type_exprs =
+        wbs |> With_bounds_types.to_seq
+        |> Seq.map (fun (ty, _) -> Format.asprintf "%a" !print_type_expr ty)
+        |> List.of_seq
+        (* HACK: we pre-format the types as strings so we so we can sort them
+           lexicographically, because otherwise the order of printed [with]s is
+           nondeterministic. This is sad, but we'd need deterministic sorting of types to
+           work around it.
+
+           CR aspsmith: remove this (and the same HACK in Oprint) if we ever add
+           deterministic, semantic type comparison *)
+        |> List.sort String.compare
+      in
+      Format.(
+        fprintf ppf "%a"
+          (pp_print_list (fun ppf -> fprintf ppf "with@ %s"))
+          type_exprs)
 end
 
 module Layout_and_axes = struct
@@ -1703,8 +1737,8 @@ module Jkind_desc = struct
       mod_bounds = Mod_bounds.set_nullability Nullability.min t.mod_bounds
     }
 
-  let unsafely_set_mod_bounds t ~from =
-    { t with mod_bounds = from.mod_bounds; with_bounds = No_with_bounds }
+  let unsafely_set_bounds t ~from =
+    { t with mod_bounds = from.mod_bounds; with_bounds = from.with_bounds }
 
   let add_with_bounds ~relevant_for_nullability ~type_expr ~modality t =
     match Types.get_desc type_expr with
@@ -1916,14 +1950,8 @@ end
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
-let unsafely_set_mod_bounds (type l r) ~(from : (l * r) jkind) t =
-  match from.jkind.with_bounds with
-  | With_bounds _ -> Error ()
-  | No_with_bounds ->
-    Ok
-      { t with
-        jkind = Jkind_desc.unsafely_set_mod_bounds t.jkind ~from:from.jkind
-      }
+let unsafely_set_bounds (type l r) ~(from : (l * r) jkind) t =
+  { t with jkind = Jkind_desc.unsafely_set_bounds t.jkind ~from:from.jkind }
 
 let add_with_bounds ~modality ~type_expr t =
   { t with
@@ -2216,6 +2244,11 @@ let get_modal_bounds (type l r) ~jkind_of_type (jk : (l * r) jkind) =
 let get_mode_crossing (type l r) ~jkind_of_type (jk : (l * r) jkind) =
   let bounds = get_modal_bounds ~jkind_of_type jk in
   Mode.Crossing.of_bounds bounds
+
+let to_unsafe_mode_crossing jkind =
+  { unsafe_mod_bounds = Mod_bounds.to_mode_crossing jkind.jkind.mod_bounds;
+    unsafe_with_bounds = jkind.jkind.with_bounds
+  }
 
 let all_except_externality =
   Axis_set.singleton (Nonmodal Externality) |> Axis_set.complement

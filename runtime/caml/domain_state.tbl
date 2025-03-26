@@ -95,6 +95,9 @@ DOMAIN_STATE(uintnat, allocated_dependent_bytes)
 /* Number of external bytes whose pointers were promoted or allocated in
    the major heap since latest slice. */
 
+DOMAIN_STATE(uintnat, minor_words_at_last_slice)
+/* Number of minor heap words allocated before the latest slice */
+
 DOMAIN_STATE(uintnat, swept_words)
 
 DOMAIN_STATE(uintnat, major_slice_epoch)

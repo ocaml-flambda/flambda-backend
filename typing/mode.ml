@@ -2763,6 +2763,8 @@ module Modality = struct
             (let ax : _ Axis.t = Linearity in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Portability in
+             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
+            (let ax : _ Axis.t = Yielding in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
       let proj ax = function
