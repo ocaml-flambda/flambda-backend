@@ -720,3 +720,45 @@ val is_principal : type_expr -> bool
 type global_state
 val global_state : global_state
 val print_global_state : Format.formatter -> global_state -> unit
+
+(** Get the crossing of a jkind  *)
+val crossing_of_jkind : Env.t -> 'd Types.jkind -> Mode.Crossing.t
+
+(** Get the crossing of a type wrapped in modalities *)
+val crossing_of_ty :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Crossing.t
+
+(** Cross a right mode according to a type wrapped in modalities. *)
+val cross_right :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Value.r ->
+  Mode.Value.r
+
+(** Cross a left mode according to a type wrapped in modalities. *)
+val cross_left :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Value.l ->
+  Mode.Value.l
+
+(** Similar to [cross_right] but for [Mode.Alloc]  *)
+val cross_right_alloc :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Alloc.r ->
+  Mode.Alloc.r
+
+(** Similar to [cross_left] but for [Mode.Alloc]  *)
+val cross_left_alloc :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Alloc.l ->
+  Mode.Alloc.l
