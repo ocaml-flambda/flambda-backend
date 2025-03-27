@@ -27,7 +27,7 @@ type pos =
 
 type modes = Includecore.mmodes =
   | All
-  | Legacy of Env.held_locks option
+  | Specific of Mode.Value.l * Mode.Value.r * held_locks option
 
 module Error = struct
 
@@ -53,6 +53,7 @@ module Error = struct
         (class_type_declaration, Ctype.class_match_failure list) diff
     | Class_declarations of
         (class_declaration, Ctype.class_match_failure list) diff
+    | Modalities of Mode.Modality.Value.error
 
   type core_module_type_symptom =
     | Not_an_alias
@@ -67,7 +68,7 @@ module Error = struct
     | Functor of functor_symptom
     | Invalid_module_alias of Path.t
     | After_alias_expansion of module_type_diff
-
+    | Mode of Mode.Value.error
 
   and module_type_diff = (module_type, module_type_symptom) diff
 
@@ -136,20 +137,86 @@ let mark_positive = function
   | Mark_both | Mark_positive -> true
   | Mark_negative | Mark_neither -> false
 
+
+let modes_unit =
+  Specific (
+    Env.mode_unit |> Mode.Value.disallow_right,
+    Env.mode_unit |> Mode.Value.disallow_left,
+    None
+  )
+
+let modes_toplevel =
+  Specific (
+    Env.mode_unit |> Mode.Value.disallow_right,
+    Env.mode_unit |> Mode.Value.disallow_left,
+    None
+  )
+
+let modes_functor_param mod_mode =
+  let m = Types.functor_param_mode |> Mode.alloc_as_value in
+  let mode, close_over_coercion = mod_mode in
+  Specific (
+    mode,
+    Mode.Value.disallow_left m,
+    close_over_coercion
+  )
+
+let modes_functor_param_legacy =
+  modes_functor_param (Mode.Value.(disallow_right legacy), None)
+
+let modes_functor_res =
+  let m = Types.functor_res_mode |> Mode.alloc_as_value in
+  Specific (
+    Mode.Value.disallow_right m,
+    Mode.Value.disallow_left m,
+    None
+  )
+
+(** The mode crossing of the memory block of a structure. *)
+let mode_crossing_structure_memaddr =
+  Mode.Crossing.of_bounds
+  { monadic = {
+      uniqueness = Unique; (* might support overwriting structure *)
+      contention = Contended
+    };
+    comonadic = {
+      areality = Global;
+      linearity = Many;
+      portability = Portable;
+      yielding = Unyielding;
+  }}
+
+(** The mode crossing of a functor. *)
+let mode_crossing_functor =
+  Mode.Crossing.of_bounds
+  { monadic = {
+      uniqueness = Aliased;
+      contention = Contended
+    };
+    comonadic = {
+      areality = Global;
+      linearity = Once;
+      portability = Nonportable;
+      yielding = Yielding;
+  }}
+
+(** The mode crossing of any module. *)
+let mode_crossing_module =
+  Mode.Crossing.of_bounds
+  { monadic = {
+      uniqueness = Unique;
+      contention = Uncontended;
+    };
+    comonadic = {
+      areality = Global;
+      linearity = Once;
+      portability = Nonportable;
+      yielding = Yielding;
+  }}
+
 (* All functions "blah env x1 x2" check that x1 is included in x2,
    i.e. that x1 is the type of an implementation that fulfills the
    specification x2. If not, Error is raised with a backtrace of the error. *)
-
-let walk_locks ~env ~item = function
-  | All | Legacy None -> ()
-  | Legacy (Some held_locks) ->
-      ignore (Env.walk_locks ~env ~item Mode.Value.(legacy |> disallow_right)
-        None held_locks)
-
-let append_ldot s = function
-  | (All | Legacy None) as t -> t
-  | Legacy (Some (locks, lid, loc)) ->
-      Legacy (Some (locks, Ldot (lid, s), loc))
 
 (* Inclusion between value descriptions *)
 
@@ -197,7 +264,11 @@ let class_type_declarations ~loc env subst decl1 decl2 =
   | reason ->
       Error Error.(Core(Class_type_declarations(diff decl1 decl2 reason)))
 
-let class_declarations env subst decl1 decl2 =
+let class_declarations env subst id ~mmodes decl1 decl2 =
+  let modes =
+    Includecore.child_modes (Ident.name id) mmodes |> Result.get_ok
+  in
+  Includecore.check_modes env ~item:Class modes |> Result.get_ok;
   let decl2 = Subst.class_declaration subst decl2 in
   match Includeclass.class_declarations env decl1 decl2 with
     []     -> Ok Tcoerce_none
@@ -541,8 +612,12 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
   in
   match mty1, mty2 with
   | _ when shallow_modtypes env subst mty1 mty2 ->
-    walk_locks ~env ~item:Module modes;
+    begin match Includecore.check_modes env ~item:Module
+      ~crossing:mode_crossing_module modes with
+    | Error e -> Error (Error.Mode e)
+    | Ok () ->
     Ok (Tcoerce_none, orig_shape)
+    end
 
   | (Mty_alias p1, _) when not (is_alias mty2) -> begin
     match
@@ -564,15 +639,24 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
         end
     end
   | (Mty_signature sig1, Mty_signature sig2) ->
+      begin match Includecore.check_modes env ~item:Module
+        ~crossing:mode_crossing_structure_memaddr modes with
+      | Error e -> Error (Error.Mode e)
+      | Ok () ->
       begin match
         signatures ~in_eq ~loc env ~mark subst ~modes sig1 sig2 orig_shape
       with
       | Ok _ as ok -> ok
       | Error e -> Error (Error.Signature e)
       end
+      end
 
   | Mty_functor (param1, res1), Mty_functor (param2, res2) ->
-      walk_locks ~env ~item:Module modes;
+      begin match
+        Includecore.check_modes env ~item:Module ~crossing:mode_crossing_functor
+        modes with
+      | Error e -> Error (Error.Mode e)
+      | Ok () ->
       let cc_arg, env, subst =
         functor_param ~in_eq ~loc env ~mark:(negate_mark mark)
           subst param1 param2
@@ -593,7 +677,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
       in
       let cc_res =
         modtypes ~in_eq ~loc env ~mark subst res1 res2 res_shape
-          ~modes:(Legacy None)
+          ~modes:modes_functor_res
       in
       begin match cc_arg, cc_res with
       | Ok Tcoerce_none, Ok (Tcoerce_none, final_res_shape) ->
@@ -632,6 +716,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
           Error Error.(Functor (Params d))
       | Ok _, Error res ->
           Error Error.(Functor (Result res))
+      end
       end
 
   | _ ->
@@ -692,7 +777,7 @@ and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
       let cc_arg =
         match
           modtypes ~in_eq ~loc env ~mark Subst.identity arg2' arg1
-                Shape.dummy_mod ~modes:(Legacy None)
+                Shape.dummy_mod ~modes:modes_functor_param_legacy
         with
         | Ok (cc, _) -> Ok cc
         | Error err -> Error (Error.Mismatch err)
@@ -799,7 +884,6 @@ and signature_components :
       let id, item, shape_map, present_at_runtime =
         match sigi1, sigi2 with
         | Sig_value(id1, valdecl1, _) ,Sig_value(_id2, valdecl2, _) ->
-            let mmodes = append_ldot (Ident.name id1) mmodes in
             let item =
               value_descriptions ~loc env ~mark subst id1 ~mmodes
                 (Subst.Lazy.force_value_description valdecl1)
@@ -832,7 +916,6 @@ and signature_components :
             id1, item, shape_map, true
         | Sig_module(id1, pres1, mty1, _, _), Sig_module(_, pres2, mty2, _, _)
           -> begin
-              let mmodes = append_ldot (Ident.name id1) mmodes in
               let orig_shape =
                 Shape.(proj orig_shape (Item.module_ id1))
               in
@@ -847,7 +930,7 @@ and signature_components :
                     let mod_shape = Shape.set_uid_if_none shape mty1.md_uid in
                     Ok cc, Shape.Map.add_module shape_map id1 mod_shape
                 | Error diff ->
-                    Error (Error.Module_type diff),
+                    Error diff,
                     (* We add the original shape to the map, even though
                        there is a type error.
                        It could still be useful for merlin. *)
@@ -874,9 +957,8 @@ and signature_components :
             let item = mark_error_as_unrecoverable item in
             id1, item, shape_map, false
         | Sig_class(id1, decl1, _, _), Sig_class(_id2, decl2, _, _) ->
-            walk_locks ~env ~item:Class (append_ldot (Ident.name id1) mmodes);
             let item =
-              class_declarations env subst decl1 decl2
+              class_declarations env subst id1 ~mmodes decl1 decl2
             in
             let shape_map =
               Shape.Map.add_class_proj shape_map id1 orig_shape
@@ -937,9 +1019,13 @@ and module_declarations  ~in_eq ~loc env ~mark  subst id1 ~mmodes md1 md2 orig_s
   let p1 = Path.Pident id1 in
   if mark_positive mark then
     Env.mark_module_used md1.md_uid;
-  let modes = mmodes in
-  strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst ~modes
-    md1.md_type p1 md2.md_type orig_shape
+  let modalities = md1.md_modalities, md2.md_modalities in
+  match Includecore.child_modes (Ident.name id1) ~modalities mmodes with
+  | Error e -> Error Error.(Core (Modalities e))
+  | Ok modes ->
+      Result.map_error (fun x -> Error.Module_type x)
+        (strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst ~modes
+          md1.md_type p1 md2.md_type orig_shape)
 
 (* Inclusion between module type specifications *)
 
@@ -1001,7 +1087,7 @@ let include_functor_signatures ~loc env ~mark subst sig1 sig2 mod_shape =
   let _, _, comps1 = build_component_table (fun _pos name -> name) sig1 in
   let paired, unpaired, subst = pair_components subst comps1 sig2 in
   let d = signature_components ~in_eq:false ~loc ~mark env subst mod_shape
-            Shape.Map.empty ~mmodes:(Legacy None)
+            Shape.Map.empty ~mmodes:modes_functor_param_legacy
             (List.rev paired)
   in
   let open Sign_diff in
@@ -1050,31 +1136,34 @@ exception Apply_error of {
     env : Env.t ;
     app_name : application_name ;
     mty_f : module_type ;
-    args : (Error.functor_arg_descr * module_type) list ;
+    args : (Error.functor_arg_descr * module_type * Typedtree.mode_with_locks) list ;
   }
 
-let check_modtype_inclusion_raw ~loc env mty1 path1 mty2 =
+let check_functor_application_raw ~loc env mty1 path1 mty2 =
   let aliasable = can_alias env path1 in
   strengthened_modtypes ~in_eq:false ~loc ~aliasable env ~mark:Mark_both
-    Subst.identity ~modes:(Legacy None) mty1 path1 mty2 Shape.dummy_mod
+    Subst.identity ~modes:modes_functor_param_legacy mty1 path1 mty2 Shape.dummy_mod
   |> Result.map fst
 
-let check_modtype_inclusion ~loc env mty1 path1 mty2 =
-  match check_modtype_inclusion_raw ~loc env mty1 path1 mty2 with
+let check_functor_application ~loc env mty1 path1 mty2 =
+  match check_functor_application_raw ~loc env mty1 path1 mty2 with
   | Ok _ -> None
   | Error e -> Some (env, Error.In_Module_type e)
 
 let check_functor_application_in_path
     ~errors ~loc ~lid_whole_app ~f0_path ~args
     ~arg_path ~arg_mty ~param_mty env =
-  match check_modtype_inclusion_raw ~loc env arg_mty arg_path param_mty with
+  match check_functor_application_raw ~loc env arg_mty arg_path param_mty with
   | Ok _ -> ()
   | Error _errs ->
       if errors then
         let prepare_arg (arg_path, arg_mty) =
           let aliasable = can_alias env arg_path in
           let smd = Mtype.strengthen ~aliasable arg_mty arg_path in
-          (Error.Named arg_path, smd)
+          (* The current function is used for type checking F(M).t, which does
+          not involve modes, so we fill in the strongest modes such that error
+          messages would not mention modes. *)
+          (Error.Named arg_path, smd, Typedtree.min_mode_with_locks)
         in
         let mty_f = (Env.find_module f0_path env).md_type in
         let args = List.map prepare_arg args in
@@ -1094,7 +1183,7 @@ let compunit0
     ~comparison env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
   match
     signatures ~in_eq:false ~loc:(Location.in_file impl_name) env ~mark
-      Subst.identity ~modes:(Legacy None) impl_sig intf_sig unit_shape
+      Subst.identity ~modes:modes_unit impl_sig intf_sig unit_shape
   with Result.Error reasons ->
     let diff = Error.diff impl_name intf_name reasons in
     let cdiff =
@@ -1234,7 +1323,7 @@ end
 module Functor_app_diff = struct
   module I = Functor_inclusion_diff
   module Defs= struct
-    type left = Error.functor_arg_descr * Types.module_type
+    type left = Error.functor_arg_descr * Types.module_type * Typedtree.mode_with_locks
     type right = Types.functor_parameter
     type eq = Typedtree.module_coercion
     type diff = (Error.functor_arg_descr, unit) Error.functor_param_symptom
@@ -1250,7 +1339,7 @@ module Functor_app_diff = struct
         (* We assign a small penalty to named arguments with
            non-matching names *)
         begin
-          let desc1 : Error.functor_arg_descr = fst param1 in
+          let (desc1 : Error.functor_arg_descr), _, _ = param1 in
           match desc1, I.param_name param2 with
           | (Unit | Empty_struct | Anonymous) , None
             -> 0
@@ -1266,7 +1355,7 @@ module Functor_app_diff = struct
     match d with
     | Insert (Unit|Named(None,_))
     | Delete _ (* delete is a concrete argument, not an abstract parameter*)
-    | Keep ((Unit,_),_,_) (* Keep(Unit,_) implies Keep(Unit,Unit) *)
+    | Keep ((Unit,_,_),_,_) (* Keep(Unit,_) implies Keep(Unit,Unit) *)
     | Keep (_,(Unit|Named(None,_)),_)
     | Change (_,(Unit|Named (None,_)), _ ) ->
         (* no abstract parameters to add, nor any equations *)
@@ -1279,7 +1368,7 @@ module Functor_app_diff = struct
         let mty = Subst.modtype Keep st.subst param_ty in
         let env = Env.add_module ~arg:true param Mp_present mty st.env in
         I.expand_params { st with env }
-    | Keep ((Named arg,  _mty) , Named (Some param, _param), _) ->
+    | Keep ((Named arg,  _mty, _mode) , Named (Some param, _param), _) ->
         let res =
           Option.map (fun res ->
               let scope = Ctype.create_scope () in
@@ -1290,7 +1379,7 @@ module Functor_app_diff = struct
         in
         let subst = Subst.add_module param arg st.subst in
         I.expand_params { st with subst; res }
-    | Keep (((Anonymous|Empty_struct), mty),
+    | Keep (((Anonymous|Empty_struct), mty, _mode),
             Named (Some param, _param), _) ->
         let mty' = Subst.modtype Keep st.subst mty in
         let env = Env.add_module ~arg:true param Mp_present mty' st.env in
@@ -1301,7 +1390,7 @@ module Functor_app_diff = struct
     let params, res = retrieve_functor_params env f in
     let module Compute = Diff.Right_variadic(struct
         let update = update
-        let test (state:Defs.state) (arg,arg_mty) param =
+        let test (state:Defs.state) (arg,arg_mty,arg_mode) param =
           let loc = Location.none in
           let res = match (arg:Error.functor_arg_descr), param with
             | (Unit|Empty_struct), Unit -> Ok Tcoerce_none
@@ -1310,7 +1399,7 @@ module Functor_app_diff = struct
             | ( Anonymous | Named _ | Empty_struct ), Named (_, param) ->
                 match
                   modtypes ~in_eq:false ~loc state.env ~mark:Mark_neither
-                    state.subst ~modes:(Legacy None) arg_mty param
+                    state.subst ~modes:(modes_functor_param arg_mode) arg_mty param
                     Shape.dummy_mod
                 with
                 | Error mty -> Result.Error (Error.Mismatch mty)

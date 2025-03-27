@@ -143,9 +143,11 @@ val check_partial:
         ?lev:int -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
 val type_expect:
-        Env.t -> Parsetree.expression -> type_expected -> Typedtree.expression
+        Env.t -> ?mode:Mode.Value.r -> Parsetree.expression -> type_expected ->
+          Typedtree.expression
 val type_exp:
-        Env.t -> Parsetree.expression -> Typedtree.expression
+        Env.t -> ?mode: Mode.Value.r -> Parsetree.expression ->
+          Typedtree.expression
 val type_approx:
         Env.t -> Parsetree.expression -> type_expr -> unit
 val type_argument:
@@ -332,8 +334,7 @@ val report_error: loc:Location.t -> Env.t -> error -> Location.error
 
 (* Forward declaration, to be filled in by Typemod.type_module *)
 val type_module:
-  (Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t *
-    Env.locks) ref
+  (Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t) ref
 (* Forward declaration, to be filled in by Typemod.type_open *)
 val type_open:
   (?used_slot:bool ref -> override_flag -> Env.t -> Location.t ->

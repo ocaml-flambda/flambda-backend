@@ -617,7 +617,8 @@ val no_leak_id : unit = ()
 
 module type S = sig val s : string end
 
-(* Don't escape through being unpacked as a module *)
+(* Currently we can't stack-allocate modules, but it's fine to take modules as
+  local parameters. *)
 
 let bar (local_ (m : (module S))) =
   let (module _) = m in
@@ -627,24 +628,27 @@ module type S = sig val s : string end
 val bar : local_ (module S) -> unit = <fun>
 |}]
 
+(* Currently first class modules don't cross modes *)
 let bar (local_ (m : (module S))) =
   let (module M) = m in
   M.s
 [%%expect{|
-Line 2, characters 19-20:
-2 |   let (module M) = m in
-                       ^
-Error: This value escapes its region.
+val bar : local_ (module S) -> local_ string = <fun>
 |}]
 
 let bar (local_ m) =
   let module M = (val m : S) in
   M.s
 [%%expect{|
-Line 2, characters 22-23:
-2 |   let module M = (val m : S) in
-                          ^
-Error: This value escapes its region.
+val bar : local_ (module S) -> local_ string = <fun>
+|}]
+
+(* packing crosses modes *)
+let bar (local_ m) =
+  let module M = (val m : S) in
+  (module M : S)
+[%%expect{|
+val bar : local_ (module S) -> (module S) = <fun>
 |}]
 
 (* Don't escape through a lazy value *)
@@ -671,7 +675,7 @@ let foo (local_ x) =
 Line 3, characters 27-28:
 3 |     let () = print_string !x
                                ^
-Error: The value "x" is local, so cannot be used inside a module.
+Error: The value "x" is local, so cannot be used inside a functor.
 |}]
 
 (* Don't escape through a class method *)
