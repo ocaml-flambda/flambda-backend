@@ -246,7 +246,7 @@ expr:
           | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
                              (Cexit(Cmm.Lbl lbl0,[],[])),
                              debuginfo (), Any) in
-        Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo (), false],
+        Ccatch(Normal, [lbl0, [], Ctuple [], debuginfo (), false],
           Ccatch(Recursive,
             [lbl1, [], Csequence(body, Cexit(Cmm.Lbl lbl1, [], [])), debuginfo (), false],
             Cexit(Cmm.Lbl lbl1, [], []), Any), Any) }
@@ -265,10 +265,10 @@ expr:
         let result = Backend_var.create_local "result" in
         let result' = Backend_var.With_provenance.create result in
         unbind_ident $6;
-        Ctrywith (
-          Ccatch (Nonrecursive,
+        ctrywith (
+          Ccatch (Normal,
             [after_push_k, [],
-             Ccatch (Nonrecursive,
+             Ccatch (Normal,
                [after_pop_k, [result', $3],
                 Cvar result, debuginfo (), false],
                Cexit (Cmm.Lbl after_pop_k,
