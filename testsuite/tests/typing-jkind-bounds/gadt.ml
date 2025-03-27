@@ -61,12 +61,8 @@ type t = Foo : ('a : immutable_data). 'a -> t
 |}]
 
 let foo (t : t @@ contended) = use_uncontended t
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : t @@ contended) = use_uncontended t
-                                                   ^
-Error: This value is "contended" but expected to be "uncontended".
+val foo : t @ contended -> unit = <fun>
 |}]
 
 let foo (t : t @@ local) = use_global t [@nontail]
@@ -85,21 +81,16 @@ type 'a t = Foo : 'a -> 'a t
 |}]
 
 let foo (t : int t @@ once) = use_many t
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 39-40:
-1 | let foo (t : int t @@ once) = use_many t
-                                           ^
-Error: This value is "once" but expected to be "many".
+val foo : int t @ once -> unit = <fun>
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : int t @@ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 13-14:
-1 | let foo (t : t @@ aliased) = use_unique t
-                 ^
-Error: The type constructor "t" expects 1 argument(s),
-       but is here applied to 0 argument(s)
+Line 1, characters 44-45:
+1 | let foo (t : int t @@ aliased) = use_unique t
+                                                ^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (***********************************************************************)
@@ -158,4 +149,29 @@ Uncaught exception: Misc.Fatal_error
 |}]
 
 (*****************************************)
-(* CR layouts v2.8: write more gadt tests *)
+
+type ('a, 'b) t : immutable_data with 'a = { inner : 'a }
+[%%expect{|
+type ('a, 'b) t = { inner : 'a; }
+|}]
+
+(* We can have existential variables, as long as they don't end up in our with-bounds *)
+type 'a u : immutable_data with 'a =
+| P1 : ('a1, 'b) t -> 'a1 u
+| P2 : ('a2, 'b) t -> 'a2 u
+[%%expect{|
+type 'a2 u = P1 : ('a2, 'b) t -> 'a2 u | P2 : ('a2, 'b) t -> 'a2 u
+|}]
+
+(* Any existentials directly in the with-bounds get treated as if they're [Best] *)
+type 'a u : immediate =
+| P1 : ('b, 'a) t -> 'a u
+[%%expect{|
+Lines 1-2, characters 0-25:
+1 | type 'a u : immediate =
+2 | | P1 : ('b, 'a) t -> 'a u
+Error: The kind of type "u" is immutable_data with 'b
+         because it's a boxed variant type.
+       But the kind of type "u" must be a subkind of immediate
+         because of the annotation on the declaration of the type u.
+|}]

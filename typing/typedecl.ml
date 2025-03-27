@@ -1852,7 +1852,70 @@ let rec update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs)
         ) (0,[]) cstrs
       in
-      let jkind = Jkind.for_boxed_variant cstrs in
+      let jkind =
+        (* CR aspsmith: pull this back into jkind *)
+        let open Types in
+        if List.for_all
+             (fun cstr ->
+                match cstr.cd_args with
+                | Cstr_tuple args ->
+                  List.for_all (fun arg -> Jkind.Sort.Const.(equal void arg.ca_sort)) args
+                | Cstr_record lbls ->
+                  List.for_all
+                    (fun (lbl : Types.label_declaration) -> Jkind.Sort.Const.(equal void lbl.ld_sort))
+                    lbls)
+             cstrs
+        then Jkind.Builtin.immediate ~why:Enumeration
+        else
+          let is_mutable =
+            List.exists
+              (fun cstr ->
+                 match cstr.cd_args with
+                 | Cstr_tuple _ -> false
+                 | Cstr_record lbls ->
+                   List.exists
+                     (fun (lbl : Types.label_declaration) ->
+                        match lbl.ld_mutable with Immutable -> false | Mutable _ -> true)
+                     lbls)
+              cstrs
+          in
+          let base =
+            (if is_mutable then Jkind.Builtin.mutable_data else Jkind.Builtin.immutable_data)
+              ~why:Boxed_variant
+            |> Jkind.mark_best
+          in
+          let add_cstr_args cstr jkind =
+            (* let snap = Btype.snapshot () in
+             * try_finally
+             *   ~always:(fun () -> Btype.backtrack snap)
+             *   (fun () -> *)
+                 begin
+                   match cstr.cd_res with
+                   | None -> ()
+                   | Some res ->
+                     let args =
+                       (match Types.get_desc res with
+                        | Tconstr (_, args, _) -> args
+                        | _ -> Misc.fatal_error "cd_res must be Tconstr")
+                     in
+                     let _rigidity_info = Ctype.Rigidify.rigidify_list decl.type_params in
+                     List.iter2 (Ctype.unify env) decl.type_params args;
+                 end;
+                 match cstr.cd_args with
+                 | Cstr_tuple args ->
+                   List.fold_right
+                     (fun arg ->
+                        Jkind.add_with_bounds ~modality:arg.ca_modalities ~type_expr:arg.ca_type)
+                     args jkind
+                 | Cstr_record lbls ->
+                   List.fold_right
+                     (fun (lbl : Types.label_declaration) ->
+                        Jkind.add_with_bounds ~modality:lbl.ld_modalities ~type_expr:(lbl.ld_type))
+                     lbls jkind
+              (* ) *)
+          in
+          List.fold_right add_cstr_args cstrs base
+      in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
