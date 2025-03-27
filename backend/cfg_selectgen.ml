@@ -758,7 +758,6 @@ class virtual selector_generic =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
       assert (Sub_cfg.exit_has_never_terminator sub_cfg);
       let exn_label = Cmm.new_label () in
-      let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
       (* For each exception handler having extra arguments, distinguished
          registers corresponding to such arguments are created. They are
          populated at each raise site, which is the only place Cmm allows extra
@@ -769,6 +768,7 @@ class virtual selector_generic =
         List.map (fun (_param, machtype) -> self#regs_for machtype) extra_args
       in
       let extra_arg_regs = Array.concat extra_arg_regs_split in
+      let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
       let env_body =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
@@ -1096,11 +1096,8 @@ class virtual selector_generic =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
       let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
-      let rv_list =
-        List.map
-          (fun machtype -> self#regs_for machtype)
-          (typ_val :: List.map snd extra_args)
-      in
+      let exn_bucket_in_handler = self#regs_for typ_val in
+      let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let s2 : Sub_cfg.t =
           self#emit_tail_sequence env_handler e2 ~at_start:(fun seq ->
@@ -1125,12 +1122,8 @@ class virtual selector_generic =
                 rv_list)
         in
         Sub_cfg.mark_as_trap_handler s2 ~exn_label;
-        List.iter2
-          (fun arg_reg rv ->
-            Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move) arg_reg rv
-              Debuginfo.none)
-          ([| Proc.loc_exn_bucket |] :: extra_arg_regs_split)
-          rv_list;
+        Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move)
+          [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none;
         Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
         sub_cfg <- Sub_cfg.join_tail ~from:[s1; s2] ~to_:sub_cfg
       in
