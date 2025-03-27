@@ -115,15 +115,6 @@ Line 1, characters 1-6:
 Error: Unbound module "ZZZ"
 |}];;
 
-(* PR#5865 *)
-let f (x : Complex.t) = x.Complex.z;;
-[%%expect{|
-Line 1, characters 26-35:
-1 | let f (x : Complex.t) = x.Complex.z;;
-                              ^^^^^^^^^
-Error: Unbound record field "Complex.z"
-|}];;
-
 (* PR#6608 *)
 #{ true with contents = 0 };;
 [%%expect{|
@@ -170,79 +161,6 @@ the 'with' clause is useless.
 Exception: Assert_failure ("", 1, 11).
 |}]
 
-(* reexport *)
-
-type ('a,'b) def = { x:int } constraint 'b = [> `A]
-
-type arity = (int, [`A]) def = {x:int};;
-[%%expect{|
-type ('a, 'b) def = { x : int; } constraint 'b = [> `A ]
-Line 3, characters 0-38:
-3 | type arity = (int, [`A]) def = {x:int};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type
-         "(int, [ `A ]) def"
-       They have different arities.
-|}]
-
-type ('a,'b) ct = (int,'b) def = {x:int};;
-[%%expect{|
-Line 1, characters 0-40:
-1 | type ('a,'b) ct = (int,'b) def = {x:int};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type
-         "(int, [> `A ]) def"
-       Their parameters differ:
-       The type "int" is not equal to the type "'a"
-|}]
-
-type ('a,'b) kind = ('a, 'b) def = A constraint 'b = [> `A];;
-[%%expect{|
-Line 1, characters 0-59:
-1 | type ('a,'b) kind = ('a, 'b) def = A constraint 'b = [> `A];;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type
-         "('a, [> `A ]) def"
-       The original is a record, but this is a variant.
-|}]
-
-type d = { x:int; y : int }
-[%%expect{|
-type d = { x : int; y : int; }
-|}]
-
-type missing = d = { x:int }
-[%%expect{|
-Line 1, characters 0-28:
-1 | type missing = d = { x:int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type "d"
-       An extra field, "y", is provided in the original definition.
-|}]
-
-type wrong_type = d = {x:float}
-[%%expect{|
-Line 1, characters 0-31:
-1 | type wrong_type = d = {x:float}
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type "d"
-       1. Fields do not match:
-         "x : int;"
-       is not the same as:
-         "x : float;"
-       The type "int" is not equal to the type "float"
-       2. An extra field, "y", is provided in the original definition.
-|}]
-
-type perm = d = {y:int; x:int}
-[%%expect{|
-Line 1, characters 0-30:
-1 | type perm = d = {y:int; x:int}
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type "d"
-       Fields "x" and "y" have been swapped.
-|}]
-
 type t = { f1 : int ; f2 : int }
 
 let f () = #{ f1 = 0
@@ -271,26 +189,4 @@ Line 6, characters 13-23:
                  ^^^^^^^^^^
 Error: Unbound module "Coq__10"
 Hint: Did you mean "Coq__11"?
-|}]
-
-type a = unit
-type b = a = { a : int }
-[%%expect{|
-type a = unit
-Line 2, characters 0-24:
-2 | type b = a = { a : int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type "a"
-       The original is abstract, but this is a record.
-|}]
-
-type a = unit
-type b = a = { a : int }
-[%%expect{|
-type a = unit
-Line 2, characters 0-24:
-2 | type b = a = { a : int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type "a"
-       The original is abstract, but this is a record.
 |}]

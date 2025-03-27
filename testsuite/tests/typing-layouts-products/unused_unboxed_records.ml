@@ -142,6 +142,22 @@ Warning 69 [unused-field]: record field b is never read.
 module Unused_field : sig end
 |}]
 
+module Used_via_unboxed_export : sig
+  type u = #{ a : int; b : int; c : int }
+end = struct
+  type t = { a : int; b : int; c : int }
+  type u = t# = #{ a : int; b : int; c : int }
+
+  let foo () = #{ a = 0; b = 0; c = 0 }
+  let bar x = x.#a
+  let baz #{ c; _ } = c
+  let _ = foo, bar, baz
+end;;
+[%%expect {|
+module Used_via_unboxed_export :
+  sig type u = #{ a : int; b : int; c : int; } end
+|}]
+
 module Unused_field_exported_private : sig
   type t = private { a : int }
 end = struct

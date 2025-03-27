@@ -802,17 +802,18 @@ module CheckSubsted : functor (M : S) -> sig val f : t# -> M.ru end
 |}]
 
 module Bad(M : S) = struct
-  type bad = t_to_replace#
+  type bad = M.t_to_replace#
 end
 [%%expect{|
-Line 2, characters 13-26:
-2 |   type bad = t_to_replace#
-                 ^^^^^^^^^^^^^
-Error: Unbound type constructor "t_to_replace"
+Line 2, characters 13-28:
+2 |   type bad = M.t_to_replace#
+                 ^^^^^^^^^^^^^^^
+Error: Unbound type constructor "M.t_to_replace"
 |}]
 
 (* Make sure the variance is recomputed for unboxed versions for with
-   constraints. *)
+   constraints. (Regression test for an early version of linked boxed-unboxed
+   versions of types) *)
 module M = struct
   type 'a t = private { f : 'a -> int }
 end

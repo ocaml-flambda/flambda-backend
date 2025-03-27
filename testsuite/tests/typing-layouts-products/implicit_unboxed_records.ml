@@ -112,6 +112,8 @@ let _ = test1 ()
 (**********************************)
 (* Test 2: higher-order functions *)
 
+(* The unit here is just so this isn't a float record (otherwise it gets no
+   unboxed version) *)
 type ff' = { f : float# ; f' : float * unit }
 type t = #{ i : int ; ff' : ff'# }
 

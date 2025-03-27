@@ -102,7 +102,7 @@ val s : t# = #{s = "hi"}
 
 (* Accessing inner products *)
 
-(* CR layouts v5: this should work once we allow non-value record fields *)
+(* CR layouts v5: this should work once we allow product record fields *)
 type t = { is: #(int * int) }
 
 let add t =
@@ -143,6 +143,20 @@ Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
+(* Mutable fields cannot be read from
+   (this test is for the possible future where the normal record
+   set operator works for unboxed records too) *)
+type mut = { mutable i : int }
+let f (x : mut#) = x.i <-  5
+[%%expect{|
+type mut = { mutable i : int; }
+Line 2, characters 19-20:
+2 | let f (x : mut#) = x.i <-  5
+                       ^
+Error: This expression has type "mut#",
+       which is an unboxed record rather than a boxed one.
+|}]
+
 (*********************************)
 (* Parameterized unboxed records *)
 
@@ -177,6 +191,40 @@ type ('a : value) t2
 [%%expect{|
 type ('a : value & float64 & value) t1
 type 'a t2
+|}]
+
+type s = r# t1
+and r = { x : int; y : float#; z : s t2 }
+[%%expect{|
+type s = r# t1
+and r = { x : int; y : float#; z : s t2; }
+|}]
+
+type s = r_bad# t1
+and r_bad = { y : float#; z : s t2 }
+[%%expect{|
+Line 2, characters 0-36:
+2 | and r_bad = { y : float#; z : s t2 }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The layout of r_bad# is '_representable_layout_1 & '_representable_layout_2
+         because it is an unboxed record.
+       But the layout of r_bad# must be a sublayout of value & float64 & value
+         because of the definition of t1 at line 1, characters 0-38.
+|}]
+
+type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r#
+and r = { i : int ; f : float# }
+[%%expect{|
+type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r#
+and r = { i : int; f : float#; }
+|}]
+
+type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r#
+and r = { i : int }
+[%%expect{|
+type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r#
+and r = { i : int; }
 |}]
 
 (*******************)
@@ -232,17 +280,17 @@ module Bad : sig
   type u
 end = struct
   type t = { s: string; r: string }
-  type nonrec u = t#
+  type u = t#
 end
 [%%expect{|
 Lines 3-6, characters 6-3:
 3 | ......struct
 4 |   type t = { s: string; r: string }
-5 |   type nonrec u = t#
+5 |   type u = t#
 6 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = { s : string; r : string; } type nonrec u = t# end
+         sig type t = { s : string; r : string; } type u = t# end
        is not included in
          sig type u end
        Type declarations do not match: type u = t# is not included in type u
@@ -574,7 +622,7 @@ Line 2, characters 0-28:
 2 | and b : any & any & any = r#
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of b is '_representable_layout_1 & '_representable_layout_2
+       The layout of b is '_representable_layout_3 & '_representable_layout_4
          because it is an unboxed record.
        But the layout of b must be representable
          because it's the type of a constructor field.

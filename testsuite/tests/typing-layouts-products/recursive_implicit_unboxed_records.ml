@@ -228,8 +228,11 @@ Error: The definition of "bad#" is recursive without boxing:
          "'a bad#" contains "'a bad#"
 |}]
 
-(* CR layouts v5: this should still fail once we allow non-value record fields
+(* CR layouts v5: this should still fail once we allow product record fields
 *)
+(* CR layouts v7.2: This error message should be better. The different histories
+   for [s#] is confusing, ideally we say that the reason it should be a
+   sublayout of [value] is because it's used as a tuple component. *)
 type bad = ( s# * s# )
 and ('a : any) record_id2 = { a : 'a }
 and s = { u : u }
