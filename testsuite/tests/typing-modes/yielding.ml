@@ -126,6 +126,50 @@ let _ = with_global_effect (fun k -> let _ = Mk4 k in ())
 - : unit = ()
 |}]
 
+(* Externals and [yielding]: *)
+
+external ok_yielding : 'a @ local -> unit = "%ignore"
+
+let _ = ok_yielding 4
+
+let _ = ok_yielding (stack_ (Some "local string"))
+
+let _ = with_global_effect (fun k -> ok_yielding k)
+
+[%%expect{|
+external ok_yielding : local_ 'a -> unit = "%ignore"
+- : unit = ()
+- : unit = ()
+- : unit = ()
+|}]
+
+external requires_unyielding : 'a @ local unyielding -> unit = "%ignore"
+
+let _ = requires_unyielding 4
+
+let _ = requires_unyielding (stack_ (Some "local string"))
+
+let _ = with_global_effect (fun k -> requires_unyielding k)
+
+[%%expect{|
+external requires_unyielding : local_ 'a @ unyielding -> unit = "%ignore"
+- : unit = ()
+- : unit = ()
+Line 7, characters 57-58:
+7 | let _ = with_global_effect (fun k -> requires_unyielding k)
+                                                             ^
+Error: This value is "yielding" but expected to be "unyielding".
+|}]
+
+external returns_unyielding : 'a -> 'a @ local unyielding = "%identity"
+
+let _ = requires_unyielding (returns_unyielding "some string")
+
+[%%expect{|
+external returns_unyielding : 'a -> local_ 'a @ unyielding = "%identity"
+- : unit = ()
+|}]
+
 (* [@local_opt] and [yielding]: *)
 
 external id : ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"

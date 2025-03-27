@@ -1663,14 +1663,12 @@ let instance_label ~fixed lbl =
   )
 
 (* CR dkalinichenko: we must vary yieldingness together with locality to get
-   sane behavior around defaults. Remove once we have mode polymorphism. *)
+   sane behavior around [@local_opt]. Remove once we have mode polymorphism. *)
 let prim_mode mvar mvar' = function
   | Primitive.Prim_global, _ ->
-    Locality.allow_right Locality.global,
-    Yielding.allow_right Yielding.unyielding
+    Locality.allow_right Locality.global, Yielding.newvar ()
   | Primitive.Prim_local, _ ->
-    Locality.allow_right Locality.local,
-    Yielding.allow_right Yielding.yielding
+    Locality.allow_right Locality.local, Yielding.newvar ()
   | Primitive.Prim_poly, _ ->
     match mvar, mvar' with
     | Some mvar, Some mvar' -> mvar, mvar'
