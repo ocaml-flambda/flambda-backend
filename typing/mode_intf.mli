@@ -93,6 +93,10 @@ module type Common = sig
   val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
   val of_const : Const.t -> ('l * 'r) t
+
+  val zap_to_floor : (allowed * 'r) t -> Const.t
+
+  val zap_to_ceil : ('l * allowed) t -> Const.t
 end
 
 module type S = sig
@@ -137,10 +141,6 @@ module type S = sig
     val global : lr
 
     val local : lr
-
-    val zap_to_floor : (allowed * 'r) t -> Const.t
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     module Guts : sig
       (** This module exposes some functions that allow callers to inspect modes
@@ -246,8 +246,6 @@ module type S = sig
     val aliased : lr
 
     val unique : lr
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
   end
 
   module Contention : sig
@@ -468,8 +466,6 @@ module type S = sig
     val join_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
 
     val zap_to_legacy : lr -> Const.t
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 

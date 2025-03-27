@@ -2451,6 +2451,11 @@ module Value_with (Areality : Areality) = struct
     let comonadic = Comonadic.zap_to_ceil comonadic in
     merge { monadic; comonadic }
 
+  let zap_to_floor { comonadic; monadic } =
+    let monadic = Monadic.zap_to_floor monadic in
+    let comonadic = Comonadic.zap_to_floor comonadic in
+    merge { monadic; comonadic }
+
   let zap_to_legacy { comonadic; monadic } =
     let monadic = Monadic.zap_to_legacy monadic in
     let comonadic = Comonadic.zap_to_legacy comonadic in
