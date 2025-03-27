@@ -2687,18 +2687,31 @@ module Modality = struct
       | Undefined -> Format.fprintf ppf "undefined"
       | Diff _ -> Format.fprintf ppf "diff"
 
+    (* All zapping functions mutate [mm] and [m] to the degree that's sufficient
+       to fix [subtract_mm m], and return it. [subtract] is antitone for [mm]
+       and monotone for [m]. *)
+
     let zap_to_floor = function
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Diff (mm, m) ->
-        (* For soundness, we want some [c] such that [m <= join c mm], which
-           gives [subtract_mm m <= c]. To satisfy coherence conditions (see
-           [mode_intf.ml]), we must zap [mm] and [m] fully. Note that [subtract]
-           is antitone for [mm] and monotone for [m], so we zap [mm] to ceil,
-           and [m] to floor, to get the floor of [c]. *)
-        let m = Mode.zap_to_floor m in
-        let mm = Mode.zap_to_ceil mm in
-        let c = Mode.Const.subtract m mm in
+        (* Ideally we will take [c = subtract_mm m] and zap it to floor.
+           However, [subtract] requires [mm] to be constant. We get the ceil of
+           [mm] to construct the floor of [c]. *)
+        let cc = Mode.Guts.get_ceil mm in
+        let c = Mode.subtract cc m in
+        let c = Mode.zap_to_floor c in
+        (* Note that we did not mutate [mm] but simply took its ceil, which
+           might be mutated later. To satisfy the coherence condition (see the
+           comment in the mli), we want to:
+
+           - make it impossible that [subtract_mm m < c], which is trivial since
+           [mm <= cc] and thus [subtract_mm m >= subtract_cc m = c].
+           - make it impossible that [subtract_mm m > c], which is to ensure
+           [subtract_mm m <= c], equivalently [m <= join_mm c], which is
+           achieved by the following [submode].
+        *)
+        Mode.submode_exn m (Mode.join_const c mm);
         Const.Join_const c
 
     let zap_to_id = zap_to_floor
@@ -2827,19 +2840,31 @@ module Modality = struct
 
     let max = Const Const.max
 
+    (* All zapping functions mutate [mm] and [m] to the degree that's sufficient
+       to fix [imply_mm m], and return it. [imply] is antitone for [mm] and
+       monotone for [m]. *)
+
     let zap_to_ceil = function
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (mm, m) ->
-        (* For soundness and completeness, we need some [c] such that [meet_c mm
-           = m], or equivalently [c = imply mm m]. To satisfy the coherence
-           conditions listed in [mode_intf.ml], we need to zap [mm] and [m]
-           fully. [imply] is antitone in [mm] but monotone in [m] , so we zap
-           [mm] to strongest and [m] to weakest, in order to get the weakest
-           [c]. *)
-        let m = Mode.zap_to_ceil m in
-        let mm = Mode.zap_to_floor mm in
-        let c = Mode.Const.imply mm m in
+        (* Ideally we will take [c = imply_mm m] and zap it to ceil. However,
+           [imply] requires [mm] to be constant. We get the floor of [mm] to
+           construct the ceil of [c]. *)
+        let cc = Mode.Guts.get_floor mm in
+        let c = Mode.imply cc m in
+        let c = Mode.zap_to_ceil c in
+        (* Note that we did not mutate [mm] but simply took its floor, which
+           might be mutated later. To satisfy the coherence condition (see the
+           comment in the mli), we want to:
+
+           - make it impossible that [imply_mm m > c], which is trivial since
+           [mm >= cc] and thus [imply_mm m <= imply_cc m = c].
+           - make it impossible that [imply_mm m < c], which is to ensure
+           [imply_mm m >= c], equivalently [m >= meet_mm c], which is achieved
+           by the following [submode].
+        *)
+        Mode.submode_exn (Mode.meet_const c mm) m;
         Const.Meet_const c
 
     let zap_to_id = zap_to_ceil
@@ -2848,7 +2873,6 @@ module Modality = struct
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (mm, m) ->
-        (* Opposite to [zap_to_ceil]. *)
         let m = Mode.zap_to_floor m in
         let mm = Mode.zap_to_ceil mm in
         let c = Mode.Const.imply mm m in
