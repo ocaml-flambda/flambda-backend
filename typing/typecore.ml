@@ -930,27 +930,9 @@ let has_poly_constraint spat =
     end
   | _ -> false
 
-(** Cross a left mode according to a type wrapped in modalities. *)
-let mode_cross_left_value env ty ?modalities mode =
-  if not (is_principal ty) then
-    Value.disallow_right mode
-  else begin
-    let jkind = type_jkind_purely env ty in
-    let jkind_of_type = type_jkind_purely_if_principal env in
-    let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
-    let crossing =
-      match modalities with
-      | None -> crossing
-      | Some m -> Crossing.modality m crossing
-    in
-    mode
-    |> Value.disallow_right
-    |> Crossing.apply_left crossing
-  end
-
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
   : Env.actual_mode =
-  let mode = mode_cross_left_value env ty actual_mode.mode in
+  let mode = cross_left env ty actual_mode.mode in
   {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
@@ -958,24 +940,19 @@ let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
 let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  if not (is_principal ty) then { monadic; comonadic } else
-  let jkind = type_jkind_purely env ty in
-  let jkind_of_type = type_jkind_purely_if_principal env in
-  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  let crossing = crossing_of_ty env ty in
   Crossing.apply_left_right_alloc crossing { monadic; comonadic }
 
 (** Mode cross a right mode *)
 (* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
    there, too. *)
 let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
-  let jkind_of_type = type_jkind_purely_if_principal env in
-  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  let crossing = crossing_of_jkind env jkind in
   mode_morph (Crossing.apply_right crossing) expected_mode
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
-  if not (is_principal ty) then expected_mode else
-  let jkind = type_jkind_purely env ty in
-  expect_mode_cross_jkind env jkind expected_mode
+  let crossing = crossing_of_ty env ty in
+  mode_morph (Crossing.apply_right crossing) expected_mode
 
 (** The expected mode for objects *)
 let mode_object = expect_mode_cross_jkind Env.empty Jkind.for_object mode_legacy
@@ -1018,7 +995,7 @@ let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
-      let m0 = mode_cross_left_value env ty ?modalities m0 in
+      let m0 = cross_left env ty ?modalities m0 in
       submode ~loc ~env m0 block_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
@@ -2815,7 +2792,7 @@ and type_pat_aux
   | Ppat_var name ->
       let ty = instance expected_ty in
       let alloc_mode =
-        mode_cross_left_value !!penv expected_ty alloc_mode.mode
+        cross_left !!penv expected_ty alloc_mode.mode
       in
       let id, uid =
         enter_variable tps loc name alloc_mode ty sp.ppat_attributes
@@ -2858,7 +2835,7 @@ and type_pat_aux
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
-      let mode = mode_cross_left_value !!penv expected_ty mode in
+      let mode = cross_left !!penv expected_ty mode in
       let id, uid =
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
           sp.ppat_attributes
@@ -6052,14 +6029,14 @@ and type_expect_
         match is_float_boxing with
         | true ->
           let alloc_mode, argument_mode = register_allocation expected_mode in
-          let mode = mode_cross_left_value env Predef.type_unboxed_float mode in
+          let mode = cross_left env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu =
             unique_use ~loc ~env mode (as_single_mode argument_mode)
           in
           Boxing (alloc_mode, uu)
         | false ->
-          let mode = mode_cross_left_value env ty_arg mode in
+          let mode = cross_left env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
           Non_boxing uu
@@ -6098,7 +6075,7 @@ and type_expect_
             (Error (loc, env, Record_projection_not_rep(record.exp_type, err)))
       in
       let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
-      let mode = mode_cross_left_value env ty_arg mode in
+      let mode = cross_left env ty_arg mode in
       submode ~loc ~env mode expected_mode;
       let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
       rue {
@@ -7054,7 +7031,7 @@ and type_ident env ?(recarg=Rejected) lid =
 
   Therefore, we need to cross modes upon look-up. Ideally that should be done in
   [Env], but that is difficult due to cyclic dependency between jkind and env. *)
-  let mode = mode_cross_left_value env desc.val_type mode in
+  let mode = cross_left env desc.val_type mode in
   (* There can be locks between the definition and a use of a value. For
   example, if a function closes over a value, there will be Closure_lock between
   the value's definition and the value's use in the function. Walking the locks
@@ -7525,7 +7502,7 @@ and type_label_access
   let label =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
       (label_disambiguate record_form usage lid env expected_type) labels in
-  (record, mode, label, expected_type)
+  (record, Mode.Value.disallow_right mode, label, expected_type)
 
 (* Typing format strings for printing or reading.
    These formats are used by functions in modules Printf, Format, and Scanf.
@@ -8191,15 +8168,16 @@ and type_application env app_loc expected_mode position_and_mode
           filter_arrow_mono env (instance funct.exp_type) Nolabel
         ) ~post:(fun {ty_ret; _} -> generalize_structure ty_ret)
       in
+      let ret_mode = Alloc.disallow_right ret_mode in
       let type_sort ~why ty =
         match Ctype.type_sort ~why ~fixed:false env ty with
         | Ok sort -> sort
         | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
       in
       let arg_sort = type_sort ~why:Function_argument ty_arg in
-      let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) ret_mode) in
+      let ap_mode = Alloc.proj (Comonadic Areality) ret_mode in
       let mode_res =
-        mode_cross_left_value env ty_ret (alloc_as_value ret_mode)
+        cross_left env ty_ret (alloc_as_value ret_mode)
       in
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
@@ -8256,9 +8234,10 @@ and type_application env app_loc expected_mode position_and_mode
           ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
-      let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) mode_ret) in
+      let mode_ret = Alloc.disallow_right mode_ret in
+      let ap_mode = Alloc.proj (Comonadic Areality) mode_ret in
       let mode_ret =
-        mode_cross_left_value env ty_ret (alloc_as_value mode_ret)
+        cross_left env ty_ret (alloc_as_value mode_ret)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
