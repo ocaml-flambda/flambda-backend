@@ -4,8 +4,32 @@
  (archive_name stubs)
  (language c)
  (names stubs)
- (flags -msse4.2)
+ (flags
+   (:standard
+     (:include flags.sexp)))
  (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+
+(rule
+ (targets flags.sexp)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")))
+ (action
+  (with-stdout-to
+   flags.sexp
+   (echo "-msse4.2"))))
+
+(rule
+ (targets flags.sexp)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{architecture} "amd64")))
+ (action
+  (with-stdout-to
+   flags.sexp
+   (echo "()"))))
 
 ; Tests with external assembler
 
@@ -36,8 +60,7 @@
  (alias runtest)
  (enabled_if
   (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+   (= %{context_name} "main")))
  (action
   (progn
    (diff empty.expected float32_builtin.out)
@@ -106,8 +129,7 @@
  (alias runtest)
  (enabled_if
   (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+   (= %{context_name} "main")))
  (action
   (progn
    (diff empty.expected float32_builtin_bytecode.out)
@@ -169,8 +191,7 @@
  (alias runtest)
  (enabled_if
   (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+   (= %{context_name} "main")))
  (action
   (progn
    (diff empty.expected float32_builtin_nodynlink.out)

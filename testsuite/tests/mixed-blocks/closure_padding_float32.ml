@@ -1,6 +1,5 @@
 (* TEST
    runtime5;
-   arch_amd64;
    include stdlib_stable;
    ocamlopt_flags="-extension layouts_alpha -extension small_numbers";
    native;

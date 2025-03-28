@@ -1,7 +1,6 @@
 (* TEST
  flambda2;
  stack-allocation;
- arch_amd64;
  {
    bytecode;
  } {
