@@ -539,7 +539,7 @@ val save_signature_with_imports:
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
-val register_parameter: Global_module.Name.t -> unit
+val register_parameter: Global_module.Parameter_name.t -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -556,7 +556,7 @@ val runtime_parameter_bindings: unit -> (Global_module.t * Ident.t) list
 
 (* Return the list of parameters specified for the current unit, in
    alphabetical order *)
-val parameters: unit -> Global_module.Name.t list
+val parameters: unit -> Global_module.Parameter_name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
@@ -570,7 +570,8 @@ val is_parameter_unit: Global_module.Name.t -> bool
 
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
-val implemented_parameter: Global_module.Name.t -> Global_module.Name.t option
+val implemented_parameter:
+  Global_module.Name.t -> Global_module.Parameter_name.t option
 
 (* [is_imported_parameter md] is true if [md] has been imported and is a
    parameter to this module *)
@@ -594,7 +595,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Incomplete_instantiation of { unset_param : Global_module.Name.t; }
+  | Incomplete_instantiation of { unset_param : Global_module.Parameter_name.t; }
 
 exception Error of error
 

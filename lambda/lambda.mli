@@ -937,7 +937,8 @@ type program =
    parameterised, this information (in particular [arg_block_idx]) describes
    instances rather than the base CU gs. *)
 type arg_descr =
-  { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
+  { arg_param: Global_module.Parameter_name.t;
+                                        (* The parameter implemented (the [P] in
                                            [-as-argument-for P]) *)
     arg_block_idx: int; }               (* The index within the main module
                                            block of the _argument block_. If
