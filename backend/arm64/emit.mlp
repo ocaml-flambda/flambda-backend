@@ -556,22 +556,38 @@ end [@warning "-32"]  = struct
       check_reg Float i.arg.(0);
       check_reg Float i.arg.(1);
       check_reg Float i.res.(0);
+    | Rf32x4_Rf32x4_to_Ri32x4
     | Rf32x4_Rf32x4_to_Rf32x4
     | Rf64x2_Rf64x2_to_Rf64x2
     | Ri64x2_Ri64x2_to_Ri64x2  ->
       check_reg Vec128 i.arg.(0);
       check_reg Vec128 i.arg.(1);
       check_reg Vec128 i.res.(0);
+    | Ri32x4_to_Ri32x4
+    | Rf32x2_to_Rf64x2
+    | Rf32x4_to_Rf32x4
+    | Rf32x4_to_Ri32x4
+    | Ri32x4_to_Rf32x4 ->
+      check_reg Vec128 i.arg.(0);
+      check_reg Vec128 i.res.(0)
     | Rf32_Rf32_to_Rf32 ->
       check_reg Float32 i.arg.(0);
       check_reg Float32 i.arg.(1);
       check_reg Float32 i.res.(0)
+    | Rf64_Rf64_to_Rf64 ->
+      check_reg Float i.arg.(0);
+      check_reg Float i.arg.(1);
+      check_reg Float i.res.(0)
     | Rf32_to_Rf32 ->
       check_reg Float32 i.arg.(0);
       check_reg Float32 i.res.(0)
+    | Rf64_to_Rf64 ->
+      check_reg Float i.arg.(0);
+      check_reg Float i.res.(0)
     | Rf32_to_Ri64 ->
       check_reg Float32 i.arg.(0);
       check_reg Int i.res.(0)
+
 
   let src_operands ops =
     (* returns a copy of [ops] without the first operand, which is assumed to be the
@@ -600,17 +616,32 @@ end [@warning "-32"]  = struct
     | Ri64x2_Ri64x2_to_Ri64x2
     | Rf64x2_Rf64x2_to_Rf64x2 ->
       [| emit_reg_v2d i.res.(0); emit_reg_v2d i.arg.(0); emit_reg_v2d i.arg.(1)|]
-    | Rf32_Rf32_to_Rf32 ->
+    | Rf32x4_Rf32x4_to_Ri32x4 ->
+      [| emit_reg_v4s i.res.(0); emit_reg_v4s i.arg.(0); emit_reg_v4s i.arg.(1)|]
+    | Ri32x4_to_Ri32x4
+    | Rf32x4_to_Rf32x4
+    | Rf32x4_to_Ri32x4
+    | Ri32x4_to_Rf32x4 ->
+      [| emit_reg_v4s i.res.(0); emit_reg_v4s i.arg.(0); |]
+    | Rf32x2_to_Rf64x2 ->
+      [| emit_reg_v2d i.res.(0); emit_reg_v2s i.arg.(0); |]
+    | Rf32_Rf32_to_Rf32
+    | Rf64_Rf64_to_Rf64 ->
       emit_regs_binary i
+    | Rf64_to_Rf64
     | Rf32_to_Rf32
     | Rf32_to_Ri64 ->
       emit_regs_unary i
 
   let simd_instr_size (op : Simd.operation)  =
     match op with
+    | Min_scalar_f64 | Max_scalar_f64 -> 2
     | Min_scalar_f32 | Max_scalar_f32 -> 2
-    | Round_f32 _ | Round_f32_i64 | Zip1_f32 | Zip1q_f32 | Zip1q_f64 | Zip2q_f64
-    | Fmin_f32 | Fmax_f32 | Addq_i64 | Subq_i64 -> 1
+    | Round_f32 _ | Round_f64 _ | Round_f32x4 _ | Round_f32_i64
+    | Zip1_f32 | Zip1q_f32 | Zip1q_f64 | Zip2q_f64
+    | Addq_f32|Subq_f32|Mulq_f32|Divq_f32|Minq_f32|Maxq_f32|Recpeq_f32|Sqrtq_f32
+    | Rsqrteq_f32| Cvtq_s32_of_f32|Cvtq_f32_of_s32|Cvt_f64_f32|Paddq_f32
+    | Fmin_f32 | Fmax_f32 | Addq_i64 | Subq_i64 | Cmp_f32 _ | Cmpz_s32 _ -> 1
 
   let emit_rounding_mode (rm : Simd.Rounding_mode.t) : I.Rounding_mode.t =
     match rm with
@@ -618,6 +649,22 @@ end [@warning "-32"]  = struct
     | Pos_inf -> I.Rounding_mode.P
     | Zero -> I.Rounding_mode.Z
     | Current -> I.Rounding_mode.X
+    | Nearest -> I.Rounding_mode.N
+
+  let emit_float_cond (cond : Simd.Float_cond.t) : I.Float_cond.t =
+    match cond with
+    | EQ -> EQ
+    | GT -> GT
+    | LE -> LE
+    | LT -> LT
+
+  let emit_cond (cond : Simd.Cond.t) : I.Cond.t =
+    match cond with
+    | EQ -> EQ
+    | GT -> GT
+    | GE -> GE
+    | LE -> LE
+    | LT -> LT
 
   let simd_instr (op : Simd.operation) i =
     let b = Simd_proc.register_behavior op in
@@ -627,13 +674,15 @@ end [@warning "-32"]  = struct
     (* min/max: generate a sequence that matches the weird semantics of amd64 instruction
        "minss", even when the flag [FPCR.AH] is not set. A separate intrinsics generates
        fmin/fmax arm64 instructions directly. *)
-    | Min_scalar_f32 ->
+    | Min_scalar_f32
+    | Min_scalar_f64 ->
       ins I.FCMP (src_operands operands);
       ins_cond I.FCSEL I.Cond.MI operands;
-    | Max_scalar_f32 ->
+    | Max_scalar_f32
+    | Max_scalar_f64 ->
       ins I.FCMP (src_operands operands);
       ins_cond I.FCSEL I.Cond.GT operands;
-    | Round_f32 rm ->
+    | Round_f32 rm | Round_f64 rm | Round_f32x4 rm ->
       ins (I.FRINT (emit_rounding_mode rm)) operands
     | Round_f32_i64 ->
       ins I.FCVTNS operands
@@ -650,6 +699,21 @@ end [@warning "-32"]  = struct
       ins I.ADD operands
     | Subq_i64 ->
       ins I.SUB operands
+    | Addq_f32 -> ins I.FADD operands
+    | Subq_f32 -> ins I.FSUB operands
+    | Mulq_f32 -> ins I.FMUL operands
+    | Divq_f32 -> ins I.FDIV operands
+    | Minq_f32 -> ins I.FMIN operands
+    | Maxq_f32 -> ins I.FMAX operands
+    | Recpeq_f32 -> ins I.FRECPE operands
+    | Sqrtq_f32 -> ins I.FSQRT operands
+    | Rsqrteq_f32 -> ins I.FRSQRTE operands
+    | Cvtq_s32_of_f32 -> ins I.FCVT operands
+    | Cvtq_f32_of_s32 -> ins I.FCVT operands
+    | Cvt_f64_f32 -> ins I.FCVTL operands
+    | Paddq_f32 -> ins I.FADDP operands
+    | Cmp_f32 c -> ins (I.FCM (emit_float_cond c)) operands
+    | Cmpz_s32 c -> ins (I.CM (emit_cond c)) (Array.append operands [| imm 0; |])
 end
 
 module BR = Branch_relaxation.Make (struct
