@@ -68,7 +68,7 @@ let emit_symbol s =
 
 let emit_symbol_type emit_lbl_or_sym lbl_or_sym ty =
   if not macosx then begin
-    emitp_format out "	.type	%a, %%a\n" emit_lbl_or_sym lbl_or_sym emit_string ty
+    emitp_format out "	.type	%a, %%%a\n" emit_lbl_or_sym lbl_or_sym emit_string ty
   end
 
 
@@ -423,8 +423,8 @@ let emit_literals () =
 
 let emit_load_symbol_addr dst s =
   if macosx then begin
-    emitp_format out "	adrp	%a, %a@GOTPAGE\n" emit_reg dst emit_symbol s;
-    emitp_format out "	ldr	%a, [%a, %a@GOTPAGEOFF]\n" emit_reg dst emit_reg dst emit_symbol s
+    emitp_format out "	adrp	%a, %a%@GOTPAGE\n" emit_reg dst emit_symbol s;
+    emitp_format out "	ldr	%a, [%a, %a%@GOTPAGEOFF]\n" emit_reg dst emit_reg dst emit_symbol s
   end else if not !Clflags.dlcode then begin
     emitp_format out "	adrp	%a, %a\n" emit_reg dst emit_symbol s;
     emitp_format out "	add	%a, %a, #:lo12:%a\n" emit_reg dst emit_reg dst emit_symbol s
@@ -1028,7 +1028,7 @@ let assembly_code_for_poll i ~far ~return_label =
 
 let emit_named_text_section func_name =
   if !Clflags.function_sections then begin
-    emitp_format out "	.section .text.caml.%a,%a,%progbits\n" emit_symbol func_name emit_string_literal "ax"
+    emitp_format out "	.section .text.caml.%a,%a,%%progbits\n" emit_symbol func_name emit_string_literal "ax"
   end
   else
     emitp_format out "	.text\n"
@@ -1037,8 +1037,8 @@ let emit_named_text_section func_name =
 
 let emit_load_literal dst lbl =
   if macosx then begin
-    emitp_format out "	adrp	%a, %a@PAGE\n" emit_reg reg_tmp1 emit_label lbl;
-    emitp_format out "	ldr	%a, [%a, %a@PAGEOFF]\n" emit_reg dst emit_reg reg_tmp1 emit_label lbl
+    emitp_format out "	adrp	%a, %a%@PAGE\n" emit_reg reg_tmp1 emit_label lbl;
+    emitp_format out "	ldr	%a, [%a, %a%@PAGEOFF]\n" emit_reg dst emit_reg reg_tmp1 emit_label lbl
   end else begin
     emitp_format out "	adrp	%a, %a\n" emit_reg reg_tmp1 emit_label lbl;
     emitp_format out "	ldr	%a, [%a, #:lo12:%a]\n" emit_reg dst emit_reg reg_tmp1 emit_label lbl
@@ -1916,6 +1916,6 @@ let end_assembly () =
   begin match Config.system with
   | "linux" ->
       (* Mark stack as non-executable *)
-      emitp_format out "	.section	.note.GNU-stack,\"\",%progbits\n"
+      emitp_format out "	.section	.note.GNU-stack,\"\",%%progbits\n"
   | _ -> ()
   end
