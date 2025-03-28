@@ -96,14 +96,14 @@ let foo x y @ modes = ..
 let foo x y : ty @ modes = ..
 fun foo x y @ modes -> ..
 ```
-We don't support `fun foo x y : ty @ modes -> ..`, because the parser can't
-tell if the arrow is instead an arrow type.
+We don't support `fun foo x y : ty @ modes -> 42` due to a limitation in the
+parser.
 
 ## Expressions
 ```ocaml
 (expression : ty @ local)
 ```
-We don't support `(expression @ modes)` because `@` might be a binary operator.
+We don't support `(expression @ modes)` because `@` is already parsed as a binary operator.
 
 ## Record fields
 Record fields can have modalities, for example:
@@ -120,6 +120,6 @@ val bar : string @ modes -> string @ modes @@ modalities
 ```
 
 ## Modules
-Support for modules with modes is being worked on and not ready for compnay-wide adoption.
+Support for modules with modes is being worked on and not ready for company-wide adoption.
 For the few use sites, the syntax should be self-explanatory. More documentation will come
 as it becomes ready.
