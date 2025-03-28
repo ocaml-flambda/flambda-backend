@@ -30,7 +30,7 @@ class cfg_cse = object
     match op with
     | Specific spec ->
       (match spec with
-       | Ifar_poll _
+       | Ifar_poll
        | Ifar_alloc _
        | Ishiftarith _
        | Imuladd

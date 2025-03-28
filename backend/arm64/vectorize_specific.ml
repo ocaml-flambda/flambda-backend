@@ -12,7 +12,7 @@ let memory_access : Arch.specific_operation -> Memory_access.t option =
     Some (Memory_access.create ?first_memory_arg_index desc)
   in
   match op with
-  | Ifar_poll _ ->
+  | Ifar_poll ->
     (* Conservative, don't reorder across poll instructions. In practice, there
        are not many poll instructions present at this stage, because poll
        insertion pass currently happens after vectorize. *)
@@ -27,7 +27,7 @@ let memory_access : Arch.specific_operation -> Memory_access.t option =
 
 let is_seed_store (op : Arch.specific_operation) =
   match op with
-  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf
+  | Ifar_poll | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf
   | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _
   | Imove32 | Isignext _ | Isimd _ ->
     None

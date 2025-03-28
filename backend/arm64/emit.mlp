@@ -448,7 +448,7 @@ let num_call_gc_points instr =
     (* The following four should never be seen, since this function is run
        before branch relaxation. *)
     | Lop (Specific (Ifar_alloc _))
-    | Lop (Specific (Ifar_poll _)) -> assert false
+    | Lop (Specific Ifar_poll) -> assert false
     | Lop (Alloc { mode = (Local | Heap); _ })
     | Lop (Specific
              (Imuladd|Imulsub|Inegmulf|Imuladdf|Inegmuladdf|Imulsubf|Inegmulsubf|
@@ -822,7 +822,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Alloc { mode = Heap;_ }) when !fastcode_flag -> 5
     | Lop (Specific (Ifar_alloc _)) when !fastcode_flag -> 6
     | Lop Poll -> 3
-    | Lop (Specific (Ifar_poll _)) -> 4
+    | Lop (Specific Ifar_poll) -> 4
     | Lop (Alloc { mode = Heap; bytes = num_bytes; _ })
     | Lop (Specific (Ifar_alloc { bytes = num_bytes; _ })) ->
       begin match num_bytes with
@@ -905,8 +905,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Specific (Isimd simd)) ->
       DSL.simd_instr_size simd
 
-  let relax_poll ~return_label =
-    Lop (Specific (Ifar_poll { return_label }))
+  let relax_poll () =
+    Lop (Specific Ifar_poll)
 
   let relax_allocation ~num_bytes ~dbginfo =
     Lop (Specific (Ifar_alloc { bytes = num_bytes; dbginfo }))
@@ -1391,8 +1391,8 @@ let emit_instr i =
         `	str	{emit_reg i.arg.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
     | Lop(Poll) ->
         assembly_code_for_poll i ~far:false ~return_label:None
-    | Lop(Specific (Ifar_poll { return_label })) ->
-        assembly_code_for_poll i ~far:true ~return_label
+    | Lop(Specific Ifar_poll) ->
+        assembly_code_for_poll i ~far:true ~return_label:None
     | Lop(Intop_imm(Iadd, n)) ->
         emit_addimm i.res.(0) i.arg.(0) n
     | Lop(Intop_imm(Isub, n)) ->
