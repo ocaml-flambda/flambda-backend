@@ -491,7 +491,7 @@ module Immediate64 : sig
       | Non_immediate : Non_immediate.t repr
     val repr : t repr
   end
-end
+end @@ nonportable
 
 (** Submodule containing non-backwards-compatible functions which enforce thread safety
     via modes. *)

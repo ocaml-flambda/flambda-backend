@@ -57,25 +57,17 @@ let u =
 val u : unit = ()
 |}]
 
-(* first class modules are produced at legacy *)
-let x = ((module M : SL) : _ @@ portable)
+(* Packing produces first class modules at the same mode as the module *)
+let () = portable_use (module M : S)
 [%%expect{|
-Line 1, characters 9-24:
-1 | let x = ((module M : SL) : _ @@ portable)
-             ^^^^^^^^^^^^^^^
-Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-(* first class modules are consumed at legacy *)
-let foo () =
-    let m @ local = (module M : SL) in
+(* Unpacking produces module at the same mode as the first class module *)
+let foo (m : (module S)) =
     let module M = (val m) in
-    ()
+    portable_use M.x
 [%%expect{|
-Line 3, characters 24-25:
-3 |     let module M = (val m) in
-                            ^
-Error: This value escapes its region.
+val foo : (module S) @ portable -> unit = <fun>
 |}]
 
 let foo () =
@@ -160,7 +152,7 @@ module type S = sig
 end
 
 module M : S = struct
-    let foo = fun x -> x
+    let foo @ nonportable = fun x -> x
     let baz = fun x -> x
 end
 [%%expect{|
@@ -229,5 +221,5 @@ let (bar @ portable) () =
 Line 3, characters 19-20:
 3 |         module L = M
                        ^
-Error: "M" is a module, and modules are always nonportable, so cannot be used inside a function that is portable.
+Error: The module "M" is nonportable, so cannot be used inside a function that is portable.
 |}]

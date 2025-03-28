@@ -16,10 +16,8 @@ end
 module type S =
   sig
     module M :
-      sig
-        val foo : 'a -> 'a @@ portable
-        module N : sig val bar : 'a -> 'a @@ portable end
-      end
+      sig val foo : 'a -> 'a module N : sig val bar : 'a -> 'a end end @@
+      portable
   end
 |}]
 
@@ -35,10 +33,8 @@ end
 module type S =
   sig
     module M :
-      sig
-        val foo : 'a -> 'a @@ portable
-        module N : sig val bar : 'a -> 'a @@ portable end
-      end
+      sig val foo : 'a -> 'a module N : sig val bar : 'a -> 'a end end @@
+      portable
   end
 |}]
 
@@ -74,7 +70,7 @@ end
 module type S =
   sig
     module rec M : sig val foo : 'a -> 'a end
-    and N : sig val bar : 'a -> 'a @@ portable end
+    and N : sig val bar : 'a -> 'a end @@ portable
   end
 |}]
 
@@ -88,7 +84,7 @@ module type S = sig @@ portable
 end
 [%%expect{|
 module type T = sig val foo : 'a -> 'a end
-module type S = sig module M : sig val foo : 'a -> 'a @@ portable end end
+module type S = sig module M : T @@ portable end
 |}]
 
 (* doesn't work for Mty_functor *)
@@ -97,7 +93,10 @@ module type S = sig @@ portable
 end
 [%%expect{|
 module type S =
-  sig module M : sig val foo : 'a -> 'a end -> sig val bar : 'a -> 'a end end
+  sig
+    module M : sig val foo : 'a -> 'a end -> sig val bar : 'a -> 'a end @@
+      portable
+  end
 |}]
 
 module M : T = struct
@@ -111,7 +110,7 @@ module type S = sig @@ portable
 end
 [%%expect{|
 module M : T
-module type S = sig module M' = M end
+module type S = sig module M' = M @@ portable end
 |}]
 
 (* works for Mty_strenthen, and type check keeps working *)
@@ -119,28 +118,12 @@ module type S = sig @@ portable
   module M' : T with M
 end
 [%%expect{|
-module type S = sig module M' : sig val foo : 'a -> 'a @@ portable end end
+module type S = sig module M' : sig val foo : 'a -> 'a end @@ portable end
 |}]
 
 module M : S = struct
   module M' = M
 end
 [%%expect{|
-Lines 1-3, characters 15-3:
-1 | ...............struct
-2 |   module M' = M
-3 | end
-Error: Signature mismatch:
-       Modules do not match: sig module M' = M end is not included in S
-       In module "M'":
-       Modules do not match:
-         sig val foo : 'a -> 'a end
-       is not included in
-         sig val foo : 'a -> 'a @@ portable end
-       In module "M'":
-       Values do not match:
-         val foo : 'a -> 'a
-       is not included in
-         val foo : 'a -> 'a @@ portable
-       The second is portable and the first is nonportable.
+module M : S
 |}]

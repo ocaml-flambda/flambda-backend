@@ -300,8 +300,7 @@ let error_of_filter_arrow_failure ~explanation ~first ty_fun
 
 let type_module =
   ref ((fun _env _md -> assert false) :
-       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t *
-        Env.locks)
+       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t)
 
 (* Forward declaration, to be filled in by Typemod.type_open *)
 
@@ -930,27 +929,9 @@ let has_poly_constraint spat =
     end
   | _ -> false
 
-(** Cross a left mode according to a type wrapped in modalities. *)
-let mode_cross_left_value env ty ?modalities mode =
-  if not (is_principal ty) then
-    Value.disallow_right mode
-  else begin
-    let jkind = type_jkind_purely env ty in
-    let jkind_of_type = type_jkind_purely_if_principal env in
-    let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
-    let crossing =
-      match modalities with
-      | None -> crossing
-      | Some m -> Crossing.modality m crossing
-    in
-    mode
-    |> Value.disallow_right
-    |> Crossing.apply_left crossing
-  end
-
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
   : Env.actual_mode =
-  let mode = mode_cross_left_value env ty actual_mode.mode in
+  let mode = cross_left env ty actual_mode.mode in
   {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
@@ -958,24 +939,19 @@ let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
 let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  if not (is_principal ty) then { monadic; comonadic } else
-  let jkind = type_jkind_purely env ty in
-  let jkind_of_type = type_jkind_purely_if_principal env in
-  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  let crossing = crossing_of_ty env ty in
   Crossing.apply_left_right_alloc crossing { monadic; comonadic }
 
 (** Mode cross a right mode *)
 (* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
    there, too. *)
 let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
-  let jkind_of_type = type_jkind_purely_if_principal env in
-  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
+  let crossing = crossing_of_jkind env jkind in
   mode_morph (Crossing.apply_right crossing) expected_mode
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
-  if not (is_principal ty) then expected_mode else
-  let jkind = type_jkind_purely env ty in
-  expect_mode_cross_jkind env jkind expected_mode
+  let crossing = crossing_of_ty env ty in
+  mode_morph (Crossing.apply_right crossing) expected_mode
 
 (** The expected mode for objects *)
 let mode_object = expect_mode_cross_jkind Env.empty Jkind.for_object mode_legacy
@@ -1018,7 +994,7 @@ let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
-      let m0 = mode_cross_left_value env ty ?modalities m0 in
+      let m0 = cross_left env ty ?modalities m0 in
       submode ~loc ~env m0 block_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
@@ -1282,7 +1258,7 @@ let add_module_variables env module_variables =
          Here, on the other hand, we're calling [type_module] outside the
          raised level, so there's no extra step to take.
       *)
-      let modl, md_shape, locks =
+      let modl, md_shape =
         !type_module env
           Ast_helper.(
             Mod.unpack ~loc:mv_loc
@@ -1297,12 +1273,14 @@ let add_module_variables env module_variables =
       in
       let md =
         { md_type = modl.mod_type; md_attributes = [];
+          md_modalities = Mode.Modality.Value.id;
           md_loc = mv_name.loc;
           md_uid = mv_uid; }
       in
+      let mode = Typedtree.mode_without_locks_exn modl.mod_mode in
       Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md
         (* the [locks] is always empty, but typecore doesn't need to know *)
-        ~locks env
+        ~mode env
     end
   ) env module_variables_as_list
 
@@ -1322,7 +1300,6 @@ let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
       | Modvars_rejected ->
           raise (Error (loc, Env.empty, Modules_not_allowed));
       | Modvars_allowed { scope; module_variables } ->
-          escape ~loc ~env:Env.empty ~reason:Other mode;
           let id = Ident.create_scoped name.txt ~scope in
           let module_variables =
             { mv_id = id;
@@ -2815,7 +2792,7 @@ and type_pat_aux
   | Ppat_var name ->
       let ty = instance expected_ty in
       let alloc_mode =
-        mode_cross_left_value !!penv expected_ty alloc_mode.mode
+        cross_left !!penv expected_ty alloc_mode.mode
       in
       let id, uid =
         enter_variable tps loc name alloc_mode ty sp.ppat_attributes
@@ -2858,7 +2835,7 @@ and type_pat_aux
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
-      let mode = mode_cross_left_value !!penv expected_ty mode in
+      let mode = cross_left !!penv expected_ty mode in
       let id, uid =
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
           sp.ppat_attributes
@@ -6052,14 +6029,14 @@ and type_expect_
         match is_float_boxing with
         | true ->
           let alloc_mode, argument_mode = register_allocation expected_mode in
-          let mode = mode_cross_left_value env Predef.type_unboxed_float mode in
+          let mode = cross_left env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu =
             unique_use ~loc ~env mode (as_single_mode argument_mode)
           in
           Boxing (alloc_mode, uu)
         | false ->
-          let mode = mode_cross_left_value env ty_arg mode in
+          let mode = cross_left env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
           Non_boxing uu
@@ -6098,7 +6075,7 @@ and type_expect_
             (Error (loc, env, Record_projection_not_rep(record.exp_type, err)))
       in
       let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
-      let mode = mode_cross_left_value env ty_arg mode in
+      let mode = cross_left env ty_arg mode in
       submode ~loc ~env mode expected_mode;
       let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
       rue {
@@ -6419,7 +6396,7 @@ and type_expect_
         with_local_level begin fun () ->
           let modl, pres, id, new_env =
             Typetexp.TyVarEnv.with_local_scope begin fun () ->
-              let modl, md_shape, locks = !type_module env smodl in
+              let modl, md_shape = !type_module env smodl in
               Mtype.lower_nongen lv modl.mod_type;
               let pres =
                 match modl.mod_type with
@@ -6431,16 +6408,19 @@ and type_expect_
               let md_shape = Shape.set_uid_if_none md_shape md_uid in
               let md =
                 { md_type = modl.mod_type; md_attributes = [];
+                  md_modalities = Modality.Value.id;
                   md_loc = name.loc;
                   md_uid; }
               in
+              let mode, locks = modl.mod_mode in
+              let locks = Option.map (fun (a, _, _) -> a) locks in
               let (id, new_env) =
                 match name.txt with
                 | None -> None, env
                 | Some name ->
                     let id, env =
                       Env.enter_module_declaration
-                        ~scope ~shape:md_shape name pres md ~locks env
+                        ~scope ~shape:md_shape name pres md ~mode ?locks env
                     in
                     Some id, env
               in
@@ -6582,8 +6562,6 @@ and type_expect_
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes:sexp.pexp_attributes
       name jkind sbody
   | Pexp_pack m ->
-      (* CR zqian: pass [expected_mode] to [type_package] *)
-      submode ~loc ~env Value.legacy expected_mode;
       let (p, fl) =
         match get_desc (Ctype.expand_head env (instance ty_expected)) with
           Tpackage (p, fl) ->
@@ -6601,6 +6579,8 @@ and type_expect_
             raise (Error (loc, env, Not_a_packed_module ty_expected))
       in
       let (modl, fl') = !type_package env m p fl in
+      let mode = Typedtree.mode_without_locks_exn modl.mod_mode in
+      submode ~loc ~env mode expected_mode;
       rue {
         exp_desc = Texp_pack modl;
         exp_loc = loc; exp_extra = [];
@@ -7044,7 +7024,7 @@ and type_constraint_expect
   ret, ty, exp_extra
 
 and type_ident env ?(recarg=Rejected) lid =
-  let path, desc, mode, locks = Env.lookup_value ~loc:lid.loc lid.txt env in
+  let path, desc, (mode, locks) = Env.lookup_value ~loc:lid.loc lid.txt env in
   (* We cross modes when typing [Ppat_ident], before adding new variables into
   the environment. Therefore, one might think all values in the environment are
   already mode-crossed. That is not true for several reasons:
@@ -7054,7 +7034,7 @@ and type_ident env ?(recarg=Rejected) lid =
 
   Therefore, we need to cross modes upon look-up. Ideally that should be done in
   [Env], but that is difficult due to cyclic dependency between jkind and env. *)
-  let mode = mode_cross_left_value env desc.val_type mode in
+  let mode = cross_left env desc.val_type mode in
   (* There can be locks between the definition and a use of a value. For
   example, if a function closes over a value, there will be Closure_lock between
   the value's definition and the value's use in the function. Walking the locks
@@ -7081,8 +7061,8 @@ and type_ident env ?(recarg=Rejected) lid =
   *)
   (* CR modes: codify the above per-axis argument. *)
   let actual_mode =
-    Env.walk_locks ~env ~item:Value mode (Some desc.val_type)
-      (locks, lid.txt, lid.loc)
+    Env.walk_locks ~env ~loc:lid.loc lid.txt ~item:Value (Some desc.val_type)
+      (mode, locks)
   in
   (* We need to cross again, because the monadic fragment might have been
   weakened by the locks. Ideally, the first crossing only deals with comonadic,
@@ -7525,7 +7505,7 @@ and type_label_access
   let label =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
       (label_disambiguate record_form usage lid env expected_type) labels in
-  (record, mode, label, expected_type)
+  (record, Mode.Value.disallow_right mode, label, expected_type)
 
 (* Typing format strings for printing or reading.
    These formats are used by functions in modules Printf, Format, and Scanf.
@@ -8191,15 +8171,16 @@ and type_application env app_loc expected_mode position_and_mode
           filter_arrow_mono env (instance funct.exp_type) Nolabel
         ) ~post:(fun {ty_ret; _} -> generalize_structure ty_ret)
       in
+      let ret_mode = Alloc.disallow_right ret_mode in
       let type_sort ~why ty =
         match Ctype.type_sort ~why ~fixed:false env ty with
         | Ok sort -> sort
         | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
       in
       let arg_sort = type_sort ~why:Function_argument ty_arg in
-      let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) ret_mode) in
+      let ap_mode = Alloc.proj (Comonadic Areality) ret_mode in
       let mode_res =
-        mode_cross_left_value env ty_ret (alloc_as_value ret_mode)
+        cross_left env ty_ret (alloc_as_value ret_mode)
       in
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
@@ -8256,9 +8237,10 @@ and type_application env app_loc expected_mode position_and_mode
           ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
-      let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) mode_ret) in
+      let mode_ret = Alloc.disallow_right mode_ret in
+      let ap_mode = Alloc.proj (Comonadic Areality) mode_ret in
       let mode_ret =
-        mode_cross_left_value env ty_ret (alloc_as_value mode_ret)
+        cross_left env ty_ret (alloc_as_value mode_ret)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
@@ -9994,7 +9976,7 @@ let type_expression env jkind sexp =
       Pexp_ident lid ->
         let loc = sexp.pexp_loc in
         (* Special case for keeping type variables when looking-up a variable *)
-        let (_path, desc, _, _) =
+        let (_path, desc, _) =
           Env.lookup_value ~use:false ~loc lid.txt env
         in
         {exp with exp_type = desc.val_type}
@@ -11053,12 +11035,22 @@ let check_partial ?lev a b c cases =
 
 (* drop unnecessary arguments from the external API
    and check for uniqueness *)
-let type_expect env e ty =
-  let exp = type_expect env mode_legacy e ty in
+let type_expect env ?mode e ty =
+  let expected_mode =
+    match mode with
+    | None -> mode_legacy
+    | Some m -> mode_default m
+  in
+  let exp = type_expect env expected_mode e ty in
   maybe_check_uniqueness_exp exp; exp
 
-let type_exp env e =
-  let exp = type_exp env mode_legacy e in
+let type_exp env ?mode e =
+  let expected_mode =
+    match mode with
+    | None -> mode_legacy
+    | Some m -> mode_default m
+  in
+  let exp = type_exp env expected_mode e in
   maybe_check_uniqueness_exp exp; exp
 
 let type_argument env e t1 t2 =

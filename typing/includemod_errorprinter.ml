@@ -331,7 +331,8 @@ module With_shorthand = struct
           (Ident.name p) (pp dmodtype short_mty)
 
   let definition_of_argument ua =
-    let arg, mty = ua.item in
+    let arg, mty, _mode = ua.item in
+    (* CR zqian: print the mode *)
     match (arg: Err.functor_arg_descr) with
     | Unit -> Format.dprintf "()"
     | Empty_struct -> Format.dprintf "(struct end)"
@@ -354,7 +355,8 @@ module With_shorthand = struct
         end
 
   let arg ua =
-    let arg, mty = ua.item in
+    let arg, mty, _mode = ua.item in
+    (* CR zqian: print the mode *)
     match (arg: Err.functor_arg_descr) with
     | Unit -> Format.dprintf "()"
     | Empty_struct -> Format.dprintf "(struct end)"
@@ -502,7 +504,8 @@ module Functor_suberror = struct
         for single change difference
     *)
     let single_diff g e more =
-      let _arg, mty = g.With_shorthand.item in
+      let _arg, mty, _mode = g.With_shorthand.item in
+      (* CR zqian: also print the mode *)
       let e = match e.With_shorthand.item with
         | Types.Unit -> Format.dprintf "()"
         | Types.Named(_, mty) -> dmodtype mty
@@ -615,6 +618,11 @@ let core env id x =
            "the first" "the second" env) diff.symptom
         show_locs (diff.got.val_loc, diff.expected.val_loc)
         Printtyp.Conflicts.print_explanations
+  | Err.Modalities e ->
+      Format.dprintf "@[<v>@[<hv>%s:@;%a@]@]"
+        "Modalities do not match"
+        (Includecore.report_modality_sub_error
+            "the first" "the second") e
   | Err.Type_declarations diff ->
       Format.dprintf "@[<v>@[<hv>%s:@;<1 2>%a@ %s@;<1 2>%a@]%a%a%t@]"
         "Type declarations do not match"
@@ -715,6 +723,11 @@ let core_module_type_symptom (x:Err.core_module_type_symptom)  =
              (Style.as_inline_code Printtyp.path) path
           )
 
+let mode_mismatch (Mode.Value.Error(ax, {left; right})) =
+  Format.dprintf "%a is not included in %a"
+    (Mode.Value.Const.print_axis ax) left
+    (Mode.Value.Const.print_axis ax) right
+
 (* Construct a linearized error message from the error tree *)
 
 let rec module_type ~expansion_token ~eqmode ~env ~before ~ctx diff =
@@ -757,6 +770,7 @@ and module_type_symptom ~eqmode ~expansion_token ~env ~before ~ctx = function
           (Style.as_inline_code Printtyp.path) path
       in
       dwith_context ctx printer :: before
+  | Mode e -> dwith_context ctx (mode_mismatch e) :: before
 
 and functor_params ~expansion_token ~env ~before ~ctx {got;expected;_} =
   let d = Functor_suberror.Inclusion.patch env got expected in

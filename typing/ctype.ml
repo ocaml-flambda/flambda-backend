@@ -4977,31 +4977,38 @@ let relevant_pairs pairs v =
   | Contravariant -> pairs.contravariant_pairs
   | Bivariant -> pairs.bivariant_pairs
 
-(* This is very similar to Typecore.mode_cross_left_value. Any bugs here
-   are likely bugs there, too. *)
-let mode_cross_left_alloc env ty mode =
-  if not (is_principal ty) then Alloc.disallow_right mode else begin
-    let jkind = type_jkind_purely env ty in
-    let jkind_of_type = type_jkind_purely_if_principal env in
-    let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
-    mode
-    |> Alloc.disallow_right
-    |> Crossing.apply_left_alloc crossing
-  end
-
-(* This is very similar to Typecore.expect_mode_cross. Any bugs here
-   are likely bugs there, too. *)
-let mode_cross_right env ty mode =
-  if not (is_principal ty) then Alloc.disallow_left mode else
-  let jkind = type_jkind_purely env ty in
+let crossing_of_jkind env jkind =
   let jkind_of_type = type_jkind_purely_if_principal env in
-  let crossing = Jkind.get_mode_crossing ~jkind_of_type jkind in
-  mode
-  |> Alloc.disallow_left
-  |> Crossing.apply_right_alloc crossing
+  Jkind.get_mode_crossing ~jkind_of_type jkind
+
+let crossing_of_ty env ?modalities ty =
+  if not (is_principal ty)
+  then Crossing.top
+  else
+    let jkind = type_jkind_purely env ty in
+    let crossing = crossing_of_jkind env jkind in
+    match modalities with
+    | None -> crossing
+    | Some m -> Crossing.modality m crossing
+
+let cross_left env ?modalities ty mode =
+  let crossing = crossing_of_ty env ?modalities ty in
+  mode |> Value.disallow_right |> Crossing.apply_left crossing
+
+let cross_right env ?modalities ty mode =
+  let crossing = crossing_of_ty env ?modalities ty in
+  mode |> Value.disallow_left |> Crossing.apply_right crossing
+
+let cross_left_alloc env ?modalities ty mode =
+  let crossing = crossing_of_ty env ?modalities ty in
+  mode |> Alloc.disallow_right |> Crossing.apply_left_alloc crossing
+
+let cross_right_alloc env ?modalities ty mode =
+  let crossing = crossing_of_ty env ?modalities ty in
+  mode |> Alloc.disallow_left |> Crossing.apply_right_alloc crossing
 
 let submode_with_cross env ~is_ret ty l r =
-  let r' = mode_cross_right env ty r in
+  let r' = cross_right_alloc env ty r in
   let r' =
     if is_ret then
       (* the locality axis of the return mode cannot cross modes, because a
@@ -6127,10 +6134,10 @@ let rec build_subtype env (visited : transient_expr list)
           let t1 = if posi then t1 else t1' in
           let posi_arg = not posi in
           if posi_arg then begin
-            let a = mode_cross_right env t1 a in
+            let a = cross_right_alloc env t1 a in
             build_submode_pos a
           end else begin
-            let a = mode_cross_left_alloc env t1 a in
+            let a = cross_left_alloc env t1 a in
             build_submode_neg a
           end
         end else a, Unchanged
@@ -6360,7 +6367,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        let a2 = mode_cross_left_alloc env t2 a2 in
+        let a2 = cross_left_alloc env t2 a2 in
          subtype_alloc_mode env trace a2 a1;
         (* RHS mode of arrow types indicates allocation in the parent region
            and is not subject to mode crossing *)
