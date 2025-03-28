@@ -157,7 +157,7 @@ module Runtime_5 = struct
       cond : Condition.t ;
     }
 
-    external spawn : (unit -> 'a) @ portable -> 'a term_sync -> t @@ portable
+    external spawn : (unit -> 'a) @ portable once -> 'a term_sync -> t @@ portable
       = "caml_domain_spawn"
     external self : unit -> t @@ portable
       = "caml_ml_domain_id" [@@noalloc]
@@ -473,7 +473,7 @@ module type S = sig
   end
 
   type !'a t
-  val spawn' : (DLS.Access.t -> 'a) @ portable -> 'a t @@ portable
+  val spawn' : (DLS.Access.t -> 'a) @ portable once -> 'a t @@ portable
   val join : 'a t -> 'a @@ portable
   type id = private int
   val get_id : 'a t -> id @@ portable

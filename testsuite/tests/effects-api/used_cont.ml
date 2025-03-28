@@ -21,8 +21,8 @@ let () =
     | Eff.Value n -> assert (n = 42)
     | Eff.Exception e -> raise e
     | Eff.Operation(E, k) ->
-        handle (continue k () []);
-        r := Some k;
+        handle (continue (Obj.magic_unique k) () []);
+        r := Some (Obj.magic_unique k);
         Gc.full_major ();
         print_string "ok\n"
   in

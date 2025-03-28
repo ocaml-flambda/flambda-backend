@@ -248,7 +248,7 @@ module Safe : sig
         does not unsafely close over data from the current capsule. *)
   end
 
-  val spawn : (unit -> 'a) @ portable -> 'a t @@ portable
+  val spawn : (unit -> 'a) @ portable once -> 'a t @@ portable
   [@@alert unsafe_parallelism
              "This function is unsafe and should not be used in production \
               code.\nA safe interface for parallelism is forthcoming."]
@@ -256,7 +256,7 @@ module Safe : sig
       computation must be [portable], and so cannot close over and interact with any
       unsynchronized mutable data in the current domain. *)
 
-  val spawn' : (DLS.Access.t -> 'a) @ portable -> 'a t @@ portable
+  val spawn' : (DLS.Access.t -> 'a) @ portable once -> 'a t @@ portable
   [@@alert unsafe_parallelism
              "This function is unsafe and should not be used in production \
               code.\nA safe interface for parallelism is forthcoming."]
