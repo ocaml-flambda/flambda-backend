@@ -43,7 +43,7 @@ type cmm_label = Label.t
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type specific_operation =
-  | Ifar_poll of { return_label: cmm_label option }
+  | Ifar_poll
   | Ifar_alloc of { bytes : int; dbginfo : Cmm.alloc_dbginfo }
   | Ishiftarith of arith_operation * int
   | Imuladd       (* multiply and add *)

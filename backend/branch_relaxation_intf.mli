@@ -65,6 +65,6 @@ module type S = sig
     -> Linear.instruction_desc
 
   val relax_poll
-     : return_label:Cmm.label option
+     : unit
     -> Linear.instruction_desc
 end

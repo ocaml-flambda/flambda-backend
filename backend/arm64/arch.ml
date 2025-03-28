@@ -53,7 +53,7 @@ type cmm_label = Label.t
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type specific_operation =
-  | Ifar_poll of { return_label: cmm_label option }
+  | Ifar_poll
   | Ifar_alloc of { bytes : int; dbginfo : Cmm.alloc_dbginfo }
   | Ishiftarith of arith_operation * int
   | Imuladd       (* multiply and add *)
@@ -120,7 +120,7 @@ let int_of_bswap_bitwidth = function
 
 let print_specific_operation printreg op ppf arg =
   match op with
-  | Ifar_poll _ ->
+  | Ifar_poll ->
     fprintf ppf "(far) poll"
   | Ifar_alloc { bytes; dbginfo = _ } ->
     fprintf ppf "(far) alloc %i" bytes
@@ -221,7 +221,7 @@ let equal_specific_operation left right =
   | Imove32, Imove32 -> true
   | Isignext left, Isignext right -> Int.equal left right
   | Isimd left, Isimd right -> Simd.equal_operation left right
-  | (Ifar_alloc _  | Ifar_poll _  | Ishiftarith _
+  | (Ifar_alloc _  | Ifar_poll  | Ishiftarith _
     | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
     | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ | Isimd _), _ -> false
 
@@ -299,7 +299,7 @@ let is_logical_immediate x =
 (* Specific operations that are pure *)
 
 let operation_is_pure : specific_operation -> bool = function
-  | Ifar_alloc _ | Ifar_poll _ -> false
+  | Ifar_alloc _ | Ifar_poll -> false
   | Ishiftarith _ -> true
   | Imuladd -> true
   | Imulsub -> true
@@ -318,7 +318,7 @@ let operation_is_pure : specific_operation -> bool = function
 
 let operation_can_raise = function
   | Ifar_alloc _
-  | Ifar_poll _ -> true
+  | Ifar_poll -> true
   | Imuladd
   | Imulsub
   | Inegmulf
@@ -335,7 +335,7 @@ let operation_can_raise = function
 
 let operation_allocates = function
   | Ifar_alloc _ -> true
-  | Ifar_poll _
+  | Ifar_poll
   | Imuladd
   | Imulsub
   | Inegmulf
