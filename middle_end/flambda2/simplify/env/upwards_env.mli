@@ -56,17 +56,8 @@ val find_continuation : t -> Continuation.t -> Continuation_in_env.t
 
 val mem_continuation : t -> Continuation.t -> bool
 
-type continuation_shortcut =
-  { params : Bound_parameters.t;
-    continuation : Continuation.t;
-    args : Simple.t list
-  }
-
-val apply_continuation_shortcut :
-  continuation_shortcut -> Simple.t list -> Continuation.t * Simple.t list
-
 val find_continuation_shortcut :
-  t -> Continuation.t -> continuation_shortcut option
+  t -> Continuation.t -> Continuation_shortcut.t option
 
 val add_apply_cont_rewrite : t -> Continuation.t -> Apply_cont_rewrite.t -> t
 

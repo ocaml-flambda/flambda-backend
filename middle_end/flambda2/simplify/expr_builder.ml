@@ -677,12 +677,10 @@ type rewrite_apply_cont_result =
          (Apply_cont.t -> RE.t * Cost_metrics.t * Name_occurrences.t) ->
       RE.t * Cost_metrics.t * Name_occurrences.t)
 
-let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
-
 let apply_continuation_shortcuts uenv apply_cont =
   (* CR gbury: when rewriting shortcuts, we may lose some information that was
-     in the kinds of the continuation being rewritten (e.g. is the continuation
-     bein rewritten had more kind/sub-kind information on its parameters than
+     in the kinds of the continuation being rewritten (e.g. if the continuation
+     being rewritten had more kind/sub-kind information on its parameters than
      its shortcut). We should think of a way to preserve that information. *)
   match
     UE.find_continuation_shortcut uenv (Apply_cont.continuation apply_cont)
@@ -690,9 +688,30 @@ let apply_continuation_shortcuts uenv apply_cont =
   | None -> apply_cont
   | Some shortcut ->
     let cont, args =
-      UE.apply_continuation_shortcut shortcut (Apply_cont.args apply_cont)
+      Continuation_shortcut.apply shortcut (Apply_cont.args apply_cont)
     in
     Apply_cont.with_continuation_and_args apply_cont cont ~args
+
+let apply_continuation_aliases uenv cont =
+  match UE.find_continuation_shortcut uenv cont with
+  | None -> cont
+  | Some shortcut -> (
+    match Continuation_shortcut.to_alias shortcut with
+    | None -> cont
+    | Some cont -> cont)
+
+let apply_exn_continuation_aliases uenv exn_cont =
+  let cont = Exn_continuation.exn_handler exn_cont in
+  match UE.find_continuation_shortcut uenv cont with
+  | None -> exn_cont
+  | Some shortcut -> (
+    match Continuation_shortcut.to_alias shortcut with
+    | None -> exn_cont
+    | Some cont -> Exn_continuation.with_exn_handler exn_cont cont)
+
+let no_rewrite_apply_cont uenv apply_cont =
+  let apply_cont = apply_continuation_shortcuts uenv apply_cont in
+  Apply_cont apply_cont
 
 let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
@@ -741,9 +760,10 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
   let[@local] shortcut_this_continuation_if_possible () :
       rewrite_fixed_arity_continuation0_result =
     (* Apply the shortcut if we can, but not if we are rewriting a
-       [Continuation] since we would need a wrapper anyways. *)
+       [Continuation] since we would need to introduce a new wrapper anyway. *)
     match cont_or_apply_cont with
-    | Continuation cont -> This_continuation cont
+    | Continuation cont ->
+      This_continuation (apply_continuation_aliases uenv cont)
     | Apply_cont apply_cont ->
       Apply_cont (apply_continuation_shortcuts uenv apply_cont)
   in
@@ -879,8 +899,11 @@ let rewrite_fixed_arity_apply uacc ~use_id arity apply =
   | Some use_id, Return cont ->
     rewrite_fixed_arity_continuation uacc cont ~use_id arity
       ~around:(fun return_cont ->
-        let apply =
-          Apply.with_continuations apply (Return return_cont)
+        let exn_cont =
+          apply_exn_continuation_aliases (UA.uenv uacc)
             (Apply.exn_continuation apply)
+        in
+        let apply =
+          Apply.with_continuations apply (Return return_cont) exn_cont
         in
         make_apply apply)
