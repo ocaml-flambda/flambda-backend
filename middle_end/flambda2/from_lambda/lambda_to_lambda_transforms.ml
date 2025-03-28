@@ -459,7 +459,14 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     makearray_dynamic_non_scannable_unboxed_product env lambda_array_kind mode
       ~length ~init loc
 
-let arrayblit env ~(src_mutability : L.mutable_flag)
+let wrong_arity_for_arrayblit loc =
+  Misc.fatal_errorf
+    "Wrong arity for Parrayblit{,_immut} (expected src, src_offset, dst_offset \
+     and length):@ %a"
+    Debuginfo.print_compact
+    (Debuginfo.from_location loc)
+
+let arrayblit_expanded env ~(src_mutability : L.mutable_flag)
     ~(dst_array_set_kind : L.array_set_kind) args loc =
   let src_array_ref_kind =
     (* We don't expect any allocation (e.g. occurring from the reading of a
@@ -543,12 +550,38 @@ let arrayblit env ~(src_mutability : L.mutable_flag)
            dst_start_pos_minus_src_start_pos body
     in
     env, Transformed expr
-  | _ ->
-    Misc.fatal_errorf
-      "Wrong arity for Parrayblit{,_immut} (expected src, src_offset, \
-       dst_offset and length):@ %a"
-      Debuginfo.print_compact
-      (Debuginfo.from_location loc)
+  | _ -> wrong_arity_for_arrayblit loc
+
+let arrayblit_runtime env args loc =
+  (* We preserve the evaluation order by virtue of the parameter ordering of
+     [caml_array_blit] being the same as that of [%arrayblit]. *)
+  if List.compare_length_with args 5 <> 0 then wrong_arity_for_arrayblit loc;
+  let external_call_desc =
+    let name = "caml_array_blit" in
+    Primitive.make ~name ~alloc:false ~c_builtin:false
+      ~effects:Arbitrary_effects ~coeffects:Has_coeffects ~native_name:name
+      ~native_repr_args:
+        [ (* The arrays might be local *)
+          Primitive.Prim_local, L.Same_as_ocaml_repr (Base Value);
+          Primitive.Prim_global, L.Same_as_ocaml_repr (Base Value);
+          Primitive.Prim_local, L.Same_as_ocaml_repr (Base Value);
+          Primitive.Prim_global, L.Same_as_ocaml_repr (Base Value);
+          Primitive.Prim_global, L.Same_as_ocaml_repr (Base Value) ]
+      ~native_repr_res:(Prim_global, L.Same_as_ocaml_repr (Base Value))
+      ~is_layout_poly:false
+  in
+  env, Primitive (L.Pccall external_call_desc, args, loc)
+
+let arrayblit env ~src_mutability ~(dst_array_set_kind : L.array_set_kind) args
+    loc =
+  match dst_array_set_kind with
+  | Pgenarray_set _ | Paddrarray_set _ ->
+    (* Take advantage of various GC-related tricks in [caml_array_blit]. *)
+    arrayblit_runtime env args loc
+  | Pintarray_set | Pfloatarray_set | Punboxedfloatarray_set _
+  | Punboxedintarray_set _ | Punboxedvectorarray_set _
+  | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ ->
+    arrayblit_expanded env ~src_mutability ~dst_array_set_kind args loc
 
 let transform_primitive0 env (prim : L.primitive) args loc =
   match prim, args with
