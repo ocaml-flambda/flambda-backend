@@ -32,6 +32,9 @@ external obj : t -> 'a = "%obj_magic"
 external magic : 'a -> 'b = "%obj_magic"
 external magic_portable : ('a[@local_opt]) -> ('a[@local_opt]) @ portable = "%identity"
 external magic_uncontended : ('a[@local_opt]) @ contended -> ('a[@local_opt]) = "%identity"
+external magic_unique : ('a[@local_opt]) -> ('a[@local_opt]) @ unique = "%identity"
+external magic_many : ('a[@local_opt]) @ once -> ('a[@local_opt]) = "%identity"
+external magic_at_unique : ('a[@local_opt]) @ unique -> ('b[@local_opt]) @ unique = "%identity"
 val is_block : t -> bool
 external is_int : t -> bool = "%obj_is_int"
 external tag : t -> int = "caml_obj_tag" [@@noalloc]

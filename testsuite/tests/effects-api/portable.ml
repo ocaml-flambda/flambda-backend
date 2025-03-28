@@ -33,15 +33,31 @@ type state : value mod contended portable =
   | Used
   | Cont : { key : 'k Capsule.Key.t;
              cont : ((unit, (unit, unit) Eff.Result.t, unit)
-               Effect.Continuation.t, 'k) Capsule.Data.t @@ aliased } -> state
+               Effect.Continuation.t, 'k) Capsule.Data.t } -> state
   [@@unsafe_allow_any_mode_crossing
                "CR layouts v2.8: GADT mode crossing"]
 
 type t = state Unique_atomic.t
 
+(* CR dkalinichenko: create [unique] versions of functions in [Capsule]. *)
+
+module Unique_capsule = struct
+  let create (f : (unit -> 'a @ unique)) =
+    Obj.magic_unique (Capsule.Data.create f)
+
+  let wrap ax (x @ unique) =
+    Obj.magic_unique (Capsule.Data.wrap ax x)
+
+  let unwrap ax (t @ unique) =
+    Obj.magic_unique (Capsule.Data.unwrap ax t)
+
+  let access k (f @ once portable) =
+    Capsule.Key.access k (Obj.magic_portable (Obj.magic_many f))
+end
+
 let create f =
   let P key = Capsule.create () in
-  let cont = Capsule.Data.create (fun () -> Eff.fiber (fun h () -> f h)) in
+  let cont = Unique_capsule.create (fun () -> Eff.fiber (fun h () -> f h)) in
   Unique_atomic.make (Cont { key; cont })
 
 exception Already_used
@@ -50,14 +66,14 @@ let next t =
   match Unique_atomic.exchange t Used with
   | Used -> raise Already_used
   | Cont {key; cont} ->
-      let { Modes.Aliased.aliased = res}, key =
-        Capsule.Key.access key (fun (ax : _ Capsule.Access.t) ->
-          let cont = Capsule.Data.unwrap ax cont in
+      let res, key =
+        Unique_capsule.access key (fun (ax : _ Capsule.Access.t) ->
+          let cont = Unique_capsule.unwrap ax cont in
           match Effect.continue cont () [] with
-          | Eff.Value () -> { Modes.Aliased.aliased = None }
+          | Eff.Value () -> None
           | Eff.Exception e -> raise e
           | Eff.Operation(Yield i, (cont : (unit, _, _) Effect.Continuation.t)) ->
-              { Modes.Aliased.aliased = Some (i, Capsule.Data.wrap ax cont) })
+              Some (i, Unique_capsule.wrap ax cont))
       in
       (match res with
       | None -> None
