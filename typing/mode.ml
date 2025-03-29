@@ -1721,7 +1721,12 @@ module Yielding = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_floor
+  (* [unyielding] is the default for [global]s and [yielding] for [local]
+     or [regional] values, so we vary [zap_to_legacy] accordingly. *)
+  let zap_to_legacy ~global =
+    match global with
+    | true -> zap_to_floor
+    | false -> zap_to_ceil
 end
 
 let regional_to_local m =
@@ -1810,7 +1815,8 @@ module Comonadic_with (Areality : Areality) = struct
     let areality = proj Areality m |> Areality.zap_to_legacy in
     let linearity = proj Linearity m |> Linearity.zap_to_legacy in
     let portability = proj Portability m |> Portability.zap_to_legacy in
-    let yielding = proj Yielding m |> Yielding.zap_to_legacy in
+    let global = Areality.Const.(equal areality legacy) in
+    let yielding = proj Yielding m |> Yielding.zap_to_legacy ~global in
     { areality; linearity; portability; yielding }
 
   let imply c m =
