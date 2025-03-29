@@ -394,19 +394,11 @@ type r = { mutable x : string; }
 
 let foo ?(local_ x @ unique once = 42) () = ()
 [%%expect{|
-val foo :
-  ?x:local_ int @ once unique -> local_ (unit -> unit) @ once unyielding =
-  <fun>
-|}, Principal{|
 val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : _ @@ unique once = 42) () = ()
 [%%expect{|
-val foo :
-  ?x:local_ int @ once unique -> local_ (unit -> unit) @ once unyielding =
-  <fun>
-|}, Principal{|
 val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
 |}]
 
@@ -420,19 +412,11 @@ Error: Optional parameters cannot be polymorphic
 
 let foo ?x:(local_ (x,y) @ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo :
-  ?x:local_ int * int @ once unique -> local_ (unit -> unit) @ once
-  unyielding = <fun>
-|}, Principal{|
 val foo : ?x:local_ int * int @ once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : _ @@ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo :
-  ?x:local_ int * int @ once unique -> local_ (unit -> unit) @ once
-  unyielding = <fun>
-|}, Principal{|
 val foo : ?x:local_ int * int @ once unique -> unit -> unit = <fun>
 |}]
 
@@ -498,11 +482,11 @@ let local_ret a = exclave_ (Some a)
 let bad_use = use_global_ret local_ret "hello"
 [%%expect{|
 val use_global_ret : ('a -> 'b) -> 'a -> 'b lazy_t = <fun>
-val local_ret : 'a -> local_ 'a option @ unyielding = <fun>
+val local_ret : 'a -> local_ 'a option = <fun>
 Line 3, characters 29-38:
 3 | let bad_use = use_global_ret local_ret "hello"
                                  ^^^^^^^^^
-Error: This expression has type "'a -> local_ 'a option @ unyielding"
+Error: This expression has type "'a -> local_ 'a option"
        but an expression was expected of type "'b -> 'c"
 |}]
 
@@ -575,12 +559,6 @@ let result = use_local foo 1. 2.
 val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
 val use_global : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
 val foo : float -> float -> float = <fun>
-val bar : local_ float -> local_ (local_ float -> unit) @ unyielding = <fun>
-val result : float = 3.
-|}, Principal{|
-val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
-val use_global : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
-val foo : float -> float -> float = <fun>
 val bar : local_ float -> local_ float -> unit = <fun>
 val result : float = 3.
 |}]
@@ -597,13 +575,6 @@ val result : float = 3.
 
 let result = use_global bar 1. 2.
 [%%expect{|
-Line 1, characters 24-27:
-1 | let result = use_global bar 1. 2.
-                            ^^^
-Error: This expression has type
-         "local_ float -> local_ (local_ float -> unit) @ unyielding"
-       but an expression was expected of type "local_ 'a -> ('b -> 'c)"
-|}, Principal{|
 Line 1, characters 24-27:
 1 | let result = use_global bar 1. 2.
                             ^^^

@@ -124,7 +124,7 @@ end = struct
   type 'a t : immediate with 'a @@ aliased many contended global portable
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data mod global yielding aliased end
+module M : sig type 'a t : immutable_data mod global aliased yielding end
 |}]
 
 module M : sig

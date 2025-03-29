@@ -378,10 +378,6 @@ val foo : ?x:local_ 'a -> unit -> local_ 'a option = <fun>
 
 let foo ?(local_ x = "hello") () = x;;
 [%%expect{|
-val foo :
-  ?x:local_ string -> local_
-  (unit -> local_ string @ unyielding) @ unyielding = <fun>
-|}, Principal{|
 val foo : ?x:local_ string -> unit -> local_ string = <fun>
 |}]
 
@@ -901,7 +897,7 @@ let foo x = exclave_
   let r = local_ { contents = x } in
   print r
 [%%expect{|
-val foo : string -> local_ unit @ unyielding = <fun>
+val foo : string -> local_ unit = <fun>
 |}]
 
 (* Can pass local values to calls explicitly marked as nontail *)
@@ -948,7 +944,7 @@ let foo x = exclave_
   let local_ foo () = r.contents in
   foo ()
 [%%expect{|
-val foo : 'a -> local_ 'a @ unyielding = <fun>
+val foo : 'a -> local_ 'a = <fun>
 |}]
 
 (* Cannot return local values without annotations on all exits *)
@@ -968,7 +964,7 @@ let foo x = exclave_
   let r = local_ { contents = x } in
   r
 [%%expect{|
-val foo : 'a -> local_ 'a ref @ unyielding = <fun>
+val foo : 'a -> local_ 'a ref = <fun>
 |}]
 
 let foo p x = exclave_
@@ -976,7 +972,7 @@ let foo p x = exclave_
   if p then r
   else r
 [%%expect{|
-val foo : bool -> 'a -> local_ 'a ref @ unyielding = <fun>
+val foo : bool -> 'a -> local_ 'a ref = <fun>
 |}]
 
 (* Non-local regional values can be passed to tail calls *)
@@ -1008,14 +1004,14 @@ let foo () = exclave_
   let _ = local_ (52, 24) in
   42
 [%%expect{|
-val foo : unit -> local_ int @ unyielding = <fun>
+val foo : unit -> local_ int = <fun>
 |}]
 
 let bar () =
   let _x = 52 in
   foo ()
 [%%expect{|
-val bar : unit -> local_ int @ unyielding = <fun>
+val bar : unit -> local_ int = <fun>
 |}]
 
 (* if not at tail, then not affected *)
@@ -1750,25 +1746,17 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig
-           val add :
-             local_ int32 @ unyielding ->
-             local_ int32 @ unyielding -> local_ int32 @ unyielding
-         end
+         sig val add : local_ int32 -> local_ int32 -> local_ int32 end
        is not included in
          sig val add : local_ int32 -> local_ int32 -> int32 end
        Values do not match:
-         val add :
-           local_ int32 @ unyielding ->
-           local_ int32 @ unyielding -> local_ int32 @ unyielding
+         val add : local_ int32 -> local_ int32 -> local_ int32
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
-       The type
-         "local_ int32 @ unyielding ->
-         local_ int32 @ unyielding -> local_ int32 @ unyielding"
+       The type "local_ int32 -> local_ int32 -> local_ int32"
        is not compatible with the type "local_ int32 -> local_ int32 -> int32"
-       Type "local_ int32 @ unyielding -> local_ int32 @ unyielding"
-       is not compatible with type "local_ int32 -> int32"
+       Type "local_ int32 -> local_ int32" is not compatible with type
+         "local_ int32 -> int32"
 |}]
 module Opt32 : sig external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add" end = Int32
 module Bad32_2 : sig val add : local_ int32 -> local_ int32 -> int32 end =
@@ -1798,12 +1786,10 @@ Error: Signature mismatch:
            (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
-       The type
-         "local_ int32 @ unyielding ->
-         local_ int32 @ unyielding -> local_ int32 @ unyielding"
+       The type "local_ int32 -> local_ int32 -> local_ int32"
        is not compatible with the type "local_ int32 -> local_ int32 -> int32"
-       Type "local_ int32 @ unyielding -> local_ int32 @ unyielding"
-       is not compatible with type "local_ int32 -> int32"
+       Type "local_ int32 -> local_ int32" is not compatible with type
+         "local_ int32 -> int32"
 |}]
 
 module Contravariant_instantiation : sig
@@ -1839,25 +1825,11 @@ let nativeint (local_ x) (local_ y) = exclave_
 let float (local_ x) (local_ y) = exclave_
   (x +. y *. x -. 42.)
 [%%expect{|
-val int32 :
-  local_ int32 -> local_
-  (local_ int32 -> local_ int32 @ unyielding) @ unyielding = <fun>
-val int64 :
-  local_ int64 -> local_
-  (local_ int64 -> local_ int64 @ unyielding) @ unyielding = <fun>
-val nativeint :
-  local_ nativeint -> local_
-  (local_ nativeint -> local_ nativeint @ unyielding) @ unyielding = <fun>
-val float :
-  local_ float -> local_
-  (local_ float -> local_ float @ unyielding) @ unyielding = <fun>
-|}, Principal{|
-val int32 : local_ int32 -> local_ int32 -> local_ int32 @ unyielding = <fun>
-val int64 : local_ int64 -> local_ int64 -> local_ int64 @ unyielding = <fun>
-val nativeint :
-  local_ nativeint -> local_ nativeint -> local_ nativeint @ unyielding =
+val int32 : local_ int32 -> local_ int32 -> local_ int32 = <fun>
+val int64 : local_ int64 -> local_ int64 -> local_ int64 = <fun>
+val nativeint : local_ nativeint -> local_ nativeint -> local_ nativeint =
   <fun>
-val float : local_ float -> local_ float -> local_ float @ unyielding = <fun>
+val float : local_ float -> local_ float -> local_ float = <fun>
 |}]
 
 let etapair (local_ x) = exclave_ (fst x, snd x)
@@ -1901,7 +1873,7 @@ let testbool1 f = let local_ r = ref 42 in (f r || false) && true
 
 let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
-val testbool1 : (local_ int ref @ unyielding -> bool) -> bool = <fun>
+val testbool1 : (local_ int ref -> bool) -> bool = <fun>
 Line 3, characters 63-64:
 3 | let testbool2 f = let local_ r = ref 42 in true && (false || f r)
                                                                    ^
@@ -1915,8 +1887,8 @@ Error: This value escapes its region.
 let foo () = exclave_ let local_ _x = "hello" in true
 let testboo3 () =  true && (foo ())
 [%%expect{|
-val foo : unit -> local_ bool @ unyielding = <fun>
-val testboo3 : unit -> local_ bool @ unyielding = <fun>
+val foo : unit -> local_ bool = <fun>
+val testboo3 : unit -> local_ bool = <fun>
 |}]
 
 (* Test from Nathanaëlle Courant.
@@ -1988,15 +1960,14 @@ let f g n =
   ()
 let z : (int list -> unit) -> int -> unit = f
 [%%expect{|
-val f : (local_ int list @ unyielding -> unit) -> int -> unit = <fun>
+val f : (local_ int list -> unit) -> int -> unit = <fun>
 Line 5, characters 44-45:
 5 | let z : (int list -> unit) -> int -> unit = f
                                                 ^
-Error: This expression has type
-         "(local_ int list @ unyielding -> unit) -> int -> unit"
+Error: This expression has type "(local_ int list -> unit) -> int -> unit"
        but an expression was expected of type
          "(int list -> unit) -> int -> unit"
-       Type "local_ int list @ unyielding -> unit" is not compatible with type
+       Type "local_ int list -> unit" is not compatible with type
          "int list -> unit"
 |}]
 
@@ -2011,11 +1982,10 @@ end
 Line 6, characters 46-47:
 6 |   let z : (int list -> unit) -> int -> unit = f
                                                   ^
-Error: This expression has type
-         "(local_ int list @ unyielding -> unit) -> int -> unit"
+Error: This expression has type "(local_ int list -> unit) -> int -> unit"
        but an expression was expected of type
          "(int list -> unit) -> int -> unit"
-       Type "local_ int list @ unyielding -> unit" is not compatible with type
+       Type "local_ int list -> unit" is not compatible with type
          "int list -> unit"
 |}]
 
@@ -2470,7 +2440,7 @@ Error: This value escapes its region.
 (* constructing local iarray from local elements is fine *)
 let f (local_ x : string) = exclave_ [:x; "foo":]
 [%%expect{|
-val f : local_ string -> local_ string iarray @ unyielding = <fun>
+val f : local_ string -> local_ string iarray = <fun>
 |}]
 
 (* constructing global iarray from global elements is fine *)
@@ -2509,7 +2479,7 @@ let f (local_ a : string iarray) =
   | [: x; _ :] -> x
   | _ -> "foo"
 [%%expect{|
-val f : local_ string iarray -> local_ string @ unyielding = <fun>
+val f : local_ string iarray -> local_ string = <fun>
 |}]
 
 (* projecting out of global iarray gives global elements *)
@@ -2536,7 +2506,7 @@ Error: This value escapes its region.
 (* constructing local array from global elements is allowed *)
 let f (x : string) = exclave_ [| x |]
 [%%expect{|
-val f : string -> local_ string array @ unyielding = <fun>
+val f : string -> local_ string array = <fun>
 |}]
 
 (* projecting out of local array gives global elements *)
@@ -2590,18 +2560,16 @@ Lines 3-6, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val g : 'a -> 'b -> local_ string @ unyielding
-           val f :
-             'a -> local_ ('b -> local_ string @ unyielding) @ unyielding
+           val g : 'a -> 'b -> local_ string
+           val f : 'a -> local_ ('b -> local_ string)
          end
        is not included in
          sig val f : string -> string -> local_ string end
        Values do not match:
-         val f : 'a -> local_ ('b -> local_ string @ unyielding) @ unyielding
+         val f : 'a -> local_ ('b -> local_ string)
        is not included in
          val f : string -> string -> local_ string
-       The type
-         "string -> local_ (string -> local_ string @ unyielding) @ unyielding"
+       The type "string -> local_ (string -> local_ string)"
        is not compatible with the type "string -> string -> local_ string"
 |}]
 
@@ -2673,13 +2641,13 @@ val f : unit -> local_ string -> (string -> string) = <fun>
 
 let f () = exclave_ ((fun x -> fun y -> x + y) : (_ -> _));;
 [%%expect{|
-val f : unit -> local_ (int -> (int -> int)) @ unyielding = <fun>
+val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
 
 (* ok if curried *)
 let f () = exclave_ ((fun x -> (fun y -> x + y) [@extension.curry]) : (_ -> _));;
 [%%expect{|
-val f : unit -> local_ (int -> (int -> int)) @ unyielding = <fun>
+val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
 
 (* Type annotations on a [local_] binding are interpreted in a local context,
@@ -2769,12 +2737,12 @@ val _ret : unit -> M.t -> unit = <fun>
 
 let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
 [%%expect{|
-val _ret : unit -> local_ (M.t -> unit) @ unyielding = <fun>
+val _ret : unit -> local_ (M.t -> unit) = <fun>
 |}]
 
 let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
 [%%expect{|
-val _ret : unit -> local_ (M.t -> unit) @ unyielding = <fun>
+val _ret : unit -> local_ (M.t -> unit) = <fun>
 |}]
 
 type r = {global_ x : string; y : string}

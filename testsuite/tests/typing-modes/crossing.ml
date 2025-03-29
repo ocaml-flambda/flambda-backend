@@ -68,15 +68,15 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : unit -> local_ int @ unyielding end
+         sig val f : unit -> local_ int end
        is not included in
          sig val f : unit -> int end
        Values do not match:
-         val f : unit -> local_ int @ unyielding
+         val f : unit -> local_ int
        is not included in
          val f : unit -> int
-       The type "unit -> local_ int @ unyielding"
-       is not compatible with the type "unit -> int"
+       The type "unit -> local_ int" is not compatible with the type
+         "unit -> int"
 |}]
 
 module M : sig
