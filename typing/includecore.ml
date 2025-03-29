@@ -146,26 +146,20 @@ let value_descriptions ~loc env name
   | Val_prim p1 -> begin
      match vd2.val_kind with
      | Val_prim p2 -> begin
-         let restrict_locality = [
-           (fun m -> Mode.Locality.submode_exn m Mode.Locality.global);
-           (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
-         ] in
-         let restrict_yielding = [
-           (fun m -> Mode.Yielding.submode_exn m Mode.Yielding.unyielding);
-           (fun m -> Mode.Yielding.submode_exn Mode.Yielding.yielding m)
-         ] in
-         List.iter (fun restrict_loc ->
-           List.iter (fun restrict_yield ->
+         let locality = [ Mode.Locality.global; Mode.Locality.local ] in
+         let yielding = [ Mode.Yielding.unyielding; Mode.Yielding.yielding ] in
+         List.iter (fun loc ->
+           List.iter (fun yield ->
              let ty1, _, _, _ = Ctype.instance_prim p1 vd1.val_type in
              let ty2, mode_l2, mode_y2, _ = Ctype.instance_prim p2 vd2.val_type in
-             Option.iter restrict_loc mode_l2;
-             Option.iter restrict_yield mode_y2;
+             Option.iter (Mode.Locality.equate_exn loc) mode_l2;
+             Option.iter (Mode.Yielding.equate_exn yield) mode_y2;
              try 
                Ctype.moregeneral env true ty1 ty2
              with Ctype.Moregen err -> 
                raise (Dont_match (Type err))
-           ) restrict_yielding
-         ) restrict_locality;
+           ) yielding
+         ) locality;
          match primitive_descriptions p1 p2 with
          | None -> Tcoerce_none
          | Some err -> raise (Dont_match (Primitive_mismatch err))

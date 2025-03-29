@@ -1451,13 +1451,7 @@ module Const = struct
           Some (List.filter (fun m -> m <> "unyielding") modes)
         | true, false ->
           (* Otherwise, print [mod global yielding] to indicate [yielding]. *)
-          let rec insert_after_global acc = function
-            | [] -> List.rev acc
-            | "global" :: rest ->
-              List.rev_append acc ["global"; "yielding"] @ rest
-            | x :: rest -> insert_after_global (x :: acc) rest
-          in
-          Some (insert_after_global [] modes)
+          Some (modes @ ["yielding"])
         | _, _ -> Some modes)
 
     let modality_to_ignore_axes axes_to_ignore =
