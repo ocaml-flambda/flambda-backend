@@ -28,6 +28,16 @@ Line 2, characters 18-19:
 Error: The value "x" is local, so cannot be used inside a lazy expression.
 |}]
 
+(* For simplicity, we also require them to be [unyielding]. *)
+let foo (x @ yielding) =
+    lazy (let _ = x in ())
+[%%expect{|
+Line 2, characters 18-19:
+2 |     lazy (let _ = x in ())
+                      ^
+Error: The value "x" is yielding, so cannot be used inside a lazy expression that may not yield.
+|}]
+
 (* lazy expression is constructed as global *)
 let foo () =
     lazy ("hello")
@@ -40,7 +50,7 @@ let foo (x @ local) =
     match x with
     | lazy y -> y
 [%%expect{|
-val foo : local_ 'a lazy_t -> 'a @ yielding = <fun>
+val foo : local_ 'a lazy_t -> 'a = <fun>
 |}]
 
 (* one can construct [portable] lazy only if the result is [portable] *)

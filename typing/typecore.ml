@@ -543,7 +543,9 @@ let mode_coerce mode expected_mode =
 
 let mode_lazy expected_mode =
   let expected_mode =
-    mode_coerce (Value.max_with (Comonadic Areality) Regionality.global)
+    mode_coerce (
+      Value.max_with (Comonadic Areality) Regionality.global
+      |> Value.meet_with (Comonadic Yielding) Yielding.Const.Unyielding)
       expected_mode
   in
   let closure_mode =
@@ -652,6 +654,7 @@ let tuple_pat_mode mode tuple_modes =
 let global_pat_mode {mode; _}=
   let mode =
     Value.meet_with (Comonadic Areality) Regionality.Const.Global mode
+    |> Value.meet_with (Comonadic Yielding) Yielding.Const.Unyielding
   in
   simple_pat_mode mode
 
