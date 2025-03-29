@@ -354,6 +354,7 @@ and 'd jkind =
     annotation : Parsetree.jkind_annotation option;
     history : jkind_history;
     has_warned : bool;
+    ran_out_of_fuel_during_normalize : bool;
     quality : 'd jkind_quality;
   }
   constraint 'd = 'l * 'r
