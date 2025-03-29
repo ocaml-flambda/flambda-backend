@@ -367,7 +367,7 @@ val ul : local_ 'a @ unique -> local_ 'a = <fun>
 
 let ul_ret x = exclave_ unique_ x
 [%%expect{|
-val ul_ret : 'a @ unique -> local_ 'a @ unyielding = <fun>
+val ul_ret : 'a @ unique -> local_ 'a = <fun>
 |}]
 
 let rec foo =
@@ -385,8 +385,6 @@ let rec bar =
   | Some () -> ()
   | None -> bar (local_ Some ()) [@nontail]
 [%%expect{|
-val bar : local_ unit option @ unique unyielding -> unit = <fun>
-|}, Principal{|
 val bar : local_ unit option @ unique -> unit = <fun>
 |}]
 

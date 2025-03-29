@@ -184,7 +184,7 @@ external id : ('a [@local_opt]) -> ('a [@local_opt]) = "%identity"
 val f1 : 'a -> 'a = <fun>
 val f2 : local_ 'a -> local_ 'a = <fun>
 val f3 : 'a @ yielding -> 'a @ yielding = <fun>
-val f4 : local_ 'a @ unyielding -> local_ 'a @ unyielding = <fun>
+val f4 : local_ 'a @ unyielding -> local_ 'a = <fun>
 |}]
 
 (* [mod global] implies [mod unyielding] by default. *)
