@@ -1724,9 +1724,7 @@ module Yielding = struct
   (* [unyielding] is the default for [global]s and [yielding] for [local]
      or [regional] values, so we vary [zap_to_legacy] accordingly. *)
   let zap_to_legacy ~global =
-    match global with
-    | true -> zap_to_floor
-    | false -> zap_to_ceil
+    match global with true -> zap_to_floor | false -> zap_to_ceil
 end
 
 let regional_to_local m =
