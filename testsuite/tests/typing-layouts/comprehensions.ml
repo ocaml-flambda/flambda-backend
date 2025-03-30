@@ -23,18 +23,17 @@ Error: This expression has type "Stdlib_upstream_compatible.Float_u.t" = "float#
          because it's the element type of array comprehension.
 |}]
 
-(* The below error demonstrates a missing check in the type system and will be
-   fixed in the next commit. *)
 let box_array x = [| Float_u.to_float a for a in x |]
 [%%expect{|
-Line 1, characters 44-45:
+Line 1, characters 38-39:
 1 | let box_array x = [| Float_u.to_float a for a in x |]
-                                                ^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
+                                          ^
+Error: This expression has type "('a : value)"
+       but an expression was expected of type
+         "Stdlib_upstream_compatible.Float_u.t" = "float#"
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
-         because it has to be value for the V1 safety check.
+         because it's the element type of an array that is iterated over in a comprehension.
 |}]
 
 (* List cases are less interesting because we don't allow unboxed types in lists
@@ -52,16 +51,15 @@ Error: This expression has type "Stdlib_upstream_compatible.Float_u.t" = "float#
          because the type argument of list has layout value_or_null.
 |}]
 
-(* The below error demonstrates a missing check in the type system and will be
-   fixed in the next commit. *)
 let box_list x = [ Float_u.to_float a for a in x ]
 [%%expect{|
-Line 1, characters 42-43:
+Line 1, characters 36-37:
 1 | let box_list x = [ Float_u.to_float a for a in x ]
-                                              ^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
+                                        ^
+Error: This expression has type "('a : value)"
+       but an expression was expected of type
+         "Stdlib_upstream_compatible.Float_u.t" = "float#"
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
-         because it has to be value for the V1 safety check.
+         because it's the element type of a list that is iterated over in a comprehension.
 |}]
