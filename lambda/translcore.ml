@@ -759,7 +759,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             Psetmixedfield(lbl.lbl_pos, shape, mode)
         | Record_inlined (_, _, Variant_with_null) -> assert false
       in
-      Lprim(access, [transl_exp ~scopes Jkind.Sort.Const.for_record arg;
+      let sort_arg =
+        (* We know the record is boxed because unboxed records don't have
+           mutable fields, and this is double checked by the assert in [access]
+           above. *)
+        Jkind.Sort.Const.for_boxed_record
+      in
+      Lprim(access, [transl_exp ~scopes sort_arg arg;
                      transl_exp ~scopes lbl.lbl_sort newval],
             of_location ~scopes e.exp_loc)
   | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
@@ -1884,7 +1890,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     | Some m -> is_heap_mode m
   in
   match opt_init_expr with
-  | Some (init_expr, _) when on_heap && size >= Config.max_young_wosize ->
+  | Some (init_expr, init_expr_sort, _)
+    when on_heap && size >= Config.max_young_wosize ->
     (* Take a shallow copy of the init record, then mutate the fields
        of the copy *)
     let copy_id = Ident.create_local "newrecord" in
@@ -1942,10 +1949,13 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                           of_location ~scopes loc),
                     cont)
     in
+    let init_expr_sort =
+      Jkind.Sort.default_for_transl_and_get init_expr_sort
+    in
     assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
     Llet(Strict, Lambda.layout_block, copy_id,
          Lprim(Pduprecord (repres, size),
-               [transl_exp ~scopes Jkind.Sort.Const.for_record init_expr],
+               [transl_exp ~scopes init_expr_sort init_expr],
                of_location ~scopes loc),
          Array.fold_left update_field (Lvar copy_id) fields)
   | Some _ | None ->
@@ -1963,7 +1973,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
                let unique_barrier = match opt_init_expr with
-                 | Some (_, ubr) -> Translmode.transl_unique_barrier ubr
+                 | Some (_, _, ubr) -> Translmode.transl_unique_barrier ubr
                  | None -> assert false (* Kept fields only exist on extended records *)
                in
                let sem = add_barrier_to_read unique_barrier sem in
@@ -2114,8 +2124,12 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     in
     begin match opt_init_expr with
       None -> lam
-    | Some (init_expr, _) -> Llet(Strict, Lambda.layout_block, init_id,
-                             transl_exp ~scopes Jkind.Sort.Const.for_record init_expr, lam)
+    | Some (init_expr, init_expr_sort, _) ->
+        let init_expr_sort =
+          Jkind.Sort.default_for_transl_and_get init_expr_sort
+        in
+        Llet(Strict, Lambda.layout_block, init_id,
+             transl_exp ~scopes init_expr_sort init_expr, lam)
     end
 
 and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =

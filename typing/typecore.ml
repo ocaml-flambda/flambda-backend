@@ -4126,7 +4126,7 @@ let rec is_nonexpansive exp =
                lbl.lbl_mut = Immutable && is_nonexpansive exp
            | Kept _ -> true)
         fields
-      && is_nonexpansive_opt (Option.map fst extended_expression)
+      && is_nonexpansive_opt (Option.map Misc.fst3 extended_expression)
   | Texp_record_unboxed_product { fields; extended_expression } ->
       Array.for_all
         (fun (lbl, definition) ->
@@ -5536,7 +5536,16 @@ and type_expect_
               Array.map (unify_kept loc exp.exp_loc ty_exp mode) lbl.lbl_all
             in
             let ubr = Unique_barrier.not_computed () in
-            Some ({exp with exp_type = ty_exp}, ubr), label_definitions
+            let sort =
+              match
+                Ctype.type_sort ~why:Record_functional_update ~fixed:false
+                  env exp.exp_type
+              with
+              | Ok sort -> sort
+              | Error err ->
+                raise (Error (loc, env, Record_not_rep(ty_expected, err)))
+            in
+            Some ({exp with exp_type = ty_exp}, sort, ubr), label_definitions
       in
       let num_fields =
         match lbl_exp_list with [] -> assert false
@@ -5563,16 +5572,7 @@ and type_expect_
         | Unboxed_product ->
           let opt_exp = match opt_exp with
             | None -> None
-            | Some (exp, _) ->
-              let sort =
-                Ctype.type_sort ~why:Record_functional_update ~fixed:false
-                  env exp.exp_type
-              in
-              match sort with
-              | Ok sort -> Some (exp, sort)
-              | Error err ->
-                raise
-                  (Error (loc, env, Record_not_rep(ty_expected, err)))
+            | Some (exp, sort, _) -> Some (exp, sort)
           in
           Texp_record_unboxed_product {
             fields; representation;

@@ -126,7 +126,7 @@ module Sort = struct
 
     let for_poly_variant = value
 
-    let for_record = value
+    let for_boxed_record = value
 
     let for_object = value
 

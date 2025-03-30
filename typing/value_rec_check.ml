@@ -782,7 +782,7 @@ let rec expression : Typedtree.expression -> term_judg =
         in
         join [
           array field es;
-          option expression (Option.map fst eo) << Dereference
+          option expression (Option.map Misc.fst3 eo) << Dereference
         ]
     | Texp_record_unboxed_product { fields = es; extended_expression = eo;
                                     representation = rep } ->
