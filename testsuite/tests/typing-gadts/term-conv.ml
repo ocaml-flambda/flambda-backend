@@ -65,10 +65,10 @@ end;;
 module HOAS :
   sig
     type _ term =
-        Tag : 't Typeable.ty * int -> 't term
-      | Con : 't -> 't term
+        Tag : _ Typeable.ty * int -> _ term
+      | Con : _ -> _ term
       | Lam : 's Typeable.ty * ('s term -> 't term) -> ('s -> 't) term
-      | App : ('s -> 't) term * 's term -> 't term
+      | App : ('s -> _) term * 's term -> _ term
     val intp : 't term -> 't
   end
 |}];;
@@ -166,9 +166,9 @@ end;;
 module Convert :
   sig
     type (_, _) layout =
-        EmptyLayout : ('env, unit) layout
-      | PushLayout : 't Typeable.ty * ('env, 'env') layout *
-          ('env, 't) DeBruijn.ix -> ('env, 'env' * 't) layout
+        EmptyLayout : (_, unit) layout
+      | PushLayout : 't Typeable.ty * (_, 'env') layout *
+          (_, 't) DeBruijn.ix -> (_, 'env' * 't) layout
     val size : ('env, 'env') layout -> int
     val inc : ('env, 'env') layout -> ('env * 't, 'env') layout
     val prj :

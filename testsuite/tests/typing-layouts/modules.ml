@@ -1064,7 +1064,7 @@ end = struct
 end
 
 [%%expect {|
-module M : sig type _ t = Mk : 'a -> 'a t end
+module M : sig type _ t = Mk : _ -> _ t end
 |}]
 
 module M : sig
@@ -1074,24 +1074,7 @@ end = struct
 end
 
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type _ t = Mk : 'a. 'a -> 'a t
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type _ t = Mk : 'a -> 'a t end
-       is not included in
-         sig type (_ : any) t = Mk : 'a -> 'a t end
-       Type declarations do not match:
-         type _ t = Mk : 'a -> 'a t
-       is not included in
-         type (_ : any) t = Mk : 'a -> 'a t
-       The problem is in the kinds of a parameter:
-       The layout of _ is any
-         because of the definition of t at line 2, characters 2-40.
-       But the layout of _ must be a sublayout of value
-         because of the definition of t at line 4, characters 2-32.
+module M : sig type _ t = Mk : _ -> _ t end
 |}]
 
 module M : sig
@@ -1101,29 +1084,7 @@ end = struct
 end
 
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type (_ : any) t = Mk : ('a : value). 'a -> 'a t
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type (_ : any) t = Mk : 'a -> 'a t end
-       is not included in
-         sig type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t end
-       Type declarations do not match:
-         type (_ : any) t = Mk : 'a -> 'a t
-       is not included in
-         type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
-       Constructors do not match:
-         "Mk : 'a -> 'a t"
-       is not the same as:
-         "Mk : ('a : immediate). 'a -> 'a t"
-       The type "'a t" is not equal to the type "'a0 t"
-       because the layouts of their variables are different.
-       The layout of 'a is value
-         because of the definition of t at line 4, characters 2-50.
-       The layout of 'a0 is immediate
-         because of the definition of t at line 2, characters 2-54.
+module M : sig type (_ : immediate) t = Mk : (_ : immediate). _ -> _ t end
 |}]
 
 module M : sig
@@ -1139,23 +1100,18 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t end
+         sig type (_ : immediate) t = Mk : (_ : immediate). _ -> _ t end
        is not included in
-         sig type (_ : any) t = Mk : 'a -> 'a t end
+         sig type _ t = Mk : _ -> _ t end
        Type declarations do not match:
-         type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+         type (_ : immediate) t = Mk : (_ : immediate). _ -> _ t
        is not included in
-         type (_ : any) t = Mk : 'a -> 'a t
-       Constructors do not match:
-         "Mk : ('a : immediate). 'a -> 'a t"
-       is not the same as:
-         "Mk : 'a -> 'a t"
-       The type "'a t" is not equal to the type "'a0 t"
-       because the layouts of their variables are different.
-       The layout of 'a is immediate
-         because of the definition of t at line 4, characters 2-54.
-       The layout of 'a0 is value
+         type _ t = Mk : _ -> _ t
+       The problem is in the kinds of a parameter:
+       The kind of _ is value
          because of the definition of t at line 2, characters 2-50.
+       But the kind of _ must be a subkind of immediate
+         because of the definition of t at line 4, characters 2-54.
 |}]
 
 module M : sig
@@ -1165,7 +1121,7 @@ end = struct
 end
 
 [%%expect {|
-module M : sig type (_ : any) t = Mk : 'a -> 'a t end
+module M : sig type _ t = Mk : _ -> _ t end
 |}]
 
 module M : sig
@@ -1175,7 +1131,7 @@ end = struct
 end
 
 [%%expect {|
-module M : sig type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t end
+module M : sig type (_ : immediate) t = Mk : (_ : immediate). _ -> _ t end
 |}]
 
 module M : sig

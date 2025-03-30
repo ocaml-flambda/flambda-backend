@@ -1367,11 +1367,18 @@ let f (type a : value) (x : a t) =
     ()
 
 [%%expect{|
-type _ t =
-    A : ('a : immediate). 'a t
-  | B : ('b : value mod aliased portable). 'b -> 'b t
-  | C : 'c t
-val f : 'a t -> unit = <fun>
+type (_ : immediate) t =
+    A : (_ : immediate). _ t
+  | B : (_ : immediate). _ -> _ t
+  | C : (_ : immediate). _ t
+Line 6, characters 28-29:
+6 | let f (type a : value) (x : a t) =
+                                ^
+Error: This type "a" should be an instance of type "('a : immediate)"
+       The kind of a is value
+         because of the annotation on the abstract type declaration for a.
+       But the kind of a must be a subkind of immediate
+         because of the definition of t at lines 1-4, characters 0-11.
 |}]
 
 type _ t =
@@ -1393,19 +1400,18 @@ let f (type a : value) (x : a t) =
     f y
 
 [%%expect{|
-type _ t =
-    A : ('a : immediate). 'a t
-  | B : ('b : value mod aliased portable). 'b -> 'b t
-  | C : 'c t
-Line 17, characters 6-7:
-17 |     f y
-           ^
-Error: This expression has type "a" but an expression was expected of type
-         "('a : immediate)"
+type (_ : immediate) t =
+    A : (_ : immediate). _ t
+  | B : (_ : immediate). _ -> _ t
+  | C : (_ : immediate). _ t
+Line 6, characters 28-29:
+6 | let f (type a : value) (x : a t) =
+                                ^
+Error: This type "a" should be an instance of type "('a : immediate)"
        The kind of a is value
          because of the annotation on the abstract type declaration for a.
        But the kind of a must be a subkind of immediate
-         because of the definition of f at line 16, characters 10-41.
+         because of the definition of t at lines 1-4, characters 0-11.
 |}]
 
 (********************)

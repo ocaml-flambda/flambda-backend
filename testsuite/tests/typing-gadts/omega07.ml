@@ -34,8 +34,8 @@ type zero = Zero
 type 'a succ = Succ of 'a
 type _ nat = NZ : zero nat | NS : 'a nat -> 'a succ nat
 type (_, _) seq =
-    Snil : ('a, zero) seq
-  | Scons : 'a * ('a, 'n) seq -> ('a, 'n succ) seq
+    Snil : (_, zero) seq
+  | Scons : _ * (_, 'n) seq -> (_, 'n succ) seq
 val l1 : (int, zero succ succ) seq = Scons (3, Scons (5, Snil))
 |}];;
 
@@ -54,8 +54,8 @@ let rec length : type a n. (a,n) seq -> n nat = function
 ;;
 [%%expect{|
 type (_, _, _) plus =
-    PlusZ : 'a nat -> (zero, 'a, 'a) plus
-  | PlusS : ('a, 'b, 'c) plus -> ('a succ, 'b, 'c succ) plus
+    PlusZ : _ nat -> (zero, _, _) plus
+  | PlusS : ('a, _, 'c) plus -> ('a succ, _, 'c succ) plus
 val length : ('a, 'n) seq -> 'n nat = <fun>
 |}];;
 
@@ -72,8 +72,7 @@ let rec app : type a n m. (a,n) seq -> (a,m) seq -> (a,n,m) app =
       App (Scons (x, xs''), PlusS pl)
 ;;
 [%%expect{|
-type (_, _, _) app =
-    App : ('a, 'p) seq * ('n, 'm, 'p) plus -> ('a, 'n, 'm) app
+type (_, _, _) app = App : (_, 'p) seq * (_, _, 'p) plus -> (_, _, _) app
 val app : ('a, 'n) seq -> ('a, 'm) seq -> ('a, 'n, 'm) app = <fun>
 |}];;
 
@@ -123,14 +122,14 @@ type tt = TT
 type ff = FF
 type _ boolean = BT : tt boolean | BF : ff boolean
 type (_, _) path =
-    Pnone : 'a -> (tp, 'a) path
-  | Phere : (nd, 'a) path
-  | Pleft : ('x, 'a) path -> (('x, 'y) fk, 'a) path
-  | Pright : ('y, 'a) path -> (('x, 'y) fk, 'a) path
+    Pnone : _ -> (tp, _) path
+  | Phere : (nd, _) path
+  | Pleft : ('x, _) path -> (('x, 'y) fk, _) path
+  | Pright : ('y, _) path -> (('x, 'y) fk, _) path
 type (_, _) tree =
-    Ttip : (tp, 'a) tree
-  | Tnode : 'a -> (nd, 'a) tree
-  | Tfork : ('x, 'a) tree * ('y, 'a) tree -> (('x, 'y) fk, 'a) tree
+    Ttip : (tp, _) tree
+  | Tnode : _ -> (nd, _) tree
+  | Tfork : ('x, _) tree * ('y, _) tree -> (('x, 'y) fk, _) tree
 val tree1 : (((tp, nd) fk, (nd, nd) fk) fk, int) tree =
   Tfork (Tfork (Ttip, Tnode 4), Tfork (Tnode 4, Tnode 3))
 |}];;
@@ -183,7 +182,7 @@ let p1 : (two, one, three) plus = PlusS (PlusS (PlusZ (NS NZ)))
 ;;
 [%%expect{|
 type (_, _) le =
-    LeZ : 'a nat -> (zero, 'a) le
+    LeZ : _ nat -> (zero, _) le
   | LeS : ('n, 'm) le -> ('n succ, 'm succ) le
 type _ even = EvenZ : zero even | EvenSS : 'n even -> 'n succ succ even
 type one = zero succ
@@ -291,7 +290,7 @@ let rec diff : type a b. (a,b) le -> a nat -> b nat -> (a,b) diff =
       match diff q x y with Diff (m, p) -> Diff (m, PlusS p)
 ;;
 [%%expect{|
-type (_, _) diff = Diff : 'c nat * ('a, 'c, 'b) plus -> ('a, 'b) diff
+type (_, _) diff = Diff : 'c nat * (_, 'c, _) plus -> (_, _) diff
 val diff : ('a, 'b) le -> 'a nat -> 'b nat -> ('a, 'b) diff = <fun>
 |}];;
 
@@ -325,7 +324,7 @@ let rec leS' : type m n. (m,n) le -> (m,n succ) le = function
   | LeS le -> LeS (leS' le)
 ;;
 [%%expect{|
-type (_, _) filter = Filter : ('m, 'n) le * ('a, 'm) seq -> ('a, 'n) filter
+type (_, _) filter = Filter : ('m, _) le * (_, 'm) seq -> (_, _) filter
 val leS' : ('m, 'n) le -> ('m, 'n succ) le = <fun>
 |}];;
 
@@ -525,8 +524,8 @@ let rec del : type n. int -> n avl -> n avl_del = fun y t ->
 ;;
 [%%expect{|
 type _ avl_del =
-    Dsame : 'n avl -> 'n avl_del
-  | Ddecr : ('m succ, 'n) equal * 'm avl -> 'n avl_del
+    Dsame : _ avl -> _ avl_del
+  | Ddecr : ('m succ, _) equal * 'm avl -> _ avl_del
 val del : int -> 'n avl -> 'n avl_del = <fun>
 |}];;
 
@@ -570,18 +569,17 @@ type red = RED
 type black = BLACK
 type (_, _) sub_tree =
     Bleaf : (black, zero) sub_tree
-  | Rnode : (black, 'n) sub_tree * int *
-      (black, 'n) sub_tree -> (red, 'n) sub_tree
+  | Rnode : (black, _) sub_tree * int *
+      (black, _) sub_tree -> (red, _) sub_tree
   | Bnode : ('cL, 'n) sub_tree * int *
       ('cR, 'n) sub_tree -> (black, 'n succ) sub_tree
 type rb_tree = Root : (black, 'n) sub_tree -> rb_tree
 type dir = LeftD | RightD
 type (_, _) ctxt =
-    CNil : (black, 'n) ctxt
-  | CRed : int * dir * (black, 'n) sub_tree *
-      (red, 'n) ctxt -> (black, 'n) ctxt
-  | CBlk : int * dir * ('c1, 'n) sub_tree *
-      (black, 'n succ) ctxt -> ('c, 'n) ctxt
+    CNil : (black, _) ctxt
+  | CRed : int * dir * (black, _) sub_tree * (red, _) ctxt -> (black, _) ctxt
+  | CBlk : int * dir * ('c1, _) sub_tree *
+      (black, _ succ) ctxt -> (_, _) ctxt
 val blacken : (red, 'a) sub_tree -> (black, 'a succ) sub_tree = <fun>
 |}];;
 
@@ -696,7 +694,7 @@ type _ term =
     Const : int -> int term
   | Add : (int * int -> int) term
   | LT : (int * int -> bool) term
-  | Ap : ('a -> 'b) term * 'a term -> 'b term
+  | Ap : ('a -> _) term * 'a term -> _ term
   | Pair : 'a term * 'b term -> ('a * 'b) term
 val ex1 : int term = Ap (Add, Pair (Const 3, Const 5))
 val ex2 : (int * int) term =
@@ -791,12 +789,12 @@ let rec eval_term : type a. assoc list -> a term -> a =
 ;;
 [%%expect{|
 type _ term =
-    Var : string * 'a rep -> 'a term
+    Var : string * _ rep -> _ term
   | Abs : string * 'a rep * 'b term -> ('a -> 'b) term
   | Const : int -> int term
   | Add : (int * int -> int) term
   | LT : (int * int -> bool) term
-  | Ap : ('a -> 'b) term * 'a term -> 'b term
+  | Ap : ('a -> _) term * 'a term -> _ term
   | Pair : 'a term * 'b term -> ('a * 'b) term
 val eval_term : assoc list -> 'a term -> 'a = <fun>
 |}];;
@@ -844,11 +842,11 @@ type _ is_row =
     Rnil : rnil is_row
   | Rcons : 'c is_row -> ('a, 'b, 'c) rcons is_row
 type (_, _) lam =
-    Const : int -> ('e, int) lam
-  | Var : 'a -> (('a, 't, 'e) rcons, 't) lam
-  | Shift : ('e, 't) lam -> (('a, 'q, 'e) rcons, 't) lam
-  | Abs : 'a * (('a, 's, 'e) rcons, 't) lam -> ('e, 's -> 't) lam
-  | App : ('e, 's -> 't) lam * ('e, 's) lam -> ('e, 't) lam
+    Const : int -> (_, int) lam
+  | Var : 'a -> (('a, _, 'e) rcons, _) lam
+  | Shift : ('e, _) lam -> (('a, 'q, 'e) rcons, _) lam
+  | Abs : 'a * (('a, 's, _) rcons, 't) lam -> (_, 's -> 't) lam
+  | App : (_, 's -> _) lam * (_, 's) lam -> (_, _) lam
 type x = X
 type y = Y
 val ex1 : ((x, 'a -> 'b, (y, 'a, 'c) rcons) rcons, 'b) lam =
@@ -999,7 +997,7 @@ type term =
 type _ ctx =
     Cnil : rnil ctx
   | Ccons : 't * string * 'x rep * 'e ctx -> ('t, 'x, 'e) rcons ctx
-type _ checked = Cerror of string | Cok : ('e, 't) lam * 't rep -> 'e checked
+type _ checked = Cerror of string | Cok : (_, 't) lam * 't rep -> _ checked
 val lookup : string -> 'e ctx -> 'e checked = <fun>
 |}];;
 
@@ -1115,13 +1113,12 @@ type (_, _) rel =
     IntR : (tint, int) rel
   | IntTo : ('b, 's) rel -> ((tint, 'b) tarr, int -> 's) rel
 type (_, _, _) lam =
-    Const : ('a, 'b) rel * 'b -> (pval, 'env, 'a) lam
-  | Var : 'a -> (pval, ('a, 't, 'e) rcons, 't) lam
-  | Shift : ('m, 'e, 't) lam -> ('m, ('a, 'q, 'e) rcons, 't) lam
+    Const : (_, 'b) rel * 'b -> (pval, _, _) lam
+  | Var : 'a -> (pval, ('a, _, 'e) rcons, _) lam
+  | Shift : (_, 'e, _) lam -> (_, ('a, 'q, 'e) rcons, _) lam
   | Lam : 'a *
-      ('m, ('a, 's, 'e) rcons, 't) lam -> (pval, 'e, ('s, 't) tarr) lam
-  | App : ('m1, 'e, ('s, 't) tarr) lam *
-      ('m2, 'e, 's) lam -> (pexp, 'e, 't) lam
+      ('m, ('a, 's, _) rcons, 't) lam -> (pval, _, ('s, 't) tarr) lam
+  | App : ('m1, _, ('s, _) tarr) lam * ('m2, _, 's) lam -> (pexp, _, _) lam
 val ex1 : (pexp, 'a, tint) lam =
   App (Lam (<poly>, Var <poly>), Const (IntR, <poly>))
 |}];;
@@ -1162,11 +1159,10 @@ let rec subst : type m1 r t s. (m1,r,t) lam -> (r,s) sub -> (s,t) lam' =
 ;;
 [%%expect{|
 type (_, _) sub =
-    Id : ('r, 'r) sub
-  | Bind : 't * ('m, 'r2, 'x) lam *
-      ('r, 'r2) sub -> (('t, 'x, 'r) rcons, 'r2) sub
+    Id : (_, _) sub
+  | Bind : 't * ('m, _, 'x) lam * ('r, _) sub -> (('t, 'x, 'r) rcons, _) sub
   | Push : ('r1, 'r2) sub -> (('a, 'b, 'r1) rcons, ('a, 'b, 'r2) rcons) sub
-type (_, _) lam' = Ex : ('m, 's, 't) lam -> ('s, 't) lam'
+type (_, _) lam' = Ex : ('m, _, _) lam -> (_, _) lam'
 val subst : ('m1, 'r, 't) lam -> ('r, 's) sub -> ('s, 't) lam' = <fun>
 |}];;
 

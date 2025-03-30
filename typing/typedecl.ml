@@ -1885,44 +1885,70 @@ let rec update_decl_jkind env dpath decl =
             |> Jkind.mark_best
           in
           let add_cstr_args cstr jkind =
-            let apply_cstr =
-              (match cstr.cd_res with
-               | None -> Fun.id
-               | Some res ->
-                 let args =
-                   (match Types.get_desc res with
-                    | Tconstr (_, args, _) -> args
-                    | _ -> Misc.fatal_error "cd_res must be Tconstr")
-                 in
-                 let params, args =
-                   let seen = Btype.TypeHash.create 11 in
-                   List.map2
-                     (fun ty1 ty2 ->
-                        if Btype.TypeHash.mem seen ty1
+            (* let apply_cstr =
+             *   (match cstr.cd_res with
+             *    | None -> Fun.id
+             *    | Some res ->
+             *      let args =
+             *        (match Types.get_desc res with
+             *         | Tconstr (_, args, _) -> args
+             *         | _ -> Misc.fatal_error "cd_res must be Tconstr")
+             *      in
+             *      let params, args =
+             *        let seen = Btype.TypeHash.create 11 in
+             *        List.map2
+             *          (fun ty1 ty2 ->
+             *             if Btype.TypeHash.mem seen ty1
+             *             then None
+             *             else match Types.get_desc ty1, Types.get_desc ty2 with
+             *               | Tvar _, Tvar _ ->
+             *                 Btype.TypeHash.add seen ty1 ();
+             *                 Some (ty1, ty2)
+             *               | _ -> None
+             *          )
+             *          args
+             *          decl.type_params
+             *        |> List.filter_map Fun.id
+             *        |> List.split
+             *      in
+             *      fun ty -> Ctype.apply env params ty args)
+             * in *)
+            (match cstr.cd_res with
+             | None -> ()
+             | Some res ->
+               let args =
+                 (match Types.get_desc res with
+                  | Tconstr (_, args, _) -> args
+                  | _ -> Misc.fatal_error "cd_res must be Tconstr")
+               in
+               let seen = ref Btype.TypeSet.empty in
+               let to_unify =
+                 List.map2
+                   (fun arg_ty decl_ty ->
+                      match Types.get_desc arg_ty, Types.get_desc decl_ty with
+                      | Tvar _, Tvar _ ->
+                        if (Btype.TypeSet.mem arg_ty !seen)
                         then None
-                        else match Types.get_desc ty1, Types.get_desc ty2 with
-                          | Tvar _, Tvar _ ->
-                            Btype.TypeHash.add seen ty1 ();
-                            Some (ty1, ty2)
-                          | _ -> None
-                     )
-                     args
-                     decl.type_params
-                   |> List.filter_map Fun.id
-                   |> List.split
-                 in
-                 fun ty -> Ctype.apply env params ty args)
-            in
+                        else (
+                          seen := Btype.TypeSet.add arg_ty !seen;
+                          Some (arg_ty, decl_ty))
+                      | _ -> None)
+                   args
+                   decl.type_params
+                 |> List.filter_map Fun.id
+               in
+               List.iter (fun (ty1, ty2) -> Ctype.unify env ty1 ty2) to_unify
+            );
             match cstr.cd_args with
             | Cstr_tuple args ->
               List.fold_right
                 (fun arg ->
-                   Jkind.add_with_bounds ~modality:arg.ca_modalities ~type_expr:(apply_cstr arg.ca_type))
+                   Jkind.add_with_bounds ~modality:arg.ca_modalities ~type_expr:((* apply_cstr *) arg.ca_type))
                 args jkind
             | Cstr_record lbls ->
               List.fold_right
                 (fun (lbl : Types.label_declaration) ->
-                   Jkind.add_with_bounds ~modality:lbl.ld_modalities ~type_expr:(apply_cstr lbl.ld_type))
+                   Jkind.add_with_bounds ~modality:lbl.ld_modalities ~type_expr:((* apply_cstr *) lbl.ld_type))
                 lbls jkind
           in
           List.fold_right add_cstr_args cstrs base

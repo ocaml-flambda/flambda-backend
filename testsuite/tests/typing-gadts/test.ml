@@ -38,7 +38,7 @@ module Exp :
         IntLit : int -> int t
       | BoolLit : bool -> bool t
       | Pair : 'a t * 'b t -> ('a * 'b) t
-      | App : ('a -> 'b) t * 'a t -> 'b t
+      | App : ('a -> _) t * 'a t -> _ t
       | Abs : ('a -> 'b) -> ('a -> 'b) t
     val eval : 's t -> 's
     val discern : 'a t -> int
@@ -176,7 +176,7 @@ Nothing
 module PR6862 :
   sig
     class c : int option -> object method x : int end
-    type _ opt = Just : 'a -> 'a opt | Nothing : 'a opt
+    type _ opt = Just : _ -> _ opt | Nothing : _ opt
     class d : int opt -> object method x : int end
   end
 |}];;

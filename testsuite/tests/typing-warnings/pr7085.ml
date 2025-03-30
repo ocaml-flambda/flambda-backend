@@ -25,7 +25,7 @@ end;;
 module TypEq : sig type (_, _) t = Eq : ('a, 'a) t end
 module type T =
   sig
-    type _ is_t = Is : ('a, 'b) TypEq.t -> 'a is_t
+    type _ is_t = Is : (_, 'b) TypEq.t -> _ is_t
     val is_t : unit -> unit is_t option
   end
 Line 17, characters 5-35:

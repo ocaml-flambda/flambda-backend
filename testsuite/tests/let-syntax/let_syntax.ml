@@ -423,11 +423,10 @@ module Indexed_monad :
     type opened = private Opened
     type closed = private Closed
     type (_, _, _) t =
-        Return : 'a -> ('s, 's, 'a) t
-      | Map : ('s1, 's2, 'a) t * ('a -> 'b) -> ('s1, 's2, 'b) t
-      | Both : ('s1, 's2, 'a) t * ('s2, 's3, 'b) t -> ('s1, 's3, 'a * 'b) t
-      | Bind : ('s1, 's2, 'a) t *
-          ('a -> ('s2, 's3, 'b) t) -> ('s1, 's3, 'b) t
+        Return : _ -> (_, _, _) t
+      | Map : (_, _, 'a) t * ('a -> _) -> (_, _, _) t
+      | Both : (_, 's2, 'a) t * ('s2, _, 'b) t -> (_, _, 'a * 'b) t
+      | Bind : (_, 's2, 'a) t * ('a -> ('s2, _, _) t) -> (_, _, _) t
       | Open : string -> (closed, opened, unit) t
       | Read : (opened, opened, string) t
       | Close : (opened, closed, unit) t

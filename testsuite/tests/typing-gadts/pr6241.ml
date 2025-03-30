@@ -20,7 +20,7 @@ module N = M(A)(A);;
 let x = N.f A;;
 
 [%%expect{|
-type (_, _) t = A : ('a, 'a) t | B : string -> ('a, 'b) t
+type (_, _) t = A : (_, _) t | B : string -> (_, _) t
 Lines 8-9, characters 52-13:
 8 | ....................................................function
 9 |    | B s -> s

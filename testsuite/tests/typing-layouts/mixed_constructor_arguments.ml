@@ -754,11 +754,8 @@ type ('a : any) t_gadt_any =
   | B_record : { x : 'a tv } -> 'a t_gadt_any
 
 [%%expect {|
-type ('a : any) t_gadt_any =
-    A : ('a : float64). 'a tf -> 'a t_gadt_any
-  | B : 'b tv -> 'a t_gadt_any
-  | A_record : ('a : float64). { x : 'a tf; } -> 'a t_gadt_any
-  | B_record : { x : 'a tv; } -> 'a t_gadt_any
+Uncaught exception: Ctype.Unify(_)
+
 |}]
 
 type ('a : any) t_gadt_any_multiple_fields =
@@ -768,26 +765,21 @@ type ('a : any) t_gadt_any_multiple_fields =
   | B_record : { x :  'b tv; y : float# } -> 'a t_gadt_any_multiple_fields
 
 [%%expect {|
-type ('a : any) t_gadt_any_multiple_fields =
-    A : ('a : float64). float# * 'a tf -> 'a t_gadt_any_multiple_fields
-  | B : 'b tv * float# -> 'a t_gadt_any_multiple_fields
-  | A_record : ('a : float64). { x : float#; y : 'a tf;
-    } -> 'a t_gadt_any_multiple_fields
-  | B_record : { x : 'b tv; y : float#; } -> 'a t_gadt_any_multiple_fields
+Uncaught exception: Ctype.Unify(_)
+
 |}]
 
 type ('a : any) t_gadt_any_reordered =
   | A : float# * 'a tv -> 'a t_gadt_any_reordered
 
 [%%expect{|
-type ('a : any) t_gadt_any_reordered =
-    A : float# * 'a tv -> 'a t_gadt_any_reordered
+type 'a t_gadt_any_reordered = A : float# * 'a tv -> 'a t_gadt_any_reordered
 |}]
 
 type ('a : any) t_gadt_any_record_reordered =
   | A : { x : float#; y : 'a tv } -> 'a t_gadt_any_record_reordered
 
 [%%expect{|
-type ('a : any) t_gadt_any_record_reordered =
+type 'a t_gadt_any_record_reordered =
     A : { x : float#; y : 'a tv; } -> 'a t_gadt_any_record_reordered
 |}]

@@ -23,7 +23,7 @@ let uppercase seq =
 type inkind = [ `Link | `Nonlink ]
 type _ inline_t =
     Text : string -> [< inkind > `Nonlink ] inline_t
-  | Bold : 'a inline_t list -> 'a inline_t
+  | Bold : _ inline_t list -> _ inline_t
   | Link : string -> [< inkind > `Link ] inline_t
   | Mref : string *
       [ `Nonlink ] inline_t list -> [< inkind > `Link ] inline_t

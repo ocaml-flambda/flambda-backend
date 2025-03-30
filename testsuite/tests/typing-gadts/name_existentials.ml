@@ -72,7 +72,7 @@ let rec eval : type t. t expr -> t = function
 type _ expr =
     Int : int -> int expr
   | Add : (int -> int -> int) expr
-  | App : ('a -> 'b) expr * 'a expr -> 'b expr
+  | App : ('a -> _) expr * 'a expr -> _ expr
 val eval : 't expr -> 't = <fun>
 |}]
 

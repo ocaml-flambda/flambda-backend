@@ -238,12 +238,14 @@ module type S1 = sig
   type q = t s
 end;;
 [%%expect{|
-module type S1 =
-  sig
-    type t : any
-    type ('a : any) s = A : { a : 'a -> 'b -> 'a; } -> 'a s
-    type q = t s
-  end
+Line 6, characters 11-12:
+6 |   type q = t s
+               ^
+Error: This type "t" should be an instance of type "('a : value)"
+       The layout of t is any
+         because of the definition of t at line 2, characters 2-14.
+       But the layout of t must be a sublayout of value
+         because of the definition of s at line 4, characters 2-55.
 |}]
 
 module M1 = struct
@@ -272,12 +274,14 @@ module type S1 = sig
   type q = t s
 end;;
 [%%expect{|
-module type S1 =
-  sig
-    type t : any
-    type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
-    type q = t s
-  end
+Line 6, characters 11-12:
+6 |   type q = t s
+               ^
+Error: This type "t" should be an instance of type "('a : value)"
+       The layout of t is any
+         because of the definition of t at line 2, characters 2-14.
+       But the layout of t must be a sublayout of value
+         because of the definition of s at line 4, characters 2-50.
 |}]
 
 module M1 = struct

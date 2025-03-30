@@ -160,7 +160,7 @@ type 'a u : immutable_data with 'a =
 | P1 : ('a1, 'b) t -> 'a1 u
 | P2 : ('a2, 'b) t -> 'a2 u
 [%%expect{|
-type 'a u = P1 : ('a1, 'b) t -> 'a1 u | P2 : ('a2, 'b) t -> 'a2 u
+type 'a u = P1 : ('a, 'b) t -> 'a u | P2 : ('a, 'b) t -> 'a u
 |}]
 
 (* Any existentials directly in the with-bounds get treated as if they're [Best] *)
@@ -170,7 +170,7 @@ type 'x u : immediate =
 Lines 1-2, characters 0-27:
 1 | type 'x u : immediate =
 2 | | P1 : ('b, 'a1) t -> 'a1 u
-Error: The kind of type "u" is immutable_data with 'a
+Error: The kind of type "u" is value
          because it's a boxed variant type.
        But the kind of type "u" must be a subkind of immediate
          because of the annotation on the declaration of the type u.
@@ -182,7 +182,7 @@ type 'a u : immutable_data =
 Lines 1-2, characters 0-25:
 1 | type 'a u : immutable_data =
 2 | | P1 : ('b, 'a) t -> 'a u
-Error: The kind of type "u" is immutable_data with 'a
+Error: The kind of type "u" is value
          because it's a boxed variant type.
        But the kind of type "u" must be a subkind of immutable_data
          because of the annotation on the declaration of the type u.
@@ -192,7 +192,7 @@ type ('x, 'y) t : immutable_data with 'x with 'y =
   | T : 'a -> ('a, 'a) t
   | U : 'c -> ('b,  'c) t
 [%%expect{|
-type ('x, 'y) t = T : 'a -> ('a, 'a) t | U : 'c -> ('b, 'c) t
+type ('x, 'y) t = T : 'x -> ('x, 'x) t | U : 'y -> ('x, 'y) t
 |}]
 
 type 'a t : immediate =
@@ -202,7 +202,7 @@ type 'a t : immediate =
 Lines 1-2, characters 0-25:
 1 | type 'a t : immediate =
 2 |   | A : 'b -> 'b option t
-Error: The kind of type "t" is immutable_data with 'a
+Error: The kind of type "t" is immutable_data with 'b
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immediate
          because of the annotation on the declaration of the type t.

@@ -310,16 +310,16 @@ let rec eq_sel : type a b c. (a,b) ty_sel -> (a,c) ty_sel -> (b,c) eq option =
 [%%expect{|
 type noarg = Noarg
 type (_, _) ty =
-    Int : (int, 'c) ty
-  | String : (string, 'd) ty
-  | List : ('a, 'e) ty -> ('a list, 'e) ty
-  | Option : ('a, 'e) ty -> ('a option, 'e) ty
-  | Pair : (('a, 'e) ty * ('b, 'e) ty) -> ('a * 'b, 'e) ty
-  | Var : ('a, 'a -> 'e) ty
-  | Rec : ('a, 'a -> 'e) ty -> ('a, 'e) ty
-  | Pop : ('a, 'e) ty -> ('a, 'b -> 'e) ty
-  | Conv : string * ('a -> 'b) * ('b -> 'a) * ('b, 'e) ty -> ('a, 'e) ty
-  | Sum : ('a, 'e, 'b) ty_sum -> ('a, 'e) ty
+    Int : (int, _) ty
+  | String : (string, _) ty
+  | List : ('a, _) ty -> ('a list, _) ty
+  | Option : ('a, _) ty -> ('a option, _) ty
+  | Pair : (('a, _) ty * ('b, _) ty) -> ('a * 'b, _) ty
+  | Var : (_, _ -> 'e) ty
+  | Rec : (_, _ -> _) ty -> (_, _) ty
+  | Pop : (_, 'e) ty -> (_, 'b -> 'e) ty
+  | Conv : string * (_ -> 'b) * ('b -> _) * ('b, _) ty -> (_, _) ty
+  | Sum : (_, _, 'b) ty_sum -> (_, _) ty
 and ('a, 'e, 'b) ty_sum = {
   sum_proj : 'a -> string * 'e ty_dyn option;
   sum_cases : (string * ('e, 'b) ty_case) list;
@@ -327,11 +327,11 @@ and ('a, 'e, 'b) ty_sum = {
 }
 and 'e ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
 and (_, _) ty_sel =
-    Thd : ('a -> 'b, 'a) ty_sel
-  | Ttl : ('b -> 'c, 'd) ty_sel -> ('a -> 'b -> 'c, 'd) ty_sel
+    Thd : (_ -> 'b, _) ty_sel
+  | Ttl : ('b -> 'c, _) ty_sel -> ('a -> 'b -> 'c, _) ty_sel
 and (_, _) ty_case =
-    TCarg : ('b, 'a) ty_sel * ('a, 'e) ty -> ('e, 'b) ty_case
-  | TCnoarg : ('b, noarg) ty_sel -> ('e, 'b) ty_case
+    TCarg : (_, 'a) ty_sel * ('a, _) ty -> (_, _) ty_case
+  | TCnoarg : (_, noarg) ty_sel -> (_, _) ty_case
 type _ ty_env =
     Enil : unit ty_env
   | Econs : ('a, 'e) ty * 'e ty_env -> ('a -> 'e) ty_env
@@ -576,17 +576,17 @@ let ty_abc : ([`A of int | `B of string | `C],'e) ty =
 ;;
 [%%expect{|
 type (_, _) ty =
-    Int : (int, 'c) ty
-  | String : (string, 'd) ty
-  | List : ('a, 'e) ty -> ('a list, 'e) ty
-  | Option : ('a, 'e) ty -> ('a option, 'e) ty
-  | Pair : (('a, 'e) ty * ('b, 'e) ty) -> ('a * 'b, 'e) ty
-  | Var : ('a, 'a -> 'e) ty
-  | Rec : ('a, 'a -> 'e) ty -> ('a, 'e) ty
-  | Pop : ('a, 'e) ty -> ('a, 'b -> 'e) ty
-  | Conv : string * ('a -> 'b) * ('b -> 'a) * ('b, 'e) ty -> ('a, 'e) ty
-  | Sum : ('a -> string * 'e ty_dyn option) *
-      (string * 'e ty_dyn option -> 'a) -> ('a, 'e) ty
+    Int : (int, _) ty
+  | String : (string, _) ty
+  | List : ('a, _) ty -> ('a list, _) ty
+  | Option : ('a, _) ty -> ('a option, _) ty
+  | Pair : (('a, _) ty * ('b, _) ty) -> ('a * 'b, _) ty
+  | Var : (_, _ -> 'e) ty
+  | Rec : (_, _ -> _) ty -> (_, _) ty
+  | Pop : (_, 'e) ty -> (_, 'b -> 'e) ty
+  | Conv : string * (_ -> 'b) * ('b -> _) * ('b, _) ty -> (_, _) ty
+  | Sum : (_ -> string * _ ty_dyn option) *
+      (string * _ ty_dyn option -> _) -> (_, _) ty
 and 'e ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
 val ty_abc : ([ `A of int | `B of string | `C ], 'e) ty = Sum (<fun>, <fun>)
 |}];;
@@ -659,26 +659,26 @@ let ty_abc : ([`A of int | `B of string | `C] as 'a, 'e) ty =
 ;;
 [%%expect{|
 type (_, _) ty =
-    Int : (int, 'd) ty
-  | String : (string, 'f) ty
-  | List : ('a, 'e) ty -> ('a list, 'e) ty
-  | Option : ('a, 'e) ty -> ('a option, 'e) ty
-  | Pair : (('a, 'e) ty * ('b, 'e) ty) -> ('a * 'b, 'e) ty
-  | Var : ('a, 'a -> 'e) ty
-  | Rec : ('a, 'a -> 'e) ty -> ('a, 'e) ty
-  | Pop : ('a, 'e) ty -> ('a, 'b -> 'e) ty
-  | Conv : string * ('a -> 'b) * ('b -> 'a) * ('b, 'e) ty -> ('a, 'e) ty
+    Int : (int, _) ty
+  | String : (string, _) ty
+  | List : ('a, _) ty -> ('a list, _) ty
+  | Option : ('a, _) ty -> ('a option, _) ty
+  | Pair : (('a, _) ty * ('b, _) ty) -> ('a * 'b, _) ty
+  | Var : (_, _ -> 'e) ty
+  | Rec : (_, _ -> _) ty -> (_, _) ty
+  | Pop : (_, 'e) ty -> (_, 'b -> 'e) ty
+  | Conv : string * (_ -> 'b) * ('b -> _) * ('b, _) ty -> (_, _) ty
   | Sum :
-      < cases : (string * ('e, 'b) ty_case) list;
-        inj : 'c. ('b, 'c) ty_sel * 'c -> 'a;
-        proj : 'a -> string * 'e ty_dyn option > -> ('a, 'e) ty
+      < cases : (string * (_, 'b) ty_case) list;
+        inj : 'c. ('b, 'c) ty_sel * 'c -> _;
+        proj : _ -> string * _ ty_dyn option > -> (_, _) ty
 and 'e ty_dyn = Tdyn : ('a, 'e) ty * 'a -> 'e ty_dyn
 and (_, _) ty_sel =
-    Thd : ('a -> 'b, 'a) ty_sel
-  | Ttl : ('b -> 'c, 'd) ty_sel -> ('a -> 'b -> 'c, 'd) ty_sel
+    Thd : (_ -> 'b, _) ty_sel
+  | Ttl : ('b -> 'c, _) ty_sel -> ('a -> 'b -> 'c, _) ty_sel
 and (_, _) ty_case =
-    TCarg : ('b, 'a) ty_sel * ('a, 'e) ty -> ('e, 'b) ty_case
-  | TCnoarg : ('b, noarg) ty_sel -> ('e, 'b) ty_case
+    TCarg : (_, 'a) ty_sel * ('a, _) ty -> (_, _) ty_case
+  | TCnoarg : (_, noarg) ty_sel -> (_, _) ty_case
 val ty_abc : ([ `A of int | `B of string | `C ], 'e) ty = Sum <obj>
 |}];;
 

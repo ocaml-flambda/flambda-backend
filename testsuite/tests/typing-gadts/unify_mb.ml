@@ -140,8 +140,8 @@ let rec sub : type m n. (m,n) alist -> m fin -> n term = function
   | Asnoc (s, t, x) -> comp_subst (sub s) (subst_var x t)
 [%%expect{|
 type (_, _) alist =
-    Anil : ('n, 'n) alist
-  | Asnoc : ('m, 'n) alist * 'm term * 'm succ fin -> ('m succ, 'n) alist
+    Anil : (_, _) alist
+  | Asnoc : ('m, _) alist * 'm term * 'm succ fin -> ('m succ, _) alist
 val sub : ('m, 'n) alist -> 'm fin -> 'n term = <fun>
 |}];;
 
@@ -157,7 +157,7 @@ type _ ealist = EAlist : ('a,'b) alist -> 'a ealist
 
 let asnoc a t' x = EAlist (Asnoc (a, t', x))
 [%%expect{|
-type _ ealist = EAlist : ('a, 'b) alist -> 'a ealist
+type _ ealist = EAlist : (_, 'b) alist -> _ ealist
 val asnoc : ('a, 'b) alist -> 'a term -> 'a succ fin -> 'a succ ealist =
   <fun>
 |}];;

@@ -11,7 +11,7 @@ Line 1, characters 14-15:
                   ^
 Error: The field "a" is not part of the record argument for the "t.A" constructor
 val f : unit -> t = <fun>
-type _ t = A : { x : 'a; y : 'b; } -> 'a t
+type _ t = A : { x : _; y : 'b; } -> _ t
 val f : 'a t -> 'a t = <fun>
 val f : 'a t -> 'a t = <fun>
 module M :

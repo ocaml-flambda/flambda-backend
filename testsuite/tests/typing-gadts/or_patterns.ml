@@ -352,7 +352,7 @@ type _ gadt_opt =
   | GSome : 'a -> 'a gadt_opt
 ;;
 [%%expect{|
-type _ gadt_opt = GNone : 'a gadt_opt | GSome : 'a -> 'a gadt_opt
+type _ gadt_opt = GNone : _ gadt_opt | GSome : _ -> _ gadt_opt
 |}]
 
 let simple_merged_annotated_under_gadt_constructor (type a) (pair : a t * a) =

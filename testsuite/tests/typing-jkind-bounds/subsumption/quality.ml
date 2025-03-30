@@ -345,7 +345,23 @@ end = struct
 end
 [%%expect {|
 type gadt = Foo : int -> gadt
-module M : sig type t end
+Lines 4-6, characters 6-3:
+4 | ......struct
+5 |   type t
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t end
+       is not included in
+         sig type t : value mod portable end
+       Type declarations do not match:
+         type t
+       is not included in
+         type t : value mod portable
+       The kind of the first is value
+         because of the definition of t at line 5, characters 2-8.
+       But the kind of the first must be a subkind of value mod portable
+         because of the definition of t at line 3, characters 2-39.
 |}]
 
 (* CR layouts v2.8: gadts shouldn't be "best". But maybe they should track quality along

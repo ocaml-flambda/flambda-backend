@@ -16,7 +16,7 @@ and B : sig  type t val eq : (B.t list, t) eqp end =
 f B.eq;;
 
 [%%expect{|
-type (_, _) eqp = Y : ('a, 'a) eqp | N : string -> ('a, 'b) eqp
+type (_, _) eqp = Y : (_, _) eqp | N : string -> (_, _) eqp
 Line 2, characters 36-66:
 2 | let f : ('a list, 'a) eqp -> unit = function N s -> print_string s;;
                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -216,8 +216,8 @@ type (_,_,_) plus =
 ;;
 [%%expect {|
 type (_, _, _) plus =
-    Plus0 : (zero, 'a, 'a) plus
-  | PlusS : ('a, 'b, 'c) plus -> ('a succ, 'b, 'c succ) plus
+    Plus0 : (zero, _, _) plus
+  | PlusS : ('a, _, 'c) plus -> ('a succ, _, 'c succ) plus
 |}]
 
 let trivial : (zero succ, zero, zero) plus option -> bool =
