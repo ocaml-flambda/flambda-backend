@@ -636,8 +636,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         {fields; representation; extended_expression } ->
       transl_record_unboxed_product ~scopes e.exp_loc e.exp_env
         fields representation extended_expression
-  | Texp_field(arg, id, lbl, float, ubr) ->
-      let targ = transl_exp ~scopes Jkind.Sort.Const.for_record arg in
+  | Texp_field(arg, arg_sort, id, lbl, float, ubr) ->
+      let arg_sort = Jkind.Sort.default_for_transl_and_get arg_sort in
+      let targ = transl_exp ~scopes arg_sort arg in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in

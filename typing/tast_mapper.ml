@@ -509,8 +509,8 @@ let expr sub x =
             Option.map
               (fun (exp, sort) -> (sub.expr sub exp, sort)) extended_expression
         }
-    | Texp_field (exp, lid, ld, float, ubr) ->
-        Texp_field (sub.expr sub exp, map_loc sub lid, ld, float, ubr)
+    | Texp_field (exp, sort, lid, ld, float, ubr) ->
+        Texp_field (sub.expr sub exp, sort, map_loc sub lid, ld, float, ubr)
     | Texp_unboxed_field (exp, sort, lid, ld, uu) ->
         Texp_unboxed_field (sub.expr sub exp, sort, map_loc sub lid, ld, uu)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->

@@ -4136,7 +4136,7 @@ let rec is_nonexpansive exp =
            | Kept _ -> true)
         fields
       && is_nonexpansive_opt (Option.map fst extended_expression)
-  | Texp_field(exp, _, _, _, _) -> is_nonexpansive exp
+  | Texp_field(exp, _, _, _, _, _) -> is_nonexpansive exp
   | Texp_unboxed_field(exp, _, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
@@ -5999,7 +5999,7 @@ and type_expect_
       Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       type_expect_record ~overwrite Unboxed_product lid_sexp_list opt_sexp
   | Pexp_field(srecord, lid) ->
-      let (record, rmode, label, _) =
+      let (record, record_sort, rmode, label, _) =
         type_label_access Legacy env srecord Env.Projection lid
       in
       let ty_arg =
@@ -6042,14 +6042,16 @@ and type_expect_
           Non_boxing uu
       in
       rue {
-        exp_desc = Texp_field(record, lid, label, boxing, Unique_barrier.not_computed ());
+        exp_desc =
+          Texp_field(record, record_sort, lid, label, boxing,
+                     Unique_barrier.not_computed ());
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_unboxed_field(srecord, lid) ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
-      let (record, rmode, label, _) =
+      let (record, record_sort, rmode, label, _) =
         type_label_access Unboxed_product env srecord Env.Projection lid
       in
       let ty_arg =
@@ -6065,15 +6067,6 @@ and type_expect_
       if Types.is_mutable label.lbl_mut then
         fatal_error
           "Typecore.type_expect_: unboxed record labels are never mutable";
-      let record_sort =
-        Ctype.type_sort ~why:Record_projection ~fixed:false env record.exp_type
-      in
-      let record_sort = match record_sort with
-        | Ok sort -> sort
-        | Error err ->
-          raise
-            (Error (loc, env, Record_projection_not_rep(record.exp_type, err)))
-      in
       let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let mode = cross_left env ty_arg mode in
       submode ~loc ~env mode expected_mode;
@@ -6085,7 +6078,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_setfield(srecord, lid, snewval) ->
-      let (record, rmode, label, expected_type) =
+      let (record, _, rmode, label, expected_type) =
         type_label_access Legacy env srecord Env.Mutation lid in
       let ty_record =
         if expected_type = None
@@ -6778,7 +6771,7 @@ and type_expect_
       | Texp_variant (_, Some (_, alloc_mode))
       | Texp_record {alloc_mode = Some alloc_mode; _}
       | Texp_array (_, _, _, alloc_mode)
-      | Texp_field (_, _, _, Boxing (alloc_mode, _), _) ->
+      | Texp_field (_, _, _, _, Boxing (alloc_mode, _), _) ->
         begin
           submode ~loc ~env
             (Value.min_with (Comonadic Areality) Regionality.local)
@@ -7477,12 +7470,15 @@ and type_function
 
 and type_label_access
   : 'rep . 'rep record_form -> _ -> _ -> _ -> _ ->
-    _ * _ * 'rep gen_label_description * _
+    _ * _ * _ * 'rep gen_label_description * _
   = fun record_form env srecord usage lid ->
   let mode = Value.newvar () in
+  let record_jkind, record_sort = Jkind.of_new_sort_var ~why:Record_projection in
   let record =
     with_local_level_if_principal ~post:generalize_structure_exp
-      (fun () -> type_exp ~recarg:Allowed env (mode_default mode) srecord)
+      (fun () ->
+         type_expect ~recarg:Allowed env (mode_default mode) srecord
+           (mk_expected (newvar record_jkind)))
   in
   let ty_exp = record.exp_type in
   let expected_type =
@@ -7502,7 +7498,7 @@ and type_label_access
   let label =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
       (label_disambiguate record_form usage lid env expected_type) labels in
-  (record, Mode.Value.disallow_right mode, label, expected_type)
+  (record, record_sort, Mode.Value.disallow_right mode, label, expected_type)
 
 (* Typing format strings for printing or reading.
    These formats are used by functions in modules Printf, Format, and Scanf.

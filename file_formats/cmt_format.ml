@@ -214,7 +214,7 @@ let iter_on_occurrences
           f ~namespace:Value exp_env path lid
       | Texp_construct (lid, constr_desc, _, _) ->
           add_constructor_description exp_env lid constr_desc
-      | Texp_field (_, lid, label_desc, _, _)
+      | Texp_field (_, _, lid, label_desc, _, _)
       | Texp_setfield (_, _, lid, label_desc, _) ->
           add_label ~namespace:Label exp_env lid label_desc
       | Texp_unboxed_field (_, _, lid, label_desc, _) ->

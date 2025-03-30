@@ -523,13 +523,5 @@ let zero () = (id { l = #0L }).l
 [%%expect{|
 type ('a : bits64) r = { l : 'a; } [@@unboxed]
 val id : ('a : bits64). 'a -> 'a = <fun>
-Line 3, characters 14-30:
-3 | let zero () = (id { l = #0L }).l
-                  ^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of int64# r is bits64
-         because of the definition of r at line 1, characters 0-45.
-       But the layout of int64# r must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val zero : unit -> int64# = <fun>
 |}]
