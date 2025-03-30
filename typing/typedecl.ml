@@ -1852,7 +1852,81 @@ let rec update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs)
         ) (0,[]) cstrs
       in
-      let jkind = Jkind.for_boxed_variant cstrs in
+      let jkind =
+        (* CR aspsmith: pull this back into jkind *)
+        let open Types in
+        if List.for_all
+             (fun cstr ->
+                match cstr.cd_args with
+                | Cstr_tuple args ->
+                  List.for_all (fun arg -> Jkind.Sort.Const.(equal void arg.ca_sort)) args
+                | Cstr_record lbls ->
+                  List.for_all
+                    (fun (lbl : Types.label_declaration) -> Jkind.Sort.Const.(equal void lbl.ld_sort))
+                    lbls)
+             cstrs
+        then Jkind.Builtin.immediate ~why:Enumeration
+        else
+          let is_mutable =
+            List.exists
+              (fun cstr ->
+                 match cstr.cd_args with
+                 | Cstr_tuple _ -> false
+                 | Cstr_record lbls ->
+                   List.exists
+                     (fun (lbl : Types.label_declaration) ->
+                        match lbl.ld_mutable with Immutable -> false | Mutable _ -> true)
+                     lbls)
+              cstrs
+          in
+          let base =
+            (if is_mutable then Jkind.Builtin.mutable_data else Jkind.Builtin.immutable_data)
+              ~why:Boxed_variant
+            |> Jkind.mark_best
+          in
+          let add_cstr_args cstr jkind =
+            let apply_cstr =
+              (match cstr.cd_res with
+               | None -> Fun.id
+               | Some res ->
+                 let args =
+                   (match Types.get_desc res with
+                    | Tconstr (_, args, _) -> args
+                    | _ -> Misc.fatal_error "cd_res must be Tconstr")
+                 in
+                 let params, args =
+                   let seen = Btype.TypeHash.create 11 in
+                   List.map2
+                     (fun ty1 ty2 ->
+                        if Btype.TypeHash.mem seen ty1
+                        then None
+                        else match Types.get_desc ty1, Types.get_desc ty2 with
+                          | Tvar _, Tvar _ ->
+                            Btype.TypeHash.add seen ty1 ();
+                            Some (ty1, ty2)
+                          | _ -> None
+                     )
+                     args
+                     decl.type_params
+                   |> List.filter_map Fun.id
+                   |> List.split
+                 in
+                 fun ty -> Ctype.apply env params ty args)
+            in
+            match cstr.cd_args with
+            | Cstr_tuple args ->
+              List.fold_right
+                (fun arg ->
+                   Jkind.add_with_bounds ~modality:arg.ca_modalities ~type_expr:(apply_cstr arg.ca_type))
+                args jkind
+            | Cstr_record lbls ->
+              List.fold_right
+                (fun (lbl : Types.label_declaration) ->
+                   Jkind.add_with_bounds ~modality:lbl.ld_modalities ~type_expr:(apply_cstr lbl.ld_type))
+                lbls jkind
+          in
+          List.fold_right add_cstr_args cstrs base
+      in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
@@ -2544,8 +2618,22 @@ let normalize_decl_jkinds env shapes decls =
           allow_any_crossing type_unboxed_version (Path.unboxed_version path))
       decl.type_unboxed_version
     in
+    let existentials =
+      match Env.find_type_descrs path env with
+      | Type_variant (cstrs, _, __) ->
+        List.fold_left
+          (fun tys cstr ->
+             Btype.TypeSet.add_seq
+               (List.to_seq cstr.cstr_existentials
+                |> Seq.map Transient_expr.repr)
+               tys)
+          Btype.TypeSet.empty
+          cstrs
+      | _ -> Btype.TypeSet.empty
+    in
     let normalized_jkind =
       Jkind.normalize
+        ~existentials
         ~mode:Require_best
         ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
         decl.type_jkind

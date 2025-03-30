@@ -480,7 +480,7 @@ m_portability = portable
     Γ ⊢ κᵢ ≤ χᵢ
   κ₀' = κ₀{τsⱼ/[['aᵢ]]}
   ∀ Ξ:
-    mode m_Ξ ≤ Ξ(κ₀')
+    mode mⱼ_Ξ ≤ Ξ(κ₀')
     ∀ σ ∈ types_for(Ξ, field_typesⱼ), with σ ≤ Ξ(κ₀')
   value ≤ lay(κ₀')
 if [@@unboxed]:

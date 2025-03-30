@@ -606,6 +606,7 @@ type normalize_mode =
           with-bounds. *)
 
 val normalize :
+  ?existentials:Btype.TypeSet.t ->
   mode:normalize_mode ->
   jkind_of_type:(Types.type_expr -> Types.jkind_l option) ->
   Types.jkind_l ->
