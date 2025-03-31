@@ -403,9 +403,17 @@ let of_path ~find_shape ~namespace path =
     Path of label:
       M.t.lbl
     Path of label of inline record:
-      M.t.C.lbl *)
+      M.t.C.lbl
+    Path of label of implicit unboxed record:
+      M.t#.lbl
+  *)
   let rec aux : Sig_component_kind.t -> Path.t -> t = fun ns -> function
     | Pident id -> find_shape ns id
+    | Pdot (Pextra_ty (path, Punboxed_ty), name) ->
+      (match ns with
+       Unboxed_label -> ()
+       | _ -> Misc.fatal_error "Shape.of_path");
+      proj (aux Type path) (name, Label)
     | Pdot (path, name) ->
       let namespace :  Sig_component_kind.t =
         match (ns : Sig_component_kind.t) with

@@ -1096,7 +1096,7 @@ let transl_declaration env sdecl (id, uid) =
     decl, typ_shape
   end
 
-(* Record declarations with representation [Record_unboxed] get an implicit
+(* Record declarations with representation [Record_boxed] get an implicit
    unboxed record stored in [type_unboxed_version]. If that record is also an
    alias, so is its stored unboxed version. E.g. [type t = r = { i : int }]'s
    unboxed version gets kind [#{ i : int}] and manifest [r#].
@@ -1106,28 +1106,111 @@ let transl_declaration env sdecl (id, uid) =
    [type_unboxed_version].
 *)
 let gets_unboxed_version decl =
-  (* CR-soon layouts v7.2: update for implicit unboxed records *)
-  ignore decl;
-  false
-let derive_unboxed_version env unboxed_versions_in_group decl =
-  (* CR-soon layouts v7.2: update for implicit unboxed records *)
-  ignore env;
-  ignore unboxed_versions_in_group;
-  ignore decl;
-  None
+  (* This must be kept in sync with the match in [derive_unboxed_version] *)
+  match decl.type_kind with
+  | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
+  | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
+                    | Record_ufloat), _)->
+    false
+  | Type_record (_, (Record_boxed _ | Record_mixed _), _) ->
+    true
+let derive_unboxed_version env path_in_group_has_unboxed_version decl =
+  (* This must be kept in sync with the match in [gets_unboxed_version] *)
+  match decl.type_kind with
+  | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
+  | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
+                    | Record_ufloat), _)->
+    None
+  | Type_record (lbls, (Record_boxed _ | Record_mixed _), umc) ->
+    let keep_attribute a =
+      (* If we keep [@deprecated_mutable], then a record that aliases
+         a record with a [@deprecated_mutable] label will cause two alerts,
+         if both have unboxed versions (because the unboxed version is a second
+         alias). *)
+      not (Builtin_attributes.attr_equals_builtin a "deprecated_mutable")
+    in
+    let lbls_unboxed =
+      List.map
+        (fun (ld : Types.label_declaration) ->
+            { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
+            ld_mutable = Immutable;
+            ld_modalities = ld.ld_modalities;
+              (* Inherit modalities from the boxed version. Note that these
+                  are affected by the mutability of the boxed label, even
+                  though the unboxed version is always immutable. *)
+            ld_sort = Jkind.Sort.Const.void;
+            ld_type = ld.ld_type;
+            ld_loc = ld.ld_loc;
+            ld_attributes = List.filter keep_attribute ld.ld_attributes;
+              (* Copy label attributes to the unboxed version *)
+            ld_uid = Uid.unboxed_version ld.ld_uid;
+          })
+        lbls
+    in
+    (* CR layouts v11: update type_jkind once we have [layout_of] layouts *)
+    let jkind =
+      Jkind.Builtin.product_of_sorts ~why:Unboxed_record (List.length lbls) in
+    let kind =
+      Type_record_unboxed_product(lbls_unboxed, Record_unboxed_product, umc)
+    in
+    let type_manifest =
+      let has_unboxed_version path =
+        match Path.Map.find_opt path path_in_group_has_unboxed_version with
+        | Some b -> b
+        | None ->
+          try Option.is_some (Env.find_type path env).type_unboxed_version with
+          | Not_found -> Misc.fatal_error "Typedecl.derive_unboxed_versions"
+      in
+      match decl.type_manifest with
+      | None -> None
+      | Some ty ->
+        match get_desc ty with
+        | Tconstr (path, args, _) when has_unboxed_version path ->
+          Some (Ctype.newconstr (Path.unboxed_version path) args)
+        | _ ->
+          (* We're in one of two scenarios:
+
+             1. The manifest is a Tconstr to a type without an unboxed version.
+             2. The manifest is not a Tconstr, and [check_coherence] will reject
+                this declaration later.
+
+             In both cases, we could just not give this type an unboxed version,
+             but it's fine to do so, as we already give unboxed versions to
+             types that don't have one (float and [@@unboxed] records), and this
+             simplifies things. *)
+          None
+    in
+    Some
+      {
+        type_params = decl.type_params;
+        type_arity = decl.type_arity;
+        type_kind = kind;
+        type_jkind = jkind;
+        type_private = decl.type_private;
+        type_manifest;
+        type_variance =
+          Variance.unknown_signature ~injective:false ~arity:decl.type_arity;
+        type_separability =
+          Types.Separability.default_signature ~arity:decl.type_arity;
+        type_is_newtype = false;
+        type_expansion_scope = Btype.lowest_level;
+        type_loc = decl.type_loc;
+        type_attributes = decl.type_attributes;
+        type_unboxed_default = false;
+        type_uid = Uid.unboxed_version decl.type_uid;
+        type_unboxed_version = None;
+      }
 
 let derive_unboxed_versions decls env =
-  let unboxed_versions_in_group =
-    Path.Set.of_list
-      (List.filter_map
-         (fun (id, d) ->
-            if gets_unboxed_version d then Some (Path.Pident id) else None)
-        decls)
+  let path_in_group_has_unboxed_version =
+    Path.Map.of_seq
+      (List.to_seq decls |>
+       Seq.map (fun (id, d) -> Path.Pident id, gets_unboxed_version d))
   in
   List.map
     (fun (id, d) ->
        let type_unboxed_version =
-         derive_unboxed_version env unboxed_versions_in_group d
+         derive_unboxed_version env path_in_group_has_unboxed_version d
        in
        id, { d with type_unboxed_version })
     decls
@@ -4401,7 +4484,11 @@ let report_error ppf = function
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
     let offender ppf =
-      fprintf ppf "type %a" Style.inline_code (Ident.name (Path.head dpath))
+      let head_name = Ident.name (Path.head dpath) in
+      let path_end =
+        if Path.is_unboxed_version dpath then head_name ^ "#" else head_name
+      in
+      fprintf ppf "type %a" Style.inline_code path_end
     in
     Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_mismatch_of_type (ty,v) ->

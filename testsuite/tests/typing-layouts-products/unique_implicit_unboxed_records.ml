@@ -7,21 +7,20 @@
  }
 *)
 
-(* NOTE: When adding tests to this file, also update
-   [typing-layouts-products/unique_implicit_unboxed_records.ml] *)
+(* Based on [testsuite/tests/typing-layouts-products/unique.ml] *)
 
 (* Uniqueness tests *)
 
 let unique_use : 'a @ unique -> unit = fun _ -> ()
 let unique_use2 : ('a : value & value) @ unique -> unit = fun _ -> ()
 
-type t = #{ x : string ; y : string }
-let mk : unit -> t @ unique = fun () -> #{ x = "hi"; y = "hi" }
+type t = { x : string ; y : string }
+let mk : unit -> t# @ unique = fun () -> #{ x = "hi"; y = "hi" }
 [%%expect{|
 val unique_use : 'a @ unique -> unit = <fun>
 val unique_use2 : ('a : value & value). 'a @ unique -> unit = <fun>
-type t = #{ x : string; y : string; }
-val mk : unit -> t @ unique = <fun>
+type t = { x : string; y : string; }
+val mk : unit -> t# @ unique = <fun>
 |}]
 
 (* Can access different fields *)
@@ -123,11 +122,11 @@ let [@warning "-23"] () =
 [%%expect{|
 |}]
 
-type t = #{ x : unit ; y : string }
-let mk : unit -> t @ unique = fun () -> #{ x = () ; y = "fresh" }
+type t = { x : unit ; y : string }
+let mk : unit -> t# @ unique = fun () -> #{ x = () ; y = "fresh" }
 [%%expect{|
-type t = #{ x : unit; y : string; }
-val mk : unit -> t @ unique = <fun>
+type t = { x : unit; y : string; }
+val mk : unit -> t# @ unique = <fun>
 |}]
 
 let [@warning "-23"] () =
