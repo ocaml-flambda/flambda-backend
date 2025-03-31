@@ -325,10 +325,7 @@ let can_apply_primitive p pmode pos args =
     else if nargs < p.prim_arity then false
     else if pos <> Typedtree.Tail then true
     else begin
-      let return_mode, _ =
-        Ctype.prim_mode
-          pmode (Some (Mode.Yielding.newvar ())) p.prim_native_repr_res
-      in
+      let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
       is_heap_mode (transl_locality_mode_l return_mode)
     end
   end

@@ -187,6 +187,38 @@ val f3 : 'a @ yielding -> 'a @ yielding = <fun>
 val f4 : local_ 'a @ unyielding -> local_ 'a = <fun>
 |}]
 
+(* Test [instance_prim] + mixed mode annots. *)
+external requires_unyielding : 'a @ local unyielding -> (unit [@local_opt]) = "%ignore"
+
+let f1 x = requires_unyielding x
+[%%expect{|
+external requires_unyielding : local_ 'a @ unyielding -> (unit [@local_opt])
+  = "%ignore"
+val f1 : 'a -> unit = <fun>
+|}]
+
+let f2 (x @ local) = exclave_ requires_unyielding x
+
+[%%expect{|
+Line 1, characters 50-51:
+1 | let f2 (x @ local) = exclave_ requires_unyielding x
+                                                      ^
+Error: This value is "yielding" but expected to be "unyielding".
+|}]
+
+let f3 (x @ yielding) = requires_unyielding x
+[%%expect{|
+Line 1, characters 44-45:
+1 | let f3 (x @ yielding) = requires_unyielding x
+                                                ^
+Error: This value is "yielding" but expected to be "unyielding".
+|}]
+
+let f4 (x @ local unyielding) = exclave_ requires_unyielding x
+[%%expect{|
+val f4 : local_ 'a @ unyielding -> local_ unit = <fun>
+|}]
+
 (* [mod global] implies [mod unyielding] by default. *)
 
 type ('a : value mod global) u1

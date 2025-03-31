@@ -223,10 +223,8 @@ val instance_label:
         (* Same, for a label *)
 val prim_mode :
         (Mode.allowed * 'r) Mode.Locality.t option
-        -> (Mode.allowed * 'r) Mode.Yielding.t option
         -> (Primitive.mode * Primitive.native_repr)
         -> (Mode.allowed * 'r) Mode.Locality.t
-         * (Mode.allowed * 'r) Mode.Yielding.t
 val instance_prim:
         Primitive.description -> type_expr ->
         type_expr * Mode.Locality.lr option

@@ -1664,15 +1664,19 @@ let instance_label ~fixed lbl =
 
 (* CR dkalinichenko: we must vary yieldingness together with locality to get
    sane behavior around [@local_opt]. Remove once we have mode polymorphism. *)
-let prim_mode mvar mvar' = function
+let prim_mode' mvar mvar' = function
   | Primitive.Prim_global, _ ->
-    Locality.allow_right Locality.global, Yielding.newvar ()
+    Locality.allow_right Locality.global, None
   | Primitive.Prim_local, _ ->
-    Locality.allow_right Locality.local, Yielding.newvar ()
+    Locality.allow_right Locality.local, None
   | Primitive.Prim_poly, _ ->
-    match mvar, mvar' with
-    | Some mvar, Some mvar' -> mvar, mvar'
-    | None, _ | _, None -> assert false
+    match mvar with
+    | Some mvar -> mvar, mvar'
+    | None -> assert false
+
+(* Exported version. *)
+let prim_mode mvar prim =
+  fst (prim_mode' mvar (Some (Yielding.newvar ())) prim)
 
 (** Returns a new mode variable whose locality is the given locality and
     whose yieldingness is the given yieldingness, while all other axes are
@@ -1680,6 +1684,9 @@ let prim_mode mvar mvar' = function
 let with_locality_and_yielding (locality, yielding) m =
   let m' = Alloc.newvar () in
   Locality.equate_exn (Alloc.proj (Comonadic Areality) m') locality;
+  let yielding =
+    Option.value ~default:(Alloc.proj (Comonadic Yielding) m) yielding
+  in
   Yielding.equate_exn (Alloc.proj (Comonadic Yielding) m') yielding;
   Alloc.submode_exn m' (Alloc.join_const
     { Alloc.Const.min with
@@ -1716,7 +1723,7 @@ let rec instance_prim_locals locals mvar_l mvar_y macc (loc, yld) ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
      let marg = with_locality_and_yielding
-      (prim_mode (Some mvar_l) (Some mvar_y) l) marg
+      (prim_mode' (Some mvar_l) (Some mvar_y) l) marg
      in
      let macc =
        Alloc.join [
@@ -1811,7 +1818,7 @@ let instance_prim_mode (desc : Primitive.description) ty =
        List.exists is_poly desc.prim_native_repr_args then
     let mode_l = Locality.newvar () in
     let mode_y = Yielding.newvar () in
-    let finalret = prim_mode (Some mode_l) (Some mode_y) desc.prim_native_repr_res in
+    let finalret = prim_mode' (Some mode_l) (Some mode_y) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
       mode_l mode_y (Alloc.disallow_right Alloc.legacy) finalret ty,
     Some mode_l, Some mode_y
