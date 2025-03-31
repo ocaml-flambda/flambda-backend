@@ -190,10 +190,12 @@ class virtual selector_generic =
       | Cextcall { func; builtin = true } ->
         Misc.fatal_errorf
           "Selection.select_operation: builtin not recognized %s" func ()
-      | Cextcall { func; alloc; ty; ty_args; returns; builtin = false } ->
+      | Cextcall
+          { func; alloc; ty; ty_args; returns; builtin = false; effects; _ } ->
         let external_call =
           { Cfg.func_symbol = func;
             alloc;
+            effects;
             ty_res = ty;
             ty_args;
             stack_ofs = -1

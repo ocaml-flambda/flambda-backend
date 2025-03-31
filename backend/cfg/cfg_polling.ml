@@ -268,7 +268,13 @@ let add_calls_terminator :
   | Tailcall_self _ | Tailcall_func _ -> (Function_call, term.dbg) :: points
   | Call _ -> (Function_call, term.dbg) :: points
   | Call_no_return
-      { alloc = false; func_symbol = _; ty_res = _; ty_args = _; stack_ofs = _ }
+      { alloc = false;
+        func_symbol = _;
+        ty_res = _;
+        ty_args = _;
+        stack_ofs = _;
+        effects = _
+      }
   | Prim
       { op =
           External
@@ -276,13 +282,20 @@ let add_calls_terminator :
               func_symbol = _;
               ty_res = _;
               ty_args = _;
-              stack_ofs = _
+              stack_ofs = _;
+              effects = _
             };
         label_after = _
       } ->
     points
   | Call_no_return
-      { alloc = true; func_symbol = _; ty_res = _; ty_args = _; stack_ofs = _ }
+      { alloc = true;
+        func_symbol = _;
+        ty_res = _;
+        ty_args = _;
+        stack_ofs = _;
+        effects = _
+      }
   | Prim
       { op =
           External
@@ -290,7 +303,8 @@ let add_calls_terminator :
               func_symbol = _;
               ty_res = _;
               ty_args = _;
-              stack_ofs = _
+              stack_ofs = _;
+              effects = _
             };
         label_after = _
       } ->
