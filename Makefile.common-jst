@@ -427,6 +427,11 @@ promote-one-no-rebuild:
 hacking: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) -w $(boot_targets)
 
+.PHONY: hacking-no-watch
+hacking-no-watch: _build/_bootinstall
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(boot_targets)
+
+
 # The `hacking-emacs-poller` and `hacking-emacs-builder` targets make it
 # possible to run the polling build with Emacs's `M-x compile`.  You should run
 # `make hacking-emacs-poller` in your terminal from the root directory of the
