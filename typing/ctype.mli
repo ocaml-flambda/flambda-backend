@@ -724,14 +724,16 @@ val print_global_state : Format.formatter -> global_state -> unit
 (** Get the crossing of a jkind  *)
 val crossing_of_jkind : Env.t -> 'd Types.jkind -> Mode.Crossing.t
 
-(** Get the crossing of a type wrapped in modalities *)
+(** Get the crossing of a type wrapped in modalities. Non-principal types get
+    trivial crossing. *)
 val crossing_of_ty :
   Env.t ->
   ?modalities:Mode.Modality.Value.Const.t ->
   Types.type_expr ->
   Mode.Crossing.t
 
-(** Cross a right mode according to a type wrapped in modalities. *)
+(** Cross a right mode according to a type wrapped in modalities. Non-principal
+    types don't cross. *)
 val cross_right :
   Env.t ->
   ?modalities:Mode.Modality.Value.Const.t ->
@@ -739,7 +741,8 @@ val cross_right :
   Mode.Value.r ->
   Mode.Value.r
 
-(** Cross a left mode according to a type wrapped in modalities. *)
+(** Cross a left mode according to a type wrapped in modalities. Non-principal
+    types don't cross. *)
 val cross_left :
   Env.t ->
   ?modalities:Mode.Modality.Value.Const.t ->
