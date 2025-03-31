@@ -411,7 +411,7 @@ and expression_desc =
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
-      extended_expression : (expression * Unique_barrier.t) option;
+      extended_expression : (expression * Jkind.sort * Unique_barrier.t) option;
       alloc_mode : alloc_mode option
     }
         (** { l1=P1; ...; ln=Pn }           (extended_expression = None)
@@ -444,10 +444,12 @@ and expression_desc =
               { fields = [| l1, Kept t1; l2 Override P2 |]; representation;
                 extended_expression = Some E0 }
           *)
-  | Texp_field of expression * Longident.t loc * Types.label_description *
-      texp_field_boxing * Unique_barrier.t
-    (** [texp_field_boxing] provides extra information depending on if the
-        projection requires boxing. *)
+  | Texp_field of expression * Jkind.sort * Longident.t loc *
+      Types.label_description * texp_field_boxing * Unique_barrier.t
+    (** - The sort is the sort of the whole record (which may be non-value if
+          the record is @@unboxed).
+        - [texp_field_boxing] provides extra information depending on if the
+          projection requires boxing. *)
   | Texp_unboxed_field of
       expression * Jkind.sort * Longident.t loc * Types.unboxed_label_description *
         unique_use

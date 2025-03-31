@@ -509,3 +509,25 @@ Error: This type "t_any M.t2" should be an instance of type "'a M.t2"
          because of the definition of t1 at line 3, characters 2-42.
 |}]
 
+
+(*************************************************)
+(* Test 11: Projecting from an @@unboxed record. *)
+
+(* This is a regression test. We previously had a bug where transl would assume
+   the record in a Texp_field operation has layout value. *)
+
+type ('a : bits64) r = { l : 'a } [@@unboxed]
+let id (x : (_ : bits64)) = x
+let zero () = (id { l = #0L }).l
+
+[%%expect{|
+type ('a : bits64) r = { l : 'a; } [@@unboxed]
+val id : ('a : bits64). 'a -> 'a = <fun>
+val zero : unit -> int64# = <fun>
+|}]
+
+let zero x = { (id x) with l = #0L } [@@warning "-23"]
+
+[%%expect {|
+val zero : ('a : bits64). 'a r -> int64# r = <fun>
+|}]
