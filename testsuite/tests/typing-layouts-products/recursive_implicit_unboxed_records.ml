@@ -238,9 +238,9 @@ and u = #(int * bad record_id2#)
 Line 3, characters 0-17:
 3 | and s = { u : u }
     ^^^^^^^^^^^^^^^^^
-Error: The layout of type "s" is value & value
+Error: The layout of type "s#" is value & value
          because it is an unboxed record.
-       But the layout of type "s" must be a sublayout of value
+       But the layout of type "s#" must be a sublayout of value
          because it is an unboxed record.
 |}]
 
@@ -252,9 +252,9 @@ and u = #(int * bad record_id2#)
 Line 3, characters 0-17:
 3 | and s = { u : u }
     ^^^^^^^^^^^^^^^^^
-Error: The layout of type "s" is value & value
+Error: The layout of type "s#" is value & value
          because it is an unboxed record.
-       But the layout of type "s" must be a sublayout of value
+       But the layout of type "s#" must be a sublayout of value
          because it is an unboxed record.
 |}]
 

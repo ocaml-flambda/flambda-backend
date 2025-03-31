@@ -4484,7 +4484,11 @@ let report_error ppf = function
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
     let offender ppf =
-      fprintf ppf "type %a" Style.inline_code (Ident.name (Path.head dpath))
+      let head_name = Ident.name (Path.head dpath) in
+      let path_end =
+        if Path.is_unboxed_version dpath then head_name ^ "#" else head_name
+      in
+      fprintf ppf "type %a" Style.inline_code path_end
     in
     Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_mismatch_of_type (ty,v) ->
