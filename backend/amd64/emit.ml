@@ -392,9 +392,9 @@ let record_frame_label live dbg =
           let n = slot_offset s (stack_slot_class reg.typ)  in
           live_offset := n :: n + Arch.size_addr :: !live_offset
       | {typ = Addr} as r ->
-          Misc.fatal_error ("bad GC root " ^ Reg.name r)
+          Misc.fatal_error ("bad GC root " ^ Reg.print r)
       | { typ = (Val | Valx2); loc = Unknown ; } as r ->
-        Misc.fatal_error ("Unknown location " ^ Reg.name r)
+        Misc.fatal_error ("Unknown location " ^ Reg.print r)
       | { typ = Int | Float | Float32 | Vec128; _ } -> ()
     )
     live;
@@ -851,7 +851,7 @@ let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
     | Float | Addr | Vec128 | Valx2 | Float32 ->
       Misc.fatal_errorf
         "Unexpected register type for stack to stack move: from %s to %s\n"
-        (Reg.name src) (Reg.name dst)
+        (Reg.print src) (Reg.print dst)
   end
 
 let move_allowing_stack_to_stack src dst =
@@ -2545,7 +2545,7 @@ let emit_probe_handler_wrapper p =
         | Val -> k::acc
         | Int | Float | Vec128 | Float32 -> acc
         | Valx2 -> k::k+Arch.size_addr::acc
-        | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
+        | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.print r))
       | _ -> assert false)
     saved_live
     []

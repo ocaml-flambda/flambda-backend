@@ -159,7 +159,13 @@ let createv_with_typs_and_id ~id rs = createv_gen ~name:(Name.Var id) ~typs:(Arr
 let typv rv =
   Array.map (fun r -> r.typ) rv
 
-let name t = Name.to_string t.name
+let print t =
+  let prefix =
+    if t.preassigned then "pin:"
+    else if t.spill then "spill:"
+    else ""
+  in
+  prefix ^ Name.to_string t.name
 
 let is_preassigned t = t.preassigned
 

@@ -100,9 +100,7 @@ val createv_with_typs_and_id: id:Ident.t -> t array -> t array
 val typv: t array -> Cmm.machtype
 val is_preassigned : t -> bool
 val is_unknown : t -> bool
-
-(* Name for printing *)
-val name : t -> string
+val print : t -> string
 
 (* Check [t]'s location *)
 val is_reg : t -> bool
