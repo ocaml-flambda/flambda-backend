@@ -155,7 +155,7 @@ let rewrite_gen :
   let new_inst_temporaries : Reg.t list ref = ref [] in
   let new_block_temporaries = ref [] in
   let make_new_temporary ~(move : Move.t) (reg : Reg.t) : Reg.t =
-    let res = Reg.create_with_typ_and_name ~prefix:"temp" reg in
+    let res = Reg.create_with_typ_and_name ~prefix_if_var:"temp" reg in
     new_inst_temporaries := res :: !new_inst_temporaries;
     if Utils.debug
     then

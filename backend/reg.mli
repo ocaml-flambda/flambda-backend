@@ -89,7 +89,7 @@ val dummy: t
 
 val create: Cmm.machtype_component -> t
 val create_with_typ: t -> t
-val create_with_typ_and_name: ?prefix:string -> t -> t
+val create_with_typ_and_name: ?prefix_if_var:string -> t -> t
 val create_at_location: Cmm.machtype_component -> location -> t
 
 val createv: Cmm.machtype -> t array
