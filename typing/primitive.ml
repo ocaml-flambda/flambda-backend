@@ -552,7 +552,8 @@ let prim_has_valid_reprs ~loc prim =
       |> List.to_seq
       |> fun seq -> String.Map.add_seq seq String.Map.empty
     in
-    match prim.prim_name with
+    fun name ->
+    match name with
     | "%identity"
     | "%opaque"
     | "%obj_magic" ->
@@ -777,17 +778,20 @@ let prim_has_valid_reprs ~loc prim =
             then fun _ -> Success
             else no_product_repr)
   in
-  match check prim with
-  | Success -> ()
-  | Wrong_arity ->
-    (* There's already an arity check in translprim that catches this. We will
-       defer to that logic.  We are only checking the arity of some built-in
-       primitives here but not all, and it would be weird to raise different
-       errors dependent on the [prim_name]. *)
-    ()
-  | Wrong_repr ->
-    raise (Error (loc,
-            Invalid_native_repr_for_primitive (prim.prim_name)))
+  let check_and_raise name =
+    match check name prim with
+    | Success -> ()
+    | Wrong_arity ->
+      (* There's already an arity check in translprim that catches this. We will
+        defer to that logic.  We are only checking the arity of some built-in
+        primitives here but not all, and it would be weird to raise different
+        errors dependent on the [name]. *)
+      ()
+    | Wrong_repr ->
+      raise (Error (loc, Invalid_native_repr_for_primitive name))
+  in
+  check_and_raise prim.prim_name;
+  check_and_raise prim.prim_native_name
 
 let prim_can_contain_layout_any prim =
   match prim.prim_name with
