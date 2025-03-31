@@ -412,7 +412,13 @@ let can_raise_terminator (i : terminator) =
   | Raise _ | Tailcall_func _ | Call _ | Prim { op = Probe _; label_after = _ }
     ->
     true
-  | Prim { op = External { alloc; _ }; label_after = _ } -> alloc
+  | Prim { op = External { alloc; effects; _ }; label_after = _ } -> (
+    if not alloc
+    then false
+    else
+      (* Even if going via [caml_c_call], if there are no effects, the function
+         cannot raise an exception. (Example: [caml_obj_dup].) *)
+      match effects with No_effects -> false | Arbitrary_effects -> true)
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     true
