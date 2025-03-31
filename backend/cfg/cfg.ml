@@ -429,6 +429,8 @@ let can_raise_terminator (i : terminator) =
 (* CR gyorsh: [is_pure_terminator] is not the same as [can_raise_terminator]
    because of [Tailcal Self] which is not pure but marked as cannot raise at the
    moment, which we might want to reconsider later. *)
+(* CR mshinwell/gyorsh: maybe this function could be made more precise e.g.
+   taking into account [effects] on extcalls *)
 let is_pure_terminator desc =
   match (desc : terminator) with
   | Return | Raise _ | Call_no_return _ | Tailcall_func _ | Tailcall_self _
