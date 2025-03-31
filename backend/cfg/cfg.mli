@@ -203,6 +203,8 @@ val is_noop_move : basic instruction -> bool
 
 val set_stack_offset : 'a instruction -> int -> unit
 
+val set_live : 'a instruction -> Reg.Set.t -> unit
+
 val string_of_irc_work_list : irc_work_list -> string
 
 val dump_basic : Format.formatter -> basic -> unit
