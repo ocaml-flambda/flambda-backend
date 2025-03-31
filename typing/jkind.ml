@@ -1135,6 +1135,7 @@ let fresh_jkind jkind ~annotation ~why =
     annotation;
     history = Creation why;
     has_warned = false;
+    ran_out_of_fuel_during_normalize = false;
     quality = Not_best
   }
   |> allow_left |> allow_right
@@ -1145,6 +1146,7 @@ let fresh_jkind_poly jkind ~annotation ~why =
     annotation;
     history = Creation why;
     has_warned = false;
+    ran_out_of_fuel_during_normalize = false;
     quality = Not_best
   }
 
@@ -1868,6 +1870,7 @@ module Builtin = struct
       (* this should never get printed: it's a dummy *)
       history = Creation (Any_creation Dummy_jkind);
       has_warned = false;
+      ran_out_of_fuel_during_normalize = false;
       quality = Not_best
     }
 
@@ -1886,6 +1889,7 @@ module Builtin = struct
       annotation = mk_annot "value";
       history = Creation (Value_or_null_creation V1_safety_check);
       has_warned = false;
+      ran_out_of_fuel_during_normalize = false;
       quality = Not_best
     }
 
@@ -1988,6 +1992,7 @@ let of_const (type l r) ~annotation ~why ~(quality : (l * r) jkind_quality)
     annotation;
     history = Creation why;
     has_warned = false;
+    ran_out_of_fuel_during_normalize = false;
     quality
   }
 
@@ -2194,7 +2199,11 @@ let[@inline] normalize ~mode ~jkind_of_type t =
     quality =
       (match t.quality, fuel_result with
       | Not_best, _ | _, Ran_out_of_fuel -> Not_best
-      | Best, Sufficient_fuel -> Best)
+      | Best, Sufficient_fuel -> Best);
+    ran_out_of_fuel_during_normalize =
+      (match fuel_result with
+      | Ran_out_of_fuel -> true
+      | _ -> t.ran_out_of_fuel_during_normalize)
   }
 
 let get_layout_defaulting_to_value { jkind = { layout; _ }; _ } =
@@ -2855,6 +2864,23 @@ module Violation = struct
                  pp_bound sub.jkind pp_bound super.jkind))
     | No_intersection _ -> ()
 
+  let report_fuel ppf violation =
+    let report_fuel_for_type which =
+      fprintf ppf
+        "@;\
+         @[Note: I gave up trying to find the simplest kind for the %s,@,\
+         as it is very large or deeply recursive.@]" which
+    in
+    let first_ran_out, second_ran_out =
+      match violation with
+      | Not_a_subjkind (k1, k2, _) ->
+        k1.ran_out_of_fuel_during_normalize, k2.ran_out_of_fuel_during_normalize
+      | No_intersection (k1, k2) ->
+        k1.ran_out_of_fuel_during_normalize, k2.ran_out_of_fuel_during_normalize
+    in
+    if first_ran_out then report_fuel_for_type "first";
+    if second_ran_out then report_fuel_for_type "second"
+
   let report_general preamble pp_former former ppf t =
     let mismatch_type =
       match t.violation with
@@ -2943,7 +2969,8 @@ module Violation = struct
       fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former former
         fmt_k1 fmt_k2;
     report_missing_cmi ppf missing_cmi_option;
-    report_reason ppf t.violation
+    report_reason ppf t.violation;
+    report_fuel ppf t.violation
 
   let pp_t ppf x = fprintf ppf "%t" x
 
@@ -2959,9 +2986,20 @@ end
 (* relations *)
 
 let equate_or_equal ~allow_mutation
-    { jkind = jkind1; annotation = _; history = _; has_warned = _; quality = _ }
-    { jkind = jkind2; annotation = _; history = _; has_warned = _; quality = _ }
-    =
+    { jkind = jkind1;
+      annotation = _;
+      history = _;
+      has_warned = _;
+      ran_out_of_fuel_during_normalize = _;
+      quality = _
+    }
+    { jkind = jkind2;
+      annotation = _;
+      history = _;
+      has_warned = _;
+      ran_out_of_fuel_during_normalize = _;
+      quality = _
+    } =
   Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
@@ -3031,6 +3069,9 @@ let intersection_or_error ~type_equal ~jkind_of_type ~reason t1 t2 =
           combine_histories ~type_equal ~jkind_of_type reason (Pack_jkind t1)
             (Pack_jkind t2);
         has_warned = t1.has_warned || t2.has_warned;
+        ran_out_of_fuel_during_normalize =
+          t1.ran_out_of_fuel_during_normalize
+          || t2.ran_out_of_fuel_during_normalize;
         quality =
           Not_best (* As required by the fact that this is a [jkind_r] *)
       }
@@ -3398,16 +3439,23 @@ module Debug_printers = struct
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
   let t (type l r) ppf
-      ({ jkind; annotation = a; history = h; has_warned = _; quality = q } :
+      ({ jkind;
+         annotation = a;
+         history = h;
+         has_warned = _;
+         ran_out_of_fuel_during_normalize = roofdn;
+         quality = q
+       } :
         (l * r) jkind) : unit =
     fprintf ppf
       "@[<v 2>{ jkind = %a@,\
        ; annotation = %a@,\
        ; history = %a@,\
+       ; ran_out_of_fuel_during_normalize = %a@,\
        ; quality = %s@,\
       \ }@]" Jkind_desc.Debug_printers.t jkind
       (pp_print_option Pprintast.jkind_annotation)
-      a history h
+      a history h pp_print_bool roofdn
       (match q with Best -> "Best" | Not_best -> "Not_best")
 
   module Const = struct

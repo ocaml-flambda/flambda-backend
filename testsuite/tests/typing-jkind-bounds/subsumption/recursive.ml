@@ -24,7 +24,6 @@ and 'a foo = 'a my_list
 type 'a my_list : immutable_data with 'a =
   | Nil
   | Cons of 'a * 'a my_list my_list my_list my_list my_list my_list my_list my_list my_list my_list my_list my_list
-(* CR layouts v2.8: consider making the error message say something about running out of fuel *)
 [%%expect {|
 Line 3, characters 17-115:
 3 |   | Cons of 'a * 'a my_list my_list my_list my_list my_list my_list my_list my_list my_list my_list my_list my_list
@@ -336,6 +335,8 @@ degenerate
        But the kind of type "degenerate" must be a subkind of immutable_data
          with 'a
          because of the annotation on the declaration of the type degenerate.
+       Note: I gave up trying to find the simplest kind for the first,
+       as it is very large or deeply recursive.
 |}]
 
 type ('a, 'b) zipped_list : immutable_data with 'a with 'b = Nil | Cons of 'a * 'b * ('a, 'b) zipped_list
@@ -507,4 +508,6 @@ Error: The kind of type "t2" is immutable_data with 'a with t1 with t1 t2
        But the kind of type "t2" must be a subkind of immutable_data with 'a
          with t1
          because of the annotation on the declaration of the type t2.
+       Note: I gave up trying to find the simplest kind for the first,
+       as it is very large or deeply recursive.
 |}]
