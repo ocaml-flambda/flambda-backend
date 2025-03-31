@@ -25,35 +25,36 @@ exception Error of error
 let output_channel = ref stdout
 
 let femit_string out s = output_string out s
+
 let emit_string s = femit_string !output_channel s
 
-
 let femit_int out n = output_string out (Int.to_string n)
+
 let emit_int n = femit_int !output_channel n
 
 let femit_char out c = output_char out c
+
 let emit_char c = femit_char !output_channel c
 
-
 let femit_nativeint out n = output_string out (Nativeint.to_string n)
+
 let emit_nativeint n = femit_nativeint !output_channel n
 
 let emit_printf fmt = Printf.fprintf !output_channel fmt
 
 let femit_int32 out n = Printf.fprintf out "0x%lx" n
+
 let emit_int32 n = femit_int32 !output_channel n
 
 let femit_symbol out s =
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
     match c with
-    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' ->
-      output_char out c
+    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> output_char out c
     | _ -> Printf.fprintf out "$%02x" (Char.code c)
   done
 
 let emit_symbol s = femit_symbol !output_channel s
-
 
 let femit_string_literal out s =
   let last_was_escape = ref false in
@@ -507,7 +508,8 @@ let femit_debug_info ?discriminator out dbg =
         femit_int out k);
       femit_char out '\n')
 
-let emit_debug_info ?discriminator dbg = femit_debug_info ~discriminator !output_channel dbg
+let emit_debug_info ?discriminator dbg =
+  femit_debug_info ~discriminator !output_channel dbg
 
 let reset () =
   reset_debug_info ();
