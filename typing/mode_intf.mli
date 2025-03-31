@@ -659,8 +659,9 @@ module type S = sig
             abitrary zappings of some [m], even after further mutations to [m].
             Essentially that means [c0 = c1].
 
-         NB: zapping an inferred modality will zap both [md_mode] and [mode] that
-         it contains. The caller is reponsible for correct zapping order.
+         NB: zapping an inferred modality will mutate both [md_mode] and [mode]
+         to the degree sufficient to fix the modality, but the modes could
+         remain unfixed.
       *)
 
       (** Zap an inferred modality towards identity modality. *)
