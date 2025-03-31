@@ -2388,7 +2388,7 @@ let make_stack_loc ~offset n (r : Reg.t) =
      probe arguments) in the wrapper's frame. *)
   let loc = Stack (Outgoing (offset + n)) in
   (* Manufacture stack entry with this register's type *)
-  Reg.at_location r.typ loc
+  Reg.create_at_location r.typ loc
 
 (* CR mshinwell: Not now, but after code review, it would be better to
    move this code so it's contiguous with the other probe code above. *)

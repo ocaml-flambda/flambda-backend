@@ -212,7 +212,7 @@ module Register : sig
 end = struct
   module For_print = struct
     type t =
-      { raw_name : Reg.Raw_name.t;
+      { name : Reg.Name.t;
         stamp : int;
         typ : Cmm.machtype_component
       }
@@ -225,12 +225,12 @@ end = struct
 
   let create (reg : Reg.t) : t =
     { reg_id = Reg_id.of_reg reg;
-      for_print = { raw_name = reg.raw_name; stamp = reg.stamp; typ = reg.typ }
+      for_print = { name = reg.name; stamp = reg.stamp; typ = reg.typ }
     }
 
   let to_dummy_reg (t : t) : Reg.t =
     { Reg.dummy with
-      raw_name = t.for_print.raw_name;
+      name = t.for_print.name;
       typ = t.for_print.typ;
       stamp = t.for_print.stamp;
       loc = Reg_id.to_loc_lossy t.reg_id

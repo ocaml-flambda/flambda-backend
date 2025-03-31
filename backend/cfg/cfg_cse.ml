@@ -285,7 +285,7 @@ let insert_move :
   | 0 -> ()
   | 1 -> insert_single_move state srcs.(0) dsts.(0) cell
   | _ ->
-    let tmps = Reg.createv_like srcs in
+    let tmps = Reg.createv_with_typs srcs in
     let insert_single_move src dst = insert_single_move state src dst cell in
     Array.iter2 tmps dsts ~f:insert_single_move;
     Array.iter2 srcs tmps ~f:insert_single_move

@@ -98,11 +98,6 @@ class virtual selector_generic :
       Operation.t * Cmm.expression
     (* Can be overridden to deal with special store constant instructions *)
 
-    method regs_for : Cmm.machtype -> Reg.t array
-    (* Return an array of fresh registers of the given type. Default
-       implementation is like Reg.createv. Can be overridden if float values are
-       stored as pairs of integer registers. *)
-
     method insert_op :
       environment -> Operation.t -> Reg.t array -> Reg.t array -> Reg.t array
     (* Can be overridden to deal with 2-address instructions or instructions

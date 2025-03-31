@@ -79,7 +79,7 @@ let rec compute_substitution_tree :
         (fun old_reg bindings ->
           let slots = State.stack_slots state in
           let (_ : int) = Regalloc_stack_slots.get_or_create slots old_reg in
-          let new_reg = Reg.clone old_reg in
+          let new_reg = Reg.create_with_typ_and_name old_reg in
           Regalloc_stack_slots.use_same_slot_or_fatal slots new_reg
             ~existing:old_reg;
           if split_debug
@@ -139,7 +139,7 @@ let make_spill : type a. a make_operation =
       let slots = State.stack_slots state in
       let slot : int = Regalloc_stack_slots.get_or_fatal slots old_reg in
       let stack : Reg.t =
-        make_temporary ~same_class_and_base_name_as:old_reg ~name_prefix:"stack"
+        Reg.create_with_typ_and_name ~prefix:"stack" old_reg
       in
       Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:old_reg;
       stack.Reg.loc <- Reg.(Stack (Local slot));
@@ -271,9 +271,7 @@ let make_reload : type a. a make_operation =
     | None ->
       let slots = State.stack_slots state in
       let slot = Regalloc_stack_slots.get_or_create slots old_reg in
-      let stack =
-        make_temporary ~same_class_and_base_name_as:old_reg ~name_prefix:"stack"
-      in
+      let stack = Reg.create_with_typ_and_name ~prefix:"stack" old_reg in
       Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:old_reg;
       Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:new_reg;
       stack.Reg.loc <- Reg.(Stack (Local slot));

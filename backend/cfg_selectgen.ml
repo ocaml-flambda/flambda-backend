@@ -249,24 +249,12 @@ let join env opt_r1 seq1 opt_r2 seq2 ~bound_name =
     assert (l1 = Array.length r2);
     let r = Array.make l1 Reg.dummy in
     for i = 0 to l1 - 1 do
-      if Reg.anonymous r1.(i) && Cmm.ge_component r1.(i).Reg.typ r2.(i).Reg.typ
-      then (
-        r.(i) <- r1.(i);
-        seq2#insert_move env r2.(i) r1.(i);
-        maybe_emit_naming_op seq2 [| r1.(i) |])
-      else if Reg.anonymous r2.(i)
-              && Cmm.ge_component r2.(i).Reg.typ r1.(i).Reg.typ
-      then (
-        r.(i) <- r2.(i);
-        seq1#insert_move env r1.(i) r2.(i);
-        maybe_emit_naming_op seq1 [| r2.(i) |])
-      else
-        let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
-        r.(i) <- Reg.create typ;
-        seq1#insert_move env r1.(i) r.(i);
-        maybe_emit_naming_op seq1 [| r.(i) |];
-        seq2#insert_move env r2.(i) r.(i);
-        maybe_emit_naming_op seq2 [| r.(i) |]
+      let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
+      r.(i) <- Reg.create typ;
+      seq1#insert_move env r1.(i) r.(i);
+      maybe_emit_naming_op seq1 [| r.(i) |];
+      seq2#insert_move env r2.(i) r.(i);
+      maybe_emit_naming_op seq2 [| r.(i) |]
     done;
     Some r
 
@@ -618,7 +606,7 @@ class virtual selector_generic =
         | Terminator (Call { op = Indirect; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
           let rarg = Array.sub r1 1 (Array.length r1 - 1) in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
           let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -637,7 +625,7 @@ class virtual selector_generic =
           Some rd
         | Terminator (Call { op = Direct _; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
           let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -654,7 +642,7 @@ class virtual selector_generic =
           let loc_arg, stack_ofs =
             self#emit_extcall_args env ty_args new_args
           in
-          let rd = self#regs_for ty_res in
+          let rd = Reg.createv ty_res in
           let term =
             Cfg.Prim { op = External { r with stack_ofs }; label_after }
           in
@@ -669,7 +657,7 @@ class virtual selector_generic =
           ret rd
         | Terminator (Prim { op = Probe _; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let rd = self#insert_op_debug' env term dbg r1 rd in
           Select_utils.set_traps_for_raise env;
           sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
@@ -685,7 +673,7 @@ class virtual selector_generic =
           let returns, ty =
             if keep_for_checking then true, typ_int else false, ty
           in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let label = Cmm.new_label () in
           let r = { r with stack_ofs } in
           let term : Cfg.terminator =
@@ -704,7 +692,7 @@ class virtual selector_generic =
             ret rd)
           else None
         | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
-          let rd = self#regs_for typ_val in
+          let rd = Reg.createv typ_val in
           let bytes = Select_utils.size_expr env (Ctuple new_args) in
           let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
           let op =
@@ -725,7 +713,7 @@ class virtual selector_generic =
             (List.length dbginfo)
         | Basic (Op op) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           add_naming_op_for_bound_name rd;
           ret (self#insert_op_debug env op dbg r1 rd)
         | Basic basic ->
@@ -787,8 +775,7 @@ class virtual selector_generic =
             let rs =
               List.map
                 (fun (id, typ) ->
-                  let r = self#regs_for typ in
-                  Select_utils.name_regs id r;
+                  let r = Reg.createv_with_id ~id:(VP.var id) typ in
                   r)
                 ids
             in
@@ -903,7 +890,7 @@ class virtual selector_generic =
           in
           (* Intermediate registers to handle cases where some registers from
              src are present in dest *)
-          let tmp_regs = Reg.createv_like src in
+          let tmp_regs = Reg.createv_with_typs src in
           (* Ccatch registers must not contain out of heap pointers *)
           Array.iter
             (fun reg ->
@@ -957,7 +944,7 @@ class virtual selector_generic =
          extra arguments on its exception continuation has to compiled using a
          wrapper; see [To_cmm_expr.translate_apply]. *)
       let extra_arg_regs_split =
-        List.map (fun (_param, machtype) -> self#regs_for machtype) extra_args
+        List.map (fun (_param, machtype) -> Reg.createv machtype) extra_args
       in
       let extra_arg_regs = Array.concat extra_arg_regs_split in
       let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
@@ -965,7 +952,7 @@ class virtual selector_generic =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
       let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
-      let exn_bucket_in_handler = self#regs_for typ_val in
+      let exn_bucket_in_handler = Reg.createv typ_val in
       let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let r2, s2 =
@@ -1083,7 +1070,7 @@ class virtual selector_generic =
         match new_op with
         | Terminator (Call { op = Indirect; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let rarg = Array.sub r1 1 (Array.length r1 - 1) in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
@@ -1106,7 +1093,7 @@ class virtual selector_generic =
             self#insert_return env (Some loc_res) (pop_all_traps env))
         | Terminator (Call { op = Direct func; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
           let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -1183,8 +1170,7 @@ class virtual selector_generic =
             let rs =
               List.map
                 (fun (id, typ) ->
-                  let r = self#regs_for typ in
-                  Select_utils.name_regs id r;
+                  let r = Reg.createv_with_id ~id:(VP.var id) typ in
                   r)
                 ids
             in
@@ -1280,7 +1266,7 @@ class virtual selector_generic =
       let exn_label = Cmm.new_label () in
       (* See comment in emit_expr_aux_trywith about extra args *)
       let extra_arg_regs_split =
-        List.map (fun (_param, machtype) -> self#regs_for machtype) extra_args
+        List.map (fun (_param, machtype) -> Reg.createv machtype) extra_args
       in
       let extra_arg_regs = Array.concat extra_arg_regs_split in
       let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
@@ -1288,7 +1274,7 @@ class virtual selector_generic =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
       let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
-      let exn_bucket_in_handler = self#regs_for typ_val in
+      let exn_bucket_in_handler = Reg.createv typ_val in
       let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let s2 : Sub_cfg.t =
@@ -1372,8 +1358,7 @@ class virtual selector_generic =
       let rargs =
         List.mapi
           (fun arg_index (var, ty) ->
-            let r = self#regs_for ty in
-            Select_utils.name_regs var r;
+            let r = Reg.createv_with_id ~id:(VP.var var) ty in
             num_regs_per_arg.(arg_index) <- Array.length r;
             r)
           f.Cmm.fun_args

@@ -264,20 +264,6 @@ let same_stack_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->
   Int.equal (Proc.stack_slot_class reg1.typ) (Proc.stack_slot_class reg2.typ)
 
-let make_temporary :
-    same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t =
- fun ~same_class_and_base_name_as:reg ~name_prefix ->
-  let new_temp = Reg.create reg.Reg.typ in
-  (if not (Reg.anonymous reg)
-  then
-    let name =
-      Reg.Raw_name.to_string reg.Reg.raw_name |> Option.value ~default:"anon"
-    in
-    let name = name_prefix ^ "-" ^ name in
-    new_temp.Reg.raw_name
-      <- Reg.Raw_name.create_from_var (Backend_var.create_local name));
-  new_temp
-
 let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -431,7 +417,8 @@ let cost_for_block : Cfg.basic_block -> int =
 
 let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
  fun cfg_with_infos ~flat () ->
-  List.iter (Reg.all_registers ()) ~f:(fun reg -> reg.Reg.spill_cost <- 0);
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
+      reg.Reg.spill_cost <- 0);
   let update_reg (cost : int) (reg : Reg.t) : unit =
     (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
     reg.Reg.spill_cost <- reg.Reg.spill_cost + cost

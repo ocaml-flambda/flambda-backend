@@ -101,10 +101,6 @@ val oper_result_type : Cmm.operation -> Cmm.machtype
 val swap_intcomp :
   Simple_operation.integer_comparison -> Simple_operation.integer_comparison
 
-val all_regs_anonymous : Reg.t array -> bool
-
-val name_regs : Backend_var.With_provenance.t -> Reg.t array -> unit
-
 val current_function_name : string ref
 
 val current_function_is_check_enabled : bool ref
@@ -201,8 +197,6 @@ class virtual ['env, 'op, 'instr] common_selector :
 
     method select_condition :
       Cmm.expression -> Simple_operation.test * Cmm.expression
-
-    method regs_for : Cmm.machtype -> Reg.t array
 
     method virtual insert_debug :
       'env environment ->

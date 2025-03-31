@@ -30,17 +30,18 @@ type irc_work_list =
 val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
 val string_of_irc_work_list : irc_work_list -> string
 
-module Raw_name : sig
+module Name : sig
   type t
-  val create_from_var : Backend_var.t -> t
-  val to_string : t -> string option
+
+  val to_string : t -> string
 end
 
 type t =
-  { mutable raw_name: Raw_name.t;         (* Name *)
+  { name: Name.t;                         (* Name *)
     stamp: int;                           (* Unique stamp *)
     typ: Cmm.machtype_component;          (* Type of contents *)
-    mutable loc: location;                (* Actual location *)
+    preassigned: bool;                    (* Pinned to a specific location *)
+    mutable loc: location;                (* Current location *)
     mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
     mutable irc_color : int option;       (* Current color (IRC only) *)
     mutable irc_alias : t option;         (* Current alias (IRC only) *)
@@ -85,13 +86,18 @@ and stack_location =
 val equal_location : location -> location -> bool
 
 val dummy: t
+
 val create: Cmm.machtype_component -> t
+val create_with_typ: t -> t
+val create_with_typ_and_name: ?prefix:string -> t -> t
+val create_at_location: Cmm.machtype_component -> location -> t
+
 val createv: Cmm.machtype -> t array
-val createv_like: t array -> t array
-val clone: t -> t
-val at_location: Cmm.machtype_component -> location -> t
+val createv_with_id: id:Ident.t -> Cmm.machtype -> t array
+val createv_with_typs: t array -> t array
+val createv_with_typs_and_id: id:Ident.t -> t array -> t array
+
 val typv: t array -> Cmm.machtype
-val anonymous : t -> bool
 val is_preassigned : t -> bool
 val is_unknown : t -> bool
 
@@ -113,9 +119,9 @@ val disjoint_set_array: Set.t -> t array -> bool
 val set_of_array: t array -> Set.t
 val set_has_collisions : Set.t -> bool
 
-val reset: unit -> unit
-val all_registers: unit -> t list
-val reinit: unit -> unit
+val restart: unit -> unit
+val reinit_relocatable_regs: unit -> unit
+val all_relocatable_regs: unit -> t list
 
 val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool

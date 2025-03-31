@@ -55,7 +55,7 @@ type t =
 let max_capacity = 1024
 
 let[@inline] make ~initial ~stack_slots ~last_used () =
-  List.iter (Reg.all_registers ()) ~f:(fun reg ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
       reg.Reg.irc_work_list <- Unknown_list;
       reg.Reg.irc_color <- None;
       reg.Reg.irc_alias <- None;
@@ -144,7 +144,7 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
     InstructionWorkList.iter iwl ~f:(fun instr ->
         instr.irc_work_list <- Unknown_list)
   in
-  List.iter (Reg.all_registers ()) ~f:(fun reg ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
       reg.Reg.irc_color <- None;
       reg.Reg.irc_alias <- None;
       reg.Reg.interf <- [];
@@ -568,7 +568,7 @@ let[@inline] invariant state =
   if irc_debug && Lazy.force irc_invariants
   then (
     (* interf (list) is morally a set *)
-    List.iter (Reg.all_registers ()) ~f:check_inter_has_no_duplicates;
+    List.iter (Reg.all_relocatable_regs ()) ~f:check_inter_has_no_duplicates;
     Reg.Set.iter check_inter_has_no_duplicates (all_precolored_regs ());
     (* register sets are disjoint *)
     check_disjoint ~is_disjoint:Reg.Set.disjoint

@@ -202,7 +202,7 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
   | [] -> allocate_stack_slot reg
 
 let reg_reinit () =
-  List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
       match reg.loc with Reg _ -> reg.loc <- Unknown | Unknown | Stack _ -> ())
 
 (* CR xclerc for xclerc: could probably be lower; the compiler distribution

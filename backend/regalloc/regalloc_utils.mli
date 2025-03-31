@@ -97,9 +97,6 @@ val same_reg_class : Reg.t -> Reg.t -> bool
 
 val same_stack_class : Reg.t -> Reg.t -> bool
 
-val make_temporary :
-  same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t
-
 val simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t
 
 val save_cfg : string -> Cfg_with_layout.t -> unit

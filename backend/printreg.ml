@@ -35,8 +35,7 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
   | Stack (Domainstate s) -> wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
 let reg ppf r =
-  if not (anonymous r) then fprintf ppf "%s:" (name r);
-  fprintf ppf "%s"
+  fprintf ppf "%s:%s" (name r)
     (match (r.typ : Cmm.machtype_component) with
     | Val -> "V"
     | Addr -> "A"

@@ -287,25 +287,6 @@ let swap_intcomp = function
   | Simple_operation.Iunsigned cmp ->
     Simple_operation.Iunsigned (swap_integer_comparison cmp)
 
-(* Naming of registers *)
-
-let all_regs_anonymous rv =
-  try
-    for i = 0 to Array.length rv - 1 do
-      if not (Reg.anonymous rv.(i)) then raise Exit
-    done;
-    true
-  with Exit -> false
-
-let name_regs id rv =
-  let id = VP.var id in
-  if Array.length rv = 1
-  then rv.(0).Reg.raw_name <- Reg.Raw_name.create_from_var id
-  else
-    for i = 0 to Array.length rv - 1 do
-      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id
-    done
-
 (* Name of function being compiled *)
 let current_function_name = ref ""
 
@@ -571,12 +552,6 @@ class virtual ['env, 'op, 'instr] common_selector =
       | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
       | _ -> Itruetest, arg
 
-    (* Return an array of fresh registers of the given type. Normally
-       implemented as Reg.createv, but some ports (e.g. Arm) can override this
-       definition to store float values in pairs of integer registers. *)
-
-    method regs_for tys = Reg.createv tys
-
     method virtual insert_debug
         : 'env environment ->
           'instr ->
@@ -626,15 +601,9 @@ class virtual ['env, 'op, 'instr] common_selector =
 
     method private bind_let (env : 'env environment) v r1 =
       let env =
-        if all_regs_anonymous r1
-        then (
-          name_regs v r1;
-          env_add v r1 env)
-        else
-          let rv = Reg.createv_like r1 in
-          name_regs v rv;
-          self#insert_moves env r1 rv;
-          env_add v rv env
+        let rv = Reg.createv_with_typs_and_id ~id:(VP.var v) r1 in
+        self#insert_moves env r1 rv;
+        env_add v rv env
       in
       let provenance = VP.provenance v in
       (if Option.is_some provenance
@@ -647,8 +616,7 @@ class virtual ['env, 'op, 'instr] common_selector =
       env
 
     method private bind_let_mut (env : 'env environment) v k r1 =
-      let rv = self#regs_for k in
-      name_regs v rv;
+      let rv = Reg.createv_with_id ~id:(VP.var v) k in
       self#insert_moves env r1 rv;
       let provenance = VP.provenance v in
       (if Option.is_some provenance
@@ -713,15 +681,10 @@ class virtual ['env, 'op, 'instr] common_selector =
           else
             (* The normal case *)
             let id = V.create_local "bind" in
-            if all_regs_anonymous r
-            then
-              (* r is an anonymous, unshared register; use it directly *)
-              Some (Cvar id, env_add (VP.create id) r env)
-            else
-              (* Introduce a fresh temp to hold the result *)
-              let tmp = Reg.createv_like r in
-              self#insert_moves env r tmp;
-              Some (Cvar id, env_add (VP.create id) tmp env)
+            (* Introduce a fresh temp to hold the result *)
+            let tmp = Reg.createv_with_typs_and_id ~id r in
+            self#insert_moves env r tmp;
+            Some (Cvar id, env_add (VP.create id) tmp env)
 
     method private emit_parts_list (env : 'env environment) exp_list =
       let module EC = Effect_and_coeffect in
@@ -846,26 +809,26 @@ class virtual ['env, 'op, 'instr] common_selector =
       let ret res = Some res in
       match exp with
       | Cconst_int (n, _dbg) ->
-        let r = self#regs_for typ_int in
+        let r = Reg.createv typ_int in
         ret
           (self#insert_op env (self#make_const_int (Nativeint.of_int n)) [||] r)
       | Cconst_natint (n, _dbg) ->
-        let r = self#regs_for typ_int in
+        let r = Reg.createv typ_int in
         ret (self#insert_op env (self#make_const_int n) [||] r)
       | Cconst_float32 (n, _dbg) ->
-        let r = self#regs_for typ_float32 in
+        let r = Reg.createv typ_float32 in
         ret
           (self#insert_op env
              (self#make_const_float32 (Int32.bits_of_float n))
              [||] r)
       | Cconst_float (n, _dbg) ->
-        let r = self#regs_for typ_float in
+        let r = Reg.createv typ_float in
         ret
           (self#insert_op env
              (self#make_const_float (Int64.bits_of_float n))
              [||] r)
       | Cconst_vec128 (bits, _dbg) ->
-        let r = self#regs_for typ_vec128 in
+        let r = Reg.createv typ_vec128 in
         ret (self#insert_op env (self#make_const_vec128 bits) [||] r)
       | Cconst_symbol (n, _dbg) ->
         (* Cconst_symbol _ evaluates to a statically-allocated address, so its
@@ -875,7 +838,7 @@ class virtual ['env, 'op, 'instr] common_selector =
            which may point to heap values. However, any such blocks will be
            registered in the compilation unit's global roots structure, so
            adding this register to the frame table would be redundant *)
-        let r = self#regs_for typ_int in
+        let r = Reg.createv typ_int in
         ret (self#insert_op env (self#make_const_symbol n) [||] r)
       | Cvar v -> (
         try ret (env_find v env)
