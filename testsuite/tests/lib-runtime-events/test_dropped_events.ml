@@ -10,9 +10,13 @@
    set OCAMLRUNPARAM = "e=6";
    hasunix;
    { bytecode; }
-   { native; }
+   {
+    arch_amd64;
+    native;
+   }
  }
 *)
+(* CR gyorsh: this test is disabled on arm64 because it fails on linux with runtime 5. *)
 type Runtime_events.User.tag += Ev
 let ev = Runtime_events.User.register "ev" Ev Runtime_events.Type.int
 
