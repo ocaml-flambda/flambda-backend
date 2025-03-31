@@ -16,9 +16,8 @@
 (* CSE for ARM64 *)
 
 open! Int_replace_polymorphic_compare
-open CSE_utils
 
-let of_simd_class (cl : Simd.operation_class)  =
+let of_simd_class (cl : Simd.operation_class) : Cfg_cse.op_class =
   match cl with
   | Pure -> Op_pure
 

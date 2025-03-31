@@ -19,9 +19,8 @@ open! Int_replace_polymorphic_compare
 (* CSE for the AMD64 *)
 
 open Arch
-open CSE_utils
 
-let of_simd_class (cl : Simd.operation_class)  =
+let of_simd_class (cl : Simd.operation_class) : Cfg_cse.op_class =
   match cl with
   | Pure -> Op_pure
   | Load { is_mutable = true } -> Op_load Mutable
@@ -32,7 +31,7 @@ class cfg_cse = object
   inherit Cfg_cse.cse_generic as super
 
   method! class_of_operation
-  : Operation.t -> op_class
+  : Operation.t -> Cfg_cse.op_class
   = fun op ->
   match op with
     | Specific spec ->
