@@ -255,7 +255,7 @@ let base_templ () : Cfg_desc.t * (unit -> InstructionId.t) =
      [fun f x y a -> let y = f x y a in let x = x + y in x] *)
   let int_arg1 = int.(0) in
   let int_arg2 = int.(1) in
-  let stack_loc = Reg.at_location int_arg1.typ (Stack (Local 0)) in
+  let stack_loc = Reg.create_at_location int_arg1.typ (Stack (Local 0)) in
   let args, arg_locs =
     make_locs [| val_.(0); int_arg1; int_arg2; float.(0) |] Proc.loc_parameters
   in
@@ -534,7 +534,7 @@ let () =
     ~exp_std:"fatal exception raised when creating description"
     ~exp_err:
       ">> Fatal error: Register in function arguments that isn't preassigned: \
-       I/0"
+       anon:I/0"
 
 let () =
   check "Function argument count changed"
@@ -574,7 +574,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (V/69) with an unknown \
+      ">> Fatal error: instruction 20 has a register (anon:V/69) with an unknown \
        location"
 
 let () =
@@ -853,7 +853,7 @@ let make_loop ~loop_loc_first n =
   in
   let stack_loc =
     let locs =
-      Array.init (n + 1) (fun i -> Reg.at_location Int (Stack (Local i)))
+      Array.init (n + 1) (fun i -> Reg.create_at_location Int (Stack (Local i)))
     in
     fun i -> locs.(i)
   in
