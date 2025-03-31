@@ -2516,7 +2516,7 @@ end = struct
           =
         match i.desc with
         | Op op -> Ok (operation t ~next op i.dbg)
-        | Pushtrap _ | Poptrap ->
+        | Pushtrap _ | Poptrap _ ->
           (* treated as no-op here, flow and handling of exceptions is
              incorporated into the blocks and edges of the CFG *)
           Ok next
@@ -2664,13 +2664,7 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
           ());
     if !modified
     then
-      Profile.record ~accumulate:true "cleanup"
-        (fun () ->
-          Eliminate_fallthrough_blocks.run cfg_with_layout;
-          Merge_straightline_blocks.run cfg_with_layout;
-          Simplify_terminator.run cfg;
-          Eliminate_dead_code.run_dead_block cfg_with_layout)
-        ())
+      Profile.record ~accumulate:true "cleanup" Cfg_simplify.run cfg_with_layout)
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in

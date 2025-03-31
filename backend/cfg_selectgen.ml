@@ -432,7 +432,11 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           let instr_desc =
             match trap with
             | Cmm.Push _ -> Misc.fatal_error "unexpected push on trap actions"
-            | Cmm.Pop _ -> Cfg.Poptrap
+            | Cmm.Pop handler_id ->
+              let lbl_handler =
+                (SU.env_find_static_exception handler_id env).label
+              in
+              Cfg.Poptrap { lbl_handler }
           in
           Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
         traps;
@@ -1129,7 +1133,11 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
                   (SU.env_find_static_exception handler_id env).label
                 in
                 Cfg.Pushtrap { lbl_handler }
-              | Cmm.Pop _ -> Cfg.Poptrap
+              | Cmm.Pop handler_id ->
+                let lbl_handler =
+                  (SU.env_find_static_exception handler_id env).label
+                in
+                Cfg.Poptrap { lbl_handler }
             in
             Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
           traps;
@@ -1655,8 +1663,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     in
     (* CR xclerc for xclerc: Regalloc_irc_utils.log_cfg_with_infos ~indent:1
        (Cfg_with_infos.make cfg_with_layout); *)
-    Merge_straightline_blocks.run cfg_with_layout;
-    Simplify_terminator.run cfg;
-    Eliminate_dead_code.run_dead_block cfg_with_layout;
+    Cfg_simplify.run cfg_with_layout;
     cfg_with_layout
 end

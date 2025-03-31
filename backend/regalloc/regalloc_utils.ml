@@ -304,11 +304,7 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
       DLL.filter_left block.body ~f:(fun instr -> not (Cfg.is_noop_move instr)));
-  Eliminate_fallthrough_blocks.run cfg_with_layout;
-  Merge_straightline_blocks.run cfg_with_layout;
-  Eliminate_dead_code.run_dead_block cfg_with_layout;
-  Simplify_terminator.run cfg;
-  Eliminate_dead_code.run_dead_block cfg_with_layout;
+  Cfg_simplify.run cfg_with_layout;
   cfg_with_layout
 
 let save_cfg : string -> Cfg_with_layout.t -> unit =
@@ -572,7 +568,6 @@ let insert_block :
           exn = None;
           can_raise = false;
           is_trap_handler = false;
-          dead = predecessor_block.dead;
           cold = predecessor_block.cold
         }
       in

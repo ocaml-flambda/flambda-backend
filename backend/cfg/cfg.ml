@@ -43,7 +43,6 @@ type basic_block =
     mutable exn : Label.t option;
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
-    mutable dead : bool;
     mutable cold : bool
   }
 
@@ -187,17 +186,39 @@ let add_block_exn t block =
       Label.format block.start;
   Label.Tbl.add t.blocks block.start block
 
-let remove_block_exn t label =
-  match Label.Tbl.find t.blocks label with
-  | exception Not_found ->
-    Misc.fatal_errorf "Cfg.remove_block_exn: block %a not found" Label.format
-      label
-  | _ -> Label.Tbl.remove t.blocks label
+let remove_trap_instructions t removed_trap_handlers =
+  let remove_trap_instr _ b =
+    DLL.iter_cell b.body ~f:(fun cell ->
+        let i = DLL.value cell in
+        match i.desc with
+        | Pushtrap { lbl_handler } | Poptrap { lbl_handler } ->
+          if Label.Set.mem lbl_handler removed_trap_handlers
+          then DLL.delete_curr cell
+        | Op _ | Reloadretaddr | Prologue | Stack_check _ -> ())
+  in
+  if not (Label.Set.is_empty removed_trap_handlers) then assert Config.flambda2;
+  (* remove Lpushtrap and Lpoptrap instructions that refer to dead labels. *)
+  Label.Tbl.iter remove_trap_instr t.blocks
 
 let remove_blocks t labels_to_remove =
+  let removed_labels = ref Label.Set.empty in
+  let removed_trap_handlers = ref Label.Set.empty in
   Label.Tbl.filter_map_inplace
-    (fun l b -> if Label.Set.mem l labels_to_remove then None else Some b)
-    t.blocks
+    (fun l b ->
+      if Label.Set.mem l labels_to_remove
+      then (
+        if b.is_trap_handler
+        then removed_trap_handlers := Label.Set.add l !removed_trap_handlers;
+        removed_labels := Label.Set.add l !removed_labels;
+        None)
+      else Some b)
+    t.blocks;
+  let labels_not_found = Label.Set.diff labels_to_remove !removed_labels in
+  if not (Label.Set.is_empty labels_not_found)
+  then
+    Misc.fatal_errorf "Cfg.remove_blocks: not found blocks %a" Label.Set.print
+      labels_not_found;
+  remove_trap_instructions t !removed_trap_handlers
 
 let get_block t label = Label.Tbl.find_opt t.blocks label
 
@@ -262,7 +283,8 @@ let dump_basic ppf (basic : basic) =
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } ->
     fprintf ppf "Pushtrap handler=%a" Label.format lbl_handler
-  | Poptrap -> fprintf ppf "Poptrap"
+  | Poptrap { lbl_handler } ->
+    fprintf ppf "Poptrap handler=%a" Label.format lbl_handler
   | Prologue -> fprintf ppf "Prologue"
   | Stack_check { max_frame_size_bytes } ->
     fprintf ppf "Stack_check size=%d" max_frame_size_bytes
@@ -449,7 +471,7 @@ let is_pure_basic : basic -> bool = function
        wouldn't be. Saying it's not pure doesn't decrease the generated code
        quality and is future-proof.*)
     false
-  | Pushtrap _ | Poptrap ->
+  | Pushtrap _ | Poptrap _ ->
     (* Those instructions modify the trap stack which actually modifies the
        stack pointer. *)
     false
@@ -491,7 +513,7 @@ let is_noop_move instr =
       | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
       | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
       | Begin_region | End_region | Dls_get | Poll | Alloc _ )
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+  | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
@@ -564,7 +586,6 @@ let make_empty_block ?label terminator : basic_block =
     exn = None;
     can_raise = false;
     is_trap_handler = false;
-    dead = false;
     cold = false
   }
 
