@@ -8,13 +8,6 @@ type op_class =
   | Op_store of bool (* memory store, false = init, true = assign *)
   | Op_other (* anything else that does not allocate nor store in memory *)
 
-(* We maintain sets of equations of the form valnums = operation(valnums) plus a
-   mapping from registers to valnums (value numbers). *)
-
-module type Operation = sig
-  type t
-end
-
 (* Common subexpression elimination by value numbering over extended basic
    blocks. *)
 
