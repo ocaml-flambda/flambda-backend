@@ -112,6 +112,20 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
+          - name: flambda2_ubuntu_arm64_runtime5_irc
+            config: --enable-middle-end=flambda2 --enable-runtime5 --disable-warn-error
+            os: ubuntu-24.04-arm
+            build_ocamlparam: '_,w=-46,regalloc=irc'
+            ocamlparam: '_,w=-46,regalloc=irc'
+
+          - name: flambda2_ubuntu_arm64_debug_runtime5_ls
+            config: --enable-middle-end=flambda2 --enable-runtime5 --disable-warn-error
+            os: ubuntu-24.04-arm
+            build_ocamlparam: '_,w=-46,regalloc=ls'
+            ocamlparam: '_,w=-46,regalloc=ls'
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
+
           - name: irc
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
