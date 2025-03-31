@@ -309,7 +309,7 @@ module Transfer = struct
             | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
             | Begin_region | End_region | Specific _ | Dls_get | Poll | Alloc _
               )
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+        | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
           let is_op_end_region = function[@ocaml.warning "-4"]
             | Cfg.(Op End_region) -> true
             | _ -> false

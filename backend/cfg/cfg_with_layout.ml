@@ -36,21 +36,14 @@ type layout = Label.t DLL.t
 type t =
   { cfg : Cfg.t;
     mutable layout : layout;
-    mutable new_labels : Label.Set.t;
-    preserve_orig_labels : bool;
     sections : (Label.t, string) Hashtbl.t
   }
 
-let create cfg ~layout ~preserve_orig_labels ~new_labels =
-  { cfg; layout; new_labels; preserve_orig_labels; sections = Hashtbl.create 3 }
+let create cfg ~layout = { cfg; layout; sections = Hashtbl.create 3 }
 
 let cfg t = t.cfg
 
 let layout t = t.layout
-
-let preserve_orig_labels t = t.preserve_orig_labels
-
-let new_labels t = t.new_labels
 
 let label_set_of_layout : layout -> Label.Set.t =
  fun layout -> DLL.fold_right layout ~init:Label.Set.empty ~f:Label.Set.add
@@ -85,11 +78,6 @@ let assign_blocks_to_section t labels name =
 
 let get_section t label = Hashtbl.find_opt t.sections label
 
-let remove_block t label =
-  Cfg.remove_block_exn t.cfg label;
-  DLL.remove_first t.layout ~f:(fun l -> Label.equal l label);
-  t.new_labels <- Label.Set.remove label t.new_labels
-
 let remove_blocks t labels_to_remove =
   let num_to_remove = Label.Set.cardinal labels_to_remove in
   if num_to_remove > 0
@@ -98,18 +86,16 @@ let remove_blocks t labels_to_remove =
     (* CR-soon xclerc: would be simpler with a function such as
        `DoublyLinkedList.remove : 'a cell -> unit` called from
        `DoublyLinkedList.iter_cell` *)
-    (try
-       let num_removed = ref 0 in
-       DLL.filter_left t.layout ~f:(fun l ->
-           if !num_removed = num_to_remove then raise Exit;
-           let to_remove = Label.Set.mem l labels_to_remove in
-           if to_remove then incr num_removed;
-           not to_remove)
-     with Exit -> ());
-    t.new_labels <- Label.Set.diff t.new_labels labels_to_remove)
+    try
+      let num_removed = ref 0 in
+      DLL.filter_left t.layout ~f:(fun l ->
+          if !num_removed = num_to_remove then raise Exit;
+          let to_remove = Label.Set.mem l labels_to_remove in
+          if to_remove then incr num_removed;
+          not to_remove)
+    with Exit -> ())
 
 let add_block t (block : Cfg.basic_block) ~after =
-  t.new_labels <- Label.Set.add block.start t.new_labels;
   match
     DLL.find_cell_opt t.layout ~f:(fun label -> Label.equal label after)
   with

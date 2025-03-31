@@ -499,11 +499,7 @@
   cfg_cse
   cfg_stack_checks
   cfg_polling
-  eliminate_dead_code
-  disconnect_block
-  eliminate_dead_blocks
-  eliminate_fallthrough_blocks
-  merge_straightline_blocks
+  cfg_simplify
   extra_debug
   label
   linear_utils

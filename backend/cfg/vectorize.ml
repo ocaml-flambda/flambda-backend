@@ -228,7 +228,8 @@ end = struct
       let desc = basic_instruction.desc in
       match desc with
       | Op op -> Some op
-      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None)
+      | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
+        None)
     | Terminator _ -> None
 
   let copy (i : Cfg.basic Cfg.instruction) ~arg ~res ~id ~desc =

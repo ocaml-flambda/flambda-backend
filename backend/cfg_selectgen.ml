@@ -146,7 +146,7 @@ module Stack_offset_and_exn = struct
     | Pushtrap { lbl_handler } ->
       update_block cfg lbl_handler ~stack_offset ~traps;
       stack_offset, lbl_handler :: traps
-    | Poptrap -> (
+    | Poptrap _ -> (
       match traps with
       | [] ->
         Misc.fatal_errorf
@@ -210,11 +210,7 @@ module Stack_offset_and_exn = struct
         | handler_label :: _ -> block.exn <- Some handler_label))
 
   let update_cfg : Cfg.t -> unit =
-   fun cfg ->
-    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[];
-    Cfg.iter_blocks cfg ~f:(fun _ block ->
-        if block.stack_offset = invalid_stack_offset then block.dead <- true;
-        assert (not (block.is_trap_handler && block.dead)))
+   fun cfg -> update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[]
 end
 
 (* CR xclerc for xclerc: maybe_emit_naming_op, join, and join_array below should
@@ -925,7 +921,12 @@ class virtual selector_generic =
                       .extra
                   in
                   Cfg.Pushtrap { lbl_handler }
-                | Cmm.Pop _ -> Cfg.Poptrap
+                | Cmm.Pop handler_id ->
+                  let lbl_handler =
+                    (Select_utils.env_find_static_exception handler_id env)
+                      .extra
+                  in
+                  Cfg.Poptrap { lbl_handler }
               in
               Sub_cfg.add_instruction sub_cfg instr_desc [||] [||]
                 Debuginfo.none)
@@ -1060,7 +1061,11 @@ class virtual selector_generic =
             let instr_desc =
               match trap with
               | Cmm.Push _ -> Misc.fatal_error "unexpected push on trap actions"
-              | Cmm.Pop _ -> Cfg.Poptrap
+              | Cmm.Pop handler_id ->
+                let lbl_handler =
+                  (Select_utils.env_find_static_exception handler_id env).extra
+                in
+                Cfg.Poptrap { lbl_handler }
             in
             Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
           traps;
@@ -1487,14 +1492,9 @@ class virtual selector_generic =
         Sub_cfg.exists_basic_blocks body ~f:Cfg.basic_block_contains_calls
       in
       let cfg = { cfg with fun_contains_calls } in
-      let cfg_with_layout =
-        Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false
-          ~new_labels:Label.Set.empty
-      in
+      let cfg_with_layout = Cfg_with_layout.create cfg ~layout in
       (* CR xclerc for xclerc: Regalloc_irc_utils.log_cfg_with_infos ~indent:1
          (Cfg_with_infos.make cfg_with_layout); *)
-      Merge_straightline_blocks.run cfg_with_layout;
-      Simplify_terminator.run cfg;
-      Eliminate_dead_code.run_dead_block cfg_with_layout;
+      Cfg_simplify.run cfg_with_layout;
       cfg_with_layout
   end
