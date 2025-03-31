@@ -9,12 +9,9 @@ let ls_debug = false
 let bool_of_param param_name =
   bool_of_param ~guard:(ls_debug, "ls_debug") param_name
 
-let ls_verbose : bool Lazy.t = bool_of_param "LS_VERBOSE"
-
 let ls_invariants : bool Lazy.t = bool_of_param "LS_INVARIANTS"
 
-let log_function =
-  lazy (make_log_function ~verbose:(Lazy.force ls_verbose) ~label:"ls")
+let log_function = lazy (make_log_function ~label:"ls")
 
 let log :
     type a.

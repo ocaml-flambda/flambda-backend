@@ -4,8 +4,6 @@ open Regalloc_utils
 
 val irc_debug : bool
 
-val irc_verbose : bool Lazy.t
-
 val irc_invariants : bool Lazy.t
 
 val log :

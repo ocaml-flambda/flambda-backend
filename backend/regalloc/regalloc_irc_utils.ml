@@ -8,12 +8,9 @@ let irc_debug = false
 let bool_of_param param_name =
   bool_of_param ~guard:(irc_debug, "irc_debug") param_name
 
-let irc_verbose : bool Lazy.t = bool_of_param "IRC_VERBOSE"
-
 let irc_invariants : bool Lazy.t = bool_of_param "IRC_INVARIANTS"
 
-let log_function =
-  lazy (make_log_function ~verbose:(Lazy.force irc_verbose) ~label:"irc")
+let log_function = lazy (make_log_function ~label:"irc")
 
 let log :
     type a.
