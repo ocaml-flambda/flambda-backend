@@ -426,6 +426,7 @@ and r = { x : int; y : float#; }
 and u = r#
 |}]
 
+(* CR layouts v7.2: improve this error message *)
 type s_bad = r# t
 and r = {x:int; y:bool}
 [%%expect{|

@@ -228,37 +228,38 @@ Error: The definition of "bad#" is recursive without boxing:
          "'a bad#" contains "'a bad#"
 |}]
 
-(* CR layouts v5: this should still fail once we allow product record fields
-*)
-(* CR layouts v7.2: This error message should be better. The different histories
-   for [s#] is confusing, ideally we say that the reason it should be a
-   sublayout of [value] is because it's used as a tuple component. *)
-type bad = ( s# * s# )
+type bad = #( s# * s# )
 and ('a : any) record_id2 = { a : 'a }
 and s = { u : u }
 and u = #(int * bad record_id2#)
 [%%expect{|
-Line 3, characters 0-17:
-3 | and s = { u : u }
-    ^^^^^^^^^^^^^^^^^
-Error: The layout of type "s#" is value & value
-         because it is an unboxed record.
-       But the layout of type "s#" must be a sublayout of value
-         because it is an unboxed record.
+Line 1, characters 0-23:
+1 | type bad = #( s# * s# )
+    ^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "bad" = "#(s# * s#)",
+         "#(s# * s#)" contains "s#",
+         "s#" contains "u",
+         "u" = "#(int * bad record_id2#)",
+         "#(int * bad record_id2#)" contains "bad record_id2#",
+         "bad record_id2#" contains "bad"
 |}]
 
-type bad = ( s# * s# )
+type bad = #( s# * s# )
 and ('a : any) record_id2 = { a : 'a }
 and s = { u : u }
 and u = #(int * bad record_id2#)
 [%%expect{|
-Line 3, characters 0-17:
-3 | and s = { u : u }
-    ^^^^^^^^^^^^^^^^^
-Error: The layout of type "s#" is value & value
-         because it is an unboxed record.
-       But the layout of type "s#" must be a sublayout of value
-         because it is an unboxed record.
+Line 1, characters 0-23:
+1 | type bad = #( s# * s# )
+    ^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "bad" = "#(s# * s#)",
+         "#(s# * s#)" contains "s#",
+         "s#" contains "u",
+         "u" = "#(int * bad record_id2#)",
+         "#(int * bad record_id2#)" contains "bad record_id2#",
+         "bad record_id2#" contains "bad"
 |}]
 
 (* We also check recursive types via modules *)
@@ -418,4 +419,20 @@ Error: Record element types must have a representable layout.
          because of the definition of u at line 2, characters 2-14.
        But the layout of u must be representable
          because it is the type of record field a.
+|}]
+
+(* CR layouts v7.2: improve this error message *)
+type ('a : value & float64) t
+type bad = r# t
+and r = { x:int; y:bool }
+[%%expect{|
+type ('a : value & float64) t
+Line 3, characters 0-25:
+3 | and r = { x:int; y:bool }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The kind of r# is value_or_null & float64
+         because it is an unboxed record.
+       But the kind of r# must be a subkind of value & float64
+         because of the definition of t at line 1, characters 0-29.
 |}]
