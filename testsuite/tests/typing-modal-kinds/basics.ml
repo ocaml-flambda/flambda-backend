@@ -940,7 +940,7 @@ Line 1, characters 10-19:
               ^^^^^^^^^
 Error: This type "int t ref" should be an instance of type
          "('a : value mod contended)"
-       The kind of int t ref is mutable_data with int t @@ unyielding many.
+       The kind of int t ref is mutable_data with int t @@ many unyielding.
        But the kind of int t ref must be a subkind of value mod contended
          because of the definition of require_contended at line 1, characters 0-49.
 

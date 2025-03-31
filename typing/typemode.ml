@@ -361,19 +361,20 @@ let untransl_yielding l =
       l
   in
   match areality, yielding with
-  | Some Global, Some Unyielding | Some Local, Some Yielding -> []
-  | _, Some yld -> [Modality.Atom (Comonadic Yielding, Meet_with yld)]
-  | _, None -> []
+  | Some Global, Some Unyielding | Some Local, Some Yielding -> None
+  | _, Some yld -> Some (Modality.Atom (Comonadic Yielding, Meet_with yld))
+  | _, None -> None
 
 let untransl_modalities mut attrs t =
   let l = Modality.Value.Const.to_list t in
   let l =
-    untransl_yielding l
-    @ List.filter
-        (function
-          | Modality.Atom (Comonadic Yielding, _) -> false
-          | a -> not (Modality.is_id a))
-        l
+    (* [filter_map] instead of [filter] + [append] to preserve order. *)
+    List.filter_map
+      (function
+        | Modality.Atom (Comonadic Yielding, _) -> untransl_yielding l
+        | a when Modality.is_id a -> None
+        | a -> Some a)
+      l
   in
   let mut_modalities = mutable_implied_modalities mut attrs in
   (* polymorphic equality suffices for now. *)

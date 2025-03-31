@@ -128,7 +128,7 @@ type 'a t : immutable_data = { mutable x : 'a }
 Line 1, characters 0-47:
 1 | type 'a t : immutable_data = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with 'a @@ unyielding many
+Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -268,7 +268,7 @@ type 'a t : immutable_data with 'a = { mutable x : 'a }
 Line 1, characters 0-55:
 1 | type 'a t : immutable_data with 'a = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with 'a @@ unyielding many
+Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data with 'a
          because of the annotation on the declaration of the type t.
