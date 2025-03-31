@@ -161,7 +161,8 @@ let linearize_terminator cfg_with_layout (func : string) start
             (Ltailcall_imm { func = { sym_name = func; sym_global = Local } })
         ],
         Some destination )
-    | Call_no_return { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
+    | Call_no_return
+        { func_symbol; alloc; ty_args; ty_res; stack_ofs; effects = _ } ->
       single
         (L.Lcall_op
            (Lextcall
@@ -182,7 +183,8 @@ let linearize_terminator cfg_with_layout (func : string) start
     | Prim { op; label_after } ->
       let op : Linear.call_operation =
         match op with
-        | External { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
+        | External
+            { func_symbol; alloc; ty_args; ty_res; stack_ofs; effects = _ } ->
           Lextcall
             { func = func_symbol;
               alloc;

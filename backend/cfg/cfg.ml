@@ -357,7 +357,9 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
   | Prim { op = prim; label_after } ->
     Format.fprintf ppf "%t%a" print_res dump_linear_call_op
       (match prim with
-      | External { func_symbol = func; ty_res; ty_args; alloc; stack_ofs } ->
+      | External
+          { func_symbol = func; ty_res; ty_args; alloc; stack_ofs; effects = _ }
+        ->
         Linear.Lextcall
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
       | Probe { name; handler_code_sym; enabled_at_init } ->

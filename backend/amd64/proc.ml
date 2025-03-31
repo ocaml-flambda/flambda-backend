@@ -626,8 +626,8 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }
-  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; effects = _; }
+  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; effects = _; }; _} ->
     assert (stack_ofs >= 0);
     if alloc || stack_ofs > 0 then all_phys_regs else destroyed_at_c_call
   | Call {op = Indirect | Direct _; _} -> all_phys_regs
@@ -653,8 +653,8 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     false
   | Switch _ ->
     false
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; _ }
+  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; _ }; _} ->
     if more_destruction_points then
       true
     else
