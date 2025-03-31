@@ -733,6 +733,12 @@ module type S = sig
     (** [le t0 t1] returns [true] if [t0] allows more mode crossing than [t1]. *)
     val le : t -> t -> bool
 
+    (** The trivial mode crossing that crosses nothing. *)
+    val top : t
+
+    (** The mode crossing that crosses everything. *)
+    val bot : t
+
     (** Print the mode crossing by axis. Omit axes that do not cross. *)
     val print : Format.formatter -> t -> unit
   end

@@ -3040,6 +3040,10 @@ module Crossing = struct
 
     let le (t0 : t) (t1 : t) =
       match t0, t1 with Join_const c0, Join_const c1 -> Mode.Const.le c1 c0
+
+    let top : t = Join_const Mode.Const.min
+
+    let bot : t = Join_const Mode.Const.max
   end
 
   module Comonadic = struct
@@ -3065,6 +3069,10 @@ module Crossing = struct
 
     let le (t0 : t) (t1 : t) =
       match t0, t1 with Meet_const c0, Meet_const c1 -> Mode.Const.le c0 c1
+
+    let top : t = Meet_const Mode.Const.max
+
+    let bot : t = Meet_const Mode.Const.min
   end
 
   type t = (Monadic.t, Comonadic.t) monadic_comonadic
@@ -3120,6 +3128,10 @@ module Crossing = struct
 
   let le t0 t1 =
     Monadic.le t0.monadic t1.monadic && Comonadic.le t0.comonadic t1.comonadic
+
+  let top = { monadic = Monadic.top; comonadic = Comonadic.top }
+
+  let bot = { monadic = Monadic.bot; comonadic = Comonadic.bot }
 
   let print ppf t =
     let print_atom ppf = function
