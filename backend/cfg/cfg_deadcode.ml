@@ -22,7 +22,7 @@ let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness
         match instr.desc with
         | Op _ as op ->
           Cfg.is_pure_basic op && Reg.disjoint_set_array !used_after instr.res
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+        | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
           false
       in
       used_after := before;
