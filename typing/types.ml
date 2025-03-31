@@ -1223,60 +1223,68 @@ let compare_type t1 t2 = compare (get_id t1) (get_id t2)
    fundamentally mutable, and using mutable things in the keys of maps is a recipe for
    disaster. We haven't found a way that this can break /yet/, but it is likely that one
    exists. We should rethink this whole approach soon. *)
-let rec best_effort_compare_type_expr te1 te2 =
-  if te1 == te2 || repr te1 == repr te2 then 0
-  else
-    let rank ty =
-      match get_desc ty with
-      (* Types which must be compared by id *)
-      | Tvar _
-      | Tunivar _
-      | Tobject (_, _)
-      | Tfield (_, _, _, _)
-      | Tnil
-      | Tvariant _
-      | Tpackage (_, _)
-      | Tarrow (_, _, _, _)
-          (* CR layouts v2.8: we can actually see Tsubst here in certain cases, eg during
-             [Ctype.copy] when copying the types inside of with_bounds. We also can't
-             compare Tsubst structurally, because the Tsubsts that are created in
-             Ctype.copy are cyclic (?). So the best we can do here is compare by id.
-             this is almost definitely wrong, primarily because of the mutability - we
-             should fix that. *)
-      | Tsubst (_, _)
-        ->
-        (* This negation is important! We want all these types to compare strictly /less/
-           than the structural ones - the easiest way to make that happen is to make the
-           id negative, and ensure the ranks of all the other variants are positive *)
-        -ty.id
-      (* Types which we know how to compare structurally*)
-      | Ttuple _ -> 2
-      | Tunboxed_tuple _ -> 3
-      | Tconstr (_, _, _) -> 5
-      | Tpoly (_, _) -> 6
-      (* Types we should never see *)
-      | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
-    in
-    match get_desc te1, get_desc te2 with
-    | Ttuple elts1, Ttuple elts2
-    | Tunboxed_tuple elts1, Tunboxed_tuple elts2 ->
-      List.compare
-        (fun (l1, te1) (l2, te2) ->
-           let l = Option.compare String.compare l1 l2 in
-           if l = 0 then best_effort_compare_type_expr te1 te2 else l
-        )
-        elts1
-        elts2
-    | Tconstr (p1, args1, _), Tconstr (p2, args2, _) ->
-      let p = Path.compare p1 p2 in
-      if p = 0
-      then List.compare best_effort_compare_type_expr args1 args2
-      else p
-    | Tpoly (t1, ts1), Tpoly (t2, ts2) ->
-      (* NOTE: this is mostly broken according to the semantics of type_expr, but probably
-         fine for the particular "best-effort" comparison we want. *)
-      List.compare best_effort_compare_type_expr (t1 :: ts1) (t2 :: ts2)
-    | _, _ -> rank te1 - rank te2
+let best_effort_compare_type_expr te1 te2 =
+  let max_depth = 50 in
+  let rank_by_id ty =
+    (* This negation is important! We want all these types to compare strictly /less/
+       than the structural ones - the easiest way to make that happen is to make the
+       id negative, and ensure the ranks of all the other variants are positive *)
+    -ty.id
+  in
+  let rec aux depth te1 te2 =
+    if te1 == te2 || repr te1 == repr te2 then 0
+    else if depth >= max_depth
+    then (rank_by_id te1) - (rank_by_id te2)
+    else
+      let rank ty =
+        match get_desc ty with
+        (* Types which must be compared by id *)
+        | Tvar _
+        | Tunivar _
+        | Tobject (_, _)
+        | Tfield (_, _, _, _)
+        | Tnil
+        | Tvariant _
+        | Tpackage (_, _)
+        | Tarrow (_, _, _, _)
+        (* CR layouts v2.8: we can actually see Tsubst here in certain cases, eg during
+           [Ctype.copy] when copying the types inside of with_bounds. We also can't
+           compare Tsubst structurally, because the Tsubsts that are created in
+           Ctype.copy are cyclic (?). So the best we can do here is compare by id.
+           this is almost definitely wrong, primarily because of the mutability - we
+           should fix that. *)
+        | Tsubst (_, _)
+          -> rank_by_id ty
+        (* Types which we know how to compare structurally*)
+        | Ttuple _ -> 2
+        | Tunboxed_tuple _ -> 3
+        | Tconstr (_, _, _) -> 5
+        | Tpoly (_, _) -> 6
+        (* Types we should never see *)
+        | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
+      in
+      match get_desc te1, get_desc te2 with
+      | Ttuple elts1, Ttuple elts2
+      | Tunboxed_tuple elts1, Tunboxed_tuple elts2 ->
+        List.compare
+          (fun (l1, te1) (l2, te2) ->
+             let l = Option.compare String.compare l1 l2 in
+             if l = 0 then aux (depth + 1) te1 te2 else l
+          )
+          elts1
+          elts2
+      | Tconstr (p1, args1, _), Tconstr (p2, args2, _) ->
+        let p = Path.compare p1 p2 in
+        if p = 0
+        then List.compare (aux (depth + 1)) args1 args2
+        else p
+      | Tpoly (t1, ts1), Tpoly (t2, ts2) ->
+        (* NOTE: this is mostly broken according to the semantics of type_expr, but probably
+           fine for the particular "best-effort" comparison we want. *)
+        List.compare (aux (depth + 1)) (t1 :: ts1) (t2 :: ts2)
+      | _, _ -> rank te1 - rank te2
+  in
+  aux 0 te1 te2
 
 (* A map from [type_expr] to [With_bounds_type_info.t], specifically defined with a
    (best-effort) semantic comparison function on types to be used in the with-bounds of a
