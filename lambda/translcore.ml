@@ -760,7 +760,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_inlined (_, _, Variant_with_null) -> assert false
       in
       let sort_arg =
-        (* We know the record is boxed because unboxed records don't have
+        (* We know the record is boxed because [@@unboxed] records don't have
            mutable fields, and this is double checked by the assert in [access]
            above. *)
         Jkind.Sort.Const.for_boxed_record
