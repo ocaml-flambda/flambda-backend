@@ -159,15 +159,22 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
   tag_t tag_for_alloc;
   uintnat infix_offset = 0;
 
-  tag_t new_tag = (tag_t)Long_val(new_tag_v);
-  tag_t existing_tag = Tag_val(arg);
+  // This function must not raise exceptions (except asynchronous exceptions).
+  // It behaves just like an allocation function, which has generative effects,
+  // but not arbitrary effects.  (See the [Obj_dup] case in [To_cmm].)
 
-  if ((existing_tag == Closure_tag || existing_tag == Infix_tag
+  tag_t new_tag = (tag_t)Long_val(new_tag_v);
+#ifdef DEBUG
+  tag_t existing_tag = Tag_val(arg);
+#endif
+
+  CAMLassert (
+    !(
+      (existing_tag == Closure_tag || existing_tag == Infix_tag
        || new_tag == Closure_tag || new_tag == Infix_tag)
-      && existing_tag != new_tag) {
-    caml_failwith("Cannot change tags of existing closures or create \
-      new closures using [caml_obj_with_tag]");
-  }
+      && existing_tag != new_tag));
+  // Cannot change tags of existing closures or create new closures using
+  // [caml_obj_with_tag].
 
   if (new_tag == Infix_tag) {
     // If we received an infix block, we must return the same; but the whole
