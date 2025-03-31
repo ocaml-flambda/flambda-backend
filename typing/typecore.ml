@@ -9802,7 +9802,14 @@ and type_comprehension_iterator
       in
       Texp_comp_range { ident; pattern; start; stop; direction }
   | Pcomp_in seq ->
-      let item_ty = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
+      let value_reason =
+        match (comprehension_type : comprehension_type) with
+        | Array_comprehension _ ->
+          Jkind.History.Array_comprehension_iterator_element
+        | List_comprehension ->
+          Jkind.History.List_comprehension_iterator_element
+      in
+      let item_ty = newvar (Jkind.Builtin.value ~why:value_reason) in
       let seq_ty = container_type item_ty in
       let sequence =
         (* To understand why we can currently only iterate over [mode_global]

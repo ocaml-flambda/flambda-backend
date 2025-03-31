@@ -2602,6 +2602,14 @@ module Format_history = struct
       fprintf ppf "it's an unannotated existential type variable"
     | Array_comprehension_element ->
       fprintf ppf "it's the element type of array comprehension"
+    | List_comprehension_iterator_element ->
+      fprintf ppf
+        "it's the element type of a list that is iterated over in a \
+         comprehension"
+    | Array_comprehension_iterator_element ->
+      fprintf ppf
+        "it's the element type of an array that is iterated over in a \
+         comprehension"
     | Lazy_expression -> fprintf ppf "it's the type of a lazy expression"
     | Class_type_argument ->
       fprintf ppf "it's a type argument to a class constructor"
@@ -3315,6 +3323,10 @@ module Debug_printers = struct
     | Default_type_jkind -> fprintf ppf "Default_type_jkind"
     | Existential_type_variable -> fprintf ppf "Existential_type_variable"
     | Array_comprehension_element -> fprintf ppf "Array_comprehension_element"
+    | List_comprehension_iterator_element ->
+      fprintf ppf "List_comprehension_iterator_element"
+    | Array_comprehension_iterator_element ->
+      fprintf ppf "Array_comprehension_iterator_element"
     | Lazy_expression -> fprintf ppf "Lazy_expression"
     | Class_type_argument -> fprintf ppf "Class_type_argument"
     | Class_term_argument -> fprintf ppf "Class_term_argument"
