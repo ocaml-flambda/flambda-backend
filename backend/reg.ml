@@ -75,7 +75,7 @@ module Name = struct
 
   let with_prefix ~prefix = function
     | Anon -> Anon
-    | Var var -> Var (V.create_local (prefix ^ V.name var))
+    | Var var -> Var (V.create_local (prefix ^ "-" ^ V.name var))
 end
 
 type t =
@@ -132,9 +132,9 @@ let create typ = create_gen ~name:Name.Anon ~typ ~loc:Unknown
 
 let create_with_typ r = create_gen ~name:Name.Anon ~typ:r.typ ~loc:Unknown
 
-let create_with_typ_and_name ?prefix r =
+let create_with_typ_and_name ?prefix_if_var r =
   let name =
-    match prefix with
+    match prefix_if_var with
     | Some prefix -> Name.with_prefix r.name ~prefix
     | None -> r.name
   in
