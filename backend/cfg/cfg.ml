@@ -412,7 +412,13 @@ let can_raise_terminator (i : terminator) =
   | Raise _ | Tailcall_func _ | Call _ | Prim { op = Probe _; label_after = _ }
     ->
     true
-  | Prim { op = External { alloc; _ }; label_after = _ } -> alloc
+  | Prim { op = External { alloc; effects; _ }; label_after = _ } -> (
+    if not alloc
+    then false
+    else
+      (* Even if going via [caml_c_call], if there are no effects, the function
+         cannot raise an exception. (Example: [caml_obj_dup].) *)
+      match effects with No_effects -> false | Arbitrary_effects -> true)
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     true
@@ -423,6 +429,8 @@ let can_raise_terminator (i : terminator) =
 (* CR gyorsh: [is_pure_terminator] is not the same as [can_raise_terminator]
    because of [Tailcal Self] which is not pure but marked as cannot raise at the
    moment, which we might want to reconsider later. *)
+(* CR mshinwell/gyorsh: maybe this function could be made more precise e.g.
+   taking into account [effects] on extcalls *)
 let is_pure_terminator desc =
   match (desc : terminator) with
   | Return | Raise _ | Call_no_return _ | Tailcall_func _ | Tailcall_self _
