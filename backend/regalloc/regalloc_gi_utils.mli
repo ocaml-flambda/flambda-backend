@@ -2,10 +2,6 @@
 
 open Regalloc_utils
 
-val gi_debug : bool
-
-val gi_invariants : bool Lazy.t
-
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
 val indent : unit -> unit

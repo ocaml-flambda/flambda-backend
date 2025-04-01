@@ -10,8 +10,12 @@ val fatal : ('a, Format.formatter, unit, 'b) format4 -> 'a
 
 val find_param_value : string -> string option
 
+val debug : bool
+
 val bool_of_param :
   ?guard:bool * string -> ?default:bool -> string -> bool Lazy.t
+
+val invariants : bool Lazy.t
 
 val verbose : bool Lazy.t
 

@@ -10,13 +10,9 @@ let snapshot_for_fatal = ref None
 module Utils = struct
   include Regalloc_ls_utils
 
-  let debug = ls_debug
+  let debug = debug
 
-  let invariants = ls_invariants
-
-  let log = log
-
-  let log_body_and_terminator = log_body_and_terminator
+  let invariants = invariants
 
   let is_spilled reg = reg.Reg.spill
 
@@ -106,7 +102,7 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
          present at the end of every "block". *)
       incr pos);
   Reg.Tbl.iter (fun reg (range : Range.t) -> add_range reg range) current_ranges;
-  if ls_debug && Lazy.force verbose
+  if debug && Lazy.force verbose
   then
     iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
         indent ();
@@ -176,7 +172,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           reg.spill <- false;
           intervals.active
             <- Interval.List.insert_sorted intervals.active interval;
-          if ls_debug
+          if debug
           then (
             indent ();
             log "assigning %d to register %a" idx Printreg.reg reg;
@@ -224,7 +220,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
-  if ls_debug
+  if debug
   then (
     log "main, round #%d" round;
     indent ());
@@ -232,8 +228,8 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   build_intervals state cfg_with_infos;
   State.invariant_intervals state cfg_with_infos;
   State.invariant_active state;
-  if ls_debug then snapshot_for_fatal := Some (State.for_fatal state);
-  if ls_debug
+  if debug then snapshot_for_fatal := Some (State.for_fatal state);
+  if debug
   then (
     log "iterating over intervals";
     indent ());
@@ -242,7 +238,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
       ~f:(fun acc (interval : Interval.t) ->
         (* Equivalent to [walk_interval] in "backend/linscan.ml".*)
         let pos = interval.begin_ land lnot 1 in
-        if ls_debug
+        if debug
         then log_interval ~kind:(Printf.sprintf "<pos=%d>" pos) interval;
         State.release_expired_intervals state ~pos;
         let spilled =
@@ -256,7 +252,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
         | Not_spilling -> acc
         | Spilling reg -> Reg.Set.add reg acc)
   in
-  if ls_debug
+  if debug
   then (
     dedent ();
     dedent ());
@@ -301,7 +297,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     (module Utils)
     state
     ~f:(fun () ->
-      if ls_debug && Lazy.force verbose
+      if debug && Lazy.force verbose
       then (
         let liveness = Cfg_with_infos.liveness cfg_with_infos in
         indent ();
