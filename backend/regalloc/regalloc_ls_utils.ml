@@ -10,6 +10,8 @@ let indent () = (Lazy.force log_function).indent ()
 
 let dedent () = (Lazy.force log_function).dedent ()
 
+let reset_indentation () = (Lazy.force log_function).reset_indentation ()
+
 let log : type a. ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
  fun ?no_eol fmt -> (Lazy.force log_function).log ?no_eol fmt
 

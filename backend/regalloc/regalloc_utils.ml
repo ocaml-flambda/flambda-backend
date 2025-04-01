@@ -66,6 +66,7 @@ let make_indent n = String.make (2 * n) ' '
 type log_function =
   { indent : unit -> unit;
     dedent : unit -> unit;
+    reset_indentation : unit -> unit;
     log : 'a. ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
     enabled : bool
   }
@@ -76,6 +77,7 @@ let make_log_function : label:string -> log_function =
   let indent_level = ref 0 in
   let indent () = incr indent_level in
   let dedent () = decr indent_level in
+  let reset_indentation () = indent_level := 0 in
   let log =
     if enabled
     then
@@ -86,7 +88,7 @@ let make_log_function : label:string -> log_function =
         (make_indent !indent_level)
     else fun ?no_eol:_ fmt -> Format.(ifprintf err_formatter) fmt
   in
-  { indent; dedent; log; enabled }
+  { indent; dedent; reset_indentation; log; enabled }
 
 module Instruction = struct
   type id = InstructionId.t
@@ -187,8 +189,8 @@ let make_log_body_and_terminator :
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun { log; enabled; indent = _; dedent = _ } ~instr_prefix ~term_prefix body
-     term liveness ->
+ fun { log; enabled; indent = _; dedent = _; reset_indentation = _ }
+     ~instr_prefix ~term_prefix body term liveness ->
   DLL.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
       log ~no_eol:() "%s " (instr_prefix instr);
       if enabled then Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
@@ -204,8 +206,8 @@ let make_log_cfg_with_infos :
     term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
     Cfg_with_infos.t ->
     unit =
- fun ({ indent; dedent; log; enabled } as log_function) ~instr_prefix
-     ~term_prefix cfg_with_infos ->
+ fun ({ indent; dedent; log; enabled; reset_indentation = _ } as log_function)
+     ~instr_prefix ~term_prefix cfg_with_infos ->
   if enabled
   then
     let liveness = Cfg_with_infos.liveness cfg_with_infos in
