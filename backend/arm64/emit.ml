@@ -1234,7 +1234,7 @@ let emit_instr i =
         if f = 0l then
           emit_printf "	fmov	%a, wzr\n" femit_reg i.res.(0)
         else if is_immediate_float32 f then
-          emit_printf "	fmov	%a, #%.7f\n" femit_reg i.res.(0)  (Int32.float_of_bits f)
+          emit_printf "	fmov	%a, #%a\n" femit_reg i.res.(0) (fun out -> Printf.fprintf out "%.7f") (Int32.float_of_bits f)
         else begin
           (* float32 constants still take up 8 bytes; we load the lower half. *)
           let lbl = float_literal (Int64.of_int32 f) in
@@ -1244,7 +1244,7 @@ let emit_instr i =
         if f = 0L then
           emit_printf "	fmov	%a, xzr\n" femit_reg i.res.(0)
         else if is_immediate_float f then
-          emit_printf "	fmov	%a, #%.7f\n" femit_reg i.res.(0)  (Int64.float_of_bits f)
+          emit_printf "	fmov	%a, #%a\n" femit_reg i.res.(0) (fun out -> Printf.fprintf out "%.7f") (Int64.float_of_bits f)
         else begin
           let lbl = float_literal f in
           emit_load_literal i.res.(0) lbl
