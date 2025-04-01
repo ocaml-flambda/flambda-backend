@@ -351,7 +351,7 @@ let emit_stack_adjustment n =
 let output_epilogue f =
   let n = frame_size() in
   if !contains_calls then
-    emit_printf "	ldr	x30, [sp, #%a] ; load 0, line 354\n" femit_int (n-8);
+    emit_printf "	ldr	x30, [sp, #%a] ; mark load instruction\n" femit_int (n-8);
   if n > 0 then
     emit_stack_adjustment n;
   f();
@@ -436,13 +436,13 @@ let emit_literals () =
 let emit_load_symbol_addr dst s =
   if macosx then begin
     emit_printf "	adrp	%a, %a%@GOTPAGE\n" femit_reg dst femit_symbol s;
-    emit_printf "	ldr	%a, [%a, %a%@GOTPAGEOFF] ; load 1, line 439\n" femit_reg dst femit_reg dst femit_symbol s
+    emit_printf "	ldr	%a, [%a, %a%@GOTPAGEOFF]\n" femit_reg dst femit_reg dst femit_symbol s
   end else if not !Clflags.dlcode then begin
     emit_printf "	adrp	%a, %a\n" femit_reg dst femit_symbol s;
     emit_printf "	add	%a, %a, #:lo12:%a\n" femit_reg dst femit_reg dst femit_symbol s
   end else begin
     emit_printf "	adrp	%a, :got:%a\n" femit_reg dst femit_symbol s;
-    emit_printf "	ldr	%a, [%a, #:got_lo12:%a] ; load 2, line 445\n" femit_reg dst femit_reg dst femit_symbol s
+    emit_printf "	ldr	%a, [%a, #:got_lo12:%a]\n" femit_reg dst femit_reg dst femit_symbol s
   end
 
 (* The following functions are used for calculating the sizes of the
@@ -945,8 +945,8 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     let domain_local_sp_offset = DS.(idx_of_field Domain_local_sp) * 8 in
     let domain_local_limit_offset = DS.(idx_of_field Domain_local_limit) * 8 in
     let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
-    emit_printf "	ldr	%a, [%a, #%a] ; load 3, line 948\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_limit_offset;
-    emit_printf "	ldr	%a, [%a, #%a] ; load 4, line 949\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_limit_offset;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
     emit_subimm r r n;
     emit_printf "	str	%a, [%a, #%a]\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
     emit_printf "	cmp	%a, %a\n" femit_reg r femit_reg reg_tmp1;
@@ -954,7 +954,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     emit_printf "	b.lt	%a\n" femit_label lbl_call;
     let lbl_after_alloc = Cmm.new_label () in
     emit_printf "%a:\n" femit_label lbl_after_alloc;
-    emit_printf "	ldr	%a, [%a, #%a] ; load 5, line 957\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_top_offset;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_top_offset;
     emit_printf "	add	%a, %a, %a\n" femit_reg r femit_reg r femit_reg reg_tmp1;
     emit_printf "	add	%a, %a, #%a\n" femit_reg r femit_reg r femit_int 8;
     local_realloc_sites :=
@@ -973,7 +973,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
          the generated code simpler. *)
       assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
       let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-      emit_printf "	ldr	%a, [%a, #%a] ; load 6, line 976\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+      emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
       emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       emit_printf "	cmp	%a, %a\n" femit_reg reg_alloc_ptr femit_reg reg_tmp1;
       if not far then begin
@@ -1009,7 +1009,7 @@ let assembly_code_for_poll i ~far ~return_label =
   | None -> Cmm.new_label()
   | Some lbl -> lbl in
   let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-    emit_printf "	ldr	%a, [%a, #%a] ; load 7, line 1012\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
     emit_printf "	cmp	%a, %a\n" femit_reg reg_alloc_ptr femit_reg reg_tmp1;
   if not far then begin
     match return_label with
@@ -1050,10 +1050,10 @@ let emit_named_text_section func_name =
 let emit_load_literal dst lbl =
   if macosx then begin
     emit_printf "	adrp	%a, %a%@PAGE\n" femit_reg reg_tmp1 femit_label lbl;
-    emit_printf "	ldr	%a, [%a, %a%@PAGEOFF] ; load 8, line 1053\n" femit_reg dst femit_reg reg_tmp1 femit_label lbl
+    emit_printf "	ldr	%a, [%a, %a%@PAGEOFF]\n" femit_reg dst femit_reg reg_tmp1 femit_label lbl
   end else begin
     emit_printf "	adrp	%a, %a\n" femit_reg reg_tmp1 femit_label lbl;
-    emit_printf "	ldr	%a, [%a, #:lo12:%a] ; load 9, line 1056\n" femit_reg dst femit_reg reg_tmp1 femit_label lbl
+    emit_printf "	ldr	%a, [%a, #:lo12:%a]\n" femit_reg dst femit_reg reg_tmp1 femit_label lbl
   end
 
 let move (src : Reg.t) (dst : Reg.t) =
@@ -1071,7 +1071,7 @@ let move (src : Reg.t) (dst : Reg.t) =
   | _, Reg _, _, Stack _ ->
      emit_printf "	str	%a, %a\n" femit_reg src femit_stack dst
   | _, Stack _, _, Reg _ ->
-     emit_printf "	ldr	%a, %a ; load 10, line 1074\n" femit_reg dst femit_stack src
+     emit_printf "	ldr	%a, %a\n" femit_reg dst femit_stack src
   | _, Stack _, _, Stack _ ->
       Misc.fatal_errorf
       "Illegal move between registers (%a to %a)\n"
@@ -1221,7 +1221,7 @@ let emit_instr i =
           | {loc = Reg _}, {loc = Stack _} ->
               emit_printf "	str	%a, %a\n" femit_wreg src femit_stack dst
           | {loc = Stack _}, {loc = Reg _} ->
-              emit_printf "	ldr	%a, %a ; load 11, line 1224\n" femit_wreg dst femit_stack src
+              emit_printf "	ldr	%a, %a\n" femit_wreg dst femit_stack src
           | {loc = Stack _}, {loc = Stack _}
           | _, {loc = Unknown}
           | {loc = Unknown}, _
@@ -1296,7 +1296,7 @@ let emit_instr i =
             cfi_remember_state ();
             cfi_def_cfa_register ~reg:29;
             let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-            emit_printf "	ldr	%a, [%a, %a] ; load 12, line 1299\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+            emit_printf "	ldr	%a, [%a, %a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
               emit_printf "	mov	sp, %a\n" femit_reg reg_tmp1
           end;
           emit_printf "	bl	%a\n" femit_symbol func;
@@ -1329,12 +1329,12 @@ let emit_instr i =
         | Sixteen_signed ->
             emit_printf "	ldrsh	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Thirtytwo_unsigned ->
-            emit_printf "	ldr	%a, %a ; load 13, line 1332\n" femit_wreg dst femit_addressing (addressing_mode, base)
+            emit_printf "	ldr	%a, %a\n" femit_wreg dst femit_addressing (addressing_mode, base)
         | Thirtytwo_signed ->
             emit_printf "	ldrsw	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Single { reg = Float64 } ->
             DSL.check_reg Float dst;
-            emit_printf "	ldr	s7, %a ; load 14, line 1337\n" femit_addressing (addressing_mode, base);
+            emit_printf "	ldr	s7, %a\n" femit_addressing (addressing_mode, base);
             emit_printf "	fcvt	%a, s7\n" femit_reg dst
         | Word_int | Word_val ->
           if is_atomic then begin
@@ -1342,16 +1342,16 @@ let emit_instr i =
             emit_printf "	dmb	ishld\n";
             emit_printf "	ldar	%a, [%a]\n" femit_reg dst femit_reg i.arg.(0)
           end else
-            emit_printf "	ldr	%a, %a ; load 15, line 1345\n" femit_reg dst femit_addressing (addressing_mode, base)
+            emit_printf "	ldr	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Double ->
-                      emit_printf "	ldr	%a, %a ; load 16, line 1347\n" femit_reg dst femit_addressing (addressing_mode, base)
+                      emit_printf "	ldr	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Single { reg = Float32 } ->
             DSL.check_reg Float32 dst;
-            emit_printf " ldr %a, %a ; load 16, line 1350\n" femit_reg dst femit_addressing (addressing_mode, base)
+            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
             (* CR gyorsh: check alignment *)
             DSL.check_reg Vec128 dst;
-            emit_printf " ldr %a, %a ; load 17, line 1354\n" femit_reg dst femit_addressing (addressing_mode, base)
+            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         end
     | Lop(Store(size, addr, assignment)) ->
       (* NB: assignments other than Word_int and Word_val do not follow the
@@ -1397,10 +1397,10 @@ let emit_instr i =
         assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
     | Lop(Begin_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        emit_printf "	ldr	%a, [%a, #%a] ; load 18, line 1400\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
+        emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
     | Lop(End_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        emit_printf "	str	%a, [%a, #%a] ; load 19, line 1403\n" femit_reg i.arg.(0) femit_reg reg_domain_state_ptr femit_int offset
+        emit_printf "	str	%a, [%a, #%a]\n" femit_reg i.arg.(0) femit_reg reg_domain_state_ptr femit_int offset
     | Lop(Poll) ->
         assembly_code_for_poll i ~far:false ~return_label:None
     | Lop(Specific Ifar_poll) ->
@@ -1502,7 +1502,7 @@ let emit_instr i =
     | Lop(Dls_get) ->
       if Config.runtime5 then
         let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
-        emit_printf "	ldr	%a, [%a, %a] ; load 20, line 1505\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
+        emit_printf "	ldr	%a, [%a, %a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
       else Misc.fatal_error "Dls is not supported in runtime4."
     | Lop (Csel tst) ->
       let len = Array.length i.arg in
@@ -1614,7 +1614,7 @@ let emit_instr i =
         cfi_adjust_cfa_offset 16;
         emit_printf "	mov	%a, sp\n" femit_reg reg_trap_ptr
     | Lpoptrap ->
-        emit_printf "	ldr	%a, [sp], 16 ; load 21, line 1617\n" femit_reg reg_trap_ptr;
+        emit_printf "	ldr	%a, [sp], 16\n" femit_reg reg_trap_ptr;
         cfi_adjust_cfa_offset (-16);
         stack_offset := !stack_offset - 16
     | Lraise k ->
@@ -1640,7 +1640,7 @@ let emit_instr i =
       in
       let f = max_frame_size_bytes + threshold_offset in
       let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
-      emit_printf "	ldr	%a, [%a, #%a] ; load 22, line 1643\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+      emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
       emit_addimm reg_tmp1 reg_tmp1 f;
       emit_printf "	cmp	sp, %a\n" femit_reg reg_tmp1;
       emit_printf "	bcc	%a\n" femit_label overflow;
