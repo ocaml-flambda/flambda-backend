@@ -196,9 +196,13 @@ let remove_trap_instructions t removed_trap_handlers =
           then DLL.delete_curr cell
         | Op _ | Reloadretaddr | Prologue | Stack_check _ -> ())
   in
-  if not (Label.Set.is_empty removed_trap_handlers) then assert Config.flambda2;
-  (* remove Lpushtrap and Lpoptrap instructions that refer to dead labels. *)
-  Label.Tbl.iter remove_trap_instr t.blocks
+  if not (Label.Set.is_empty removed_trap_handlers)
+  then (
+    (* CR-someday gyorsh: avoid iterating over all the instructions to just to
+       remove a few pushtrap/poptrap. *)
+    assert Config.flambda2;
+    (* remove Lpushtrap and Lpoptrap instructions that refer to dead labels. *)
+    Label.Tbl.iter remove_trap_instr t.blocks)
 
 let remove_blocks t labels_to_remove =
   let removed_labels = ref Label.Set.empty in
