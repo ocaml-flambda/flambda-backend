@@ -30,6 +30,7 @@ type error =
     Free_super_var
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
+  | Unknown_probe_layout of Ident.t
   | Illegal_void_record_field
   | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of type_expr
@@ -1113,9 +1114,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
 
            It's really hacky to be doing this kind of jkind check this late.
            The middle-end folks have plans to eliminate the need for it by
-           reworking the way probes are compiled.  For that reason, I haven't
-           bothered to give a particularly good error or handle the Not_found
-           case from env.
+           reworking the way probes are compiled.
 
            (We could probably calculate the jkinds of these variables here
            rather than requiring them all to be value, but that would be even
@@ -1139,9 +1138,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             | Ok _ -> ()
             | Error _ -> raise (Error (e.exp_loc, Bad_probe_layout id))
           end
-        | exception Not_found ->
-          (* Might be a module, which are all values.  Otherwise raise. *)
-          ignore (Env.find_module_lazy path e.exp_env)
+        | exception Not_found -> begin
+            (* Might be a module, which are all values.  Otherwise raise. *)
+            match Env.find_module_lazy path e.exp_env with
+            | _ -> ()
+            | exception Not_found ->
+                (* Might still be a module if it's bound to a runtime parameter. *)
+                if not (Env.is_bound_to_runtime_parameter id) then
+                  raise (Error (e.exp_loc, Unknown_probe_layout id))
+          end
       ) arg_idents;
       let make_param name = {
         name;
@@ -2415,6 +2420,11 @@ let report_error ppf = function
   | Bad_probe_layout id ->
       fprintf ppf "Variables in probe handlers must have jkind value, \
                    but %s in this handler does not." (Ident.name id)
+  | Unknown_probe_layout id ->
+      fprintf ppf
+        "Unknown variable %a appearing in probe:@ Please \
+         report this error to the Jane Street compilers team."
+        Ident.print id
   | Illegal_void_record_field ->
       fprintf ppf
         "Void sort detected where value was expected in a record field:@ Please \
