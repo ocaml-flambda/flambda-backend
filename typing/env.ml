@@ -1140,6 +1140,9 @@ let import_crcs ~source crcs =
 let runtime_parameter_bindings () =
   Persistent_env.runtime_parameter_bindings !persistent_env
 
+let is_bound_to_runtime_parameter id =
+  Persistent_env.is_bound_to_runtime_parameter !persistent_env id
+
 let parameters () = Persistent_env.parameters !persistent_env
 
 let read_pers_mod modname cmi =
