@@ -3,18 +3,11 @@
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open! Regalloc_utils
 
-let split_debug = false
-
 let split_live_ranges : bool Lazy.t =
   bool_of_param ~default:true "SPLIT_LIVE_RANGES"
 
 let split_more_destruction_points : bool Lazy.t =
   bool_of_param "SPLIT_MORE_DESTR_POINTS"
-
-let bool_of_param param_name =
-  bool_of_param ~guard:(split_debug, "split_debug") param_name
-
-let split_invariants : bool Lazy.t = bool_of_param "SPLIT_INVARIANTS"
 
 let log_function = lazy (make_log_function ~label:"split")
 
