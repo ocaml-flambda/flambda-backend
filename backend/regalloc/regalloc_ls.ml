@@ -307,7 +307,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
         indent ();
         iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
             log "(block %a)" Label.format block.start;
-            log_body_and_terminator block.body block.terminator liveness); dedent ());
-      )
+            log_body_and_terminator block.body block.terminator liveness);
+        dedent ()))
     cfg_with_infos;
   cfg_with_infos
