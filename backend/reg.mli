@@ -36,8 +36,8 @@ module Name : sig
   val to_string : t -> string
 end
 
-(* Every temp and machine register has a unique stamp.
-   However, distinct [t]s may point to the same machine [reg] at different [typ]s.
+(* Every temp and machine register has a unique stamp. However, distinct [t]s may point
+   to the same [untyped] machine register at different [typ]s.
 
    Comparisons and containers for [t] consider both [t.typ] and [t.reg.stamp], so
    this overlap is not visible to the rest of the compiler, unless it directly
