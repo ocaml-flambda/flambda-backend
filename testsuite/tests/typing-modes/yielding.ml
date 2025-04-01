@@ -219,6 +219,16 @@ let f4 (x @ local unyielding) = exclave_ requires_unyielding x
 val f4 : local_ 'a @ unyielding -> local_ unit = <fun>
 |}]
 
+(* [@local_opt] overrides annotations. *)
+external overridden: ('a[@local_opt]) @ local unyielding -> unit = "%ignore"
+
+let succeeds (x @ local) = overridden x
+[%%expect{|
+external overridden : local_ ('a [@local_opt]) @ unyielding -> unit
+  = "%ignore"
+val succeeds : local_ 'a -> unit = <fun>
+|}]
+
 (* [mod global] implies [mod unyielding] by default. *)
 
 type ('a : value mod global) u1

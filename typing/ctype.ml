@@ -1670,9 +1670,9 @@ let prim_mode' mvar mvar' = function
   | Primitive.Prim_local, _ ->
     Locality.allow_right Locality.local, None
   | Primitive.Prim_poly, _ ->
-    match mvar with
-    | Some mvar -> mvar, mvar'
-    | None -> assert false
+    match mvar, mvar' with
+    | Some mvar, Some mvar' -> mvar, Some mvar'
+    | None, _ | _, None -> assert false
 
 (* Exported version. *)
 let prim_mode mvar prim =
