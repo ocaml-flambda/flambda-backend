@@ -6,17 +6,19 @@ val irc_debug : bool
 
 val irc_invariants : bool Lazy.t
 
-val log :
-  indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+val indent : unit -> unit
+
+val dedent : unit -> unit
+
+val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
 val log_body_and_terminator :
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit
 
-val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
+val log_cfg_with_infos : Cfg_with_infos.t -> unit
 
 module Color : sig
   type t = int

@@ -12,10 +12,12 @@ let irc_invariants : bool Lazy.t = bool_of_param "IRC_INVARIANTS"
 
 let log_function = lazy (make_log_function ~label:"irc")
 
-let log :
-    type a.
-    indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
- fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
+let indent () = (Lazy.force log_function).indent ()
+
+let dedent () = (Lazy.force log_function).dedent ()
+
+let log : type a. ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
+ fun ?no_eol fmt -> (Lazy.force log_function).log ?no_eol fmt
 
 let instr_prefix (instr : Cfg.basic Cfg.instruction) =
   InstructionId.to_string_padded instr.id
@@ -24,19 +26,18 @@ let term_prefix (term : Cfg.terminator Cfg.instruction) =
   InstructionId.to_string_padded term.id
 
 let log_body_and_terminator :
-    indent:int ->
     Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun ~indent body terminator liveness ->
+ fun body terminator liveness ->
   make_log_body_and_terminator (Lazy.force log_function) ~instr_prefix
-    ~term_prefix ~indent body terminator liveness
+    ~term_prefix body terminator liveness
 
-let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
- fun ~indent cfg_with_infos ->
+let log_cfg_with_infos : Cfg_with_infos.t -> unit =
+ fun cfg_with_infos ->
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
-    ~indent cfg_with_infos
+    cfg_with_infos
 
 module Color = struct
   type t = int
@@ -144,7 +145,7 @@ let k reg = Proc.num_available_registers.(Proc.register_class reg)
 
 let update_register_locations : unit -> unit =
  fun () ->
-  if irc_debug then log ~indent:0 "update_register_locations";
+  if irc_debug then log "update_register_locations";
   List.iter (Reg.all_registers ()) ~f:(fun reg ->
       match reg.Reg.loc with
       | Reg _ -> ()
@@ -155,8 +156,7 @@ let update_register_locations : unit -> unit =
           (* because of rewrites, the register may no longer be present *)
           ()
         | Some color ->
-          if irc_debug
-          then log ~indent:1 "updating %a to %d" Printreg.reg reg color;
+          if irc_debug then log "updating %a to %d" Printreg.reg reg color;
           reg.Reg.loc <- Reg color))
 
 module Spilling_heuristics = struct

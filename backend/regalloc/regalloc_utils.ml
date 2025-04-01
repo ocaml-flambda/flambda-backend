@@ -59,25 +59,29 @@ type liveness = Cfg_with_infos.liveness
 let make_indent n = String.make (2 * n) ' '
 
 type log_function =
-  { log :
-      'a.
-      indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
+  { indent : unit -> unit;
+    dedent : unit -> unit;
+    log : 'a. ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
     enabled : bool
   }
 
 let make_log_function : label:string -> log_function =
  fun ~label ->
   let enabled = Lazy.force verbose in
+  let indent_level = ref 0 in
+  let indent () = incr indent_level in
+  let dedent () = decr indent_level in
   let log =
     if enabled
     then
-      fun ~indent ?no_eol fmt ->
+      fun ?no_eol fmt ->
       Format.eprintf
         ("[%s] %s" ^^ fmt ^^ match no_eol with None -> "\n%!" | Some () -> "")
-        label (make_indent indent)
-    else fun ~indent:_ ?no_eol:_ fmt -> Format.(ifprintf err_formatter) fmt
+        label
+        (make_indent !indent_level)
+    else fun ?no_eol:_ fmt -> Format.(ifprintf err_formatter) fmt
   in
-  { log; enabled }
+  { indent; dedent; log; enabled }
 
 module Instruction = struct
   type id = InstructionId.t
@@ -174,17 +178,17 @@ let make_log_body_and_terminator :
     log_function ->
     instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
     term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
-    indent:int ->
     Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun { log; enabled } ~instr_prefix ~term_prefix ~indent body term liveness ->
+ fun { log; enabled; indent = _; dedent = _ } ~instr_prefix ~term_prefix body
+     term liveness ->
   DLL.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-      log ~indent ~no_eol:() "%s " (instr_prefix instr);
+      log ~no_eol:() "%s " (instr_prefix instr);
       if enabled then Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
       if enabled then log_instruction_suffix instr liveness);
-  log ~indent ~no_eol:() "%s " (term_prefix term);
+  log ~no_eol:() "%s " (term_prefix term);
   if enabled
   then Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
   if enabled then log_instruction_suffix term liveness
@@ -193,11 +197,10 @@ let make_log_cfg_with_infos :
     log_function ->
     instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
     term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
-    indent:int ->
     Cfg_with_infos.t ->
     unit =
- fun ({ log; enabled } as log_function) ~instr_prefix ~term_prefix ~indent
-     cfg_with_infos ->
+ fun ({ indent; dedent; log; enabled } as log_function) ~instr_prefix
+     ~term_prefix cfg_with_infos ->
   if enabled
   then
     let liveness = Cfg_with_infos.liveness cfg_with_infos in
@@ -218,9 +221,10 @@ let make_log_cfg_with_infos :
         let handler =
           match block.is_trap_handler with false -> "" | true -> " [handler]"
         in
-        log ~indent "(block %a)%s%s" Label.format block.start exn handler;
-        log_body_and_terminator ~indent:(succ indent) block.body
-          block.terminator liveness)
+        log "(block %a)%s%s" Label.format block.start exn handler;
+        indent ();
+        log_body_and_terminator block.body block.terminator liveness;
+        dedent ())
 
 module Move = struct
   type t =

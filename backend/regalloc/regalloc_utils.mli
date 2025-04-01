@@ -22,9 +22,9 @@ val block_temporaries : bool Lazy.t
 type liveness = Cfg_with_infos.liveness
 
 type log_function =
-  { log :
-      'a.
-      indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
+  { indent : unit -> unit;
+    dedent : unit -> unit;
+    log : 'a. ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
     enabled : bool
   }
 
@@ -64,7 +64,6 @@ val make_log_body_and_terminator :
   log_function ->
   instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
   term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
@@ -74,7 +73,6 @@ val make_log_cfg_with_infos :
   log_function ->
   instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
   term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
-  indent:int ->
   Cfg_with_infos.t ->
   unit
 

@@ -13,10 +13,12 @@ let ls_invariants : bool Lazy.t = bool_of_param "LS_INVARIANTS"
 
 let log_function = lazy (make_log_function ~label:"ls")
 
-let log :
-    type a.
-    indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
- fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
+let indent () = (Lazy.force log_function).indent ()
+
+let dedent () = (Lazy.force log_function).dedent ()
+
+let log : type a. ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
+ fun ?no_eol fmt -> (Lazy.force log_function).log ?no_eol fmt
 
 let instr_prefix (instr : Cfg.basic Cfg.instruction) =
   Printf.sprintf "#%04d" instr.ls_order
@@ -25,19 +27,18 @@ let term_prefix (term : Cfg.terminator Cfg.instruction) =
   Printf.sprintf "#%04d" term.ls_order
 
 let log_body_and_terminator :
-    indent:int ->
     Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun ~indent body terminator liveness ->
+ fun body terminator liveness ->
   make_log_body_and_terminator (Lazy.force log_function) ~instr_prefix
-    ~term_prefix ~indent body terminator liveness
+    ~term_prefix body terminator liveness
 
-let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
- fun ~indent cfg_with_infos ->
+let log_cfg_with_infos : Cfg_with_infos.t -> unit =
+ fun cfg_with_infos ->
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
-    ~indent cfg_with_infos
+    cfg_with_infos
 
 let iter_cfg_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
  fun cfg ~f ->
@@ -265,17 +266,19 @@ module ClassIntervals = struct
     t.inactive <- release_expired_inactive t ~pos t.inactive
 end
 
-let log_interval ~indent ~kind (interval : Interval.t) =
+let log_interval ~kind (interval : Interval.t) =
   let reg_class = Proc.register_class interval.reg in
-  log ~indent "%s %a (class %d) [%d..%d]" kind Printreg.reg interval.reg
-    reg_class interval.begin_ interval.end_;
+  log "%s %a (class %d) [%d..%d]" kind Printreg.reg interval.reg reg_class
+    interval.begin_ interval.end_;
   let ranges = Buffer.create 128 in
   let first = ref true in
   DLL.iter interval.ranges ~f:(fun { Range.begin_; end_ } ->
       if !first then first := false else Buffer.add_string ranges ", ";
       Buffer.add_string ranges (Printf.sprintf "[%d..%d]" begin_ end_));
-  log ~indent:(succ indent) "%s" (Buffer.contents ranges)
+  indent ();
+  log "%s" (Buffer.contents ranges);
+  dedent ()
 
-let log_intervals ~indent ~kind (intervals : Interval.t list) =
+let log_intervals ~kind (intervals : Interval.t list) =
   List.iter intervals ~f:(fun (interval : Interval.t) ->
-      log_interval ~indent ~kind interval)
+      log_interval ~kind interval)

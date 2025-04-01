@@ -10,7 +10,7 @@ type phi_at_beginning = Reg.Set.t Label.Map.t
 
 type t
 
-val log_renaming_info : indent:int -> t -> unit
+val log_renaming_info : t -> unit
 
 (** Constructs the renaming information necessary to split the live ranges.
 
