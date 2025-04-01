@@ -63,7 +63,7 @@ type untyped =
 
 and t =
   { typ: Cmm.machtype_component;          (* Type of contents *)
-    reg: untyped; }                      (* Underlying temp or Machine.t *)
+    reg: untyped; }                       (* Underlying temp or Machine.t *)
 
 and location =
     Unknown
