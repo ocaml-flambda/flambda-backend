@@ -39,7 +39,7 @@ type t =
   }
 
 let report t =
-  t.result <- false;
+  t.result <- true;
   Format.fprintf t.ppf "Cfg invariant failed in %s: " t.fun_name;
   Format.fprintf t.ppf
 
