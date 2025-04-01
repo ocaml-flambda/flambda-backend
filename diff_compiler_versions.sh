@@ -16,9 +16,8 @@ REVISION_DIR="$BUILDDIR/revision/"
 # we make sure the target directory exists
 mkdir -p $TARGETDIR/
 rm -rf $TARGETDIR/base-compiler-original/
-rm -rf $TARGETDIR/base-compiler-revised/
-rm -rf $TARGETDIR/revision-compiler/
-mkdir -p $TARGETDIR/{base-compiler-original,base-compiler-revised,revision-compiler}/{_build,_install}
+rm -rf $TARGETDIR/base-compiler-revision/
+mkdir -p $TARGETDIR/{base-compiler-original,base-compiler-revision}/{_build,_install}
 
 
 # we copy the commits into the build directory
@@ -27,14 +26,12 @@ cp -r $BASE_ORIGINAL_DIR $BASE_REVISION_DIR
 git archive --format=tar --prefix=revision/ $REVISION | (cd $BUILDDIR && tar xf -)
 
 
-# we first build the new compiler
+# we first build the bootcompiler of the new compiler
 cd $REVISION_DIR
 sed -i.bak "s/echo '(:standard \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/echo '(:standard -S \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/g" Makefile.common-jst && rm Makefile.common-jst.bak
 autoconf
 ./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
-make install
-cp -R -f _install/ "$TARGETDIR/revision-compiler/_install/"
-cp -R -f _build/ "$TARGETDIR/revision-compiler/_build/"
+make boot-compiler
 
 # we turn to the base line compiler and build the normal version
 cd $BASE_ORIGINAL_DIR
@@ -52,16 +49,17 @@ sed -i.bak "s/echo '(:standard \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-func
 autoconf
 ./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
 make boot-compiler
-cp -R -f "$TARGETDIR/revision-compiler/_install/" _build/_bootinstall/
+# hack: we copy over the boot compiler from the revision compiler
+cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt*" _build/_bootinstall/bin/
 make install
-cp -R -f _install/ "$TARGETDIR/base-compiler-revised/_install/"
-cp -R -f _build/ "$TARGETDIR/base-compiler-revised/_build/"
+cp -R -f _install/ "$TARGETDIR/base-compiler-revision/_install/"
+cp -R -f _build/ "$TARGETDIR/base-compiler-revision/_build/"
 
 cd $CURDIR
 
 # finally, we diff the resulting compilers
 # ASM_DIFF_DIR=$(mktemp -d)
 # objdump -dr $TARGETDIR/base-compiler-original/_install/bin/ocamlopt.opt > $ASM_DIFF_DIR/base-original.s
-# objdump -dr $TARGETDIR/base-compiler-revised/_install/bin/ocamlopt.opt > $ASM_DIFF_DIR/base-revised.s
+# objdump -dr $TARGETDIR/base-compiler-revision/_install/bin/ocamlopt.opt > $ASM_DIFF_DIR/base-revised.s
 
 # diff $ASM_DIFF_DIR/base-original.s $ASM_DIFF_DIR/base-revised.s
