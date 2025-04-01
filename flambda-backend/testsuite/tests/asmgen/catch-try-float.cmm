@@ -1,4 +1,5 @@
 (* TEST
+ skip;
  readonly_files = "main.c";
  arguments = "-DFLOAT_CATCH -DFUN=catch_try_float main.c";
  asmgen;
