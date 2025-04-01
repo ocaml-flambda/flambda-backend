@@ -1,20 +1,28 @@
 # Script to compare two versions of the compiler on the compiler itself
 
+if [ $# -ne 3 ]; then
+    echo "Usage: $0 output-directory base-commit revision-commit"
+    exit 1
+fi
+
+
 set -euxo pipefail
 
 # SET THE VARIABLES BELOW
-BASE=876bd8cffa50fad089e4fc7774051906d4baa1d9
-REVISION=ab63795a8dcf4221e5ac39f1914da6e88b7d54a4
-TARGETDIR="$(pwd)/../compiler-comparison"
+BASE=$2
+REVISION=$3
+TARGETDIR_REL_ABS=$1
 
-CURDIR=$(pwd)
+# we make sure the target directory exists
+mkdir -p $TARGETDIR_REL_ABS
+TARGETDIR=$(realpath $TARGETDIR_REL_ABS)
+
+
 BUILDDIR=$(mktemp -d)
 BASE_ORIGINAL_DIR="$BUILDDIR/base-original/"
 BASE_REVISION_DIR="$BUILDDIR/base-revision/"
 REVISION_DIR="$BUILDDIR/revision/"
 
-# we make sure the target directory exists
-mkdir -p $TARGETDIR/
 rm -rf $TARGETDIR/base-compiler-original/
 rm -rf $TARGETDIR/base-compiler-revision/
 mkdir -p $TARGETDIR/{base-compiler-original,base-compiler-revision}/{_build,_install}
@@ -56,5 +64,3 @@ cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt" _build/_bootinstall
 make install
 cp -R -f _install/ "$TARGETDIR/base-compiler-revision/_install/"
 cp -R -f _build/ "$TARGETDIR/base-compiler-revision/_build/"
-
-cd $CURDIR
