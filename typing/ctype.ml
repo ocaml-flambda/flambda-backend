@@ -1664,19 +1664,20 @@ let instance_label ~fixed lbl =
 
 (* CR dkalinichenko: we must vary yieldingness together with locality to get
    sane behavior around [@local_opt]. Remove once we have mode polymorphism. *)
-let prim_mode' mvar mvar' = function
+let prim_mode' mvars = function
   | Primitive.Prim_global, _ ->
     Locality.allow_right Locality.global, None
   | Primitive.Prim_local, _ ->
     Locality.allow_right Locality.local, None
   | Primitive.Prim_poly, _ ->
-    match mvar, mvar' with
-    | Some mvar, Some mvar' -> mvar, Some mvar'
-    | None, _ | _, None -> assert false
+    match mvars with
+    | Some (mvar_l, mvar_y) -> mvar_l, Some mvar_y
+    | None -> assert false
 
 (* Exported version. *)
 let prim_mode mvar prim =
-  fst (prim_mode' mvar (Some (Yielding.newvar ())) prim)
+  let mvars = Option.map (fun mvar_l -> mvar_l, Yielding.newvar ()) mvar in
+  fst (prim_mode' mvars prim)
 
 (** Returns a new mode variable whose locality is the given locality and
     whose yieldingness is the given yieldingness, while all other axes are
@@ -1723,7 +1724,7 @@ let rec instance_prim_locals locals mvar_l mvar_y macc (loc, yld) ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
      let marg = with_locality_and_yielding
-      (prim_mode' (Some mvar_l) (Some mvar_y) l) marg
+      (prim_mode' (Some (mvar_l, mvar_y)) l) marg
      in
      let macc =
        Alloc.join [
@@ -1818,7 +1819,7 @@ let instance_prim_mode (desc : Primitive.description) ty =
        List.exists is_poly desc.prim_native_repr_args then
     let mode_l = Locality.newvar () in
     let mode_y = Yielding.newvar () in
-    let finalret = prim_mode' (Some mode_l) (Some mode_y) desc.prim_native_repr_res in
+    let finalret = prim_mode' (Some (mode_l, mode_y)) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
       mode_l mode_y (Alloc.disallow_right Alloc.legacy) finalret ty,
     Some mode_l, Some mode_y
