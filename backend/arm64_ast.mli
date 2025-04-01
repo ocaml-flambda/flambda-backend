@@ -172,6 +172,10 @@ module DSL : sig
 
   val reg_v4s : int -> Operand.t
 
+  val reg_v8b : int -> Operand.t
+
+  val reg_b : int -> Operand.t
+
   val reg_s : int -> Operand.t
 
   val reg_d : int -> Operand.t
