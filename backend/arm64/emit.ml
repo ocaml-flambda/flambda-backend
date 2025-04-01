@@ -351,7 +351,7 @@ let emit_stack_adjustment n =
 let output_epilogue f =
   let n = frame_size() in
   if !contains_calls then
-    emit_printf "	ldr	x30, [sp, #%a] ; mark load instruction\n" femit_int (n-8);
+    emit_printf "	ldr	x30, [sp, #%a]\n" femit_int (n-8);
   if n > 0 then
     emit_stack_adjustment n;
   f();
