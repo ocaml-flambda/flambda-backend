@@ -42,38 +42,38 @@ The call to `Parallel.fork_join2` will schedule the calculations of `a + b` and
 `c + d` as independent *tasks*, returning both once they're both done, and then
 `add4` finishes by adding the results from the tasks. The `par` argument
 parameterizes `fork_join2` (and, in turn, `add4`) by a particular implementation
-of parallelism. It is also passed to the tasks, which is useful whenever a task
-wants to spawn sub-tasks.
+of parallelism. It is also passed to the tasks so that they can spawn sub-tasks.
 
 To run `add4`, we need to get our hands on a *scheduler*. Each scheduler is
 provided by a library and determines the policy by which tasks get doled out and
-run in domains. For this tutorial, we'll use `parallel_scheduler_queue`, which
-maintains a pool of worker domains that pull tasks from a global queue. You can
-also use the `parallel` library's own `Parallel.Scheduler.Sequential`, which is
-a trivial scheduler that just runs everything on the primary domain. This is
-handy if you want to test parallel code without switching to a multicore-enabled
-runtime.
+run in domains. For this tutorial, we'll use `parallel_scheduler_work_stealing`,
+which implements the popular [work-stealing] strategy. You can also use the
+`parallel` library's own `Parallel.Scheduler.Sequential`, which simply runs
+everything on the primary domain. This is handy if you want to test parallel
+code without switching to a multicore-enabled runtime.
+
+[work-stealing]: https://en.wikipedia.org/wiki/Work_stealing
 
 ```ocaml
 let test_add4 par = add4 par 1 10 100 1000
 
 let%expect_test "add4 in parallel" =
-  let scheduler = Parallel_scheduler_queue.create () in
+  let scheduler = Parallel_scheduler_work_stealing.create () in
   let monitor = Parallel.Monitor.create_root () in
-  let result = Parallel_scheduler_queue.schedule scheduler ~monitor ~f:test_add4 in
-  Parallel_scheduler_queue.stop scheduler;
+  let result =
+    Parallel_scheduler_work_stealing.schedule scheduler ~monitor ~f:test_add4
+  in
+  Parallel_scheduler_work_stealing.stop scheduler;
   print_s [%message (result : int)];
   [%expect {| (result 1111) |}];
 ;;
 ```
 
-**[Switch to work-stealing scheduler]**
-
-This creates a queue-based scheduler, along with a _monitor_ to manage
+This creates a work-stealing scheduler, along with a _monitor_ to manage
 exceptions. Then it tells the scheduler to run the `test_add4` function before
 shutting down the scheduler. (Naturally, a real program will want to keep the
 monitor and scheduler around longer!) To test using the sequential scheduler
-instead, we would simply replace `Parallel_scheduler_queue` with
+instead, we would simply replace `Parallel_scheduler_work_stealing` with
 `Parallel.Scheduler.Sequential`.
 
 We can use `fork_join2` to parallelize `average`:
@@ -85,7 +85,10 @@ We can use `fork_join2` to parallelize `average`:
       | Tree.Leaf x -> ~total:x, ~count:1
       | Tree.Node (l, r) ->
         let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
-          Parallel.fork_join2 par (fun par -> total par l) (fun par -> total par r)
+          Parallel.fork_join2
+            par
+            (fun par -> total par l)
+            (fun par -> total par r)
         in
         ~total:(total_l +. total_r), ~count:(count_l + count_r)
     in
@@ -94,23 +97,54 @@ We can use `fork_join2` to parallelize `average`:
   ;;
 ```
 
-**[Mention that `fork_join2` is smart enough to deal with unbalanced trees
-(heartbeat scheduling)]**
+Note that we don't have to worry about unbalanced trees: the work-stealing
+algorithm dynamically adapts whenever tasks are unevenly distributed among cores.
 
-So far, so good. But something annoying happens if we introduce an abstraction
-barrier. Suppose instead of a tree of `float`s we have a tree of `Thing.t`s,
-and we want to take the average `price` of those `Thing.t`s. In particular,
-suppose `thing.mli` leaves `type t` abstract and provides a projection `price`:
+We're not limited to working with simple `float`s, of course. Suppose we add a
+submodule `Thing` earlier in the file: **[Would be nice to think of something
+better than `Thing` here.]**
 
 ```ocaml
-val create : price:float -> mood:Mood.t -> t
+module Thing = struct
+  module Mood = struct
+    type t =
+      | Happy
+      | Sad
+  end
+
+  type t =
+    { price : float
+    ; mutable mood : Mood.t
+    }
+
+  let create ~price ~mood = { price; mood }
+  let price { price; _ } = price
+  let mood { mood; _ } = mood
+end
 ```
 
-Then we only need to change one line in `average_par` to take the average
-`price`:
+All we have to do to sum over the prices in a `Thing.t Tree.t` is change the
+`Tree.Leaf` case:
 
 ```ocaml
       | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
+```
+
+So far, so good. But something annoying happens if we introduce an abstraction
+barrier. Lets move `Thing` into its own module. `thing.mli` is very simple:
+
+```ocaml
+type t
+
+module Mood : sig
+  type t =
+    | Happy
+    | Sad
+end
+
+val create : price:float -> mood:Mood.t -> t
+val price : t -> float
+val mood : t -> Mood.t
 ```
 
 But now we get an error from the compiler:
@@ -120,16 +154,122 @@ The value Thing.price is nonportable, so cannot be used inside a function that
 is portable.
 ```
 
-What this is saying is that the arguments to `Parallel.fork_join2` must be
-*portable**, which is to say, declared to be safe to call from any thread.
-**[Here begins old placeholder text that doesn't really make sense now**]:
-Writing such a declaration is easy enough:
+What's going on here? Well, the arguments to `Parallel.fork_join2` must be
+`portable`, which is to say, safe to call from any domain. We'll get into
+precisely what this means [later], but an important aspect is that a `portable`
+function can only call other `portable` functions.[^param-loophole] So for `(fun
+par -> total par l)` to be `portable`, `total` must be `portable`, and thus
+since `total` calls `Thing.price`, that has to be `portable` as well. When we
+defined `price` in the same module and let the compiler infer its type, the
+`portable` got inferred with it, but now that we're writing the type out
+ourserves we need to include it:
 
-**\[naively modify program\]**
+```ocaml
+val price : t -> float @@ portable
+```
 
-But, as usual, the compiler doesn't simply take us at our word:
+[later]: #the-portable-and-nonportable-modes
 
-**\[new error: the function isn’t actually portable\]**
+[^param-loophole]: This is a slight exaggeration. See [rule 2] of the `portable`
+mode for the precise definition.
+
+[rule 2]: #rule-portable-access
+
+But the compiler isn't satisfied. Now it complains about the `l` in
+`total par l`:
+
+```
+This value is contended but expected to be uncontended.
+```
+
+This is telling us that the compiler suspects a data race: it believes that
+someone may be able to modify `l` in parallel with this code, and that
+`total` may race if that happens. Hence there are two possible solutions:
+
+1. Convince the compiler that `l` can't be modified in parallel.
+2. Convince the compiler that `total` doesn't race even if `l` is modified in
+   parallel.
+
+In the language of our error message, option 1 means making the value (namely
+`l`) `uncontended` and option 2 means changing the expectation so that `l`
+can remain `contended`.
+
+In this case it turns out we can go for option 2: even if the value `l` is
+modified in parallel, we're safe anyway. We'll make this precise when we meet
+[the contended and uncontended modes], but a key insight is that nothing here
+can actually produce a data race. All we're doing is walking over an immutable
+data structure and reading an immutable field. Someone else might go changing
+all the moods, but we won't notice. You wouldn't know that by looking at
+`thing.mli`, though: `price` could be a mutable field like `mood`, and then
+calling `price` could risk a data race. So we need to give `price` a type that
+expresses that it doesn't produce data races:
+
+```ocaml
+val price : t @ contended -> float @@ portable
+```
+
+[the contended and uncontended modes]: #the-contended-and-uncontended-modes
+
+(Note the different roles of `@` and `@@` here: the `@` puts a mode on a
+           bothered to give a particularly good error or handle the Not_found
+           case from env.
+function's argument or return type, and the `@@` puts a mode on the entire
+`val` declaration.)
+
+This says that `price` is safe to call even if its argument might be getting
+messed with at this very moment. Notably, you can't do the same with `mood`:
+
+```ocaml
+val mood : t @ contended -> Mood.t @@ portable
+```
+
+```
+Values do not match:
+  val mood : t -> Mood.t @@ portable
+is not included in
+  val mood : t @ contended -> Mood.t @@ portable
+The type t -> Mood.t is not compatible with the type
+  t @ contended -> Mood.t
+```
+
+Now that we've modified `price`, that's enough to convince the compiler that
+`average_par` is safe: if the `x` in `Thing.price x` is allowed to be
+`contended`, that lets the parameter of `total` be `contended` (this will be
+[rule 3] of the `contended` mode), and in turn our long-suffering `l` is
+allowed to be `contended`, fixing the error.
+
+[rule 3]: #rule-contended-deep
+
+Now that we've seen that mutable fields make `contended` go wrong, you might
+wonder what makes a function not `portable` (besides other functions not being
+`portable`). One surefire way is to access any kind of global state:
+
+```ocaml
+let annoying_bit_of_global_state = ref 0
+
+let price { price; _ } =
+  incr annoying_bit_of_global_state;
+  price
+;;
+```
+
+This innocuous-looking change is enough to ruin our claim that `price` is
+`portable`:
+
+```
+Values do not match:
+  val price : t -> float
+is not included in
+  val price : t -> float @@ portable
+The second is portable and the first is nonportable.
+```
+
+This is, of course, entirely correct given what we said at the outset: a
+`portable` function is one that's safe to call from any domain, but calling
+this version of `price` twice in parallel clearly produces a data race. As
+we'll soon see, what's going on is that for `price` to be `portable`, it has to
+see `annoying_bit_of_global_state` as `contended`, which disallows accessing it
+at all (since a `ref` is just a record with a single mutable field).
 
 ## A brief primer on `portable` and `contended`
 
@@ -300,6 +440,7 @@ _must_ be met.
 
 **[Now a bit of explanation leading to ...]**
 
+> <a id="rule-contended-deep"></a>
 > **Rule 4.** Any component of a `contended` value is `contended`.
 
 **[... which is easy to justify by rule 1.]**
@@ -318,6 +459,7 @@ has two main rules, namely a big-picture safety rule and a more concrete typing 
 > **Rule 1.** Only a `portable` value is safe to access from outside the domain
 > that created it.
 
+> <a id="rule-portable-access"></a>
 > **Rule 2.** If a `portable` function refers to a value outside of its own
 > definition[^closures], then (a) that value must be `portable`, and (b) the value
 > is treated as `contended`.
