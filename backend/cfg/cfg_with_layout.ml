@@ -78,22 +78,25 @@ let assign_blocks_to_section t labels name =
 
 let get_section t label = Hashtbl.find_opt t.sections label
 
+exception Found_all
+
 let remove_blocks t labels_to_remove =
   let num_to_remove = Label.Set.cardinal labels_to_remove in
   if num_to_remove > 0
   then (
+    (* remove from cfg *)
     Cfg.remove_blocks t.cfg labels_to_remove;
-    (* CR-soon xclerc: would be simpler with a function such as
-       `DoublyLinkedList.remove : 'a cell -> unit` called from
-       `DoublyLinkedList.iter_cell` *)
+    (* remove from layout *)
+    let num_removed = ref 0 in
     try
-      let num_removed = ref 0 in
-      DLL.filter_left t.layout ~f:(fun l ->
-          if !num_removed = num_to_remove then raise Exit;
-          let to_remove = Label.Set.mem l labels_to_remove in
-          if to_remove then incr num_removed;
-          not to_remove)
-    with Exit -> ())
+      DLL.iter_cell t.layout ~f:(fun cell ->
+          if !num_removed = num_to_remove then raise Found_all;
+          let l = DLL.value cell in
+          if Label.Set.mem l labels_to_remove
+          then (
+            DLL.delete_curr cell;
+            incr num_removed))
+    with Found_all -> ())
 
 let add_block t (block : Cfg.basic_block) ~after =
   match
