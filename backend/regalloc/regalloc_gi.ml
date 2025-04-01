@@ -8,13 +8,9 @@ module State = Regalloc_gi_state
 module Utils = struct
   include Regalloc_gi_utils
 
-  let debug = gi_debug
+  let debug = debug
 
-  let invariants = gi_invariants
-
-  let log = log
-
-  let log_body_and_terminator = log_body_and_terminator
+  let invariants = invariants
 
   let is_spilled reg = reg.Reg.spill
 
@@ -43,7 +39,7 @@ let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> bool =
 
 let update_register_locations : State.t -> unit =
  fun state ->
-  if gi_debug
+  if debug
   then (
     log "update_register_locations";
     indent ());
@@ -57,14 +53,14 @@ let update_register_locations : State.t -> unit =
         (* a register may "disappear" because of split/rename *)
         ()
       | Some location ->
-        if gi_debug
+        if debug
         then
           log "updating %a to %a" Printreg.reg reg
             Hardware_register.print_location location;
         reg.Reg.loc <- Hardware_register.reg_location_of_location location)
   in
   List.iter (Reg.all_registers ()) ~f:update_register;
-  if gi_debug then dedent ()
+  if debug then dedent ()
 
 module Prio_queue = Make_max_priority_queue (Int)
 
@@ -78,7 +74,7 @@ let priority_heuristics : Reg.t -> Interval.t -> int =
 
 let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
     Hardware_registers.t * prio_queue =
-  if gi_debug
+  if debug
   then (
     log "creating registers and queue";
     indent ());
@@ -92,7 +88,7 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
     (fun reg interval ->
       match reg.loc with
       | Reg _ -> (
-        if gi_debug
+        if debug
         then (
           log "pre-assigned register %a" Printreg.reg reg;
           indent ();
@@ -104,7 +100,7 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
           Hardware_register.add_non_evictable hardware_reg reg interval)
       | Unknown ->
         let priority = priority_heuristics reg interval in
-        if gi_debug
+        if debug
         then (
           log "register %a" Printreg.reg reg;
           indent ();
@@ -113,7 +109,7 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
           dedent ());
         Prio_queue.add prio_queue ~priority ~data:(reg, interval)
       | Stack _ ->
-        if gi_debug
+        if debug
         then (
           log "stack register %a" Printreg.reg reg;
           indent ();
@@ -121,7 +117,7 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
           dedent ());
         ())
     intervals;
-  if gi_debug then dedent ();
+  if debug then dedent ();
   hardware_registers, prio_queue
 
 (* CR xclerc for xclerc: try to find a reasonable threshold. *)
@@ -144,15 +140,15 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     fatal "register allocation introduced %d temporaries after starting with %d"
       (State.introduced_temporary_count state)
       (State.initial_temporary_count state);
-  if gi_debug
+  if debug
   then (
     log "main, round #%d" round;
     log_cfg_with_infos cfg_with_infos);
-  if gi_debug then log "updating spilling costs";
+  if debug then log "updating spilling costs";
   update_spill_cost cfg_with_infos ~flat ();
   State.iter_introduced_temporaries state ~f:(fun (reg : Reg.t) ->
       reg.Reg.spill_cost <- reg.Reg.spill_cost + 10_000);
-  if gi_debug
+  if debug
   then (
     log "spilling costs";
     indent ();
@@ -168,7 +164,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
   indent ();
   while not (Prio_queue.is_empty prio_queue) do
     incr step;
-    if gi_debug then log "step #%d (size=%d)" !step (Prio_queue.size prio_queue);
+    if debug then log "step #%d (size=%d)" !step (Prio_queue.size prio_queue);
     let { Prio_queue.priority; data = reg, interval } =
       Prio_queue.get_and_remove prio_queue
     in
@@ -180,7 +176,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
        Hardware_registers.find_available hardware_registers reg interval
      with
     | For_assignment { hardware_reg } ->
-      if gi_debug
+      if debug
       then
         log "assigning %a to %a" Printreg.reg reg
           Hardware_register.print_location hardware_reg.location;
@@ -189,7 +185,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
         <- { Hardware_register.pseudo_reg = reg; interval; evictable = true }
            :: hardware_reg.assigned
     | For_eviction { hardware_reg; evicted_regs } ->
-      if gi_debug
+      if debug
       then
         log "evicting %a from %a" Printreg.regs
           (Array.of_list
@@ -225,7 +221,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
                          Reg.same r r')))
     | Split_or_spill ->
       (* CR xclerc for xclerc: we should actually try to split. *)
-      if gi_debug then log "spilling %a" Printreg.reg reg;
+      if debug then log "spilling %a" Printreg.reg reg;
       reg.Reg.spill <- true;
       spilling := (reg, interval) :: !spilling);
     if gi_debug then dedent ()
@@ -234,7 +230,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
   match !spilling with
   | [] -> ()
   | _ :: _ as spilled_nodes -> (
-    if gi_debug
+    if debug
     then (
       log_cfg_with_infos cfg_with_infos;
       indent ();
@@ -269,7 +265,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
       rewrite state cfg_with_infos
         ~spilled_nodes:(List.map spilled_nodes ~f:fst)
     with
-    | false -> if gi_debug then log "(end of main)"
+    | false -> if debug then log "(end of main)"
     | true -> main ~round:(succ round) ~flat state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
@@ -285,7 +281,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
      the creation of the state to `prelude`. *)
   let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
   let initial_temporaries = Reg.Set.cardinal all_temporaries in
-  if gi_debug then log "#temporaries=%d" initial_temporaries;
+  if debug then log "#temporaries=%d" initial_temporaries;
   let state =
     State.make ~stack_slots ~initial_temporaries
       ~last_used:cfg_infos.max_instruction_id
@@ -306,7 +302,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     | Random_for_testing -> Spilling_heuristics.random ()
   in
   main ~round:1 ~flat state cfg_with_infos;
-  if gi_debug
+  if debug
   then (
     indent ();
     log_cfg_with_infos cfg_with_infos;

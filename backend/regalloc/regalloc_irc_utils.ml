@@ -3,13 +3,6 @@
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 
-let irc_debug = false
-
-let bool_of_param param_name =
-  bool_of_param ~guard:(irc_debug, "irc_debug") param_name
-
-let irc_invariants : bool Lazy.t = bool_of_param "IRC_INVARIANTS"
-
 let log_function = lazy (make_log_function ~label:"irc")
 
 let indent () = (Lazy.force log_function).indent ()
@@ -145,7 +138,7 @@ let k reg = Proc.num_available_registers.(Proc.register_class reg)
 
 let update_register_locations : unit -> unit =
  fun () ->
-  if irc_debug then log "update_register_locations";
+  if debug then log "update_register_locations";
   List.iter (Reg.all_registers ()) ~f:(fun reg ->
       match reg.Reg.loc with
       | Reg _ -> ()
@@ -156,7 +149,7 @@ let update_register_locations : unit -> unit =
           (* because of rewrites, the register may no longer be present *)
           ()
         | Some color ->
-          if irc_debug then log "updating %a to %d" Printreg.reg reg color;
+          if debug then log "updating %a to %d" Printreg.reg reg color;
           reg.Reg.loc <- Reg color))
 
 module Spilling_heuristics = struct

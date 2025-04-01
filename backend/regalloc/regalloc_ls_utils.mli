@@ -3,10 +3,6 @@
 open Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-val ls_debug : bool
-
-val ls_invariants : bool Lazy.t
-
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
 val indent : unit -> unit

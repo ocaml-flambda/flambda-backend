@@ -48,6 +48,11 @@ let bool_of_param ?guard ?(default = false) param_name =
          then fatal "%s is set but %s is not" param_name guard_name);
      res)
 
+let debug = false
+
+let invariants : bool Lazy.t =
+  bool_of_param ~guard:(debug, "debug") "INVARIANTS"
+
 let validator_debug = bool_of_param "VALIDATOR_DEBUG"
 
 let block_temporaries = bool_of_param "BLOCK_TEMPORARIES"

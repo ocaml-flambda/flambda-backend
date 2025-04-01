@@ -4,13 +4,6 @@ open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let ls_debug = false
-
-let bool_of_param param_name =
-  bool_of_param ~guard:(ls_debug, "ls_debug") param_name
-
-let ls_invariants : bool Lazy.t = bool_of_param "LS_INVARIANTS"
-
 let log_function = lazy (make_log_function ~label:"ls")
 
 let indent () = (Lazy.force log_function).indent ()

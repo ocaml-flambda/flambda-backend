@@ -4,14 +4,7 @@ open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let gi_debug = true
-
 let gi_rng = Random.State.make [| 4; 6; 2 |]
-
-let bool_of_param param_name =
-  bool_of_param ~guard:(gi_debug, "gi_debug") param_name
-
-let gi_invariants : bool Lazy.t = bool_of_param "GI_INVARIANTS"
 
 let log_function = lazy (make_log_function ~label:"gi")
 
@@ -454,7 +447,7 @@ end
 
 let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
  fun cfg_with_infos ->
-  if gi_debug
+  if debug
   then (
     log "build_intervals";
     indent ());
@@ -521,12 +514,12 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     (fun _reg (interval : Interval.t) ->
       interval.ranges <- List.rev interval.ranges)
     past_ranges;
-  if gi_debug && Lazy.force verbose
+  if debug && Lazy.force verbose
   then
     iter_cfg_layout cfg_with_layout ~f:(fun block ->
         log "(block %a)" Label.format block.start;
         log_body_and_terminator block.body block.terminator liveness);
-  if gi_debug then dedent ();
+  if debug then dedent ();
   past_ranges
 
 module Hardware_register = struct
@@ -633,7 +626,7 @@ module Hardware_registers = struct
 
   let overlap (hardware_reg : Hardware_register.t) (interval : Interval.t) :
       bool =
-    if gi_debug
+    if debug
     then (
       log "considering %a" Hardware_register.print_location
         hardware_reg.location;
@@ -646,7 +639,7 @@ module Hardware_registers = struct
            -> Interval.overlap itv interval)
     in
     let overlap = overlap_hard || overlap_assigned in
-    if gi_debug
+    if debug
     then (
       log "overlap=%B (hard=%B, assigned=%B)" overlap overlap_hard
         overlap_assigned;
@@ -676,7 +669,7 @@ module Hardware_registers = struct
   let find_evictable (t : t) (reg : Reg.t) (interval : Interval.t) : available =
     let eviction =
       fold_class t ~of_reg:reg ~init:None ~f:(fun acc hardware_reg ->
-          if gi_debug
+          if debug
           then
             log "considering %a (length=%d)" Hardware_register.print_location
               hardware_reg.location
@@ -695,7 +688,7 @@ module Hardware_registers = struct
                      }
                    ->
                   let overlap = Interval.overlap interval itv in
-                  if gi_debug
+                  if debug
                   then
                     log "%a is assigned / overlap=%B" Printreg.reg pseudo_reg
                       overlap;
@@ -721,7 +714,7 @@ module Hardware_registers = struct
               in
               if cost < evict_cost && cost < actual_cost reg
               then (
-                if gi_debug
+                if debug
                 then
                   List.iter overlaping ~f:(fun assigned ->
                       log "evicting %a" Hardware_register.print_assigned
@@ -746,21 +739,20 @@ module Hardware_registers = struct
       match heuristic with
       | Selection_heuristics.Random_for_testing -> assert false
       | Selection_heuristics.First_available ->
-        if gi_debug
+        if debug
         then log "trying to find an available register with 'first-available'";
         find_first t reg interval
       | Selection_heuristics.Best_fit ->
-        if gi_debug
-        then log "trying to find an available register with 'best-fit'";
+        if debug then log "trying to find an available register with 'best-fit'";
         find_using_length t reg interval ~better:( > )
       | Selection_heuristics.Worst_fit ->
-        if gi_debug
+        if debug
         then log "trying to find an available register with 'worst-fit'";
         find_using_length t reg interval ~better:( < )
     in
     match with_no_overlap with
     | Some hardware_reg -> For_assignment { hardware_reg }
     | None ->
-      if gi_debug then log "trying to find an evictable register";
+      if debug then log "trying to find an evictable register";
       find_evictable t reg interval
 end
