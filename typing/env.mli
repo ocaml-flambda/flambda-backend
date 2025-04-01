@@ -554,6 +554,9 @@ val import_crcs: source:string -> Import_info.t array -> unit
    [Persistent_env.runtime_parameter_bindings] for details) *)
 val runtime_parameter_bindings: unit -> (Global_module.t * Ident.t) list
 
+(* Return whether an ident appears in [runtime_parameter_bindings] *)
+val is_bound_to_runtime_parameter: Ident.t -> bool
+
 (* Return the list of parameters specified for the current unit, in
    alphabetical order *)
 val parameters: unit -> Global_module.Name.t list
