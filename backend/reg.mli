@@ -124,7 +124,6 @@ val restart: unit -> unit
 val reinit_relocatable_regs: unit -> unit
 val all_relocatable_regs: unit -> t list
 
-val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool
 val same : t -> t -> bool
 val compare : t -> t -> int
