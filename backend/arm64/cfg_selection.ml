@@ -56,7 +56,7 @@ let inline_ops = ["sqrt"]
 let use_direct_addressing _symb = (not !Clflags.dlcode) && not Arch.macosx
 
 let is_stack_slot rv =
-  Reg.(match rv with [| { loc = Stack _ } |] -> true | _ -> false)
+  Reg.(match rv with [| { reg = { loc = Stack _ } } |] -> true | _ -> false)
 
 let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth = function
   | Sixteen -> Sixteen
