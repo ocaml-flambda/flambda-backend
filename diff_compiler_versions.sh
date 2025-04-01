@@ -31,9 +31,7 @@ cp -R -f _install/ "$TARGETDIR/base-compiler-original/"
 git clean -dfX
 autoconf
 ./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
-
-make hacking-no-watch
-
+make boot-compiler
 cp -R -f "$TARGETDIR/revision-compiler/" _build/_bootinstall/
 make install
 cp -R -f _install/ "$TARGETDIR/base-compiler-revised/"
