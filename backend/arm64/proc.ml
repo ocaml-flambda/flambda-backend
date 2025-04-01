@@ -135,7 +135,7 @@ let hard_reg_gen typ n =
   for i = 0 to n - 1 do
     v.(i) <- Reg.create_at_location typ (Reg(first + i))
   done;
-v
+  v
 
 let hard_int_reg = hard_reg_gen Int (Array.length int_reg_name)
 let hard_float_reg = hard_reg_gen Float (Array.length float_reg_name)
