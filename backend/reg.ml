@@ -231,7 +231,7 @@ let num_registers () = !currstamp
 
 let compare r1 r2 =
   let s = r1.reg.stamp - r2.reg.stamp in
-  if s <> 0 then s else Stdlib.compare r1.typ r2.typ
+  if s <> 0 then s else Cmm.compare_machtype_component r1.typ r2.typ
 
 let same r1 r2 = compare r1 r2 = 0
 
