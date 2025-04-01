@@ -112,7 +112,7 @@ module Vars = struct
         Subrange_state.stack_offset subrange_state + initial_stack_offset
       in
       let offset =
-        match reg.loc with
+        match reg.reg.loc with
         | Stack loc ->
           let frame_size =
             Proc.frame_size ~stack_offset ~contains_calls:fun_contains_calls

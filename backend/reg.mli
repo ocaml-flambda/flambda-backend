@@ -36,10 +36,9 @@ module Name : sig
   val to_string : t -> string
 end
 
-type t =
+type reg =
   { name: Name.t;                         (* Name *)
     stamp: int;                           (* Unique stamp *)
-    typ: Cmm.machtype_component;          (* Type of contents *)
     preassigned: bool;                    (* Pinned to a specific location *)
     mutable loc: location;                (* Current location *)
     mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
@@ -49,6 +48,10 @@ type t =
     mutable interf: t list;               (* Other regs live simultaneously *)
     mutable degree: int;                  (* Number of other regs live sim. *)
     mutable spill_cost: int; }            (* Estimate of spilling cost *)
+
+and t =
+  { typ: Cmm.machtype_component;          (* Type of contents *)
+    reg : reg; }
 
 and location =
     Unknown

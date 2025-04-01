@@ -69,7 +69,7 @@ module T = struct
   module Order = struct
     type t = Reg.t
 
-    let compare (t1 : t) (t2 : t) = t1.stamp - t2.stamp
+    let compare (t1 : t) (t2 : t) = t1.reg.stamp - t2.reg.stamp
   end
 
   let compare t1 t2 = Order.compare t1.reg t2.reg
@@ -103,7 +103,7 @@ let create_copying_debug_info ~reg ~debug_info_from =
 
 let reg t = t.reg
 
-let location t = t.reg.loc
+let location t = t.reg.reg.loc
 
 let holds_pointer t =
   match t.reg.typ with
@@ -113,7 +113,7 @@ let holds_pointer t =
 let holds_non_pointer t = not (holds_pointer t)
 
 let assigned_to_stack t =
-  match t.reg.loc with
+  match t.reg.reg.loc with
   | Stack (Local _ | Incoming _ | Outgoing _) -> true
   | Stack (Domainstate _) | Reg _ | Unknown -> false
 
@@ -124,9 +124,9 @@ let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
      one is of class "Int" and another "Float" on amd64. [register_class] will
      be [Proc.register_class], but cannot be here, due to a circular
      dependency. *)
-  Reg.equal_location reg1.loc reg2.loc
+  Reg.equal_location reg1.reg.loc reg2.reg.loc
   &&
-  match reg1.loc with
+  match reg1.reg.loc with
   | Reg _ -> register_class reg1 = register_class reg2
   | Stack _ -> stack_class reg1 = stack_class reg2
   | Unknown -> Misc.fatal_errorf "regs_at_same_location got Unknown locations"
@@ -148,7 +148,7 @@ module Order_distinguishing_names_and_locations = struct
     | Some _, None -> 1
     | Some di1, Some di2 ->
       let c = V.compare di1.holds_value_of di2.holds_value_of in
-      if c <> 0 then c else Stdlib.compare t1.reg.loc t2.reg.loc
+      if c <> 0 then c else Stdlib.compare t1.reg.reg.loc t2.reg.reg.loc
 end
 
 module Set_distinguishing_names_and_locations =
@@ -183,14 +183,16 @@ module Set = struct
       (Reg.set_of_array regs_clobbered)
       (* ~init:*) empty
 
-  let mem_reg t (reg : Reg.t) = exists (fun t -> t.reg.stamp = reg.stamp) t
+  let mem_reg t (reg : Reg.t) =
+    exists (fun t -> t.reg.reg.stamp = reg.reg.stamp) t
 
-  let filter_reg t (reg : Reg.t) = filter (fun t -> t.reg.stamp <> reg.stamp) t
+  let filter_reg t (reg : Reg.t) =
+    filter (fun t -> t.reg.reg.stamp <> reg.reg.stamp) t
 
   (* CR-someday mshinwell: Well, it looks like we should have used a map.
      mshinwell: Also see @chambart's suggestion on GPR#856. *)
   let find_reg_exn t (reg : Reg.t) =
-    match elements (filter (fun t -> t.reg.stamp = reg.stamp) t) with
+    match elements (filter (fun t -> t.reg.reg.stamp = reg.reg.stamp) t) with
     | [] -> raise Not_found
     | [reg] -> reg
     | _ -> assert false

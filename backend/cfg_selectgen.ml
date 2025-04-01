@@ -548,7 +548,7 @@ class virtual selector_generic =
     (* set in emit_fundecl *)
 
     method insert_move env src dst =
-      if src.Reg.stamp <> dst.Reg.stamp
+      if src.Reg.reg.stamp <> dst.Reg.reg.stamp
       then self#insert env (Op Move) [| src |] [| dst |]
 
     method emit_expr_aux_raise env k (args : expression list) dbg =

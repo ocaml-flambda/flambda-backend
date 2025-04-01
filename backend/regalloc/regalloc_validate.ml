@@ -111,7 +111,7 @@ end = struct
     | Stack of Stack.t
 
   let of_reg reg =
-    match reg.Reg.loc with
+    match reg.Reg.reg.loc with
     | Reg.Unknown -> None
     | Reg.Reg idx -> Some (Reg idx)
     | Reg.Stack stack ->
@@ -174,7 +174,7 @@ end = struct
         (Option.is_some loc) (Reg.is_preassigned reg);
     match loc with
     | Some location -> Preassigned { location }
-    | None -> Named { stamp = reg.stamp }
+    | None -> Named { stamp = reg.reg.stamp }
 
   let to_loc_lossy t =
     match t with
@@ -225,15 +225,17 @@ end = struct
 
   let create (reg : Reg.t) : t =
     { reg_id = Reg_id.of_reg reg;
-      for_print = { name = reg.name; stamp = reg.stamp; typ = reg.typ }
+      for_print = { name = reg.reg.name; stamp = reg.reg.stamp; typ = reg.typ }
     }
 
   let to_dummy_reg (t : t) : Reg.t =
-    { Reg.dummy with
-      name = t.for_print.name;
-      typ = t.for_print.typ;
-      stamp = t.for_print.stamp;
-      loc = Reg_id.to_loc_lossy t.reg_id
+    { typ = t.for_print.typ;
+      reg =
+        { Reg.dummy.reg with
+          name = t.for_print.name;
+          stamp = t.for_print.stamp;
+          loc = Reg_id.to_loc_lossy t.reg_id
+        }
     }
 
   let typ (t : t) = t.for_print.typ
@@ -992,7 +994,7 @@ end
 let print_reg_as_loc ppf reg =
   Printreg.loc
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
-    ppf reg.Reg.loc reg.Reg.typ
+    ppf reg.Reg.reg.loc reg.Reg.typ
 
 module Domain : Cfg_dataflow.Domain_S with type t = Equation_set.t = struct
   (** This type corresponds to the set of equations in the dataflow from the

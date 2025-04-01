@@ -16,7 +16,7 @@ module Utils = struct
 
   let log_body_and_terminator = log_body_and_terminator
 
-  let is_spilled reg = reg.Reg.spill
+  let is_spilled reg = reg.Reg.reg.spill
 
   let set_spilled _reg = ()
 end
@@ -45,7 +45,7 @@ let update_register_locations : State.t -> unit =
  fun state ->
   if gi_debug then log ~indent:0 "update_register_locations";
   let update_register (reg : Reg.t) : unit =
-    match reg.Reg.loc with
+    match reg.Reg.reg.loc with
     | Reg _ -> ()
     | Stack _ -> ()
     | Unknown -> (
@@ -58,7 +58,7 @@ let update_register_locations : State.t -> unit =
         then
           log ~indent:1 "updating %a to %a" Printreg.reg reg
             Hardware_register.print_location location;
-        reg.Reg.loc <- Hardware_register.reg_location_of_location location)
+        reg.Reg.reg.loc <- Hardware_register.reg_location_of_location location)
   in
   List.iter (Reg.all_relocatable_regs ()) ~f:update_register
 
@@ -83,7 +83,7 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
   in
   Reg.Tbl.iter
     (fun reg interval ->
-      match reg.loc with
+      match reg.reg.loc with
       | Reg _ -> (
         if gi_debug
         then (
@@ -137,13 +137,13 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
   if gi_debug then log ~indent:0 "updating spilling costs";
   update_spill_cost cfg_with_infos ~flat ();
   State.iter_introduced_temporaries state ~f:(fun (reg : Reg.t) ->
-      reg.Reg.spill_cost <- reg.Reg.spill_cost + 10_000);
+      reg.Reg.reg.spill_cost <- reg.Reg.reg.spill_cost + 10_000);
   if gi_debug
   then (
     log ~indent:0 "spilling costs";
     List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
-        reg.Reg.spill <- false;
-        log ~indent:1 "%a: %d" Printreg.reg reg reg.spill_cost));
+        reg.Reg.reg.spill <- false;
+        log ~indent:1 "%a: %d" Printreg.reg reg reg.reg.spill_cost));
   let hardware_registers, prio_queue =
     make_hardware_registers_and_prio_queue cfg_with_infos
   in
@@ -206,7 +206,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     | Split_or_spill ->
       (* CR xclerc for xclerc: we should actually try to split. *)
       if gi_debug then log ~indent:3 "spilling %a" Printreg.reg reg;
-      reg.Reg.spill <- true;
+      reg.Reg.reg.spill <- true;
       spilling := (reg, interval) :: !spilling
   done;
   match !spilling with
@@ -264,7 +264,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilled_nodes ->
-    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
+    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.reg.spill <- true);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
     let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes in

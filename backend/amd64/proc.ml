@@ -147,40 +147,41 @@ let hard_int_reg =
   for i = 0 to 12 do v.(i) <- Reg.create_at_location Int (Reg i) done;
   v
 
-let hard_float_reg =
+let hard_xmm_reg =
   let v = Array.make 16 Reg.dummy in
   for i = 0 to 15 do v.(i) <- Reg.create_at_location Float (Reg (100 + i)) done;
   v
 
-let hard_vec128_reg =
+let hard_xmm_reg_as_float = hard_xmm_reg
+
+let hard_xmm_reg_as_vec128 =
   let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.create_at_location Vec128 (Reg (100 + i)) done;
+  for i = 0 to 15 do v.(i) <- {hard_xmm_reg.(i) with typ = Vec128} done;
   v
 
-let hard_float32_reg =
+let hard_xmm_reg_as_float32 =
   let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.create_at_location Float32 (Reg (100 + i)) done;
+  for i = 0 to 15 do v.(i) <- {hard_xmm_reg.(i) with typ = Float32} done;
   v
 
-let all_phys_regs =
-  Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; hard_vec128_reg]
+let all_phys_regs = Array.concat [hard_int_reg; hard_xmm_reg]
 
 let phys_reg ty n =
   match (ty : machtype_component) with
   | Int | Addr | Val -> hard_int_reg.(n)
-  | Float -> hard_float_reg.(n - 100)
-  | Float32 -> hard_float32_reg.(n - 100)
-  | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
+  | Float -> hard_xmm_reg_as_float.(n - 100)
+  | Float32 -> hard_xmm_reg_as_float32.(n - 100)
+  | Vec128 | Valx2 -> hard_xmm_reg_as_vec128.(n - 100)
 
 let gc_regs_offset reg =
   (* Given register [r], return the offset (the number of [value] slots,
      not their size in bytes) of the register from the
      [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
   let r =
-    match reg.loc with
+    match reg.reg.loc with
     | Reg r -> r
     | Stack _ | Unknown ->
-      Misc.fatal_errorf "Unexpected register location for %d" reg.stamp
+      Misc.fatal_errorf "Unexpected register location for %d" reg.reg.stamp
   in
   let reg_class = register_class reg in
   let index = (r - first_available_register.(reg_class)) in
@@ -212,10 +213,7 @@ let rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
-
-(* CSE needs to know that all versions of xmm15 are destroyed. *)
-let destroy_xmm n =
-  [| phys_reg Float (100 + n); phys_reg Float32 (100 + n); phys_reg Vec128 (100 + n) |]
+let xmm n = hard_xmm_reg.(n)
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
@@ -473,18 +471,14 @@ let destroyed_at_c_call_win64 =
   (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
   Array.concat [
     Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64;
-    Array.sub hard_float_reg 0 6;
-    Array.sub hard_float32_reg 0 6;
-    Array.sub hard_vec128_reg 0 6
+    Array.sub hard_xmm_reg 0 6;
   ]
 
 let destroyed_at_c_call_unix =
   (* Unix: rbx, rbp, r12-r15 preserved *)
   Array.concat [
       Array.map (phys_reg Int) int_regs_destroyed_at_c_call;
-      hard_float_reg;
-      hard_float32_reg;
-      hard_vec128_reg
+      hard_xmm_reg;
   ]
 
 let destroyed_at_c_call =
@@ -529,9 +523,9 @@ let destroyed_at_small_memory_op =
 
 let destroyed_at_single_float64_store =
   if Config.with_address_sanitizer then
-    Array.append destroyed_at_small_memory_op (destroy_xmm 15)
+    Array.append destroyed_at_small_memory_op [| xmm 15 |]
   else
-    (destroy_xmm 15)
+    [| xmm 15 |]
 ;;
 
 let has_pushtrap traps =
@@ -540,7 +534,7 @@ let has_pushtrap traps =
 let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
   match register_behavior with
   | R_RM_rax_rdx_to_xmm0
-  | R_RM_to_xmm0 -> destroy_xmm 0
+  | R_RM_to_xmm0 -> [| xmm 0 |]
   | R_RM_rax_rdx_to_rcx
   | R_RM_to_rcx -> [| rcx |]
   | R_to_fst

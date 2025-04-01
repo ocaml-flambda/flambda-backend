@@ -601,7 +601,7 @@ module Hardware_registers = struct
             }))
 
   let of_reg (t : t) (reg : Reg.t) : Hardware_register.t option =
-    match reg.loc with
+    match reg.reg.loc with
     | Reg reg_index ->
       let reg_class : int = Proc.register_class reg in
       let reg_index_in_class : int =
@@ -627,7 +627,7 @@ module Hardware_registers = struct
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
        already spilled (e.g. by the split preprocessing) since they already have
        a stack slot *)
-    reg.Reg.spill_cost
+    reg.Reg.reg.spill_cost
 
   let overlap (hardware_reg : Hardware_register.t) (interval : Interval.t) :
       bool =

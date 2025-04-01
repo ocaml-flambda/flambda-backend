@@ -22,7 +22,7 @@ let reg_location_description (reg : Reg.t) ~(offset : Stack_reg_offset.t option)
   let module SLD = Simple_location_description in
   (* CR-someday mshinwell: Implement support for values split across registers,
      if any such still exist. *)
-  match reg.loc with
+  match reg.reg.loc with
   | Unknown ->
     Misc.fatal_errorf "Register without location: %a" Printreg.reg reg
   | Reg n -> (

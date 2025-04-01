@@ -49,7 +49,7 @@ let precondition : Cfg_with_layout.t -> unit =
   in
   let register_must_not_be_on_stack (id : InstructionId.t) (reg : Reg.t) : unit
       =
-    match reg.Reg.loc with
+    match reg.Reg.reg.loc with
     | Unknown -> () (* most registers are not precolored *)
     | Reg _ ->
       () (* some register are precolored, e.g. to enforce constraints *)
@@ -70,14 +70,14 @@ let precondition : Cfg_with_layout.t -> unit =
      it is IRC-specific *)
   let register_must_be_on_unknown_list (id : InstructionId.t) (reg : Reg.t) :
       unit =
-    match reg.Reg.irc_work_list with
+    match reg.Reg.reg.irc_work_list with
     | Unknown_list -> ()
     | Precolored -> ()
     | Initial | Simplify | Freeze | Spill | Spilled | Coalesced | Colored
     | Select_stack ->
       fatal "instruction %a has a register (%a) already in a work list (%S)"
         InstructionId.format id Printreg.reg reg
-        (Reg.string_of_irc_work_list reg.Reg.irc_work_list)
+        (Reg.string_of_irc_work_list reg.Reg.reg.irc_work_list)
   in
   let register_must_be_on_unknown_list (id : InstructionId.t)
       (regs : Reg.t array) : unit =
@@ -107,7 +107,7 @@ let precondition : Cfg_with_layout.t -> unit =
 let postcondition_layout : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let register_must_not_be_unknown (id : InstructionId.t) (reg : Reg.t) : unit =
-    match reg.Reg.loc with
+    match reg.Reg.reg.loc with
     | Reg _ -> ()
     | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> ()
     | Unknown ->
@@ -120,7 +120,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
   in
   let num_stack_locals (regs : Reg.t array) : int =
     Array.fold_left regs ~init:0 ~f:(fun acc reg ->
-        match reg.Reg.loc with
+        match reg.Reg.reg.loc with
         | Unknown | Reg _ | Stack (Incoming _ | Outgoing _ | Domainstate _) ->
           acc
         | Stack (Local _) -> succ acc)
@@ -144,7 +144,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
   in
   let register_classes_must_be_consistent (id : InstructionId.t) (reg : Reg.t) :
       unit =
-    match reg.Reg.loc with
+    match reg.Reg.reg.loc with
     | Reg phys_reg -> (
       try
         let (_ : Reg.t) = Proc.phys_reg reg.typ phys_reg in
@@ -165,7 +165,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     Array.init Proc.num_stack_slot_classes ~f:(fun _ -> Int.Set.empty)
   in
   let record_stack_slot_use (reg : Reg.t) : unit =
-    match reg.loc with
+    match reg.reg.loc with
     | Unknown -> ()
     | Reg _ -> ()
     | Stack stack_loc -> (
@@ -239,7 +239,7 @@ let postcondition_liveness : Cfg_with_infos.t -> unit =
   in
   Reg.Set.iter
     (fun reg ->
-      match reg.Reg.loc with
+      match reg.Reg.reg.loc with
       | Unknown -> assert false (* already tested in `postcondition_layout` *)
       | Reg _ -> ()
       | Stack (Local _) ->

@@ -8,7 +8,7 @@ module State = Regalloc_irc_state
 let filter_unavailable : Reg.t array -> Reg.t array =
  fun regs ->
   let is_available (reg : Reg.t) : bool =
-    match reg.loc with
+    match reg.reg.loc with
     | Unknown -> true
     | Reg r ->
       let reg_class = Proc.register_class reg in
@@ -62,7 +62,7 @@ let build : State.t -> Cfg_with_infos.t -> unit =
       if is_move_instruction instr
          && (not (Reg.is_stack instr.arg.(0)))
          && (not (Reg.is_stack instr.res.(0)))
-         && same_reg_class instr.arg.(0) instr.res.(0)
+         && Proc.types_are_compatible instr.arg.(0) instr.res.(0)
       then (
         State.add_move_list state instr.arg.(0) instr;
         if not (Reg.same instr.arg.(0) instr.res.(0))
@@ -96,7 +96,7 @@ let make_work_list : State.t -> unit =
  fun state ->
   if irc_debug then log ~indent:1 "make_work_list";
   State.iter_and_clear_initial state ~f:(fun reg ->
-      let deg = reg.Reg.degree in
+      let deg = reg.Reg.reg.degree in
       if irc_debug
       then
         log ~indent:2 "- %a has degree=%s (k=%d)" Printreg.reg reg
@@ -122,8 +122,8 @@ let simplify : State.t -> unit =
 
 let ok : State.t -> Reg.t -> Reg.t -> bool =
  fun state t r ->
-  Reg.equal_irc_work_list t.Reg.irc_work_list Reg.Precolored
-  || t.Reg.degree < k t
+  Reg.equal_irc_work_list t.Reg.reg.irc_work_list Reg.Precolored
+  || t.Reg.reg.degree < k t
   || State.mem_adj_set state t r
 
 let all_adjacent_are_ok : State.t -> Reg.t -> Reg.t -> bool =
@@ -139,7 +139,7 @@ let conservative : State.t -> Reg.t -> Reg.t -> bool =
     then (
       Reg.Tbl.replace seen reg ();
       let k = k reg in
-      if reg.Reg.degree >= k
+      if reg.Reg.reg.degree >= k
       then (
         incr i;
         if !i >= k then raise_notrace False))
@@ -166,7 +166,7 @@ let combine : State.t -> Reg.t -> Reg.t -> unit =
   State.iter_adjacent state v ~f:(fun t ->
       State.add_edge state t u;
       State.decr_degree state t);
-  if State.mem_freeze_work_list state u && u.Reg.degree >= k u
+  if State.mem_freeze_work_list state u && u.Reg.reg.degree >= k u
   then (
     State.remove_freeze_work_list state u;
     State.add_spill_work_list state u)
@@ -175,7 +175,7 @@ let add_work_list : State.t -> Reg.t -> unit =
  fun state reg ->
   (* note: the test that `reg` is not precolored is redundant since precolored
      registers have an infinite degree. *)
-  if reg.Reg.degree < k reg && not (State.is_move_related state reg)
+  if reg.Reg.reg.degree < k reg && not (State.is_move_related state reg)
   then (
     State.remove_freeze_work_list state reg;
     State.add_simplify_work_list state reg)
@@ -197,13 +197,7 @@ let coalesce : State.t -> unit =
     if irc_debug then log ~indent:2 "case #1/4";
     State.add_coalesced_moves state m;
     add_work_list state u)
-  else if State.is_precolored state v
-          || (* We must not alias v->u if u uses the same register as a neighbor
-                of v. Simply checking whether u and v are adjacent is not
-                sufficient because the interference graph treats machine
-                registers aliased at multiple types (e.g. xmm0 at float32,
-                float, and vec128) as disjoint. *)
-          State.interferes_with_adj state v u
+  else if State.is_precolored state v || State.mem_adj_set state v u
   then (
     if irc_debug then log ~indent:2 "case #2/4";
     State.add_constrained_moves state m;
@@ -235,7 +229,7 @@ let freeze_moves : State.t -> Reg.t -> unit =
       in
       State.remove_active_moves state m;
       State.add_frozen_moves state m;
-      if v.Reg.degree < k v && State.is_empty_node_moves state v
+      if v.Reg.reg.degree < k v && State.is_empty_node_moves state v
       then (
         State.remove_freeze_work_list state v;
         State.add_simplify_work_list state v))
@@ -272,8 +266,8 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       if irc_debug
       then
         log ~indent:2 "register %a has spill cost %d" Printreg.reg reg
-          reg.Reg.spill_cost;
-      (float reg.Reg.spill_cost /. float reg.Reg.degree)
+          reg.Reg.reg.spill_cost;
+      (float reg.Reg.reg.spill_cost /. float reg.Reg.reg.degree)
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
          occurrences. *)
@@ -336,7 +330,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
           let alias = State.find_alias state hd in
           if State.is_precolored_or_colored state alias
           then (
-            match alias.Reg.irc_color with
+            match alias.Reg.reg.irc_color with
             | None -> assert false
             | Some color ->
               if irc_debug then log ~indent:3 "color %d is not available" color;
@@ -361,10 +355,10 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
         State.add_colored_nodes state n;
         let c = first_avail + reg_first_avail in
         if irc_debug then log ~indent:3 "coloring with %d" c;
-        n.Reg.irc_color <- Some c));
+        n.Reg.reg.irc_color <- Some c));
   State.iter_coalesced_nodes state ~f:(fun n ->
       let alias = State.find_alias state n in
-      n.Reg.irc_color <- alias.Reg.irc_color)
+      n.Reg.reg.irc_color <- alias.Reg.reg.irc_color)
 
 module Utils = struct
   include Regalloc_irc_utils
@@ -377,9 +371,10 @@ module Utils = struct
 
   let log_body_and_terminator = log_body_and_terminator
 
-  let is_spilled reg = Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Spilled
+  let is_spilled reg =
+    Reg.equal_irc_work_list reg.Reg.reg.irc_work_list Reg.Spilled
 
-  let set_spilled reg = reg.Reg.spill <- true
+  let set_spilled reg = reg.Reg.reg.spill <- true
 end
 
 (* Returns `true` if new temporaries have been introduced. *)
@@ -538,6 +533,6 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     state
     ~f:(fun () ->
       update_register_locations ();
-      Reg.Set.iter (fun reg -> reg.Reg.degree <- 0) (all_precolored_regs ()))
+      Reg.Set.iter (fun reg -> reg.Reg.reg.degree <- 0) (all_precolored_regs ()))
     cfg_with_infos;
   cfg_with_infos

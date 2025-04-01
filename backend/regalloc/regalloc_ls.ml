@@ -18,7 +18,7 @@ module Utils = struct
 
   let log_body_and_terminator = log_body_and_terminator
 
-  let is_spilled reg = reg.Reg.spill
+  let is_spilled reg = reg.Reg.reg.spill
 
   let set_spilled _reg = ()
 end
@@ -119,7 +119,7 @@ type spilling_reg =
 let allocate_stack_slot : Reg.t -> spilling_reg =
  fun reg ->
   log ~indent:3 "spilling register %a" Printreg.reg reg;
-  reg.spill <- true;
+  reg.reg.spill <- true;
   Spilling reg
 
 exception No_free_register
@@ -127,7 +127,7 @@ exception No_free_register
 let allocate_free_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in
-  match reg.loc, reg.spill with
+  match reg.reg.loc, reg.reg.spill with
   | Unknown, true -> allocate_stack_slot reg
   | Unknown, _ -> (
     let reg_class = Proc.register_class reg in
@@ -145,13 +145,13 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         if !num_still_available = 0 then raise No_free_register
       in
       List.iter intervals.active ~f:(fun (interval : Interval.t) ->
-          match interval.reg.loc with
+          match interval.reg.reg.loc with
           | Reg r ->
             if r - first_available < num_available_registers
             then set_not_available r
           | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
-        match itv.reg.loc with
+        match itv.reg.reg.loc with
         | Reg r ->
           if r - first_available < num_available_registers
              && available.(r - first_available)
@@ -166,8 +166,8 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         then Misc.fatal_error "No_free_register should have been raised earlier"
         else if available.(idx)
         then (
-          reg.loc <- Reg (first_available + idx);
-          reg.spill <- false;
+          reg.reg.loc <- Reg (first_available + idx);
+          reg.reg.spill <- false;
           intervals.active
             <- Interval.List.insert_sorted intervals.active interval;
           if ls_debug
@@ -194,8 +194,10 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
             (List.exists ~f:chk intervals.fixed
             || List.exists ~f:chk intervals.inactive)
     then (
-      (match hd.reg.loc with Reg _ -> () | Stack _ | Unknown -> assert false);
-      interval.reg.loc <- hd.reg.loc;
+      (match hd.reg.reg.loc with
+      | Reg _ -> ()
+      | Stack _ | Unknown -> assert false);
+      interval.reg.reg.loc <- hd.reg.reg.loc;
       intervals.active <- Interval.List.insert_sorted tl interval;
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
@@ -203,7 +205,9 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
 
 let reg_reinit () =
   List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
-      match reg.loc with Reg _ -> reg.loc <- Unknown | Unknown | Stack _ -> ())
+      match reg.reg.loc with
+      | Reg _ -> reg.reg.loc <- Unknown
+      | Unknown | Stack _ -> ())
 
 (* CR xclerc for xclerc: could probably be lower; the compiler distribution
    seems to be fine with 3 *)
@@ -274,7 +278,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilled_nodes ->
-    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
+    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.reg.spill <- true);
     rewrite state cfg_with_infos ~spilled_nodes ~block_temporaries:false;
     Cfg_with_infos.invalidate_liveness cfg_with_infos);
   main ~round:1 state cfg_with_infos;

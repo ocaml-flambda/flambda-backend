@@ -260,7 +260,7 @@ module Transfer = struct
               let res = instr.res.(i) in
               (* Note that the register classes must be the same, so we don't
                  need to check that. *)
-              if not (Reg.equal_location arg.loc res.loc)
+              if not (Reg.equal_location arg.reg.loc res.reg.loc)
               then move_to_same_location := false
             done;
             !move_to_same_location

@@ -68,7 +68,7 @@ type result =
 
 let is_stack_operand : Reg.t -> bool =
   fun reg ->
-    match reg.loc with
+    match reg.reg.loc with
     | Stack _ -> true
     | Unknown | Reg _ -> false
 

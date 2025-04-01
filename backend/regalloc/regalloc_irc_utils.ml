@@ -149,18 +149,18 @@ let update_register_locations : unit -> unit =
  fun () ->
   if irc_debug then log ~indent:0 "update_register_locations";
   List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
-      match reg.Reg.loc with
+      match reg.Reg.reg.loc with
       | Reg _ -> ()
       | Stack _ -> ()
       | Unknown -> (
-        match reg.Reg.irc_color with
+        match reg.Reg.reg.irc_color with
         | None ->
           (* because of rewrites, the register may no longer be present *)
           ()
         | Some color ->
           if irc_debug
           then log ~indent:1 "updating %a to %d" Printreg.reg reg color;
-          reg.Reg.loc <- Reg color))
+          reg.Reg.reg.loc <- Reg color))
 
 module Spilling_heuristics = struct
   type t =

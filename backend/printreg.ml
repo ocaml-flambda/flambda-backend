@@ -44,11 +44,11 @@ let reg ppf r =
     | Vec128 -> "X"
     | Valx2 -> "VV"
     | Float32 -> "S");
-  fprintf ppf "/%i" r.stamp;
+  fprintf ppf "/%i" r.reg.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
     ~unknown:(fun _ -> ())
-    ppf r.loc r.typ
+    ppf r.reg.loc r.typ
 
 let regs' ?(print_reg = reg) ppf v =
   let reg = print_reg in
