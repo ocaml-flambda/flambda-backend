@@ -136,14 +136,15 @@ let check_tailrec t _label block =
     ()
 
 let check_can_raise t label (block : Cfg.basic_block) =
-  (* only the last instruction can raise, and block's can_raise field agrees
-     with can_raise of instructions in the block. *)
+  (* Check that block's [can_raise] field agrees with terminator instruction.
+     Only the terminator can raise, other instructions in the block (basic
+     instructions) do not raise. *)
   let terminator_can_raise = Cfg.can_raise_terminator block.terminator.desc in
   if not (Bool.equal block.can_raise terminator_can_raise)
   then
     report t
       "Block %s: block.can_raise is %B which does not match can_raise of its \
-       instructions"
+       terminator"
       (Label.to_string label) block.can_raise;
   (* a block can have an exn successor only if the block can raise *)
   if Option.is_some block.exn && not terminator_can_raise
