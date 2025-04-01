@@ -373,13 +373,7 @@ void caml_init_gc (void)
     caml_norm_minor_heap_size(caml_params->init_minor_heap_wsz);
 
   caml_max_stack_wsize = caml_params->init_max_stack_wsz;
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-  // CR mslater: initial fiber stack size should be configurable, and have a smaller
-  // default than the main stack / thread stacks
-  caml_fiber_wsz = caml_get_init_stack_wsize(-1);
-#else
-  caml_fiber_wsz = (Stack_threshold * 2) / sizeof(value);
-#endif
+  caml_fiber_wsz = caml_get_init_stack_wsize(STACK_SIZE_FIBER);
   caml_percent_free = norm_pfree (caml_params->init_percent_free);
   caml_max_percent_free = norm_pmax (caml_params->init_max_percent_free);
   CAML_GC_MESSAGE(STACKS, "Initial stack limit: %"
@@ -445,6 +439,7 @@ static struct gc_tweak gc_tweaks[] = {
   { "pool_min_chunk_size", &caml_pool_min_chunk_bsz, 0 },
   { "main_stack_size", &caml_init_main_stack_wsz, 0 },
   { "thread_stack_size", &caml_init_thread_stack_wsz, 0 },
+  { "fiber_stack_size", &caml_init_fiber_stack_wsz, 0 },
   { "percent_sweep_per_mark", &caml_percent_sweep_per_mark, 0 },
   { "gc_pacing_policy", &caml_gc_pacing_policy, 0 },
   { "gc_overhead_adjustment", &caml_gc_overhead_adjustment, 0 },
