@@ -50,7 +50,8 @@ autoconf
 ./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
 make boot-compiler
 # hack: we copy over the boot compiler from the revision compiler
-cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt*" _build/_bootinstall/bin/
+cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt.opt" _build/_bootinstall/bin/
+cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt" _build/_bootinstall/bin/
 make install
 cp -R -f _install/ "$TARGETDIR/base-compiler-revision/_install/"
 cp -R -f _build/ "$TARGETDIR/base-compiler-revision/_build/"
