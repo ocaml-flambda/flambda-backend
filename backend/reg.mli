@@ -113,6 +113,13 @@ module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
 module Tbl: Hashtbl.S with type key = t
 
+module Stamp : sig
+  type t = reg
+  module Set: Stdlib.Set.S with type elt = t
+  module Map: Stdlib.Map.S with type key = t
+  module Tbl: Hashtbl.S with type key = t
+end
+
 val add_set_array: Set.t -> t array -> Set.t
 val diff_set_array: Set.t -> t array -> Set.t
 val inter_set_array: Set.t -> t array -> Set.t

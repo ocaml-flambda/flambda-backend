@@ -220,16 +220,35 @@ let num_registers () = !currstamp
 module RegOrder =
   struct
     type nonrec t = t
-    let compare r1 r2 = r1.reg.stamp - r2.reg.stamp
+    let compare r1 r2 =
+      let s = r1.reg.stamp - r2.reg.stamp in
+      if s <> 0 then s else Stdlib.compare r1.typ r2.typ
   end
 
 module Set = Set.Make(RegOrder)
 module Map = Map.Make(RegOrder)
 module Tbl = Hashtbl.Make (struct
     type nonrec t = t
-    let equal r1 r2 = r1.reg.stamp = r2.reg.stamp
+    let equal r1 r2 = r1.typ = r2.typ && r1.reg.stamp = r2.reg.stamp
     let hash r = r.reg.stamp
   end)
+
+module Stamp = struct
+  module StampOrder =
+  struct
+    type t = reg
+    let compare r1 r2 = r1.stamp - r2.stamp
+  end
+
+  type t = reg
+  module Set = Stdlib.Set.Make(StampOrder)
+  module Map = Stdlib.Map.Make(StampOrder)
+  module Tbl = Hashtbl.Make (struct
+      type t = reg
+      let equal r1 r2 = r1.stamp = r2.stamp
+      let hash r = r.stamp
+    end)
+end
 
 let add_set_array s v =
   match Array.length v with
