@@ -8,7 +8,7 @@ module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 module RegWorkList = ArraySet.Make (struct
   type t = Reg.t
 
-  let compare left right = Int.compare left.Reg.reg.stamp right.Reg.reg.stamp
+  let compare = Reg.compare
 
   let dummy = Reg.{ typ = Int; reg = { dummy.reg with stamp = -1 } }
 end)

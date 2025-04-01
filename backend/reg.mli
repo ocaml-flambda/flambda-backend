@@ -113,13 +113,6 @@ module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
 module Tbl: Hashtbl.S with type key = t
 
-module Stamp : sig
-  type t = reg
-  module Set: Stdlib.Set.S with type elt = t
-  module Map: Stdlib.Map.S with type key = t
-  module Tbl: Hashtbl.S with type key = t
-end
-
 val add_set_array: Set.t -> t array -> Set.t
 val diff_set_array: Set.t -> t array -> Set.t
 val inter_set_array: Set.t -> t array -> Set.t
@@ -132,5 +125,6 @@ val reinit_relocatable_regs: unit -> unit
 val all_relocatable_regs: unit -> t list
 
 val same_loc : t -> t -> bool
+
 val same : t -> t -> bool
 val compare : t -> t -> int
