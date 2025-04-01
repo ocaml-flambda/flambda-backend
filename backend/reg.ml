@@ -78,7 +78,7 @@ module Name = struct
     | Var var -> Var (V.create_local (prefix ^ "-" ^ V.name var))
 end
 
-type reg =
+type untyped =
   { name: Name.t;                         (* Name *)
     stamp: int;                           (* Unique stamp *)
     preassigned: bool;                    (* Pinned to a specific location *)
@@ -93,7 +93,7 @@ type reg =
 
 and t =
   { typ: Cmm.machtype_component;          (* Type of contents *)
-    reg : reg; }
+    reg : untyped; }
 
 and location =
     Unknown
@@ -106,30 +106,48 @@ and stack_location =
   | Outgoing of int
   | Domainstate of int
 
-let dummy_reg =
-  { name = Name.Anon; stamp = 0; preassigned = false; loc = Unknown;
-    irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-    spill = false; interf = []; degree = 0; spill_cost = 0;
-  }
-
-let dummy = { typ = Int; reg = dummy_reg }
-
 let currstamp = ref 0
+
+module Untyped = struct
+  type t = untyped
+
+  let dummy =
+    { name = Name.Anon; stamp = 0; preassigned = false; loc = Unknown;
+      irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
+      spill = false; interf = []; degree = 0; spill_cost = 0;
+    }
+
+  let print t =
+    let prefix =
+      if t.preassigned then "pin:"
+      else if t.spill then "spill:"
+      else ""
+    in
+    prefix ^ Name.to_string t.name
+
+  let create_gen ~name ~loc =
+    let preassigned =
+      match loc with
+      | Reg _ | Stack _ -> true
+      | Unknown -> false
+    in
+    let reg = { name; stamp = !currstamp; preassigned; loc;
+              irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
+              spill = false; interf = []; degree = 0;
+              spill_cost = 0; } in
+    incr currstamp;
+    reg
+
+  let create_at_location loc = create_gen ~name:Name.Anon ~loc
+end
+
+let dummy = { typ = Int; reg = Untyped.dummy }
+
 let all_relocatable_regs = ref ([] : t list)
 
-let create_gen ~name ~typ ~loc =
-  let preassigned =
-    match loc with
-    | Reg _ | Stack _ -> true
-    | Unknown -> false
-  in
-  let reg = { name; stamp = !currstamp; preassigned; loc;
-            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; degree = 0;
-            spill_cost = 0; } in
-  let t = { typ; reg } in
-  if not preassigned then all_relocatable_regs := t :: !all_relocatable_regs;
-  incr currstamp;
+let create_gen ~name ~loc ~typ =
+  let t = { typ; reg = Untyped.create_gen ~name ~loc } in
+  if not t.reg.preassigned then all_relocatable_regs := t :: !all_relocatable_regs;
   t
 
 let create typ = create_gen ~name:Name.Anon ~typ ~loc:Unknown
@@ -163,13 +181,7 @@ let createv_with_typs_and_id ~id rs = createv_gen ~name:(Name.Var id) ~typs:(Arr
 let typv rv =
   Array.map (fun r -> r.typ) rv
 
-let print t =
-  let prefix =
-    if t.reg.preassigned then "pin:"
-    else if t.reg.spill then "spill:"
-    else ""
-  in
-  prefix ^ Name.to_string t.reg.name
+let print t = Untyped.print t.reg
 
 let is_preassigned t = t.reg.preassigned
 

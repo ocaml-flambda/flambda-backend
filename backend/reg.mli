@@ -36,7 +36,19 @@ module Name : sig
   val to_string : t -> string
 end
 
-type reg =
+(* Every temp and machine register has a unique stamp.
+   However, distinct [t]s may point to the same machine [reg] at different [typ]s.
+
+   Comparisons and containers for [t] consider both [t.typ] and [t.reg.stamp], so
+   this overlap is not visible to the rest of the compiler, unless it directly
+   manipulates stamps.
+
+   The IRC allocator builds an interference graph based on stamps, which makes sure
+   that it remembers adjacency between machine registers aliased at multiple types.
+   Note that it is ok for preassigned machine registers to share regalloc state.
+*)
+
+type untyped =
   { name: Name.t;                         (* Name *)
     stamp: int;                           (* Unique stamp *)
     preassigned: bool;                    (* Pinned to a specific location *)
@@ -51,7 +63,7 @@ type reg =
 
 and t =
   { typ: Cmm.machtype_component;          (* Type of contents *)
-    reg : reg; }
+    reg: untyped; }                      (* Underlying temp or Machine.t *)
 
 and location =
     Unknown
@@ -100,14 +112,14 @@ val createv_with_id: id:Ident.t -> Cmm.machtype -> t array
 val createv_with_typs: t array -> t array
 val createv_with_typs_and_id: id:Ident.t -> t array -> t array
 
-val typv: t array -> Cmm.machtype
-val is_preassigned : t -> bool
-val is_unknown : t -> bool
 val print : t -> string
+val typv: t array -> Cmm.machtype
 
 (* Check [t]'s location *)
 val is_reg : t -> bool
 val is_stack :  t -> bool
+val is_unknown : t -> bool
+val is_preassigned : t -> bool
 
 module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
