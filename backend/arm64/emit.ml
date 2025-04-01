@@ -56,7 +56,6 @@ let label_prefix =
 let femit_label out lbl =
     femit_string out label_prefix; femit_string out (Label.to_string lbl)
 
-(* let emit_label lbl = femit_label (!output_channel) lbl *)
 (* Symbols *)
 
 (* CR sdolan: Support local symbol definitions & references on arm64 *)
@@ -65,7 +64,6 @@ let femit_symbol out s =
   if macosx then femit_string out "_";
   Emitaux.femit_symbol out s
 
-(* let emit_symbol s = femit_symbol !output_channel s *)
 
 
 (* Object types *)
@@ -87,7 +85,6 @@ let femit_reg out = function
   | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_reg"
 
 
-(* let emit_reg r = femit_reg !output_channel r *)
 
 
 
@@ -104,7 +101,6 @@ let femit_wreg out = function
   | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_wreg"
 
 
-(* let emit_wreg r = femit_wreg !output_channel r *)
 
 (* Layout of the stack frame *)
 
@@ -147,7 +143,6 @@ let femit_stack out r =
       Printf.fprintf out "[sp, #%a]" femit_int ofs
   | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
 
-(* let emit_stack r = femit_stack !output_channel r *)
 
 (* Output an addressing mode *)
 
@@ -157,7 +152,6 @@ let femit_symbol_offset out (s, ofs) =
   else if ofs < 0 then Printf.fprintf out "-%a" femit_int (-ofs)
   else ()
 
-(* let emit_symbol_offset s ofs = femit_symbol_offset !output_channel (s, ofs) *)
 
 
 let femit_addressing out (addr, r) =
@@ -168,7 +162,6 @@ let femit_addressing out (addr, r) =
       assert (not !Clflags.dlcode);  (* see selection.ml *)
       Printf.fprintf out "[%a, #:lo12:%a]" femit_reg r femit_symbol_offset (s, ofs)
 
-(* let emit_addressing addr r = femit_addressing !output_channel (addr, r) *)
 
 
 (* Record live pointers at call points *)
@@ -198,7 +191,6 @@ let record_frame_label live dbg =
 let frecord_frame out (live, dbg) =
   let lbl = record_frame_label live dbg in Printf.fprintf out "%a:" femit_label lbl
 
-(* let record_frame live dbg = frecord_frame !output_channel (live, dbg) *)
 
 (* Record calls to the GC -- we've moved them out of the way *)
 
