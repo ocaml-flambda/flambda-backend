@@ -1157,15 +1157,7 @@ Error: The kind of type "t" is value
 type 'a t : value mod global portable contended many aliased unyielding =
   { x : 'a @@ global portable contended many aliased } [@@unboxed]
 [%%expect {|
-Lines 1-2, characters 0-66:
-1 | type 'a t : value mod global portable contended many aliased unyielding =
-2 |   { x : 'a @@ global portable contended many aliased } [@@unboxed]
-Error: The kind of type "t" is value mod global aliased many contended portable
-         because it instantiates an unannotated type parameter of t,
-         chosen to have kind value mod global aliased many contended portable.
-       But the kind of type "t" must be a subkind of
-         immutable_data mod global aliased
-         because of the annotation on the declaration of the type t.
+type 'a t = { global_ x : 'a @@ many portable aliased contended; } [@@unboxed]
 |}]
 (* CR layouts v2.8: this could be accepted, if we infer ('a : value mod
    unyielding). We do not currently do this, because we finish inference of the
@@ -1191,7 +1183,7 @@ Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
          chosen to have kind value.
        But the kind of type "t" must be a subkind of
-         immutable_data mod global aliased
+         immutable_data mod global aliased yielding
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1264,10 +1256,13 @@ type 'a t : value mod global = { x : 'a @@ global }
 Line 1, characters 0-51:
 1 | type 'a t : value mod global = { x : 'a @@ global }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data with 'a
+Error: The kind of type "t" is immutable_data with 'a @@ unyielding
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
+
+       The first mode-crosses less than the second along:
+         locality: mod local ≰ mod global
 |}]
 
 (*****************************)
@@ -1443,7 +1438,7 @@ Line 1, characters 41-51:
                                              ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod aliased)"
-       The kind of <  > is value mod global many unyielding
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod aliased
          because of the annotation on the wildcard _ at line 1, characters 19-36.
@@ -1456,7 +1451,7 @@ Line 1, characters 42-52:
                                               ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod portable)"
-       The kind of <  > is value mod global many unyielding
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod portable
          because of the annotation on the wildcard _ at line 1, characters 19-37.
@@ -1469,7 +1464,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod contended)"
-       The kind of <  > is value mod global many unyielding
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod contended
          because of the annotation on the wildcard _ at line 1, characters 19-38.
@@ -1482,7 +1477,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod external_)"
-       The kind of <  > is value mod global many unyielding
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod external_
          because of the annotation on the wildcard _ at line 1, characters 19-38.

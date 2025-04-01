@@ -146,37 +146,31 @@ let value_descriptions ~loc env name
   | Val_prim p1 -> begin
      match vd2.val_kind with
      | Val_prim p2 -> begin
-         let ty1_global, _, _ = Ctype.instance_prim p1 vd1.val_type in
-         let ty2_global =
-           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
-           Option.iter
-             (fun m -> Mode.Locality.submode_exn m Mode.Locality.global)
-             mode2;
-           ty2
-         in
-         (try Ctype.moregeneral env true ty1_global ty2_global
-          with Ctype.Moregen err -> raise (Dont_match (Type err)));
-         let ty1_local, _, _ = Ctype.instance_prim p1 vd1.val_type in
-         let ty2_local =
-           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
-           Option.iter
-             (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
-             mode2;
-           ty2
-         in
-         (try Ctype.moregeneral env true ty1_local ty2_local
-          with Ctype.Moregen err -> raise (Dont_match (Type err)));
+         let locality = [ Mode.Locality.global; Mode.Locality.local ] in
+         let yielding = [ Mode.Yielding.unyielding; Mode.Yielding.yielding ] in
+         List.iter (fun loc ->
+           List.iter (fun yield ->
+             let ty1, _, _, _ = Ctype.instance_prim p1 vd1.val_type in
+             let ty2, mode_l2, mode_y2, _ = Ctype.instance_prim p2 vd2.val_type in
+             Option.iter (Mode.Locality.equate_exn loc) mode_l2;
+             Option.iter (Mode.Yielding.equate_exn yield) mode_y2;
+             try 
+               Ctype.moregeneral env true ty1 ty2
+             with Ctype.Moregen err -> 
+               raise (Dont_match (Type err))
+           ) yielding
+         ) locality;
          match primitive_descriptions p1 p2 with
          | None -> Tcoerce_none
          | Some err -> raise (Dont_match (Primitive_mismatch err))
        end
      | _ ->
-        let ty1, mode1, sort1 = Ctype.instance_prim p1 vd1.val_type in
+        let ty1, mode_l1, _, sort1 = Ctype.instance_prim p1 vd1.val_type in
         (try Ctype.moregeneral env true ty1 vd2.val_type
          with Ctype.Moregen err -> raise (Dont_match (Type err)));
         let pc =
           {pc_desc = p1; pc_type = vd2.Types.val_type;
-           pc_poly_mode = Option.map Mode.Locality.disallow_right mode1;
+           pc_poly_mode = Option.map Mode.Locality.disallow_right mode_l1;
            pc_poly_sort=sort1;
            pc_env = env; pc_loc = vd1.Types.val_loc; } in
         Tcoerce_primitive pc

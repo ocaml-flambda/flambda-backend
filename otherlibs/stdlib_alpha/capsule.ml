@@ -86,7 +86,7 @@ module Password : sig
     type 'k t : value mod many portable contended
 
     (* Can break the soundness of the API. *)
-    val unsafe_mk : unit -> 'k t @ local @@ portable
+    val unsafe_mk : unit -> 'k t @ local unyielding @@ portable
     val id : 'k t @ local -> 'k Id.t @@ portable
   end
 
@@ -131,7 +131,7 @@ end = struct
          | already_set_id -> already_set_id)
       | set_id -> set_id
 
-    let unsafe_mk () : _ @@ local = A.make Id.uninitialized
+    let unsafe_mk () : _ @@ local unyielding = A.make Id.uninitialized
   end
 
   let[@inline] shared t = t
@@ -405,13 +405,13 @@ module Key : sig
 
   val with_password_shared :
     'k t
-    -> ('k Password.Shared.t @ local -> 'a) @ local
+    -> ('k Password.Shared.t @ local unyielding -> 'a) @ local
     -> 'a
     @@ portable
 
   val with_password_shared_local :
     'k t
-    -> ('k Password.Shared.t @ local -> 'a @ local) @ local
+    -> ('k Password.Shared.t @ local unyielding -> 'a @ local) @ local
     -> 'a @ local
     @@ portable
 
@@ -680,7 +680,7 @@ module Rwlock = struct
   let[@inline] with_read_lock :
     type k.
     k t
-    -> (k Password.Shared.t @ local -> 'a) @ local
+    -> (k Password.Shared.t @ local unyielding -> 'a) @ local
     -> 'a
     @@ portable
     = fun t f ->
