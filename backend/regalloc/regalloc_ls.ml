@@ -43,7 +43,8 @@ let rewrite :
 (* Equivalent to [build_intervals] in "backend/interval.ml". *)
 let build_intervals : State.t -> Cfg_with_infos.t -> unit =
  fun state cfg_with_infos ->
-  log ~indent:1 "build_intervals";
+  indent ();
+  log "build_intervals";
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let past_ranges : Interval.t Reg.Tbl.t = Reg.Tbl.create 123 in
@@ -108,9 +109,12 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
   if ls_debug && Lazy.force verbose
   then
     iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
-        log ~indent:2 "(block %a)" Label.format block.start;
-        log_body_and_terminator ~indent:2 block.body block.terminator liveness);
-  State.update_intervals state past_ranges
+        indent ();
+        log "(block %a)" Label.format block.start;
+        log_body_and_terminator block.body block.terminator liveness;
+        dedent ());
+  State.update_intervals state past_ranges;
+  dedent ()
 
 type spilling_reg =
   | Spilling of Reg.t
@@ -118,8 +122,10 @@ type spilling_reg =
 
 let allocate_stack_slot : Reg.t -> spilling_reg =
  fun reg ->
-  log ~indent:3 "spilling register %a" Printreg.reg reg;
+  indent ();
+  log "spilling register %a" Printreg.reg reg;
   reg.spill <- true;
+  dedent ();
   Spilling reg
 
 exception No_free_register
@@ -171,7 +177,10 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           intervals.active
             <- Interval.List.insert_sorted intervals.active interval;
           if ls_debug
-          then log ~indent:3 "assigning %d to register %a" idx Printreg.reg reg;
+          then (
+            indent ();
+            log "assigning %d to register %a" idx Printreg.reg reg;
+            dedent ());
           Not_spilling)
         else assign (succ idx)
       in
@@ -215,21 +224,26 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
-  if ls_debug then log ~indent:0 "main, round #%d" round;
+  if ls_debug
+  then (
+    log "main, round #%d" round;
+    indent ());
   reg_reinit ();
   build_intervals state cfg_with_infos;
   State.invariant_intervals state cfg_with_infos;
   State.invariant_active state;
   if ls_debug then snapshot_for_fatal := Some (State.for_fatal state);
-  if ls_debug then log ~indent:1 "iterating over intervals";
+  if ls_debug
+  then (
+    log "iterating over intervals";
+    indent ());
   let spilled =
     State.fold_intervals state ~init:Reg.Set.empty
       ~f:(fun acc (interval : Interval.t) ->
         (* Equivalent to [walk_interval] in "backend/linscan.ml".*)
         let pos = interval.begin_ land lnot 1 in
         if ls_debug
-        then
-          log_interval ~indent:2 ~kind:(Printf.sprintf "<pos=%d>" pos) interval;
+        then log_interval ~kind:(Printf.sprintf "<pos=%d>" pos) interval;
         State.release_expired_intervals state ~pos;
         let spilled =
           match allocate_free_register state interval with
@@ -242,6 +256,10 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
         | Not_spilling -> acc
         | Spilling reg -> Reg.Set.add reg acc)
   in
+  if ls_debug
+  then (
+    dedent ();
+    dedent ());
   if not (Reg.Set.is_empty spilled)
   then (
     rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled)
@@ -284,11 +302,12 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     state
     ~f:(fun () ->
       if ls_debug && Lazy.force verbose
-      then
+      then (
         let liveness = Cfg_with_infos.liveness cfg_with_infos in
+        indent ();
         iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
-            log ~indent:2 "(block %a)" Label.format block.start;
-            log_body_and_terminator ~indent:2 block.body block.terminator
-              liveness))
+            log "(block %a)" Label.format block.start;
+            log_body_and_terminator block.body block.terminator liveness));
+      dedent ())
     cfg_with_infos;
   cfg_with_infos
