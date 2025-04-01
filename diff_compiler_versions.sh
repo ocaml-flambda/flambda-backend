@@ -50,6 +50,7 @@ autoconf
 ./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
 make boot-compiler
 # hack: we copy over the boot compiler from the revision compiler
+# note: this can sometimes lead to a flaky error where dune tries to rebuild the compiler; in those cases simply run the script again
 cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt.opt" _build/_bootinstall/bin/
 cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt" _build/_bootinstall/bin/
 make install
@@ -57,10 +58,3 @@ cp -R -f _install/ "$TARGETDIR/base-compiler-revision/_install/"
 cp -R -f _build/ "$TARGETDIR/base-compiler-revision/_build/"
 
 cd $CURDIR
-
-# finally, we diff the resulting compilers
-# ASM_DIFF_DIR=$(mktemp -d)
-# objdump -dr $TARGETDIR/base-compiler-original/_install/bin/ocamlopt.opt > $ASM_DIFF_DIR/base-original.s
-# objdump -dr $TARGETDIR/base-compiler-revision/_install/bin/ocamlopt.opt > $ASM_DIFF_DIR/base-revised.s
-
-# diff $ASM_DIFF_DIR/base-original.s $ASM_DIFF_DIR/base-revised.s
