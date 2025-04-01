@@ -1,5 +1,4 @@
 (* TEST
- skip;
  readonly_files = "main.c";
  arguments = "-DINT_INT -DFUN=catch_exit main.c";
  asmgen;
