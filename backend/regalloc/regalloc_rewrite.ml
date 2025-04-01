@@ -17,11 +17,13 @@ module type Utils = sig
 
   val invariants : bool Lazy.t
 
-  val log :
-    indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+  val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+
+  val indent : unit -> unit
+
+  val dedent : unit -> unit
 
   val log_body_and_terminator :
-    indent:int ->
     Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
@@ -133,7 +135,10 @@ let rewrite_gen :
   let should_coalesce_temp_spills_and_reloads =
     Lazy.force Regalloc_utils.block_temporaries && block_temporaries
   in
-  if Utils.debug then Utils.log ~indent:1 "rewrite";
+  if Utils.debug
+  then (
+    Utils.log "rewrite";
+    Utils.indent ());
   let block_insertion = ref false in
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
@@ -148,9 +153,7 @@ let rewrite_gen :
         in
         spilled.Reg.loc <- Reg.(Stack (Local slot));
         if Utils.debug
-        then
-          Utils.log ~indent:2 "spilling %a to %a" Printreg.reg reg Printreg.reg
-            spilled;
+        then Utils.log "spilling %a to %a" Printreg.reg reg Printreg.reg spilled;
         Reg.Tbl.replace spilled_map reg spilled;
         spilled_map)
   in
@@ -163,7 +166,7 @@ let rewrite_gen :
     new_inst_temporaries := res :: !new_inst_temporaries;
     if Utils.debug
     then
-      Utils.log ~indent:2 "adding temporary %a (to %s %a)" Printreg.reg res
+      Utils.log "adding temporary %a (to %s %a)" Printreg.reg res
         (Move.to_string move) Printreg.reg reg;
     res
   in
@@ -235,9 +238,10 @@ let rewrite_gen :
   Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun label block ->
       if Utils.debug
       then (
-        Utils.log ~indent:2 "body of #%a, before:" Label.format label;
-        Utils.log_body_and_terminator ~indent:3 block.body block.terminator
-          liveness);
+        Utils.log "body of #%a, before:" Label.format label;
+        Utils.indent ();
+        Utils.log_body_and_terminator block.body block.terminator liveness;
+        Utils.dedent ());
       let block_rewritten = ref false in
       DLL.iter_cell block.body ~f:(fun cell ->
           let instr = DLL.value cell in
@@ -302,10 +306,12 @@ let rewrite_gen :
           ~new_block_temporaries;
       if Utils.debug
       then (
-        Utils.log ~indent:2 "and after:";
-        Utils.log_body_and_terminator ~indent:3 block.body block.terminator
-          liveness;
-        Utils.log ~indent:2 "end"));
+        Utils.log "and after:";
+        Utils.indent ();
+        Utils.log_body_and_terminator block.body block.terminator liveness;
+        Utils.dedent ();
+        Utils.log "end"));
+  if Utils.debug then Utils.dedent ();
   !new_inst_temporaries, !new_block_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
@@ -324,13 +330,11 @@ let prelude :
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   on_fatal ~f:on_fatal_callback;
   if Utils.debug
-  then
-    Utils.log ~indent:0 "run (%S)"
-      (Cfg_with_layout.cfg cfg_with_layout).fun_name;
+  then Utils.log "run (%S)" (Cfg_with_layout.cfg cfg_with_layout).fun_name;
   Reg.reinit ();
   if Utils.debug && Lazy.force Utils.invariants
   then (
-    Utils.log ~indent:0 "precondition";
+    Utils.log "precondition";
     Regalloc_invariants.precondition cfg_with_layout);
   let cfg_infos = collect_cfg_infos cfg_with_layout in
   let num_temporaries =
@@ -339,8 +343,7 @@ let prelude :
        the same results without computing the union. *)
     Reg.Set.cardinal cfg_infos.arg
   in
-  if Utils.debug
-  then Utils.log ~indent:0 "#temporaries(before):%d" num_temporaries;
+  if Utils.debug then Utils.log "#temporaries(before):%d" num_temporaries;
   if num_temporaries >= threshold_split_live_ranges
      || Flambda2_ui.Flambda_features.classic_mode ()
   then cfg_infos, Regalloc_stack_slots.make ()
@@ -374,14 +377,16 @@ let postlude :
   Regalloc_stack_slots.update_cfg_with_layout (State.stack_slots state)
     cfg_with_layout;
   if Utils.debug
-  then
+  then (
+    Utils.indent ();
     Array.iteri (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
       ~f:(fun stack_class num_stack_slots ->
-        Utils.log ~indent:1 "stack_slots[%d]=%d" stack_class num_stack_slots);
+        Utils.log "stack_slots[%d]=%d" stack_class num_stack_slots);
+    Utils.dedent ());
   remove_prologue_if_not_required cfg_with_layout;
   update_live_fields cfg_with_layout (Cfg_with_infos.liveness cfg_with_infos);
   f ();
   if Utils.debug && Lazy.force Utils.invariants
   then (
-    Utils.log ~indent:0 "postcondition";
+    Utils.log "postcondition";
     Regalloc_invariants.postcondition_liveness cfg_with_infos)

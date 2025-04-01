@@ -18,56 +18,65 @@ let split_invariants : bool Lazy.t = bool_of_param "SPLIT_INVARIANTS"
 
 let log_function = lazy (make_log_function ~label:"split")
 
-let log :
-    type a.
-    indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
- fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
+let indent () = (Lazy.force log_function).indent ()
 
-let log_dominance_frontier : indent:int -> Cfg.t -> Cfg_dominators.t -> unit =
- fun ~indent cfg doms ->
-  log ~indent "dominance frontier:";
+let dedent () = (Lazy.force log_function).dedent ()
+
+let log : type a. ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
+ fun ?no_eol fmt -> (Lazy.force log_function).log ?no_eol fmt
+
+let log_dominance_frontier : Cfg.t -> Cfg_dominators.t -> unit =
+ fun cfg doms ->
+  log "dominance frontier:";
+  indent ();
   Cfg.iter_blocks cfg ~f:(fun label _block ->
       let frontier = Cfg_dominators.find_dominance_frontier doms label in
-      log ~indent:(indent + 1) "block %a" Label.format label;
+      log "block %a" Label.format label;
       Label.Set.iter
-        (fun frontier_label ->
-          log ~indent:(indent + 1) "block %a" Label.format frontier_label)
-        frontier)
+        (fun frontier_label -> log "block %a" Label.format frontier_label)
+        frontier);
+  dedent ()
 
-let log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit =
- fun ~indent dom_tree ->
-  let rec ldt ~indent tree =
-    log ~indent ". %a" Label.format tree.Cfg_dominators.label;
-    List.iter tree.Cfg_dominators.children ~f:(fun child ->
-        ldt ~indent:(succ indent) child)
+let log_dominator_tree : Cfg_dominators.dominator_tree -> unit =
+ fun dom_tree ->
+  let rec ldt tree =
+    log ". %a" Label.format tree.Cfg_dominators.label;
+    indent ();
+    List.iter tree.Cfg_dominators.children ~f:(fun child -> ldt child);
+    dedent ()
   in
-  ldt ~indent dom_tree
+  ldt dom_tree
 
-let log_dominator_forest :
-    indent:int -> Cfg_dominators.dominator_tree list -> unit =
- fun ~indent dom_forest ->
-  List.iter dom_forest ~f:(fun dom_tree -> log_dominator_tree ~indent dom_tree)
+let log_dominator_forest : Cfg_dominators.dominator_tree list -> unit =
+ fun dom_forest ->
+  List.iter dom_forest ~f:(fun dom_tree -> log_dominator_tree dom_tree)
 
-let log_substitution : indent:int -> Substitution.t -> unit =
- fun ~indent subst ->
+let log_substitution : Substitution.t -> unit =
+ fun subst ->
   Reg.Tbl.iter
     (fun old_reg new_reg ->
-      log ~indent "%a -> %a" Printreg.reg old_reg Printreg.reg new_reg)
+      log "%a -> %a" Printreg.reg old_reg Printreg.reg new_reg)
     subst
 
-let log_substitutions : indent:int -> Substitution.map -> unit =
- fun ~indent substs ->
-  log ~indent "substitutions:";
+let log_substitutions : Substitution.map -> unit =
+ fun substs ->
+  log "substitutions:";
   Label.Tbl.iter
     (fun label (subst : Substitution.t) ->
-      log ~indent:(indent + 1) "subst for block %a" Label.format label;
-      log_substitution ~indent:(indent + 2) subst)
+      indent ();
+      log "subst for block %a" Label.format label;
+      indent ();
+      log_substitution subst;
+      dedent ();
+      dedent ())
     substs
 
-let log_stack_subst : indent:int -> Substitution.t -> unit =
- fun ~indent stack_subst ->
-  log ~indent "stack substitution:";
-  log_substitution ~indent:(indent + 1) stack_subst
+let log_stack_subst : Substitution.t -> unit =
+ fun stack_subst ->
+  log "stack substitution:";
+  indent ();
+  log_substitution stack_subst;
+  dedent ()
 
 let filter_unknown : Reg.Set.t -> Reg.Set.t =
  fun regset -> Reg.Set.filter Reg.is_unknown regset
