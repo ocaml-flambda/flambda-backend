@@ -1308,7 +1308,8 @@ let emit_instr i =
             cfi_remember_state ();
             cfi_def_cfa_register ~reg:29;
             let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-            emit_printf "	ldr	%a, [%a, %a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+            (* CR sspies: This code seems to be never triggered. It contained a wrong assembly instruction. *)
+            DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
               emit_printf "	mov	sp, %a\n" femit_reg reg_tmp1
           end;
           emit_printf "	bl	%a\n" femit_symbol func;
@@ -1514,7 +1515,7 @@ let emit_instr i =
     | Lop(Dls_get) ->
       if Config.runtime5 then
         let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
-        emit_printf "	ldr	%a, [%a, %a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
+        DSL.ins I.LDR [| DSL.emit_reg i.res.(0); DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |]
       else Misc.fatal_error "Dls is not supported in runtime4."
     | Lop (Csel tst) ->
       let len = Array.length i.arg in
