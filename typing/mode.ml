@@ -2013,7 +2013,7 @@ module Value_with (Areality : Areality) = struct
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-  type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
+  type axis_packed = P : ('m, 'a, 'l * 'r) axis -> axis_packed
 
   let print_axis (type m a d) ppf (axis : (m, a, d) axis) =
     match axis with
@@ -2211,6 +2211,13 @@ module Value_with (Areality : Areality) = struct
       let monadic = Monadic.min in
       merge { comonadic; monadic }
 
+    let proj : type m a l r. (m, a, l * r) axis -> t -> a =
+     fun ax m ->
+      let { comonadic; monadic } = split m in
+      match ax with
+      | Monadic ax -> Axis.proj ax monadic
+      | Comonadic ax -> Axis.proj ax comonadic
+
     let print_axis : type m a d. (m, a, d) axis -> _ -> a -> unit =
      fun ax ppf a ->
       let obj = proj_obj ax in
@@ -2284,7 +2291,7 @@ module Value_with (Areality : Areality) = struct
     let monadic, b1 = Monadic.newvar_below monadic in
     { monadic; comonadic }, b0 || b1
 
-  type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
+  type error = Error : ('m, 'a, 'l * 'r) axis * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
@@ -2512,8 +2519,15 @@ module Const = struct
     { areality; linearity; portability; uniqueness; contention; yielding }
 
   module Axis = struct
-    let alloc_as_value : type d. d Alloc.axis_packed -> d Value.axis_packed =
-      function
+    let alloc_as_value : Alloc.axis_packed -> Value.axis_packed = function
+      | P (Comonadic Areality) -> P (Comonadic Areality)
+      | P (Comonadic Linearity) -> P (Comonadic Linearity)
+      | P (Comonadic Portability) -> P (Comonadic Portability)
+      | P (Comonadic Yielding) -> P (Comonadic Yielding)
+      | P (Monadic Uniqueness) -> P (Monadic Uniqueness)
+      | P (Monadic Contention) -> P (Monadic Contention)
+
+    let value_as_alloc : Value.axis_packed -> Alloc.axis_packed = function
       | P (Comonadic Areality) -> P (Comonadic Areality)
       | P (Comonadic Linearity) -> P (Comonadic Linearity)
       | P (Comonadic Portability) -> P (Comonadic Portability)
