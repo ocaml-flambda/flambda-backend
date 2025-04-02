@@ -58,9 +58,10 @@ autoconf
 ./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
 make boot-compiler
 # hack: we copy over the boot compiler from the revision compiler
-# note: this can sometimes lead to a flaky error where dune tries to rebuild the compiler; in those cases simply run the script again
 cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt.opt" _build/_bootinstall/bin/
 cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt" _build/_bootinstall/bin/
+# we update the make file to avoid rebuilding the boot compiler
+sed -i.bak "s/runtime-stdlib: boot-compiler/runtime-stdlib: _build\/_bootinstall/g" Makefile.common-jst && rm Makefile.common-jst.bak
 make install
 cp -R -f _install/ "$TARGETDIR/base-compiler-revision/_install/"
 cp -R -f _build/ "$TARGETDIR/base-compiler-revision/_build/"
