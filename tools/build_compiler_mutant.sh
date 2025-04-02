@@ -52,6 +52,8 @@ then
     autoconf
     ./configure --enable-ocamltest --enable-warn-error --prefix="$TARGETDIR/revision/_install"
     make boot-compiler
+    # ensure the boot compiler is not rebuilt to avoid dune caching issues
+    sed -i.bak "s/runtime-stdlib: boot-compiler/runtime-stdlib: _build\/_bootinstall/g" Makefile.common-jst && rm Makefile.common-jst.bak
     cp -R -L -f "$TARGETDIR/original/_bootinstall/" _build/_bootinstall/
     make install
     echo $BASE > "$TARGETDIR/revision/commit.txt"
