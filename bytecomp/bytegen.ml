@@ -159,6 +159,7 @@ let preserve_tailcall_for_prim = function
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
   | Pmake_unboxed_product _ | Punboxed_product_field _
   | Parray_element_size_in_bytes _
+  | Pidx_field _ | Pidx_mixed_field _ | Pidx_array _ | Pidx_deepen _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
@@ -201,8 +202,9 @@ let preserve_tailcall_for_prim = function
   | Patomic_sub | Patomic_land | Patomic_lor
   | Patomic_lxor | Patomic_load _ | Patomic_set _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _ ->
-      false
+  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _
+  | Pget_idx _ | Pset_idx _ ->
+    false
 
 (* Add a Kpop N instruction in front of a continuation *)
 
@@ -420,6 +422,12 @@ let comp_primitive stack_info p sz args =
   | Punboxed_product_field (n, _layouts) -> Kgetfield n
   | Parray_element_size_in_bytes _array_kind ->
       Kconst (Const_base (Const_int (Sys.word_size / 8)))
+  | Pidx_field pos ->
+      Kconst (Const_block (0, [Const_base (Const_int pos)]))
+  | Pidx_mixed_field (_, path) ->
+      let path_consts =
+        List.map (fun x -> Const_base (Const_int x)) path in
+      Kconst (Const_block (0, path_consts))
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
@@ -729,6 +737,10 @@ let comp_primitive stack_info p sz args =
   | Pmakearray_dynamic(_, _, Uninitialized) ->
     Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
       translated to Pmakearray_dynamic Initialized earlier on"
+  | Pget_idx _ ->
+    Kccall("caml_unsafe_get_idx_bytecode", 2)
+  | Pset_idx _ ->
+    Kccall("caml_unsafe_set_idx_bytecode", 3)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
@@ -743,6 +755,8 @@ let comp_primitive stack_info p sz args =
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
+  | Pidx_array _
+  | Pidx_deepen _
   | Pmakelazyblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
@@ -1155,6 +1169,44 @@ and comp_expr stack_info env exp sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
+  | Lprim(Pidx_array (_, ik, _, path), [index], loc) ->
+      (* Make a block containing [ to_int index ] ++ path.
+           1. Push path onto the stack in reverse order
+           2. Load index into acc
+           3. Convert acc to int
+           4. Make block
+         Also see Note [Representation of block indices] in
+         [lambda/translcore.ml].
+      *)
+      let cont = add_pseudo_event loc !compunit_name cont in
+      let push_path =
+        List.fold_left (fun instrs pos ->
+          Kconst (Const_base (Const_int pos)) :: Kpush :: instrs)
+          []
+          path
+      in
+      let convert_index = match ik with
+        | Ptagged_int_index -> []
+        | Punboxed_int_index Unboxed_int64 ->
+          [Kccall ("caml_int64_to_int", 1)]
+        | Punboxed_int_index Unboxed_int32 ->
+          [Kccall ("caml_int32_to_int", 1)]
+        | Punboxed_int_index Unboxed_nativeint ->
+          [Kccall ("caml_nativeint_to_int", 1)]
+      in
+      let path_len = List.length path in
+      push_path
+        @ (comp_expr stack_info env index (sz + path_len)
+            (convert_index @ Kmakeblock (path_len + 1, 0) :: cont))
+  | Lprim(Pidx_deepen (_, path), [path_prefix], loc) ->
+    (* In bytecode, an index is a block storing a series of positions; deepening
+       an index "appends" to the end (by making a new block) *)
+    let path_consts =
+      List.map (fun x -> Const_base (Const_int x)) path in
+    let path_suffix = Lconst (Const_block (0, path_consts)) in
+    let cont = add_pseudo_event loc !compunit_name cont in
+    comp_args stack_info env [path_prefix; path_suffix] sz
+      (Kccall ("caml_deepen_idx_bytecode", 2) :: cont)
   | Lprim(p, args, _) ->
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
