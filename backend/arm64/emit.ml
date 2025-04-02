@@ -218,6 +218,7 @@ module DSL : sig
 
   val check_reg : Cmm.machtype_component -> Reg.t -> unit
   val emit_reg : Reg.t -> Arm64_ast.Operand.t
+  val emit_reg_fixed_x : int -> Arm64_ast.Operand.t
   val emit_reg_d : Reg.t -> Arm64_ast.Operand.t
   val emit_reg_s : Reg.t -> Arm64_ast.Operand.t
   (* emit a specific ARM register *)
@@ -225,6 +226,8 @@ module DSL : sig
   val emit_reg_w : Reg.t -> Arm64_ast.Operand.t
   val emit_reg_v2d : Reg.t -> Arm64_ast.Operand.t
   val imm : int -> Arm64_ast.Operand.t
+  val sp: Arm64_ast.Operand.t
+  val xzr: Arm64_ast.Operand.t
   val emit_addressing : addressing_mode -> Reg.t -> Arm64_ast.Operand.t
   (* Output a stack reference *)
   val emit_stack : Reg.t -> Arm64_ast.Operand.t
@@ -274,6 +277,8 @@ end [@warning "-32"]  = struct
   let emit_reg_s reg = reg_s (reg_index reg)
 
   let emit_reg_fixed_s i = reg_s i
+
+  let emit_reg_fixed_x i = reg_x i
 
   let emit_reg_d reg = reg_d (reg_index reg)
 
@@ -490,7 +495,7 @@ let emit_stack_realloc () =
     emit_printf "%a:\n" femit_label sc_label;
     (* Pass the desired frame size on the stack, since all of the
        argument-passing registers may be in use. *)
-    emit_printf "    mov %a, #%a\n" femit_reg reg_tmp1 femit_int sc_max_frame_size_in_bytes;
+    DSL.ins I.MOV [| DSL.emit_reg reg_tmp1; DSL.imm sc_max_frame_size_in_bytes|];
     emit_printf "    stp %a, x30, [sp, #-16]!\n" femit_reg reg_tmp1;
     emit_printf "    bl %a\n" femit_symbol "caml_call_realloc_stack";
     emit_printf "    ldp %a, x30, [sp], #16\n" femit_reg reg_tmp1;
@@ -547,7 +552,7 @@ let emit_intconst dst n =
     if List.length dz <= List.length dn then begin
       match dz with
       | [] ->
-          emit_printf "	mov	%a, xzr\n" femit_reg dst
+          DSL.ins I.MOV [| DSL.emit_reg dst; DSL.xzr |]
       | (f, p) :: l ->
           emit_printf "	movz	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint f femit_int p;
           List.iter (emit_movk dst) l
@@ -1226,7 +1231,7 @@ let emit_instr i =
         if not (Reg.same_loc src dst) then begin
           match (src, dst) with
           | {loc = Reg _}, {loc = Reg _} ->
-              emit_printf "	mov	%a, %a\n" femit_wreg dst femit_wreg src
+              DSL.ins I.MOV [| DSL.emit_reg_w dst; DSL.emit_reg_w src |]
           | {loc = Reg _}, {loc = Stack _} ->
               DSL.ins I.STR [| DSL.emit_reg_w src; DSL.emit_stack dst |]
           | {loc = Stack _}, {loc = Reg _} ->
@@ -1287,7 +1292,7 @@ let emit_instr i =
           output_epilogue (fun () -> emit_printf "	b	%a\n" femit_symbol func.sym_name)
     | Lcall_op(Lextcall {func; alloc; stack_ofs}) ->
         if Config.runtime5 && stack_ofs > 0 then begin
-          emit_printf "	mov	%a, sp\n" femit_reg reg_stack_arg_begin;
+          DSL.ins I.MOV [| DSL.emit_reg reg_stack_arg_begin; DSL.sp |];
           emit_printf "	add	%a, sp, #%a\n" femit_reg reg_stack_arg_end femit_int (Misc.align stack_ofs 16);
           emit_load_symbol_addr reg_x8 func;
           emit_printf "	bl	%a\n" femit_symbol "caml_c_call_stack_args";
@@ -1301,17 +1306,17 @@ let emit_instr i =
              NB: no need to store previous x29 because OCaml frames don't
              maintain frame pointer *)
           if Config.runtime5 then begin
-            emit_printf "	mov	x29, sp\n";
+            DSL.ins I.MOV [| DSL.emit_reg_fixed_x 29; DSL.sp |];
             cfi_remember_state ();
             cfi_def_cfa_register ~reg:29;
             let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
             (* CR sspies: This code seems to be never triggered. It contained a wrong assembly instruction. *)
             DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
-              emit_printf "	mov	sp, %a\n" femit_reg reg_tmp1
+              DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_tmp1 |]
           end;
           emit_printf "	bl	%a\n" femit_symbol func;
           if Config.runtime5 then begin
-            emit_printf "	mov	sp, x29\n";
+            DSL.ins I.MOV [| DSL.sp; DSL.emit_reg_fixed_x 29 |]
           end;
           cfi_restore_state ()
         end
@@ -1622,7 +1627,7 @@ let emit_instr i =
         stack_offset := !stack_offset + 16;
         emit_printf "	stp	%a, %a, [sp, -16]!\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
         cfi_adjust_cfa_offset 16;
-        emit_printf "	mov	%a, sp\n" femit_reg reg_trap_ptr
+        DSL.ins I.MOV [| DSL.emit_reg reg_trap_ptr; DSL.sp |]
     | Lpoptrap ->
         emit_printf "	ldr	%a, [sp], 16\n" femit_reg reg_trap_ptr;
         cfi_adjust_cfa_offset (-16);
@@ -1639,7 +1644,7 @@ let emit_instr i =
             emit_printf "	bl	%a\n" femit_symbol "caml_raise_exn";
           emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
         | Lambda.Raise_notrace ->
-          emit_printf "	mov	sp, %a\n" femit_reg reg_trap_ptr;
+          DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_trap_ptr |];
           emit_printf "	ldp	%a, %a, [sp], 16\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
           emit_printf "	br	%a\n" femit_reg reg_tmp1
       end

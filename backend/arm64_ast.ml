@@ -631,6 +631,8 @@ module DSL = struct
 
   let sp = Operand.Reg (Reg.stack_pointer_x)
 
+  let xzr = Operand.Reg (Reg.zero_register_x)
+
   let mem_sp_offset ofs = Operand.Mem (Operand.Addressing_mode.Offset (Reg.stack_pointer_x, ofs))
 
   let imm n = Operand.Imm n
