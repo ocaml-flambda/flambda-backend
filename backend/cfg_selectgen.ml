@@ -743,9 +743,6 @@ class virtual selector_generic =
       Sub_cfg.set_terminator current_sub_cfg op rs rd dbg;
       rd
 
-    val mutable tailrec_label : Label.t = Label.none
-    (* set in emit_fundecl *)
-
     method insert_move env sub_cfg src dst =
       if src.Reg.stamp <> dst.Reg.stamp
       then self#insert env sub_cfg (Cfg.Op Move) [| src |] [| dst |]
@@ -1624,7 +1621,7 @@ class virtual selector_generic =
           if String.equal func.sym_name !Select_utils.current_function_name
              && Select_utils.trap_stack_is_empty env
           then (
-            let call = Cfg.Tailcall_self { destination = tailrec_label } in
+            let call = Cfg.Tailcall_self { destination = env.tailrec_label } in
             let loc_arg' =
               assert (stack_ofs >= 0);
               if stack_ofs = 0
@@ -1897,12 +1894,13 @@ class virtual selector_generic =
       in
       let rarg = Array.concat rargs in
       let loc_arg = Proc.loc_parameters (Reg.typv rarg) in
+      let tailrec_label = Cmm.new_label () in
+      let env = Select_utils.env_create ~tailrec_label in
       let env =
         List.fold_right2
           (fun (id, _ty) r env -> Select_utils.env_add id r env)
-          f.Cmm.fun_args rargs Select_utils.env_empty
+          f.Cmm.fun_args rargs env
       in
-      tailrec_label <- Cmm.new_label ();
       let sub_cfg = 42 in
       let loc_arg_index = ref 0 in
       List.iteri

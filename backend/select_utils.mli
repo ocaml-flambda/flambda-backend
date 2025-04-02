@@ -36,7 +36,8 @@ type environment =
         (** Which registers must be populated when jumping to the given
           handler. *)
     trap_stack : Simple_operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Numbers.Int.Map.t
+    regs_for_exception_extra_args : Reg.t array Numbers.Int.Map.t;
+    tailrec_label : Label.t
   }
 
 val env_add :
@@ -86,7 +87,7 @@ val trap_stack_is_empty : environment -> bool
 
 val pop_all_traps : environment -> Cmm.trap_action list
 
-val env_empty : environment
+val env_create : tailrec_label:Label.t -> environment
 
 val size_component : Cmm.machtype_component -> int
 

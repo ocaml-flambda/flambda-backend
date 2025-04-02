@@ -43,9 +43,10 @@ type environment =
         (** Which registers must be populated when jumping to the given
         handler. *)
     trap_stack : Simple_operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t
+    regs_for_exception_extra_args : Reg.t array Int.Map.t;
         (** For each exception handler, any registers that are to be used to hold
             label arguments. *)
+    tailrec_label : Label.t
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -144,11 +145,12 @@ let pop_all_traps env =
   in
   pop_all [] env.trap_stack
 
-let env_empty =
+let env_create ~tailrec_label =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
     trap_stack = Uncaught;
-    regs_for_exception_extra_args = Int.Map.empty
+    regs_for_exception_extra_args = Int.Map.empty;
+    tailrec_label
   }
 
 let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
