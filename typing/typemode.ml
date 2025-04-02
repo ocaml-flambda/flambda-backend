@@ -27,6 +27,7 @@ module Axis_pair = struct
   type 'm t =
     | Modal_axis_pair : ('m, 'a, 'd) Mode.Alloc.axis * 'a -> modal t
     | Any_axis_pair : 'a Axis.t * 'a -> maybe_nonmodal t
+    | Everything_but_nullability : maybe_nonmodal t
 
   let of_string s =
     let open Mode in
@@ -62,6 +63,7 @@ module Axis_pair = struct
       Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Yielding)
     | "unyielding" ->
       Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Unyielding)
+    | "everything" -> Everything_but_nullability
     | _ -> raise Not_found
 end
 
@@ -73,8 +75,9 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
     required_mode_maturity;
   let pair : m Axis_pair.t =
     match Axis_pair.of_string annot.txt, annot_type with
-    | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found)
-      ->
+    | Any_axis_pair (Nonmodal _, _), (Mode | Modality)
+    | Everything_but_nullability, (Mode | Modality)
+    | (exception Not_found) ->
       raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
     | Any_axis_pair (Modal axis, mode), Mode -> Modal_axis_pair (axis, mode)
     | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
@@ -133,24 +136,37 @@ end
 
 let transl_modifier_annots annots =
   let step modifiers_so_far annot =
-    let { txt = Any_axis_pair (type a) ((axis, mode) : a Axis.t * a); loc } =
+    match
       transl_annot ~annot_type:Modifier ~required_mode_maturity:None
       @@ unpack_mode_annot annot
-    in
-    let (module A) = Axis.get axis in
-    let is_top = A.le A.max mode in
-    if is_top
-    then
-      (* CR layouts v2.8: This warning is disabled for now because transl_type_decl
-         results in 3 calls to transl_annots per user-written annotation. This results
-         in the warning being reported 3 times. *)
-      (* Location.prerr_warning new_raw.loc (Warnings.Mod_by_top new_raw.txt) *)
-      ();
-    let is_dup =
-      Option.is_some (Transled_modifiers.get ~axis modifiers_so_far)
-    in
-    if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
-    Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
+    with
+    | { txt = Any_axis_pair (type a) ((axis, mode) : a Axis.t * a); loc } ->
+      let (module A) = Axis.get axis in
+      let is_top = A.le A.max mode in
+      if is_top
+      then
+        (* CR layouts v2.8: This warning is disabled for now because transl_type_decl
+           results in 3 calls to transl_annots per user-written annotation. This results
+           in the warning being reported 3 times. *)
+        (* Location.prerr_warning new_raw.loc (Warnings.Mod_by_top new_raw.txt) *)
+        ();
+      let is_dup =
+        Option.is_some (Transled_modifiers.get ~axis modifiers_so_far)
+      in
+      if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
+      Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
+    | { txt = Everything_but_nullability; loc } ->
+      Transled_modifiers.
+        { locality = Some { txt = Locality.Const.min; loc };
+          linearity = Some { txt = Linearity.Const.min; loc };
+          uniqueness = Some { txt = Uniqueness.Const_op.min; loc };
+          portability = Some { txt = Portability.Const.min; loc };
+          contention = Some { txt = Contention.Const_op.min; loc };
+          yielding = Some { txt = Yielding.Const.min; loc };
+          externality = Some { txt = Externality.min; loc };
+          nullability =
+            Transled_modifiers.get ~axis:(Nonmodal Nullability) modifiers_so_far
+        }
   in
   let empty_modifiers = Transled_modifiers.empty in
   let modifiers = List.fold_left step empty_modifiers annots in

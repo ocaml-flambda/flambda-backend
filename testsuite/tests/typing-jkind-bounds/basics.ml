@@ -294,25 +294,25 @@ type c : immediate64
 type d = c
 |}]
 
-type a : float64
+type a : float64 = float#
 type b : float64 mod global aliased many contended portable external_ = a
 type c : float64 mod global aliased many contended portable external_
 type d : float64 = c
 [%%expect{|
-type a : float64
+type a = float#
 type b = a
-type c : float64
+type c : float64 mod everything
 type d = c
 |}]
 
-type a : float32
+type a : float32 = float32#
 type b : float32 mod global aliased many contended portable external_ = a
 type c : float32 mod global aliased many contended portable external_
 type d : float32 = c
 [%%expect{|
-type a : float32
+type a = float32#
 type b = a
-type c : float32
+type c : float32 mod everything
 type d = c
 |}]
 
@@ -1282,7 +1282,7 @@ type ('a : immediate) t = 'a
 type ('a : immediate) t = 'a
 type 'a t = 'a
 type 'a t = 'a
-type ('a : bits32) t = 'a
+type ('a : bits32 mod global aliased) t = 'a
 |}]
 
 type ('a : bits32) t = ('a : word)
