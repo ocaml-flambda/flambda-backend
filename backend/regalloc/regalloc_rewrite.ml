@@ -142,7 +142,7 @@ let rewrite_gen :
         let spilled = Reg.create reg.Reg.typ in
         Utils.set_spilled spilled;
         (* for printing *)
-        if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
+        spilled.Reg.raw_name <- reg.Reg.raw_name;
         let slot =
           Regalloc_stack_slots.get_or_create (State.stack_slots state) reg
         in

@@ -249,24 +249,12 @@ let join env opt_r1 seq1 opt_r2 seq2 ~bound_name =
     assert (l1 = Array.length r2);
     let r = Array.make l1 Reg.dummy in
     for i = 0 to l1 - 1 do
-      if Reg.anonymous r1.(i) && Cmm.ge_component r1.(i).Reg.typ r2.(i).Reg.typ
-      then (
-        r.(i) <- r1.(i);
-        seq2#insert_move env r2.(i) r1.(i);
-        maybe_emit_naming_op seq2 [| r1.(i) |])
-      else if Reg.anonymous r2.(i)
-              && Cmm.ge_component r2.(i).Reg.typ r1.(i).Reg.typ
-      then (
-        r.(i) <- r2.(i);
-        seq1#insert_move env r1.(i) r2.(i);
-        maybe_emit_naming_op seq1 [| r2.(i) |])
-      else
-        let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
-        r.(i) <- Reg.create typ;
-        seq1#insert_move env r1.(i) r.(i);
-        maybe_emit_naming_op seq1 [| r.(i) |];
-        seq2#insert_move env r2.(i) r.(i);
-        maybe_emit_naming_op seq2 [| r.(i) |]
+      let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
+      r.(i) <- Reg.create typ;
+      seq1#insert_move env r1.(i) r.(i);
+      maybe_emit_naming_op seq1 [| r.(i) |];
+      seq2#insert_move env r2.(i) r.(i);
+      maybe_emit_naming_op seq2 [| r.(i) |]
     done;
     Some r
 
@@ -491,15 +479,10 @@ class virtual selector_generic =
 
     method private bind_let (env : environment) v r1 =
       let env =
-        if all_regs_anonymous r1
-        then (
-          name_regs v r1;
-          env_add v r1 env)
-        else
-          let rv = Reg.createv_like r1 in
-          name_regs v rv;
-          self#insert_moves env r1 rv;
-          env_add v rv env
+        let rv = Reg.createv_like r1 in
+        name_regs v rv;
+        self#insert_moves env r1 rv;
+        env_add v rv env
       in
       let provenance = VP.provenance v in
       (if Option.is_some provenance
@@ -812,15 +795,10 @@ class virtual selector_generic =
           else
             (* The normal case *)
             let id = V.create_local "bind" in
-            if all_regs_anonymous r
-            then
-              (* r is an anonymous, unshared register; use it directly *)
-              Some (Cvar id, env_add (VP.create id) r env)
-            else
-              (* Introduce a fresh temp to hold the result *)
-              let tmp = Reg.createv_like r in
-              self#insert_moves env r tmp;
-              Some (Cvar id, env_add (VP.create id) tmp env)
+            (* Introduce a fresh temp to hold the result *)
+            let tmp = Reg.createv_like r in
+            self#insert_moves env r tmp;
+            Some (Cvar id, env_add (VP.create id) tmp env)
 
     method private emit_parts_list (env : environment) exp_list =
       let module EC = Effect_and_coeffect in
