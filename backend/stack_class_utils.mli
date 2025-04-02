@@ -14,7 +14,7 @@ module type T = sig
   (** The list of all classes. *)
   val all : t list
 
-  (** XXX doc *)
+  (** The order of the stack classes in the frame. *)
   val frame_order : t array
 
   val equal : t -> t -> bool
@@ -30,17 +30,17 @@ module type T = sig
   val of_machtype : Cmm.machtype_component -> t
 end
 
-(** Definition of tables with register classes as keys. All registers classes
+(** Definition of tables with stack classes as keys. All stack classes
     are always bound. *)
 module type Tbl = sig
   type stack_class
 
   type 'a t
 
-  (** Creates a table with all register classes set to the passed value. *)
+  (** Creates a table with all stack classes set to the passed value. *)
   val make : 'a -> 'a t
 
-  (** Creates a table by calling [f] on each and every register class to
+  (** Creates a table by calling [f] on each and every stack class to
       get the initial value for that class. *)
   val init : f:(stack_class -> 'a) -> 'a t
 
