@@ -135,18 +135,6 @@ let slot_offset loc stack_class =
   | Bytes_relative_to_domainstate_pointer _ ->
     Misc.fatal_errorf "Not a stack slot"
 
-(* Output a stack reference *)
-let femit_stack out r =
-  match r.loc with
-  | Stack (Domainstate n) ->
-      let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
-      Printf.fprintf out "[%a, #%a]" femit_reg reg_domain_state_ptr femit_int ofs
-  | Stack ((Local _ | Incoming _ | Outgoing _) as s) ->
-      let ofs = slot_offset s (Stack_class.of_machtype r.typ) in
-      Printf.fprintf out "[sp, #%a]" femit_int ofs
-  | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
-
-
 (* Output an addressing mode *)
 
 let femit_symbol_offset out (s, ofs) =
@@ -501,6 +489,8 @@ module DSL : sig
   val emit_reg_v2d : Reg.t -> Arm64_ast.Operand.t
   val imm : int -> Arm64_ast.Operand.t
   val emit_addressing : addressing_mode -> Reg.t -> Arm64_ast.Operand.t
+  (* Output a stack reference *)
+  val emit_stack : Reg.t -> Arm64_ast.Operand.t
   val ins : I.t -> Arm64_ast.Operand.t array -> unit
 
   val simd_instr : Simd.operation -> Linear.instruction -> unit
@@ -570,6 +560,20 @@ end [@warning "-32"]  = struct
     | Ibased(s, ofs) ->
       assert (not !Clflags.dlcode);  (* see selection.ml *)
       mem_symbol ~base:index ~symbol:(emit_symbol_str s) ~offset:ofs
+
+  let emit_stack (r: t) =
+    match r.loc with
+    | Stack (Domainstate n) ->
+        let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
+        let index = reg_index reg_domain_state_ptr in
+        mem ~base:index ~offset:ofs
+    | Stack ((Local _ | Incoming _ | Outgoing _) as s) ->
+        let ofs = slot_offset s (Stack_class.of_machtype r.typ) in
+        mem_sp_offset ofs
+    | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
+
+
+
   let check_instr (register_behavior : Simd_proc.register_behavior) i =
     (* Ensure that operation size and register size match.
        On arm64, operation size is encoded solely into the operands
@@ -1081,9 +1085,9 @@ let move (src : Reg.t) (dst : Reg.t) =
   | (Int | Val | Addr), Reg _, (Int | Val | Addr), Reg _ ->
       DSL.ins I.MOV [| DSL.emit_reg dst; DSL.emit_reg src |]
   | _, Reg _, _, Stack _ ->
-     emit_printf "	str	%a, %a\n" femit_reg src femit_stack dst
+     DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_stack dst |]
   | _, Stack _, _, Reg _ ->
-     emit_printf "	ldr	%a, %a\n" femit_reg dst femit_stack src
+     DSL.ins I.LDR [| DSL.emit_reg dst; DSL.emit_stack src |]
   | _, Stack _, _, Stack _ ->
       Misc.fatal_errorf
       "Illegal move between registers (%a to %a)\n"
@@ -1231,9 +1235,9 @@ let emit_instr i =
           | {loc = Reg _}, {loc = Reg _} ->
               emit_printf "	mov	%a, %a\n" femit_wreg dst femit_wreg src
           | {loc = Reg _}, {loc = Stack _} ->
-              emit_printf "	str	%a, %a\n" femit_wreg src femit_stack dst
+              DSL.ins I.STR [| DSL.emit_reg_w src; DSL.emit_stack dst |]
           | {loc = Stack _}, {loc = Reg _} ->
-              emit_printf "	ldr	%a, %a\n" femit_wreg dst femit_stack src
+              DSL.ins I.LDR [| DSL.emit_reg_w dst; DSL.emit_stack src |]
           | {loc = Stack _}, {loc = Stack _}
           | _, {loc = Unknown}
           | {loc = Unknown}, _

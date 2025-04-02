@@ -118,6 +118,13 @@ module Reg = struct
     { reg_name; index }
 
   let name t = Reg_name.name t.reg_name t.index
+
+  (* for special GP registers we use the last index *)
+  let stack_pointer_x = create (GP SP) (GP_reg_name.last)
+  let stack_pointer_w = create (GP WSP) (GP_reg_name.last) [@@warning "-32"]
+  let zero_register_x = create (GP XZR) (GP_reg_name.last) [@@warning "-32"]
+  let zero_register_w = create (GP WZR) (GP_reg_name.last) [@@warning "-32"]
+
 end
 
 module Instruction_name = struct
@@ -621,6 +628,10 @@ module DSL = struct
   let reg_x index = reg_x_operands.(index)
 
   let reg_w index = reg_w_operands.(index)
+
+  let sp = Operand.Reg (Reg.stack_pointer_x)
+
+  let mem_sp_offset ofs = Operand.Mem (Operand.Addressing_mode.Offset (Reg.stack_pointer_x, ofs))
 
   let imm n = Operand.Imm n
 
