@@ -841,6 +841,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       with Not_constant ->
         makearray lambda_arr_mut
       end
+  | Texp_idx _ ->
+    (* CR rtjoa: transl to not 0 *)
+    Lconst (Const_base (Const_unboxed_int64 0L))
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension

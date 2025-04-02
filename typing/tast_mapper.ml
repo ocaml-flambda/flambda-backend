@@ -450,6 +450,14 @@ let expr sub x =
           label, Overridden (map_loc sub lid, sub.expr sub exp))
       fields
   in
+  let map_block_access sub = function
+    | Baccess_field (lid, ld) ->
+      Baccess_field (map_loc sub lid, ld)
+  in
+  let map_unboxed_access sub = function
+    | Uaccess_unboxed_field (lid, ld) ->
+      Uaccess_unboxed_field (map_loc sub lid, ld)
+  in
   let exp_desc =
     match x.exp_desc with
     | Texp_ident (path, lid, vd, idk, uu) ->
@@ -524,6 +532,9 @@ let expr sub x =
         )
     | Texp_array (amut, sort, list, alloc_mode) ->
         Texp_array (amut, sort, List.map (sub.expr sub) list, alloc_mode)
+    | Texp_idx (ba, uas) ->
+        Texp_idx
+          (map_block_access sub ba, List.map (map_unboxed_access sub) uas)
     | Texp_list_comprehension comp ->
         Texp_list_comprehension (map_comprehension comp)
     | Texp_array_comprehension (amut, sort, comp) ->

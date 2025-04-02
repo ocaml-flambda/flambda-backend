@@ -458,6 +458,7 @@ and expression_desc =
       Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
   | Texp_array of Types.mutability * Jkind.Sort.t * expression list * alloc_mode
+  | Texp_idx of block_access * unboxed_access list
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of Types.mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -592,6 +593,12 @@ and meth =
     Tmeth_name of string
   | Tmeth_val of Ident.t
   | Tmeth_ancestor of Ident.t * Path.t
+
+and block_access =
+  | Baccess_field of Longident.t loc * Types.label_description
+
+and unboxed_access =
+  | Uaccess_unboxed_field of Longident.t loc * Types.unboxed_label_description
 
 and comprehension =
   {
