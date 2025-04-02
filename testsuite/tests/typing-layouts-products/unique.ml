@@ -7,6 +7,9 @@
  }
 *)
 
+(* NOTE: When adding tests to this file, also update
+   [typing-layouts-products/unique_implicit_unboxed_records.ml] *)
+
 (* Uniqueness tests *)
 
 let unique_use : 'a @ unique -> unit = fun _ -> ()

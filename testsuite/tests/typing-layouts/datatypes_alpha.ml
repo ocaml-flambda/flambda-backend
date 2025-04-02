@@ -445,3 +445,8 @@ Error: Layout mismatch in final type declaration consistency check.
 (* Test 10: Constraints and parameter kind inference *)
 
 (* Doesn't need layouts_alpha. *)
+
+(*************************************************)
+(* Test 11: Projecting from an @@unboxed record. *)
+
+(* Doesn't need layouts_alpha. *)

@@ -53,35 +53,40 @@ let reg_stack_arg_end  = phys_reg Int 18 (* x21 *)
 let label_prefix =
   if macosx then "L" else ".L"
 
-let emit_label lbl =
-  emit_string label_prefix; emit_string (Label.to_string lbl)
+let femit_label out lbl =
+    femit_string out label_prefix; femit_string out (Label.to_string lbl)
 
 (* Symbols *)
 
 (* CR sdolan: Support local symbol definitions & references on arm64 *)
 
-let emit_symbol s =
-  if macosx then emit_string "_";
-  Emitaux.emit_symbol s
+let femit_symbol out s =
+  if macosx then femit_string out "_";
+  Emitaux.femit_symbol out s
+
+
 
 (* Object types *)
 
 let emit_symbol_type emit_lbl_or_sym lbl_or_sym ty =
   if not macosx then begin
-    `	.type	{emit_lbl_or_sym lbl_or_sym}, %{emit_string ty}\n`
+    emit_printf "	.type	%a, %%%a\n" emit_lbl_or_sym lbl_or_sym femit_string ty
   end
 
 
 let emit_symbol_size sym =
   if not macosx then begin
-    `	.size	{emit_symbol sym}, .-{emit_symbol sym}\n`
+    emit_printf "	.size	%a, .-%a\n" femit_symbol sym femit_symbol sym
   end
 
 (* Output a pseudo-register *)
-
-let emit_reg = function
-    {loc = Reg r; typ; _} -> emit_string (register_name typ r)
+let femit_reg out = function
+    {loc = Reg r; typ; _} -> femit_string out (register_name typ r)
   | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_reg"
+
+
+
+
 
 (* Likewise, but with the 32-bit name of the register *)
 
@@ -91,9 +96,11 @@ let int_reg_name_w =
      "w19"; "w20"; "w21"; "w22"; "w23"; "w24"; "w25";
      "w26"; "w27"; "w28"; "w16"; "w17" |]
 
-let emit_wreg = function
-    {loc = Reg r; _} -> emit_string int_reg_name_w.(r)
+let femit_wreg out = function
+    {loc = Reg r; _} -> femit_string out int_reg_name_w.(r)
   | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_wreg"
+
+
 
 (* Layout of the stack frame *)
 
@@ -126,32 +133,36 @@ let slot_offset loc stack_class =
     Misc.fatal_errorf "Not a stack slot"
 
 (* Output a stack reference *)
-
-let emit_stack r =
+let femit_stack out r =
   match r.loc with
   | Stack (Domainstate n) ->
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
-      `[{emit_reg reg_domain_state_ptr}, #{emit_int ofs}]`
+      Printf.fprintf out "[%a, #%a]" femit_reg reg_domain_state_ptr femit_int ofs
   | Stack ((Local _ | Incoming _ | Outgoing _) as s) ->
       let ofs = slot_offset s (stack_slot_class r.typ) in
-      `[sp, #{emit_int ofs}]`
+      Printf.fprintf out "[sp, #%a]" femit_int ofs
   | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
+
 
 (* Output an addressing mode *)
 
-let emit_symbol_offset s ofs =
-  emit_symbol s;
-  if ofs > 0 then `+{emit_int ofs}`
-  else if ofs < 0 then `-{emit_int (-ofs)}`
+let femit_symbol_offset out (s, ofs) =
+  femit_symbol out s;
+  if ofs > 0 then Printf.fprintf out "+%a" femit_int ofs
+  else if ofs < 0 then Printf.fprintf out "-%a" femit_int (-ofs)
   else ()
 
-let emit_addressing addr r =
+
+
+let femit_addressing out (addr, r) =
   match addr with
   | Iindexed ofs ->
-      `[{emit_reg r}, #{emit_int ofs}]`
+      Printf.fprintf out "[%a, #%a]" femit_reg r femit_int ofs
   | Ibased(s, ofs) ->
       assert (not !Clflags.dlcode);  (* see selection.ml *)
-      `[{emit_reg r}, #:lo12:{emit_symbol_offset s ofs}]`
+      Printf.fprintf out "[%a, #:lo12:%a]" femit_reg r femit_symbol_offset (s, ofs)
+
+
 
 (* Record live pointers at call points *)
 
@@ -177,8 +188,9 @@ let record_frame_label live dbg =
     ~live_offset:!live_offset dbg;
   lbl
 
-let record_frame live dbg =
-  let lbl = record_frame_label live dbg in `{emit_label lbl}:`
+let frecord_frame out (live, dbg) =
+  let lbl = record_frame_label live dbg in Printf.fprintf out "%a:" femit_label lbl
+
 
 (* Record calls to the GC -- we've moved them out of the way *)
 
@@ -190,8 +202,8 @@ type gc_call =
 let call_gc_sites = ref ([] : gc_call list)
 
 let emit_call_gc gc =
-  `{emit_label gc.gc_lbl}:	bl	{emit_symbol "caml_call_gc"}\n`;
-  `{emit_label gc.gc_frame_lbl}:	b	{emit_label gc.gc_return_lbl}\n`
+  emit_printf "%a:	bl	%a\n" femit_label gc.gc_lbl femit_symbol "caml_call_gc";
+  emit_printf "%a:	b	%a\n" femit_label gc.gc_frame_lbl femit_label gc.gc_return_lbl
 
 (* Record calls to local stack reallocation *)
 
@@ -204,10 +216,10 @@ type local_realloc_call =
 let local_realloc_sites = ref ([] : local_realloc_call list)
 
 let emit_local_realloc lr =
-  `{emit_label lr.lr_lbl}:\n`;
-  `	{emit_debug_info lr.lr_dbg}\n`;
-  `	bl	{emit_symbol "caml_call_local_realloc"}\n`;
-  `	b	{emit_label lr.lr_return_lbl}\n`
+  emit_printf "%a:\n" femit_label lr.lr_lbl;
+  emit_printf "	%a\n" (femit_debug_info ~discriminator: 0) lr.lr_dbg;
+  emit_printf "	bl	%a\n" femit_symbol "caml_call_local_realloc";
+  emit_printf "	b	%a\n" femit_label lr.lr_return_lbl
 
 (* Local stack reallocation *)
 
@@ -226,14 +238,14 @@ let emit_stack_realloc () =
   match !stack_realloc with
   | None -> ()
   | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } ->
-    `{emit_label sc_label}:\n`;
+    emit_printf "%a:\n" femit_label sc_label;
     (* Pass the desired frame size on the stack, since all of the
        argument-passing registers may be in use. *)
-    `    mov {emit_reg reg_tmp1}, #{emit_int sc_max_frame_size_in_bytes}\n`;
-    `    stp {emit_reg reg_tmp1}, x30, [sp, #-16]!\n`;
-    `    bl {emit_symbol "caml_call_realloc_stack"}\n`;
-    `    ldp {emit_reg reg_tmp1}, x30, [sp], #16\n`;
-    `    b {emit_label sc_return}\n`
+    emit_printf "    mov %a, #%a\n" femit_reg reg_tmp1 femit_int sc_max_frame_size_in_bytes;
+    emit_printf "    stp %a, x30, [sp, #-16]!\n" femit_reg reg_tmp1;
+    emit_printf "    bl %a\n" femit_symbol "caml_call_realloc_stack";
+    emit_printf "    ldp %a, x30, [sp], #16\n" femit_reg reg_tmp1;
+    emit_printf "    b %a\n" femit_label sc_return
 
 (* Names of various instructions *)
 
@@ -275,28 +287,28 @@ let decompose_int default n =
 (* Load an integer constant into a register *)
 
 let emit_movk dst (f, p) =
-    `	movk	{emit_reg dst}, #{emit_nativeint f}, lsl #{emit_int p}\n`
+    emit_printf "	movk	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint f femit_int p
 
 let emit_intconst dst n =
   if is_logical_immediate n then
-    `	orr	{emit_reg dst}, xzr, #{emit_nativeint n}\n`
+    emit_printf "	orr	%a, xzr, #%a\n" femit_reg dst femit_nativeint n
   else begin
     let dz = decompose_int 0x0000n n
     and dn = decompose_int 0xFFFFn n in
     if List.length dz <= List.length dn then begin
       match dz with
       | [] ->
-          `	mov	{emit_reg dst}, xzr\n`
+          emit_printf "	mov	%a, xzr\n" femit_reg dst
       | (f, p) :: l ->
-          `	movz	{emit_reg dst}, #{emit_nativeint f}, lsl #{emit_int p}\n`;
+          emit_printf "	movz	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint f femit_int p;
           List.iter (emit_movk dst) l
     end else begin
       match dn with
       | [] ->
-          `	movn	{emit_reg dst}, #0\n`
+          emit_printf "	movn	%a, #0\n" femit_reg dst
       | (f, p) :: l ->
           let nf = Nativeint.logxor f 0xFFFFn in
-          `	movn	{emit_reg dst}, #{emit_nativeint nf}, lsl #{emit_int p}\n`;
+          emit_printf "	movn	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint nf femit_int p;
           List.iter (emit_movk dst) l
     end
   end
@@ -329,8 +341,8 @@ let emit_stack_adjustment n =
   let m = abs n in
   assert (m < 0x1_000_000);
   let ml = m land 0xFFF and mh = m land 0xFFF_000 in
-  if mh <> 0 then `	{emit_string instr}	sp, sp, #{emit_int mh}\n`;
-  if ml <> 0 then `	{emit_string instr}	sp, sp, #{emit_int ml}\n`;
+  if mh <> 0 then emit_printf "	%a	sp, sp, #%a\n" femit_string instr femit_int mh;
+  if ml <> 0 then emit_printf "	%a	sp, sp, #%a\n" femit_string instr femit_int ml;
   if n <> 0 then cfi_adjust_cfa_offset (-n)
 
 (* Deallocate the stack frame and reload the return address
@@ -339,7 +351,7 @@ let emit_stack_adjustment n =
 let output_epilogue f =
   let n = frame_size() in
   if !contains_calls then
-    `	ldr	x30, [sp, #{emit_int (n-8)}]\n`;
+    emit_printf "	ldr	x30, [sp, #%a]\n" femit_int (n-8);
   if n > 0 then
     emit_stack_adjustment n;
   f();
@@ -351,31 +363,31 @@ let output_epilogue f =
 let rec emit_addimm rd rs n =
   if n < 0 then emit_subimm rd rs (-n)
   else if n <= 0xFFF then
-    `	add	{emit_reg rd}, {emit_reg rs}, #{emit_int n}\n`
+    emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int n
   else begin
     assert (n <= 0xFFF_FFF);
     let nl = n land 0xFFF and nh = n land 0xFFF_000 in
-    `	add	{emit_reg rd}, {emit_reg rs}, #{emit_int nh}\n`;
+    emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int nh;
     if nl <> 0 then
-      `	add	{emit_reg rd}, {emit_reg rd}, #{emit_int nl}\n`
+      emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rd femit_int nl
   end
 
 and emit_subimm rd rs n =
   if n < 0 then emit_addimm rd rs (-n)
   else if n <= 0xFFF then
-    `	sub	{emit_reg rd}, {emit_reg rs}, #{emit_int n}\n`
+    emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int n
   else begin
     assert (n <= 0xFFF_FFF);
     let nl = n land 0xFFF and nh = n land 0xFFF_000 in
-    `	sub	{emit_reg rd}, {emit_reg rs}, #{emit_int nh}\n`;
+    emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int nh;
     if nl <> 0 then
-      `	sub	{emit_reg rd}, {emit_reg rd}, #{emit_int nl}\n`
+      emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rd femit_int nl
   end
 
 let emit_cmpimm rs n =
   if n >= 0
-  then `	cmp	{emit_reg rs}, #{emit_int n}\n`
-  else `	cmn	{emit_reg rs}, #{emit_int (-n)}\n`
+  then emit_printf "	cmp	%a, #%a\n" femit_reg rs femit_int n
+  else emit_printf "	cmn	%a, #%a\n" femit_reg rs femit_int (-n)
 
 (* Name of current function *)
 let function_name = ref ""
@@ -401,17 +413,17 @@ let vec128_literal f = add_literal vec128_literals f
 let emit_literals p align emit_literal =
   if !p <> [] then begin
     if macosx then
-    `	.section	__TEXT,__literal{emit_int align},{emit_int align}byte_literals\n`;
-    `	.balign	{emit_int align}\n`;
+    emit_printf "	.section	__TEXT,__literal%a,%abyte_literals\n" femit_int align femit_int align;
+    emit_printf "	.balign	%a\n" femit_int align;
     List.iter emit_literal !p;
     p := []
   end
 
 let emit_float_literal (f, lbl) =
-     `{emit_label lbl}:`; emit_float64_directive ".quad" f
+     emit_printf "%a:" femit_label lbl; emit_float64_directive ".quad" f
 
 let emit_vec128_literal (({ high; low; } : Cmm.vec128_bits), lbl) =
-     `{emit_label lbl}:\n`;
+     emit_printf "%a:\n" femit_label lbl;
      emit_float64_directive ".quad" low;
      emit_float64_directive ".quad" high
 
@@ -423,14 +435,14 @@ let emit_literals () =
 
 let emit_load_symbol_addr dst s =
   if macosx then begin
-    `	adrp	{emit_reg dst}, {emit_symbol s}@GOTPAGE\n`;
-    `	ldr	{emit_reg dst}, [{emit_reg dst}, {emit_symbol s}@GOTPAGEOFF]\n`
+    emit_printf "	adrp	%a, %a%@GOTPAGE\n" femit_reg dst femit_symbol s;
+    emit_printf "	ldr	%a, [%a, %a%@GOTPAGEOFF]\n" femit_reg dst femit_reg dst femit_symbol s
   end else if not !Clflags.dlcode then begin
-    `	adrp	{emit_reg dst}, {emit_symbol s}\n`;
-    `	add	{emit_reg dst}, {emit_reg dst}, #:lo12:{emit_symbol s}\n`
+    emit_printf "	adrp	%a, %a\n" femit_reg dst femit_symbol s;
+    emit_printf "	add	%a, %a, #:lo12:%a\n" femit_reg dst femit_reg dst femit_symbol s
   end else begin
-    `	adrp	{emit_reg dst}, :got:{emit_symbol s}\n`;
-    `	ldr	{emit_reg dst}, [{emit_reg dst}, #:got_lo12:{emit_symbol s}]\n`
+    emit_printf "	adrp	%a, :got:%a\n" femit_reg dst femit_symbol s;
+    emit_printf "	ldr	%a, [%a, #:got_lo12:%a]\n" femit_reg dst femit_reg dst femit_symbol s
   end
 
 (* The following functions are used for calculating the sizes of the
@@ -933,18 +945,18 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     let domain_local_sp_offset = DS.(idx_of_field Domain_local_sp) * 8 in
     let domain_local_limit_offset = DS.(idx_of_field Domain_local_limit) * 8 in
     let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
-    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_limit_offset}]\n`;
-    `	ldr	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_limit_offset;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
     emit_subimm r r n;
-    `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
-    `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
+    emit_printf "	str	%a, [%a, #%a]\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
+    emit_printf "	cmp	%a, %a\n" femit_reg r femit_reg reg_tmp1;
     let lbl_call = Cmm.new_label () in
-    `	b.lt	{emit_label lbl_call}\n`;
+    emit_printf "	b.lt	%a\n" femit_label lbl_call;
     let lbl_after_alloc = Cmm.new_label () in
-    `{emit_label lbl_after_alloc}:\n`;
-    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_top_offset}]\n`;
-    `	add	{emit_reg r}, {emit_reg r}, {emit_reg reg_tmp1}\n`;
-    `	add	{emit_reg r}, {emit_reg r}, #{emit_int 8}\n`;
+    emit_printf "%a:\n" femit_label lbl_after_alloc;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_top_offset;
+    emit_printf "	add	%a, %a, %a\n" femit_reg r femit_reg r femit_reg reg_tmp1;
+    emit_printf "	add	%a, %a, #%a\n" femit_reg r femit_reg r femit_int 8;
     local_realloc_sites :=
       { lr_lbl = lbl_call;
         lr_dbg = i.dbg;
@@ -961,32 +973,32 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
          the generated code simpler. *)
       assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
       let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
       emit_subimm reg_alloc_ptr reg_alloc_ptr n;
-      `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
+      emit_printf "	cmp	%a, %a\n" femit_reg reg_alloc_ptr femit_reg reg_tmp1;
       if not far then begin
-        `	b.lo	{emit_label lbl_call_gc}\n`
+        emit_printf "	b.lo	%a\n" femit_label lbl_call_gc
       end else begin
         let lbl = Cmm.new_label () in
-        `	b.cs	{emit_label lbl}\n`;
-        `	b	{emit_label lbl_call_gc}\n`;
-        `{emit_label lbl}:\n`
+        emit_printf "	b.cs	%a\n" femit_label lbl;
+        emit_printf "	b	%a\n" femit_label lbl_call_gc;
+        emit_printf "%a:\n" femit_label lbl
       end;
-      `{emit_label lbl_after_alloc}:`;
-      `	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`;
+      emit_printf "%a:" femit_label lbl_after_alloc;
+      emit_printf "	add	%a, %a, #8\n" femit_reg i.res.(0) femit_reg reg_alloc_ptr;
       call_gc_sites :=
         { gc_lbl = lbl_call_gc;
           gc_return_lbl = lbl_after_alloc;
           gc_frame_lbl = lbl_frame } :: !call_gc_sites
     end else begin
       begin match n with
-      | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
-      | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
-      | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
+      | 16 -> emit_printf "	bl	%a\n" femit_symbol "caml_alloc1"
+      | 24 -> emit_printf "	bl	%a\n" femit_symbol "caml_alloc2"
+      | 32 -> emit_printf "	bl	%a\n" femit_symbol "caml_alloc3"
       | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
-              `	bl	{emit_symbol "caml_allocN"}\n`
+              emit_printf "	bl	%a\n" femit_symbol "caml_allocN"
       end;
-      `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+      emit_printf "%a:	add	%a, %a, #8\n" femit_label lbl_frame femit_reg i.res.(0) femit_reg reg_alloc_ptr
     end
   end
 
@@ -997,27 +1009,27 @@ let assembly_code_for_poll i ~far ~return_label =
   | None -> Cmm.new_label()
   | Some lbl -> lbl in
   let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-    `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
+    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+    emit_printf "	cmp	%a, %a\n" femit_reg reg_alloc_ptr femit_reg reg_tmp1;
   if not far then begin
     match return_label with
     | None ->
-        `	b.ls	{emit_label lbl_call_gc}\n`;
-        `{emit_label lbl_after_poll}:\n`
+        emit_printf "	b.ls	%a\n" femit_label lbl_call_gc;
+        emit_printf "%a:\n" femit_label lbl_after_poll
     | Some return_label ->
-        `	b.hi	{emit_label return_label}\n`;
-        `	b	{emit_label lbl_call_gc}\n`;
+        emit_printf "	b.hi	%a\n" femit_label return_label;
+        emit_printf "	b	%a\n" femit_label lbl_call_gc;
   end else begin
     match return_label with
     | None ->
-        `	b.hi	{emit_label lbl_after_poll}\n`;
-        `	b	{emit_label lbl_call_gc}\n`;
-        `{emit_label lbl_after_poll}:\n`
+        emit_printf "	b.hi	%a\n" femit_label lbl_after_poll;
+        emit_printf "	b	%a\n" femit_label lbl_call_gc;
+        emit_printf "%a:\n" femit_label lbl_after_poll
     | Some return_label ->
         let lbl = Cmm.new_label () in
-        `	b.ls	{emit_label lbl}\n`;
-        `	b	{emit_label return_label}\n`;
-        `{emit_label lbl}:	b	{emit_label lbl_call_gc}\n`
+        emit_printf "	b.ls	%a\n" femit_label lbl;
+        emit_printf "	b	%a\n" femit_label return_label;
+        emit_printf "%a:	b	%a\n" femit_label lbl femit_label lbl_call_gc
   end;
   call_gc_sites :=
     { gc_lbl = lbl_call_gc;
@@ -1028,20 +1040,20 @@ let assembly_code_for_poll i ~far ~return_label =
 
 let emit_named_text_section func_name =
   if !Clflags.function_sections then begin
-    `	.section .text.caml.{emit_symbol func_name},{emit_string_literal "ax"},%progbits\n`
+    emit_printf "	.section .text.caml.%a,%a,%%progbits\n" femit_symbol func_name femit_string_literal "ax"
   end
   else
-    `	.text\n`
+    emit_printf "	.text\n"
 
 (* Emit code to load an emitted literal *)
 
 let emit_load_literal dst lbl =
   if macosx then begin
-    `	adrp	{emit_reg reg_tmp1}, {emit_label lbl}@PAGE\n`;
-    `	ldr	{emit_reg dst}, [{emit_reg reg_tmp1}, {emit_label lbl}@PAGEOFF]\n`
+    emit_printf "	adrp	%a, %a%@PAGE\n" femit_reg reg_tmp1 femit_label lbl;
+    emit_printf "	ldr	%a, [%a, %a%@PAGEOFF]\n" femit_reg dst femit_reg reg_tmp1 femit_label lbl
   end else begin
-    `	adrp	{emit_reg reg_tmp1}, {emit_label lbl}\n`;
-    `	ldr	{emit_reg dst}, [{emit_reg reg_tmp1}, #:lo12:{emit_label lbl}]\n`
+    emit_printf "	adrp	%a, %a\n" femit_reg reg_tmp1 femit_label lbl;
+    emit_printf "	ldr	%a, [%a, #:lo12:%a]\n" femit_reg dst femit_reg reg_tmp1 femit_label lbl
   end
 
 let move (src : Reg.t) (dst : Reg.t) =
@@ -1057,9 +1069,9 @@ let move (src : Reg.t) (dst : Reg.t) =
   | (Int | Val | Addr), Reg _, (Int | Val | Addr), Reg _ ->
       DSL.ins I.MOV [| DSL.emit_reg dst; DSL.emit_reg src |]
   | _, Reg _, _, Stack _ ->
-     `	str	{emit_reg src}, {emit_stack dst}\n`
+     emit_printf "	str	%a, %a\n" femit_reg src femit_stack dst
   | _, Stack _, _, Reg _ ->
-     `	ldr	{emit_reg dst}, {emit_stack src}\n`
+     emit_printf "	ldr	%a, %a\n" femit_reg dst femit_stack src
   | _, Stack _, _, Stack _ ->
       Misc.fatal_errorf
       "Illegal move between registers (%a to %a)\n"
@@ -1189,7 +1201,7 @@ let emit_instr i =
         emit_stack_adjustment (-n);
       if !contains_calls then begin
         cfi_offset ~reg:30 (* return address *) ~offset:(-8);
-        `	str	x30, [sp, #{emit_int (n-8)}]\n`
+        emit_printf "	str	x30, [sp, #%a]\n" femit_int (n-8)
       end
     | Lop(Intop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
@@ -1205,11 +1217,11 @@ let emit_instr i =
         if not (Reg.same_loc src dst) then begin
           match (src, dst) with
           | {loc = Reg _}, {loc = Reg _} ->
-              `	mov	{emit_wreg dst}, {emit_wreg src}\n`
+              emit_printf "	mov	%a, %a\n" femit_wreg dst femit_wreg src
           | {loc = Reg _}, {loc = Stack _} ->
-              `	str	{emit_wreg src}, {emit_stack dst}\n`
+              emit_printf "	str	%a, %a\n" femit_wreg src femit_stack dst
           | {loc = Stack _}, {loc = Reg _} ->
-              `	ldr	{emit_wreg dst}, {emit_stack src}\n`
+              emit_printf "	ldr	%a, %a\n" femit_wreg dst femit_stack src
           | {loc = Stack _}, {loc = Stack _}
           | _, {loc = Unknown}
           | {loc = Unknown}, _
@@ -1220,9 +1232,9 @@ let emit_instr i =
     | Lop (Const_float32 f) ->
         DSL.check_reg Float32 i.res.(0);
         if f = 0l then
-          `	fmov	{emit_reg i.res.(0)}, wzr\n`
+          emit_printf "	fmov	%a, wzr\n" femit_reg i.res.(0)
         else if is_immediate_float32 f then
-          `	fmov	{emit_reg i.res.(0)}, #{emit_printf "%.7f" (Int32.float_of_bits f)}\n`
+          emit_printf "	fmov	%a, #%.7f\n" femit_reg i.res.(0)  (Int32.float_of_bits f)
         else begin
           (* float32 constants still take up 8 bytes; we load the lower half. *)
           let lbl = float_literal (Int64.of_int32 f) in
@@ -1230,9 +1242,9 @@ let emit_instr i =
         end
     | Lop(Const_float f) ->
         if f = 0L then
-          `	fmov	{emit_reg i.res.(0)}, xzr\n`
+          emit_printf "	fmov	%a, xzr\n" femit_reg i.res.(0)
         else if is_immediate_float f then
-          `	fmov	{emit_reg i.res.(0)}, #{emit_printf "%.7f" (Int64.float_of_bits f)}\n`
+          emit_printf "	fmov	%a, #%.7f\n" femit_reg i.res.(0)  (Int64.float_of_bits f)
         else begin
           let lbl = float_literal f in
           emit_load_literal i.res.(0) lbl
@@ -1250,46 +1262,46 @@ let emit_instr i =
     | Lop(Const_symbol s) ->
         emit_load_symbol_addr i.res.(0) s.sym_name
     | Lcall_op(Lcall_ind) ->
-        `	blr	{emit_reg i.arg.(0)}\n`;
-        `{record_frame i.live (Dbg_other i.dbg)}\n`
+        emit_printf "	blr	%a\n" femit_reg i.arg.(0);
+        emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
     | Lcall_op(Lcall_imm { func; }) ->
-        `	bl	{emit_symbol func.sym_name}\n`;
-        `{record_frame i.live (Dbg_other i.dbg)}\n`
+        emit_printf "	bl	%a\n" femit_symbol func.sym_name;
+        emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
     | Lcall_op(Ltailcall_ind) ->
-        output_epilogue (fun () -> `	br	{emit_reg i.arg.(0)}\n`)
+        output_epilogue (fun () -> emit_printf "	br	%a\n" femit_reg i.arg.(0))
     | Lcall_op(Ltailcall_imm { func; }) ->
         if func.sym_name = !function_name then
           match !tailrec_entry_point with
           | None -> Misc.fatal_error "jump to missing tailrec entry point"
-          | Some tailrec_entry_point -> `	b	{emit_label tailrec_entry_point}\n`
+          | Some tailrec_entry_point -> emit_printf "	b	%a\n" femit_label tailrec_entry_point
         else
-          output_epilogue (fun () -> `	b	{emit_symbol func.sym_name}\n`)
+          output_epilogue (fun () -> emit_printf "	b	%a\n" femit_symbol func.sym_name)
     | Lcall_op(Lextcall {func; alloc; stack_ofs}) ->
         if Config.runtime5 && stack_ofs > 0 then begin
-          `	mov	{emit_reg reg_stack_arg_begin}, sp\n`;
-          `	add	{emit_reg reg_stack_arg_end}, sp, #{emit_int (Misc.align stack_ofs 16)}\n`;
+          emit_printf "	mov	%a, sp\n" femit_reg reg_stack_arg_begin;
+          emit_printf "	add	%a, sp, #%a\n" femit_reg reg_stack_arg_end femit_int (Misc.align stack_ofs 16);
           emit_load_symbol_addr reg_x8 func;
-          `	bl	{emit_symbol "caml_c_call_stack_args"}\n`;
-          `{record_frame i.live (Dbg_other i.dbg)}\n`
+          emit_printf "	bl	%a\n" femit_symbol "caml_c_call_stack_args";
+          emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
         end else if alloc then begin
           emit_load_symbol_addr reg_x8 func;
-          `	bl	{emit_symbol "caml_c_call"}\n`;
-          `{record_frame i.live (Dbg_other i.dbg)}\n`
+          emit_printf "	bl	%a\n" femit_symbol "caml_c_call";
+          emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
         end else begin
           (* store ocaml stack in the frame pointer register
              NB: no need to store previous x29 because OCaml frames don't
              maintain frame pointer *)
           if Config.runtime5 then begin
-            `	mov	x29, sp\n`;
+            emit_printf "	mov	x29, sp\n";
             cfi_remember_state ();
             cfi_def_cfa_register ~reg:29;
             let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-            `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`;
-              `	mov	sp, {emit_reg reg_tmp1}\n`
+            emit_printf "	ldr	%a, [%a, %a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+              emit_printf "	mov	sp, %a\n" femit_reg reg_tmp1
           end;
-          `	bl	{emit_symbol func}\n`;
+          emit_printf "	bl	%a\n" femit_symbol func;
           if Config.runtime5 then begin
-            `	mov	sp, x29\n`;
+            emit_printf "	mov	sp, x29\n";
           end;
           cfi_restore_state ()
         end
@@ -1305,41 +1317,41 @@ let emit_instr i =
           | Iindexed _ -> i.arg.(0)
           | Ibased(s, ofs) ->
               assert (not !Clflags.dlcode);  (* see selection_utils.ml *)
-              `	adrp	{emit_reg reg_tmp1}, {emit_symbol_offset s ofs}\n`;
+              emit_printf "	adrp	%a, %a\n" femit_reg reg_tmp1 femit_symbol_offset (s, ofs);
               reg_tmp1 in
         begin match memory_chunk with
         | Byte_unsigned ->
-            `	ldrb	{emit_wreg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf "	ldrb	%a, %a\n" femit_wreg dst femit_addressing (addressing_mode, base)
         | Byte_signed ->
-            `	ldrsb	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf "	ldrsb	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Sixteen_unsigned ->
-            `	ldrh	{emit_wreg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf "	ldrh	%a, %a\n" femit_wreg dst femit_addressing (addressing_mode, base)
         | Sixteen_signed ->
-            `	ldrsh	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf "	ldrsh	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Thirtytwo_unsigned ->
-            `	ldr	{emit_wreg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf "	ldr	%a, %a\n" femit_wreg dst femit_addressing (addressing_mode, base)
         | Thirtytwo_signed ->
-            `	ldrsw	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf "	ldrsw	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Single { reg = Float64 } ->
             DSL.check_reg Float dst;
-            `	ldr	s7, {emit_addressing addressing_mode base}\n`;
-            `	fcvt	{emit_reg dst}, s7\n`
+            emit_printf "	ldr	s7, %a\n" femit_addressing (addressing_mode, base);
+            emit_printf "	fcvt	%a, s7\n" femit_reg dst
         | Word_int | Word_val ->
           if is_atomic then begin
             assert (addressing_mode = Iindexed 0);
-            `	dmb	ishld\n`;
-            `	ldar	{emit_reg dst}, [{emit_reg i.arg.(0)}]\n`
+            emit_printf "	dmb	ishld\n";
+            emit_printf "	ldar	%a, [%a]\n" femit_reg dst femit_reg i.arg.(0)
           end else
-            `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf "	ldr	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Double ->
-                      `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
+                      emit_printf "	ldr	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Single { reg = Float32 } ->
             DSL.check_reg Float32 dst;
-            ` ldr {emit_reg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
             (* CR gyorsh: check alignment *)
             DSL.check_reg Vec128 dst;
-            ` ldr {emit_reg dst}, {emit_addressing addressing_mode base}\n`
+            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         end
     | Lop(Store(size, addr, assignment)) ->
       (* NB: assignments other than Word_int and Word_val do not follow the
@@ -1350,32 +1362,32 @@ let emit_instr i =
           | Iindexed _ -> i.arg.(1)
           | Ibased(s, ofs) ->
               assert (not !Clflags.dlcode);
-              `	adrp	{emit_reg reg_tmp1}, {emit_symbol_offset s ofs}\n`;
+              emit_printf "	adrp	%a, %a\n" femit_reg reg_tmp1 femit_symbol_offset (s, ofs);
               reg_tmp1 in
         begin match size with
         | Byte_unsigned | Byte_signed ->
-            `	strb	{emit_wreg src}, {emit_addressing addr base}\n`
+            emit_printf "	strb	%a, %a\n" femit_wreg src femit_addressing (addr, base)
         | Sixteen_unsigned | Sixteen_signed ->
-            `	strh	{emit_wreg src}, {emit_addressing addr base}\n`
+            emit_printf "	strh	%a, %a\n" femit_wreg src femit_addressing (addr, base)
         | Thirtytwo_unsigned | Thirtytwo_signed ->
-            `	str	{emit_wreg src}, {emit_addressing addr base}\n`
+            emit_printf "	str	%a, %a\n" femit_wreg src femit_addressing (addr, base)
         | Single { reg = Float64 } ->
             DSL.check_reg Float src;
-            `	fcvt	s7, {emit_reg src}\n`;
-            `	str	s7, {emit_addressing addr base}\n`;
+            emit_printf "	fcvt	s7, %a\n" femit_reg src;
+            emit_printf "	str	s7, %a\n" femit_addressing (addr, base);
         | Word_int | Word_val ->
             (* memory model barrier for non-initializing store *)
-            if assignment then `	dmb	ishld\n`;
-            `	str	{emit_reg src}, {emit_addressing addr base}\n`
+            if assignment then emit_printf "	dmb	ishld\n";
+            emit_printf "	str	%a, %a\n" femit_reg src femit_addressing (addr, base)
         | Double ->
-          `	str	{emit_reg src}, {emit_addressing addr base}\n`
+          emit_printf "	str	%a, %a\n" femit_reg src femit_addressing (addr, base)
         | Single { reg = Float32 } ->
           DSL.check_reg Float32 src;
-          ` str {emit_reg src}, {emit_addressing addr base}\n`
+          emit_printf " str %a, %a\n" femit_reg src femit_addressing (addr, base)
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
           (* CR gyorsh: check alignment *)
           DSL.check_reg Vec128 src;
-          ` str {emit_reg src}, {emit_addressing addr base}\n`
+          emit_printf " str %a, %a\n" femit_reg src femit_addressing (addr, base)
         end
     | Lop(Alloc { bytes = n; dbginfo; mode = Heap }) ->
         assembly_code_for_allocation i ~n ~local:false ~far:false ~dbginfo
@@ -1385,10 +1397,10 @@ let emit_instr i =
         assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
     | Lop(Begin_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
+        emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
     | Lop(End_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        `	str	{emit_reg i.arg.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
+        emit_printf "	str	%a, [%a, #%a]\n" femit_reg i.arg.(0) femit_reg reg_domain_state_ptr femit_int offset
     | Lop(Poll) ->
         assembly_code_for_poll i ~far:false ~return_label:None
     | Lop(Specific Ifar_poll) ->
@@ -1398,90 +1410,90 @@ let emit_instr i =
     | Lop(Intop_imm(Isub, n)) ->
         emit_subimm i.res.(0) i.arg.(0) n
     | Lop(Intop(Icomp cmp)) ->
-        `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-        `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
+        emit_printf "	cmp	%a, %a\n" femit_reg i.arg.(0) femit_reg i.arg.(1);
+        emit_printf "	cset	%a, %a\n" femit_reg i.res.(0) femit_string (name_for_comparison cmp)
     | Lop(Floatop(Float64, Icompf cmp)) ->
         let comp = name_for_float_comparison cmp in
-        `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-        `	cset	{emit_reg i.res.(0)}, {emit_string comp}\n`
+        emit_printf "	fcmp	%a, %a\n" femit_reg i.arg.(0) femit_reg i.arg.(1);
+        emit_printf "	cset	%a, %a\n" femit_reg i.res.(0) femit_string comp
     | Lop(Floatop(Float32, Icompf cmp)) ->
         let comp = name_for_float_comparison cmp in
-        `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-        `	cset	{emit_reg i.res.(0)}, {emit_string comp}\n`
+        emit_printf "	fcmp	%a, %a\n" femit_reg i.arg.(0) femit_reg i.arg.(1);
+        emit_printf "	cset	%a, %a\n" femit_reg i.res.(0) femit_string comp
     | Lop(Intop_imm(Icomp cmp, n)) ->
         emit_cmpimm i.arg.(0) n;
-        `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
+        emit_printf "	cset	%a, %a\n" femit_reg i.res.(0) femit_string (name_for_comparison cmp)
     | Lop(Intop Imod) ->
-        `	sdiv	{emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-        `	msub	{emit_reg i.res.(0)}, {emit_reg reg_tmp1}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}\n`
+        emit_printf "	sdiv	%a, %a, %a\n" femit_reg reg_tmp1 femit_reg i.arg.(0) femit_reg i.arg.(1);
+        emit_printf "	msub	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg reg_tmp1 femit_reg i.arg.(1) femit_reg i.arg.(0)
     | Lop(Intop (Imulh { signed = true })) ->
-        `	smulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+        emit_printf "	smulh	%a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Intop (Imulh { signed = false })) ->
-        `	umulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+        emit_printf "	umulh	%a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Intop (Ictz _)) ->
-        (* `ctz Rd, Rn` is optionally supported from Armv8.7, but rbit and clz
+        (* emit_printf "ctz Rd, Rn" is optionally supported from Armv8.7, but rbit and clz
            are supported in all ARMv8 CPUs. *)
-        ` rbit {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
-        ` clz  {emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
+        emit_printf " rbit %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0);
+        emit_printf " clz  %a, %a\n" femit_reg i.res.(0) femit_reg i.res.(0)
     | Lop(Intop (Iclz _ as op)) ->
         let instr = name_for_int_operation op in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+        emit_printf "	%a	%a, %a\n" femit_string instr femit_reg i.res.(0) femit_reg i.arg.(0)
     | Lop(Intop ((Iadd|Isub|Imul|Idiv|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr|Ipopcnt) as op)) ->
         let instr = name_for_int_operation op in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+        emit_printf "	%a	%a, %a, %a\n" femit_string instr femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Intop_imm(op, n)) ->
         let instr = name_for_int_operation op in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
+        emit_printf "	%a	%a, %a, #%a\n" femit_string instr femit_reg i.res.(0) femit_reg i.arg.(0) femit_int n
     | Lop(Specific Isqrtf) ->
-      `	fsqrt	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+      emit_printf "	fsqrt	%a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0)
     | Lop(Floatop ((Float32 | Float64), Iabsf)) ->
-      `	fabs	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+      emit_printf "	fabs	%a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0)
     | Lop(Floatop ((Float32 | Float64), Inegf)) ->
-      `	fneg	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+      emit_printf "	fneg	%a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0)
     | Lop(Floatop ((Float32 | Float64), Iaddf)) ->
-     `	fadd	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+     emit_printf "	fadd	%a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Floatop ((Float32 | Float64), Isubf)) ->
-     `	fsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+     emit_printf "	fsub	%a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Floatop ((Float32 | Float64), Imulf)) ->
-     `	fmul	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+     emit_printf "	fmul	%a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Floatop ((Float32 | Float64), Idivf)) ->
-     `	fdiv	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+     emit_printf "	fdiv	%a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Specific Inegmulf) ->
-     `	fnmul	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+     emit_printf "	fnmul	%a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1)
     | Lop(Specific(Imuladdf)) ->
-     `	fmadd	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+     emit_printf "	fmadd	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2) femit_reg i.arg.(0)
     | Lop(Specific(Inegmuladdf)) ->
-     `	fnmadd	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+     emit_printf "	fnmadd	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2) femit_reg i.arg.(0)
     | Lop(Specific(Imulsubf)) ->
-     `	fmsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+     emit_printf "	fmsub	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2) femit_reg i.arg.(0)
     | Lop(Specific(Inegmulsubf)) ->
-     `	fnmsub	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
+     emit_printf "	fnmsub	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2) femit_reg i.arg.(0)
     | Lop(Opaque) ->
         assert (i.arg.(0).loc = i.res.(0).loc)
     | Lop(Specific(Ishiftarith(op, shift))) ->
         let instr = (match op with
                        Ishiftadd    -> "add"
                      | Ishiftsub    -> "sub") in
-        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}`;
+        emit_printf "	%a	%a, %a, %a" femit_string instr femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1);
         if shift >= 0
-        then `, lsl #{emit_int shift}\n`
-        else `, asr #{emit_int (-shift)}\n`
+        then emit_printf ", lsl #%a\n" femit_int shift
+        else emit_printf ", asr #%a\n" femit_int (-shift)
     | Lop(Specific(Imuladd)) ->
-      `	madd	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
+      emit_printf "	madd	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1) femit_reg i.arg.(2)
     | Lop(Specific(Imulsub)) ->
-      `	msub	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
+      emit_printf "	msub	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_reg i.arg.(1) femit_reg i.arg.(2)
     | Lop(Specific(Ibswap { bitwidth })) ->
         begin match bitwidth with
         | Sixteen ->
-            `	rev16	{emit_wreg i.res.(0)}, {emit_wreg i.arg.(0)}\n`;
-            `	ubfm	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}, #0, #15\n`
+            emit_printf "	rev16	%a, %a\n" femit_wreg i.res.(0) femit_wreg i.arg.(0);
+            emit_printf "	ubfm	%a, %a, #0, #15\n" femit_reg i.res.(0) femit_reg i.res.(0)
         | Thirtytwo ->
-            `	rev	{emit_wreg i.res.(0)}, {emit_wreg i.arg.(0)}\n`
+            emit_printf "	rev	%a, %a\n" femit_wreg i.res.(0) femit_wreg i.arg.(0)
         | Sixtyfour ->
-            `	rev	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+            emit_printf "	rev	%a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(0)
         end
     | Lop(Specific(Isignext size)) ->
-        `	sbfm	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #0, #{emit_int (size - 1)}\n`
+        emit_printf "	sbfm	%a, %a, #0, #%a\n" femit_reg i.res.(0) femit_reg i.arg.(0) femit_int (size - 1)
     | Lop(Specific(Isimd simd)) ->
       DSL.simd_instr simd i
     | Lop (Name_for_debugger _) -> ()
@@ -1490,7 +1502,7 @@ let emit_instr i =
     | Lop(Dls_get) ->
       if Config.runtime5 then
         let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
-        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`
+        emit_printf "	ldr	%a, [%a, %a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
       else Misc.fatal_error "Dls is not supported in runtime4."
     | Lop (Csel tst) ->
       let len = Array.length i.arg in
@@ -1501,93 +1513,93 @@ let emit_instr i =
       else
         begin match tst with
         | Itruetest ->
-            `	cmp	{emit_reg i.arg.(0)}, #0\n`;
-            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+            emit_printf "	cmp	%a, #0\n" femit_reg i.arg.(0);
+            emit_printf "	csel	%a, %a, %a, ne\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2)
         | Ifalsetest ->
-            `	cmp	{emit_reg i.arg.(0)}, #0\n`;
-            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+            emit_printf "	cmp	%a, #0\n" femit_reg i.arg.(0);
+            emit_printf "	csel	%a, %a, %a, eq\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2)
         | Iinttest cmp ->
             let comp = name_for_comparison cmp in
-            `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+            emit_printf "	cmp	%a, %a\n" femit_reg i.arg.(0) femit_reg i.arg.(1);
+            emit_printf "	csel	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(2) femit_reg i.arg.(3) femit_string comp
         | Iinttest_imm(cmp, n) ->
             let comp = name_for_comparison cmp in
             emit_cmpimm i.arg.(0) n;
-            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_string comp}\n`
+            emit_printf "	csel	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2) femit_string comp
         | Ifloattest ((Float32 | Float64), cmp) ->
             let comp = name_for_float_comparison cmp in
-            `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+            emit_printf "	fcmp	%a, %a\n" femit_reg i.arg.(0) femit_reg i.arg.(1);
+            emit_printf "	csel	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(2) femit_reg i.arg.(3) femit_string comp
         | Ioddtest ->
-            `	tst	{emit_reg i.arg.(0)}, #1\n`;
-            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+            emit_printf "	tst	%a, #1\n" femit_reg i.arg.(0);
+            emit_printf "	csel	%a, %a, %a, ne\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2)
         | Ieventest ->
-            `	tst	{emit_reg i.arg.(0)}, #1\n`;
-            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+            emit_printf "	tst	%a, #1\n" femit_reg i.arg.(0);
+            emit_printf "	csel	%a, %a, %a, eq\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2)
         end
     | Lreloadretaddr ->
         ()
     | Lreturn ->
-        output_epilogue (fun () -> `	ret\n`)
+        output_epilogue (fun () -> emit_printf "	ret\n")
     | Llabel { label = lbl; _ } ->
-        `{emit_label lbl}:\n`
+        emit_printf "%a:\n" femit_label lbl
     | Lbranch lbl ->
-        `	b	{emit_label lbl}\n`
+        emit_printf "	b	%a\n" femit_label lbl
     | Lcondbranch(tst, lbl) ->
         begin match tst with
         | Itruetest ->
-            `	cbnz	{emit_reg i.arg.(0)}, {emit_label lbl}\n`
+            emit_printf "	cbnz	%a, %a\n" femit_reg i.arg.(0) femit_label lbl
         | Ifalsetest ->
-            `	cbz	{emit_reg i.arg.(0)}, {emit_label lbl}\n`
+            emit_printf "	cbz	%a, %a\n" femit_reg i.arg.(0) femit_label lbl
         | Iinttest cmp ->
-            `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
+            emit_printf "	cmp	%a, %a\n" femit_reg i.arg.(0) femit_reg i.arg.(1);
             let comp = name_for_comparison cmp in
-            `	b.{emit_string comp}	{emit_label lbl}\n`
+            emit_printf "	b.%a	%a\n" femit_string comp femit_label lbl
         | Iinttest_imm(cmp, n) ->
             emit_cmpimm i.arg.(0) n;
             let comp = name_for_comparison cmp in
-            `	b.{emit_string comp}	{emit_label lbl}\n`
+            emit_printf "	b.%a	%a\n" femit_string comp femit_label lbl
         | Ifloattest ((Float32 | Float64), cmp) ->
             let comp = name_for_float_comparison cmp in
-            `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-            `	b.{emit_string comp}	{emit_label lbl}\n`
+            emit_printf "	fcmp	%a, %a\n" femit_reg i.arg.(0) femit_reg i.arg.(1);
+            emit_printf "	b.%a	%a\n" femit_string comp femit_label lbl
         | Ioddtest ->
-            `	tbnz	{emit_reg i.arg.(0)}, #0, {emit_label lbl}\n`
+            emit_printf "	tbnz	%a, #0, %a\n" femit_reg i.arg.(0) femit_label lbl
         | Ieventest ->
-            `	tbz	{emit_reg i.arg.(0)}, #0, {emit_label lbl}\n`
+            emit_printf "	tbz	%a, #0, %a\n" femit_reg i.arg.(0) femit_label lbl
         end
     | Lcondbranch3(lbl0, lbl1, lbl2) ->
-        `	cmp	{emit_reg i.arg.(0)}, #1\n`;
+        emit_printf "	cmp	%a, #1\n" femit_reg i.arg.(0);
         begin match lbl0 with
           None -> ()
-        | Some lbl -> `	b.lt	{emit_label lbl}\n`
+        | Some lbl -> emit_printf "	b.lt	%a\n" femit_label lbl
         end;
         begin match lbl1 with
           None -> ()
-        | Some lbl -> `	b.eq	{emit_label lbl}\n`
+        | Some lbl -> emit_printf "	b.eq	%a\n" femit_label lbl
         end;
         begin match lbl2 with
           None -> ()
-        | Some lbl -> `	b.gt	{emit_label lbl}\n`
+        | Some lbl -> emit_printf "	b.gt	%a\n" femit_label lbl
         end
     | Lswitch jumptbl ->
         let lbltbl = Cmm.new_label() in
-        `	adr	{emit_reg reg_tmp1}, {emit_label lbltbl}\n`;
-        `	add	{emit_reg reg_tmp1}, {emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, lsl #2\n`;
-        `	br	{emit_reg reg_tmp1}\n`;
-        `{emit_label lbltbl}:`;
+        emit_printf "	adr	%a, %a\n" femit_reg reg_tmp1 femit_label lbltbl;
+        emit_printf "	add	%a, %a, %a, lsl #2\n" femit_reg reg_tmp1 femit_reg reg_tmp1 femit_reg i.arg.(0);
+        emit_printf "	br	%a\n" femit_reg reg_tmp1;
+        emit_printf "%a:" femit_label lbltbl;
         for j = 0 to Array.length jumptbl - 1 do
-            `	b	{emit_label jumptbl.(j)}\n`
+            emit_printf "	b	%a\n" femit_label jumptbl.(j)
         done
 (* Alternative:
         let lbltbl = Cmm.new_label() in
-        `	adr	{emit_reg reg_tmp1}, {emit_label lbltbl}\n`;
-        `	ldr	{emit_wreg reg_tmp2}, [{emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, lsl #2]\n`;
-        `	add	{emit_reg reg_tmp1}, {emit_wreg reg_tmp2}, sxtb\n`;
-        `	br	{emit_reg reg_tmp1}\n`;
-        `{emit_label lbltbl}:\n`;
+        emit_printf "	adr	%a, %a\n" femit_reg reg_tmp1 femit_label lbltbl;
+        emit_printf "	ldr	%a, [%a, %a, lsl #2]\n" femit_wreg reg_tmp2 femit_reg reg_tmp1 femit_reg i.arg.(0);
+        emit_printf "	add	%a, %a, sxtb\n" femit_reg reg_tmp1 femit_wreg reg_tmp2;
+        emit_printf "	br	%a\n" femit_reg reg_tmp1;
+        emit_printf "%a:\n" femit_label lbltbl;
         for j = 0 to Array.length jumptbl - 1 do
-            `	.word	{emit_label jumptbl.(j)} - {emit_label lbltbl}\n`
+            emit_printf "	.word	%a - %a\n" femit_label jumptbl.(j) femit_label lbltbl
         done
 *)
     | Lentertrap ->
@@ -1596,30 +1608,30 @@ let emit_instr i =
         cfi_adjust_cfa_offset delta_bytes;
         stack_offset := !stack_offset + delta_bytes
     | Lpushtrap { lbl_handler; } ->
-        `	adr	{emit_reg reg_tmp1}, {emit_label lbl_handler}\n`;
+        emit_printf "	adr	%a, %a\n" femit_reg reg_tmp1 femit_label lbl_handler;
         stack_offset := !stack_offset + 16;
-        `	stp	{emit_reg reg_trap_ptr}, {emit_reg reg_tmp1}, [sp, -16]!\n`;
+        emit_printf "	stp	%a, %a, [sp, -16]!\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
         cfi_adjust_cfa_offset 16;
-        `	mov	{emit_reg reg_trap_ptr}, sp\n`
+        emit_printf "	mov	%a, sp\n" femit_reg reg_trap_ptr
     | Lpoptrap ->
-        `	ldr	{emit_reg reg_trap_ptr}, [sp], 16\n`;
+        emit_printf "	ldr	%a, [sp], 16\n" femit_reg reg_trap_ptr;
         cfi_adjust_cfa_offset (-16);
         stack_offset := !stack_offset - 16
     | Lraise k ->
         begin match k with
         | Lambda.Raise_regular ->
-          `	bl	{emit_symbol "caml_raise_exn"}\n`;
-          `{record_frame Reg.Set.empty (Dbg_raise i.dbg)}\n`
+          emit_printf "	bl	%a\n" femit_symbol "caml_raise_exn";
+          emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
         | Lambda.Raise_reraise ->
           if Config.runtime5 then
-            `	bl	{emit_symbol "caml_reraise_exn"}\n`
+            emit_printf "	bl	%a\n" femit_symbol "caml_reraise_exn"
           else
-            `	bl	{emit_symbol "caml_raise_exn"}\n`;
-          `{record_frame Reg.Set.empty (Dbg_raise i.dbg)}\n`
+            emit_printf "	bl	%a\n" femit_symbol "caml_raise_exn";
+          emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
         | Lambda.Raise_notrace ->
-          `	mov	sp, {emit_reg reg_trap_ptr}\n`;
-          `	ldp	{emit_reg reg_trap_ptr}, {emit_reg reg_tmp1}, [sp], 16\n`;
-          `	br	{emit_reg reg_tmp1}\n`
+          emit_printf "	mov	sp, %a\n" femit_reg reg_trap_ptr;
+          emit_printf "	ldp	%a, %a, [sp], 16\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
+          emit_printf "	br	%a\n" femit_reg reg_tmp1
       end
     | Lstackcheck { max_frame_size_bytes; } ->
       let overflow = Cmm.new_label () and ret = Cmm.new_label () in
@@ -1628,11 +1640,11 @@ let emit_instr i =
       in
       let f = max_frame_size_bytes + threshold_offset in
       let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
-      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
       emit_addimm reg_tmp1 reg_tmp1 f;
-      `	cmp	sp, {emit_reg reg_tmp1}\n`;
-      `	bcc	{emit_label overflow}\n`;
-      `{emit_label ret}:`;
+      emit_printf "	cmp	sp, %a\n" femit_reg reg_tmp1;
+      emit_printf "	bcc	%a\n" femit_label overflow;
+      emit_printf "%a:" femit_label ret;
       stack_realloc := Some {
         sc_label = overflow;
         sc_return = ret;
@@ -1674,10 +1686,10 @@ let fundecl fundecl =
   prologue_required := fundecl.fun_prologue_required;
   contains_calls := fundecl.fun_contains_calls;
   emit_named_text_section !function_name;
-  `	.align	3\n`;
-  `	.globl	{emit_symbol fundecl.fun_name}\n`;
-  emit_symbol_type emit_symbol fundecl.fun_name "function";
-  `{emit_symbol fundecl.fun_name}:\n`;
+  emit_printf "	.align	3\n";
+  emit_printf "	.globl	%a\n" femit_symbol fundecl.fun_name;
+  emit_symbol_type femit_symbol fundecl.fun_name "function";
+  emit_printf "%a:\n" femit_symbol fundecl.fun_name;
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc();
   let num_call_gc = num_call_gc_points fundecl.fun_body in
@@ -1691,10 +1703,10 @@ let fundecl fundecl =
   assert (List.length !call_gc_sites = num_call_gc);
   (match fun_end_label with
    | None -> ()
-   | Some fun_end_label -> `{emit_label fun_end_label}:\n`);
+   | Some fun_end_label -> emit_printf "%a:\n" femit_label fun_end_label);
 
   cfi_endproc();
-  emit_symbol_type emit_symbol fundecl.fun_name "function";
+  emit_symbol_type femit_symbol fundecl.fun_name "function";
   emit_symbol_size fundecl.fun_name;
   emit_literals()
 
@@ -1708,27 +1720,27 @@ let emit_item (d : Cmm.data_item) =
          properly: GOT entries are not created for the symbols and the
          relocations evaluate to random other GOT entries.  For the moment
          force all symbols to be global. *)
-      `	.globl	{emit_symbol s.sym_name}\n`;
+      emit_printf "	.globl	%a\n" femit_symbol s.sym_name;
     end;
-    `{emit_symbol s.sym_name}:\n`
-  | Cint8 n -> `	.byte	{emit_int n}\n`
-  | Cint16 n -> `	.short	{emit_int n}\n`
-  | Cint32 n -> `	.long	{emit_nativeint n}\n`
-  | Cint n -> `	.quad	{emit_nativeint n}\n`
+    emit_printf "%a:\n" femit_symbol s.sym_name
+  | Cint8 n -> emit_printf "	.byte	%a\n" femit_int n
+  | Cint16 n -> emit_printf "	.short	%a\n" femit_int n
+  | Cint32 n -> emit_printf "	.long	%a\n" femit_nativeint n
+  | Cint n -> emit_printf "	.quad	%a\n" femit_nativeint n
   | Csingle f -> emit_float32_directive ".long" (Int32.bits_of_float f)
   | Cdouble f -> emit_float64_directive ".quad" (Int64.bits_of_float f)
   | Cvec128 { high; low; } ->
      emit_float64_directive ".quad" low;
      emit_float64_directive ".quad" high;
-  | Csymbol_address s -> `	.quad	{emit_symbol s.sym_name}\n`
-  | Csymbol_offset (s, o) -> `	.quad	{emit_symbol s.sym_name}+{emit_int o}\n`
+  | Csymbol_address s -> emit_printf "	.quad	%a\n" femit_symbol s.sym_name
+  | Csymbol_offset (s, o) -> emit_printf "	.quad	%a+%a\n" femit_symbol s.sym_name femit_int o
   | Cstring s -> emit_string_directive "	.ascii  " s
-  | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
-  | Calign n -> `	.align	{emit_int(Misc.log2 n)}\n`
+  | Cskip n -> if n > 0 then emit_printf "	.space	%a\n" femit_int n
+  | Calign n -> emit_printf "	.align	%a\n" femit_int(Misc.log2 n)
 
 let data l =
-  `	.data\n`;
-  `	.align  3\n`;
+  emit_printf "	.data\n";
+  emit_printf "	.align  3\n";
   List.iter emit_item l
 
 let emit_line str = emit_string (str ^ "\n")
@@ -1855,23 +1867,23 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
 
 let begin_assembly _unix =
   reset_debug_info();
-  `	.file	\"\"\n`;  (* PR#7037 *)
+  emit_printf "	.file	\"\"\n";  (* PR#7037 *)
   let lbl_begin = Cmm_helpers.make_symbol "data_begin" in
-  `	.data\n`;
-  `	.globl	{emit_symbol lbl_begin}\n`;
-  `{emit_symbol lbl_begin}:\n`;
+  emit_printf "	.data\n";
+  emit_printf "	.globl	%a\n" femit_symbol lbl_begin;
+  emit_printf "%a:\n" femit_symbol lbl_begin;
   let lbl_begin = Cmm_helpers.make_symbol "code_begin" in
   emit_named_text_section lbl_begin;
-  `	.globl	{emit_symbol lbl_begin}\n`;
-  `{emit_symbol lbl_begin}:\n`;
+  emit_printf "	.globl	%a\n" femit_symbol lbl_begin;
+  emit_printf "%a:\n" femit_symbol lbl_begin;
   (* we need to pad here to avoid collision for the unwind test between
      the code_begin symbol and the first function. (See also #4690)
      Alignment is needed to avoid linker warnings for
      shared_startup__code_{begin,end} (e.g. tests/lib-dynlink-pr4839).
    *)
   if macosx then begin
-    `	nop\n`;
-    `	.align	3\n`
+    emit_printf "	nop\n";
+    emit_printf "	.align	3\n"
   end;
   let lbl_end = Cmm_helpers.make_symbol "code_end" in
   Emitaux.Dwarf_helpers.begin_dwarf ~build_asm_directives
@@ -1881,41 +1893,41 @@ let begin_assembly _unix =
 let end_assembly () =
   let lbl_end = Cmm_helpers.make_symbol "code_end" in
   emit_named_text_section lbl_end;
-  `	.globl	{emit_symbol lbl_end}\n`;
-  `{emit_symbol lbl_end}:\n`;
+  emit_printf "	.globl	%a\n" femit_symbol lbl_end;
+  emit_printf "%a:\n" femit_symbol lbl_end;
   let lbl_end = Cmm_helpers.make_symbol "data_end" in
-  `	.data\n`;
-  `	.quad	0\n`;  (* PR#6329 *)
-  `	.globl	{emit_symbol lbl_end}\n`;
-  `{emit_symbol lbl_end}:\n`;
-  `	.quad	0\n`;
-  `	.align	3\n`;  (* #7887 *)
+  emit_printf "	.data\n";
+  emit_printf "	.quad	0\n";  (* PR#6329 *)
+  emit_printf "	.globl	%a\n" femit_symbol lbl_end;
+  emit_printf "%a:\n" femit_symbol lbl_end;
+  emit_printf "	.quad	0\n";
+  emit_printf "	.align	3\n";  (* #7887 *)
   let lbl = Cmm_helpers.make_symbol "frametable" in
-  `	.globl	{emit_symbol lbl}\n`;
-  `{emit_symbol lbl}:\n`;
+  emit_printf "	.globl	%a\n" femit_symbol lbl;
+  emit_printf "%a:\n" femit_symbol lbl;
   emit_frames
     { efa_code_label = (fun lbl ->
-                       emit_symbol_type emit_label lbl "function";
-                       `	.quad	{emit_label lbl}\n`);
+                       emit_symbol_type femit_label lbl "function";
+                       emit_printf "	.quad	%a\n" femit_label lbl);
       efa_data_label = (fun lbl ->
-                       emit_symbol_type emit_label lbl "object";
-                       `	.quad	{emit_label lbl}\n`);
-      efa_8 = (fun n -> `	.byte	{emit_int n}\n`);
-      efa_16 = (fun n -> `	.short	{emit_int n}\n`);
-      efa_32 = (fun n -> `	.long	{emit_int32 n}\n`);
-      efa_word = (fun n -> `	.quad	{emit_int n}\n`);
-      efa_align = (fun n -> `	.align	{emit_int(Misc.log2 n)}\n`);
+                       emit_symbol_type femit_label lbl "object";
+                       emit_printf "	.quad	%a\n" femit_label lbl);
+      efa_8 = (fun n -> emit_printf "	.byte	%a\n" femit_int n);
+      efa_16 = (fun n -> emit_printf "	.short	%a\n" femit_int n);
+      efa_32 = (fun n -> emit_printf "	.long	%a\n" femit_int32 n);
+      efa_word = (fun n -> emit_printf "	.quad	%a\n" femit_int n);
+      efa_align = (fun n -> emit_printf "	.align	%a\n" femit_int(Misc.log2 n));
       efa_label_rel = (fun lbl ofs ->
-                           `	.long	{emit_label lbl} - . + {emit_int32 ofs}\n`);
-      efa_def_label = (fun lbl -> `{emit_label lbl}:\n`);
+                           emit_printf "	.long	%a - . + %a\n" femit_label lbl femit_int32 ofs);
+      efa_def_label = (fun lbl -> emit_printf "%a:\n" femit_label lbl);
       efa_string = (fun s -> emit_string_directive "	.asciz	" s) };
-  emit_symbol_type emit_symbol lbl "object";
+  emit_symbol_type femit_symbol lbl "object";
   emit_symbol_size lbl;
   if not !Flambda_backend_flags.internal_assembler then
     Emitaux.Dwarf_helpers.emit_dwarf ();
   begin match Config.system with
   | "linux" ->
       (* Mark stack as non-executable *)
-      `	.section	.note.GNU-stack,\"\",%progbits\n`
+      emit_printf "	.section	.note.GNU-stack,\"\",%%progbits\n"
   | _ -> ()
   end

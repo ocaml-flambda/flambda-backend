@@ -21,9 +21,12 @@ open! Int_replace_polymorphic_compare
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Cmm
-open Select_utils
+
+(* CR mshinwell: remove ! *)
+open! Select_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module Int = Numbers.Int
+module V = Backend_var
 module VP = Backend_var.With_provenance
 
 let debug = false
@@ -217,9 +220,6 @@ module Stack_offset_and_exn = struct
         assert (not (block.is_trap_handler && block.dead)))
 end
 
-(* CR xclerc for xclerc: maybe_emit_naming_op, join, and join_array below should
-   be shared with the ones in Select_utils. *)
-
 let maybe_emit_naming_op env ~bound_name seq regs =
   match bound_name with
   | None -> ()
@@ -302,9 +302,193 @@ let basic_op x = Basic (Op x)
 
 class virtual selector_generic =
   object (self : 'self)
-    inherit [Label.t, Operation.t, Cfg.basic] Select_utils.common_selector
+    (* A syntactic criterion used in addition to judgements about (co)effects as
+       to whether the evaluation of a given expression may be deferred by
+       [emit_parts]. This criterion is a property of the instruction selection
+       algorithm in this file rather than a property of the Cmm language. *)
+    method is_simple_expr =
+      function
+      | Cconst_int _ -> true
+      | Cconst_natint _ -> true
+      | Cconst_float32 _ -> true
+      | Cconst_float _ -> true
+      | Cconst_symbol _ -> true
+      | Cconst_vec128 _ -> true
+      | Cvar _ -> true
+      | Ctuple el -> List.for_all self#is_simple_expr el
+      | Clet (_id, arg, body) ->
+        self#is_simple_expr arg && self#is_simple_expr body
+      | Cphantom_let (_var, _defining_expr, body) -> self#is_simple_expr body
+      | Csequence (e1, e2) -> self#is_simple_expr e1 && self#is_simple_expr e2
+      | Cop (op, args, _) -> (
+        match op with
+        (* Cextcall with neither effects nor coeffects is simple if its
+           arguments are *)
+        | Cextcall { effects = No_effects; coeffects = No_coeffects } ->
+          List.for_all self#is_simple_expr args
+          (* The following may have side effects *)
+        | Capply _ | Cextcall _ | Calloc _ | Cstore _ | Craise _ | Catomic _
+        | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cpoll ->
+          false
+        | Cprefetch _ | Cbeginregion | Cendregion ->
+          false
+          (* avoid reordering *)
+          (* The remaining operations are simple if their args are *)
+        | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand
+        | Cor | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _
+        | Cnegf _ | Cclz _ | Cctz _ | Cpopcnt | Cbswap _ | Ccsel _ | Cabsf _
+        | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
+        | Cstatic_cast _ | Ctuple_field _ | Ccmpf _ | Cdls_get ->
+          List.for_all self#is_simple_expr args)
+      | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> false
 
-    method is_store op = match op with Store (_, _, _) -> true | _ -> false
+    (* Analyses the effects and coeffects of an expression. This is used across
+       a whole list of expressions with a view to determining which expressions
+       may have their evaluation deferred. The result of this function, modulo
+       target-specific judgements if the [effects_of] method is overridden, is a
+       property of the Cmm language rather than anything particular about the
+       instruction selection algorithm in this file.
+
+       In the case of e.g. an OCaml function call, the arguments whose
+       evaluation cannot be deferred (cf. [emit_parts], below) are computed in
+       right-to-left order first with their results going into temporaries, then
+       the block is allocated, then the remaining arguments are evaluated before
+       being combined with the temporaries. *)
+    method effects_of exp =
+      let module EC = Effect_and_coeffect in
+      match exp with
+      | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+      | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ ->
+        EC.none
+      | Ctuple el -> EC.join_list_map el self#effects_of
+      | Clet (_id, arg, body) ->
+        EC.join (self#effects_of arg) (self#effects_of body)
+      | Cphantom_let (_var, _defining_expr, body) -> self#effects_of body
+      | Csequence (e1, e2) -> EC.join (self#effects_of e1) (self#effects_of e2)
+      | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _kind) ->
+        EC.join (self#effects_of cond)
+          (EC.join (self#effects_of ifso) (self#effects_of ifnot))
+      | Cop (op, args, _) ->
+        let from_op =
+          match op with
+          | Cextcall { effects = e; coeffects = ce } ->
+            EC.create (select_effects e) (select_coeffects ce)
+          | Capply _ | Cprobe _ | Copaque | Cpoll -> EC.arbitrary
+          | Calloc (Heap, _) -> EC.none
+          | Calloc (Local, _) -> EC.coeffect_only Coeffect.Arbitrary
+          | Cstore _ -> EC.effect_only Effect.Arbitrary
+          | Cbeginregion | Cendregion -> EC.arbitrary
+          | Cprefetch _ -> EC.arbitrary
+          | Catomic _ -> EC.arbitrary
+          | Craise _ -> EC.effect_only Effect.Raise
+          | Cload { mutability = Asttypes.Immutable } -> EC.none
+          | Cload { mutability = Asttypes.Mutable } | Cdls_get ->
+            EC.coeffect_only Coeffect.Read_mutable
+          | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
+          | Ctuple_field _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
+          | Cand | Cor | Cxor | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cpopcnt
+          | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
+          | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
+          | Creinterpret_cast _ | Cstatic_cast _ | Ccmpf _ ->
+            EC.none
+        in
+        EC.join from_op (EC.join_list_map args self#effects_of)
+      | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> EC.arbitrary
+
+    (* Says whether an integer constant is a suitable immediate argument for the
+       given integer operation *)
+
+    method is_immediate (op : Simple_operation.integer_operation) n =
+      match op with
+      | Ilsl | Ilsr | Iasr -> n >= 0 && n < Arch.size_int * 8
+      | _ -> false
+
+    (* Says whether an integer constant is a suitable immediate argument for the
+       given integer test *)
+
+    method virtual is_immediate_test
+        : Simple_operation.integer_comparison -> int -> bool
+
+    (* Selection of addressing modes *)
+
+    method virtual select_addressing
+        : Cmm.memory_chunk ->
+          Cmm.expression ->
+          Arch.addressing_mode * Cmm.expression
+
+    method virtual select_store
+        : bool -> Arch.addressing_mode -> Cmm.expression -> 'op * Cmm.expression
+    (* Instruction selection for conditionals *)
+
+    method select_condition (arg : Cmm.expression)
+        : Simple_operation.test * Cmm.expression =
+      match arg with
+      | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
+        when self#is_immediate_test (Isigned cmp) n ->
+        Iinttest_imm (Isigned cmp, n), arg1
+      | Cop (Ccmpi cmp, [Cconst_int (n, _); arg2], _)
+        when self#is_immediate_test (Isigned (swap_integer_comparison cmp)) n ->
+        Iinttest_imm (Isigned (swap_integer_comparison cmp), n), arg2
+      | Cop (Ccmpi cmp, args, _) -> Iinttest (Isigned cmp), Ctuple args
+      | Cop (Ccmpa cmp, [arg1; Cconst_int (n, _)], _)
+        when self#is_immediate_test (Iunsigned cmp) n ->
+        Iinttest_imm (Iunsigned cmp, n), arg1
+      | Cop (Ccmpa cmp, [Cconst_int (n, _); arg2], _)
+        when self#is_immediate_test (Iunsigned (swap_integer_comparison cmp)) n
+        ->
+        Iinttest_imm (Iunsigned (swap_integer_comparison cmp), n), arg2
+      | Cop (Ccmpa cmp, args, _) -> Iinttest (Iunsigned cmp), Ctuple args
+      | Cop (Ccmpf (width, cmp), args, _) ->
+        Ifloattest (width, cmp), Ctuple args
+      | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
+      | _ -> Itruetest, arg
+
+    method insert_moves env src dst =
+      for i = 0 to min (Array.length src) (Array.length dst) - 1 do
+        self#insert_move env src.(i) dst.(i)
+      done
+
+    (* Insert moves and stack offsets for function arguments and results *)
+
+    method insert_move_args env arg loc stacksize =
+      if stacksize <> 0
+      then self#insert env (self#make_stack_offset stacksize) [||] [||];
+      self#insert_moves env arg loc
+
+    method insert_move_results env loc res stacksize =
+      self#insert_moves env loc res;
+      if stacksize <> 0
+      then self#insert env (self#make_stack_offset (-stacksize)) [||] [||]
+
+    (* Add an Iop opcode. Can be overridden by processor description to insert
+       moves before and after the operation, i.e. for two-address instructions,
+       or instructions using dedicated registers. *)
+
+    method insert_op_debug env op dbg rs rd =
+      self#insert_debug env (self#lift_op op) dbg rs rd;
+      rd
+
+    method insert_op env op rs rd =
+      self#insert_op_debug env op Debuginfo.none rs rd
+
+    method private bind_let (env : environment) v r1 =
+      let env =
+        let rv = Reg.createv_with_typs_and_id ~id:(VP.var v) r1 in
+        self#insert_moves env r1 rv;
+        env_add v rv env
+      in
+      let provenance = VP.provenance v in
+      (if Option.is_some provenance
+      then
+        let naming_op =
+          self#make_name_for_debugger ~ident:(VP.var v) ~which_parameter:None
+            ~provenance ~is_assignment:false ~regs:r1
+        in
+        self#insert_debug env naming_op Debuginfo.none [||] [||]);
+      env
+
+    method is_store op =
+      match op with Operation.Store (_, _, _) -> true | _ -> false
 
     method lift_op op = Cfg.Op op
 
@@ -518,30 +702,30 @@ class virtual selector_generic =
 
     (* Buffering of instruction sequences *)
 
-    val mutable sub_cfg = Sub_cfg.make_empty ()
+    val mutable current_sub_cfg = Sub_cfg.make_empty ()
 
     method insert_debug (_env : environment) basic dbg arg res =
-      Sub_cfg.add_instruction sub_cfg basic arg res dbg
+      Sub_cfg.add_instruction current_sub_cfg basic arg res dbg
 
     method private insert_op_debug_returning_id (_env : environment) op dbg arg
         res =
       let instr = Cfg.make_instr (Cfg.Op op) arg res dbg in
-      Sub_cfg.add_instruction' sub_cfg instr;
+      Sub_cfg.add_instruction' current_sub_cfg instr;
       instr.id
 
     method insert (_env : environment) basic arg res =
       (* CR mshinwell: fix debuginfo *)
-      Sub_cfg.add_instruction sub_cfg basic arg res Debuginfo.none
+      Sub_cfg.add_instruction current_sub_cfg basic arg res Debuginfo.none
 
     method insert' (_env : environment) term arg res =
       (* CR mshinwell: fix debuginfo *)
-      Sub_cfg.set_terminator sub_cfg term arg res Debuginfo.none
+      Sub_cfg.set_terminator current_sub_cfg term arg res Debuginfo.none
 
     method insert_debug' (_env : environment) basic dbg arg res =
-      Sub_cfg.set_terminator sub_cfg basic arg res dbg
+      Sub_cfg.set_terminator current_sub_cfg basic arg res dbg
 
     method private insert_op_debug' (_env : environment) op dbg rs rd =
-      Sub_cfg.set_terminator sub_cfg op rs rd dbg;
+      Sub_cfg.set_terminator current_sub_cfg op rs rd dbg;
       rd
 
     val mutable tailrec_label : Label.t = Label.none
@@ -549,7 +733,307 @@ class virtual selector_generic =
 
     method insert_move env src dst =
       if src.Reg.stamp <> dst.Reg.stamp
-      then self#insert env (Op Move) [| src |] [| dst |]
+      then self#insert env (Cfg.Op Move) [| src |] [| dst |]
+
+    (* The following two functions, [emit_parts] and [emit_parts_list], force
+       right-to-left evaluation order as required by the Flambda [Un_anf] pass
+       (and to be consistent with the bytecode compiler). *)
+
+    method private emit_parts (env : environment) ~effects_after exp =
+      let module EC = Effect_and_coeffect in
+      let may_defer_evaluation =
+        let ec = self#effects_of exp in
+        match EC.effect ec with
+        | Effect.Arbitrary | Effect.Raise ->
+          (* Preserve the ordering of effectful expressions by evaluating them
+             early (in the correct order) and assigning their results to
+             temporaries. We can avoid this in just one case: if we know that
+             every [exp'] in the original expression list (cf.
+             [emit_parts_list]) to be evaluated after [exp] cannot possibly
+             affect the result of [exp] or depend on the result of [exp], then
+             [exp] may be deferred. (Checking purity here is not enough: we need
+             to check copurity too to avoid e.g. moving mutable reads earlier
+             than the raising of an exception.) *)
+          EC.pure_and_copure effects_after
+        | Effect.None -> (
+          match EC.coeffect ec with
+          | Coeffect.None ->
+            (* Pure expressions may be moved. *)
+            true
+          | Coeffect.Read_mutable -> (
+            (* Read-mutable expressions may only be deferred if evaluation of
+               every [exp'] (for [exp'] as in the comment above) has no effects
+               "worse" (in the sense of the ordering in [Effect.t]) than raising
+               an exception. *)
+            match EC.effect effects_after with
+            | Effect.None | Effect.Raise -> true
+            | Effect.Arbitrary -> false)
+          | Coeffect.Arbitrary -> (
+            (* Arbitrary expressions may only be deferred if evaluation of every
+               [exp'] (for [exp'] as in the comment above) has no effects. *)
+            match EC.effect effects_after with
+            | Effect.None -> true
+            | Effect.(Arbitrary | Raise) -> false))
+      in
+      (* Even though some expressions may look like they can be deferred from
+         the (co)effect analysis, it may be forbidden to move them. *)
+      if may_defer_evaluation && self#is_simple_expr exp
+      then Some (exp, env)
+      else
+        match self#emit_expr env exp ~bound_name:None with
+        | None -> None
+        | Some r ->
+          if Array.length r = 0
+          then Some (Ctuple [], env)
+          else
+            (* The normal case *)
+            let id = V.create_local "bind" in
+            (* Introduce a fresh temp to hold the result *)
+            let tmp = Reg.createv_with_typs_and_id ~id r in
+            self#insert_moves env r tmp;
+            Some (Cvar id, env_add (VP.create id) tmp env)
+
+    method private emit_parts_list (env : environment) exp_list =
+      let module EC = Effect_and_coeffect in
+      let exp_list_right_to_left, _effect =
+        (* Annotate each expression with the (co)effects that happen after it
+           when the original expression list is evaluated from right to left.
+           The resulting expression list has the rightmost expression first. *)
+        List.fold_left
+          (fun (exp_list, effects_after) exp ->
+            let exp_effect = self#effects_of exp in
+            (exp, effects_after) :: exp_list, EC.join exp_effect effects_after)
+          ([], EC.none) exp_list
+      in
+      List.fold_left
+        (fun results_and_env (exp, effects_after) ->
+          match results_and_env with
+          | None -> None
+          | Some (result, env) -> (
+            match self#emit_parts env exp ~effects_after with
+            | None -> None
+            | Some (exp_result, env) -> Some (exp_result :: result, env)))
+        (Some ([], env))
+        exp_list_right_to_left
+
+    method private emit_tuple_not_flattened env exp_list =
+      let rec emit_list = function
+        | [] -> []
+        | exp :: rem -> (
+          (* Again, force right-to-left evaluation *)
+          let loc_rem = emit_list rem in
+          match self#emit_expr env exp ~bound_name:None with
+          | None -> assert false (* should have been caught in emit_parts *)
+          | Some loc_exp -> loc_exp :: loc_rem)
+      in
+      emit_list exp_list
+
+    method private emit_tuple env exp_list =
+      Array.concat (self#emit_tuple_not_flattened env exp_list)
+
+    method emit_extcall_args env ty_args args =
+      let args = self#emit_tuple_not_flattened env args in
+      let ty_args =
+        match ty_args with
+        | [] -> List.map (fun _ -> XInt) args
+        | _ :: _ -> ty_args
+      in
+      let locs, stack_ofs = Proc.loc_external_arguments ty_args in
+      let ty_args = Array.of_list ty_args in
+      if stack_ofs <> 0
+      then self#insert env (self#make_stack_offset stack_ofs) [||] [||];
+      List.iteri
+        (fun i arg -> self#insert_move_extcall_arg env ty_args.(i) arg locs.(i))
+        args;
+      Array.concat (Array.to_list locs), stack_ofs
+
+    method insert_move_extcall_arg env _ty_arg src dst =
+      (* The default implementation is one or two ordinary moves. (Two in the
+         case of an int64 argument on a 32-bit platform.) It can be overridden
+         to use special move instructions, for example a "32-bit move"
+         instruction for int32 arguments. *)
+      self#insert_moves env src dst
+
+    method emit_stores env dbg data regs_addr =
+      let a =
+        ref (Arch.offset_addressing Arch.identity_addressing (-Arch.size_int))
+      in
+      List.iter
+        (fun e ->
+          let op, arg = self#select_store false !a e in
+          match self#emit_expr env arg ~bound_name:None with
+          | None -> assert false
+          | Some regs -> (
+            match self#is_store op with
+            | true ->
+              for i = 0 to Array.length regs - 1 do
+                let r = regs.(i) in
+                let kind =
+                  match r.Reg.typ with
+                  | Float -> Double
+                  | Float32 -> Single { reg = Float32 }
+                  | Vec128 ->
+                    (* 128-bit memory operations are default unaligned. Aligned
+                       (big)array operations are handled separately via cmm. *)
+                    Onetwentyeight_unaligned
+                  | Val | Addr | Int -> Word_val
+                  | Valx2 ->
+                    Misc.fatal_error "Unexpected machtype_component Valx2"
+                in
+                self#insert_debug env
+                  (self#make_store kind !a false)
+                  dbg
+                  (Array.append [| r |] regs_addr)
+                  [||];
+                a := Arch.offset_addressing !a (size_component r.Reg.typ)
+              done
+            | false ->
+              self#insert_debug env (self#lift_op op) dbg
+                (Array.append regs regs_addr)
+                [||];
+              a := Arch.offset_addressing !a (size_expr env e)))
+        data
+
+    (* Emit an expression.
+
+       [bound_name] is the name that will be bound to the result of evaluating
+       the expression, if such exists. This is used for emitting debugging info.
+
+       Returns: - [None] if the expression does not finish normally (e.g.
+       raises) - [Some rs] if the expression yields a result in registers
+       [rs] *)
+    method emit_expr (env : environment) exp ~bound_name =
+      self#emit_expr_aux env exp ~bound_name
+
+    (* Emit an expression which may end some regions early.
+
+       Returns: - [None] if the expression does not finish normally (e.g.
+       raises) - [Some (rs, unclosed)] if the expression yields a result in
+       [rs], having left [unclosed] (a suffix of env.regions) regions open *)
+    method emit_expr_aux (env : environment) exp ~bound_name
+        : Reg.t array option =
+      (* Normal case of returning a value: no regions are closed *)
+      let ret res = Some res in
+      match exp with
+      | Cconst_int (n, _dbg) ->
+        let r = Reg.createv typ_int in
+        ret
+          (self#insert_op env (self#make_const_int (Nativeint.of_int n)) [||] r)
+      | Cconst_natint (n, _dbg) ->
+        let r = Reg.createv typ_int in
+        ret (self#insert_op env (self#make_const_int n) [||] r)
+      | Cconst_float32 (n, _dbg) ->
+        let r = Reg.createv typ_float32 in
+        ret
+          (self#insert_op env
+             (self#make_const_float32 (Int32.bits_of_float n))
+             [||] r)
+      | Cconst_float (n, _dbg) ->
+        let r = Reg.createv typ_float in
+        ret
+          (self#insert_op env
+             (self#make_const_float (Int64.bits_of_float n))
+             [||] r)
+      | Cconst_vec128 (bits, _dbg) ->
+        let r = Reg.createv typ_vec128 in
+        ret (self#insert_op env (self#make_const_vec128 bits) [||] r)
+      | Cconst_symbol (n, _dbg) ->
+        (* Cconst_symbol _ evaluates to a statically-allocated address, so its
+           value fits in a typ_int register and is never changed by the GC.
+
+           Some Cconst_symbols point to statically-allocated blocks, some of
+           which may point to heap values. However, any such blocks will be
+           registered in the compilation unit's global roots structure, so
+           adding this register to the frame table would be redundant *)
+        let r = Reg.createv typ_int in
+        ret (self#insert_op env (self#make_const_symbol n) [||] r)
+      | Cvar v -> (
+        try ret (env_find v env)
+        with Not_found ->
+          Misc.fatal_error
+            ("Selection.emit_expr: unbound var " ^ V.unique_name v))
+      | Clet (v, e1, e2) -> (
+        match self#emit_expr env e1 ~bound_name:(Some v) with
+        | None -> None
+        | Some r1 -> self#emit_expr_aux (self#bind_let env v r1) e2 ~bound_name)
+      | Cphantom_let (_var, _defining_expr, body) ->
+        self#emit_expr_aux env body ~bound_name
+      | Ctuple [] -> ret [||]
+      | Ctuple exp_list -> (
+        match self#emit_parts_list env exp_list with
+        | None -> None
+        | Some (simple_list, ext_env) ->
+          ret (self#emit_tuple ext_env simple_list))
+      | Cop (Craise k, args, dbg) -> self#emit_expr_aux_raise env k args dbg
+      | Cop (Copaque, args, dbg) -> (
+        match self#emit_parts_list env args with
+        | None -> None
+        | Some (simple_args, env) ->
+          let rs = self#emit_tuple env simple_args in
+          ret (self#insert_op_debug env (self#make_opaque ()) dbg rs rs))
+      | Cop (Ctuple_field (field, fields_layout), [arg], _dbg) -> (
+        match self#emit_expr env arg ~bound_name:None with
+        | None -> None
+        | Some loc_exp ->
+          let flat_size a =
+            Array.fold_left (fun acc t -> acc + Array.length t) 0 a
+          in
+          assert (Array.length loc_exp = flat_size fields_layout);
+          let before = Array.sub fields_layout 0 field in
+          let size_before = flat_size before in
+          let field_slice =
+            Array.sub loc_exp size_before (Array.length fields_layout.(field))
+          in
+          ret field_slice)
+      | Cop (op, args, dbg) -> self#emit_expr_aux_op env bound_name op args dbg
+      | Csequence (e1, e2) -> (
+        match self#emit_expr env e1 ~bound_name:None with
+        | None -> None
+        | Some _ -> self#emit_expr_aux env e2 ~bound_name)
+      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
+        self#emit_expr_aux_ifthenelse env bound_name econd ifso_dbg eif
+          ifnot_dbg eelse dbg value_kind
+      | Cswitch (esel, index, ecases, dbg, value_kind) ->
+        self#emit_expr_aux_switch env bound_name esel index ecases dbg
+          value_kind
+      | Ccatch (_, [], e1, _) -> self#emit_expr_aux env e1 ~bound_name
+      | Ccatch (rec_flag, handlers, body, value_kind) ->
+        self#emit_expr_aux_catch env bound_name rec_flag handlers body
+          value_kind
+      | Cexit (lbl, args, traps) -> self#emit_expr_aux_exit env lbl args traps
+      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
+        self#emit_expr_aux_trywith env bound_name e1 exn_cont v ~extra_args e2
+          dbg value_kind
+
+    (* Emit an expression in tail position of a function, closing all regions in
+       [env.regions] *)
+    method emit_tail (env : environment) exp =
+      match exp with
+      | Clet (v, e1, e2) -> (
+        match self#emit_expr env e1 ~bound_name:None with
+        | None -> ()
+        | Some r1 -> self#emit_tail (self#bind_let env v r1) e2)
+      | Cphantom_let (_var, _defining_expr, body) -> self#emit_tail env body
+      | Cop ((Capply (ty, Rc_normal) as op), args, dbg) ->
+        self#emit_tail_apply env ty op args dbg
+      | Csequence (e1, e2) -> (
+        match self#emit_expr env e1 ~bound_name:None with
+        | None -> ()
+        | Some _ -> self#emit_tail env e2)
+      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
+        self#emit_tail_ifthenelse env econd ifso_dbg eif ifnot_dbg eelse dbg
+          value_kind
+      | Cswitch (esel, index, ecases, dbg, value_kind) ->
+        self#emit_tail_switch env esel index ecases dbg value_kind
+      | Ccatch (_, [], e1, _) -> self#emit_tail env e1
+      | Ccatch (rec_flag, handlers, e1, value_kind) ->
+        self#emit_tail_catch env rec_flag handlers e1 value_kind
+      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
+        self#emit_tail_trywith env e1 exn_cont v ~extra_args e2 dbg value_kind
+      | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _
+      | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Ctuple _
+      | Cexit _ ->
+        self#emit_return env exp (pop_all_traps env)
 
     method emit_expr_aux_raise env k (args : expression list) dbg =
       let r1 = self#emit_tuple env args in
@@ -566,7 +1050,7 @@ class virtual selector_generic =
          exception handler, with the extra args for this particular raise. *)
       let rd = Array.append [| Proc.loc_exn_bucket |] extra_args_regs in
       Array.iter2
-        (fun r1 rd -> self#insert env (Op Move) [| r1 |] [| rd |])
+        (fun r1 rd -> self#insert env (Cfg.Op Move) [| r1 |] [| rd |])
         r1 rd;
       self#insert_debug' env (Cfg.Raise k) dbg rd [||];
       set_traps_for_raise env;
@@ -577,7 +1061,7 @@ class virtual selector_generic =
       match self#emit_parts_list env args with
       | None -> None
       | Some (simple_args, env) -> (
-        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+        assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
         let add_naming_op_for_bound_name regs =
           match bound_name with
           | None -> ()
@@ -595,7 +1079,7 @@ class virtual selector_generic =
                     regs
                   }
               in
-              self#insert_debug env (Op naming_op) Debuginfo.none [||] [||]
+              self#insert_debug env (Cfg.Op naming_op) Debuginfo.none [||] [||]
         in
         let ty = Select_utils.oper_result_type op in
         let label_after = Cmm.new_label () in
@@ -614,7 +1098,8 @@ class virtual selector_generic =
           self#insert_debug' env term dbg
             (Array.append [| r1.(0) |] loc_arg)
             loc_res;
-          sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
+          current_sub_cfg
+            <- Sub_cfg.add_never_block current_sub_cfg ~label:label_after;
           (* The destination registers (as per the procedure calling convention)
              need to be named right now, otherwise the result of the function
              call may be unavailable in the debugger immediately after the
@@ -632,7 +1117,8 @@ class virtual selector_generic =
           self#insert_move_args env r1 loc_arg stack_ofs;
           self#insert_debug' env term dbg loc_arg loc_res;
           add_naming_op_for_bound_name loc_res;
-          sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
+          current_sub_cfg
+            <- Sub_cfg.add_never_block current_sub_cfg ~label:label_after;
           self#insert_move_results env loc_res rd stack_ofs;
           Select_utils.set_traps_for_raise env;
           Some rd
@@ -650,7 +1136,8 @@ class virtual selector_generic =
             self#insert_op_debug' env term dbg loc_arg
               (Proc.loc_external_results (Reg.typv rd))
           in
-          sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
+          current_sub_cfg
+            <- Sub_cfg.add_never_block current_sub_cfg ~label:label_after;
           add_naming_op_for_bound_name loc_res;
           self#insert_move_results env loc_res rd stack_ofs;
           Select_utils.set_traps_for_raise env;
@@ -660,7 +1147,8 @@ class virtual selector_generic =
           let rd = Reg.createv ty in
           let rd = self#insert_op_debug' env term dbg r1 rd in
           Select_utils.set_traps_for_raise env;
-          sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
+          current_sub_cfg
+            <- Sub_cfg.add_never_block current_sub_cfg ~label:label_after;
           ret rd
         | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
           let loc_arg, stack_ofs =
@@ -688,7 +1176,7 @@ class virtual selector_generic =
           Select_utils.set_traps_for_raise env;
           if returns
           then (
-            sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label;
+            current_sub_cfg <- Sub_cfg.add_never_block current_sub_cfg ~label;
             ret rd)
           else None
         | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
@@ -702,7 +1190,7 @@ class virtual selector_generic =
                 mode
               }
           in
-          self#insert_debug env (Op op) dbg [||] rd;
+          self#insert_debug env (Cfg.Op op) dbg [||] rd;
           add_naming_op_for_bound_name rd;
           self#emit_stores env dbg new_args rd;
           Select_utils.set_traps_for_raise env;
@@ -731,7 +1219,7 @@ class virtual selector_generic =
       match self#emit_expr env earg ~bound_name:None with
       | None -> None
       | Some rarg ->
-        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+        assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
         let rif, (sif : 'self) = self#emit_sequence env eif ~bound_name in
         let relse, (selse : 'self) = self#emit_sequence env eelse ~bound_name in
         let r = join env rif sif relse selse ~bound_name in
@@ -742,8 +1230,9 @@ class virtual selector_generic =
             ~label_true:(Sub_cfg.start_label sub_if)
             ~label_false:(Sub_cfg.start_label sub_else)
         in
-        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
-        sub_cfg <- Sub_cfg.join ~from:[sub_if; sub_else] ~to_:sub_cfg;
+        Sub_cfg.update_exit_terminator current_sub_cfg term_desc ~arg:rarg;
+        current_sub_cfg
+          <- Sub_cfg.join ~from:[sub_if; sub_else] ~to_:current_sub_cfg;
         r
 
     method emit_expr_aux_switch env bound_name esel index ecases
@@ -752,7 +1241,7 @@ class virtual selector_generic =
       match self#emit_expr env esel ~bound_name:None with
       | None -> None
       | Some rsel ->
-        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+        assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
         let sub_cases : (Reg.t array option * 'self) array =
           Array.map
             (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
@@ -763,8 +1252,9 @@ class virtual selector_generic =
         let term_desc : Cfg.terminator =
           Switch (Array.map (fun idx -> Sub_cfg.start_label subs.(idx)) index)
         in
-        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
-        sub_cfg <- Sub_cfg.join ~from:(Array.to_list subs) ~to_:sub_cfg;
+        Sub_cfg.update_exit_terminator current_sub_cfg term_desc ~arg:rsel;
+        current_sub_cfg
+          <- Sub_cfg.join ~from:(Array.to_list subs) ~to_:current_sub_cfg;
         r
 
     method emit_expr_aux_catch env bound_name (_rec_flag : Cmm.rec_flag)
@@ -860,7 +1350,7 @@ class virtual selector_generic =
       in
       let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
       let r = join_array env a ~bound_name in
-      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+      assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
       let s_body : Sub_cfg.t = s_body#extract in
       let s_handlers =
         List.map
@@ -870,8 +1360,9 @@ class virtual selector_generic =
           l
       in
       let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
-      Sub_cfg.update_exit_terminator sub_cfg term_desc;
-      sub_cfg <- Sub_cfg.join ~from:(s_body :: s_handlers) ~to_:sub_cfg;
+      Sub_cfg.update_exit_terminator current_sub_cfg term_desc;
+      current_sub_cfg
+        <- Sub_cfg.join ~from:(s_body :: s_handlers) ~to_:current_sub_cfg;
       r
 
     method emit_expr_aux_exit env lbl args traps =
@@ -901,7 +1392,7 @@ class virtual selector_generic =
             src;
           self#insert_moves env src tmp_regs;
           self#insert_moves env tmp_regs (Array.concat handler.regs);
-          assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+          assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
           List.iter
             (fun trap ->
               let instr_desc =
@@ -914,10 +1405,10 @@ class virtual selector_generic =
                   Cfg.Pushtrap { lbl_handler }
                 | Cmm.Pop _ -> Cfg.Poptrap
               in
-              Sub_cfg.add_instruction sub_cfg instr_desc [||] [||]
+              Sub_cfg.add_instruction current_sub_cfg instr_desc [||] [||]
                 Debuginfo.none)
             traps;
-          Sub_cfg.update_exit_terminator sub_cfg (Always handler.extra);
+          Sub_cfg.update_exit_terminator current_sub_cfg (Always handler.extra);
           Select_utils.set_traps nfail handler.Select_utils.traps_ref
             env.Select_utils.trap_stack traps;
           None
@@ -935,7 +1426,7 @@ class virtual selector_generic =
     method emit_expr_aux_trywith env bound_name e1 exn_cont v ~extra_args e2
         (_dbg : Debuginfo.t) (_value_kind : Cmm.kind_for_unboxing) =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+      assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
       let exn_label = Cmm.new_label () in
       (* For each exception handler having extra arguments, distinguished
          registers corresponding to such arguments are created. They are
@@ -983,8 +1474,9 @@ class virtual selector_generic =
         Sub_cfg.mark_as_trap_handler s2 ~exn_label;
         Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move)
           [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none;
-        Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
-        sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg;
+        Sub_cfg.update_exit_terminator current_sub_cfg
+          (Always (Sub_cfg.start_label s1));
+        current_sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:current_sub_cfg;
         r
       in
       let env =
@@ -1030,7 +1522,7 @@ class virtual selector_generic =
 
     method private emit_sequence ?at_start (env : environment) exp ~bound_name
         : _ * 'self =
-      let s = {<sub_cfg = Sub_cfg.make_empty ()>} in
+      let s = {<current_sub_cfg = Sub_cfg.make_empty ()>} in
       (match at_start with None -> () | Some f -> f s);
       let r = s#emit_expr_aux env exp ~bound_name in
       r, s
@@ -1049,14 +1541,15 @@ class virtual selector_generic =
               | Cmm.Push _ -> Misc.fatal_error "unexpected push on trap actions"
               | Cmm.Pop _ -> Cfg.Poptrap
             in
-            Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
+            Sub_cfg.add_instruction current_sub_cfg instr_desc [||] [||]
+              Debuginfo.none)
           traps;
         let loc = Proc.loc_results_return (Reg.typv r) in
         self#insert_moves env r loc;
         self#insert' env Cfg.Return loc [||]
 
     method emit_return (env : environment) exp traps =
-      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+      assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
       self#insert_return env (self#emit_expr_aux env exp ~bound_name:None) traps
 
     method emit_tail_apply env ty op args dbg =
@@ -1087,9 +1580,10 @@ class virtual selector_generic =
             self#insert_debug' env term dbg
               (Array.append [| r1.(0) |] loc_arg)
               loc_res;
-            sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
+            current_sub_cfg
+              <- Sub_cfg.add_never_block current_sub_cfg ~label:label_after;
             Select_utils.set_traps_for_raise env;
-            self#insert env (Op (Stackoffset (-stack_ofs))) [||] [||];
+            self#insert env (Cfg.Op (Stackoffset (-stack_ofs))) [||] [||];
             self#insert_return env (Some loc_res) (pop_all_traps env))
         | Terminator (Call { op = Direct func; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
@@ -1117,9 +1611,10 @@ class virtual selector_generic =
           else (
             self#insert_move_args env r1 loc_arg stack_ofs;
             self#insert_debug' env term dbg loc_arg loc_res;
-            sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
+            current_sub_cfg
+              <- Sub_cfg.add_never_block current_sub_cfg ~label:label_after;
             Select_utils.set_traps_for_raise env;
-            self#insert env (Op (Stackoffset (-stack_ofs))) [||] [||];
+            self#insert env (Cfg.Op (Stackoffset (-stack_ofs))) [||] [||];
             self#insert_return env (Some loc_res) (pop_all_traps env))
         | _ -> Misc.fatal_error "Cfg_selectgen.emit_tail")
 
@@ -1131,7 +1626,7 @@ class virtual selector_generic =
       match self#emit_expr env earg ~bound_name:None with
       | None -> ()
       | Some rarg ->
-        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+        assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
         let sub_if = self#emit_tail_sequence env eif in
         let sub_else = self#emit_tail_sequence env eelse in
         let term_desc =
@@ -1139,8 +1634,9 @@ class virtual selector_generic =
             ~label_true:(Sub_cfg.start_label sub_if)
             ~label_false:(Sub_cfg.start_label sub_else)
         in
-        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
-        sub_cfg <- Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:sub_cfg
+        Sub_cfg.update_exit_terminator current_sub_cfg term_desc ~arg:rarg;
+        current_sub_cfg
+          <- Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:current_sub_cfg
 
     method emit_tail_switch env esel index ecases (_dbg : Debuginfo.t)
         (_kind : Cmm.kind_for_unboxing) =
@@ -1148,7 +1644,7 @@ class virtual selector_generic =
       match self#emit_expr env esel ~bound_name:None with
       | None -> ()
       | Some rsel ->
-        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+        assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
         let sub_cases =
           Array.map
             (fun (case, _dbg) -> self#emit_tail_sequence env case)
@@ -1158,9 +1654,10 @@ class virtual selector_generic =
           Switch
             (Array.map (fun idx -> Sub_cfg.start_label sub_cases.(idx)) index)
         in
-        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
-        sub_cfg
-          <- Sub_cfg.join_tail ~from:(Array.to_list sub_cases) ~to_:sub_cfg
+        Sub_cfg.update_exit_terminator current_sub_cfg term_desc ~arg:rsel;
+        current_sub_cfg
+          <- Sub_cfg.join_tail ~from:(Array.to_list sub_cases)
+               ~to_:current_sub_cfg
 
     method emit_tail_catch env (_rec_flag : Cmm.rec_flag) handlers e1
         (_value_kind : Cmm.kind_for_unboxing) =
@@ -1187,7 +1684,7 @@ class virtual selector_generic =
             env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold, label)) map)
           (env, Int.Map.empty) handlers
       in
-      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+      assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
       let s_body = self#emit_tail_sequence env e1 in
       let translate_one_handler nfail
           (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
@@ -1253,16 +1750,17 @@ class virtual selector_generic =
         build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
         (* Note: we're dropping unreachable handlers here *)
       in
-      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+      assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
       let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
-      Sub_cfg.update_exit_terminator sub_cfg term_desc;
+      Sub_cfg.update_exit_terminator current_sub_cfg term_desc;
       let s_handlers = List.map (fun (_, _, s, _) -> s) new_handlers in
-      sub_cfg <- Sub_cfg.join_tail ~from:(s_body :: s_handlers) ~to_:sub_cfg
+      current_sub_cfg
+        <- Sub_cfg.join_tail ~from:(s_body :: s_handlers) ~to_:current_sub_cfg
 
     method emit_tail_trywith env e1 exn_cont v ~extra_args e2
         (_dbg : Debuginfo.t) (_value_kind : Cmm.kind_for_unboxing) =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
+      assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
       let exn_label = Cmm.new_label () in
       (* See comment in emit_expr_aux_trywith about extra args *)
       let extra_arg_regs_split =
@@ -1302,8 +1800,9 @@ class virtual selector_generic =
         Sub_cfg.mark_as_trap_handler s2 ~exn_label;
         Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move)
           [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none;
-        Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
-        sub_cfg <- Sub_cfg.join_tail ~from:[s1; s2] ~to_:sub_cfg
+        Sub_cfg.update_exit_terminator current_sub_cfg
+          (Always (Sub_cfg.start_label s1));
+        current_sub_cfg <- Sub_cfg.join_tail ~from:[s1; s2] ~to_:current_sub_cfg
       in
       let env =
         List.fold_left2
@@ -1340,12 +1839,12 @@ class virtual selector_generic =
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
     method private emit_tail_sequence ?at_start env exp =
-      let s = {<sub_cfg = Sub_cfg.make_empty ()>} in
+      let s = {<current_sub_cfg = Sub_cfg.make_empty ()>} in
       (match at_start with None -> () | Some f -> f s);
       s#emit_tail env exp;
       s#extract
 
-    method extract = sub_cfg
+    method extract = current_sub_cfg
 
     (* Sequentialization of a function definition *)
 

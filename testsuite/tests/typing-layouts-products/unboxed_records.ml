@@ -42,6 +42,9 @@
  }
 *)
 
+(* NOTE: When adding tests to this file, consider updating
+   [typing-layouts-products/implicit_unboxed_records.ml] *)
+
 open Stdlib_upstream_compatible
 
 type ints = #{ x : int ; y : int }

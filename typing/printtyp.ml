@@ -1422,8 +1422,14 @@ Raise if not found. *)
 let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option =
   Option.map (fun x -> List.assoc x l) mode
 
-let tree_of_modes modes =
+let tree_of_modes (modes : Mode.Alloc.Const.t) =
   let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
+  (* [yielding] has custom defaults depending on [areality]: *)
+  let diff_yielding =
+    match modes.areality, modes.yielding with
+    | Local, Yielding | Global, Unyielding -> None
+    | _, _ -> Some modes.yielding
+  in
   (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
   let l = [
     tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
@@ -1432,7 +1438,8 @@ let tree_of_modes modes =
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
     tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
                                   Mode.Contention.Const.Shared, Omd_new "shared"];
-    tree_of_mode diff.yielding [Mode.Yielding.Const.Yielding, Omd_new "yielding"]]
+    tree_of_mode diff_yielding [Mode.Yielding.Const.Yielding, Omd_new "yielding";
+                                Mode.Yielding.Const.Unyielding, Omd_new "unyielding"]]
   in
   List.filter_map Fun.id l
 

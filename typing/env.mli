@@ -171,7 +171,7 @@ val mark_extension_used:
 type label_usage =
     Projection | Mutation | Construct | Exported_private | Exported
 val mark_label_used:
-    _ record_form -> label_usage -> label_declaration -> unit
+    label_usage -> label_declaration -> unit
 
 (* Lookup by long identifiers *)
 
@@ -553,6 +553,9 @@ val import_crcs: source:string -> Import_info.t array -> unit
 (* Return the set of imports represented as runtime parameters (see
    [Persistent_env.runtime_parameter_bindings] for details) *)
 val runtime_parameter_bindings: unit -> (Global_module.t * Ident.t) list
+
+(* Return whether an ident appears in [runtime_parameter_bindings] *)
+val is_bound_to_runtime_parameter: Ident.t -> bool
 
 (* Return the list of parameters specified for the current unit, in
    alphabetical order *)

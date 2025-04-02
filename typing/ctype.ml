@@ -1662,22 +1662,41 @@ let instance_label ~fixed lbl =
     (vars, ty_arg, ty_res)
   )
 
-let prim_mode mvar = function
-  | Primitive.Prim_global, _ -> Locality.allow_right Locality.global
-  | Primitive.Prim_local, _ -> Locality.allow_right Locality.local
+(* CR dkalinichenko: we must vary yieldingness together with locality to get
+   sane behavior around [@local_opt]. Remove once we have mode polymorphism. *)
+let prim_mode' mvars = function
+  | Primitive.Prim_global, _ ->
+    Locality.allow_right Locality.global, None
+  | Primitive.Prim_local, _ ->
+    Locality.allow_right Locality.local, None
   | Primitive.Prim_poly, _ ->
-    match mvar with
-    | Some mvar -> mvar
+    match mvars with
+    | Some (mvar_l, mvar_y) -> mvar_l, Some mvar_y
     | None -> assert false
 
-(** Returns a new mode variable whose locality is the given locality, while
-    all other axes are from the given [m]. This function is too specific to be
-    put in [mode.ml] *)
-let with_locality locality m =
+(* Exported version. *)
+let prim_mode mvar prim =
+  let mvars = Option.map (fun mvar_l -> mvar_l, Yielding.newvar ()) mvar in
+  fst (prim_mode' mvars prim)
+
+(** Returns a new mode variable whose locality is the given locality and
+    whose yieldingness is the given yieldingness, while all other axes are
+    from the given [m]. This function is too specific to be put in [mode.ml] *)
+let with_locality_and_yielding (locality, yielding) m =
   let m' = Alloc.newvar () in
   Locality.equate_exn (Alloc.proj (Comonadic Areality) m') locality;
-  Alloc.submode_exn m' (Alloc.join_with (Comonadic Areality) Locality.Const.max m);
-  Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
+  let yielding =
+    Option.value ~default:(Alloc.proj (Comonadic Yielding) m) yielding
+  in
+  Yielding.equate_exn (Alloc.proj (Comonadic Yielding) m') yielding;
+  Alloc.submode_exn m' (Alloc.join_const
+    { Alloc.Const.min with
+      areality = Locality.Const.max;
+      yielding = Yielding.Const.max} m);
+  Alloc.submode_exn (Alloc.meet_const
+    { Alloc.Const.max with
+      areality = Locality.Const.min;
+      yielding = Yielding.Const.min} m) m';
   m'
 
 let curry_mode alloc arg : Alloc.Const.t =
@@ -1701,10 +1720,12 @@ let curry_mode alloc arg : Alloc.Const.t =
     of the return of a function). *)
   {acc with uniqueness=Uniqueness.Const.Aliased}
 
-let rec instance_prim_locals locals mvar macc finalret ty =
+let rec instance_prim_locals locals mvar_l mvar_y macc (loc, yld) ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
-     let marg = with_locality  (prim_mode (Some mvar) l) marg in
+     let marg = with_locality_and_yielding
+      (prim_mode' (Some (mvar_l, mvar_y)) l) marg
+     in
      let macc =
        Alloc.join [
         Alloc.disallow_right mret;
@@ -1714,12 +1735,12 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      in
      let mret =
        match locals with
-       | [] -> with_locality finalret mret
+       | [] -> with_locality_and_yielding (loc, yld) mret
        | _ :: _ ->
           let mret', _ = Alloc.newvar_above macc in (* curried arrow *)
           mret'
      in
-     let ret = instance_prim_locals locals mvar macc finalret ret in
+     let ret = instance_prim_locals locals mvar_l mvar_y macc (loc, yld) ret in
      newty2 ~level:(get_level ty) (Tarrow ((lbl,marg,mret),arg,ret, commu))
   | _ :: _, _ -> assert false
   | [], _ ->
@@ -1796,18 +1817,19 @@ let instance_prim_mode (desc : Primitive.description) ty =
   let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
-    let mode = Locality.newvar () in
-    let finalret = prim_mode (Some mode) desc.prim_native_repr_res in
+    let mode_l = Locality.newvar () in
+    let mode_y = Yielding.newvar () in
+    let finalret = prim_mode' (Some (mode_l, mode_y)) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
-      mode (Alloc.disallow_right Alloc.legacy) finalret ty,
-    Some mode
+      mode_l mode_y (Alloc.disallow_right Alloc.legacy) finalret ty,
+    Some mode_l, Some mode_y
   else
-    ty, None
+    ty, None, None
 
 let instance_prim (desc : Primitive.description) ty =
   let ty, sort = instance_prim_layout desc ty in
-  let ty, mode = instance_prim_mode desc ty in
-  ty, mode, sort
+  let ty, mode_l, mode_y = instance_prim_mode desc ty in
+  ty, mode_l, mode_y, sort
 
 (**** Instantiation with parameter substitution ****)
 
