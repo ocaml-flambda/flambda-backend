@@ -227,7 +227,8 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_apply _ ->
         Dynamic
 
-    | Texp_array _ ->
+    | Texp_array _
+    | Texp_idx _ ->
         Static
     | Texp_pack mexp ->
         classify_module_expression env mexp
@@ -720,6 +721,19 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_array (_, elt_sort, exprs, _) ->
       let elt_sort = Jkind.Sort.default_for_transl_and_get elt_sort in
       list expression exprs << array_mode exp elt_sort
+    | Texp_idx (ba, uas) ->
+      let block_access = function
+        | Baccess_field _ -> empty
+        | Baccess_array { f; index; index_kind = _; el_sort = _ } ->
+          join [
+            expression f << Dereference;
+            expression index << Dereference
+          ]
+      in
+      let unboxed_access = function
+        | Uaccess_unboxed_field _ -> empty
+      in
+      join (block_access ba :: List.map unboxed_access uas)
     | Texp_list_comprehension { comp_body; comp_clauses } ->
       join ((expression comp_body << Guard) ::
             comprehension_clauses comp_clauses)

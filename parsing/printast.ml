@@ -365,6 +365,10 @@ and expression i ppf x =
   | Pexp_array (mut, l) ->
       line i ppf "Pexp_array %a\n" fmt_mutable_flag mut;
       list i expression ppf l;
+  | Pexp_idx (ba, uas) ->
+      line i ppf "Pexp_idx\n";
+      block_access i ppf ba;
+      List.iter (unboxed_access i ppf) uas;
   | Pexp_ifthenelse (e1, e2, eo) ->
       line i ppf "Pexp_ifthenelse\n";
       expression i ppf e1;
@@ -458,6 +462,18 @@ and expression i ppf x =
       expression i ppf e2;
   | Pexp_hole ->
     line i ppf "Pexp_hole"
+
+and block_access i ppf = function
+  | Baccess_field lid ->
+      line i ppf "Baccess_field %a\n" fmt_longident_loc lid
+  | Baccess_indexop { f; index } ->
+      line i ppf "Baccess_indexop\n";
+      expression i ppf f;
+      list i expression ppf index
+
+and unboxed_access i ppf = function
+  | Uaccess_unboxed_field lid ->
+      line i ppf "Uaccess_unboxed_field %a\n" fmt_longident_loc lid
 
 and comprehension_expression i ppf = function
   | Pcomp_array_comprehension (m, c) ->

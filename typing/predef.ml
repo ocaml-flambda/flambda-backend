@@ -52,6 +52,8 @@ and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
 
 and ident_or_null = ident_create "or_null"
+and ident_imm_idx = ident_create "imm_idx"
+and ident_mut_idx = ident_create "mut_idx"
 
 and ident_int8x16 = ident_create "int8x16"
 and ident_int16x8 = ident_create "int16x8"
@@ -82,6 +84,8 @@ and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
 and path_lexing_position = Pident ident_lexing_position
+and path_imm_idx = Pident ident_imm_idx
+and path_mut_idx = Pident ident_mut_idx
 
 and path_or_null = Pident ident_or_null
 
@@ -136,6 +140,8 @@ and type_unboxed_nativeint =
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
 and type_unboxed_int64 = newgenty (Tconstr(path_unboxed_int64, [], ref Mnil))
 and type_or_null t = newgenty (Tconstr(path_or_null, [t], ref Mnil))
+and type_imm_idx t1 t2 = newgenty (Tconstr(path_imm_idx, [t1; t2], ref Mnil))
+and type_mut_idx t1 t2 = newgenty (Tconstr(path_mut_idx, [t1; t2], ref Mnil))
 
 and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
 and type_int16x8 = newgenty (Tconstr(path_int16x8, [], ref Mnil))
@@ -322,6 +328,30 @@ let mk_add_type1 add_type type_ident
   in
   add_type type_ident decl env
 
+let mk_add_type2 add_type type_ident ~jkind ~param1_jkind ~param2_jkind
+      ~type_variance ~type_separability env =
+  let param1 = newgenvar param1_jkind in
+  let param2 = newgenvar param2_jkind in
+  let decl =
+    { type_params = [param1; param2];
+      type_arity = 2;
+      type_kind = Type_abstract Definition;
+      type_jkind = Jkind.mark_best (jkind);
+      type_loc = Location.none;
+      type_private = Asttypes.Public;
+      type_manifest = None;
+      type_variance;
+      type_separability;
+      type_is_newtype = false;
+      type_expansion_scope = lowest_level;
+      type_attributes = [];
+      type_unboxed_default = false;
+      type_uid = Uid.of_predef_id type_ident;
+      type_unboxed_version = None;
+    }
+  in
+  add_type type_ident decl env
+
 let mk_add_extension add_extension id args =
   List.iter (fun (_, sort) ->
       let raise_error () = Misc.fatal_error
@@ -383,6 +413,7 @@ let unrestricted tvar ca_sort =
 let build_initial_env add_type add_extension empty_env =
   let add_type_with_jkind, add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
+  and add_type2 = mk_add_type2 add_type
   and add_extension = mk_add_extension add_extension in
   empty_env
   (* Predefined types *)
@@ -453,6 +484,43 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.add_with_bounds
            ~modality:Mode.Modality.Value.Const.id
            ~type_expr:param)
+  |> add_type2 ident_imm_idx
+       ~param1_jkind:(
+         Jkind.Builtin.value ~why:(Type_argument {
+           parent_path = Path.Pident ident_imm_idx;
+           position = 1;
+           arity = 2;
+         }))
+       ~param2_jkind:(
+         Jkind.Builtin.any ~why:(Type_argument {
+           parent_path = Path.Pident ident_imm_idx;
+           position = 2;
+           arity = 2;
+         }))
+       ~jkind:(
+         Jkind.of_builtin ~why:(Primitive ident_imm_idx)
+           Jkind.Const.Builtin.bits64)
+       ~type_variance:[Variance.full; Variance.covariant]
+       ~type_separability:[Separability.Ind; Separability.Ind]
+  |> add_type2 ident_mut_idx
+       ~param1_jkind:(
+         Jkind.Builtin.value ~why:(Type_argument {
+           parent_path = Path.Pident ident_mut_idx;
+           position = 1;
+           arity = 2;
+         }))
+       ~param2_jkind:(
+         Jkind.Builtin.any ~why:(Type_argument {
+           parent_path = Path.Pident ident_mut_idx;
+           position = 2;
+           arity = 2;
+         }))
+       ~jkind:(
+         Jkind.of_builtin ~why:(Primitive ident_mut_idx)
+           Jkind.Const.Builtin.bits64)
+       (* CR rtjoa: check variance *)
+       ~type_variance:[Variance.full; Variance.full]
+       ~type_separability:[Separability.Ind; Separability.Ind]
   |> add_type_with_jkind ident_lexing_position
        ~kind:(
          let lbl (field, field_type) =

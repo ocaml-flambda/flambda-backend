@@ -254,6 +254,7 @@ and expression_desc =
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
+  | Texp_idx of block_access * unboxed_access list
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -313,6 +314,24 @@ and meth =
   | Tmeth_name of string
   | Tmeth_val of Ident.t
   | Tmeth_ancestor of Ident.t * Path.t
+
+and index_kind =
+  | Index_int
+  | Index_unboxed_int64
+  | Index_unboxed_nativeint
+  | Index_unboxed_int32
+
+and block_access =
+  | Baccess_field of Longident.t loc * Types.label_description
+  | Baccess_array of
+    { f : expression;
+      index : expression;
+      index_kind : index_kind;
+      el_sort : Jkind.sort;
+    }
+
+and unboxed_access =
+  | Uaccess_unboxed_field of Longident.t loc * Types.unboxed_label_description
 
 and comprehension =
   {

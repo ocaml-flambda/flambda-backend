@@ -449,6 +449,8 @@ and expression_desc =
       (** [E1.l <- E2] *)
   | Pexp_array of mutable_flag * expression list
       (** [[| E1; ...; En |]] or [[: E1; ...; En :]] *)
+  | Pexp_idx of block_access * unboxed_access list
+      (** [idx_ .foo.#bar.#baz] *)
   | Pexp_ifthenelse of expression * expression * expression option
       (** [if E1 then E2 else E3] *)
   | Pexp_sequence of expression * expression  (** [E1; E2] *)
@@ -618,6 +620,18 @@ and function_constraint =
     (** The type constraint placed on a function's body. *)
   }
 (** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
+
+and block_access =
+  | Baccess_field of Longident.t loc
+  | Baccess_indexop of { f : expression; index : expression list }
+    (* CR rtjoa: chris: maybe f : longident *)
+    (** Invariant: [f] is always a [Pexp_ident].
+        Examples:
+        - [.(5)] corresponds to [f="Array.get"; i=[5]],
+        - [.:(5)] corresponds to [f=".:()"; i=[5]] *)
+
+and unboxed_access =
+  | Uaccess_unboxed_field of Longident.t loc
 
 and comprehension_iterator =
   | Pcomp_range of

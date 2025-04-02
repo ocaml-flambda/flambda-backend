@@ -458,6 +458,7 @@ and expression_desc =
       Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
   | Texp_array of Types.mutability * Jkind.Sort.t * expression list * alloc_mode
+  | Texp_idx of block_access * unboxed_access list
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of Types.mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -592,6 +593,26 @@ and meth =
     Tmeth_name of string
   | Tmeth_val of Ident.t
   | Tmeth_ancestor of Ident.t * Path.t
+
+and index_kind =
+  | Index_int
+  | Index_unboxed_int64
+  | Index_unboxed_nativeint
+  | Index_unboxed_int32
+
+and block_access =
+  | Baccess_field of Longident.t loc * Types.label_description
+  (* all o fthe below correspond to baccess_indexop *)
+  | Baccess_array of
+    { f : expression; (* only kept for untypeast *)
+      index : expression;
+      index_kind : index_kind;
+      el_sort : Jkind.sort;
+    }
+  (* CR layouts v8: add Baccess_block_index *)
+
+and unboxed_access =
+  | Uaccess_unboxed_field of Longident.t loc * Types.unboxed_label_description
 
 and comprehension =
   {

@@ -518,6 +518,14 @@ let indexop_unclosed_error loc_s s loc_e =
   let left, right = paren_to_strings s in
   unclosed left loc_s right loc_e
 
+let mk_indexop_block_access array_indexing_operator (dot,paren,index) ~loc =
+  let n, index = array_indexing_operator.index loc paren index in
+  let f = array_indexing_operator.name loc dot ~assign:false paren n in
+  Baccess_indexop {
+    f = ghexp ~loc (Pexp_ident f);
+    index = List.map snd index; (* Remove the [Nolabel]s *)
+  }
+
 let lapply ~loc p1 p2 =
   if !Clflags.applicative_functors
   then Lapply(p1, p2)
@@ -965,6 +973,7 @@ let maybe_pmod_constraint mode expr =
 %token GREATERRBRACKET        ">]"
 %token HASHLPAREN             "#("
 %token HASHLBRACE             "#{"
+%token IDX                    "idx_"
 %token IF                     "if"
 %token IN                     "in"
 %token INCLUDE                "include"
@@ -1134,7 +1143,7 @@ The precedences must be listed from low to high.
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
-          LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN
+          LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN IDX
 
 
 /* Entry points */
@@ -2910,6 +2919,11 @@ fun_expr:
       { mkexp ~loc:$sloc (mkinfix e1 op e2) }
 ;
 
+unboxed_access:
+  | DOTHASH mkrhs(label_longident)
+      { Uaccess_unboxed_field $2 }
+;
+
 simple_expr:
   | LPAREN seq_expr RPAREN
       { reloc_exp ~loc:$sloc $2 }
@@ -3050,6 +3064,35 @@ comprehension_clause:
   | HASH_SUFFIX { () }
 ;
 
+%inline indexop_block_access(dot, index):
+  | d=dot LPAREN i=index RPAREN
+    { d, Paren,   i }
+  | d=dot LBRACE i=index RBRACE
+    { d, Brace,   i }
+  | d=dot LBRACKET i=index RBRACKET
+    { d, Bracket, i }
+;
+
+%inline indexop_block_access_error(dot, index):
+  | dot _p=LPAREN index _e=error
+    { indexop_unclosed_error $loc(_p) Paren $loc(_e) }
+  | dot _p=LBRACE index _e=error
+    { indexop_unclosed_error $loc(_p) Brace $loc(_e) }
+  | dot _p=LBRACKET index _e=error
+    { indexop_unclosed_error $loc(_p) Bracket $loc(_e) }
+;
+
+block_access:
+  | DOT mkrhs(label_longident)
+      { Baccess_field $2 }
+  | indexop_block_access(DOT, seq_expr)
+      { mk_indexop_block_access builtin_indexing_operators ~loc:$sloc $1 }
+  | indexop_block_access(qualified_dotop, expr_semi_list)
+      { mk_indexop_block_access user_indexing_operators ~loc:$sloc $1 }
+  | indexop_block_access_error (DOT, seq_expr) { $1 }
+  | indexop_block_access_error (qualified_dotop, expr_semi_list) { $1 }
+;
+
 %inline simple_expr_:
   | mkrhs(val_longident)
       { Pexp_ident ($1) }
@@ -3071,6 +3114,10 @@ comprehension_clause:
       { Pexp_field($1, $3) }
   | simple_expr DOTHASH mkrhs(label_longident)
       { Pexp_unboxed_field($1, $3) }
+  | IDX block_access llist(unboxed_access) %prec below_HASH
+      { Pexp_idx ($2, $3) }
+  | LPAREN block_access llist(unboxed_access) RPAREN
+      { Pexp_idx ($2, $3) }
   | od=open_dot_declaration DOT LPAREN seq_expr RPAREN
       { Pexp_open(od, $4) }
   | od=open_dot_declaration DOT LBRACELESS object_expr_content GREATERRBRACE
