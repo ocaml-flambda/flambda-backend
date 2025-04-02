@@ -102,7 +102,7 @@ type t =
         (** This label must be the first in all layouts of this cfg. *)
     fun_contains_calls : bool;
         (** Precomputed during selection and poll insertion. *)
-    fun_num_stack_slots : int array;
+    fun_num_stack_slots : int Stack_class.Tbl.t;
         (** Precomputed at register allocation time *)
     fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
   }
@@ -113,7 +113,7 @@ val create :
   fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   fun_poll:Lambda.poll_attribute ->
   t
 

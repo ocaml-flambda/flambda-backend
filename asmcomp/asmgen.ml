@@ -302,7 +302,11 @@ let register_allocator fd : register_allocator =
 let available_regs ~stack_slots ~f x =
   (* Skip DWARF variable range generation for complicated functions to avoid
      high compilation speed penalties *)
-  let total_num_stack_slots = Array.fold_left ( + ) 0 (stack_slots x) in
+  let fun_num_stack_slots = stack_slots x in
+  let total_num_stack_slots =
+    Stack_class.Tbl.fold fun_num_stack_slots ~init:0
+      ~f:(fun _stack_class num acc -> acc + num)
+  in
   if total_num_stack_slots > !Dwarf_flags.dwarf_max_function_complexity
   then x
   else f x
