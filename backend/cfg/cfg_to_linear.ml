@@ -457,8 +457,8 @@ let print_assembly (blocks : Cfg.basic_block list) =
   let fun_name = "_fun_start_" in
   let cfg =
     Cfg.create ~fun_name ~fun_args:[||] ~fun_codegen_options:[]
-      ~fun_dbg:Debuginfo.none ~fun_contains_calls:true ~fun_num_stack_slots:[||]
-      ~fun_poll:Default_poll
+      ~fun_dbg:Debuginfo.none ~fun_contains_calls:true
+      ~fun_num_stack_slots:(Stack_class.Tbl.make 0) ~fun_poll:Default_poll
   in
   List.iter
     (fun (block : Cfg.basic_block) ->

@@ -106,7 +106,7 @@ let femit_wreg out = function
 
 let stack_offset = ref 0
 
-let num_stack_slots = Array.make Proc.num_stack_slot_classes 0
+let num_stack_slots = Stack_class.Tbl.make 0
 
 let prologue_required = ref false
 
@@ -139,7 +139,7 @@ let femit_stack out r =
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       Printf.fprintf out "[%a, #%a]" femit_reg reg_domain_state_ptr femit_int ofs
   | Stack ((Local _ | Incoming _ | Outgoing _) as s) ->
-      let ofs = slot_offset s (stack_slot_class r.typ) in
+      let ofs = slot_offset s (Stack_class.of_machtype r.typ) in
       Printf.fprintf out "[sp, #%a]" femit_int ofs
   | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
 
@@ -174,7 +174,7 @@ let record_frame_label live dbg =
       | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
-          live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
+          live_offset := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | { typ = Valx2; } as r ->
@@ -1680,9 +1680,7 @@ let fundecl fundecl =
   call_gc_sites := [];
   local_realloc_sites := [];
   clear_stack_realloc ();
-  for i = 0 to Proc.num_stack_slot_classes - 1 do
-    num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
-  done;
+  Stack_class.Tbl.copy_values ~from:fundecl.fun_num_stack_slots ~to_:num_stack_slots;
   prologue_required := fundecl.fun_prologue_required;
   contains_calls := fundecl.fun_contains_calls;
   emit_named_text_section !function_name;
