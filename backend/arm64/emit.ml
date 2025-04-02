@@ -213,259 +213,6 @@ let stack_realloc = ref (None : stack_realloc option)
 let clear_stack_realloc () =
   stack_realloc := None
 
-let emit_stack_realloc () =
-  match !stack_realloc with
-  | None -> ()
-  | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } ->
-    emit_printf "%a:\n" femit_label sc_label;
-    (* Pass the desired frame size on the stack, since all of the
-       argument-passing registers may be in use. *)
-    emit_printf "    mov %a, #%a\n" femit_reg reg_tmp1 femit_int sc_max_frame_size_in_bytes;
-    emit_printf "    stp %a, x30, [sp, #-16]!\n" femit_reg reg_tmp1;
-    emit_printf "    bl %a\n" femit_symbol "caml_call_realloc_stack";
-    emit_printf "    ldp %a, x30, [sp], #16\n" femit_reg reg_tmp1;
-    emit_printf "    b %a\n" femit_label sc_return
-
-(* Names of various instructions *)
-
-let name_for_comparison = function
-  | Isigned Ceq -> "eq" | Isigned Cne -> "ne" | Isigned Cle -> "le"
-  | Isigned Cge -> "ge" | Isigned Clt -> "lt" | Isigned Cgt -> "gt"
-  | Iunsigned Ceq -> "eq" | Iunsigned Cne -> "ne" | Iunsigned Cle -> "ls"
-  | Iunsigned Cge -> "cs" | Iunsigned Clt -> "cc" | Iunsigned Cgt -> "hi"
-
-let name_for_int_operation = function
-  | Iadd -> "add"
-  | Isub -> "sub"
-  | Imul -> "mul"
-  | Idiv -> "sdiv"
-  | Iand -> "and"
-  | Ior  -> "orr"
-  | Ixor -> "eor"
-  | Ilsl -> "lsl"
-  | Ilsr -> "lsr"
-  | Iasr -> "asr"
-  | Iclz { arg_is_non_zero = _ } -> "clz"
-  | Ipopcnt -> "cnt"
-  | Ictz _ | Icomp _ | Imod | Imulh _-> assert false
-
-(* Decompose an integer constant into four 16-bit shifted fragments.
-   Omit the fragments that are equal to "default" (16 zeros or 16 ones). *)
-
-let decompose_int default n =
-  let rec decomp n pos =
-    if pos >= 64 then [] else begin
-      let frag = Nativeint.logand n 0xFFFFn
-      and rem  = Nativeint.shift_right_logical n 16 in
-      if frag = default
-      then decomp rem (pos + 16)
-      else (frag, pos) :: decomp rem (pos + 16)
-    end
-  in decomp n 0
-
-(* Load an integer constant into a register *)
-
-let emit_movk dst (f, p) =
-    emit_printf "	movk	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint f femit_int p
-
-let emit_intconst dst n =
-  if is_logical_immediate n then
-    emit_printf "	orr	%a, xzr, #%a\n" femit_reg dst femit_nativeint n
-  else begin
-    let dz = decompose_int 0x0000n n
-    and dn = decompose_int 0xFFFFn n in
-    if List.length dz <= List.length dn then begin
-      match dz with
-      | [] ->
-          emit_printf "	mov	%a, xzr\n" femit_reg dst
-      | (f, p) :: l ->
-          emit_printf "	movz	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint f femit_int p;
-          List.iter (emit_movk dst) l
-    end else begin
-      match dn with
-      | [] ->
-          emit_printf "	movn	%a, #0\n" femit_reg dst
-      | (f, p) :: l ->
-          let nf = Nativeint.logxor f 0xFFFFn in
-          emit_printf "	movn	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint nf femit_int p;
-          List.iter (emit_movk dst) l
-    end
-  end
-
-let num_instructions_for_intconst n =
-  if is_logical_immediate n then 1 else begin
-    let dz = decompose_int 0x0000n n
-    and dn = decompose_int 0xFFFFn n in
-    max 1 (min (List.length dz) (List.length dn))
-  end
-
-(* Recognize float constants appropriate for FMOV dst, #fpimm instruction:
-   "a normalized binary floating point encoding with 1 sign bit, 4
-    bits of fraction and a 3-bit exponent" *)
-
-let is_immediate_float bits =
-  let exp = (Int64.(to_int (shift_right_logical bits 52)) land 0x7FF) - 1023 in
-  let mant = Int64.logand bits 0xF_FFFF_FFFF_FFFFL in
-  exp >= -3 && exp <= 4 && Int64.logand mant 0xF_0000_0000_0000L = mant
-
-let is_immediate_float32 bits =
-  let exp = (Int32.(to_int (shift_right_logical bits 23)) land 0x7F) - 63 in
-  let mant = Int32.logand bits 0x7F_FFFFl in
-  exp >= -3 && exp <= 4 && Int32.logand mant 0x78_0000l = mant
-
-(* Adjust sp (up or down) by the given byte amount *)
-
-let emit_stack_adjustment n =
-  let instr = if n < 0 then "sub" else "add" in
-  let m = abs n in
-  assert (m < 0x1_000_000);
-  let ml = m land 0xFFF and mh = m land 0xFFF_000 in
-  if mh <> 0 then emit_printf "	%a	sp, sp, #%a\n" femit_string instr femit_int mh;
-  if ml <> 0 then emit_printf "	%a	sp, sp, #%a\n" femit_string instr femit_int ml;
-  if n <> 0 then cfi_adjust_cfa_offset (-n)
-
-(* Deallocate the stack frame and reload the return address
-   before a return or tail call *)
-
-let output_epilogue f =
-  let n = frame_size() in
-  if !contains_calls then
-    emit_printf "	ldr	x30, [sp, #%a]\n" femit_int (n-8);
-  if n > 0 then
-    emit_stack_adjustment n;
-  f();
-  (* reset CFA back because function body may continue *)
-  if n > 0 then cfi_adjust_cfa_offset n
-
-(* Output add-immediate / sub-immediate / cmp-immediate instructions *)
-
-let rec emit_addimm rd rs n =
-  if n < 0 then emit_subimm rd rs (-n)
-  else if n <= 0xFFF then
-    emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int n
-  else begin
-    assert (n <= 0xFFF_FFF);
-    let nl = n land 0xFFF and nh = n land 0xFFF_000 in
-    emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int nh;
-    if nl <> 0 then
-      emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rd femit_int nl
-  end
-
-and emit_subimm rd rs n =
-  if n < 0 then emit_addimm rd rs (-n)
-  else if n <= 0xFFF then
-    emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int n
-  else begin
-    assert (n <= 0xFFF_FFF);
-    let nl = n land 0xFFF and nh = n land 0xFFF_000 in
-    emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int nh;
-    if nl <> 0 then
-      emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rd femit_int nl
-  end
-
-let emit_cmpimm rs n =
-  if n >= 0
-  then emit_printf "	cmp	%a, #%a\n" femit_reg rs femit_int n
-  else emit_printf "	cmn	%a, #%a\n" femit_reg rs femit_int (-n)
-
-(* Name of current function *)
-let function_name = ref ""
-(* Entry point for tail recursive calls *)
-let tailrec_entry_point = ref None
-(* Pending floating-point literals *)
-let float_literals = ref ([] : (int64 * label) list)
-let vec128_literals = ref ([] : (Cmm.vec128_bits * label) list)
-
-(* Label a floating-point literal *)
-let add_literal p f =
-  try
-    List.assoc f !p
-  with Not_found ->
-    let lbl = Cmm.new_label() in
-    p := (f, lbl) :: !p;
-    lbl
-
-let float_literal f = add_literal float_literals f
-let vec128_literal f = add_literal vec128_literals f
-
-(* Emit all pending literals *)
-let emit_literals p align emit_literal =
-  if !p <> [] then begin
-    if macosx then
-    emit_printf "	.section	__TEXT,__literal%a,%abyte_literals\n" femit_int align femit_int align;
-    emit_printf "	.balign	%a\n" femit_int align;
-    List.iter emit_literal !p;
-    p := []
-  end
-
-let emit_float_literal (f, lbl) =
-     emit_printf "%a:" femit_label lbl; emit_float64_directive ".quad" f
-
-let emit_vec128_literal (({ high; low; } : Cmm.vec128_bits), lbl) =
-     emit_printf "%a:\n" femit_label lbl;
-     emit_float64_directive ".quad" low;
-     emit_float64_directive ".quad" high
-
-let emit_literals () =
-  emit_literals float_literals size_float emit_float_literal;
-  emit_literals vec128_literals size_vec128 emit_vec128_literal
-
-(* Emit code to load the address of a symbol *)
-
-let emit_load_symbol_addr dst s =
-  if macosx then begin
-    emit_printf "	adrp	%a, %a%@GOTPAGE\n" femit_reg dst femit_symbol s;
-    emit_printf "	ldr	%a, [%a, %a%@GOTPAGEOFF]\n" femit_reg dst femit_reg dst femit_symbol s
-  end else if not !Clflags.dlcode then begin
-    emit_printf "	adrp	%a, %a\n" femit_reg dst femit_symbol s;
-    emit_printf "	add	%a, %a, #:lo12:%a\n" femit_reg dst femit_reg dst femit_symbol s
-  end else begin
-    emit_printf "	adrp	%a, :got:%a\n" femit_reg dst femit_symbol s;
-    emit_printf "	ldr	%a, [%a, #:got_lo12:%a]\n" femit_reg dst femit_reg dst femit_symbol s
-  end
-
-(* The following functions are used for calculating the sizes of the
-   call GC and bounds check points emitted out-of-line from the function
-   body.  See branch_relaxation.mli. *)
-
-let num_call_gc_points instr =
-  let rec loop instr call_gc =
-    match instr.desc with
-    | Lend -> call_gc
-    | Lop (Alloc { mode = Heap; _ }) when !fastcode_flag ->
-      loop instr.next (call_gc + 1)
-    | Lop Poll ->
-      loop instr.next (call_gc + 1)
-    (* The following four should never be seen, since this function is run
-       before branch relaxation. *)
-    | Lop (Specific (Ifar_alloc _))
-    | Lop (Specific Ifar_poll) -> assert false
-    | Lop (Alloc { mode = (Local | Heap); _ })
-    | Lop (Specific
-             (Imuladd|Imulsub|Inegmulf|Imuladdf|Inegmuladdf|Imulsubf|Inegmulsubf|
-              Isqrtf|Imove32|Ishiftarith (_, _)|Ibswap _|Isignext _|Isimd _))
-    | Lop (Move|Spill|Reload|Opaque|Begin_region|End_region|Dls_get|Const_int _|
-           Const_float32 _|Const_float _|Const_symbol _|Const_vec128 _|Stackoffset _|
-           Load _|Store (_, _, _)|Intop _|Intop_imm (_, _)|Intop_atomic _|
-           Floatop (_, _)|Csel _|Reinterpret_cast _|Static_cast _|Probe_is_enabled _|
-           Name_for_debugger _)
-    | Lprologue|Lreloadretaddr|Lreturn|Lentertrap|Lpoptrap|Lcall_op _|Llabel _|
-    Lbranch _|Lcondbranch (_, _)|Lcondbranch3 (_, _, _)|Lswitch _|
-    Ladjust_stack_offset _|Lpushtrap _|Lraise _|Lstackcheck _
-      -> loop instr.next call_gc
-  in
-  loop instr 0
-
-let max_out_of_line_code_offset ~num_call_gc =
-  if num_call_gc < 1 then 0
-  else begin
-    let size_of_call_gc = 2 in
-    let size_of_last_thing = size_of_call_gc in
-    let total_size = size_of_call_gc*num_call_gc in
-    let max_offset = total_size - size_of_last_thing in
-    assert (max_offset >= 0);
-    max_offset
-  end
 
 module DSL : sig
 
@@ -735,6 +482,260 @@ end [@warning "-32"]  = struct
     | Cmp_f32 c -> ins (I.FCM (emit_float_cond c)) operands
     | Cmpz_s32 c -> ins (I.CM (emit_cond c)) (Array.append operands [| imm 0; |])
 end
+
+let emit_stack_realloc () =
+  match !stack_realloc with
+  | None -> ()
+  | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } ->
+    emit_printf "%a:\n" femit_label sc_label;
+    (* Pass the desired frame size on the stack, since all of the
+       argument-passing registers may be in use. *)
+    emit_printf "    mov %a, #%a\n" femit_reg reg_tmp1 femit_int sc_max_frame_size_in_bytes;
+    emit_printf "    stp %a, x30, [sp, #-16]!\n" femit_reg reg_tmp1;
+    emit_printf "    bl %a\n" femit_symbol "caml_call_realloc_stack";
+    emit_printf "    ldp %a, x30, [sp], #16\n" femit_reg reg_tmp1;
+    emit_printf "    b %a\n" femit_label sc_return
+
+(* Names of various instructions *)
+
+let name_for_comparison = function
+  | Isigned Ceq -> "eq" | Isigned Cne -> "ne" | Isigned Cle -> "le"
+  | Isigned Cge -> "ge" | Isigned Clt -> "lt" | Isigned Cgt -> "gt"
+  | Iunsigned Ceq -> "eq" | Iunsigned Cne -> "ne" | Iunsigned Cle -> "ls"
+  | Iunsigned Cge -> "cs" | Iunsigned Clt -> "cc" | Iunsigned Cgt -> "hi"
+
+let name_for_int_operation = function
+  | Iadd -> "add"
+  | Isub -> "sub"
+  | Imul -> "mul"
+  | Idiv -> "sdiv"
+  | Iand -> "and"
+  | Ior  -> "orr"
+  | Ixor -> "eor"
+  | Ilsl -> "lsl"
+  | Ilsr -> "lsr"
+  | Iasr -> "asr"
+  | Iclz { arg_is_non_zero = _ } -> "clz"
+  | Ipopcnt -> "cnt"
+  | Ictz _ | Icomp _ | Imod | Imulh _-> assert false
+
+(* Decompose an integer constant into four 16-bit shifted fragments.
+   Omit the fragments that are equal to "default" (16 zeros or 16 ones). *)
+
+let decompose_int default n =
+  let rec decomp n pos =
+    if pos >= 64 then [] else begin
+      let frag = Nativeint.logand n 0xFFFFn
+      and rem  = Nativeint.shift_right_logical n 16 in
+      if frag = default
+      then decomp rem (pos + 16)
+      else (frag, pos) :: decomp rem (pos + 16)
+    end
+  in decomp n 0
+
+(* Load an integer constant into a register *)
+
+let emit_movk dst (f, p) =
+    emit_printf "	movk	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint f femit_int p
+
+let emit_intconst dst n =
+  if is_logical_immediate n then
+    emit_printf "	orr	%a, xzr, #%a\n" femit_reg dst femit_nativeint n
+  else begin
+    let dz = decompose_int 0x0000n n
+    and dn = decompose_int 0xFFFFn n in
+    if List.length dz <= List.length dn then begin
+      match dz with
+      | [] ->
+          emit_printf "	mov	%a, xzr\n" femit_reg dst
+      | (f, p) :: l ->
+          emit_printf "	movz	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint f femit_int p;
+          List.iter (emit_movk dst) l
+    end else begin
+      match dn with
+      | [] ->
+          emit_printf "	movn	%a, #0\n" femit_reg dst
+      | (f, p) :: l ->
+          let nf = Nativeint.logxor f 0xFFFFn in
+          emit_printf "	movn	%a, #%a, lsl #%a\n" femit_reg dst femit_nativeint nf femit_int p;
+          List.iter (emit_movk dst) l
+    end
+  end
+
+let num_instructions_for_intconst n =
+  if is_logical_immediate n then 1 else begin
+    let dz = decompose_int 0x0000n n
+    and dn = decompose_int 0xFFFFn n in
+    max 1 (min (List.length dz) (List.length dn))
+  end
+
+(* Recognize float constants appropriate for FMOV dst, #fpimm instruction:
+   "a normalized binary floating point encoding with 1 sign bit, 4
+    bits of fraction and a 3-bit exponent" *)
+
+let is_immediate_float bits =
+  let exp = (Int64.(to_int (shift_right_logical bits 52)) land 0x7FF) - 1023 in
+  let mant = Int64.logand bits 0xF_FFFF_FFFF_FFFFL in
+  exp >= -3 && exp <= 4 && Int64.logand mant 0xF_0000_0000_0000L = mant
+
+let is_immediate_float32 bits =
+  let exp = (Int32.(to_int (shift_right_logical bits 23)) land 0x7F) - 63 in
+  let mant = Int32.logand bits 0x7F_FFFFl in
+  exp >= -3 && exp <= 4 && Int32.logand mant 0x78_0000l = mant
+
+(* Adjust sp (up or down) by the given byte amount *)
+
+let emit_stack_adjustment n =
+  let instr = if n < 0 then "sub" else "add" in
+  let m = abs n in
+  assert (m < 0x1_000_000);
+  let ml = m land 0xFFF and mh = m land 0xFFF_000 in
+  if mh <> 0 then emit_printf "	%a	sp, sp, #%a\n" femit_string instr femit_int mh;
+  if ml <> 0 then emit_printf "	%a	sp, sp, #%a\n" femit_string instr femit_int ml;
+  if n <> 0 then cfi_adjust_cfa_offset (-n)
+
+(* Deallocate the stack frame and reload the return address
+   before a return or tail call *)
+
+let output_epilogue f =
+  let n = frame_size() in
+  if !contains_calls then
+    emit_printf "	ldr	x30, [sp, #%a]\n" femit_int (n-8);
+  if n > 0 then
+    emit_stack_adjustment n;
+  f();
+  (* reset CFA back because function body may continue *)
+  if n > 0 then cfi_adjust_cfa_offset n
+
+(* Output add-immediate / sub-immediate / cmp-immediate instructions *)
+
+let rec emit_addimm rd rs n =
+  if n < 0 then emit_subimm rd rs (-n)
+  else if n <= 0xFFF then
+    emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int n
+  else begin
+    assert (n <= 0xFFF_FFF);
+    let nl = n land 0xFFF and nh = n land 0xFFF_000 in
+    emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int nh;
+    if nl <> 0 then
+      emit_printf "	add	%a, %a, #%a\n" femit_reg rd femit_reg rd femit_int nl
+  end
+
+and emit_subimm rd rs n =
+  if n < 0 then emit_addimm rd rs (-n)
+  else if n <= 0xFFF then
+    emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int n
+  else begin
+    assert (n <= 0xFFF_FFF);
+    let nl = n land 0xFFF and nh = n land 0xFFF_000 in
+    emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rs femit_int nh;
+    if nl <> 0 then
+      emit_printf "	sub	%a, %a, #%a\n" femit_reg rd femit_reg rd femit_int nl
+  end
+
+let emit_cmpimm rs n =
+  if n >= 0
+  then emit_printf "	cmp	%a, #%a\n" femit_reg rs femit_int n
+  else emit_printf "	cmn	%a, #%a\n" femit_reg rs femit_int (-n)
+
+(* Name of current function *)
+let function_name = ref ""
+(* Entry point for tail recursive calls *)
+let tailrec_entry_point = ref None
+(* Pending floating-point literals *)
+let float_literals = ref ([] : (int64 * label) list)
+let vec128_literals = ref ([] : (Cmm.vec128_bits * label) list)
+
+(* Label a floating-point literal *)
+let add_literal p f =
+  try
+    List.assoc f !p
+  with Not_found ->
+    let lbl = Cmm.new_label() in
+    p := (f, lbl) :: !p;
+    lbl
+
+let float_literal f = add_literal float_literals f
+let vec128_literal f = add_literal vec128_literals f
+
+(* Emit all pending literals *)
+let emit_literals p align emit_literal =
+  if !p <> [] then begin
+    if macosx then
+    emit_printf "	.section	__TEXT,__literal%a,%abyte_literals\n" femit_int align femit_int align;
+    emit_printf "	.balign	%a\n" femit_int align;
+    List.iter emit_literal !p;
+    p := []
+  end
+
+let emit_float_literal (f, lbl) =
+     emit_printf "%a:" femit_label lbl; emit_float64_directive ".quad" f
+
+let emit_vec128_literal (({ high; low; } : Cmm.vec128_bits), lbl) =
+     emit_printf "%a:\n" femit_label lbl;
+     emit_float64_directive ".quad" low;
+     emit_float64_directive ".quad" high
+
+let emit_literals () =
+  emit_literals float_literals size_float emit_float_literal;
+  emit_literals vec128_literals size_vec128 emit_vec128_literal
+
+(* Emit code to load the address of a symbol *)
+
+let emit_load_symbol_addr dst s =
+  if macosx then begin
+    emit_printf "	adrp	%a, %a%@GOTPAGE\n" femit_reg dst femit_symbol s;
+    emit_printf "	ldr	%a, [%a, %a%@GOTPAGEOFF]\n" femit_reg dst femit_reg dst femit_symbol s
+  end else if not !Clflags.dlcode then begin
+    emit_printf "	adrp	%a, %a\n" femit_reg dst femit_symbol s;
+    emit_printf "	add	%a, %a, #:lo12:%a\n" femit_reg dst femit_reg dst femit_symbol s
+  end else begin
+    emit_printf "	adrp	%a, :got:%a\n" femit_reg dst femit_symbol s;
+    emit_printf "	ldr	%a, [%a, #:got_lo12:%a]\n" femit_reg dst femit_reg dst femit_symbol s
+  end
+
+(* The following functions are used for calculating the sizes of the
+   call GC and bounds check points emitted out-of-line from the function
+   body.  See branch_relaxation.mli. *)
+
+let num_call_gc_points instr =
+  let rec loop instr call_gc =
+    match instr.desc with
+    | Lend -> call_gc
+    | Lop (Alloc { mode = Heap; _ }) when !fastcode_flag ->
+      loop instr.next (call_gc + 1)
+    | Lop Poll ->
+      loop instr.next (call_gc + 1)
+    (* The following four should never be seen, since this function is run
+       before branch relaxation. *)
+    | Lop (Specific (Ifar_alloc _))
+    | Lop (Specific Ifar_poll) -> assert false
+    | Lop (Alloc { mode = (Local | Heap); _ })
+    | Lop (Specific
+             (Imuladd|Imulsub|Inegmulf|Imuladdf|Inegmuladdf|Imulsubf|Inegmulsubf|
+              Isqrtf|Imove32|Ishiftarith (_, _)|Ibswap _|Isignext _|Isimd _))
+    | Lop (Move|Spill|Reload|Opaque|Begin_region|End_region|Dls_get|Const_int _|
+           Const_float32 _|Const_float _|Const_symbol _|Const_vec128 _|Stackoffset _|
+           Load _|Store (_, _, _)|Intop _|Intop_imm (_, _)|Intop_atomic _|
+           Floatop (_, _)|Csel _|Reinterpret_cast _|Static_cast _|Probe_is_enabled _|
+           Name_for_debugger _)
+    | Lprologue|Lreloadretaddr|Lreturn|Lentertrap|Lpoptrap|Lcall_op _|Llabel _|
+    Lbranch _|Lcondbranch (_, _)|Lcondbranch3 (_, _, _)|Lswitch _|
+    Ladjust_stack_offset _|Lpushtrap _|Lraise _|Lstackcheck _
+      -> loop instr.next call_gc
+  in
+  loop instr 0
+
+let max_out_of_line_code_offset ~num_call_gc =
+  if num_call_gc < 1 then 0
+  else begin
+    let size_of_call_gc = 2 in
+    let size_of_last_thing = size_of_call_gc in
+    let total_size = size_of_call_gc*num_call_gc in
+    let max_offset = total_size - size_of_last_thing in
+    assert (max_offset >= 0);
+    max_offset
+  end
 
 module BR = Branch_relaxation.Make (struct
   (* CR-someday mshinwell: B and BL have +/- 128Mb ranges; for the moment we
