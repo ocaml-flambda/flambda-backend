@@ -1343,7 +1343,7 @@ let emit_instr i =
         | Thirtytwo_unsigned ->
             DSL.ins I.LDR [| DSL.emit_reg_w dst; DSL.emit_addressing addressing_mode base |]
         | Thirtytwo_signed ->
-            DSL.ins I.LDRSW [| DSL.emit_reg_w dst; DSL.emit_addressing addressing_mode base |]
+            DSL.ins I.LDRSW [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         | Single { reg = Float64 } ->
             DSL.check_reg Float dst;
             emit_printf "	ldr	s7, %a\n" femit_addressing (addressing_mode, base);
@@ -1409,7 +1409,7 @@ let emit_instr i =
         assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
     | Lop(Begin_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        DSL.ins I.LDR [| DSL.emit_reg i.arg.(0); DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |]
+        DSL.ins I.LDR [| DSL.emit_reg i.res.(0); DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |]
     | Lop(End_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
         DSL.ins I.STR [| DSL.emit_reg i.arg.(0); DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |]
