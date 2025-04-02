@@ -127,8 +127,11 @@ module Cfg_desc = struct
         let update_slot (r : Reg.t) =
           match r.loc, Stack_class.of_machtype r.typ with
           | Stack (Local idx), stack_class ->
-            cfg.fun_num_stack_slots.(stack_class)
-              <- max cfg.fun_num_stack_slots.(stack_class) (idx + 1)
+            Stack_class.Tbl.update 
+            cfg.fun_num_stack_slots
+            stack_class
+            ~f:(fun curr ->
+               max curr (idx + 1))
           | _ -> ()
         in
         Array.iter update_slot i.arg;
