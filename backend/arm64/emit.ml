@@ -143,18 +143,6 @@ let femit_symbol_offset out (s, ofs) =
   else if ofs < 0 then Printf.fprintf out "-%a" femit_int (-ofs)
   else ()
 
-
-
-let femit_addressing out (addr, r) =
-  match addr with
-  | Iindexed ofs ->
-      Printf.fprintf out "[%a, #%a]" femit_reg r femit_int ofs
-  | Ibased(s, ofs) ->
-      assert (not !Clflags.dlcode);  (* see selection.ml *)
-      Printf.fprintf out "[%a, #:lo12:%a]" femit_reg r femit_symbol_offset (s, ofs)
-
-
-
 (* Record live pointers at call points *)
 
 let record_frame_label live dbg =
@@ -485,6 +473,8 @@ module DSL : sig
   val emit_reg : Reg.t -> Arm64_ast.Operand.t
   val emit_reg_d : Reg.t -> Arm64_ast.Operand.t
   val emit_reg_s : Reg.t -> Arm64_ast.Operand.t
+  (* emit a specific ARM register *)
+  val emit_reg_fixed_s : int -> Arm64_ast.Operand.t
   val emit_reg_w : Reg.t -> Arm64_ast.Operand.t
   val emit_reg_v2d : Reg.t -> Arm64_ast.Operand.t
   val imm : int -> Arm64_ast.Operand.t
@@ -535,6 +525,8 @@ end [@warning "-32"]  = struct
   let emit_reg_w reg = reg_w (reg_index reg)
 
   let emit_reg_s reg = reg_s (reg_index reg)
+
+  let emit_reg_fixed_s i = reg_s i
 
   let emit_reg_d reg = reg_d (reg_index reg)
 
@@ -1351,7 +1343,7 @@ let emit_instr i =
             DSL.ins I.LDRSW [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         | Single { reg = Float64 } ->
             DSL.check_reg Float dst;
-            emit_printf "	ldr	s7, %a\n" femit_addressing (addressing_mode, base);
+            DSL.ins I.LDR [| DSL.emit_reg_fixed_s 7; DSL.emit_addressing addressing_mode base |];
             emit_printf "	fcvt	%a, s7\n" femit_reg dst
         | Word_int | Word_val ->
           if is_atomic then begin
@@ -1391,7 +1383,7 @@ let emit_instr i =
         | Single { reg = Float64 } ->
             DSL.check_reg Float src;
             emit_printf "	fcvt	s7, %a\n" femit_reg src;
-            emit_printf "	str	s7, %a\n" femit_addressing (addr, base)
+            DSL.ins I.STR [| DSL.emit_reg_fixed_s 7; DSL.emit_addressing addr base |]
         | Word_int | Word_val ->
             (* memory model barrier for non-initializing store *)
             if assignment then emit_printf "	dmb	ishld\n";
