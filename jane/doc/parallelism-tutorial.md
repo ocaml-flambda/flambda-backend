@@ -127,7 +127,22 @@ All we have to do to sum over the prices in a `Thing.t Tree.t` is change the
 `Tree.Leaf` case:
 
 ```ocaml
-      | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
+  let average_things_par (par : Parallel.t) tree =
+    let rec total par tree =
+      match tree with
+      | Tree.Leaf x -> ~total:(Thing.price x), ~count:1 (* <== new code *)
+      | Tree.Node (l, r) ->
+        let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
+          Parallel.fork_join2
+            par
+            (fun par -> total par l)
+            (fun par -> total par r)
+        in
+        ~total:(total_l +. total_r), ~count:(count_l + count_r)
+    in
+    let ~total, ~count = total par tree in
+    total /. (count |> Float.of_int)
+  ;;
 ```
 
 So far, so good. But something annoying happens if we introduce an abstraction
@@ -154,6 +169,46 @@ The value Thing.price is nonportable, so cannot be used inside a function that
 is portable.
 ```
 
+Why are things breaking just because we moved some code? As it turns out, it's
+because our declaration for `price` left out crucial information that the
+compiler was previously able to infer. We can take the compiler's suggestion
+easily enough by explaining that `price` is `portable`:
+
+```ocaml
+val price : t -> float @@ portable
+```
+
+But the compiler isn't satisfied. Now it complains about the `l` in
+`total par l`:
+
+```
+This value is contended but expected to be uncontended.
+```
+
+Now the solution is much less obvious, but as we'll see, it again comes down to
+missing information on `price`:
+
+```ocaml
+val price : t @ contended -> float @@ portable
+```
+
+Once you're familiar with the `portable` and `contended` modes, you'll see that
+this can be read as saying:
+
+> The `price` function is safe to call from any domain, and it won't produce a
+> data race even if its argument is mutated in parallel.
+
+That's enough to let `average_par_things` go through: from there, the compiler
+infers the safety properties that `Parallel.fork_join2` demands.
+
+Adding `portable` and `contended` to your .mli files can take some work, but
+over the next few sections we'll cover what exactly the modes mean, what the
+most important rules for using them are, and some workarounds and shortcuts. In
+return, these two modes suffice to run even large amounts of code in fork/join
+style without fear of data races.
+
+<!--
+
 What's going on here? Well, the arguments to `Parallel.fork_join2` must be
 `portable`, which is to say, safe to call from any domain. We'll get into
 precisely what this means [later], but an important aspect is that a `portable`
@@ -162,7 +217,7 @@ par -> total par l)` to be `portable`, `total` must be `portable`, and thus
 since `total` calls `Thing.price`, that has to be `portable` as well. When we
 defined `price` in the same module and let the compiler infer its type, the
 `portable` got inferred with it, but now that we're writing the type out
-ourserves we need to include it:
+ourselves we need to include it:
 
 ```ocaml
 val price : t -> float @@ portable
@@ -270,15 +325,16 @@ this version of `price` twice in parallel clearly produces a data race. As
 we'll soon see, what's going on is that for `price` to be `portable`, it has to
 see `annoying_bit_of_global_state` as `contended`, which disallows accessing it
 at all (since a `ref` is just a record with a single mutable field).
+-->
 
 ## A brief primer on `portable` and `contended`
 
-Like a type, a mode describes something about a name in an OCaml program. But
-whereas a type describes the *value* associated with a name, a mode instead
-describes the value's *circumstances.* This could be where it is in memory, who
-has access to it, or what can be done with it. If you've seen `@ local` **(link
-to doc)** or the older syntax `local_`, you've already encountered the `local`
-mode.
+Firstly, `portable` and `contended` are _modes_. Like a type, a mode describes
+something about a name in an OCaml program. But whereas a type describes the
+*value* associated with a name, a mode instead describes the value's
+*circumstances.* This could be where it is in memory, who has access to it, or
+what can be done with it. If you've seen `@ local` **(link to doc)** or the
+older syntax `local_`, you've already encountered the `local` mode.
 
 <!-- you may know that a `local` value is
 limited in how long it can be accessed (typically not after the current function
