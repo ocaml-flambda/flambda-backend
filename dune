@@ -43,6 +43,8 @@
 
 (copy_files# backend/*.ml{,i})
 
+(copy_files# "backend/%{env:ARCH=amd64}/*.ml{,i}")
+
 (copy_files# backend/cfg/*.ml{,i})
 
 (copy_files# backend/debug/*.ml{,i})
