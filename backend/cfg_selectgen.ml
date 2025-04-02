@@ -489,7 +489,7 @@ class virtual selector_generic =
     method insert_op env op rs rd =
       self#insert_op_debug env op Debuginfo.none rs rd
 
-    method private bind_let (env : environment) v r1 =
+    method private bind_let env v r1 =
       let env =
         if all_regs_anonymous r1
         then (
@@ -728,27 +728,26 @@ class virtual selector_generic =
 
     val mutable current_sub_cfg = Sub_cfg.make_empty ()
 
-    method insert_debug (_env : environment) basic dbg arg res =
+    method insert_debug _env basic dbg arg res =
       Sub_cfg.add_instruction current_sub_cfg basic arg res dbg
 
-    method private insert_op_debug_returning_id (_env : environment) op dbg arg
-        res =
+    method private insert_op_debug_returning_id _env op dbg arg res =
       let instr = Cfg.make_instr (Cfg.Op op) arg res dbg in
       Sub_cfg.add_instruction' current_sub_cfg instr;
       instr.id
 
-    method insert (_env : environment) basic arg res =
+    method insert _env basic arg res =
       (* CR mshinwell: fix debuginfo *)
       Sub_cfg.add_instruction current_sub_cfg basic arg res Debuginfo.none
 
-    method insert' (_env : environment) term arg res =
+    method insert' _env term arg res =
       (* CR mshinwell: fix debuginfo *)
       Sub_cfg.set_terminator current_sub_cfg term arg res Debuginfo.none
 
-    method insert_debug' (_env : environment) basic dbg arg res =
+    method insert_debug' _env basic dbg arg res =
       Sub_cfg.set_terminator current_sub_cfg basic arg res dbg
 
-    method private insert_op_debug' (_env : environment) op dbg rs rd =
+    method private insert_op_debug' _env op dbg rs rd =
       Sub_cfg.set_terminator current_sub_cfg op rs rd dbg;
       rd
 
@@ -763,7 +762,7 @@ class virtual selector_generic =
        right-to-left evaluation order as required by the Flambda [Un_anf] pass
        (and to be consistent with the bytecode compiler). *)
 
-    method private emit_parts (env : environment) ~effects_after exp =
+    method private emit_parts env ~effects_after exp =
       let module EC = Effect_and_coeffect in
       let may_defer_evaluation =
         let ec = self#effects_of exp in
@@ -822,7 +821,7 @@ class virtual selector_generic =
               self#insert_moves env r tmp;
               Some (Cvar id, env_add (VP.create id) tmp env)
 
-    method private emit_parts_list (env : environment) exp_list =
+    method private emit_parts_list env exp_list =
       let module EC = Effect_and_coeffect in
       let exp_list_right_to_left, _effect =
         (* Annotate each expression with the (co)effects that happen after it
@@ -931,7 +930,7 @@ class virtual selector_generic =
        Returns: - [None] if the expression does not finish normally (e.g.
        raises) - [Some rs] if the expression yields a result in registers
        [rs] *)
-    method emit_expr (env : environment) exp ~bound_name =
+    method emit_expr env exp ~bound_name =
       self#emit_expr_aux env exp ~bound_name
 
     (* Emit an expression which may end some regions early.
@@ -939,8 +938,7 @@ class virtual selector_generic =
        Returns: - [None] if the expression does not finish normally (e.g.
        raises) - [Some (rs, unclosed)] if the expression yields a result in
        [rs], having left [unclosed] (a suffix of env.regions) regions open *)
-    method emit_expr_aux (env : environment) exp ~bound_name
-        : Reg.t array option =
+    method emit_expr_aux env exp ~bound_name : Reg.t array option =
       (* Normal case of returning a value: no regions are closed *)
       let ret res = Some res in
       match exp with
@@ -1036,7 +1034,7 @@ class virtual selector_generic =
 
     (* Emit an expression in tail position of a function, closing all regions in
        [env.regions] *)
-    method emit_tail (env : environment) exp =
+    method emit_tail env exp =
       match exp with
       | Clet (v, e1, e2) -> (
         match self#emit_expr env e1 ~bound_name:None with
@@ -1550,8 +1548,7 @@ class virtual selector_generic =
       | exception Not_found ->
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
-    method private emit_sequence ?at_start (env : environment) exp ~bound_name
-        : _ * 'self =
+    method private emit_sequence ?at_start env exp ~bound_name : _ * 'self =
       let s = {<current_sub_cfg = Sub_cfg.make_empty ()>} in
       (match at_start with None -> () | Some f -> f s);
       let r = s#emit_expr_aux env exp ~bound_name in
@@ -1559,8 +1556,7 @@ class virtual selector_generic =
 
     (* Same, but in tail position *)
 
-    method private insert_return (env : environment) r
-        (traps : trap_action list) =
+    method private insert_return env r (traps : trap_action list) =
       match r with
       | None -> ()
       | Some r ->
@@ -1578,7 +1574,7 @@ class virtual selector_generic =
         self#insert_moves env r loc;
         self#insert' env Cfg.Return loc [||]
 
-    method emit_return (env : environment) exp traps =
+    method emit_return env exp traps =
       assert (Sub_cfg.exit_has_never_terminator current_sub_cfg);
       self#insert_return env (self#emit_expr_aux env exp ~bound_name:None) traps
 
