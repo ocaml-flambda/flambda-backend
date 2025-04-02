@@ -104,11 +104,13 @@ We're not limited to working with simple `float`s, of course. Suppose we add a
 submodule `Thing` earlier in the file: **[Would be nice to think of something
 better than `Thing` here.]**
 
+<a id="listing-thing-impl"></a>
 ```ocaml
 module Thing = struct
   module Mood = struct
     type t =
       | Happy
+      | Neutral
       | Sad
   end
 
@@ -154,6 +156,7 @@ type t
 module Mood : sig
   type t =
     | Happy
+    | Neutral
     | Sad
 end
 
@@ -416,10 +419,12 @@ A data race requires two things:
 The `contended` mode and its opposite, `uncontended`, prevent data races by
 ensuring that this is impossible. To do so, they institute two key rules:
 
+> <a id="rule-contended-parallel"></a>
 > **Rule 1.** If multiple accesses of the same value may occur in parallel, at
 > most one of them may consider the value `uncontended`. The others must
 > consider it `contended`.
 
+> <a id="rule-contended-mutable"></a>
 > **Rule 2.** Reading or modifying a `mutable` field is not allowed if the
 > record is `contended`. The same goes for any element of a `contended` array
 > (unless it's an `iarray`, since those are immutable).
@@ -428,51 +433,78 @@ Taken together, these two rules guarantee data-race freedom. However, rule 1
 requires quite a bit of machinery to enforce, including other modes such as
 `portable` as well as the types of parallelism APIs like `fork_join`.
 
-Let's see what these rules mean for code. Rule 2 is easy because it's a simple
-typing rule:
+Let's see what these rules mean for our `thing.ml` from
+[before](#listing-thing-impl):
 
 ```ocaml
 type t = {
-  a : int;
-  mutable b : int;
+  price : float;
+  mutable mood : Mood.t
 }
+```
 
-let f (t @ contended) =
-  printf "%d\n" t.a; (* ok: [a] is immutable *)
-  t.b <- t.b + 1 (* error: [b] is mutable *)
+We can force an argument to have a particular mode using the `@` syntax.
+
+```ocaml
+let price (t @ contended) = t.price (* ok: [price] is immutable *)
+let cheer_up (t @ contended) = t.mood <- Happy (* error! *)
 ```
 
 ```
 Error: This value is contended but expected to be uncontended.
 ```
 
-Since `t` is `contended`, there may be another domain trying to mutate it in
-parallel:
+This is of course [rule 2](#rule-contended-mutable). To see why this has to be
+an error, consider that since `t` is `contended`, there may be another domain
+trying to mutate it in parallel:
 
 ```ocaml
-let g (t @ uncontended) =
-  t.b <- 99 (* cue ominous music *)
+let bum_out t = t.mood <- Sad (* cue ominous music: a data race lurks! *)
 ```
 
-So we can't allow the access in `f` unless we flag the argument as
+So we can't allow the access in `cheer_up` unless we flag the argument as
 `uncontended`:
 
 ```ocaml
-let f (t @ uncontended) =
-  printf "%d\n" t.a; (* ok: [a] is immutable *)
-  t.b <- t.b + 1 (* ok: [t] is [uncontended] *)
+let cheer_up (t @ uncontended) = t.mood <- Happy (* ok: [t] is [uncontended] *)
 ```
 
-Of course, this only helps if it is in fact impossible to call `f` and `g` with
-the same argument in parallel. That's where rule 1 comes in. There's no one
-place where rule 1 is enforced---really, it's an invariant of the whole system
-(language, runtime, and core libraries)---but let's see one example of trying to
-break it:
+Note that you can also let the compiler infer that `t` is `uncontended` (as we
+did for `bum_out`). Much like with types, adding explicit modes is often useful
+either to make your intentions clear to other humans or nail down the ultimate
+cause of a compiler error.
+
+Note that rule 2 forbids even _reading_ the mutable state:
 
 ```ocaml
-let () =
-  let t = { a : 1; b : 2 } in
-  let (), () = Parallel.fork_join2 par (fun _par -> f t) (fun _par -> g t) in
+let mood (t @ contended) = t.mood (* error! *)
+```
+
+```
+Error: This value is contended but expected to be shared or uncontended.
+```
+
+This is dangerous for the same reason `cheer_up` was: someone else could be
+running `bum_out` in parallel, producing a data race.[^shared]
+
+[^shared]: You may have noticed the `shared` in the error message here. The
+`shared` mode lies in between `contended` and `uncontended` in that it allows
+reading but not writing mutable fields. It's less common than the others but it
+comes in handy for things like read/write locks.
+
+Adding `uncontended` signals to the compiler that a data race is possible: if
+`cheer_up` and `bum_out` can be called with the same argument in parallel, we
+have a race. Enter [rule 1](#rule-contended-parallel), which simply says _it is
+not permissible_ to do so. Unlike rule 2, there's no one place where rule 1 is
+enforced---really, it's an invariant of the whole system (language, runtime, and
+core libraries)---but let's see one example of trying to break it:
+
+```ocaml
+let beat_the_system par =
+  let t = { price = 42.0; mood = Neutral }
+  let (), () =
+    Parallel.fork_join2 par (fun _par -> cheer_up t) (fun _par -> bum_out t)
+  in
   ()
 ```
 
@@ -480,37 +512,159 @@ let () =
 Error: This value is contended but expected to be uncontended.
 ```
 
-When we cover the `portable` mode we'll be able to explain precisely what's
-going on here, but for the moment suffice it to say that `fork_join2` requires
-that it be safe to run `f t` and `g t` in parallel. Treating `t** as `uncontended**
-in both tasks would violate rule 1.
+When we cover the `portable` mode [next], we'll be able to explain precisely
+what's going on here, but for the moment suffice it to say that the type of
+`fork_join2` forces the two tasks to obey rule 1.
 
-**[Something to connect to:]**
+[next]: #the-portable-and-nonportable-modes
+
+You may worry that the different modes on `price` and `mood` prevent writing
+sensible code like
+
+```ocaml
+let price_and_mood (t @ uncontended) = price t, mood t
+```
+
+Can we really treat `t` as both `contended` (to call `price`) and `uncontended`
+(to call `mood`)? Actually, we can:
 
 > **Rule 3.** An `uncontended` value may be used as though it is `contended`.
 
-In this way, `contended` is much like `local`: if a function takes a `contended`
+This is entirely consistent with rules 1 and 2: having an `uncontended` value
+gives strictly more power than having a `contended` one, so it's always safe to
+forget we have that power. The upshot is that if a function takes a `contended`
 parameter then the caller is _allowed_ to pass a `contended` value but it is not
-required to. Similarly, `uncontended` is like `global`: it is a constraint that
-_must_ be met.
+required to. (You may be aware that `local` is the same way.) On the other hand,
+`uncontended` (like `global`) is a constraint that _must_ be met.
 
-**[Now a bit of explanation leading to ...]**
+<!--
+Finally, recall that our running example wants to fork/join over an entire tree
+of `Thing.t`s, so we should consider what happens when the `Thing.t` is in a
+bigger data structure. We clearly need to be weary:
+
+```ocaml
+type t_in_a_trenchcoat = {
+  inner_t : t;
+}
+
+let cheer_up_sneakily (t_in_a_trenchcoat @ contended) =
+  let t = t_in_a_trenchcoat.inner_t (* ok: can access immutable field ... *) in
+  cheer_up t (* cue the ominous music again? *)
+```
+
+
+[Commenting out. This isn't a textbook. Let's not bother teaching the reader how
+they could have invented rule 4.
+
+Nothing we've seen so far explicitly tells us that `t_in_a_trenchcoad.inner_t`
+is `contended`, so one might worry that we've found a way to smuggle a data race
+by the compiler. After all, we can also write `bum_out_sneakily`, and what stops
+us from calling them both in parallel on the same `t_in_a_trenchcoat` (and hence
+the same `inner_t`)? Fortunately, the compiler is not so easily fooled:
+
+```
+Error: This value is contended but expected to be uncontended.
+```
+
+We can work out exactly what rule we need by considering rule 1. To reiterate:
+
+> **Rule 1.** If multiple accesses of the same value may occur in parallel, at
+> most one of them may consider the value `uncontended`. The others must
+> consider it `contended`.
+
+We can't possibly let `t_in_a_trenchcoat.inner_t` be `uncontended` when
+`t_in_a_trenchcoat` is `contended`, since then _everyone_ 
+-->
+
+Finally, recall that our running example wants to fork/join over an entire tree
+of `Thing.t`s, so we should consider what happens when the `Thing.t` is in a
+bigger data structure. For this we have two closely-related rules. First:
 
 > <a id="rule-contended-deep"></a>
-> **Rule 4.** Any component of a `contended` value is `contended`.
+> **Rule 4a.** Accessing any component of a `contended` value gives a `contended`
+> value.
 
-**[... which is easy to justify by rule 1.]**
+In particular, every field of a `contended` record, every element of a
+`contended` tuple or array (as before, `iarray`s are exempt), and every argument
+of every constructor of a `contended` variant is `contended`. We say that the
+`contended` mode is _deep._ It's easy to see what goes wrong if we let anyone
+treat, say, a field as `uncontended` when its record is `contended`:
 
-**[Also:]**
+```ocaml
+type t_in_a_trenchcoat = {
+  inner_t : t;
+}
 
-#### The `shared` mode
+let cheer_up_sneakily (t_in_a_trenchcoat @ contended) =
+  let t @ uncontended = t_in_a_trenchcoat.inner_t (* error: rule 4a *) in
+  cheer_up t (* cue the ominous music again *)
+```
 
-**[Also mention `shared` in case people see it in errors.]**
+If not for rule 4a, we could also write `bum_out_sneakily` and then call
+`cheer_up_sneakily` and `bum_out_sneakily` on the same argument in parallel,
+causing the same data race we've been trying to avoid all along.
+
+In fact, rule 4a is pretty well required to make [rule 1] work at all. The
+interested reader is invited to work out why the text of rule 1 demands that,
+for instance, we say that `t_in_a_trenchcoat.inner_t` is `contended` when
+`t_in_a_trenchcoat` is `contended`.
+
+[rule 1]: #rule-contended-parallel
+
+Finally, rule 4a told us about accessing data but we also need a rule about
+constructing it:
+
+> **Rule 4b.** An `uncontended` value may only be constructed from `uncontended`
+> components, except where a type declares a component to be `@@ contended`.
+
+In a way, `uncontended` is also deep, but this time we get an “escape hatch”:
+it's safe for an `uncontended` value to contain a `contended` one, _so long as
+we remember it's `contended`._ We do that like so:
+
+```ocaml
+type state = {
+  most_expensive_thing : Thing.t @@ contended
+  my_favorite_thing : Thing.t
+}
+```
+
+The `@@ contended` is called a _modality_ and it works similarly to the
+`@@ global` modality you may already know: effectively, `most_expensive_thing`
+is _always_ contended, whether or not the whole `state` record is, but
+`my_favorite_thing` has the same mode as the `state` as usual.
+
+```ocaml
+let highest_price (state @ contended) =
+  state.most_expensive_thing.price (* ok: accessing immutable field *)
+
+let most_expensive_mood (state @ uncontended) =
+  state.most_expensive_thing.mood (* error even though [state] is uncontended *)
+```
+
+In return for giving up the ability to write `most_expensive_mood`, we get the
+right to construct an `uncontended` `state` from a `contended` `Thing.t`:
+
+**[Please tell me there's a better syntax than this.]**
+
+```ocaml
+let make_state : Thing.t @ contended -> Thing.t @ uncontended -> state @ uncontended =
+  fun expensive fave ->
+    (* Allowed even though `expensive` is contended due to modality *)
+    { most_expensive_thing = expensive; my_favorite_thing = fave }
+```
+
+Note that there is also an `@@ uncontended` modality but it doesn't actually
+change anything: you might hope that it would let you access a field of a
+`contended` record as `uncontended`, but rule 4a forbids that outright; and you
+might hope that it would let you construct a `contended` record from an
+`uncontended` field value, but rule 3 already lets you do that by simply
+treating the value as `contended`.
 
 ### The `portable` and `nonportable` modes
 
-Now that we've covered `contended`, we turn to `portable`. Like `contended`, it
-has two main rules, namely a big-picture safety rule and a more concrete typing rule:
+Now that we've covered `contended`, we can finally explain what makes things
+`portable`. Like `contended`, `portable` has two main rules, namely a
+big-picture safety rule and a more concrete typing rule:
 
 > **Rule 1.** Only a `portable` value is safe to access from outside the domain
 > that created it.
@@ -916,6 +1070,8 @@ thing about modalities here, though I _definitely_ want to avoid the _word_
 # Mode crossing
 
 **[Enough to cover `immutable_data` and `mutable_data`]**
+
+# Atomics
 
 # But what if parallel sequences?
 
