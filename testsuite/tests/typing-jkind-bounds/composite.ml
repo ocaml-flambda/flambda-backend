@@ -532,6 +532,8 @@ list list list list list list
                             list list list list list" must be a subkind of
          immutable_data
          because of the definition of t at line 1, characters 0-149.
+       Note: I gave up trying to find the simplest kind for the first,
+       as it is very large or deeply recursive.
 |}]
 
 type t = int list list list list list list list list list list list list list list list list list list list list list list list list
@@ -597,6 +599,8 @@ Error: The kind of type "t" is immutable_data with 'a t t t t t t t t t t t
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
+       Note: I gave up trying to find the simplest kind for the first,
+       as it is very large or deeply recursive.
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
@@ -643,6 +647,8 @@ Error: The kind of type "t" is immutable_data
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
+       Note: I gave up trying to find the simplest kind for the first,
+       as it is very large or deeply recursive.
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t

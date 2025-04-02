@@ -3,6 +3,9 @@
  expect;
 *)
 
+(* NOTE: When adding tests to this file, consider updating
+   [typing-layouts-products/typing_warnings_implicit_unboxed_records.ml] *)
+
 module Duplicate_label_definitions = struct
   type t = { a : int }
   and t2 = #{ a : int }

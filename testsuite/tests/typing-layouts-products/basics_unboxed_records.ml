@@ -6,6 +6,9 @@
  }
 *)
 
+(* NOTE: When adding tests to this file, also update
+   [typing-layouts-products/basics_implicit_unboxed_records.ml] *)
+
 open Stdlib_upstream_compatible
 
 (**************************************************************************)
@@ -248,12 +251,18 @@ Error:
          because of the definition of t1 at line 1, characters 0-38.
 |}]
 
-(* CR layouts v7.2: the following should typecheck. *)
 type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
 and r = #{ i : int ; f : float# }
 [%%expect{|
 type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r
 and r = #{ i : int; f : float#; }
+|}]
+
+type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
+and r = #{ i : int }
+[%%expect{|
+type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r
+and r = #{ i : int; }
 |}]
 
 (*******************)
@@ -399,6 +408,7 @@ type u : immediate
 type t = #{ x : float#; y : u; }
 |}]
 
+(********************)
 (* Recursive groups *)
 
 type ('a : float64) t_float64_id = 'a
@@ -547,27 +557,27 @@ Error: Signature mismatch:
 (*****************************************************)
 (* Special-cased errors for boxed/unboxed mismatches *)
 
-type t_u = #{ u : int }
-type t = { b : int }
+type t_u = #{ u : float# }
+type t = { b : float# }
 [%%expect{|
-type t_u = #{ u : int; }
-type t = { b : int; }
+type t_u = #{ u : float#; }
+type t = { b : float#; }
 |}]
 
-let f () : t_u = { b = 1 }
+let f () : t_u = { b = #1.0 }
 [%%expect{|
-Line 1, characters 17-26:
-1 | let f () : t_u = { b = 1 }
-                     ^^^^^^^^^
+Line 1, characters 17-29:
+1 | let f () : t_u = { b = #1.0 }
+                     ^^^^^^^^^^^^
 Error: This boxed record expression should be unboxed instead,
        the expected type is "t_u"
 |}]
 
-let f () : t = #{ u = 2 }
+let f () : t = #{ u = #2.0 }
 [%%expect{|
-Line 1, characters 15-25:
-1 | let f () : t = #{ u = 2 }
-                   ^^^^^^^^^^
+Line 1, characters 15-28:
+1 | let f () : t = #{ u = #2.0 }
+                   ^^^^^^^^^^^^^
 Error: This unboxed record expression should be boxed instead,
        the expected type is "t"
 |}]
@@ -608,19 +618,19 @@ Error: This expression has type "t",
        which is a boxed record rather than an unboxed one.
 |}]
 
-let _ = #{ b = 5 }
+let _ = #{ b = #5.0 }
 [%%expect{|
 Line 1, characters 11-12:
-1 | let _ = #{ b = 5 }
+1 | let _ = #{ b = #5.0 }
                ^
 Error: Unbound unboxed record field "b"
 Hint: There is a boxed record field with this name.
 |}]
 
-let _ = { u = 5 }
+let _ = { u = #5.0 }
 [%%expect{|
 Line 1, characters 10-11:
-1 | let _ = { u = 5 }
+1 | let _ = { u = #5.0 }
               ^
 Error: Unbound record field "u"
 Hint: There is an unboxed record field with this name.
@@ -644,6 +654,7 @@ Error: Unbound unboxed record field "b"
 Hint: There is a boxed record field with this name.
 |}]
 
+(*****************************************************************************)
 (* Initial expressions for functionally updated records are always evaluated *)
 
 type t = #{ x : string }

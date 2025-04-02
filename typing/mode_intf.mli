@@ -287,6 +287,10 @@ module type S = sig
         with module Const := Const
          and type error := error
          and type 'd t = (Const.t, 'd) mode_comonadic
+
+    val yielding : lr
+
+    val unyielding : lr
   end
 
   type 'a comonadic_with =
@@ -471,9 +475,9 @@ module type S = sig
 
     val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
 
-    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
     val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 

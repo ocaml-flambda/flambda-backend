@@ -91,7 +91,17 @@ Error: Type "Middle.pack2" = "(module Middle.T with type M.t = int)"
 (* Check the detection of type kind in type-directed disambiguation . *)
 let t = Middle.r.Middle.x
 [%%expect {|
-val t : unit = ()
+Line 1, characters 8-16:
+1 | let t = Middle.r.Middle.x
+            ^^^^^^^^
+Error: This expression has type "Original.r"
+       but an expression was expected of type "('a : '_representable_layout_1)"
+       The layout of Original.r is any
+         because the .cmi file for Original.r is missing.
+       But the layout of Original.r must be representable
+         because it's the record type used in a projection.
+       No .cmi file found containing Original.r.
+       Hint: Adding "original" to your dependencies might help.
 |}]
 
 let k = match Middle.s with Middle.S -> ()

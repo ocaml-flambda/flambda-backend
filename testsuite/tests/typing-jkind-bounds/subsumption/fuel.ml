@@ -28,6 +28,8 @@ Error: The kind of type "int list list list list list" is immutable_data
        But the kind of type "int list list list list list" must be a subkind of
          immutable_data
          because of the definition of t at line 1, characters 0-54.
+       Note: I gave up trying to find the simplest kind for the first,
+       as it is very large or deeply recursive.
 |}]
 
 (* Differences in fuel consumption do not cause errors for module inclusion check

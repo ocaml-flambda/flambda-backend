@@ -516,6 +516,8 @@ let set_stack_offset (instr : _ instruction) stack_offset =
       stack_offset;
   instr.stack_offset <- stack_offset
 
+let set_live (instr : _ instruction) live = instr.live <- live
+
 let string_of_irc_work_list = function
   | Unknown_list -> "unknown_list"
   | Coalesced -> "coalesced"

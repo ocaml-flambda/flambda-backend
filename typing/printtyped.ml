@@ -543,7 +543,7 @@ and expression i ppf x =
       line i ppf "representation =\n";
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
-      option (i+1) expression ppf (Option.map fst extended_expression);
+      option (i+1) expression ppf (Option.map Misc.fst3 extended_expression);
   | Texp_record_unboxed_product
         { fields; representation; extended_expression } ->
       line i ppf "Texp_record_unboxed_product\n";
@@ -554,7 +554,7 @@ and expression i ppf x =
       record_unboxed_product_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf (Option.map fst extended_expression);
-  | Texp_field (e, li, _, _, _) ->
+  | Texp_field (e, _, li, _, _, _) ->
       line i ppf "Texp_field\n";
       expression i ppf e;
       longident i ppf li;

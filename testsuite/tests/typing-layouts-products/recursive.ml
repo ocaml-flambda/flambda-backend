@@ -6,6 +6,9 @@
  }
 *)
 
+(* NOTE: When adding tests to this file, also update
+   [typing-layouts-products/recursive_implicit_unboxed_records.ml] *)
+
 (* We only allow recursion of unboxed product types through boxing, otherwise
    the type is uninhabitable and usually also infinite-size. *)
 
@@ -189,9 +192,13 @@ Error: The definition of "bad" is recursive without boxing:
          "'a bad" contains "'a bad"
 |}]
 
-type 'a bad = { bad : 'a bad ; u : 'a}
+type 'a bad = #{ bad : 'a bad ; u : 'a}
 [%%expect{|
-type 'a bad = { bad : 'a bad; u : 'a; }
+Line 1, characters 0-39:
+1 | type 'a bad = #{ bad : 'a bad ; u : 'a}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "'a bad" contains "'a bad"
 |}]
 
 type bad : float64 = #{ bad : bad ; i : int}
@@ -203,9 +210,13 @@ Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-type bad = #{ a : t ; b : t }
+type bad = #{ a : bad ; b : bad }
 [%%expect{|
-type bad = #{ a : t; b : t; }
+Line 1, characters 0-33:
+1 | type bad = #{ a : bad ; b : bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "bad" contains "bad"
 |}]
 
 type 'a bad = #{ a : 'a bad }
@@ -472,4 +483,20 @@ Error: Unboxed record element types must have a representable layout.
          because of the definition of u at line 2, characters 2-14.
        But the layout of u must be representable
          because it is the type of record field a.
+|}]
+
+(* CR layouts v7.2: improve this error message *)
+type ('a : value & float64) t
+type bad = r t
+and r = #{ x:int; y:bool }
+[%%expect{|
+type ('a : value & float64) t
+Line 3, characters 0-26:
+3 | and r = #{ x:int; y:bool }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The kind of r is value_or_null & float64
+         because it is an unboxed record.
+       But the kind of r must be a subkind of value & float64
+         because of the definition of t at line 1, characters 0-29.
 |}]

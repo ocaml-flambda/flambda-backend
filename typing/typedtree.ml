@@ -236,7 +236,7 @@ and expression_desc =
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
-      extended_expression : (expression * Unique_barrier.t) option;
+      extended_expression : (expression * Jkind.sort * Unique_barrier.t) option;
       alloc_mode : alloc_mode option
     }
   | Texp_record_unboxed_product of {
@@ -246,8 +246,8 @@ and expression_desc =
       extended_expression : (expression * Jkind.sort) option;
     }
   | Texp_field of
-      expression * Longident.t loc * label_description * texp_field_boxing *
-        Unique_barrier.t
+      expression * Jkind.sort * Longident.t loc * label_description *
+        texp_field_boxing * Unique_barrier.t
   | Texp_unboxed_field of
       expression * Jkind.sort * Longident.t loc * unboxed_label_description *
         unique_use
@@ -1314,7 +1314,7 @@ let rec exp_is_nominal exp =
   | Texp_variant (_, None)
   | Texp_construct (_, _, [], _) ->
       true
-  | Texp_field (parent, _, _, _, _) | Texp_send (parent, _, _) ->
+  | Texp_field (parent, _, _, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false
 

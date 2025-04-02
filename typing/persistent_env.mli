@@ -183,6 +183,10 @@ val imports : 'a t -> Import_info.Intf.t list
    world. In fact we aim to inline away all passing of runtime parameters. *)
 val runtime_parameter_bindings : 'a t -> (Global_module.t * Ident.t) list
 
+(* Return whether the given identifier is a local that appears in
+   [runtime_parameter_bindings]. *)
+val is_bound_to_runtime_parameter : 'a t -> Ident.t -> bool
+
 (* Find whether a module has been imported as a parameter. This means that it
    is a registered parameter import (see [register_parameter_import]) _and_ it has
    been actually imported (i.e., it has occurred at least once). *)

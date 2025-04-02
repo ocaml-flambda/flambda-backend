@@ -127,9 +127,6 @@ let label_usage_complaint priv mut lu
 let used_labels : label_usage usage_tbl ref =
   s_table Types.Uid.Tbl.create 16
 
-let used_unboxed_labels : label_usage usage_tbl ref =
-  s_table Types.Uid.Tbl.create 16
-
 (** Map indexed by the name of module components. *)
 module NameMap = String.Map
 
@@ -719,7 +716,8 @@ and label_data = label_description
 and type_data =
   { tda_declaration : type_declaration;
     tda_descriptions : type_descriptions;
-    tda_shape : Shape.t; }
+    tda_shape : Shape.t;
+    tda_unboxed_version_descriptions : type_descriptions option }
 
 and module_data =
   { mda_declaration : Subst.Lazy.module_declaration;
@@ -830,14 +828,6 @@ let mode_default mode = {
   mode;
   context = None
 }
-
-let used_labels_by_form (type rep) (record_form : rep record_form) =
-  match record_form with
-  | Legacy -> !used_labels
-  | Unboxed_product -> !used_unboxed_labels
-
-let find_used_label_by_uid (type rep) (record_form : rep record_form) uid =
-  Types.Uid.Tbl.find (used_labels_by_form record_form) uid
 
 let env_labels (type rep) (record_form : rep record_form) env
     : rep gen_label_description TycompTbl.t  =
@@ -1150,6 +1140,9 @@ let import_crcs ~source crcs =
 let runtime_parameter_bindings () =
   Persistent_env.runtime_parameter_bindings !persistent_env
 
+let is_bound_to_runtime_parameter id =
+  Persistent_env.is_bound_to_runtime_parameter !persistent_env id
+
 let parameters () = Persistent_env.parameters !persistent_env
 
 let read_pers_mod modname cmi =
@@ -1185,7 +1178,6 @@ let reset_declaration_caches () =
   Types.Uid.Tbl.clear !module_declarations;
   Types.Uid.Tbl.clear !used_constructors;
   Types.Uid.Tbl.clear !used_labels;
-  Types.Uid.Tbl.clear !used_unboxed_labels;
   ()
 
 let reset_cache ~preserve_persistent_env =
@@ -1365,6 +1357,7 @@ let type_of_cstr path = function
           tda_declaration = decl;
           tda_descriptions = Type_record (labels, repr, umc);
           tda_shape = Shape.leaf decl.type_uid;
+          tda_unboxed_version_descriptions = None;
         }
       | _ -> assert false
       end
@@ -1401,6 +1394,7 @@ let rec find_type_data path env seen =
       tda_declaration = decl;
       tda_descriptions = Type_abstract (Btype.type_origin decl);
       tda_shape = Shape.leaf decl.type_uid;
+      tda_unboxed_version_descriptions = None;
     }
   | exception Not_found -> begin
       match path with
@@ -1479,17 +1473,15 @@ and find_type_unboxed_version path env seen =
 and find_type_unboxed_version_data path env seen =
   let tda_declaration = find_type_unboxed_version path env seen in
   let descrs =
-    match tda_declaration.type_kind with
-    | Type_abstract r -> Type_abstract r
-    | Type_record_unboxed_product _
-    | Type_open | Type_record _ | Type_variant _ ->
-      Misc.fatal_error
-        "Env.find_type_data: unexpected unboxed version kind"
+    match (find_type_data path env seen).tda_unboxed_version_descriptions with
+    | Some descrs -> descrs
+    | None -> Type_abstract Definition (* path is an alias *)
   in
   {
     tda_declaration;
     tda_descriptions = descrs;
-    tda_shape = Shape.leaf tda_declaration.type_uid
+    tda_shape = Shape.leaf tda_declaration.type_uid;
+    tda_unboxed_version_descriptions = None
   }
 
 let find_modtype_lazy path env =
@@ -2162,14 +2154,16 @@ let rec components_of_module_maker
               | Type_open -> Type_open
             in
             let descrs = store_decl path final_decl in
-            ignore
-              (Option.map (store_decl (Path.unboxed_version path))
-                 final_decl.type_unboxed_version);
+            let unboxed_descrs =
+              Option.map (store_decl (Path.unboxed_version path))
+                final_decl.type_unboxed_version
+            in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
               { tda_declaration = final_decl;
                 tda_descriptions = descrs;
-                tda_shape = shape; }
+                tda_shape = shape;
+                tda_unboxed_version_descriptions = unboxed_descrs }
             in
             c.comp_types <- NameMap.add (Ident.name id) tda c.comp_types;
             env := store_type_infos ~tda_shape:shape id decl !env
@@ -2370,9 +2364,20 @@ and store_label
     let loc = lbl.lbl_loc in
     let mut = lbl.lbl_mut in
     let k = lbl.lbl_uid in
-    if not (Types.Uid.Tbl.mem (used_labels_by_form record_form) k) then
+    match k with
+    | Unboxed_version k_boxed ->
+      (* Never warn if an unboxed version of a label is unused, but its uses
+         count as uses of the boxed version. *)
+      begin match Types.Uid.Tbl.find_opt !used_labels k_boxed with
+      | Some boxed_usages ->
+        Types.Uid.Tbl.add !used_labels k boxed_usages
+      | None ->
+        ()
+      end
+    | _ ->
+    if not (Types.Uid.Tbl.mem !used_labels k) then
       let used = label_usages () in
-      Types.Uid.Tbl.add (used_labels_by_form record_form) k
+      Types.Uid.Tbl.add !used_labels k
         (add_label_usage used);
       if not (ty_name = "" || ty_name.[0] = '_' || name.[0] = '_')
       then !add_delayed_check_forward
@@ -2430,10 +2435,20 @@ and store_type ~check id info shape env =
     | Type_open -> Type_open, env
   in
   let descrs, env = store_decl (Pident id) info env in
+  let unboxed_descrs, env =
+    match info.type_unboxed_version with
+    | Some uinfo ->
+      let unboxed_descrs, env =
+        store_decl (Path.unboxed_version (Pident id)) uinfo env
+      in
+      Some unboxed_descrs, env
+    | None -> None, env
+  in
   let tda =
     { tda_declaration = info;
       tda_descriptions = descrs;
-      tda_shape = shape }
+      tda_shape = shape;
+      tda_unboxed_version_descriptions = unboxed_descrs }
   in
   Builtin_attributes.mark_alerts_used info.type_attributes;
   { env with
@@ -2450,7 +2465,10 @@ and store_type_infos ~tda_shape id info env =
     {
       tda_declaration = info;
       tda_descriptions = Type_abstract (Btype.type_origin info);
-      tda_shape
+      tda_shape;
+      tda_unboxed_version_descriptions =
+        Option.map (fun uinfo -> Type_abstract (Btype.type_origin uinfo))
+          info.type_unboxed_version;
     }
   in
   { env with
@@ -2977,8 +2995,8 @@ let mark_extension_used usage ext =
   | mark -> mark usage
   | exception Not_found -> ()
 
-let mark_label_used record_form usage ld =
-  match find_used_label_by_uid record_form ld.ld_uid with
+let mark_label_used usage ld =
+  match Types.Uid.Tbl.find !used_labels ld.ld_uid with
   | mark -> mark usage
   | exception Not_found -> ()
 
@@ -2989,14 +3007,14 @@ let mark_constructor_description_used usage env cstr =
   | mark -> mark usage
   | exception Not_found -> ()
 
-let mark_label_description_used record_form usage env lbl =
+let mark_label_description_used usage env lbl =
   let ty_path =
     match get_desc lbl.lbl_res with
     | Tconstr(path, _, _) -> path
     | _ -> assert false
   in
   mark_type_path_used env ty_path;
-  match find_used_label_by_uid record_form lbl.lbl_uid with
+  match Types.Uid.Tbl.find !used_labels lbl.lbl_uid with
   | mark -> mark usage
   | exception Not_found -> ()
 
@@ -3105,9 +3123,9 @@ let use_cltype ~use ~loc path desc =
       (Path.name path)
   end
 
-let use_label ~record_form ~use ~loc usage env lbl =
+let use_label ~use ~loc usage env lbl =
   if use then begin
-    mark_label_description_used record_form usage env lbl;
+    mark_label_description_used usage env lbl;
     Builtin_attributes.check_alerts loc lbl.lbl_attributes lbl.lbl_name;
     if is_mutating_label_usage usage then
       Builtin_attributes.check_deprecated_mutable loc lbl.lbl_attributes
@@ -3335,7 +3353,7 @@ let lookup_all_ident_labels (type rep) ~(record_form : rep record_form) ~errors
       List.map
         (fun (lbl, use_fn) ->
            let use_fn () =
-             use_label ~record_form ~use ~loc usage env lbl;
+             use_label ~use ~loc usage env lbl;
              use_fn ()
            in
            (lbl, use_fn))
@@ -3535,7 +3553,7 @@ let lookup_all_dot_labels ~record_form ~errors ~use ~loc usage l s env =
   | lbls ->
       List.map
         (fun lbl ->
-           let use_fun () = use_label ~record_form ~use ~loc usage env lbl in
+           let use_fun () = use_label ~use ~loc usage env lbl in
            (lbl, use_fun))
         lbls
 
@@ -3862,13 +3880,13 @@ let lookup_all_labels_from_type (type rep) ~use ~(record_form : rep record_form)
   | (Type_record (lbls, _, _), Legacy) ->
       List.map
         (fun lbl ->
-           let use_fun () = use_label ~record_form ~use ~loc usage env lbl in
+           let use_fun () = use_label ~use ~loc usage env lbl in
            (lbl, use_fun))
         lbls
   | (Type_record_unboxed_product (lbls, _, _), Unboxed_product) ->
       List.map
         (fun lbl ->
-           let use_fun () = use_label ~record_form ~use ~loc usage env lbl in
+           let use_fun () = use_label ~use ~loc usage env lbl in
            (lbl, use_fun))
         lbls
   | (Type_record (_, _, _), Unboxed_product) -> []

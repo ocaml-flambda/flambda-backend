@@ -4,6 +4,9 @@
    }
 *)
 
+(* NOTE: When adding tests to this file, consider updating
+   [typing-layouts-products/typing_misc_implicit_unboxed_records.ml] *)
+
 type 'a ref_u = #{ contents : 'a }
 
 (* This test is based on testsuite/tests/typing-misc/records.ml *)

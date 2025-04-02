@@ -80,7 +80,7 @@ module type Sort = sig
 
     val for_variant_arg : t
 
-    val for_record : t
+    val for_boxed_record : t
 
     val for_block_element : t
 
@@ -290,6 +290,8 @@ module History = struct
     | Default_type_jkind
     | Existential_type_variable
     | Array_comprehension_element
+    | List_comprehension_iterator_element
+    | Array_comprehension_iterator_element
     | Lazy_expression
     | Class_type_argument
     | Class_term_argument
