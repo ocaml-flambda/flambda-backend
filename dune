@@ -471,6 +471,8 @@
   relocation_table
   section_table
   select_utils
+  stack_class
+  stack_class_utils
   string_table
   symbol_entry
   symbol_table

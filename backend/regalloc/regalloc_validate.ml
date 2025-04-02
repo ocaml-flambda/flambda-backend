@@ -46,7 +46,7 @@ end = struct
     type t =
       | Local of
           { index : int;
-            stack_class : int
+            stack_class : Stack_class.t
           }
       | Incoming of { index : int }
       | Outgoing of { index : int }
@@ -118,7 +118,7 @@ end = struct
       Some
         (Stack
            (Stack.of_stack_loc
-              ~stack_class:(Proc.stack_slot_class reg.Reg.typ)
+              ~stack_class:(Stack_class.of_machtype reg.Reg.typ)
               stack))
 
   let of_reg_exn reg = of_reg reg |> Option.get

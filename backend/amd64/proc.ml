@@ -104,13 +104,6 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float | Float32 | Vec128 | Valx2 -> 1
 
-let num_stack_slot_classes = 3
-
-let stack_slot_class typ =
-  match (typ : machtype_component) with
-  | Val | Addr | Int -> 0
-  | Float | Float32 -> 1
-  | Vec128 | Valx2 -> 2
 
 let types_are_compatible left right =
   match left.typ, right.typ with
@@ -120,13 +113,6 @@ let types_are_compatible left right =
   | (Valx2 | Vec128), (Valx2 | Vec128) ->
     true
   | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
-
-let stack_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | 2 -> "x"
-  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers = [| 13; 16 |]
 
@@ -676,9 +662,9 @@ let trap_frame_size_in_bytes = 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fp || fun_contains_calls ||
-  fun_num_stack_slots.(0) > 0 ||
-  fun_num_stack_slots.(1) > 0 ||
-  fun_num_stack_slots.(2) > 0
+  Stack_class.Tbl.exists
+    fun_num_stack_slots
+    ~f:(fun _stack_class num -> num > 0)
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
@@ -691,9 +677,7 @@ let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
     let sz =
       (stack_offset
        + 8
-       + 8 * num_stack_slots.(0)
-       + 8 * num_stack_slots.(1)
-       + 16 * num_stack_slots.(2)
+       + Stack_class.Tbl.total_size_in_bytes num_stack_slots
        + (if fp then 8 else 0))
     in Misc.align sz 16
   end else
@@ -716,14 +700,8 @@ let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
         + n)
   | Local n ->
       Bytes_relative_to_stack_pointer (
-        stack_offset +
-          (* Preserves original ordering (int -> float) *)
-          match stack_class with
-          | 2 -> n * 16
-          | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
-          | 1 -> fun_num_stack_slots.(2) * 16
-                 + fun_num_stack_slots.(0) * 8 + n * 8
-          | _ -> Misc.fatal_errorf "Unknown register class %d" stack_class)
+        stack_offset + Stack_class.Tbl.offset_in_bytes fun_num_stack_slots ~stack_class ~slot:n
+)
   | Outgoing n -> Bytes_relative_to_stack_pointer n
   | Domainstate n ->
       Bytes_relative_to_domainstate_pointer (
