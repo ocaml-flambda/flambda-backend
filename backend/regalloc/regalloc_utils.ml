@@ -270,14 +270,12 @@ let make_temporary :
     same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t =
  fun ~same_class_and_base_name_as:reg ~name_prefix ->
   let new_temp = Reg.create reg.Reg.typ in
-  (if not (Reg.anonymous reg)
-  then
-    let name =
-      Reg.Raw_name.to_string reg.Reg.raw_name |> Option.value ~default:"anon"
-    in
-    let name = name_prefix ^ "-" ^ name in
-    new_temp.Reg.raw_name
-      <- Reg.Raw_name.create_from_var (Backend_var.create_local name));
+  let name =
+    Reg.Raw_name.to_string reg.Reg.raw_name |> Option.value ~default:"anon"
+  in
+  let name = name_prefix ^ "-" ^ name in
+  new_temp.Reg.raw_name
+    <- Reg.Raw_name.create_from_var (Backend_var.create_local name);
   new_temp
 
 let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
