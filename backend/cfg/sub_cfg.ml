@@ -123,8 +123,8 @@ let dump sub_cfg =
   let liveness = InstructionId.Tbl.create 32 in
   DLL.iter sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
       Format.eprintf "Block %a@." Label.print block.start;
-      Regalloc_irc_utils.log_body_and_terminator ~indent:0 block.body
-        block.terminator liveness)
+      Regalloc_irc_utils.log_body_and_terminator block.body block.terminator
+        liveness)
 
 (* note: `dump` is for debugging, and thus not always in use. *)
 let (_ : t -> unit) = dump
