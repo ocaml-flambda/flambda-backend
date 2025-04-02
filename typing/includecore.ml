@@ -154,9 +154,9 @@ let value_descriptions ~loc env name
              let ty2, mode_l2, mode_y2, _ = Ctype.instance_prim p2 vd2.val_type in
              Option.iter (Mode.Locality.equate_exn loc) mode_l2;
              Option.iter (Mode.Yielding.equate_exn yield) mode_y2;
-             try 
+             try
                Ctype.moregeneral env true ty1 ty2
-             with Ctype.Moregen err -> 
+             with Ctype.Moregen err ->
                raise (Dont_match (Type err))
            ) yielding
          ) locality;
@@ -1370,7 +1370,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   let mark_and_compare_records record_form labels1 rep1 labels2 rep2 =
     if mark then begin
       let mark usage lbls =
-        List.iter (Env.mark_label_used usage) lbls
+        List.iter (fun lbl -> Env.mark_label_used usage lbl.Types.ld_uid) lbls
       in
       let usage : Env.label_usage =
         if decl2.type_private = Public then Env.Exported

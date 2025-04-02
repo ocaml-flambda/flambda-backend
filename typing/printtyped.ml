@@ -129,6 +129,12 @@ let fmt_partiality f x =
   | Total -> ()
   | Partial -> fprintf f " (Partial)"
 
+let fmt_index_kind f = function
+  | Index_int -> fprintf f "Index_int"
+  | Index_unboxed_int64 -> fprintf f "Index_unboxed_int64"
+  | Index_unboxed_int32 -> fprintf f "Index_unboxed_int32"
+  | Index_unboxed_nativeint -> fprintf f "Index_unboxed_nativeint"
+
 let line i f s (*...*) =
   fprintf f "%s" (String.make (2*i) ' ');
   fprintf f s (*...*)
@@ -573,6 +579,10 @@ and expression i ppf x =
       line i ppf "%a\n" Jkind.Sort.format sort;
       alloc_mode i ppf amode;
       list i expression ppf l;
+  | Texp_idx (ba, uas) ->
+      line i ppf "Texp_idx\n";
+      block_access i ppf ba;
+      List.iter (unboxed_access i ppf) uas;
   | Texp_list_comprehension comp ->
       line i ppf "Texp_list_comprehension\n";
       comprehension i ppf comp
@@ -1163,6 +1173,22 @@ and longident_x_pattern : 'a. _ -> _ -> _ * 'a * _ -> _ =
   fun i ppf (li, _, p) ->
   line i ppf "%a\n" fmt_longident li;
   pattern (i+1) ppf p;
+
+and block_access i ppf = function
+  | Baccess_field (li, _) ->
+      line i ppf "Baccess_field %a\n" fmt_longident li
+  | Baccess_array (mut, index_kind, index) ->
+      line i ppf "Baccess_array %a %a\n"
+        fmt_mutable_flag mut fmt_index_kind index_kind;
+      expression i ppf index
+  | Baccess_block (mut, index) ->
+      line i ppf "Baccess_block %a\n"
+        fmt_mutable_flag mut;
+      expression i ppf index
+
+and unboxed_access i ppf = function
+  | Uaccess_unboxed_field (li, _) ->
+      line i ppf "Uaccess_unboxed_field %a\n" fmt_longident li
 
 and comprehension i ppf {comp_body; comp_clauses} =
   line i ppf "comprehension\n";

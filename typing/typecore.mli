@@ -295,6 +295,10 @@ type error =
   | Wrong_expected_record_boxing of wrong_kind_context * record_form_packed * type_expr
   | Expr_not_a_record_type of record_form_packed * type_expr
   | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
+  | Invalid_unboxed_access of
+      { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
+  | Block_access_record_unboxed
+  | Block_access_array_unsupported
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.locality_context option *

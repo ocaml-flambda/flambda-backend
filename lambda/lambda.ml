@@ -158,6 +158,10 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
   | Parray_element_size_in_bytes of array_kind
+  (* Block indices *)
+  | Pidx_field of int
+  | Pidx_mixed_field of int list * unit mixed_block_element
+  | Pidx_deepen of int list * unit mixed_block_element
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -350,6 +354,8 @@ type primitive =
   | Pdls_get
   (* Poll for runtime actions *)
   | Ppoll
+  | Pget_idx of (layout * Asttypes.mutable_flag)
+  | Pset_idx of layout
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
@@ -1431,6 +1437,103 @@ let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
       Product (transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shapes)
   ) shape
 
+module Mixed_block_bytes = struct
+  type t =
+    { value : int;
+      flat : int
+    }
+
+  let zero = { value = 0; flat = 0 }
+
+  let add { value; flat } { value = value'; flat = flat' } =
+    { value = value + value'; flat = flat + flat' }
+
+  let rec count (el : _ mixed_block_element) : t =
+    match el with
+    | Value _ -> { value = 8; flat = 0 }
+    | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word ->
+      (* In a record, [float32]s and [bits32]s aren't packed tightly *)
+      { value = 0; flat = 8 }
+    | Vec128 -> { value = 0; flat = 16 }
+    | Product layouts ->
+      Array.fold_left (fun cts l -> add cts (count l)) zero layouts
+
+  let has_value_and_flat { value; flat } = value > 0 && flat > 0
+end
+
+module Mixed_block_bytes_wrt_path = struct
+  type t =
+    { here : Mixed_block_bytes.t;
+      left : Mixed_block_bytes.t;
+      right : Mixed_block_bytes.t
+    }
+
+  let zero =
+    { here = Mixed_block_bytes.zero;
+      left = Mixed_block_bytes.zero;
+      right = Mixed_block_bytes.zero
+    }
+
+  let add { here; left; right } { here = here'; left = left'; right = right' } =
+    { here = Mixed_block_bytes.add here here';
+      left = Mixed_block_bytes.add left left';
+      right = Mixed_block_bytes.add right right'
+    }
+
+  let rec count (el : _ mixed_block_element) path =
+    match path with
+    | [] -> { zero with here = Mixed_block_bytes.count el }
+    | i :: path_rest -> (
+      match el with
+      | Product els ->
+        let _, totals =
+          Array.fold_left
+            (fun (j, totals) el ->
+              ( j + 1,
+                add totals
+                  (if j = i
+                  then count el path_rest
+                  else if j < i
+                  then { zero with left = Mixed_block_bytes.count el }
+                  else { zero with right = Mixed_block_bytes.count el }) ))
+            (0, zero) els
+        in
+        totals
+      | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
+      | Vec128 ->
+        Misc.fatal_error
+          "Mixed_block_bytes_wrt_path: bad mixed block path")
+
+  let all { here; left; right } =
+    Mixed_block_bytes.
+      { value = here.value + left.value + right.value;
+        flat = here.flat + left.flat + right.flat
+      }
+
+  let lowest_invalid_gap = 1 lsl 16
+
+  type offset_and_gap_bytes = { offset_bytes : int; gap_bytes : int }
+
+  let offset_and_gap { here; left; right } =
+    let offset_bytes =
+      if here.value > 0
+      then left.value
+      else left.value + left.flat + right.value
+    in
+    if Mixed_block_bytes.has_value_and_flat here then
+      let gap_bytes = left.flat + right.value in
+      (* Conservatively assumes that *all* values and flats in [here] can become
+         part of the gap upon deepening (but really, if the deepened pointer
+         still has a gap, it must have at least one value and one flat.) *)
+      let deepened_gap_upper_bound = gap_bytes + here.value + here.flat in
+      if deepened_gap_upper_bound >= lowest_invalid_gap then
+        None
+      else
+        Some { offset_bytes; gap_bytes }
+    else
+      Some { offset_bytes; gap_bytes = 0 }
+end
+
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function
@@ -2003,7 +2106,12 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Parray_element_size_in_bytes _
-  | Ppeek _ | Ppoke _ -> None
+  | Pidx_field _
+  | Pidx_mixed_field _
+  | Pidx_deepen _
+  | Pget_idx _ | Pset_idx _
+  | Ppeek _ | Ppoke _ ->
+    None
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if !Clflags.native_code then None
     else
@@ -2171,7 +2279,9 @@ let primitive_can_raise prim =
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
+  | Parray_element_size_in_bytes _ | Pidx_field _ | Pidx_mixed_field _ | Pidx_deepen _
+  | Pget_idx _ | Pset_idx _
+  | Ppeek _ | Ppoke _ ->
     false
 
 let constant_layout: constant -> layout = function
@@ -2257,6 +2367,20 @@ let rec layout_of_mixed_block_element : 'a. 'a mixed_block_element -> layout =
     Punboxed_product
       (Array.to_list (Array.map layout_of_mixed_block_element shape))
 
+let rec mixed_block_element_of_layout (layout : layout) :
+    unit mixed_block_element =
+  match layout with
+  | Punboxed_product layouts ->
+    Product (List.map mixed_block_element_of_layout layouts |> Array.of_list)
+  | Ptop | Pbottom -> Misc.fatal_error "Pidxdeepen"
+  | Pvalue value_kind -> Value value_kind
+  | Punboxed_float Unboxed_float64 -> Float64
+  | Punboxed_float Unboxed_float32 -> Float32
+  | Punboxed_int Unboxed_int64 -> Bits64
+  | Punboxed_int Unboxed_int32 -> Bits32
+  | Punboxed_int Unboxed_nativeint -> Word
+  | Punboxed_vector Unboxed_vec128 -> Vec128
+
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
   match p with
@@ -2282,6 +2406,8 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Parray_element_size_in_bytes _ -> layout_int
+  | Pidx_field _
+  | Pidx_mixed_field _ | Pidx_deepen _ -> Punboxed_int Unboxed_int64
   | Pfloatfield _ -> layout_boxed_float Boxed_float64
   | Pfloatoffloat32 _ -> layout_boxed_float Boxed_float64
   | Pfloat32offloat _ -> layout_boxed_float Boxed_float32
@@ -2423,6 +2549,8 @@ let primitive_result_layout (p : primitive) =
       | Ppp_unboxed_nativeint -> layout_unboxed_nativeint
     )
   | Ppoke _ -> layout_unit
+  | Pget_idx (layout, _) -> layout
+  | Pset_idx _ -> layout_unit
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

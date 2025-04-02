@@ -521,6 +521,7 @@ type binary_primitive =
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op
   | Poke of Flambda_kind.Standard_int_or_float.t
+  | Read_offset of Flambda_kind.With_subkind.t * Asttypes.mutable_flag
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -529,6 +530,7 @@ type ternary_primitive =
           for more details on the unarization. *)
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
+  | Write_offset of Flambda_kind.With_subkind.t
   | Atomic_compare_and_set of Block_access_field_kind.t
   | Atomic_compare_exchange of
       { atomic_kind : Block_access_field_kind.t;

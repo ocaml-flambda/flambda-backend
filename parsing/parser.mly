@@ -965,6 +965,18 @@ let maybe_pmod_constraint mode expr =
 %token GREATERRBRACKET        ">]"
 %token HASHLPAREN             "#("
 %token HASHLBRACE             "#{"
+/*
+%token IDX_ARRAY              "idx_array_"
+%token IDX_ARRAY_I64          "idx_array_L"
+%token IDX_ARRAY_I32          "idx_array_l"
+%token IDX_ARRAY_NATIVEINT    "idx_array_n"
+%token IDX_IARRAY             "idx_iarray_"
+%token IDX_IARRAY_I64         "idx_iarray_L"
+%token IDX_IARRAY_I32         "idx_iarray_l"
+%token IDX_IARRAY_NATIVEINT   "idx_iarray_n"
+%token IDX_IMM                "idx_imm_"
+%token IDX_MUT                "idx_mut_"
+*/
 %token IF                     "if"
 %token IN                     "in"
 %token INCLUDE                "include"
@@ -1135,7 +1147,11 @@ The precedences must be listed from low to high.
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN
-
+          /*
+          IDX_ARRAY IDX_ARRAY_I64 IDX_ARRAY_I32 IDX_ARRAY_NATIVEINT
+          IDX_IARRAY IDX_IARRAY_I64 IDX_IARRAY_I32 IDX_IARRAY_NATIVEINT
+          IDX_IMM IDX_MUT
+          */
 
 /* Entry points */
 
@@ -2910,6 +2926,11 @@ fun_expr:
       { mkexp ~loc:$sloc (mkinfix e1 op e2) }
 ;
 
+unboxed_access:
+  | DOTHASH mkrhs(label_longident)
+      { Uaccess_unboxed_field $2 }
+;
+
 simple_expr:
   | LPAREN seq_expr RPAREN
       { reloc_exp ~loc:$sloc $2 }
@@ -3050,6 +3071,85 @@ comprehension_clause:
   | HASH_SUFFIX { () }
 ;
 
+%inline indexop_block_access(dot, index):
+  | d=dot LPAREN i=index RPAREN
+    { d, Paren,   i }
+  | d=dot LBRACE i=index RBRACE
+    { d, Brace,   i }
+  | d=dot LBRACKET i=index RBRACKET
+    { d, Bracket, i }
+;
+
+block_access:
+  | DOT mkrhs(label_longident)
+    { Baccess_field $2 }
+  | DOT _p=LPAREN i=seq_expr RPAREN
+    { Baccess_array (Mutable, Index_int, i) }
+  | DOTOP _p=LPAREN i=seq_expr RPAREN
+    {
+      match $1 with
+      | ":" -> Baccess_array (Immutable, Index_int, i)
+      | _ -> raise Syntaxerr.(Error(Block_access_bad_paren(make_loc $loc(_p))))
+    }
+  | DOT ident _p=LPAREN i=seq_expr RPAREN
+    {
+      match $2 with
+      | "L" -> Baccess_array (Mutable, Index_unboxed_int64, i)
+      | "l" -> Baccess_array (Mutable, Index_unboxed_int32, i)
+      | "n" -> Baccess_array (Mutable, Index_unboxed_nativeint, i)
+      | "idx_imm" -> Baccess_block (Immutable, i)
+      | "idx_mut" -> Baccess_block (Mutable, i)
+      | _ ->
+        raise Syntaxerr.(Error(Block_access_bad_paren(make_loc $loc(_p))))
+    }
+  | DOTOP ident _p=LPAREN i=seq_expr RPAREN
+    {
+      match $1, $2 with
+      | ":", "L" -> Baccess_array (Immutable, Index_unboxed_int64, i)
+      | ":", "l" -> Baccess_array (Immutable, Index_unboxed_int32, i)
+      | ":", "n" -> Baccess_array (Immutable, Index_unboxed_nativeint, i)
+      | _ ->
+        raise Syntaxerr.(Error(Block_access_bad_paren(make_loc $loc(_p))))
+    }
+  | DOT ident _p=LPAREN seq_expr _e=error
+    { indexop_unclosed_error $loc(_p) Paren $loc(_e) }
+;
+
+/*
+block_access:
+  | DOT mkrhs(label_longident)
+    { Baccess_field $2 }
+  | DOT IDX_ARRAY LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_int, i) }
+  | DOT IDX_ARRAY_I64 LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_unboxed_int64, i) }
+  | DOT IDX_ARRAY_I32 LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_unboxed_int32, i) }
+  | DOT IDX_ARRAY_NATIVEINT LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_unboxed_nativeint, i) }
+  | DOT IDX_IARRAY LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_int, i) }
+  | DOT IDX_IARRAY_I64 LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_unboxed_int64, i) }
+  | DOT IDX_IARRAY_I32 LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_unboxed_int32, i) }
+  | DOT IDX_IARRAY_NATIVEINT LPAREN i=seq_expr RPAREN
+    { Baccess_array (Immutable, Index_unboxed_nativeint, i) }
+  | DOT IDX_BLOCK_IMM LPAREN i=seq_expr RPAREN
+    { Baccess_block (Immutable, i) }
+  | DOT IDX_BLOCK_MUT LPAREN i=seq_expr RPAREN
+    { Baccess_block (Mutable, i) }
+  | DOT block_access_idx _p=LBRACKET seq_expr _e=error
+    { indexop_unclosed_error $loc(_p) Paren $loc(_e) }
+;
+block_access_idx:
+  | IDX_ARRAY | IDX_ARRAY_I64 | IDX_ARRAY_I32 | IDX_ARRAY_NATIVEINT | IDX_IARRAY
+  | IDX_IARRAY_I64 | IDX_IARRAY_I32 | IDX_IARRAY_NATIVEINT | IDX_BLOCK_IMM
+  | IDX_BLOCK_MUT
+    { () }
+;
+*/
+
 %inline simple_expr_:
   | mkrhs(val_longident)
       { Pexp_ident ($1) }
@@ -3071,6 +3171,8 @@ comprehension_clause:
       { Pexp_field($1, $3) }
   | simple_expr DOTHASH mkrhs(label_longident)
       { Pexp_unboxed_field($1, $3) }
+  | LPAREN block_access llist(unboxed_access) RPAREN
+      { Pexp_idx ($2, $3) }
   | od=open_dot_declaration DOT LPAREN seq_expr RPAREN
       { Pexp_open(od, $4) }
   | od=open_dot_declaration DOT LBRACELESS object_expr_content GREATERRBRACE
