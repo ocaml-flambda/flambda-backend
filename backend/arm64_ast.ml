@@ -213,6 +213,8 @@ module Instruction_name = struct
     | SXTW
     | UXTB
     | UXTH
+    | LDR
+    | STR
     (* neon *)
     | MOV
     | MOVI
@@ -280,6 +282,8 @@ module Instruction_name = struct
     | SXTW -> "sxtw"
     | UXTB -> "uxtb"
     | UXTH -> "uxth"
+    | LDR -> "ldr"
+    | STR -> "str"
     (* neon *)
     | MOV -> "mov"
     | MOVI -> "movi"
@@ -323,6 +327,16 @@ module Operand = struct
     type t = int
 
     let print ppf t = Format.fprintf ppf "#%d" t
+  end
+
+  module SymbolOffset = struct
+    type t = string * int
+
+    let print ppf ((sym, ofs): t) =
+      if ofs > 0 then
+        Format.fprintf ppf "#:lo12:%s+%d" sym ofs
+      else
+        Format.fprintf ppf "#:lo12:%s-%d" sym (-ofs)
   end
 
   module Extend = struct
@@ -390,6 +404,7 @@ module Operand = struct
     (* CR gyorsh: only immediate offsets implemented. *)
     type t =
       | Offset of Reg.t * Imm.t
+      | SymbolOffset of Reg.t * string * Imm.t
       | Pre of Reg.t * Imm.t
       | Post of Reg.t * Imm.t
       | Literal of label
@@ -398,6 +413,7 @@ module Operand = struct
       let open Format in
       match t with
       | Offset (r, imm) -> fprintf ppf "[%s, %a]" (Reg.name r) Imm.print imm
+      | SymbolOffset (r, s, imm) -> fprintf ppf "[%s, %a]" (Reg.name r) SymbolOffset.print (s, imm)
       | Pre (r, imm) -> fprintf ppf "[%s, %a]!" (Reg.name r) Imm.print imm
       | Post (r, imm) -> fprintf ppf "[%s], %a" (Reg.name r) Imm.print imm
       | Literal l -> fprintf ppf "%s" l
@@ -558,6 +574,9 @@ module DSL = struct
 
   let mem ~base ~offset =
     Operand.(Mem (Addressing_mode.Offset (reg_x.(base), offset)))
+
+  let mem_symbol ~base ~symbol ~offset =
+    Operand.(Mem (Addressing_mode.SymbolOffset (reg_x.(base), symbol, offset)))
 
   let mem_pre ~base ~offset =
     Operand.(Mem (Addressing_mode.Pre (reg_x.(base), offset)))

@@ -37,6 +37,8 @@ val femit_symbol : out_channel -> string -> unit
 
 val emit_symbol : string -> unit
 
+val symbol_to_string : string -> string
+
 val emit_printf : ('a, out_channel, unit) format -> 'a
 
 val femit_char : out_channel -> char -> unit

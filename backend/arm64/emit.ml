@@ -65,6 +65,9 @@ let femit_symbol out s =
   Emitaux.femit_symbol out s
 
 
+let emit_symbol_str s =
+  if macosx then "_" ^ Emitaux.symbol_to_string s else Emitaux.symbol_to_string s
+
 
 (* Object types *)
 
@@ -497,6 +500,7 @@ module DSL : sig
   val emit_reg_w : Reg.t -> Arm64_ast.Operand.t
   val emit_reg_v2d : Reg.t -> Arm64_ast.Operand.t
   val imm : int -> Arm64_ast.Operand.t
+  val emit_addressing : addressing_mode -> Reg.t -> Arm64_ast.Operand.t
   val ins : I.t -> Arm64_ast.Operand.t array -> unit
 
   val simd_instr : Simd.operation -> Linear.instruction -> unit
@@ -558,6 +562,14 @@ end [@warning "-32"]  = struct
     | Valx2 ->
       reg_q index
 
+  let emit_addressing addr r =
+    let index = reg_index r in
+    match addr with
+    | Iindexed ofs ->
+      mem ~base:index ~offset:ofs
+    | Ibased(s, ofs) ->
+      assert (not !Clflags.dlcode);  (* see selection.ml *)
+      mem_symbol ~base:index ~symbol:(emit_symbol_str s) ~offset:ofs
   let check_instr (register_behavior : Simd_proc.register_behavior) i =
     (* Ensure that operation size and register size match.
        On arm64, operation size is encoded solely into the operands
@@ -1378,15 +1390,19 @@ let emit_instr i =
         | Word_int | Word_val ->
             (* memory model barrier for non-initializing store *)
             if assignment then emit_printf "	dmb	ishld\n";
+            DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
             emit_printf "	str	%a, %a\n" femit_reg src femit_addressing (addr, base)
         | Double ->
+          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
           emit_printf "	str	%a, %a\n" femit_reg src femit_addressing (addr, base)
         | Single { reg = Float32 } ->
           DSL.check_reg Float32 src;
+          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
           emit_printf " str %a, %a\n" femit_reg src femit_addressing (addr, base)
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
           (* CR gyorsh: check alignment *)
           DSL.check_reg Vec128 src;
+          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
           emit_printf " str %a, %a\n" femit_reg src femit_addressing (addr, base)
         end
     | Lop(Alloc { bytes = n; dbginfo; mode = Heap }) ->

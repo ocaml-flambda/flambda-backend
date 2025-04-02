@@ -124,6 +124,8 @@ module Instruction_name : sig
     | SXTW
     | UXTB
     | UXTH
+    | LDR
+    | STR
     (* neon *)
     | MOV
     | MOVI
@@ -185,6 +187,8 @@ module DSL : sig
   val imm : int -> Operand.t
 
   val mem : base:int -> offset:int -> Operand.t
+
+  val mem_symbol : base:int -> symbol:string -> offset:int -> Operand.t
 
   val mem_pre : base:int -> offset:int -> Operand.t
 
