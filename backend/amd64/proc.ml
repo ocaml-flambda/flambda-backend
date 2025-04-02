@@ -152,15 +152,8 @@ let hard_float_reg =
   for i = 0 to 15 do v.(i) <- Reg.create_at_location Float (Reg (100 + i)) done;
   v
 
-let hard_vec128_reg =
-  let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.create_at_location Vec128 (Reg (100 + i)) done;
-  v
-
-let hard_float32_reg =
-  let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.create_at_location Float32 (Reg (100 + i)) done;
-  v
+let hard_vec128_reg = Array.map (fun r -> {r with typ = Vec128}) hard_float_reg
+let hard_float32_reg = Array.map (fun r -> {r with typ = Float32}) hard_float_reg
 
 let all_phys_regs =
   Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; hard_vec128_reg]
@@ -177,10 +170,10 @@ let gc_regs_offset reg =
      not their size in bytes) of the register from the
      [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
   let r =
-    match reg.loc with
+    match reg.reg.loc with
     | Reg r -> r
     | Stack _ | Unknown ->
-      Misc.fatal_errorf "Unexpected register location for %d" reg.stamp
+      Misc.fatal_errorf "Unexpected register location for %d" reg.reg.stamp
   in
   let reg_class = register_class reg in
   let index = (r - first_available_register.(reg_class)) in

@@ -80,13 +80,10 @@ let emit_symbol_size sym =
   end
 
 (* Output a pseudo-register *)
-let femit_reg out = function
-    {loc = Reg r; typ; _} -> femit_string out (register_name typ r)
-  | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_reg"
-
-
-
-
+let femit_reg out {reg; typ} =
+  match reg.loc with
+  | Reg r -> femit_string out (register_name typ r)
+  | Stack _ | Unknown -> fatal_error "Emit.emit_reg"
 
 (* Likewise, but with the 32-bit name of the register *)
 
@@ -96,11 +93,10 @@ let int_reg_name_w =
      "w19"; "w20"; "w21"; "w22"; "w23"; "w24"; "w25";
      "w26"; "w27"; "w28"; "w16"; "w17" |]
 
-let femit_wreg out = function
-    {loc = Reg r; _} -> femit_string out int_reg_name_w.(r)
-  | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_wreg"
-
-
+let femit_wreg out {reg; _} =
+  match reg.loc with
+  | Reg r -> femit_string out int_reg_name_w.(r)
+  | Stack _ | Unknown -> fatal_error "Emit.emit_wreg"
 
 (* Layout of the stack frame *)
 
@@ -133,16 +129,15 @@ let slot_offset loc stack_class =
     Misc.fatal_errorf "Not a stack slot"
 
 (* Output a stack reference *)
-let femit_stack out r =
-  match r.loc with
+let femit_stack out {reg; typ} =
+  match reg.loc with
   | Stack (Domainstate n) ->
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       Printf.fprintf out "[%a, #%a]" femit_reg reg_domain_state_ptr femit_int ofs
   | Stack ((Local _ | Incoming _ | Outgoing _) as s) ->
-      let ofs = slot_offset s (stack_slot_class r.typ) in
+      let ofs = slot_offset s (stack_slot_class typ) in
       Printf.fprintf out "[sp, #%a]" femit_int ofs
   | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
-
 
 (* Output an addressing mode *)
 
@@ -152,8 +147,6 @@ let femit_symbol_offset out (s, ofs) =
   else if ofs < 0 then Printf.fprintf out "-%a" femit_int (-ofs)
   else ()
 
-
-
 let femit_addressing out (addr, r) =
   match addr with
   | Iindexed ofs ->
@@ -162,27 +155,26 @@ let femit_addressing out (addr, r) =
       assert (not !Clflags.dlcode);  (* see selection.ml *)
       Printf.fprintf out "[%a, #:lo12:%a]" femit_reg r femit_symbol_offset (s, ofs)
 
-
-
 (* Record live pointers at call points *)
 
 let record_frame_label live dbg =
   let lbl = Cmm.new_label () in
   let live_offset = ref [] in
   Reg.Set.iter
-    (function
-      | {typ = Val; loc = Reg r} ->
+    (fun ({ typ; reg = { loc; _ } } as reg) ->
+      match typ, loc with
+      | Val, Reg r ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Val; loc = Stack s} as reg ->
+      | Val, Stack s ->
           live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
-      | {typ = Addr} as r ->
-          Misc.fatal_error ("bad GC root " ^ Reg.print r)
-      | { typ = Valx2; } as r ->
+      | Addr, _ ->
+          Misc.fatal_error ("bad GC root " ^ Reg.print reg)
+      | Valx2, _ ->
           (* CR mslater: (SIMD) arm64 *)
-          Misc.fatal_error ("Unexpected Valx2 type of reg " ^ Reg.print r)
-      | { typ = Val; loc = Unknown ; } as r ->
-          Misc.fatal_error ("Unknown location " ^ Reg.print r)
-      | { typ = Int | Float | Float32 | Vec128; _ } -> ())
+          Misc.fatal_error ("Unexpected Valx2 type of reg " ^ Reg.print reg)
+      | Val, Unknown ->
+          Misc.fatal_error ("Unknown location " ^ Reg.print reg)
+      | (Int | Float | Float32 | Vec128), _ -> ())
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size())
     ~live_offset:!live_offset dbg;
@@ -525,7 +517,7 @@ end [@warning "-32"]  = struct
     | _ -> assert false
 
   let reg_index reg =
-    match reg with
+    match reg.reg with
     | {loc = Reg r; _} ->
       let reg_class = Proc.register_class reg in
       let name_index = r - Proc.first_available_register.(reg_class) in
@@ -1059,7 +1051,7 @@ let emit_load_literal dst lbl =
 let move (src : Reg.t) (dst : Reg.t) =
   let distinct = not (Reg.same_loc src dst) in
   if distinct then
-  match src.typ, src.loc, dst.typ, dst.loc with
+  match src.typ, src.reg.loc, dst.typ, dst.reg.loc with
   | Float, Reg _, Float, Reg _
   | Float32, Reg _, Float32, Reg _
      ->
@@ -1215,7 +1207,7 @@ let emit_instr i =
     | Lop(Specific Imove32) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if not (Reg.same_loc src dst) then begin
-          match (src, dst) with
+          match (src.reg, dst.reg) with
           | {loc = Reg _}, {loc = Reg _} ->
               emit_printf "	mov	%a, %a\n" femit_wreg dst femit_wreg src
           | {loc = Reg _}, {loc = Stack _} ->
@@ -1469,7 +1461,7 @@ let emit_instr i =
     | Lop(Specific(Inegmulsubf)) ->
      emit_printf "	fnmsub	%a, %a, %a, %a\n" femit_reg i.res.(0) femit_reg i.arg.(1) femit_reg i.arg.(2) femit_reg i.arg.(0)
     | Lop(Opaque) ->
-        assert (i.arg.(0).loc = i.res.(0).loc)
+        assert (i.arg.(0).reg.loc = i.res.(0).reg.loc)
     | Lop(Specific(Ishiftarith(op, shift))) ->
         let instr = (match op with
                        Ishiftadd    -> "add"

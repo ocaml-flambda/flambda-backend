@@ -70,7 +70,7 @@ let[@inline] update_cfg_with_layout t cfg_with_layout =
    linscan. *)
 
 let apply_reg_stack_local (reg : Reg.t) ~(f : slot -> unit) : unit =
-  match reg.loc with
+  match reg.reg.loc with
   | Unknown -> ()
   | Reg _ -> ()
   | Stack stack_loc -> (
@@ -331,7 +331,7 @@ let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
                   Format.eprintf
                     "changing the slot index of %a (class %d): %d ~> %d\n%!"
                     Printreg.reg reg stack_class slot_index bucket_index;
-                reg.loc <- Stack (Local bucket_index);
+                reg.reg.loc <- Stack (Local bucket_index);
                 max_bucket_indices.(stack_class)
                   <- Stdlib.Int.max
                        max_bucket_indices.(stack_class)

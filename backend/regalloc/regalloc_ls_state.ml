@@ -29,7 +29,7 @@ let[@inline] update_intervals state map =
   state.intervals
     <- Reg.Tbl.fold
          (fun reg interval acc ->
-           match reg.loc with
+           match reg.reg.loc with
            | Reg _ ->
              let reg_class = Proc.register_class reg in
              active.(reg_class).fixed <- interval :: active.(reg_class).fixed;

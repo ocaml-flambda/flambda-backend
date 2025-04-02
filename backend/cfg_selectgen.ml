@@ -732,7 +732,7 @@ class virtual selector_generic =
     (* set in emit_fundecl *)
 
     method insert_move env src dst =
-      if src.Reg.stamp <> dst.Reg.stamp
+      if not (Reg.same src dst)
       then self#insert env (Cfg.Op Move) [| src |] [| dst |]
 
     (* The following two functions, [emit_parts] and [emit_parts_list], force

@@ -127,7 +127,7 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
   let max_id = ref InstructionId.none in
   let add_registers (set : Reg.Set.t ref) (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(fun reg ->
-        match reg.Reg.loc with
+        match reg.Reg.reg.loc with
         | Unknown -> set := Reg.Set.add reg !set
         | Reg _ | Stack _ -> ())
   in
@@ -418,10 +418,10 @@ let cost_for_block : Cfg.basic_block -> int =
 let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
  fun cfg_with_infos ~flat () ->
   List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
-      reg.Reg.spill_cost <- 0);
+      reg.Reg.reg.spill_cost <- 0);
   let update_reg (cost : int) (reg : Reg.t) : unit =
     (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-    reg.Reg.spill_cost <- reg.Reg.spill_cost + cost
+    reg.Reg.reg.spill_cost <- reg.Reg.reg.spill_cost + cost
   in
   let update_array (cost : int) (regs : Reg.t array) : unit =
     Array.iter regs ~f:(fun reg -> update_reg cost reg)

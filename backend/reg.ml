@@ -78,19 +78,22 @@ module Name = struct
     | Var var -> Var (V.create_local (prefix ^ "-" ^ V.name var))
 end
 
-type t =
-  { name: Name.t;
-    stamp: int;
-    typ: Cmm.machtype_component;
-    preassigned: bool;
-    mutable loc: location;
-    mutable irc_work_list: irc_work_list;
-    mutable irc_color : int option;
-    mutable irc_alias : t option;
-    mutable spill: bool;
-    mutable interf: t list;
-    mutable degree: int;
-    mutable spill_cost: int; }
+type untyped =
+  { name: Name.t;                         (* Name *)
+    stamp: int;                           (* Unique stamp *)
+    preassigned: bool;                    (* Pinned to a specific location *)
+    mutable loc: location;                (* Current location *)
+    mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
+    mutable irc_color : int option;       (* Current color (IRC only) *)
+    mutable irc_alias : t option;         (* Current alias (IRC only) *)
+    mutable spill: bool;                  (* "true" to force stack allocation  *)
+    mutable interf: t list;               (* Other regs live simultaneously *)
+    mutable degree: int;                  (* Number of other regs live sim. *)
+    mutable spill_cost: int; }            (* Estimate of spilling cost *)
+
+and t =
+  { typ: Cmm.machtype_component;          (* Type of contents *)
+    reg : untyped; }
 
 and location =
     Unknown
@@ -103,30 +106,49 @@ and stack_location =
   | Outgoing of int
   | Domainstate of int
 
-type reg = t
-
-let dummy =
-  { name = Name.Anon; stamp = 0; typ = Int; preassigned = false; loc = Unknown;
-    irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-    spill = false; interf = []; degree = 0; spill_cost = 0;
-  }
-
 let currstamp = ref 0
+
+module Untyped = struct
+  type t = untyped
+
+  let dummy =
+    { name = Name.Anon; stamp = 0; preassigned = false; loc = Unknown;
+      irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
+      spill = false; interf = []; degree = 0; spill_cost = 0;
+    }
+
+  let print t =
+    let prefix =
+      if t.preassigned then "pin:"
+      else if t.spill then "spill:"
+      else ""
+    in
+    prefix ^ Name.to_string t.name
+
+  let create_gen ~name ~loc =
+    let preassigned =
+      match loc with
+      | Reg _ | Stack _ -> true
+      | Unknown -> false
+    in
+    let reg = { name; stamp = !currstamp; preassigned; loc;
+              irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
+              spill = false; interf = []; degree = 0;
+              spill_cost = 0; } in
+    incr currstamp;
+    reg
+
+  let create_at_location loc = create_gen ~name:Name.Anon ~loc
+end
+
+let dummy = { typ = Int; reg = Untyped.dummy }
+
 let all_relocatable_regs = ref ([] : t list)
 
-let create_gen ~name ~typ ~loc =
-  let preassigned =
-    match loc with
-    | Reg _ | Stack _ -> true
-    | Unknown -> false
-  in
-  let r = { name; stamp = !currstamp; typ; preassigned; loc;
-            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; degree = 0;
-            spill_cost = 0; } in
-  if not preassigned then all_relocatable_regs := r :: !all_relocatable_regs;
-  incr currstamp;
-  r
+let create_gen ~name ~loc ~typ =
+  let t = { typ; reg = Untyped.create_gen ~name ~loc } in
+  if not t.reg.preassigned then all_relocatable_regs := t :: !all_relocatable_regs;
+  t
 
 let create typ = create_gen ~name:Name.Anon ~typ ~loc:Unknown
 
@@ -135,8 +157,8 @@ let create_with_typ r = create_gen ~name:Name.Anon ~typ:r.typ ~loc:Unknown
 let create_with_typ_and_name ?prefix_if_var r =
   let name =
     match prefix_if_var with
-    | Some prefix -> Name.with_prefix r.name ~prefix
-    | None -> r.name
+    | Some prefix -> Name.with_prefix r.reg.name ~prefix
+    | None -> r.reg.name
   in
   create_gen ~name ~typ:r.typ ~loc:Unknown
 
@@ -159,30 +181,24 @@ let createv_with_typs_and_id ~id rs = createv_gen ~name:(Name.Var id) ~typs:(Arr
 let typv rv =
   Array.map (fun r -> r.typ) rv
 
-let print t =
-  let prefix =
-    if t.preassigned then "pin:"
-    else if t.spill then "spill:"
-    else ""
-  in
-  prefix ^ Name.to_string t.name
+let print t = Untyped.print t.reg
 
-let is_preassigned t = t.preassigned
+let is_preassigned t = t.reg.preassigned
 
 let is_unknown t =
-  match t.loc with
+  match t.reg.loc with
   | Unknown -> true
   | Reg _ | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> false
 
 let first_virtual_reg_stamp = ref (-1)
 
 let is_stack t =
-  match t.loc with
+  match t.reg.loc with
   | Stack _ -> true
   | Reg _ | Unknown -> false
 
 let is_reg t =
-  match t.loc with
+  match t.reg.loc with
   | Reg _ -> true
   | Stack _ | Unknown -> false
 
@@ -198,33 +214,38 @@ let restart () =
   all_relocatable_regs := []
 
 let reinit_reg r =
-  r.loc <- Unknown;
-  r.irc_work_list <- Unknown_list;
-  r.irc_color <- None;
-  r.irc_alias <- None;
-  r.interf <- [];
-  r.degree <- 0;
+  r.reg.loc <- Unknown;
+  r.reg.irc_work_list <- Unknown_list;
+  r.reg.irc_color <- None;
+  r.reg.irc_alias <- None;
+  r.reg.interf <- [];
+  r.reg.degree <- 0;
   (* Preserve the very high spill costs introduced by the reloading pass *)
-  if r.spill_cost >= 100000
-  then r.spill_cost <- 100000
-  else r.spill_cost <- 0
+  if r.reg.spill_cost >= 100000
+  then r.reg.spill_cost <- 100000
+  else r.reg.spill_cost <- 0
 
 let reinit_relocatable_regs () = List.iter reinit_reg !all_relocatable_regs
 let all_relocatable_regs () = !all_relocatable_regs
 let num_registers () = !currstamp
 
-module RegOrder =
-  struct
-    type t = reg
-    let compare r1 r2 = r1.stamp - r2.stamp
-  end
+let compare r1 r2 =
+  let s = r1.reg.stamp - r2.reg.stamp in
+  if s <> 0 then s else Cmm.compare_machtype_component r1.typ r2.typ
+
+let same r1 r2 = compare r1 r2 = 0
+
+module RegOrder = struct
+  type nonrec t = t
+  let compare = compare
+end
 
 module Set = Set.Make(RegOrder)
 module Map = Map.Make(RegOrder)
 module Tbl = Hashtbl.Make (struct
-    type t = reg
-    let equal r1 r2 = r1.stamp = r2.stamp
-    let hash r = r.stamp
+    type nonrec t = t
+    let equal = same
+    let hash r = r.reg.stamp
   end)
 
 let add_set_array s v =
@@ -276,7 +297,7 @@ let set_of_array v =
 let set_has_collisions s =
   let phys_regs = Hashtbl.create (Int.min (Set.cardinal s) 32) in
   Set.fold (fun r acc ->
-    match r.loc with
+    match r.reg.loc with
     | Reg id ->
       if Hashtbl.mem phys_regs id then true
       else (Hashtbl.add phys_regs id (); acc)
@@ -304,19 +325,9 @@ let equal_location left right =
   | Stack _, (Unknown | Reg _) ->
     false
 
-let same_phys_reg left right =
-  match left.loc, right.loc with
-  | Reg l, Reg r -> Int.equal l r
-  | (Reg _ | Unknown | Stack _), _ -> false
-
 let same_loc left right =
   (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
      (Local _)]. That's complicated because [reg_class] is definied in [Proc]
      which relies on [Reg]. *)
-  equal_location left.loc right.loc
+  equal_location left.reg.loc right.reg.loc
 
-let same left right =
-  Int.equal left.stamp right.stamp
-
-let compare left right =
-  Int.compare left.stamp right.stamp

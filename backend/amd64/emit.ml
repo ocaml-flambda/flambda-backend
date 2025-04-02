@@ -311,18 +311,20 @@ let x86_data_type_for_stack_slot : machtype_component -> data_type = function
   | Int | Addr | Val -> QWORD
   | Float32 -> REAL4
 
-let reg = function
-  | { loc = Reg.Reg r; typ = ty } -> register_name ty r
-  | { loc = Stack (Domainstate n); typ = ty } ->
+let reg { typ = ty; reg } =
+  match reg with
+  | { loc = Reg.Reg r } -> register_name ty r
+  | { loc = Stack (Domainstate n) } ->
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       mem64 (x86_data_type_for_stack_slot ty) ofs R14
-  | { loc = Stack s; typ = ty } as r ->
-      let ofs = slot_offset s (stack_slot_class r.typ) in
+  | { loc = Stack s } ->
+      let ofs = slot_offset s (stack_slot_class ty) in
       mem64 (x86_data_type_for_stack_slot ty) ofs RSP
   | { loc = Unknown } ->
       assert false
 
-let reg64 = function
+let reg64 { reg; _ } =
+  match reg with
   | { loc = Reg.Reg r } -> int_reg_name.(r)
   | _ -> assert false
 
@@ -338,7 +340,7 @@ let reg_low_16_name = Array.map (fun r -> Reg16 r) int_reg_name
 let reg_low_32_name = Array.map (fun r -> Reg32 r) int_reg_name
 
 let emit_subreg tbl typ r =
-  match r.loc with
+  match r.reg.loc with
   | Reg.Reg r when r < 13 -> tbl.(r)
   | Stack s -> mem64 typ (slot_offset s (stack_slot_class r.Reg.typ)) RSP
   | _ -> assert false
@@ -378,24 +380,25 @@ let record_frame_label live dbg =
   let lbl = new_label () in
   let live_offset = ref [] in
   Reg.Set.iter
-    (function
-      | {typ = Val; loc = Reg r} as reg ->
+    (fun ({typ; reg={loc; _}} as reg) ->
+      match typ, loc with
+      | Val, Reg r ->
           assert (Proc.gc_regs_offset reg = r);
           live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Val; loc = Stack s} as reg ->
+      | Val, Stack s ->
           live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
-      | {typ = Valx2; loc = Reg r} as reg ->
+      | Valx2, Reg r ->
           let n = Proc.gc_regs_offset reg in
           let encode n = ((n lsl 1) + 1) in
           live_offset := encode n :: encode (n + 1) :: !live_offset
-      | {typ = Valx2; loc = Stack s} as reg ->
+      | Valx2, Stack s ->
           let n = slot_offset s (stack_slot_class reg.typ)  in
           live_offset := n :: n + Arch.size_addr :: !live_offset
-      | {typ = Addr} as r ->
-          Misc.fatal_error ("bad GC root " ^ Reg.print r)
-      | { typ = (Val | Valx2); loc = Unknown ; } as r ->
-        Misc.fatal_error ("Unknown location " ^ Reg.print r)
-      | { typ = Int | Float | Float32 | Vec128; _ } -> ()
+      | Addr, _ ->
+          Misc.fatal_error ("bad GC root " ^ Reg.print reg)
+      | (Val | Valx2), Unknown  ->
+        Misc.fatal_error ("Unknown location " ^ Reg.print reg)
+      | (Int | Float | Float32 | Vec128), _ -> ()
     )
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size())
@@ -644,7 +647,7 @@ let cond = function
 (* Output an = 0 or <> 0 test. *)
 
 let output_test_zero arg =
-  match arg.loc with
+  match arg.reg.loc with
   | Reg.Reg _ -> I.test (reg arg) (reg arg)
   | _  -> I.cmp (int 0) (reg arg)
 
@@ -823,7 +826,7 @@ let emit_global_label s =
 
 let move (src : Reg.t) (dst : Reg.t) =
   let distinct = not (Reg.same_loc src dst) in
-  begin match src.typ, src.loc, dst.typ, dst.loc with
+  begin match src.typ, src.reg.loc, dst.typ, dst.reg.loc with
   | Float, Reg _, Float, Reg _
   | Float32, Reg _, Float32, Reg _
   | (Vec128 | Valx2), _, (Vec128 | Valx2), _ (* Vec128 stack slots are always aligned. *) ->
@@ -842,7 +845,7 @@ let move (src : Reg.t) (dst : Reg.t) =
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
   assert (Cmm.equal_machtype_component src.typ dst.typ);
-  if not (Reg.equal_location src.loc dst.loc) then begin
+  if not (Reg.equal_location src.reg.loc dst.reg.loc) then begin
     match src.typ with
     | Int | Val ->
       (* Not calling move because r15 is not in int_reg_name. *)
@@ -1600,7 +1603,7 @@ let emit_instr ~first ~fallthrough i =
       move i.arg.(0) i.res.(0)
   | Lop(Const_int n) ->
       if Nativeint.equal n 0n then begin
-        match i.res.(0).loc with
+        match i.res.(0).reg.loc with
         | Reg _ ->
           (* Clearing the bottom half also clears the top half (except for
              64-bit-only registers where the behaviour is as if the operands
@@ -1609,7 +1612,7 @@ let emit_instr ~first ~fallthrough i =
         | _ ->
           I.mov (int 0) (res i 0)
       end else if Nativeint.compare n 0n > 0 && Nativeint.compare n 0xFFFF_FFFFn <= 0 then begin
-        match i.res.(0).loc with
+        match i.res.(0).reg.loc with
         | Reg _ ->
           (* Similarly, setting only the bottom half clears the top half. *)
           I.mov (nat n) (res32 i 0)
@@ -1834,7 +1837,7 @@ let emit_instr ~first ~fallthrough i =
       I.movzx al (res i 0)
   | Lop(Intop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
       I.and_ (int n) (res32 i 0)
-  | Lop(Intop Ixor) when Reg.equal_location i.arg.(1).loc i.res.(0).loc && Reg.is_reg i.res.(0) ->
+  | Lop(Intop Ixor) when Reg.equal_location i.arg.(1).reg.loc i.res.(0).reg.loc && Reg.is_reg i.res.(0) ->
       I.xor (res32 i 0) (res32 i 0)
   | Lop(Intop(Idiv | Imod)) ->
       I.cqo ();
@@ -1849,7 +1852,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Intop ((Iadd|Isub|Imul|Iand|Ior|Ixor) as op)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (arg i 1) (res i 0)
-  | Lop(Intop_imm(Iadd, n)) when not (Reg.equal_location i.arg.(0).loc i.res.(0).loc) ->
+  | Lop(Intop_imm(Iadd, n)) when not (Reg.equal_location i.arg.(0).reg.loc i.res.(0).reg.loc) ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
   | Lop(Intop_imm(Iadd, 1) | Intop_imm(Isub, -1)) ->
       I.inc (res i 0)
@@ -1886,7 +1889,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Floatop(width, (Iaddf | Isubf | Imulf | Idivf as floatop))) ->
       instr_for_floatop width floatop (arg i 1) (res i 0)
   | Lop(Opaque) ->
-      assert (Reg.equal_location i.arg.(0).loc i.res.(0).loc)
+      assert (Reg.equal_location i.arg.(0).reg.loc i.res.(0).reg.loc)
   | Lop(Specific(Ilea addr)) ->
       I.lea (addressing addr NONE i 0) (res i 0)
   | Lop(Specific(Ioffset_loc(n, addr))) ->
@@ -2111,7 +2114,7 @@ let emit_instr ~first ~fallthrough i =
          can still be assigned to one of these two registers, so
          we must be careful not to clobber it before use. *)
       let (tmp1, tmp2) =
-        if Reg.equal_location i.arg.(0).loc (Reg 0) (* rax *)
+        if Reg.equal_location i.arg.(0).reg.loc (Reg 0) (* rax *)
         then (phys_rdx, phys_rax)
         else (phys_rax, phys_rdx) in
 
@@ -2539,7 +2542,7 @@ let emit_probe_handler_wrapper p =
   let label = new_label () in
   let live_offset =
     Array.fold_right (fun (r:Reg.t) acc ->
-      match r.loc with
+      match r.reg.loc with
       | Stack (Outgoing k) ->
         (match r.typ with
         | Val -> k::acc
@@ -2611,7 +2614,7 @@ let emit_probe_notes0 () =
    | true -> D.section ["__DATA";"__note_stapsdt"] None ["regular"]);
   let stap_arg arg =
     let arg_name =
-      match arg.loc with
+      match arg.reg.loc with
       | Stack s ->
         Printf.sprintf "%d(%%rsp)" (slot_offset s (stack_slot_class arg.Reg.typ))
       | Reg reg -> Proc.register_name arg.Reg.typ reg
