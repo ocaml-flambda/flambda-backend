@@ -349,8 +349,10 @@ module Operand = struct
     let print ppf ((sym, ofs): t) =
       if ofs > 0 then
         Format.fprintf ppf "#:lo12:%s+%d" sym ofs
-      else
+      else if ofs < 0 then
         Format.fprintf ppf "#:lo12:%s-%d" sym (-ofs)
+      else
+        Format.fprintf ppf "#:lo12:%s" sym
   end
 
   module Extend = struct
