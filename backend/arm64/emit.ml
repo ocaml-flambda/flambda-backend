@@ -1363,7 +1363,6 @@ let emit_instr i =
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
             (* CR gyorsh: check alignment *)
             DSL.check_reg Vec128 dst;
-            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base);
             DSL.ins I.LDR [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         end
     | Lop(Store(size, addr, assignment)) ->
