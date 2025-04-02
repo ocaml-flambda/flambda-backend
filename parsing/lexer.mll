@@ -58,6 +58,16 @@ let keyword_table =
     "function", FUNCTION;
     "functor", FUNCTOR;
     "global_", GLOBAL;
+    (* "idx_array_",   IDX_ARRAY;
+     * "idx_array_L", IDX_ARRAY_I64;
+     * "idx_array_l", IDX_ARRAY_I32;
+     * "idx_array_n", IDX_ARRAY_NATIVEINT;
+     * "idx_iarray_",  IDX_IARRAY;
+     * "idx_iarray_L",IDX_IARRAY_I64;
+     * "idx_iarray_l",IDX_IARRAY_I32;
+     * "idx_iarray_n",IDX_IARRAY_NATIVEINT;
+     * "idx_imm_",     IDX_IMM;
+     * "idx_mut_",     IDX_MUT; *)
     "if", IF;
     "in", IN;
     "include", INCLUDE;

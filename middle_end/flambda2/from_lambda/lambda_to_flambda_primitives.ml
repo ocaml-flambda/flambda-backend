@@ -1429,6 +1429,171 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         L.count_initializers_array_kind array_kind * 8
     in
     [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
+  | Pidx_mixed_field (field_path, shape), [] ->
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements shape
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+    in
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
+    in
+    let new_indexes =
+      Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
+    in
+    let values, flats =
+      List.partition
+        (fun new_index ->
+          match flattened_reordered_shape.(new_index) with
+          | Value _ -> true
+          | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word
+            ->
+            false)
+        new_indexes
+    in
+    let values = Array.of_list values in
+    let flats = Array.of_list flats in
+    let check_sequential arr =
+      for i = 1 to Array.length arr - 1 do
+        if arr.(i - 1) + 1 <> arr.(i)
+        then Misc.fatal_error "Pidxmixedfield: prefix or suffix not continuous"
+      done
+    in
+    check_sequential values;
+    check_sequential flats;
+    let values_empty = Int.equal (Array.length values) 0 in
+    let flats_empty = Int.equal (Array.length flats) 0 in
+    let offset_words = if values_empty then flats.(0) else values.(0) in
+    let gap_words =
+      if values_empty || flats_empty
+      then 0
+      else flats.(0) - values.(Array.length values - 1) - 1
+    in
+    let offset_bytes = offset_words * 8 in
+    let gap_bytes = gap_words * 8 in
+    if gap_bytes < 0 then Misc.fatal_error "Pidxmixedfield: negative gap";
+    if gap_bytes >= 1 lsl 16
+    then
+      (* CR rtjoa: add an error message during type checking to prevent this *)
+      (* this is possible... but I will be suprised if it happens *)
+      Misc.fatal_error "Pidxmixedfield: gap more than 16 bits";
+    let idx_raw_value =
+      Int64.add
+        (Int64.shift_left (Int64.of_int gap_bytes) 48)
+        (Int64.of_int offset_bytes)
+    in
+    [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
+  | Pidx_deepen (field_path, layouts), [[index]] -> (
+    let values_before, flats_before, values_after, flats_after =
+      ref 0, ref 0, ref 0, ref 0
+    in
+    let rec count values flats : Lambda.layout -> _ = function
+      | Ptop | Pbottom -> assert false
+      | Pvalue _ -> incr values
+      | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> incr flats
+      | Punboxed_product layouts -> List.iter (count values flats) layouts
+    in
+    let count_before = count values_before flats_before in
+    let count_after = count values_after flats_after in
+    let rec count path (layout : Lambda.layout) =
+      match path with
+      | [] -> layout
+      | i :: path_rest -> (
+        match layout with
+        | Punboxed_product layouts ->
+          let res = ref None in
+          List.iteri
+            (fun j layout ->
+              if j = i
+              then res := Some (count path_rest layout)
+              else if j < i
+              then count_before layout
+              else count_after layout)
+            layouts;
+          Option.get !res
+        | Ptop | Pbottom | Pvalue _ | Punboxed_float _ | Punboxed_int _
+        | Punboxed_vector _ ->
+          Misc.fatal_error "Pidxdeepen: bad path")
+    in
+    let outer_layout = Lambda.Punboxed_product layouts in
+    let inner_layout = count field_path outer_layout in
+    let rec has_val_flat : Lambda.layout -> _ = function
+      | Ptop | Pbottom -> assert false
+      | Pvalue _ -> true, false
+      | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> false, true
+      | Punboxed_product layouts ->
+        List.fold_left
+          (fun (has_val, has_flat) l ->
+            let has_val', has_flat' = has_val_flat l in
+            has_val || has_val', has_flat || has_flat')
+          (false, false) layouts
+    in
+    let is_mixed l =
+      let has_val, has_flat = has_val_flat l in
+      has_val && has_flat
+    in
+    (* Format.printf "outer layout: %a\ninner layout: %a\n" Printlambda.layout
+     *   outer_layout Printlambda.layout inner_layout;
+     * Printf.printf "%d %d %d %d\n" !values_before !flats_before !values_after
+     *   !flats_after; *)
+    let values_before_in_bytes = !values_before * 8 |> Int64.of_int in
+    let flats_before_in_bytes = !flats_before * 8 |> Int64.of_int in
+    let values_after_in_bytes = !values_after * 8 |> Int64.of_int in
+    let simple_i64 x =
+      H.Simple (Simple.const (Reg_width_const.naked_int64 x))
+    in
+    match is_mixed outer_layout, has_val_flat inner_layout with
+    | true, (true, true) ->
+      (* print_endline "mixed product -> mixed product"; *)
+      (* Deepening from a mixed product to a mixed product, e.g. move index to a
+         #(i64#, #(string, i32#), string) to the inner product *)
+      (* offset += (values before); gap += (values after) + (flats before) *)
+      let to_add =
+        Int64.add
+          (Int64.shift_left
+             (Int64.add values_after_in_bytes flats_before_in_bytes)
+             48)
+          values_before_in_bytes
+      in
+      [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)]
+    | true, (true, false) ->
+      (* print_endline "mixed product -> all values"; *)
+      (* Deepening from a mixed product to all values. *)
+      (* gap = 0; offset += (values before) *)
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
+      let gap_removed =
+        H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
+      in
+      [ Binary
+          ( Int_arith (Naked_int64, Add),
+            H.Prim gap_removed,
+            simple_i64 values_before_in_bytes ) ]
+    | true, (false, true) ->
+      (* Deepening from a mixed product to all flat. *)
+      (* offset += gap + (values before) + (values after) + (flats before) *)
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
+      let offset =
+        H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
+      in
+      let shifter =
+        H.Simple
+          (Simple.const
+             (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
+      in
+      let gap = H.Binary (Int_shift (Naked_int64, Lsr), index, shifter) in
+      let to_add =
+        Int64.add values_before_in_bytes
+          (Int64.add values_after_in_bytes flats_before_in_bytes)
+      in
+      [ Binary
+          ( Int_arith (Naked_int64, Add),
+            H.Prim
+              (Binary (Int_arith (Naked_int64, Add), H.Prim offset, H.Prim gap)),
+            simple_i64 to_add ) ]
+    | _, (false, false) -> assert false
+    | false, _ ->
+      (* increase offset by (values before) + (flats before) *)
+      let to_add = Int64.add values_before_in_bytes flats_before_in_bytes in
+      [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)])
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -2501,7 +2666,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        here, either a bug in [Closure_conversion] or the wrong number of \
        arguments"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
-  | Pprobe_is_enabled _, _ :: _ ->
+  | (Pprobe_is_enabled _ | Pidx_mixed_field _), _ :: _ ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for nullary primitive \
        %a (%a)"
@@ -2524,7 +2689,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64
-      | Parray_element_size_in_bytes _ | Ppeek _ | Pmakelazyblock _ ),
+      | Parray_element_size_in_bytes _ | Pidx_deepen _ | Ppeek _
+      | Pmakelazyblock _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

@@ -841,6 +841,43 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       with Not_constant ->
         makearray lambda_arr_mut
       end
+  | Texp_idx (ba, uas) ->
+    let uas_path =
+      List.map (function Uaccess_unboxed_field (_, lbl) -> lbl.lbl_pos)
+        uas
+    in
+    let loc = of_location ~scopes e.exp_loc in
+    begin match ba with
+    | Baccess_block (_, index) ->
+      let index = transl_exp ~scopes Jkind.Sort.Const.for_idx index in
+      begin match uas with
+      | [] -> index
+      | Uaccess_unboxed_field (_, lbl) :: _ ->
+        let lbl_layout l = layout e.exp_env l.lbl_loc l.lbl_sort l.lbl_arg in
+        let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
+        Lprim (Pidx_deepen (uas_path, layouts), [index], loc)
+      end
+    | Baccess_field (id, lbl) ->
+      check_record_field_sort id.loc lbl.lbl_sort;
+      begin match lbl.lbl_repres with
+      | Record_boxed _
+      | Record_float | Record_ufloat ->
+        (* CR rtjoa: instead emit a Pidx_field and do this calculation later *)
+        let offset = Int64.of_int (lbl.lbl_pos * 8) in
+        Lconst (Const_base (Const_unboxed_int64 offset))
+      | Record_inlined _ | Record_unboxed ->
+        Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
+      | Record_mixed shape ->
+        let shape =
+          Lambda.transl_mixed_product_shape
+            ~get_value_kind:(fun _ -> Lambda.generic_value) shape
+        in
+        let path = lbl.lbl_pos :: uas_path in
+        Lprim (Pidx_mixed_field (path, shape), [], loc)
+      end
+    | Baccess_array _ ->
+      Misc.fatal_error "Texp_idx: array unimplemented"
+    end
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension

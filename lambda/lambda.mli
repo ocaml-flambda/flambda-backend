@@ -148,6 +148,9 @@ type primitive =
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
   | Parray_element_size_in_bytes of array_kind
+  (* Block indices *)
+  | Pidx_mixed_field of int list * mixed_block_shape
+  | Pidx_deepen of int list * layout list
   (* Context switches *)
   | Prunstack
   | Pperform

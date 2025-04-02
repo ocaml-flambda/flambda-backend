@@ -579,6 +579,16 @@ let primitive ppf = function
         layouts
   | Parray_element_size_in_bytes ak ->
       fprintf ppf "array_element_size_in_bytes (%s)" (array_kind ak)
+  | Pidx_mixed_field (path, shape) ->
+      fprintf ppf "idx_mixed_field %a %a"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) path
+        (mixed_block_shape (fun _ppf () -> ()))
+        shape
+  | Pidx_deepen (path, layouts) ->
+      fprintf ppf "idx_deepen %a %a"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) path
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
+        layouts
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -948,6 +958,8 @@ let name_of_primitive = function
   | Pduprecord _ -> "Pduprecord"
   | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
   | Punboxed_product_field _ -> "Punboxed_product_field"
+  | Pidx_mixed_field _ -> "Pidx_mixed_field"
+  | Pidx_deepen _ -> "Pidx_deepen"
   | Parray_element_size_in_bytes _ -> "Parray_element_size_in_bytes"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"

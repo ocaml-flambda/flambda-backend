@@ -94,6 +94,9 @@ let record_form_to_wrong_kind_sort
   | Legacy -> Record
   | Unboxed_product -> Record_unboxed_product
 
+type type_block_access_result =
+  { ba : block_access; base_ty: type_expr; el_ty: type_expr }
+
 type contains_gadt =
   | Contains_gadt
   | No_gadt
@@ -251,6 +254,9 @@ type error =
       wrong_kind_context * record_form_packed * type_expr
   | Expr_not_a_record_type of record_form_packed * type_expr
   | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
+  | Invalid_unboxed_access of
+      { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
+  | Block_access_multi_index
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -4141,6 +4147,16 @@ let rec is_nonexpansive exp =
       && is_nonexpansive_opt (Option.map fst extended_expression)
   | Texp_field(exp, _, _, _, _, _) -> is_nonexpansive exp
   | Texp_unboxed_field(exp, _, _, _, _) -> is_nonexpansive exp
+  | Texp_idx (ba, uas) ->
+      let block_access = function
+        | Baccess_field _ -> true
+        | Baccess_array (_, _, index) -> is_nonexpansive index
+        | Baccess_block (_, index) -> is_nonexpansive index
+      in
+      let unboxed_access = function
+        | Uaccess_unboxed_field _ -> true
+      in
+      block_access ba && List.for_all unboxed_access uas
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, _jkind, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -4634,7 +4650,7 @@ let check_partial_application ~statement exp =
             | Texp_construct _ | Texp_variant _ | Texp_record _
             | Texp_record_unboxed_product _ | Texp_unboxed_field _
             | Texp_overwrite _ | Texp_hole _
-            | Texp_field _ | Texp_setfield _ | Texp_array _
+            | Texp_field _ | Texp_setfield _ | Texp_array _ | Texp_idx _
             | Texp_list_comprehension _ | Texp_array_comprehension _
             | Texp_while _ | Texp_for _ | Texp_instvar _
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
@@ -5588,6 +5604,101 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   in
+  (* [expected_base_ty] is only used for record field disambiguation.
+     We don't need to unify it with [base_ty] here because we unify
+     the whole expected type later. *)
+  let type_block_access expected_base_ty principal
+      (ba : Parsetree.block_access) : type_block_access_result =
+    match ba with
+    | Baccess_field lid ->
+      let expected_record_type =
+        match extract_concrete_typedecl_protected env expected_base_ty with
+        | Typedecl(p0, p, {type_kind=Type_record _}) ->
+          Some(p0, p, principal)
+        | _ -> None
+      in
+      let labels =
+        Env.lookup_all_labels ~record_form:Legacy ~loc:lid.loc Projection
+          lid.txt env
+      in
+      let label =
+        wrap_disambiguate "This block index is expected to have base"
+          (mk_expected expected_base_ty)
+          (label_disambiguate Legacy Projection lid env expected_record_type)
+          labels
+      in
+      (match label.lbl_repres with
+       | Record_unboxed -> Misc.fatal_error "todo better error"
+       | _ -> ());
+      let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
+      let mut = is_mutable label.lbl_mut in
+      if mut then Env.mark_label_used Mutation label.lbl_uid;
+      let ba = Baccess_field (lid, label) in
+      { ba; base_ty = ty_res; el_ty = ty_arg }
+    | Baccess_array (mut, index_kind, index) ->
+      let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
+      let base_ty =
+        match mut with
+        | Immutable -> Predef.type_iarray el_ty
+        | Mutable -> Predef.type_array el_ty
+      in
+      let index_type_expected =
+        match index_kind with
+        | Index_int -> Predef.type_int
+        | Index_unboxed_int64 -> Predef.type_unboxed_int64
+        | Index_unboxed_int32 -> Predef.type_unboxed_int32
+        | Index_unboxed_nativeint -> Predef.type_unboxed_nativeint
+      in
+      let index =
+        type_expect env mode_legacy index (mk_expected index_type_expected) in
+      let ba = Baccess_array (mut, index_kind, index) in
+      { ba; base_ty; el_ty }
+    | Baccess_block (mut, index) ->
+      let base_ty = newvar (Jkind.Builtin.value ~why:Idx_base) in
+      let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
+      let index_type_expected =
+        match mut with
+        | Immutable -> Predef.type_idx_imm base_ty el_ty
+        | Mutable -> Predef.type_idx_mut base_ty el_ty
+      in
+      let index =
+        type_expect env mode_legacy index (mk_expected index_type_expected) in
+      let ba = Baccess_block (mut, index) in
+      { ba; base_ty; el_ty }
+  in
+  let type_unboxed_access el_ty ua =
+    match ua with
+    | Parsetree.Uaccess_unboxed_field lid ->
+      let expected_record_type =
+        match extract_concrete_typedecl_protected env el_ty with
+        | Typedecl(p0, p, {type_kind=Type_record_unboxed_product _}) ->
+          (* we treat this as principal because [ty_expected] only
+              affects disambiguation for the block access *)
+          Some(p0, p, true)
+        | _ -> None
+      in
+      let labels =
+        Env.lookup_all_labels ~record_form:Unboxed_product ~loc:lid.loc
+          Projection lid.txt env
+      in
+      (* CR rtjoa: probably wrong message *)
+      let label =
+        wrap_disambiguate "This expression is an idx with base"
+          (mk_expected el_ty)
+          (label_disambiguate Unboxed_product Projection lid env
+              expected_record_type)
+          labels
+      in
+      let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
+      begin
+        (* The previous element ty must be the base ty of this component *)
+        try unify_exp_types loc env ty_res el_ty
+        with Error (_, _, Expr_type_clash _) ->
+          let err = Invalid_unboxed_access { prev_el_type = el_ty; ua } in
+          raise (Error (lid.loc, env, err))
+      end;
+      ty_arg, Uaccess_unboxed_field (lid, label)
+  in
   match desc with
   | Pexp_ident lid ->
       let path, (actual_mode : Env.actual_mode), desc, kind =
@@ -6127,6 +6238,47 @@ and type_expect_
         ~mutability
         ~attributes:sexp.pexp_attributes
         sargl
+  | Pexp_idx (ba, uas) ->
+    Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+    (* Compute the expected base type, only to use for disambiguation of the
+      block access *)
+    let expected_base_ty ty_expected =
+      (* CR rtjoa: could this be a tpoly? *)
+      match get_desc (expand_head env ty_expected) with
+      | Tconstr(p, [arg1; _], _)
+        when Path.same p Predef.path_idx_imm
+          || Path.same p Predef.path_idx_mut ->
+        arg1
+      | Tpoly(t, univars) ->
+        ignore t; ignore univars; assert false
+        (* let _, t = instance_poly ~keep_names:true ~fixed:false univars t in
+         * expected_base_ty t *)
+      | _ ->
+        newgenvar (Jkind.Builtin.value ~why:Idx_base)
+    in
+    let expected_base_ty = expected_base_ty ty_expected in
+    let principal = is_principal ty_expected in
+    let { ba; base_ty; el_ty } =
+      type_block_access expected_base_ty principal ba
+    in
+    let el_ty, uas = List.fold_left_map type_unboxed_access el_ty uas in
+    let ty =
+      match ba with
+      | Baccess_field (_, { lbl_mut = Immutable; _ })
+      | Baccess_array (Immutable, _, _) | Baccess_block (Immutable, _) ->
+        Predef.type_idx_imm base_ty el_ty
+      | Baccess_field (_, { lbl_mut = Mutable _; _ })
+      | Baccess_array (Mutable, _, _) | Baccess_block (Mutable, _) ->
+        Predef.type_idx_mut base_ty el_ty
+    in
+    with_explanation (fun () ->
+      unify_exp_types loc env ty (generic_instance ty_expected));
+    re {
+      exp_desc = Texp_idx (ba, uas);
+      exp_loc = loc; exp_extra = [];
+      exp_type = instance ty_expected;
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env }
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
       let cond =
         type_expect env mode_max scond
@@ -10863,6 +11015,18 @@ let report_error ~loc env =
          which is %s record rather than %s one."
         (Style.as_inline_code Printtyp.type_expr) ty
         actual expected
+  | Invalid_unboxed_access { prev_el_type; ua } ->
+      begin match ua with
+      | Uaccess_unboxed_field { txt = lid; _ } ->
+        Location.errorf ~loc
+          "The index preceding this unboxed access has element type %a,@ \
+          which is not an unboxed record with field %a."
+          (Style.as_inline_code Printtyp.type_expr) prev_el_type
+          (Style.as_inline_code longident) lid
+      end
+  | Block_access_multi_index ->
+    Location.error ~loc
+      "Block indices do not support multi-index operators."
   | Submode_failed(fail_reason, submode_reason, locality_context,
       contention_context, shared_context)
      ->

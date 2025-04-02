@@ -1179,6 +1179,8 @@ and simple_expr ctxt f x =
           punct
           (list (simple_expr (under_semi ctxt)) ~sep:";") l
           punct
+    | Pexp_idx (ba, uas) ->
+      pp f "(%a%a)" (block_access ctxt) ba (list unboxed_access ~sep:"") uas
     | Pexp_comprehension comp -> comprehension_expr ctxt f comp
     | Pexp_while (e1, e2) ->
         let fmt : (_,_,_) format = "@[<2>while@;%a@;do@;%a@;done@]" in
@@ -2185,6 +2187,34 @@ and directive_argument f x =
   | Pdir_int (n, Some m) -> pp f "@ %s%c" n m
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
+
+and block_access ctxt f = function
+  | Baccess_field li ->
+    pp f ".%a" longident_loc li
+  | Baccess_array (mut, index_kind, index) ->
+    let dotop =
+      match mut with
+      | Mutable -> "."
+      | Immutable -> ".:"
+    in
+    let suffix = match index_kind with
+      | Index_int -> ""
+      | Index_unboxed_int64 -> "L"
+      | Index_unboxed_int32 -> "l"
+      | Index_unboxed_nativeint -> "n"
+    in
+    pp f "%s%s(%a)" dotop suffix (expression ctxt) index
+  | Baccess_block (mut, index) ->
+    let s =
+      match mut with
+      | Mutable -> "idx_imm"
+      | Immutable -> "idx_mut"
+    in
+    pp f ".%s(%a)" s (expression ctxt) index
+
+and unboxed_access f = function
+  | Uaccess_unboxed_field li ->
+    pp f ".#%a" longident_loc li
 
 and comprehension_expr ctxt f cexp =
   let punct, comp = match cexp with

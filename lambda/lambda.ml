@@ -158,6 +158,9 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
   | Parray_element_size_in_bytes of array_kind
+  (* Block indices *)
+  | Pidx_mixed_field of int list * mixed_block_shape
+  | Pidx_deepen of int list * layout list
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -2003,6 +2006,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Parray_element_size_in_bytes _
+  | Pidx_mixed_field _
+  | Pidx_deepen _
   | Ppeek _ | Ppoke _ -> None
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if !Clflags.native_code then None
@@ -2171,7 +2176,7 @@ let primitive_can_raise prim =
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
+  | Parray_element_size_in_bytes _ | Pidx_mixed_field _ | Pidx_deepen _ | Ppeek _ | Ppoke _ ->
     false
 
 let constant_layout: constant -> layout = function
@@ -2282,6 +2287,7 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Parray_element_size_in_bytes _ -> layout_int
+  | Pidx_mixed_field _ | Pidx_deepen _ -> Punboxed_int Unboxed_int64
   | Pfloatfield _ -> layout_boxed_float Boxed_float64
   | Pfloatoffloat32 _ -> layout_boxed_float Boxed_float64
   | Pfloat32offloat _ -> layout_boxed_float Boxed_float32

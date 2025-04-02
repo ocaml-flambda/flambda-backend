@@ -376,7 +376,8 @@ let compute_static_size lam =
     | Punboxed_int32_array_set_128 _
     | Punboxed_int64_array_set_128 _
     | Punboxed_nativeint_array_set_128 _
-    | Parray_element_size_in_bytes _ ->
+    | Parray_element_size_in_bytes _
+    | Pidx_mixed_field _ | Pidx_deepen _ ->
         Constant
 
     | Pmakeufloatblock (_, _)
