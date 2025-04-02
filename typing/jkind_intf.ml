@@ -322,6 +322,11 @@ module History = struct
     | Wildcard
     | Unification_var
     | Array_type_argument
+    | Type_argument of
+        { parent_path : Path.t;
+          position : int;
+          arity : int
+        }
 
   type product_creation_reason =
     | Unboxed_tuple

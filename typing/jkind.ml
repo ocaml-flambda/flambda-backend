@@ -2524,8 +2524,8 @@ module Format_history = struct
       (* message gets printed in [format_flattened_history] so we ignore it here *)
       format_annotation_context ppf context
 
-  let format_any_creation_reason ppf : History.any_creation_reason -> unit =
-    function
+  let format_any_creation_reason ppf ~layout_or_kind :
+      History.any_creation_reason -> _ = function
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Initial_typedecl_env ->
@@ -2544,6 +2544,10 @@ module Format_history = struct
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "the %stype argument of %a has %s any"
+        (format_position ~arity position)
+        !printtyp_path parent_path layout_or_kind
 
   let format_immediate_creation_reason ppf :
       History.immediate_creation_reason -> _ = function
@@ -2660,7 +2664,7 @@ module Format_history = struct
       fprintf ppf "of the annotation on %a" format_annotation_context ctx
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
-    | Any_creation any -> format_any_creation_reason ppf any
+    | Any_creation any -> format_any_creation_reason ppf any ~layout_or_kind
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
     | Immediate_or_null_creation immediate ->
@@ -3324,6 +3328,9 @@ module Debug_printers = struct
     | Type_expression_call -> fprintf ppf "Type_expression_call"
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
     | Array_type_argument -> fprintf ppf "Array_type_argument"
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
+        !printtyp_path parent_path
 
   let immediate_creation_reason ppf : History.immediate_creation_reason -> _ =
     function

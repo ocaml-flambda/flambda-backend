@@ -35,6 +35,10 @@ and ident_float = ident_create "float"
 and ident_float32 = ident_create "float32"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
+(* CR rtjoa: before merge tasks:
+   - determine final name for these *)
+and ident_idx = ident_create "idx"
+(* and ident_mut_idx = ident_create "mut_idx" *)
 and ident_exn = ident_create "exn"
 and ident_array = ident_create "array"
 and ident_iarray = ident_create "iarray"
@@ -322,6 +326,30 @@ let mk_add_type1 add_type type_ident
   in
   add_type type_ident decl env
 
+let mk_add_type2 add_type type_ident ~jkind ~param1_jkind ~param2_jkind
+      ~type_variance ~type_separability env =
+  let param1 = newgenvar param1_jkind in
+  let param2 = newgenvar param2_jkind in
+  let decl =
+    { type_params = [param1; param2];
+      type_arity = 2;
+      type_kind = Type_abstract Definition;
+      type_jkind = Jkind.mark_best (jkind);
+      type_loc = Location.none;
+      type_private = Asttypes.Public;
+      type_manifest = None;
+      type_variance;
+      type_separability;
+      type_is_newtype = false;
+      type_expansion_scope = lowest_level;
+      type_attributes = [];
+      type_unboxed_default = false;
+      type_uid = Uid.of_predef_id type_ident;
+      type_unboxed_version = None;
+    }
+  in
+  add_type type_ident decl env
+
 let mk_add_extension add_extension id args =
   List.iter (fun (_, sort) ->
       let raise_error () = Misc.fatal_error
@@ -383,6 +411,7 @@ let unrestricted tvar ca_sort =
 let build_initial_env add_type add_extension empty_env =
   let add_type_with_jkind, add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
+  and add_type2 = mk_add_type2 add_type
   and add_extension = mk_add_extension add_extension in
   empty_env
   (* Predefined types *)
@@ -453,6 +482,23 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.add_with_bounds
            ~modality:Mode.Modality.Value.Const.id
            ~type_expr:param)
+  |> add_type2 ident_idx
+       ~param1_jkind:(
+         Jkind.Builtin.value ~why:(Type_argument {
+           parent_path = Path.Pident ident_idx;
+           position = 1;
+           arity = 2;
+         }))
+       ~param2_jkind:(
+         Jkind.Builtin.any ~why:(Type_argument {
+           parent_path = Path.Pident ident_idx;
+           position = 2;
+           arity = 2;
+         }))
+       ~jkind:(
+         Jkind.of_builtin ~why:(Primitive ident_idx) Jkind.Const.Builtin.bits64)
+       ~type_variance:[Variance.covariant; Variance.covariant]
+       ~type_separability:[Separability.Ind; Separability.Ind]
   |> add_type_with_jkind ident_lexing_position
        ~kind:(
          let lbl (field, field_type) =
