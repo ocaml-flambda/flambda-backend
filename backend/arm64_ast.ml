@@ -214,7 +214,14 @@ module Instruction_name = struct
     | UXTB
     | UXTH
     | LDR
+    | LDRB
+    | LDRSB
+    | LDRH
+    | LDRSH
+    | LDRSW
     | STR
+    | STRB
+    | STRH
     (* neon *)
     | MOV
     | MOVI
@@ -283,7 +290,14 @@ module Instruction_name = struct
     | UXTB -> "uxtb"
     | UXTH -> "uxth"
     | LDR -> "ldr"
+    | LDRB -> "ldrb"
+    | LDRSB -> "ldrsb"
+    | LDRH -> "ldrh"
+    | LDRSH -> "ldrsh"
+    | LDRSW -> "ldrsw"
     | STR -> "str"
+    | STRB -> "strb"
+    | STRH -> "strh"
     (* neon *)
     | MOV -> "mov"
     | MOVI -> "movi"

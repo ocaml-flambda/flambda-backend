@@ -125,7 +125,14 @@ module Instruction_name : sig
     | UXTB
     | UXTH
     | LDR
+    | LDRB
+    | LDRSB
+    | LDRH
+    | LDRSH
+    | LDRSW
     | STR
+    | STRB
+    | STRH
     (* neon *)
     | MOV
     | MOVI

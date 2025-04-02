@@ -957,8 +957,8 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     let domain_local_sp_offset = DS.(idx_of_field Domain_local_sp) * 8 in
     let domain_local_limit_offset = DS.(idx_of_field Domain_local_limit) * 8 in
     let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
-    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_limit_offset;
-    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
+    DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed domain_local_limit_offset) reg_domain_state_ptr |];
+    DSL.ins I.LDR [| DSL.emit_reg  r; DSL.emit_addressing (Iindexed domain_local_sp_offset) reg_domain_state_ptr |];
     emit_subimm r r n;
     DSL.ins I.STR [| DSL.emit_reg  r; DSL.emit_addressing (Iindexed domain_local_sp_offset) reg_domain_state_ptr |];
     emit_printf "	cmp	%a, %a\n" femit_reg r femit_reg reg_tmp1;
@@ -966,7 +966,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     emit_printf "	b.lt	%a\n" femit_label lbl_call;
     let lbl_after_alloc = Cmm.new_label () in
     emit_printf "%a:\n" femit_label lbl_after_alloc;
-    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_top_offset;
+    DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed domain_local_top_offset) reg_domain_state_ptr |];
     emit_printf "	add	%a, %a, %a\n" femit_reg r femit_reg r femit_reg reg_tmp1;
     emit_printf "	add	%a, %a, #%a\n" femit_reg r femit_reg r femit_int 8;
     local_realloc_sites :=
@@ -985,7 +985,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
          the generated code simpler. *)
       assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
       let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-      emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+      DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
       emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       emit_printf "	cmp	%a, %a\n" femit_reg reg_alloc_ptr femit_reg reg_tmp1;
       if not far then begin
@@ -1021,7 +1021,7 @@ let assembly_code_for_poll i ~far ~return_label =
   | None -> Cmm.new_label()
   | Some lbl -> lbl in
   let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-    emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+    DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
     emit_printf "	cmp	%a, %a\n" femit_reg reg_alloc_ptr femit_reg reg_tmp1;
   if not far then begin
     match return_label with
@@ -1333,17 +1333,17 @@ let emit_instr i =
               reg_tmp1 in
         begin match memory_chunk with
         | Byte_unsigned ->
-            emit_printf "	ldrb	%a, %a\n" femit_wreg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDRB [| DSL.emit_reg_w dst; DSL.emit_addressing addressing_mode base |]
         | Byte_signed ->
-            emit_printf "	ldrsb	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDRSB [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         | Sixteen_unsigned ->
-            emit_printf "	ldrh	%a, %a\n" femit_wreg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDRH [| DSL.emit_reg_w dst; DSL.emit_addressing addressing_mode base |]
         | Sixteen_signed ->
-            emit_printf "	ldrsh	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDRSH [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         | Thirtytwo_unsigned ->
             DSL.ins I.LDR [| DSL.emit_reg_w dst; DSL.emit_addressing addressing_mode base |]
         | Thirtytwo_signed ->
-            emit_printf "	ldrsw	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDRSW [| DSL.emit_reg_w dst; DSL.emit_addressing addressing_mode base |]
         | Single { reg = Float64 } ->
             DSL.check_reg Float dst;
             emit_printf "	ldr	s7, %a\n" femit_addressing (addressing_mode, base);
@@ -1378,9 +1378,9 @@ let emit_instr i =
               reg_tmp1 in
         begin match size with
         | Byte_unsigned | Byte_signed ->
-            emit_printf "	strb	%a, %a\n" femit_wreg src femit_addressing (addr, base)
+            DSL.ins I.STRB [| DSL.emit_reg_w src; DSL.emit_addressing addr base |]
         | Sixteen_unsigned | Sixteen_signed ->
-            emit_printf "	strh	%a, %a\n" femit_wreg src femit_addressing (addr, base)
+            DSL.ins I.STRH [| DSL.emit_reg_w src; DSL.emit_addressing addr base |]
         | Thirtytwo_unsigned | Thirtytwo_signed ->
             DSL.ins I.STR [| DSL.emit_reg_w src; DSL.emit_addressing addr base |]
         | Single { reg = Float64 } ->
@@ -1652,7 +1652,7 @@ let emit_instr i =
       in
       let f = max_frame_size_bytes + threshold_offset in
       let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
-      emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+      DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
       emit_addimm reg_tmp1 reg_tmp1 f;
       emit_printf "	cmp	sp, %a\n" femit_reg reg_tmp1;
       emit_printf "	bcc	%a\n" femit_label overflow;
