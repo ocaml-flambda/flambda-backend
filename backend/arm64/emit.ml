@@ -960,7 +960,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int domain_local_limit_offset;
     emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
     emit_subimm r r n;
-    emit_printf "	str	%a, [%a, #%a]\n" femit_reg r femit_reg reg_domain_state_ptr femit_int domain_local_sp_offset;
+    DSL.ins I.STR [| DSL.emit_reg  r; DSL.emit_addressing (Iindexed domain_local_sp_offset) reg_domain_state_ptr |];
     emit_printf "	cmp	%a, %a\n" femit_reg r femit_reg reg_tmp1;
     let lbl_call = Cmm.new_label () in
     emit_printf "	b.lt	%a\n" femit_label lbl_call;
@@ -1341,7 +1341,7 @@ let emit_instr i =
         | Sixteen_signed ->
             emit_printf "	ldrsh	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Thirtytwo_unsigned ->
-            emit_printf "	ldr	%a, %a\n" femit_wreg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDR [| DSL.emit_reg_w dst; DSL.emit_addressing addressing_mode base |]
         | Thirtytwo_signed ->
             emit_printf "	ldrsw	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
         | Single { reg = Float64 } ->
@@ -1354,16 +1354,17 @@ let emit_instr i =
             emit_printf "	dmb	ishld\n";
             emit_printf "	ldar	%a, [%a]\n" femit_reg dst femit_reg i.arg.(0)
           end else
-            emit_printf "	ldr	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDR [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         | Double ->
-                      emit_printf "	ldr	%a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
+                      DSL.ins I.LDR [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         | Single { reg = Float32 } ->
             DSL.check_reg Float32 dst;
-            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
+            DSL.ins I.LDR [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
             (* CR gyorsh: check alignment *)
             DSL.check_reg Vec128 dst;
-            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base)
+            emit_printf " ldr %a, %a\n" femit_reg dst femit_addressing (addressing_mode, base);
+            DSL.ins I.LDR [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
         end
     | Lop(Store(size, addr, assignment)) ->
       (* NB: assignments other than Word_int and Word_val do not follow the
@@ -1382,28 +1383,24 @@ let emit_instr i =
         | Sixteen_unsigned | Sixteen_signed ->
             emit_printf "	strh	%a, %a\n" femit_wreg src femit_addressing (addr, base)
         | Thirtytwo_unsigned | Thirtytwo_signed ->
-            emit_printf "	str	%a, %a\n" femit_wreg src femit_addressing (addr, base)
+            DSL.ins I.STR [| DSL.emit_reg_w src; DSL.emit_addressing addr base |]
         | Single { reg = Float64 } ->
             DSL.check_reg Float src;
             emit_printf "	fcvt	s7, %a\n" femit_reg src;
-            emit_printf "	str	s7, %a\n" femit_addressing (addr, base);
+            emit_printf "	str	s7, %a\n" femit_addressing (addr, base)
         | Word_int | Word_val ->
             (* memory model barrier for non-initializing store *)
             if assignment then emit_printf "	dmb	ishld\n";
-            DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
-            emit_printf "	str	%a, %a\n" femit_reg src femit_addressing (addr, base)
+            DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |]
         | Double ->
-          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
-          emit_printf "	str	%a, %a\n" femit_reg src femit_addressing (addr, base)
+          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |]
         | Single { reg = Float32 } ->
           DSL.check_reg Float32 src;
-          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
-          emit_printf " str %a, %a\n" femit_reg src femit_addressing (addr, base)
+          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |]
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
           (* CR gyorsh: check alignment *)
           DSL.check_reg Vec128 src;
-          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |];
-          emit_printf " str %a, %a\n" femit_reg src femit_addressing (addr, base)
+          DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |]
         end
     | Lop(Alloc { bytes = n; dbginfo; mode = Heap }) ->
         assembly_code_for_allocation i ~n ~local:false ~far:false ~dbginfo
@@ -1413,10 +1410,10 @@ let emit_instr i =
         assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
     | Lop(Begin_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        emit_printf "	ldr	%a, [%a, #%a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
+        DSL.ins I.LDR [| DSL.emit_reg i.arg.(0); DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |]
     | Lop(End_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        emit_printf "	str	%a, [%a, #%a]\n" femit_reg i.arg.(0) femit_reg reg_domain_state_ptr femit_int offset
+        DSL.ins I.STR [| DSL.emit_reg i.arg.(0); DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |]
     | Lop(Poll) ->
         assembly_code_for_poll i ~far:false ~return_label:None
     | Lop(Specific Ifar_poll) ->
