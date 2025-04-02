@@ -29,23 +29,23 @@ type trap_stack_info =
   | Unreachable
   | Reachable of Simple_operation.trap_stack
 
-type 'a static_handler =
+type static_handler =
   { regs : Reg.t array list;
     traps_ref : trap_stack_info ref;
-    extra : 'a
+    label : Label.t
   }
 
-type 'a environment =
+type environment =
   { vars :
       (Reg.t array * Backend_var.Provenance.t option * Asttypes.mutable_flag)
       V.Map.t;
-    static_exceptions : 'a static_handler Int.Map.t;
+    static_exceptions : static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
     trap_stack : Simple_operation.trap_stack;
     regs_for_exception_extra_args : Reg.t array Int.Map.t
         (** For each exception handler, any registers that are to be used to hold
-            extra arguments. *)
+            label arguments. *)
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -53,9 +53,9 @@ let env_add ?(mut = Asttypes.Immutable) var regs env =
   let var = VP.var var in
   { env with vars = V.Map.add var (regs, provenance, mut) env.vars }
 
-let env_add_static_exception id v env extra =
+let env_add_static_exception id v env label =
   let r = ref Unreachable in
-  let s : _ static_handler = { regs = v; traps_ref = r; extra } in
+  let s : static_handler = { regs = v; traps_ref = r; label } in
   { env with static_exceptions = Int.Map.add id s env.static_exceptions }, r
 
 let env_find id env =
@@ -80,14 +80,14 @@ let env_find_regs_for_exception_extra_args id env =
   try Int.Map.find id env.regs_for_exception_extra_args
   with Not_found ->
     Misc.fatal_errorf
-      "Could not find exception extra args registers for continuation %d" id
+      "Could not find exception label args registers for continuation %d" id
 
 let _env_find_with_provenance id env = V.Map.find id env.vars
 
 let env_find_static_exception id env = Int.Map.find id env.static_exceptions
 
-let env_enter_trywith env id extra =
-  let env, _ = env_add_static_exception id [] env extra in
+let env_enter_trywith env id label =
+  let env, _ = env_add_static_exception id [] env label in
   env
 
 let env_set_trap_stack env trap_stack = { env with trap_stack }
@@ -251,7 +251,7 @@ let size_machtype mty =
   done;
   !size
 
-let size_expr (env : _ environment) exp =
+let size_expr env exp =
   let rec size localenv = function
     | Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ -> Arch.size_addr

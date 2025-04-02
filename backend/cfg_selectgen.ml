@@ -300,7 +300,7 @@ let join_array env rs ~bound_name =
     done;
     Some res
 
-type environment = Label.t Select_utils.environment
+type environment = Select_utils.environment
 
 type basic_or_terminator =
   | Basic of Cfg.basic
@@ -1428,7 +1428,7 @@ class virtual selector_generic =
                 | Cmm.Push handler_id ->
                   let lbl_handler =
                     (Select_utils.env_find_static_exception handler_id env)
-                      .extra
+                      .label
                   in
                   Cfg.Pushtrap { lbl_handler }
                 | Cmm.Pop _ -> Cfg.Poptrap
@@ -1436,7 +1436,7 @@ class virtual selector_generic =
               Sub_cfg.add_instruction current_sub_cfg instr_desc [||] [||]
                 Debuginfo.none)
             traps;
-          Sub_cfg.update_exit_terminator current_sub_cfg (Always handler.extra);
+          Sub_cfg.update_exit_terminator current_sub_cfg (Always handler.label);
           Select_utils.set_traps nfail handler.Select_utils.traps_ref
             env.Select_utils.trap_stack traps;
           None

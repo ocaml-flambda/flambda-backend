@@ -18,7 +18,7 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
-type environment = Label.t Select_utils.environment
+type environment = Select_utils.environment
 
 type basic_or_terminator =
   | Basic of Cfg.basic
