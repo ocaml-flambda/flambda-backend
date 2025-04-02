@@ -113,7 +113,7 @@ let fastcode_flag = ref true
 (* Layout of the stack frame *)
 let stack_offset = ref 0
 
-let num_stack_slots = Array.make Proc.num_stack_slot_classes 0
+let num_stack_slots = Stack_class.Tbl.make 0
 
 let prologue_required = ref false
 
@@ -317,7 +317,7 @@ let reg = function
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       mem64 (x86_data_type_for_stack_slot ty) ofs R14
   | { loc = Stack s; typ = ty } as r ->
-      let ofs = slot_offset s (stack_slot_class r.typ) in
+      let ofs = slot_offset s (Stack_class.of_machtype r.typ) in
       mem64 (x86_data_type_for_stack_slot ty) ofs RSP
   | { loc = Unknown } ->
       assert false
@@ -340,7 +340,7 @@ let reg_low_32_name = Array.map (fun r -> Reg32 r) int_reg_name
 let emit_subreg tbl typ r =
   match r.loc with
   | Reg.Reg r when r < 13 -> tbl.(r)
-  | Stack s -> mem64 typ (slot_offset s (stack_slot_class r.Reg.typ)) RSP
+  | Stack s -> mem64 typ (slot_offset s (Stack_class.of_machtype r.Reg.typ)) RSP
   | _ -> assert false
 
 let arg8 i n = emit_subreg reg_low_8_name BYTE i.arg.(n)
@@ -383,13 +383,13 @@ let record_frame_label live dbg =
           assert (Proc.gc_regs_offset reg = r);
           live_offset := ((r lsl 1) + 1) :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
-          live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
+          live_offset := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
       | {typ = Valx2; loc = Reg r} as reg ->
           let n = Proc.gc_regs_offset reg in
           let encode n = ((n lsl 1) + 1) in
           live_offset := encode n :: encode (n + 1) :: !live_offset
       | {typ = Valx2; loc = Stack s} as reg ->
-          let n = slot_offset s (stack_slot_class reg.typ)  in
+          let n = slot_offset s (Stack_class.of_machtype reg.typ)  in
           live_offset := n :: n + Arch.size_addr :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
@@ -867,7 +867,7 @@ let tailrec_entry_point = ref None
 type probe =
   {
     stack_offset: int;
-    num_stack_slots: int array;
+    num_stack_slots: int Stack_class.Tbl.t;
     (* Record frame info held in the corresponding mutable variables. *)
     probe_label: label;
     (* Probe site, recorded in .note.stapsdt section
@@ -2045,7 +2045,7 @@ let emit_instr ~first ~fallthrough i =
       { probe_label;
         probe_insn = i;
         stack_offset = !stack_offset;
-        num_stack_slots = Array.copy num_stack_slots;
+        num_stack_slots = Stack_class.Tbl.copy num_stack_slots;
       }
     in
     probes := probe :: !probes;
@@ -2224,9 +2224,7 @@ let fundecl fundecl =
   local_realloc_sites := [];
   clear_safety_checks ();
   clear_stack_realloc ();
-  for i = 0 to Proc.num_stack_slot_classes - 1 do
-    num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
-  done;
+  Stack_class.Tbl.copy_values ~from:fundecl.fun_num_stack_slots ~to_:num_stack_slots;
   prologue_required := fundecl.fun_prologue_required;
   frame_required := fundecl.fun_frame_required;
   all_functions := fundecl :: !all_functions;
@@ -2473,9 +2471,7 @@ let emit_probe_handler_wrapper p =
      recall that the wrapper does however have its own frame.) *)
   frame_required := true;
   stack_offset := p.stack_offset;
-  for i = 0 to Proc.num_stack_slot_classes - 1 do
-    num_stack_slots.(i) <- p.num_stack_slots.(i);
-  done;
+  Stack_class.Tbl.copy_values ~from:p.num_stack_slots ~to_:num_stack_slots;
   (* Account for the return address that is now pushed on the stack. *)
   stack_offset := !stack_offset + 8;
   (* Emit function entry code *)
@@ -2613,7 +2609,7 @@ let emit_probe_notes0 () =
     let arg_name =
       match arg.loc with
       | Stack s ->
-        Printf.sprintf "%d(%%rsp)" (slot_offset s (stack_slot_class arg.Reg.typ))
+        Printf.sprintf "%d(%%rsp)" (slot_offset s (Stack_class.of_machtype arg.Reg.typ))
       | Reg reg -> Proc.register_name arg.Reg.typ reg
       | Unknown ->
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
