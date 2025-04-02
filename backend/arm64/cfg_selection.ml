@@ -212,7 +212,7 @@ class selector =
       (* Other operations are regular *)
       | _ -> super#select_operation op args dbg ~label_after
 
-    method! emit_stores env dbg data regs_addr =
+    method! emit_stores env sub_cfg dbg data regs_addr =
       (* Override [emit_stores] to ensure that addressing mode always uses a
          legal offset. *)
       let offset = ref (-Arch.size_int) in
@@ -222,7 +222,7 @@ class selector =
       in
       List.iter
         (fun arg ->
-          match self#emit_expr env arg ~bound_name:None with
+          match self#emit_expr env sub_cfg arg ~bound_name:None with
           | None -> assert false
           | Some regs ->
             for i = 0 to Array.length regs - 1 do
@@ -243,17 +243,17 @@ class selector =
               then (
                 (* Use a temporary to store the address [!base + offset]. *)
                 let tmp = self#regs_for Cmm.typ_int in
-                self#insert_debug env
+                self#insert_debug env sub_cfg
                   (self#lift_op
                      (self#make_const_int (Nativeint.of_int !offset)))
                   dbg [||] tmp;
-                self#insert_debug env
+                self#insert_debug env sub_cfg
                   (self#lift_op (Operation.Intop Iadd))
                   dbg (Array.append !base tmp) tmp;
                 (* Use the temporary as the new base address. *)
                 base := tmp;
                 offset := 0);
-              self#insert_debug env
+              self#insert_debug env sub_cfg
                 (self#make_store kind (Iindexed !offset) false)
                 dbg
                 (Array.append [| r |] !base)
@@ -262,15 +262,15 @@ class selector =
             done)
         data
 
-    method! insert_move_extcall_arg env ty_arg src dst =
+    method! insert_move_extcall_arg env sub_cfg ty_arg src dst =
       let ty_arg_is_int32 =
         match ty_arg with
         | XInt32 -> true
         | XInt | XInt64 | XFloat32 | XFloat | XVec128 -> false
       in
       if macosx && ty_arg_is_int32 && is_stack_slot dst
-      then self#insert env (Op (Specific Imove32)) src dst
-      else self#insert_moves env src dst
+      then self#insert env sub_cfg (Op (Specific Imove32)) src dst
+      else self#insert_moves env sub_cfg src dst
   end
 
 let fundecl ~future_funcnames f =

@@ -440,14 +440,14 @@ class selector =
 
     (* Deal with register constraints *)
 
-    method! insert_op_debug env op dbg rs rd =
+    method! insert_op_debug env sub_cfg op dbg rs rd =
       try
         let rsrc, rdst = pseudoregs_for_operation op rs rd in
-        self#insert_moves env rs rsrc;
-        self#insert_debug env (Op op) dbg rsrc rdst;
-        self#insert_moves env rdst rd;
+        self#insert_moves env sub_cfg rs rsrc;
+        self#insert_debug env sub_cfg (Op op) dbg rsrc rdst;
+        self#insert_moves env sub_cfg rdst rd;
         rd
-      with Use_default -> super#insert_op_debug env op dbg rs rd
+      with Use_default -> super#insert_op_debug env sub_cfg op dbg rs rd
   end
 
 let fundecl ~future_funcnames f =
