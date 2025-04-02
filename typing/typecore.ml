@@ -10885,9 +10885,22 @@ let report_error ~loc env =
         | Error (Comonadic Areality, _) ->
             Format.dprintf "This value escapes its region."
         | Error (ax, {left; right}) ->
+            let pp_expectation ppf () =
+              let open Contention.Const in
+              match ax, right with
+              | Monadic Contention, Shared ->
+                  (* Could generalize this to other error cases where we expect
+                     something besides bottom, but currently (besides areality,
+                     already covered above) there are no other such cases. *)
+                  Format.fprintf ppf "%a or %a"
+                    (Style.as_inline_code Contention.Const.print) Shared
+                    (Style.as_inline_code Contention.Const.print) Uncontended
+              | _, _ ->
+                  Style.as_inline_code (Value.Const.print_axis ax) ppf right
+            in
             Format.dprintf "This value is %a but expected to be %a."
               (Style.as_inline_code (Value.Const.print_axis ax)) left
-              (Style.as_inline_code (Value.Const.print_axis ax)) right
+              pp_expectation ()
         end
   | Curried_application_complete (lbl, Error (ax, {left; _}), loc_kind) ->
       let sub =
