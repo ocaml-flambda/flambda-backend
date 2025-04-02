@@ -41,9 +41,9 @@ val exit_has_never_terminator : t -> bool
 
 val make_empty : unit -> t
 
-val add_empty_block_at_start : t -> label:Label.t -> t
+val add_empty_block_at_start : t -> label:Label.t -> unit
 
-val add_never_block : t -> label:Label.t -> t
+val add_never_block : t -> label:Label.t -> unit
 
 (** Use [add_instruction] in preference to this function. *)
 val add_instruction_at_start :
@@ -64,9 +64,9 @@ val iter_basic_blocks : t -> f:(Cfg.basic_block -> unit) -> unit
 
 val exists_basic_blocks : t -> f:(Cfg.basic_block -> bool) -> bool
 
-val join : from:t list -> to_:t -> t
+val join : from:t list -> to_:t -> unit
 
-val join_tail : from:t list -> to_:t -> t
+val join_tail : from:t list -> to_:t -> unit
 
 val update_exit_terminator : ?arg:Reg.t array -> t -> Cfg.terminator -> unit
 
