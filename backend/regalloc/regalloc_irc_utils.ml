@@ -148,7 +148,7 @@ let k reg = Proc.num_available_registers.(Proc.register_class reg)
 let update_register_locations : unit -> unit =
  fun () ->
   if irc_debug then log ~indent:0 "update_register_locations";
-  List.iter (Reg.all_registers ()) ~f:(fun reg ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
       match reg.Reg.loc with
       | Reg _ -> ()
       | Stack _ -> ()

@@ -318,7 +318,7 @@ let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
     if optimized
     then (
       let max_bucket_indices = Array.make Proc.num_stack_slot_classes (-1) in
-      List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
+      List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
           apply_reg_stack_local reg ~f:(fun slot_index ->
               let stack_class = Proc.stack_slot_class reg.typ in
               match Buckets.find_bucket buckets ~stack_class ~slot_index with

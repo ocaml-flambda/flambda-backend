@@ -443,12 +443,6 @@ class virtual selector_generic =
       | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
       | _ -> Itruetest, arg
 
-    (* Return an array of fresh registers of the given type. Normally
-       implemented as Reg.createv, but some ports (e.g. Arm) can override this
-       definition to store float values in pairs of integer registers. *)
-
-    method regs_for tys = Reg.createv tys
-
     method insert_moves env src dst =
       for i = 0 to min (Array.length src) (Array.length dst) - 1 do
         self#insert_move env src.(i) dst.(i)
@@ -479,8 +473,7 @@ class virtual selector_generic =
 
     method private bind_let (env : environment) v r1 =
       let env =
-        let rv = Reg.createv_like r1 in
-        name_regs v rv;
+        let rv = Reg.createv_with_typs_and_id ~id:(VP.var v) r1 in
         self#insert_moves env r1 rv;
         env_add v rv env
       in
@@ -796,7 +789,7 @@ class virtual selector_generic =
             (* The normal case *)
             let id = V.create_local "bind" in
             (* Introduce a fresh temp to hold the result *)
-            let tmp = Reg.createv_like r in
+            let tmp = Reg.createv_with_typs_and_id ~id r in
             self#insert_moves env r tmp;
             Some (Cvar id, env_add (VP.create id) tmp env)
 
@@ -923,26 +916,26 @@ class virtual selector_generic =
       let ret res = Some res in
       match exp with
       | Cconst_int (n, _dbg) ->
-        let r = self#regs_for typ_int in
+        let r = Reg.createv typ_int in
         ret
           (self#insert_op env (self#make_const_int (Nativeint.of_int n)) [||] r)
       | Cconst_natint (n, _dbg) ->
-        let r = self#regs_for typ_int in
+        let r = Reg.createv typ_int in
         ret (self#insert_op env (self#make_const_int n) [||] r)
       | Cconst_float32 (n, _dbg) ->
-        let r = self#regs_for typ_float32 in
+        let r = Reg.createv typ_float32 in
         ret
           (self#insert_op env
              (self#make_const_float32 (Int32.bits_of_float n))
              [||] r)
       | Cconst_float (n, _dbg) ->
-        let r = self#regs_for typ_float in
+        let r = Reg.createv typ_float in
         ret
           (self#insert_op env
              (self#make_const_float (Int64.bits_of_float n))
              [||] r)
       | Cconst_vec128 (bits, _dbg) ->
-        let r = self#regs_for typ_vec128 in
+        let r = Reg.createv typ_vec128 in
         ret (self#insert_op env (self#make_const_vec128 bits) [||] r)
       | Cconst_symbol (n, _dbg) ->
         (* Cconst_symbol _ evaluates to a statically-allocated address, so its
@@ -952,7 +945,7 @@ class virtual selector_generic =
            which may point to heap values. However, any such blocks will be
            registered in the compilation unit's global roots structure, so
            adding this register to the frame table would be redundant *)
-        let r = self#regs_for typ_int in
+        let r = Reg.createv typ_int in
         ret (self#insert_op env (self#make_const_symbol n) [||] r)
       | Cvar v -> (
         try ret (env_find v env)
@@ -1097,7 +1090,7 @@ class virtual selector_generic =
         | Terminator (Call { op = Indirect; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
           let rarg = Array.sub r1 1 (Array.length r1 - 1) in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
           let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -1117,7 +1110,7 @@ class virtual selector_generic =
           Some rd
         | Terminator (Call { op = Direct _; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
           let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -1135,7 +1128,7 @@ class virtual selector_generic =
           let loc_arg, stack_ofs =
             self#emit_extcall_args env ty_args new_args
           in
-          let rd = self#regs_for ty_res in
+          let rd = Reg.createv ty_res in
           let term =
             Cfg.Prim { op = External { r with stack_ofs }; label_after }
           in
@@ -1151,7 +1144,7 @@ class virtual selector_generic =
           ret rd
         | Terminator (Prim { op = Probe _; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let rd = self#insert_op_debug' env term dbg r1 rd in
           Select_utils.set_traps_for_raise env;
           current_sub_cfg
@@ -1168,7 +1161,7 @@ class virtual selector_generic =
           let returns, ty =
             if keep_for_checking then true, typ_int else false, ty
           in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let label = Cmm.new_label () in
           let r = { r with stack_ofs } in
           let term : Cfg.terminator =
@@ -1187,7 +1180,7 @@ class virtual selector_generic =
             ret rd)
           else None
         | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
-          let rd = self#regs_for typ_val in
+          let rd = Reg.createv typ_val in
           let bytes = Select_utils.size_expr env (Ctuple new_args) in
           let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
           let op =
@@ -1208,7 +1201,7 @@ class virtual selector_generic =
             (List.length dbginfo)
         | Basic (Op op) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           add_naming_op_for_bound_name rd;
           ret (self#insert_op_debug env op dbg r1 rd)
         | Basic basic ->
@@ -1272,8 +1265,7 @@ class virtual selector_generic =
             let rs =
               List.map
                 (fun (id, typ) ->
-                  let r = self#regs_for typ in
-                  Select_utils.name_regs id r;
+                  let r = Reg.createv_with_id ~id:(VP.var id) typ in
                   r)
                 ids
             in
@@ -1389,7 +1381,7 @@ class virtual selector_generic =
           in
           (* Intermediate registers to handle cases where some registers from
              src are present in dest *)
-          let tmp_regs = Reg.createv_like src in
+          let tmp_regs = Reg.createv_with_typs src in
           (* Ccatch registers must not contain out of heap pointers *)
           Array.iter
             (fun reg ->
@@ -1443,7 +1435,7 @@ class virtual selector_generic =
          extra arguments on its exception continuation has to compiled using a
          wrapper; see [To_cmm_expr.translate_apply]. *)
       let extra_arg_regs_split =
-        List.map (fun (_param, machtype) -> self#regs_for machtype) extra_args
+        List.map (fun (_param, machtype) -> Reg.createv machtype) extra_args
       in
       let extra_arg_regs = Array.concat extra_arg_regs_split in
       let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
@@ -1451,7 +1443,7 @@ class virtual selector_generic =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
       let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
-      let exn_bucket_in_handler = self#regs_for typ_val in
+      let exn_bucket_in_handler = Reg.createv typ_val in
       let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let r2, s2 =
@@ -1571,7 +1563,7 @@ class virtual selector_generic =
         match new_op with
         | Terminator (Call { op = Indirect; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let rarg = Array.sub r1 1 (Array.length r1 - 1) in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
@@ -1595,7 +1587,7 @@ class virtual selector_generic =
             self#insert_return env (Some loc_res) (pop_all_traps env))
         | Terminator (Call { op = Direct func; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
-          let rd = self#regs_for ty in
+          let rd = Reg.createv ty in
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
           let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -1675,8 +1667,7 @@ class virtual selector_generic =
             let rs =
               List.map
                 (fun (id, typ) ->
-                  let r = self#regs_for typ in
-                  Select_utils.name_regs id r;
+                  let r = Reg.createv_with_id ~id:(VP.var id) typ in
                   r)
                 ids
             in
@@ -1773,7 +1764,7 @@ class virtual selector_generic =
       let exn_label = Cmm.new_label () in
       (* See comment in emit_expr_aux_trywith about extra args *)
       let extra_arg_regs_split =
-        List.map (fun (_param, machtype) -> self#regs_for machtype) extra_args
+        List.map (fun (_param, machtype) -> Reg.createv machtype) extra_args
       in
       let extra_arg_regs = Array.concat extra_arg_regs_split in
       let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
@@ -1781,7 +1772,7 @@ class virtual selector_generic =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
       let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
-      let exn_bucket_in_handler = self#regs_for typ_val in
+      let exn_bucket_in_handler = Reg.createv typ_val in
       let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let s2 : Sub_cfg.t =
@@ -1866,8 +1857,7 @@ class virtual selector_generic =
       let rargs =
         List.mapi
           (fun arg_index (var, ty) ->
-            let r = self#regs_for ty in
-            Select_utils.name_regs var r;
+            let r = Reg.createv_with_id ~id:(VP.var var) ty in
             num_regs_per_arg.(arg_index) <- Array.length r;
             r)
           f.Cmm.fun_args

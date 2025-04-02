@@ -134,7 +134,7 @@ let hard_reg_gen typ n =
   let first = first_available_register.(reg_class) in
   let v = Array.make n Reg.dummy in
   for i = 0 to n - 1 do
-    v.(i) <- Reg.at_location typ (Reg(first + i))
+    v.(i) <- Reg.create_at_location typ (Reg(first + i))
   done;
 v
 
@@ -163,7 +163,7 @@ let gc_regs_offset _ =
 let reg_x8 = phys_reg Int 8
 
 let stack_slot slot ty =
-  Reg.at_location ty (Stack slot)
+  Reg.create_at_location ty (Stack slot)
 
 (* Calling conventions *)
 

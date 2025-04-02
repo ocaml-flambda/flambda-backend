@@ -287,17 +287,6 @@ let swap_intcomp = function
   | Simple_operation.Iunsigned cmp ->
     Simple_operation.Iunsigned (swap_integer_comparison cmp)
 
-(* Naming of registers *)
-
-let name_regs id rv =
-  let id = VP.var id in
-  if Array.length rv = 1
-  then rv.(0).Reg.raw_name <- Reg.Raw_name.create_from_var id
-  else
-    for i = 0 to Array.length rv - 1 do
-      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id
-    done
-
 (* Name of function being compiled *)
 let current_function_name = ref ""
 

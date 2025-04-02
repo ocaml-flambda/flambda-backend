@@ -242,7 +242,7 @@ class selector =
               if not (is_offset kind !offset)
               then (
                 (* Use a temporary to store the address [!base + offset]. *)
-                let tmp = self#regs_for Cmm.typ_int in
+                let tmp = Reg.createv Cmm.typ_int in
                 self#insert_debug env
                   (self#lift_op
                      (self#make_const_int (Nativeint.of_int !offset)))

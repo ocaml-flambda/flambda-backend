@@ -60,7 +60,7 @@ let update_register_locations : State.t -> unit =
             Hardware_register.print_location location;
         reg.Reg.loc <- Hardware_register.reg_location_of_location location)
   in
-  List.iter (Reg.all_registers ()) ~f:update_register
+  List.iter (Reg.all_relocatable_regs ()) ~f:update_register
 
 module Prio_queue = Make_max_priority_queue (Int)
 
@@ -141,7 +141,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
   if gi_debug
   then (
     log ~indent:0 "spilling costs";
-    List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
+    List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
         reg.Reg.spill <- false;
         log ~indent:1 "%a: %d" Printreg.reg reg reg.spill_cost));
   let hardware_registers, prio_queue =
