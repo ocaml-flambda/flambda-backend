@@ -30,7 +30,7 @@ module VP = Backend_var.With_provenance
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of Simple_operation.trap_stack
+  | Reachable of Operation.trap_stack
 
 type static_handler =
   { regs : Reg.t array list;
@@ -78,8 +78,7 @@ val env_find_static_exception : Int.Map.key -> environment -> static_handler
 
 val env_enter_trywith : environment -> Int.Map.key -> Label.t -> environment
 
-val env_set_trap_stack :
-  environment -> Simple_operation.trap_stack -> environment
+val env_set_trap_stack : environment -> Operation.trap_stack -> environment
 
 val combine_traps :
   Simple_operation.trap_stack ->
@@ -91,7 +90,7 @@ val print_traps : Format.formatter -> Simple_operation.trap_stack -> unit
 val set_traps :
   int ->
   trap_stack_info ref ->
-  Simple_operation.trap_stack ->
+  Operation.trap_stack ->
   Cmm.trap_action list ->
   unit
 
@@ -111,8 +110,7 @@ val size_machtype : Cmx_format.machtype_component array -> int
 
 val size_expr : environment -> Cmm.expression -> int
 
-val swap_intcomp :
-  Simple_operation.integer_comparison -> Simple_operation.integer_comparison
+val swap_intcomp : Operation.integer_comparison -> Operation.integer_comparison
 
 val name_regs : VP.t -> Reg.t array -> unit
 

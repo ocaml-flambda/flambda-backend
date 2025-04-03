@@ -301,13 +301,13 @@ let linearize_terminator cfg_with_layout (func : string) start
                 in
                 let comp =
                   match is_signed with
-                  | true -> Simple_operation.Isigned cond
-                  | false -> Simple_operation.Iunsigned cond
+                  | true -> Operation.Isigned cond
+                  | false -> Operation.Iunsigned cond
                 in
                 let test =
                   match imm with
-                  | None -> Simple_operation.Iinttest comp
-                  | Some n -> Simple_operation.Iinttest_imm (comp, n)
+                  | None -> Operation.Iinttest comp
+                  | Some n -> Operation.Iinttest_imm (comp, n)
                 in
                 L.Lcondbranch (test, lbl) :: acc)
               cond_successor_labels init,

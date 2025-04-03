@@ -72,10 +72,10 @@ type insert_op_debug_result =
 
 module type S = sig
   val is_immediate :
-    Simple_operation.integer_operation -> int -> is_immediate_result
+    Operation.integer_operation -> int -> is_immediate_result
 
   val is_immediate_test :
-    Simple_operation.integer_comparison -> int -> is_immediate_result
+    Operation.integer_comparison -> int -> is_immediate_result
 
   val is_simple_expr : Cmm.expression -> is_simple_expr_result
 

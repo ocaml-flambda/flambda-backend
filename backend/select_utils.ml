@@ -34,7 +34,7 @@ end
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of Simple_operation.trap_stack
+  | Reachable of Operation.trap_stack
 
 type static_handler =
   { regs : Reg.t array list;
@@ -49,7 +49,7 @@ type environment =
     static_exceptions : static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
-    trap_stack : Simple_operation.trap_stack;
+    trap_stack : Operation.trap_stack;
     regs_for_exception_extra_args : Reg.t array Int.Map.t;
         (** For each exception handler, any registers that are to be used to hold
             extra arguments. *)
@@ -101,16 +101,16 @@ let env_set_trap_stack env trap_stack = { env with trap_stack }
 let rec combine_traps trap_stack = function
   | [] -> trap_stack
   | Push t :: l ->
-    combine_traps (Simple_operation.Specific_trap (t, trap_stack)) l
+    combine_traps (Operation.Specific_trap (t, trap_stack)) l
   | Pop _ :: l -> (
-    match (trap_stack : Simple_operation.trap_stack) with
+    match (trap_stack : Operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
     | Specific_trap (_, ts) -> combine_traps ts l)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
-    | Simple_operation.Uncaught -> Format.fprintf ppf "T"
-    | Simple_operation.Specific_trap (lbl, ts) ->
+    | Operation.Uncaught -> Format.fprintf ppf "T"
+    | Operation.Specific_trap (lbl, ts) ->
       Format.fprintf ppf "%d::%a" lbl print_traps ts
   in
   Format.fprintf ppf "(%a)" print_traps traps
@@ -145,8 +145,8 @@ let trap_stack_is_empty env =
 
 let pop_all_traps env =
   let rec pop_all acc = function
-    | Simple_operation.Uncaught -> acc
-    | Simple_operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
+    | Operation.Uncaught -> acc
+    | Operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
   in
   pop_all [] env.trap_stack
 
@@ -158,7 +158,7 @@ let env_create ~tailrec_label =
     tailrec_label
   }
 
-let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
+let select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag
     = function
   | Immutable -> Immutable
   | Mutable -> Mutable
@@ -289,10 +289,10 @@ let size_expr env exp =
 (* Swap the two arguments of an integer comparison *)
 
 let swap_intcomp = function
-  | Simple_operation.Isigned cmp ->
-    Simple_operation.Isigned (swap_integer_comparison cmp)
-  | Simple_operation.Iunsigned cmp ->
-    Simple_operation.Iunsigned (swap_integer_comparison cmp)
+  | Operation.Isigned cmp ->
+    Operation.Isigned (swap_integer_comparison cmp)
+  | Operation.Iunsigned cmp ->
+    Operation.Iunsigned (swap_integer_comparison cmp)
 
 (* Naming of registers *)
 

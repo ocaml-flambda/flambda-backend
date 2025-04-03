@@ -146,7 +146,7 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
               { other_allocation_instr with
                 desc =
                   Cfg.Op
-                    (Intop_imm (Simple_operation.Iadd, -other_allocation.bytes));
+                    (Intop_imm (Operation.Iadd, -other_allocation.bytes));
                 arg = [| prev_res0 |]
               };
             ( size + other_allocation.bytes,
@@ -169,7 +169,7 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
         { first_allocation_instr with
           desc =
             Cfg.Op
-              (Intop_imm (Simple_operation.Iadd, total_size_of_other_allocations));
+              (Intop_imm (Operation.Iadd, total_size_of_other_allocations));
           arg = [| first_allocation_res0 |];
           res = [| first_allocation_res0 |];
           id = InstructionId.get_next instr_id

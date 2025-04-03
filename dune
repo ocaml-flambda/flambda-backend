@@ -464,7 +464,6 @@
   simd_selection
   simd_reload
   simd_proc
-  simple_operation
   stack_check
   sub_cfg
   reg
