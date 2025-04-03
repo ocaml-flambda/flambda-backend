@@ -662,7 +662,6 @@ class virtual selector_generic =
        - [Ok rs] if the expression yields a result in registers [rs] *)
     method emit_expr env sub_cfg exp ~bound_name
         : Reg.t array Or_never_returns.t =
-      (* Normal case of returning a value: no regions are closed *)
       match exp with
       | Cconst_int (n, _dbg) ->
         let r = self#regs_for typ_int in
