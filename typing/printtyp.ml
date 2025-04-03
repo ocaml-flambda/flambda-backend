@@ -1424,22 +1424,46 @@ let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option
 
 let tree_of_modes (modes : Mode.Alloc.Const.t) =
   let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
-  (* [yielding] has custom defaults depending on [areality]: *)
+
+  (* [yielding] has implied defaults depending on [areality]: *)
   let diff_yielding =
     match modes.areality, modes.yielding with
     | Local, Yielding | Global, Unyielding -> None
     | _, _ -> Some modes.yielding
   in
+
+  (* [contention] has implied defaults based on [visibility]: *)
+  let diff_contention =
+    match modes.visibility, modes.contention with
+    | Immutable, Contended | Read, Shared | Read_write, Uncontended -> None
+    | _, _ -> Some modes.contention
+  in
+
+  (* [portability] has implied defaults based on [statefulness]: *)
+  let diff_portability =
+    match modes.statefulness, modes.portability with
+    | Stateless, Portable | (Observing | Stateful), Nonportable -> None
+    | _, _ -> Some modes.portability
+  in
+
   (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
   let l = [
     tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
     tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_new "once"];
     tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_new "unique"];
-    tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
-    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
-                                  Mode.Contention.Const.Shared, Omd_new "shared"];
+    tree_of_mode diff_portability [Mode.Portability.Const.Portable, Omd_new "portable";
+                                   Mode.Portability.Const.Nonportable, Omd_new "nonportable"];
+    tree_of_mode diff_contention [Mode.Contention.Const.Contended, Omd_new "contended";
+                                  Mode.Contention.Const.Shared, Omd_new "shared";
+                                  Mode.Contention.Const.Uncontended, Omd_new "uncontended"];
     tree_of_mode diff_yielding [Mode.Yielding.Const.Yielding, Omd_new "yielding";
-                                Mode.Yielding.Const.Unyielding, Omd_new "unyielding"]]
+                                Mode.Yielding.Const.Unyielding, Omd_new "unyielding"];
+    tree_of_mode diff.statefulness [Mode.Statefulness.Const.Stateless, Omd_new "stateless";
+                                    Mode.Statefulness.Const.Observing, Omd_new "observing";
+                                    Mode.Statefulness.Const.Stateful, Omd_new "stateful"];
+    tree_of_mode diff.visibility [Mode.Visibility.Const.Immutable, Omd_new "immutable";
+                              Mode.Visibility.Const.Read, Omd_new "read";
+                              Mode.Visibility.Const.Read_write, Omd_new "read_write"]]
   in
   List.filter_map Fun.id l
 

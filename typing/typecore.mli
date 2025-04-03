@@ -188,6 +188,10 @@ type contention_context =
   | Write_mutable
   | Force_lazy
 
+type visibility_context =
+  | Read_mutable
+  | Write_mutable
+
 type unsupported_stack_allocation =
   | Lazy
   | Module
@@ -299,6 +303,7 @@ type error =
       Mode.Value.error * submode_reason *
       Env.locality_context option *
       contention_context option *
+      visibility_context option *
       Env.shared_context option
   | Curried_application_complete of
       arg_label * Mode.Alloc.error * [`Prefix|`Single_arg|`Entire_apply]
