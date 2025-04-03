@@ -157,15 +157,15 @@ jobs:
           - name: gi
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1'
-            ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1'
+            build_ocamlparam: '_,w=-46,regalloc=gi'
+            ocamlparam: '_,w=-46,regalloc=gi'
             check_arch: true
 
-          - name: cfg-selection
+          - name: cfg-invariants
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1'
-            ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1,cfg-invariants=1'
+            build_ocamlparam: '_,w=-46,regalloc=cfg'
+            ocamlparam: '_,w=-46,regalloc=cfg,cfg-invariants=1'
             check_arch: true
 
           - name: vectorizer
