@@ -109,11 +109,8 @@ let add t =
   let #(x, y) = t.#is in
   x + y
 [%%expect{|
-Line 1, characters 0-29:
-1 | type t = { is: #(int * int) }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "#(int * int)" has layout "value & value".
-       Records may not yet contain types of this layout.
+type t = { is : #(int * int); }
+val add : t# -> int = <fun>
 |}]
 
 (* An unboxed record is not an allocation, but a regular record is *)
@@ -598,21 +595,17 @@ type a = B of b
 and b : any = r#
 and r = { i : int ; j : int }
 [%%expect{|
-Line 1, characters 9-15:
-1 | type a = B of b
-             ^^^^^^
-Error: Type "b" has layout "value & value".
-       Variants may not yet contain types of this layout.
+type a = B of b
+and b = r#
+and r = { i : int; j : int; }
 |}]
 type a = B of b_portable
 and b_portable : any mod portable = r#
 and r = { i : int ; j : int }
 [%%expect{|
-Line 1, characters 9-24:
-1 | type a = B of b_portable
-             ^^^^^^^^^^^^^^^
-Error: Type "b_portable" has layout "value & value".
-       Variants may not yet contain types of this layout.
+type a = B of b_portable
+and b_portable = r#
+and r = { i : int; j : int; }
 |}]
 type a = B of b
 and b : any & any & any = r#
