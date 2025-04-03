@@ -74,11 +74,6 @@ val env_add_regs_for_exception_extra_args :
 val env_find_regs_for_exception_extra_args :
   Int.Map.key -> environment -> Reg.t array
 
-val _env_find_with_provenance :
-  V.Map.key ->
-  environment ->
-  Reg.t array * Backend_var.Provenance.t option * Asttypes.mutable_flag
-
 val env_find_static_exception : Int.Map.key -> environment -> static_handler
 
 val env_enter_trywith : environment -> Int.Map.key -> Label.t -> environment

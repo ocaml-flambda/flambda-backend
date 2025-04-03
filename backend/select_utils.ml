@@ -90,8 +90,6 @@ let env_find_regs_for_exception_extra_args id env =
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
 
-let _env_find_with_provenance id env = V.Map.find id env.vars
-
 let env_find_static_exception id env = Int.Map.find id env.static_exceptions
 
 let env_enter_trywith env id label =
