@@ -203,14 +203,14 @@ class virtual selector_generic :
       Sub_cfg.t ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux :
       environment ->
       Sub_cfg.t ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux_raise :
       environment ->
@@ -218,7 +218,7 @@ class virtual selector_generic :
       Lambda.raise_kind ->
       Cmm.expression list ->
       Debuginfo.t ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux_op :
       environment ->
@@ -227,7 +227,7 @@ class virtual selector_generic :
       Cmm.operation ->
       Cmm.expression list ->
       Debuginfo.t ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux_ifthenelse :
       environment ->
@@ -240,7 +240,7 @@ class virtual selector_generic :
       Cmm.expression ->
       Debuginfo.t ->
       Cmm.kind_for_unboxing ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux_switch :
       environment ->
@@ -251,7 +251,7 @@ class virtual selector_generic :
       (Cmm.expression * Debuginfo.t) array ->
       Debuginfo.t ->
       Cmm.kind_for_unboxing ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux_catch :
       environment ->
@@ -266,7 +266,7 @@ class virtual selector_generic :
       list ->
       Cmm.expression ->
       Cmm.kind_for_unboxing ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux_exit :
       environment ->
@@ -274,7 +274,7 @@ class virtual selector_generic :
       Cmm.exit_label ->
       Cmm.expression list ->
       Cmm.trap_action list ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_aux_trywith :
       environment ->
@@ -287,7 +287,7 @@ class virtual selector_generic :
       Cmm.expression ->
       Debuginfo.t ->
       Cmm.kind_for_unboxing ->
-      Reg.t array option
+      Reg.t array Select_utils.Or_never_returns.t
 
     method emit_tail : environment -> Sub_cfg.t -> Cmm.expression -> unit
 

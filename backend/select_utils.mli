@@ -18,6 +18,12 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
+module Or_never_returns : sig
+  type 'a t =
+    | Ok of 'a
+    | Never_returns
+end
+
 type trap_stack_info =
   | Unreachable
   | Reachable of Simple_operation.trap_stack
