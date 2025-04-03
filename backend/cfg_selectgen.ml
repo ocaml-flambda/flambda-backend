@@ -693,10 +693,10 @@ class virtual selector_generic =
         (* Cconst_symbol _ evaluates to a statically-allocated address, so its
            value fits in a typ_int register and is never changed by the GC.
 
-           Ok Cconst_symbols point to statically-allocated blocks, some of which
-           may point to heap values. However, any such blocks will be registered
-           in the compilation unit's global roots structure, so adding this
-           register to the frame table would be redundant *)
+           Some Cconst_symbols point to statically-allocated blocks, some of
+           which may point to heap values. However, any such blocks will be
+           registered in the compilation unit's global roots structure, so
+           adding this register to the frame table would be redundant *)
         let r = self#regs_for typ_int in
         Ok (self#insert_op env sub_cfg (self#make_const_symbol n) [||] r)
       | Cvar v -> (
