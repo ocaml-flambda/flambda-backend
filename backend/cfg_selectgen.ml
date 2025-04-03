@@ -1073,7 +1073,6 @@ class virtual selector_generic =
       Never_returns
 
     method emit_expr_op env sub_cfg bound_name op args dbg =
-      let ret res = Or_never_returns.Ok res in
       match self#emit_parts_list env sub_cfg args with
       | Never_returns -> Never_returns
       | Ok (simple_args, env) -> (
@@ -1155,14 +1154,14 @@ class virtual selector_generic =
           add_naming_op_for_bound_name sub_cfg loc_res;
           self#insert_move_results env sub_cfg loc_res rd stack_ofs;
           Select_utils.set_traps_for_raise env;
-          ret rd
+          Ok rd
         | Terminator (Prim { op = Probe _; label_after } as term) ->
           let r1 = self#emit_tuple env sub_cfg new_args in
           let rd = self#regs_for ty in
           let rd = self#insert_op_debug' env sub_cfg term dbg r1 rd in
           Select_utils.set_traps_for_raise env;
           Sub_cfg.add_never_block sub_cfg ~label:label_after;
-          ret rd
+          Ok rd
         | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
           let loc_arg, stack_ofs =
             self#emit_extcall_args env sub_cfg ty_args new_args
@@ -1190,7 +1189,7 @@ class virtual selector_generic =
           if returns
           then (
             Sub_cfg.add_never_block sub_cfg ~label;
-            ret rd)
+            Ok rd)
           else Never_returns
         | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
           let rd = self#regs_for typ_val in
@@ -1207,7 +1206,7 @@ class virtual selector_generic =
           add_naming_op_for_bound_name sub_cfg rd;
           self#emit_stores env sub_cfg dbg new_args rd;
           Select_utils.set_traps_for_raise env;
-          ret rd
+          Ok rd
         | Basic (Op (Alloc { bytes = _; mode = _; dbginfo })) ->
           Misc.fatal_errorf
             "Selection Alloc: expected a single placehold in dbginfo, found %d"
@@ -1216,7 +1215,7 @@ class virtual selector_generic =
           let r1 = self#emit_tuple env sub_cfg new_args in
           let rd = self#regs_for ty in
           add_naming_op_for_bound_name sub_cfg rd;
-          ret (self#insert_op_debug env sub_cfg op dbg r1 rd)
+          Ok (self#insert_op_debug env sub_cfg op dbg r1 rd)
         | Basic basic ->
           Misc.fatal_errorf "unexpected basic (%a)" Cfg.dump_basic basic
         | Terminator term ->
