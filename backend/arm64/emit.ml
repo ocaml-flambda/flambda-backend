@@ -1363,7 +1363,7 @@ let emit_instr i =
         | Word_int | Word_val ->
           if is_atomic then begin
             assert (addressing_mode = Iindexed 0);
-            emit_printf "	dmb	ishld\n";
+            DSL.ins (I.DMB ISHLD) [| |];
             emit_printf "	ldar	%a, [%a]\n" femit_reg dst femit_reg i.arg.(0)
           end else
             DSL.ins I.LDR [| DSL.emit_reg dst; DSL.emit_addressing addressing_mode base |]
@@ -1401,7 +1401,7 @@ let emit_instr i =
             DSL.ins I.STR [| DSL.emit_reg_fixed_s 7; DSL.emit_addressing addr base |]
         | Word_int | Word_val ->
             (* memory model barrier for non-initializing store *)
-            if assignment then emit_printf "	dmb	ishld\n";
+            if assignment then DSL.ins (I.DMB ISHLD) [| |];
             DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |]
         | Double ->
           DSL.ins I.STR [| DSL.emit_reg src; DSL.emit_addressing addr base |]

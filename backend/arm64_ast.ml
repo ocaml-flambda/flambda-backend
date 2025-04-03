@@ -192,6 +192,39 @@ module Instruction_name = struct
       match t with M -> "m" | P -> "p" | Z -> "z" | X -> "x" | N -> "n"
   end
 
+  module Memory_barrier = struct
+
+    type t =
+      | SY
+      | LD
+      | ST
+      | ISH
+      | ISHLD
+      | ISHST
+      | NSH
+      | NSHLD
+      | NSHST
+      | OSH
+      | OSHLD
+      | OSHST
+
+    let to_string b =
+      match b with
+      | SY -> "sy"
+      | LD -> "ld"
+      | ST -> "st"
+      | ISH -> "ish"
+      | ISHLD -> "ishld"
+      | ISHST -> "ishst"
+      | NSH -> "nsh"
+      | NSHLD -> "nshld"
+      | NSHST -> "nshst"
+      | OSH -> "osh"
+      | OSHLD -> "oshld"
+      | OSHST -> "oshst"
+
+  end
+
   (* Don't split the type into base and neon to make emit easier to read and
      avoid the need to copy all the instructions in the DSL. *)
   type t =
@@ -235,6 +268,9 @@ module Instruction_name = struct
     | STR
     | STRB
     | STRH
+    | DMB of Memory_barrier.t
+    | DSB of Memory_barrier.t
+    | ISB
     (* neon *)
     | MOV
     | MOVI
@@ -313,6 +349,9 @@ module Instruction_name = struct
     | STR -> "str"
     | STRB -> "strb"
     | STRH -> "strh"
+    | DMB b -> "dmb	" ^ Memory_barrier.to_string b
+    | DSB b -> "dsb	" ^ Memory_barrier.to_string b
+    | ISB -> "isb"
     (* neon *)
     | MOV -> "mov"
     | MOVI -> "movi"
