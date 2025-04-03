@@ -922,16 +922,8 @@ module With_subkind = struct
                           Mixed_block_lambda_shape.flattened_reordered_shape
                             mixed_block_shape
                         in
-                        (* XXX share with Pmakemixedblock case in flambda2 *)
-                        let new_indexes_to_old_indexes =
-                          Mixed_block_lambda_shape.new_indexes_to_old_indexes
-                            mixed_block_shape
-                        in
-                        Array.init (Array.length new_indexes_to_old_indexes)
-                          (fun new_index ->
-                            from_mixed_block_element
-                              flattened_reordered_shape.(new_indexes_to_old_indexes.(
-                                                         new_index)))
+                        Array.map from_mixed_block_element
+                          flattened_reordered_shape
                       in
                       let mixed_block_shape =
                         Mixed_block_shape.from_mixed_block_shape
