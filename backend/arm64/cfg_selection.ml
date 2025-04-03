@@ -223,8 +223,8 @@ class selector =
       List.iter
         (fun arg ->
           match self#emit_expr env sub_cfg arg ~bound_name:None with
-          | None -> assert false
-          | Some regs ->
+          | Never_returns -> assert false
+          | Ok regs ->
             for i = 0 to Array.length regs - 1 do
               let r = regs.(i) in
               let kind : Cmm.memory_chunk =
