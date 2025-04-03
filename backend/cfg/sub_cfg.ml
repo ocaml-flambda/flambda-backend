@@ -24,8 +24,8 @@ open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t =
-  { entry : Cfg.basic_block;
-    exit : Cfg.basic_block;
+  { mutable entry : Cfg.basic_block;
+    mutable exit : Cfg.basic_block;
     layout : Cfg.basic_block DLL.t
   }
 
@@ -51,7 +51,7 @@ let start_label sub_cfg = sub_cfg.entry.start
 
 let add_block_at_start sub_cfg block =
   DLL.add_begin sub_cfg.layout block;
-  { sub_cfg with entry = block }
+  sub_cfg.entry <- block
 
 let add_empty_block_at_start sub_cfg ~label =
   Cfg.make_empty_block ~label
@@ -60,7 +60,7 @@ let add_empty_block_at_start sub_cfg ~label =
 
 let add_block sub_cfg block =
   DLL.add_end sub_cfg.layout block;
-  { sub_cfg with exit = block }
+  sub_cfg.exit <- block
 
 let add_never_block sub_cfg ~label =
   add_block sub_cfg (make_never_block ~label ())
