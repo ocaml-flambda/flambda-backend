@@ -20,10 +20,6 @@
 
 type environment = Select_utils.environment
 
-type basic_or_terminator =
-  | Basic of Cfg.basic
-  | Terminator of Cfg.terminator
-
 class virtual selector_generic :
   object
     method is_store : Operation.t -> bool
@@ -84,7 +80,7 @@ class virtual selector_generic :
       Cmm.expression list ->
       Debuginfo.t ->
       label_after:Label.t ->
-      basic_or_terminator * Cmm.expression list
+      Cfg.basic_or_terminator * Cmm.expression list
     (* Can be overridden to deal with special arithmetic instructions *)
 
     method select_condition :

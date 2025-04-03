@@ -303,11 +303,7 @@ let join_array env rs ~bound_name : _ Or_never_returns.t =
 
 type environment = Select_utils.environment
 
-type basic_or_terminator =
-  | Basic of Cfg.basic
-  | Terminator of Cfg.terminator
-
-let basic_op x = Basic (Op x)
+let basic_op x : Cfg.basic_or_terminator = Basic (Op x)
 
 class virtual selector_generic =
   object (self : 'self)
@@ -541,7 +537,7 @@ class virtual selector_generic =
 
     method select_operation (op : Cmm.operation) (args : Cmm.expression list)
         (dbg : Debuginfo.t) ~label_after
-        : basic_or_terminator * Cmm.expression list =
+        : Cfg.basic_or_terminator * Cmm.expression list =
       let wrong_num_args n =
         Misc.fatal_errorf
           "Selection.select_operation: expected %d argument(s) for@ %s" n
@@ -686,8 +682,8 @@ class virtual selector_generic =
         Misc.fatal_error "Selection.select_oper"
 
     method private select_arith_comm (op : Simple_operation.integer_operation)
-        (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
-        =
+        (args : Cmm.expression list)
+        : Cfg.basic_or_terminator * Cmm.expression list =
       match args with
       | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
         basic_op (Intop_imm (op, n)), [arg]
@@ -696,16 +692,16 @@ class virtual selector_generic =
       | _ -> basic_op (Intop op), args
 
     method private select_arith (op : Simple_operation.integer_operation)
-        (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
-        =
+        (args : Cmm.expression list)
+        : Cfg.basic_or_terminator * Cmm.expression list =
       match args with
       | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
         basic_op (Intop_imm (op, n)), [arg]
       | _ -> basic_op (Intop op), args
 
     method private select_arith_comp (cmp : Simple_operation.integer_comparison)
-        (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
-        =
+        (args : Cmm.expression list)
+        : Cfg.basic_or_terminator * Cmm.expression list =
       match args with
       | [arg; Cconst_int (n, _)]
         when self#is_immediate (Simple_operation.Icomp cmp) n ->
