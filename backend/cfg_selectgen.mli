@@ -18,8 +18,6 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
-type environment = Select_utils.environment
-
 class virtual selector_generic :
   object
     method is_store : Operation.t -> bool
@@ -100,7 +98,7 @@ class virtual selector_generic :
        stored as pairs of integer registers. *)
 
     method insert_op :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Operation.t ->
       Reg.t array ->
@@ -110,7 +108,7 @@ class virtual selector_generic :
        with hardwired input/output registers *)
 
     method insert_op_debug :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Operation.t ->
       Debuginfo.t ->
@@ -121,7 +119,7 @@ class virtual selector_generic :
        with hardwired input/output registers *)
 
     method insert_move_extcall_arg :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.exttype ->
       Reg.t array ->
@@ -132,7 +130,7 @@ class virtual selector_generic :
        slots. *)
 
     method emit_extcall_args :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.exttype list ->
       Cmm.expression list ->
@@ -140,7 +138,7 @@ class virtual selector_generic :
     (* Can be overridden to deal with stack-based calling conventions *)
 
     method emit_stores :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Debuginfo.t ->
       Cmm.expression list ->
@@ -150,7 +148,7 @@ class virtual selector_generic :
        do not provide Arch.offset_addressing. *)
 
     method insert :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cfg.basic ->
       Reg.t array ->
@@ -158,7 +156,7 @@ class virtual selector_generic :
       unit
 
     method insert_debug :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cfg.basic ->
       Debuginfo.t ->
@@ -167,7 +165,7 @@ class virtual selector_generic :
       unit
 
     method insert' :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cfg.terminator ->
       Reg.t array ->
@@ -175,7 +173,7 @@ class virtual selector_generic :
       unit
 
     method insert_debug' :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cfg.terminator ->
       Debuginfo.t ->
@@ -183,33 +181,48 @@ class virtual selector_generic :
       Reg.t array ->
       unit
 
-    method insert_move : environment -> Sub_cfg.t -> Reg.t -> Reg.t -> unit
+    method insert_move :
+      Select_utils.environment -> Sub_cfg.t -> Reg.t -> Reg.t -> unit
 
     method insert_move_args :
-      environment -> Sub_cfg.t -> Reg.t array -> Reg.t array -> int -> unit
+      Select_utils.environment ->
+      Sub_cfg.t ->
+      Reg.t array ->
+      Reg.t array ->
+      int ->
+      unit
 
     method insert_move_results :
-      environment -> Sub_cfg.t -> Reg.t array -> Reg.t array -> int -> unit
+      Select_utils.environment ->
+      Sub_cfg.t ->
+      Reg.t array ->
+      Reg.t array ->
+      int ->
+      unit
 
     method insert_moves :
-      environment -> Sub_cfg.t -> Reg.t array -> Reg.t array -> unit
+      Select_utils.environment ->
+      Sub_cfg.t ->
+      Reg.t array ->
+      Reg.t array ->
+      unit
 
     method emit_expr :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_raise :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Lambda.raise_kind ->
       Cmm.expression list ->
@@ -217,7 +230,7 @@ class virtual selector_generic :
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_op :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
       Cmm.operation ->
@@ -226,7 +239,7 @@ class virtual selector_generic :
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_ifthenelse :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
       Cmm.expression ->
@@ -239,7 +252,7 @@ class virtual selector_generic :
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_switch :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
       Cmm.expression ->
@@ -250,7 +263,7 @@ class virtual selector_generic :
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_catch :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
       Cmm.rec_flag ->
@@ -265,7 +278,7 @@ class virtual selector_generic :
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_exit :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.exit_label ->
       Cmm.expression list ->
@@ -273,7 +286,7 @@ class virtual selector_generic :
       Reg.t array Select_utils.Or_never_returns.t
 
     method emit_expr_trywith :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
       Cmm.expression ->
@@ -285,10 +298,11 @@ class virtual selector_generic :
       Cmm.kind_for_unboxing ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_tail : environment -> Sub_cfg.t -> Cmm.expression -> unit
+    method emit_tail :
+      Select_utils.environment -> Sub_cfg.t -> Cmm.expression -> unit
 
     method emit_tail_apply :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.machtype ->
       Cmm.operation ->
@@ -297,7 +311,7 @@ class virtual selector_generic :
       unit
 
     method emit_tail_ifthenelse :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.expression ->
       Debuginfo.t ->
@@ -309,7 +323,7 @@ class virtual selector_generic :
       unit
 
     method emit_tail_switch :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.expression ->
       int array ->
@@ -319,7 +333,7 @@ class virtual selector_generic :
       unit
 
     method emit_tail_catch :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.rec_flag ->
       (Lambda.static_label
@@ -333,7 +347,7 @@ class virtual selector_generic :
       unit
 
     method emit_tail_trywith :
-      environment ->
+      Select_utils.environment ->
       Sub_cfg.t ->
       Cmm.expression ->
       Cmm.trywith_shared_label ->
@@ -345,7 +359,11 @@ class virtual selector_generic :
       unit
 
     method emit_return :
-      environment -> Sub_cfg.t -> Cmm.expression -> Cmm.trap_action list -> unit
+      Select_utils.environment ->
+      Sub_cfg.t ->
+      Cmm.expression ->
+      Cmm.trap_action list ->
+      unit
 
     method emit_fundecl :
       future_funcnames:Misc.Stdlib.String.Set.t ->
