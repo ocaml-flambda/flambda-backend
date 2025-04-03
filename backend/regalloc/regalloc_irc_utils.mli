@@ -6,6 +6,8 @@ val indent : unit -> unit
 
 val dedent : unit -> unit
 
+val reset_indentation : unit -> unit
+
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
 val log_body_and_terminator :
