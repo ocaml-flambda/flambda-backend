@@ -84,7 +84,9 @@ let env_find_regs_for_exception_extra_args id env =
 
 let _env_find_with_provenance id env = V.Map.find id env.vars
 
-let env_find_static_exception id env = Int.Map.find id env.static_exceptions
+let env_find_static_exception id env =
+  try Int.Map.find id env.static_exceptions
+  with Not_found -> Misc.fatal_errorf "Not found statc exception id=%d" id
 
 let env_enter_trywith env id extra =
   let env, _ = env_add_static_exception id [] env extra in

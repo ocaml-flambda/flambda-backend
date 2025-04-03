@@ -29,20 +29,11 @@ type t
 
 type layout = Label.t Flambda_backend_utils.Doubly_linked_list.t
 
-val create :
-  Cfg.t ->
-  layout:layout ->
-  preserve_orig_labels:bool ->
-  new_labels:Label.Set.t ->
-  t
+val create : Cfg.t -> layout:layout -> t
 
 val cfg : t -> Cfg.t
 
 val layout : t -> layout
-
-val preserve_orig_labels : t -> bool
-
-val new_labels : t -> Label.Set.t
 
 val set_layout : t -> layout -> unit
 
@@ -54,8 +45,6 @@ val assign_blocks_to_section : t -> Label.t list -> string -> unit
 val get_section : t -> Label.t -> string option
 
 (** Remove from cfg, layout, and other data-structures that track labels. *)
-val remove_block : t -> Label.t -> unit
-
 val remove_blocks : t -> Label.Set.t -> unit
 
 val is_trap_handler : t -> Label.t -> bool
