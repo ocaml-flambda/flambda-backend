@@ -3,8 +3,6 @@
 open Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-val equal_list_dll : ('a -> 'a -> bool) -> 'a list -> 'a DLL.t -> bool
-
 val ls_debug : bool
 
 val ls_verbose : bool Lazy.t
@@ -73,14 +71,6 @@ module Interval : sig
 
   val remove_expired : t -> pos:int -> unit
 
-  module List : sig
-    val print : Format.formatter -> t list -> unit
-
-    val release_expired_fixed : t list -> pos:int -> t list
-
-    val insert_sorted : t list -> t -> t list
-  end
-
   module DLL : sig
     val print : Format.formatter -> t DLL.t -> unit
 
@@ -93,10 +83,7 @@ end
 module ClassIntervals : sig
   (* Similar to [Linscan.class_intervals] (in "backend/linscan.ml"). *)
   type t =
-    { mutable fixed_list : Interval.t list;
-      mutable active_list : Interval.t list;
-      mutable inactive_list : Interval.t list;
-      fixed_dll : Interval.t DLL.t;
+    { fixed_dll : Interval.t DLL.t;
       active_dll : Interval.t DLL.t;
       inactive_dll : Interval.t DLL.t
     }
@@ -110,12 +97,8 @@ module ClassIntervals : sig
   val clear : t -> unit
 
   val release_expired_intervals : t -> pos:int -> unit
-
-  val check_consistency : t -> string -> unit
 end
 
 val log_interval : indent:int -> kind:string -> Interval.t -> unit
-
-val log_interval_list : indent:int -> kind:string -> Interval.t list -> unit
 
 val log_interval_dll : indent:int -> kind:string -> Interval.t DLL.t -> unit
