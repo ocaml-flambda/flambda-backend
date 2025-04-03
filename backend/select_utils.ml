@@ -25,6 +25,12 @@ module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
+module Or_never_returns = struct
+  type 'a t =
+    | Ok of 'a
+    | Never_returns
+end
+
 type trap_stack_info =
   | Unreachable
   | Reachable of Simple_operation.trap_stack

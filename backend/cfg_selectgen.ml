@@ -24,6 +24,9 @@ open Cmm
 
 (* CR mshinwell: remove ! *)
 open! Select_utils
+
+(* CR mshinwell: remove [open Or_never_returns] when the objects have gone *)
+open! Or_never_returns
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module Int = Numbers.Int
 module V = Backend_var
@@ -239,14 +242,16 @@ let maybe_emit_naming_op env sub_cfg ~bound_name seq regs =
       in
       seq#insert_debug env sub_cfg (Cfg.Op naming_op) Debuginfo.none [||] [||]
 
-let join env opt_r1 seq1 sub_cfg1 opt_r2 seq2 sub_cfg2 ~bound_name =
+let join env (opt_r1 : _ Or_never_returns.t) seq1 sub_cfg1
+    (opt_r2 : _ Or_never_returns.t) seq2 sub_cfg2 ~bound_name :
+    _ Or_never_returns.t =
   let maybe_emit_naming_op seq sub_cfg =
     maybe_emit_naming_op env sub_cfg ~bound_name seq
   in
   match opt_r1, opt_r2 with
-  | None, _ -> opt_r2
-  | _, None -> opt_r1
-  | Some r1, Some r2 ->
+  | Never_returns, _ -> opt_r2
+  | _, Never_returns -> opt_r1
+  | Ok r1, Ok r2 ->
     let l1 = Array.length r1 in
     assert (l1 = Array.length r2);
     let r = Array.make l1 Reg.dummy in
@@ -258,29 +263,29 @@ let join env opt_r1 seq1 sub_cfg1 opt_r2 seq2 sub_cfg2 ~bound_name =
       seq2#insert_move env sub_cfg2 r2.(i) r.(i);
       maybe_emit_naming_op seq2 sub_cfg2 [| r.(i) |]
     done;
-    Some r
+    Ok r
 
-let join_array env rs ~bound_name =
+let join_array env rs ~bound_name : _ Or_never_returns.t =
   let maybe_emit_naming_op seq sub_cfg =
     maybe_emit_naming_op env sub_cfg ~bound_name seq
   in
-  let some_res = ref None in
+  let some_res = ref Never_returns in
   for i = 0 to Array.length rs - 1 do
     let r, _, _ = rs.(i) in
-    match r with
-    | None -> ()
-    | Some r -> (
+    match (r : _ Or_never_returns.t) with
+    | Never_returns -> ()
+    | Ok r -> (
       match !some_res with
-      | None -> some_res := Some (r, Array.map (fun r -> r.Reg.typ) r)
-      | Some (r', types) ->
+      | Never_returns -> some_res := Ok (r, Array.map (fun r -> r.Reg.typ) r)
+      | Ok (r', types) ->
         let types =
           Array.map2 (fun r typ -> Cmm.lub_component r.Reg.typ typ) r types
         in
-        some_res := Some (r', types))
+        some_res := Ok (r', types))
   done;
   match !some_res with
-  | None -> None
-  | Some (template, types) ->
+  | Never_returns -> Never_returns
+  | Ok (template, types) ->
     let size_res = Array.length template in
     let res = Array.make size_res Reg.dummy in
     for i = 0 to size_res - 1 do
@@ -288,13 +293,13 @@ let join_array env rs ~bound_name =
     done;
     for i = 0 to Array.length rs - 1 do
       let r, s, sub_cfg = rs.(i) in
-      match r with
-      | None -> ()
-      | Some r ->
+      match (r : _ Or_never_returns.t) with
+      | Never_returns -> ()
+      | Ok r ->
         s#insert_moves env sub_cfg r res;
         maybe_emit_naming_op s sub_cfg res
     done;
-    Some res
+    Ok res
 
 type environment = Select_utils.environment
 
@@ -745,7 +750,8 @@ class virtual selector_generic =
        right-to-left evaluation order as required by the Flambda [Un_anf] pass
        (and to be consistent with the bytecode compiler). *)
 
-    method private emit_parts env sub_cfg ~effects_after exp =
+    method private emit_parts env sub_cfg ~effects_after exp
+        : _ Or_never_returns.t =
       let module EC = Effect_and_coeffect in
       let may_defer_evaluation =
         let ec = self#effects_of exp in
@@ -784,20 +790,20 @@ class virtual selector_generic =
       (* Even though some expressions may look like they can be deferred from
          the (co)effect analysis, it may be forbidden to move them. *)
       if may_defer_evaluation && self#is_simple_expr exp
-      then Some (exp, env)
+      then Ok (exp, env)
       else
         match self#emit_expr env sub_cfg exp ~bound_name:None with
-        | None -> None
-        | Some r ->
+        | Never_returns -> Never_returns
+        | Ok r ->
           if Array.length r = 0
-          then Some (Ctuple [], env)
+          then Ok (Ctuple [], env)
           else
             (* The normal case *)
             let id = V.create_local "bind" in
             (* Introduce a fresh temp to hold the result *)
             let tmp = Reg.createv_like r in
             self#insert_moves env sub_cfg r tmp;
-            Some (Cvar id, env_add (VP.create id) tmp env)
+            Ok (Cvar id, env_add (VP.create id) tmp env)
 
     method private emit_parts_list env sub_cfg exp_list =
       let module EC = Effect_and_coeffect in
@@ -814,12 +820,12 @@ class virtual selector_generic =
       List.fold_left
         (fun results_and_env (exp, effects_after) ->
           match results_and_env with
-          | None -> None
-          | Some (result, env) -> (
+          | Never_returns -> Never_returns
+          | Ok (result, env) -> (
             match self#emit_parts env sub_cfg exp ~effects_after with
-            | None -> None
-            | Some (exp_result, env) -> Some (exp_result :: result, env)))
-        (Some ([], env))
+            | Never_returns -> Never_returns
+            | Ok (exp_result, env) -> Ok (exp_result :: result, env)))
+        (Ok ([], env))
         exp_list_right_to_left
 
     method private emit_tuple_not_flattened env sub_cfg exp_list =
@@ -829,8 +835,9 @@ class virtual selector_generic =
           (* Again, force right-to-left evaluation *)
           let loc_rem = emit_list rem in
           match self#emit_expr env sub_cfg exp ~bound_name:None with
-          | None -> assert false (* should have been caught in emit_parts *)
-          | Some loc_exp -> loc_exp :: loc_rem)
+          | Never_returns ->
+            assert false (* should have been caught in emit_parts *)
+          | Ok loc_exp -> loc_exp :: loc_rem)
       in
       emit_list exp_list
 
@@ -869,8 +876,8 @@ class virtual selector_generic =
         (fun e ->
           let op, arg = self#select_store false !a e in
           match self#emit_expr env sub_cfg arg ~bound_name:None with
-          | None -> assert false
-          | Some regs -> (
+          | Never_returns -> assert false
+          | Ok regs -> (
             match self#is_store op with
             | true ->
               for i = 0 to Array.length regs - 1 do
@@ -906,20 +913,21 @@ class virtual selector_generic =
        [bound_name] is the name that will be bound to the result of evaluating
        the expression, if such exists. This is used for emitting debugging info.
 
-       Returns: - [None] if the expression does not finish normally (e.g.
-       raises) - [Some rs] if the expression yields a result in registers
+       Returns: - [Never_returns] if the expression does not finish normally
+       (e.g. raises) - [Ok rs] if the expression yields a result in registers
        [rs] *)
     method emit_expr env sub_cfg exp ~bound_name =
       self#emit_expr_aux env sub_cfg exp ~bound_name
 
     (* Emit an expression which may end some regions early.
 
-       Returns: - [None] if the expression does not finish normally (e.g.
-       raises) - [Some (rs, unclosed)] if the expression yields a result in
+       Returns: - [Never_returns] if the expression does not finish normally
+       (e.g. raises) - [Ok (rs, unclosed)] if the expression yields a result in
        [rs], having left [unclosed] (a suffix of env.regions) regions open *)
-    method emit_expr_aux env sub_cfg exp ~bound_name : Reg.t array option =
+    method emit_expr_aux env sub_cfg exp ~bound_name
+        : Reg.t array Or_never_returns.t =
       (* Normal case of returning a value: no regions are closed *)
-      let ret res = Some res in
+      let ret res = Ok res in
       match exp with
       | Cconst_int (n, _dbg) ->
         let r = self#regs_for typ_int in
@@ -949,10 +957,10 @@ class virtual selector_generic =
         (* Cconst_symbol _ evaluates to a statically-allocated address, so its
            value fits in a typ_int register and is never changed by the GC.
 
-           Some Cconst_symbols point to statically-allocated blocks, some of
-           which may point to heap values. However, any such blocks will be
-           registered in the compilation unit's global roots structure, so
-           adding this register to the frame table would be redundant *)
+           Ok Cconst_symbols point to statically-allocated blocks, some of which
+           may point to heap values. However, any such blocks will be registered
+           in the compilation unit's global roots structure, so adding this
+           register to the frame table would be redundant *)
         let r = self#regs_for typ_int in
         ret (self#insert_op env sub_cfg (self#make_const_symbol n) [||] r)
       | Cvar v -> (
@@ -962,8 +970,8 @@ class virtual selector_generic =
             ("Selection.emit_expr: unbound var " ^ V.unique_name v))
       | Clet (v, e1, e2) -> (
         match self#emit_expr env sub_cfg e1 ~bound_name:(Some v) with
-        | None -> None
-        | Some r1 ->
+        | Never_returns -> Never_returns
+        | Ok r1 ->
           self#emit_expr_aux
             (self#bind_let env sub_cfg v r1)
             sub_cfg e2 ~bound_name)
@@ -972,22 +980,22 @@ class virtual selector_generic =
       | Ctuple [] -> ret [||]
       | Ctuple exp_list -> (
         match self#emit_parts_list env sub_cfg exp_list with
-        | None -> None
-        | Some (simple_list, ext_env) ->
+        | Never_returns -> Never_returns
+        | Ok (simple_list, ext_env) ->
           ret (self#emit_tuple ext_env sub_cfg simple_list))
       | Cop (Craise k, args, dbg) ->
         self#emit_expr_aux_raise env sub_cfg k args dbg
       | Cop (Copaque, args, dbg) -> (
         match self#emit_parts_list env sub_cfg args with
-        | None -> None
-        | Some (simple_args, env) ->
+        | Never_returns -> Never_returns
+        | Ok (simple_args, env) ->
           let rs = self#emit_tuple env sub_cfg simple_args in
           ret (self#insert_op_debug env sub_cfg (self#make_opaque ()) dbg rs rs)
         )
       | Cop (Ctuple_field (field, fields_layout), [arg], _dbg) -> (
         match self#emit_expr env sub_cfg arg ~bound_name:None with
-        | None -> None
-        | Some loc_exp ->
+        | Never_returns -> Never_returns
+        | Ok loc_exp ->
           let flat_size a =
             Array.fold_left (fun acc t -> acc + Array.length t) 0 a
           in
@@ -1002,8 +1010,8 @@ class virtual selector_generic =
         self#emit_expr_aux_op env sub_cfg bound_name op args dbg
       | Csequence (e1, e2) -> (
         match self#emit_expr env sub_cfg e1 ~bound_name:None with
-        | None -> None
-        | Some _ -> self#emit_expr_aux env sub_cfg e2 ~bound_name)
+        | Never_returns -> Never_returns
+        | Ok _ -> self#emit_expr_aux env sub_cfg e2 ~bound_name)
       | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
         self#emit_expr_aux_ifthenelse env sub_cfg bound_name econd ifso_dbg eif
           ifnot_dbg eelse dbg value_kind
@@ -1026,16 +1034,16 @@ class virtual selector_generic =
       match exp with
       | Clet (v, e1, e2) -> (
         match self#emit_expr env sub_cfg e1 ~bound_name:None with
-        | None -> ()
-        | Some r1 -> self#emit_tail (self#bind_let env sub_cfg v r1) sub_cfg e2)
+        | Never_returns -> ()
+        | Ok r1 -> self#emit_tail (self#bind_let env sub_cfg v r1) sub_cfg e2)
       | Cphantom_let (_var, _defining_expr, body) ->
         self#emit_tail env sub_cfg body
       | Cop ((Capply (ty, Rc_normal) as op), args, dbg) ->
         self#emit_tail_apply env sub_cfg ty op args dbg
       | Csequence (e1, e2) -> (
         match self#emit_expr env sub_cfg e1 ~bound_name:None with
-        | None -> ()
-        | Some _ -> self#emit_tail env sub_cfg e2)
+        | Never_returns -> ()
+        | Ok _ -> self#emit_tail env sub_cfg e2)
       | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
         self#emit_tail_ifthenelse env sub_cfg econd ifso_dbg eif ifnot_dbg eelse
           dbg value_kind
@@ -1071,13 +1079,13 @@ class virtual selector_generic =
         r1 rd;
       self#insert_debug' env sub_cfg (Cfg.Raise k) dbg rd [||];
       set_traps_for_raise env;
-      None
+      Never_returns
 
     method emit_expr_aux_op env sub_cfg bound_name op args dbg =
-      let ret res = Some res in
+      let ret res = Or_never_returns.Ok res in
       match self#emit_parts_list env sub_cfg args with
-      | None -> None
-      | Some (simple_args, env) -> (
+      | Never_returns -> Never_returns
+      | Ok (simple_args, env) -> (
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let add_naming_op_for_bound_name sub_cfg regs =
           match bound_name with
@@ -1124,7 +1132,7 @@ class virtual selector_generic =
           add_naming_op_for_bound_name sub_cfg loc_res;
           self#insert_move_results env sub_cfg loc_res rd stack_ofs;
           Select_utils.set_traps_for_raise env;
-          Some rd
+          Ok rd
         | Terminator (Call { op = Direct _; label_after } as term) ->
           let r1 = self#emit_tuple env sub_cfg new_args in
           let rd = self#regs_for ty in
@@ -1137,7 +1145,7 @@ class virtual selector_generic =
           Sub_cfg.add_never_block sub_cfg ~label:label_after;
           self#insert_move_results env sub_cfg loc_res rd stack_ofs;
           Select_utils.set_traps_for_raise env;
-          Some rd
+          Ok rd
         | Terminator
             (Prim { op = External ({ ty_args; ty_res; _ } as r); label_after })
           ->
@@ -1192,7 +1200,7 @@ class virtual selector_generic =
           then (
             Sub_cfg.add_never_block sub_cfg ~label;
             ret rd)
-          else None
+          else Never_returns
         | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
           let rd = self#regs_for typ_val in
           let bytes = Select_utils.size_expr env (Ctuple new_args) in
@@ -1231,8 +1239,8 @@ class virtual selector_generic =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
       let cond, earg = self#select_condition econd in
       match self#emit_expr env sub_cfg earg ~bound_name:None with
-      | None -> None
-      | Some rarg ->
+      | Never_returns -> Never_returns
+      | Ok rarg ->
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let rif, s_if, sub_if = self#emit_sequence env eif ~bound_name in
         let relse, s_else, sub_else =
@@ -1252,10 +1260,11 @@ class virtual selector_generic =
         (_dbg : Debuginfo.t) (_value_kind : Cmm.kind_for_unboxing) =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
       match self#emit_expr env sub_cfg esel ~bound_name:None with
-      | None -> None
-      | Some rsel ->
+      | Never_returns -> Never_returns
+      | Ok rsel ->
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
-        let sub_cases : (Reg.t array option * 'self * Sub_cfg.t) array =
+        let sub_cases :
+            (Reg.t array Or_never_returns.t * 'self * Sub_cfg.t) array =
           Array.map
             (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
             ecases
@@ -1378,8 +1387,8 @@ class virtual selector_generic =
 
     method emit_expr_aux_exit env sub_cfg lbl args traps =
       match self#emit_parts_list env sub_cfg args with
-      | None -> None
-      | Some (simple_list, ext_env) -> (
+      | Never_returns -> Never_returns
+      | Ok (simple_list, ext_env) -> (
         match lbl with
         | Lbl nfail ->
           let src = self#emit_tuple ext_env sub_cfg simple_list in
@@ -1422,12 +1431,12 @@ class virtual selector_generic =
           Sub_cfg.update_exit_terminator sub_cfg (Always handler.label);
           Select_utils.set_traps nfail handler.Select_utils.traps_ref
             env.Select_utils.trap_stack traps;
-          None
+          Never_returns
         | Return_lbl -> (
           match simple_list with
           | [expr] ->
             self#emit_return ext_env sub_cfg expr traps;
-            None
+            Never_returns
           | [] ->
             Misc.fatal_error "Selection.emit_expr: Return without arguments"
           | _ :: _ :: _ ->
@@ -1542,8 +1551,8 @@ class virtual selector_generic =
 
     method private insert_return env sub_cfg r (traps : trap_action list) =
       match r with
-      | None -> ()
-      | Some r ->
+      | Never_returns -> ()
+      | Ok r ->
         List.iter
           (fun trap ->
             let instr_desc =
@@ -1565,8 +1574,8 @@ class virtual selector_generic =
 
     method emit_tail_apply env sub_cfg ty op args dbg =
       match self#emit_parts_list env sub_cfg args with
-      | None -> ()
-      | Some (simple_args, env) -> (
+      | Never_returns -> ()
+      | Ok (simple_args, env) -> (
         let label_after = Cmm.new_label () in
         let new_op, new_args =
           self#select_operation op simple_args dbg ~label_after
@@ -1594,7 +1603,7 @@ class virtual selector_generic =
             Sub_cfg.add_never_block sub_cfg ~label:label_after;
             Select_utils.set_traps_for_raise env;
             self#insert env sub_cfg (Cfg.Op (Stackoffset (-stack_ofs))) [||] [||];
-            self#insert_return env sub_cfg (Some loc_res) (pop_all_traps env))
+            self#insert_return env sub_cfg (Ok loc_res) (pop_all_traps env))
         | Terminator (Call { op = Direct func; label_after } as term) ->
           let r1 = self#emit_tuple env sub_cfg new_args in
           let rd = self#regs_for ty in
@@ -1624,7 +1633,7 @@ class virtual selector_generic =
             Sub_cfg.add_never_block sub_cfg ~label:label_after;
             Select_utils.set_traps_for_raise env;
             self#insert env sub_cfg (Cfg.Op (Stackoffset (-stack_ofs))) [||] [||];
-            self#insert_return env sub_cfg (Some loc_res) (pop_all_traps env))
+            self#insert_return env sub_cfg (Ok loc_res) (pop_all_traps env))
         | _ -> Misc.fatal_error "Cfg_selectgen.emit_tail")
 
     method emit_tail_ifthenelse env sub_cfg econd (_ifso_dbg : Debuginfo.t) eif
@@ -1633,8 +1642,8 @@ class virtual selector_generic =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
       let cond, earg = self#select_condition econd in
       match self#emit_expr env sub_cfg earg ~bound_name:None with
-      | None -> ()
-      | Some rarg ->
+      | Never_returns -> ()
+      | Ok rarg ->
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let sub_if = self#emit_tail_sequence env eif in
         let sub_else = self#emit_tail_sequence env eelse in
@@ -1650,8 +1659,8 @@ class virtual selector_generic =
         (_kind : Cmm.kind_for_unboxing) =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
       match self#emit_expr env sub_cfg esel ~bound_name:None with
-      | None -> ()
-      | Some rsel ->
+      | Never_returns -> ()
+      | Ok rsel ->
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let sub_cases =
           Array.map
