@@ -595,8 +595,7 @@ and meth =
   | Tmeth_ancestor of Ident.t * Path.t
 
 and block_access =
-  | Baccess_field of
-      Longident.t loc * Types.label_description * texp_field_boxing
+  | Baccess_field of Longident.t loc * Types.label_description
 
 and unboxed_access =
   | Uaccess_unboxed_field of Longident.t loc * Types.unboxed_label_description

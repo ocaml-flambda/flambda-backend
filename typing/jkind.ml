@@ -2490,6 +2490,10 @@ module Format_history = struct
          representable at call sites)"
     | Peek_or_poke ->
       fprintf ppf "it's the type being used for a peek or poke primitive"
+    | Idx_element ->
+      fprintf ppf
+        "it's the element type(the second type parameter) for a block index \
+         (idx or mut_idx)"
 
   let format_concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function
@@ -2625,6 +2629,10 @@ module Format_history = struct
       fprintf ppf "an abstract type has the value %s by default" layout_or_kind
     | Existential_type_variable ->
       fprintf ppf "it's an unannotated existential type variable"
+    | Idx_base ->
+      fprintf ppf
+        "it's the base type (the first type parameter) for a block index (idx \
+         or mut_idx)"
     | Array_comprehension_element ->
       fprintf ppf "it's the element type of array comprehension"
     | List_comprehension_iterator_element ->
@@ -3289,6 +3297,7 @@ module Debug_printers = struct
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
     | Unboxed_tuple_element -> fprintf ppf "Unboxed_tuple_element"
     | Peek_or_poke -> fprintf ppf "Peek_or_poke"
+    | Idx_element -> fprintf ppf "Idx_element"
 
   let concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function
@@ -3382,6 +3391,7 @@ module Debug_printers = struct
     | Univar -> fprintf ppf "Univar"
     | Default_type_jkind -> fprintf ppf "Default_type_jkind"
     | Existential_type_variable -> fprintf ppf "Existential_type_variable"
+    | Idx_base -> fprintf ppf "Idx_base"
     | Array_comprehension_element -> fprintf ppf "Array_comprehension_element"
     | List_comprehension_iterator_element ->
       fprintf ppf "List_comprehension_iterator_element"

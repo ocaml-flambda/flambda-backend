@@ -573,6 +573,10 @@ and expression i ppf x =
       line i ppf "%a\n" Jkind.Sort.format sort;
       alloc_mode i ppf amode;
       list i expression ppf l;
+  | Texp_idx (ba, uas) ->
+      line i ppf "Texp_idx\n";
+      block_access i ppf ba;
+      List.iter (unboxed_access i ppf) uas;
   | Texp_list_comprehension comp ->
       line i ppf "Texp_list_comprehension\n";
       comprehension i ppf comp
@@ -1163,6 +1167,14 @@ and longident_x_pattern : 'a. _ -> _ -> _ * 'a * _ -> _ =
   fun i ppf (li, _, p) ->
   line i ppf "%a\n" fmt_longident li;
   pattern (i+1) ppf p;
+
+and block_access i ppf = function
+  | Baccess_field (li, _) ->
+      line i ppf "Baccess_field %a\n" fmt_longident li
+
+and unboxed_access i ppf = function
+  | Uaccess_unboxed_field (li, _) ->
+      line i ppf "Uaccess_unboxed_field %a\n" fmt_longident li
 
 and comprehension i ppf {comp_body; comp_clauses} =
   line i ppf "comprehension\n";

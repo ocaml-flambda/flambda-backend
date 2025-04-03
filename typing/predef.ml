@@ -35,10 +35,6 @@ and ident_float = ident_create "float"
 and ident_float32 = ident_create "float32"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
-(* CR rtjoa: before merge tasks:
-   - determine final name for these *)
-and ident_idx = ident_create "idx"
-(* and ident_mut_idx = ident_create "mut_idx" *)
 and ident_exn = ident_create "exn"
 and ident_array = ident_create "array"
 and ident_iarray = ident_create "iarray"
@@ -55,7 +51,12 @@ and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
 
+(* CR rtjoa: before merge tasks:
+   - determine final name for these *)
+(* and ident_mut_idx = ident_create "mut_idx" *)
 and ident_or_null = ident_create "or_null"
+and ident_idx = ident_create "idx"
+and ident_mut_idx = ident_create "mut_idx"
 
 and ident_int8x16 = ident_create "int8x16"
 and ident_int16x8 = ident_create "int16x8"
@@ -86,6 +87,8 @@ and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
 and path_lexing_position = Pident ident_lexing_position
+and path_idx = Pident ident_idx
+and path_mut_idx = Pident ident_mut_idx
 
 and path_or_null = Pident ident_or_null
 
@@ -140,6 +143,8 @@ and type_unboxed_nativeint =
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
 and type_unboxed_int64 = newgenty (Tconstr(path_unboxed_int64, [], ref Mnil))
 and type_or_null t = newgenty (Tconstr(path_or_null, [t], ref Mnil))
+and type_idx t1 t2 = newgenty (Tconstr(path_idx, [t1; t2], ref Mnil))
+and type_mut_idx t1 t2 = newgenty (Tconstr(path_mut_idx, [t1; t2], ref Mnil))
 
 and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
 and type_int16x8 = newgenty (Tconstr(path_int16x8, [], ref Mnil))
@@ -497,6 +502,25 @@ let build_initial_env add_type add_extension empty_env =
          }))
        ~jkind:(
          Jkind.of_builtin ~why:(Primitive ident_idx) Jkind.Const.Builtin.bits64)
+       ~type_variance:[Variance.covariant; Variance.covariant]
+       ~type_separability:[Separability.Ind; Separability.Ind]
+  |> add_type2 ident_mut_idx
+       ~param1_jkind:(
+         Jkind.Builtin.value ~why:(Type_argument {
+           parent_path = Path.Pident ident_mut_idx;
+           position = 1;
+           arity = 2;
+         }))
+       ~param2_jkind:(
+         Jkind.Builtin.any ~why:(Type_argument {
+           parent_path = Path.Pident ident_mut_idx;
+           position = 2;
+           arity = 2;
+         }))
+       ~jkind:(
+         Jkind.of_builtin ~why:(Primitive ident_mut_idx)
+           Jkind.Const.Builtin.bits64)
+       (* CR rtjoa: check variance *)
        ~type_variance:[Variance.covariant; Variance.covariant]
        ~type_separability:[Separability.Ind; Separability.Ind]
   |> add_type_with_jkind ident_lexing_position

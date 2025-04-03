@@ -451,8 +451,8 @@ let expr sub x =
       fields
   in
   let map_block_access sub = function
-    | Baccess_field (lid, ld, float) ->
-      Baccess_field (map_loc sub lid, ld, float)
+    | Baccess_field (lid, ld) ->
+      Baccess_field (map_loc sub lid, ld)
   in
   let map_unboxed_access sub = function
     | Uaccess_unboxed_field (lid, ld) ->

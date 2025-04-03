@@ -45,6 +45,8 @@ val type_unboxed_nativeint:type_expr
 val type_unboxed_int32:type_expr
 val type_unboxed_int64:type_expr
 val type_or_null: type_expr -> type_expr
+val type_idx : type_expr -> type_expr -> type_expr
+val type_mut_idx : type_expr -> type_expr -> type_expr
 
 val type_int8x16: type_expr
 val type_int16x8: type_expr
@@ -116,6 +118,8 @@ val ident_none : Ident.t
 val ident_some : Ident.t
 
 val ident_or_null : Ident.t
+val ident_idx : Ident.t
+val ident_mut_idx : Ident.t
 
 (* The jkind used for optional function argument types *)
 val option_argument_jkind : jkind_lr

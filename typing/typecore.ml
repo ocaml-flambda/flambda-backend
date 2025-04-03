@@ -4141,6 +4141,14 @@ let rec is_nonexpansive exp =
       && is_nonexpansive_opt (Option.map fst extended_expression)
   | Texp_field(exp, _, _, _, _, _) -> is_nonexpansive exp
   | Texp_unboxed_field(exp, _, _, _, _) -> is_nonexpansive exp
+  | Texp_idx (ba, uas) ->
+      let block_access = function
+        | Baccess_field _ -> true
+      in
+      let unboxed_access = function
+        | Uaccess_unboxed_field _ -> true
+      in
+      block_access ba && List.for_all unboxed_access uas
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, _jkind, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -4634,7 +4642,7 @@ let check_partial_application ~statement exp =
             | Texp_construct _ | Texp_variant _ | Texp_record _
             | Texp_record_unboxed_product _ | Texp_unboxed_field _
             | Texp_overwrite _ | Texp_hole _
-            | Texp_field _ | Texp_setfield _ | Texp_array _
+            | Texp_field _ | Texp_setfield _ | Texp_array _ | Texp_idx _
             | Texp_list_comprehension _ | Texp_array_comprehension _
             | Texp_while _ | Texp_for _ | Texp_instvar _
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
@@ -6126,8 +6134,75 @@ and type_expect_
         ~mutability
         ~attributes:sexp.pexp_attributes
         sargl
-  | Pexp_idx _ ->
-      Misc.fatal_error "unimplemented"
+  | Pexp_idx (ba, _uas) ->
+    Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+    (* Compute the expected base type, only to use for disambiguation of the
+       block access *)
+    let expected_base_ty =
+      let get_base_ty_from_expected mut =
+        let base_ty = newgenvar (Jkind.Builtin.value ~why:Idx_base) in
+        (* CR rtjoa: record proj is wrong *)
+        let to_jkind, _to_sort = Jkind.of_new_sort_var ~why:Record_projection in
+        let to_ty = newgenvar to_jkind in
+        let ty =
+          (if mut then Predef.type_mut_idx else Predef.type_idx) base_ty to_ty in
+        try
+          unify_exp_types loc env ty (generic_instance ty_expected);
+          Some base_ty
+        with Error _ ->
+          None
+      in
+      match get_base_ty_from_expected false, get_base_ty_from_expected true with
+      | Some expected_base_ty, None | None, Some expected_base_ty ->
+        (* Unified with exactly one of [idx] or [mut_idx] *)
+        expected_base_ty
+      | Some _, Some _ | None, None ->
+        (* If both are [Some], then it could be either an [idx] or [mut_idx],
+           so [expected_ty] must be free, so we create a free variable.
+           If both are [None], we expect something other than [idx] or [mut_idx]
+           and this will error later. *)
+        newgenvar (Jkind.Builtin.value ~why:Idx_base)
+    in
+    let ba, base_ty, el_ty, mut = match ba with
+      | Baccess_field lid ->
+        let expected_record_type =
+          match extract_concrete_typedecl_protected env expected_base_ty with
+          | Typedecl(p0, p, {type_kind=Type_record _}) ->
+            Some(p0, p, is_principal ty_expected)
+          | _ -> None
+        in
+        let labels =
+          Env.lookup_all_labels ~record_form:Legacy ~loc:lid.loc Projection
+            lid.txt env
+        in
+        (* CR rtjoa: this error message is probably bad *)
+        let label =
+          wrap_disambiguate "This expression has" (mk_expected expected_base_ty)
+            (label_disambiguate Legacy Projection lid env expected_record_type)
+            labels
+        in
+        Baccess_field (lid, label), label.lbl_res, label.lbl_arg,
+        (is_mutable label.lbl_mut)
+    in
+    (* TODO: keep updating el_ty based while translating the uas *)
+    let ty =
+      if mut then
+        Predef.type_mut_idx base_ty el_ty
+      else
+        Predef.type_idx base_ty el_ty
+    in
+    with_explanation (fun () ->
+      unify_exp_types loc env ty (generic_instance ty_expected));
+    (* CR rtjoa: unify with type expected, instance of types, etc etc *)
+    (* with_explanation explanation (fun () ->
+     *   unify_exp_types loc env to_unify (generic_instance ty_expected)); *)
+
+    rue {
+      exp_desc = Texp_idx (ba, []);
+      exp_loc = loc; exp_extra = [];
+      exp_type = ty;
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env }
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
       let cond =
         type_expect env mode_max scond

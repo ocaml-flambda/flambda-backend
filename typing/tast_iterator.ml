@@ -334,7 +334,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       fields
   in
   let iter_block_access sub = function
-    | Baccess_field (lid, _, _) -> iter_loc sub lid
+    | Baccess_field (lid, _) -> iter_loc sub lid
   in
   let iter_unboxed_access sub = function
     | Uaccess_unboxed_field (lid, _) -> iter_loc sub lid

@@ -449,7 +449,7 @@ let value_binding sub vb =
   Vb.mk ~loc ~attrs ?value_constraint ~modes pat (sub.expr sub vb.vb_expr)
 
 let block_access sub : block_access -> Parsetree.block_access = function
-  | Baccess_field (lid, _, _) ->
+  | Baccess_field (lid, _) ->
     Baccess_field (map_loc sub lid)
 
 let unboxed_access sub : unboxed_access -> Parsetree.unboxed_access = function
