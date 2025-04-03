@@ -1934,3 +1934,150 @@ Error: This expression has type "a" but an expression was expected of type
        But the layout of a must be representable
          because we must know concretely how to pass a function argument.
 |}]
+
+(****************************************************)
+(* Test 19: Complex nesting of records and variants *)
+
+type boxed_record = { x : int; y : string; z : float# }
+type unboxed_record = #{ x : int; y : int32#; z : string }
+type unboxed_tuple = #(int64# * int * string)
+
+type nested_record = { a : boxed_record#; b : unboxed_record; c : unboxed_tuple }
+type nested_variant =
+    A of boxed_record#
+  | B of unboxed_record * boxed_record#
+  | C of { a : boxed_record#; b : unboxed_record; c : unboxed_tuple }
+
+[%%expect{|
+type boxed_record = { x : int; y : string; z : float#; }
+type unboxed_record = #{ x : int; y : int32#; z : string; }
+type unboxed_tuple = #(int64# * int * string)
+type nested_record = {
+  a : boxed_record#;
+  b : unboxed_record;
+  c : unboxed_tuple;
+}
+type nested_variant =
+    A of boxed_record#
+  | B of unboxed_record * boxed_record#
+  | C of { a : boxed_record#; b : unboxed_record; c : unboxed_tuple; }
+|}]
+
+
+(* The unboxed version of the nested record has the kind we expect. *)
+type nested_record_unboxed
+  :   (value & value & float64)
+    & (value & bits32 & value)
+    & (bits64 & value & value)
+  = nested_record#
+[%%expect{|
+type nested_record_unboxed = nested_record#
+|}]
+
+(**************************************************************)
+(* Test 20: Complex nesting via abstract types and parameters *)
+
+type abstract_product : value & (float64 & value) & bits64 & value
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+       nested_record =
+  { a : 'a;
+    b : abstract_product;
+    c : string;
+    d : 'b;
+    e : int64#;
+    f : abstract_product;
+    g : 'a;
+    h : int option }
+  constraint 'b = unboxed_record
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+       nested_variant =
+    A of 'a
+  | B of abstract_product * 'a * string * 'b * int
+  | C of { a : abstract_product;
+           b : float#;
+           c : 'a;
+           d : string;
+           e : 'b;
+           f : string;
+           g : 'a }
+  constraint 'b = unboxed_record
+[%%expect{|
+type abstract_product : value & (float64 & value) & bits64 & value
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+     nested_record = {
+  a : 'a;
+  b : abstract_product;
+  c : string;
+  d : 'b;
+  e : int64#;
+  f : abstract_product;
+  g : 'a;
+  h : int option;
+} constraint 'b = unboxed_record
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+     nested_variant =
+    A of 'a
+  | B of abstract_product * 'a * string * 'b * int
+  | C of { a : abstract_product; b : float#; c : 'a; d : string; e : 'b;
+      f : string; g : 'a;
+    }
+  constraint 'b = unboxed_record
+|}]
+
+(* The unboxed version of the nested record has the kind we expect. *)
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+       nested_record_unboxed
+  :   (float64 & (float64 & (value & bits64 & value)) & bits64)
+    & (value & (float64 & value) & bits64 & value)
+    & value
+    & (value & bits32 & value)
+    & bits64
+    & (value & (float64 & value) & bits64 & value)
+    & (float64 & (float64 & (value & bits64 & value)) & bits64)
+    & value
+  = ('a, 'b) nested_record#
+  constraint 'b = unboxed_record
+[%%expect{|
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+     nested_record_unboxed =
+    ('a, 'b) nested_record#
+  constraint 'b = unboxed_record
+|}]
+
+(**********************************************************************)
+(* Test 21: Nested records mode cross or don't mode cross as expected *)
+
+type ('a : (value & value) mod portable, 'b) record : value mod portable =
+  { a : 'a;
+    b : string;
+    c : #(int64# * #(float# * bool option * 'b));
+    d : char }
+  constraint 'b = int * string
+[%%expect{|
+type ('a : value mod portable & value mod portable, 'b) record = {
+  a : 'a;
+  b : string;
+  c : #(int64# * #(float# * bool option * 'b));
+  d : char;
+} constraint 'b = int * string
+|}]
+
+type ('a : (value & value) mod portable, 'b) record : value mod portable =
+  { a : 'a;
+    b : string;
+    c : #(int64# * #(float# * (bool -> bool) * 'b ));
+    d : char }
+  constraint 'b = int * string
+[%%expect{|
+Lines 1-6, characters 0-30:
+1 | type ('a : (value & value) mod portable, 'b) record : value mod portable =
+2 |   { a : 'a;
+3 |     b : string;
+4 |     c : #(int64# * #(float# * (bool -> bool) * 'b ));
+5 |     d : char }
+6 |   constraint 'b = int * string
+Error: The kind of type "record" is value mod contended with 'a
+         because it's a boxed record type.
+       But the kind of type "record" must be a subkind of value mod portable
+         because of the annotation on the declaration of the type record.
+|}]
