@@ -289,14 +289,6 @@ let swap_intcomp = function
 
 (* Naming of registers *)
 
-let all_regs_anonymous rv =
-  try
-    for i = 0 to Array.length rv - 1 do
-      if not (Reg.anonymous rv.(i)) then raise Exit
-    done;
-    true
-  with Exit -> false
-
 let name_regs id rv =
   let id = VP.var id in
   if Array.length rv = 1

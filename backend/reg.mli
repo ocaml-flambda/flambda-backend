@@ -91,7 +91,6 @@ val createv_like: t array -> t array
 val clone: t -> t
 val at_location: Cmm.machtype_component -> location -> t
 val typv: t array -> Cmm.machtype
-val anonymous : t -> bool
 val is_preassigned : t -> bool
 val is_unknown : t -> bool
 

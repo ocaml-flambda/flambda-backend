@@ -537,7 +537,7 @@ let () =
     ~exp_std:"fatal exception raised when creating description"
     ~exp_err:
       ">> Fatal error: Register in function arguments that isn't preassigned: \
-       I/0"
+       :I/0"
 
 let () =
   check "Function argument count changed"
@@ -577,7 +577,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (V/69) with an unknown \
+      ">> Fatal error: instruction 20 has a register (:V/69) with an unknown \
        location"
 
 let () =
