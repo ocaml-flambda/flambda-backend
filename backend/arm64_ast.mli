@@ -136,6 +136,8 @@ module Instruction_name : sig
     | B_cond of Cond.t
     | BL
     | BLR
+    | CMP
+    | CMN
     | CBNZ
     | CBZ
     | CSEL
@@ -157,6 +159,19 @@ module Instruction_name : sig
     | DMB of Memory_barrier.t
     | DSB of Memory_barrier.t
     | ISB
+    | SDIV
+    | MSUB
+    | MADD
+    | REV
+    | REV16
+    | UBFM
+    | SBFM
+    | TST
+    | TBNZ
+    | TBZ
+    | ADR
+    | STP
+    | BCC
     (* neon *)
     | MOV
     | MOVI

@@ -250,6 +250,8 @@ module Instruction_name = struct
     | B_cond of Cond.t
     | BL
     | BLR
+    | CMP
+    | CMN
     | CBNZ
     | CBZ
     | CSEL
@@ -271,6 +273,19 @@ module Instruction_name = struct
     | DMB of Memory_barrier.t
     | DSB of Memory_barrier.t
     | ISB
+    | SDIV
+    | MSUB
+    | MADD
+    | REV
+    | REV16
+    | UBFM
+    | SBFM
+    | TST
+    | TBNZ
+    | TBZ
+    | ADR
+    | STP
+    | BCC
     (* neon *)
     | MOV
     | MOVI
@@ -331,6 +346,8 @@ module Instruction_name = struct
     | B_cond c -> "b." ^ Cond.to_string c
     | BL -> "bl"
     | BLR -> "blr"
+    | CMP -> "cmp"
+    | CMN -> "cmn"
     | CBNZ -> "cbnz"
     | CBZ -> "cbz"
     | CSEL -> "csel"
@@ -352,6 +369,19 @@ module Instruction_name = struct
     | DMB b -> "dmb	" ^ Memory_barrier.to_string b
     | DSB b -> "dsb	" ^ Memory_barrier.to_string b
     | ISB -> "isb"
+    | SDIV -> "sdiv"
+    | MSUB -> "msub"
+    | MADD -> "madd"
+    | REV -> "rev"
+    | REV16 -> "rev16"
+    | UBFM -> "ubfm"
+    | SBFM -> "sbfm"
+    | TST -> "tst"
+    | TBNZ -> "tbnz"
+    | TBZ -> "tbz"
+    | ADR -> "adr"
+    | STP -> "stp"
+    | BCC -> "bcc"
     (* neon *)
     | MOV -> "mov"
     | MOVI -> "movi"
