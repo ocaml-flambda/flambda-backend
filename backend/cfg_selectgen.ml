@@ -627,12 +627,10 @@ class virtual selector_generic =
       | Cctz { arg_is_non_zero } ->
         basic_op (Intop (Ictz { arg_is_non_zero })), args
       | Cpopcnt -> basic_op (Intop Ipopcnt), args
-      | Ccmpi comp ->
-        self#select_arith_comp (Operation.Isigned comp) args
+      | Ccmpi comp -> self#select_arith_comp (Operation.Isigned comp) args
       | Caddv -> self#select_arith_comm Operation.Iadd args
       | Cadda -> self#select_arith_comm Operation.Iadd args
-      | Ccmpa comp ->
-        self#select_arith_comp (Operation.Iunsigned comp) args
+      | Ccmpa comp -> self#select_arith_comp (Operation.Iunsigned comp) args
       | Ccmpf (w, comp) -> basic_op (Floatop (w, Icompf comp)), args
       | Ccsel _ ->
         let cond, ifso, ifnot = three_args () in
@@ -703,8 +701,8 @@ class virtual selector_generic =
         (args : Cmm.expression list)
         : Cfg.basic_or_terminator * Cmm.expression list =
       match args with
-      | [arg; Cconst_int (n, _)]
-        when self#is_immediate (Operation.Icomp cmp) n ->
+      | [arg; Cconst_int (n, _)] when self#is_immediate (Operation.Icomp cmp) n
+        ->
         basic_op (Intop_imm (Icomp cmp, n)), [arg]
       | [Cconst_int (n, _); arg]
         when self#is_immediate
@@ -1749,8 +1747,7 @@ class virtual selector_generic =
           in
           build_all_reachable_handlers ~already_built ~not_built
       in
-      let new_handlers :
-          (int * Operation.trap_stack * Sub_cfg.t * bool) list =
+      let new_handlers : (int * Operation.trap_stack * Sub_cfg.t * bool) list =
         build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
         (* Note: we're dropping unreachable handlers here *)
       in

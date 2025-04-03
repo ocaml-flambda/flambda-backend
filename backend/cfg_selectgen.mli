@@ -83,8 +83,7 @@ class virtual selector_generic :
       Cfg.basic_or_terminator * Cmm.expression list
     (* Can be overridden to deal with special arithmetic instructions *)
 
-    method select_condition :
-      Cmm.expression -> Operation.test * Cmm.expression
+    method select_condition : Cmm.expression -> Operation.test * Cmm.expression
     (* Can be overridden to deal with special test instructions *)
 
     method select_store :

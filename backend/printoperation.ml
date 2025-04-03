@@ -43,9 +43,7 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
     if Operation.is_unary_integer_operation op
     then (
       assert (Array.length arg = 1);
-      fprintf ppf "%s%a"
-        (Operation.string_of_integer_operation op)
-        reg arg.(0))
+      fprintf ppf "%s%a" (Operation.string_of_integer_operation op) reg arg.(0))
     else (
       assert (Array.length arg = 2);
       fprintf ppf "%a%s%a" reg arg.(0)
@@ -82,8 +80,8 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
       (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
   | Floatop (_, ((Icompf _ | Iaddf | Isubf | Imulf | Idivf) as op)) ->
-    fprintf ppf "%a %a %a" reg arg.(0) Operation.format_float_operation
-      op reg arg.(1)
+    fprintf ppf "%a %a %a" reg arg.(0) Operation.format_float_operation op reg
+      arg.(1)
   | Floatop (_, ((Inegf | Iabsf) as op)) ->
     fprintf ppf "%a %a" Operation.format_float_operation op reg arg.(0)
   | Csel tst ->

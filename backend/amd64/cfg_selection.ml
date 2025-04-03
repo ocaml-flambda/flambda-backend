@@ -306,17 +306,13 @@ class selector =
           specific (Ilea addr), [arg])
       (* Recognize float arithmetic with memory. *)
       | Caddf width ->
-        self#select_floatarith true width Operation.Iaddf Arch.Ifloatadd
-          args
+        self#select_floatarith true width Operation.Iaddf Arch.Ifloatadd args
       | Csubf width ->
-        self#select_floatarith false width Operation.Isubf Arch.Ifloatsub
-          args
+        self#select_floatarith false width Operation.Isubf Arch.Ifloatsub args
       | Cmulf width ->
-        self#select_floatarith true width Operation.Imulf Arch.Ifloatmul
-          args
+        self#select_floatarith true width Operation.Imulf Arch.Ifloatmul args
       | Cdivf width ->
-        self#select_floatarith false width Operation.Idivf Arch.Ifloatdiv
-          args
+        self#select_floatarith false width Operation.Idivf Arch.Ifloatdiv args
       | Cpackf32 ->
         (* We must operate on registers. This is because if the second argument
            was a float stack slot, the resulting UNPCKLPS instruction would

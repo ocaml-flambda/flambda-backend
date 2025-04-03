@@ -77,8 +77,7 @@ val env_add_regs_for_exception_extra_args :
 val env_find_regs_for_exception_extra_args :
   Cmm.trywith_shared_label -> environment -> Reg.t array
 
-val env_set_trap_stack :
-  environment -> Operation.trap_stack -> environment
+val env_set_trap_stack : environment -> Operation.trap_stack -> environment
 
 val set_traps :
   Lambda.static_label ->
@@ -103,8 +102,7 @@ val select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag
 
 val oper_result_type : Cmm.operation -> Cmm.machtype
 
-val swap_intcomp :
-  Operation.integer_comparison -> Operation.integer_comparison
+val swap_intcomp : Operation.integer_comparison -> Operation.integer_comparison
 
 val name_regs : Backend_var.With_provenance.t -> Reg.t array -> unit
 
