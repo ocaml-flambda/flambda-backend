@@ -431,3 +431,122 @@ val get : 'a @ contended -> 'a t1 = <fun>
 type 'a t2 = { z : 'a @@ shared; }
 val get : 'a @ shared -> 'a t2 = <fun>
 |}]
+
+(* Interactions with lazy values. *)
+
+(* [lazy_t @ stateless] capture values at [immutable]. *)
+let foo (x : int ref) @ stateless = lazy (x.contents)
+
+[%%expect{|
+Line 1, characters 42-43:
+1 | let foo (x : int ref) @ stateless = lazy (x.contents)
+                                              ^
+Error: This value is "immutable" but expected to be "read".
+  Hint: In order to read from the mutable fields,
+  this record needs to have read visibility.
+|}]
+
+(* [lazy_t @ observing] capture values at [read]. *)
+
+let bat (x : int ref) @ observing = lazy (x.contents <- 4)
+[%%expect{|
+Line 1, characters 42-43:
+1 | let bat (x : int ref) @ observing = lazy (x.contents <- 4)
+                                              ^
+Error: This value is "read" but expected to be "read_write".
+  Hint: In order to write into the mutable fields,
+  this record needs to have read_write visibility.
+|}]
+
+let bar (x : int ref) @ observing = lazy (x.contents)
+
+[%%expect{|
+val bar : int ref -> int lazy_t @ observing = <fun>
+|}]
+
+let () =
+  match bar {contents = 5} with
+  | lazy 5 -> ()
+  | _ -> assert false
+
+[%%expect{|
+|}]
+
+(* [contended] lazy values can't be forced. *)
+let fuz (x : int ref) @ observing immutable = lazy (x.contents)
+[%%expect{|
+val fuz : int ref -> int lazy_t @ observing immutable = <fun>
+|}]
+
+let () =
+  match fuz {contents = -1} with
+  | lazy (-1) -> ()
+  | _ -> assert false
+
+[%%expect{|
+Line 3, characters 4-13:
+3 |   | lazy (-1) -> ()
+        ^^^^^^^^^
+Error: This value is "contended" but expected to be "uncontended".
+  Hint: In order to force the lazy expression,
+  the lazy needs to be uncontended.
+|}]
+
+(* But [immutable] lazy values can be, by design. *)
+let baz (x : int ref) @ observing immutable uncontended = lazy (x.contents)
+
+[%%expect{|
+val baz : int ref -> int lazy_t @ uncontended observing immutable = <fun>
+|}]
+
+let () =
+  match baz {contents = 42} with
+  | lazy 42 -> ()
+  | _ -> assert false
+
+[%%expect{|
+|}]
+
+let zab () @ immutable uncontended = lazy (ref 5)
+
+[%%expect{|
+val zab : unit -> int ref lazy_t @ uncontended immutable = <fun>
+|}]
+
+(* Forcing an [immutable] lazy returns an [immutable] value. *)
+let () =
+  match zab () with
+  | lazy x ->
+    x.contents <- 42;
+    assert (x.contents = 42)
+
+[%%expect{|
+Line 4, characters 4-5:
+4 |     x.contents <- 42;
+        ^
+Error: This value is "immutable" but expected to be "read_write".
+  Hint: In order to write into the mutable fields,
+  this record needs to have read_write visibility.
+|}]
+
+(* Forcing a [read] lazy returns a [read] value.*)
+let zag () @ read uncontended = lazy (ref 42)
+
+[%%expect{|
+val zag : unit -> int ref lazy_t @ uncontended read = <fun>
+|}]
+
+let () =
+  match zag () with
+  | lazy y ->
+    assert (y.contents = 42);
+    y.contents <- 24
+
+[%%expect{|
+Line 5, characters 4-5:
+5 |     y.contents <- 24
+        ^
+Error: This value is "read" but expected to be "read_write".
+  Hint: In order to write into the mutable fields,
+  this record needs to have read_write visibility.
+|}]
