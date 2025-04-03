@@ -630,7 +630,12 @@ module type S = sig
       (** The undefined modality. *)
       val undefined : t
 
-      (** Apply a modality on a left mode. *)
+      (* CR zqian: note that currently, [apply] and [sub] and [zap] are NOT
+         coherent for comonadic axes. That is, we do NOT have
+         [apply t m = Const.apply (zap t) m]. This is probably fine. *)
+
+      (** Apply a modality on a left mode. The calller should ensure that [apply
+      t m] is only called for [m >= md_mode] for inferred modalities. *)
       val apply : t -> (allowed * 'r) Value.t -> Value.l
 
       (** [sub t0 t1] checks that [t0 <= t1].
