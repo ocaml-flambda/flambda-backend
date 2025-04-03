@@ -76,6 +76,8 @@ module Jkind_mod_bounds : sig
   module Portability = Mode.Portability.Const
   module Contention = Mode.Contention.Const_op
   module Yielding = Mode.Yielding.Const
+  module Statefulness = Mode.Statefulness.Const
+  module Visibility = Mode.Visibility.Const_op
   module Externality = Jkind_axis.Externality
   module Nullability = Jkind_axis.Nullability
 
@@ -88,6 +90,8 @@ module Jkind_mod_bounds : sig
     portability:Portability.t ->
     contention:Contention.t ->
     yielding:Yielding.t ->
+    statefulness:Statefulness.t ->
+    visibility:Visibility.t ->
     externality:Externality.t ->
     nullability:Nullability.t ->
     t
@@ -98,6 +102,8 @@ module Jkind_mod_bounds : sig
   val portability : t -> Portability.t
   val contention : t -> Contention.t
   val yielding : t -> Yielding.t
+  val statefulness : t -> Statefulness.t
+  val visibility : t -> Visibility.t
   val externality : t -> Externality.t
   val nullability : t -> Nullability.t
 
@@ -107,6 +113,8 @@ module Jkind_mod_bounds : sig
   val set_portability : Portability.t -> t -> t
   val set_contention : Contention.t -> t -> t
   val set_yielding : Yielding.t -> t -> t
+  val set_statefulness : Statefulness.t -> t -> t
+  val set_visibility : Visibility.t -> t -> t
   val set_externality : Externality.t -> t -> t
   val set_nullability : Nullability.t -> t -> t
 

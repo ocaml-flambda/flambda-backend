@@ -124,6 +124,10 @@ type contention_context =
   | Write_mutable
   | Force_lazy
 
+type visibility_context =
+  | Read_mutable
+  | Write_mutable
+
 type unsupported_stack_allocation =
   | Lazy
   | Module
@@ -255,6 +259,7 @@ type error =
       Value.error * submode_reason *
       Env.locality_context option *
       contention_context option *
+      visibility_context option *
       Env.shared_context option
   | Curried_application_complete of
       arg_label * Mode.Alloc.error * [`Prefix|`Single_arg|`Entire_apply]
@@ -391,6 +396,9 @@ type expected_mode =
     contention_context : contention_context option;
     (** Explains why contention axis of [mode] is low. *)
 
+    visibility_context : visibility_context option;
+    (** Explains why visibility axis of [mode] is low. *)
+
     mode : Value.r;
     (** The upper bound, hence r (right) *)
 
@@ -475,6 +483,7 @@ let mode_default mode =
   { position = RNontail;
     locality_context = None;
     contention_context = None;
+    visibility_context = None;
     mode = Value.disallow_left mode;
     strictly_local = false;
     tuple_modes = None }
@@ -620,9 +629,10 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
   | Error failure_reason ->
       let locality_context = expected_mode.locality_context in
       let contention_context = expected_mode.contention_context in
+      let visibility_context = expected_mode.visibility_context in
       let error =
         Submode_failed(failure_reason, reason, locality_context,
-          contention_context, shared_context)
+          contention_context, visibility_context, shared_context)
       in
       raise (Error(loc, env, error))
 
@@ -1007,9 +1017,11 @@ let mode_project_mutable =
     Contention.Const.Shared
     |> Contention.of_const
     |> Value.max_with (Monadic Contention)
+    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read
   in
   { (mode_default mode) with
-    contention_context = Some Read_mutable }
+    contention_context = Some Read_mutable;
+    visibility_context = Some Read_mutable }
 
 (** The [expected_mode] of the record when mutating a mutable field. *)
 let mode_mutate_mutable =
@@ -1017,9 +1029,11 @@ let mode_mutate_mutable =
     Contention.Const.Uncontended
     |> Contention.of_const
     |> Value.max_with (Monadic Contention)
+    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read_write
   in
   { (mode_default mode) with
-    contention_context = Some Write_mutable }
+    contention_context = Some Write_mutable;
+    visibility_context = Some Write_mutable }
 
 (** The [expected_mode] of the lazy expression when forcing it. *)
 let mode_force_lazy =
@@ -4953,13 +4967,13 @@ let unique_use ~loc ~env mode_l mode_r  =
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Monadic Uniqueness, e) in
-        raise (Error(loc, env, Submode_failed(e, Other, None, None, None)))
+        raise (Error(loc, env, Submode_failed(e, Other, None, None, None, None)))
     );
     (match Linearity.submode linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Comonadic Linearity, e) in
-        raise (Error (loc, env, Submode_failed(e, Other, None, None, None)))
+        raise (Error (loc, env, Submode_failed(e, Other, None, None, None, None)))
     );
     (Uniqueness.disallow_left Uniqueness.aliased,
      Linearity.disallow_right Linearity.many)
@@ -10226,7 +10240,7 @@ let escaping_hint (failure_reason : Value.error) submode_reason
 
 
 let contention_hint _fail_reason _submode_reason context =
-  match context with
+  match (context : contention_context option) with
   | Some Read_mutable ->
       [Location.msg
         "@[Hint: In order to read from the mutable fields,@ \
@@ -10239,6 +10253,18 @@ let contention_hint _fail_reason _submode_reason context =
       [Location.msg
         "@[Hint: In order to force the lazy expression,@ \
         the lazy needs to be uncontended.@]"]
+  | None -> []
+
+let visibility_hint _fail_reason _submode_reason context =
+  match (context : visibility_context option) with
+  | Some Read_mutable ->
+      [Location.msg
+        "@[Hint: In order to read from the mutable fields,@ \
+        this record needs to have read visibility.@]"]
+  | Some Write_mutable ->
+      [Location.msg
+        "@[Hint: In order to write into the mutable fields,@ \
+        this record needs to have read_write visibility.@]"]
   | None -> []
 
 let report_type_expected_explanation_opt expl ppf =
@@ -10863,7 +10889,7 @@ let report_error ~loc env =
         (Style.as_inline_code Printtyp.type_expr) ty
         actual expected
   | Submode_failed(fail_reason, submode_reason, locality_context,
-      contention_context, shared_context)
+      contention_context, visibility_context, shared_context)
      ->
       let sub =
         match fail_reason with
@@ -10877,8 +10903,11 @@ let report_error ~loc env =
           escaping_hint fail_reason submode_reason locality_context
         | Error (Monadic Contention, _ ) ->
           contention_hint fail_reason submode_reason contention_context
+        | Error (Monadic Visibility, _) ->
+          visibility_hint fail_reason submode_reason visibility_context
         | Error (Comonadic Portability, _ ) -> []
         | Error (Comonadic Yielding, _) -> []
+        | Error (Comonadic Statefulness, _) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with

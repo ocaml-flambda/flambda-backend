@@ -1440,13 +1440,29 @@ let tree_of_mode_new (t: Parsetree.mode loc) =
 
 let tree_of_modes (modes : Mode.Alloc.Const.t) =
   let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
-  (* [yielding] has custom defaults depending on [areality]: *)
+
+  (* [yielding] has implied defaults depending on [areality]: *)
   let yielding =
     match modes.areality, modes.yielding with
     | Local, Yielding | Global, Unyielding -> None
     | _, _ -> Some modes.yielding
   in
-  let diff = {diff with yielding} in
+
+  (* [contention] has implied defaults based on [visibility]: *)
+  let contention =
+    match modes.visibility, modes.contention with
+    | Immutable, Contended | Read, Shared | Read_write, Uncontended -> None
+    | _, _ -> Some modes.contention
+  in
+
+  (* [portability] has implied defaults based on [statefulness]: *)
+  let portability =
+    match modes.statefulness, modes.portability with
+    | Stateless, Portable | (Observing | Stateful), Nonportable -> None
+    | _, _ -> Some modes.portability
+  in
+
+  let diff = {diff with yielding; contention; portability} in
   (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
   let l = Typemode.untransl_mode_annots diff in
   match all_or_none tree_of_mode_old l with

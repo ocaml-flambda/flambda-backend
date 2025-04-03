@@ -4578,6 +4578,7 @@ let report_lookup_error _loc env ppf = function
         | Error (Linearity, _) -> "once", "is many"
         | Error (Portability, _) -> "nonportable", "is portable"
         | Error (Yielding, _) -> "yielding", "may not yield"
+        | Error (Statefulness, _) -> "stateful", "may not capture state"
       in
       let s, hint =
         match context with
