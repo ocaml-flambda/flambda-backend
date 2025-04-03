@@ -1233,9 +1233,9 @@ class virtual selector_generic =
       | Never_returns -> Never_returns
       | Ok rarg ->
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
-        let rif, s_if, sub_if = self#emit_sequence env eif ~bound_name in
+        let rif, s_if, sub_if = self#emit_new_sub_cfg env eif ~bound_name in
         let relse, s_else, sub_else =
-          self#emit_sequence env eelse ~bound_name
+          self#emit_new_sub_cfg env eelse ~bound_name
         in
         let r = join env rif s_if sub_if relse s_else sub_else ~bound_name in
         let term_desc =
@@ -1257,7 +1257,7 @@ class virtual selector_generic =
         let sub_cases :
             (Reg.t array Or_never_returns.t * 'self * Sub_cfg.t) array =
           Array.map
-            (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
+            (fun (case, _dbg) -> self#emit_new_sub_cfg env case ~bound_name)
             ecases
         in
         let r = join_array env sub_cases ~bound_name in
@@ -1298,7 +1298,9 @@ class virtual selector_generic =
             env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold, label)) map)
           (env, Int.Map.empty) handlers
       in
-      let r_body, s_body, sub_body = self#emit_sequence env body ~bound_name in
+      let r_body, s_body, sub_body =
+        self#emit_new_sub_cfg env body ~bound_name
+      in
       let translate_one_handler nfail
           (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
         assert (List.length ids = List.length rs);
@@ -1315,7 +1317,8 @@ class virtual selector_generic =
             ids_and_rs
         in
         let r, s, sub =
-          self#emit_sequence new_env e2 ~bound_name:None ~at_start:(fun seq ->
+          self#emit_new_sub_cfg new_env e2 ~bound_name:None
+            ~at_start:(fun seq ->
               List.iter
                 (fun ((var, _typ), r) ->
                   let provenance = VP.provenance var in
@@ -1453,12 +1456,12 @@ class virtual selector_generic =
       let env_body =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
-      let r1, s1, sub1 = self#emit_sequence env_body e1 ~bound_name in
+      let r1, s1, sub1 = self#emit_new_sub_cfg env_body e1 ~bound_name in
       let exn_bucket_in_handler = self#regs_for typ_val in
       let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let r2, s2, sub2 =
-          self#emit_sequence env_handler e2 ~bound_name ~at_start:(fun seq ->
+          self#emit_new_sub_cfg env_handler e2 ~bound_name ~at_start:(fun seq ->
               List.iter2
                 (fun v regs ->
                   let provenance = VP.provenance v in
@@ -1529,7 +1532,7 @@ class virtual selector_generic =
       | exception Not_found ->
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
-    method private emit_sequence ?at_start env exp ~bound_name
+    method private emit_new_sub_cfg ?at_start env exp ~bound_name
         : _ * _ * Sub_cfg.t =
       let s = {<>} in
       let sub_cfg = Sub_cfg.make_empty () in
@@ -1635,8 +1638,8 @@ class virtual selector_generic =
       | Never_returns -> ()
       | Ok rarg ->
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
-        let sub_if = self#emit_tail_sequence env eif in
-        let sub_else = self#emit_tail_sequence env eelse in
+        let sub_if = self#emit_tail_new_sub_cfg env eif in
+        let sub_else = self#emit_tail_new_sub_cfg env eelse in
         let term_desc =
           terminator_of_test cond
             ~label_true:(Sub_cfg.start_label sub_if)
@@ -1654,7 +1657,7 @@ class virtual selector_generic =
         assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let sub_cases =
           Array.map
-            (fun (case, _dbg) -> self#emit_tail_sequence env case)
+            (fun (case, _dbg) -> self#emit_tail_new_sub_cfg env case)
             ecases
         in
         let term_desc : Cfg.terminator =
@@ -1691,7 +1694,7 @@ class virtual selector_generic =
           (env, Int.Map.empty) handlers
       in
       assert (Sub_cfg.exit_has_never_terminator sub_cfg);
-      let s_body = self#emit_tail_sequence env e1 in
+      let s_body = self#emit_tail_new_sub_cfg env e1 in
       let translate_one_handler nfail
           (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
         assert (List.length ids = List.length rs);
@@ -1708,7 +1711,7 @@ class virtual selector_generic =
             ids_and_rs
         in
         let seq : Sub_cfg.t =
-          self#emit_tail_sequence new_env e2 ~at_start:(fun seq ->
+          self#emit_tail_new_sub_cfg new_env e2 ~at_start:(fun seq ->
               List.iter
                 (fun ((var, _typ), r) ->
                   let provenance = VP.provenance var in
@@ -1776,12 +1779,12 @@ class virtual selector_generic =
       let env_body =
         env_add_regs_for_exception_extra_args exn_cont extra_arg_regs env_body
       in
-      let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
+      let s1 : Sub_cfg.t = self#emit_tail_new_sub_cfg env_body e1 in
       let exn_bucket_in_handler = self#regs_for typ_val in
       let rv_list = exn_bucket_in_handler :: extra_arg_regs_split in
       let with_handler env_handler e2 =
         let s2 : Sub_cfg.t =
-          self#emit_tail_sequence env_handler e2 ~at_start:(fun seq ->
+          self#emit_tail_new_sub_cfg env_handler e2 ~at_start:(fun seq ->
               List.iter2
                 (fun v regs ->
                   let provenance = VP.provenance v in
@@ -1842,7 +1845,7 @@ class virtual selector_generic =
       | exception Not_found ->
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
-    method private emit_tail_sequence ?at_start env exp : Sub_cfg.t =
+    method private emit_tail_new_sub_cfg ?at_start env exp : Sub_cfg.t =
       let s = {<>} in
       let sub_cfg = Sub_cfg.make_empty () in
       (match at_start with None -> () | Some f -> f s);
