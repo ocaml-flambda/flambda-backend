@@ -127,75 +127,6 @@ let femit_symbol_offset out (s, ofs) =
   else if ofs < 0 then Printf.fprintf out "-%a" femit_int (-ofs)
   else ()
 
-(* Record live pointers at call points *)
-
-let record_frame_label live dbg =
-  let lbl = Cmm.new_label () in
-  let live_offset = ref [] in
-  Reg.Set.iter
-    (function
-      | {typ = Val; loc = Reg r} ->
-          live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Val; loc = Stack s} as reg ->
-          live_offset := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
-      | {typ = Addr} as r ->
-          Misc.fatal_error ("bad GC root " ^ Reg.name r)
-      | { typ = Valx2; } as r ->
-          (* CR mslater: (SIMD) arm64 *)
-          Misc.fatal_error ("Unexpected Valx2 type of reg " ^ Reg.name r)
-      | { typ = Val; loc = Unknown ; } as r ->
-          Misc.fatal_error ("Unknown location " ^ Reg.name r)
-      | { typ = Int | Float | Float32 | Vec128; _ } -> ())
-    live;
-  record_frame_descr ~label:lbl ~frame_size:(frame_size())
-    ~live_offset:!live_offset dbg;
-  lbl
-
-let frecord_frame out (live, dbg) =
-  let lbl = record_frame_label live dbg in Printf.fprintf out "%a:" femit_label lbl
-
-
-(* Record calls to the GC -- we've moved them out of the way *)
-
-type gc_call =
-  { gc_lbl: label;                      (* Entry label *)
-    gc_return_lbl: label;               (* Where to branch after GC *)
-    gc_frame_lbl: label }               (* Label of frame descriptor *)
-
-let call_gc_sites = ref ([] : gc_call list)
-
-let emit_call_gc gc =
-  emit_printf "%a:	bl	%a\n" femit_label gc.gc_lbl femit_symbol "caml_call_gc";
-  emit_printf "%a:	b	%a\n" femit_label gc.gc_frame_lbl femit_label gc.gc_return_lbl
-
-(* Record calls to local stack reallocation *)
-
-type local_realloc_call =
-  { lr_lbl: label;
-    lr_return_lbl: label;
-    lr_dbg: Debuginfo.t
-  }
-
-let local_realloc_sites = ref ([] : local_realloc_call list)
-
-let emit_local_realloc lr =
-  emit_printf "%a:\n" femit_label lr.lr_lbl;
-  emit_printf "	%a\n" (femit_debug_info ~discriminator: 0) lr.lr_dbg;
-  emit_printf "	bl	%a\n" femit_symbol "caml_call_local_realloc";
-  emit_printf "	b	%a\n" femit_label lr.lr_return_lbl
-
-(* Local stack reallocation *)
-
-type stack_realloc = {
-  sc_label : Label.t; (* Label of the reallocation code. *)
-  sc_return : Label.t; (* Label to return to after reallocation. *)
-  sc_max_frame_size_in_bytes : int; (* Size for reallocation. *)
-}
-
-let stack_realloc = ref (None : stack_realloc option)
-
-let clear_stack_realloc () =
-  stack_realloc := None
 
 
 module DSL : sig
@@ -484,6 +415,77 @@ end [@warning "-32"]  = struct
     | Cmp_f32 c -> ins (I.FCM (emit_float_cond c)) operands
     | Cmpz_s32 c -> ins (I.CM (emit_cond c)) (Array.append operands [| imm 0; |])
 end
+
+(* Record live pointers at call points *)
+
+let record_frame_label live dbg =
+  let lbl = Cmm.new_label () in
+  let live_offset = ref [] in
+  Reg.Set.iter
+    (function
+      | {typ = Val; loc = Reg r} ->
+          live_offset := ((r lsl 1) + 1) :: !live_offset
+      | {typ = Val; loc = Stack s} as reg ->
+          live_offset := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
+      | {typ = Addr} as r ->
+          Misc.fatal_error ("bad GC root " ^ Reg.name r)
+      | { typ = Valx2; } as r ->
+          (* CR mslater: (SIMD) arm64 *)
+          Misc.fatal_error ("Unexpected Valx2 type of reg " ^ Reg.name r)
+      | { typ = Val; loc = Unknown ; } as r ->
+          Misc.fatal_error ("Unknown location " ^ Reg.name r)
+      | { typ = Int | Float | Float32 | Vec128; _ } -> ())
+    live;
+  record_frame_descr ~label:lbl ~frame_size:(frame_size())
+    ~live_offset:!live_offset dbg;
+  lbl
+
+let frecord_frame out (live, dbg) =
+  let lbl = record_frame_label live dbg in Printf.fprintf out "%a:" femit_label lbl
+
+
+(* Record calls to the GC -- we've moved them out of the way *)
+
+type gc_call =
+  { gc_lbl: label;                      (* Entry label *)
+    gc_return_lbl: label;               (* Where to branch after GC *)
+    gc_frame_lbl: label }               (* Label of frame descriptor *)
+
+let call_gc_sites = ref ([] : gc_call list)
+
+let emit_call_gc gc =
+  emit_printf "%a:	bl	%a\n" femit_label gc.gc_lbl femit_symbol "caml_call_gc";
+  emit_printf "%a:	b	%a\n" femit_label gc.gc_frame_lbl femit_label gc.gc_return_lbl
+
+(* Record calls to local stack reallocation *)
+
+type local_realloc_call =
+  { lr_lbl: label;
+    lr_return_lbl: label;
+    lr_dbg: Debuginfo.t
+  }
+
+let local_realloc_sites = ref ([] : local_realloc_call list)
+
+let emit_local_realloc lr =
+  emit_printf "%a:\n" femit_label lr.lr_lbl;
+  emit_printf "	%a\n" (femit_debug_info ~discriminator: 0) lr.lr_dbg;
+  emit_printf "	bl	%a\n" femit_symbol "caml_call_local_realloc";
+  emit_printf "	b	%a\n" femit_label lr.lr_return_lbl
+
+(* Local stack reallocation *)
+
+type stack_realloc = {
+  sc_label : Label.t; (* Label of the reallocation code. *)
+  sc_return : Label.t; (* Label to return to after reallocation. *)
+  sc_max_frame_size_in_bytes : int; (* Size for reallocation. *)
+}
+
+let stack_realloc = ref (None : stack_realloc option)
+
+let clear_stack_realloc () =
+  stack_realloc := None
+
 
 let emit_stack_realloc () =
   match !stack_realloc with
