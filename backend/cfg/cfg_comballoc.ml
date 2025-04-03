@@ -145,8 +145,7 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
             DLL.set_value other_allocation.cell
               { other_allocation_instr with
                 desc =
-                  Cfg.Op
-                    (Intop_imm (Operation.Iadd, -other_allocation.bytes));
+                  Cfg.Op (Intop_imm (Operation.Iadd, -other_allocation.bytes));
                 arg = [| prev_res0 |]
               };
             ( size + other_allocation.bytes,
@@ -168,8 +167,7 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
       DLL.insert_after cell
         { first_allocation_instr with
           desc =
-            Cfg.Op
-              (Intop_imm (Operation.Iadd, total_size_of_other_allocations));
+            Cfg.Op (Intop_imm (Operation.Iadd, total_size_of_other_allocations));
           arg = [| first_allocation_res0 |];
           res = [| first_allocation_res0 |];
           id = InstructionId.get_next instr_id

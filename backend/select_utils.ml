@@ -100,8 +100,7 @@ let env_set_trap_stack env trap_stack = { env with trap_stack }
 
 let rec combine_traps trap_stack = function
   | [] -> trap_stack
-  | Push t :: l ->
-    combine_traps (Operation.Specific_trap (t, trap_stack)) l
+  | Push t :: l -> combine_traps (Operation.Specific_trap (t, trap_stack)) l
   | Pop _ :: l -> (
     match (trap_stack : Operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
@@ -158,8 +157,8 @@ let env_create ~tailrec_label =
     tailrec_label
   }
 
-let select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag
-    = function
+let select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag =
+  function
   | Immutable -> Immutable
   | Mutable -> Mutable
 
@@ -289,10 +288,8 @@ let size_expr env exp =
 (* Swap the two arguments of an integer comparison *)
 
 let swap_intcomp = function
-  | Operation.Isigned cmp ->
-    Operation.Isigned (swap_integer_comparison cmp)
-  | Operation.Iunsigned cmp ->
-    Operation.Iunsigned (swap_integer_comparison cmp)
+  | Operation.Isigned cmp -> Operation.Isigned (swap_integer_comparison cmp)
+  | Operation.Iunsigned cmp -> Operation.Iunsigned (swap_integer_comparison cmp)
 
 (* Naming of registers *)
 

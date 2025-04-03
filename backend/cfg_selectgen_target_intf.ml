@@ -71,8 +71,7 @@ type insert_op_debug_result =
   | Use_default
 
 module type S = sig
-  val is_immediate :
-    Operation.integer_operation -> int -> is_immediate_result
+  val is_immediate : Operation.integer_operation -> int -> is_immediate_result
 
   val is_immediate_test :
     Operation.integer_comparison -> int -> is_immediate_result
