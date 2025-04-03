@@ -618,7 +618,8 @@ and value_kind_mixed_block_field env ~loc ~visited ~depth ~num_nodes_visited
       in
       num_nodes_visited, Value kind
     | None -> num_nodes_visited, Value (nullable Pgenval)
-    (* XXX consider if we want to bother doing better here. *)
+    (* CR layouts v7.1: assess whether it is important for performance to support
+       deep value_kinds here *)
     end
   | Float_boxed -> num_nodes_visited, Float_boxed ()
   | Float64 -> num_nodes_visited, Float64
