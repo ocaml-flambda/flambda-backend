@@ -65,3 +65,10 @@ sed -i.bak "s/runtime-stdlib: boot-compiler/runtime-stdlib: _build\/_bootinstall
 make install
 cp -R -f _install/ "$TARGETDIR/base-compiler-revision/_install/"
 cp -R -f _build/ "$TARGETDIR/base-compiler-revision/_build/"
+
+
+# recommended versions to compare the output
+#   compare the binaries:
+#       diff <(objdump -dr "$TARGETDIR_REL_ABS/base-compiler-original/_install/bin/ocamlopt.opt") <(objdump -dr "$TARGETDIR_REL_ABS/base-compiler-revision/_install/bin/ocamlopt.opt")
+#   compare the assembly files:
+#       (cd $TARGETDIR_REL_ABS/base-compiler-original && (for i in $(find _build/ -name "*.s"); do diff -u -p  "$i" "../base-compiler-revision/$i"; done))
