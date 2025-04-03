@@ -2081,3 +2081,90 @@ Error: The kind of type "record" is value mod contended with 'a
        But the kind of type "record" must be a subkind of value mod portable
          because of the annotation on the declaration of the type record.
 |}]
+
+(*******************************************************************************)
+(* Test 22: You can't defeat the value prefix size limit with nested products. *)
+
+(* And note that blocks with products are always mixed blocks, so we don't
+   need to add any unboxed types to hit the limit. *)
+
+type eight_values :
+  value & value & value & value & value & value & value & value
+type thirty_two_values =
+  { a : eight_values; b : eight_values; c : eight_values; d : eight_values }
+type r_254 =
+  { a : thirty_two_values#;
+    b : thirty_two_values#;
+    c : thirty_two_values#;
+    d : thirty_two_values#;
+    e : thirty_two_values#;
+    f : thirty_two_values#;
+    g : thirty_two_values#;
+    h : #(eight_values * eight_values * eight_values);
+    f249 : string;
+    f250 : string;
+    f251 : string;
+    f252 : string;
+    f253 : string;
+    f254 : string;
+  }
+
+[%%expect{|
+type eight_values
+  : value & value & value & value & value & value & value & value
+type thirty_two_values = {
+  a : eight_values;
+  b : eight_values;
+  c : eight_values;
+  d : eight_values;
+}
+type r_254 = {
+  a : thirty_two_values#;
+  b : thirty_two_values#;
+  c : thirty_two_values#;
+  d : thirty_two_values#;
+  e : thirty_two_values#;
+  f : thirty_two_values#;
+  g : thirty_two_values#;
+  h : #(eight_values * eight_values * eight_values);
+  f249 : string;
+  f250 : string;
+  f251 : string;
+  f252 : string;
+  f253 : string;
+  f254 : string;
+}
+|}]
+
+type r_255 =
+  { a : thirty_two_values#;
+    b : thirty_two_values#;
+    c : thirty_two_values#;
+    d : thirty_two_values#;
+    e : thirty_two_values#;
+    f : thirty_two_values#;
+    g : thirty_two_values#;
+    h : #(eight_values * eight_values * eight_values);
+    f249 : string;
+    f250 : string;
+    f251 : string;
+    f252 : string;
+    f253 : string;
+    f254 : string;
+    f255 : string;
+  }
+
+[%%expect{|
+Lines 1-17, characters 0-3:
+ 1 | type r_255 =
+ 2 |   { a : thirty_two_values#;
+ 3 |     b : thirty_two_values#;
+ 4 |     c : thirty_two_values#;
+ 5 |     d : thirty_two_values#;
+...
+14 |     f253 : string;
+15 |     f254 : string;
+16 |     f255 : string;
+17 |   }
+Error: Mixed records may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
+|}]
