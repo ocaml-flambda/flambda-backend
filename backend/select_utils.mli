@@ -101,8 +101,6 @@ val oper_result_type : Cmm.operation -> Cmm.machtype
 val swap_intcomp :
   Simple_operation.integer_comparison -> Simple_operation.integer_comparison
 
-val all_regs_anonymous : Reg.t array -> bool
-
 val name_regs : Backend_var.With_provenance.t -> Reg.t array -> unit
 
 val current_function_name : string ref
