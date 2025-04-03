@@ -113,6 +113,7 @@ module Instruction_name : sig
     | SMULH
     | UMULH
     | B
+    | BR
     | B_cond of Cond.t
     | BL
     | BLR
