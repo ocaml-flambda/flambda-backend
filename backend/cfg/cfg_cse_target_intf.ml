@@ -15,11 +15,30 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+(** Interface to be satisfied by target-specific code, for common subexpression
+    elimination. *)
 
-(* Common subexpression elimination by value numbering over extended basic
-   blocks. *)
+(** Classification of operations *)
 
-module Cse_generic (_ : Cfg_cse_target_intf.S) : sig
-  val cfg_with_layout : Cfg_with_layout.t -> Cfg_with_layout.t
+type op_class =
+  | Op_pure (* *pure arithmetic, produce one or several result *)
+  | Op_load of Simple_operation.mutable_flag  (** memory load *)
+  | Op_store of bool  (** memory store, false = init, true = assign *)
+  | Op_other  (** anything else that does not allocate nor store in memory *)
+
+type class_of_operation_result =
+  | Class of op_class
+  | Use_default
+
+type is_cheap_operation_result =
+  | Cheap of bool
+  | Use_default
+
+module type S = sig
+  (** The following methods can be overridden to handle processor-specific
+       operations. *)
+  val class_of_operation : Operation.t -> class_of_operation_result
+
+  (** Operations that are so cheap that it isn't worth factoring them. *)
+  val is_cheap_operation : Operation.t -> is_cheap_operation_result
 end

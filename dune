@@ -502,6 +502,7 @@
   cfg_loop_infos
   cfg_to_linear_desc
   cfg_cse
+  cfg_cse_target_intf
   cfg_stack_checks
   cfg_polling
   eliminate_dead_code
