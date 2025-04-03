@@ -3,9 +3,11 @@
 (*                                 OCaml                                  *)
 (*                                                                        *)
 (*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*                                 et al.                                 *)
 (*                                                                        *)
 (*   Copyright 1996 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
+(*   Copyright 2024--2025 Jane Street Group LLC.                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -260,6 +262,40 @@ class virtual selector_generic =
     method select_store is_assign addr arg : Operation.t * Cmm.expression =
       Store (Word_val, addr, is_assign), arg
 
+    (* Default instruction selection for integer operations *)
+
+    method private select_arith_comm (op : Simple_operation.integer_operation)
+        (args : Cmm.expression list)
+        : Cfg.basic_or_terminator * Cmm.expression list =
+      match args with
+      | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
+        basic_op (Intop_imm (op, n)), [arg]
+      | [Cconst_int (n, _); arg] when self#is_immediate op n ->
+        basic_op (Intop_imm (op, n)), [arg]
+      | _ -> basic_op (Intop op), args
+
+    method private select_arith (op : Simple_operation.integer_operation)
+        (args : Cmm.expression list)
+        : Cfg.basic_or_terminator * Cmm.expression list =
+      match args with
+      | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
+        basic_op (Intop_imm (op, n)), [arg]
+      | _ -> basic_op (Intop op), args
+
+    method private select_arith_comp (cmp : Simple_operation.integer_comparison)
+        (args : Cmm.expression list)
+        : Cfg.basic_or_terminator * Cmm.expression list =
+      match args with
+      | [arg; Cconst_int (n, _)]
+        when self#is_immediate (Simple_operation.Icomp cmp) n ->
+        basic_op (Intop_imm (Icomp cmp, n)), [arg]
+      | [Cconst_int (n, _); arg]
+        when self#is_immediate
+               (Simple_operation.Icomp (Select_utils.swap_intcomp cmp))
+               n ->
+        basic_op (Intop_imm (Icomp (Select_utils.swap_intcomp cmp), n)), [arg]
+      | _ -> basic_op (Intop (Icomp cmp)), args
+
     (* Default instruction selection for operators *)
 
     method select_operation (op : Cmm.operation) (args : Cmm.expression list)
@@ -408,38 +444,22 @@ class virtual selector_generic =
       | Ctuple_field (_, _) ->
         Misc.fatal_error "Selection.select_oper"
 
-    method private select_arith_comm (op : Simple_operation.integer_operation)
-        (args : Cmm.expression list)
-        : Cfg.basic_or_terminator * Cmm.expression list =
-      match args with
-      | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
-        basic_op (Intop_imm (op, n)), [arg]
-      | [Cconst_int (n, _); arg] when self#is_immediate op n ->
-        basic_op (Intop_imm (op, n)), [arg]
-      | _ -> basic_op (Intop op), args
-
-    method private select_arith (op : Simple_operation.integer_operation)
-        (args : Cmm.expression list)
-        : Cfg.basic_or_terminator * Cmm.expression list =
-      match args with
-      | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
-        basic_op (Intop_imm (op, n)), [arg]
-      | _ -> basic_op (Intop op), args
-
-    method private select_arith_comp (cmp : Simple_operation.integer_comparison)
-        (args : Cmm.expression list)
-        : Cfg.basic_or_terminator * Cmm.expression list =
-      match args with
-      | [arg; Cconst_int (n, _)]
-        when self#is_immediate (Simple_operation.Icomp cmp) n ->
-        basic_op (Intop_imm (Icomp cmp, n)), [arg]
-      | [Cconst_int (n, _); arg]
-        when self#is_immediate
-               (Simple_operation.Icomp (Select_utils.swap_intcomp cmp))
-               n ->
-        basic_op (Intop_imm (Icomp (Select_utils.swap_intcomp cmp), n)), [arg]
-      | _ -> basic_op (Intop (Icomp cmp)), args
-
+    method private insert_return env sub_cfg r (traps : trap_action list) =
+      match r with
+      | Never_returns -> ()
+      | Ok r ->
+        List.iter
+          (fun trap ->
+            let instr_desc =
+              match trap with
+              | Cmm.Push _ -> Misc.fatal_error "unexpected push on trap actions"
+              | Cmm.Pop _ -> Cfg.Poptrap
+            in
+            Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
+          traps;
+        let loc = Proc.loc_results_return (Reg.typv r) in
+        self#insert_moves env sub_cfg r loc;
+        self#insert' env sub_cfg Cfg.Return loc [||]
     (* Buffering of instruction sequences *)
 
     method insert_debug _env sub_cfg basic dbg arg res =
@@ -644,7 +664,6 @@ class virtual selector_generic =
        - [Ok rs] if the expression yields a result in registers [rs] *)
     method emit_expr env sub_cfg exp ~bound_name
         : Reg.t array Or_never_returns.t =
-      (* Normal case of returning a value: no regions are closed *)
       match exp with
       | Cconst_int (n, _dbg) ->
         let r = self#regs_for typ_int in
@@ -674,10 +693,10 @@ class virtual selector_generic =
         (* Cconst_symbol _ evaluates to a statically-allocated address, so its
            value fits in a typ_int register and is never changed by the GC.
 
-           Ok Cconst_symbols point to statically-allocated blocks, some of which
-           may point to heap values. However, any such blocks will be registered
-           in the compilation unit's global roots structure, so adding this
-           register to the frame table would be redundant *)
+           Some Cconst_symbols point to statically-allocated blocks, some of
+           which may point to heap values. However, any such blocks will be
+           registered in the compilation unit's global roots structure, so
+           adding this register to the frame table would be redundant *)
         let r = self#regs_for typ_int in
         Ok (self#insert_op env sub_cfg (self#make_const_symbol n) [||] r)
       | Cvar v -> (
@@ -742,8 +761,7 @@ class virtual selector_generic =
         self#emit_expr_trywith env sub_cfg bound_name e1 exn_cont v ~extra_args
           e2 dbg value_kind
 
-    (* Emit an expression in tail position of a function, closing all regions in
-       [env.regions] *)
+    (* Emit an expression in tail position of a function. *)
     method emit_tail env sub_cfg exp =
       match exp with
       | Clet (v, e1, e2) -> (
@@ -1263,23 +1281,6 @@ class virtual selector_generic =
       r, s, sub_cfg
 
     (* Same, but in tail position *)
-
-    method private insert_return env sub_cfg r (traps : trap_action list) =
-      match r with
-      | Never_returns -> ()
-      | Ok r ->
-        List.iter
-          (fun trap ->
-            let instr_desc =
-              match trap with
-              | Cmm.Push _ -> Misc.fatal_error "unexpected push on trap actions"
-              | Cmm.Pop _ -> Cfg.Poptrap
-            in
-            Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
-          traps;
-        let loc = Proc.loc_results_return (Reg.typv r) in
-        self#insert_moves env sub_cfg r loc;
-        self#insert' env sub_cfg Cfg.Return loc [||]
 
     method emit_return env sub_cfg exp traps =
       assert (Sub_cfg.exit_has_never_terminator sub_cfg);
