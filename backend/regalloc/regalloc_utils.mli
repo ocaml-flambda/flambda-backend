@@ -28,6 +28,7 @@ type liveness = Cfg_with_infos.liveness
 type log_function =
   { indent : unit -> unit;
     dedent : unit -> unit;
+    reset_indentation : unit -> unit;
     log : 'a. ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
     enabled : bool
   }

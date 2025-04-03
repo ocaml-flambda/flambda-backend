@@ -264,6 +264,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
+  if debug then reset_indentation ();
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   let cfg_infos, stack_slots =
     Regalloc_rewrite.prelude

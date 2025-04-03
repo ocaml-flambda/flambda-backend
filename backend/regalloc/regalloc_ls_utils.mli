@@ -9,6 +9,8 @@ val indent : unit -> unit
 
 val dedent : unit -> unit
 
+val reset_indentation : unit -> unit
+
 val log_body_and_terminator :
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
