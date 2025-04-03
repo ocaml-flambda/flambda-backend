@@ -64,11 +64,6 @@ let femit_symbol out s =
   if macosx then femit_string out "_";
   Emitaux.femit_symbol out s
 
-
-let emit_symbol_str s =
-  if macosx then "_" ^ Emitaux.symbol_to_string s else Emitaux.symbol_to_string s
-
-
 (* Object types *)
 
 let emit_symbol_type emit_lbl_or_sym lbl_or_sym ty =
@@ -296,6 +291,10 @@ end [@warning "-32"]  = struct
     | Valx2 ->
       reg_q index
 
+  let emit_symbol (s: string) =
+    if macosx then "_" ^ Emitaux.symbol_to_string s else Emitaux.symbol_to_string s
+
+
   let emit_addressing addr r =
     let index = reg_index r in
     match addr with
@@ -303,7 +302,7 @@ end [@warning "-32"]  = struct
       mem ~base:index ~offset:ofs
     | Ibased(s, ofs) ->
       assert (not !Clflags.dlcode);  (* see selection.ml *)
-      mem_symbol ~base:index ~symbol:(emit_symbol_str s) ~offset:ofs
+      mem_symbol ~base:index ~symbol:(emit_symbol s) ~offset:ofs
 
   let emit_stack (r: t) =
     match r.loc with
