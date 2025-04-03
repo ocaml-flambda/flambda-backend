@@ -127,7 +127,7 @@ let is_immediate_natint n =
 
 let specific x =
   assert (not (Arch.operation_can_raise x));
-  Cfg_selectgen.Basic (Op (Specific x))
+  Cfg.Basic (Op (Specific x))
 
 let pseudoregs_for_operation op arg res =
   match (op : Operation.t) with
@@ -411,7 +411,7 @@ class selector =
     (* Recognize float arithmetic with mem *)
 
     method select_floatarith commutative width regular_op mem_op args
-        : Cfg_selectgen.basic_or_terminator * Cmm.expression list =
+        : Cfg.basic_or_terminator * Cmm.expression list =
       let open Cmm in
       match width, args with
       | ( Float64,

@@ -63,12 +63,10 @@ let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth = function
   | Thirtytwo -> Thirtytwo
   | Sixtyfour -> Sixtyfour
 
-let specific x ~label_after =
+let specific x ~label_after : Cfg.basic_or_terminator =
   if Arch.operation_can_raise x
-  then
-    Cfg_selectgen.Terminator
-      (Cfg.Specific_can_raise { Cfg.op = x; label_after })
-  else Cfg_selectgen.Basic Cfg.(Op (Specific x))
+  then Terminator (Specific_can_raise { op = x; label_after })
+  else Basic (Op (Specific x))
 
 class selector =
   object (self)
