@@ -27,7 +27,7 @@ open Misc
 open Arch
 open Proc
 open Reg
-open Simple_operation
+open! Operation
 open Linear
 open Emitaux
 

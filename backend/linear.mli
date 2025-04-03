@@ -38,7 +38,7 @@ and instruction_desc =
   | Lreturn
   | Llabel of { label : label; section_name : string option }
   | Lbranch of label
-  | Lcondbranch of Simple_operation.test * label
+  | Lcondbranch of Operation.test * label
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap

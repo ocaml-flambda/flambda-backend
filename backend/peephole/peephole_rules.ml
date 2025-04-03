@@ -85,10 +85,10 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
    and const1 and const2 are immediate values. *)
 
 let are_compatible op1 op2 imm1 imm2 :
-    (Simple_operation.integer_operation * int) option =
+    (Operation.integer_operation * int) option =
   match
-    ( (op1 : Simple_operation.integer_operation),
-      (op2 : Simple_operation.integer_operation) )
+    ( (op1 : Operation.integer_operation),
+      (op2 : Operation.integer_operation) )
   with
   (* Folding two bitwise operations such as (AND, OR, XOR) should never produce
      an overflow so we assert this conditon. *)

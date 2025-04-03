@@ -46,7 +46,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
   let reg = print_reg in
   let regs = Printreg.regs' ~print_reg in
   let regsetaddr = Printreg.regsetaddr' ~print_reg in
-  let test = Simple_operation.format_test ~print_reg in
+  let test = Operation.format_test ~print_reg in
   let operation = Printoperation.operation ~print_reg in
   if !Flambda_backend_flags.davail then begin
     let module RAS = Reg_availability_set in

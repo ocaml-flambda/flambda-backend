@@ -13,7 +13,7 @@ val get_cells :
   int ->
   Cfg.basic Cfg.instruction DLL.cell list
 
-val is_bitwise_op : Simple_operation.integer_operation -> bool
+val is_bitwise_op : Operation.integer_operation -> bool
 
 val bitwise_shift_assert : int -> int -> unit
 

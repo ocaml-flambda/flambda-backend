@@ -306,16 +306,16 @@ class selector =
           specific (Ilea addr), [arg])
       (* Recognize float arithmetic with memory. *)
       | Caddf width ->
-        self#select_floatarith true width Simple_operation.Iaddf Arch.Ifloatadd
+        self#select_floatarith true width Operation.Iaddf Arch.Ifloatadd
           args
       | Csubf width ->
-        self#select_floatarith false width Simple_operation.Isubf Arch.Ifloatsub
+        self#select_floatarith false width Operation.Isubf Arch.Ifloatsub
           args
       | Cmulf width ->
-        self#select_floatarith true width Simple_operation.Imulf Arch.Ifloatmul
+        self#select_floatarith true width Operation.Imulf Arch.Ifloatmul
           args
       | Cdivf width ->
-        self#select_floatarith false width Simple_operation.Idivf Arch.Ifloatdiv
+        self#select_floatarith false width Operation.Idivf Arch.Ifloatdiv
           args
       | Cpackf32 ->
         (* We must operate on registers. This is because if the second argument

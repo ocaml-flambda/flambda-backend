@@ -32,7 +32,7 @@ let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
 
-let is_bitwise_op (op : Simple_operation.integer_operation) =
+let is_bitwise_op (op : Operation.integer_operation) =
   match op with Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true | _ -> false
   [@@ocaml.warning "-4"]
 
