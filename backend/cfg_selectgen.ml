@@ -760,8 +760,7 @@ class virtual selector_generic =
         self#emit_expr_trywith env sub_cfg bound_name e1 exn_cont v ~extra_args
           e2 dbg value_kind
 
-    (* Emit an expression in tail position of a function, closing all regions in
-       [env.regions] *)
+    (* Emit an expression in tail position of a function. *)
     method emit_tail env sub_cfg exp =
       match exp with
       | Clet (v, e1, e2) -> (
