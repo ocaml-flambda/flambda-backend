@@ -76,7 +76,7 @@ let int_test_of_integer_comparison :
   { lt; eq; gt; is_signed; imm }
 
 let terminator_of_test :
-    Simple_operation.test ->
+    Operation.test ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.terminator =
@@ -84,8 +84,8 @@ let terminator_of_test :
   let int_test comparison immediate =
     let signed, comparison =
       match comparison with
-      | Simple_operation.Isigned comparison -> true, comparison
-      | Simple_operation.Iunsigned comparison -> false, comparison
+      | Operation.Isigned comparison -> true, comparison
+      | Operation.Iunsigned comparison -> false, comparison
     in
     int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
       ~label_true
@@ -403,7 +403,7 @@ class virtual selector_generic =
     (* Says whether an integer constant is a suitable immediate argument for the
        given integer operation *)
 
-    method is_immediate (op : Simple_operation.integer_operation) n =
+    method is_immediate (op : Operation.integer_operation) n =
       match op with
       | Ilsl | Ilsr | Iasr -> n >= 0 && n < Arch.size_int * 8
       | _ -> false
@@ -412,7 +412,7 @@ class virtual selector_generic =
        given integer test *)
 
     method virtual is_immediate_test
-        : Simple_operation.integer_comparison -> int -> bool
+        : Operation.integer_comparison -> int -> bool
 
     (* Selection of addressing modes *)
 
@@ -426,7 +426,7 @@ class virtual selector_generic =
     (* Instruction selection for conditionals *)
 
     method select_condition (arg : Cmm.expression)
-        : Simple_operation.test * Cmm.expression =
+        : Operation.test * Cmm.expression =
       match arg with
       | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
         when self#is_immediate_test (Isigned cmp) n ->
@@ -609,30 +609,28 @@ class virtual selector_generic =
                { bytes = 0; dbginfo = [placeholder_for_alloc_block_kind]; mode }),
           args )
       | Cpoll -> basic_op Poll, args
-      | Caddi -> self#select_arith_comm Simple_operation.Iadd args
-      | Csubi -> self#select_arith Simple_operation.Isub args
-      | Cmuli -> self#select_arith_comm Simple_operation.Imul args
+      | Caddi -> self#select_arith_comm Operation.Iadd args
+      | Csubi -> self#select_arith Operation.Isub args
+      | Cmuli -> self#select_arith_comm Operation.Imul args
       | Cmulhi { signed } ->
-        self#select_arith_comm (Simple_operation.Imulh { signed }) args
+        self#select_arith_comm (Operation.Imulh { signed }) args
       | Cdivi -> basic_op (Intop Idiv), args
       | Cmodi -> basic_op (Intop Imod), args
-      | Cand -> self#select_arith_comm Simple_operation.Iand args
-      | Cor -> self#select_arith_comm Simple_operation.Ior args
-      | Cxor -> self#select_arith_comm Simple_operation.Ixor args
-      | Clsl -> self#select_arith Simple_operation.Ilsl args
-      | Clsr -> self#select_arith Simple_operation.Ilsr args
-      | Casr -> self#select_arith Simple_operation.Iasr args
+      | Cand -> self#select_arith_comm Operation.Iand args
+      | Cor -> self#select_arith_comm Operation.Ior args
+      | Cxor -> self#select_arith_comm Operation.Ixor args
+      | Clsl -> self#select_arith Operation.Ilsl args
+      | Clsr -> self#select_arith Operation.Ilsr args
+      | Casr -> self#select_arith Operation.Iasr args
       | Cclz { arg_is_non_zero } ->
         basic_op (Intop (Iclz { arg_is_non_zero })), args
       | Cctz { arg_is_non_zero } ->
         basic_op (Intop (Ictz { arg_is_non_zero })), args
       | Cpopcnt -> basic_op (Intop Ipopcnt), args
-      | Ccmpi comp ->
-        self#select_arith_comp (Simple_operation.Isigned comp) args
-      | Caddv -> self#select_arith_comm Simple_operation.Iadd args
-      | Cadda -> self#select_arith_comm Simple_operation.Iadd args
-      | Ccmpa comp ->
-        self#select_arith_comp (Simple_operation.Iunsigned comp) args
+      | Ccmpi comp -> self#select_arith_comp (Operation.Isigned comp) args
+      | Caddv -> self#select_arith_comm Operation.Iadd args
+      | Cadda -> self#select_arith_comm Operation.Iadd args
+      | Ccmpa comp -> self#select_arith_comp (Operation.Iunsigned comp) args
       | Ccmpf (w, comp) -> basic_op (Floatop (w, Icompf comp)), args
       | Ccsel _ ->
         let cond, ifso, ifnot = three_args () in
@@ -681,7 +679,7 @@ class virtual selector_generic =
       | Ctuple_field (_, _) ->
         Misc.fatal_error "Selection.select_oper"
 
-    method private select_arith_comm (op : Simple_operation.integer_operation)
+    method private select_arith_comm (op : Operation.integer_operation)
         (args : Cmm.expression list)
         : Cfg.basic_or_terminator * Cmm.expression list =
       match args with
@@ -691,7 +689,7 @@ class virtual selector_generic =
         basic_op (Intop_imm (op, n)), [arg]
       | _ -> basic_op (Intop op), args
 
-    method private select_arith (op : Simple_operation.integer_operation)
+    method private select_arith (op : Operation.integer_operation)
         (args : Cmm.expression list)
         : Cfg.basic_or_terminator * Cmm.expression list =
       match args with
@@ -699,16 +697,16 @@ class virtual selector_generic =
         basic_op (Intop_imm (op, n)), [arg]
       | _ -> basic_op (Intop op), args
 
-    method private select_arith_comp (cmp : Simple_operation.integer_comparison)
+    method private select_arith_comp (cmp : Operation.integer_comparison)
         (args : Cmm.expression list)
         : Cfg.basic_or_terminator * Cmm.expression list =
       match args with
-      | [arg; Cconst_int (n, _)]
-        when self#is_immediate (Simple_operation.Icomp cmp) n ->
+      | [arg; Cconst_int (n, _)] when self#is_immediate (Operation.Icomp cmp) n
+        ->
         basic_op (Intop_imm (Icomp cmp, n)), [arg]
       | [Cconst_int (n, _); arg]
         when self#is_immediate
-               (Simple_operation.Icomp (Select_utils.swap_intcomp cmp))
+               (Operation.Icomp (Select_utils.swap_intcomp cmp))
                n ->
         basic_op (Intop_imm (Icomp (Select_utils.swap_intcomp cmp), n)), [arg]
       | _ -> basic_op (Intop (Icomp cmp)), args
@@ -1749,8 +1747,7 @@ class virtual selector_generic =
           in
           build_all_reachable_handlers ~already_built ~not_built
       in
-      let new_handlers :
-          (int * Simple_operation.trap_stack * Sub_cfg.t * bool) list =
+      let new_handlers : (int * Operation.trap_stack * Sub_cfg.t * bool) list =
         build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
         (* Note: we're dropping unreachable handlers here *)
       in

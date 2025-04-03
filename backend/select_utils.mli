@@ -26,7 +26,7 @@ end
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of Simple_operation.trap_stack
+  | Reachable of Operation.trap_stack
 
 type static_handler =
   { regs : Reg.t array list;
@@ -41,7 +41,7 @@ type environment =
     static_exceptions : static_handler Numbers.Int.Map.t;
         (** Which registers must be populated when jumping to the given
           handler. *)
-    trap_stack : Simple_operation.trap_stack;
+    trap_stack : Operation.trap_stack;
     regs_for_exception_extra_args : Reg.t array Numbers.Int.Map.t;
     tailrec_label : Label.t
   }
@@ -77,13 +77,12 @@ val env_add_regs_for_exception_extra_args :
 val env_find_regs_for_exception_extra_args :
   Cmm.trywith_shared_label -> environment -> Reg.t array
 
-val env_set_trap_stack :
-  environment -> Simple_operation.trap_stack -> environment
+val env_set_trap_stack : environment -> Operation.trap_stack -> environment
 
 val set_traps :
   Lambda.static_label ->
   trap_stack_info ref ->
-  Simple_operation.trap_stack ->
+  Operation.trap_stack ->
   Cmm.trap_action list ->
   unit
 
@@ -99,12 +98,11 @@ val size_component : Cmm.machtype_component -> int
 
 val size_expr : environment -> Cmm.expression -> int
 
-val select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
+val select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag
 
 val oper_result_type : Cmm.operation -> Cmm.machtype
 
-val swap_intcomp :
-  Simple_operation.integer_comparison -> Simple_operation.integer_comparison
+val swap_intcomp : Operation.integer_comparison -> Operation.integer_comparison
 
 val name_regs : Backend_var.With_provenance.t -> Reg.t array -> unit
 
