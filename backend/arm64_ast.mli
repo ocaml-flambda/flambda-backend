@@ -112,7 +112,8 @@ module Instruction_name : sig
     | CNT
     | SMULH
     | UMULH
-    | B of Cond.t
+    | B
+    | B_cond of Cond.t
     | BL
     | BLR
     | CBNZ

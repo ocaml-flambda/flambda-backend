@@ -210,7 +210,8 @@ module Instruction_name = struct
     | CNT
     | SMULH
     | UMULH
-    | B of Cond.t
+    | B
+    | B_cond of Cond.t
     | BL
     | BLR
     | CBNZ
@@ -286,7 +287,8 @@ module Instruction_name = struct
     | CNT -> "cnt"
     | SMULH -> "smulh"
     | UMULH -> "umulh"
-    | B c -> "b." ^ Cond.to_string c
+    | B -> "b"
+    | B_cond c -> "b." ^ Cond.to_string c
     | BL -> "bl"
     | BLR -> "blr"
     | CBNZ -> "cbnz"
