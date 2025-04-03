@@ -154,6 +154,10 @@ module S = struct
     | Call of func_call_operation with_label_after
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after
+
+  type basic_or_terminator =
+    | Basic of basic
+    | Terminator of terminator
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)
