@@ -56,6 +56,14 @@ module Reg : sig
   val create : Reg_name.t -> int -> t
 end
 
+module Label : sig
+  type t
+
+  (* the label must be converted into the OS specific representation _before_ calling this function *)
+  val create : string -> t
+end
+
+
 module Instruction_name : sig
   module Float_cond : sig
     type t =
@@ -209,7 +217,10 @@ module DSL : sig
 
   val mem_post : base:int -> offset:int -> Operand.t
 
-  val literal : string -> Operand.t
+  val label: Label.t -> Operand.t
+
+  (* access memory at a label *)
+  val mem_literal : Label.t -> Operand.t
 
   (* CR gyorsh: [print_*] functions below are exposed temporarily to use DSL for
      some but not all instructions in [emit.mlp]. They can eventually*)

@@ -348,6 +348,13 @@ module Instruction_name = struct
     | ADDV -> "addv"
 end
 
+module Label = struct
+  type t = string
+
+  let create l = l
+  let to_string (l: t) : string = l
+end
+
 module Operand = struct
   module Imm = struct
     (* int is big enough for all instruction encodings *)
@@ -601,6 +608,8 @@ module DSL = struct
 
   let reg_q_operands = neon_operand_array Neon_reg_name.(Scalar Q)
 
+  let label (l: Label.t) = Operand.Sym (Label.to_string l)
+
   let mem ~base ~offset =
     Operand.(Mem (Addressing_mode.Offset (reg_x.(base), offset)))
 
@@ -613,7 +622,7 @@ module DSL = struct
   let mem_post ~base ~offset =
     Operand.(Mem (Addressing_mode.Post (reg_x.(base), offset)))
 
-  let literal l = Operand.(Mem (Addressing_mode.Literal l))
+  let mem_literal l = Operand.(Mem (Addressing_mode.Literal l))
 
   let reg_v2s index =
     Operand.Reg (Reg.create (Reg_name.Neon (Vector V2S)) index)

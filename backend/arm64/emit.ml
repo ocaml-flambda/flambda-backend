@@ -226,6 +226,7 @@ module DSL : sig
   val emit_addressing : addressing_mode -> Reg.t -> Arm64_ast.Operand.t
   (* Output a stack reference *)
   val emit_stack : Reg.t -> Arm64_ast.Operand.t
+  val emit_label : label -> Arm64_ast.Operand.t
   val ins : I.t -> Arm64_ast.Operand.t array -> unit
 
   val simd_instr : Simd.operation -> Linear.instruction -> unit
@@ -315,6 +316,10 @@ end [@warning "-32"]  = struct
         mem_sp_offset ofs
     | Reg _ | Unknown -> fatal_error "Emit.emit_stack"
 
+
+  let emit_label (s: label) =
+    let l = label_prefix ^ Label.to_string s in
+    label (Arm64_ast.Label.create l)
 
 
   let check_instr (register_behavior : Simd_proc.register_behavior) i =
