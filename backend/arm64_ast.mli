@@ -56,7 +56,6 @@ module Reg : sig
   val create : Reg_name.t -> int -> t
 end
 
-
 module Instruction_name : sig
   module Float_cond : sig
     type t =
@@ -96,17 +95,21 @@ module Instruction_name : sig
   end
 
   module Memory_barrier : sig
-
     type t =
-      | SY (* full system barrier operation; the default; use this for [dmb]/[dsb] without arguments *)
+      | SY
+        (* full system barrier operation; the default; use this for [dmb]/[dsb]
+           without arguments *)
       | LD (* waits only for loads to complete *)
       | ST (* waits only for stores to complete *)
       | ISH (* waits only for the inner sharable domain *)
       | ISHLD (* waits only for loads and only for the inner sharable domain *)
       | ISHST (* waits only for stores and only for the inner sharable domain *)
       | NSH (* only out to the point of unification *)
-      | NSHLD (* waits only for loads and only out to the point of unification *)
-      | NSHST (* only for stores to complete and only out to the point of unification *)
+      | NSHLD
+        (* waits only for loads and only out to the point of unification *)
+      | NSHST
+        (* only for stores to complete and only out to the point of
+           unification *)
       | OSH (* only to the outer shareable domain *)
       | OSHLD (* waits only for loads and only to the outer shareable domain *)
       | OSHST (* waits only for stores and only to the outer shareable domain *)
@@ -246,9 +249,11 @@ module DSL : sig
 
   val mem_post : base:int -> offset:int -> Operand.t
 
-  (* ARM symbol operand; string must be converted to the OS specific representation first *)
-  (* An ARM symbol can be used for both labels and symbols from the symbol table; the respective conversion must be applied first *)
-  val symbol: string -> Operand.t
+  (* ARM symbol operand; string must be converted to the OS specific
+     representation first *)
+  (* An ARM symbol can be used for both labels and symbols from the symbol
+     table; the respective conversion must be applied first *)
+  val symbol : string -> Operand.t
 
   (* access memory at a ARM symbol *)
   val mem_literal : string -> Operand.t

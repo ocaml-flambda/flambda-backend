@@ -193,7 +193,6 @@ module Instruction_name = struct
   end
 
   module Memory_barrier = struct
-
     type t =
       | SY
       | LD
@@ -222,7 +221,6 @@ module Instruction_name = struct
       | OSH -> "osh"
       | OSHLD -> "oshld"
       | OSHST -> "oshst"
-
   end
 
   (* Don't split the type into base and neon to make emit easier to read and
@@ -366,8 +364,8 @@ module Instruction_name = struct
     | STR -> "str"
     | STRB -> "strb"
     | STRH -> "strh"
-    | DMB b -> "dmb	" ^ Memory_barrier.to_string b
-    | DSB b -> "dsb	" ^ Memory_barrier.to_string b
+    | DMB b -> "dmb\t" ^ Memory_barrier.to_string b
+    | DSB b -> "dsb\t" ^ Memory_barrier.to_string b
     | ISB -> "isb"
     | SDIV -> "sdiv"
     | MSUB -> "msub"
@@ -675,7 +673,7 @@ module DSL = struct
 
   let reg_q_operands = neon_operand_array Neon_reg_name.(Scalar Q)
 
-  let symbol (s: string) = Operand.Sym s
+  let symbol (s : string) = Operand.Sym s
 
   let mem ~base ~offset =
     Operand.(Mem (Addressing_mode.Offset (reg_x.(base), offset)))
