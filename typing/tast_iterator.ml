@@ -333,6 +333,12 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       | _, Overridden (lid, exp) -> iter_loc sub lid; sub.expr sub exp)
       fields
   in
+  let iter_block_access sub = function
+    | Baccess_field (lid, _, _) -> iter_loc sub lid
+  in
+  let iter_unboxed_access sub = function
+    | Uaccess_unboxed_field (lid, _) -> iter_loc sub lid
+  in
   match exp_desc with
   | Texp_ident (_, lid, _, _, _)  -> iter_loc sub lid
   | Texp_constant _ -> ()
@@ -378,6 +384,9 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       sub.expr sub exp1;
       sub.expr sub exp2
   | Texp_array (_, _, list, _) -> List.iter (sub.expr sub) list
+  | Texp_idx (ba, uas) ->
+      iter_block_access sub ba;
+      List.iter (iter_unboxed_access sub) uas
   | Texp_list_comprehension { comp_body; comp_clauses }
   | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
       sub.expr sub comp_body;

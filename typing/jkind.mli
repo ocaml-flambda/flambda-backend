@@ -489,8 +489,6 @@ val for_arrow : Types.jkind_l
 (** The jkind of an object type.  *)
 val for_object : Types.jkind_l
 
-(* val for_idx : Types.jkind_l *)
-
 (******************************)
 (* elimination and defaulting *)
 

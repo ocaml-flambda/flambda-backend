@@ -6126,6 +6126,8 @@ and type_expect_
         ~mutability
         ~attributes:sexp.pexp_attributes
         sargl
+  | Pexp_idx _ ->
+      Misc.fatal_error "unimplemented"
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
       let cond =
         type_expect env mode_max scond

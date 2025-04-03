@@ -965,6 +965,7 @@ let maybe_pmod_constraint mode expr =
 %token GREATERRBRACKET        ">]"
 %token HASHLPAREN             "#("
 %token HASHLBRACE             "#{"
+%token IDX                    "idx_"
 %token IF                     "if"
 %token IN                     "in"
 %token INCLUDE                "include"
@@ -1134,7 +1135,7 @@ The precedences must be listed from low to high.
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
-          LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN
+          LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN IDX
 
 
 /* Entry points */
@@ -2910,6 +2911,11 @@ fun_expr:
       { mkexp ~loc:$sloc (mkinfix e1 op e2) }
 ;
 
+unboxed_access:
+  | DOTHASH mkrhs(label_longident)
+      { Uaccess_unboxed_field $2 }
+;
+
 simple_expr:
   | LPAREN seq_expr RPAREN
       { reloc_exp ~loc:$sloc $2 }
@@ -3071,6 +3077,10 @@ comprehension_clause:
       { Pexp_field($1, $3) }
   | simple_expr DOTHASH mkrhs(label_longident)
       { Pexp_unboxed_field($1, $3) }
+  | IDX DOT mkrhs(label_longident) llist(unboxed_access) %prec below_HASH
+      { Pexp_idx (Baccess_field $3, $4) }
+  /* | LPAREN IDX DOT mkrhs(label_longident) llist(unboxed_access) RPAREN
+   *     { Pexp_idx (Baccess_field $4, $5) } */
   | od=open_dot_declaration DOT LPAREN seq_expr RPAREN
       { Pexp_open(od, $4) }
   | od=open_dot_declaration DOT LBRACELESS object_expr_content GREATERRBRACE
