@@ -127,7 +127,7 @@ module Cfg_desc = struct
         let update_slot (r : Reg.t) =
           match r.loc, Stack_class.of_machtype r.typ with
           | Stack (Local idx), stack_class ->
-            Stack_class.Tbl.update 
+            Stack_class.Tbl.update
             cfg.fun_num_stack_slots
             stack_class
             ~f:(fun curr ->
@@ -334,7 +334,7 @@ let base_templ () : Cfg_desc.t * (unit -> InstructionId.t) =
           { start = add_label;
             body =
               [ { Instruction.id = make_id ();
-                  desc = Op (Intop Simple_operation.Iadd);
+                  desc = Op (Intop Operation.Iadd);
                   arg = [| int_arg1; int_arg2 |];
                   res = [| int_arg1 |]
                 } ];
