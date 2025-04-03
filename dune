@@ -435,6 +435,7 @@
   branch_relaxation
   branch_relaxation_intf
   cfg_selectgen
+  cfg_selectgen_target_intf
   cfg_selection
   cfg_invariants
   cmm_helpers
