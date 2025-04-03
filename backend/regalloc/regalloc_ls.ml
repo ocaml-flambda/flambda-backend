@@ -203,11 +203,8 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
     then (
       (match hd.reg.loc with Reg _ -> () | Stack _ | Unknown -> assert false);
       interval.reg.loc <- hd.reg.loc;
-      (match DLL.hd_cell intervals.active_dll with
-      | None -> assert false
-      | Some cell ->
-        DLL.delete_curr cell;
-        Interval.DLL.insert_sorted intervals.active_dll interval);
+      DLL.delete_curr hd_cell;
+      Interval.DLL.insert_sorted intervals.active_dll interval;
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
   | None -> allocate_stack_slot reg
