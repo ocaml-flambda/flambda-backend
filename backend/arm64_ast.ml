@@ -120,11 +120,13 @@ module Reg = struct
   let name t = Reg_name.name t.reg_name t.index
 
   (* for special GP registers we use the last index *)
-  let stack_pointer_x = create (GP SP) (GP_reg_name.last)
-  let stack_pointer_w = create (GP WSP) (GP_reg_name.last) [@@warning "-32"]
-  let zero_register_x = create (GP XZR) (GP_reg_name.last) [@@warning "-32"]
-  let zero_register_w = create (GP WZR) (GP_reg_name.last) [@@warning "-32"]
+  let stack_pointer_x = create (GP SP) GP_reg_name.last
 
+  let stack_pointer_w = create (GP WSP) GP_reg_name.last [@@warning "-32"]
+
+  let zero_register_x = create (GP XZR) GP_reg_name.last [@@warning "-32"]
+
+  let zero_register_w = create (GP WZR) GP_reg_name.last [@@warning "-32"]
 end
 
 module Instruction_name = struct
@@ -353,13 +355,12 @@ module Operand = struct
   module SymbolOffset = struct
     type t = string * int
 
-    let print ppf ((sym, ofs): t) =
-      if ofs > 0 then
-        Format.fprintf ppf "#:lo12:%s+%d" sym ofs
-      else if ofs < 0 then
-        Format.fprintf ppf "#:lo12:%s-%d" sym (-ofs)
-      else
-        Format.fprintf ppf "#:lo12:%s" sym
+    let print ppf ((sym, ofs) : t) =
+      if ofs > 0
+      then Format.fprintf ppf "#:lo12:%s+%d" sym ofs
+      else if ofs < 0
+      then Format.fprintf ppf "#:lo12:%s-%d" sym (-ofs)
+      else Format.fprintf ppf "#:lo12:%s" sym
   end
 
   module Extend = struct
@@ -436,7 +437,8 @@ module Operand = struct
       let open Format in
       match t with
       | Offset (r, imm) -> fprintf ppf "[%s, %a]" (Reg.name r) Imm.print imm
-      | SymbolOffset (r, s, imm) -> fprintf ppf "[%s, %a]" (Reg.name r) SymbolOffset.print (s, imm)
+      | SymbolOffset (r, s, imm) ->
+        fprintf ppf "[%s, %a]" (Reg.name r) SymbolOffset.print (s, imm)
       | Pre (r, imm) -> fprintf ppf "[%s, %a]!" (Reg.name r) Imm.print imm
       | Post (r, imm) -> fprintf ppf "[%s], %a" (Reg.name r) Imm.print imm
       | Literal l -> fprintf ppf "%s" l
@@ -629,11 +631,12 @@ module DSL = struct
 
   let reg_w index = reg_w_operands.(index)
 
-  let sp = Operand.Reg (Reg.stack_pointer_x)
+  let sp = Operand.Reg Reg.stack_pointer_x
 
-  let xzr = Operand.Reg (Reg.zero_register_x)
+  let xzr = Operand.Reg Reg.zero_register_x
 
-  let mem_sp_offset ofs = Operand.Mem (Operand.Addressing_mode.Offset (Reg.stack_pointer_x, ofs))
+  let mem_sp_offset ofs =
+    Operand.Mem (Operand.Addressing_mode.Offset (Reg.stack_pointer_x, ofs))
 
   let imm n = Operand.Imm n
 

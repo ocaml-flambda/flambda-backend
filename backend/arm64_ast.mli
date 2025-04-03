@@ -191,9 +191,9 @@ module DSL : sig
 
   val reg_w : int -> Operand.t
 
-  val sp: Operand.t
+  val sp : Operand.t
 
-  val xzr: Operand.t
+  val xzr : Operand.t
 
   val imm : int -> Operand.t
 
@@ -201,7 +201,7 @@ module DSL : sig
 
   val mem_symbol : base:int -> symbol:string -> offset:int -> Operand.t
 
-  val mem_sp_offset: int -> Operand.t
+  val mem_sp_offset : int -> Operand.t
 
   val mem_pre : base:int -> offset:int -> Operand.t
 
