@@ -507,7 +507,7 @@ let emit_stack_realloc () =
     emit_printf "    stp %a, x30, [sp, #-16]!\n" femit_reg reg_tmp1;
     emit_printf "    bl %a\n" femit_symbol "caml_call_realloc_stack";
     emit_printf "    ldp %a, x30, [sp], #16\n" femit_reg reg_tmp1;
-    emit_printf "    b %a\n" femit_label sc_return
+    DSL.ins I.B [| DSL.emit_label sc_return |]
 
 (* Names of various instructions *)
 
@@ -973,7 +973,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     DSL.ins I.STR [| DSL.emit_reg  r; DSL.emit_addressing (Iindexed domain_local_sp_offset) reg_domain_state_ptr |];
     emit_printf "	cmp	%a, %a\n" femit_reg r femit_reg reg_tmp1;
     let lbl_call = Cmm.new_label () in
-    emit_printf "	b.lt	%a\n" femit_label lbl_call;
+    DSL.ins (I.B_cond LT) [| DSL.emit_label lbl_call |];
     let lbl_after_alloc = Cmm.new_label () in
     emit_printf "%a:\n" femit_label lbl_after_alloc;
     DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed domain_local_top_offset) reg_domain_state_ptr |];
@@ -999,11 +999,11 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       emit_printf "	cmp	%a, %a\n" femit_reg reg_alloc_ptr femit_reg reg_tmp1;
       if not far then begin
-        emit_printf "	b.lo	%a\n" femit_label lbl_call_gc
+        DSL.ins (I.B_cond LO) [| DSL.emit_label lbl_call_gc |]
       end else begin
         let lbl = Cmm.new_label () in
-        emit_printf "	b.cs	%a\n" femit_label lbl;
-        emit_printf "	b	%a\n" femit_label lbl_call_gc;
+        DSL.ins (I.B_cond CS) [| DSL.emit_label lbl |];
+        DSL.ins I.B [| DSL.emit_label lbl_call_gc |];
         emit_printf "%a:\n" femit_label lbl
       end;
       emit_printf "%a:" femit_label lbl_after_alloc;
@@ -1014,11 +1014,11 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
           gc_frame_lbl = lbl_frame } :: !call_gc_sites
     end else begin
       begin match n with
-      | 16 -> emit_printf "	bl	%a\n" femit_symbol "caml_alloc1"
-      | 24 -> emit_printf "	bl	%a\n" femit_symbol "caml_alloc2"
-      | 32 -> emit_printf "	bl	%a\n" femit_symbol "caml_alloc3"
+      | 16 -> DSL.ins I.BL [| DSL.emit_symbol "caml_alloc1" |]
+      | 24 -> DSL.ins I.BL [| DSL.emit_symbol "caml_alloc2" |]
+      | 32 -> DSL.ins I.BL [| DSL.emit_symbol "caml_alloc3" |]
       | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
-              emit_printf "	bl	%a\n" femit_symbol "caml_allocN"
+              DSL.ins I.BL [| DSL.emit_symbol "caml_allocN" |]
       end;
       emit_printf "%a:	add	%a, %a, #8\n" femit_label lbl_frame femit_reg i.res.(0) femit_reg reg_alloc_ptr
     end
@@ -1036,21 +1036,21 @@ let assembly_code_for_poll i ~far ~return_label =
   if not far then begin
     match return_label with
     | None ->
-        emit_printf "	b.ls	%a\n" femit_label lbl_call_gc;
+        DSL.ins (I.B_cond LS)  [| DSL.emit_label lbl_call_gc |];
         emit_printf "%a:\n" femit_label lbl_after_poll
     | Some return_label ->
-        emit_printf "	b.hi	%a\n" femit_label return_label;
-        emit_printf "	b	%a\n" femit_label lbl_call_gc;
+        DSL.ins (I.B_cond HI)  [| DSL.emit_label return_label |];
+        DSL.ins I.B [| DSL.emit_label lbl_call_gc |];
   end else begin
     match return_label with
     | None ->
-        emit_printf "	b.hi	%a\n" femit_label lbl_after_poll;
-        emit_printf "	b	%a\n" femit_label lbl_call_gc;
+        DSL.ins (I.B_cond HI) [| DSL.emit_label lbl_after_poll |];
+        DSL.ins I.B [| DSL.emit_label lbl_call_gc |];
         emit_printf "%a:\n" femit_label lbl_after_poll
     | Some return_label ->
         let lbl = Cmm.new_label () in
-        emit_printf "	b.ls	%a\n" femit_label lbl;
-        emit_printf "	b	%a\n" femit_label return_label;
+        DSL.ins (I.B_cond LS) [| DSL.emit_label lbl |];
+        DSL.ins I.B [| DSL.emit_label return_label |];
         emit_printf "%a:	b	%a\n" femit_label lbl femit_label lbl_call_gc
   end;
   call_gc_sites :=
@@ -1295,9 +1295,10 @@ let emit_instr i =
         if func.sym_name = !function_name then
           match !tailrec_entry_point with
           | None -> Misc.fatal_error "jump to missing tailrec entry point"
-          | Some tailrec_entry_point -> emit_printf "	b	%a\n" femit_label tailrec_entry_point
+          | Some tailrec_entry_point ->
+            DSL.ins I.B [| DSL.emit_label tailrec_entry_point |]
         else
-          output_epilogue (fun () -> emit_printf "	b	%a\n" femit_symbol func.sym_name)
+          output_epilogue (fun () -> DSL.ins I.B [| DSL.emit_symbol func.sym_name |])
     | Lcall_op(Lextcall {func; alloc; stack_ofs}) ->
         if Config.runtime5 && stack_ofs > 0 then begin
           DSL.ins I.MOV [| DSL.emit_reg reg_stack_arg_begin; DSL.sp |];
@@ -1567,7 +1568,7 @@ let emit_instr i =
     | Llabel { label = lbl; _ } ->
         emit_printf "%a:\n" femit_label lbl
     | Lbranch lbl ->
-        emit_printf "	b	%a\n" femit_label lbl
+        DSL.ins I.B [| DSL.emit_label lbl |]
     | Lcondbranch(tst, lbl) ->
         begin match tst with
         | Itruetest ->
@@ -1595,15 +1596,15 @@ let emit_instr i =
         emit_printf "	cmp	%a, #1\n" femit_reg i.arg.(0);
         begin match lbl0 with
           None -> ()
-        | Some lbl -> emit_printf "	b.lt	%a\n" femit_label lbl
+        | Some lbl -> DSL.ins (I.B_cond LT) [| DSL.emit_label lbl |]
         end;
         begin match lbl1 with
           None -> ()
-        | Some lbl -> emit_printf "	b.eq	%a\n" femit_label lbl
+        | Some lbl -> DSL.ins (I.B_cond EQ) [| DSL.emit_label lbl |]
         end;
         begin match lbl2 with
           None -> ()
-        | Some lbl -> emit_printf "	b.gt	%a\n" femit_label lbl
+        | Some lbl -> DSL.ins (I.B_cond GT) [| DSL.emit_label lbl |]
         end
     | Lswitch jumptbl ->
         let lbltbl = Cmm.new_label() in
@@ -1612,7 +1613,7 @@ let emit_instr i =
         emit_printf "	br	%a\n" femit_reg reg_tmp1;
         emit_printf "%a:" femit_label lbltbl;
         for j = 0 to Array.length jumptbl - 1 do
-            emit_printf "	b	%a\n" femit_label jumptbl.(j)
+            DSL.ins I.B [| DSL.emit_label jumptbl.(j) |]
         done
 (* Alternative:
         let lbltbl = Cmm.new_label() in
