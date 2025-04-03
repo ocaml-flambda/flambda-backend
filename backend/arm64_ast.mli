@@ -83,6 +83,7 @@ module Instruction_name : sig
       | GT
       | LE
       | AL
+      | LO
   end
 
   module Rounding_mode : sig

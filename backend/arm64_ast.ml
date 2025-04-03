@@ -158,6 +158,7 @@ module Instruction_name = struct
       | GT
       | LE
       | AL
+      | LO
 
     let to_string t =
       match t with
@@ -176,6 +177,7 @@ module Instruction_name = struct
       | GT -> "gt"
       | LE -> "le"
       | AL -> "al"
+      | LO -> "lo"
   end
 
   module Rounding_mode = struct
