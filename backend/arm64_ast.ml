@@ -551,10 +551,13 @@ module Instruction = struct
   let print ppf t =
     let { name; operands } = t in
     let pp_sep = Operand.print_separator in
-    Format.fprintf ppf "%s\t%a"
-      (Instruction_name.to_string name)
-      (Format.pp_print_seq ~pp_sep Operand.print)
-      (Array.to_seq operands)
+    if Array.length operands = 0
+    then Format.fprintf ppf "%s" (Instruction_name.to_string name)
+    else
+      Format.fprintf ppf "%s\t%a"
+        (Instruction_name.to_string name)
+        (Format.pp_print_seq ~pp_sep Operand.print)
+        (Array.to_seq operands)
 end
 
 module Asm = struct
