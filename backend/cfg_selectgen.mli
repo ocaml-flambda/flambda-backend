@@ -201,14 +201,14 @@ class virtual selector_generic :
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux :
+    method emit_expr :
       environment ->
       Sub_cfg.t ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux_raise :
+    method emit_expr_raise :
       environment ->
       Sub_cfg.t ->
       Lambda.raise_kind ->
@@ -216,7 +216,7 @@ class virtual selector_generic :
       Debuginfo.t ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux_op :
+    method emit_expr_op :
       environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
@@ -225,7 +225,7 @@ class virtual selector_generic :
       Debuginfo.t ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux_ifthenelse :
+    method emit_expr_ifthenelse :
       environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
@@ -238,7 +238,7 @@ class virtual selector_generic :
       Cmm.kind_for_unboxing ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux_switch :
+    method emit_expr_switch :
       environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
@@ -249,7 +249,7 @@ class virtual selector_generic :
       Cmm.kind_for_unboxing ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux_catch :
+    method emit_expr_catch :
       environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
@@ -264,7 +264,7 @@ class virtual selector_generic :
       Cmm.kind_for_unboxing ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux_exit :
+    method emit_expr_exit :
       environment ->
       Sub_cfg.t ->
       Cmm.exit_label ->
@@ -272,7 +272,7 @@ class virtual selector_generic :
       Cmm.trap_action list ->
       Reg.t array Select_utils.Or_never_returns.t
 
-    method emit_expr_aux_trywith :
+    method emit_expr_trywith :
       environment ->
       Sub_cfg.t ->
       Backend_var.With_provenance.t option ->
