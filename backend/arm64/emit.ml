@@ -227,6 +227,7 @@ module DSL : sig
   (* Output a stack reference *)
   val emit_stack : Reg.t -> Arm64_ast.Operand.t
   val emit_label : label -> Arm64_ast.Operand.t
+  val emit_symbol : string -> Arm64_ast.Operand.t
   val ins : I.t -> Arm64_ast.Operand.t array -> unit
 
   val simd_instr : Simd.operation -> Linear.instruction -> unit
@@ -292,9 +293,12 @@ end [@warning "-32"]  = struct
     | Valx2 ->
       reg_q index
 
-  let emit_symbol (s: string) =
+  let convert_symbol_representation (s: string) =
     if macosx then "_" ^ Emitaux.symbol_to_string s else Emitaux.symbol_to_string s
 
+  let emit_symbol (s: string) =
+    let sym = convert_symbol_representation s in
+    symbol sym
 
   let emit_addressing addr r =
     let index = reg_index r in
@@ -303,7 +307,7 @@ end [@warning "-32"]  = struct
       mem ~base:index ~offset:ofs
     | Ibased(s, ofs) ->
       assert (not !Clflags.dlcode);  (* see selection.ml *)
-      mem_symbol ~base:index ~symbol:(emit_symbol s) ~offset:ofs
+      mem_symbol ~base:index ~symbol:(convert_symbol_representation s) ~offset:ofs
 
   let emit_stack (r: t) =
     match r.loc with
@@ -320,8 +324,6 @@ end [@warning "-32"]  = struct
   let emit_label (s: label) =
     let l = label_prefix ^ Label.to_string s in
     symbol l
-
-
 
 
   let check_instr (register_behavior : Simd_proc.register_behavior) i =
