@@ -319,7 +319,9 @@ end [@warning "-32"]  = struct
 
   let emit_label (s: label) =
     let l = label_prefix ^ Label.to_string s in
-    label (Arm64_ast.Label.create l)
+    symbol l
+
+
 
 
   let check_instr (register_behavior : Simd_proc.register_behavior) i =

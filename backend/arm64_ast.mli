@@ -56,13 +56,6 @@ module Reg : sig
   val create : Reg_name.t -> int -> t
 end
 
-module Label : sig
-  type t
-
-  (* the label must be converted into the OS specific representation _before_ calling this function *)
-  val create : string -> t
-end
-
 
 module Instruction_name : sig
   module Float_cond : sig
@@ -217,10 +210,12 @@ module DSL : sig
 
   val mem_post : base:int -> offset:int -> Operand.t
 
-  val label: Label.t -> Operand.t
+  (* ARM symbol operand; string must be converted to the OS specific representation first *)
+  (* An ARM symbol can be used for both labels and symbols from the symbol table; the respective conversion must be applied first *)
+  val symbol: string -> Operand.t
 
-  (* access memory at a label *)
-  val mem_literal : Label.t -> Operand.t
+  (* access memory at a ARM symbol *)
+  val mem_literal : string -> Operand.t
 
   (* CR gyorsh: [print_*] functions below are exposed temporarily to use DSL for
      some but not all instructions in [emit.mlp]. They can eventually*)
