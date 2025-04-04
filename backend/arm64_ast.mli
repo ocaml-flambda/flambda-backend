@@ -82,6 +82,7 @@ module Instruction_name : sig
       | GT
       | LE
       | AL
+      (* CR sspies: Remove [LO], since it is an alias of [CC] *)
       | LO
   end
 
@@ -174,6 +175,7 @@ module Instruction_name : sig
     | TBZ
     | ADR
     | STP
+    (* CR sspies: Remove [BCC], since it is an alias of [B_cond LO] *)
     | BCC
     (* neon *)
     | MOV

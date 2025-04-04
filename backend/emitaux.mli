@@ -37,6 +37,7 @@ val femit_symbol : out_channel -> string -> unit
 
 val emit_symbol : string -> unit
 
+(* CR sspies: use types to distinguish the two string versions *)
 val symbol_to_string : string -> string
 
 val emit_printf : ('a, out_channel, unit) format -> 'a
