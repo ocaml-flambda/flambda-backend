@@ -339,9 +339,7 @@ let closure_with_at_least_these_function_slots ~this_function_slot
 
 let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
   let value_slot_types =
-    let type_of_var (v, kind) =
-      TG.alias_type_of (K.With_subkind.kind kind) (Simple.var v)
-    in
+    let type_of_var (v, kind) = TG.alias_type_of kind (Simple.var v) in
     let value_slot_components_by_index =
       Value_slot.Map.map type_of_var value_slots
     in
