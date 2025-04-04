@@ -294,7 +294,7 @@ install_for_test: _install
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray,runtime_events}; \
-	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
+	 ln -s ../stdlib/threads otherlibs/systhreads; \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
@@ -327,10 +327,10 @@ install_for_test: _install
 	mkdir -p _runtest/lib/ocaml/stublibs/
 	cp $(main_prefix)/lib/ocaml/stublibs/*.so _runtest/lib/ocaml/stublibs
 	# ocamldebug
-	mkdir _runtest/debugger$(RUNTIME_SUFFIX)
-	ln -s ../ocamldebug _runtest/debugger$(RUNTIME_SUFFIX)
-	cp $(main_build)/$(ocamldir)/debugger$(RUNTIME_SUFFIX)/.ocamldebug.objs/byte/*.cm* \
-	  _runtest/debugger$(RUNTIME_SUFFIX)
+	mkdir _runtest/debugger
+	ln -s ../ocamldebug _runtest/debugger
+	cp $(main_build)/$(ocamldir)/debugger/.ocamldebug.objs/byte/*.cm* \
+	  _runtest/debugger
 	# The ast_invariants test needs VERSION to be present.  In fact ideally
 	# we should have all the source files in _runtest too for this test,
 	# but for the moment we accept it being a weaker check.  We're not
