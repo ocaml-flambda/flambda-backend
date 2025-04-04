@@ -231,9 +231,8 @@ STACK_ALLOCATION=@stack_allocation@
 POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
 
-# Selection of OCaml 4.x or 5.x runtime
-RUNTIME_SUFFIX=@runtime_suffix@
-RUNTIME_DIR=runtime$(RUNTIME_SUFFIX)
+RUNTIME_SUFFIX=
+RUNTIME_DIR=runtime
 
 # Deprecated variables
 
