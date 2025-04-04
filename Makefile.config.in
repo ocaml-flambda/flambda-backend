@@ -231,8 +231,6 @@ STACK_ALLOCATION=@stack_allocation@
 POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
 
-RUNTIME_DIR=runtime
-
 # Deprecated variables
 
 ## Variables deprecated since OCaml 5.2

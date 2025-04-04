@@ -22,7 +22,7 @@
  (names stubs)
  (flags
   (:standard -msse4.2))
- (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+ (include_dirs "../../../runtime"))
 
 ; Tests with external assembler
 

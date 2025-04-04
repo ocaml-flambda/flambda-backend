@@ -45,7 +45,7 @@
   ../Makefile.config_if_required
   ../Makefile.build_config
   ../Makefile.config
-  ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/sak)
+  ../runtime/sak)
  (action
   (run make COMPUTE_DEPS=false %{targets})))
 
