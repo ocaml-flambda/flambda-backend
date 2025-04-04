@@ -52,6 +52,7 @@ type cmm_label = Label.t
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+(* Specific operations, include [Simd], must not raise. *)
 type specific_operation =
   | Ifar_poll
   | Ifar_alloc of { bytes : int; dbginfo : Cmm.alloc_dbginfo }

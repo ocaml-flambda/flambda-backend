@@ -121,8 +121,7 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
     else None
   | Never -> assert false
   | Always _ | Float_test _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
-    ->
+  | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
     None
 
 let is_last_instruction_const_int (body : C.basic C.instruction Dll.t) :
@@ -195,7 +194,7 @@ let block (cfg : C.t) (block : C.basic_block) : bool =
       simplify_switch block labels;
       false)
   | Raise _ | Return | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-  | Call _ | Prim _ | Specific_can_raise _ ->
+  | Call _ | Prim _ ->
     false
 
 let run cfg =

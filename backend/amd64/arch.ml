@@ -159,6 +159,7 @@ type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type float_width = Cmm.float_width
 
+(* Specific operations, include [Simd], must not raise. *)
 type specific_operation =
     Ilea of addressing_mode            (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
@@ -331,16 +332,6 @@ let operation_is_pure = function
   | Icldemote _ | Iprefetch _ -> false
   | Isimd op -> Simd.is_pure op
   | Isimd_mem (op, _addr) -> Simd.Mem.is_pure op
-
-(* Specific operations that can raise *)
-(* Keep in sync with [Vectorize_specific] *)
-let operation_can_raise = function
-  | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _
-  | Irdtsc | Irdpmc | Ipause | Isimd _ | Isimd_mem _
-  | Ilfence | Isfence | Imfence
-  | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Icldemote _ | Iprefetch _ -> false
 
 (* Keep in sync with [Vectorize_specific] *)
 let operation_allocates = function
