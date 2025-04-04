@@ -210,55 +210,13 @@ class selector =
       (* Other operations are regular *)
       | _ -> super#select_operation op args dbg ~label_after
 
-    method! emit_stores env sub_cfg dbg data regs_addr =
-      (* Override [emit_stores] to ensure that addressing mode always uses a
-         legal offset. *)
-      let offset = ref (-Arch.size_int) in
-      let base =
-        assert (Array.length regs_addr = 1);
-        ref regs_addr
-      in
-      List.iter
-        (fun arg ->
-          match self#emit_expr env sub_cfg arg ~bound_name:None with
-          | Never_returns -> assert false
-          | Ok regs ->
-            for i = 0 to Array.length regs - 1 do
-              let r = regs.(i) in
-              let kind : Cmm.memory_chunk =
-                match r.Reg.typ with
-                | Float -> Double
-                | Float32 -> Single { reg = Float32 }
-                | Vec128 ->
-                  (* 128-bit memory operations are default unaligned. Aligned
-                     (big)array operations are handled separately via cmm. *)
-                  Onetwentyeight_unaligned
-                | Val | Addr | Int -> Word_val
-                | Valx2 ->
-                  Misc.fatal_error "Unexpected machtype_component Valx2"
-              in
-              if not (is_offset kind !offset)
-              then (
-                (* Use a temporary to store the address [!base + offset]. *)
-                let tmp = self#regs_for Cmm.typ_int in
-                self#insert_debug env sub_cfg
-                  (self#lift_op
-                     (self#make_const_int (Nativeint.of_int !offset)))
-                  dbg [||] tmp;
-                self#insert_debug env sub_cfg
-                  (self#lift_op (Operation.Intop Iadd))
-                  dbg (Array.append !base tmp) tmp;
-                (* Use the temporary as the new base address. *)
-                base := tmp;
-                offset := 0);
-              self#insert_debug env sub_cfg
-                (self#make_store kind (Iindexed !offset) false)
-                dbg
-                (Array.append [| r |] !base)
-                [||];
-              offset := !offset + Select_utils.size_component r.Reg.typ
-            done)
-        data
+    method select_store_new _is_assign _addressing_mode _expr
+        : Cfg_selectgen_target_intf.select_store_result =
+      Maybe_out_of_range
+
+    method is_store_out_of_range chunk ~byte_offset
+        : Cfg_selectgen_target_intf.is_store_out_of_range_result =
+      if is_offset chunk byte_offset then Within_range else Out_of_range
 
     method! insert_move_extcall_arg env sub_cfg ty_arg src dst =
       let ty_arg_is_int32 =
