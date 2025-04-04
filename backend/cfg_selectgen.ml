@@ -195,7 +195,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       insert_debug env sub_cfg naming_op Debuginfo.none [||] [||]);
     env
 
-  (* Add an Iop opcode. Can be augmented by processor description to insert
+  (* Add an Iop opcode. Can be augmented by the processor description to insert
      moves before and after the operation, e.g. for two-address instructions, or
      instructions using dedicated registers. *)
 
@@ -434,6 +434,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       let loc = Proc.loc_results_return (Reg.typv r) in
       insert_moves env sub_cfg r loc;
       insert' env sub_cfg Cfg.Return loc [||]
+
   (* Buffering of instruction sequences *)
 
   let insert_debug _env sub_cfg basic dbg arg res =
