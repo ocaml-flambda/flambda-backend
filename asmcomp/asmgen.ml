@@ -313,6 +313,7 @@ let available_regs ~stack_slots ~f x =
 
 let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   let register_allocator = register_allocator fd_cmm in
+  let module CSE = Cfg_cse.Cse_generic (CSE) in
   let cfg_with_infos =
     cfg_with_layout
     ++ (fun cfg_with_layout ->
