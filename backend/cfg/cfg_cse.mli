@@ -17,8 +17,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* Common subexpression elimination by value numbering over extended basic
-   blocks. *)
+(* Common subexpression elimination by value numbering over basic blocks. *)
 
 module Cse_generic (_ : Cfg_cse_target_intf.S) : sig
   val cfg_with_layout : Cfg_with_layout.t -> Cfg_with_layout.t
