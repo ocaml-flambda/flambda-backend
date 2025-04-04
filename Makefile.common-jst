@@ -138,7 +138,6 @@ dune_config_targets = \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
   dune-project \
-  $(ocamldir)/dune.runtime_selection \
   $(ocamldir)/otherlibs/dune
 
 $(ocamldir)/otherlibs/dune:
@@ -146,13 +145,6 @@ $(ocamldir)/otherlibs/dune:
           echo "(dirs (:standard \ systhreads runtime_events))" > $@; \
 	else \
           echo "(dirs (:standard \ systhreads4))" > $@; \
-	fi
-
-$(ocamldir)/dune.runtime_selection:
-	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
-          echo "(dirs (:standard \ runtime debugger))" > $@; \
-	else \
-          echo "(dirs (:standard \ runtime4 debugger4))" > $@; \
 	fi
 
 _build/_bootinstall: Makefile.config $(dune_config_targets)

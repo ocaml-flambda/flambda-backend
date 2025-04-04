@@ -385,5 +385,4 @@ ocaml/primitives.new
 
 /otherlibs/dynlink/natdynlinkops
 
-dune.runtime_selection
 /otherlibs/dune
