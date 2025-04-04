@@ -92,6 +92,17 @@ class virtual selector_generic :
       Operation.t * Cmm.expression
     (* Can be overridden to deal with special store constant instructions *)
 
+    method virtual select_store_new :
+      bool ->
+      Arch.addressing_mode ->
+      Cmm.expression ->
+      Cfg_selectgen_target_intf.select_store_result
+
+    method virtual is_store_out_of_range :
+      Cmm.memory_chunk ->
+      byte_offset:int ->
+      Cfg_selectgen_target_intf.is_store_out_of_range_result
+
     method regs_for : Cmm.machtype -> Reg.t array
     (* Return an array of fresh registers of the given type. Default
        implementation is like Reg.createv. Can be overridden if float values are
