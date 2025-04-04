@@ -331,9 +331,9 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
       let i = label_count - 1 in
       fprintf ppf "case %d: goto %a" i Label.format labels.(i))
   | Call_no_return { func_symbol; _ } ->
-    fprintf ppf "Call_no_return %s%a" func_symbol print_args args
-  | Return -> fprintf ppf "Return%a" print_args args
-  | Raise _ -> fprintf ppf "Raise%a" print_args args
+    fprintf ppf "call_no_return %s%a" func_symbol print_args args
+  | Return -> fprintf ppf "return%a" print_args args
+  | Raise _ -> fprintf ppf "raise%a" print_args args
   | Tailcall_self { destination } ->
     dump_linear_call_op ppf
       (Linear.Ltailcall_imm
@@ -353,7 +353,7 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
       (match call with
       | Indirect -> Linear.Lcall_ind
       | Direct func -> Linear.Lcall_imm { func });
-    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
+    Format.fprintf ppf "%s\n           goto %a" sep Label.format label_after
   | Prim { op = prim; label_after } ->
     Format.fprintf ppf "%t%a" print_res dump_linear_call_op
       (match prim with
@@ -390,11 +390,13 @@ let print_basic' ?print_reg ppf (instruction : basic instruction) =
 let print_basic ppf i = print_basic' ppf i
 
 let print_terminator' ?print_reg ppf (ti : terminator instruction) =
-  dump_terminator' ?print_reg
-    ~specific_can_raise:(fun ppf op ->
-      (* Print this as basic instruction. *)
-      print_basic' ?print_reg ppf { ti with desc = Op (Specific op) })
-    ~res:ti.res ~args:ti.arg ~sep:"\n" ppf ti.desc
+  Format.fprintf ppf "%t%a%t" Cfg_colours.terminator
+    (dump_terminator' ?print_reg
+       ~specific_can_raise:(fun ppf op ->
+         (* Print this as basic instruction. *)
+         print_basic' ?print_reg ppf { ti with desc = Op (Specific op) })
+       ~res:ti.res ~args:ti.arg ~sep:"")
+    ti.desc Cfg_colours.pop
 
 let print_terminator ppf ti = print_terminator' ppf ti
 
