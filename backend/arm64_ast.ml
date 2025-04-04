@@ -118,6 +118,15 @@ module Reg = struct
     { reg_name; index }
 
   let name t = Reg_name.name t.reg_name t.index
+
+  (* for special GP registers we use the last index *)
+  let stack_pointer_x = create (GP SP) GP_reg_name.last
+
+  let stack_pointer_w = create (GP WSP) GP_reg_name.last [@@warning "-32"]
+
+  let zero_register_x = create (GP XZR) GP_reg_name.last [@@warning "-32"]
+
+  let zero_register_w = create (GP WZR) GP_reg_name.last [@@warning "-32"]
 end
 
 module Instruction_name = struct
@@ -149,6 +158,7 @@ module Instruction_name = struct
       | GT
       | LE
       | AL
+      | LO
 
     let to_string t =
       match t with
@@ -167,6 +177,7 @@ module Instruction_name = struct
       | GT -> "gt"
       | LE -> "le"
       | AL -> "al"
+      | LO -> "lo"
   end
 
   module Rounding_mode = struct
@@ -179,6 +190,37 @@ module Instruction_name = struct
 
     let to_string t =
       match t with M -> "m" | P -> "p" | Z -> "z" | X -> "x" | N -> "n"
+  end
+
+  module Memory_barrier = struct
+    type t =
+      | SY
+      | LD
+      | ST
+      | ISH
+      | ISHLD
+      | ISHST
+      | NSH
+      | NSHLD
+      | NSHST
+      | OSH
+      | OSHLD
+      | OSHST
+
+    let to_string b =
+      match b with
+      | SY -> "sy"
+      | LD -> "ld"
+      | ST -> "st"
+      | ISH -> "ish"
+      | ISHLD -> "ishld"
+      | ISHST -> "ishst"
+      | NSH -> "nsh"
+      | NSHLD -> "nshld"
+      | NSHST -> "nshst"
+      | OSH -> "osh"
+      | OSHLD -> "oshld"
+      | OSHST -> "oshst"
   end
 
   (* Don't split the type into base and neon to make emit easier to read and
@@ -201,9 +243,13 @@ module Instruction_name = struct
     | CNT
     | SMULH
     | UMULH
-    | B of Cond.t
+    | B
+    | BR
+    | B_cond of Cond.t
     | BL
     | BLR
+    | CMP
+    | CMN
     | CBNZ
     | CBZ
     | CSEL
@@ -213,6 +259,31 @@ module Instruction_name = struct
     | SXTW
     | UXTB
     | UXTH
+    | LDR
+    | LDRB
+    | LDRSB
+    | LDRH
+    | LDRSH
+    | LDRSW
+    | STR
+    | STRB
+    | STRH
+    | DMB of Memory_barrier.t
+    | DSB of Memory_barrier.t
+    | ISB
+    | SDIV
+    | MSUB
+    | MADD
+    | REV
+    | REV16
+    | UBFM
+    | SBFM
+    | TST
+    | TBNZ
+    | TBZ
+    | ADR
+    | STP
+    | BCC
     (* neon *)
     | MOV
     | MOVI
@@ -268,9 +339,13 @@ module Instruction_name = struct
     | CNT -> "cnt"
     | SMULH -> "smulh"
     | UMULH -> "umulh"
-    | B c -> "b." ^ Cond.to_string c
+    | B -> "b"
+    | BR -> "br"
+    | B_cond c -> "b." ^ Cond.to_string c
     | BL -> "bl"
     | BLR -> "blr"
+    | CMP -> "cmp"
+    | CMN -> "cmn"
     | CBNZ -> "cbnz"
     | CBZ -> "cbz"
     | CSEL -> "csel"
@@ -280,6 +355,31 @@ module Instruction_name = struct
     | SXTW -> "sxtw"
     | UXTB -> "uxtb"
     | UXTH -> "uxth"
+    | LDR -> "ldr"
+    | LDRB -> "ldrb"
+    | LDRSB -> "ldrsb"
+    | LDRH -> "ldrh"
+    | LDRSH -> "ldrsh"
+    | LDRSW -> "ldrsw"
+    | STR -> "str"
+    | STRB -> "strb"
+    | STRH -> "strh"
+    | DMB b -> "dmb\t" ^ Memory_barrier.to_string b
+    | DSB b -> "dsb\t" ^ Memory_barrier.to_string b
+    | ISB -> "isb"
+    | SDIV -> "sdiv"
+    | MSUB -> "msub"
+    | MADD -> "madd"
+    | REV -> "rev"
+    | REV16 -> "rev16"
+    | UBFM -> "ubfm"
+    | SBFM -> "sbfm"
+    | TST -> "tst"
+    | TBNZ -> "tbnz"
+    | TBZ -> "tbz"
+    | ADR -> "adr"
+    | STP -> "stp"
+    | BCC -> "bcc"
     (* neon *)
     | MOV -> "mov"
     | MOVI -> "movi"
@@ -323,6 +423,17 @@ module Operand = struct
     type t = int
 
     let print ppf t = Format.fprintf ppf "#%d" t
+  end
+
+  module SymbolOffset = struct
+    type t = string * int
+
+    let print ppf ((sym, ofs) : t) =
+      if ofs > 0
+      then Format.fprintf ppf "#:lo12:%s+%d" sym ofs
+      else if ofs < 0
+      then Format.fprintf ppf "#:lo12:%s-%d" sym (-ofs)
+      else Format.fprintf ppf "#:lo12:%s" sym
   end
 
   module Extend = struct
@@ -390,6 +501,7 @@ module Operand = struct
     (* CR gyorsh: only immediate offsets implemented. *)
     type t =
       | Offset of Reg.t * Imm.t
+      | SymbolOffset of Reg.t * string * Imm.t
       | Pre of Reg.t * Imm.t
       | Post of Reg.t * Imm.t
       | Literal of label
@@ -398,6 +510,8 @@ module Operand = struct
       let open Format in
       match t with
       | Offset (r, imm) -> fprintf ppf "[%s, %a]" (Reg.name r) Imm.print imm
+      | SymbolOffset (r, s, imm) ->
+        fprintf ppf "[%s, %a]" (Reg.name r) SymbolOffset.print (s, imm)
       | Pre (r, imm) -> fprintf ppf "[%s, %a]!" (Reg.name r) Imm.print imm
       | Post (r, imm) -> fprintf ppf "[%s], %a" (Reg.name r) Imm.print imm
       | Literal l -> fprintf ppf "%s" l
@@ -435,10 +549,13 @@ module Instruction = struct
   let print ppf t =
     let { name; operands } = t in
     let pp_sep = Operand.print_separator in
-    Format.fprintf ppf "%s\t%a"
-      (Instruction_name.to_string name)
-      (Format.pp_print_seq ~pp_sep Operand.print)
-      (Array.to_seq operands)
+    if Array.length operands = 0
+    then Format.fprintf ppf "%s" (Instruction_name.to_string name)
+    else
+      Format.fprintf ppf "%s\t%a"
+        (Instruction_name.to_string name)
+        (Format.pp_print_seq ~pp_sep Operand.print)
+        (Array.to_seq operands)
 end
 
 module Asm = struct
@@ -556,8 +673,13 @@ module DSL = struct
 
   let reg_q_operands = neon_operand_array Neon_reg_name.(Scalar Q)
 
+  let symbol (s : string) = Operand.Sym s
+
   let mem ~base ~offset =
     Operand.(Mem (Addressing_mode.Offset (reg_x.(base), offset)))
+
+  let mem_symbol ~base ~symbol ~offset =
+    Operand.(Mem (Addressing_mode.SymbolOffset (reg_x.(base), symbol, offset)))
 
   let mem_pre ~base ~offset =
     Operand.(Mem (Addressing_mode.Pre (reg_x.(base), offset)))
@@ -565,7 +687,7 @@ module DSL = struct
   let mem_post ~base ~offset =
     Operand.(Mem (Addressing_mode.Post (reg_x.(base), offset)))
 
-  let literal l = Operand.(Mem (Addressing_mode.Literal l))
+  let mem_literal l = Operand.(Mem (Addressing_mode.Literal l))
 
   let reg_v2s index =
     Operand.Reg (Reg.create (Reg_name.Neon (Vector V2S)) index)
@@ -586,6 +708,13 @@ module DSL = struct
   let reg_x index = reg_x_operands.(index)
 
   let reg_w index = reg_w_operands.(index)
+
+  let sp = Operand.Reg Reg.stack_pointer_x
+
+  let xzr = Operand.Reg Reg.zero_register_x
+
+  let mem_sp_offset ofs =
+    Operand.Mem (Operand.Addressing_mode.Offset (Reg.stack_pointer_x, ofs))
 
   let imm n = Operand.Imm n
 

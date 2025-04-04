@@ -46,13 +46,18 @@ let femit_int32 out n = Printf.fprintf out "0x%lx" n
 
 let emit_int32 n = femit_int32 !output_channel n
 
-let femit_symbol out s =
+let pp_symbol fmt s =
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
     match c with
-    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> output_char out c
-    | _ -> Printf.fprintf out "$%02x" (Char.code c)
+    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' ->
+      Format.pp_print_char fmt c
+    | _ -> Format.fprintf fmt "$%02x" (Char.code c)
   done
+
+let symbol_to_string s = Format.asprintf "%a" pp_symbol s
+
+let femit_symbol out s = output_string out (symbol_to_string s)
 
 let emit_symbol s = femit_symbol !output_channel s
 
