@@ -315,3 +315,32 @@ let unboxed_labels_of_type ty_path decl =
         labels rep decl.type_private
   | Type_record _
   | Type_variant _ | Type_abstract _ | Type_open -> []
+
+let constructor_unbound_type_vars cstr =
+  match cstr.cd_res with
+  | None -> TypeSet.empty
+  | Some res_ty ->
+    let tyl = tys_of_constr_args cstr.cd_args in
+    let bound_vars =
+      match get_desc res_ty with
+      | Tconstr (_, args, _) ->
+        args
+        |> List.to_seq
+        |> Seq.filter is_Tvar
+        |> Seq.map Transient_expr.repr
+        |> TypeSet.of_seq
+      | _ -> Misc.fatal_error "cd_res must be Tconstr"
+    in
+    let arg_vars_set =
+      free_vars (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+    in
+    TypeSet.diff arg_vars_set bound_vars
+
+let unbound_type_vars decl =
+  match decl.type_kind with
+  | Type_variant (cstrs, _, _) ->
+    List.fold_left (fun res cstr ->
+      TypeSet.union res (constructor_unbound_type_vars cstr))
+      TypeSet.empty
+      cstrs
+  | _  -> TypeSet.empty

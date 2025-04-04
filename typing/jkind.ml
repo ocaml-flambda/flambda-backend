@@ -820,8 +820,8 @@ module Layout_and_axes = struct
      of this function for these axes is undefined; do *not* look at the results for these
      axes.
   *)
-  let normalize (type layout l r1 r2) ~jkind_of_type ~(mode : r2 normalize_mode)
-      ~skip_axes
+  let normalize (type layout l r1 r2) ?(unbound_type_vars = Btype.TypeSet.empty)
+      ~jkind_of_type ~(mode : r2 normalize_mode) ~skip_axes
       ?(map_type_info :
          (type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
          option) (t : (layout, l * r1) layout_and_axes) :
@@ -990,8 +990,10 @@ module Layout_and_axes = struct
             in
             let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality
                 : Mod_bounds.t * (l * r2) with_bounds * Fuel_status.t =
-              match quality, mode with
-              | Best, _ | Not_best, Ignore_best ->
+              match quality, mode, Btype.TypeSet.mem ty unbound_type_vars with
+              | Best, _, _
+              | Not_best, Ignore_best, _
+              | Not_best, Require_best, true ->
                 (* The relevant axes are the intersection of the relevant axes within our
                    branch of the with-bounds tree, and the relevant axes on this
                    particular with-bound *)
@@ -1022,7 +1024,7 @@ module Layout_and_axes = struct
                 ( bounds,
                   With_bounds.join nested_with_bounds bs',
                   Fuel_status.both fuel_result1 fuel_result2 )
-              | Not_best, Require_best ->
+              | Not_best, Require_best, false ->
                 (* CR layouts v2.8: The type annotation on the next line is
                    necessary only because [loop] is
                    local. Bizarre. Investigate. *)
@@ -2193,32 +2195,21 @@ let for_boxed_variant cstrs =
           | Cstr_record lbls -> has_mutable_label lbls)
         cstrs
     in
-    let has_gadt_constructor =
-      List.exists
-        (fun cstr -> match cstr.cd_res with None -> false | Some _ -> true)
-        cstrs
+    let base =
+      (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
+        ~why:Boxed_variant
+      |> mark_best
     in
-    if has_gadt_constructor
-       (* CR layouts v2.8: This is sad, but I don't know how to account for
-          existentials in the with_bounds. See doc named "Existential
-          with_bounds". *)
-    then Builtin.value ~why:Boxed_variant
-    else
-      let base =
-        (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
-          ~why:Boxed_variant
-        |> mark_best
-      in
-      let add_cstr_args cstr jkind =
-        match cstr.cd_args with
-        | Cstr_tuple args ->
-          List.fold_right
-            (fun arg ->
-              add_with_bounds ~modality:arg.ca_modalities ~type_expr:arg.ca_type)
-            args jkind
-        | Cstr_record lbls -> add_labels_as_with_bounds lbls jkind
-      in
-      List.fold_right add_cstr_args cstrs base
+    let add_cstr_args cstr jkind =
+      match cstr.cd_args with
+      | Cstr_tuple args ->
+        List.fold_right
+          (fun arg ->
+            add_with_bounds ~modality:arg.ca_modalities ~type_expr:arg.ca_type)
+          args jkind
+      | Cstr_record lbls -> add_labels_as_with_bounds lbls jkind
+    in
+    List.fold_right add_cstr_args cstrs base
 
 let for_boxed_tuple elts =
   List.fold_right
@@ -2264,13 +2255,14 @@ type normalize_mode =
   | Require_best
   | Ignore_best
 
-let[@inline] normalize ~mode ~jkind_of_type t =
+let[@inline] normalize ?(unbound_type_vars = Btype.TypeSet.empty) ~mode
+    ~jkind_of_type t =
   let mode : _ Layout_and_axes.normalize_mode =
     match mode with Require_best -> Require_best | Ignore_best -> Ignore_best
   in
   let jkind, fuel_result =
-    Layout_and_axes.normalize ~jkind_of_type ~skip_axes:Axis_set.empty ~mode
-      t.jkind
+    Layout_and_axes.normalize ~unbound_type_vars ~jkind_of_type
+      ~skip_axes:Axis_set.empty ~mode t.jkind
   in
   { t with
     jkind;
