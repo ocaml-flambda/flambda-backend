@@ -14,12 +14,9 @@ let split_more_destruction_points : bool Lazy.t =
 let bool_of_param param_name =
   bool_of_param ~guard:(split_debug, "split_debug") param_name
 
-let split_verbose : bool Lazy.t = bool_of_param "SPLIT_VERBOSE"
-
 let split_invariants : bool Lazy.t = bool_of_param "SPLIT_INVARIANTS"
 
-let log_function =
-  lazy (make_log_function ~verbose:(Lazy.force split_verbose) ~label:"split")
+let log_function = lazy (make_log_function ~label:"split")
 
 let log :
     type a.

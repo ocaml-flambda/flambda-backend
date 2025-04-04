@@ -105,7 +105,7 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
          present at the end of every "block". *)
       incr pos);
   Reg.Tbl.iter (fun reg (range : Range.t) -> add_range reg range) current_ranges;
-  if ls_debug && Lazy.force ls_verbose
+  if ls_debug && Lazy.force verbose
   then
     iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
         log ~indent:2 "(block %a)" Label.format block.start;
@@ -283,7 +283,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     (module Utils)
     state
     ~f:(fun () ->
-      if ls_debug && Lazy.force ls_verbose
+      if ls_debug && Lazy.force verbose
       then
         let liveness = Cfg_with_infos.liveness cfg_with_infos in
         iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->

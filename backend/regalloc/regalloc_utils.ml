@@ -52,6 +52,8 @@ let validator_debug = bool_of_param "VALIDATOR_DEBUG"
 
 let block_temporaries = bool_of_param "BLOCK_TEMPORARIES"
 
+let verbose : bool Lazy.t = bool_of_param "VERBOSE"
+
 type liveness = Cfg_with_infos.liveness
 
 let make_indent n = String.make (2 * n) ' '
@@ -63,10 +65,11 @@ type log_function =
     enabled : bool
   }
 
-let make_log_function : verbose:bool -> label:string -> log_function =
- fun ~verbose ~label ->
+let make_log_function : label:string -> log_function =
+ fun ~label ->
+  let enabled = Lazy.force verbose in
   let log =
-    if verbose
+    if enabled
     then
       fun ~indent ?no_eol fmt ->
       Format.eprintf
@@ -74,7 +77,7 @@ let make_log_function : verbose:bool -> label:string -> log_function =
         label (make_indent indent)
     else fun ~indent:_ ?no_eol:_ fmt -> Format.(ifprintf err_formatter) fmt
   in
-  { log; enabled = verbose }
+  { log; enabled }
 
 module Instruction = struct
   type id = InstructionId.t

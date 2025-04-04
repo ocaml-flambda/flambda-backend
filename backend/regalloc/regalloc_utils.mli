@@ -13,6 +13,8 @@ val find_param_value : string -> string option
 val bool_of_param :
   ?guard:bool * string -> ?default:bool -> string -> bool Lazy.t
 
+val verbose : bool Lazy.t
+
 val validator_debug : bool Lazy.t
 
 val block_temporaries : bool Lazy.t
@@ -26,7 +28,7 @@ type log_function =
     enabled : bool
   }
 
-val make_log_function : verbose:bool -> label:string -> log_function
+val make_log_function : label:string -> log_function
 
 module Instruction : sig
   type id = InstructionId.t

@@ -11,12 +11,9 @@ let gi_rng = Random.State.make [| 4; 6; 2 |]
 let bool_of_param param_name =
   bool_of_param ~guard:(gi_debug, "gi_debug") param_name
 
-let gi_verbose : bool Lazy.t = bool_of_param "GI_VERBOSE"
-
 let gi_invariants : bool Lazy.t = bool_of_param "GI_INVARIANTS"
 
-let log_function =
-  lazy (make_log_function ~verbose:(Lazy.force gi_verbose) ~label:"gi")
+let log_function = lazy (make_log_function ~label:"gi")
 
 let log :
     type a.
@@ -520,7 +517,7 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     (fun _reg (interval : Interval.t) ->
       interval.ranges <- List.rev interval.ranges)
     past_ranges;
-  if gi_debug && Lazy.force gi_verbose
+  if gi_debug && Lazy.force verbose
   then
     iter_cfg_layout cfg_with_layout ~f:(fun block ->
         log ~indent:2 "(block %a)" Label.format block.start;
