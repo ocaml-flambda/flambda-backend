@@ -559,7 +559,17 @@ let constructor_declaration copy_scope s c =
     cd_uid = c.cd_uid;
   }
 
+let unsafe_mode_crossing copy_scope s loc
+      { unsafe_mod_bounds; unsafe_with_bounds } =
+  { unsafe_mod_bounds;
+    unsafe_with_bounds =
+      Jkind.With_bounds.map_type_expr (typexp copy_scope s loc)
+        unsafe_with_bounds }
+
 let rec type_declaration' copy_scope s decl =
+  let unsafe_mode_crossing =
+    Option.map (unsafe_mode_crossing copy_scope s decl.type_loc)
+  in
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
@@ -567,12 +577,17 @@ let rec type_declaration' copy_scope s decl =
         Type_abstract r -> Type_abstract r
       | Type_variant (cstrs, rep, umc) ->
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
-                        rep, umc)
+                        rep,
+                        unsafe_mode_crossing umc)
       | Type_record(lbls, rep, umc) ->
-          Type_record (List.map (label_declaration copy_scope s) lbls, rep, umc)
+          Type_record (List.map (label_declaration copy_scope s) lbls,
+                       rep,
+                       unsafe_mode_crossing umc)
       | Type_record_unboxed_product(lbls, rep, umc) ->
           Type_record_unboxed_product
-            (List.map (label_declaration copy_scope s) lbls, rep, umc)
+            (List.map (label_declaration copy_scope s) lbls,
+             rep,
+             unsafe_mode_crossing umc)
       | Type_open -> Type_open
       end;
     type_manifest =
