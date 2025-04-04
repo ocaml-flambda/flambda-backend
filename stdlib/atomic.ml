@@ -12,15 +12,25 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type !'a t : mutable_data with 'a
+type (!'a : value_or_null) t : mutable_data with 'a
 
-external make : 'a -> ('a t[@local_opt]) @@ portable = "%makemutable"
-external make_contended : 'a -> ('a t[@local_opt]) @@ portable = "caml_atomic_make_contended"
-external get : 'a t @ local -> 'a @@ portable = "%atomic_load"
-external set : 'a t @ local -> 'a -> unit @@ portable = "%atomic_set"
-external exchange : 'a t @ local -> 'a -> 'a @@ portable = "%atomic_exchange"
-external compare_and_set : 'a t @ local -> 'a -> 'a -> bool @@ portable = "%atomic_cas"
-external compare_exchange : 'a t @ local -> 'a -> 'a -> 'a @@ portable = "%atomic_compare_exchange"
+external make : ('a : value_or_null).
+  'a -> ('a t[@local_opt]) @@ portable = "%makemutable"
+external make_contended : ('a : value_or_null).
+  'a -> ('a t[@local_opt]) @@ portable = "caml_atomic_make_contended"
+external get : ('a : value_or_null).
+  'a t @ local -> 'a @@ portable = "%atomic_load"
+external set : ('a : value_or_null).
+  'a t @ local -> 'a -> unit @@ portable = "%atomic_set"
+external exchange : ('a : value_or_null).
+  'a t @ local -> 'a -> 'a @@ portable =
+  "%atomic_exchange"
+external compare_and_set : ('a : value_or_null).
+  'a t @ local -> 'a -> 'a -> bool @@ portable =
+  "%atomic_cas"
+external compare_exchange : ('a : value_or_null).
+  'a t @ local -> 'a -> 'a -> 'a @@ portable =
+  "%atomic_compare_exchange"
 external fetch_and_add : int t @ contended local -> int -> int @@ portable = "%atomic_fetch_add"
 external add : int t @ contended local -> int -> unit @@ portable = "%atomic_add"
 external sub : int t @ contended local -> int -> unit @@ portable = "%atomic_sub"
@@ -32,9 +42,14 @@ let incr r = add r 1
 let decr r = sub r 1
 
 module Contended = struct
-  external get : ('a : value mod contended). 'a t @ contended local -> 'a @@ portable = "%atomic_load"
-  external set : ('a : value mod portable). 'a t @ contended local -> 'a -> unit @@ portable = "%atomic_set"
-  external exchange : ('a : value mod contended portable). 'a t @ contended local -> 'a -> 'a @@ portable = "%atomic_exchange"
-  external compare_and_set : ('a : value mod portable). 'a t @ contended local -> 'a -> 'a -> bool @@ portable = "%atomic_cas"
-  external compare_exchange : ('a : value mod contended portable). 'a t @ contended local -> 'a -> 'a -> 'a @@ portable = "%atomic_compare_exchange"
+  external get : ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a @@ portable = "%atomic_load"
+  external set : ('a : value_or_null mod portable).
+    'a t @ contended local -> 'a -> unit @@ portable = "%atomic_set"
+  external exchange : ('a : value_or_null mod contended portable).
+    'a t @ contended local -> 'a -> 'a @@ portable = "%atomic_exchange"
+  external compare_and_set : ('a : value_or_null mod portable).
+    'a t @ contended local -> 'a -> 'a -> bool @@ portable = "%atomic_cas"
+  external compare_exchange : ('a : value_or_null mod contended portable).
+    'a t @ contended local -> 'a -> 'a -> 'a @@ portable = "%atomic_compare_exchange"
 end
