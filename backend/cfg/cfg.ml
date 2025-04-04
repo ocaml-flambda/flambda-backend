@@ -123,9 +123,7 @@ let successor_labels_normal ti =
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
-  | Call { op = _; label_after }
-  | Prim { op = _; label_after }
-  | Specific_can_raise { op = _; label_after } ->
+  | Call { op = _; label_after } | Prim { op = _; label_after } ->
     Label.Set.singleton label_after
 
 let successor_labels ~normal ~exn block =
@@ -179,8 +177,6 @@ let replace_successor_labels t ~normal ~exn block ~f =
         block.terminator.desc
       | Call { op; label_after } -> Call { op; label_after = f label_after }
       | Prim { op; label_after } -> Prim { op; label_after = f label_after }
-      | Specific_can_raise { op; label_after } ->
-        Specific_can_raise { op; label_after = f label_after }
     in
     block.terminator <- { block.terminator with desc }
 
@@ -272,7 +268,6 @@ let dump_basic ppf (basic : basic) =
     fprintf ppf "Stack_check size=%d" max_frame_size_bytes
 
 let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
-    ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
     ?(sep = "\n") ppf (terminator : terminator) =
   let first_arg =
     if Array.length args >= 1
@@ -365,9 +360,6 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Linear.Lprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %a" sep Label.format label_after
-  | Specific_can_raise { op; label_after } ->
-    Format.fprintf ppf "%a" specific_can_raise op;
-    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -390,11 +382,7 @@ let print_basic' ?print_reg ppf (instruction : basic instruction) =
 let print_basic ppf i = print_basic' ppf i
 
 let print_terminator' ?print_reg ppf (ti : terminator instruction) =
-  dump_terminator' ?print_reg
-    ~specific_can_raise:(fun ppf op ->
-      (* Print this as basic instruction. *)
-      print_basic' ?print_reg ppf { ti with desc = Op (Specific op) })
-    ~res:ti.res ~args:ti.arg ~sep:"\n" ppf ti.desc
+  dump_terminator' ?print_reg ~res:ti.res ~args:ti.arg ~sep:"\n" ppf ti.desc
 
 let print_terminator ppf ti = print_terminator' ppf ti
 
@@ -419,9 +407,6 @@ let can_raise_terminator (i : terminator) =
       (* Even if going via [caml_c_call], if there are no effects, the function
          cannot raise an exception. (Example: [caml_obj_dup].) *)
       match effects with No_effects -> false | Arbitrary_effects -> true)
-  | Specific_can_raise { op; _ } ->
-    assert (Arch.operation_can_raise op);
-    true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Tailcall_self _ ->
     false
@@ -436,9 +421,6 @@ let is_pure_terminator desc =
   | Return | Raise _ | Call_no_return _ | Tailcall_func _ | Tailcall_self _
   | Call _ | Prim _ ->
     false
-  | Specific_can_raise { op; _ } ->
-    assert (Arch.operation_can_raise op);
-    false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
@@ -449,7 +431,7 @@ let is_never_terminator desc =
   | Never -> true
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-  | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+  | Call_no_return _ | Call _ | Prim _ ->
     false
 
 let is_return_terminator desc =
@@ -457,7 +439,7 @@ let is_return_terminator desc =
   | Return -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-  | Call _ | Prim _ | Specific_can_raise _ ->
+  | Call _ | Prim _ ->
     false
 
 let is_pure_basic : basic -> bool = function
@@ -605,8 +587,7 @@ let basic_block_contains_calls block =
      | Call_no_return _ -> true
      | Call _ -> true
      | Prim { op = External _; _ } -> true
-     | Prim { op = Probe _; _ } -> true
-     | Specific_can_raise _ -> false)
+     | Prim { op = Probe _; _ } -> true)
   || DLL.exists block.body ~f:(fun (instr : basic instruction) ->
          match[@ocaml.warning "-4"] instr.desc with
          | Op (Alloc _ | Poll) -> true
