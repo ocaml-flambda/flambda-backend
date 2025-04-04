@@ -440,6 +440,7 @@ let record_frame_label live dbg =
     ~live_offset:!live_offset dbg;
   lbl
 
+(* CR sspies: turn this back into a non-format version *)
 let frecord_frame out (live, dbg) =
   let lbl = record_frame_label live dbg in Printf.fprintf out "%a:" femit_label lbl
 
