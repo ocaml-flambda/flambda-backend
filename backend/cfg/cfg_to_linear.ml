@@ -197,8 +197,6 @@ let linearize_terminator cfg_with_layout (func : string) start
           Lprobe { name; handler_code_sym; enabled_at_init }
       in
       branch_or_fallthrough [L.Lcall_op op] label_after, None
-    | Specific_can_raise { op; label_after } ->
-      branch_or_fallthrough [L.Lop (Specific op)] label_after, None
     | Switch labels -> single (L.Lswitch labels)
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
     | Always label -> branch_or_fallthrough [] label, None
@@ -340,7 +338,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-      | Call _ | Prim _ | Specific_can_raise _ ->
+      | Call _ | Prim _ ->
         (* If the label came from the original [Linear] code, preserve it for
            checking that the conversion from [Linear] to [Cfg] and back is the
            identity; and for various assertions in reorder. *)

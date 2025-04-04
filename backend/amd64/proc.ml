@@ -617,12 +617,6 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     assert (stack_ofs >= 0);
     if alloc || stack_ofs > 0 then all_phys_regs else destroyed_at_c_call
   | Call {op = Indirect | Direct _; _} -> all_phys_regs
-  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
-                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                       | Icldemote _ | Iprefetch _); _ } ->
-    Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
    We current return `true` when `destroyed_at_terminator` returns
@@ -647,12 +641,6 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
       if alloc then true else false
   | Call {op = Indirect | Direct _; _} ->
     true
-  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
-                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                       | Icldemote _ | Iprefetch _); _ } ->
-    Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* Layout of the stack frame *)
 

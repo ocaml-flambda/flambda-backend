@@ -103,9 +103,7 @@ let is_pure = function
   | Opaque -> false
   | Begin_region -> false
   | End_region -> false
-  | Specific s ->
-    assert (not (Arch.operation_can_raise s));
-    Arch.operation_is_pure s
+  | Specific s -> Arch.operation_is_pure s
   | Name_for_debugger _ -> false
   | Dls_get -> true
   | Poll -> false

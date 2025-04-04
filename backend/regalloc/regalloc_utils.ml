@@ -390,7 +390,7 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
         assert removed
       | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
       | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-      | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+      | Call_no_return _ | Call _ | Prim _ ->
         assert false
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
@@ -471,8 +471,7 @@ let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
       | Prim { op = Probe _; _ } -> ()
       | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
       | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-      | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
-      | Specific_can_raise _ ->
+      | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
         update_instr cost block.terminator)
 
 let check_length str arr expected =

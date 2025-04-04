@@ -291,5 +291,3 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
     May_still_have_spilled_registers
   | Prim {op = Probe _; _} ->
     may_use_stack_operands_everywhere map term
-  | Specific_can_raise _ ->
-    fatal "no instructions specific for this architecture can raise"

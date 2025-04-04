@@ -52,6 +52,7 @@ type cmm_label = Label.t
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+(* Specific operations, including [Simd], must not raise. *)
 type specific_operation =
   | Ifar_poll
   | Ifar_alloc of { bytes : int; dbginfo : Cmm.alloc_dbginfo }
@@ -318,23 +319,6 @@ let operation_is_pure : specific_operation -> bool = function
   | Isimd op -> Simd.operation_is_pure op
 
 (* Specific operations that can raise *)
-
-let operation_can_raise = function
-  | Ifar_alloc _
-  | Ifar_poll -> true
-  | Imuladd
-  | Imulsub
-  | Inegmulf
-  | Imuladdf
-  | Inegmuladdf
-  | Imulsubf
-  | Inegmulsubf
-  | Isqrtf
-  | Imove32
-  | Ishiftarith (_, _)
-  | Isignext _
-  | Ibswap _
-  | Isimd _ -> false
 
 let operation_allocates = function
   | Ifar_alloc _ -> true

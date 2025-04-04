@@ -41,11 +41,6 @@ let is_nontail_call : Cfg.terminator -> bool =
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Prim _ ->
     false
-  | Specific_can_raise _ ->
-    (* Specific operations cannot raise, and hence cannot call OCaml functions;
-       for the purpose of this check it is thus fine to return `false` even
-       though a specific operation may call some C code. *)
-    false
 
 (* Returns the stack check info, and the max of seen instruction ids. *)
 let block_preproc_stack_check_result :

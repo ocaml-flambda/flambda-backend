@@ -442,9 +442,6 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
          one of their arguments is always a memory load. For simplicity, we just
          forget everything. *)
       empty_numbering
-    | Specific_can_raise _ ->
-      (* CR-soon xclerc for xclerc: is it too conservative? *)
-      empty_numbering
 
   let cse_blocks : State.t -> Cfg.t -> unit =
    fun state cfg ->
