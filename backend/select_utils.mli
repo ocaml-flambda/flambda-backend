@@ -228,124 +228,109 @@ module Stack_offset_and_exn : sig
   val update_cfg : Cfg.t -> unit
 end
 
-(* val make_stack_offset : int -> Cfg.basic
+val make_stack_offset : int -> Cfg.basic
 
-   val make_name_for_debugger : ident:Ident.t -> which_parameter:int option ->
-   provenance:Backend_var.Provenance.t option -> is_assignment:bool ->
-   regs:Reg.t array -> Cfg.basic
+val make_name_for_debugger :
+  ident:Ident.t ->
+  which_parameter:int option ->
+  provenance:Backend_var.Provenance.t option ->
+  is_assignment:bool ->
+  regs:Reg.t array ->
+  Cfg.basic
 
-   val make_const_int : nativeint -> Operation.t
+val make_const_int : nativeint -> Operation.t
 
-   val make_const_float32 : int32 -> Operation.t
+val make_const_float32 : int32 -> Operation.t
 
-   val make_const_float : int64 -> Operation.t
+val make_const_float : int64 -> Operation.t
 
-   val make_const_vec128 : Cmm.vec128_bits -> Operation.t
+val make_const_vec128 : Cmm.vec128_bits -> Operation.t
 
-   val make_const_symbol : Cmm.symbol -> Operation.t
+val make_const_symbol : Cmm.symbol -> Operation.t
 
-   val make_opaque : unit -> Operation.t
+val make_opaque : unit -> Operation.t
 
-   val regs_for : Cmm.machtype -> Reg.t array
+val regs_for : Cmm.machtype -> Reg.t array
 
-   val basic_op : Operation.t -> basic_or_terminator
+val basic_op : Operation.t -> Cfg.basic_or_terminator
 
-   val insert_debug : environment -> Sub_cfg.t -> Cfg.basic -> Debuginfo.t ->
-   Reg.t array -> Reg.t array -> unit
+val insert_debug :
+  environment ->
+  Sub_cfg.t ->
+  Cfg.basic ->
+  Debuginfo.t ->
+  Reg.t array ->
+  Reg.t array ->
+  unit
 
-   val insert_op_debug_returning_id : environment -> Sub_cfg.t -> Operation.t ->
-   Debuginfo.t -> Reg.t array -> Reg.t array -> InstructionId.t
+val insert_op_debug_returning_id :
+  environment ->
+  Sub_cfg.t ->
+  Operation.t ->
+  Debuginfo.t ->
+  Reg.t array ->
+  Reg.t array ->
+  InstructionId.t
 
-   val insert : environment -> Sub_cfg.t -> Cfg.basic -> Reg.t array -> Reg.t
-   array -> unit
+val insert :
+  environment -> Sub_cfg.t -> Cfg.basic -> Reg.t array -> Reg.t array -> unit
 
-   val insert' : environment -> Sub_cfg.t -> Cfg.terminator -> Reg.t array ->
-   Reg.t array -> unit
+val insert' :
+  environment ->
+  Sub_cfg.t ->
+  Cfg.terminator ->
+  Reg.t array ->
+  Reg.t array ->
+  unit
 
-   val insert_debug' : environment -> Sub_cfg.t -> Cfg.terminator -> Debuginfo.t
-   -> Reg.t array -> Reg.t array -> unit
+val insert_debug' :
+  environment ->
+  Sub_cfg.t ->
+  Cfg.terminator ->
+  Debuginfo.t ->
+  Reg.t array ->
+  Reg.t array ->
+  unit
 
-   val insert_op_debug' : environment -> Sub_cfg.t -> Cfg.terminator ->
-   Debuginfo.t -> Reg.t array -> Reg.t array -> Reg.t array
+val insert_op_debug' :
+  environment ->
+  Sub_cfg.t ->
+  Cfg.terminator ->
+  Debuginfo.t ->
+  Reg.t array ->
+  Reg.t array ->
+  Reg.t array
 
-   val insert_move : environment -> Sub_cfg.t -> Reg.t -> Reg.t -> unit
+val insert_move : environment -> Sub_cfg.t -> Reg.t -> Reg.t -> unit
 
-   val insert_moves : environment -> Sub_cfg.t -> Reg.t array -> Reg.t array ->
-   unit
+val insert_moves :
+  environment -> Sub_cfg.t -> Reg.t array -> Reg.t array -> unit
 
-   val insert_move_args : environment -> Sub_cfg.t -> Reg.t array -> Reg.t array
-   -> int -> unit
+val insert_move_args :
+  environment -> Sub_cfg.t -> Reg.t array -> Reg.t array -> int -> unit
 
-   val insert_move_results : environment -> Sub_cfg.t -> Reg.t array -> Reg.t
-   array -> int -> unit
-
-   val insert_op_debug : environment -> Sub_cfg.t -> Operation.t -> Debuginfo.t
-   -> Reg.t array -> Reg.t array -> Reg.t array
-
-   val insert_op : environment -> Sub_cfg.t -> Operation.t -> Reg.t array ->
-   Reg.t array -> Reg.t array *)
+val insert_move_results :
+  environment -> Sub_cfg.t -> Reg.t array -> Reg.t array -> int -> unit
 
 val maybe_emit_naming_op :
   environment ->
   Sub_cfg.t ->
   bound_name:Backend_var.With_provenance.t option ->
-  < insert_debug :
-      environment ->
-      Sub_cfg.t ->
-      Cfg_intf.S.basic ->
-      Debuginfo.t ->
-      Reg.t array ->
-      Reg.t array ->
-      unit
-  ; .. > ->
   Reg.t array ->
   unit
 
 val join :
   environment ->
   Reg.t array Or_never_returns.t ->
-  < insert_debug :
-      environment ->
-      Sub_cfg.t ->
-      Cfg_intf.S.basic ->
-      Debuginfo.t ->
-      Reg.t array ->
-      Reg.t array ->
-      unit
-  ; insert_move : environment -> Sub_cfg.t -> Reg.t -> Reg.t -> unit
-  ; .. > ->
   Sub_cfg.t ->
   Reg.t array Or_never_returns.t ->
-  < insert_debug :
-      environment ->
-      Sub_cfg.t ->
-      Cfg_intf.S.basic ->
-      Debuginfo.t ->
-      Reg.t array ->
-      Reg.t array ->
-      unit
-  ; insert_move : environment -> Sub_cfg.t -> Reg.t -> Reg.t -> unit
-  ; .. > ->
   Sub_cfg.t ->
   bound_name:Backend_var.With_provenance.t option ->
   Reg.t array Or_never_returns.t
 
 val join_array :
   environment ->
-  (Reg.t array Or_never_returns.t
-  * < insert_debug :
-        environment ->
-        Sub_cfg.t ->
-        Cfg_intf.S.basic ->
-        Debuginfo.t ->
-        Reg.t array ->
-        Reg.t array ->
-        unit
-    ; insert_moves :
-        environment -> Sub_cfg.t -> Reg.t array -> Reg.t array -> unit
-    ; .. >
-  * Sub_cfg.t)
-  array ->
+  (Reg.t array Or_never_returns.t * Sub_cfg.t) array ->
   bound_name:Backend_var.With_provenance.t option ->
   Reg.t array Or_never_returns.t
 
