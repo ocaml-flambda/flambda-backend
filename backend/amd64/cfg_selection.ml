@@ -119,7 +119,7 @@ let one_arg name args =
    [effects_of], below. *)
 let inline_ops = ["sqrt"]
 
-let is_immediate_int n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
+let int_is_immediate n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
 
 let is_immediate_natint n =
   Nativeint.compare n 0x7FFF_FFFFn <= 0
@@ -230,11 +230,11 @@ let is_immediate (op : Simple_operation.integer_operation) n :
     Cfg_selectgen_target_intf.is_immediate_result =
   match op with
   | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ ->
-    Is_immediate (is_immediate_int n)
+    Is_immediate (int_is_immediate n)
   | _ -> Use_default
 
 let is_immediate_test _cmp n : Cfg_selectgen_target_intf.is_immediate_result =
-  Is_immediate (is_immediate_int n)
+  Is_immediate (int_is_immediate n)
 
 let is_simple_expr (expr : Cmm.expression) :
     Cfg_selectgen_target_intf.is_simple_expr_result =
@@ -255,7 +255,7 @@ let select_addressing (_chunk : Cmm.memory_chunk) exp :
     addressing_mode * Cmm.expression =
   let a, d = select_addr exp in
   (* PR#4625: displacement must be a signed 32-bit immediate *)
-  if not (is_immediate_int d)
+  if not (int_is_immediate d)
   then Iindexed 0, exp
   else
     match a with
@@ -272,7 +272,7 @@ let select_addressing (_chunk : Cmm.memory_chunk) exp :
 let select_store ~is_assign addr (exp : Cmm.expression) :
     Cfg_selectgen_target_intf.select_store_result =
   match exp with
-  | Cconst_int (n, _dbg) when is_immediate_int n ->
+  | Cconst_int (n, _dbg) when int_is_immediate n ->
     Rewritten
       (Specific (Istore_int (Nativeint.of_int n, addr, is_assign)), Ctuple [])
   | Cconst_natint (n, _dbg) when is_immediate_natint n ->
@@ -378,7 +378,7 @@ let select_operation
   | Cstore (((Word_int | Word_val) as chunk), _init) -> (
     match args with
     | [loc; Cop (Caddi, [Cop (Cload _, [loc'], _); Cconst_int (n, _dbg)], _)]
-      when Stdlib.( = ) loc loc' && is_immediate_int n ->
+      when Stdlib.( = ) loc loc' && int_is_immediate n ->
       let addr, arg = select_addressing chunk loc in
       Rewritten (specific (Ioffset_loc (n, addr)), [arg])
     | _ -> Use_default)

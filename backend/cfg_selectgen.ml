@@ -622,6 +622,10 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
               | Out_of_range ->
                 (* Use a temporary to store the address [!base + offset]. *)
                 let tmp = regs_for Cmm.typ_int in
+                (* CR-someday xclerc: Now that this code in the "generic" part,
+                   it is maybe a bit unexpected to assume there is no better
+                   sequence to emit x += k. That being said, it is a corner
+                   case. *)
                 insert_debug env sub_cfg
                   (Cfg.Op (make_const_int (Nativeint.of_int !byte_offset)))
                   dbg [||] tmp;
