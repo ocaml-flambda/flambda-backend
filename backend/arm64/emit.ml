@@ -587,21 +587,6 @@ let comp_for_comparison : integer_comparison -> Arm64_ast.Instruction_name.Cond.
   | Iunsigned Ceq -> EQ | Iunsigned Cne -> NE | Iunsigned Cle -> LS
   | Iunsigned Cge -> CS | Iunsigned Clt -> CC | Iunsigned Cgt -> HI
 
-(* let name_for_int_operation = function
-  | Iadd -> "add"
-  | Isub -> "sub"
-  | Imul -> "mul"
-  | Idiv -> "sdiv"
-  | Iand -> "and"
-  | Ior  -> "orr"
-  | Ixor -> "eor"
-  | Ilsl -> "lsl"
-  | Ilsr -> "lsr"
-  | Iasr -> "asr"
-  | Iclz { arg_is_non_zero = _ } -> "clz"
-  | Ipopcnt -> "cnt"
-  | Ictz _ | Icomp _ | Imod | Imulh _-> assert false *)
-
 let instr_for_int_operation = function
   | Iadd -> I.ADD
   | Isub -> I.SUB
