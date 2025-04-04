@@ -54,6 +54,61 @@ module Reg : sig
   type t
 
   val create : Reg_name.t -> int -> t
+
+  val reg_x : int -> t
+
+  val reg_w : int -> t
+
+  val reg_d : int -> t
+
+  val reg_s : int -> t
+
+  val reg_q : int -> t
+
+  val wzr : t
+
+  val xzr : t
+
+  val wsp : t
+
+  val sp : t
+end
+
+module Symbol : sig
+  type t
+
+  type reloc_directive =
+    | LOWER_TWELVE
+    | GOT_PAGE
+    | GOT_PAGE_OFF
+    | GOT
+    | GOT_LOWER_TWELVE
+    | PAGE
+    | PAGE_OFF
+
+  val create : ?reloc:reloc_directive -> ?offset:int -> string -> t
+end
+
+module Operand : sig
+  type t
+
+  module Imm : sig
+    type t = int
+  end
+
+  module Shift : sig
+    module Kind : sig
+      type t =
+        | LSL
+        | ASR
+        | LSR
+    end
+
+    type t =
+      { kind : Kind.t;
+        amount : Imm.t
+      }
+  end
 end
 
 module Instruction_name : sig
@@ -62,7 +117,13 @@ module Instruction_name : sig
       | EQ
       | GT
       | LE
+      | GE
       | LT
+      | NE
+      | CC
+      | CS
+      | LS
+      | HI
   end
 
   module Cond : sig
@@ -135,9 +196,12 @@ module Instruction_name : sig
     | CNT
     | SMULH
     | UMULH
+    | ORR
+    | EOR
     | B
     | BR
     | B_cond of Cond.t
+    | B_cond_float of Float_cond.t
     | BL
     | BLR
     | CMP
@@ -157,6 +221,8 @@ module Instruction_name : sig
     | LDRH
     | LDRSH
     | LDRSW
+    | LDP
+    | LDAR
     | STR
     | STRB
     | STRH
@@ -174,12 +240,17 @@ module Instruction_name : sig
     | TBNZ
     | TBZ
     | ADR
+    | ADRP
     | STP
     (* CR sspies: Remove [BCC], since it is an alias of [B_cond LO] *)
     | BCC
+    | RET
     (* neon *)
     | MOV
     | MOVI
+    | MOVN
+    | MOVK
+    | MOVZ
     | FMOV
     | FADD
     | FSUB
@@ -214,11 +285,45 @@ module Instruction_name : sig
     | ADDV
 end
 
-module Operand : sig
-  type t
-end
-
 module DSL : sig
+  val reg_op : Reg.t -> Operand.t
+
+  val imm : int -> Operand.t
+
+  val imm_float : float -> Operand.t
+
+  val imm_nativeint : nativeint -> Operand.t
+
+  (* ARM symbol operand; string must be converted to the OS specific
+     representation first *)
+  (* An ARM symbol can be used for both labels and symbols from the symbol
+     table; the respective conversion must be applied first *)
+  val symbol : Symbol.t -> Operand.t
+
+  val immediate_symbol : Symbol.t -> Operand.t
+
+  val shift : Operand.Shift.t -> Operand.t
+
+  (* Note: Memory accesses are only allowed on X-registers and the stack
+     pointer *)
+  val mem : base:Reg.t -> Operand.t
+
+  val mem_offset : base:Reg.t -> offset:int -> Operand.t
+
+  val mem_symbol : base:Reg.t -> symbol:Symbol.t -> Operand.t
+
+  val mem_pre : base:Reg.t -> offset:int -> Operand.t
+
+  val mem_post : base:Reg.t -> offset:int -> Operand.t
+
+  (* CR sspies: probably these should be part of the instruction name instead *)
+  val cond : Instruction_name.Cond.t -> Operand.t
+
+  (* CR sspies: probably these should be part of the instruction name instead *)
+  val float_cond : Instruction_name.Float_cond.t -> Operand.t
+
+  (* The functions below are shorthands for composing [reg_op] and the
+     respective function from [Reg] *)
   val reg_v2d : int -> Operand.t
 
   val reg_v2s : int -> Operand.t
@@ -238,27 +343,6 @@ module DSL : sig
   val sp : Operand.t
 
   val xzr : Operand.t
-
-  val imm : int -> Operand.t
-
-  val mem : base:int -> offset:int -> Operand.t
-
-  val mem_symbol : base:int -> symbol:string -> offset:int -> Operand.t
-
-  val mem_sp_offset : int -> Operand.t
-
-  val mem_pre : base:int -> offset:int -> Operand.t
-
-  val mem_post : base:int -> offset:int -> Operand.t
-
-  (* ARM symbol operand; string must be converted to the OS specific
-     representation first *)
-  (* An ARM symbol can be used for both labels and symbols from the symbol
-     table; the respective conversion must be applied first *)
-  val symbol : string -> Operand.t
-
-  (* access memory at a ARM symbol *)
-  val mem_literal : string -> Operand.t
 
   (* CR gyorsh: [print_*] functions below are exposed temporarily to use DSL for
      some but not all instructions in [emit.mlp]. They can eventually*)
