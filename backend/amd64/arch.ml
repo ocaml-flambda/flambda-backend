@@ -159,7 +159,7 @@ type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type float_width = Cmm.float_width
 
-(* Specific operations, include [Simd], must not raise. *)
+(* Specific operations, including [Simd], must not raise. *)
 type specific_operation =
     Ilea of addressing_mode            (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
