@@ -245,3 +245,37 @@ type 'a cell =
     Nil
   | Cons : { value : 'a; mutable next : 'a cell; } -> 'a cell
 |}]
+
+module type S = sig
+  type 'a abstract
+  type t =
+    | P : ('a : value mod portable). 'a abstract -> t
+end
+
+module type S1 = S with type 'a abstract = int
+module type S2 = S with type 'a abstract = 'a option
+
+module M : S2 = struct
+  type 'a abstract = 'a option
+  type t : value mod portable =
+    | P : ('a : value mod portable). 'a abstract -> t
+end
+
+[%%expect{|
+module type S =
+  sig
+    type 'a abstract
+    type t = P : ('a : value mod portable). 'a abstract -> t
+  end
+module type S1 =
+  sig
+    type 'a abstract = int
+    type t = P : ('a : value mod portable). 'a abstract -> t
+  end
+module type S2 =
+  sig
+    type 'a abstract = 'a option
+    type t = P : ('a : value mod portable). 'a abstract -> t
+  end
+module M : S2
+|}]
