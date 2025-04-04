@@ -64,10 +64,7 @@ let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth = function
   | Thirtytwo -> Thirtytwo
   | Sixtyfour -> Sixtyfour
 
-let specific x ~label_after : Cfg.basic_or_terminator =
-  if Arch.operation_can_raise x
-  then Terminator (Specific_can_raise { op = x; label_after })
-  else Basic (Op (Specific x))
+let specific x : Cfg.basic_or_terminator = Basic (Op (Specific x))
 
 let is_immediate (op : Simple_operation.integer_operation) n :
     Cfg_selectgen_target_intf.is_immediate_result =
@@ -114,9 +111,8 @@ let select_addressing chunk (expr : Cmm.expression) :
   | arg -> Iindexed 0, arg
 
 let select_operation ~generic_select_condition:_ (op : Cmm.operation)
-    (args : Cmm.expression list) _dbg ~label_after :
+    (args : Cmm.expression list) _dbg ~label_after:_ :
     Cfg_selectgen_target_intf.select_operation_result =
-  let[@inline] specific op = specific op ~label_after in
   let[@inline] rewrite_multiply_add_or_sub shift_op mul_op ~arg1 ~args2 dbg :
       Cfg_selectgen_target_intf.select_operation_result =
     Select_operation_then_rewrite

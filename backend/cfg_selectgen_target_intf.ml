@@ -84,6 +84,9 @@ module type S = sig
   val select_addressing :
     Cmm.memory_chunk -> Cmm.expression -> Arch.addressing_mode * Cmm.expression
 
+  (* CR-soon gyorsh: remove unused [label_after], maybe simplify
+     [select_operation_result] to return [Cfg.basic] instead of
+     [Cfg.basic_or_terminator]. *)
   val select_operation :
     generic_select_condition:
       (Cmm.expression -> Simple_operation.test * Cmm.expression) ->

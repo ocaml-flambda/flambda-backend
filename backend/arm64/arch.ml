@@ -320,23 +320,6 @@ let operation_is_pure : specific_operation -> bool = function
 
 (* Specific operations that can raise *)
 
-let operation_can_raise = function
-  | Ifar_alloc _
-  | Ifar_poll -> true
-  | Imuladd
-  | Imulsub
-  | Inegmulf
-  | Imuladdf
-  | Inegmuladdf
-  | Imulsubf
-  | Inegmulsubf
-  | Isqrtf
-  | Imove32
-  | Ishiftarith (_, _)
-  | Isignext _
-  | Ibswap _
-  | Isimd _ -> false
-
 let operation_allocates = function
   | Ifar_alloc _ -> true
   | Ifar_poll
