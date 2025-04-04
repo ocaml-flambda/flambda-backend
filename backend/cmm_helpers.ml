@@ -48,7 +48,7 @@ let bind_list name args fn =
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local =
-  Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+  Nativeint.shift_left (Nativeint.of_int 3) 8
 
 (* cf. runtime/caml/gc.h *)
 
@@ -1228,11 +1228,9 @@ let get_tag ptr dbg =
     (* If byte loads are efficient *)
     (* Same comment as [get_header] above *)
     Cop
-      ( (if Config.runtime5
-        then mk_load_immut Byte_unsigned
-        else mk_load_mut Byte_unsigned),
-        [Cop (Cadda, [ptr; Cconst_int (tag_offset, dbg)], dbg)],
-        dbg )
+      (mk_load_immut Byte_unsigned,
+       [Cop (Cadda, [ptr; Cconst_int (tag_offset, dbg)], dbg)],
+       dbg )
 
 let get_size ptr dbg = lsr_const (get_header_masked ptr dbg) 10 dbg
 
@@ -3627,8 +3625,7 @@ let assignment_kind (ptr : Lambda.immediate_or_pointer)
     assert Config.stack_allocation;
     Caml_modify_local
   | Heap_initialization, Pointer -> Caml_initialize
-  | Root_initialization, Pointer ->
-    if Config.runtime5 then Caml_initialize else Simple Initialization
+  | Root_initialization, Pointer -> Caml_initialize
   | Assignment _, Immediate -> Simple Assignment
   | Heap_initialization, Immediate | Root_initialization, Immediate ->
     Simple Initialization

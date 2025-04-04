@@ -142,7 +142,7 @@ let add_ccobjs origin l =
 
 let runtime_lib () =
   let variant =
-    if Config.runtime5 && !Clflags.runtime_variant = "nnp" then ""
+    if !Clflags.runtime_variant = "nnp" then ""
     else !Clflags.runtime_variant
   in
   let libname = "libasmrun" ^ variant ^ ext_lib in

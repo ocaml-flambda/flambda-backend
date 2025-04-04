@@ -6,8 +6,6 @@
 
 module MP = Gc.Memprof
 
-external runtime5 : unit -> bool = "%runtime5"
-
 (* Similar infrastructure to stop_start_in_callback test *)
 
 (* We need sets of 3-tuples of integers *)
@@ -110,13 +108,7 @@ let raise_in_alloc () =
 
   (* Every allocation callback is either raised or deallocated *)
   assert (AllocSet.disjoint (!deallocs) (!excs));
-  if runtime5 () then
-    assert (AllocSet.equal (AllocSet.union (!deallocs) (!excs)) (!allocs))
-  else
-    (* runtime4 only makes the following weaker guarantee when
-       allocation callbacks raise *)
-    assert (AllocSet.subset (AllocSet.union (!deallocs) (!excs)) (!allocs));
-
+  assert (AllocSet.equal (AllocSet.union (!deallocs) (!excs)) (!allocs));
 
   (* Each call to f33 would allocates 7 blocks of 33 words,
      (sizes 6, 5, 4, 6, 5, 4, 3) plus the 3 words for the cons cell to
@@ -144,7 +136,6 @@ let raise_in_alloc () =
 
    *)
 
-  if runtime5 () then begin
   assert (dealloc_count = 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 8);
   assert (alloc_count = dealloc_count + !n_exc);
 
@@ -161,7 +152,6 @@ let raise_in_alloc () =
 
   assert (alloc_size = dealloc_size +
                        (6 + 5 + 4 + 6 + 5 + 4 + 3 + 3));
-  end;
   arr
 
 

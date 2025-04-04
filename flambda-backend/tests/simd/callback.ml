@@ -143,10 +143,7 @@ let eff6 () =
   with Effect.Unhandled E -> callback ();
   callback ()
 
-external runtime5 : unit -> bool = "%runtime5"
-
 let () =
-  if runtime5 () then (
     eff0 ();
     eff1 ();
     eff2 ();
@@ -160,5 +157,4 @@ let () =
     run_callback eff3;
     run_callback eff4;
     run_callback eff5;
-    run_callback eff6)
-  else ()
+    run_callback eff6

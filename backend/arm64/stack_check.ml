@@ -26,8 +26,5 @@ let trap_size = 16
 
 let linear : Linear.fundecl -> Linear.fundecl =
  fun fundecl ->
-  match Config.runtime5 with
-  | false -> fundecl
-  | true ->
-    Emitaux.add_stack_checks_if_needed fundecl ~stack_offset
-      ~stack_threshold_size ~trap_size
+  Emitaux.add_stack_checks_if_needed fundecl ~stack_offset
+    ~stack_threshold_size ~trap_size

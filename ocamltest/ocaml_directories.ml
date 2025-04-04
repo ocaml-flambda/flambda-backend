@@ -30,8 +30,7 @@ let toplevel =
   Filename.make_path [srcdir; "toplevel"]
 
 let runtime =
-  let suffix = if Config.runtime5 then "" else "4" in
-  Filename.make_path [srcdir; "runtime" ^ suffix]
+  Filename.make_path [srcdir; "runtime"]
 
 let tools =
   Filename.make_path [srcdir; "tools"]

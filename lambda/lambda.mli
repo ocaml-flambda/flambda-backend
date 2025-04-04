@@ -31,7 +31,6 @@ type compile_time_constant =
   | Ostype_win32
   | Ostype_cygwin
   | Backend_type
-  | Runtime5
 
 type immediate_or_pointer =
   | Immediate

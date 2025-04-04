@@ -29,7 +29,6 @@ type compile_time_constant =
   | Ostype_win32
   | Ostype_cygwin
   | Backend_type
-  | Runtime5
 
 type immediate_or_pointer =
   | Immediate
@@ -2367,7 +2366,7 @@ let primitive_result_layout (p : primitive) =
       end
   | Pctconst (
       Big_endian | Word_size | Int_size | Max_wosize
-      | Ostype_unix | Ostype_cygwin | Ostype_win32 | Backend_type | Runtime5
+      | Ostype_unix | Ostype_cygwin | Ostype_win32 | Backend_type
     ) ->
       (* Compile-time constants only ever return ints for now,
          enumerate them all to be sure to modify this if it becomes wrong. *)

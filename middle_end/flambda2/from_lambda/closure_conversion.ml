@@ -845,8 +845,6 @@ let close_raise acc env ~raise_kind ~arg ~dbg exn_continuation =
 let close_effect_primitive acc env ~dbg exn_continuation
     (prim : Lambda.primitive) ~args ~let_bound_ids_with_kinds
     (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
-  if not Config.runtime5
-  then Misc.fatal_error "Effect primitives are only supported on runtime5";
   (* CR mshinwell: share with close_c_call, above *)
   let _env, let_bound_vars =
     List.fold_left_map

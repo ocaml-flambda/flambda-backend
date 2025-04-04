@@ -217,22 +217,19 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
 (* CR-someday xclerc for xclerc: we may want to duplicate the check in some
    cases, rather than simply pushing it down. *)
 let cfg (cfg_with_layout : Cfg_with_layout.t) =
-  match Config.runtime5 with
-  | false -> cfg_with_layout
-  | true ->
-    let cfg = Cfg_with_layout.cfg cfg_with_layout in
-    (if not Config.no_stack_checks
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  (if not Config.no_stack_checks
+  then
+    let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
+      build_cfg_info cfg
+    in
+    if not (Label.Set.is_empty blocks_needing_stack_checks)
     then
-      let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
-        build_cfg_info cfg
-      in
-      if not (Label.Set.is_empty blocks_needing_stack_checks)
+      if Label.Tbl.length cfg.blocks
+         < !Flambda_backend_flags.cfg_stack_checks_threshold
       then
-        if Label.Tbl.length cfg.blocks
-           < !Flambda_backend_flags.cfg_stack_checks_threshold
-        then
-          insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
-            ~max_instr_id
-        else
-          insert_instruction cfg cfg.entry_label ~max_frame_size ~max_instr_id);
-    cfg_with_layout
+        insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
+          ~max_instr_id
+      else
+        insert_instruction cfg cfg.entry_label ~max_frame_size ~max_instr_id);
+  cfg_with_layout

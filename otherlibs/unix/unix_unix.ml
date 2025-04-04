@@ -952,13 +952,7 @@ module Mutex : sig @@ portable
 end = struct
   type t = Mutex.t option
 
-  external runtime5 : unit -> bool @@ portable = "%runtime5"
-
-  let create () =
-    (* On runtime4, systhreads must be linked to use [Mutex], which is
-       error-prone to ensure.  The use of [Mutex] here is new in 5.2.0, so
-       we just omit it for runtime4, which doesn't have parallelism. *)
-    if runtime5 () then Some (Mutex.create ()) else None
+  let create () = Some (Mutex.create ())
 
   let protect t f =
     match t with

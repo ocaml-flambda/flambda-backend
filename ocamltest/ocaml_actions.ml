@@ -1171,8 +1171,7 @@ let config_variables _log env =
     Ocaml_variables.ocamlrunparam, Sys.safe_getenv "OCAMLRUNPARAM";
     Ocaml_variables.ocamlsrcdir, Ocaml_directories.srcdir;
     Ocaml_variables.os_type, Sys.os_type;
-    Ocaml_variables.runtime_dir,
-      if Config.runtime5 then "runtime" else "runtime4"
+    Ocaml_variables.runtime_dir, "runtime"
   ] env
 
 let flat_float_array = Actions.make
@@ -1343,7 +1342,7 @@ let runtime4 = Actions.make
   ~name:"runtime4"
   ~description:"Passes if the OCaml 4.x runtime is being used"
   ~does_something:false
-  (Actions_helpers.predicate (not Config.runtime5)
+  (Actions_helpers.predicate false
     "4.x runtime being used"
     "5.x runtime being used")
 
@@ -1351,7 +1350,7 @@ let runtime5 = Actions.make
   ~name:"runtime5"
   ~description:"Passes if the OCaml 5.x runtime is being used"
   ~does_something:false
-  (Actions_helpers.predicate Config.runtime5
+  (Actions_helpers.predicate true
     "5.x runtime being used"
     "4.x runtime being used")
 let ocamldoc = Ocaml_tools.ocamldoc

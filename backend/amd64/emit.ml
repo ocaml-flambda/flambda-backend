@@ -1669,7 +1669,7 @@ let emit_instr ~first ~fallthrough i =
       end
   | Lcall_op(Lextcall { func; alloc; stack_ofs }) ->
       add_used_symbol func;
-      if Config.runtime5 && stack_ofs > 0 then begin
+      if stack_ofs > 0 then begin
         I.mov rsp r13;
         I.lea (mem64 QWORD stack_ofs RSP) r12;
         load_symbol_addr (Cmm.global_symbol func) rax;
@@ -1678,35 +1678,19 @@ let emit_instr ~first ~fallthrough i =
       end else if alloc then begin
         load_symbol_addr (Cmm.global_symbol func) rax;
         emit_call (Cmm.global_symbol "caml_c_call");
-        record_frame i.live (Dbg_other i.dbg);
-        if not Config.runtime5 && not (is_win64 system) then begin
-
-          (* In amd64.S, "caml_c_call" tail-calls the C function (in order to
-             produce nicer backtraces), so we need to restore r15 manually after
-             it returns (note that this increases code size).
-
-             In amd64nt.asm (used for Win64), "caml_c_call" invokes the C
-             function via a regular call, and restores r15 itself, thus avoiding
-             the code size increase. *)
-
-          I.mov (domain_field Domainstate.Domain_young_ptr) r15
-        end
+        record_frame i.live (Dbg_other i.dbg)
       end else begin
-        if Config.runtime5 then begin
-          I.mov rsp rbx;
-          cfi_remember_state ();
-          cfi_def_cfa_register "rbx";
-          (* NB: gdb has asserts on contiguous stacks that mean it
-            will not unwind through this unless we were to tag this
-            calling frame with cfi_signal_frame in it's definition. *)
-          I.mov (domain_field Domainstate.Domain_c_stack) rsp;
-        end;
+        I.mov rsp rbx;
+        cfi_remember_state ();
+        cfi_def_cfa_register "rbx";
+        (* NB: gdb has asserts on contiguous stacks that mean it
+          will not unwind through this unless we were to tag this
+          calling frame with cfi_signal_frame in it's definition. *)
+        I.mov (domain_field Domainstate.Domain_c_stack) rsp;
         emit_call (Cmm.global_symbol func);
-        if Config.runtime5 then begin
-          I.mov rbx rsp;
-          cfi_restore_state ();
-        end;
-           end
+        I.mov rbx rsp;
+        cfi_restore_state ()
+      end
   | Lop(Stackoffset n) ->
       emit_stack_offset n
   | Lop(Load { memory_chunk; addressing_mode; _ }) ->
@@ -2073,9 +2057,7 @@ let emit_instr ~first ~fallthrough i =
     I.set (cond (Iunsigned Cne)) (res8 i 0);
     I.movzx (res8 i 0) (res i 0)
   | Lop (Dls_get) ->
-    if Config.runtime5
-    then I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
-    else Misc.fatal_error "Dls is not supported in runtime4.";
+      I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
   | Lreloadretaddr ->
       ()
   | Lreturn ->
@@ -2163,8 +2145,7 @@ let emit_instr ~first ~fallthrough i =
           emit_call (Cmm.global_symbol "caml_raise_exn");
           record_frame Reg.Set.empty (Dbg_raise i.dbg)
       | Lambda.Raise_reraise ->
-          emit_call (Cmm.global_symbol
-            (if Config.runtime5 then "caml_reraise_exn" else "caml_raise_exn"));
+          emit_call (Cmm.global_symbol "caml_reraise_exn");
           record_frame Reg.Set.empty (Dbg_raise i.dbg)
       | Lambda.Raise_notrace ->
           I.mov (domain_field Domainstate.Domain_exn_handler) rsp;
@@ -2247,7 +2228,7 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-  if Config.runtime5 && (not Config.no_stack_checks) && String.equal !Clflags.runtime_variant "d" then begin
+  if (not Config.no_stack_checks) && String.equal !Clflags.runtime_variant "d" then begin
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   end;
   emit_all ~first:true ~fallthrough:true fundecl.fun_body;
@@ -2507,7 +2488,7 @@ let emit_probe_handler_wrapper p =
   let padding = if ((wrapper_frame_size k) mod 16) = 0 then 0 else 8 in
   let n = k + padding in
   (* Allocate stack space *)
-  if Config.runtime5 && (not Config.no_stack_checks) && (n >= Stack_check.stack_threshold_size) then
+  if (not Config.no_stack_checks) && (n >= Stack_check.stack_threshold_size) then
     emit_stack_check ~size_in_bytes:n ~save_registers:true;
   emit_stack_offset n;
   (* Save all live hard registers *)

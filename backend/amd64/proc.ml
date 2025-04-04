@@ -175,19 +175,12 @@ let gc_regs_offset reg =
   | 1 ->
     let slot_size_in_vals = 2 in
     assert (Arch.size_vec128 / Arch.size_int = slot_size_in_vals);
-    if Config.runtime5
-    then
-      (* xmm slots are above regular slots based at [gc_regs_bucket] *)
-      let num_regular_slots =
-        (* rbp is always spilled even without frame pointers *)
-        13
-      in
-      num_regular_slots + (index * slot_size_in_vals)
-    else
-      (* xmm slots are below [gc_regs] pointer *)
-      let num_xmm_slots = 16 in
-      let offset = Int.neg (num_xmm_slots * slot_size_in_vals) in
-      offset + (index * slot_size_in_vals)
+    (* xmm slots are above regular slots based at [gc_regs_bucket] *)
+    let num_regular_slots =
+      (* rbp is always spilled even without frame pointers *)
+      13
+    in
+    num_regular_slots + (index * slot_size_in_vals)
   | _ -> assert false
 
 
@@ -383,7 +376,7 @@ let win64_float_external_arguments =
 let win64_loc_external_arguments arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let reg = ref 0
-  and ofs = ref (if Config.runtime5 then 0 else 32) in
+  and ofs = ref 0 in
   for i = 0 to Array.length arg - 1 do
     match (arg.(i) : machtype_component) with
     | Val | Int | Addr as ty ->
@@ -449,11 +442,9 @@ let domainstate_ptr_dwarf_register_number = 14
 
 (* Registers destroyed by operations *)
 
-let int_regs_destroyed_at_c_call_win64 =
-  if Config.runtime5 then [|0;1;4;5;6;7;10;11;12|] else [|0;4;5;6;7;10;11|]
+let int_regs_destroyed_at_c_call_win64 = [|0;1;4;5;6;7;10;11;12|]
 
-let int_regs_destroyed_at_c_call =
-  if Config.runtime5 then [|0;1;2;3;4;5;6;7;10;11|] else [|0;2;3;4;5;6;7;10;11|]
+let int_regs_destroyed_at_c_call = [|0;1;2;3;4;5;6;7;10;11|]
 
 let destroyed_at_c_call_win64 =
   (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
