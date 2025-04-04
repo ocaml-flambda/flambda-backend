@@ -212,8 +212,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
   (* Default instruction selection for stores (of words) *)
 
   let insert_move_extcall_arg env sub_cfg ty_arg src dst dbg =
-    (* The default implementation is one or two ordinary moves. (Two in the case
-       of an int64 argument on a 32-bit platform.) It can be overridden to use
+    (* The default implementation an ordinary move. It can be overridden to use
        special move instructions, for example a "32-bit move" instruction for
        int32 arguments. *)
     match Target.insert_move_extcall_arg ty_arg src dst with
