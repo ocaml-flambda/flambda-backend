@@ -121,9 +121,8 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
             _ )),
       Proved (Boxed _) )
   (* One or two of the arguments is not known *)
-  | Unknown, Unknown
-  | Unknown, Proved (Tagged_immediate | Boxed _)
-  | Proved (Tagged_immediate | Boxed _), Unknown ->
+  | Unknown, _
+  | _, Unknown ->
     Unchanged { return_types = Unknown }
 
 let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
