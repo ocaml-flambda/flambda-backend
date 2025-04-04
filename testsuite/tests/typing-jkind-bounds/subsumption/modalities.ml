@@ -124,7 +124,8 @@ end = struct
   type 'a t : immediate with 'a @@ aliased many contended global portable
 end
 [%%expect {|
-module M : sig type 'a t : immutable_data mod global aliased yielding end
+module M :
+  sig type 'a t : value mod global aliased many contended portable end
 |}]
 
 module M : sig
@@ -369,7 +370,7 @@ end
 module M : sig type 'a t : immutable_data with 'a @@ portable end
 |}]
 
-type t : immutable_data with int ref @@ contended
+type t : immutable_data with int ref @@ immutable
 
 module type S = sig
   type t : immutable_data
