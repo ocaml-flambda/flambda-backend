@@ -448,6 +448,15 @@ class selector =
         self#insert_moves env sub_cfg rdst rd;
         rd
       with Use_default -> super#insert_op_debug env sub_cfg op dbg rs rd
+
+    method select_store_new is_assign addr exp
+        : Cfg_selectgen_target_intf.select_store_result =
+      let op, args = self#select_store is_assign addr exp in
+      Rewritten (op, args)
+
+    method is_store_out_of_range _chunk ~byte_offset:_
+        : Cfg_selectgen_target_intf.is_store_out_of_range_result =
+      Misc.fatal_error "is_store_out_of_range should not be called on x86-64"
   end
 
 let fundecl ~future_funcnames f =
