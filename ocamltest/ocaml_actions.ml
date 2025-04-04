@@ -1338,21 +1338,6 @@ let no_poll_insertion = Actions.make
     "Poll insertion disabled"
     "Poll insertion enabled")
 
-let runtime4 = Actions.make
-  ~name:"runtime4"
-  ~description:"Passes if the OCaml 4.x runtime is being used"
-  ~does_something:false
-  (Actions_helpers.predicate false
-    "4.x runtime being used"
-    "5.x runtime being used")
-
-let runtime5 = Actions.make
-  ~name:"runtime5"
-  ~description:"Passes if the OCaml 5.x runtime is being used"
-  ~does_something:false
-  (Actions_helpers.predicate true
-    "5.x runtime being used"
-    "4.x runtime being used")
 let ocamldoc = Ocaml_tools.ocamldoc
 
 let ocamldoc_output_file env prefix =
@@ -1567,7 +1552,5 @@ let init () =
     ocamlmklib;
     codegen;
     cc;
-    ocamlobjinfo;
-    runtime4;
-    runtime5
+    ocamlobjinfo
   ]

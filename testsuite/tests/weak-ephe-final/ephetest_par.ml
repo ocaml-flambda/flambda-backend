@@ -1,8 +1,5 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 (* Due to GCs running at non-deterministic places, the output from these tests

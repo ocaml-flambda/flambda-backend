@@ -1,11 +1,5 @@
 (* TEST
- runtime5;
  set OCAMLRUNPARAM = "Xmain_stack_size=1000";
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 open Effect

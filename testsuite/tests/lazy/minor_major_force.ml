@@ -1,8 +1,5 @@
 (* TEST
  ocamlopt_flags += " -O3 ";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 (*

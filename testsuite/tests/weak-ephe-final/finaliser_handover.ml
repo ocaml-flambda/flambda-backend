@@ -1,8 +1,5 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 (* ocaml-multicore issues 528 and 468 *)

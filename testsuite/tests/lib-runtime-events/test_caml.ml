@@ -1,13 +1,5 @@
 (* TEST
- {
-   runtime4;
-   skip;
- }{
    include runtime_events;
-   runtime5;
-   { bytecode; }
-   { native; }
- }
 *)
 
 (* Tests that:

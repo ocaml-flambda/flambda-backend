@@ -1,14 +1,7 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  modules = "test_c_thread_register_cstubs.c";
- runtime5;
  include systhreads;
- hassysthreads;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 (* spins a external thread from C and register it to the OCaml runtime *)

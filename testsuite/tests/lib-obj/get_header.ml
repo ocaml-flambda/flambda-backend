@@ -10,8 +10,8 @@
  }
 *)
 
-(* We're likely to remove %get_header in favour of calls to
-   caml_obj_is_stack under runtime5 (since testing a block's colour isn't
+(* CR ocaml 5 nbarnes  Remove %get_header in favour of calls to
+   caml_obj_is_stack (since testing a block's colour isn't
    sufficient to check for local allocations) so this doesn't check for local
    allocations any more. *)
 

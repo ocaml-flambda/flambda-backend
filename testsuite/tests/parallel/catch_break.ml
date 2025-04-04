@@ -5,12 +5,8 @@ include systhreads;
 not-windows;
 poll-insertion;
 no-tsan;
-runtime5;
-{
-  bytecode;
-}{
-  native;
-}
+native;
+bytecode;
 *)
 
 (* PR #11307. The following program deadlocks when input in the

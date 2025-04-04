@@ -48,7 +48,6 @@ let _ = baz ()
  set OCAMLPARAM = "_,";
  ocamlrunparam += ",b=1";
  exit_status = "2";
- runtime5;
  {
   reference="${test_source_directory}/backtrace_effects.byte.reference";
   bytecode;

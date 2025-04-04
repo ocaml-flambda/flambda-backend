@@ -1,12 +1,5 @@
 (* TEST
- runtime5;
  include unix;
- hasunix;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 let try_ext cmd =

@@ -1,6 +1,5 @@
 (* TEST
- runtime5;
- { native; }
+   native;
 *)
 
 (* This test checks that the extra marking work done by caml_modify is correctly accounted

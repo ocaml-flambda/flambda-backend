@@ -1,9 +1,6 @@
 (* TEST
  include stdlib_alpha;
  flags = "-extension-universe alpha -alert -unsafe_multidomain";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 [@@@ocaml.alert "-unsafe_parallelism"]

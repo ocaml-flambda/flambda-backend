@@ -35,30 +35,11 @@
      (run awk -f %{dep:expand_module_aliases.awk} %{input-file}))
     stdlib))))
 
-(rule
- (targets camlheader camlheaderd camlheaderi camlheader_ur)
- (deps
-  Makefile
-  StdlibModules
-  .depend
-  ../Makefile.common
-  ../Makefile.config_if_required
-  ../Makefile.build_config
-  ../Makefile.config
-  ../runtime/sak)
- (action
-  (run make COMPUTE_DEPS=false %{targets})))
-
 (copy_files ../Makefile.config)
 
 (install
  (files
   Makefile.config
-  ; CR mshinwell all-runtime5: delete all camlheader* stuff
-  camlheader
-  camlheaderd
-  camlheaderi
-  camlheader_ur
   stdlib.a
   stdlib.cma
   stdlib.cmxa

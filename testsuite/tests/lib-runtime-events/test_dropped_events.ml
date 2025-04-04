@@ -1,10 +1,5 @@
 (* TEST
- {
-   runtime4;
-   skip;
- }{
    include runtime_events;
-   runtime5;
    flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
    include unix;
    set OCAMLRUNPARAM = "e=6";
@@ -14,9 +9,8 @@
     arch_amd64;
     native;
    }
- }
 *)
-(* CR gyorsh: this test is disabled on arm64 because it fails on linux with runtime 5. *)
+(* CR gyorsh: this test is disabled on arm64 because it fails on linux. *)
 type Runtime_events.User.tag += Ev
 let ev = Runtime_events.User.register "ev" Ev Runtime_events.Type.int
 

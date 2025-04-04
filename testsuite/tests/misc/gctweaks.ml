@@ -1,10 +1,4 @@
 (* TEST
- runtime5;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 let () =

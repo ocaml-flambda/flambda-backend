@@ -1,16 +1,7 @@
 (* TEST
-{
-   runtime4;
-   skip;
-}{
    include runtime_events;
    include unix;
-   runtime5;
-   libunix;
    set OCAML_RUNTIME_EVENTS_PRESERVE = "1";
-   { bytecode; }
-   { native; }
- }
 *)
 
   let runtime_begin _ _ _ = ()

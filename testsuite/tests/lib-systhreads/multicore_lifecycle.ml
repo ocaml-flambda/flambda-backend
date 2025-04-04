@@ -1,13 +1,6 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  include systhreads;
- hassysthreads;
- runtime5;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 let _ =

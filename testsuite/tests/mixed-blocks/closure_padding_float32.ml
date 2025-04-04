@@ -1,5 +1,4 @@
 (* TEST
-   runtime5;
    include stdlib_stable;
    ocamlopt_flags="-extension layouts_alpha -extension small_numbers";
    native;

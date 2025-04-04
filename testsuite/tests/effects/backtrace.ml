@@ -60,7 +60,6 @@ let _ = main ()
  (* Turn off optimizations so inlining is consistent *)
  set OCAMLPARAM = "_,";
  ocamlrunparam += ",b=1";
- runtime5;
  {
    reference="${test_source_directory}/backtrace.byte.reference";
    bytecode;

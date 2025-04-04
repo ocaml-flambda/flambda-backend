@@ -1,13 +1,7 @@
 (* TEST
  modules = "aligned_alloc_stubs.c";
  flags = "-alert -unsafe_multidomain";
- {
-   runtime4;
-   skip;
- }{
-   runtime5;
-   native;
- }
+ native;
 *)
 
 external is_aligned : 'a Atomic.t -> bool = "caml_atomic_is_aligned"

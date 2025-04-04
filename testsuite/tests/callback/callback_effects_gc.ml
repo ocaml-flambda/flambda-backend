@@ -1,5 +1,4 @@
 (* TEST
- runtime5;
  ocamlrunparam += ",s=512";
  native;
 *)

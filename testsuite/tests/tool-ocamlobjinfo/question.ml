@@ -15,7 +15,6 @@
    program = "-no-code question.cmx";
    ocamlobjinfo;
 
-   runtime5;
    check-program-output;
  }{
    program = "question.cmx";

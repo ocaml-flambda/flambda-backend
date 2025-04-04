@@ -3,12 +3,6 @@
  poll-insertion;
  include unix;
  hasunix;
- runtime5;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 let continue = Atomic.make true

@@ -1,8 +1,5 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 let () = Out_channel.set_buffered stdout false

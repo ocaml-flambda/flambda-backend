@@ -1,8 +1,5 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 (* when run with the bytecode debug runtime, this test

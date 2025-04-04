@@ -1,7 +1,6 @@
 (* TEST
-   runtime5;
    stack-allocation;
-   { native; }
+   native;
 *)
 
 open Effect

@@ -1,7 +1,4 @@
 (* TEST
-   runtime5;
-   { bytecode; }
-   { native; }
 *)
 
 let f x =
