@@ -450,7 +450,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
    fun state cfg ->
     let visited = ref Label.Set.empty in
     let to_visit : (numbering * Cfg.basic_block) Queue.t = Queue.create () in
-    (* As in [CSEgen], for control structures, we set the numbering to empty at
+    (* For control structures, we set the numbering to empty at
        every join point, but propagate the current numbering across fork points.
        This is why blocks with zero or several predecessors and exception
        handlers start with an empty numbering: zero predecessors means we have
