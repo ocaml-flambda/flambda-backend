@@ -400,8 +400,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     all_phys_regs
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _}
-  | Specific_can_raise _ ->
+  | Tailcall_func _ | Prim {op = Probe _; _} ->
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }; _} ->
@@ -419,8 +418,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     true
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _}
-  | Specific_can_raise _ ->
+  | Tailcall_func _ | Prim {op = Probe _; _} ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}; _} ->

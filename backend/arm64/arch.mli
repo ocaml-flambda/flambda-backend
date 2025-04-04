@@ -115,8 +115,6 @@ val operation_allocates : specific_operation -> bool
 
 (* Specific operations that can raise *)
 
-val operation_can_raise : specific_operation -> bool
-
 val isomorphic_specific_operation : specific_operation -> specific_operation -> bool
 
 (* See `amd64/arch.mli`. *)
