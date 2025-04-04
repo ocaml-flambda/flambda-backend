@@ -46,3 +46,7 @@ val constructor_existentials :
     - the types of the constructor's arguments
     - the existential variables introduced by the constructor
  *)
+
+val constructor_unbound_type_vars : constructor_declaration -> Btype.TypeSet.t
+
+val unbound_type_vars : type_declaration -> Btype.TypeSet.t

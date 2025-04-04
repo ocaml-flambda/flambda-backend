@@ -1954,7 +1954,126 @@ let rec update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs)
         ) (0,[]) cstrs
       in
-      let jkind = Jkind.for_boxed_variant cstrs in
+      let jkind =
+        (* CR aspsmith: pull this back into jkind *)
+        let open Types in
+        if List.for_all
+             (fun cstr ->
+                match cstr.cd_args with
+                | Cstr_tuple args ->
+                  List.for_all (fun arg -> Jkind.Sort.Const.(equal void arg.ca_sort)) args
+                | Cstr_record lbls ->
+                  List.for_all
+                    (fun (lbl : Types.label_declaration) -> Jkind.Sort.Const.(equal void lbl.ld_sort))
+                    lbls)
+             cstrs
+        then Jkind.Builtin.immediate ~why:Enumeration
+        else
+          let is_mutable =
+            List.exists
+              (fun cstr ->
+                 match cstr.cd_args with
+                 | Cstr_tuple _ -> false
+                 | Cstr_record lbls ->
+                   List.exists
+                     (fun (lbl : Types.label_declaration) ->
+                        match lbl.ld_mutable with Immutable -> false | Mutable _ -> true)
+                     lbls)
+              cstrs
+          in
+          let base =
+            (if is_mutable then Jkind.Builtin.mutable_data else Jkind.Builtin.immutable_data)
+              ~why:Boxed_variant
+            |> Jkind.mark_best
+          in
+          let has_gadt_constructors = List.exists (fun cstr -> Option.is_some cstr.cd_res) cstrs in
+          let module Variant_parts = struct
+                     (* let _, existentials = Datarepr.constructor_existentials cstr.cd_args cstr.cd_res in *)
+            type t =
+              { cstr_arg_tys : type_expr list
+              ; cstr_arg_modalities : Mode.Modality.Value.Const.t list
+              ; params : type_expr list
+              ; ret_args : type_expr list
+              ; seen : Btype.TypeSet.t
+              }
+
+            let empty =
+              { cstr_arg_tys = []
+              ; cstr_arg_modalities = []
+              ; params = []
+              ; ret_args = []
+              ; seen = Btype.TypeSet.empty
+              }
+          end in
+          let { Variant_parts.cstr_arg_tys; cstr_arg_modalities; params; ret_args; _ } =
+            List.fold_left
+              (fun { Variant_parts.cstr_arg_tys; cstr_arg_modalities; params; ret_args; seen } cstr ->
+                 let cstr_arg_tys, cstr_arg_modalities =
+                    match cstr.cd_args with
+                    | Cstr_tuple args ->
+                      List.fold_left
+                        (fun (tys, ms) arg -> arg.ca_type :: tys, arg.ca_modalities :: ms)
+                        (cstr_arg_tys, cstr_arg_modalities)
+                        args
+                    | Cstr_record lbls ->
+                      List.fold_left
+                        (fun (tys, ms) lbl -> lbl.ld_type :: tys, lbl.ld_modalities :: ms)
+                        (cstr_arg_tys, cstr_arg_modalities)
+                        lbls
+                 in
+                 let params, ret_args, seen = match cstr.cd_res with
+                   | None when not has_gadt_constructors -> params, ret_args, seen
+                   | None -> decl.type_params @ params, decl.type_params @ ret_args, seen
+                   | Some res ->
+                     let existentials =
+                       Datarepr.constructor_unbound_type_vars cstr
+                       |> Btype.TypeSet.to_seq
+                       |> Seq.map Types.Transient_expr.type_expr
+                       |> List.of_seq
+                     in
+                     (match Types.get_desc res with
+                      | Tconstr (_, args, _) ->
+                        List.fold_left2
+                          (fun (params, ret_args, seen) arg param ->
+                             if Btype.TypeSet.mem arg seen
+                             then (params, ret_args, seen)
+                             else match Types.get_desc arg, Types.get_desc param with
+                               | Tvar _, Tvar _ ->
+                                 (param :: params, arg :: ret_args, Btype.TypeSet.add arg seen)
+                               | _ -> (params, ret_args, seen)  )
+                          (existentials @ params, existentials @ ret_args, seen)
+                          args
+                          decl.type_params
+                      | _ -> Misc.fatal_error "cd_res must be Tconstr")
+                 in
+                 { Variant_parts.cstr_arg_tys; cstr_arg_modalities; params; ret_args; seen }
+              )
+              Variant_parts.empty
+              cstrs
+          in
+          (* let _ = (params, ret_args) in *)
+          let cstr_arg_tys =
+            if Misc.Stdlib.List.is_empty params
+            then cstr_arg_tys
+            else
+            match
+              Ctype.apply
+                env
+                ret_args
+                (Btype.newgenty (Ttuple (List.map (fun ty -> None, ty) cstr_arg_tys)))
+                params
+              |> Types.get_desc
+            with
+            | Ttuple args -> List.map snd args
+            | _ -> Misc.fatal_error "apply should have returned a tuple here"
+          in
+          List.fold_left2
+            (fun jkind type_expr modality ->
+               Jkind.add_with_bounds ~modality ~type_expr jkind)
+            base
+            cstr_arg_tys
+            cstr_arg_modalities
+      in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
@@ -2647,8 +2766,10 @@ let normalize_decl_jkinds env shapes decls =
           allow_any_crossing type_unboxed_version (Path.unboxed_version path))
       decl.type_unboxed_version
     in
+    let unbound_type_vars = Datarepr.unbound_type_vars decl in
     let normalized_jkind =
       Jkind.normalize
+        ~unbound_type_vars
         ~mode:Require_best
         ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
         decl.type_jkind

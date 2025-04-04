@@ -20,6 +20,11 @@ open Types
 
 open Local_store
 
+(**** Forward declarations ****)
+
+let print_raw =
+  ref (fun _ -> assert false : Format.formatter -> type_expr -> unit)
+
 (**** Sets, maps and hashtables of types ****)
 
 let wrap_repr f ty = f (Transient_expr.repr ty)
@@ -34,6 +39,13 @@ module TypeSet = struct
   let exists p = TransientTypeSet.exists (wrap_type_expr p)
   let elements set =
     List.map Transient_expr.type_expr (TransientTypeSet.elements set)
+  let debug_print ppf t =
+    Format.(
+      fprintf ppf "{ %a }"
+        (pp_print_seq
+           ~pp_sep:(fun ppf () -> fprintf ppf ";@,")
+           !print_raw)
+        (to_seq t |> Seq.map Transient_expr.type_expr))
 end
 module TransientTypeMap = Map.Make(TransientTypeOps)
 module TypeMap = struct
@@ -95,10 +107,6 @@ module TypePairs = struct
         f (type_expr t1, type_expr t2))
 end
 
-(**** Forward declarations ****)
-
-let print_raw =
-  ref (fun _ -> assert false : Format.formatter -> type_expr -> unit)
 
 (**** Type level management ****)
 

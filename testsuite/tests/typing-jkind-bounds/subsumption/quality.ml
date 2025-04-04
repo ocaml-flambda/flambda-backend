@@ -335,21 +335,17 @@ Error: Signature mismatch:
          because of the definition of t at line 3, characters 2-34.
 |}]
 
-(* CR layouts v2.8: gadts shouldn't be "best" because we intend to give them more refined
-   jkinds in the future. So this program will error in the future. *)
 type gadt = Foo : int -> gadt
 module M : sig
   type t : value mod portable with gadt
 end = struct
-  type t
+  type t : value mod portable
 end
 [%%expect {|
 type gadt = Foo : int -> gadt
-module M : sig type t end
+module M : sig type t : value mod portable end
 |}]
 
-(* CR layouts v2.8: gadts shouldn't be "best". But maybe they should track quality along
-   individual axes, and so this should be accepted anyways? *)
 type gadt = Foo : int -> gadt
 module M : sig
   type t : value mod global with gadt
