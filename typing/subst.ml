@@ -883,6 +883,7 @@ let rec subst_lazy_value_description s descr =
 and subst_lazy_module_decl scoping s md =
   let md_type = subst_lazy_modtype scoping s md.md_type in
   { md_type;
+    md_modalities = md.md_modalities;
     md_attributes = attrs s md.md_attributes;
     md_loc = loc s md.md_loc;
     md_uid = md.md_uid }
