@@ -61,12 +61,8 @@ type t = Foo : ('a : immutable_data). 'a -> t
 |}]
 
 let foo (t : t @@ contended) = use_uncontended t
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : t @@ contended) = use_uncontended t
-                                                   ^
-Error: This value is "contended" but expected to be "uncontended".
+val foo : t @ contended -> unit = <fun>
 |}]
 
 let foo (t : t @@ local) = use_global t [@nontail]
@@ -85,21 +81,16 @@ type 'a t = Foo : 'a -> 'a t
 |}]
 
 let foo (t : int t @@ once) = use_many t
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 39-40:
-1 | let foo (t : int t @@ once) = use_many t
-                                           ^
-Error: This value is "once" but expected to be "many".
+val foo : int t @ once -> unit = <fun>
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : int t @@ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 13-14:
-1 | let foo (t : t @@ aliased) = use_unique t
-                 ^
-Error: The type constructor "t" expects 1 argument(s),
-       but is here applied to 0 argument(s)
+Line 1, characters 44-45:
+1 | let foo (t : int t @@ aliased) = use_unique t
+                                                ^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (***********************************************************************)
@@ -158,4 +149,99 @@ Uncaught exception: Misc.Fatal_error
 |}]
 
 (*****************************************)
-(* CR layouts v2.8: write more gadt tests *)
+
+type ('a, 'b) t : immutable_data with 'a = { inner : 'a }
+[%%expect{|
+type ('a, 'b) t = { inner : 'a; }
+|}]
+
+(* We can have existential variables, as long as they don't end up in our with-bounds *)
+type 'a u : immutable_data with 'a =
+| P1 : ('a1, 'b) t -> 'a1 u
+| P2 : ('a2, 'b) t -> 'a2 u
+[%%expect{|
+type 'a u = P1 : ('a1, 'b) t -> 'a1 u | P2 : ('a2, 'b) t -> 'a2 u
+|}]
+
+(* Any existentials directly in the with-bounds get treated as if they're [Best]
+   (this test intentionally causes a subkind error to make sure that the existentials
+   don't show up in the with-bounds)
+*)
+type 'x u : immediate =
+| P1 : ('b, 'a1) t -> 'a1 u
+[%%expect{|
+Lines 1-2, characters 0-27:
+1 | type 'x u : immediate =
+2 | | P1 : ('b, 'a1) t -> 'a1 u
+Error: The kind of type "u" is value
+         because it's a boxed variant type.
+       But the kind of type "u" must be a subkind of immediate
+         because of the annotation on the declaration of the type u.
+|}]
+
+type 'a u : immutable_data =
+| P1 : ('b, 'a) t -> 'a u
+[%%expect{|
+Lines 1-2, characters 0-25:
+1 | type 'a u : immutable_data =
+2 | | P1 : ('b, 'a) t -> 'a u
+Error: The kind of type "u" is value
+         because it's a boxed variant type.
+       But the kind of type "u" must be a subkind of immutable_data
+         because of the annotation on the declaration of the type u.
+|}]
+
+type ('x, 'y) t : immutable_data with 'x with 'y =
+  | T : 'a -> ('a, 'a) t
+  | U : 'c -> ('b,  'c) t
+[%%expect{|
+type ('x, 'y) t = T : 'a -> ('a, 'a) t | U : 'c -> ('b, 'c) t
+|}]
+
+type 'a t : immediate =
+  | A : 'b -> 'b option t
+[%%expect{|
+Lines 1-2, characters 0-25:
+1 | type 'a t : immediate =
+2 |   | A : 'b -> 'b option t
+Error: The kind of type "t" is value
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of immediate
+         because of the annotation on the declaration of the type t.
+|}]
+
+type 'a t : immutable_data =
+  | A : ('b : immutable_data). 'b -> 'b option t
+[%%expect{|
+type 'a t = A : ('b : immutable_data). 'b -> 'b option t
+|}]
+
+type 'a t : immediate =
+  | A : ('b : immutable_data). 'b -> 'b option t
+[%%expect{|
+Lines 1-2, characters 0-48:
+1 | type 'a t : immediate =
+2 |   | A : ('b : immutable_data). 'b -> 'b option t
+Error: The kind of type "t" is immutable_data
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of immediate
+         because of the annotation on the declaration of the type t.
+|}]
+
+type 'a cell : mutable_data with 'a =
+  | Nil : 'a cell
+  | Cons of { value : 'a; mutable next: 'a cell }
+[%%expect{|
+type 'a cell =
+    Nil : 'a cell
+  | Cons of { value : 'a; mutable next : 'a cell; }
+|}]
+
+type 'a cell : mutable_data with 'a =
+  | Nil
+  | Cons : { value : 'a; mutable next: 'a cell } -> 'a cell
+[%%expect{|
+type 'a cell =
+    Nil
+  | Cons : { value : 'a; mutable next : 'a cell; } -> 'a cell
+|}]
