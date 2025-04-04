@@ -300,8 +300,7 @@ let error_of_filter_arrow_failure ~explanation ~first ty_fun
 
 let type_module =
   ref ((fun _env _md -> assert false) :
-       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t *
-        Env.locks)
+       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t)
 
 (* Forward declaration, to be filled in by Typemod.type_open *)
 
@@ -1262,7 +1261,7 @@ let add_module_variables env module_variables =
          Here, on the other hand, we're calling [type_module] outside the
          raised level, so there's no extra step to take.
       *)
-      let modl, md_shape, locks =
+      let modl, md_shape =
         !type_module env
           Ast_helper.(
             Mod.unpack ~loc:mv_loc
@@ -1277,12 +1276,14 @@ let add_module_variables env module_variables =
       in
       let md =
         { md_type = modl.mod_type; md_attributes = [];
+          md_modalities = Mode.Modality.Value.id;
           md_loc = mv_name.loc;
           md_uid = mv_uid; }
       in
+      let mode = Typedtree.mode_without_locks_exn modl.mod_mode in
       Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md
         (* the [locks] is always empty, but typecore doesn't need to know *)
-        ~locks env
+        ~mode env
     end
   ) env module_variables_as_list
 
@@ -1302,7 +1303,6 @@ let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
       | Modvars_rejected ->
           raise (Error (loc, Env.empty, Modules_not_allowed));
       | Modvars_allowed { scope; module_variables } ->
-          escape ~loc ~env:Env.empty ~reason:Other mode;
           let id = Ident.create_scoped name.txt ~scope in
           let module_variables =
             { mv_id = id;
@@ -6392,7 +6392,7 @@ and type_expect_
         with_local_level begin fun () ->
           let modl, pres, id, new_env =
             Typetexp.TyVarEnv.with_local_scope begin fun () ->
-              let modl, md_shape, locks = !type_module env smodl in
+              let modl, md_shape = !type_module env smodl in
               Mtype.lower_nongen lv modl.mod_type;
               let pres =
                 match modl.mod_type with
@@ -6404,16 +6404,19 @@ and type_expect_
               let md_shape = Shape.set_uid_if_none md_shape md_uid in
               let md =
                 { md_type = modl.mod_type; md_attributes = [];
+                  md_modalities = Modality.Value.id;
                   md_loc = name.loc;
                   md_uid; }
               in
+              let mode, locks = modl.mod_mode in
+              let locks = Option.map (fun (a, _, _) -> a) locks in
               let (id, new_env) =
                 match name.txt with
                 | None -> None, env
                 | Some name ->
                     let id, env =
                       Env.enter_module_declaration
-                        ~scope ~shape:md_shape name pres md ~locks env
+                        ~scope ~shape:md_shape name pres md ~mode ?locks env
                     in
                     Some id, env
               in
@@ -6555,8 +6558,6 @@ and type_expect_
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes:sexp.pexp_attributes
       name jkind sbody
   | Pexp_pack m ->
-      (* CR zqian: pass [expected_mode] to [type_package] *)
-      submode ~loc ~env Value.legacy expected_mode;
       let (p, fl) =
         match get_desc (Ctype.expand_head env (instance ty_expected)) with
           Tpackage (p, fl) ->
@@ -6574,6 +6575,8 @@ and type_expect_
             raise (Error (loc, env, Not_a_packed_module ty_expected))
       in
       let (modl, fl') = !type_package env m p fl in
+      let mode = Typedtree.mode_without_locks_exn modl.mod_mode in
+      submode ~loc ~env mode expected_mode;
       rue {
         exp_desc = Texp_pack modl;
         exp_loc = loc; exp_extra = [];
@@ -7023,7 +7026,9 @@ and type_constraint_expect
   ret, ty, exp_extra
 
 and type_ident env ?(recarg=Rejected) lid =
-  let path, desc, mode, locks = Env.lookup_value ~loc:lid.loc lid.txt env in
+  (* CR zqian: [lookup_value] should close over the memaddr of all prefix
+  modules.  *)
+  let path, desc, (mode, locks) = Env.lookup_value ~loc:lid.loc lid.txt env in
   (* We cross modes when typing [Ppat_ident], before adding new variables into
   the environment. Therefore, one might think all values in the environment are
   already mode-crossed. That is not true for several reasons:
@@ -7060,8 +7065,8 @@ and type_ident env ?(recarg=Rejected) lid =
   *)
   (* CR modes: codify the above per-axis argument. *)
   let actual_mode =
-    Env.walk_locks ~env ~item:Value mode (Some desc.val_type)
-      (locks, lid.txt, lid.loc)
+    Env.walk_locks ~env ~loc:lid.loc lid.txt ~item:Value (Some desc.val_type)
+      (mode, locks)
   in
   (* We need to cross again, because the monadic fragment might have been
   weakened by the locks. Ideally, the first crossing only deals with comonadic,
@@ -9985,7 +9990,7 @@ let type_expression env jkind sexp =
       Pexp_ident lid ->
         let loc = sexp.pexp_loc in
         (* Special case for keeping type variables when looking-up a variable *)
-        let (_path, desc, _, _) =
+        let (_path, desc, _) =
           Env.lookup_value ~use:false ~loc lid.txt env
         in
         {exp with exp_type = desc.val_type}
@@ -11044,12 +11049,22 @@ let check_partial ?lev a b c cases =
 
 (* drop unnecessary arguments from the external API
    and check for uniqueness *)
-let type_expect env e ty =
-  let exp = type_expect env mode_legacy e ty in
+let type_expect env ?mode e ty =
+  let expected_mode =
+    match mode with
+    | None -> mode_legacy
+    | Some m -> mode_default m
+  in
+  let exp = type_expect env expected_mode e ty in
   maybe_check_uniqueness_exp exp; exp
 
-let type_exp env e =
-  let exp = type_exp env mode_legacy e in
+let type_exp env ?mode e =
+  let expected_mode =
+    match mode with
+    | None -> mode_legacy
+    | Some m -> mode_default m
+  in
+  let exp = type_exp env expected_mode e in
   maybe_check_uniqueness_exp exp; exp
 
 let type_argument env e t1 t2 =

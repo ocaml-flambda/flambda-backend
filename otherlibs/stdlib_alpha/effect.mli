@@ -123,7 +123,6 @@ module type S = sig
       with [t] to tie the knot on recursive operations. *)
 
   module Result : sig
-    @@ portable
 
     type eff := t
 
@@ -274,8 +273,6 @@ module type S1 = sig
       with ['p t] to tie the knot on recursive operations. *)
 
   module Result : sig
-    @@ portable
-
     type 'p eff := 'p t
 
     type ('a, 'p, 'es) t =
@@ -418,8 +415,6 @@ module type S2 = sig
       with [('p, 'q) t] to tie the knot on recursive operations. *)
 
   module Result : sig
-    @@ portable
-
     type ('p, 'q) eff := ('p, 'q) t
 
     type ('a, 'p, 'q, 'es) t =

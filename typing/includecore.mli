@@ -127,28 +127,37 @@ type type_mismatch =
   | Jkind of Jkind.Violation.t
   | Unsafe_mode_crossing of unsafe_mode_crossing_mismatch
 
+(** Describes the modes of modules on both sides, passed to inclusion check. *)
 type mmodes =
   | All
-  (** Check module inclusion [M1 : MT1 @ m1 <= M2 : MT2 @ m2]
-      for all [m1 <= m2]. *)
-  | Legacy of Env.held_locks option
-  (** Check module inclusion [M1 : MT1 @ legacy <= M2 : MT2 @ legacy].
-    If [M1] is a [Pmod_ident] and the current inclusion check is for its
-    coercion into [M2], we treat all surroudning functions as not closing over
-    [M1], but closing over components in [M1] required by [MT2]. Therefore, the
-    locks for [M1] are held, to be walked by each of the components
-    individually.
+  (** Check module inclusion [M1 : MT1 @ m <= MT2 @ m] for all [m]. *)
+  | Specific of Mode.Value.l * Mode.Value.r * Typedtree.held_locks option
+  (** Check module inclusion [M1 : MT1 @ m1 <= MT2 @ m2].
 
-    This is potentially unsafe as it doesn't reflect the real runtime behavior,
-    for at least two reasons:
-    - The corecion might turn out to be [coercion_none], in which case no
-    coercion happens, and the functions will be closing over the original module.
-    - Even if the coercion happens, the functions will be closing over the
-      original module and projecting needed values out of it.
+    No prior constraint between [m1] and [m2] is given. In particular, it's
+    possible that [m1 >= m2]. For example, if [m1 = nonportable >= portable =
+    m2] and [MT2 = sig end], the inclusion check should pass. This finer
+    treatment is necessary for ergonomics.
 
-    The above concern can be resolved by the "ergonomics" discussion in
-    [typecore.type_ident].
+    Another ergonomics is wrt closing over modules. If [M1] is a [Pmod_ident],
+    all surrounding functions would naively close over [M1]. However, if [M1 =
+    nonportable] and [MT2 = sig end], surrounding functions shouldn't be forced
+    to [nonportable]. To that end, the locks leading to [M1] is not walked
+    immediately upon look-up, but held and passed to inclusion check for finer
+    treatment. This is the third constructor argument. This is similar to the
+    ergonomics in [Typecore.type_ident] wrt projections out of modules.
   *)
+
+(** Gives the modes suitable for the inclusion check of a child item. Takes the
+    modes suitable for the parent item, and the modality between the parent and
+    the child. *)
+val child_modes: string ->
+  ?modalities:(Mode.Modality.Value.t * Mode.Modality.Value.t) ->
+  mmodes -> (mmodes, Mode.Modality.Value.error) Result.t
+
+(** Claim the current item is included by the RHS and its mode checked. *)
+val check_modes : Env.t -> ?crossing:Mode.Crossing.t -> item:Env.lock_item ->
+  ?typ:type_expr -> mmodes -> (unit, Mode.Value.error) Result.t
 
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->
@@ -179,6 +188,12 @@ val report_type_mismatch :
   string -> string -> string ->
   Env.t ->
   Format.formatter -> type_mismatch -> unit
+
+val report_modality_sub_error :
+  string -> string -> Format.formatter -> Mode.Modality.Value.error -> unit
+
+val report_mode_sub_error :
+  string -> string -> Format.formatter -> Mode.Value.error -> unit
 
 val report_extension_constructor_mismatch :
   string -> string -> string ->
