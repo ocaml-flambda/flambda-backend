@@ -375,12 +375,13 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
+  let module Cfg_selection = Cfg_selectgen.Make (Cfg_selection) in
   Proc.init ();
   Reg.reset ();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
   ++ (fun (fd_cmm : Cmm.fundecl) ->
-       Cfg_selection.fundecl ~future_funcnames:funcnames fd_cmm
+       Cfg_selection.emit_fundecl ~future_funcnames:funcnames fd_cmm
        ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
             "After selection")
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
