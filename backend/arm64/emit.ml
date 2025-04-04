@@ -575,7 +575,7 @@ let emit_stack_realloc () =
     DSL.ins I.MOV [| DSL.emit_reg reg_tmp1; DSL.imm sc_max_frame_size_in_bytes|];
     DSL.ins I.STP [| DSL.emit_reg reg_tmp1; DSL.reg_op (Arm64_ast.Reg.reg_x 30); DSL.mem_pre ~base:Arm64_ast.Reg.sp ~offset:(-16) |];
     DSL.ins I.BL [| DSL.emit_symbol "caml_call_realloc_stack" |];
-    DSL.ins I.LDP [| DSL.emit_reg reg_tmp1; DSL.mem_post ~base:Arm64_ast.Reg.sp ~offset:16 |];
+    DSL.ins I.LDP [| DSL.emit_reg reg_tmp1; DSL.reg_op (Arm64_ast.Reg.reg_x 30); DSL.mem_post ~base:Arm64_ast.Reg.sp ~offset:16 |];
     DSL.ins I.B [| DSL.emit_label sc_return |]
 
 (* Names of various instructions *)
