@@ -90,6 +90,8 @@ val path_unboxed_nativeint: Path.t
 val path_unboxed_int32: Path.t
 val path_unboxed_int64: Path.t
 val path_or_null: Path.t
+val path_idx: Path.t
+val path_mut_idx: Path.t
 
 val path_int8x16: Path.t
 val path_int16x8: Path.t

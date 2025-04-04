@@ -6134,33 +6134,16 @@ and type_expect_
         ~mutability
         ~attributes:sexp.pexp_attributes
         sargl
-  | Pexp_idx (ba, _uas) ->
+  | Pexp_idx (ba, uas) ->
     Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
     (* Compute the expected base type, only to use for disambiguation of the
-       block access *)
+      block access *)
     let expected_base_ty =
-      let get_base_ty_from_expected mut =
-        let base_ty = newgenvar (Jkind.Builtin.value ~why:Idx_base) in
-        (* CR rtjoa: record proj is wrong *)
-        let to_jkind, _to_sort = Jkind.of_new_sort_var ~why:Record_projection in
-        let to_ty = newgenvar to_jkind in
-        let ty =
-          (if mut then Predef.type_mut_idx else Predef.type_idx) base_ty to_ty in
-        try
-          unify_exp_types loc env ty (generic_instance ty_expected);
-          Some base_ty
-        with Error _ ->
-          None
-      in
-      match get_base_ty_from_expected false, get_base_ty_from_expected true with
-      | Some expected_base_ty, None | None, Some expected_base_ty ->
-        (* Unified with exactly one of [idx] or [mut_idx] *)
-        expected_base_ty
-      | Some _, Some _ | None, None ->
-        (* If both are [Some], then it could be either an [idx] or [mut_idx],
-           so [expected_ty] must be free, so we create a free variable.
-           If both are [None], we expect something other than [idx] or [mut_idx]
-           and this will error later. *)
+      match get_desc (expand_head env ty_expected) with
+      | Tconstr(p, [arg1; _], _)
+          when Path.same p Predef.path_idx || Path.same p Predef.path_mut_idx ->
+        arg1
+      | _ ->
         newgenvar (Jkind.Builtin.value ~why:Idx_base)
     in
     let ba, base_ty, el_ty, mut = match ba with
@@ -6175,16 +6158,22 @@ and type_expect_
           Env.lookup_all_labels ~record_form:Legacy ~loc:lid.loc Projection
             lid.txt env
         in
-        (* CR rtjoa: this error message is probably bad *)
         let label =
-          wrap_disambiguate "This expression has" (mk_expected expected_base_ty)
+          wrap_disambiguate "This expression is a field index with base "
+            (mk_expected expected_base_ty)
             (label_disambiguate Legacy Projection lid env expected_record_type)
             labels
         in
+        let mut = is_mutable label.lbl_mut in
+        if mut then Env.mark_label_used Mutation label.lbl_uid;
         Baccess_field (lid, label), label.lbl_res, label.lbl_arg,
         (is_mutable label.lbl_mut)
     in
-    (* TODO: keep updating el_ty based while translating the uas *)
+    let el_ty =
+      List.fold_left (fun _el_ty _ua ->
+        Misc.fatal_error "unimplemented: type unboxed accesses"
+      ) el_ty uas
+    in
     let ty =
       if mut then
         Predef.type_mut_idx base_ty el_ty
@@ -6193,14 +6182,10 @@ and type_expect_
     in
     with_explanation (fun () ->
       unify_exp_types loc env ty (generic_instance ty_expected));
-    (* CR rtjoa: unify with type expected, instance of types, etc etc *)
-    (* with_explanation explanation (fun () ->
-     *   unify_exp_types loc env to_unify (generic_instance ty_expected)); *)
-
-    rue {
+    re {
       exp_desc = Texp_idx (ba, []);
       exp_loc = loc; exp_extra = [];
-      exp_type = ty;
+      exp_type = instance ty_expected;
       exp_attributes = sexp.pexp_attributes;
       exp_env = env }
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
