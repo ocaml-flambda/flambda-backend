@@ -588,7 +588,76 @@ module Stack_offset_and_exn = struct
         assert (not (block.is_trap_handler && block.dead)))
 end
 
-let maybe_emit_naming_op env sub_cfg ~bound_name seq regs =
+let make_stack_offset stack_ofs = Cfg.Op (Stackoffset stack_ofs)
+
+let make_name_for_debugger ~ident ~which_parameter ~provenance ~is_assignment
+    ~regs =
+  Cfg.Op
+    (Operation.Name_for_debugger
+       { ident; which_parameter; provenance; is_assignment; regs })
+
+let make_const_int x = Operation.Const_int x
+
+let make_const_float32 x = Operation.Const_float32 x
+
+let make_const_float x = Operation.Const_float x
+
+let make_const_vec128 x = Operation.Const_vec128 x
+
+let make_const_symbol x = Operation.Const_symbol x
+
+let make_opaque () = Operation.Opaque
+(* Return an array of fresh registers of the given type. Normally implemented as
+   Reg.createv, but some ports (e.g. Arm) can override this definition to store
+   float values in pairs of integer registers. *)
+
+let regs_for tys = Reg.createv tys
+
+let insert_debug (_env : environment) sub_cfg basic dbg arg res =
+  Sub_cfg.add_instruction sub_cfg basic arg res dbg
+
+let insert_op_debug_returning_id (_env : environment) sub_cfg op dbg arg res =
+  let instr = Cfg.make_instr (Cfg.Op op) arg res dbg in
+  Sub_cfg.add_instruction' sub_cfg instr;
+  instr.id
+
+let insert (_env : environment) sub_cfg basic arg res =
+  (* CR mshinwell: fix debuginfo *)
+  Sub_cfg.add_instruction sub_cfg basic arg res Debuginfo.none
+
+let insert' (_env : environment) sub_cfg term arg res =
+  (* CR mshinwell: fix debuginfo *)
+  Sub_cfg.set_terminator sub_cfg term arg res Debuginfo.none
+
+let insert_debug' (_env : environment) sub_cfg basic dbg arg res =
+  Sub_cfg.set_terminator sub_cfg basic arg res dbg
+
+let insert_op_debug' (_env : environment) sub_cfg op dbg rs rd =
+  Sub_cfg.set_terminator sub_cfg op rs rd dbg;
+  rd
+
+let insert_move env sub_cfg src dst =
+  if src.Reg.stamp <> dst.Reg.stamp
+  then insert env sub_cfg (Op Move) [| src |] [| dst |]
+
+let insert_moves env sub_cfg src dst =
+  for i = 0 to min (Array.length src) (Array.length dst) - 1 do
+    insert_move env sub_cfg src.(i) dst.(i)
+  done
+
+(* Insert moves and stack offsets for function arguments and results *)
+
+let insert_move_args env sub_cfg arg loc stacksize =
+  if stacksize <> 0
+  then insert env sub_cfg (make_stack_offset stacksize) [||] [||];
+  insert_moves env sub_cfg arg loc
+
+let insert_move_results env sub_cfg loc res stacksize =
+  insert_moves env sub_cfg loc res;
+  if stacksize <> 0
+  then insert env sub_cfg (make_stack_offset (-stacksize)) [||] [||]
+
+let maybe_emit_naming_op env sub_cfg ~bound_name regs =
   match bound_name with
   | None -> ()
   | Some bound_name ->
@@ -605,13 +674,13 @@ let maybe_emit_naming_op env sub_cfg ~bound_name seq regs =
             regs
           }
       in
-      seq#insert_debug env sub_cfg (Cfg.Op naming_op) Debuginfo.none [||] [||]
+      insert_debug env sub_cfg (Cfg.Op naming_op) Debuginfo.none [||] [||]
 
-let join env (opt_r1 : _ Or_never_returns.t) seq1 sub_cfg1
-    (opt_r2 : _ Or_never_returns.t) seq2 sub_cfg2 ~bound_name :
-    _ Or_never_returns.t =
-  let maybe_emit_naming_op seq sub_cfg =
-    maybe_emit_naming_op env sub_cfg ~bound_name seq
+let join env (opt_r1 : _ Or_never_returns.t) sub_cfg1
+    (opt_r2 : _ Or_never_returns.t) sub_cfg2 ~bound_name : _ Or_never_returns.t
+    =
+  let maybe_emit_naming_op sub_cfg =
+    maybe_emit_naming_op env sub_cfg ~bound_name
   in
   match opt_r1, opt_r2 with
   | Never_returns, _ -> opt_r2
@@ -623,20 +692,20 @@ let join env (opt_r1 : _ Or_never_returns.t) seq1 sub_cfg1
     for i = 0 to l1 - 1 do
       let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
       r.(i) <- Reg.create typ;
-      seq1#insert_move env sub_cfg1 r1.(i) r.(i);
-      maybe_emit_naming_op seq1 sub_cfg1 [| r.(i) |];
-      seq2#insert_move env sub_cfg2 r2.(i) r.(i);
-      maybe_emit_naming_op seq2 sub_cfg2 [| r.(i) |]
+      insert_move env sub_cfg1 r1.(i) r.(i);
+      maybe_emit_naming_op sub_cfg1 [| r.(i) |];
+      insert_move env sub_cfg2 r2.(i) r.(i);
+      maybe_emit_naming_op sub_cfg2 [| r.(i) |]
     done;
     Ok r
 
 let join_array env rs ~bound_name : _ Or_never_returns.t =
-  let maybe_emit_naming_op seq sub_cfg =
-    maybe_emit_naming_op env sub_cfg ~bound_name seq
+  let maybe_emit_naming_op sub_cfg =
+    maybe_emit_naming_op env sub_cfg ~bound_name
   in
   let some_res = ref Or_never_returns.Never_returns in
   for i = 0 to Array.length rs - 1 do
-    let r, _, _ = rs.(i) in
+    let r, _ = rs.(i) in
     match (r : _ Or_never_returns.t) with
     | Never_returns -> ()
     | Ok r -> (
@@ -658,12 +727,12 @@ let join_array env rs ~bound_name : _ Or_never_returns.t =
       res.(i) <- Reg.create types.(i)
     done;
     for i = 0 to Array.length rs - 1 do
-      let r, s, sub_cfg = rs.(i) in
+      let r, sub_cfg = rs.(i) in
       match (r : _ Or_never_returns.t) with
       | Never_returns -> ()
       | Ok r ->
-        s#insert_moves env sub_cfg r res;
-        maybe_emit_naming_op s sub_cfg res
+        insert_moves env sub_cfg r res;
+        maybe_emit_naming_op sub_cfg res
     done;
     Ok res
 

@@ -66,6 +66,10 @@ type insert_move_extcall_arg_result =
   | Rewritten of Cfg.basic * Reg.t array * Reg.t array
   | Use_default
 
+type insert_op_debug_result =
+  | Regs of Reg.t array
+  | Use_default
+
 module type S = sig
   val is_immediate :
     Simple_operation.integer_operation -> int -> is_immediate_result
@@ -81,8 +85,11 @@ module type S = sig
     Cmm.memory_chunk -> Cmm.expression -> Arch.addressing_mode * Cmm.expression
 
   val select_operation :
+    generic_select_condition:
+      (Cmm.expression -> Simple_operation.test * Cmm.expression) ->
     Cmm.operation ->
     Cmm.expression list ->
+    Debuginfo.t ->
     label_after:Label.t ->
     select_operation_result
 
@@ -97,4 +104,13 @@ module type S = sig
 
   val insert_move_extcall_arg :
     Cmm.exttype -> Reg.t array -> Reg.t array -> insert_move_extcall_arg_result
+
+  val insert_op_debug :
+    Select_utils.environment ->
+    Sub_cfg.t ->
+    Operation.t ->
+    Debuginfo.t ->
+    Reg.t array ->
+    Reg.t array ->
+    insert_op_debug_result
 end
