@@ -214,6 +214,11 @@ typedef uint64_t uintnat;
 #define Stack_ctx_words (10 + 2)
 #endif
 
+/* Whether to use guard pages for fiber stacks */
+#if !defined(USE_MMAP_MAP_STACK) && defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#define STACK_GUARD_PAGES
+#endif
+
 /* Whether to offset Stack_high to preserve alignment. */
 #if defined(TARGET_amd64) && !defined(WITH_FRAME_POINTERS)
 #define Stack_padding_word 1
