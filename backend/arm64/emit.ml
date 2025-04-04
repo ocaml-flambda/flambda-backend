@@ -810,7 +810,7 @@ module BR = Branch_relaxation.Make (struct
     | Lcall_op (Ltailcall_imm { func; _ }) ->
       if func.sym_name = !function_name then 1 else epilogue_size ()
     | Lcall_op (Lextcall {alloc; stack_ofs; func=_; ty_res=_; ty_args=_; returns=_; } ) ->
-      if Config.runtime5 && stack_ofs > 0 then 5
+      if stack_ofs > 0 then 5
       else if alloc then 3
       else 5
     | Lop (Stackoffset _) -> 2
@@ -1277,7 +1277,7 @@ let emit_instr i =
         else
           output_epilogue (fun () -> emit_printf "	b	%a\n" femit_symbol func.sym_name)
     | Lcall_op(Lextcall {func; alloc; stack_ofs}) ->
-        if Config.runtime5 && stack_ofs > 0 then begin
+        if stack_ofs > 0 then begin
           emit_printf "	mov	%a, sp\n" femit_reg reg_stack_arg_begin;
           emit_printf "	add	%a, sp, #%a\n" femit_reg reg_stack_arg_end femit_int (Misc.align stack_ofs 16);
           emit_load_symbol_addr reg_x8 func;
@@ -1291,18 +1291,14 @@ let emit_instr i =
           (* store ocaml stack in the frame pointer register
              NB: no need to store previous x29 because OCaml frames don't
              maintain frame pointer *)
-          if Config.runtime5 then begin
-            emit_printf "	mov	x29, sp\n";
-            cfi_remember_state ();
-            cfi_def_cfa_register ~reg:29;
-            let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-            emit_printf "	ldr	%a, [%a, %a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
-              emit_printf "	mov	sp, %a\n" femit_reg reg_tmp1
-          end;
+          emit_printf "	mov	x29, sp\n";
+          cfi_remember_state ();
+          cfi_def_cfa_register ~reg:29;
+          let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
+          emit_printf "	ldr	%a, [%a, %a]\n" femit_reg reg_tmp1 femit_reg reg_domain_state_ptr femit_int offset;
+            emit_printf "	mov	sp, %a\n" femit_reg reg_tmp1
           emit_printf "	bl	%a\n" femit_symbol func;
-          if Config.runtime5 then begin
-            emit_printf "	mov	sp, x29\n";
-          end;
+          emit_printf "	mov	sp, x29\n";
           cfi_restore_state ()
         end
     | Lop(Stackoffset n) ->
@@ -1500,10 +1496,8 @@ let emit_instr i =
     | Lcall_op (Lprobe _) | Lop (Probe_is_enabled _) ->
       fatal_error ("Probes not supported.")
     | Lop(Dls_get) ->
-      if Config.runtime5 then
-        let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
-        emit_printf "	ldr	%a, [%a, %a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
-      else Misc.fatal_error "Dls is not supported in runtime4."
+      let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
+      emit_printf "	ldr	%a, [%a, %a]\n" femit_reg i.res.(0) femit_reg reg_domain_state_ptr femit_int offset
     | Lop (Csel tst) ->
       let len = Array.length i.arg in
       let ifso = i.arg.(len - 2) in
@@ -1623,10 +1617,7 @@ let emit_instr i =
           emit_printf "	bl	%a\n" femit_symbol "caml_raise_exn";
           emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
         | Lambda.Raise_reraise ->
-          if Config.runtime5 then
-            emit_printf "	bl	%a\n" femit_symbol "caml_reraise_exn"
-          else
-            emit_printf "	bl	%a\n" femit_symbol "caml_raise_exn";
+          emit_printf "	bl	%a\n" femit_symbol "caml_reraise_exn";
           emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
         | Lambda.Raise_notrace ->
           emit_printf "	mov	sp, %a\n" femit_reg reg_trap_ptr;

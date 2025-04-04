@@ -25,8 +25,6 @@
   (flags
    (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70 -warn-error +A))))
 
-(include dune.runtime_selection)
-
 (copy_files# utils/*.ml{,i})
 
 (copy_files# parsing/*.ml{,i})

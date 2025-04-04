@@ -1,14 +1,9 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
  include unix;
- hasunix;
  not-windows;
- {
-   bytecode;
- }{
-   native;
- }
+ native;
+ bytecode;
 *)
 
 (* on Multicore, fork is not allowed is another domain is, and was running. *)

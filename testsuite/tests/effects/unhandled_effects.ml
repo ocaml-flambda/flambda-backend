@@ -1,6 +1,5 @@
 (* TEST
  set OCAMLRUNPARAM = "s32";
- runtime5;
  native;
 *)
 

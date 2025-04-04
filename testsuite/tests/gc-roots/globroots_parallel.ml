@@ -1,9 +1,6 @@
 (* TEST
  flags += " -w a -alert -unsafe_parallelism -alert -unsafe_multidomain ";
  modules = "globrootsprim.c globroots.ml";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 open Globroots

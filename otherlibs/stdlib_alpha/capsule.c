@@ -8,8 +8,6 @@
 
 #include "caml/signals.h"
 #include "caml/sys.h"
-
-#ifdef CAML_RUNTIME_5
 #include "../../runtime/sync_posix.h"
 
 CAMLextern value caml_ml_mutex_new(value unit);
@@ -130,75 +128,3 @@ CAMLprim value caml_capsule_condition_broadcast(value wrapper)
 {
   return caml_ml_condition_broadcast(wrapper);
 }
-
-#else
-
-CAMLprim value caml_capsule_rwlock_new(value unit)
-{
-  caml_failwith("Must use runtime5 to use Rwlock");
-}
-
-CAMLprim value caml_capsule_rwlock_rdlock(value wrapper)
-{
-  caml_failwith("Must use runtime5 to use Rwlock");
-}
-
-CAMLprim value caml_capsule_rwlock_wrlock(value wrapper)
-{
-  caml_failwith("Must use runtime5 to use Rwlock");
-}
-
-CAMLprim value caml_capsule_rwlock_unlock(value wrapper)
-{
-  caml_failwith("Must use runtime5 to use Rwlock");
-}
-
-CAMLprim value caml_capsule_mutex_new(value unit)
-{
-  CAMLparam1(unit);
-  value res = caml_alloc_small(1, 0);
-  Field(res, 0) = Val_false;
-  CAMLreturn(res);
-}
-
-CAMLprim value caml_capsule_mutex_lock(value wrapper)
-{
-  CAMLparam1(wrapper);
-  if (Field(wrapper, 0) == Val_true) {
-    caml_raise_sys_error(caml_copy_string("Attempted to recursively lock mutex."));
-  }
-  Field(wrapper, 0) = Val_true;
-  CAMLreturn(Val_unit);
-}
-
-CAMLprim value caml_capsule_mutex_unlock(value wrapper)
-{
-  CAMLparam1(wrapper);
-  if (Field(wrapper, 0) == Val_false) {
-    caml_raise_sys_error(caml_copy_string("Attempted to recursively unlock mutex."));
-  }
-  Field(wrapper, 0) = Val_false;
-  CAMLreturn(Val_unit);
-}
-
-CAMLprim value caml_capsule_condition_new(value unit)
-{
-  caml_failwith("Must use runtime5 to use Condition");
-}
-
-CAMLprim value caml_capsule_condition_wait(value wcond, value wmut)
-{
-  caml_failwith("Must use runtime5 to use Condition");
-}
-
-CAMLprim value caml_capsule_condition_signal(value wrapper)
-{
-  caml_failwith("Must use runtime5 to use Condition");
-}
-
-CAMLprim value caml_capsule_condition_broadcast(value wrapper)
-{
-  caml_failwith("Must use runtime5 to use Condition");
-}
-
-#endif // CAML_RUNTIME_5

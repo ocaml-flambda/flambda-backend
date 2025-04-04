@@ -22,7 +22,6 @@ CAMLprim value ocaml_address_sanitizer_test_alloc(size_t len, int64_t tag) {
 
 CAMLprim value ocaml_address_sanitizer_test_free(value block) {
   // The explicit cast to [void*] here is necessary to avoid compiler warnings
-  // under runtime5.
   free((void *)(Hp_val(block)));
   return Val_unit;
 }

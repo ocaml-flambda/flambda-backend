@@ -1,13 +1,6 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
  include str;
- hasstr;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 let total = Atomic.make 0

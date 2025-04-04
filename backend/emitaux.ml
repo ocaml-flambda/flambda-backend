@@ -156,10 +156,7 @@ let is_long n =
   if n > 0x3FFF_FFFF then raise (Error (Stack_frame_way_too_large n));
   n >= !Flambda_backend_flags.long_frames_threshold
 
-let is_long_stack_index n =
-  let is_reg n = n land 1 = 1 in
-  (* allows negative reg offsets in runtime4 *)
-  if is_reg n && not Config.runtime5 then false else is_long n
+let is_long_stack_index n = is_long n
 
 let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
   assert (frame_size land 3 = 0);

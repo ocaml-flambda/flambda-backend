@@ -35,23 +35,5 @@ let () =
  modules = "backtrace_c_exn_.c";
  flags = "-g -alert -unsafe_multidomain";
  ocamlrunparam += ",b=1";
- {
-   runtime4;
-   {
-     reference = "${test_source_directory}/backtrace_c_exn.byte4.reference";
-     bytecode;
-   }{
-     reference = "${test_source_directory}/backtrace_c_exn.opt4.reference";
-     native;
-   }
- }{
-   runtime5;
-   {
-     reference = "${test_source_directory}/backtrace_c_exn.r5.reference";
-     bytecode;
-   }{
-     reference = "${test_source_directory}/backtrace_c_exn.r5.reference";
-     native;
-   }
- }
+ reference = "${test_source_directory}/backtrace_c_exn.reference";
 *)

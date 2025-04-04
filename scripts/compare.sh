@@ -106,10 +106,6 @@ shared_objects_to_compare="\
   "
 
 sundry_text_files_to_compare="\
-  camlheader \
-  camlheaderd \
-  camlheaderi \
-  camlheader_ur \
   eventlog_metadata \
   ld.conf
   "
@@ -1133,13 +1129,11 @@ echo "** Sundry text files"
 
 for file in $sundry_text_files_to_compare; do
   echo $file
-  # The extra "echo"s are to suppress "No newline at end of file"
-  # messages for camlheader* files.
   $difftool \
-    <((cat $upstream_tree/lib/ocaml/$file \
-        | sed "s:$upstream_tree:INSTALL-DIR:"); echo) \
-    <((cat $flambda_backend_tree/lib/ocaml/$file \
-        | sed "s:$flambda_backend_tree:INSTALL-DIR:"); echo)
+    <(cat $upstream_tree/lib/ocaml/$file \
+        | sed "s:$upstream_tree:INSTALL-DIR:") \
+    <(cat $flambda_backend_tree/lib/ocaml/$file \
+        | sed "s:$flambda_backend_tree:INSTALL-DIR:")
 done
 
 # 20. Makefile.config comparison.
@@ -1157,4 +1151,3 @@ $difftool \
       | grep -v "^WITH_OCAMLTEST=" \
       | grep -v "^STDLIB_MANPAGES=" \
       | grep -v "^prefix=") \
-

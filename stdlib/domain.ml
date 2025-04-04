@@ -21,124 +21,50 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external runtime5 : unit -> bool @@ portable = "%runtime5"
-
 exception Encapsulated of string
 
-module Runtime_4 = struct
-  module DLS = struct
-    module Access = struct
-      type t = Access
-      let for_initial_domain = Access
+module type S = sig
+  module DLS : sig
+    module Access : sig
+      type t : value mod external_ global portable many unique
+
+      val for_initial_domain : t @@ nonportable
     end
 
-    let[@inline] access f =
-      try f Access.Access with
-      | exn ->
-        let bt = Printexc.get_raw_backtrace () in
-        let exn_string = Printexc.to_string exn in
-        Printexc.raise_with_backtrace (Encapsulated exn_string) bt
+    type 'a key : value mod portable contended
 
-    let unique_value = Obj.magic_portable (Obj.repr (ref 0))
-    let state = Obj.magic_portable (ref (Array.make 8 unique_value))
+    val access
+      :  (Access.t -> 'a @ portable contended) @ local portable
+      -> 'a @ portable contended
+      @@ portable
 
-    let init () = ()
+    val new_key'
+      :  ?split_from_parent:('a -> (Access.t -> 'a) @ portable) @ portable
+      -> (Access.t -> 'a) @ portable
+      -> 'a key
+      @@ portable
 
-    type 'a key : value mod portable contended = Key of (int * (Access.t -> 'a))
-    [@@unboxed]
-    [@@unsafe_allow_any_mode_crossing "runtime4 only"]
+    val get : Access.t -> 'a key -> 'a @@ portable
+    val set : Access.t -> 'a key -> 'a -> unit @@ portable
 
-    let key_counter = Obj.magic_portable (ref 0)
-
-    let new_key' ?split_from_parent:_ init_orphan =
-      let key_counter = Obj.magic_uncontended key_counter in
-      let idx = !key_counter in
-      key_counter := idx + 1;
-      Key (idx, init_orphan)
-
-    (* If necessary, grow the current domain's local state array such that [idx]
-    * is a valid index in the array. *)
-    let maybe_grow idx =
-      let state = Obj.magic_uncontended state in
-      let st = !state in
-      let sz = Array.length st in
-      if idx < sz then st
-      else begin
-        let rec compute_new_size s =
-          if idx < s then s else compute_new_size (2 * s)
-        in
-        let new_sz = compute_new_size sz in
-        let new_st = Array.make new_sz (Obj.magic_uncontended unique_value) in
-        Array.blit st 0 new_st 0 sz;
-        state := new_st;
-        new_st
-      end
-
-    let set (_ : Access.t) (Key (idx, _init)) x =
-      let st = maybe_grow idx in
-      (* [Sys.opaque_identity] ensures that flambda does not look at the type of
-      * [x], which may be a [float] and conclude that the [st] is a float array.
-      * We do not want OCaml's float array optimisation kicking in here. *)
-      st.(idx) <- Obj.repr (Sys.opaque_identity x)
-
-    let get access (Key (idx, init)) =
-      let st = maybe_grow idx in
-      let v = st.(idx) in
-      if v == Obj.magic_uncontended unique_value then
-        let v' = Obj.repr (init access) in
-        st.(idx) <- (Sys.opaque_identity v');
-        Obj.magic v'
-      else Obj.magic v
+    val init : unit -> unit
   end
 
-  (******** Callbacks **********)
-
-  (* first spawn, domain startup and at exit functionality *)
-  let first_domain_spawned = Atomic.make false
-
-  let first_spawn_function = ref (fun () -> ())
-
-  let before_first_spawn f =
-    if Atomic.Contended.get first_domain_spawned then
-      raise (Invalid_argument "first domain already spawned")
-    else begin
-      let old_f = !first_spawn_function in
-      let new_f () = old_f (); f () in
-      first_spawn_function := new_f
-    end
-
-  let at_exit_key = DLS.new_key' (fun (_ : DLS.Access.t) -> (fun () -> ()))
-
-  let at_exit' access f =
-    let old_exit : unit -> unit = DLS.get access at_exit_key in
-    let new_exit () =
-      (* The domain termination callbacks ([at_exit]) are run in
-        last-in-first-out (LIFO) order in order to be symmetric with the domain
-        creation callbacks ([at_each_spawn]) which run in first-in-fisrt-out
-        (FIFO) order. *)
-      f (); old_exit ()
-    in
-    DLS.set access at_exit_key new_exit
-
-  let do_at_exit () =
-    let f : unit -> unit = DLS.get DLS.Access.for_initial_domain at_exit_key in
-    f ()
-
-  (* Unimplemented functions *)
-  let not_implemented () =
-    failwith "Multi-domain functionality not supported in runtime4"
   type !'a t
-  type id = int
-  let spawn' _ = not_implemented ()
-  let join _ = not_implemented ()
-  let get_id _ = not_implemented ()
-  let self () = not_implemented ()
-  let cpu_relax () = not_implemented ()
-  let is_main_domain () = not_implemented ()
-  let recommended_domain_count () = not_implemented ()
+  val spawn' : (DLS.Access.t -> 'a) @ portable once -> 'a t @@ portable
+  val join : 'a t -> 'a @@ portable
+  type id = private int
+  val get_id : 'a t -> id @@ portable
+  val self : unit -> id @@ portable
+  val cpu_relax : unit -> unit @@ portable
+  val is_main_domain : unit -> bool @@ portable
+  val recommended_domain_count : unit -> int @@ portable
+  val before_first_spawn : (unit -> unit) -> unit @@ nonportable
+  val at_exit' : DLS.Access.t -> (unit -> unit) -> unit @@ portable
+  val do_at_exit : unit -> unit @@ nonportable
 end
 
-module Runtime_5 = struct
+module M : S = struct
   module Raw = struct
     (* Low-level primitives provided by the runtime *)
     type t = private int
@@ -256,10 +182,6 @@ module Runtime_5 = struct
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
     let rec maybe_grow idx =
-      (* CR ocaml 5 all-runtime5: remove this hack which is here to stop
-        the backend seeing the dls_get operation and failing on runtime4 *)
-      if not (runtime5 ()) then assert false else
-      (* end of hack *)
       let st = get_dls_state () in
       let sz = Array.length st in
       if idx < sz then st
@@ -445,53 +367,6 @@ module Runtime_5 = struct
   let recommended_domain_count = Raw.get_recommended_domain_count
 end
 
-module type S = sig
-  module DLS : sig
-    module Access : sig
-      type t : value mod external_ global portable many unique
-
-      val for_initial_domain : t @@ nonportable
-    end
-
-    type 'a key : value mod portable contended
-
-    val access
-      :  (Access.t -> 'a @ portable contended) @ local portable
-      -> 'a @ portable contended
-      @@ portable
-
-    val new_key'
-      :  ?split_from_parent:('a -> (Access.t -> 'a) @ portable) @ portable
-      -> (Access.t -> 'a) @ portable
-      -> 'a key
-      @@ portable
-
-    val get : Access.t -> 'a key -> 'a @@ portable
-    val set : Access.t -> 'a key -> 'a -> unit @@ portable
-
-    val init : unit -> unit
-  end
-
-  type !'a t
-  val spawn' : (DLS.Access.t -> 'a) @ portable once -> 'a t @@ portable
-  val join : 'a t -> 'a @@ portable
-  type id = private int
-  val get_id : 'a t -> id @@ portable
-  val self : unit -> id @@ portable
-  val cpu_relax : unit -> unit @@ portable
-  val is_main_domain : unit -> bool @@ portable
-  val recommended_domain_count : unit -> int @@ portable
-  val before_first_spawn : (unit -> unit) -> unit @@ nonportable
-  val at_exit' : DLS.Access.t -> (unit -> unit) -> unit @@ portable
-  val do_at_exit : unit -> unit @@ nonportable
-end
-
-let runtime_4_impl = (module Runtime_4 : S)
-let runtime_5_impl = (module Runtime_5 : S)
-
-let impl = if runtime5 () then runtime_5_impl else runtime_4_impl
-
-module M : S = (val impl)
 include M
 
 module Safe = struct

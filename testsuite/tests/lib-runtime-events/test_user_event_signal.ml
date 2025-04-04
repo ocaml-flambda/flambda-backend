@@ -1,16 +1,10 @@
 (* TEST
- runtime5;
  flags = "-alert -unsafe_multidomain";
  include runtime_events;
  include unix;
- hasunix;
  not-windows;
- {
-   bytecode;
- }
- {
-   native;
- }
+ native;
+ bytecode;
 *)
 
 (* Check that emitting a custom event from a signal handler works (see #12900).

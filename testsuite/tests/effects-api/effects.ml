@@ -1,8 +1,5 @@
 (* TEST
  include stdlib_alpha;
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 module Effect = Stdlib_alpha.Effect
@@ -179,7 +176,7 @@ let run main : unit =
         | Some (n', k') ->
             enqueue k' n;
             handle (continue k n' [])
-        | None -> 
+        | None ->
           let _ = Exchanger.swap (Some (n, k)) exchanger in
           dequeue ()
       end

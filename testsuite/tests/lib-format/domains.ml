@@ -1,8 +1,5 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 (** Test that domains stdout and stderr are flushed at domain exit *)

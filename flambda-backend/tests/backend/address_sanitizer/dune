@@ -4,7 +4,7 @@
  (archive_name stubs)
  (language c)
  (names stubs)
- (include_dirs "../../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+ (include_dirs "../../../../runtime"))
 
 (executables
  (names address_sanitizer)

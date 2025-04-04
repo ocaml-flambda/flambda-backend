@@ -1,13 +1,6 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- runtime5;
  include unix;
- hasunix;
- {
-   native;
- }{
-   bytecode;
- }
 *)
 
 type 'a tree = Empty | Node of 'a tree * 'a tree

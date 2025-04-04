@@ -49,7 +49,6 @@ let () = f ()
 
 (* TEST
  flags = "-g";
- runtime5;
  {
    bytecode;
  }{

@@ -1,8 +1,5 @@
 (* TEST
  modules = "recommended_domain_count_cstubs.c";
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 external get_max_domains : unit -> int = "caml_get_max_domains"

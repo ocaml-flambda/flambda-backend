@@ -7,7 +7,7 @@
  (flags
    (:standard
      (:include flags.sexp)))
- (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+ (include_dirs "../../../runtime"))
 
 (rule
  (targets flags.sexp)

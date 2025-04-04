@@ -367,23 +367,20 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
   in
   let cmm =
     let must_use_setfield : Lambda.immediate_or_pointer option =
-      (* The 4 GC does not need to see static field updates, but the 5 GC must,
+      (* The 4 GC did not need to see static field updates, but the 5 GC must,
          due to differences in how global roots are handled. *)
-      if not Config.runtime5
-      then None
-      else
-        match kind with
-        | Pointer -> Some Pointer
-        | Immediate ->
-          (* See [caml_initialize]; we can avoid this function in this case. *)
-          None
-        | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
-          ->
-          (* The GC never sees these fields, so we can avoid using
-             [caml_initialize]. This is important as it significantly reduces
-             the complexity of the statically-allocated inconstant unboxed int32
-             array case, which otherwise would have to use 64-bit writes. *)
-          None
+      match kind with
+      | Pointer -> Some Pointer
+      | Immediate ->
+        (* See [caml_initialize]; we can avoid this function in this case. *)
+        None
+      | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
+        ->
+        (* The GC never sees these fields, so we can avoid using
+           [caml_initialize]. This is important as it significantly reduces
+           the complexity of the statically-allocated inconstant unboxed int32
+           array case, which otherwise would have to use 64-bit writes. *)
+        None
     in
     match must_use_setfield with
     | Some imm_or_ptr ->

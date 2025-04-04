@@ -1,7 +1,4 @@
 (* TEST
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 (* Test that inputting bytes from a closed in_channel triggers an exception *)

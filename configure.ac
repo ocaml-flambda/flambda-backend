@@ -68,12 +68,6 @@ AC_ARG_ENABLE([middle-end],
     [*], [AC_MSG_ERROR([Invalid middle end: must be flambda2 or upstream-closure])])],
   [middle_end=flambda2])
 
-AC_ARG_ENABLE([runtime5],
-  [AS_HELP_STRING([--enable-runtime5],
-    [Use the OCaml 5 runtime])],
-  [],
-  [enable_runtime5=no])
-
 AC_ARG_ENABLE([coverage],
   [AS_HELP_STRING([--enable-coverage],
     [Run compiler tests instrumented to output coverage data using bisect_ppx
@@ -179,23 +173,12 @@ AC_CONFIG_SRCDIR([runtime/interp.c])
 ## Directory containing auxiliary scripts used during build
 AC_CONFIG_AUX_DIR([build-aux])
 
-# Runtime selection
-
-#AC_ARG_ENABLE([runtime5],
-#  [AS_HELP_STRING([--enable-runtime5],
-#    [Use the OCaml 5 runtime])])
-AS_IF([test x"$enable_runtime5" = xyes],
-      [runtime_suffix=],
-      [runtime_suffix=4])
-
 AC_ARG_ENABLE([stack_checks],
   [AS_HELP_STRING([--enable-stack_checks],
     [Enable stack checks])])
 
 ## Output variables
 
-AC_SUBST([enable_runtime5])
-AC_SUBST([runtime_suffix])
 AC_SUBST([enable_stack_checks])
 AC_SUBST([CONFIGURE_ARGS])
 AC_SUBST([native_compiler])
@@ -379,18 +362,10 @@ AC_CONFIG_FILES([ocamltest/ocamltest_config.ml])
 AC_CONFIG_FILES([utils/config.common.ml])
 AC_CONFIG_FILES([utils/config.generated.ml])
 AC_CONFIG_FILES([tools/eventlog_metadata])
-AS_IF([test "x$enable_runtime5" = "xyes"],
-  [ AC_CONFIG_HEADERS([runtime/caml/m.h])
-    AC_CONFIG_HEADERS([runtime/caml/s.h])
-    AC_CONFIG_HEADERS([runtime/caml/exec.h])
-    AC_CONFIG_HEADERS([runtime/caml/version.h])
-  ],
-  [ AC_CONFIG_HEADERS([runtime4/caml/m.h])
-    AC_CONFIG_HEADERS([runtime4/caml/s.h])
-    AC_CONFIG_HEADERS([runtime4/caml/exec.h])
-    AC_CONFIG_HEADERS([runtime4/caml/version.h])
-  ]
-)
+AC_CONFIG_HEADERS([runtime/caml/m.h])
+AC_CONFIG_HEADERS([runtime/caml/s.h])
+AC_CONFIG_HEADERS([runtime/caml/exec.h])
+AC_CONFIG_HEADERS([runtime/caml/version.h])
 AC_CONFIG_FILES([compilerlibs/META])
 AC_CONFIG_FILES([otherlibs/stdlib_upstream_compatible/META])
 AC_CONFIG_FILES([otherlibs/stdlib_stable/META])
@@ -869,14 +844,9 @@ AS_CASE([$host],
     [exeext=".exe"],
   [exeext=''])
 
-otherlibraries="dynlink"
+otherlibraries="dynlink runtime_events"
 lib_dynlink=true
-
-AS_IF(
-  [test x"$enable_runtime5" = x"yes"],
-  [otherlibraries="$otherlibraries runtime_events"
-   lib_runtime_events=true],
-  [])
+lib_runtime_events=true
 
 AS_IF([test x"$enable_unix_lib" != "xno"],
   [enable_unix_lib=yes
@@ -2399,10 +2369,6 @@ AC_CHECK_HEADER([spawn.h],
   [AC_CHECK_FUNC([posix_spawn],
     [AC_CHECK_FUNC([posix_spawnp], [AC_DEFINE([HAS_POSIX_SPAWN])])])])
 
-## ffs or _BitScanForward
-# CR mshinwell all-runtime5: remove ffs check, it's only needed for runtime4
-AC_CHECK_FUNC([ffs], [AC_DEFINE([HAS_FFS])])
-
 AC_PATH_TOOL([PKG_CONFIG], [pkg-config], [false])
 
 ## pthread_getaffinity_np, args differ from GNU and BSD
@@ -2594,11 +2560,6 @@ AC_LINK_IFELSE(
 
 ## Activate the systhread library
 
-AS_IF(
-  [test x"$enable_runtime5" = x"yes"],
-  [runtime_suffix=],
-  [runtime_suffix=4])
-
 AS_CASE([$enable_systhreads,$enable_unix_lib],
   [yes,no],
     [systhread_support=false
@@ -2608,10 +2569,9 @@ AS_CASE([$enable_systhreads,$enable_unix_lib],
     AC_MSG_NOTICE([the threads library is disabled])],
   [systhread_support=true
   AC_CONFIG_FILES([otherlibs/systhreads/META])
-  AC_CONFIG_FILES([otherlibs/systhreads4/META])
-  otherlibraries="$otherlibraries systhreads${runtime_suffix}"
+  otherlibraries="$otherlibraries systhreads"
   lib_systhreads=true
-  lib_systhreads_path="systhreads${runtime_suffix}"
+  lib_systhreads_path="systhreads"
   AC_MSG_NOTICE([the threads library is supported])])
 
 ## Does the assembler support debug prefix map and CFI directives
@@ -2663,8 +2623,8 @@ AS_IF([test x"$enable_cpp_mangling" = "xyes"],
 ## Check for mmap support for huge pages and contiguous heap
 OCAML_MMAP_SUPPORTS_HUGE_PAGES
 
-# Unconditionally reserve 8 header bits in both runtime 4 and
-# runtime 5, which is required for mixed block support.
+# Unconditionally reserve 8 header bits, which is required for mixed
+# block support.
 AC_DEFINE_UNQUOTED([HEADER_RESERVED_BITS], [$reserved_header_bits])
 AC_DEFINE_UNQUOTED([PROFINFO_WIDTH], [$profinfo_width])
 AS_IF([$profinfo], [AC_DEFINE([WITH_PROFINFO])])

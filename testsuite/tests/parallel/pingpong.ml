@@ -1,9 +1,8 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  no-tsan; (* TSan detects the intentional data race *)
- runtime5;
- { bytecode; }
- { native; }
+ native;
+ bytecode;
 *)
 
 let r = ref (Some 0)

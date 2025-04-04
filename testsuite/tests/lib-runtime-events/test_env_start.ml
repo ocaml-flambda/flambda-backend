@@ -1,14 +1,6 @@
 (* TEST
- {
-   runtime4;
-   skip;
- }{
    include runtime_events;
    set OCAML_RUNTIME_EVENTS_START = "1";
-   runtime5;
-   { bytecode; }
-   { native; }
- }
 *)
 
 (* In this test the runtime_events should already be started by the environment

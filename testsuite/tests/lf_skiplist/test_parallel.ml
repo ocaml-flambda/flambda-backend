@@ -1,10 +1,9 @@
 (* TEST
  flags = "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  modules = "stubs.c";
- no-tsan;
- runtime5;
- { bytecode; }
- { native; }
+   no-tsan;
+   native;
+   bytecode;
 *)
 
 external init_skiplist : unit -> unit = "init_skiplist"

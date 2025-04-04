@@ -25,7 +25,7 @@
 (rule
  (targets empty.ml)
  (deps
-  (source_tree ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml))
+  (source_tree ../runtime/caml))
  (action
   (write-file %{targets} "(* hack *)")))
 
@@ -37,7 +37,7 @@
    -w
    +a-40-41-42-44-70
    -cclib
-   "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+   "-I../runtime"))
  (libraries ocamlcommon)
  ; This executable is built using the *system* compiler, so we can't use
  ; our own otherlibs/unix/, and neither can we depend on the "unix" library

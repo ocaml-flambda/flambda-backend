@@ -1,13 +1,6 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  include unix;
- runtime5;
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 let () = Random.init 42

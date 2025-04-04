@@ -80,13 +80,7 @@ module Make (P : Dynlink_platform_intf.S) = struct
     val with_lock: (t->'a) -> 'a
   end
   = struct
-    external runtime5 : unit -> bool = "%runtime5"
-
-    let lock =
-      (* We cannot call [Mutex.create] on runtime4 without making the dynlink
-         library depend on the threads library. *)
-      if runtime5 () then Some (Mutex.create ())
-      else None
+    let lock = Some (Mutex.create ())
 
     type t = {
       mutable state:State.t;

@@ -1,5 +1,4 @@
 (* TEST
-   runtime5;
    frame_pointers;
    readonly_files = "fp_backtrace.c stack_realloc_.c";
    all_modules = "${readonly_files} stack_realloc2.ml";

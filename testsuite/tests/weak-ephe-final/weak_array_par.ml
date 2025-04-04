@@ -1,7 +1,4 @@
 (* TEST
-   runtime5;
-   { bytecode; }
-   { native; }
 *)
 
 [@@@ocaml.alert "-unsafe_parallelism"]

@@ -1,13 +1,5 @@
 (* TEST
- {
-   runtime4;
-   skip;
- }{
-   runtime5;
    include runtime_events;
-   { bytecode; }
-   { native; }
- }
 *)
 open Runtime_events
 

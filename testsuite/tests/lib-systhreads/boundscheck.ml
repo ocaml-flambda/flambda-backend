@@ -1,13 +1,8 @@
 (* TEST
  include systhreads;
- runtime5;
- hassysthreads;
  no-tsan; (* See https://github.com/ocaml-multicore/ocaml-tsan/issues/31 *)
- {
-   bytecode;
- }{
-   native;
- }
+ native;
+ bytecode;
 *)
 
 

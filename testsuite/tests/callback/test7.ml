@@ -1,12 +1,6 @@
 (* TEST
  modules = "test7_.c";
- runtime5;
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
+ include unix;
 *)
 
 (* Tests nested calls from C (main C) to OCaml (main OCaml) to C (caml_to_c) to

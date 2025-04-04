@@ -1,8 +1,5 @@
 (* TEST
  include stdlib_alpha;
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 [@@@alert "-unsafe_parallelism"]

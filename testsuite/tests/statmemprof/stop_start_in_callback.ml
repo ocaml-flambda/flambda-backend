@@ -1,7 +1,4 @@
 (* TEST
-   runtime5;
-   { bytecode; }
-   { native; }
 *)
 
 (* Tests the effects of stopping and starting profiles in allocation

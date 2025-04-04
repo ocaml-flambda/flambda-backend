@@ -1,14 +1,6 @@
 (* TEST
- {
-   runtime4;
-   skip;
- }{
    include runtime_events;
-   runtime5;
    flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
-   { bytecode; }
-   { native; }
- }
 *)
 open Runtime_events
 

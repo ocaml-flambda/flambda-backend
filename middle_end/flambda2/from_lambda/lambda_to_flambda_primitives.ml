@@ -2166,7 +2166,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       [Simple (Simple.const_bool (String.equal Sys.os_type "Cygwin"))]
     | Backend_type ->
       [Simple Simple.const_zero] (* constructor 0 is the same as Native here *)
-    | Runtime5 -> [Simple (Simple.const_bool Config.runtime5)])
+  )
   | Pbswap16, [[arg]] ->
     [ tag_int
         (Unary (Int_arith (Naked_immediate, Swap_byte_endianness), untag_int arg))

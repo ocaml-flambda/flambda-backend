@@ -1,13 +1,5 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
- {
-   runtime4;
-   skip;
- }{
-   runtime5;
-   { bytecode; }
-   { native; }
- }
 *)
 
 let num_domains = 2

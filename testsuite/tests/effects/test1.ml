@@ -1,7 +1,4 @@
 (* TEST
-  runtime5;
-  { bytecode; }
-  { native; }
 *)
 
 open Stdlib__Effect

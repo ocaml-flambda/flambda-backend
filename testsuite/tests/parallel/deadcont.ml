@@ -1,8 +1,5 @@
 (* TEST
  skip;
- runtime5;
- { bytecode; }
- { native; }
 *)
 
 (*

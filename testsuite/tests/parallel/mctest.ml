@@ -1,13 +1,7 @@
 (* TEST
  skip;
- runtime5;
  include unix;
  hasunix;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 (*

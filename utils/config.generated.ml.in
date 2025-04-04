@@ -98,10 +98,7 @@ let flexdll_dirs = [@flexdll_dir@]
 
 let ar_supports_response_files = @ar_supports_response_files@
 
-let runtime5 = "@enable_runtime5@" = "yes"
-
-let reserved_header_bits =
-  if runtime5 then @reserved_header_bits@ else @profinfo_width@
+let reserved_header_bits = @reserved_header_bits@
 
 let no_stack_checks = "@enable_stack_checks@" <> "yes"
 

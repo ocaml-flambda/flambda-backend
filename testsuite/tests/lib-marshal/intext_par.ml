@@ -2,9 +2,8 @@
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  modules = "intextaux_par.c";
  no-tsan;
- runtime5;
- { bytecode; }
- { native; }
+ native;
+ bytecode;
 *)
 
 (* Test for output_value / input_value *)

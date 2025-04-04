@@ -1,8 +1,5 @@
 (* TEST
    flags = "-alert -unsafe_multidomain";
-   runtime5;
-   native;
-   bytecode;
 *)
 
 let[@alert "-unsafe_parallelism"] () = Domain.spawn (fun () ->
