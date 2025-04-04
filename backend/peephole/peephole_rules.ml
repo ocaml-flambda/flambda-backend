@@ -182,7 +182,9 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
   | _ -> None
 
 let apply cell =
-  let if_none_do f o = match o with Some _ -> o | None -> f cell in
+  let[@inline always] if_none_do f o =
+    match o with Some _ -> o | None -> f cell
+  in
   None
   |> if_none_do remove_overwritten_mov
   |> if_none_do remove_useless_mov

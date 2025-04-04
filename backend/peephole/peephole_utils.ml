@@ -33,14 +33,13 @@ let assert_within_range integer_operation imm =
     Misc.fatal_errorf "Peephole: unexpected immediate %d for operation %s" imm
       (Simple_operation.string_of_integer_operation integer_operation)
 
-let op_immediates integer_operation imm1 imm2 no_overflow op =
+let[@inline] op_immediates integer_operation imm1 imm2 no_overflow op =
   assert_within_range integer_operation imm1;
   assert_within_range integer_operation imm1;
   let res = op imm1 imm2 in
   if no_overflow imm1 imm2 && Arch.is_immediate_for_intop integer_operation res
   then Some (integer_operation, res)
   else None
-  [@@inilne]
 
 let add_immediates integer_operation imm1 imm2 =
   op_immediates integer_operation imm1 imm2 Misc.no_overflow_add ( + )
