@@ -137,15 +137,7 @@ dune_config_targets = \
   duneconf/main.ws \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
-  dune-project \
-  $(ocamldir)/otherlibs/dune
-
-$(ocamldir)/otherlibs/dune:
-	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
-          echo "(dirs (:standard \ systhreads runtime_events))" > $@; \
-	else \
-          echo "(dirs (:standard \ systhreads4))" > $@; \
-	fi
+  dune-project
 
 _build/_bootinstall: Makefile.config $(dune_config_targets)
 	echo -n '$(NATDYNLINKOPTS)' > $(ocamldir)/otherlibs/dynlink/natdynlinkops
