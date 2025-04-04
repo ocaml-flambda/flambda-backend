@@ -988,6 +988,7 @@ let nullable_value raw_kind =
 
 let layout_unit = non_null_value Pintval
 let layout_int = non_null_value Pintval
+let layout_int_or_null = nullable_value Pintval
 let layout_array kind = non_null_value (Parrayval kind)
 let layout_block = non_null_value Pgenval
 let layout_list =
@@ -2378,12 +2379,12 @@ let primitive_result_layout (p : primitive) =
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxed_int Boxed_nativeint
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
-  | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_load { immediate_or_pointer = Immediate } -> layout_int_or_null
   | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_set _ -> layout_unit
-  | Patomic_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_exchange { immediate_or_pointer = Immediate } -> layout_int_or_null
   | Patomic_exchange { immediate_or_pointer = Pointer } -> layout_any_value
-  | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int_or_null
   | Patomic_compare_exchange { immediate_or_pointer = Pointer } -> layout_any_value
   | Patomic_compare_set _
   | Patomic_fetch_add -> layout_int

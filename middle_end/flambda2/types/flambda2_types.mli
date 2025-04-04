@@ -311,6 +311,8 @@ val any_value : t
 
 val any_tagged_immediate : t
 
+val any_tagged_immediate_or_null : t
+
 val any_tagged_bool : t
 
 val any_boxed_float32 : t

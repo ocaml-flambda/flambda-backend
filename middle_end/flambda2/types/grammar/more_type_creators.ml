@@ -74,6 +74,10 @@ let any_tagged_immediate_non_null =
     ~immediates:Unknown ~blocks:(Known TG.Row_like_for_blocks.bottom)
     ~extensions:No_extensions
 
+let any_tagged_immediate_or_null =
+  TG.create_from_head_value
+    { non_null = Ok any_tagged_immediate_non_null; is_null = Maybe_null }
+
 let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
   | Some imm -> TG.this_tagged_immediate imm

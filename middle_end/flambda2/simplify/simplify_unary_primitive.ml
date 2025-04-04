@@ -767,7 +767,7 @@ let simplify_atomic_load (block_access_field_kind : P.Block_access_field_kind.t)
     ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   match block_access_field_kind with
   | Immediate ->
-    let dacc = DA.add_variable dacc result_var T.any_tagged_immediate in
+    let dacc = DA.add_variable dacc result_var T.any_tagged_immediate_or_null in
     SPR.create original_term ~try_reify:false dacc
   | Any_value ->
     SPR.create_unknown dacc ~result_var

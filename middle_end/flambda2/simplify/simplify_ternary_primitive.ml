@@ -139,7 +139,7 @@ let simplify_atomic_compare_exchange
   in
   let result_var_ty =
     match atomic_kind (* N.B. not [args_kind] *) with
-    | Immediate -> T.any_tagged_immediate
+    | Immediate -> T.any_tagged_immediate_or_null
     | Any_value -> T.any_value
   in
   let dacc = DA.add_variable dacc result_var result_var_ty in
