@@ -21,18 +21,18 @@ Interfaces imported:
 	00000000000000000000000000000000	Category
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Runtime parameters:
+	Category_utils[Category:Category_of_monoid[Monoid:List_monoid]]
+	Chain[Category:Category_of_monoid[Monoid:List_monoid]]
 	Chain[Category:Category_of_monoid[Monoid:Monoid_of_semigroup]]
 	Category_utils[Category:Category_of_monoid[Monoid:Monoid_of_semigroup]]
 	Monoid_utils[Monoid:Monoid_of_semigroup]
 	Monoid_of_semigroup
-	Chain[Category:Category_of_monoid[Monoid:List_monoid]]
-	Category_of_monoid[Monoid:List_monoid]
+	Category_of_monoid[Monoid:Monoid_of_semigroup]
 	Import
 	List_element
 	List_monoid
-	Category_utils[Category:Category_of_monoid[Monoid:List_monoid]]
 	Semigroup
-	Category_of_monoid[Monoid:Monoid_of_semigroup]
+	Category_of_monoid[Monoid:List_monoid]
 Required globals:
 	Monoid_utils[Monoid:Monoid_of_semigroup[Semigroup:String_semigroup]]
 	Stdlib__List
@@ -59,10 +59,10 @@ Interfaces imported:
 	00000000000000000000000000000000	Category
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Globals in scope:
+	Chain[Category:Category_of_monoid[Monoid:List_monoid{List_element}]]
 	Chain[Category:Category_of_monoid[Monoid:Monoid_of_semigroup{Semigroup}]]
 	Monoid_of_semigroup{Semigroup}
-	Chain[Category:Category_of_monoid[Monoid:List_monoid{List_element}]]
-	Import{List_element}{Semigroup}
-	Category_of_monoid[Monoid:List_monoid{List_element}]
-	List_monoid{List_element}
 	Category_of_monoid[Monoid:Monoid_of_semigroup{Semigroup}]
+	Import{List_element}{Semigroup}
+	List_monoid{List_element}
+	Category_of_monoid[Monoid:List_monoid{List_element}]
