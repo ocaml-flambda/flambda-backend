@@ -211,9 +211,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
 
   (* Default instruction selection for stores (of words) *)
 
-  let select_store is_assign addr arg : Operation.t * Cmm.expression =
-    Store (Word_val, addr, is_assign), arg
-
   let insert_move_extcall_arg env sub_cfg ty_arg src dst dbg =
     (* The default implementation is one or two ordinary moves. (Two in the case
        of an int64 argument on a 32-bit platform.) It can be overridden to use
@@ -317,7 +314,19 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       in
       match[@ocaml.warning "-fragile-match"] chunk with
       | Word_int | Word_val ->
-        let op, newarg2 = select_store is_assign addr arg2 in
+        let op, newarg2 =
+          match Target.is_store_out_of_range chunk ~byte_offset:0 with
+          | Within_range -> (
+            match Target.select_store ~is_assign addr arg2 with
+            | Rewritten (op, arg) -> op, arg
+            | Use_default | Maybe_out_of_range ->
+              Operation.Store (chunk, addr, is_assign), arg2)
+          | Out_of_range ->
+            Misc.fatal_errorf
+              "Cstore expression produces store instruction that is out of \
+               range:@ %s"
+              (Printcmm.operation dbg op)
+        in
         basic_op op, [newarg2; eloc]
       | _ -> basic_op (Store (chunk, addr, is_assign)), [arg2; eloc]
       (* Inversion addr/datum in Istore *))

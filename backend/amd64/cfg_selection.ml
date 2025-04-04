@@ -295,8 +295,9 @@ let select_store ~is_assign addr (exp : Cmm.expression) :
   | Ctrywith (_, _, _, _, _, _, _) ->
     Use_default
 
-let is_store_out_of_range _chunk ~byte_offset:_ =
-  Misc.fatal_error "is_store_out_of_range should not be called on amd64"
+let is_store_out_of_range _chunk ~byte_offset:_ :
+    Cfg_selectgen_target_intf.is_store_out_of_range_result =
+  Within_range
 
 let insert_move_extcall_arg _exttype _src _dst :
     Cfg_selectgen_target_intf.insert_move_extcall_arg_result =
