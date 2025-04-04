@@ -1096,6 +1096,25 @@ let transl_declaration env sdecl (id, uid) =
     decl, typ_shape
   end
 
+(* Note [Typechecking unboxed versions of types]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Unboxed versions are computed in three steps:
+
+   1. In the temporary environment computed by [enter_type], all types get an
+      unboxed version.
+
+   2. After translating declarations, [derive_unboxed_versions] gives the
+      [Record_boxed] records unboxed versions.
+
+   3. But some of these [Record_boxed]s are a lie, and become
+      [Record_float]/[Record_ufloat]/[Record_mixed] after [update_decls_jkind].
+      As float records should not end up with unboxed versions, we then remove
+      theirs in [remove_unboxed_versions].
+
+   After steps 2 and 3, the set of unboxed versions decreases, so we check for
+   newly-unbound unboxed paths with [check_unboxed_paths].
+*)
+
 (* Record declarations with representation [Record_boxed] get an implicit
    unboxed record stored in [type_unboxed_version]. If that record is also an
    alias, so is its stored unboxed version. E.g. [type t = r = { i : int }]'s
@@ -1215,9 +1234,9 @@ let derive_unboxed_versions decls env =
        id, { d with type_unboxed_version })
     decls
 
-(* Float and [@@unboxed] records are typechecked as boxed records until
-   [update_decls_jkind], so their unboxed versions need to be removed
-   afterwards.
+(* Removes unboxed versions from type declarations not satisfying
+   [gets_unboxed_version]. In practice, it is float records that lose their
+   unboxed versions. See Note [Typechecking unboxed versions of types].
 
    Returns new decls and paths whose unboxed versions got removed. *)
 let remove_unboxed_versions decls =
@@ -2056,6 +2075,7 @@ let update_decls_jkind env decls =
        (id, decl, allow_any_crossing, update_decl_jkind env (Pident id) decl))
     decls
 
+(* See Note [Typechecking unboxed versions of types]. *)
 let check_unboxed_paths decls ~unboxed_version_banned =
   (* We iterate on all subexpressions of the declaration to check "in depth"
      that no non-existent unboxed version is used. *)
