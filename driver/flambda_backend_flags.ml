@@ -94,6 +94,7 @@ let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-
 let caml_apply_inline_fast_path = ref false  (* -caml-apply-inline-fast-path *)
 
 type function_result_types = Never | Functors_only | All_functions
+type join_algorithm = Binary | N_way | Checked
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
@@ -126,6 +127,7 @@ module Flambda2 = struct
     let backend_cse_at_toplevel = false
     let cse_depth = 2
     let join_depth = 5
+    let join_algorithm = Binary
     let function_result_types = Never
     let enable_reaper = false
     let unicode = true
@@ -139,6 +141,7 @@ module Flambda2 = struct
     backend_cse_at_toplevel : bool;
     cse_depth : int;
     join_depth : int;
+    join_algorithm : join_algorithm;
     function_result_types : function_result_types;
     enable_reaper : bool;
     unicode : bool;
@@ -152,6 +155,7 @@ module Flambda2 = struct
     backend_cse_at_toplevel = Default.backend_cse_at_toplevel;
     cse_depth = Default.cse_depth;
     join_depth = Default.join_depth;
+    join_algorithm = Default.join_algorithm;
     function_result_types = Default.function_result_types;
     enable_reaper = Default.enable_reaper;
     unicode = Default.unicode;
@@ -185,6 +189,7 @@ module Flambda2 = struct
   let backend_cse_at_toplevel = ref Default
   let cse_depth = ref Default
   let join_depth = ref Default
+  let join_algorithm = ref Default
   let unicode = ref Default
   let kind_checks = ref Default
   let function_result_types = ref Default
