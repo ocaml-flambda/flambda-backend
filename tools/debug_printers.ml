@@ -23,3 +23,4 @@ let mod_bounds ppf m = Types.Jkind_mod_bounds.debug_print ppf m
 let with_bounds ppf w = Jkind.With_bounds.debug_print ppf w
 let with_bounds_types ppf w = Jkind.With_bounds.debug_print_types ppf w
 let modalities = Mode.Modality.Value.Const.print
+let type_set ppf set = let open Format in fprintf ppf "@[[%a]@]" (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ";@ ") Printtyp.raw_type_expr) (Btype.TypeSet.elements set)
