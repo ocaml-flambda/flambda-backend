@@ -732,6 +732,22 @@ module With_bounds = struct
           type_exprs)
 end
 
+(* Forward declarations *)
+type normalize_mode =
+  | Require_best
+  | Ignore_best
+
+let normalize' =
+  ref
+    (fun
+      ?unbound_type_vars:_
+      ~mode:(_ : normalize_mode)
+      ~jkind_of_type:_
+      (_ : Types.jkind_l)
+      :
+      Types.jkind_l
+    -> assert false)
+
 module Layout_and_axes = struct
   module Allow_disallow = Allowance.Magic_allow_disallow (struct
     type (_, 'layout, 'd) sided = ('layout, 'd) layout_and_axes
@@ -1057,6 +1073,57 @@ module Layout_and_axes = struct
         loop Loop_control.starting mod_bounds
           (Axis_set.complement skip_axes)
           (With_bounds.to_list t.with_bounds)
+      in
+      (* Make sure there are no unbound type vars mentioned in the resulting with-bounds,
+         by taking any remaining types mentioning unbound type vars, normalizing them with
+         mode = ignore_best, and joining their mod bounds with ours
+
+         This can only happen if we have unbound type vars, and if we were running with
+         mode=Require_best. *)
+      let mod_bounds, with_bounds =
+        match with_bounds, Btype.TypeSet.is_empty unbound_type_vars, mode with
+        | With_bounds wbs, false, Require_best ->
+          let mbs, wbs =
+            Seq.fold_left
+              (fun (mb, wb_res) (wb_ty, ti) ->
+                if unbound_type_vars |> Btype.TypeSet.to_seq
+                   |> Seq.exists (fun ty ->
+                          let open struct
+                            exception Occur
+                          end in
+                          let rec deep_occur_rec t0 ty =
+                            if get_level ty >= get_level t0
+                               && Btype.try_mark_node ty
+                            then (
+                              if eq_type ty t0 then Stdlib.raise Occur;
+                              Btype.iter_type_expr (deep_occur_rec t0) ty)
+                          in
+                          match
+                            deep_occur_rec (Transient_expr.type_expr ty) wb_ty
+                          with
+                          | () ->
+                            Btype.unmark_type wb_ty;
+                            false
+                          | exception Occur ->
+                            Btype.unmark_type wb_ty;
+                            true)
+                then
+                  let mod_bounds =
+                    match jkind_of_type wb_ty with
+                    | None -> Mod_bounds.max
+                    | Some jkind ->
+                      (!normalize' jkind (* CR aspsmith: unbound_type_vars? *)
+                         ~mode:Ignore_best ~jkind_of_type)
+                        .jkind
+                        .mod_bounds
+                  in
+                  Mod_bounds.join mb mod_bounds, wb_res
+                else mb, With_bounds.add_bound wb_ty ti wb_res)
+              (mod_bounds, With_bounds_types.empty)
+              (With_bounds_types.to_seq wbs)
+          in
+          mbs, (With_bounds wbs : (l * r2) with_bounds)
+        | wbs, _, _ -> mod_bounds, wbs
       in
       { t with mod_bounds; with_bounds }, fuel_status
 end
@@ -2251,10 +2318,6 @@ let for_object =
 (******************************)
 (* elimination and defaulting *)
 
-type normalize_mode =
-  | Require_best
-  | Ignore_best
-
 let[@inline] normalize ?(unbound_type_vars = Btype.TypeSet.empty) ~mode
     ~jkind_of_type t =
   let mode : _ Layout_and_axes.normalize_mode =
@@ -2275,6 +2338,8 @@ let[@inline] normalize ?(unbound_type_vars = Btype.TypeSet.empty) ~mode
       | Ran_out_of_fuel -> true
       | _ -> t.ran_out_of_fuel_during_normalize)
   }
+
+let () = normalize' := normalize
 
 let get_layout_defaulting_to_value { jkind = { layout; _ }; _ } =
   Layout.default_to_value_and_get layout

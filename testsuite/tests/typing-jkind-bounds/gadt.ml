@@ -246,36 +246,23 @@ type 'a cell =
   | Cons : { value : 'a; mutable next : 'a cell; } -> 'a cell
 |}]
 
-module type S = sig
-  type 'a abstract
-  type t =
-    | P : ('a : value mod portable). 'a abstract -> t
-end
+(* Abstract types over existentials shouldn't show up in the with-bounds - they should
+   just get treated as best.
 
-module type S1 = S with type 'a abstract = int
-module type S2 = S with type 'a abstract = 'a option
-
-module M : S2 = struct
-  type 'a abstract = 'a option
-  type t : value mod portable =
-    | P : ('a : value mod portable). 'a abstract -> t
-end
-
+   This test intentionally triggers a kind error to check this via the printed kind in the
+   error message.
+*)
+type 'a abstract : value mod portable
+type existential_abstract : immediate =
+  | P : ('a : value mod portable). 'a abstract -> existential_abstract
 [%%expect{|
-module type S =
-  sig
-    type 'a abstract
-    type t = P : ('a : value mod portable). 'a abstract -> t
-  end
-module type S1 =
-  sig
-    type 'a abstract = int
-    type t = P : ('a : value mod portable). 'a abstract -> t
-  end
-module type S2 =
-  sig
-    type 'a abstract = 'a option
-    type t = P : ('a : value mod portable). 'a abstract -> t
-  end
-module M : S2
+type 'a abstract : value mod portable
+Lines 2-3, characters 0-70:
+2 | type existential_abstract : immediate =
+3 |   | P : ('a : value mod portable). 'a abstract -> existential_abstract
+Error: The kind of type "existential_abstract" is value mod portable
+         because it's a boxed variant type.
+       But the kind of type "existential_abstract" must be a subkind of
+         immediate
+         because of the annotation on the declaration of the type existential_abstract.
 |}]
