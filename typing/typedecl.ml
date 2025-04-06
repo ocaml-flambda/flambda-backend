@@ -2759,6 +2759,13 @@ let check_redefined_unit (td: Parsetree.type_declaration) =
 
 (* Normalize the jkinds in a list of (potentially mutually recursive) type declarations *)
 let normalize_decl_jkinds env shapes decls =
+  let unbound_type_vars =
+    List.fold_left
+      (fun acc (_, _, _, decl) ->
+         Btype.TypeSet.union acc (Datarepr.unbound_type_vars decl))
+      Btype.TypeSet.empty
+      decls
+  in
   let rec normalize_decl_jkind env original_decl allow_any_crossing decl path =
     let type_unboxed_version =
       Option.map (fun type_unboxed_version ->
@@ -2766,7 +2773,6 @@ let normalize_decl_jkinds env shapes decls =
           allow_any_crossing type_unboxed_version (Path.unboxed_version path))
       decl.type_unboxed_version
     in
-    let unbound_type_vars = Datarepr.unbound_type_vars decl in
     let normalized_jkind =
       Jkind.normalize
         ~unbound_type_vars

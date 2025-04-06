@@ -1112,8 +1112,8 @@ module Layout_and_axes = struct
                     match jkind_of_type wb_ty with
                     | None -> Mod_bounds.max
                     | Some jkind ->
-                      (!normalize' jkind (* CR aspsmith: unbound_type_vars? *)
-                         ~mode:Ignore_best ~jkind_of_type)
+                      (!normalize' jkind ~unbound_type_vars ~mode:Ignore_best
+                         ~jkind_of_type)
                         .jkind
                         .mod_bounds
                   in
@@ -2318,13 +2318,12 @@ let for_object =
 (******************************)
 (* elimination and defaulting *)
 
-let[@inline] normalize ?(unbound_type_vars = Btype.TypeSet.empty) ~mode
-    ~jkind_of_type t =
+let[@inline] normalize ?unbound_type_vars ~mode ~jkind_of_type t =
   let mode : _ Layout_and_axes.normalize_mode =
     match mode with Require_best -> Require_best | Ignore_best -> Ignore_best
   in
   let jkind, fuel_result =
-    Layout_and_axes.normalize ~unbound_type_vars ~jkind_of_type
+    Layout_and_axes.normalize ?unbound_type_vars ~jkind_of_type
       ~skip_axes:Axis_set.empty ~mode t.jkind
   in
   { t with
