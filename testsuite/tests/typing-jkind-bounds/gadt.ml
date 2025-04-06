@@ -266,3 +266,19 @@ Error: The kind of type "existential_abstract" is value mod portable
          immediate
          because of the annotation on the declaration of the type existential_abstract.
 |}]
+
+(* Some hard recursive types with existentials *)
+type existential_abstract : immediate =
+  | P : ('a : value mod portable). 'a abstract t2 -> existential_abstract
+and 'a t2 = P : { contents : 'a; other : 'b option } -> 'a t2
+and 'a abstract : value mod portable
+[%%expect{|
+Lines 1-2, characters 0-73:
+1 | type existential_abstract : immediate =
+2 |   | P : ('a : value mod portable). 'a abstract t2 -> existential_abstract
+Error: The kind of type "existential_abstract" is value mod portable with 'a
+         because it's a boxed variant type.
+       But the kind of type "existential_abstract" must be a subkind of
+         immediate
+         because of the annotation on the declaration of the type existential_abstract.
+|}]
