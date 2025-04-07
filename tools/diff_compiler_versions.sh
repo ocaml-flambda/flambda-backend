@@ -12,11 +12,11 @@ fi
 set -euxo pipefail
 
 
-if [ ! -v AUTOCONF ] || [ -z $AUTOCONF ]; then
+if [[ -z "${AUTOCONF:-}" ]]; then
   AUTOCONF=autoconf
 fi
 
-if [ ! -v TMPDIR ] || [ -z $TMPDIR ]; then
+if [[ -z "${TMPDIR:-}" ]]; then
   TMPDIR=/tmp
 fi
 
