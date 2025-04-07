@@ -6,8 +6,6 @@ val split_live_ranges : bool Lazy.t
 
 val split_debug : bool
 
-val split_verbose : bool Lazy.t
-
 val split_invariants : bool Lazy.t
 
 val log :
