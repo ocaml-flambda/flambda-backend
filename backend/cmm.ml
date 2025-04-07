@@ -549,7 +549,7 @@ let map_shallow f = function
       Cifthenelse(f cond, ifso_dbg, f ifso, ifnot_dbg, f ifnot, dbg)
   | Cswitch (e, ia, ea, dbg) ->
       Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg)
-  | Ccatch (rf, hl, body ) ->
+  | Ccatch (rf, hl, body) ->
       let map_h (n, ids, handler, dbg, is_cold) =
         (n, ids, f handler, dbg, is_cold)
       in
