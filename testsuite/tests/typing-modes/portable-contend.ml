@@ -31,7 +31,7 @@ let foo (r @ contended) = r.a
 Line 1, characters 26-27:
 1 | let foo (r @ contended) = r.a
                               ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
   Hint: In order to read from the mutable fields,
   this record needs to be at least shared.
 |}]
@@ -46,7 +46,7 @@ let foo (r @ contended) = {r with b = best_bytes ()}
 Line 1, characters 27-28:
 1 | let foo (r @ contended) = {r with b = best_bytes ()}
                                ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
   Hint: In order to read from the mutable fields,
   this record needs to be at least shared.
 |}]
@@ -190,7 +190,7 @@ let foo (r @ contended) =
 Line 3, characters 6-16:
 3 |     | [| x; y |] -> ()
           ^^^^^^^^^^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
   Hint: In order to read from the mutable fields,
   this record needs to be at least shared.
 |}]
