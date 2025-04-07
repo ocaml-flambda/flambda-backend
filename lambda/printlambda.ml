@@ -669,6 +669,7 @@ let primitive ppf = function
   | Pisint { variant_only } ->
       fprintf ppf (if variant_only then "isint" else "obj_is_int")
   | Pisnull -> fprintf ppf "isnull"
+  | Pisimmediate -> fprintf ppf "isimmediate"
   | Pisout -> fprintf ppf "isout"
   | Pbintofint (bi,m) -> print_boxed_integer "of_int" ppf bi m
   | Pintofbint bi -> print_boxed_integer "to_int" ppf bi alloc_heap
@@ -992,6 +993,7 @@ let name_of_primitive = function
   | Pctconst _ -> "Pctconst"
   | Pisint _ -> "Pisint"
   | Pisnull -> "Pisnull"
+  | Pisimmediate -> "Pisimmediate"
   | Pisout -> "Pisout"
   | Pbintofint _ -> "Pbintofint"
   | Pintofbint _ -> "Pintofbint"

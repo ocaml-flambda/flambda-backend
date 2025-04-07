@@ -862,6 +862,11 @@ let unary_primitive env res dbg f arg =
         Cmm.typ_val [arg] )
   | Is_int _ -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Is_null -> None, res, C.eq ~dbg arg (C.nativeint ~dbg 0n)
+  | Is_immediate ->
+    (* CR-someday dkalinichenko: consider using [tzcnt]. *)
+    let is_int = C.and_int arg (C.nativeint ~dbg 1n) dbg in
+    let is_null = C.eq ~dbg arg (C.nativeint ~dbg 0n) in
+    None, res, C.or_int is_int is_null dbg
   | Get_tag -> None, res, C.get_tag arg dbg
   | Array_length (Array_kind array_kind) ->
     None, res, array_length ~dbg arg array_kind
