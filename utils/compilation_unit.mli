@@ -47,7 +47,7 @@ module Name : sig
 
   val of_head_of_global_name : Global_module.Name.t -> t
 
-  val of_global_name_no_args_exn : Global_module.Name.t -> t
+  val of_parameter_name : Global_module.Parameter_name.t -> t
 
   val to_global_name : t -> Global_module.Name.t
 
@@ -105,7 +105,7 @@ val create : Prefix.t -> Name.t -> t
 val create_child : t -> Name.t -> t
 
 type argument =
-  { param : t;
+  { param : Name.t;
     value : t
   }
 
@@ -113,26 +113,6 @@ type argument =
     given arguments. The arguments will be sorted alphabetically by
     parameter name. *)
 val create_instance : t -> argument list -> t
-
-(* CR lmaurer: [of_global_name] would be better if (a) it insisted on taking a
-   complete instantiation (the exceptional cases mentioned are handled by other
-   functions) and (b) it took a [Global_module.t], which would allow it to
-   verify that it's complete. (For (b), we'll also want an [of_parameter]
-   function taking [Parameter.t] once that exists.) *)
-
-(** Create the compilation unit named by the given [Global_module.Name.t].
-    Usually only meaningful if the global name is a _complete instantiation_,
-    which is to say either (a) the named module has no parameters, or (b) there
-    is an argument for each parameter and each argument is itself a complete
-    instantiation. This ensures the name determines a compile-time constant, and
-    then the [t] returned here is the module corresponding to that constant.
-
-    The exception to the above is that a global name with _no_ arguments makes
-    sense even if the named module takes parameters, only in this case the [t]
-    refers to the module with the instantiating functor. This is only relevant
-    in two cases: when we're compiling the parameterised module itself, and
-    when we're instantiating it. *)
-val of_global_name : Global_module.Name.t -> t
 
 (** Convert the compilation unit to a [Global_module.Name.t], if possible (which
     is to say, if its prefix is empty). *)
