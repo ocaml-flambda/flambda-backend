@@ -5,8 +5,6 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 val ls_debug : bool
 
-val ls_verbose : bool Lazy.t
-
 val ls_invariants : bool Lazy.t
 
 val log :

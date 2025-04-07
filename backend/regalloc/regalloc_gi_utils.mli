@@ -4,8 +4,6 @@ open Regalloc_utils
 
 val gi_debug : bool
 
-val gi_verbose : bool Lazy.t
-
 val gi_invariants : bool Lazy.t
 
 val log :
