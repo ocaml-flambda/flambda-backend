@@ -261,7 +261,7 @@ module DSL : sig
   val mem_literal : string -> Operand.t
 
   (* CR gyorsh: [print_*] functions below are exposed temporarily to use DSL for
-     some but not all instructions in [emit.mlp]. They can eventually*)
+     some but not all instructions in [emit.ml]. They can eventually*)
   val print_ins : Instruction_name.t -> Operand.t array -> string
 
   val print_ins_cond :
