@@ -112,7 +112,6 @@ let successor_labels_normal ti =
   | Tailcall_self { destination } -> Label.Set.singleton destination
   | Switch labels -> Array.to_seq labels |> Label.Set.of_seq
   | Return | Raise _ | Tailcall_func _ -> Label.Set.empty
-  | Call_no_return _ -> Label.Set.empty
   | Never -> Label.Set.empty
   | Always l -> Label.Set.singleton l
   | Parity_test { ifso; ifnot } | Truth_test { ifso; ifnot } ->
@@ -122,7 +121,11 @@ let successor_labels_normal ti =
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
-  | Call { op = _; label_after } | Prim { op = _; label_after } ->
+  | Call (External { returns = None; _ }) -> Label.Set.empty
+  | Call
+      ( OCaml { returns = label_after; _ }
+      | External { returns = Some label_after; _ }
+      | Probe { returns = label_after; _ } ) ->
     Label.Set.singleton label_after
 
 let successor_labels ~normal ~exn block =
@@ -170,12 +173,34 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Switch labels -> Switch (Array.map f labels)
       | Tailcall_self { destination } ->
         Tailcall_self { destination = f destination }
-      | Tailcall_func Indirect
-      | Tailcall_func (Direct _)
-      | Return | Raise _ | Call_no_return _ ->
+      | Tailcall_func Indirect | Tailcall_func (Direct _) | Return | Raise _ ->
         block.terminator.desc
-      | Call { op; label_after } -> Call { op; label_after = f label_after }
-      | Prim { op; label_after } -> Prim { op; label_after = f label_after }
+      | Call (OCaml { op; returns }) -> Call (OCaml { op; returns = f returns })
+      | Call
+          (External
+            { func_symbol;
+              ty_res;
+              ty_args;
+              alloc;
+              returns;
+              effects;
+              stack_ofs;
+              _
+            }) ->
+        Call
+          (External
+             { func_symbol;
+               ty_res;
+               ty_args;
+               alloc;
+               returns = Option.map f returns;
+               effects;
+               stack_ofs
+             })
+      | Call (Probe { name; handler_code_sym; enabled_at_init; returns }) ->
+        Call
+          (Probe
+             { name; handler_code_sym; enabled_at_init; returns = f returns })
     in
     block.terminator <- { block.terminator with desc }
 
@@ -372,8 +397,6 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
       done;
       let i = label_count - 1 in
       fprintf ppf "case %d: goto %a" i Label.format labels.(i))
-  | Call_no_return { func_symbol; _ } ->
-    fprintf ppf "Call_no_return %s%a" func_symbol print_args args
   | Return -> fprintf ppf "Return%a" print_args args
   | Raise _ -> fprintf ppf "Raise%a" print_args args
   | Tailcall_self { destination } ->
@@ -390,23 +413,33 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
       (match call with
       | Indirect -> Linear.Ltailcall_ind
       | Direct func -> Linear.Ltailcall_imm { func })
-  | Call { op = call; label_after } ->
+  | Call (OCaml { op; returns }) ->
     Format.fprintf ppf "%t%a" print_res dump_linear_call_op
-      (match call with
+      (match op with
       | Indirect -> Linear.Lcall_ind
       | Direct func -> Linear.Lcall_imm { func });
-    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
-  | Prim { op = prim; label_after } ->
+    Format.fprintf ppf "%sgoto %a" sep Label.format returns
+  | Call
+      (External
+        { func_symbol = func;
+          ty_res;
+          ty_args;
+          alloc;
+          returns;
+          stack_ofs;
+          effects = _
+        }) ->
     Format.fprintf ppf "%t%a" print_res dump_linear_call_op
-      (match prim with
-      | External
-          { func_symbol = func; ty_res; ty_args; alloc; stack_ofs; effects = _ }
-        ->
-        Linear.Lextcall
-          { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
-      | Probe { name; handler_code_sym; enabled_at_init } ->
-        Linear.Lprobe { name; handler_code_sym; enabled_at_init });
-    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
+      (Linear.Lextcall
+         { func; ty_res; ty_args; returns = true; alloc; stack_ofs });
+    Option.iter
+      (fun label_after ->
+        Format.fprintf ppf "%sgoto %a" sep Label.format label_after)
+      returns
+  | Call (Probe { name; handler_code_sym; enabled_at_init; returns }) ->
+    Format.fprintf ppf "%t%a" print_res dump_linear_call_op
+      (Linear.Lprobe { name; handler_code_sym; enabled_at_init });
+    Format.fprintf ppf "%sgoto %a" sep Label.format returns
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -442,12 +475,10 @@ let print_instruction ppf i = print_instruction' ppf i
 
 let can_raise_terminator (i : terminator) =
   match i with
-  | Call_no_return { func_symbol; _ } ->
+  | Call (External { func_symbol; returns = None; _ }) ->
     not (String.equal func_symbol Cmm.caml_flambda2_invalid)
-  | Raise _ | Tailcall_func _ | Call _ | Prim { op = Probe _; label_after = _ }
-    ->
-    true
-  | Prim { op = External { alloc; effects; _ }; label_after = _ } -> (
+  | Raise _ | Tailcall_func _ | Call (OCaml _ | Probe _) -> true
+  | Call (External { returns = Some _; alloc; effects; _ }) -> (
     if not alloc
     then false
     else
@@ -465,9 +496,7 @@ let can_raise_terminator (i : terminator) =
    taking into account [effects] on extcalls *)
 let is_pure_terminator desc =
   match (desc : terminator) with
-  | Return | Raise _ | Call_no_return _ | Tailcall_func _ | Tailcall_self _
-  | Call _ | Prim _ ->
-    false
+  | Return | Raise _ | Call _ | Tailcall_func _ | Tailcall_self _ -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
@@ -477,16 +506,14 @@ let is_never_terminator desc =
   match (desc : terminator) with
   | Never -> true
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-  | Call_no_return _ | Call _ | Prim _ ->
+  | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call _ ->
     false
 
 let is_return_terminator desc =
   match (desc : terminator) with
   | Return -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-  | Call _ | Prim _ ->
+  | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _ | Call _ ->
     false
 
 let is_pure_basic : basic -> bool = function
@@ -537,7 +564,7 @@ let is_noop_move instr =
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
       | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
       | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ | Extcall _ )
   | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
     false
 
@@ -628,7 +655,7 @@ let is_poll (instr : basic instruction) =
       | Intop_atomic _
       | Floatop (_, _)
       | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ ) ->
+      | Specific _ | Name_for_debugger _ | Extcall _ ) ->
     false
 
 let is_alloc (instr : basic instruction) =
@@ -645,7 +672,7 @@ let is_alloc (instr : basic instruction) =
       | Intop_atomic _
       | Floatop (_, _)
       | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ ) ->
+      | Specific _ | Name_for_debugger _ | Extcall _ ) ->
     false
 
 let is_end_region (b : basic) =
@@ -662,10 +689,8 @@ let is_end_region (b : basic) =
       | Intop_atomic _
       | Floatop (_, _)
       | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ ) ->
+      | Specific _ | Name_for_debugger _ | Extcall _ ) ->
     false
-
-let is_alloc_or_poll instr = is_alloc instr || is_poll instr
 
 let basic_block_contains_calls block =
   block.is_trap_handler
@@ -683,11 +708,19 @@ let basic_block_contains_calls block =
          true)
      | Tailcall_self _ -> false
      | Tailcall_func _ -> false
-     | Call_no_return _ -> true
-     | Call _ -> true
-     | Prim { op = External _; _ } -> true
-     | Prim { op = Probe _; _ } -> true)
-  || DLL.exists block.body ~f:is_alloc_or_poll
+     | Call _ -> true)
+  || DLL.exists block.body ~f:(fun (instr : basic instruction) ->
+         match instr.desc with
+         | Op (Alloc _ | Poll | Extcall _) -> true
+         | Op
+             ( Move | Spill | Reload | Const_int _ | Const_float32 _
+             | Const_float _ | Const_symbol _ | Const_vec128 _ | Stackoffset _
+             | Load _ | Store _ | Intop _ | Intop_imm _ | Intop_atomic _
+             | Floatop _ | Csel _ | Reinterpret_cast _ | Static_cast _
+             | Probe_is_enabled _ | Opaque | Begin_region | End_region
+             | Specific _ | Name_for_debugger _ | Dls_get )
+         | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
+           false)
 
 let max_instr_id t =
   (* CR-someday xclerc for xclerc: factor out with similar function in
@@ -710,3 +743,22 @@ let equal_irc_work_list left right =
     true
   | (Unknown_list | Coalesced | Constrained | Frozen | Work_list | Active), _ ->
     false
+
+let print_block ppf block =
+  let fprintf = Format.fprintf in
+  let pp_with_id ppf ~pp (instr : _ instruction) =
+    fprintf ppf "(id:%a) %a\n" InstructionId.format instr.id pp instr
+  in
+  DLL.iter ~f:(pp_with_id ppf ~pp:print_basic) block.body;
+  pp_with_id ppf ~pp:print_terminator block.terminator;
+  fprintf ppf "\npredecessors:";
+  Label.Set.iter (fprintf ppf " %a" Label.format) block.predecessors;
+  fprintf ppf "\nsuccessors:";
+  Label.Set.iter
+    (fprintf ppf " %a" Label.format)
+    (successor_labels ~normal:true ~exn:false block);
+  fprintf ppf "\nexn-successor:";
+  Label.Set.iter
+    (fprintf ppf " %a" Label.format)
+    (successor_labels ~normal:false ~exn:true block);
+  fprintf ppf "\n"

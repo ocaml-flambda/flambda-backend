@@ -354,6 +354,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
+  | Op (Extcall { stack_ofs; _ }) ->
+    if stack_ofs > 0 then all_phys_regs else destroyed_at_c_noalloc_call
   | Op(Load {memory_chunk = Single { reg = Float64 }; _ }
       | Store(Single { reg = Float64 }, _, _))
     -> destroy_neon_reg7
@@ -396,14 +398,14 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
-  | Call {op = Indirect | Direct _; _} ->
+  | Call (OCaml { op = (Indirect | Direct _); _}) ->
     all_phys_regs
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _} ->
+  | Tailcall_func _ | Call (Probe _) ->
     [||]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }
-  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }; _} ->
+  | Call (External { func_symbol = _; alloc; ty_res = _; ty_args = _;
+      stack_ofs; _ }) ->
     if alloc || stack_ofs > 0 then all_phys_regs else destroyed_at_c_noalloc_call
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
@@ -414,14 +416,14 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
 let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
-  | Call {op = Indirect | Direct _; _} ->
+  | Call (OCaml {op = (Indirect | Direct _); _}) ->
     true
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _} ->
+  | Tailcall_func _ | Call (Probe _) ->
     false
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}
-  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}; _} ->
+  | Call ( External { func_symbol = _; alloc; ty_res = _; ty_args = _;
+      stack_ofs = _; _}) ->
     if more_destruction_points then
       true
     else
@@ -498,7 +500,7 @@ let operation_supported : Cmm.operation -> bool = function
                   Int_of_float Float32 | Float_of_int Float32 |
                   V128_of_scalar _ | Scalar_of_v128 _)
   | Cclz _ | Cctz _ | Cbswap _
-  | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
+  | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
@@ -509,8 +511,7 @@ let operation_supported : Cmm.operation -> bool = function
   | Cstatic_cast (Float_of_int Float64 | Int_of_float Float64)
   | Ccmpf _
   | Ccsel _
-  | Craise _
-  | Cprobe _ | Cprobe_is_enabled _ | Copaque
+  | Cprobe_is_enabled _ | Copaque
   | Cbeginregion | Cendregion | Ctuple_field _
   | Cdls_get
   | Cpoll

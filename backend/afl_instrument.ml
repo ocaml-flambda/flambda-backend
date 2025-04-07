@@ -62,7 +62,8 @@ let rec with_afl_logging b dbg =
           [afl_prev_loc dbg; Cconst_int (cur_location lsr 1, dbg)]))) in
   Csequence(instrumentation, instrument b)
 
-and instrument = function
+and instrument expr =
+  match expr with
   (* these cases add logging, as they may be targets of conditional branches *)
   | Cifthenelse (cond, t_dbg, t, f_dbg, f, dbg) ->
      Cifthenelse (instrument cond, t_dbg, with_afl_logging t t_dbg,
@@ -88,6 +89,24 @@ and instrument = function
   | Cphantom_let (v, defining_expr, body) ->
     Cphantom_let (v, defining_expr, instrument body)
   | Ctuple es -> Ctuple (List.map instrument es)
+ | Capply ({ args; dbg },
+        OCaml { callee; result_ty; region_close }) ->
+      let callee = instrument callee in
+      let args = List.map instrument args in
+      Capply ({ args; dbg },
+        OCaml { callee; result_ty; region_close })
+  | Capply ({ args; dbg },
+        External { func; ty; ty_args; builtin; alloc; returns; effects;
+          coeffects }) ->
+      let args = List.map instrument args in
+      Capply ({ args; dbg },
+        External { func; ty; ty_args; builtin; alloc; returns; effects;
+          coeffects })
+  | Capply ({ args; dbg },
+        Probe { name; handler_code_sym; enabled_at_init }) ->
+      let args = List.map instrument args in
+      Capply ({ args; dbg },
+        Probe { name; handler_code_sym; enabled_at_init })
   | Cop (op, es, dbg) -> Cop (op, List.map instrument es, dbg)
   | Csequence (e1, e2) -> Csequence (instrument e1, instrument e2)
   | Ccatch ((Normal | Recursive as flag), cases, body) ->
@@ -98,6 +117,8 @@ and instrument = function
      in
      Ccatch (flag, cases, instrument body)
   | Cexit (ex, args, traps) -> Cexit (ex, List.map instrument args, traps)
+  | Craise (raise_kind, args, dbg) ->
+      Craise (raise_kind, List.map instrument args, dbg)
 
   (* these are base cases and have no logging *)
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
@@ -114,10 +135,9 @@ let instrument_initialiser c dbg =
   Csequence
     (Cop (Cextcall { func = "caml_setup_afl";
                      builtin = false;
-                     returns = true;
                      effects = Arbitrary_effects;
                      coeffects = Has_coeffects;
-                     ty = typ_int; alloc = false; ty_args = []; },
+                     ty = typ_int; ty_args = []; },
           [Cconst_int (0, dbg ())],
           dbg ()),
      with_afl_logging c (dbg ()))

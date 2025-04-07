@@ -55,7 +55,7 @@ let class_of_operation (op : Operation.t)
   | Stackoffset _ | Load _ | Store _ | Alloc _
   | Intop _ | Intop_imm _ | Intop_atomic _
   | Name_for_debugger _ | Probe_is_enabled _ | Opaque
-  | Begin_region | End_region | Poll | Dls_get
+  | Begin_region | End_region | Poll | Dls_get | Extcall _
     -> Use_default
 
 let is_cheap_operation (op : Operation.t)
@@ -73,5 +73,5 @@ let is_cheap_operation (op : Operation.t)
   | Stackoffset _ | Load _ | Store _ | Alloc _
   | Intop _ | Intop_imm _ | Intop_atomic _
   | Name_for_debugger _ | Probe_is_enabled _ | Opaque
-  | Begin_region | End_region | Poll | Dls_get
+  | Begin_region | End_region | Poll | Dls_get | Extcall _
     -> Cheap false

@@ -329,6 +329,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     | Probe_is_enabled _ -> Op_other
     | Begin_region | End_region -> Op_other
     | Dls_get -> Op_load Mutable
+    | Extcall _ -> assert false (* treated specially *)
 
   let class_of_operation op =
     match Target.class_of_operation op with
@@ -343,7 +344,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     | Intop_imm (_, _)
     | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _ | Reinterpret_cast _
     | Specific _ | Name_for_debugger _ | Probe_is_enabled _ | Begin_region
-    | End_region | Dls_get ->
+    | End_region | Dls_get | Extcall _ ->
       false
 
   let kill_loads (n : numbering) : numbering = remove_mutable_load_numbering n
@@ -361,6 +362,9 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
       n1
     | Op Opaque ->
       (* Assume arbitrary side effects from Iopaque *)
+      empty_numbering
+    | Op (Extcall _) ->
+      (* Likewise for external calls *)
       empty_numbering
     | Op (Alloc _) | Op Poll ->
       (* For allocations, we must avoid extending the live range of a
@@ -445,8 +449,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ ->
       set_unknown_regs numbering (Proc.destroyed_at_terminator terminator.desc)
-    | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-    | Call _ | Prim _ ->
+    | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call _ ->
       (* For function calls and probes, we should at least forget: - equations
          involving memory loads, since the callee can perform arbitrary memory
          stores; - equations involving arithmetic operations that can produce

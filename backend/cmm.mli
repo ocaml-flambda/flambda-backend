@@ -34,21 +34,21 @@ type machtype_component = Cmx_format.machtype_component =
      Such derived pointers are produced by e.g. array indexing.
    - [Float] is for unboxed floating-point numbers.
 
-The purpose of these types is twofold.  First, they guide register
-allocation: type [Float] goes in FP registers, the other types go
-into integer registers.  Second, they determine how local variables are
-tracked by the GC:
-   - Variables of type [Val] are GC roots.  If they are pointers, the
-     GC will not deallocate the addressed heap block, and will update
-     the local variable if the heap block moves.
-   - Variables of type [Int] and [Float] are ignored by the GC.
-     The GC does not change their values.
-   - Variables of type [Addr] must never be live across an allocation
-     point or function call.  They cannot be given as roots to the GC
-     because they don't point after a well-formed block header of the
-     kind that the GC needs.  However, the GC may move the block pointed
-     into, invalidating the value of the [Addr] variable.
-*)
+   The purpose of these types is twofold.  First, they guide register
+   allocation: type [Float] goes in FP registers, the other types go
+   into integer registers.  Second, they determine how local variables are
+   tracked by the GC:
+      - Variables of type [Val] are GC roots.  If they are pointers, the
+        GC will not deallocate the addressed heap block, and will update
+        the local variable if the heap block moves.
+      - Variables of type [Int] and [Float] are ignored by the GC.
+        The GC does not change their values.
+      - Variables of type [Addr] must never be live across an allocation
+        point or function call.  They cannot be given as roots to the GC
+        because they don't point after a well-formed block header of the
+        kind that the GC needs.  However, the GC may move the block pointed
+        into, invalidating the value of the [Addr] variable.
+   *)
 
 type machtype = machtype_component array
 
@@ -306,19 +306,22 @@ type alloc_dbginfo_item =
 
 type alloc_dbginfo = alloc_dbginfo_item list
 
+(** [operation]s never have any control flow effects.  (Asynchronous exceptions
+    do not count as control flow effects). *)
 type operation =
-  | Capply of machtype * Lambda.region_close
   | Cextcall of
       { func : string;
         ty : machtype;
         ty_args : exttype list;
-        alloc : bool;
         builtin : bool;
-        returns : bool;
         effects : effects;
         coeffects : coeffects
       }
-      (** The [machtype] is the machine type of the result.
+      (** [Cextcall] never generates [caml_c_call].  Use the expression
+          [Capply_extcall] for those instead.
+          Likewise, extcalls that never return must use [Capply_extcall], since
+          divergence is a control flow effect.
+          The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.
           An empty list means "all arguments are machine words [XInt]".
           The boolean indicates whether the function may allocate. *)
@@ -368,12 +371,6 @@ type operation =
   | Creinterpret_cast of reinterpret_cast
   | Cstatic_cast of static_cast
   | Ccmpf of float_width * float_comparison
-  | Craise of Lambda.raise_kind
-  | Cprobe of
-      { name : string;
-        handler_code_sym : string;
-        enabled_at_init : bool
-      }
   | Cprobe_is_enabled of { name : string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion
@@ -434,6 +431,7 @@ type expression =
   | Cphantom_let of
       Backend_var.With_provenance.t * phantom_defining_expr option * expression
   | Ctuple of expression list
+  | Capply of apply_shared * apply
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of
@@ -455,6 +453,40 @@ type expression =
         list
       * expression
   | Cexit of exit_label * expression list * trap_action list
+  | Craise of Lambda.raise_kind * expression list * Debuginfo.t
+
+and apply =
+  | OCaml of
+      { callee : expression;
+        result_ty : machtype;
+        region_close : Lambda.region_close
+      }
+  | External of
+      { func : string;
+        ty : machtype;
+        ty_args : exttype list;
+        builtin : bool;
+        alloc : bool;
+        returns : bool;
+            (** At least one of [alloc] and [returns] must be [true].  Otherwise,
+          use [Cop]. *)
+        (* CR mshinwell: improve description of effects/alloc/returns, including
+           ruling out impossible cases e.g. for extcalls treated as operations
+           where they are never allocated to allocate and should always
+           return. *)
+        effects : effects;
+        coeffects : coeffects
+      }
+  | Probe of
+      { name : string;
+        handler_code_sym : string;
+        enabled_at_init : bool
+      }
+
+and apply_shared =
+  { args : expression list;
+    dbg : Debuginfo.t
+  }
 
 type codegen_option =
   | Reduce_code_size
@@ -527,15 +559,6 @@ val ctrywith :
 
 val reset : unit -> unit
 
-(** Either apply the callback to all immediate sub-expressions that
-      can produce the final result for the expression and return
-      [true], or do nothing and return [false].  Note that the notion
-      of "tail" sub-expression used here does not match the one used
-      to trigger tail calls; in particular, try...with handlers are
-      considered to be in tail position (because their result become
-      the final result for the expression).  *)
-val iter_shallow_tail : (expression -> unit) -> expression -> bool
-
 (** Apply the transformation to those immediate sub-expressions of an
       expression that are in tail position, using the same definition of "tail"
       as [iter_shallow_tail] *)
@@ -545,12 +568,6 @@ val map_shallow_tail : (expression -> expression) -> expression -> expression
       to all inner sub-expressions that can produce the final result,
       by recursively applying map_shallow_tail *)
 val map_tail : (expression -> expression) -> expression -> expression
-
-(** Apply the callback to each immediate sub-expression. *)
-val iter_shallow : (expression -> unit) -> expression -> unit
-
-(** Apply the transformation to each immediate sub-expression. *)
-val map_shallow : (expression -> expression) -> expression -> expression
 
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 

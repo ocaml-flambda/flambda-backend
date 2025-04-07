@@ -242,8 +242,6 @@ val make_opaque : unit -> Operation.t
 
 val regs_for : Cmm.machtype -> Reg.t array
 
-val basic_op : Operation.t -> Cfg.basic_or_terminator
-
 val insert_debug :
   environment ->
   Sub_cfg.t ->
@@ -323,5 +321,3 @@ val join_array :
   (Reg.t array Or_never_returns.t * Sub_cfg.t) array ->
   bound_name:Backend_var.With_provenance.t option ->
   Reg.t array Or_never_returns.t
-
-val basic_op : Operation.t -> Cfg.basic_or_terminator

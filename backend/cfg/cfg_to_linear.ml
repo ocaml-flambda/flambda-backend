@@ -161,8 +161,16 @@ let linearize_terminator cfg_with_layout (func : string) start
             (Ltailcall_imm { func = { sym_name = func; sym_global = Local } })
         ],
         Some destination )
-    | Call_no_return
-        { func_symbol; alloc; ty_args; ty_res; stack_ofs; effects = _ } ->
+    | Call
+        (External
+          { func_symbol;
+            alloc;
+            returns = None;
+            ty_args;
+            ty_res;
+            stack_ofs;
+            effects = _
+          }) ->
       single
         (L.Lcall_op
            (Lextcall
@@ -173,28 +181,39 @@ let linearize_terminator cfg_with_layout (func : string) start
                 returns = false;
                 stack_ofs
               }))
-    | Call { op; label_after } ->
+    | Call (OCaml { op; returns = label_after }) ->
       let op : Linear.call_operation =
         match op with
         | Indirect -> Lcall_ind
         | Direct func_symbol -> Lcall_imm { func = func_symbol }
       in
       branch_or_fallthrough [L.Lcall_op op] label_after, None
-    | Prim { op; label_after } ->
+    | Call
+        (External
+          { func_symbol;
+            alloc;
+            returns = Some label_after;
+            ty_args;
+            ty_res;
+            stack_ofs;
+            effects = _
+          }) ->
       let op : Linear.call_operation =
-        match op with
-        | External
-            { func_symbol; alloc; ty_args; ty_res; stack_ofs; effects = _ } ->
-          Lextcall
-            { func = func_symbol;
-              alloc;
-              ty_args;
-              ty_res;
-              returns = true;
-              stack_ofs
-            }
-        | Probe { name; handler_code_sym; enabled_at_init } ->
-          Lprobe { name; handler_code_sym; enabled_at_init }
+        Lextcall
+          { func = func_symbol;
+            alloc;
+            ty_args;
+            ty_res;
+            returns = true;
+            stack_ofs
+          }
+      in
+      branch_or_fallthrough [L.Lcall_op op] label_after, None
+    | Call
+        (Probe
+          { name; handler_code_sym; enabled_at_init; returns = label_after }) ->
+      let op : Linear.call_operation =
+        Lprobe { name; handler_code_sym; enabled_at_init }
       in
       branch_or_fallthrough [L.Lcall_op op] label_after, None
     | Switch labels -> single (L.Lswitch labels)
@@ -337,12 +356,11 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       match prev_block.terminator.desc with
       | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
+      | Call (External { returns = None; _ }) -> assert false
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-      | Call _ | Prim _ ->
+      | Call (OCaml _ | External { returns = Some _; _ } | Probe _) ->
         false
-      | Return | Raise _ | Tailcall_func _ | Tailcall_self _ | Call_no_return _
-        ->
-        assert false)
+      | Return | Raise _ | Tailcall_func _ | Tailcall_self _ -> assert false)
 
 let adjust_stack_offset body (block : Cfg.basic_block)
     ~(prev_block : Cfg.basic_block) =

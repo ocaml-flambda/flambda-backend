@@ -170,7 +170,8 @@ let is_move_basic : Cfg.basic -> bool =
     | Name_for_debugger _ -> false
     | Dls_get -> false
     | Poll -> false
-    | Alloc _ -> false)
+    | Alloc _ -> false
+    | Extcall _ -> false)
   | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =

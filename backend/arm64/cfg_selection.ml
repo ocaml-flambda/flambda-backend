@@ -64,7 +64,7 @@ let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth = function
   | Thirtytwo -> Thirtytwo
   | Sixtyfour -> Sixtyfour
 
-let specific x : Cfg.basic_or_terminator = Basic (Op (Specific x))
+let specific x : Cfg.basic = Op (Specific x)
 
 let is_immediate (op : Operation.integer_operation) n :
     Cfg_selectgen_target_intf.is_immediate_result =
@@ -111,7 +111,7 @@ let select_addressing chunk (expr : Cmm.expression) :
   | arg -> Iindexed 0, arg
 
 let select_operation ~generic_select_condition:_ (op : Cmm.operation)
-    (args : Cmm.expression list) _dbg ~label_after:_ :
+    (args : Cmm.expression list) _dbg :
     Cfg_selectgen_target_intf.select_operation_result =
   let[@inline] rewrite_multiply_add_or_sub shift_op mul_op ~arg1 ~args2 dbg :
       Cfg_selectgen_target_intf.select_operation_result =
@@ -119,11 +119,11 @@ let select_operation ~generic_select_condition:_ (op : Cmm.operation)
       ( Cmuli,
         args2,
         dbg,
-        fun (basic_or_terminator : Cfg.basic_or_terminator) ~args ->
-          match basic_or_terminator, args with
-          | Basic (Op (Intop_imm (Ilsl, l))), [arg3] ->
+        fun (basic : Cfg.basic) ~args ->
+          match basic, args with
+          | Op (Intop_imm (Ilsl, l)), [arg3] ->
             Rewritten (specific (Ishiftarith (shift_op, l)), [arg1; arg3])
-          | Basic (Op (Intop Imul)), [arg3; arg4] ->
+          | Op (Intop Imul), [arg3; arg4] ->
             Rewritten (specific mul_op, [arg3; arg4; arg1])
           | _ -> Use_default )
   in
@@ -166,14 +166,13 @@ let select_operation ~generic_select_condition:_ (op : Cmm.operation)
   (* Use trivial addressing mode for atomic loads *)
   | Cload { memory_chunk; mutability; is_atomic = true } ->
     Rewritten
-      ( Basic
-          (Op
-             (Load
-                { memory_chunk;
-                  addressing_mode = Iindexed 0;
-                  mutability = Select_utils.select_mutable_flag mutability;
-                  is_atomic = true
-                })),
+      ( Op
+          (Load
+             { memory_chunk;
+               addressing_mode = Iindexed 0;
+               mutability = Select_utils.select_mutable_flag mutability;
+               is_atomic = true
+             }),
         args )
   (* Recognize floating-point negate and multiply *)
   | Cnegf Float64 -> (
@@ -197,10 +196,12 @@ let select_operation ~generic_select_condition:_ (op : Cmm.operation)
   | Cpackf32 -> Rewritten (specific (Isimd Zip1_f32), args)
   (* Recognize floating-point square root *)
   | Cextcall { func = "sqrt" | "sqrtf" | "caml_neon_float64_sqrt"; _ } ->
+    (* XXX check for these ones + any in amd64/ that they really are generated
+       as Cop, or these patterns won't hit *)
     Rewritten (specific Isqrtf, args)
   | Cextcall { func; builtin = true; _ } -> (
     match Simd_selection.select_operation_cfg func args with
-    | Some (op, args) -> Rewritten (Basic (Op op), args)
+    | Some (op, args) -> Rewritten (Op op, args)
     | None -> Use_default)
   (* Recognize bswap instructions *)
   | Cbswap { bitwidth } ->

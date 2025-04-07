@@ -41,16 +41,16 @@ type effects_of_result =
   | Use_default
 
 type select_operation_then_rewrite_result =
-  | Rewritten of Cfg.basic_or_terminator * Cmm.expression list
+  | Rewritten of Cfg.basic * Cmm.expression list
   | Use_default
 
 type select_operation_result =
-  | Rewritten of Cfg.basic_or_terminator * Cmm.expression list
+  | Rewritten of Cfg.basic * Cmm.expression list
   | Select_operation_then_rewrite of
       Cmm.operation
       * Cmm.expression list
       * Debuginfo.t
-      * (Cfg.basic_or_terminator ->
+      * (Cfg.basic ->
         args:Cmm.expression list ->
         select_operation_then_rewrite_result)
   | Use_default
@@ -85,15 +85,11 @@ module type S = sig
   val select_addressing :
     Cmm.memory_chunk -> Cmm.expression -> Arch.addressing_mode * Cmm.expression
 
-  (* CR-soon gyorsh: remove unused [label_after], maybe simplify
-     [select_operation_result] to return [Cfg.basic] instead of
-     [Cfg.basic_or_terminator]. *)
   val select_operation :
     generic_select_condition:(Cmm.expression -> Operation.test * Cmm.expression) ->
     Cmm.operation ->
     Cmm.expression list ->
     Debuginfo.t ->
-    label_after:Label.t ->
     select_operation_result
 
   val select_store :

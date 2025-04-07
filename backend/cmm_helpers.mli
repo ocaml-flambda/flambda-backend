@@ -442,10 +442,6 @@ type unary_primitive = expression -> Debuginfo.t -> expression
 (** Int_as_pointer primitive *)
 val int_as_pointer : unary_primitive
 
-(** Raise primitive *)
-val raise_prim :
-  Lambda.raise_kind -> extra_args:expression list -> unary_primitive
-
 (** Unary negation of an OCaml integer *)
 val negint : unary_primitive
 
@@ -654,6 +650,12 @@ val trywith :
 
 (** Opaque type for static handlers. *)
 type static_handler
+
+(* CR mshinwell: take a [static_handler] and implement like Flambda 2? *)
+
+(** Raise primitive *)
+val raise_prim :
+  Lambda.raise_kind -> extra_args:expression list -> unary_primitive
 
 (** [handler id vars body is_cold] creates a static handler for exit number [id],
     binding variables [vars] in [body]. *)

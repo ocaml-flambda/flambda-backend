@@ -164,8 +164,7 @@ let select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag =
 (* Infer the type of the result of an operation *)
 
 let oper_result_type = function
-  | Capply (ty, _) -> ty
-  | Cextcall { ty; ty_args = _; alloc = _; func = _ } -> ty
+  | Cextcall { ty; ty_args = _; func = _ } -> ty
   | Cload { memory_chunk } -> (
     match memory_chunk with
     | Word_val -> typ_val
@@ -217,8 +216,6 @@ let oper_result_type = function
   | Cstatic_cast (Scalar_of_v128 Float32x4) -> typ_float32
   | Cstatic_cast (Scalar_of_v128 (Int8x16 | Int16x8 | Int32x4 | Int64x2)) ->
     typ_int
-  | Craise _ -> typ_void
-  | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
   | Copaque -> typ_val
   | Cpoll -> typ_void
@@ -497,7 +494,7 @@ module Stack_offset_and_exn = struct
         InstructionId.format term.id
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
+    | Tailcall_func _ | Call _ ->
       stack_offset, traps
 
   let rec process_basic :
@@ -527,7 +524,8 @@ module Stack_offset_and_exn = struct
         | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
         | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
         | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
-        | Alloc _ )
+        | Alloc _ | Extcall _ )
+    (* XXX do we need to do anything with [stack_ofs] in the [Extcall] case? *)
     | Reloadretaddr | Prologue ->
       stack_offset, traps
     | Stack_check _ ->
@@ -726,5 +724,3 @@ let join_array env rs ~bound_name : _ Or_never_returns.t =
         maybe_emit_naming_op sub_cfg res
     done;
     Ok res
-
-let basic_op op : Cfg.basic_or_terminator = Basic (Op op)

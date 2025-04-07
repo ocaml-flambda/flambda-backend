@@ -140,6 +140,17 @@ let rec check env (expr : Cmm.expression) =
     check env expr
   | Ctuple exprs ->
     List.iter (check env) exprs
+  | Capply ({ args; dbg = _ },
+        OCaml { callee; result_ty = _; region_close = _; }) ->
+      (check env) callee;
+      List.iter (check env) args
+  | Capply ({ args; dbg = _ },
+        External { func = _; ty = _; ty_args = _; builtin = _; returns = _;
+                   effects = _; coeffects = _; }) ->
+      List.iter (check env) args
+  | Capply ({ args; dbg = _ },
+        Probe { name = _; handler_code_sym = _; enabled_at_init = _; }) ->
+      List.iter (check env) args
   | Cop (_, args, _) ->
     List.iter (check env) args;
   | Csequence (expr1, expr2) ->
@@ -169,6 +180,8 @@ let rec check env (expr : Cmm.expression) =
     List.iter (fun (_, _, handler, _, _) -> check env_handler handler) handlers
   | Cexit (exit_label, args, _trap_actions) ->
     Env.jump env ~exit_label ~arg_num:(List.length args)
+  | Craise (_raise_kind, args, _dbg) ->
+    List.iter (check env) args
 
 let run ppf (fundecl : Cmm.fundecl) =
   let env = Env.init () in

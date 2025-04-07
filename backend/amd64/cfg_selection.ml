@@ -125,7 +125,7 @@ let is_immediate_natint n =
   Nativeint.compare n 0x7FFF_FFFFn <= 0
   && Nativeint.compare n (-0x8000_0000n) >= 0
 
-let specific x : Cfg.basic_or_terminator = Basic (Op (Specific x))
+let specific x : Cfg.basic = Op (Specific x)
 
 let pseudoregs_for_operation op arg res =
   match (op : Operation.t) with
