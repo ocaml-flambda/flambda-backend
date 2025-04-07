@@ -286,11 +286,11 @@ let select_store ~is_assign addr (exp : Cmm.expression) :
   | Ctuple _
   | Cop (_, _, _)
   | Csequence (_, _)
-  | Cifthenelse (_, _, _, _, _, _, _)
-  | Cswitch (_, _, _, _, _)
-  | Ccatch (_, _, _, _)
+  | Cifthenelse (_, _, _, _, _, _)
+  | Cswitch (_, _, _, _)
+  | Ccatch (_, _, _)
   | Cexit (_, _, _)
-  | Ctrywith (_, _, _, _, _, _, _) ->
+  | Ctrywith (_, _, _, _, _, _) ->
     Use_default
 
 let is_store_out_of_range _chunk ~byte_offset:_ :
