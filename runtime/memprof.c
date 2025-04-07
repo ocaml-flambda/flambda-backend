@@ -1499,7 +1499,7 @@ static bool entry_update_after_minor_gc(entry_t e, void *data)
   CAMLassert(Is_block(e->block)
              || e->deleted || e->deallocated || e->offset);
   if (!e->offset && Is_block(e->block) && Is_young(e->block)) {
-    if (Hd_val(e->block) == 0) {
+    if (Is_promoted_hd(caml_get_header_val(e->block))) {
       /* Block has been promoted */
       e->block = Field(e->block, 0);
       e->promoted = true;
