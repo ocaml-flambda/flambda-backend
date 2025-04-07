@@ -158,3 +158,23 @@ let () =
   assert (compare (This "abc") (This "xyz") <> 0);
   assert (compare (This "xyz") (This "xyz") = 0);
 ;;
+
+external is_immediate : 'a or_null -> bool = "%is_immediate"
+
+let () =
+  assert (is_immediate (This 42));
+  assert (is_immediate (Sys.opaque_identity (This 5)));
+  assert (is_immediate (This 0));
+  assert (is_immediate (Sys.opaque_identity (This (-8))));
+  assert (is_immediate Null);
+  assert (is_immediate (Sys.opaque_identity Null));
+  assert (is_immediate (This []));
+  assert (is_immediate (Sys.opaque_identity (This None)));
+
+  assert (not (is_immediate (This "string")));
+  assert (not (is_immediate (Sys.opaque_identity (This 3.14))));
+  assert (not (is_immediate (This [1; 2; 3])));
+  assert (not (is_immediate (This (Some 22))));
+  assert (not (is_immediate (Sys.opaque_identity (This [||]))));
+  assert (not (is_immediate (This [: "something" :])));
+;;
