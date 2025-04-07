@@ -314,6 +314,7 @@ let compute_static_size lam =
     | Parrayrefs _
     | Pisint _
     | Pisnull
+    | Pisimmediate
     | Pisout
     | Pbintofint _
     | Pintofbint _

@@ -213,6 +213,8 @@ type primitive =
   | Pisint of { variant_only : bool }
   (* Test if the argument is a null pointer *)
   | Pisnull
+  (* Test if the argument is an immediate (integer or null pointer) *)
+  | Pisimmediate
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
@@ -1891,7 +1893,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       | Pgcignorableproductarray_ref _), _, _) -> None
   | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
   | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
-  | Pisint _ | Pisnull | Pisout -> None
+  | Pisint _ | Pisnull | Pisimmediate | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
   | Pcvtbint (_,_,m)
@@ -2079,8 +2081,9 @@ let primitive_can_raise prim =
   | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Pisint _ | Pisout | Pisnull | Pbintofint _ | Pintofbint _ | Pcvtbint _
-  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
+  | Pisint _ | Pisout | Pisnull | Pisimmediate
+  | Pbintofint _ | Pintofbint _
+  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -2291,7 +2294,8 @@ let primitive_result_layout (p : primitive) =
   | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
-  | Parraylength _ | Pisint _ | Pisnull | Pisout | Pintofbint _
+  | Parraylength _ | Pisint _ | Pisnull | Pisimmediate | Pisout
+  | Pintofbint _
   | Pbintcomp _ | Punboxed_int_comp _
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
