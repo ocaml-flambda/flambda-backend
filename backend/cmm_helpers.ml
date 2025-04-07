@@ -2696,7 +2696,8 @@ module SArgBlocks = struct
 
   type act = expression
 
-(* The module [SArgBlocks] must conform to the signature `Switch.S`. Since we do not need a layout, we pick unit as the layout. *)
+  (* The module [SArgBlocks] must conform to the signature `Switch.S`. Since we
+     do not need a layout, we pick unit as the layout. *)
   type layout = unit
 
   type loc = Debuginfo.t
