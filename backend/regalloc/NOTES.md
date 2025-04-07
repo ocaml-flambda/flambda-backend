@@ -59,7 +59,7 @@ for a list of registers the allocator has decided should be spilled. This
 means that the registers will have their values stored on the stack. In turn,
 it implies that before each read (resp. after each write) of the value, a reload
 (resp. spill) instruction needs to be inserted. The value is reloaded into
-(resp. spilled from) a fresh *temporary*, whose live range is covers only
+(resp. spilled from) a fresh *temporary*, whose live range covers only
 the instruction reading and/or writing the value. After rewrite, the spilled
 registers no longer appear in the CFG. All occurrences have been replaced with
 temporaries with very short live ranges, thus making the allocation problem
