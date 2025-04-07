@@ -14,8 +14,17 @@ should be run; it must be followed by either `on` or `off`.
 In addition to these two main command-line parameters, each allocator provides a
 number of additional parameters to control its behaviour. These parameters are
 passed through the `-regalloc-param` command-line parameter followed by a
-`NAME:VALUE` binding. The parameters available for the various allocators are
-described in the sections below.
+`NAME:VALUE` binding. Some parameters are specific to a given allocator, and are
+described in the sections below. Other parameters are common to all allocators:
+
+- `BLOCK_TEMPORARIES` (`on` or `off`): whether to use block rather than instruction
+  temporaries when "rewriting" (See next section);
+- `SPLIT_LIVE_RANGES` (`on` or `off`): whether to split live ranges before allocation;
+- `SPLIT_MORE_DESTR_POINTS` (`on` or `off`): whether to treat a non-allocating
+   external call as a destruction point;
+- `VALIDATOR_DEBUG` (`on` or `off`): whether to enable debugging for the validator;
+- `VERBOSE` (`on` or `off`): whether to produce a log describing each and
+  every step of the algorithm.
 
 
 ## Common elements
@@ -134,8 +143,6 @@ resources. It can be controlled by the following parameters:
   options selecting the temporary with the lowest estimated spilling cost (both
   are counting the number of uses, the hierarchical option using the information
   about loops to give more weight to a use inside a loop);
-- `IRC_VERBOSE` (`on` or `off`): whether to produce a log describing each and
-  every step of the algorithm;
 - `IRC_INVARIANTS` (`on` or `off`): whether to check the invariants.
 
 
@@ -157,8 +164,6 @@ The implementation is a direct port of upstream's algorithm (`Interval` and
 use of the `Regalloc_rewrite.rewrite_gen` function (from IRC) when temporaries
 need to be spilled. It can be controlled by the following parameters:
 
-- `LS_VERBOSE` (`on` or `off`): whether to produce a log describing each and
-  every step of the algorithm;
 - `LS_INVARIANTS` (`on` or `off`): whether to check the invariants.
 
 
@@ -215,8 +220,6 @@ It can be controlled by the following parameters:
   the strategy to use when trying to find a free register;
 - `GI_SPILLING_HEURISTICS` (`flat-uses`, or `hierarchical-uses`), with the same
   semantics as with IRC (See above);
-- `GI_VERBOSE` (`on` or `off`): whether to produce a log describing each and
-  every step of the algorithm;
 - `GI_INVARIANTS` (`on` or `off`): whether to check the invariants.
 
 
