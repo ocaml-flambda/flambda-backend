@@ -71,6 +71,9 @@ trap 'rm -rf "$BUILDDIR"' EXIT
 BASE_ORIGINAL_DIR="$BUILDDIR/base-original/"
 BASE_REVISION_DIR="$BUILDDIR/base-revision/"
 REVISION_DIR="$BUILDDIR/revision/"
+# We use the same install path for all to make sure that the binaries are identical.
+# We do not actually install the compilers at this path, because they would overwrite each other.
+INSTALL_PATH="$BUILDDIR/_install/"
 
 
 mkdir -p $TARGETDIR/{base-compiler-original,base-compiler-revision}/{_build,_install}
@@ -86,15 +89,15 @@ git archive --format=tar --prefix=revision/ $REVISION | (cd $BUILDDIR && tar xf 
 cd $REVISION_DIR
 sed -i.bak "s/echo '(:standard \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/echo '(:standard -S \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/g" Makefile.common-jst && rm Makefile.common-jst.bak
 $AUTOCONF
-./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
+./configure --enable-ocamltest --enable-warn-error --prefix="$INSTALL_PATH"
 make boot-compiler
 
 # we turn to the base line compiler and build the normal version
 cd $BASE_ORIGINAL_DIR
 sed -i.bak "s/echo '(:standard \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/echo '(:standard -S \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/g" Makefile.common-jst && rm Makefile.common-jst.bak
 $AUTOCONF
-./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
-make install
+./configure --enable-ocamltest --enable-warn-error --prefix="$INSTALL_PATH"
+make _install
 cp -R -f _install/. "$TARGETDIR/base-compiler-original/_install/"
 cp -R -f _build/. "$TARGETDIR/base-compiler-original/_build/"
 
@@ -103,14 +106,14 @@ cp -R -f _build/. "$TARGETDIR/base-compiler-original/_build/"
 cd $BASE_REVISION_DIR
 sed -i.bak "s/echo '(:standard \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/echo '(:standard -S \$(if \$(filter true,\$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp/g" Makefile.common-jst && rm Makefile.common-jst.bak
 $AUTOCONF
-./configure --enable-ocamltest --enable-warn-error --prefix="$(pwd)/_install"
+./configure --enable-ocamltest --enable-warn-error --prefix="$INSTALL_PATH"
 make boot-compiler
 # hack: we copy over the boot compiler from the revision compiler
 cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt.opt" _build/_bootinstall/bin/
 cp -L -R -f "$REVISION_DIR/_build/_bootinstall/bin/ocamlopt" _build/_bootinstall/bin/
 # we update the make file to avoid rebuilding the boot compiler
 sed -i.bak "s/runtime-stdlib: boot-compiler/runtime-stdlib: _build\/_bootinstall/g" Makefile.common-jst && rm Makefile.common-jst.bak
-make install
+make _install
 cp -R -f _install/. "$TARGETDIR/base-compiler-revision/_install/"
 cp -R -f _build/. "$TARGETDIR/base-compiler-revision/_build/"
 
