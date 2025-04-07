@@ -1135,8 +1135,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
             Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
           traps;
         Sub_cfg.update_exit_terminator sub_cfg (Always handler.label);
-        SU.set_traps nfail handler.Select_utils.traps_ref env.SU.trap_stack
-          traps;
+        SU.set_traps nfail handler.SU.traps_ref env.SU.trap_stack traps;
         Never_returns
       | Return_lbl -> (
         match simple_list with
