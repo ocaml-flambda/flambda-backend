@@ -87,9 +87,9 @@ let simplify_atomic_compare_and_set_or_exchange_args
        also because the old value cannot be a pointer if the operation is to
        perform a write. *)
     let is_immediate ty =
-      match T.prove_is_a_tagged_immediate (DA.typing_env dacc) ty with
-      | Proved () -> true
-      | Unknown -> false
+      match T.prove_is_immediate (DA.typing_env dacc) ty with
+      | Proved true -> true
+      | Proved false | Unknown -> false
     in
     if is_immediate comparison_value_ty && is_immediate new_value_ty
     then Immediate
