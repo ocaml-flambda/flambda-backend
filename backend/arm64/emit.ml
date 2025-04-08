@@ -991,7 +991,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       DSL.ins I.CMP [| DSL.emit_reg reg_alloc_ptr; DSL.emit_reg reg_tmp1 |];
       if not far then begin
-        DSL.ins (I.B_cond LO) [| DSL.emit_label lbl_call_gc |]
+        DSL.ins (I.B_cond CC) [| DSL.emit_label lbl_call_gc |]
       end else begin
         let lbl = Cmm.new_label () in
         DSL.ins (I.B_cond CS) [| DSL.emit_label lbl |];
@@ -1658,7 +1658,7 @@ let emit_instr i =
       DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
       emit_addimm reg_tmp1 reg_tmp1 f;
       DSL.ins I.CMP [| DSL.sp; DSL.emit_reg reg_tmp1 |];
-      DSL.ins I.BCC [| DSL.emit_label overflow |];
+      DSL.ins (I.B_cond CC) [| DSL.emit_label overflow |];
       emit_printf "%a:" femit_label ret;
       stack_realloc := Some {
         sc_label = overflow;
