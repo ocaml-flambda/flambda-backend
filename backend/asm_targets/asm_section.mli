@@ -42,6 +42,11 @@ type dwarf_section =
 
 type t =
   | DWARF of dwarf_section
+  | Data
+  | Read_only_data
+  | Eight_byte_literals
+  | Sixteen_byte_literals
+  | Jump_tables
   | Text
 
 val to_string : t -> string
@@ -68,3 +73,19 @@ val print : Format.formatter -> t -> unit
 val compare : t -> t -> int
 
 val equal : t -> t -> bool
+
+(** Whether the section holds code. *)
+val section_is_text : t -> bool
+
+val all_sections_in_order : unit -> t list
+
+type flags_for_section = private
+  { names : string list;
+    flags : string option;
+    args : string list
+  }
+
+(** The necessary information for a section directive.  [first_occurrence]
+    should be [true] iff the corresponding directive will be the first such
+    in the relevant assembly file for the given section. *)
+val flags : t -> first_occurrence:bool -> flags_for_section

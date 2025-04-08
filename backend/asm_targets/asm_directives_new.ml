@@ -26,10 +26,7 @@ module Int16 = Numbers.Int16
 module Uint64 = Numbers.Uint64
 module TS = Target_system
 
-let dwarf_supported () =
-  match TS.object_file_format_and_abi () with
-  | ELF _ | Mach_O -> true
-  | A_out | PE | Unknown -> false
+(* CR sspies: Removed [dwarf_supported] *)
 
 let big_endian_ref = ref None
 
@@ -100,7 +97,7 @@ module Directive = struct
         bprintf buf "(%a - %a)" print_subterm c1 print_subterm c2
 
     let rec evaluate t =
-      let ( >>= ) = Misc.Stdlib.Option.( >>= ) in
+      let ( >>= ) = Stdlib.Option.bind in
       match t with
       | Signed_int i -> Some i
       | Unsigned_int _ ->
@@ -434,6 +431,16 @@ let rec lower_expr (cst : expr) : Directive.Constant.t =
   | Add (cst1, cst2) -> Add (lower_expr cst1, lower_expr cst2)
   | Sub (cst1, cst2) -> Sub (lower_expr cst1, lower_expr cst2)
 
+let const_sub c1 c2 = Sub (c1, c2)
+
+let const_add c1 c2 = Add (c1, c2)
+
+let const_label lbl = Label lbl
+
+let const_symbol sym = Symbol sym
+
+let const_int64 i : expr = Signed_int i
+
 let emit_ref = ref None
 
 let emit (d : Directive.t) =
@@ -684,8 +691,11 @@ let initialize ~big_endian ~(emit : Directive.t -> unit) =
         | DWARF _ ->
           (* All of the other settings that require these DWARF sections imply
              [Debug_dwarf_functions]; see clflags.ml. *)
-          if Clflags.debug_thing Debug_dwarf_functions && dwarf_supported ()
-          then switch_to_section section)
+          (* CR sspies: enable this again when there is more debugging
+             support. *)
+          (* if Clflags.debug_thing Debug_dwarf_functions && dwarf_supported ()
+             then switch_to_section section *)
+          ())
       (Asm_section.all_sections_in_order ()));
   (* Stop dsymutil complaining about empty __debug_line sections (produces bogus
      error "line table parameters mismatch") by making sure such sections are
@@ -697,22 +707,9 @@ let initialize ~big_endian ~(emit : Directive.t -> unit) =
 
 let file ~file_num ~file_name = file ~file_num ~file_name ()
 
-let check_symbol_for_definition_in_current_section symbol =
-  let symbol_section = Asm_symbol.section symbol in
-  let this_section =
-    match !current_section_ref with
-    | None -> not_initialized ()
-    | Some this_section -> this_section
-  in
-  if not (Asm_section.equal symbol_section this_section)
-  then
-    Misc.fatal_errorf
-      "Cannot define symbol %a intended for section %a in section %a"
-      Asm_symbol.print symbol Asm_section.print symbol_section Asm_section.print
-      this_section
-
 let define_data_symbol symbol =
-  check_symbol_for_definition_in_current_section symbol;
+  (* CR sspies: enable check again *)
+  (* check_symbol_for_definition_in_current_section symbol; *)
   emit (New_label (Asm_symbol.encode symbol, Machine_width_data));
   match TS.assembler (), TS.windows () with
   | GAS_like, false -> type_ symbol ~type_:"STT_OBJECT"
@@ -720,7 +717,8 @@ let define_data_symbol symbol =
 
 (* CR mshinwell: Rename to [define_text_symbol]? *)
 let define_function_symbol symbol =
-  check_symbol_for_definition_in_current_section symbol;
+  (* CR sspies: enable check again *)
+  (* check_symbol_for_definition_in_current_section symbol; *)
   (* CR mshinwell: This shouldn't be called "New_label" *)
   emit (New_label (Asm_symbol.encode symbol, Code));
   match TS.assembler (), TS.windows () with
@@ -790,7 +788,9 @@ let new_temp_var () =
   incr temp_var_counter;
   Printf.sprintf "Ltemp%d" id
 
-let force_assembly_time_constant section expr =
+(* CR sspies: once there are richer symbols, make this function take the section
+   again *)
+let force_assembly_time_constant expr =
   match TS.assembler () with
   | GAS_like | MASM -> expr
   | MacOS ->
@@ -799,94 +799,47 @@ let force_assembly_time_constant section expr =
        results when one of the labels is on a section boundary, for example.) *)
     let temp = new_temp_var () in
     direct_assignment temp expr;
-    let compilation_unit = Compilation_unit.get_current_exn () in
-    let sym =
-      Asm_symbol.of_external_name_no_prefix section compilation_unit temp
-    in
+    let sym = Asm_symbol.create ~without_prefix:() temp in
     Symbol sym (* not really a symbol, but OK. *)
 
-let check_symbol_in_current_unit sym =
-  let sym_unit = Asm_symbol.compilation_unit sym in
-  let this_unit = Compilation_unit.get_current_exn () in
-  if not (Compilation_unit.equal sym_unit this_unit)
-  then
-    Misc.fatal_errorf
-      "Symbol %a (in compilation unit %a) not in current compilation unit %a"
-      Asm_symbol.print sym Compilation_unit.print sym_unit
-      Compilation_unit.print this_unit
-
-let check_symbols_in_same_section sym1 sym2 =
-  let sym1_section = Asm_symbol.section sym1 in
-  let sym2_section = Asm_symbol.section sym2 in
-  if not (Asm_section.equal sym1_section sym2_section)
-  then
-    Misc.fatal_errorf
-      "Symbols %a (in section %a) and %a (in section %a) are not in the same \
-       section"
-      Asm_symbol.print sym1 Asm_section.print sym1_section Asm_symbol.print sym2
-      Asm_section.print sym2_section
-
-let check_labels_in_same_section lbl1 lbl2 =
-  let lbl1_section = Asm_label.section lbl1 in
-  let lbl2_section = Asm_label.section lbl2 in
-  if not (Asm_section.equal lbl1_section lbl2_section)
-  then
-    Misc.fatal_errorf
-      "Labels %a (in section %a) and %a (in section %a) are not in the same \
-       section"
-      Asm_label.print lbl1 Asm_section.print lbl1_section Asm_label.print lbl2
-      Asm_section.print lbl2_section
-
-let check_symbol_and_label_in_same_section sym lbl =
-  let sym_section = Asm_symbol.section sym in
-  let lbl_section = Asm_label.section lbl in
-  if not (Asm_section.equal sym_section lbl_section)
-  then
-    Misc.fatal_errorf
-      "Symbol %a (in section %a) and label %a (in section %a) are not in the \
-       same section"
-      Asm_symbol.print sym Asm_section.print sym_section Asm_label.print lbl
-      Asm_section.print lbl_section
-
 let between_symbols_in_current_unit ~upper ~lower =
-  check_symbol_in_current_unit upper;
-  check_symbol_in_current_unit lower;
-  check_symbols_in_same_section upper lower;
-  let expr = Sub (Symbol upper, Symbol lower) in
-  let section = Asm_symbol.section upper in
-  const_machine_width (force_assembly_time_constant section expr)
+  (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
+     check_symbol_in_current_unit upper; check_symbol_in_current_unit lower;
+     check_symbols_in_same_section upper lower; *)
+  let upper = const_symbol upper in
+  let lower = const_symbol lower in
+  let expr = const_sub upper lower in
+  (* CR sspies: is this check even needed? *)
+  if TS.is_macos ()
+  then const_machine_width (force_assembly_time_constant expr)
+  else const_machine_width expr
 
-let between_labels_16_bit ?comment ~upper ~lower () =
-  check_labels_in_same_section upper lower;
-  let expr = Sub (Label upper, Label lower) in
-  let section = Asm_label.section upper in
-  const ?comment (force_assembly_time_constant section expr) Sixteen
+let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
+  Misc.fatal_error "Not implemeted yet."
 
-let between_labels_32_bit ?comment ~upper ~lower () =
-  check_labels_in_same_section upper lower;
-  let expr = Sub (Label upper, Label lower) in
-  let section = Asm_label.section upper in
-  const ?comment (force_assembly_time_constant section expr) Thirty_two
+let between_labels_32_bit ?comment:_ ~upper:_ ~lower:_ () =
+  Misc.fatal_error "Not implemeted yet."
 
-let between_labels_64_bit ?comment ~upper ~lower () =
-  check_labels_in_same_section upper lower;
-  let expr = Sub (Label upper, Label lower) in
-  let section = Asm_label.section upper in
-  const ?comment (force_assembly_time_constant section expr) Sixty_four
+let between_labels_64_bit ?comment:_ ~upper:_ ~lower:_ () =
+  Misc.fatal_error "Not implemeted yet."
 
-let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
-    ~offset_upper =
-  check_symbol_in_current_unit lower;
-  check_symbol_and_label_in_same_section lower upper;
-  let section = Asm_symbol.section lower in
+let between_symbol_in_current_unit_and_label_offset ?comment:_comment ~upper
+    ~lower ~offset_upper () =
+  (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
+     check_symbol_and_label_in_same_section lower upper; *)
+  Option.iter comment _comment;
   if Targetint.compare offset_upper Targetint.zero = 0
   then
-    let expr = Sub (Label upper, Symbol lower) in
-    const_machine_width ?comment (force_assembly_time_constant section expr)
+    let expr = const_sub (const_label upper) (const_symbol lower) in
+    const_machine_width (force_assembly_time_constant expr)
   else
     let offset_upper = Targetint.to_int64 offset_upper in
-    let expr = Sub (Add (Label upper, Signed_int offset_upper), Symbol lower) in
-    const_machine_width ?comment (force_assembly_time_constant section expr)
+    let expr =
+      const_sub
+        (const_add (const_label upper) (const_int64 offset_upper))
+        (const_symbol lower)
+    in
+    const_machine_width (force_assembly_time_constant expr)
 
 let between_this_and_label_offset_32bit ~upper ~offset_upper =
   let upper_section = Asm_label.section upper in
@@ -901,10 +854,14 @@ let between_this_and_label_offset_32bit ~upper ~offset_upper =
         this_section);
   let offset_upper = Targetint.to_int64 offset_upper in
   let expr = Sub (Add (Label upper, Signed_int offset_upper), This) in
-  const (force_assembly_time_constant upper_section expr) Thirty_two
+  const (force_assembly_time_constant expr) Thirty_two
 
-let offset_into_dwarf_section_label ?comment section upper
-    ~(width : TS.machine_width) =
+let const_with_width ~width constant =
+  match width with
+  | Dwarf_flags.Thirty_two -> const constant Thirty_two
+  | Dwarf_flags.Sixty_four -> const constant Sixty_four
+
+let offset_into_dwarf_section_label ?comment:_comment ~width section upper =
   let upper_section = Asm_label.section upper in
   let expected_section : Asm_section.t = DWARF section in
   if not (Asm_section.equal upper_section expected_section)
@@ -912,44 +869,32 @@ let offset_into_dwarf_section_label ?comment section upper
     Misc.fatal_errorf "Label %a (in section %a) is not in section %a"
       Asm_label.print upper Asm_section.print upper_section Asm_section.print
       expected_section;
-  let expr : expr =
-    match TS.assembler () with
-    | MacOS ->
+  (if !Clflags.keep_asm_file
+  then
+    let expected_section = Asm_section.to_string expected_section in
+    match _comment with
+    | None -> comment (Format.asprintf "offset into %s" expected_section)
+    | Some _comment ->
+      comment (Format.asprintf "%s (offset into %s)" _comment expected_section));
+  (* macOS does not use relocations in DWARF sections in places, such as here,
+     where they might be expected. Instead dsymutil and other tools parse DWARF
+     sections properly and adjust offsets manually. *)
+  let expr =
+    if TS.is_macos ()
+    then
       let lower = Asm_label.for_dwarf_section section in
-      (* macOS does not use relocations in DWARF sections in places, such as
-         here, where they might be expected. Instead dsymutil and other tools
-         parse DWARF sections properly and adjust offsets manually. *)
-      force_assembly_time_constant expected_section
-        (Sub (Label upper, Label lower))
-    | GAS_like | MASM -> Label upper
+      if Asm_label.equal lower upper
+      then const_int64 0L
+      else
+        force_assembly_time_constant
+          (const_sub (const_label upper) (const_label lower))
+    else const_label upper
   in
-  let width : Directive.Constant_with_width.width_in_bytes =
-    match width with Thirty_two -> Thirty_two | Sixty_four -> Sixty_four
-  in
-  let comment =
-    if not !Clflags.keep_asm_file
-    then None
-    else
-      match comment with
-      | None ->
-        Some
-          (Format.asprintf "offset into %s"
-             (Asm_section.to_string expected_section))
-      | Some comment ->
-        Some
-          (Format.asprintf "%s (offset into %s)" comment
-             (Asm_section.to_string expected_section))
-  in
-  const ?comment expr width
+  const_with_width ~width expr
 
 let offset_into_dwarf_section_symbol ?comment section upper
     ~(width : TS.machine_width) =
-  let upper_section = Asm_symbol.section upper in
-  if not (Asm_section.equal upper_section (DWARF section))
-  then
-    Misc.fatal_errorf "Symbol %a (in section %a) not in section %a"
-      Asm_symbol.print upper Asm_section.print upper_section Asm_section.print
-      (Asm_section.DWARF section);
+  (* CR sspies: add check test that the upper section is DWARF section*)
   (* The macOS assembler doesn't seem to allow "distance to undefined symbol
      from start of given section". As such we do not allow this function to be
      used for undefined symbols on macOS at the moment. Relevant link:
@@ -957,27 +902,10 @@ let offset_into_dwarf_section_symbol ?comment section upper
   let expr : expr =
     match TS.assembler () with
     | MacOS ->
-      let in_current_unit =
-        Compilation_unit.equal
-          (Compilation_unit.get_current_exn ())
-          (Asm_symbol.compilation_unit upper)
-      in
-      if in_current_unit
-      then
-        let lower = Asm_label.for_dwarf_section section in
-        (* Same note as in [offset_into_dwarf_section_label] applies here. *)
-        force_assembly_time_constant (DWARF section)
-          (Sub (Symbol upper, Label lower))
-      else
-        Misc.fatal_errorf
-          "Don't know how to encode offset from start of section %a to \
-           undefined symbol %a on macOS (current compilation unit %a, symbol \
-           in compilation unit %a)"
-          Asm_section.print upper_section Asm_symbol.print upper
-          Compilation_unit.print
-          (Compilation_unit.get_current_exn ())
-          Compilation_unit.print
-          (Asm_symbol.compilation_unit upper)
+      (* CR sspies: check whether current unit is equal to upper unit *)
+      let lower = Asm_label.for_dwarf_section section in
+      (* Same note as in [offset_into_dwarf_section_label] applies here. *)
+      force_assembly_time_constant (Sub (Symbol upper, Label lower))
     | GAS_like | MASM -> Symbol upper
   in
   let width : Directive.Constant_with_width.width_in_bytes =

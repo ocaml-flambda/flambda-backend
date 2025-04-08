@@ -130,3 +130,8 @@ let for_section (section : Asm_section.t) =
   match section with
   | DWARF dwarf_section -> for_dwarf_section dwarf_section
   | Text -> Misc.fatal_error "Not yet implemented"
+  | Data -> Misc.fatal_error "Not yet implemented"
+  | Read_only_data -> Misc.fatal_error "Not yet implemented"
+  | Eight_byte_literals -> Misc.fatal_error "Not yet implemented"
+  | Sixteen_byte_literals -> Misc.fatal_error "Not yet implemented"
+  | Jump_tables -> Misc.fatal_error "Not yet implemented"

@@ -42,6 +42,11 @@ type dwarf_section =
 
 type t =
   | DWARF of dwarf_section
+  | Data
+  | Read_only_data
+  | Eight_byte_literals
+  | Sixteen_byte_literals
+  | Jump_tables
   | Text
 
 type section_details =
@@ -70,8 +75,14 @@ let is_delayed = function
   | DWARF
       ( Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists
       | Debug_rnglists | Debug_addr | Debug_loc | Debug_ranges )
-  | Text ->
-    false
+  (* CR sspies: Decide which of these are delayed. *)
+  | Data ->
+    Misc.fatal_error "Not yet implemented"
+  | Read_only_data -> Misc.fatal_error "Not yet implemented"
+  | Eight_byte_literals -> Misc.fatal_error "Not yet implemented"
+  | Sixteen_byte_literals -> Misc.fatal_error "Not yet implemented"
+  | Jump_tables -> Misc.fatal_error "Not yet implemented"
+  | Text -> false
 
 let details t ~first_occurrence =
   let names, flags, args =
@@ -118,6 +129,12 @@ let details t ~first_occurrence =
         | false, _ -> []
       in
       [name], flags, args
+    (* CR sspies: Determine what the details should be for these. *)
+    | Data, _ -> Misc.fatal_error "Not yet implemented"
+    | Read_only_data, _ -> Misc.fatal_error "Not yet implemented"
+    | Eight_byte_literals, _ -> Misc.fatal_error "Not yet implemented"
+    | Sixteen_byte_literals, _ -> Misc.fatal_error "Not yet implemented"
+    | Jump_tables, _ -> Misc.fatal_error "Not yet implemented"
     | Text, _ -> Misc.fatal_error "Not yet implemented"
   in
   { names; flags; args }
@@ -139,6 +156,11 @@ let print ppf t =
     | DWARF Debug_rnglists -> "(DWARF Debug_rnglists)"
     | DWARF Debug_str -> "(DWARF Debug_str)"
     | DWARF Debug_line -> "(DWARF Debug_line)"
+    | Data -> "Data"
+    | Read_only_data -> "Read_only_data"
+    | Eight_byte_literals -> "Eight_byte_literals"
+    | Sixteen_byte_literals -> "Sixteen_byte_literals"
+    | Jump_tables -> "Jump_tables"
     | Text -> "Text"
   in
   Format.pp_print_string ppf str
@@ -146,3 +168,97 @@ let print ppf t =
 let compare t1 t2 = Stdlib.compare t1 t2
 
 let equal t1 t2 = Stdlib.compare t1 t2 = 0
+
+let section_is_text = function
+  | Text -> true
+  | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
+  | Jump_tables | DWARF _ ->
+    false
+
+type flags_for_section =
+  { names : string list;
+    flags : string option;
+    args : string list
+  }
+
+let flags t ~first_occurrence =
+  let text () = [".text"], None, [] in
+  let data () = [".data"], None, [] in
+  let rodata () = [".rodata"], None, [] in
+  let system = Target_system.derived_system () in
+  let names, flags, args =
+    match t, Target_system.architecture (), system with
+    | Text, _, _ -> text ()
+    | Data, _, _ -> data ()
+    | DWARF dwarf, _, MacOS_like ->
+      let name =
+        match dwarf with
+        | Debug_info -> "__debug_info"
+        | Debug_abbrev -> "__debug_abbrev"
+        | Debug_aranges -> "__debug_aranges"
+        | Debug_addr -> "__debug_addr"
+        | Debug_loc -> "__debug_loc"
+        | Debug_ranges -> "__debug_ranges"
+        | Debug_loclists -> "__debug_loclists"
+        | Debug_rnglists -> "__debug_rnglists"
+        | Debug_str -> "__debug_str"
+        | Debug_line -> "__debug_line"
+      in
+      ["__DWARF"; name], None, ["regular"; "debug"]
+    | DWARF dwarf, _, _ ->
+      let name =
+        match dwarf with
+        | Debug_info -> ".debug_info"
+        | Debug_abbrev -> ".debug_abbrev"
+        | Debug_aranges -> ".debug_aranges"
+        | Debug_addr -> ".debug_addr"
+        | Debug_loc -> ".debug_loc"
+        | Debug_ranges -> ".debug_ranges"
+        | Debug_loclists -> ".debug_loclists"
+        | Debug_rnglists -> ".debug_rnglists"
+        | Debug_str -> ".debug_str"
+        | Debug_line -> ".debug_line"
+      in
+      let flags = if first_occurrence then Some "" else None in
+      let args = if first_occurrence then ["%progbits"] else [] in
+      [name], flags, args
+    | (Eight_byte_literals | Sixteen_byte_literals), (ARM | AArch64 | Z), _
+    | (Eight_byte_literals | Sixteen_byte_literals), _, Solaris ->
+      rodata ()
+    | Sixteen_byte_literals, _, MacOS_like ->
+      ["__TEXT"; "__literal16"], None, ["16byte_literals"]
+    | Sixteen_byte_literals, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
+    | Sixteen_byte_literals, _, (MinGW_32 | Win32 | Win64) -> data ()
+    | Sixteen_byte_literals, _, _ -> [".rodata.cst8"], Some "a", ["@progbits"]
+    | Eight_byte_literals, _, MacOS_like ->
+      ["__TEXT"; "__literal8"], None, ["8byte_literals"]
+    | Eight_byte_literals, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
+    | Eight_byte_literals, _, (MinGW_32 | Win32 | Win64) -> data ()
+    | Eight_byte_literals, _, _ -> [".rodata.cst8"], Some "a", ["@progbits"]
+    | Jump_tables, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
+    | Jump_tables, _, (MinGW_32 | Win32) -> data ()
+    | Jump_tables, _, (MacOS_like | Win64) ->
+      text () (* with LLVM/OS X and MASM, use the text segment *)
+    | Jump_tables, _, _ -> [".rodata"], None, []
+    | Read_only_data, _, (MinGW_32 | Win32) -> data ()
+    | Read_only_data, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
+    | Read_only_data, _, _ -> rodata ()
+  in
+  { names; flags; args }
+
+let all_sections_in_order () =
+  let sections =
+    [ Text;
+      Data;
+      Read_only_data;
+      Eight_byte_literals;
+      Sixteen_byte_literals;
+      Jump_tables;
+      DWARF Debug_info;
+      DWARF Debug_abbrev;
+      DWARF Debug_aranges;
+      DWARF Debug_str;
+      DWARF Debug_line ]
+  in
+  (* CR sspies: enable the dwarf version dependent sections again *)
+  sections

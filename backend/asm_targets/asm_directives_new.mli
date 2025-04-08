@@ -234,6 +234,7 @@ val between_symbol_in_current_unit_and_label_offset :
   upper:Asm_label.t ->
   lower:Asm_symbol.t ->
   offset_upper:Targetint.t ->
+  unit ->
   unit
 
 (* CR mshinwell: double-check use of this function *)
@@ -249,9 +250,9 @@ val between_this_and_label_offset_32bit :
     within such section. *)
 val offset_into_dwarf_section_label :
   ?comment:string ->
+  width:Dwarf_flags.dwarf_format ->
   Asm_section.dwarf_section ->
   Asm_label.t ->
-  width:Target_system.machine_width ->
   unit
 
 (** Emit an offset into a DWARF section given a symbol identifying the place
