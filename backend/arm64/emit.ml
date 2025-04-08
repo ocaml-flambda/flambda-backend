@@ -229,7 +229,7 @@ end [@warning "-32"]  = struct
       assert (not !Clflags.dlcode);  (* see selection.ml *)
       mem_symbol ~base:index ~symbol:(convert_symbol_representation s) ~offset:ofs
 
-  let emit_stack (r: t) =
+  let emit_stack (r: Reg.t) =
     match r.loc with
     | Stack (Domainstate n) ->
         let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in

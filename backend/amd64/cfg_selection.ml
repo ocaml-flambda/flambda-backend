@@ -224,7 +224,7 @@ let pseudoregs_for_operation op arg res =
   | End_region | Poll | Dls_get ->
     raise Use_default_exn
 
-let is_immediate (op : Simple_operation.integer_operation) n :
+let is_immediate (op : Operation.integer_operation) n :
     Cfg_selectgen_target_intf.is_immediate_result =
   match op with
   | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ ->
@@ -303,9 +303,8 @@ let insert_move_extcall_arg _exttype _src _dst :
 
 (* Recognize float arithmetic with mem *)
 
-let select_floatarith commutative width
-    (regular_op : Simple_operation.float_operation) mem_op args :
-    Cfg_selectgen_target_intf.select_operation_result =
+let select_floatarith commutative width (regular_op : Operation.float_operation)
+    mem_op args : Cfg_selectgen_target_intf.select_operation_result =
   let open Cmm in
   match width, args with
   | Float64, [arg1; Cop (Cload { memory_chunk = Double as chunk; _ }, [loc2], _)]
@@ -333,8 +332,8 @@ let select_floatarith commutative width
 
 let select_operation
     ~(generic_select_condition :
-       Cmm.expression -> Simple_operation.test * Cmm.expression)
-    (op : Cmm.operation) (args : Cmm.expression list) dbg ~label_after:_ :
+       Cmm.expression -> Operation.test * Cmm.expression) (op : Cmm.operation)
+    (args : Cmm.expression list) dbg ~label_after:_ :
     Cfg_selectgen_target_intf.select_operation_result =
   match op with
   (* Recognize the LEA instruction *)

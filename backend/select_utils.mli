@@ -42,7 +42,7 @@ type environment =
   { vars :
       (Reg.t array * V.Provenance.t option * Asttypes.mutable_flag) V.Map.t;
     static_exceptions : static_handler Int.Map.t;
-    trap_stack : Simple_operation.trap_stack;
+    trap_stack : Operation.trap_stack;
     regs_for_exception_extra_args : Reg.t array Int.Map.t;
     tailrec_label : Label.t
   }
@@ -81,11 +81,9 @@ val env_enter_trywith : environment -> Int.Map.key -> Label.t -> environment
 val env_set_trap_stack : environment -> Operation.trap_stack -> environment
 
 val combine_traps :
-  Simple_operation.trap_stack ->
-  Cmm.trap_action list ->
-  Simple_operation.trap_stack
+  Operation.trap_stack -> Cmm.trap_action list -> Operation.trap_stack
 
-val print_traps : Format.formatter -> Simple_operation.trap_stack -> unit
+val print_traps : Format.formatter -> Operation.trap_stack -> unit
 
 val set_traps :
   int ->
@@ -100,7 +98,7 @@ val trap_stack_is_empty : environment -> bool
 
 val pop_all_traps : environment -> Cmm.trap_action list
 
-val select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
+val select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag
 
 val oper_result_type : Cmm.operation -> Cmm.machtype
 
@@ -192,10 +190,7 @@ val int_test_of_integer_comparison :
   Cfg.int_test
 
 val terminator_of_test :
-  Simple_operation.test ->
-  label_false:Label.t ->
-  label_true:Label.t ->
-  Cfg.terminator
+  Operation.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator
 
 val invalid_stack_offset : int
 

@@ -438,7 +438,7 @@ let int_test_of_integer_comparison :
   { lt; eq; gt; is_signed; imm }
 
 let terminator_of_test :
-    Simple_operation.test ->
+    Operation.test ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.terminator =
@@ -446,8 +446,8 @@ let terminator_of_test :
   let int_test comparison immediate =
     let signed, comparison =
       match comparison with
-      | Simple_operation.Isigned comparison -> true, comparison
-      | Simple_operation.Iunsigned comparison -> false, comparison
+      | Operation.Isigned comparison -> true, comparison
+      | Operation.Iunsigned comparison -> false, comparison
     in
     int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
       ~label_true

@@ -66,7 +66,7 @@ let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth = function
 
 let specific x : Cfg.basic_or_terminator = Basic (Op (Specific x))
 
-let is_immediate (op : Simple_operation.integer_operation) n :
+let is_immediate (op : Operation.integer_operation) n :
     Cfg_selectgen_target_intf.is_immediate_result =
   match op with
   | Iadd | Isub -> Is_immediate (n <= 0xFFF_FFF && n >= -0xFFF_FFF)

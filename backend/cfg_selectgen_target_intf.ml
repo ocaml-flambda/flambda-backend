@@ -87,8 +87,7 @@ module type S = sig
      [select_operation_result] to return [Cfg.basic] instead of
      [Cfg.basic_or_terminator]. *)
   val select_operation :
-    generic_select_condition:
-      (Cmm.expression -> Simple_operation.test * Cmm.expression) ->
+    generic_select_condition:(Cmm.expression -> Operation.test * Cmm.expression) ->
     Cmm.operation ->
     Cmm.expression list ->
     Debuginfo.t ->
