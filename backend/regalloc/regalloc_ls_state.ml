@@ -38,14 +38,14 @@ let[@inline] update_intervals state map =
          map []
        |> List.sort ~cmp:(fun (left : Interval.t) (right : Interval.t) ->
               Int.compare left.begin_ right.begin_);
-  if ls_debug then log_intervals ~kind:"regular" state.intervals;
+  if debug then log_intervals ~kind:"regular" state.intervals;
   Array.iter active ~f:(fun (intervals : ClassIntervals.t) ->
       intervals.fixed
         <- List.sort
              ~cmp:(fun (left : Interval.t) (right : Interval.t) ->
                Int.compare right.end_ left.end_)
              intervals.fixed;
-      if ls_debug then log_intervals ~kind:"fixed" intervals.fixed)
+      if debug then log_intervals ~kind:"fixed" intervals.fixed)
 
 let[@inline] iter_intervals state ~f = List.iter state.intervals ~f
 
@@ -104,7 +104,7 @@ let rec is_in_a_range ls_order (cell : Range.t DLL.cell option) : bool =
     || is_in_a_range ls_order (DLL.next cell)
 
 let[@inline] invariant_intervals state cfg_with_infos =
-  if ls_debug && Lazy.force ls_invariants
+  if debug && Lazy.force invariants
   then (
     (match state.intervals with [] -> () | hd :: tl -> check_intervals hd tl);
     let interval_map : Interval.t Reg.Map.t =
@@ -168,7 +168,7 @@ let invariant_active_field (reg_class : int) (field_name : string)
   match l with [] -> () | hd :: tl -> is hd tl
 
 let[@inline] invariant_active state =
-  if ls_debug && Lazy.force ls_invariants
+  if debug && Lazy.force invariants
   then
     Array.iteri state.active ~f:(fun reg_class intervals ->
         invariant_active_field reg_class "fixed " intervals.ClassIntervals.fixed;

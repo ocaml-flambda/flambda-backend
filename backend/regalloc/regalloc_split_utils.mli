@@ -4,10 +4,6 @@ open Regalloc_utils
 
 val split_live_ranges : bool Lazy.t
 
-val split_debug : bool
-
-val split_invariants : bool Lazy.t
-
 val indent : unit -> unit
 
 val dedent : unit -> unit
