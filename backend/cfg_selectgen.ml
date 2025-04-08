@@ -96,7 +96,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Clet (_id, arg, body) -> EC.join (effects_of arg) (effects_of body)
     | Cphantom_let (_var, _defining_expr, body) -> effects_of body
     | Csequence (e1, e2) -> EC.join (effects_of e1) (effects_of e2)
-    | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _kind) ->
+    | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
       EC.join (effects_of cond) (EC.join (effects_of ifso) (effects_of ifnot))
     | Cop (op, args, _) ->
       let from_op =
@@ -738,18 +738,17 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       match emit_expr env sub_cfg e1 ~bound_name:None with
       | Never_returns -> Never_returns
       | Ok _ -> emit_expr env sub_cfg e2 ~bound_name)
-    | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
+    | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg) ->
       emit_expr_ifthenelse env sub_cfg bound_name econd ifso_dbg eif ifnot_dbg
-        eelse dbg value_kind
-    | Cswitch (esel, index, ecases, dbg, value_kind) ->
-      emit_expr_switch env sub_cfg bound_name esel index ecases dbg value_kind
-    | Ccatch (_, [], e1, _) -> emit_expr env sub_cfg e1 ~bound_name
-    | Ccatch (rec_flag, handlers, body, value_kind) ->
-      emit_expr_catch env sub_cfg bound_name rec_flag handlers body value_kind
+        eelse dbg
+    | Cswitch (esel, index, ecases, dbg) ->
+      emit_expr_switch env sub_cfg bound_name esel index ecases dbg
+    | Ccatch (_, [], e1) -> emit_expr env sub_cfg e1 ~bound_name
+    | Ccatch (rec_flag, handlers, body) ->
+      emit_expr_catch env sub_cfg bound_name rec_flag handlers body
     | Cexit (lbl, args, traps) -> emit_expr_exit env sub_cfg lbl args traps
-    | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
+    | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg) ->
       emit_expr_trywith env sub_cfg bound_name e1 exn_cont v ~extra_args e2 dbg
-        value_kind
 
   (* Emit an expression in tail position of a function. *)
   and emit_tail env sub_cfg (exp : Cmm.expression) =
@@ -765,16 +764,15 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       match emit_expr env sub_cfg e1 ~bound_name:None with
       | Never_returns -> ()
       | Ok _ -> emit_tail env sub_cfg e2)
-    | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
+    | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg) ->
       emit_tail_ifthenelse env sub_cfg econd ifso_dbg eif ifnot_dbg eelse dbg
-        value_kind
-    | Cswitch (esel, index, ecases, dbg, value_kind) ->
-      emit_tail_switch env sub_cfg esel index ecases dbg value_kind
-    | Ccatch (_, [], e1, _) -> emit_tail env sub_cfg e1
-    | Ccatch (rec_flag, handlers, e1, value_kind) ->
-      emit_tail_catch env sub_cfg rec_flag handlers e1 value_kind
-    | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
-      emit_tail_trywith env sub_cfg e1 exn_cont v ~extra_args e2 dbg value_kind
+    | Cswitch (esel, index, ecases, dbg) ->
+      emit_tail_switch env sub_cfg esel index ecases dbg
+    | Ccatch (_, [], e1) -> emit_tail env sub_cfg e1
+    | Ccatch (rec_flag, handlers, e1) ->
+      emit_tail_catch env sub_cfg rec_flag handlers e1
+    | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg) ->
+      emit_tail_trywith env sub_cfg e1 exn_cont v ~extra_args e2 dbg
     | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
     | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Ctuple _ | Cexit _ ->
       emit_return env sub_cfg exp (SU.pop_all_traps env)
@@ -948,8 +946,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           term)
 
   and emit_expr_ifthenelse env sub_cfg bound_name econd _ifso_dbg eif
-      (_ifnot_dbg : Debuginfo.t) eelse (_dbg : Debuginfo.t)
-      (_value_kind : Cmm.kind_for_unboxing) : _ Or_never_returns.t =
+      (_ifnot_dbg : Debuginfo.t) eelse (_dbg : Debuginfo.t) :
+      _ Or_never_returns.t =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     let cond, earg = select_condition econd in
     match emit_expr env sub_cfg earg ~bound_name:None with
@@ -969,8 +967,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       r
 
   and emit_expr_switch env sub_cfg bound_name esel index ecases
-      (_dbg : Debuginfo.t) (_value_kind : Cmm.kind_for_unboxing) :
-      _ Or_never_returns.t =
+      (_dbg : Debuginfo.t) : _ Or_never_returns.t =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     match emit_expr env sub_cfg esel ~bound_name:None with
     | Never_returns -> Never_returns
@@ -991,7 +988,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       r
 
   and emit_expr_catch env sub_cfg bound_name (_rec_flag : Cmm.rec_flag) handlers
-      body (_value_kind : Cmm.kind_for_unboxing) =
+      body =
     let handlers =
       List.map
         (fun (nfail, ids, e2, dbg, is_cold) ->
@@ -1148,7 +1145,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         ))
 
   and emit_expr_trywith env sub_cfg bound_name e1 exn_cont v ~extra_args e2
-      (_dbg : Debuginfo.t) (_value_kind : Cmm.kind_for_unboxing) =
+      (_dbg : Debuginfo.t) =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     assert (Sub_cfg.exit_has_never_terminator sub_cfg);
     let exn_label = Cmm.new_label () in
@@ -1313,8 +1310,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       | _ -> Misc.fatal_error "Cfg_selectgen.emit_tail")
 
   and emit_tail_ifthenelse env sub_cfg econd (_ifso_dbg : Debuginfo.t) eif
-      (_ifnot_dbg : Debuginfo.t) eelse (_dbg : Debuginfo.t)
-      (_kind : Cmm.kind_for_unboxing) =
+      (_ifnot_dbg : Debuginfo.t) eelse (_dbg : Debuginfo.t) =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     let cond, earg = select_condition econd in
     match emit_expr env sub_cfg earg ~bound_name:None with
@@ -1331,8 +1327,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
       Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:sub_cfg
 
-  and emit_tail_switch env sub_cfg esel index ecases (_dbg : Debuginfo.t)
-      (_kind : Cmm.kind_for_unboxing) =
+  and emit_tail_switch env sub_cfg esel index ecases (_dbg : Debuginfo.t) =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     match emit_expr env sub_cfg esel ~bound_name:None with
     | Never_returns -> ()
@@ -1348,8 +1343,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
       Sub_cfg.join_tail ~from:(Array.to_list sub_cases) ~to_:sub_cfg
 
-  and emit_tail_catch env sub_cfg (_rec_flag : Cmm.rec_flag) handlers e1
-      (_value_kind : Cmm.kind_for_unboxing) =
+  and emit_tail_catch env sub_cfg (_rec_flag : Cmm.rec_flag) handlers e1 =
     let handlers =
       List.map
         (fun (nfail, ids, e2, dbg, is_cold) ->
@@ -1443,7 +1437,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     Sub_cfg.join_tail ~from:(s_body :: s_handlers) ~to_:sub_cfg
 
   and emit_tail_trywith env sub_cfg e1 exn_cont v ~extra_args e2
-      (_dbg : Debuginfo.t) (_value_kind : Cmm.kind_for_unboxing) =
+      (_dbg : Debuginfo.t) =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     assert (Sub_cfg.exit_has_never_terminator sub_cfg);
     let exn_label = Cmm.new_label () in
