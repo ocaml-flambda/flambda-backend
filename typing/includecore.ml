@@ -47,9 +47,57 @@ type value_mismatch =
 
 exception Dont_match of value_mismatch
 
+type close_over_coercion = Env.locks * Longident.t * Location.t
+
 type mmodes =
   | All
-  | Legacy of Env.held_locks option
+  | Specific of Mode.Value.l * Mode.Value.r * close_over_coercion option
+
+let child_modes id ?modalities  = function
+  | All ->
+      begin match modalities with
+      | None -> Ok All
+      | Some (moda0, moda1) ->
+        match Mode.Modality.Value.sub moda0 moda1 with
+        | Ok () -> Ok All
+        | Error e -> Error e
+      end
+  | Specific (m0, m1, c) ->
+    let c =
+      match c with
+      | None -> None
+      | Some (locks, lid, loc) -> Some (locks, Longident.Ldot (lid, id), loc)
+    in
+    match modalities with
+    | Some (moda0, moda1) ->
+        begin match Mode.Modality.Value.to_const_opt moda1 with
+        | None ->
+            (* [wrap_constraint_with_shape] invokes inclusion check with
+               identical modes and inferred modalities, which we workaround *)
+            assert (moda0 == moda1);
+            Mode.Value.submode_exn m0 m1;
+            (* For children, we only check modality inclusion *)
+            Ok All
+        | Some moda1 ->
+          let m0 = Mode.Modality.Value.apply moda0 m0 in
+          let m1 = Mode.Modality.Value.(Const.apply moda1 m1) in
+          Ok (Specific (m0, m1, c))
+        end
+    | None -> Ok (Specific(m0, m1, c))
+
+let check_modes env ?(crossing = Crossing.top) ~item ?typ = function
+  | All -> Ok ()
+  | Specific (m0, m1, c) ->
+      let m0 =
+        match c with
+        | None -> m0
+        | Some (locks, lid, loc) ->
+            let m0 = Crossing.apply_left crossing m0 in
+            let m0 = Env.walk_locks ~env ~loc lid ~item typ (m0, locks) in
+            m0.mode
+      in
+      let m1 = Crossing.apply_right crossing m1 in
+      Mode.Value.submode m0 m1
 
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
@@ -108,39 +156,16 @@ let value_descriptions ~loc env name
   | Ok () -> ()
   | Error e -> raise (Dont_match (Zero_alloc e))
   end;
-  begin match mmodes with
-  | All -> begin
-      match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
-      | Ok () -> ()
-      | Error e -> raise (Dont_match (Modality e))
-      end;
-  | Legacy close_over_coercion ->
-    match Mode.Modality.Value.to_const_opt vd2.val_modalities with
-      (* [wrap_constraint_with_shape] invokes inclusion check with identical
-        inferred modalities, which we need to workaround. *)
-    | None -> ()
-    | Some val2_modalities ->
-      let mmode1, mmode2 =
-        Mode.Value.(disallow_right legacy), Mode.Value.(disallow_left legacy)
-      in
-      let mode1 = Mode.Modality.Value.apply vd1.val_modalities mmode1 in
-      let mode2 = Mode.Modality.Value.(Const.apply val2_modalities mmode2) in
-      let mode1 =
-        match close_over_coercion with
-        | Some held_locks ->
-          (* Cross modes according to RHS type as it tends to be by the user. *)
-          let mode1 = Ctype.cross_left env vd2.val_type mode1 in
-          let mode1 =
-            Env.walk_locks ~env ~item:Value mode1 (Some vd1.val_type) held_locks
-          in
-          mode1.mode
-        | None -> mode1
-      in
-      let mode2 = Ctype.cross_right env vd2.val_type mode2 in
-      begin match Mode.Value.submode mode1 mode2 with
-      | Ok () -> ()
-      | Error e -> raise (Dont_match (Mode e))
-      end
+  let crossing = Ctype.crossing_of_ty env vd2.val_type in
+  let modalities = vd1.val_modalities, vd2.val_modalities in
+  let modes =
+    match child_modes name ~modalities mmodes with
+    | Ok modes -> modes
+    | Error e -> raise (Dont_match (Modality e))
+  in
+  begin match check_modes env ~crossing ~item:Value ~typ:vd1.val_type modes with
+  | Ok () -> ()
+  | Error e -> raise (Dont_match (Mode e))
   end;
   match vd1.val_kind with
   | Val_prim p1 -> begin
@@ -154,9 +179,9 @@ let value_descriptions ~loc env name
              let ty2, mode_l2, mode_y2, _ = Ctype.instance_prim p2 vd2.val_type in
              Option.iter (Mode.Locality.equate_exn loc) mode_l2;
              Option.iter (Mode.Yielding.equate_exn yield) mode_y2;
-             try 
+             try
                Ctype.moregeneral env true ty1 ty2
-             with Ctype.Moregen err -> 
+             with Ctype.Moregen err ->
                raise (Dont_match (Type err))
            ) yielding
          ) locality;
@@ -316,13 +341,13 @@ let report_modality_sub_error first second ppf e =
     first
     (print_modality "not") (Atom (ax, left) : Modality.t)
 
-let report_mode_sub_error first second ppf e =
+let report_mode_sub_error got expected ppf e =
   let Mode.Value.Error(ax, {left; right}) = e in
-  Format.fprintf ppf "%s is %a and %s is %a."
-    (String.capitalize_ascii second)
-    (Value.Const.print_axis ax) right
-    first
-    (Value.Const.print_axis ax) left
+  Format.fprintf ppf "%s %a but %s %a."
+    (String.capitalize_ascii got)
+    (Misc.Style.as_inline_code (Value.Const.print_axis ax)) left
+    expected
+    (Misc.Style.as_inline_code (Value.Const.print_axis ax)) right
 
 let report_modality_equate_error first second ppf ((equate_step, sub_error) : Modality.Value.equate_error) =
   match equate_step with
@@ -374,7 +399,10 @@ let report_value_mismatch first second env ppf err =
         (fun ppf -> Format.fprintf ppf "is not compatible with the type")
   | Zero_alloc e -> Zero_alloc.print_error ppf e
   | Modality e -> report_modality_sub_error first second ppf e
-  | Mode e -> report_mode_sub_error first second ppf e
+  | Mode e ->
+      let got = first ^ " is" in
+      let expected = second ^ " is" in
+    report_mode_sub_error got expected ppf e
 
 let report_type_inequality env ppf err =
   Printtyp.report_equality_error ppf Type_scheme env err

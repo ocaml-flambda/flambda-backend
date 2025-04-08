@@ -3,10 +3,6 @@
    expect;
 *)
 
-(* This file tests the legacy aspect of modules. The non-legacy aspects are
-   tested in [val_modalities.ml]. As we enrich modules with modes, this file
-   will shrink. *)
-
 let portable_use : 'a @ portable -> unit = fun _ -> ()
 
 module type S = sig val x : 'a -> unit end
@@ -57,25 +53,17 @@ let u =
 val u : unit = ()
 |}]
 
-(* first class modules are produced at legacy *)
-let x = ((module M : SL) : _ @@ portable)
+(* Packing produces first class modules at the same mode as the module *)
+let () = portable_use (module M : S)
 [%%expect{|
-Line 1, characters 9-24:
-1 | let x = ((module M : SL) : _ @@ portable)
-             ^^^^^^^^^^^^^^^
-Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-(* first class modules are consumed at legacy *)
-let foo () =
-    let m @ local = (module M : SL) in
-    let module M = (val m) in
-    ()
+(* Unpacking produces module at the same mode as the first class module *)
+let foo (m : (module S)) =
+    let module M @ portable = (val m) in
+    portable_use M.x
 [%%expect{|
-Line 3, characters 24-25:
-3 |     let module M = (val m) in
-                            ^
-Error: This value escapes its region.
+val foo : (module S) @ portable -> unit = <fun>
 |}]
 
 let foo () =
@@ -160,7 +148,7 @@ module type S = sig
 end
 
 module M : S = struct
-    let foo = fun x -> x
+    let foo @ nonportable = fun x -> x
     let baz = fun x -> x
 end
 [%%expect{|
@@ -229,5 +217,83 @@ let (bar @ portable) () =
 Line 3, characters 19-20:
 3 |         module L = M
                        ^
-Error: "M" is a module, and modules are always nonportable, so cannot be used inside a function that is portable.
+Error: The module "M" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+module F (X : S @@ portable) = struct
+end
+[%%expect{|
+Line 1, characters 19-27:
+1 | module F (X : S @@ portable) = struct
+                       ^^^^^^^^
+Error: Mode annotations on functor parameters are not supported yet.
+|}]
+
+module type S = functor () (M : S @@ portable) (_ : S @@ portable) -> S
+[%%expect{|
+Line 1, characters 37-45:
+1 | module type S = functor () (M : S @@ portable) (_ : S @@ portable) -> S
+                                         ^^^^^^^^
+Error: Mode annotations on functor parameters are not supported yet.
+|}]
+
+module type S = functor () (M : S) (_ : S) -> S @ portable
+[%%expect{|
+Line 1, characters 50-58:
+1 | module type S = functor () (M : S) (_ : S) -> S @ portable
+                                                      ^^^^^^^^
+Error: Mode annotations on functor return are not supported yet.
+|}]
+
+module F () = struct
+    let (foo @ once) () = ()
+end
+[%%expect{|
+Lines 1-3, characters 14-3:
+1 | ..............struct
+2 |     let (foo @ once) () = ()
+3 | end
+Error: This is "once", but expected to be "many" because it is a functor body.
+|}]
+
+module type Empty = sig end
+[%%expect{|
+module type Empty = sig end
+|}]
+
+let _ =
+    let module F (X : Empty) = struct end in
+    let module M @ local = struct end in
+    let module _ = F(M) in
+    ()
+[%%expect{|
+Line 4, characters 19-23:
+4 |     let module _ = F(M) in
+                       ^^^^
+Error: Modules do not match: sig end /* at local */ is not included in
+       Empty /* at global */
+     First is "local" but second is "global".
+|}]
+
+let _ =
+    let module F (X : Empty) (Y : Empty) = struct end in
+    let module M = struct end in
+    let module N @ local = struct end in
+    let module _ = F(M)(N) in
+    ()
+[%%expect{|
+Line 5, characters 19-26:
+5 |     let module _ = F(M)(N) in
+                       ^^^^^^^
+Error: This application of the functor "F" is ill-typed.
+       These arguments:
+         M N
+       do not match these parameters:
+         functor (X : Empty) (Y : Empty) -> ...
+       1. Module M matches the expected module type Empty
+       2. Modules do not match:
+            N : sig end /* at local */
+          is not included in
+            Empty /* at global */
+          First is "local" but second is "global".
 |}]

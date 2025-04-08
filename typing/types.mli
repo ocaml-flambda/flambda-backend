@@ -973,6 +973,7 @@ module type Wrapped = sig
   and module_declaration =
   {
     md_type: module_type;
+    md_modalities : Mode.Modality.Value.t;
     md_attributes: Parsetree.attributes;
     md_loc: Location.t;
     md_uid: Uid.t;
@@ -1167,3 +1168,6 @@ val set_univar: type_expr option ref -> type_expr -> unit
 val link_kind: inside:field_kind -> field_kind -> unit
 val link_commu: inside:commutable -> commutable -> unit
 val set_commu_ok: commutable -> unit
+
+val functor_param_mode : Mode.Alloc.lr
+val functor_res_mode : Mode.Alloc.lr

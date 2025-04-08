@@ -475,7 +475,7 @@ module type T = sig val x : int option end
 Line 4, characters 50-51:
 4 |   let _m : (module T) = local_ (module struct let x = thing end) in
                                                       ^
-Error: This value is "local", but expected to be "global" because it is inside a module.
+Error: This is "local", but expected to be "global" because it is inside a module.
 |}]
 let local_module () =
   let thing = local_ Some 1 in
@@ -487,7 +487,7 @@ let local_module () =
 Line 4, characters 30-31:
 4 |     let module M = struct let x = thing end in
                                   ^
-Error: This value is "local", but expected to be "global" because it is inside a module.
+Error: This is "local", but expected to be "global" because it is inside a module.
 |}]
 let obj () =
   let thing = local_ Some 1 in
@@ -617,7 +617,8 @@ val no_leak_id : unit = ()
 
 module type S = sig val s : string end
 
-(* Don't escape through being unpacked as a module *)
+(* Currently we can't stack-allocate modules, but it's fine to take modules as
+  local parameters. *)
 
 let bar (local_ (m : (module S))) =
   let (module _) = m in
@@ -627,24 +628,32 @@ module type S = sig val s : string end
 val bar : local_ (module S) -> unit = <fun>
 |}]
 
+(* While it's sound to let modules cross locality (since they are always heap
+allocated), we choose not to expose this for future compatibility. *)
 let bar (local_ (m : (module S))) =
   let (module M) = m in
   M.s
 [%%expect{|
-Line 2, characters 19-20:
-2 |   let (module M) = m in
-                       ^
-Error: This value escapes its region.
+val bar : local_ (module S) -> local_ string = <fun>
 |}]
 
 let bar (local_ m) =
   let module M = (val m : S) in
   M.s
 [%%expect{|
-Line 2, characters 22-23:
-2 |   let module M = (val m : S) in
-                          ^
-Error: This value escapes its region.
+val bar : local_ (module S) -> local_ string = <fun>
+|}]
+
+(* packing is allocation, and we can't construct a global module using local values *)
+let bar (local_ m) =
+  let module M = (val m : S) in
+  (module M : S)
+[%%expect{|
+Line 3, characters 10-11:
+3 |   (module M : S)
+              ^
+Error: Signature mismatch:
+       Got "regional" but expected "global".
 |}]
 
 (* Don't escape through a lazy value *)
@@ -671,7 +680,7 @@ let foo (local_ x) =
 Line 3, characters 27-28:
 3 |     let () = print_string !x
                                ^
-Error: The value "x" is local, so cannot be used inside a module.
+Error: The value "x" is local, so cannot be used inside a functor.
 |}]
 
 (* Don't escape through a class method *)
@@ -1939,7 +1948,7 @@ end
 Line 2, characters 12-13:
 2 |   let (Some z, _, _) | (None, Some z, _)
                 ^
-Error: This value is "local", but expected to be "global" because it is inside a module.
+Error: This is "local", but expected to be "global" because it is inside a module.
 |}]
 
 module M = struct
@@ -1950,7 +1959,7 @@ end
 Line 2, characters 12-13:
 2 |   let (Some z, _, _) | (None, Some z, _)
                 ^
-Error: This value is "local", but expected to be "global" because it is inside a module.
+Error: This is "local", but expected to be "global" because it is inside a module.
 |}]
 
 (* Example of backtracking after mode error *)
