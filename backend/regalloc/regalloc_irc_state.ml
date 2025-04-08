@@ -368,7 +368,7 @@ let[@inline] add_edge state u v =
     let add_adj_list x y = x.Reg.interf <- y :: x.Reg.interf in
     let incr_degree x =
       let deg = x.Reg.degree in
-      if irc_debug && deg = Degree.infinite
+      if debug && deg = Degree.infinite
       then fatal "trying to increment the degree of a precolored node";
       x.Reg.degree <- succ deg
     in
@@ -565,7 +565,7 @@ let reg_set_of_doubly_linked_list (l : Reg.t Doubly_linked_list.t) : Reg.Set.t =
 
 let[@inline] invariant state =
   (* CR xclerc for xclerc: avoid multiple conversions to sets. *)
-  if irc_debug && Lazy.force irc_invariants
+  if debug && Lazy.force invariants
   then (
     (* interf (list) is morally a set *)
     List.iter (Reg.all_registers ()) ~f:check_inter_has_no_duplicates;

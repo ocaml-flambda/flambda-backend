@@ -25,7 +25,7 @@ let[@inline] remove_from_bindings :
     Reg.Map.filter
       (fun reg _ ->
         let remove = Reg.Set.mem reg regs in
-        if split_debug then if remove then log "removing %a" Printreg.reg reg;
+        if debug then if remove then log "removing %a" Printreg.reg reg;
         not remove)
       bindings
 
@@ -42,17 +42,17 @@ let rec compute_substitution_tree :
     unit =
  fun state substs bindings tree ->
   let label = tree.label in
-  if split_debug
+  if debug
   then (
     log "compute_substitution_tree %a" Label.format label;
     indent ());
   (* First, remove the phi and definitions from the bindings. *)
-  if split_debug then log "removing from phis";
+  if debug then log "removing from phis";
   let bindings =
     remove_from_bindings state label ~field:State.phi_at_beginning
       ~extract:Fun.id bindings
   in
-  if split_debug then log "removing from definitions";
+  if debug then log "removing from definitions";
   (* note: it is possible to have two definitions in a row (i.e. without any
      destruction or phi between them), since we delete the dominated
      destructions of constant values. *)
@@ -63,18 +63,17 @@ let rec compute_substitution_tree :
   let subst = Reg.Tbl.create 17 in
   Label.Tbl.replace substs label subst;
   (* Second, add the bindings to the substitution. *)
-  if split_debug
+  if debug
   then (
     log "adding from bindings";
     indent ());
   Reg.Map.iter
     (fun old_reg new_reg ->
-      if split_debug
-      then log "%a -> %a" Printreg.reg old_reg Printreg.reg new_reg;
+      if debug then log "%a -> %a" Printreg.reg old_reg Printreg.reg new_reg;
       Reg.Tbl.replace subst old_reg new_reg)
     bindings;
   (* Third, add the definitions to the substitution and bindings. *)
-  if split_debug
+  if debug
   then (
     dedent ();
     log "adding from definitions";
@@ -90,14 +89,14 @@ let rec compute_substitution_tree :
           let new_reg = Reg.clone old_reg in
           Regalloc_stack_slots.use_same_slot_or_fatal slots new_reg
             ~existing:old_reg;
-          if split_debug
+          if debug
           then log "renaming %a to %a" Printreg.reg old_reg Printreg.reg new_reg;
           Reg.Tbl.replace subst old_reg new_reg;
           Reg.Map.add old_reg new_reg bindings)
         renames bindings
   in
   (* Fourth, remove the destroyed registers from the bindings. *)
-  if split_debug
+  if debug
   then (
     dedent ();
     log "removing from destructions");
@@ -108,13 +107,13 @@ let rec compute_substitution_tree :
   (* Finally, propagate the bindings to the children. *)
   List.iter tree.children ~f:(fun child ->
       compute_substitution_tree state substs bindings child);
-  if split_debug then dedent ()
+  if debug then dedent ()
 
 (* Computes the substitutions for all blocks, by introducing new registers at
    reload points and then propagating names until new ones take over. *)
 let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
  fun state cfg_with_infos ->
-  if split_debug
+  if debug
   then (
     log "compute_substitutions";
     indent ());
@@ -125,7 +124,7 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
   let substs = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
   List.iter dom_forest ~f:(fun dom_tree ->
       compute_substitution_tree state substs Reg.Map.empty dom_tree);
-  if split_debug then dedent ();
+  if debug then dedent ();
   substs
 
 let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
@@ -160,8 +159,7 @@ let make_spill : type a. a make_operation =
       Reg.Tbl.replace stack_subst old_reg stack;
       stack
   in
-  if split_debug
-  then log "spill %a -> %a" Printreg.reg new_reg Printreg.reg stack_reg;
+  if debug then log "spill %a -> %a" Printreg.reg new_reg Printreg.reg stack_reg;
   Move.make_instr Move.Store
     ~id:(State.get_and_incr_instruction_id state)
     ~copy ~from:new_reg ~to_:stack_reg
@@ -259,7 +257,7 @@ let insert_spills_in_block :
 let insert_spills :
     State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t =
  fun state cfg_with_infos substs ->
-  if split_debug
+  if debug
   then (
     log "insert_spills";
     indent ());
@@ -267,13 +265,13 @@ let insert_spills :
   let stack_subst = Reg.Tbl.create (Label.Map.cardinal destructions_at_end) in
   Label.Map.iter
     (fun label (_, live_at_destruction_point) ->
-      if split_debug then log "block %a" Label.format label;
+      if debug then log "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let block_subst = Substitution.for_label substs label in
       insert_spills_in_block state ~block_subst ~stack_subst block
         (DLL.last_cell block.body) live_at_destruction_point)
     destructions_at_end;
-  if split_debug then dedent ();
+  if debug then dedent ();
   stack_subst
 
 (* Creates a reload instruction for the register named `old_reg` before
@@ -296,7 +294,7 @@ let make_reload : type a. a make_operation =
       stack.Reg.loc <- Reg.(Stack (Local slot));
       stack
   in
-  if split_debug
+  if debug
   then log "reload %a -> %a" Printreg.reg stack_reg Printreg.reg new_reg;
   Move.make_instr Move.Load
     ~id:(State.get_and_incr_instruction_id state)
@@ -324,19 +322,19 @@ let insert_reloads_in_block :
 let insert_reloads :
     State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t -> unit =
  fun state cfg_with_infos substs stack_subst ->
-  if split_debug
+  if debug
   then (
     log "insert_reloads";
     indent ());
   Label.Map.iter
     (fun label live_at_definition_point ->
-      if split_debug then log "block %a" Label.format label;
+      if debug then log "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let block_subst = Substitution.for_label substs label in
       insert_reloads_in_block state ~block_subst ~stack_subst block
         (DLL.hd_cell block.body) live_at_definition_point)
     (State.definitions_at_beginning state);
-  if split_debug then dedent ()
+  if debug then dedent ()
 
 let add_phi_moves_to_instr_list :
     State.t ->
@@ -355,13 +353,12 @@ let add_phi_moves_to_instr_list :
       let to_ = Substitution.apply_reg phi_subst reg in
       match Reg.same from to_ with
       | true ->
-        if split_debug
+        if debug
         then
           log "(no phi necessary because %a == %a)" Printreg.reg from
             Printreg.reg to_
       | false ->
-        if split_debug
-        then log "phi %a -> %a" Printreg.reg from Printreg.reg to_;
+        if debug then log "phi %a -> %a" Printreg.reg from Printreg.reg to_;
         let phi_move =
           Move.make_instr Move.Plain
             ~id:(State.get_and_incr_instruction_id state)
@@ -379,7 +376,7 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
   Label.Map.iter
     (fun label to_unify ->
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      if split_debug
+      if debug
       then
         log "insert_phi_moves for block %a: %a" Label.format label
           Printreg.regset to_unify;
@@ -409,7 +406,7 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
                   State.get_and_incr_instruction_id state)
             in
             block_inserted := true;
-            if split_debug && Lazy.force split_invariants
+            if debug && Lazy.force invariants
             then (
               (match inserted_blocks with
               | [inserted_block] ->
@@ -435,7 +432,7 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
 let split_at_destruction_points :
     Cfg_with_infos.t -> cfg_infos -> (Regalloc_stack_slots.t * bool) option =
  fun cfg_with_infos cfg_infos ->
-  if split_debug
+  if debug
   then (
     log "split_at_destruction_points";
     indent ();
@@ -446,7 +443,7 @@ let split_at_destruction_points :
         State.make cfg_with_infos ~last_used:cfg_infos.max_instruction_id)
       ()
   in
-  if split_debug
+  if debug
   then (
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     log_dominance_frontier (Cfg_with_infos.cfg cfg_with_infos) doms;
@@ -456,13 +453,13 @@ let split_at_destruction_points :
     log "renaming_infos is empty (no new names introduced)";
     None
   | false ->
-    if split_debug then State.log_renaming_info state;
+    if debug then State.log_renaming_info state;
     let substs =
       Profile.record ~accumulate:true "compute_substitutions"
         (fun () -> compute_substitutions state cfg_with_infos)
         ()
     in
-    if split_debug then log_substitutions substs;
+    if debug then log_substitutions substs;
     Profile.record ~accumulate:true "apply_substitutions"
       (fun () -> apply_substitutions cfg_with_infos substs)
       ();
@@ -471,7 +468,7 @@ let split_at_destruction_points :
         (fun () -> insert_spills state cfg_with_infos substs)
         ()
     in
-    if split_debug then log_stack_subst stack_subst;
+    if debug then log_stack_subst stack_subst;
     Profile.record ~accumulate:true "insert_reloads"
       (fun () -> insert_reloads state cfg_with_infos substs stack_subst)
       ();
@@ -480,7 +477,7 @@ let split_at_destruction_points :
         (fun () -> insert_phi_moves state cfg_with_infos substs)
         ()
     in
-    if split_debug
+    if debug
     then (
       Regalloc_irc_utils.log_cfg_with_infos cfg_with_infos;
       dedent ());
