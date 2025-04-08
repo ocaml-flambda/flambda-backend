@@ -2,13 +2,11 @@
 
 open Regalloc_utils
 
-val irc_debug : bool
-
-val irc_invariants : bool Lazy.t
-
 val indent : unit -> unit
 
 val dedent : unit -> unit
+
+val reset_indentation : unit -> unit
 
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 

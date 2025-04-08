@@ -75,7 +75,7 @@ end = struct
       definitions_at_beginning:definitions_at_beginning ->
       definitions_at_beginning * Label.t Stack.t =
    fun cfg_with_infos ~definitions_at_beginning ->
-    if split_debug
+    if debug
     then (
       log "MoveSpillsAndReloads.move_definitions_at_beginning_down";
       indent ());
@@ -117,7 +117,7 @@ end = struct
                 in
                 if not (Reg.Set.is_empty to_move)
                 then (
-                  if split_debug
+                  if debug
                   then
                     log "moving %a from block %a to block %a" Printreg.regset
                       to_move Label.format label Label.format successor_label;
@@ -134,7 +134,7 @@ end = struct
                            | Some set -> Some (Reg.Set.union set to_move))
                          !definitions_at_beginning)
             | _ -> ()));
-    if split_debug then dedent ();
+    if debug then dedent ();
     !definitions_at_beginning, stack
 
   (** A destruction at the end of a block can be move up if:
@@ -153,7 +153,7 @@ end = struct
       destructions_at_end:destructions_at_end ->
       destructions_at_end =
    fun cfg_with_infos stack ~definitions_at_beginning ~destructions_at_end ->
-    if split_debug
+    if debug
     then (
       log "MoveSpillsAndReloads.move_destructions_at_end_up";
       indent ());
@@ -197,7 +197,7 @@ end = struct
             in
             if not (Reg.Set.is_empty to_move)
             then (
-              if split_debug
+              if debug
               then
                 log "moving %a from block %a to block %a" Printreg.regset
                   to_move Label.format label Label.format predecessor_label;
@@ -216,11 +216,11 @@ end = struct
                          Some (destruction_kind, Reg.Set.union set to_move))
                      !destructions_at_end)
     done;
-    if split_debug then dedent ();
+    if debug then dedent ();
     !destructions_at_end
 
   let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning =
-    if split_debug
+    if debug
     then (
       log "MoveSpillsAndReloads.optimize";
       indent ());
@@ -232,7 +232,7 @@ end = struct
       move_destructions_at_end_up cfg_with_infos stack ~definitions_at_beginning
         ~destructions_at_end
     in
-    if split_debug then dedent ();
+    if debug then dedent ();
     destructions_at_end, definitions_at_beginning
 end
 
@@ -247,7 +247,7 @@ module RemoveReloadSpillInSameBlock : sig
     destructions_at_end * definitions_at_beginning
 end = struct
   let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning =
-    if split_debug
+    if debug
     then (
       log "RemoveReloadSpillInSameBlock.optimize";
       indent ());
@@ -255,7 +255,7 @@ end = struct
     let definitions_at_beginning =
       Label.Map.mapi
         (fun (label : Label.t) (definitions : Reg.Set.t) ->
-          if split_debug
+          if debug
           then (
             log "block %a" Label.format label;
             indent ());
@@ -263,7 +263,7 @@ end = struct
           | None -> definitions
           | Some (Destruction_only_on_exceptional_path, _) -> definitions
           | Some (Destruction_on_all_paths, destructions) -> (
-            if split_debug
+            if debug
             then (
               log "definitions: %a" Printreg.regset definitions;
               log "destructions: %a" Printreg.regset destructions;
@@ -271,21 +271,21 @@ end = struct
             let can_be_removed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
-                  if split_debug then log "register %a" Printreg.reg reg;
+                  if debug then log "register %a" Printreg.reg reg;
                   match Reg.Set.mem reg destructions with
                   | false ->
-                    if split_debug then log "(not among destructions)";
+                    if debug then log "(not among destructions)";
                     false
                   | true ->
                     let block =
                       Cfg_with_infos.get_block_exn cfg_with_infos label
                     in
                     let occurs = occurs_block block reg in
-                    if split_debug then log "occurs? %B" occurs;
+                    if debug then log "occurs? %B" occurs;
                     not occurs)
                 definitions
             in
-            if split_debug
+            if debug
             then (
               dedent ();
               log "can be removed: %a" Printreg.regset can_be_removed);
@@ -302,7 +302,7 @@ end = struct
               Reg.Set.diff definitions can_be_removed))
         definitions_at_beginning
     in
-    if split_debug
+    if debug
     then (
       dedent ();
       dedent ());
@@ -341,7 +341,7 @@ end = struct
       destructions_at_end:destructions_at_end ->
       destructions_at_end =
    fun doms tree ~num_sets ~already_spilled ~destructions_at_end ->
-    if split_debug
+    if debug
     then (
       log "remove_dominated_spills %a" Label.format tree.label;
       indent ());
@@ -353,27 +353,27 @@ end = struct
             let destroyed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
-                  if split_debug then log "register %a" Printreg.reg reg;
+                  if debug then log "register %a" Printreg.reg reg;
                   let keep =
                     match Reg.Tbl.find_opt num_sets reg with
                     | None | Some Maybe_more_than_once -> true
                     | Some At_most_once -> (
                       match Reg.Map.find_opt reg !already_spilled with
                       | None ->
-                        if split_debug
+                        if debug
                         then (
                           indent ();
                           log "case/2";
                           dedent ());
                         true
                       | Some spilled_at ->
-                        if split_debug && Lazy.force split_invariants
+                        if debug && Lazy.force invariants
                         then
                           if not
                                (Cfg_dominators.is_strictly_dominating doms
                                   spilled_at tree.label)
                           then fatal "inconsistent dominator tree";
-                        if split_debug
+                        if debug
                         then (
                           indent ();
                           log "case/3 (already spilled at %a)" Label.format
@@ -385,7 +385,7 @@ end = struct
                   then
                     already_spilled
                       := Reg.Map.add reg tree.label !already_spilled;
-                  if split_debug
+                  if debug
                   then (
                     indent ();
                     log "keep? %B" keep;
@@ -395,7 +395,7 @@ end = struct
             in
             if Reg.Set.is_empty destroyed
             then (
-              if split_debug
+              if debug
               then (
                 indent ();
                 log "(the destroyed set is empty)";
@@ -403,14 +403,14 @@ end = struct
               None)
             else Some (Destruction_on_all_paths, destroyed)
           | Some (Destruction_only_on_exceptional_path, _) as existing ->
-            if split_debug
+            if debug
             then (
               indent ();
               log "(ignored as a half-destruction point)";
               dedent ());
             existing
           | None ->
-            if split_debug
+            if debug
             then (
               indent ();
               log "(not a destruction point)";
@@ -421,15 +421,15 @@ end = struct
     let res =
       List.fold_left tree.children ~init:destructions_at_end
         ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
-          if split_debug then log "child %a" Label.format child.label;
+          if debug then log "child %a" Label.format child.label;
           remove_dominated_spills doms child ~num_sets
             ~already_spilled:!already_spilled ~destructions_at_end)
     in
-    if split_debug then dedent ();
+    if debug then dedent ();
     res
 
   let optimize cfg_with_infos ~destructions_at_end =
-    if split_debug
+    if debug
     then (
       log "RemoveDominatedSpillsForConstants.optimize";
       indent ());
@@ -448,14 +448,13 @@ end = struct
       Cfg_with_infos.fold_blocks cfg_with_infos ~init:(Reg.Tbl.create 123)
         ~f:(fun label block acc ->
           let in_loop : bool = is_in_loop loops label in
-          if split_debug
-          then log "block %a in_loop? %B" Label.format label in_loop;
+          if debug then log "block %a in_loop? %B" Label.format label in_loop;
           incr_set acc block.terminator.res ~in_loop;
           DLL.iter block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
               incr_set acc instr.res ~in_loop);
           acc)
     in
-    if split_debug
+    if debug
     then (
       log "num_sets:";
       indent ();
@@ -549,7 +548,7 @@ let compute_definitions :
           let definitions_at_beginning =
             Label.Set.fold
               (fun successor_label definitions_at_beginning ->
-                (if split_debug && Lazy.force split_invariants
+                (if debug && Lazy.force invariants
                 then
                   let successor_block =
                     Cfg_with_infos.get_block_exn cfg_with_infos successor_label
