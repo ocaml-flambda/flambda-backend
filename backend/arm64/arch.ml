@@ -356,7 +356,7 @@ let is_immediate n =
   || mn land 0xFFF = mn
   || mn land 0xFFF_000 = mn
 
-let is_immediate_for_intop (op : Simple_operation.integer_operation) n =
+let is_immediate_for_intop (op : Operation.integer_operation) n =
   match op with
   | Iadd | Isub -> n <= 0xFFF_FFF && n >= -0xFFF_FFF
   | Iand | Ior | Ixor -> is_logical_immediate (Nativeint.of_int n)

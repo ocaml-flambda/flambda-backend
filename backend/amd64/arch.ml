@@ -550,7 +550,7 @@ let is_immediate_natint n =
   Nativeint.compare n 0x7FFF_FFFFn <= 0
   && Nativeint.compare n (-0x8000_0000n) >= 0
 
-let is_immediate_for_intop (op : Simple_operation.integer_operation) n =
+let is_immediate_for_intop (op : Operation.integer_operation) n =
   match op with
   | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ -> is_immediate n
   | Ilsl | Ilsr | Iasr -> n >= 0 && n < size_int * 8
