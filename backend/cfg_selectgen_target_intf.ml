@@ -71,11 +71,10 @@ type insert_op_debug_result =
   | Use_default
 
 module type S = sig
-  val is_immediate :
-    Simple_operation.integer_operation -> int -> is_immediate_result
+  val is_immediate : Operation.integer_operation -> int -> is_immediate_result
 
   val is_immediate_test :
-    Simple_operation.integer_comparison -> int -> is_immediate_result
+    Operation.integer_comparison -> int -> is_immediate_result
 
   val is_simple_expr : Cmm.expression -> is_simple_expr_result
 
@@ -88,8 +87,7 @@ module type S = sig
      [select_operation_result] to return [Cfg.basic] instead of
      [Cfg.basic_or_terminator]. *)
   val select_operation :
-    generic_select_condition:
-      (Cmm.expression -> Simple_operation.test * Cmm.expression) ->
+    generic_select_condition:(Cmm.expression -> Operation.test * Cmm.expression) ->
     Cmm.operation ->
     Cmm.expression list ->
     Debuginfo.t ->
