@@ -19,30 +19,38 @@ type t =
     instruction_id : InstructionId.sequence
   }
 
-let log_renaming_info : indent:int -> t -> unit =
- fun ~indent state ->
-  log ~indent "renaming_infos";
-  log ~indent:(indent + 1) "destructions:";
+let log_renaming_info : t -> unit =
+ fun state ->
+  log "renaming_infos";
+  indent ();
+  log "destructions:";
+  indent ();
   Label.Map.iter
     (fun label (kind, regset) ->
-      log ~indent:(indent + 2) " - end of block %a %s (%a)" Label.format label
+      log " - end of block %a %s (%a)" Label.format label
         (match kind with
         | Destruction_on_all_paths -> "[all-paths]"
         | Destruction_only_on_exceptional_path -> "[exn-only]")
         Printreg.regset regset)
     state.destructions_at_end;
-  log ~indent:(indent + 1) "definitions:";
+  dedent ();
+  log "definitions:";
+  indent ();
   Label.Map.iter
     (fun label regset ->
-      log ~indent:(indent + 2) " - beginning of block %a (%a)" Label.format
-        label Printreg.regset regset)
+      log " - beginning of block %a (%a)" Label.format label Printreg.regset
+        regset)
     state.definitions_at_beginning;
-  log ~indent:1 "phi:";
+  dedent ();
+  log "phi:";
+  indent ();
   Label.Map.iter
     (fun label regset ->
-      log ~indent:(indent + 2) " - beginning of block %a (%a)" Label.format
-        label Printreg.regset regset)
-    state.phi_at_beginning
+      log " - beginning of block %a (%a)" Label.format label Printreg.regset
+        regset)
+    state.phi_at_beginning;
+  dedent ();
+  dedent ()
 
 (* Optimizes `destructions_at_end` and `definitions_at_beginning`, by moving
    definitions down and destructions up. Doing so create more opportunities for
@@ -68,7 +76,9 @@ end = struct
       definitions_at_beginning * Label.t Stack.t =
    fun cfg_with_infos ~definitions_at_beginning ->
     if split_debug
-    then log ~indent:1 "MoveSpillsAndReloads.move_definitions_at_beginning_down";
+    then (
+      log "MoveSpillsAndReloads.move_definitions_at_beginning_down";
+      indent ());
     let definitions_at_beginning = ref definitions_at_beginning in
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     let stack = Stack.create () in
@@ -109,9 +119,8 @@ end = struct
                 then (
                   if split_debug
                   then
-                    log ~indent:2 "moving %a from block %a to block %a"
-                      Printreg.regset to_move Label.format label Label.format
-                      successor_label;
+                    log "moving %a from block %a to block %a" Printreg.regset
+                      to_move Label.format label Label.format successor_label;
                   definitions_at_beginning
                     := Label.Map.update label
                          (function
@@ -125,6 +134,7 @@ end = struct
                            | Some set -> Some (Reg.Set.union set to_move))
                          !definitions_at_beginning)
             | _ -> ()));
+    if split_debug then dedent ();
     !definitions_at_beginning, stack
 
   (** A destruction at the end of a block can be move up if:
@@ -144,7 +154,9 @@ end = struct
       destructions_at_end =
    fun cfg_with_infos stack ~definitions_at_beginning ~destructions_at_end ->
     if split_debug
-    then log ~indent:1 "MoveSpillsAndReloads.move_destructions_at_end_up";
+    then (
+      log "MoveSpillsAndReloads.move_destructions_at_end_up";
+      indent ());
     let destructions_at_end = ref destructions_at_end in
     while not (Stack.is_empty stack) do
       let label = Stack.pop stack in
@@ -187,9 +199,8 @@ end = struct
             then (
               if split_debug
               then
-                log ~indent:2 "moving %a from block %a to block %a"
-                  Printreg.regset to_move Label.format label Label.format
-                  predecessor_label;
+                log "moving %a from block %a to block %a" Printreg.regset
+                  to_move Label.format label Label.format predecessor_label;
               destructions_at_end
                 := Label.Map.update label
                      (function
@@ -205,10 +216,14 @@ end = struct
                          Some (destruction_kind, Reg.Set.union set to_move))
                      !destructions_at_end)
     done;
+    if split_debug then dedent ();
     !destructions_at_end
 
   let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning =
-    if split_debug then log ~indent:0 "MoveSpillsAndReloads.optimize";
+    if split_debug
+    then (
+      log "MoveSpillsAndReloads.optimize";
+      indent ());
     let definitions_at_beginning, stack =
       move_definitions_at_beginning_down cfg_with_infos
         ~definitions_at_beginning
@@ -217,6 +232,7 @@ end = struct
       move_destructions_at_end_up cfg_with_infos stack ~definitions_at_beginning
         ~destructions_at_end
     in
+    if split_debug then dedent ();
     destructions_at_end, definitions_at_beginning
 end
 
@@ -231,41 +247,48 @@ module RemoveReloadSpillInSameBlock : sig
     destructions_at_end * definitions_at_beginning
 end = struct
   let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning =
-    if split_debug then log ~indent:0 "RemoveReloadSpillInSameBlock.optimize";
+    if split_debug
+    then (
+      log "RemoveReloadSpillInSameBlock.optimize";
+      indent ());
     let destructions_at_end = ref destructions_at_end in
     let definitions_at_beginning =
       Label.Map.mapi
         (fun (label : Label.t) (definitions : Reg.Set.t) ->
-          if split_debug then log ~indent:1 "block %a" Label.format label;
+          if split_debug
+          then (
+            log "block %a" Label.format label;
+            indent ());
           match Label.Map.find_opt label !destructions_at_end with
           | None -> definitions
           | Some (Destruction_only_on_exceptional_path, _) -> definitions
           | Some (Destruction_on_all_paths, destructions) -> (
             if split_debug
             then (
-              log ~indent:2 "definitions: %a" Printreg.regset definitions;
-              log ~indent:2 "destructions: %a" Printreg.regset destructions);
+              log "definitions: %a" Printreg.regset definitions;
+              log "destructions: %a" Printreg.regset destructions;
+              indent ());
             let can_be_removed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
-                  if split_debug
-                  then log ~indent:3 "register %a" Printreg.reg reg;
+                  if split_debug then log "register %a" Printreg.reg reg;
                   match Reg.Set.mem reg destructions with
                   | false ->
-                    if split_debug then log ~indent:3 "(not among destructions)";
+                    if split_debug then log "(not among destructions)";
                     false
                   | true ->
                     let block =
                       Cfg_with_infos.get_block_exn cfg_with_infos label
                     in
                     let occurs = occurs_block block reg in
-                    if split_debug then log ~indent:3 "occurs? %B" occurs;
+                    if split_debug then log "occurs? %B" occurs;
                     not occurs)
                 definitions
             in
             if split_debug
-            then
-              log ~indent:2 "can be removed: %a" Printreg.regset can_be_removed;
+            then (
+              dedent ();
+              log "can be removed: %a" Printreg.regset can_be_removed);
             match Reg.Set.is_empty can_be_removed with
             | true -> definitions
             | false ->
@@ -279,6 +302,10 @@ end = struct
               Reg.Set.diff definitions can_be_removed))
         definitions_at_beginning
     in
+    if split_debug
+    then (
+      dedent ();
+      dedent ());
     !destructions_at_end, definitions_at_beginning
 end
 
@@ -315,7 +342,9 @@ end = struct
       destructions_at_end =
    fun doms tree ~num_sets ~already_spilled ~destructions_at_end ->
     if split_debug
-    then log ~indent:1 "remove_dominated_spills %a" Label.format tree.label;
+    then (
+      log "remove_dominated_spills %a" Label.format tree.label;
+      indent ());
     let already_spilled = ref already_spilled in
     let destructions_at_end : (destruction_kind * Reg.Set.t) Label.Map.t =
       Label.Map.update tree.label
@@ -324,15 +353,18 @@ end = struct
             let destroyed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
-                  if split_debug
-                  then log ~indent:2 "register %a" Printreg.reg reg;
+                  if split_debug then log "register %a" Printreg.reg reg;
                   let keep =
                     match Reg.Tbl.find_opt num_sets reg with
                     | None | Some Maybe_more_than_once -> true
                     | Some At_most_once -> (
                       match Reg.Map.find_opt reg !already_spilled with
                       | None ->
-                        if split_debug then log ~indent:3 "case/2";
+                        if split_debug
+                        then (
+                          indent ();
+                          log "case/2";
+                          dedent ());
                         true
                       | Some spilled_at ->
                         if split_debug && Lazy.force split_invariants
@@ -342,42 +374,65 @@ end = struct
                                   spilled_at tree.label)
                           then fatal "inconsistent dominator tree";
                         if split_debug
-                        then
-                          log ~indent:3 "case/3 (already spilled at %a)"
-                            Label.format spilled_at;
+                        then (
+                          indent ();
+                          log "case/3 (already spilled at %a)" Label.format
+                            spilled_at;
+                          dedent ());
                         false)
                   in
                   if keep
                   then
                     already_spilled
                       := Reg.Map.add reg tree.label !already_spilled;
-                  if split_debug then log ~indent:3 "keep? %B" keep;
+                  if split_debug
+                  then (
+                    indent ();
+                    log "keep? %B" keep;
+                    dedent ());
                   keep)
                 destroyed
             in
             if Reg.Set.is_empty destroyed
             then (
-              if split_debug then log ~indent:3 "(the destroyed set is empty)";
+              if split_debug
+              then (
+                indent ();
+                log "(the destroyed set is empty)";
+                dedent ());
               None)
             else Some (Destruction_on_all_paths, destroyed)
           | Some (Destruction_only_on_exceptional_path, _) as existing ->
             if split_debug
-            then log ~indent:2 "(ignored as a half-destruction point)";
+            then (
+              indent ();
+              log "(ignored as a half-destruction point)";
+              dedent ());
             existing
           | None ->
-            if split_debug then log ~indent:2 "(not a destruction point)";
+            if split_debug
+            then (
+              indent ();
+              log "(not a destruction point)";
+              dedent ());
             None)
         destructions_at_end
     in
-    List.fold_left tree.children ~init:destructions_at_end
-      ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
-        if split_debug then log ~indent:2 "child %a" Label.format child.label;
-        remove_dominated_spills doms child ~num_sets
-          ~already_spilled:!already_spilled ~destructions_at_end)
+    let res =
+      List.fold_left tree.children ~init:destructions_at_end
+        ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
+          if split_debug then log "child %a" Label.format child.label;
+          remove_dominated_spills doms child ~num_sets
+            ~already_spilled:!already_spilled ~destructions_at_end)
+    in
+    if split_debug then dedent ();
+    res
 
   let optimize cfg_with_infos ~destructions_at_end =
     if split_debug
-    then log ~indent:0 "RemoveDominatedSpillsForConstants.optimize";
+    then (
+      log "RemoveDominatedSpillsForConstants.optimize";
+      indent ());
     let loops = Cfg_with_infos.loop_infos cfg_with_infos in
     let incr_set (tbl : set Reg.Tbl.t) (arr : Reg.t array) ~(in_loop : bool) :
         unit =
@@ -394,7 +449,7 @@ end = struct
         ~f:(fun label block acc ->
           let in_loop : bool = is_in_loop loops label in
           if split_debug
-          then log ~indent:1 "block %a in_loop? %B" Label.format label in_loop;
+          then log "block %a in_loop? %B" Label.format label in_loop;
           incr_set acc block.terminator.res ~in_loop;
           DLL.iter block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
               incr_set acc instr.res ~in_loop);
@@ -402,17 +457,23 @@ end = struct
     in
     if split_debug
     then (
-      log ~indent:1 "num_sets:";
+      log "num_sets:";
+      indent ();
       Reg.Tbl.iter
         (fun reg num_set ->
-          log ~indent:2 "%a ~> %s" Printreg.reg reg (string_of_set num_set))
-        num_sets);
+          log "%a ~> %s" Printreg.reg reg (string_of_set num_set))
+        num_sets;
+      dedent ());
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     let forest = Cfg_dominators.dominator_forest doms in
-    List.fold_left forest ~init:destructions_at_end
-      ~f:(fun destructions_at_end dominator_tree ->
-        remove_dominated_spills doms dominator_tree ~num_sets
-          ~already_spilled:Reg.Map.empty ~destructions_at_end)
+    let res =
+      List.fold_left forest ~init:destructions_at_end
+        ~f:(fun destructions_at_end dominator_tree ->
+          remove_dominated_spills doms dominator_tree ~num_sets
+            ~already_spilled:Reg.Map.empty ~destructions_at_end)
+    in
+    dedent ();
+    res
 end
 
 let add_destruction_point_at_end :

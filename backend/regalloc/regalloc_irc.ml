@@ -34,7 +34,7 @@ let filter_unavailable : Reg.t array -> Reg.t array =
 
 let build : State.t -> Cfg_with_infos.t -> unit =
  fun state cfg_with_infos ->
-  if irc_debug then log ~indent:1 "build";
+  if irc_debug then log "build";
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let add_edges_live (id : InstructionId.t) ~(def : Reg.t array)
       ~(move_src : Reg.t) ~(destroyed : Reg.t array) : unit =
@@ -94,29 +94,29 @@ let build : State.t -> Cfg_with_infos.t -> unit =
 
 let make_work_list : State.t -> unit =
  fun state ->
-  if irc_debug then log ~indent:1 "make_work_list";
+  if irc_debug then log "make_work_list";
   State.iter_and_clear_initial state ~f:(fun reg ->
       let deg = reg.Reg.degree in
       if irc_debug
       then
-        log ~indent:2 "- %a has degree=%s (k=%d)" Printreg.reg reg
-          (Degree.to_string deg) (k reg);
+        log "- %a has degree=%s (k=%d)" Printreg.reg reg (Degree.to_string deg)
+          (k reg);
       if deg >= k reg
       then (
-        if irc_debug then log ~indent:3 "~> spill_work_list";
+        if irc_debug then log "~> spill_work_list";
         State.add_spill_work_list state reg)
       else if State.is_move_related state reg
       then (
-        if irc_debug then log ~indent:3 "~> freeze_work_list";
+        if irc_debug then log "~> freeze_work_list";
         State.add_freeze_work_list state reg)
       else (
-        if irc_debug then log ~indent:3 "~> simplify_work_list";
+        if irc_debug then log "~> simplify_work_list";
         State.add_simplify_work_list state reg))
 
 let simplify : State.t -> unit =
  fun state ->
   let reg = State.choose_and_remove_simplify_work_list state in
-  if irc_debug then log ~indent:1 "simplify %a" Printreg.reg reg;
+  if irc_debug then log "simplify %a" Printreg.reg reg;
   State.push_select_stack state reg;
   State.iter_adjacent state reg ~f:(fun adj -> State.decr_degree state adj)
 
@@ -152,8 +152,7 @@ let conservative : State.t -> Reg.t -> Reg.t -> bool =
 
 let combine : State.t -> Reg.t -> Reg.t -> unit =
  fun state u v ->
-  if irc_debug
-  then log ~indent:2 "combine u=%a v=%a" Printreg.reg u Printreg.reg v;
+  if irc_debug then log "combine u=%a v=%a" Printreg.reg u Printreg.reg v;
   if State.mem_freeze_work_list state v
   then State.remove_freeze_work_list state v
   else State.remove_spill_work_list state v;
@@ -182,19 +181,19 @@ let add_work_list : State.t -> Reg.t -> unit =
 
 let coalesce : State.t -> unit =
  fun state ->
-  if irc_debug then log ~indent:1 "coalesce";
+  if irc_debug then log "coalesce";
   let m = State.choose_and_remove_work_list_moves state in
   let x = m.res.(0) in
   let y = m.arg.(0) in
-  if irc_debug then log ~indent:2 "x=%a y=%a" Printreg.reg x Printreg.reg y;
+  if irc_debug then log "x=%a y=%a" Printreg.reg x Printreg.reg y;
   let x = State.find_alias state x in
   let y = State.find_alias state y in
-  if irc_debug then log ~indent:2 "x=%a y=%a" Printreg.reg x Printreg.reg y;
+  if irc_debug then log "x=%a y=%a" Printreg.reg x Printreg.reg y;
   let u, v = if State.is_precolored state y then y, x else x, y in
-  if irc_debug then log ~indent:2 "u=%a v=%a" Printreg.reg u Printreg.reg v;
+  if irc_debug then log "u=%a v=%a" Printreg.reg u Printreg.reg v;
   if Reg.same u v
   then (
-    if irc_debug then log ~indent:2 "case #1/4";
+    if irc_debug then log "case #1/4";
     State.add_coalesced_moves state m;
     add_work_list state u)
   else if State.is_precolored state v
@@ -205,7 +204,7 @@ let coalesce : State.t -> unit =
                 float, and vec128) as disjoint. *)
           State.interferes_with_adj state v u
   then (
-    if irc_debug then log ~indent:2 "case #2/4";
+    if irc_debug then log "case #2/4";
     State.add_constrained_moves state m;
     add_work_list state u;
     add_work_list state v)
@@ -213,17 +212,17 @@ let coalesce : State.t -> unit =
           | true -> all_adjacent_are_ok state u v
           | false -> conservative state u v
   then (
-    if irc_debug then log ~indent:2 "case #3/4";
+    if irc_debug then log "case #3/4";
     State.add_coalesced_moves state m;
     combine state u v;
     add_work_list state u)
   else (
-    if irc_debug then log ~indent:2 "case #4/4";
+    if irc_debug then log "case #4/4";
     State.add_active_moves state m)
 
 let freeze_moves : State.t -> Reg.t -> unit =
  fun state u ->
-  if irc_debug then log ~indent:2 "freeze_moves %a" Printreg.reg u;
+  if irc_debug then log "freeze_moves %a" Printreg.reg u;
   State.iter_node_moves state u ~f:(fun m ->
       let x = m.res.(0) in
       let y = m.arg.(0) in
@@ -243,7 +242,7 @@ let freeze_moves : State.t -> Reg.t -> unit =
 let freeze : State.t -> unit =
  fun state ->
   let reg = State.choose_and_remove_freeze_work_list state in
-  if irc_debug then log ~indent:1 "freeze %a" Printreg.reg reg;
+  if irc_debug then log "freeze %a" Printreg.reg reg;
   State.add_simplify_work_list state reg;
   freeze_moves state reg
 
@@ -271,8 +270,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
     let weighted_cost (reg : Reg.t) =
       if irc_debug
       then
-        log ~indent:2 "register %a has spill cost %d" Printreg.reg reg
-          reg.Reg.spill_cost;
+        log "register %a has spill cost %d" Printreg.reg reg reg.Reg.spill_cost;
       (float reg.Reg.spill_cost /. float reg.Reg.degree)
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
@@ -286,9 +284,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
         ~f:(fun ((_curr_reg, curr_min_cost) as acc) reg ->
           let reg_cost = weighted_cost reg in
           if irc_debug
-          then
-            log ~indent:2 "register %a has weighted cost %f" Printreg.reg reg
-              reg_cost;
+          then log "register %a has weighted cost %f" Printreg.reg reg reg_cost;
           if Float.compare reg_cost curr_min_cost < 0
           then reg, reg_cost
           else acc)
@@ -296,11 +292,11 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
 
 let select_spill : State.t -> unit =
  fun state ->
-  if irc_debug then log ~indent:1 "select_spill";
+  if irc_debug then log "select_spill";
   let reg = select_spilling_register_using_heuristics state in
   if irc_debug
   then
-    log ~indent:2 "chose %a using heuristics %S" Printreg.reg reg
+    log "chose %a using heuristics %S" Printreg.reg reg
       Spilling_heuristics.(to_string @@ Lazy.force value);
   State.remove_spill_work_list state reg;
   State.add_simplify_work_list state reg;
@@ -308,9 +304,9 @@ let select_spill : State.t -> unit =
 
 let assign_colors : State.t -> Cfg_with_layout.t -> unit =
  fun state _cfg_with_layout ->
-  if irc_debug then log ~indent:1 "assign_colors";
+  if irc_debug then log "assign_colors";
   State.iter_and_clear_select_stack state ~f:(fun n ->
-      if irc_debug then log ~indent:2 "%a" Printreg.reg n;
+      if irc_debug then log "%a" Printreg.reg n;
       let reg_class = Proc.register_class n in
       let reg_num_avail =
         Array.unsafe_get Proc.num_available_registers reg_class
@@ -339,7 +335,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
             match alias.Reg.irc_color with
             | None -> assert false
             | Some color ->
-              if irc_debug then log ~indent:3 "color %d is not available" color;
+              if irc_debug then log "color %d is not available" color;
               if Array.unsafe_get ok_colors (color - reg_first_avail)
               then (
                 Array.unsafe_set ok_colors (color - reg_first_avail) false;
@@ -355,12 +351,12 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       in
       if first_avail = reg_num_avail
       then (
-        if irc_debug then log ~indent:3 "spilling";
+        if irc_debug then log "spilling";
         State.add_spilled_nodes state n)
       else (
         State.add_colored_nodes state n;
         let c = first_avail + reg_first_avail in
-        if irc_debug then log ~indent:3 "coloring with %d" c;
+        if irc_debug then log "coloring with %d" c;
         n.Reg.irc_color <- Some c));
   State.iter_coalesced_nodes state ~f:(fun n ->
       let alias = State.find_alias state n in
@@ -423,7 +419,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
-  if irc_debug then log ~indent:0 "main, round #%d" round;
+  if irc_debug then log "main, round #%d" round;
   let work_lists_desc state (name, f) =
     Printf.sprintf "%s:%s" name (if f state then "{}" else "...")
   in
@@ -436,23 +432,21 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
            "spill_wl", State.is_empty_spill_work_list ])
   in
   let log_work_list_desc prefix =
-    if irc_debug then log ~indent:1 "%s -- %s" prefix (work_lists_desc state)
+    if irc_debug then log "%s -- %s" prefix (work_lists_desc state)
   in
   build state cfg_with_infos;
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   if irc_debug
   then (
     let adj_set = State.adj_set state in
-    log ~indent:1 "(%d pairs in adj_set)"
-      (RegisterStamp.PairSet.cardinal adj_set);
+    log "(%d pairs in adj_set)" (RegisterStamp.PairSet.cardinal adj_set);
     (* CR-someday xclerc for xclerc: remove (kept for the moment for debugging,
        but does not deserve to be controlled by a variable) *)
     if false
     then
       (* may produce a *lot* of lines... *)
       RegisterStamp.PairSet.iter adj_set ~f:(fun p ->
-          log ~indent:1 "(%d, %d) <- adj_set" (RegisterStamp.fst p)
-            (RegisterStamp.snd p)));
+          log "(%d, %d) <- adj_set" (RegisterStamp.fst p) (RegisterStamp.snd p)));
   make_work_list state;
   State.invariant state;
   if irc_debug then log_work_list_desc "before loop";
@@ -480,21 +474,21 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     if irc_debug then log_work_list_desc "end of loop";
     State.invariant state
   done;
-  if irc_debug then log ~indent:1 "(after loop)";
+  if irc_debug then log "(after loop)";
   assign_colors state cfg_with_layout;
   State.invariant state;
   match State.spilled_nodes state with
-  | [] -> if irc_debug then log ~indent:1 "(end of main)"
+  | [] -> if irc_debug then log "(end of main)"
   | _ :: _ as spilled_nodes -> (
     if irc_debug
     then
       List.iter spilled_nodes ~f:(fun reg ->
-          log ~indent:1 "/!\\ register %a needs to be spilled" Printreg.reg reg);
+          log "/!\\ register %a needs to be spilled" Printreg.reg reg);
     match
       rewrite state cfg_with_infos ~spilled_nodes ~reset:true
         ~block_temporaries:(round = 1)
     with
-    | false -> if irc_debug then log ~indent:1 "(end of main)"
+    | false -> if irc_debug then log "(end of main)"
     | true ->
       State.invariant state;
       main ~round:(succ round) state cfg_with_infos)
@@ -511,8 +505,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (* CR xclerc for xclerc: consider moving the computation of temporaries and
      the creation of the state to `prelude`. *)
   let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
-  if irc_debug
-  then log ~indent:0 "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
+  if irc_debug then log "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
   let state =
     State.make
       ~initial:(Reg.Set.elements all_temporaries)
@@ -531,7 +524,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     in
     ());
   main ~round:1 state cfg_with_infos;
-  if irc_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
+  if irc_debug then log_cfg_with_infos cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)
     (module Utils)
