@@ -655,15 +655,14 @@ let[@inline] invariant state =
           if not (Int.equal degree cardinal)
           then (
             List.iter u.Reg.interf ~f:(fun r ->
-                log ~indent:0 "%a <- interf[%a]" Printreg.reg r Printreg.reg u);
+                log "%a <- interf[%a]" Printreg.reg r Printreg.reg u);
             Reg.Set.iter
-              (fun r ->
-                log ~indent:0 "%a <- adj_list[%a]" Printreg.reg r Printreg.reg u)
+              (fun r -> log "%a <- adj_list[%a]" Printreg.reg r Printreg.reg u)
               adj_list;
             Reg.Set.iter
               (fun r ->
-                log ~indent:0 "%a <- work_lists_or_precolored[%a]" Printreg.reg
-                  r Printreg.reg u)
+                log "%a <- work_lists_or_precolored[%a]" Printreg.reg r
+                  Printreg.reg u)
               (Reg.Set.inter adj_list work_lists_or_precolored);
             fatal
               "invariant expected degree for %a to be %d but got %d\n\
