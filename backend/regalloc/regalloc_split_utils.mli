@@ -1,7 +1,5 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open Regalloc_utils
-
 val split_live_ranges : bool Lazy.t
 
 val indent : unit -> unit
@@ -16,11 +14,11 @@ val log_dominator_tree : Cfg_dominators.dominator_tree -> unit
 
 val log_dominator_forest : Cfg_dominators.dominator_tree list -> unit
 
-val log_substitution : Substitution.t -> unit
+val log_substitution : Regalloc_substitution.t -> unit
 
-val log_substitutions : Substitution.map -> unit
+val log_substitutions : Regalloc_substitution.map -> unit
 
-val log_stack_subst : Substitution.t -> unit
+val log_stack_subst : Regalloc_substitution.t -> unit
 
 val live_at_block_beginning : Cfg_with_infos.t -> Label.t -> Reg.Set.t
 
