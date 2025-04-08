@@ -16,6 +16,7 @@ val prev : 'a cell -> 'a cell option
 
 val next : 'a cell -> 'a cell option
 
+(* Deletes the passed cell and all the cells after it. *)
 val cut_from : 'a cell -> unit
 
 type 'a t
