@@ -53,8 +53,6 @@ select_utils.mli
 selectgen.ml
 selectgen.mli
 selection.mli
-simple_operation.ml
-simple_operation.mli
 stack_check.mli
 stack_class.mli
 stack_class_utils.ml
