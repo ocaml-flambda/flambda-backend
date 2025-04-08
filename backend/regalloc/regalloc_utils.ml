@@ -58,6 +58,12 @@ type liveness = Cfg_with_infos.liveness
 
 let make_indent n = String.make (2 * n) ' '
 
+(* CR-soon xclerc for xclerc: as noted by spiessimon it would be more robust to
+   define a function like `log_with_increased_level : f:(unit -> 'a)` that would
+   automatically call `indent` / `dedent`, and properly handle exceptions.
+   However, there is a concern it could be costly (in particular note that
+   currently all calls to log functions are expected to be under `if debug` to
+   be sure no price is paid when debugging is disabled). *)
 type log_function =
   { indent : unit -> unit;
     dedent : unit -> unit;

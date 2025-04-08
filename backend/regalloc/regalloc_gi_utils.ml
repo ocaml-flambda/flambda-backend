@@ -684,7 +684,8 @@ module Hardware_registers = struct
           let overlap_hard = Interval.overlap interval hardware_reg.interval in
           if overlap_hard
           then acc
-          else
+          else (
+            if gi_debug then indent ();
             let overlaping : Hardware_register.assigned list =
               List.filter hardware_reg.assigned
                 ~f:(fun
@@ -711,6 +712,7 @@ module Hardware_registers = struct
                    ->
                   acc_cost + actual_cost pseudo_reg, acc_evictable && evictable)
             in
+            if gi_debug then dedent ();
             if not evictable
             then acc
             else
@@ -725,7 +727,7 @@ module Hardware_registers = struct
                       log "evicting %a" Hardware_register.print_assigned
                         assigned);
                 Some (hardware_reg, overlaping, cost))
-              else acc)
+              else acc))
     in
     match eviction with
     | Some (hardware_reg, evicted_regs, _) ->

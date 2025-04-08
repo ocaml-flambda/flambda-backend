@@ -172,8 +172,13 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     let { Prio_queue.priority; data = reg, interval } =
       Prio_queue.get_and_remove prio_queue
     in
-    if gi_debug then log "got register %a (prio=%d)" Printreg.reg reg priority;
-    match Hardware_registers.find_available hardware_registers reg interval with
+    if gi_debug
+    then (
+      indent ();
+      log "got register %a (prio=%d)" Printreg.reg reg priority);
+    (match
+       Hardware_registers.find_available hardware_registers reg interval
+     with
     | For_assignment { hardware_reg } ->
       if gi_debug
       then
@@ -222,7 +227,8 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
       (* CR xclerc for xclerc: we should actually try to split. *)
       if gi_debug then log "spilling %a" Printreg.reg reg;
       reg.Reg.spill <- true;
-      spilling := (reg, interval) :: !spilling
+      spilling := (reg, interval) :: !spilling);
+    if gi_debug then dedent ()
   done;
   dedent ();
   match !spilling with

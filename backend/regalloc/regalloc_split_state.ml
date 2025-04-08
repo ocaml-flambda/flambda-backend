@@ -408,11 +408,15 @@ end = struct
             None)
         destructions_at_end
     in
-    List.fold_left tree.children ~init:destructions_at_end
-      ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
-        if split_debug then log "child %a" Label.format child.label;
-        remove_dominated_spills doms child ~num_sets
-          ~already_spilled:!already_spilled ~destructions_at_end)
+    let res =
+      List.fold_left tree.children ~init:destructions_at_end
+        ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
+          if split_debug then log "child %a" Label.format child.label;
+          remove_dominated_spills doms child ~num_sets
+            ~already_spilled:!already_spilled ~destructions_at_end)
+    in
+    if split_debug then dedent ();
+    res
 
   let optimize cfg_with_infos ~destructions_at_end =
     if split_debug
