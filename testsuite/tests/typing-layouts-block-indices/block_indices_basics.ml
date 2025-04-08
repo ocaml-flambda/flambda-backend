@@ -127,16 +127,9 @@ let (.%[;..]) = Bigarray.Genarray.get
 let f a = (.%[1;2;3])
 [%%expect{|
 val ( .%[;..] ) : ('a, 'b, 'c) Bigarray.Genarray.t -> int array -> 'a = <fun>
-Line 127, characters 11-20:
-127 | let f a = (.%[1;2;3])
-                 ^^^^^^^^^
-Error: Block indices do not support multi-index operators.
-|}, Principal{|
-val ( .%[;..] ) : ('a, 'b, 'c) Bigarray.Genarray.t -> int array -> 'a = <fun>
-Line 134, characters 11-20:
-134 | let f a = (.%[1;2;3])
-                 ^^^^^^^^^
-Error: Block indices do not support multi-index operators.
+>> Fatal error: expected operator used in block index to be a primitive
+Uncaught exception: Misc.Fatal_error
+
 |}]
 
 (****************)
@@ -161,8 +154,8 @@ val f : bool -> ('a r, int) imm_idx = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 161, characters 6-7:
-161 |     (.u.#x)
+Line 147, characters 6-7:
+147 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
@@ -208,15 +201,8 @@ type t = { mutable a : string; b : int }
 let bad () = (.(5).#a)
 [%%expect{|
 type t = { mutable a : string; b : int; }
-Line 204, characters 20-21:
-204 | let bad () = (.(5).#a)
-                          ^
-Error: The index preceding this unboxed access has element type "'a",
-       which is not an unboxed record with field "a".
-|}, Principal{|
-type t = { mutable a : string; b : int; }
-Line 220, characters 20-21:
-220 | let bad () = (.(5).#a)
+Line 201, characters 20-21:
+201 | let bad () = (.(5).#a)
                           ^
 Error: The index preceding this unboxed access has element type "'a",
        which is not an unboxed record with field "a".
@@ -227,4 +213,37 @@ let b () = (.%(5).#a)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
 val b : unit -> (t1# iarray, string) imm_idx = <fun>
+|}]
+
+let bad_index_type = (.("test"))
+[%%expect{|
+Line 225, characters 24-30:
+225 | let bad_index_type = (.("test"))
+                              ^^^^^^
+Error: This expression has type "string" but an expression was expected of type
+         "int"
+|}]
+
+(***********************)
+(* Abstract index type *)
+
+module M : sig
+  type index
+  val i : index
+  external ( .:() ) : 'a array -> index -> 'a = "%array_safe_get"
+end = struct
+  type index = int
+  let i = 0
+  external ( .:() ) : 'a array -> index -> 'a = "%array_safe_get"
+end
+
+let f () = (.M.:(M.i))
+[%%expect{|
+module M :
+  sig
+    type index
+    val i : index
+    external ( .:() ) : 'a array -> index -> 'a = "%array_safe_get"
+  end
+val f : unit -> ('a array, 'a) mut_idx = <fun>
 |}]

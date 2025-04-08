@@ -602,6 +602,7 @@ and index_kind =
 
 and block_access =
   | Baccess_field of Longident.t loc * Types.label_description
+  (* all o fthe below correspond to baccess_indexop *)
   | Baccess_array of
     { f : expression; (* only kept for untypeast *)
       index : expression;

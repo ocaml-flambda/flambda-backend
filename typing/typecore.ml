@@ -5628,14 +5628,6 @@ and type_expect_
     | Baccess_indexop { f; index } ->
       (* CR rtjoa: is [expected_mode] right? *)
       let f = type_exp env expected_mode f in
-      let index = match index with
-        | [{ pexp_desc = Pexp_array _}] ->
-          raise (Error (f.exp_loc, env, Block_access_multi_index))
-        | [index] -> type_exp env expected_mode index
-        | _ ->
-          Misc.fatal_error
-            "Typecore.Baccess_indexop: parser should not produce this"
-      in
       let prim_name =
         match f.exp_desc with
         | Texp_ident (_, _, {val_kind=Val_prim{Primitive.prim_name; _}}, Id_prim _, _) ->
@@ -5647,46 +5639,54 @@ and type_expect_
         match get_desc (expand_head env ty) with
         | Tconstr(p, args, _) -> Some (p, args)
         | Tpoly(t, univars) ->
-          let _, t = instance_poly ~fixed:false univars t in
+          let _, t = instance_poly ~keep_names:true ~fixed:false univars t in
           path_of t
         | _ -> None
       in
-      let index_kind, index_ty_expected =
+      let index_kind =
         match prim_name with
         | "%array_safe_get" | "%array_unsafe_get" ->
-          Index_int, Predef.path_int
+          Index_int
         | "%array_safe_get_indexed_by_int64#"
         | "%array_unsafe_get_indexed_by_int64#" ->
-          Index_unboxed_int64, Path.unboxed_version Predef.path_int64
+          Index_unboxed_int64
         | "%array_safe_get_indexed_by_nativeint#"
         | "%array_unsafe_get_indexed_by_nativeint#" ->
-          Index_unboxed_nativeint, Path.unboxed_version Predef.path_nativeint
+          Index_unboxed_nativeint
         | "%array_safe_get_indexed_by_int32#"
         | "%array_unsafe_get_indexed_by_int32#" ->
-          Index_unboxed_int32, Path.unboxed_version Predef.path_int32
+          Index_unboxed_int32
         | _ ->
           Misc.fatal_errorf
             "primitive %s not supported for block index" prim_name
       in
-      (* CR rtjoa: handle filter_arrow errors *)
+      (* CR rtjoa: handle filter_arrow errors, check if filter_arrow is right to
+         use, does it deal w tconstrs correctly (eg if tconstr not an arr) *)
+      (* deconstruct f.exp_type to base_ty -> idx_type -> el_ty *)
       let { ty_arg = base_ty; ty_ret; _} =
         filter_arrow env f.exp_type Nolabel ~force_tpoly:false in
       let base_ty = instance base_ty in
       let { ty_arg = idx_type; ty_ret = el_ty; _} =
         filter_arrow env ty_ret Nolabel ~force_tpoly:false in
       let el_ty = instance el_ty in
-      let ( (* check that index type matches *) ) =
-        match path_of idx_type with
-        | Some (p, _) when Path.same p index_ty_expected -> ()
-        | Some (p, _) ->
-          Misc.fatal_errorf
-            "The primitive %s used in block index was defined with index type \
-            %s, but %s expected"
-            prim_name (Path.name p) (Path.name index_ty_expected)
+      let index = match index with
+        | [{ pexp_desc = Pexp_array _}] ->
+          raise (Error (f.exp_loc, env, Block_access_multi_index))
+        | [index] ->
+          (* CR rtjoa:  *)
+          type_exp env expected_mode index
         | _ ->
-          Misc.fatal_errorf
-            "Idx type not a path"
+          Misc.fatal_error
+            "Typecore.Baccess_indexop: parser should not produce this"
       in
+      let idx_type =
+        (* CR rtjoa: this is unprincipled *)
+        match get_desc idx_type with
+        | Tpoly (t, args) -> snd (instance_poly ~keep_names:true ~fixed:false args t)
+        | _ -> idx_type
+      in
+      with_explanation (fun () ->
+        unify_exp_types index.exp_loc env index.exp_type (generic_instance idx_type));
       let _arg, mut =
         (* CR rtjoa: store the array arg layout and assert it's representable
            in transl *)
@@ -5702,8 +5702,7 @@ and type_expect_
             prim_name
       in
       (* CR rtjoa: constrain this with the sort of the array,
-         and the base type of the first unboxed access
-      *)
+         and the base type of the first unboxed access *)
       let _el_jkind, el_sort = Jkind.of_new_sort_var ~why:Idx_element in
       Baccess_array { f; index; index_kind; el_sort },
       base_ty, el_ty, mut
