@@ -157,8 +157,8 @@ module Instruction_name = struct
       | LT
       | GT
       | LE
-      (* | AL *)
-      (* | NV *)
+    (* | AL *)
+    (* | NV *)
 
     let to_string t =
       match t with

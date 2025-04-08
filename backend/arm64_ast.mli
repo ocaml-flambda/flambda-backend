@@ -81,10 +81,11 @@ module Instruction_name : sig
       | LT
       | GT
       | LE
-      (* The following are not supported, because NV means AL, but has a different encoding. *)
-      (* Use unconditional branching instead. *)
-      (* | AL *)
-      (* | NV *)
+    (* The following are not supported, because NV means AL, but has a different
+       encoding. *)
+    (* Use unconditional branching instead. *)
+    (* | AL *)
+    (* | NV *)
   end
 
   module Rounding_mode : sig
