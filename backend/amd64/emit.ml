@@ -37,7 +37,7 @@ module String = Misc.Stdlib.String
 module Int = Numbers.Int
 
 (* [Branch_relaxation] is not used in this file, but is required by
-   emit.mlp files for certain other targets; the reference here ensures
+   emit.ml files for certain other targets; the reference here ensures
    that when releases are being prepared the .depend files are correct
    for all targets. *)
 [@@@ocaml.warning "-66"]

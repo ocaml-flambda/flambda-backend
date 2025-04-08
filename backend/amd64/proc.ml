@@ -475,7 +475,7 @@ let destroyed_at_c_call_unix =
 
 let destroyed_at_c_call =
   (* C calling conventions preserve rbx, but it is clobbered
-     by the code sequence used for C calls in emit.mlp, so it
+     by the code sequence used for C calls in emit.ml, so it
      is marked as destroyed. *)
   if win64 then destroyed_at_c_call_win64 else destroyed_at_c_call_unix
 
