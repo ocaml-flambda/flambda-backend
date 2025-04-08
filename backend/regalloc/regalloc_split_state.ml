@@ -353,17 +353,18 @@ end = struct
             let destroyed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
-                  if split_debug
-                  then (
-                    log "register %a" Printreg.reg reg;
-                    indent ());
+                  if split_debug then log "register %a" Printreg.reg reg;
                   let keep =
                     match Reg.Tbl.find_opt num_sets reg with
                     | None | Some Maybe_more_than_once -> true
                     | Some At_most_once -> (
                       match Reg.Map.find_opt reg !already_spilled with
                       | None ->
-                        if split_debug then log "case/2";
+                        if split_debug
+                        then (
+                          indent ();
+                          log "case/2";
+                          dedent ());
                         true
                       | Some spilled_at ->
                         if split_debug && Lazy.force split_invariants
@@ -373,16 +374,22 @@ end = struct
                                   spilled_at tree.label)
                           then fatal "inconsistent dominator tree";
                         if split_debug
-                        then
+                        then (
+                          indent ();
                           log "case/3 (already spilled at %a)" Label.format
                             spilled_at;
+                          dedent ());
                         false)
                   in
                   if keep
                   then
                     already_spilled
                       := Reg.Map.add reg tree.label !already_spilled;
-                  if split_debug then log "keep? %B" keep;
+                  if split_debug
+                  then (
+                    indent ();
+                    log "keep? %B" keep;
+                    dedent ());
                   keep)
                 destroyed
             in
@@ -390,6 +397,7 @@ end = struct
             then (
               if split_debug
               then (
+                indent ();
                 log "(the destroyed set is empty)";
                 dedent ());
               None)
@@ -397,14 +405,16 @@ end = struct
           | Some (Destruction_only_on_exceptional_path, _) as existing ->
             if split_debug
             then (
-              dedent ();
-              log "(ignored as a half-destruction point)");
+              indent ();
+              log "(ignored as a half-destruction point)";
+              dedent ());
             existing
           | None ->
             if split_debug
             then (
-              dedent ();
-              log "(not a destruction point)");
+              indent ();
+              log "(not a destruction point)";
+              dedent ());
             None)
         destructions_at_end
     in
