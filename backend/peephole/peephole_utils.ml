@@ -35,7 +35,7 @@ let assert_within_range integer_operation imm =
 
 let[@inline] op_immediates integer_operation imm1 imm2 no_overflow op =
   assert_within_range integer_operation imm1;
-  assert_within_range integer_operation imm1;
+  assert_within_range integer_operation imm2;
   let res = op imm1 imm2 in
   if no_overflow imm1 imm2 && Arch.is_immediate_for_intop integer_operation res
   then Some (integer_operation, res)
