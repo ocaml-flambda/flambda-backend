@@ -143,14 +143,14 @@ let rec check env (expr : Cmm.expression) =
   | Csequence (expr1, expr2) ->
     check env expr1;
     check env expr2
-  | Cifthenelse (test, _, ifso, _, ifnot, _, _) ->
+  | Cifthenelse (test, _, ifso, _, ifnot, _) ->
     check env test;
     check env ifso;
     check env ifnot
-  | Cswitch (body, _, branches, _, _) ->
+  | Cswitch (body, _, branches, _) ->
     check env body;
     Array.iter (fun (expr, _) -> check env expr) branches
-  | Ccatch (rec_flag, handlers, body, _) ->
+  | Ccatch (rec_flag, handlers, body) ->
     let env_extended =
       List.fold_left
         (fun env (cont, args, _, _, _) ->
@@ -167,7 +167,7 @@ let rec check env (expr : Cmm.expression) =
     List.iter (fun (_, _, handler, _, _) -> check env_handler handler) handlers
   | Cexit (exit_label, args, _trap_actions) ->
     Env.jump env ~exit_label ~arg_num:(List.length args)
-  | Ctrywith (body, _trywith_kind, _, _, handler, _, _) ->
+  | Ctrywith (body, _trywith_kind, _, _, handler, _) ->
     (* Jumping from inside a trywith body to outside isn't very nice,
        but it's handled correctly by Linearize, as it happens
        when compiling match ... with exception ..., for instance, so it is

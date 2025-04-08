@@ -307,14 +307,6 @@ type operation =
   | Cdls_get
   | Cpoll
 
-(* This is information used exclusively during construction of cmm terms by
-   cmmgen, and thus irrelevant for selectgen and flambda2. *)
-type kind_for_unboxing =
-  | Any (* This may contain anything, including non-scannable things *)
-  | Boxed_integer of Lambda.boxed_integer
-  | Boxed_vector of Lambda.boxed_vector
-  | Boxed_float of Lambda.boxed_float
-
 type is_global = Global | Local
 val equal_is_global : is_global -> is_global -> bool
 
@@ -357,20 +349,19 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing
+      * Debuginfo.t * expression * Debuginfo.t
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t * kind_for_unboxing
+      * Debuginfo.t
   | Ccatch of
       rec_flag
         * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression
-        * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_shared_label
       * Backend_var.With_provenance.t
       * (Backend_var.With_provenance.t * machtype) list
-      * expression * Debuginfo.t * kind_for_unboxing
+      * expression * Debuginfo.t
     (** Ctrywith uses "delayed handlers":
         The body starts with the previous exception handler, and only after
         going through an explicit Push-annotated Cexit will this handler become
@@ -425,7 +416,7 @@ type phrase =
 
 val ccatch :
      Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
-       * expression * expression * Debuginfo.t * kind_for_unboxing
+       * expression * expression * Debuginfo.t
        * bool
   -> expression
 
@@ -440,12 +431,12 @@ val iter_shallow_tail: (expression -> unit) -> expression -> bool
       considered to be in tail position (because their result become
       the final result for the expression).  *)
 
-val map_shallow_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
+val map_shallow_tail: (expression -> expression) -> expression -> expression
   (** Apply the transformation to those immediate sub-expressions of an
       expression that are in tail position, using the same definition of "tail"
       as [iter_shallow_tail] *)
 
-val map_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
+val map_tail: (expression -> expression) -> expression -> expression
   (** Apply the transformation to an expression, trying to push it
       to all inner sub-expressions that can produce the final result,
       by recursively applying map_shallow_tail *)

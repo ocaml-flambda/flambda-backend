@@ -1218,6 +1218,6 @@ and switch env res switch =
         (0, res, scrutinee_free_vars)
     in
     (* CR-someday poechsel: Put a more precise value kind here *)
-    let expr = C.transl_switch_clambda dbg Any scrutinee index cases in
+    let expr = C.transl_switch_clambda dbg scrutinee index cases in
     let cmm, free_vars = wrap expr free_vars in
     cmm, free_vars, res
