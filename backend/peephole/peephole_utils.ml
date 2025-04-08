@@ -34,6 +34,8 @@ let assert_within_range integer_operation imm =
       (Simple_operation.string_of_integer_operation integer_operation)
 
 let[@inline] op_immediates integer_operation imm1 imm2 no_overflow op =
+  (* [no_overflow imm1 imm2] operation may assume that each of the immediates on
+     its own is within bounds. *)
   assert_within_range integer_operation imm1;
   assert_within_range integer_operation imm2;
   let res = op imm1 imm2 in

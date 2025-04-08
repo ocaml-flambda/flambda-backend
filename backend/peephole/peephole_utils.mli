@@ -39,3 +39,5 @@ val bitwise_immediates :
   int ->
   (int -> int -> int) ->
   (Operation.integer_operation * int) option
+
+val assert_within_range : Operation.integer_operation -> int -> unit
