@@ -40,20 +40,18 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
   | Alloc { bytes = n; mode = Cmm.Alloc_mode.Local } ->
     fprintf ppf "alloc_local %i" n
   | Intop op ->
-    if Simple_operation.is_unary_integer_operation op
+    if Operation.is_unary_integer_operation op
     then (
       assert (Array.length arg = 1);
-      fprintf ppf "%s%a"
-        (Simple_operation.string_of_integer_operation op)
-        reg arg.(0))
+      fprintf ppf "%s%a" (Operation.string_of_integer_operation op) reg arg.(0))
     else (
       assert (Array.length arg = 2);
       fprintf ppf "%a%s%a" reg arg.(0)
-        (Simple_operation.string_of_integer_operation op)
+        (Operation.string_of_integer_operation op)
         reg arg.(1))
   | Intop_imm (op, n) ->
     fprintf ppf "%a%s%i" reg arg.(0)
-      (Simple_operation.string_of_integer_operation op)
+      (Operation.string_of_integer_operation op)
       n
   | Intop_atomic { op = Compare_set; size; addr } ->
     fprintf ppf "lock compare_set %s[%a] ?%a %a"
@@ -82,14 +80,14 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
       (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
   | Floatop (_, ((Icompf _ | Iaddf | Isubf | Imulf | Idivf) as op)) ->
-    fprintf ppf "%a %a %a" reg arg.(0) Simple_operation.format_float_operation
-      op reg arg.(1)
+    fprintf ppf "%a %a %a" reg arg.(0) Operation.format_float_operation op reg
+      arg.(1)
   | Floatop (_, ((Inegf | Iabsf) as op)) ->
-    fprintf ppf "%a %a" Simple_operation.format_float_operation op reg arg.(0)
+    fprintf ppf "%a %a" Operation.format_float_operation op reg arg.(0)
   | Csel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
-      (Simple_operation.format_test ~print_reg:Printreg.reg tst)
+      (Operation.format_test ~print_reg:Printreg.reg tst)
       arg reg
       arg.(len - 2)
       reg
