@@ -317,6 +317,7 @@ and meth =
 
 and block_access =
   | Baccess_field of Longident.t loc * Types.label_description
+  | Baccess_indexop of { f : expression; index : expression list }
 
 and unboxed_access =
   | Uaccess_unboxed_field of Longident.t loc * Types.unboxed_label_description

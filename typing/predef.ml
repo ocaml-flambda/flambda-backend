@@ -51,8 +51,6 @@ and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
 
-(* CR rtjoa: before merge tasks:
-   - determine final name for these *)
 and ident_or_null = ident_create "or_null"
 and ident_imm_idx = ident_create "imm_idx"
 and ident_mut_idx = ident_create "mut_idx"
@@ -500,8 +498,9 @@ let build_initial_env add_type add_extension empty_env =
            arity = 2;
          }))
        ~jkind:(
-         Jkind.of_builtin ~why:(Primitive ident_imm_idx) Jkind.Const.Builtin.bits64)
-       ~type_variance:[Variance.covariant; Variance.covariant]
+         Jkind.of_builtin ~why:(Primitive ident_imm_idx)
+           Jkind.Const.Builtin.bits64)
+       ~type_variance:[Variance.full; Variance.covariant]
        ~type_separability:[Separability.Ind; Separability.Ind]
   |> add_type2 ident_mut_idx
        ~param1_jkind:(
@@ -520,7 +519,7 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.of_builtin ~why:(Primitive ident_mut_idx)
            Jkind.Const.Builtin.bits64)
        (* CR rtjoa: check variance *)
-       ~type_variance:[Variance.covariant; Variance.covariant]
+       ~type_variance:[Variance.full; Variance.full]
        ~type_separability:[Separability.Ind; Separability.Ind]
   |> add_type_with_jkind ident_lexing_position
        ~kind:(

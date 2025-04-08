@@ -14,18 +14,30 @@ type r = { i : int; j : int; }
 type t = (r# array, r#) imm_idx
 |}]
 
-(* Disambiguation by block access field *)
+(* Disambiguation of block access field *)
 
 type t1 = { mutable a : string; b : int }
 type t2 = { mutable a : string; b : int; c : string }
 
-let i () = (.a)
-let j () = (.b)
+let a2 () = (.a)
+let b2 () = (.b)
+let a1 () : (t1, _) mut_idx = (.a)
+let b2 () : (t1, _) imm_idx = (.b)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
 type t2 = { mutable a : string; b : int; c : string; }
-val i : unit -> (t2, string) mut_idx = <fun>
-val j : unit -> (t2, int) imm_idx = <fun>
+val a2 : unit -> (t2, string) mut_idx = <fun>
+val b2 : unit -> (t2, int) imm_idx = <fun>
+val a1 : unit -> (t1, string) mut_idx = <fun>
+val b2 : unit -> (t1, int) imm_idx = <fun>
+|}]
+
+(* Still disambiguates through a Tpoly *)
+let a1 =
+  let a1 : 'a. (t1, _) mut_idx = (.a) in
+  fun () -> a1
+[%%expect{|
+val a1 : unit -> (t1, string) mut_idx = <fun>
 |}]
 
 (* Disambiguate by alias to imm_idx types *)
@@ -69,15 +81,15 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 73, characters 16-17:
-73 | let f () = (.x.#x)
+Line 77, characters 16-17:
+77 | let f () = (.x.#x)
                      ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
 |}, Principal{|
 type pt = { x : int; }
-Line 76, characters 16-17:
-76 | let f () = (.x.#x)
+Line 86, characters 16-17:
+86 | let f () = (.x.#x)
                      ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
@@ -92,16 +104,32 @@ val f : unit -> ('a t# t, 'a) imm_idx = <fun>
 
 let f () : (int t, _) imm_idx = (.t.#t)
 [%%expect{|
-Line 1, characters 28-35:
+Line 1, characters 32-39:
 1 | let f () : (int t, _) imm_idx = (.t.#t)
-                                ^^^^^^^
+                                    ^^^^^^^
 Error: This expression has type "('a t# t, 'a) imm_idx"
        but an expression was expected of type "(int t, 'b) imm_idx"
        Type "'a t#" is not compatible with type "int"
 |}]
 
+let (.%[;..]) = Bigarray.Genarray.get
+let f a = (.%[1;2;3])
+[%%expect{|
+val ( .%[;..] ) : ('a, 'b, 'c) Bigarray.Genarray.t -> int array -> 'a = <fun>
+Line 105, characters 11-20:
+105 | let f a = (.%[1;2;3])
+                 ^^^^^^^^^
+Error: Block indices currently do not support any multi-index operators.
+|}, Principal{|
+val ( .%[;..] ) : ('a, 'b, 'c) Bigarray.Genarray.t -> int array -> 'a = <fun>
+Line 121, characters 11-20:
+121 | let f a = (.%[1;2;3])
+                 ^^^^^^^^^
+Error: Block indices currently do not support any multi-index operators.
+|}]
+
 (****************)
-(* Principatily *)
+(* Principality *)
 
 (* We get a principality warning when the block index type is disambiguated
    non-principally. *)
@@ -122,8 +150,8 @@ val f : bool -> ('a r, int) imm_idx = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 115, characters 6-7:
-115 |     (.u.#x)
+Line 142, characters 6-7:
+142 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 

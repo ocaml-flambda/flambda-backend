@@ -297,6 +297,7 @@ type error =
   | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
   | Invalid_unboxed_access of
       { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
+  | Block_access_multi_index
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.locality_context option *

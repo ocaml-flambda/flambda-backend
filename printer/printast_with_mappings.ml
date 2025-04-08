@@ -491,6 +491,10 @@ and expression i ppf x =
 and block_access i ppf = function
   | Baccess_field lid ->
       line i ppf "Baccess_field %a\n" fmt_longident_loc lid
+  | Baccess_indexop { f; index } ->
+      line i ppf "Baccess_indexop\n";
+      expression i ppf f;
+      list i expression ppf index
 
 and unboxed_access i ppf = function
   | Uaccess_unboxed_field lid ->

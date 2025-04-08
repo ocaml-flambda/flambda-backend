@@ -253,6 +253,7 @@ type error =
   | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
   | Invalid_unboxed_access of
       { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
+  | Block_access_multi_index
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -4146,6 +4147,8 @@ let rec is_nonexpansive exp =
   | Texp_idx (ba, uas) ->
       let block_access = function
         | Baccess_field _ -> true
+        | Baccess_indexop { f; index } ->
+          is_nonexpansive f && List.for_all (fun e -> is_nonexpansive e) index
       in
       let unboxed_access = function
         | Uaccess_unboxed_field _ -> true
@@ -6142,6 +6145,7 @@ and type_expect_
     (* Compute the expected base type, only to use for disambiguation of the
       block access *)
     let expected_base_ty =
+      (* CR rtjoa: could this be a tpoly? *)
       match get_desc (expand_head env ty_expected) with
       | Tconstr(p, [arg1; _], _)
         when Path.same p Predef.path_imm_idx
@@ -6173,6 +6177,59 @@ and type_expect_
         if mut then Env.mark_label_used Mutation label.lbl_uid;
         Baccess_field (lid, label), ty_res, ty_arg,
         (is_mutable label.lbl_mut)
+      | Baccess_indexop { f; index } ->
+        (* CR rtjoa: is [expected_mode] right? *)
+        let f = type_exp env expected_mode f in
+        let index = match index with
+          | [{ pexp_desc = Pexp_array _}] ->
+            raise (Error (f.exp_loc, env, Block_access_multi_index))
+          | [index] -> type_exp env expected_mode index
+          | _ ->
+            Misc.fatal_error
+              "Typecore.Baccess_indexop: parser should not produce this"
+        in
+        let prim_name =
+          match f.exp_desc with
+          | Texp_ident (_, _, {val_kind=Val_prim{Primitive.prim_name; _}}, Id_prim _, _) ->
+              prim_name
+          | _ ->
+            Misc.fatal_error "expected operator used in block index to be a primitive"
+        in
+        let base_ty, el_ty, mut =
+          match prim_name with
+          | "%array_safe_get" | "%array_unsafe_get" ->
+            let { ty_arg = base_ty; ty_ret; _} =
+              filter_arrow env f.exp_type Nolabel ~force_tpoly:false in
+            let { ty_arg = _idx_type; ty_ret = el_ty; _} =
+              filter_arrow env ty_ret Nolabel ~force_tpoly:false in
+            (* CR rtjoa: expect index type to be int? *)
+            (* CR rtjoa: handle filter_arrow errors *)
+            let rec path_of ty =
+              match get_desc (expand_head env ty) with
+              | Tconstr(p, args, _) -> Some (p, args)
+              | Tpoly(t, univars) ->
+                let _, t = instance_poly ~fixed:false univars t in
+                path_of t
+              | _ -> None
+            in
+            let mut =
+              match path_of base_ty with
+              | Some (p, _) when Path.same p Predef.path_array ->
+                true
+              | Some (p, _) when Path.same p Predef.path_iarray ->
+                false
+              | _ ->
+                Misc.fatal_errorf
+                  "expected %s used in block index to take an \
+                  array or iarray"
+                  prim_name
+            in
+            base_ty, el_ty, mut
+          | _ ->
+            Misc.fatal_errorf
+              "primitive %s not supported for block index" prim_name
+        in
+        Baccess_indexop { f; index = [index] }, base_ty, el_ty, mut
     in
     let el_ty, uas =
       List.fold_left_map (fun el_ty ua ->
@@ -6190,6 +6247,7 @@ and type_expect_
             Env.lookup_all_labels ~record_form:Unboxed_product ~loc:lid.loc
               Projection lid.txt env
           in
+          (* CR rtjoa: probably wrong message *)
           let label =
             wrap_disambiguate "This expression is an idx with base"
               (mk_expected expected_base_ty)
@@ -10967,6 +11025,9 @@ let report_error ~loc env =
           (Style.as_inline_code Printtyp.type_expr) prev_el_type
           (Style.as_inline_code longident) lid
       end
+  | Block_access_multi_index ->
+    Location.error ~loc
+      "Block indices do not support multi-index operators."
   | Submode_failed(fail_reason, submode_reason, locality_context,
       contention_context, shared_context)
      ->
