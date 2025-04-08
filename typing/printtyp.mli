@@ -174,7 +174,7 @@ val extension_only_constructor:
 *)
 
 val tree_of_module:
-    Ident.t -> ?ellipsis:bool -> module_type -> rec_status -> out_sig_item
+    Ident.t -> ?ellipsis:bool -> module_declaration -> rec_status -> out_sig_item
 val modtype: formatter -> module_type -> unit
 val signature: formatter -> signature -> unit
 val tree_of_modtype: ?abbrev:bool -> module_type -> out_module_type

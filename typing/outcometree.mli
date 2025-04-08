@@ -191,7 +191,7 @@ and out_sig_item =
         out_rec_status
   | Osig_typext of out_extension_constructor * out_ext_status
   | Osig_modtype of string * out_module_type
-  | Osig_module of string * out_module_type * out_rec_status
+  | Osig_module of string * out_module_type * out_modality_new list * out_rec_status
   | Osig_type of out_type_decl * out_rec_status
   | Osig_value of out_val_decl
   | Osig_ellipsis

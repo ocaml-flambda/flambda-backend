@@ -705,6 +705,8 @@ let out_label = ref print_out_label
 
 let out_modality = ref print_out_modality
 
+let out_modes_new = ref print_out_modes_new
+
 let out_jkind_const = ref print_out_jkind_const
 
 let out_jkind = ref print_out_jkind
@@ -943,14 +945,16 @@ and print_out_sig_item ppf =
       fprintf ppf "@[<2>module type %s@]" name
   | Osig_modtype (name, mty) ->
       fprintf ppf "@[<2>module type %s =@ %a@]" name !out_module_type mty
-  | Osig_module (name, Omty_alias id, _) ->
-      fprintf ppf "@[<2>module %s =@ %a@]" name print_ident id
-  | Osig_module (name, mty, rs) ->
-      fprintf ppf "@[<2>%s %s :@ %a@]"
+  | Osig_module (name, Omty_alias id, moda, _) ->
+      fprintf ppf "@[<2>module %s =@ %a%a@]" name print_ident id
+        print_out_modalities_new moda
+  | Osig_module (name, mty, moda, rs) ->
+      fprintf ppf "@[<2>%s %s :@ %a%a@]"
         (match rs with Orec_not -> "module"
                      | Orec_first -> "module rec"
                      | Orec_next -> "and")
         name !out_module_type mty
+        print_out_modalities_new moda
   | Osig_type(td, rs) ->
         print_out_type_decl
           (match rs with

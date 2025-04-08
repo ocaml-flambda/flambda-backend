@@ -4999,6 +4999,38 @@ let relevant_pairs pairs v =
   | Contravariant -> pairs.contravariant_pairs
   | Bivariant -> pairs.bivariant_pairs
 
+
+(** The mode crossing of the memory block of a structure. *)
+let mode_crossing_structure_memaddr =
+  Mode.Crossing.of_bounds
+  { monadic = {
+      uniqueness = Unique;
+      contention = Contended
+    };
+    comonadic = {
+      areality = Local;
+      linearity = Many;
+      portability = Portable;
+      yielding = Unyielding;
+  }}
+
+(** The mode crossing of a functor. *)
+let mode_crossing_functor =
+  Mode.Crossing.of_bounds
+  { monadic = {
+      uniqueness = Aliased;
+      contention = Contended
+    };
+    comonadic = {
+      areality = Local;
+      linearity = Once;
+      portability = Nonportable;
+      yielding = Yielding;
+  }}
+
+(** The mode crossing of any module. *)
+let mode_crossing_module = Mode.Crossing.top
+
 let crossing_of_jkind env jkind =
   let jkind_of_type = type_jkind_purely_if_principal env in
   Jkind.get_mode_crossing ~jkind_of_type jkind

@@ -39,7 +39,7 @@ open! Stdlib
 
 [@@@ocaml.nolabels]
 
-module Hashtbl : sig
+module Hashtbl : sig @@ portable
   (** Hash tables and hash functions.
 
      Hash tables are hashed association tables, with in-place modification.
@@ -440,7 +440,7 @@ module Hashtbl : sig
     end
   (** The output signature of the functor {!Make}. *)
 
-    module Make : functor (H : HashedType) -> S
+    module (Make @ nonportable) : functor (H : HashedType) -> S
     with type key = H.t
      and type 'a t = 'a Hashtbl.Make(H).t
   (** Functor building an implementation of the hashtable structure.
@@ -528,7 +528,7 @@ module Hashtbl : sig
   (** The output signature of the functor {!MakeSeeded}.
       @since 4.00 *)
 
-    module MakeSeeded (H : SeededHashedType) : SeededS
+    module (MakeSeeded @ nonportable) (H : SeededHashedType) : SeededS
     with type key = H.t
      and type 'a t = 'a Hashtbl.MakeSeeded(H).t
   (** Functor building an implementation of the hashtable structure.
@@ -685,7 +685,7 @@ module Hashtbl : sig
 
   *)
 
-end
+end @@ nonportable
 
 module Map : sig
   (** Association tables over ordered types.
@@ -1049,7 +1049,7 @@ module Map : sig
   (** Like {!Make}, but takes a portable [compare] function to
       portable [Map] operations. *)
 
-end
+end @@ nonportable
 
 module Set : sig
   (** Sets over ordered types.
@@ -1368,4 +1368,4 @@ module Set : sig
   (** Like {!Make}, but takes a portable [compare] function to
       portable [Set] operations. *)
 
-end
+end @@ nonportable

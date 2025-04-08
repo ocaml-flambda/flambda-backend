@@ -766,3 +766,12 @@ val cross_left_alloc :
   Types.type_expr ->
   Mode.Alloc.l ->
   Mode.Alloc.l
+
+(** The mode crossing of the memory block of a structure. *)
+val mode_crossing_structure_memaddr : Mode.Crossing.t
+
+(** The mode crossing of a functor. *)
+val mode_crossing_functor : Mode.Crossing.t
+
+(** The mode crossing of any module. *)
+val mode_crossing_module : Mode.Crossing.t
