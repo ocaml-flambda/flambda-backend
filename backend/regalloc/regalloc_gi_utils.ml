@@ -680,7 +680,7 @@ module Hardware_registers = struct
           if overlap_hard
           then acc
           else (
-            if gi_debug then indent ();
+            if debug then indent ();
             let overlaping : Hardware_register.assigned list =
               List.filter hardware_reg.assigned
                 ~f:(fun
@@ -707,7 +707,7 @@ module Hardware_registers = struct
                    ->
                   acc_cost + actual_cost pseudo_reg, acc_evictable && evictable)
             in
-            if gi_debug then dedent ();
+            if debug then dedent ();
             if not evictable
             then acc
             else

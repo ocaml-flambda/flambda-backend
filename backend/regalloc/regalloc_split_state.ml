@@ -353,14 +353,14 @@ end = struct
             let destroyed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
-                  if split_debug then log "register %a" Printreg.reg reg;
+                  if debug then log "register %a" Printreg.reg reg;
                   let keep =
                     match Reg.Tbl.find_opt num_sets reg with
                     | None | Some Maybe_more_than_once -> true
                     | Some At_most_once -> (
                       match Reg.Map.find_opt reg !already_spilled with
                       | None ->
-                        if split_debug
+                        if debug
                         then (
                           indent ();
                           log "case/2";
@@ -373,7 +373,7 @@ end = struct
                                (Cfg_dominators.is_strictly_dominating doms
                                   spilled_at tree.label)
                           then fatal "inconsistent dominator tree";
-                        if split_debug
+                        if debug
                         then (
                           indent ();
                           log "case/3 (already spilled at %a)" Label.format
@@ -385,7 +385,7 @@ end = struct
                   then
                     already_spilled
                       := Reg.Map.add reg tree.label !already_spilled;
-                  if split_debug
+                  if debug
                   then (
                     indent ();
                     log "keep? %B" keep;
@@ -421,11 +421,11 @@ end = struct
     let res =
       List.fold_left tree.children ~init:destructions_at_end
         ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
-          if split_debug then log "child %a" Label.format child.label;
+          if debug then log "child %a" Label.format child.label;
           remove_dominated_spills doms child ~num_sets
             ~already_spilled:!already_spilled ~destructions_at_end)
     in
-    if split_debug then dedent ();
+    if debug then dedent ();
     res
 
   let optimize cfg_with_infos ~destructions_at_end =

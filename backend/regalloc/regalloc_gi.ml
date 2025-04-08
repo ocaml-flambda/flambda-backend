@@ -168,7 +168,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     let { Prio_queue.priority; data = reg, interval } =
       Prio_queue.get_and_remove prio_queue
     in
-    if gi_debug
+    if debug
     then (
       indent ();
       log "got register %a (prio=%d)" Printreg.reg reg priority);
@@ -224,7 +224,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
       if debug then log "spilling %a" Printreg.reg reg;
       reg.Reg.spill <- true;
       spilling := (reg, interval) :: !spilling);
-    if gi_debug then dedent ()
+    if debug then dedent ()
   done;
   dedent ();
   match !spilling with
