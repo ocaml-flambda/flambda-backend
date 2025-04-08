@@ -7,17 +7,19 @@ val ls_debug : bool
 
 val ls_invariants : bool Lazy.t
 
-val log :
-  indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+
+val indent : unit -> unit
+
+val dedent : unit -> unit
 
 val log_body_and_terminator :
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit
 
-val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
+val log_cfg_with_infos : Cfg_with_infos.t -> unit
 
 val iter_cfg_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit
 
@@ -93,6 +95,6 @@ module ClassIntervals : sig
   val release_expired_intervals : t -> pos:int -> unit
 end
 
-val log_interval : indent:int -> kind:string -> Interval.t -> unit
+val log_interval : kind:string -> Interval.t -> unit
 
-val log_intervals : indent:int -> kind:string -> Interval.t list -> unit
+val log_intervals : kind:string -> Interval.t list -> unit

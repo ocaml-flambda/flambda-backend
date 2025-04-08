@@ -38,14 +38,14 @@ let[@inline] update_intervals state map =
          map []
        |> List.sort ~cmp:(fun (left : Interval.t) (right : Interval.t) ->
               Int.compare left.begin_ right.begin_);
-  if ls_debug then log_intervals ~indent:1 ~kind:"regular" state.intervals;
+  if ls_debug then log_intervals ~kind:"regular" state.intervals;
   Array.iter active ~f:(fun (intervals : ClassIntervals.t) ->
       intervals.fixed
         <- List.sort
              ~cmp:(fun (left : Interval.t) (right : Interval.t) ->
                Int.compare right.end_ left.end_)
              intervals.fixed;
-      if ls_debug then log_intervals ~indent:1 ~kind:"fixed" intervals.fixed)
+      if ls_debug then log_intervals ~kind:"fixed" intervals.fixed)
 
 let[@inline] iter_intervals state ~f = List.iter state.intervals ~f
 
