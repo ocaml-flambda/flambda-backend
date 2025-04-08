@@ -315,9 +315,20 @@ and meth =
   | Tmeth_val of Ident.t
   | Tmeth_ancestor of Ident.t * Path.t
 
+and index_kind =
+  | Index_int
+  | Index_unboxed_int64
+  | Index_unboxed_nativeint
+  | Index_unboxed_int32
+
 and block_access =
   | Baccess_field of Longident.t loc * Types.label_description
-  | Baccess_indexop of { f : expression; index : expression list }
+  | Baccess_array of
+    { f : expression;
+      index : expression;
+      index_kind : index_kind;
+      el_sort : Jkind.sort;
+    }
 
 and unboxed_access =
   | Uaccess_unboxed_field of Longident.t loc * Types.unboxed_label_description

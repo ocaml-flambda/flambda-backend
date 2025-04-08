@@ -453,10 +453,10 @@ let expr sub x =
   let map_block_access sub = function
     | Baccess_field (lid, ld) ->
       Baccess_field (map_loc sub lid, ld)
-    | Baccess_indexop { f; index } ->
+    | Baccess_array { f; index; index_kind; el_sort } ->
       let f = sub.expr sub f in
-      let index = List.map (sub.expr sub) index in
-      Baccess_indexop { f; index }
+      let index = sub.expr sub index in
+      Baccess_array { f; index; index_kind; el_sort }
   in
   let map_unboxed_access sub = function
     | Uaccess_unboxed_field (lid, ld) ->

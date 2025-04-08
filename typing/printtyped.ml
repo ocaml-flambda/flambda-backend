@@ -1171,10 +1171,10 @@ and longident_x_pattern : 'a. _ -> _ -> _ * 'a * _ -> _ =
 and block_access i ppf = function
   | Baccess_field (li, _) ->
       line i ppf "Baccess_field %a\n" fmt_longident li
-  | Baccess_indexop { f; index } ->
-      line i ppf "Baccess_indexop\n";
+  | Baccess_array { f; index; index_kind = _; el_sort = _ } ->
+      line i ppf "Baccess_array\n";
       expression i ppf f;
-      list i expression ppf index
+      expression i ppf index
 
 and unboxed_access i ppf = function
   | Uaccess_unboxed_field (li, _) ->

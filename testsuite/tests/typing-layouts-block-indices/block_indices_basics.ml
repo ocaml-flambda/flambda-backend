@@ -74,6 +74,24 @@ type wrap_r = { r : int r#; }
 val f : unit -> (wrap_r, int) imm_idx = <fun>
 |}]
 
+(* Disambiguation causes earlier error while typechecking block access *)
+type y = { y : int }
+type 'a t = { a : 'a }
+let f c = if c then
+    ((.a.#y) : (y# t, int) imm_idx)
+  else
+    (.a.#a)
+[%%expect{|
+type y = { y : int; }
+type 'a t = { a : 'a; }
+Line 6, characters 4-11:
+6 |     (.a.#a)
+        ^^^^^^^
+Error: This expression has type "('a t# t, 'a) imm_idx"
+       but an expression was expected of type "(y# t, int) imm_idx"
+       Type "'a t#" is not compatible with type "y#"
+|}]
+
 (***************)
 (* Type errors *)
 
@@ -81,15 +99,8 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 77, characters 16-17:
-77 | let f () = (.x.#x)
-                     ^
-Error: The index preceding this unboxed access has element type "int",
-       which is not an unboxed record with field "x".
-|}, Principal{|
-type pt = { x : int; }
-Line 86, characters 16-17:
-86 | let f () = (.x.#x)
+Line 99, characters 16-17:
+99 | let f () = (.x.#x)
                      ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
@@ -116,16 +127,16 @@ let (.%[;..]) = Bigarray.Genarray.get
 let f a = (.%[1;2;3])
 [%%expect{|
 val ( .%[;..] ) : ('a, 'b, 'c) Bigarray.Genarray.t -> int array -> 'a = <fun>
-Line 105, characters 11-20:
-105 | let f a = (.%[1;2;3])
+Line 127, characters 11-20:
+127 | let f a = (.%[1;2;3])
                  ^^^^^^^^^
-Error: Block indices currently do not support any multi-index operators.
+Error: Block indices do not support multi-index operators.
 |}, Principal{|
 val ( .%[;..] ) : ('a, 'b, 'c) Bigarray.Genarray.t -> int array -> 'a = <fun>
-Line 121, characters 11-20:
-121 | let f a = (.%[1;2;3])
+Line 134, characters 11-20:
+134 | let f a = (.%[1;2;3])
                  ^^^^^^^^^
-Error: Block indices currently do not support any multi-index operators.
+Error: Block indices do not support multi-index operators.
 |}]
 
 (****************)
@@ -150,10 +161,70 @@ val f : bool -> ('a r, int) imm_idx = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 142, characters 6-7:
-142 |     (.u.#x)
+Line 161, characters 6-7:
+161 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
 val f : bool -> ('a r, int) imm_idx = <fun>
+|}]
+
+(**********)
+(* Arrays *)
+
+external ( .:() )
+  :  ('a iarray[@local_opt])
+  -> int
+  -> ('a[@local_opt])
+  @@ portable
+  = "%array_safe_get"
+
+
+external ( .%() )
+  :  ('a : any_non_null). ('a iarray[@local_opt])
+  -> int
+  -> ('a[@local_opt])
+  @@ portable
+  = "%array_safe_get"
+[@@layout_poly]
+[%%expect{|
+external ( .:() ) : ('a iarray [@local_opt]) -> int -> ('a [@local_opt]) @@
+  portable = "%array_safe_get"
+external ( .%() ) :
+  ('a : any_non_null). ('a iarray [@local_opt]) -> int -> ('a [@local_opt])
+  @@ portable = "%array_safe_get" [@@layout_poly]
+|}]
+
+type r = { a : string }
+let a () = (.(5).#contents.#a)
+[%%expect{|
+type r = { a : string; }
+val a : unit -> (r# ref# array, string) mut_idx = <fun>
+|}]
+
+(* This is sad but correct - the fix is to change
+   [Array.get] in the stdlib to be layout polymorphic *)
+type t = { mutable a : string; b : int }
+let bad () = (.(5).#a)
+[%%expect{|
+type t = { mutable a : string; b : int; }
+Line 204, characters 20-21:
+204 | let bad () = (.(5).#a)
+                          ^
+Error: The index preceding this unboxed access has element type "'a",
+       which is not an unboxed record with field "a".
+|}, Principal{|
+type t = { mutable a : string; b : int; }
+Line 220, characters 20-21:
+220 | let bad () = (.(5).#a)
+                          ^
+Error: The index preceding this unboxed access has element type "'a",
+       which is not an unboxed record with field "a".
+|}]
+
+type t1 = { mutable a : string; b : int }
+let b () = (.%(5).#a)
+[%%expect{|
+type t1 = { mutable a : string; b : int; }
+val b : unit -> (t1# iarray, string) imm_idx = <fun>
 |}]
