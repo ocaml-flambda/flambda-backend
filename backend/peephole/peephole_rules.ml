@@ -104,13 +104,15 @@ let are_compatible op1 op2 imm1 imm2 :
   | Ilsl, Ilsl | Ilsr, Ilsr | Iasr, Iasr | Iadd, Iadd ->
     U.add_immediates op1 imm1 imm2
   | Iadd, Isub ->
-    (* CR gyorsh: The following transformation changes the order of operations
-       on [r] and therefore might change the overflow behavior: if [r+c1]
-       overflows, but r-[c2-c1] does not overflow. *)
+    (* The following transformation changes the order of operations on [r] and
+       therefore might change the overflow behavior: if [r+c1] overflows, but
+       r-[c2-c1] does not overflow. This is fine, other compiler transformations
+       may also do it. The code below only ensures that immediates that the
+       compiler emits do not overflow. *)
     if imm1 >= imm2
     then U.sub_immediates Iadd imm1 imm2
     else U.sub_immediates Isub imm2 imm1
-  | Isub, Isub (* r - (imm1 + imm2 *) -> U.add_immediates op1 imm1 imm2
+  | Isub, Isub (* r - (imm1 + imm2 *) -> U.add_immediates Isub imm1 imm2
   | Isub, Iadd ->
     if imm1 >= imm2
     then U.sub_immediates Isub imm1 imm2
