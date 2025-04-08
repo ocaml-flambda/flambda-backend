@@ -468,7 +468,7 @@ let apply apply =
 let apply_cont apply_cont =
   let size =
     match Apply_cont_expr.trap_action apply_cont with
-    (* Current rough estimates are from amd64/emit.mlp *)
+    (* Current rough estimates are from amd64/emit.ml *)
     | None -> 0
     | Some (Push _) -> 4
     | Some (Pop _) -> 2
