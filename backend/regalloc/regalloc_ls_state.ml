@@ -58,6 +58,8 @@ let dummy_interval =
   { Interval.reg = Reg.dummy;
     begin_ = -1;
     end_ = -1;
+    (* this list can be safely duplicated below, because the empty list is
+       stateless *)
     ranges = DLL.make_empty ()
   }
 
