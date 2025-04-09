@@ -177,6 +177,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           reg.spill <- false;
           intervals.active_list
             <- Interval.List.insert_sorted intervals.active_list interval;
+          Interval.DLL.insert_sorted intervals.active_dll interval;
           if debug
           then (
             indent ();
