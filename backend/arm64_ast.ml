@@ -145,8 +145,8 @@ module Instruction_name = struct
     type t =
       | EQ
       | NE
-      | CS
-      | CC
+      | CS (* alias HS *)
+      | CC (* alias LO *)
       | MI
       | PL
       | VS
@@ -157,8 +157,8 @@ module Instruction_name = struct
       | LT
       | GT
       | LE
-      | AL
-      | LO
+    (* | AL *)
+    (* | NV *)
 
     let to_string t =
       match t with
@@ -176,8 +176,6 @@ module Instruction_name = struct
       | LT -> "lt"
       | GT -> "gt"
       | LE -> "le"
-      | AL -> "al"
-      | LO -> "lo"
   end
 
   module Rounding_mode = struct
@@ -283,7 +281,6 @@ module Instruction_name = struct
     | TBZ
     | ADR
     | STP
-    | BCC
     (* neon *)
     | MOV
     | MOVI
@@ -379,7 +376,6 @@ module Instruction_name = struct
     | TBZ -> "tbz"
     | ADR -> "adr"
     | STP -> "stp"
-    | BCC -> "bcc"
     (* neon *)
     | MOV -> "mov"
     | MOVI -> "movi"
