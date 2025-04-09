@@ -127,9 +127,3 @@ val addressing_offset_in_bytes
   -> 'a array
   -> 'a array
   -> int option
-
-(* CR-soon gyorsh: This function is a copy of code from selectgen + target specific
-   selection.  It is used only in peephole rules.  When objects are replaced with a
-   functor, pass the instantiated functor's [is_immediate] to the peephole pass in
-   [Asmgen]. *)
-val is_immediate_for_intop : Operation.integer_operation -> int -> bool

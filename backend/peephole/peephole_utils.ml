@@ -27,11 +27,19 @@ let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
 
+let is_immediate_for_intop op n =
+  (* CR-soon gyorsh: This functor is also instantiated in
+     [Asmgen.compile_fundecl]. Find a shared place to put it, instead of
+     instantiating twice. May require restructuring the backend to avoid
+     dependency cycles. *)
+  let module Cfg_selection = Cfg_selectgen.Make (Cfg_selection) in
+  Cfg_selection.is_immediate op n
+
 let assert_within_range integer_operation imm =
-  if not (Arch.is_immediate_for_intop integer_operation imm)
+  if not (is_immediate_for_intop integer_operation imm)
   then
     Misc.fatal_errorf "Peephole: unexpected immediate %d for operation %s" imm
-      (Simple_operation.string_of_integer_operation integer_operation)
+      (Operation.string_of_integer_operation integer_operation)
 
 let[@inline] op_immediates integer_operation imm1 imm2 no_overflow op =
   (* [no_overflow imm1 imm2] operation may assume that each of the immediates on
@@ -39,7 +47,7 @@ let[@inline] op_immediates integer_operation imm1 imm2 no_overflow op =
   assert_within_range integer_operation imm1;
   assert_within_range integer_operation imm2;
   let res = op imm1 imm2 in
-  if no_overflow imm1 imm2 && Arch.is_immediate_for_intop integer_operation res
+  if no_overflow imm1 imm2 && is_immediate_for_intop integer_operation res
   then Some (integer_operation, res)
   else None
 
@@ -61,6 +69,6 @@ let bitwise_immediates integer_operation imm1 imm2 op =
   | None ->
     Misc.fatal_errorf
       "Peephole: cannot rewrite immediates for %s: combining %d %d = %d"
-      (Simple_operation.string_of_integer_operation integer_operation)
+      (Operation.string_of_integer_operation integer_operation)
       imm1 imm2 (op imm1 imm2)
   | Some _ as res -> res

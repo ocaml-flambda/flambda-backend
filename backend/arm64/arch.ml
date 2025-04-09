@@ -348,18 +348,3 @@ let equal_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
 let addressing_offset_in_bytes (_addressing_mode_1: addressing_mode)
       (_addressing_mode_2 : addressing_mode) ~arg_offset_in_bytes:_ _ _ =
   None
-
-let is_immediate n =
-  let mn = -n in
-  n land 0xFFF = n
-  || n land 0xFFF_000 = n
-  || mn land 0xFFF = mn
-  || mn land 0xFFF_000 = mn
-
-let is_immediate_for_intop (op : Operation.integer_operation) n =
-  match op with
-  | Iadd | Isub -> n <= 0xFFF_FFF && n >= -0xFFF_FFF
-  | Iand | Ior | Ixor -> is_logical_immediate (Nativeint.of_int n)
-  | Icomp _ -> is_immediate n
-  | Ilsl | Ilsr | Iasr -> n >= 0 && n < size_int * 8
-  | Imul|Idiv|Imod|Ipopcnt|Imulh _|Iclz _|Ictz _ -> false

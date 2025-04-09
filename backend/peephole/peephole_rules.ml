@@ -122,7 +122,7 @@ let are_compatible op1 op2 imm1 imm2 :
        not be within bounds for [Imul]. *)
     U.assert_within_range Ilsl imm1;
     let imm1 = 1 lsl imm1 in
-    if Arch.is_immediate_for_intop Imul imm1
+    if U.is_immediate_for_intop Imul imm1
     then U.mul_immediates Imul imm1 imm2
     else None
   | Imul, Ilsl ->
@@ -130,7 +130,7 @@ let are_compatible op1 op2 imm1 imm2 :
        not be within bounds for [Imul]. *)
     U.assert_within_range Ilsl imm2;
     let imm2 = 1 lsl imm2 in
-    if Arch.is_immediate_for_intop Imul imm2
+    if U.is_immediate_for_intop Imul imm2
     then U.mul_immediates Imul imm1 imm2
     else None
   | Imul, Imul -> U.mul_immediates op1 imm1 imm2

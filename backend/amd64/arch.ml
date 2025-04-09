@@ -543,15 +543,3 @@ let isomorphic_specific_operation op1 op2 =
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
      Ipause | Isimd _ | Isimd_mem _ | Icldemote _ | Iprefetch _), _ ->
     false
-
-let is_immediate n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
-
-let is_immediate_natint n =
-  Nativeint.compare n 0x7FFF_FFFFn <= 0
-  && Nativeint.compare n (-0x8000_0000n) >= 0
-
-let is_immediate_for_intop (op : Operation.integer_operation) n =
-  match op with
-  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ -> is_immediate n
-  | Ilsl | Ilsr | Iasr -> n >= 0 && n < size_int * 8
-  | Idiv|Imod|Ipopcnt|Imulh _|Iclz _|Ictz _ -> false
