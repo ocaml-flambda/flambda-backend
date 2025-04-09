@@ -69,8 +69,8 @@ module Instruction_name : sig
     type t =
       | EQ
       | NE
-      | CS
-      | CC
+      | CS (* alias HS *)
+      | CC (* alias LO *)
       | MI
       | PL
       | VS
@@ -81,9 +81,11 @@ module Instruction_name : sig
       | LT
       | GT
       | LE
-      | AL
-      (* CR sspies: Remove [LO], since it is an alias of [CC] *)
-      | LO
+    (* The following are not supported, because NV means AL, but has a different
+       encoding. *)
+    (* Use unconditional branching instead. *)
+    (* | AL *)
+    (* | NV *)
   end
 
   module Rounding_mode : sig
@@ -175,8 +177,6 @@ module Instruction_name : sig
     | TBZ
     | ADR
     | STP
-    (* CR sspies: Remove [BCC], since it is an alias of [B_cond LO] *)
-    | BCC
     (* neon *)
     | MOV
     | MOVI
