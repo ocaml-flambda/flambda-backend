@@ -109,28 +109,6 @@ val simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t
 
 val save_cfg : string -> Cfg_with_layout.t -> unit
 
-module Substitution : sig
-  type t = Reg.t Reg.Tbl.t
-
-  val apply_reg : t -> Reg.t -> Reg.t
-
-  val apply_array_in_place : t -> Reg.t array -> unit
-
-  val apply_array : t -> Reg.t array -> Reg.t array
-
-  val apply_set : t -> Reg.Set.t -> Reg.Set.t
-
-  val apply_instruction_in_place : t -> _ Cfg.instruction -> unit
-
-  val apply_block_in_place : t -> Cfg.basic_block -> unit
-
-  type map = t Label.Tbl.t
-
-  val for_label : map -> Label.t -> t
-
-  val apply_cfg_in_place : map -> Cfg.t -> unit
-end
-
 val remove_prologue_if_not_required : Cfg_with_layout.t -> unit
 
 val update_live_fields : Cfg_with_layout.t -> liveness -> unit
@@ -156,7 +134,7 @@ val equal_stack_operands_rewrite :
   stack_operands_rewrite -> stack_operands_rewrite -> bool
 
 (* Substitution/map from registers to their spilled counterparts. *)
-type spilled_map = Substitution.t
+type spilled_map = Regalloc_substitution.t
 
 val is_spilled : spilled_map -> Reg.t -> bool
 

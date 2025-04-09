@@ -2,6 +2,7 @@
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open! Regalloc_utils
+module Substitution = Regalloc_substitution
 
 let split_live_ranges : bool Lazy.t =
   bool_of_param ~default:true "SPLIT_LIVE_RANGES"
