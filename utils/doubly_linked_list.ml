@@ -431,11 +431,10 @@ let copy t = map t ~f:Fun.id
 let equal eq left right =
   let rec aux eq left right =
     match left, right with
-    | None, None -> true
-    | None, Some _ | Some _, None -> false
-    | Some left_cell, Some right_cell ->
-      let left_value = value left_cell in
-      let right_value = value right_cell in
-      eq left_value right_value && aux eq (next left_cell) (next right_cell)
+    | Empty, Empty -> true
+    | Empty, Node _ | Node _, Empty -> false
+    | ( Node { value = left_value; next = left_next; prev = _ },
+        Node { value = right_value; next = right_next; prev = _ } ) ->
+      eq left_value right_value && aux eq left_next right_next
   in
-  aux eq (hd_cell left) (hd_cell right)
+  aux eq left.first right.first
