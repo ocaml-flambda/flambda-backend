@@ -518,3 +518,5 @@ let save_cmt target cu binary_annots initial_env cmi shape =
          output_cmt oc cmt)
   end;
   clear ()
+
+let get_declaration_dependencies () = !uids_deps

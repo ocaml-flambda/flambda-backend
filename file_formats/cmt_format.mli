@@ -133,3 +133,6 @@ val need_to_clear_env : bool
   val read_signature : 'a -> string -> Types.signature * 'b list * 'c list
 
 *)
+
+val get_declaration_dependencies :
+  unit -> (dependency_kind * Uid.t * Uid.t) list
