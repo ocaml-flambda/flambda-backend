@@ -12,25 +12,6 @@ type t =
     instruction_id : InstructionId.sequence
   }
 
-let print_intervals ppf (t : t) : unit =
-  Format.fprintf ppf "interval_list(%d): %a\n"
-    (List.length t.interval_list)
-    Interval.List.print t.interval_list;
-  Format.fprintf ppf "interval_dll(%d): %a\n"
-    (DLL.length t.interval_dll)
-    Interval.DLL.print t.interval_dll
-
-let check_consistency t msg : unit =
-  Array.iteri t.active ~f:(fun i ci ->
-      ClassIntervals.check_consistency ci (Printf.sprintf "%s (idx=%d)" msg i));
-  let consistent =
-    equal_list_dll Interval.equal t.interval_list t.interval_dll
-  in
-  if not consistent
-  then (
-    print_intervals Format.err_formatter t;
-    Misc.fatal_errorf "Regalloc_ls_state.check_consistency")
-
 let for_fatal t =
   ( DLL.map t.interval_dll ~f:Interval.copy,
     Array.map t.active ~f:ClassIntervals.copy )
@@ -217,24 +198,6 @@ let[@inline] invariant_intervals state cfg_with_infos =
     Cfg_with_layout.iter_instructions
       (Cfg_with_infos.cfg_with_layout cfg_with_infos)
       ~instruction:check_instr ~terminator:check_instr)
-
-let invariant_field_dll (reg_class : int) (field_name : string)
-    (l : Interval.t DLL.t) =
-  let rec is prev curr =
-    match curr with
-    | None -> ()
-    | Some cell ->
-      let value = DLL.value cell in
-      if value.Interval.end_ > prev.Interval.end_
-      then
-        fatal
-          "Regalloc_ls_state.invariant_field_dll: active.(%d).%s is not sorted"
-          reg_class field_name
-      else is value (DLL.next cell)
-  in
-  match DLL.hd_cell l with
-  | None -> ()
-  | Some cell -> is (DLL.value cell) (DLL.next cell)
 
 let invariant_field_dll (reg_class : int) (field_name : string)
     (l : Interval.t DLL.t) =

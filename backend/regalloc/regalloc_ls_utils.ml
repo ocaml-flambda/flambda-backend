@@ -228,37 +228,6 @@ module Interval = struct
       in
       aux l interval (DLL.hd_cell l)
   end
-
-  module DLL = struct
-    let print ppf l =
-      DLL.iter l ~f:(fun i -> Format.fprintf ppf "- %a\n" print i)
-
-    let release_expired_fixed l ~pos =
-      let rec aux curr ~pos =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = DLL.value cell in
-          if value.end_ >= pos
-          then (
-            remove_expired value ~pos;
-            aux (DLL.next cell) ~pos)
-          else DLL.cut_from cell
-      in
-      aux (DLL.hd_cell l) ~pos
-
-    let insert_sorted (l : t DLL.t) (interval : t) : unit =
-      let rec aux l interval curr =
-        match curr with
-        | None -> DLL.add_end l interval
-        | Some cell ->
-          let value = DLL.value cell in
-          if value.end_ <= interval.end_
-          then DLL.insert_before cell interval
-          else aux l interval (DLL.next cell)
-      in
-      aux l interval (DLL.hd_cell l)
-  end
 end
 
 module ClassIntervals = struct
@@ -293,37 +262,6 @@ module ClassIntervals = struct
     DLL.clear t.fixed_dll;
     DLL.clear t.active_dll;
     DLL.clear t.inactive_dll
-=======
-  let check_consistency t msg =
-    let consistent_fixed =
-      equal_list_dll Interval.equal t.fixed_list t.fixed_dll
-    in
-    let consistent_active =
-      equal_list_dll Interval.equal t.active_list t.active_dll
-    in
-    let consistent_inactive =
-      equal_list_dll Interval.equal t.inactive_list t.inactive_dll
-    in
-    if not (consistent_fixed && consistent_active && consistent_inactive)
-    then (
-      print Format.err_formatter t;
-      Misc.fatal_errorf
-        "Regalloc_ls_utils.ClassIntervals.check_consistency \
-         %S(consistent_fixed=%B consistent_active=%B consistent_inactive=%B)"
-        msg consistent_fixed consistent_active consistent_inactive)
-
-  let make () =
-    let res =
-      { fixed_list = [];
-        active_list = [];
-        inactive_list = [];
-        fixed_dll = DLL.make_empty ();
-        active_dll = DLL.make_empty ();
-        inactive_dll = DLL.make_empty ()
-      }
-    in
-    check_consistency res "make/end";
-    res
 
   module DLL = struct
     let release_expired_active (t : t) ~(pos : int) (l : Interval.t DLL.t) :
@@ -387,10 +325,6 @@ let log_interval ~kind (interval : Interval.t) =
   indent ();
   log "%s" (Buffer.contents ranges);
   dedent ()
-
-let log_interval_list ~kind (intervals : Interval.t list) =
-  List.iter intervals ~f:(fun (interval : Interval.t) ->
-      log_interval ~kind interval)
 
 let log_interval_dll ~kind (intervals : Interval.t DLL.t) =
   DLL.iter intervals ~f:(fun (interval : Interval.t) ->

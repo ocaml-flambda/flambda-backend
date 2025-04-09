@@ -78,14 +78,6 @@ module Interval : sig
 
     val insert_sorted : t DLL.t -> t -> unit
   end
-
-  module DLL : sig
-    val print : Format.formatter -> t DLL.t -> unit
-
-    val release_expired_fixed : t DLL.t -> pos:int -> unit
-
-    val insert_sorted : t DLL.t -> t -> unit
-  end
 end
 
 module ClassIntervals : sig
@@ -105,12 +97,8 @@ module ClassIntervals : sig
   val clear : t -> unit
 
   val release_expired_intervals : t -> pos:int -> unit
-
-  val check_consistency : t -> string -> unit
 end
 
 val log_interval : kind:string -> Interval.t -> unit
-
-val log_interval_list : kind:string -> Interval.t list -> unit
 
 val log_interval_dll : kind:string -> Interval.t DLL.t -> unit
