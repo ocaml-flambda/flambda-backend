@@ -3,6 +3,7 @@
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
+module Substitution = Regalloc_substitution
 
 module type State = sig
   type t
