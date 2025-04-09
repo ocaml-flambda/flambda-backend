@@ -6,17 +6,6 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let log_function = lazy (make_log_function ~label:"ls")
 
-let equal_list_dll eq list dll =
-  let rec aux eq list cell =
-    match list, cell with
-    | [], None -> true
-    | _ :: _, None | [], Some _ -> false
-    | hd :: tl, Some cell ->
-      let value = DLL.value cell in
-      eq hd value && aux eq tl (DLL.next cell)
-  in
-  aux eq list (DLL.hd_cell dll)
-
 let indent () = (Lazy.force log_function).indent ()
 
 let dedent () = (Lazy.force log_function).dedent ()

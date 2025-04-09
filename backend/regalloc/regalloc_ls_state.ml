@@ -84,17 +84,12 @@ let[@inline] update_intervals state map =
   Array.sort ~cmp:compare_asc_begin class_intervals;
   DLL.clear state.interval_dll;
   DLL.add_array state.interval_dll class_intervals;
-  if debug then log_interval_list ~kind:"regular" state.interval_list;
+  if debug then log_interval_dll ~kind:"regular" state.interval_dll;
   Array.iteri active' ~f:(fun i (intervals : class_interval_array) ->
       let extracted = extract_class_interval_array intervals in
       Array.sort extracted ~cmp:compare_desc_end;
       DLL.clear active.(i).fixed_dll;
-      DLL.add_array active.(i).fixed_dll extracted);
-  Array.iter active ~f:(fun (intervals : ClassIntervals.t) ->
-      intervals.fixed_list
-        <- List.sort ~cmp:compare_desc_end intervals.fixed_list;
-      if debug then log_interval_list ~kind:"fixed" intervals.fixed_list);
-  check_consistency state "State.update_intervals/end"
+      DLL.add_array active.(i).fixed_dll extracted)
 
 let[@inline] iter_intervals state ~f = DLL.iter state.interval_dll ~f
 
