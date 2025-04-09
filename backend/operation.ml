@@ -26,6 +26,8 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 type trap_stack =
   | Uncaught
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
