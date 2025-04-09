@@ -640,7 +640,7 @@ let output_test_zero arg =
 
 let emit_float_test (width : Cmm.float_width)
                     cmp i ~(taken:X86_ast.condition -> unit) =
-  (* Effect of comisd on flags and conditional branches:
+  (*= Effect of comisd on flags and conditional branches:
                      ZF PF CF  cond. branches taken
         unordered     1  1  1  je, jb, jbe, jp
         >             0  0  0  jne, jae, ja
@@ -2379,7 +2379,7 @@ let make_stack_loc ~offset n (r : Reg.t) =
 (* CR mshinwell: Not now, but after code review, it would be better to
    move this code so it's contiguous with the other probe code above. *)
 
-(* Calls to probe handler wrappers do not follow the standard calling
+(*= Calls to probe handler wrappers do not follow the standard calling
    convention for OCaml.  Instead, all registers are callee saved: the wrapper
    saves and restores all registers that are live across its (unique) call site.
 
@@ -2454,7 +2454,7 @@ let emit_probe_handler_wrapper p =
        name, handler_code_sym
     | _ -> assert false
   in
-  (* Restore stack frame info as it was at the probe site, so we can easily
+  (*= Restore stack frame info as it was at the probe site, so we can easily
      refer to slots in the corresponding frame.  (As per the comment above,
      recall that the wrapper does however have its own frame.) *)
   frame_required := true;
@@ -2472,7 +2472,7 @@ let emit_probe_handler_wrapper p =
     push rbp;
     I.mov rsp rbp;
   end;
-  (* Prepare to call the handler: calculate and allocate stack space.
+  (*= Prepare to call the handler: calculate and allocate stack space.
      Compute the size of stack slots for all live hard registers. *)
   let live =
     Reg.Set.elements p.probe_insn.live
@@ -2484,7 +2484,7 @@ let emit_probe_handler_wrapper p =
   let aux_offset = 8 (* for saving r15 *) in
   let tmp_offset = size_of_regs p.probe_insn.arg in
   let loc_args, loc_offset = Proc.loc_arguments (Reg.typv p.probe_insn.arg) in
-  (* Ensure the stack is aligned.
+  (*= Ensure the stack is aligned.
      Assuming that the stack at the probe site is 16-byte aligned,
      [loc_arguments] ensures that [loc_offset] is 16-byte aligned.
      All temporaries are 8 bytes long, the return address is already pushed,

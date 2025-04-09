@@ -179,7 +179,7 @@ end [@warning "-32"]  = struct
    ()
 
   (* See [Proc.int_reg_name]. *)
-  let int_reg_name_to_arch_index =
+  let[@ocamlformat "disable"] int_reg_name_to_arch_index =
   [| 0;  1;  2; 3; 4; 5; 6 ; 7;    (* 0 - 7 *)
      8; 9; 10; 11; 12; 13; 14; 15; (* 8 - 15 *)
      19; 20; 21; 22; 23; 24; 25;   (* 16 - 22 *)
@@ -525,6 +525,7 @@ type gc_call =
   { gc_lbl: label;                      (* Entry label *)
     gc_return_lbl: label;               (* Where to branch after GC *)
     gc_frame_lbl: label }               (* Label of frame descriptor *)
+[@@ocamlformat "disable"]
 
 let call_gc_sites = ref ([] : gc_call list)
 
@@ -1057,7 +1058,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     if !fastcode_flag then begin
       let lbl_after_alloc = Cmm.new_label() in
       let lbl_call_gc = Cmm.new_label() in
-      (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
+      (*= n is at most Max_young_whsize * 8, i.e. currently 0x808,
          so it is reasonable to assume n < 0x1_000.  This makes
          the generated code simpler. *)
       assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
@@ -1377,7 +1378,7 @@ let emit_instr i =
           DSL.ins I.BL [| DSL.emit_symbol "caml_c_call" |];
           record_frame i.live (Dbg_other i.dbg)
         end else begin
-          (* store ocaml stack in the frame pointer register
+          (*= store ocaml stack in the frame pointer register
              NB: no need to store previous x29 because OCaml frames don't
              maintain frame pointer *)
           if Config.runtime5 then begin
@@ -1684,7 +1685,7 @@ let emit_instr i =
         for j = 0 to Array.length jumptbl - 1 do
             DSL.ins I.B [| DSL.emit_label jumptbl.(j) |]
         done
-(* Alternative:
+(*= Alternative:
         let lbltbl = Cmm.new_label() in
         emit_printf "	adr	%a, %a\n" femit_reg reg_tmp1 femit_label lbltbl;
         emit_printf "	ldr	%a, [%a, %a, lsl #2]\n" femit_wreg reg_tmp2 femit_reg reg_tmp1 femit_reg i.arg.(0);
