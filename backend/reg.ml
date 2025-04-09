@@ -13,6 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open Cmm
 
 type irc_work_list =
@@ -199,7 +200,7 @@ let reset() =
      soft pseudo-registers *)
   if !first_virtual_reg_stamp = -1 then begin
     first_virtual_reg_stamp := !currstamp;
-    assert (!reg_list = []) (* Only hard regs created before now *)
+    assert (match !reg_list with [] -> true | _ :: _ -> false) (* Only hard regs created before now *)
   end;
   currstamp := !first_virtual_reg_stamp;
   reg_list := []

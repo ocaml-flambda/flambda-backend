@@ -63,6 +63,7 @@ val assemble_file: (*infile*) string -> (*outfile*) string -> (*retcode*) int
 
 (** System detection *)
 
+(* CR-soon xclerc: remove the systems we do not (and will not) support. *)
 type system =
   (* 32 bits and 64 bits *)
   | S_macosx

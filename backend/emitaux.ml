@@ -15,6 +15,8 @@
 
 (* Common functions for emitting assembly code *)
 
+open! Int_replace_polymorphic_compare
+
 type error =
   | Stack_frame_too_large of int
   | Stack_frame_way_too_large of int
@@ -62,16 +64,21 @@ let femit_symbol out s = output_string out (symbol_to_string s)
 let emit_symbol s = femit_symbol !output_channel s
 
 let femit_string_literal out s =
+  let between x low high =
+    Char.compare x low >= 0 && Char.compare x high <= 0
+  in
   let last_was_escape = ref false in
   femit_string out "\"";
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
-    if c >= '0' && c <= '9'
+    if between c '0' '9'
     then
       if !last_was_escape
       then Printf.fprintf out "\\%o" (Char.code c)
       else output_char out c
-    else if c >= ' ' && c <= '~' && c <> '"' (* '"' *) && c <> '\\'
+    else if between c ' ' '~'
+            && (not (Char.equal c '"' (* '"' *)))
+            && not (Char.equal c '\\')
     then (
       output_char out c;
       last_was_escape := false)
@@ -199,6 +206,8 @@ type emit_frame_actions =
     efa_string : string -> unit
   }
 
+let is_empty = function [] -> true | _ :: _ -> false
+
 let emit_frames a =
   let filenames = Hashtbl.create 7 in
   let label_filename name =
@@ -221,7 +230,7 @@ let emit_frames a =
     type t = bool * Debuginfo.Dbg.t
 
     let equal ((rs1 : bool), dbg1) (rs2, dbg2) =
-      rs1 = rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
+      Bool.equal rs1 rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
 
     let hash (rs, dbg) = Hashtbl.hash (rs, Debuginfo.Dbg.hash dbg)
   end) in
@@ -362,8 +371,8 @@ let emit_frames a =
       in
       let info =
         if is_fully_packable
-        then fully_pack_info rs d (rest <> [])
-        else partially_pack_info rs d (rest <> [])
+        then fully_pack_info rs d (not (is_empty rest))
+        else partially_pack_info rs d (not (is_empty rest))
       in
       let loc =
         if is_fully_packable
@@ -398,7 +407,7 @@ let emit_frames a =
 
 let isprefix s1 s2 =
   String.length s1 <= String.length s2
-  && String.sub s2 0 (String.length s1) = s1
+  && String.equal (String.sub s2 0 (String.length s1)) s1
 
 let is_generic_function name =
   List.exists
@@ -531,7 +540,7 @@ let reduce_heap_size ~reset =
     then float !Flambda_backend_flags.heap_reduction_threshold
     else Float.infinity
   in
-  if major_words > heap_reduction_threshold
+  if Float.compare major_words heap_reduction_threshold > 0
   then
     Profile.record_call "compact" (fun () ->
         reset ();

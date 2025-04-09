@@ -15,6 +15,8 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42-44-45"]
 
+(* CR-soon xclerc for xclerc: try to add open!
+   Int_replace_polymorphic_compare *)
 module V = Backend_var
 module VP = Backend_var.With_provenance
 open Cmm
