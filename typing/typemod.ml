@@ -3774,10 +3774,14 @@ let type_implementation target modulename initial_env ast =
     raise (Error (Location.in_file sourcefile, initial_env, e))
   in
   let save_cmt_and_cms target annots initial_env cmi shape =
+      let decl_deps =
+        (* This is cleared after saving the cmt so we have to save is before *)
+        Cmt_format.get_declaration_dependencies ()
+      in
     Cmt_format.save_cmt (Unit_info.cmt target) modulename
       annots initial_env cmi shape;
     Cms_format.save_cms (Unit_info.cms target) modulename
-      annots initial_env shape;
+      annots initial_env shape decl_deps;
     gen_annot target annots;
   in
   Cmt_format.clear ();
@@ -3956,10 +3960,14 @@ let type_implementation target modulename initial_env ast =
       )
 
 let save_signature target modname tsg initial_env cmi =
+  let decl_deps =
+    (* This is cleared after saving the cmt so we have to save is before *)
+    Cmt_format.get_declaration_dependencies ()
+  in
   Cmt_format.save_cmt (Unit_info.cmti target) modname
     (Cmt_format.Interface tsg) initial_env (Some cmi) None;
   Cms_format.save_cms  (Unit_info.cmsi target) modname
-    (Cmt_format.Interface tsg) initial_env None
+    (Cmt_format.Interface tsg) initial_env None decl_deps
 
 let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
   cms_register_toplevel_attributes ~sourcefile ~uid ast.psg_items
@@ -4071,10 +4079,14 @@ let package_units initial_env objfiles target_cmi modulename =
       Includemod.compunit initial_env ~mark:true
         "(obtained by packing)" sg mli dclsig shape
     in
+    let decl_deps =
+      (* This is cleared after saving the cmt so we have to save is before *)
+      Cmt_format.get_declaration_dependencies ()
+    in
     Cmt_format.save_cmt  (Unit_info.companion_cmt target_cmi) modulename
       (Cmt_format.Packed (sg, objfiles)) initial_env  None (Some shape);
     Cms_format.save_cms  (Unit_info.companion_cms target_cmi) modulename
-      (Cmt_format.Packed (sg, objfiles)) initial_env (Some shape);
+      (Cmt_format.Packed (sg, objfiles)) initial_env (Some shape) decl_deps;
     cc
   end else begin
     (* Determine imports *)
@@ -4097,10 +4109,14 @@ let package_units initial_env objfiles target_cmi modulename =
           sg name kind target_cmi (Array.of_list imports)
       in
       let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
+      let decl_deps =
+        (* This is cleared after saving the cmt so we have to save is before *)
+        Cmt_format.get_declaration_dependencies ()
+      in
       Cmt_format.save_cmt (Unit_info.companion_cmt target_cmi)  modulename
         (Cmt_format.Packed (sign, objfiles)) initial_env (Some cmi) (Some shape);
       Cms_format.save_cms (Unit_info.companion_cms target_cmi)  modulename
-        (Cmt_format.Packed (sign, objfiles)) initial_env (Some shape);
+        (Cmt_format.Packed (sign, objfiles)) initial_env (Some shape) decl_deps;
     end;
     Tcoerce_none
   end
