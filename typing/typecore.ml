@@ -4147,8 +4147,8 @@ let rec is_nonexpansive exp =
   | Texp_idx (ba, uas) ->
       let block_access = function
         | Baccess_field _ -> true
-        | Baccess_array { f; index; index_kind = _; el_sort = _ } ->
-          is_nonexpansive f && is_nonexpansive index
+        | Baccess_array (_, _, index) -> is_nonexpansive index
+        | Baccess_block (_, index) -> is_nonexpansive index
       in
       let unboxed_access = function
         | Uaccess_unboxed_field _ -> true
@@ -5602,7 +5602,7 @@ and type_expect_
         exp_env = env }
   in
   let type_block_access expected_base_ty principal
-        (ba : Parsetree.block_access) : block_access * type_expr * type_expr * bool =
+        (ba : Parsetree.block_access) : block_access * type_expr * type_expr =
     match ba with
     | Baccess_field lid ->
       let expected_record_type =
@@ -5624,88 +5624,26 @@ and type_expect_
       let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       let mut = is_mutable label.lbl_mut in
       if mut then Env.mark_label_used Mutation label.lbl_uid;
-      Baccess_field (lid, label), ty_res, ty_arg, mut
-    | Baccess_indexop { f; index } ->
-      (* CR rtjoa: is [expected_mode] right? *)
-      let f = type_exp env expected_mode f in
-      let prim_name =
-        match f.exp_desc with
-        | Texp_ident (_, _, {val_kind=Val_prim{Primitive.prim_name; _}}, Id_prim _, _) ->
-            prim_name
-        | _ ->
-          Misc.fatal_error "expected operator used in block index to be a primitive"
+      Baccess_field (lid, label), ty_res, ty_arg
+    | Baccess_array (mut, index_kind, index) ->
+      let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
+      let base_ty =
+        match mut with
+        | Immutable -> Predef.type_iarray el_ty
+        | Mutable -> Predef.type_array el_ty
       in
-      let rec path_of ty =
-        match get_desc (expand_head env ty) with
-        | Tconstr(p, args, _) -> Some (p, args)
-        | Tpoly(t, univars) ->
-          let _, t = instance_poly ~keep_names:true ~fixed:false univars t in
-          path_of t
-        | _ -> None
+      let index_type_expected =
+        match index_kind with
+        | Index_int -> Predef.type_int
+        | Index_unboxed_int64 -> Predef.type_unboxed_int64
+        | Index_unboxed_int32 -> Predef.type_unboxed_int32
+        | Index_unboxed_nativeint -> Predef.type_unboxed_nativeint
       in
-      let index_kind =
-        match prim_name with
-        | "%array_safe_get" | "%array_unsafe_get" ->
-          Index_int
-        | "%array_safe_get_indexed_by_int64#"
-        | "%array_unsafe_get_indexed_by_int64#" ->
-          Index_unboxed_int64
-        | "%array_safe_get_indexed_by_nativeint#"
-        | "%array_unsafe_get_indexed_by_nativeint#" ->
-          Index_unboxed_nativeint
-        | "%array_safe_get_indexed_by_int32#"
-        | "%array_unsafe_get_indexed_by_int32#" ->
-          Index_unboxed_int32
-        | _ ->
-          Misc.fatal_errorf
-            "primitive %s not supported for block index" prim_name
-      in
-      (* CR rtjoa: handle filter_arrow errors, check if filter_arrow is right to
-         use, does it deal w tconstrs correctly (eg if tconstr not an arr) *)
-      (* deconstruct f.exp_type to base_ty -> idx_type -> el_ty *)
-      let { ty_arg = base_ty; ty_ret; _} =
-        filter_arrow env f.exp_type Nolabel ~force_tpoly:false in
-      let base_ty = instance base_ty in
-      let { ty_arg = idx_type; ty_ret = el_ty; _} =
-        filter_arrow env ty_ret Nolabel ~force_tpoly:false in
-      let el_ty = instance el_ty in
-      let index = match index with
-        | [{ pexp_desc = Pexp_array _}] ->
-          raise (Error (f.exp_loc, env, Block_access_multi_index))
-        | [index] ->
-          (* CR rtjoa:  *)
-          type_exp env expected_mode index
-        | _ ->
-          Misc.fatal_error
-            "Typecore.Baccess_indexop: parser should not produce this"
-      in
-      let idx_type =
-        (* CR rtjoa: this is unprincipled *)
-        match get_desc idx_type with
-        | Tpoly (t, args) -> snd (instance_poly ~keep_names:true ~fixed:false args t)
-        | _ -> idx_type
-      in
-      with_explanation (fun () ->
-        unify_exp_types index.exp_loc env index.exp_type (generic_instance idx_type));
-      let _arg, mut =
-        (* CR rtjoa: store the array arg layout and assert it's representable
-           in transl *)
-        match path_of base_ty with
-        | Some (p, [arg]) when Path.same p Predef.path_array ->
-          arg, true
-        | Some (p, [arg]) when Path.same p Predef.path_iarray ->
-          arg, false
-        | _ ->
-          Misc.fatal_errorf
-            "expected %s used in block index to take an \
-            array or iarray"
-            prim_name
-      in
-      (* CR rtjoa: constrain this with the sort of the array,
-         and the base type of the first unboxed access *)
-      let _el_jkind, el_sort = Jkind.of_new_sort_var ~why:Idx_element in
-      Baccess_array { f; index; index_kind; el_sort },
-      base_ty, el_ty, mut
+      let index =
+        type_expect env mode_legacy index (mk_expected index_type_expected) in
+      Baccess_array (mut, index_kind, index), base_ty, el_ty
+    | Baccess_block (_mut, _index) ->
+      assert false
   in
   let type_unboxed_access el_ty ua =
     match ua with
@@ -6294,13 +6232,16 @@ and type_expect_
         newgenvar (Jkind.Builtin.value ~why:Idx_base)
     in
     let principal = is_principal ty_expected in
-    let ba, base_ty, el_ty, mut = type_block_access expected_base_ty principal ba in
+    let ba, base_ty, el_ty = type_block_access expected_base_ty principal ba in
     let el_ty, uas = List.fold_left_map type_unboxed_access el_ty uas in
     let ty =
-      if mut then
-        Predef.type_mut_idx base_ty el_ty
-      else
+      match ba with
+      | Baccess_field (_, { lbl_mut = Immutable; _ })
+      | Baccess_array (Immutable, _, _) | Baccess_block (Immutable, _) ->
         Predef.type_imm_idx base_ty el_ty
+      | Baccess_field (_, { lbl_mut = Mutable _; _ })
+      | Baccess_array (Mutable, _, _) | Baccess_block (Mutable, _) ->
+        Predef.type_mut_idx base_ty el_ty
     in
     with_explanation (fun () ->
       unify_exp_types loc env ty (generic_instance ty_expected));

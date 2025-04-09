@@ -356,9 +356,10 @@ and add_labeled_tuple_expr bv el = List.iter (add_expr bv) (List.map snd el)
 
 and add_block_access bv = function
   | Baccess_field fld -> add bv fld
-  | Baccess_indexop { f; index } ->
-    add_expr bv f;
-    List.iter (add_expr bv) index
+  | Baccess_array (_, _, index) ->
+    add_expr bv index
+  | Baccess_block (_, index) ->
+    add_expr bv index
 
 and add_unboxed_access bv = function
   | Uaccess_unboxed_field fld -> add bv fld

@@ -456,9 +456,8 @@ module E = struct
 
   let iter_block_access sub = function
     | Baccess_field lid -> iter_loc sub lid
-    | Baccess_indexop { f; index } ->
-      sub.expr sub f;
-      List.iter (sub.expr sub) index
+    | Baccess_array (_, _, index) -> sub.expr sub index
+    | Baccess_block (_, index) -> sub.expr sub index
 
   let iter_unboxed_access sub = function
     | Uaccess_unboxed_field lid -> iter_loc sub lid

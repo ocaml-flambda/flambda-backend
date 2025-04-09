@@ -178,6 +178,11 @@ let prepare_error err =
   | Malformed_instance_identifier loc ->
       Location.errorf ~loc
         "Syntax error: Unexpected in module instance"
+  | Block_access_bad_paren loc ->
+      Location.errorf ~loc
+        "Syntax error: A parenthesis here can only follow one of: \n  \
+         idx_array, idx_array_L, idx_array_l, idx_array_n, idx_iarray,\n  \
+         idx_iarray_L, idx_iarray_l, idx_iarray_n, idx_imm, idx_mut."
 
 let () =
   Location.register_error_of_exn

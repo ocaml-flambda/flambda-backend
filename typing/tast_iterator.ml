@@ -335,8 +335,8 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   in
   let iter_block_access sub = function
     | Baccess_field (lid, _) -> iter_loc sub lid
-    | Baccess_array { f; index; index_kind = _; el_sort = _ } ->
-      sub.expr sub f; sub.expr sub index
+    | Baccess_array (_, _, index) -> sub.expr sub index
+    | Baccess_block (_, index) -> sub.expr sub index
   in
   let iter_unboxed_access sub = function
     | Uaccess_unboxed_field (lid, _) -> iter_loc sub lid

@@ -105,6 +105,12 @@ let fmt_private_flag f x =
   | Public -> fprintf f "Public"
   | Private -> fprintf f "Private"
 
+let fmt_index_kind f = function
+  | Index_int -> fprintf f "Index_int"
+  | Index_unboxed_int64 -> fprintf f "Index_unboxed_int64"
+  | Index_unboxed_int32 -> fprintf f "Index_unboxed_int32"
+  | Index_unboxed_nativeint -> fprintf f "Index_unboxed_nativeint"
+
 let line i f s (*...*) =
   fprintf f "%s" (String.make ((2*i) mod 72) ' ');
   fprintf f s (*...*)
@@ -466,10 +472,14 @@ and expression i ppf x =
 and block_access i ppf = function
   | Baccess_field lid ->
       line i ppf "Baccess_field %a\n" fmt_longident_loc lid
-  | Baccess_indexop { f; index } ->
-      line i ppf "Baccess_indexop\n";
-      expression i ppf f;
-      list i expression ppf index
+  | Baccess_array (mut, index_kind, index) ->
+      line i ppf "Baccess_array %a %a\n"
+        fmt_mutable_flag mut fmt_index_kind index_kind;
+      expression i ppf index
+  | Baccess_block (mut, index) ->
+      line i ppf "Baccess_block %a\n"
+        fmt_mutable_flag mut;
+      expression i ppf index
 
 and unboxed_access i ppf = function
   | Uaccess_unboxed_field lid ->

@@ -129,6 +129,12 @@ let fmt_partiality f x =
   | Total -> ()
   | Partial -> fprintf f " (Partial)"
 
+let fmt_index_kind f = function
+  | Index_int -> fprintf f "Index_int"
+  | Index_unboxed_int64 -> fprintf f "Index_unboxed_int64"
+  | Index_unboxed_int32 -> fprintf f "Index_unboxed_int32"
+  | Index_unboxed_nativeint -> fprintf f "Index_unboxed_nativeint"
+
 let line i f s (*...*) =
   fprintf f "%s" (String.make (2*i) ' ');
   fprintf f s (*...*)
@@ -1171,9 +1177,13 @@ and longident_x_pattern : 'a. _ -> _ -> _ * 'a * _ -> _ =
 and block_access i ppf = function
   | Baccess_field (li, _) ->
       line i ppf "Baccess_field %a\n" fmt_longident li
-  | Baccess_array { f; index; index_kind = _; el_sort = _ } ->
-      line i ppf "Baccess_array\n";
-      expression i ppf f;
+  | Baccess_array (mut, index_kind, index) ->
+      line i ppf "Baccess_array %a %a\n"
+        fmt_mutable_flag mut fmt_index_kind index_kind;
+      expression i ppf index
+  | Baccess_block (mut, index) ->
+      line i ppf "Baccess_block %a\n"
+        fmt_mutable_flag mut;
       expression i ppf index
 
 and unboxed_access i ppf = function

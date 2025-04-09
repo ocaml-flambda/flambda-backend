@@ -623,12 +623,8 @@ and function_constraint =
 
 and block_access =
   | Baccess_field of Longident.t loc
-  | Baccess_indexop of { f : expression; index : expression list }
-    (* CR rtjoa: chris: maybe f : longident *)
-    (** Invariant: [f] is always a [Pexp_ident].
-        Examples:
-        - [.(5)] corresponds to [f="Array.get"; i=[5]],
-        - [.:(5)] corresponds to [f=".:()"; i=[5]] *)
+  | Baccess_array of mutable_flag * index_kind * expression
+  | Baccess_block of mutable_flag * expression
 
 and unboxed_access =
   | Uaccess_unboxed_field of Longident.t loc

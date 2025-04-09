@@ -123,13 +123,56 @@ Error: This expression has type "('a t# t, 'a) imm_idx"
        Type "'a t#" is not compatible with type "int"
 |}]
 
-let (.%[;..]) = Bigarray.Genarray.get
-let f a = (.%[1;2;3])
-[%%expect{|
-val ( .%[;..] ) : ('a, 'b, 'c) Bigarray.Genarray.t -> int array -> 'a = <fun>
->> Fatal error: expected operator used in block index to be a primitive
-Uncaught exception: Misc.Fatal_error
+(**********)
+(* Arrays *)
 
+let idx_array x = (.idx_array(x))
+let idx_array_L x = (.idx_array_L(x))
+let idx_array_l x = (.idx_array_l(x))
+let idx_array_n x = (.idx_array_n(x))
+let idx_iarray x = (.idx_iarray(x))
+let idx_iarray_L x = (.idx_iarray_L(x))
+let idx_iarray_l x = (.idx_iarray_l(x))
+let idx_iarray_n x = (.idx_iarray_n(x))
+[%%expect{|
+val idx_array : int -> ('a array, 'a) mut_idx = <fun>
+val idx_array_L : int64# -> ('a array, 'a) mut_idx = <fun>
+val idx_array_l : int32# -> ('a array, 'a) mut_idx = <fun>
+val idx_array_n : nativeint# -> ('a array, 'a) mut_idx = <fun>
+val idx_iarray : int -> ('a iarray, 'a) imm_idx = <fun>
+val idx_iarray_L : int64# -> ('a iarray, 'a) imm_idx = <fun>
+val idx_iarray_l : int32# -> ('a iarray, 'a) imm_idx = <fun>
+val idx_iarray_n : nativeint# -> ('a iarray, 'a) imm_idx = <fun>
+|}]
+
+type r = { a : string }
+let a () = (.idx_array(5).#contents.#a)
+[%%expect{|
+type r = { a : string; }
+val a : unit -> (r# ref# array, string) mut_idx = <fun>
+|}]
+
+type t = { mutable a : string; b : int }
+let a () = (.idx_array(5).#a)
+[%%expect{|
+type t = { mutable a : string; b : int; }
+val a : unit -> (t# array, string) mut_idx = <fun>
+|}]
+
+type t1 = { mutable a : string; b : int }
+let b () = (.idx_iarray(5).#a)
+[%%expect{|
+type t1 = { mutable a : string; b : int; }
+val b : unit -> (t1# iarray, string) imm_idx = <fun>
+|}]
+
+let bad_index_type = (.idx_array("test"))
+[%%expect{|
+Line 169, characters 33-39:
+169 | let bad_index_type = (.idx_array("test"))
+                                       ^^^^^^
+Error: This expression has type "string" but an expression was expected of type
+         "int"
 |}]
 
 (****************)
@@ -154,96 +197,10 @@ val f : bool -> ('a r, int) imm_idx = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 147, characters 6-7:
-147 |     (.u.#x)
+Line 190, characters 6-7:
+190 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
 val f : bool -> ('a r, int) imm_idx = <fun>
-|}]
-
-(**********)
-(* Arrays *)
-
-external ( .:() )
-  :  ('a iarray[@local_opt])
-  -> int
-  -> ('a[@local_opt])
-  @@ portable
-  = "%array_safe_get"
-
-
-external ( .%() )
-  :  ('a : any_non_null). ('a iarray[@local_opt])
-  -> int
-  -> ('a[@local_opt])
-  @@ portable
-  = "%array_safe_get"
-[@@layout_poly]
-[%%expect{|
-external ( .:() ) : ('a iarray [@local_opt]) -> int -> ('a [@local_opt]) @@
-  portable = "%array_safe_get"
-external ( .%() ) :
-  ('a : any_non_null). ('a iarray [@local_opt]) -> int -> ('a [@local_opt])
-  @@ portable = "%array_safe_get" [@@layout_poly]
-|}]
-
-type r = { a : string }
-let a () = (.(5).#contents.#a)
-[%%expect{|
-type r = { a : string; }
-val a : unit -> (r# ref# array, string) mut_idx = <fun>
-|}]
-
-(* This is sad but correct - the fix is to change
-   [Array.get] in the stdlib to be layout polymorphic *)
-type t = { mutable a : string; b : int }
-let bad () = (.(5).#a)
-[%%expect{|
-type t = { mutable a : string; b : int; }
-Line 201, characters 20-21:
-201 | let bad () = (.(5).#a)
-                          ^
-Error: The index preceding this unboxed access has element type "'a",
-       which is not an unboxed record with field "a".
-|}]
-
-type t1 = { mutable a : string; b : int }
-let b () = (.%(5).#a)
-[%%expect{|
-type t1 = { mutable a : string; b : int; }
-val b : unit -> (t1# iarray, string) imm_idx = <fun>
-|}]
-
-let bad_index_type = (.("test"))
-[%%expect{|
-Line 225, characters 24-30:
-225 | let bad_index_type = (.("test"))
-                              ^^^^^^
-Error: This expression has type "string" but an expression was expected of type
-         "int"
-|}]
-
-(***********************)
-(* Abstract index type *)
-
-module M : sig
-  type index
-  val i : index
-  external ( .:() ) : 'a array -> index -> 'a = "%array_safe_get"
-end = struct
-  type index = int
-  let i = 0
-  external ( .:() ) : 'a array -> index -> 'a = "%array_safe_get"
-end
-
-let f () = (.M.:(M.i))
-[%%expect{|
-module M :
-  sig
-    type index
-    val i : index
-    external ( .:() ) : 'a array -> index -> 'a = "%array_safe_get"
-  end
-val f : unit -> ('a array, 'a) mut_idx = <fun>
 |}]
