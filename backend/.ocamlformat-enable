@@ -1,4 +1,6 @@
+; CR-soon gyorsh: format all files under arm64/amd64
 amd64/cfg_selection.ml
+amd64/emit.ml
 amd64/selection.ml
 amd64/selection_utils.ml
 amd64/simd*.ml
@@ -6,6 +8,7 @@ amd64/stack_check.ml
 amd64/stack_class.ml
 amd64/vectorize_specific.ml
 arm64/cfg_selection.ml
+arm64/emit.ml
 arm64/selection.ml
 arm64/selection_utils.ml
 arm64/simd*.ml
