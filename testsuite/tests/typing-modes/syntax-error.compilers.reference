@@ -152,8 +152,8 @@ Line 2, characters 16-19:
 2 | module type S = sig
                     ^^^
   This "sig" might be unmatched
-Line 2, characters 31-32:
+Line 2, characters 10-32:
 2 | let foo = ("bar" :> int @ local);;
-                                   ^
-Error: Syntax error
+              ^^^^^^^^^^^^^^^^^^^^^^
+Error: Syntax error: "mode annotations" not expected.
 

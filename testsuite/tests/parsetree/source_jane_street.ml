@@ -761,6 +761,23 @@ Line 1, characters 12-20:
 Error: Mode annotations on modules are not supported yet.
 |}]
 
+module (G @ portable) () = F
+
+[%%expect{|
+Line 1, characters 12-20:
+1 | module (G @ portable) () = F
+                ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module (G' @ portable) = F
+[%%expect{|
+Line 1, characters 13-21:
+1 | module (G' @ portable) = F
+                 ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
 module rec (F @ portable) () = struct end
 and (G @ portable) () = struct end
 [%%expect{|

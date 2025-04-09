@@ -3487,8 +3487,12 @@ type_constraint:
   | COLON core_type_with_optional_modes {
     let cty, mm = $2 in
     Pconstraint cty, mm }
-  | COLON core_type COLONGREATER core_type      { Pcoerce (Some $2, $4), [] }
-  | COLONGREATER core_type                      { Pcoerce (None, $2), [] }
+  | COLON core_type COLONGREATER core_type_with_optional_modes {
+    let cty, mm = $4 in
+    Pcoerce (Some $2, cty), mm }
+  | COLONGREATER core_type_with_optional_modes {
+    let cty, mm = $2 in
+    Pcoerce (None, cty), mm }
   | COLON error                                 { syntax_error() }
   | COLONGREATER error                          { syntax_error() }
 ;
