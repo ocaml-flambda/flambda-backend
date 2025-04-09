@@ -501,7 +501,7 @@ core libraries)—but let's see one example of trying to break it:
 
 ```ocaml
 let beat_the_system par =
-  let t @ uncontended = { price = 42.0; mood = Neutral }
+  let t = { price = 42.0; mood = Neutral }
   let (), () =
     Parallel.fork_join2 par (fun _par -> cheer_up t) (fun _par -> bum_out t)
   in
@@ -719,32 +719,93 @@ treating the value as `contended`.
 
 ### The `portable` and `nonportable` modes
 
-The `contended` mode is crucial: as we said before, its [rule 1] and [rule 2]
-_are_ data-race freedom. That rule 1 leaves an important question unanswered,
-however: how do we prevent parallel `uncontended` accesses?
+As we said before, [rule 1] and [rule 2] of `contended` give us data-race
+freedom—assuming we can enforce them, that is. The compiler's type checker can
+just raise an error when rule 2 is violated, but rule 1 is a bit squishier. To
+reiterate:
+
+> **Rule 1 of `contended`.** If multiple accesses of the same value may occur
+> in parallel, at most one of them may consider the value `uncontended`. The
+> others must consider it `contended`.
 
 [rule 1]: #rule-contended-parallel
 [rule 2]: #rule-contended-mutable
 
-Let's look again at our attempt to get fork/join to cause a data race:
+<!-- [This is making it hard rather than easy]
+
+We've seen that `Parallel.fork_join2` provides parallelism while enforcing this
+rule. How does it manage that? Let's look again at our attempt to sneak a data
+race by it, adding a few things for illustration:[^data-races-are-really-bad]
 
 ```ocaml
 let beat_the_system par =
   let t @ uncontended = { price = 42.0; mood = Neutral }
+  cheer_up t; (* line A *)
   let (), () =
-    Parallel.fork_join2 par (fun _par -> cheer_up t) (fun _par -> bum_out t)
+    Parallel.fork_join2 par
+      (fun _par -> cheer_up t) (* line B *)
+      (fun _par -> bum_out t)
+  in
+  cheer_up t (* line C *)
+```
+
+[^data-races-are-really-bad]: You may think that the additional calls to
+`cheer_up` make the data race benign: surely in the end `mood t` will always be
+`Happy`? Unfortunately, data races aren't so well-behaved: it's entirely
+possible for the writes to get reordered so that `Sad` is the final value.
+
+The call to `cheer_up` on line A is clearly fine: we've just created `t` so it's
+obviously uncontended. The call on line C is 
+
+**[Exercise idea: change `fork_join2` to `fork_but_don't_join2`. Should line C
+now be an error? (In the sense of causing a rule 1 violation?) No, because there
+are other domains but they all consider `t` uncontended.]**
+
+Where exactly does this code do something wrong? At first, `t` is surely
+uncontended (that is, its `uncontended` designation is accurate): it's just been
+created, so no one else can be accessing it in parallel. We could add a call to
+`cheer_up` there if we wanted. But the call to `cheer_up t` in the argument to
+`fork_join2` is a problem because _that_ code _may[^or-same-domain] run in
+another domain._
+-->
+
+**[I can't tell whether this is belaboring the point a bit. The arguments to
+`fork_join2` shouldn't assume things are `uncontended`. Do I need to spell
+things out this much?]**
+
+We've seen that `Parallel.fork_join2` provides parallelism while enforcing this
+rule. How does it manage that? Let's look again at our attempt to sneak a data
+race by it, adding a few things for illustration:
+
+```ocaml
+let beat_the_system par =
+  let t @ uncontended = { price = 42.0; mood = Neutral }
+  cheer_up t; (* line A *)
+  let (), () =
+    Parallel.fork_join2 par
+      (fun _par -> cheer_up t) (* line B *)
+      (fun _par -> bum_out t) (* line C *)
   in
   ()
 ```
 
-Where do things go wrong? At first, `t` is surely uncontended (that is, its
-`uncontended` designation is accurate): it's just been created, so no one else
-can be accessing it in parallel. We could add a call to `cheer_up` there if we
-wanted. But the call to `cheer_up t` in the argument to `fork_join2` is a
-problem because _that_ code _may[^or-same-domain] run in another domain._
+Firstly, the new annotation on `t` should be uncontroversial: we just created
+`t`, so clearly there aren't any parallel accesses at all, much less
+`uncontended` accesses. Accordingly, the access on line A is fine: it sees `t`
+as `uncontended` and it is. On the other hand, the access from line B is clearly
+bad: that code might[^or-same-domain] be running in parallel (in particular, in
+parallel with line C), and it's still assuming `t` is `uncontended` (as is line
+C).
 
-[^or-same-domain]: We say “may” because `Parallel.fork_join2` may choose not to
-run the tasks in parallel. The compiler, as usual, has to be pessimistic.
+[^or-same-domain]: We say “might” because `Parallel.fork_join2` may choose not
+to run the tasks in parallel. The compiler, as usual, has to be pessimistic.
+
+In summary, the arguments to `fork_join2`
+
+1. need to be designated as “this might run in any domain,” and they
+2. should not be allowed to consider `t` to be `uncontended`.
+
+<!--
 
 As with [`contended`], we can identify two elements of the crime:
 
@@ -754,6 +815,10 @@ As with [`contended`], we can identify two elements of the crime:
 2. That code assumes that something is `uncontended`.
 
 And as before, we can synthesize these into two rules:
+-->
+
+As you might have guessed, this is exactly what the `portable` mode is for. Both
+arguments to `fork_join2` are required to be `portable`, and we have two rules:
 
 > **Rule 1.** Only a `portable` value is safe to access from outside the domain
 > that created it.
@@ -763,16 +828,6 @@ And as before, we can synthesize these into two rules:
 > definition, then (a) that value must be `portable`, and (b) the value
 > is treated as `contended`.
 
-Even though `portable` is concerned with functions, not data, both of these
-rules refer to accessing values in general. There are two reasons for this:
-datatypes like records and arrays can contain functions (that is, you
-could hide a nonportable function [in a trenchcoat]); and an unknown type
-like `'a` could turn out to be a function type. Both of these concerns push us
-to forbid _all accesses_, not just function calls. However, in most cases
-`portable` is only relevant for functions (and other code types like `Lazy.t`).
-In fact, most datatypes are simply always `portable`, and the compiler will
-ignore portability requirements for any such type it's aware of, as we'll see
-when we cover [mode crossing].
 
 **[Seems worth observing somewhere that `portable` and `contended` codify the
 maxim that “thread-safe code doesn't have uncontrolled access to shared
@@ -795,10 +850,10 @@ let (factorial @ portable) i =
 
 As before, `a` is `uncontended` because it was just created. We can have
 `factorial` access `a` because it's allowed to treat things _inside_ its
-definition as `uncontended`. (Note that a `ref` is just a record with a single
-`mutable` field, so `!a` requires `uncontended` as always.) On the other hand,
-if we try and mark `loop` as `portable`, the compiler sees that `a` is defined
-_outside_ of `loop`, so `a := !a * i` gets hit with the familiar
+definition as `uncontended`. (Note that a `ref` is just a record whose only
+field is `mutable` field, so `!a` requires `uncontended` as always.) On the
+other hand, if we try and mark `loop` as `portable`, the compiler sees that `a`
+is defined _outside_ of `loop`, so `a := !a * i` gets hit with the familiar
 
 ```
 This value is contended but expected to be uncontended.
@@ -839,8 +894,8 @@ By expressing the requirement on `a` in its type, `loop'` makes its caller take
 on the responsibility of providing an `uncontended` value. In contrast, `loop`
 advertises nothing—or rather, its being `nonportable` advertises that it
 requires _some unknown number of `uncontended` values._ The caller can't hope
-to provide that, so in general you can't call an `nonportable` function unless
-you know you can access all the same `uncontended` value that it can (which is
+to provide that, so in general you can't call a `nonportable` function unless
+you know you can access all the same `uncontended` values that it can (which is
 to say, unless you know you're in the same domain).
 
 Of course, making `loop` `portable` raises a question: Can we now use
@@ -850,12 +905,61 @@ down is a bit subtle. It is instructive, though, so the interested reader is
 encouraged to try it as an exercise: if `loop'` tries to call itself via
 `Parallel.fork_join2`, what error does the compiler raise and why?
 
-[in a trenchcoat]: #code-cheer_up_sneakily
-[mode crossing]: #mode-crossing
+Just as it's safe to forget a value's privileged `uncontended` status and
+downgrade it to `contended`, there's no danger in treating something `portable`
+as if it's `nonportable`:
 
 > **Rule 3.** A `portable` value may be treated as `nonportable`.
 
-> **Rule 4.** Every component of a `portable` value must be `portable`.
+And also for similar reasons as before, we need `portable` to be deep the way
+`contended` is:
+
+> **Rule 4a.** Every component of a `portable` value must be `portable`.
+
+You may have been wondering why rule 2 talks about accessing values rather than
+calling functions, even though `portable` really only cares about
+functions[^other-code-types], and this is the main reason: the record could be a
+function [in a trenchcoat]. (The other, more subtle, reason is that a value of
+type `'a` could still end up being a function.) So we have to forbid _all
+accesses_ of `nonportable` values from other domains, not just function calls.
+The good news is that many types (in fact, most types) obviously _can't_ cause
+a problem—you'll never make an `(int * string option) list` that contains a
+function, much less one that will cause a data race—and if the compiler is
+aware, it can ignore portability requirements altogether for values of a given
+type. We'll cover the specifics when we get to [mode crossing].
+
+[^other-code-types]: Note that some other types are secretly function types,
+especially `Lazy.t`, so `portable` is also a concern for them.
+
+[in a trenchcoat]: #code-cheer_up_sneakily
+[mode crossing]: #mode-crossing
+
+Lastly, `nonportable` is “deep by default” the way `uncontended` is, with
+a `@@ portable` modality:
+
+**[Oh right, I still need to remove the access/construction distinction from
+the `contended` discussion, as well as rule 4b. Also this 4b should go.
+Actually this 4b is ridiculous.]**
+
+> **Rule 4b.** On construction, every component of a `nonportable` value must be
+> `portable` if the type declares the component to be `@@ portable`.
+
+<!--
+Even though `portable` is concerned with functions, not data, both of these
+rules refer to accessing values in general. There are two reasons for this:
+datatypes like records and arrays can contain functions (that is, you
+could hide a nonportable function [in a trenchcoat]); and an unknown type
+like `'a` could turn out to be a function type. Both of these concerns push us
+to forbid _all accesses_, not just function calls. However, in most cases
+`portable` is only relevant for functions (and other code types like `Lazy.t`).
+In fact, most datatypes are simply always `portable`, and the compiler will
+ignore portability requirements for any such type it's aware of, as we'll see
+when we cover [mode crossing].
+
+[in a trenchcoat]: #code-cheer_up_sneakily
+[mode crossing]: #mode-crossing
+-->
+
 
 <!-- ugh, let's try writing `uncontended` first ...
 ### The `contended` mode
