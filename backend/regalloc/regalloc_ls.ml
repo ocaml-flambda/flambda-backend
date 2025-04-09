@@ -140,18 +140,21 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
     | num_available_registers ->
       let available = Array.make num_available_registers true in
       let num_still_available = ref num_available_registers in
-      let set_not_available r =
+      let set_not_available (r : int) : unit =
         let idx = r - first_available in
         if available.(idx) then decr num_still_available;
         available.(idx) <- false;
         if !num_still_available = 0 then raise No_free_register
       in
-      List.iter intervals.active ~f:(fun (interval : Interval.t) ->
-          match interval.reg.loc with
-          | Reg r ->
-            if r - first_available < num_available_registers
-            then set_not_available r
-          | Stack _ | Unknown -> ());
+      let set_not_available_if_valid_phys_reg (interval : Interval.t) : unit =
+        match interval.reg.loc with
+        | Reg r ->
+          if r - first_available < num_available_registers
+          then set_not_available r
+        | Stack _ | Unknown -> ()
+      in
+      List.iter intervals.active_list ~f:set_not_available_if_valid_phys_reg;
+      DLL.iter intervals.active_dll ~f:set_not_available_if_valid_phys_reg;
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
         | Reg r ->
@@ -161,8 +164,10 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           then set_not_available r
         | Stack _ | Unknown -> ()
       in
-      List.iter intervals.inactive ~f:remove_bound_overlapping;
-      List.iter intervals.fixed ~f:remove_bound_overlapping;
+      List.iter intervals.inactive_list ~f:remove_bound_overlapping;
+      DLL.iter intervals.inactive_dll ~f:remove_bound_overlapping;
+      List.iter intervals.fixed_list ~f:remove_bound_overlapping;
+      DLL.iter intervals.fixed_dll ~f:remove_bound_overlapping;
       let rec assign idx =
         if idx >= num_available_registers
         then Misc.fatal_error "No_free_register should have been raised earlier"
@@ -170,8 +175,9 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         then (
           reg.loc <- Reg (first_available + idx);
           reg.spill <- false;
-          intervals.active
-            <- Interval.List.insert_sorted intervals.active interval;
+          intervals.active_list
+            <- Interval.List.insert_sorted intervals.active_list interval;
+          Interval.DLL.insert_sorted intervals.active_dll interval;
           if debug
           then (
             indent ();
@@ -188,7 +194,7 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
   let reg = interval.reg in
   let reg_class = Proc.register_class reg in
   let intervals = State.active state ~reg_class in
-  match intervals.active with
+  match intervals.active_list with
   | hd :: tl ->
     let chk r =
       assert (same_reg_class r.Interval.reg hd.Interval.reg);
@@ -196,12 +202,17 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
     in
     if hd.end_ > interval.end_
        && not
-            (List.exists ~f:chk intervals.fixed
-            || List.exists ~f:chk intervals.inactive)
+            (List.exists ~f:chk intervals.fixed_list
+            || List.exists ~f:chk intervals.inactive_list)
     then (
       (match hd.reg.loc with Reg _ -> () | Stack _ | Unknown -> assert false);
       interval.reg.loc <- hd.reg.loc;
-      intervals.active <- Interval.List.insert_sorted tl interval;
+      intervals.active_list <- Interval.List.insert_sorted tl interval;
+      (match DLL.hd_cell intervals.active_dll with
+      | None -> assert false
+      | Some cell ->
+        DLL.delete_curr cell;
+        Interval.DLL.insert_sorted intervals.active_dll interval);
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
   | [] -> allocate_stack_slot reg
