@@ -76,13 +76,10 @@ let is_delayed = function
       ( Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists
       | Debug_rnglists | Debug_addr | Debug_loc | Debug_ranges )
   (* CR sspies: Decide which of these are delayed. *)
-  | Data ->
-    Misc.fatal_error "Not yet implemented"
-  | Read_only_data -> Misc.fatal_error "Not yet implemented"
-  | Eight_byte_literals -> Misc.fatal_error "Not yet implemented"
-  | Sixteen_byte_literals -> Misc.fatal_error "Not yet implemented"
-  | Jump_tables -> Misc.fatal_error "Not yet implemented"
-  | Text -> false
+  (* FIXME: Except for [Text], these are just a guess. *)
+  | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
+  | Jump_tables | Text ->
+    false
 
 let details t ~first_occurrence =
   let names, flags, args =
