@@ -92,7 +92,7 @@ let env_find_regs_for_exception_extra_args id env =
 
 let env_find_static_exception id env =
   try Int.Map.find id env.static_exceptions
-  with Not_found -> Misc.fatal_errorf "Not found statc exception id=%d" id
+  with Not_found -> Misc.fatal_errorf "Not found static exception id=%d" id
 
 let env_enter_trywith env id label =
   let env, _ = env_add_static_exception id [] env label in
