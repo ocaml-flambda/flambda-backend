@@ -5,6 +5,8 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
+val equal_list_dll : ('a -> 'a -> bool) -> 'a list -> 'a DLL.t -> bool
+
 val indent : unit -> unit
 
 val dedent : unit -> unit
@@ -76,6 +78,14 @@ module Interval : sig
 
     val insert_sorted : t DLL.t -> t -> unit
   end
+
+  module DLL : sig
+    val print : Format.formatter -> t DLL.t -> unit
+
+    val release_expired_fixed : t DLL.t -> pos:int -> unit
+
+    val insert_sorted : t DLL.t -> t -> unit
+  end
 end
 
 module ClassIntervals : sig
@@ -95,6 +105,8 @@ module ClassIntervals : sig
   val clear : t -> unit
 
   val release_expired_intervals : t -> pos:int -> unit
+
+  val check_consistency : t -> string -> unit
 end
 
 val log_interval : kind:string -> Interval.t -> unit

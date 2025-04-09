@@ -27,7 +27,7 @@ open Misc
 open Arch
 open Proc
 open Reg
-open Simple_operation
+open! Operation
 open Linear
 open Emitaux
 
@@ -229,7 +229,7 @@ end [@warning "-32"]  = struct
       assert (not !Clflags.dlcode);  (* see selection.ml *)
       mem_symbol ~base:index ~symbol:(convert_symbol_representation s) ~offset:ofs
 
-  let emit_stack (r: t) =
+  let emit_stack (r: Reg.t) =
     match r.loc with
     | Stack (Domainstate n) ->
         let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
@@ -991,7 +991,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       DSL.ins I.CMP [| DSL.emit_reg reg_alloc_ptr; DSL.emit_reg reg_tmp1 |];
       if not far then begin
-        DSL.ins (I.B_cond LO) [| DSL.emit_label lbl_call_gc |]
+        DSL.ins (I.B_cond CC) [| DSL.emit_label lbl_call_gc |]
       end else begin
         let lbl = Cmm.new_label () in
         DSL.ins (I.B_cond CS) [| DSL.emit_label lbl |];
@@ -1311,7 +1311,6 @@ let emit_instr i =
             cfi_remember_state ();
             cfi_def_cfa_register ~reg:29;
             let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-            (* CR sspies: This code seems to be never triggered. It contained a wrong assembly instruction. *)
             DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
               DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_tmp1 |]
           end;
@@ -1626,11 +1625,11 @@ let emit_instr i =
     | Lpushtrap { lbl_handler; } ->
         DSL.ins I.ADR [| DSL.emit_reg reg_tmp1; DSL.emit_label lbl_handler |];
         stack_offset := !stack_offset + 16;
-        emit_printf "	stp	%a, %a, [sp, -16]!\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
+        emit_printf "	stp	%a, %a, [sp, #-16]!\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
         cfi_adjust_cfa_offset 16;
         DSL.ins I.MOV [| DSL.emit_reg reg_trap_ptr; DSL.sp |]
     | Lpoptrap ->
-        emit_printf "	ldr	%a, [sp], 16\n" femit_reg reg_trap_ptr;
+        emit_printf "	ldr	%a, [sp], #16\n" femit_reg reg_trap_ptr;
         cfi_adjust_cfa_offset (-16);
         stack_offset := !stack_offset - 16
     | Lraise k ->
@@ -1646,7 +1645,7 @@ let emit_instr i =
           emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
         | Lambda.Raise_notrace ->
           DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_trap_ptr |];
-          emit_printf "	ldp	%a, %a, [sp], 16\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
+          emit_printf "	ldp	%a, %a, [sp], #16\n" femit_reg reg_trap_ptr femit_reg reg_tmp1;
           DSL.ins I.BR [| DSL.emit_reg reg_tmp1 |];
       end
     | Lstackcheck { max_frame_size_bytes; } ->
@@ -1659,7 +1658,7 @@ let emit_instr i =
       DSL.ins I.LDR [| DSL.emit_reg reg_tmp1; DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr |];
       emit_addimm reg_tmp1 reg_tmp1 f;
       DSL.ins I.CMP [| DSL.sp; DSL.emit_reg reg_tmp1 |];
-      DSL.ins I.BCC [| DSL.emit_label overflow |];
+      DSL.ins (I.B_cond CC) [| DSL.emit_label overflow |];
       emit_printf "%a:" femit_label ret;
       stack_realloc := Some {
         sc_label = overflow;

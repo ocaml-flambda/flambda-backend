@@ -558,7 +558,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
     | W16 -> Some (Operation.Specific (Isimd (SSE2 Mullo_i16)))
     | W8 -> None
   in
-  let vectorize_intop (intop : Simple_operation.integer_operation) =
+  let vectorize_intop (intop : Operation.integer_operation) =
     match intop with
     | Iadd -> Option.bind add_op (make_default ~arg_count ~res_count)
     | Isub ->

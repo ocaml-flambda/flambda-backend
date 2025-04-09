@@ -134,7 +134,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
   (* Says whether an integer constant is a suitable immediate argument for the
      given integer operation *)
 
-  let is_immediate (op : Simple_operation.integer_operation) n =
+  let is_immediate (op : Operation.integer_operation) n =
     match Target.is_immediate op n with
     | Is_immediate result -> result
     | Use_default -> (
@@ -149,8 +149,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
 
   (* Instruction selection for conditionals *)
 
-  let select_condition (arg : Cmm.expression) :
-      Simple_operation.test * Cmm.expression =
+  let select_condition (arg : Cmm.expression) : Operation.test * Cmm.expression
+      =
     match arg with
     | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
       when is_immediate_test (Isigned cmp) n ->
@@ -217,7 +217,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
 
   (* Default instruction selection for integer operations *)
 
-  let select_arith_comm (op : Simple_operation.integer_operation)
+  let select_arith_comm (op : Operation.integer_operation)
       (args : Cmm.expression list) :
       Cfg.basic_or_terminator * Cmm.expression list =
     match args with
@@ -227,7 +227,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       SU.basic_op (Intop_imm (op, n)), [arg]
     | _ -> SU.basic_op (Intop op), args
 
-  let select_arith (op : Simple_operation.integer_operation)
+  let select_arith (op : Operation.integer_operation)
       (args : Cmm.expression list) :
       Cfg.basic_or_terminator * Cmm.expression list =
     match args with
@@ -235,15 +235,14 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       SU.basic_op (Intop_imm (op, n)), [arg]
     | _ -> SU.basic_op (Intop op), args
 
-  let select_arith_comp (cmp : Simple_operation.integer_comparison)
+  let select_arith_comp (cmp : Operation.integer_comparison)
       (args : Cmm.expression list) :
       Cfg.basic_or_terminator * Cmm.expression list =
     match args with
-    | [arg; Cconst_int (n, _)] when is_immediate (Simple_operation.Icomp cmp) n
-      ->
+    | [arg; Cconst_int (n, _)] when is_immediate (Operation.Icomp cmp) n ->
       SU.basic_op (Intop_imm (Icomp cmp, n)), [arg]
     | [Cconst_int (n, _); arg]
-      when is_immediate (Simple_operation.Icomp (SU.swap_intcomp cmp)) n ->
+      when is_immediate (Operation.Icomp (SU.swap_intcomp cmp)) n ->
       SU.basic_op (Intop_imm (Icomp (SU.swap_intcomp cmp), n)), [arg]
     | _ -> SU.basic_op (Intop (Icomp cmp)), args
 
@@ -1425,8 +1424,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         in
         build_all_reachable_handlers ~already_built ~not_built
     in
-    let new_handlers :
-        (int * Simple_operation.trap_stack * Sub_cfg.t * bool) list =
+    let new_handlers : (int * Operation.trap_stack * Sub_cfg.t * bool) list =
       build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
       (* Note: we're dropping unreachable handlers here *)
     in

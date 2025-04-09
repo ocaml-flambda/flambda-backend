@@ -464,7 +464,6 @@
   simd_selection
   simd_reload
   simd_proc
-  simple_operation
   stack_check
   sub_cfg
   reg
@@ -534,6 +533,7 @@
   regalloc_split_utils
   regalloc_stack_operands
   regalloc_stack_slots
+  regalloc_substitution
   regalloc_utils
   regalloc_validate
   ;; file_formats/
