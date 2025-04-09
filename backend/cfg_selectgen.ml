@@ -29,6 +29,9 @@ module SU = Select_utils
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
+(* CR-soon gyorsh: This functor must not have state, because it is instantiated
+   twice with the same [Target] (see [Asmgen] and [Peephole_utils] to avoid
+   dependency cycles. *)
 module Make (Target : Cfg_selectgen_target_intf.S) = struct
   (* A syntactic criterion used in addition to judgements about (co)effects as
      to whether the evaluation of a given expression may be deferred by
