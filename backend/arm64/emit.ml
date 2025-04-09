@@ -77,14 +77,6 @@ let emit_symbol_size sym =
     emit_printf "	.size	%a, .-%a\n" femit_symbol sym femit_symbol sym
   end
 
-(* Output a pseudo-register *)
-let femit_reg out = function
-    {loc = Reg r; typ; _} -> femit_string out (register_name typ r)
-  | {loc = (Stack _ | Unknown); _}  -> fatal_error "Emit.emit_reg"
-
-
-
-
 
 (* Likewise, but with the 32-bit name of the register *)
 
@@ -235,7 +227,6 @@ end [@warning "-32"]  = struct
 
   let emit_reg_d reg = reg_d (reg_index reg)
 
-  (* FIXME: Is this using an array to increase sharing in the DSL? *)
   let emit_reg reg =
     let index = reg_index reg in
     (* use machtype to select register name *)
@@ -523,9 +514,9 @@ let record_frame_label live dbg =
     ~live_offset:!live_offset dbg;
   lbl
 
-(* CR sspies: turn this back into a non-format version *)
-let frecord_frame out (live, dbg) =
-  let lbl = record_frame_label live dbg in Printf.fprintf out "%a:" femit_label lbl
+let record_frame live dbg =
+  let lbl = record_frame_label live dbg in
+  emit_printf "%a:\n" femit_label lbl
 
 
 (* Record calls to the GC -- we've moved them out of the way *)
@@ -1360,10 +1351,10 @@ let emit_instr i =
         emit_load_symbol_addr i.res.(0) s.sym_name
     | Lcall_op(Lcall_ind) ->
         DSL.ins I.BLR [| DSL.emit_reg i.arg.(0) |];
-        emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
+        record_frame i.live (Dbg_other i.dbg)
     | Lcall_op(Lcall_imm { func; }) ->
         DSL.ins I.BL [| DSL.emit_symbol func.sym_name |];
-        emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
+        record_frame i.live (Dbg_other i.dbg)
     | Lcall_op(Ltailcall_ind) ->
         output_epilogue (fun () -> DSL.ins I.BR [| DSL.emit_reg i.arg.(0) |])
     | Lcall_op(Ltailcall_imm { func; }) ->
@@ -1380,11 +1371,11 @@ let emit_instr i =
           DSL.ins I.ADD [| DSL.emit_reg reg_stack_arg_end; DSL.sp; DSL.imm (Misc.align stack_ofs 16) |];
           emit_load_symbol_addr reg_x8 func;
           DSL.ins I.BL [| DSL.emit_symbol "caml_c_call_stack_args" |];
-          emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
+          record_frame i.live (Dbg_other i.dbg)
         end else if alloc then begin
           emit_load_symbol_addr reg_x8 func;
           DSL.ins I.BL [| DSL.emit_symbol "caml_c_call" |];
-          emit_printf "%a\n" frecord_frame (i.live, Dbg_other i.dbg)
+          record_frame i.live (Dbg_other i.dbg)
         end else begin
           (* store ocaml stack in the frame pointer register
              NB: no need to store previous x29 because OCaml frames don't
@@ -1723,13 +1714,13 @@ let emit_instr i =
         begin match k with
         | Lambda.Raise_regular ->
           DSL.ins I.BL [| DSL.emit_symbol "caml_raise_exn" |];
-          emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
+          record_frame Reg.Set.empty (Dbg_raise i.dbg)
         | Lambda.Raise_reraise ->
           if Config.runtime5 then
             DSL.ins I.BL [| DSL.emit_symbol "caml_reraise_exn" |]
           else
             DSL.ins I.BL [| DSL.emit_symbol "caml_raise_exn" |];
-          emit_printf "%a\n" frecord_frame (Reg.Set.empty, Dbg_raise i.dbg)
+          record_frame Reg.Set.empty (Dbg_raise i.dbg)
         | Lambda.Raise_notrace ->
           DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_trap_ptr |];
           DSL.ins I.LDP [| DSL.emit_reg reg_trap_ptr; DSL.emit_reg reg_tmp1; DSL.mem ~base:Arm64_ast.Reg.sp; DSL.imm 16 |];
