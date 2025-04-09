@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+A-4-9-69"]
 
+open! Int_replace_polymorphic_compare
 open X86_ast
 open X86_proc
 module String = Misc.Stdlib.String
@@ -275,11 +276,13 @@ let eval_const b current_pos cst =
       (*(X86_gas.string_of_constant cst)*) (Printexc.to_string e);
     raise e
 
-let is_imm32L n = n < 0x8000_0000L && n >= -0x8000_0000L
+let is_imm32L n = Int64.compare n 0x8000_0000L < 0 && Int64.compare n (-0x8000_0000L) >= 0
 
-let is_imm8L x = x < 128L && x >= -128L
+let is_imm8L x = Int64.compare x 128L < 0 && Int64.compare x (-128L) >= 0
 
-let is_imm16L n = n < 32768L && n >= -32768L
+let is_imm16L n = Int64.compare n 32768L < 0 && Int64.compare n (-32768L) >= 0
+
+let is_x86 = function | X86 -> true | X64 -> false
 
 let rd_of_regf regf =
   match regf with
@@ -380,14 +383,14 @@ let record_reloc b offset_from_section_beginning kind =
 
 let declare_label b s =
   let sy = get_symbol b s in
-  assert (sy.sy_pos = None);
+  assert (Option.is_none sy.sy_pos);
   let pos = Buffer.length b.buf in
   sy.sy_pos <- Some pos
 
 let buf_opcodes b opcodes =
   ListLabels.iter ~f:(fun opcode -> buf_int8 b opcode) opcodes
 
-let arch64 = Config.architecture = "amd64"
+let arch64 = String.equal Config.architecture "amd64"
 
 let emit_rex b rexcode =
   if arch64 && rexcode <> 0 then buf_int8 b (rexcode lor rex)
@@ -478,7 +481,7 @@ let emit_prefix_modrm b opcodes rm reg ~prefix =
       let idx_reg = idx in
       let idx = rd_of_reg64 idx in
       if scale = 0 then (
-        assert (base = None && arch = X86);
+        assert (Option.is_none base && (is_x86 arch));
         match offset with
         | OImm8 _ -> assert false
         | OImm32 (sym, offset) ->
@@ -1455,7 +1458,7 @@ let emit_reloc_jump near_opcodes far_opcodes b loc symbol =
       in
 
       (*      Printf.printf "%s/%i: backward  togo_short=%Ld\n%!" symbol loc togo_short; *)
-      if togo_short >= -128L && togo_short < 128L then (
+      if Int64.compare togo_short (-128L)  >= 0 && Int64.compare togo_short 128L < 0 then (
         buf_opcodes b near_opcodes;
         buf_int8L b togo_short)
       else (
@@ -1480,7 +1483,7 @@ let emit_reloc_jump near_opcodes far_opcodes b loc symbol =
         Printf.printf "%s/%i: short\n%!" symbol loc;
 *)
       let force_far =
-        Int64.of_int ((target_loc - loc) * !instr_size) >= 120L
+        Int64.compare (Int64.of_int ((target_loc - loc) * !instr_size)) 120L >= 0
         || IntSet.mem loc !forced_long_jumps
       in
       if force_far then (
@@ -2164,8 +2167,8 @@ let assemble_line b loc ins =
     | External (_, _) -> ()
     | Set (_, _) -> assert false
     | Section _ -> assert false
-    | Mode386 -> assert (system = S_win32)
-    | Model _ -> assert (system = S_win32)
+    | Mode386 -> assert (is_win32 system)
+    | Model _ -> assert (is_win32 system)
     | Cfi_startproc -> ()
     | Cfi_endproc -> ()
     | Cfi_adjust_cfa_offset _ -> ()

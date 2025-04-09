@@ -14,6 +14,7 @@
 
 (* Insert instrumentation for afl-fuzz *)
 
+open! Int_replace_polymorphic_compare
 open Cmm
 
 module V = Backend_var

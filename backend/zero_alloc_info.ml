@@ -1,3 +1,4 @@
+open! Int_replace_polymorphic_compare
 module String = Misc.Stdlib.String
 
 type t = { mutable zero_alloc : int String.Map.t }

@@ -14,6 +14,8 @@
 (**************************************************************************)
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
+open! Int_replace_polymorphic_compare
+
 type label = Cmm.label
 
 type instruction =

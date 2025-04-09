@@ -10,6 +10,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open Cmm
 open Cmm_helpers
 module CU = Compilation_unit
@@ -117,7 +118,8 @@ module Tbl0 = struct
   let entries t : Cmx_format.generic_fns =
     let sorted_keys tbl =
       let keys = Hashtbl.fold (fun k () acc -> k :: acc) tbl [] in
-      List.sort compare keys
+      (* CR-soon xclerc for xclerc: avoid polymorphic compare *)
+      List.sort Stdlib.compare keys
     in
     { curry_fun = sorted_keys t.curry;
       apply_fun = sorted_keys t.apply;
