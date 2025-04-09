@@ -27,13 +27,13 @@ let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
 
-let is_immediate_for_intop op n =
-  (* CR-soon gyorsh: This functor is also instantiated in
-     [Asmgen.compile_fundecl]. Find a shared place to put it, instead of
-     instantiating twice. May require restructuring the backend to avoid
-     dependency cycles. *)
-  let module Cfg_selection = Cfg_selectgen.Make (Cfg_selection) in
-  Cfg_selection.is_immediate op n
+(* CR-soon gyorsh: This functor is also instantiated in
+   [Asmgen.compile_fundecl]. Find a shared place to put it, instead of
+   instantiating twice. May require restructuring the backend to avoid
+   dependency cycles. *)
+module Cfg_selection = Cfg_selectgen.Make (Cfg_selection)
+
+let is_immediate_for_intop op n = Cfg_selection.is_immediate op n
 
 let assert_within_range integer_operation imm =
   if not (is_immediate_for_intop integer_operation imm)
