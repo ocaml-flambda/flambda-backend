@@ -17,9 +17,9 @@ external reraise : exn -> 'a @ portable = "%reraise"
 
 type 'a myref = { mutable v : 'a }
 
-let mk_ref : ('a -> 'a myref) @@ portable = fun v -> {v}
-let read_ref : ('a : value mod portable) .
-  ('a myref -> 'a @ portable contended) @@ portable = fun r -> r.v
+let mk_ref : ('a -> 'a myref) @ portable = fun v -> {v}
+let read_ref : (('a : value mod portable) .
+  ('a myref -> 'a @ portable contended)) @ portable = fun r -> r.v
 let write_ref : ('a : value mod portable contended) .
   'a -> ('a myref -> unit) @ portable = fun v r -> r.v <- v
 
