@@ -21,7 +21,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Static_cast _ | Probe_is_enabled _ | Opaque | Begin_region | End_region
       | Specific _ | Name_for_debugger _ | Dls_get | Poll | Alloc _ ->
         ())
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> ()
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> ()
   in
   let register_must_not_be_on_stack (id : InstructionId.t) (reg : Reg.t) : unit
       =

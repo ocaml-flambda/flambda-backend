@@ -119,7 +119,7 @@ let is_safe_basic : Cfg.basic Cfg.instruction -> bool =
  fun instr ->
   match[@ocaml.warning "-4"] instr.desc with
   | Op (Poll | Alloc _) -> true
-  | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+  | Op _ | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
     false
 
 let is_safe_terminator : Cfg.terminator Cfg.instruction -> bool =
@@ -188,7 +188,8 @@ module Polls_before_prtc_transfer = struct
       then Ok dom
       else Ok Always_polls
     | Op (Alloc _) -> Ok Always_polls
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _
+      ->
       Ok dom
    [@@ocaml.warning "-4"]
 
@@ -357,7 +358,7 @@ let add_poll_or_alloc_basic :
       points
     | Poll -> (Poll, instr.dbg) :: points
     | Alloc _ -> (Alloc, instr.dbg) :: points)
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> points
+  | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> points
 
 let add_calls_terminator :
     Cfg.terminator Cfg.instruction -> polling_points -> polling_points =
@@ -472,11 +473,7 @@ let instrument_fundecl :
       cfg.fun_contains_calls || added_poll || contains_polls cfg
     in
     let cfg = { cfg with fun_contains_calls = new_contains_calls } in
-    Cfg_with_layout.create cfg
-      ~layout:(Cfg_with_layout.layout cfg_with_layout)
-      ~preserve_orig_labels:
-        (Cfg_with_layout.preserve_orig_labels cfg_with_layout)
-      ~new_labels:(Cfg_with_layout.new_labels cfg_with_layout)
+    Cfg_with_layout.create cfg ~layout:(Cfg_with_layout.layout cfg_with_layout)
 
 let requires_prologue_poll :
     future_funcnames:Misc.Stdlib.String.Set.t ->
