@@ -86,7 +86,7 @@ run {| let foo : ('a -> 'a) @ portable = fun x -> x in foo |}
 "let (foo : 'a -> 'a) = ((fun x -> x : 'a -> 'a) : _ @ portable) in foo"
 |}];;
 
-run {| let foo : ('a . 'a -> 'a) @ portable = fun x -> x in foo |}
+run {| let foo : 'a . ('a -> 'a) @ portable = fun x -> x in foo |}
 
 [%%expect{|
 - : string = "let foo : ('a : value) . 'a -> 'a = fun x -> x in foo"

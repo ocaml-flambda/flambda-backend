@@ -19,15 +19,15 @@ Line 1, characters 4-33:
 Error: This value escapes its region.
 |}]
 
-let local_ foo : ('a. 'a -> 'a) @ unique = fun x -> x
+let local_ foo : 'a. ('a -> 'a) @ unique = fun x -> x
 [%%expect{|
 Line 1, characters 4-53:
-1 | let local_ foo : ('a. 'a -> 'a) @ unique = fun x -> x
+1 | let local_ foo : 'a. ('a -> 'a) @ unique = fun x -> x
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
-let foo : (type a. a -> a) @ unique = fun x -> x
+let foo : type a. (a -> a) @ unique = fun x -> x
 [%%expect{|
 val foo : 'a -> 'a = <fun>
 |}]
@@ -401,10 +401,10 @@ let foo ?(local_ x : _ @ unique once = 42) () = ()
 val foo : ?x:int @ local unique once -> unit -> unit = <fun>
 |}]
 
-let foo ?(local_ x : ('a. 'a -> 'a) @ unique once) = ()
+let foo ?(local_ x : 'a. ('a -> 'a) @ unique once) = ()
 [%%expect{|
 Line 1, characters 10-49:
-1 | let foo ?(local_ x : ('a. 'a -> 'a) @ unique once) = ()
+1 | let foo ?(local_ x : 'a. ('a -> 'a) @ unique once) = ()
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
@@ -419,10 +419,10 @@ let foo ?x:(local_ (x,y) : _ @ unique once = (42, 42)) () = ()
 val foo : ?x:int * int @ local unique once -> unit -> unit = <fun>
 |}]
 
-let foo ?x:(local_ (x,y) : ('a.'a->'a) @ unique once) () = ()
+let foo ?x:(local_ (x,y) : 'a.('a->'a) @ unique once) () = ()
 [%%expect{|
 Line 1, characters 12-52:
-1 | let foo ?x:(local_ (x,y) : ('a.'a->'a) @ unique once) () = ()
+1 | let foo ?x:(local_ (x,y) : 'a.('a->'a) @ unique once) () = ()
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]

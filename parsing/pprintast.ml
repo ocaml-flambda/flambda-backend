@@ -611,6 +611,22 @@ and core_type1 ctxt f x =
     | (Ptyp_arrow _ | Ptyp_alias _ | Ptyp_poly _) ->
        paren true (core_type ctxt) f x
 
+and core_type2 ctxt f x =
+  if x.ptyp_attributes <> [] then core_type ctxt f x
+  else
+  match x.ptyp_desc with
+  | Ptyp_poly (sl, ct) ->
+    pp f "@[<2>%a%a@]"
+           (fun f l -> match l with
+              | [] -> ()
+              | _ ->
+                  pp f "%a@;.@;"
+                    (list
+                      (tyvar_loc_jkind tyvar) ~sep:"@;")
+                      l)
+      sl (core_type1 ctxt) ct
+  | _ -> core_type1 ctxt f x
+
 and tyvar_option f = function
   | None -> pp f "_"
   | Some name -> tyvar f name
@@ -637,7 +653,7 @@ and return_type ctxt f (x, m) =
 and core_type_with_optional_modes  ctxt f (ty, modes) =
   match modes with
   | [] -> core_type ctxt f ty
-  | _ :: _ -> pp f "%a%a" (core_type1 ctxt) ty optional_at_modes modes
+  | _ :: _ -> pp f "%a%a" (core_type2 ctxt) ty optional_at_modes modes
 
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
@@ -1699,15 +1715,16 @@ and pp_print_params_then_equals ctxt f x =
         ~delimiter:"="
   | _ -> pp_print_pexp_newtype ctxt "=" f x
 
-and poly_type ctxt f (vars, typ) =
+and poly_type ctxt core_type f (vars, typ) =
   pp f "type@;%a.@;%a"
     (list ~sep:"@;" (tyvar_loc_jkind pp_print_string)) vars
     (core_type ctxt) typ
 
 and poly_type_with_optional_modes ctxt f (vars, typ, modes) =
   match modes with
-  | [] -> poly_type ctxt f (vars, typ)
-  | _ :: _ -> pp f "(%a)%a" (poly_type ctxt) (vars, typ) optional_at_modes modes
+  | [] -> poly_type ctxt core_type f (vars, typ)
+  | _ :: _ -> pp f "%a%a" (poly_type ctxt core_type1) (vars, typ)
+      optional_at_modes modes
 
 (* transform [f = fun g h -> ..] to [f g h = ... ] could be improved *)
 and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; pvb_modes = modes; _} =

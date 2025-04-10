@@ -3175,8 +3175,8 @@ let_binding_body_no_punning:
         (v, $5, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
          modes)
       }
-  | let_ident_with_modes COLON        TYPE ntys = newtypes DOT cty = core_type        modes1 = empty_list EQUAL e = seq_expr
-  | let_ident_with_modes COLON LPAREN TYPE ntys = newtypes DOT cty = core_type RPAREN modes1=at_mode_expr EQUAL e = seq_expr
+  | let_ident_with_modes COLON TYPE ntys = newtypes DOT cty = core_type  modes1 = empty_list EQUAL e = seq_expr
+  | let_ident_with_modes COLON TYPE ntys = newtypes DOT cty = tuple_type modes1=at_mode_expr EQUAL e = seq_expr
       (* The code upstream looks like:
          {[
            let constraint' =
@@ -4301,9 +4301,13 @@ possibly_poly(X):
     { $1 }
 ;
 
+%inline strictly_poly_tuple_type:
+  strictly_poly(tuple_type)
+    { $1 }
+
 %inline poly_tuple_type:
   | tuple_type { $1 }
-  | LPAREN strictly_poly_type RPAREN { $2 }
+  | strictly_poly_tuple_type { $1 }
 ;
 
 %inline poly_type_with_modes:
@@ -4317,7 +4321,7 @@ possibly_poly(X):
 
 %inline strictly_poly_type_with_optional_modes:
   | strictly_poly_type { $1, [] }
-  | LPAREN strictly_poly_type RPAREN at_mode_expr { $2, $4 }
+  | strictly_poly_tuple_type at_mode_expr { $1, $2 }
 ;
 
 %inline poly_type_no_attr:

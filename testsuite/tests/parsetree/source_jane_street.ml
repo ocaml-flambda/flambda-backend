@@ -335,44 +335,49 @@ let f ?(local_ x = 42)
       ?(local_ x @ once portable = 42)
       ?(local_ x : int @ once portable = 42)
       ?(local_ x : ('a -> 'a) @ once portable = fun x -> x)
-      ?(local_ x : (('a : any) 'b . 'a) @ once portable = assert false)
-      ?(local_ x : (('a : any) 'b . 'a -> 'b) @ once portable = assert false)
+      ?(local_ x : ('a : any) 'b . 'a @ once portable = assert false)
+      ?(local_ x : ('a : any) 'b . 'a -> 'b @ once portable = assert false)
+      ?(local_ x : ('a : any) 'b . ('a -> 'b) @ once portable = assert false)
 
       ?x:(local_ (y, z) = 42)
       ?x:(local_ (y, z) @ once portable = 42)
       ?x:(local_ (y, z) : int @ once portable = 42)
       ?x:(local_ (y, z) : ('a -> 'a) @ once portable = 42)
-      ?x:(local_ (y, z) : (('a : any) 'b . 'a) @ once portable = 42)
-      ?x:(local_ (y, z) : (('a : any) 'b . 'a -> 'b) @ once portable = 42)
+      ?x:(local_ (y, z) : ('a : any) 'b . 'a @ once portable = 42)
+      ?x:(local_ (y, z) : ('a : any) 'b . 'a -> 'b @ once portable = 42)
+      ?x:(local_ (y, z) : ('a : any) 'b . ('a -> 'b) @ once portable = 42)
 
       ~(local_ x)
       ~(local_ x @ once portable)
       ~(local_ x : int @ once portable)
       ~(local_ x : ('a -> 'a) @ once portable)
-      ~(local_ x : (('a : any) 'b . 'a) @ once portable)
-      ~(local_ x : (('a : any) 'b . 'a -> 'b) @ once portable)
+      ~(local_ x : ('a : any) 'b . 'a @ once portable)
+      ~(local_ x : ('a : any) 'b . 'a -> 'b @ once portable)
+      ~(local_ x : ('a : any) 'b . ('a -> 'b) @ once portable)
 
       ~x:(local_ (y, z))
       ~x:(local_ (y, z) @ once portable)
       ~x:(local_ (y, z) : int @ once portable)
       ~x:(local_ (y, z) : ('a -> 'a) @ once portable)
-      ~x:(local_ (y, z) : (('a : any) 'b . 'a) @ once portable)
-      ~x:(local_ (y, z) : (('a : any) 'b . 'a -> 'b) @ once portable)
+      ~x:(local_ (y, z) : ('a : any) 'b . 'a @ once portable)
+      ~x:(local_ (y, z) : ('a : any) 'b . ('a -> 'b) @ once portable)
+      ~x:(local_ (y, z) : ('a : any) 'b . 'a -> 'b @ once portable)
 
       (local_ (y, z))
       (local_ (y, z) @ once portable)
       (local_ (y, z) : int @ once portable)
       (local_ (y, z) : ('a -> 'a) @ once portable)
-      (local_ (y, z) : (('a : any) 'b . 'a) @ once portable)
-      (local_ (y, z) : (('a : any) 'b . 'a -> 'b) @ once portable)
+      (local_ (y, z) : ('a : any) 'b . 'a @ once portable)
+      (local_ (y, z) : ('a : any) 'b . ('a -> 'b) @ once portable)
+      (local_ (y, z) : ('a : any) 'b . 'a -> 'b @ once portable)
 
       = ();;
 
 (* This file is only about syntax - type error is fine *)
 [%%expect{|
-Line 5, characters 8-55:
-5 |       ?(local_ x : (('a : any) 'b . 'a) @ once portable = assert false)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 5, characters 8-53:
+5 |       ?(local_ x : ('a : any) 'b . 'a @ once portable = assert false)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
@@ -392,11 +397,13 @@ let g () =
   let local_ a : int @ once portable = 42 in
   let local_ a : (int -> int) @ once portable = 42 in
 
-  let local_ a : (('a : any) 'b. 'a) @ once portable = 42 in
-  let local_ a : (('a : any) 'b. 'a -> 'a) @ once portable = 42 in
+  let local_ a : ('a : any) 'b. 'a @ once portable = 42 in
+  let local_ a : ('a : any) 'b. 'a -> 'a @ once portable = 42 in
+  let local_ a : ('a : any) 'b. ('a -> 'a) @ once portable = 42 in
 
-  let a : (type (a : any) b. int) @ once portable = 42 in
-  let a : (type (a : any) b. a -> b) @ once portable = 42 in
+  let a : type (a : any) b. int @ once portable = 42 in
+  let a : type (a : any) b. a -> b @ once portable = 42 in
+  let a : type (a : any) b. (a -> b) @ once portable = 42 in
 
   let (a, b) @ once portable = 42 in
   let (a, b) : int @ once portable = 42 in
@@ -503,8 +510,8 @@ type typvar_fn = a:('a. 'a) @ local unique portable contended -> unit
 let f ~(x1 @ many)
       ~(x2 : string @ local)
       ~(x3 : (string -> string) @ local)
-      ~(x4 : ('a. 'a -> 'a) @ local)
-      ~(x9 : ('a. 'a) @ local)
+      ~(x4 : 'a. ('a -> 'a) @ local)
+      ~(x9 : 'a. 'a @ local)
       ~(local_ x5)
       ~x6:(local_ true | false @ many)
       ~x7:(local_ true | false : bool @ many)

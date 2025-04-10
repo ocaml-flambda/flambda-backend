@@ -8,7 +8,7 @@ let local_ foo @ = "hello";;
 
 let local_ foo : ('a. 'a -> 'a) @  = fun x -> x;;
 
-let foo : (type a. a -> a) @  = fun x -> x;;
+let foo : type a. (a -> a) @  = fun x -> x;;
 
 let (x, y) @ = "hello", "world";;
 

@@ -11,7 +11,7 @@ Line 2, characters 35-36:
                                        ^
 Error: Syntax error: "mode expression" expected.
 Line 2, characters 30-31:
-2 | let foo : (type a. a -> a) @  = fun x -> x;;
+2 | let foo : type a. (a -> a) @  = fun x -> x;;
                                   ^
 Error: Syntax error: "mode expression" expected.
 Line 2, characters 13-14:
