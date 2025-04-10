@@ -90,7 +90,9 @@ let env_find_regs_for_exception_extra_args id env =
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
 
-let env_find_static_exception id env = Int.Map.find id env.static_exceptions
+let env_find_static_exception id env =
+  try Int.Map.find id env.static_exceptions
+  with Not_found -> Misc.fatal_errorf "Not found static exception id=%d" id
 
 let env_enter_trywith env id label =
   let env, _ = env_add_static_exception id [] env label in
@@ -513,7 +515,7 @@ module Stack_offset_and_exn = struct
     | Pushtrap { lbl_handler } ->
       update_block cfg lbl_handler ~stack_offset ~traps;
       stack_offset, lbl_handler :: traps
-    | Poptrap -> (
+    | Poptrap _ -> (
       match traps with
       | [] ->
         Misc.fatal_errorf
@@ -577,11 +579,7 @@ module Stack_offset_and_exn = struct
         | handler_label :: _ -> block.exn <- Some handler_label))
 
   let update_cfg : Cfg.t -> unit =
-   fun cfg ->
-    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[];
-    Cfg.iter_blocks cfg ~f:(fun _ block ->
-        if block.stack_offset = invalid_stack_offset then block.dead <- true;
-        assert (not (block.is_trap_handler && block.dead)))
+   fun cfg -> update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[]
 end
 
 let make_stack_offset stack_ofs = Cfg.Op (Stackoffset stack_ofs)

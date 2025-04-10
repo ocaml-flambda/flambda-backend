@@ -347,7 +347,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
    fun state n cell ->
     let i = DLL.value cell in
     match i.desc with
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> n
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> n
     | Op (Move | Spill | Reload) ->
       (* For moves, we associate the same value number to the result reg as to
          the argument reg. *)

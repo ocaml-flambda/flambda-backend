@@ -99,6 +99,12 @@ let mk_no_cfg_stack_checks f =
 let mk_cfg_stack_checks_threshold f =
   "-cfg-stack-checks-threshold", Arg.Int f, "<n>  Only CFGs with fewer than n blocks will be optimized"
 
+let mk_cfg_eliminate_dead_trap_handlers f =
+  "-cfg-eliminate-dead-trap-handlers", Arg.Unit f, " Eliminate dead trap handlers"
+
+let mk_no_cfg_eliminate_dead_trap_handlers f =
+  "-no-cfg-eliminate-dead-trap-handlers", Arg.Unit f, " Do not eliminate dead trap handlers"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -726,6 +732,9 @@ module type Flambda_backend_options = sig
   val no_cfg_stack_checks : unit -> unit
   val cfg_stack_checks_threshold : int -> unit
 
+  val cfg_eliminate_dead_trap_handlers : unit -> unit
+  val no_cfg_eliminate_dead_trap_handlers : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -856,6 +865,9 @@ struct
     mk_cfg_stack_checks F.cfg_stack_checks;
     mk_no_cfg_stack_checks F.no_cfg_stack_checks;
     mk_cfg_stack_checks_threshold F.cfg_stack_checks_threshold;
+
+    mk_cfg_eliminate_dead_trap_handlers F.cfg_eliminate_dead_trap_handlers;
+    mk_no_cfg_eliminate_dead_trap_handlers F.no_cfg_eliminate_dead_trap_handlers;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -1019,6 +1031,11 @@ module Flambda_backend_options_impl = struct
   let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
   let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
   let cfg_stack_checks_threshold n = Flambda_backend_flags.cfg_stack_checks_threshold := n
+
+  let cfg_eliminate_dead_trap_handlers =
+    set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+  let no_cfg_eliminate_dead_trap_handlers =
+    clear' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -1348,7 +1365,8 @@ module Extra_params = struct
     | "vectorize-max-block-size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
-    | "cfg-stack-checks-threshold" -> set_int' Flambda_backend_flags.cfg_stack_checks_threshold
+    | "cfg-eliminate-dead-trap-handlers" ->
+        set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges

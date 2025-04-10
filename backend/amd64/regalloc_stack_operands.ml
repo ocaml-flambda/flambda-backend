@@ -255,7 +255,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
                  | Ibswap _))
   | Reloadretaddr
   | Pushtrap _
-  | Poptrap
+  | Poptrap _
   | Prologue ->
     (* no rewrite *)
     May_still_have_spilled_registers
