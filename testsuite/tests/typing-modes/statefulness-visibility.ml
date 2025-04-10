@@ -129,14 +129,64 @@ Error: This value is "contended" but expected to be "shared".
   this record needs to be at least shared.
 |}]
 
+let foo (x @ immutable shared) = x.contents
+[%%expect{|
+Line 1, characters 33-34:
+1 | let foo (x @ immutable shared) = x.contents
+                                     ^
+Error: This value is "immutable" but expected to be "read".
+  Hint: In order to read from its mutable fields,
+  this record needs to have read visibility.
+|}]
+
+let foo (x @ immutable uncontended) = x.contents
+[%%expect{|
+Line 1, characters 38-39:
+1 | let foo (x @ immutable uncontended) = x.contents
+                                          ^
+Error: This value is "immutable" but expected to be "read".
+  Hint: In order to read from its mutable fields,
+  this record needs to have read visibility.
+|}]
+
 let foo (x @ read) = x.contents
 [%%expect{|
 val foo : 'a ref @ read -> 'a @ read = <fun>
 |}]
 
+let foo (x @ read contended) = x.contents
+[%%expect{|
+Line 1, characters 31-32:
+1 | let foo (x @ read contended) = x.contents
+                                   ^
+Error: This value is "contended" but expected to be "shared".
+  Hint: In order to read from its mutable fields,
+  this record needs to be at least shared.
+|}]
+
+let foo (x @ read uncontended) = x.contents
+[%%expect{|
+val foo : 'a ref @ uncontended read -> 'a @ uncontended read = <fun>
+|}]
+
 let foo (x @ read_write) = x.contents
 [%%expect{|
 val foo : 'a ref -> 'a = <fun>
+|}]
+
+let foo (x @ read_write contended) = x.contents
+[%%expect{|
+Line 1, characters 37-38:
+1 | let foo (x @ read_write contended) = x.contents
+                                         ^
+Error: This value is "contended" but expected to be "shared".
+  Hint: In order to read from its mutable fields,
+  this record needs to be at least shared.
+|}]
+
+let foo (x @ read_write shared) = x.contents
+[%%expect{|
+val foo : 'a ref @ shared -> 'a @ shared = <fun>
 |}]
 
 let foo (x @ immutable) a = x := a
@@ -147,6 +197,22 @@ Line 1, characters 28-29:
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
+let foo (x @ immutable shared) a = x := a
+[%%expect{|
+Line 1, characters 35-36:
+1 | let foo (x @ immutable shared) a = x := a
+                                       ^
+Error: This value is "shared" but expected to be "uncontended".
+|}]
+
+let foo (x @ immutable uncontended) a = x := a
+[%%expect{|
+Line 1, characters 40-41:
+1 | let foo (x @ immutable uncontended) a = x := a
+                                            ^
+Error: This value is "immutable" but expected to be "read_write".
+|}]
+
 let foo (x @ read) a = x := a
 [%%expect{|
 Line 1, characters 23-24:
@@ -155,9 +221,112 @@ Line 1, characters 23-24:
 Error: This value is "shared" but expected to be "uncontended".
 |}]
 
+let foo (x @ read contended) a = x := a
+[%%expect{|
+Line 1, characters 33-34:
+1 | let foo (x @ read contended) a = x := a
+                                     ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let foo (x @ read uncontended) a = x := a
+[%%expect{|
+Line 1, characters 35-36:
+1 | let foo (x @ read uncontended) a = x := a
+                                       ^
+Error: This value is "read" but expected to be "read_write".
+|}]
+
 let foo (x @ read_write) a = x := a
 [%%expect{|
 val foo : 'a ref -> 'a -> unit = <fun>
+|}]
+
+let foo (x @ read_write contended) a = x := a
+[%%expect{|
+Line 1, characters 39-40:
+1 | let foo (x @ read_write contended) a = x := a
+                                           ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let foo (x @ read_write shared) a = x := a
+[%%expect{|
+Line 1, characters 36-37:
+1 | let foo (x @ read_write shared) a = x := a
+                                        ^
+Error: This value is "shared" but expected to be "uncontended".
+|}]
+
+let foo (x @ immutable) = !x
+[%%expect{|
+Line 1, characters 27-28:
+1 | let foo (x @ immutable) = !x
+                               ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+(* CR dkalinichenko: update Stdlib to reflect required visibility and contention. *)
+
+let foo (x @ immutable shared) = !x
+[%%expect{|
+Line 1, characters 34-35:
+1 | let foo (x @ immutable shared) = !x
+                                      ^
+Error: This value is "shared" but expected to be "uncontended".
+|}]
+
+let foo (x @ immutable uncontended) = !x
+[%%expect{|
+Line 1, characters 39-40:
+1 | let foo (x @ immutable uncontended) = !x
+                                           ^
+Error: This value is "immutable" but expected to be "read_write".
+|}]
+
+let foo (x @ read) = !x
+[%%expect{|
+Line 1, characters 22-23:
+1 | let foo (x @ read) = !x
+                          ^
+Error: This value is "shared" but expected to be "uncontended".
+|}]
+
+let foo (x @ read contended) = !x
+[%%expect{|
+Line 1, characters 32-33:
+1 | let foo (x @ read contended) = !x
+                                    ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let foo (x @ read uncontended) = !x
+[%%expect{|
+Line 1, characters 34-35:
+1 | let foo (x @ read uncontended) = !x
+                                      ^
+Error: This value is "read" but expected to be "read_write".
+|}]
+
+let foo (x @ read_write) = !x
+[%%expect{|
+val foo : 'a ref -> 'a = <fun>
+|}]
+
+let foo (x @ read_write contended) = !x
+[%%expect{|
+Line 1, characters 38-39:
+1 | let foo (x @ read_write contended) = !x
+                                          ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let foo (x @ read_write shared) = !x
+[%%expect{|
+Line 1, characters 35-36:
+1 | let foo (x @ read_write shared) = !x
+                                       ^
+Error: This value is "shared" but expected to be "uncontended".
 |}]
 
 (* API that uses the [sync_data] kind. *)
@@ -265,6 +434,41 @@ Line 2, characters 25-26:
 Error: This value is "immutable" but expected to be "read_write".
 |}]
 
+(* Closing over a stateful value also gives stateful. *)
+
+let foo (f : (unit -> unit) @ stateful) @ stateful = fun () -> f ()
+[%%expect{|
+val foo : (unit -> unit) -> unit -> unit = <fun>
+|}]
+
+let foo (f : (unit -> unit) @ stateful portable) @ stateless = fun () -> f ()
+[%%expect{|
+Line 1, characters 73-74:
+1 | let foo (f : (unit -> unit) @ stateful portable) @ stateless = fun () -> f ()
+                                                                             ^
+Error: The value "f" is stateful, so cannot be used inside a function that may not capture state.
+|}]
+
+(* The error for [portable] is displayed first. *)
+
+let foo (f : (unit -> unit) @ stateful) @ stateless = fun () -> f ()
+[%%expect{|
+Line 1, characters 64-65:
+1 | let foo (f : (unit -> unit) @ stateful) @ stateless = fun () -> f ()
+                                                                    ^
+Error: The value "f" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* CR modes: fix the error message. *)
+
+let foo (f : (unit -> unit) @ observing portable) @ stateless = fun () -> f ()
+[%%expect{|
+Line 1, characters 74-75:
+1 | let foo (f : (unit -> unit) @ observing portable) @ stateless = fun () -> f ()
+                                                                              ^
+Error: The value "f" is stateful, so cannot be used inside a function that may not capture state.
+|}]
+
 (* Closing over use of read gives observing *)
 let foo () =
     let a = Atomic.make 0 in
@@ -286,6 +490,28 @@ Line 4, characters 22-25:
 4 |   let _ @ stateless = bar in
                           ^^^
 Error: This value is "observing" but expected to be "stateless".
+|}]
+
+(* Closing over a observing value also gives observing. *)
+
+let foo (f : (unit -> unit) @ observing) @ observing = fun () -> f ()
+[%%expect{|
+val foo : (unit -> unit) @ observing -> (unit -> unit) @ observing = <fun>
+|}]
+
+let foo (f : (unit -> unit) @ observing) @ stateful = fun () -> f ()
+[%%expect{|
+val foo : (unit -> unit) @ observing -> unit -> unit = <fun>
+|}]
+
+(* CR modes: fix the error message. *)
+
+let foo (f : (unit -> unit) @ stateful) @ observing = fun () -> f ()
+[%%expect{|
+Line 1, characters 64-65:
+1 | let foo (f : (unit -> unit) @ stateful) @ observing = fun () -> f ()
+                                                                    ^
+Error: The value "f" is stateful, so cannot be used inside a function that may not capture state.
 |}]
 
 (* Testing defaulting  *)
@@ -369,6 +595,11 @@ Error: This value is "contended" but expected to be "shared".
 
 (* [read] => [shared]. *)
 
+let default : 'a @ shared -> ('a @ read -> 'b) -> 'b = fun x f -> f x
+[%%expect{|
+val default : 'a @ shared -> ('a @ read -> 'b) -> 'b = <fun>
+|}]
+
 let default : 'a @ contended -> ('a @ read -> 'b) -> 'b = fun x f -> f x
 [%%expect{|
 Line 1, characters 71-72:
@@ -409,9 +640,30 @@ Line 1, characters 82-83:
 Error: This value is "contended" but expected to be "shared".
 |}]
 
+let fails : 'a @ contended -> ('a @ read_write -> 'b) -> 'b = fun x f -> f x
+[%%expect{|
+Line 1, characters 75-76:
+1 | let fails : 'a @ contended -> ('a @ read_write -> 'b) -> 'b = fun x f -> f x
+                                                                               ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let fails : 'a @ shared -> ('a @ read_write -> 'b) -> 'b = fun x f -> f x
+[%%expect{|
+Line 1, characters 72-73:
+1 | let fails : 'a @ shared -> ('a @ read_write -> 'b) -> 'b = fun x f -> f x
+                                                                            ^
+Error: This value is "shared" but expected to be "uncontended".
+|}]
+
 let succeeds : 'a @ contended -> ('a @ read_write contended -> 'b) -> 'b = fun x f -> f x
 [%%expect{|
 val succeeds : 'a @ contended -> ('a @ contended -> 'b) -> 'b = <fun>
+|}]
+
+let succeeds : 'a @ shared -> ('a @ read_write shared -> 'b) -> 'b = fun x f -> f x
+[%%expect{|
+val succeeds : 'a @ shared -> ('a @ shared -> 'b) -> 'b = <fun>
 |}]
 
 (* Modalities. *)
@@ -420,14 +672,14 @@ type 'a t1 = { y : 'a @@ immutable }
 
 let get : 'a @ contended -> 'a t1 = fun y -> {y}
 
-type 'a t2 = { z : 'a @@ shared }
+type 'a t2 = { z : 'a @@ read }
 
 let get : 'a @ shared -> 'a t2 = fun z -> {z}
 
 [%%expect{|
 type 'a t1 = { y : 'a @@ immutable; }
 val get : 'a @ contended -> 'a t1 = <fun>
-type 'a t2 = { z : 'a @@ shared; }
+type 'a t2 = { z : 'a @@ read; }
 val get : 'a @ shared -> 'a t2 = <fun>
 |}]
 
@@ -443,6 +695,16 @@ Line 1, characters 42-43:
 Error: This value is "immutable" but expected to be "read".
   Hint: In order to read from its mutable fields,
   this record needs to have read visibility.
+|}]
+
+let zap (x : int ref) @ stateless = lazy (x.contents <- 3)
+[%%expect{|
+Line 1, characters 42-43:
+1 | let zap (x : int ref) @ stateless = lazy (x.contents <- 3)
+                                              ^
+Error: This value is "immutable" but expected to be "read_write".
+  Hint: In order to write into its mutable fields,
+  this record needs to have read_write visibility.
 |}]
 
 (* [lazy_t @ observing] capture values at [read]. *)
