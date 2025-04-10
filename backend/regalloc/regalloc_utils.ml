@@ -304,8 +304,7 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
       DLL.filter_left block.body ~f:(fun instr -> not (Cfg.is_noop_move instr)));
-  Cfg_simplify.run cfg_with_layout;
-  cfg_with_layout
+  Cfg_simplify.run cfg_with_layout
 
 let save_cfg : string -> Cfg_with_layout.t -> unit =
  fun str cfg_with_layout ->

@@ -2634,8 +2634,9 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
     Annotation.is_check_enabled
       (Annotation.of_cfg cfg.fun_codegen_options cfg.fun_name cfg.fun_dbg)
   in
-  if enabled
-  then (
+  if not enabled
+  then cfg_with_layout
+  else
     let modified = ref false in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         match block.terminator.desc with
@@ -2662,15 +2663,15 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
         | Tailcall_func _ | Call_no_return _ | Call _ ->
           ());
-    if !modified
-    then
-      Profile.record ~accumulate:true "cleanup" Cfg_simplify.run cfg_with_layout)
+    if not !modified
+    then cfg_with_layout
+    else
+      Profile.record ~accumulate:true "cleanup" Cfg_simplify.run cfg_with_layout
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in
   Analysis.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
-  update_caml_flambda_invalid_cfg cl;
-  cl
+  update_caml_flambda_invalid_cfg cl
 
 let reset_unit_info () =
   Unit_info.reset unit_info;

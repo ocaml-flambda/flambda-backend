@@ -294,4 +294,5 @@ let run cfg_with_layout =
      opportunities for terminator simplification. *)
   Simplify_terminator.run (Cfg_with_layout.cfg cfg_with_layout);
   Eliminate_dead_code.run cfg_with_layout |> acc;
-  Cfg_with_layout.remove_blocks cfg_with_layout !dead_labels
+  Cfg_with_layout.remove_blocks cfg_with_layout !dead_labels;
+  cfg_with_layout
