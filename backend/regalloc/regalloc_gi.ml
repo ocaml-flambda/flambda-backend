@@ -142,7 +142,6 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     log "spilling costs";
     indent ();
     List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
-        reg.Reg.spill <- false;
         log "%a: %d" Printreg.reg reg reg.spill_cost);
     dedent ());
   let hardware_registers, prio_queue =
@@ -211,7 +210,6 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     | Split_or_spill ->
       (* CR xclerc for xclerc: we should actually try to split. *)
       if debug then log "spilling %a" Printreg.reg reg;
-      reg.Reg.spill <- true;
       spilling := (reg, interval) :: !spilling);
     if debug then dedent ()
   done;
@@ -280,7 +278,6 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilled_nodes ->
-    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
     let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes in

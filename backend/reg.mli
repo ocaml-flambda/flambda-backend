@@ -26,7 +26,6 @@ type t =
     stamp: int;                           (* Unique stamp *)
     typ: Cmm.machtype_component;          (* Type of contents *)
     mutable loc: location;                (* Actual location *)
-    mutable spill: bool;                  (* "true" to force stack allocation  *)
     mutable spill_cost: int; }            (* Estimate of spilling cost *)
 
 and location =

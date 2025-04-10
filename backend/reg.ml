@@ -41,7 +41,6 @@ type t =
     stamp: int;
     typ: Cmm.machtype_component;
     mutable loc: location;
-    mutable spill: bool;
     mutable spill_cost: int; }
 
 and location =
@@ -59,7 +58,7 @@ type reg = t
 
 let dummy =
   { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
-    spill = false; spill_cost = 0;
+    spill_cost = 0;
   }
 
 let currstamp = ref 0
@@ -69,7 +68,6 @@ let hw_reg_list = ref ([] : t list)
 let create ty =
   let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
             loc = Unknown;
-            spill = false;
             spill_cost = 0; } in
   reg_list := r :: !reg_list;
   incr currstamp;
@@ -94,7 +92,6 @@ let clone r =
 
 let at_location ty loc =
   let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
-            spill = false; 
             spill_cost = 0; } in
   hw_reg_list := r :: !hw_reg_list;
   incr currstamp;
@@ -121,11 +118,7 @@ let is_unknown t =
 let name t =
   match Raw_name.to_string t.raw_name with
   | None -> ""
-  | Some raw_name ->
-      if t.spill then
-        "spilled-" ^ raw_name
-      else
-        raw_name
+  | Some raw_name -> raw_name
 
 let first_virtual_reg_stamp = ref (-1)
 
