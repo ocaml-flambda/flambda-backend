@@ -10,13 +10,7 @@ module Utils = struct
 
   type state = State.t
 
-  let debug = debug
-
-  let invariants = invariants
-
   let is_spilled _state reg = reg.Reg.spill
-
-  let set_spilled _state _reg = ()
 end
 
 let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> bool =

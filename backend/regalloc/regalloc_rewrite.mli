@@ -13,10 +13,6 @@ end
 module type Utils = sig
   type state
 
-  val debug : bool
-
-  val invariants : bool Lazy.t
-
   val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
   val indent : unit -> unit
@@ -31,9 +27,6 @@ module type Utils = sig
 
   (* Tests whether the passed register is marked as "spilled". *)
   val is_spilled : state -> Reg.t -> bool
-
-  (* Sets the passed register as "spilled". *)
-  val set_spilled : state -> Reg.t -> unit
 end
 
 (* This is the `rewrite` function from IRC, parametrized by state, functions for

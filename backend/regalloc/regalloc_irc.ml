@@ -389,10 +389,6 @@ module Utils = struct
 
   type state = State.t
 
-  let debug = debug
-
-  let invariants = invariants
-
   let is_spilled state reg =
     match State.work_list_opt state reg with
     | None ->
@@ -401,8 +397,6 @@ module Utils = struct
          `false`. *)
       false
     | Some work_list -> WorkList.equal work_list WorkList.Spilled
-
-  let set_spilled _state _reg = ()
 end
 
 (* Returns `true` if new temporaries have been introduced. *)
