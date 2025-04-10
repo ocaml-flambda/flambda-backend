@@ -113,10 +113,18 @@ type r = {x : string @ modes -> string @ modes @@ modalities}
 ```
 
 ## Signature items
-Signature items such as values can have modalities, for example:
+Signature items such as values can have modalities; for example:
 ```ocaml
 val foo : string @@ modalities
 val bar : string @ modes -> string @ modes @@ modalities
+```
+
+A signature can have default modalities that each item can override; for example:
+```ocaml
+sig @@ portable
+val foo : string (* have portable modality *)
+val bar : string -> string @@ nonportable (* not have portable modality *)
+end
 ```
 
 ## Modules
