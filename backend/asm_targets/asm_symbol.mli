@@ -29,10 +29,11 @@ val should_be_escaped : char -> bool
 
 include Identifiable.S
 
-val create : string -> t
-
 (* If [without_prefix] is not provided [encode] will prefix the symbol using the
-   (architecture-dependent) prefix for symbols, for example "_" on macOS. *)
-val encode : ?without_prefix:unit -> t -> string
+   (architecture-dependent) prefix for symbols, for example "_" on macOS. In
+   contrast, [to_raw_string] will always return the non-prefixed version. *)
+val create : ?without_prefix:unit -> string -> t
+
+val encode : t -> string
 
 val to_raw_string : t -> string
