@@ -732,6 +732,22 @@ module With_bounds = struct
           type_exprs)
 end
 
+(* Forward declarations *)
+type normalize_mode =
+  | Require_best
+  | Ignore_best
+
+let normalize' =
+  ref
+    (fun
+      ?unbound_type_vars:_
+      ~mode:(_ : normalize_mode)
+      ~jkind_of_type:_
+      (_ : Types.jkind_l)
+      :
+      Types.jkind_l
+    -> assert false)
+
 module Layout_and_axes = struct
   module Allow_disallow = Allowance.Magic_allow_disallow (struct
     type (_, 'layout, 'd) sided = ('layout, 'd) layout_and_axes
@@ -820,8 +836,8 @@ module Layout_and_axes = struct
      of this function for these axes is undefined; do *not* look at the results for these
      axes.
   *)
-  let normalize (type layout l r1 r2) ~jkind_of_type ~(mode : r2 normalize_mode)
-      ~skip_axes
+  let normalize (type layout l r1 r2) ?(unbound_type_vars = Btype.TypeSet.empty)
+      ~jkind_of_type ~(mode : r2 normalize_mode) ~skip_axes
       ?(map_type_info :
          (type_expr -> With_bounds_type_info.t -> With_bounds_type_info.t)
          option) (t : (layout, l * r1) layout_and_axes) :
@@ -990,8 +1006,10 @@ module Layout_and_axes = struct
             in
             let found_jkind_for_ty new_ctl b_upper_bounds b_with_bounds quality
                 : Mod_bounds.t * (l * r2) with_bounds * Fuel_status.t =
-              match quality, mode with
-              | Best, _ | Not_best, Ignore_best ->
+              match quality, mode, Btype.TypeSet.mem ty unbound_type_vars with
+              | Best, _, _
+              | Not_best, Ignore_best, _
+              | Not_best, Require_best, true ->
                 (* The relevant axes are the intersection of the relevant axes within our
                    branch of the with-bounds tree, and the relevant axes on this
                    particular with-bound *)
@@ -1022,7 +1040,7 @@ module Layout_and_axes = struct
                 ( bounds,
                   With_bounds.join nested_with_bounds bs',
                   Fuel_status.both fuel_result1 fuel_result2 )
-              | Not_best, Require_best ->
+              | Not_best, Require_best, false ->
                 (* CR layouts v2.8: The type annotation on the next line is
                    necessary only because [loop] is
                    local. Bizarre. Investigate. *)
@@ -1055,6 +1073,57 @@ module Layout_and_axes = struct
         loop Loop_control.starting mod_bounds
           (Axis_set.complement skip_axes)
           (With_bounds.to_list t.with_bounds)
+      in
+      (* Make sure there are no unbound type vars mentioned in the resulting with-bounds,
+         by taking any remaining types mentioning unbound type vars, normalizing them with
+         mode = ignore_best, and joining their mod bounds with ours
+
+         This can only happen if we have unbound type vars, and if we were running with
+         mode=Require_best. *)
+      let mod_bounds, with_bounds =
+        match with_bounds, Btype.TypeSet.is_empty unbound_type_vars, mode with
+        | With_bounds wbs, false, Require_best ->
+          let mbs, wbs =
+            Seq.fold_left
+              (fun (mb, wb_res) (wb_ty, ti) ->
+                if unbound_type_vars |> Btype.TypeSet.to_seq
+                   |> Seq.exists (fun ty ->
+                          let open struct
+                            exception Occur
+                          end in
+                          let rec deep_occur_rec t0 ty =
+                            if get_level ty >= get_level t0
+                               && Btype.try_mark_node ty
+                            then (
+                              if eq_type ty t0 then Stdlib.raise Occur;
+                              Btype.iter_type_expr (deep_occur_rec t0) ty)
+                          in
+                          match
+                            deep_occur_rec (Transient_expr.type_expr ty) wb_ty
+                          with
+                          | () ->
+                            Btype.unmark_type wb_ty;
+                            false
+                          | exception Occur ->
+                            Btype.unmark_type wb_ty;
+                            true)
+                then
+                  let mod_bounds =
+                    match jkind_of_type wb_ty with
+                    | None -> Mod_bounds.max
+                    | Some jkind ->
+                      (!normalize' jkind ~unbound_type_vars ~mode:Ignore_best
+                         ~jkind_of_type)
+                        .jkind
+                        .mod_bounds
+                  in
+                  Mod_bounds.join mb mod_bounds, wb_res
+                else mb, With_bounds.add_bound wb_ty ti wb_res)
+              (mod_bounds, With_bounds_types.empty)
+              (With_bounds_types.to_seq wbs)
+          in
+          mbs, (With_bounds wbs : (l * r2) with_bounds)
+        | wbs, _, _ -> mod_bounds, wbs
       in
       { t with mod_bounds; with_bounds }, fuel_status
 end
@@ -2193,32 +2262,21 @@ let for_boxed_variant cstrs =
           | Cstr_record lbls -> has_mutable_label lbls)
         cstrs
     in
-    let has_gadt_constructor =
-      List.exists
-        (fun cstr -> match cstr.cd_res with None -> false | Some _ -> true)
-        cstrs
+    let base =
+      (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
+        ~why:Boxed_variant
+      |> mark_best
     in
-    if has_gadt_constructor
-       (* CR layouts v2.8: This is sad, but I don't know how to account for
-          existentials in the with_bounds. See doc named "Existential
-          with_bounds". *)
-    then Builtin.value ~why:Boxed_variant
-    else
-      let base =
-        (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
-          ~why:Boxed_variant
-        |> mark_best
-      in
-      let add_cstr_args cstr jkind =
-        match cstr.cd_args with
-        | Cstr_tuple args ->
-          List.fold_right
-            (fun arg ->
-              add_with_bounds ~modality:arg.ca_modalities ~type_expr:arg.ca_type)
-            args jkind
-        | Cstr_record lbls -> add_labels_as_with_bounds lbls jkind
-      in
-      List.fold_right add_cstr_args cstrs base
+    let add_cstr_args cstr jkind =
+      match cstr.cd_args with
+      | Cstr_tuple args ->
+        List.fold_right
+          (fun arg ->
+            add_with_bounds ~modality:arg.ca_modalities ~type_expr:arg.ca_type)
+          args jkind
+      | Cstr_record lbls -> add_labels_as_with_bounds lbls jkind
+    in
+    List.fold_right add_cstr_args cstrs base
 
 let for_boxed_tuple elts =
   List.fold_right
@@ -2260,17 +2318,13 @@ let for_object =
 (******************************)
 (* elimination and defaulting *)
 
-type normalize_mode =
-  | Require_best
-  | Ignore_best
-
-let[@inline] normalize ~mode ~jkind_of_type t =
+let[@inline] normalize ?unbound_type_vars ~mode ~jkind_of_type t =
   let mode : _ Layout_and_axes.normalize_mode =
     match mode with Require_best -> Require_best | Ignore_best -> Ignore_best
   in
   let jkind, fuel_result =
-    Layout_and_axes.normalize ~jkind_of_type ~skip_axes:Axis_set.empty ~mode
-      t.jkind
+    Layout_and_axes.normalize ?unbound_type_vars ~jkind_of_type
+      ~skip_axes:Axis_set.empty ~mode t.jkind
   in
   { t with
     jkind;
@@ -2283,6 +2337,8 @@ let[@inline] normalize ~mode ~jkind_of_type t =
       | Ran_out_of_fuel -> true
       | _ -> t.ran_out_of_fuel_during_normalize)
   }
+
+let () = normalize' := normalize
 
 let get_layout_defaulting_to_value { jkind = { layout; _ }; _ } =
   Layout.default_to_value_and_get layout
