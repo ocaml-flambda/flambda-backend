@@ -117,7 +117,7 @@ let equal_move_kind left right =
 let rewrite_gen :
     type s.
     (module State with type t = s) ->
-    (module Utils with type state = s) ->
+    (module Utils) ->
     s ->
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
