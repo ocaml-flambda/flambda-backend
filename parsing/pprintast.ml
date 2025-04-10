@@ -792,6 +792,7 @@ and labeled_tuple_pattern ctxt f ~unboxed l closed =
     (list ~sep:",@;" (labeled_pattern1 ctxt)) l
     closed_flag closed
 
+(** for special treatment of modes in labeled expressions *)
 and pattern2 ctxt f p =
   match p.ppat_desc with
   | Ppat_constraint(p, ct, m) ->
@@ -816,6 +817,7 @@ and pattern2 ctxt f p =
     end
   | _ -> pattern1 ctxt f p
 
+(** for special treatment of modes in labeled expressions *)
 and simple_pattern1 ctxt f p =
   match p.ppat_desc with
   | Ppat_constraint _ ->
