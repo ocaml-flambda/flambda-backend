@@ -1409,6 +1409,36 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       |> Array.to_list
     in
     List.map (fun arg : H.expr_primitive -> Simple arg) projected_args
+  | Pidxmixedfield (field_path, shape), [] ->
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements shape
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+    in
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
+    in
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
+    let new_indexes =
+      Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
+    in
+    (* values := []
+       non_values := []
+       for each new_index
+         if value flattened_rereordered_shape.(new_index) then
+            values.push(new_index)
+         else
+            non_values.push(new_index)
+       assert value indices increase sequentially,
+       and non value indices increase sequentially,
+       and last value is followed by first nonvalue
+
+       offset = if values empty then non_values[0] else values[0]
+       gap = if values empty or non_values empty then 0 else
+       non_values[0] - values[end]
+    *)
+
+    (* Targetint_32_64.
+     * assert false *)
   | Parray_element_size_in_bytes array_kind, [_witness] ->
     (* This is implemented as a unary primitive, but from our point of view it's
        actually nullary. *)
@@ -2501,7 +2531,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        here, either a bug in [Closure_conversion] or the wrong number of \
        arguments"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
-  | Pprobe_is_enabled _, _ :: _ ->
+  | (Pprobe_is_enabled _ | Pidxmixedfield _), _ :: _ ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for nullary primitive \
        %a (%a)"

@@ -842,10 +842,35 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         makearray lambda_arr_mut
       end
   | Texp_idx (ba, uas) ->
-    (* CR rtjoa: transl to not 0 *)
-    ignore ba;
-    ignore uas;
-    Lconst (Const_base (Const_unboxed_int64 0L))
+    let uas_path =
+      List.map (function Uaccess_unboxed_field (_, lbl) -> lbl.lbl_pos)
+        uas
+    in
+    let loc = of_location ~scopes e.exp_loc in
+    begin
+    match ba with
+    | Baccess_block (_, index) ->
+      transl_exp ~scopes Jkind.Sort.Const.for_idx index
+    | Baccess_field (id, lbl) ->
+      check_record_field_sort id.loc lbl.lbl_sort;
+      begin match lbl.lbl_repres with
+      | Record_boxed _
+      | Record_float | Record_ufloat ->
+        (* CR rtjoa: not 0 *)
+        Lconst (Const_base (Const_unboxed_int64 0L))
+      | Record_inlined _ | Record_unboxed ->
+        Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
+      | Record_mixed shape ->
+        let shape =
+          Lambda.transl_mixed_product_shape
+            ~get_value_kind:(fun _ -> Lambda.generic_value) shape
+        in
+        let path = lbl.lbl_pos :: uas_path in
+        Lprim (Pidxmixedfield (path, shape), [], loc)
+      end
+    (* CR rtjoa: not 0 *)
+    | Baccess_array _ -> Lconst (Const_base (Const_unboxed_int64 0L))
+    end
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension

@@ -110,6 +110,8 @@ module type Sort = sig
     val for_predef_value : t (* Predefined value types, e.g. int and string *)
 
     val for_tuple : t
+
+    val for_idx : t
   end
 
   module Var : sig

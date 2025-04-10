@@ -1063,11 +1063,12 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbox_vector (_, _)
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Parray_element_size_in_bytes _
-      | Pget_header _ | Prunstack | Pperform | Presume | Preperform
-      | Patomic_exchange _ | Patomic_compare_exchange _ | Patomic_compare_set _
-      | Patomic_fetch_add | Patomic_add | Patomic_sub | Patomic_land
-      | Patomic_lor | Patomic_lxor | Pdls_get | Ppoll | Patomic_load _
-      | Patomic_set _ | Preinterpret_tagged_int63_as_unboxed_int64
+      | Pidxmixedfield _ | Pget_header _ | Prunstack | Pperform | Presume
+      | Preperform | Patomic_exchange _ | Patomic_compare_exchange _
+      | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+      | Patomic_land | Patomic_lor | Patomic_lxor | Pdls_get | Ppoll
+      | Patomic_load _ | Patomic_set _
+      | Preinterpret_tagged_int63_as_unboxed_int64
       | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
       | Pmakelazyblock _ ->
         (* Inconsistent with outer match *)

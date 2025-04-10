@@ -153,6 +153,8 @@ module Sort = struct
     let for_array_comprehension_element = value
 
     let for_list_element = value
+
+    let for_idx = bits64
   end
 
   module Var = struct

@@ -5627,6 +5627,9 @@ and type_expect_
           (label_disambiguate Legacy Projection lid env expected_record_type)
           labels
       in
+      (match label.lbl_repres with
+       | Record_unboxed -> Misc.fatal_error "todo better error"
+       | _ -> ());
       let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       let mut = is_mutable label.lbl_mut in
       if mut then Env.mark_label_used Mutation label.lbl_uid;
