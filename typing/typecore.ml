@@ -94,6 +94,9 @@ let record_form_to_wrong_kind_sort
   | Legacy -> Record
   | Unboxed_product -> Record_unboxed_product
 
+type type_block_access_result =
+  { ba : block_access; base_ty: type_expr; el_ty: type_expr }
+
 type contains_gadt =
   | Contains_gadt
   | No_gadt
@@ -5601,8 +5604,11 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   in
+  (* [expected_base_ty] is only used for record field disambiguation.
+     We don't need to unify it with [base_ty] here because we unify
+     the whole expected type later. *)
   let type_block_access expected_base_ty principal
-        (ba : Parsetree.block_access) : block_access * type_expr * type_expr =
+      (ba : Parsetree.block_access) : type_block_access_result =
     match ba with
     | Baccess_field lid ->
       let expected_record_type =
@@ -5624,7 +5630,8 @@ and type_expect_
       let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       let mut = is_mutable label.lbl_mut in
       if mut then Env.mark_label_used Mutation label.lbl_uid;
-      Baccess_field (lid, label), ty_res, ty_arg
+      let ba = Baccess_field (lid, label) in
+      { ba; base_ty = ty_res; el_ty = ty_arg }
     | Baccess_array (mut, index_kind, index) ->
       let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
       let base_ty =
@@ -5641,9 +5648,20 @@ and type_expect_
       in
       let index =
         type_expect env mode_legacy index (mk_expected index_type_expected) in
-      Baccess_array (mut, index_kind, index), base_ty, el_ty
-    | Baccess_block (_mut, _index) ->
-      assert false
+      let ba = Baccess_array (mut, index_kind, index) in
+      { ba; base_ty; el_ty }
+    | Baccess_block (mut, index) ->
+      let base_ty = newvar (Jkind.Builtin.value ~why:Idx_base) in
+      let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
+      let index_type_expected =
+        match mut with
+        | Immutable -> Predef.type_idx_imm base_ty el_ty
+        | Mutable -> Predef.type_idx_mut base_ty el_ty
+      in
+      let index =
+        type_expect env mode_legacy index (mk_expected index_type_expected) in
+      let ba = Baccess_block (mut, index) in
+      { ba; base_ty; el_ty }
   in
   let type_unboxed_access el_ty ua =
     match ua with
@@ -6221,27 +6239,34 @@ and type_expect_
     Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
     (* Compute the expected base type, only to use for disambiguation of the
       block access *)
-    let expected_base_ty =
+    let expected_base_ty ty_expected =
       (* CR rtjoa: could this be a tpoly? *)
       match get_desc (expand_head env ty_expected) with
       | Tconstr(p, [arg1; _], _)
-        when Path.same p Predef.path_imm_idx
-          || Path.same p Predef.path_mut_idx ->
+        when Path.same p Predef.path_idx_imm
+          || Path.same p Predef.path_idx_mut ->
         arg1
+      | Tpoly(t, univars) ->
+        ignore t; ignore univars; assert false
+        (* let _, t = instance_poly ~keep_names:true ~fixed:false univars t in
+         * expected_base_ty t *)
       | _ ->
         newgenvar (Jkind.Builtin.value ~why:Idx_base)
     in
+    let expected_base_ty = expected_base_ty ty_expected in
     let principal = is_principal ty_expected in
-    let ba, base_ty, el_ty = type_block_access expected_base_ty principal ba in
+    let { ba; base_ty; el_ty } =
+      type_block_access expected_base_ty principal ba
+    in
     let el_ty, uas = List.fold_left_map type_unboxed_access el_ty uas in
     let ty =
       match ba with
       | Baccess_field (_, { lbl_mut = Immutable; _ })
       | Baccess_array (Immutable, _, _) | Baccess_block (Immutable, _) ->
-        Predef.type_imm_idx base_ty el_ty
+        Predef.type_idx_imm base_ty el_ty
       | Baccess_field (_, { lbl_mut = Mutable _; _ })
       | Baccess_array (Mutable, _, _) | Baccess_block (Mutable, _) ->
-        Predef.type_mut_idx base_ty el_ty
+        Predef.type_idx_mut base_ty el_ty
     in
     with_explanation (fun () ->
       unify_exp_types loc env ty (generic_instance ty_expected));
