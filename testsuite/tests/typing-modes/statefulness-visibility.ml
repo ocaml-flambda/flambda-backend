@@ -25,7 +25,7 @@ Line 1, characters 35-36:
 1 | let foo (x @ read uncontended) a = x.a <- a
                                        ^
 Error: This value is "read" but expected to be "read_write".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to have read_write visibility.
 |}]
 
@@ -35,7 +35,7 @@ Line 1, characters 40-41:
 1 | let foo (x @ immutable uncontended) a = x.a <- a
                                             ^
 Error: This value is "immutable" but expected to be "read_write".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to have read_write visibility.
 |}]
 
@@ -50,7 +50,7 @@ Line 1, characters 38-39:
 1 | let foo (x @ immutable uncontended) = x.a
                                           ^
 Error: This value is "immutable" but expected to be "read".
-  Hint: In order to read from the mutable fields,
+  Hint: In order to read from its mutable fields,
   this record needs to have read visibility.
 |}]
 
@@ -72,7 +72,7 @@ Line 1, characters 44-45:
 1 | let foo (x @ immutable uncontended) upd = { x with b = upd }
                                                 ^
 Error: This value is "immutable" but expected to be "read".
-  Hint: In order to read from the mutable fields,
+  Hint: In order to read from its mutable fields,
   this record needs to have read visibility.
 |}]
 
@@ -84,7 +84,7 @@ Line 1, characters 33-34:
 1 | let foo (x @ read contended) a = x.a <- a
                                      ^
 Error: This value is "contended" but expected to be "uncontended".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to be uncontended.
 |}]
 
@@ -94,7 +94,7 @@ Line 1, characters 33-34:
 1 | let foo (x @ contended read) a = x.a <- a
                                      ^
 Error: This value is "contended" but expected to be "uncontended".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to be uncontended.
 |}]
 
@@ -104,7 +104,7 @@ Line 1, characters 30-31:
 1 | let foo (x @ read shared) a = x.a <- a
                                   ^
 Error: This value is "shared" but expected to be "uncontended".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to be uncontended.
 |}]
 
@@ -114,7 +114,7 @@ Line 1, characters 38-39:
 1 | let foo (x @ immutable contended) a = x.a
                                           ^
 Error: This value is "contended" but expected to be "shared".
-  Hint: In order to read from the mutable fields,
+  Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
 
@@ -126,7 +126,7 @@ Line 1, characters 26-27:
 1 | let foo (x @ immutable) = x.contents
                               ^
 Error: This value is "contended" but expected to be "shared".
-  Hint: In order to read from the mutable fields,
+  Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
 
@@ -442,7 +442,7 @@ Line 1, characters 42-43:
 1 | let foo (x : int ref) @ stateless = lazy (x.contents)
                                               ^
 Error: This value is "immutable" but expected to be "read".
-  Hint: In order to read from the mutable fields,
+  Hint: In order to read from its mutable fields,
   this record needs to have read visibility.
 |}]
 
@@ -454,7 +454,7 @@ Line 1, characters 42-43:
 1 | let bat (x : int ref) @ observing = lazy (x.contents <- 4)
                                               ^
 Error: This value is "read" but expected to be "read_write".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to have read_write visibility.
 |}]
 
@@ -525,7 +525,7 @@ Line 4, characters 4-5:
 4 |     x.contents <- 42;
         ^
 Error: This value is "immutable" but expected to be "read_write".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to have read_write visibility.
 |}]
 
@@ -547,6 +547,6 @@ Line 5, characters 4-5:
 5 |     y.contents <- 24
         ^
 Error: This value is "read" but expected to be "read_write".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to have read_write visibility.
 |}]

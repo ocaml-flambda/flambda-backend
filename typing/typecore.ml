@@ -10243,11 +10243,11 @@ let contention_hint _fail_reason _submode_reason context =
   match (context : contention_context option) with
   | Some Read_mutable ->
       [Location.msg
-        "@[Hint: In order to read from the mutable fields,@ \
+        "@[Hint: In order to read from its mutable fields,@ \
         this record needs to be at least shared.@]"]
   | Some Write_mutable ->
       [Location.msg
-        "@[Hint: In order to write into the mutable fields,@ \
+        "@[Hint: In order to write into its mutable fields,@ \
         this record needs to be uncontended.@]"]
   | Some Force_lazy ->
       [Location.msg
@@ -10259,11 +10259,11 @@ let visibility_hint _fail_reason _submode_reason context =
   match (context : visibility_context option) with
   | Some Read_mutable ->
       [Location.msg
-        "@[Hint: In order to read from the mutable fields,@ \
+        "@[Hint: In order to read from its mutable fields,@ \
         this record needs to have read visibility.@]"]
   | Some Write_mutable ->
       [Location.msg
-        "@[Hint: In order to write into the mutable fields,@ \
+        "@[Hint: In order to write into its mutable fields,@ \
         this record needs to have read_write visibility.@]"]
   | None -> []
 
