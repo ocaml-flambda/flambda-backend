@@ -58,10 +58,10 @@ val u : unit = ()
 |}]
 
 (* first class modules are produced at legacy *)
-let x = ((module M : SL) : _ @@ portable)
+let x = ((module M : SL) : _ @ portable)
 [%%expect{|
 Line 1, characters 9-24:
-1 | let x = ((module M : SL) : _ @@ portable)
+1 | let x = ((module M : SL) : _ @ portable)
              ^^^^^^^^^^^^^^^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
@@ -83,7 +83,7 @@ let foo () =
         let _ : F(M).t = 42 in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -97,7 +97,7 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -112,7 +112,7 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -130,7 +130,7 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -145,7 +145,7 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>

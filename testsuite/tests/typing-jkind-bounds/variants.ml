@@ -329,7 +329,7 @@ Error: The kind of type "t" is immutable_data with 'a
 (**** Test 3: Variant values cross when appropriate ****)
 
 type t = Foo of int
-let foo (t : t @@ nonportable contended once) =
+let foo (t : t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -338,24 +338,24 @@ type t = Foo of int
 val foo : t @ once contended -> unit = <fun>
 |}]
 
-let foo (t : t @@ local) = use_global t [@nontail]
+let foo (t : t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 38-39:
-1 | let foo (t : t @@ local) = use_global t [@nontail]
-                                          ^
+Line 1, characters 37-38:
+1 | let foo (t : t @ local) = use_global t [@nontail]
+                                         ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : t @@ aliased) = use_unique t
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : t @ aliased) = use_unique t
+                                           ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type t = Foo of { mutable x : int }
-let foo (t : t @@ nonportable once) =
+let foo (t : t @ nonportable once) =
   use_portable t;
   use_many t
 [%%expect {|
@@ -363,32 +363,32 @@ type t = Foo of { mutable x : int; }
 val foo : t @ once -> unit = <fun>
 |}]
 
-let foo (t : t @@ local) = use_global t [@nontail]
+let foo (t : t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 38-39:
-1 | let foo (t : t @@ local) = use_global t [@nontail]
-                                          ^
+Line 1, characters 37-38:
+1 | let foo (t : t @ local) = use_global t [@nontail]
+                                         ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : t @@ aliased) = use_unique t
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : t @ aliased) = use_unique t
+                                           ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
-let foo (t : t @@ contended) = use_uncontended t
+let foo (t : t @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : t @@ contended) = use_uncontended t
-                                                   ^
+Line 1, characters 46-47:
+1 | let foo (t : t @ contended) = use_uncontended t
+                                                  ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 type 'a t = Foo of { x : 'a } | Bar
-let foo (t : int t @@ nonportable contended once) =
+let foo (t : int t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -397,67 +397,67 @@ type 'a t = Foo of { x : 'a; } | Bar
 val foo : int t @ once contended -> unit = <fun>
 |}]
 
-let foo (t : int t @@ local) = use_global t [@nontail]
+let foo (t : int t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 42-43:
-1 | let foo (t : int t @@ local) = use_global t [@nontail]
-                                              ^
+Line 1, characters 41-42:
+1 | let foo (t : int t @ local) = use_global t [@nontail]
+                                             ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : int t @@ aliased) = use_unique t
+let foo (t : int t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 44-45:
-1 | let foo (t : int t @@ aliased) = use_unique t
-                                                ^
+Line 1, characters 43-44:
+1 | let foo (t : int t @ aliased) = use_unique t
+                                               ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type 'a t = { x : 'a }
 
-let foo (t : _ t @@ nonportable) = use_portable t
+let foo (t : _ t @ nonportable) = use_portable t
 [%%expect {|
 type 'a t = { x : 'a; }
-Line 3, characters 48-49:
-3 | let foo (t : _ t @@ nonportable) = use_portable t
-                                                    ^
+Line 3, characters 47-48:
+3 | let foo (t : _ t @ nonportable) = use_portable t
+                                                   ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-let foo (t : _ t @@ contended) = use_uncontended t
+let foo (t : _ t @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 49-50:
-1 | let foo (t : _ t @@ contended) = use_uncontended t
-                                                     ^
+Line 1, characters 48-49:
+1 | let foo (t : _ t @ contended) = use_uncontended t
+                                                    ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo (t : _ t @@ once) = use_many t
+let foo (t : _ t @ once) = use_many t
 [%%expect {|
-Line 1, characters 37-38:
-1 | let foo (t : _ t @@ once) = use_many t
-                                         ^
+Line 1, characters 36-37:
+1 | let foo (t : _ t @ once) = use_many t
+                                        ^
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : _ t @@ local) = use_global t [@nontail]
+let foo (t : _ t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : _ t @@ local) = use_global t [@nontail]
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : _ t @ local) = use_global t [@nontail]
+                                           ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : _ t @@ aliased) = use_unique t
+let foo (t : _ t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 42-43:
-1 | let foo (t : _ t @@ aliased) = use_unique t
-                                              ^
+Line 1, characters 41-42:
+1 | let foo (t : _ t @ aliased) = use_unique t
+                                             ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type 'a t = Foo of { x : 'a }
-let foo (t : ('a : immutable_data) t @@ nonportable contended once) =
+let foo (t : ('a : immutable_data) t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -473,24 +473,24 @@ Line 3, characters 15-16:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontail]
+let foo (t : ('a : immutable_data) t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 60-61:
-1 | let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontail]
-                                                                ^
+Line 1, characters 59-60:
+1 | let foo (t : ('a : immutable_data) t @ local) = use_global t [@nontail]
+                                                               ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : ('a : immutable_data) t @@ aliased) = use_unique t
+let foo (t : ('a : immutable_data) t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 62-63:
-1 | let foo (t : ('a : immutable_data) t @@ aliased) = use_unique t
-                                                                  ^
+Line 1, characters 61-62:
+1 | let foo (t : ('a : immutable_data) t @ aliased) = use_unique t
+                                                                 ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type ('a : immutable_data) t = Foo of { x : 'a } | Bar of 'a
-let foo (t : _ t @@ nonportable contended once) =
+let foo (t : _ t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -506,34 +506,34 @@ Line 3, characters 15-16:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : _ t @@ local) = use_global t [@nontail]
+let foo (t : _ t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : _ t @@ local) = use_global t [@nontail]
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : _ t @ local) = use_global t [@nontail]
+                                           ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : _ t @@ aliased) = use_unique t
+let foo (t : _ t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 42-43:
-1 | let foo (t : _ t @@ aliased) = use_unique t
-                                              ^
+Line 1, characters 41-42:
+1 | let foo (t : _ t @ aliased) = use_unique t
+                                             ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type 'a t = Foo of { x : 'a }
-let foo (t : (unit -> unit) t @@ contended) = use_uncontended t
+let foo (t : (unit -> unit) t @ contended) = use_uncontended t
 [%%expect {|
 type 'a t = Foo of { x : 'a; }
 val foo : (unit -> unit) t @ contended -> unit = <fun>
 |}]
 
-let foo (t : (unit -> unit) t @@ nonportable) = use_portable t
+let foo (t : (unit -> unit) t @ nonportable) = use_portable t
 [%%expect {|
-Line 1, characters 61-62:
-1 | let foo (t : (unit -> unit) t @@ nonportable) = use_portable t
-                                                                 ^
+Line 1, characters 60-61:
+1 | let foo (t : (unit -> unit) t @ nonportable) = use_portable t
+                                                                ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 

@@ -218,7 +218,7 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
       yielding = Option.map get_txt modes.yielding
     }
 
-let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
+let untransl_mode_annots (modes : Mode.Alloc.Const.Option.t) =
   let print_to_string_opt print a = Option.map (Format.asprintf "%a" print) a in
   let areality = print_to_string_opt Mode.Locality.Const.print modes.areality in
   let uniqueness =
@@ -243,7 +243,8 @@ let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
     | _, _ -> print_to_string_opt Mode.Yielding.Const.print modes.yielding
   in
   List.filter_map
-    (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
+    (fun x ->
+      Option.map (fun s -> { txt = Parsetree.Mode s; loc = Location.none }) x)
     [areality; uniqueness; linearity; portability; contention; yielding]
 
 let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =

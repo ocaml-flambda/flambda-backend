@@ -11,13 +11,13 @@ external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
 type 'a myref = { mutable v : 'a}
 
-let mk_ref : ('a -> 'a myref) @@ portable = fun v -> {v}
+let mk_ref : ('a -> 'a myref) @ portable = fun v -> {v}
 
 (* We need ['a] to be [portable] to return a [portable] value from the read.
    The return value is marked as [contended] because our callsites require that,
    but the typechecker does not implicitly downcast the result. *)
 let read_ref : ('a : value mod portable) .
-  ('a myref -> 'a @ portable contended) @@ portable = fun r -> r.v
+  ('a myref -> 'a @ portable contended) @ portable = fun r -> r.v
 
 (* We need ['a] to be [portable] and [contended] to capture it in
    a [portable] closure like this.*)
@@ -177,4 +177,3 @@ let ptr' : (int, lost_capsule) Capsule.Data.t =
 let () =
   assert (Capsule.Data.project ptr' = 111)
 ;;
-

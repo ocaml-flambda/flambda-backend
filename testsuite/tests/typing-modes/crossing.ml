@@ -10,7 +10,7 @@ written type does. *)
 module M : sig
     val f : int @ nonportable -> int @ portable
 end = struct
-    let f (x @ portable) = (x : _ @@ nonportable)
+    let f (x @ portable) = (x : _ @ nonportable)
 end
 [%%expect{|
 module M : sig val f : int -> int @ portable end
@@ -21,12 +21,12 @@ written type does not. *)
 module M : sig
     val f : unit -> [`A | `B of 'a -> 'a] @ portable
 end = struct
-    let f () = (`A : _ @@ nonportable)
+    let f () = (`A : _ @ nonportable)
 end
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |     let f () = (`A : _ @@ nonportable)
+4 |     let f () = (`A : _ @ nonportable)
 5 | end
 Error: Signature mismatch:
        Modules do not match:
@@ -47,7 +47,7 @@ the written type does. *)
 module M : sig
     val f : [`A] @ nonportable -> unit
 end = struct
-    let f (x : [< `A | `B of string -> string] @@ portable) =
+    let f (x : [< `A | `B of string -> string] @ portable) =
         match x with
         | `A -> ()
         | `B f -> ()
@@ -119,109 +119,109 @@ type cross_shared : value mod shared
 type cross_uncontended
 |}]
 
-let cross_global (x : cross_global @@ local) : _ @@ global = x
+let cross_global (x : cross_global @ local) : _ @ global = x
 [%%expect{|
 val cross_global : local_ cross_global -> cross_global = <fun>
 |}]
 
-let cross_local (x : cross_local @@ local) : _ @@ global = x
+let cross_local (x : cross_local @ local) : _ @ global = x
 [%%expect{|
-Line 1, characters 59-60:
-1 | let cross_local (x : cross_local @@ local) : _ @@ global = x
-                                                               ^
+Line 1, characters 57-58:
+1 | let cross_local (x : cross_local @ local) : _ @ global = x
+                                                             ^
 Error: This value escapes its region.
 |}]
 
-let cross_many (x : cross_many @@ once) : _ @@ many = x
+let cross_many (x : cross_many @ once) : _ @ many = x
 [%%expect{|
 val cross_many : cross_many @ once -> cross_many = <fun>
 |}]
 
-let cross_once (x : cross_once @@ once) : _ @@ many = x
+let cross_once (x : cross_once @ once) : _ @ many = x
 [%%expect{|
-Line 1, characters 54-55:
-1 | let cross_once (x : cross_once @@ once) : _ @@ many = x
-                                                          ^
+Line 1, characters 52-53:
+1 | let cross_once (x : cross_once @ once) : _ @ many = x
+                                                        ^
 Error: This value is "once" but expected to be "many".
 |}]
 
-let cross_portable (x : cross_portable @@ nonportable) : _ @@ portable = x
+let cross_portable (x : cross_portable @ nonportable) : _ @ portable = x
 [%%expect{|
 val cross_portable : cross_portable -> cross_portable @ portable = <fun>
 |}]
 
-let cross_nonportable (x : cross_nonportable @@ nonportable) : _ @@ portable = x
+let cross_nonportable (x : cross_nonportable @ nonportable) : _ @ portable = x
 [%%expect{|
-Line 1, characters 79-80:
-1 | let cross_nonportable (x : cross_nonportable @@ nonportable) : _ @@ portable = x
-                                                                                   ^
+Line 1, characters 77-78:
+1 | let cross_nonportable (x : cross_nonportable @ nonportable) : _ @ portable = x
+                                                                                 ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-let cross_unyielding (x : cross_unyielding @@ yielding) : _ @@ unyielding = x
+let cross_unyielding (x : cross_unyielding @ yielding) : _ @ unyielding = x
 [%%expect{|
 val cross_unyielding : cross_unyielding @ yielding -> cross_unyielding =
   <fun>
 |}]
 
-let cross_yielding (x : cross_yielding @@ yielding) : _ @@ unyielding = x
+let cross_yielding (x : cross_yielding @ yielding) : _ @ unyielding = x
 [%%expect{|
-Line 1, characters 72-73:
-1 | let cross_yielding (x : cross_yielding @@ yielding) : _ @@ unyielding = x
-                                                                            ^
+Line 1, characters 70-71:
+1 | let cross_yielding (x : cross_yielding @ yielding) : _ @ unyielding = x
+                                                                          ^
 Error: This value is "yielding" but expected to be "unyielding".
 |}]
 
-let cross_aliased (x : cross_aliased @@ aliased) : _ @@ unique = x
+let cross_aliased (x : cross_aliased @ aliased) : _ @ unique = x
 [%%expect{|
 val cross_aliased : cross_aliased -> cross_aliased @ unique = <fun>
 |}]
 
-let cross_unique (x : cross_unique @@ aliased) : _ @@ unique = x
+let cross_unique (x : cross_unique @ aliased) : _ @ unique = x
 [%%expect{|
-Line 1, characters 63-64:
-1 | let cross_unique (x : cross_unique @@ aliased) : _ @@ unique = x
-                                                                   ^
+Line 1, characters 61-62:
+1 | let cross_unique (x : cross_unique @ aliased) : _ @ unique = x
+                                                                 ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
-let cross_contended1 (x : cross_contended @@ shared) : _ @@ uncontended = x
+let cross_contended1 (x : cross_contended @ shared) : _ @ uncontended = x
 [%%expect{|
 val cross_contended1 : cross_contended @ shared -> cross_contended = <fun>
 |}]
 
-let cross_contended2 (x : cross_contended @@ contended) : _ @@ shared = x
+let cross_contended2 (x : cross_contended @ contended) : _ @ shared = x
 [%%expect{|
 val cross_contended2 :
   cross_contended @ contended -> cross_contended @ shared = <fun>
 |}]
 
-let cross_shared1 (x : cross_shared @@ shared) : _ @@ uncontended = x
+let cross_shared1 (x : cross_shared @ shared) : _ @ uncontended = x
 [%%expect{|
 val cross_shared1 : cross_shared @ shared -> cross_shared = <fun>
 |}]
 
-let cross_shared2 (x : cross_shared @@ contended) : _ @@ shared = x
+let cross_shared2 (x : cross_shared @ contended) : _ @ shared = x
 [%%expect{|
-Line 1, characters 66-67:
-1 | let cross_shared2 (x : cross_shared @@ contended) : _ @@ shared = x
-                                                                      ^
+Line 1, characters 64-65:
+1 | let cross_shared2 (x : cross_shared @ contended) : _ @ shared = x
+                                                                    ^
 Error: This value is "contended" but expected to be "shared".
 |}]
 
-let cross_uncontended1 (x : cross_uncontended @@ shared) : _ @@ uncontended = x
+let cross_uncontended1 (x : cross_uncontended @ shared) : _ @ uncontended = x
 [%%expect{|
-Line 1, characters 78-79:
-1 | let cross_uncontended1 (x : cross_uncontended @@ shared) : _ @@ uncontended = x
-                                                                                  ^
+Line 1, characters 76-77:
+1 | let cross_uncontended1 (x : cross_uncontended @ shared) : _ @ uncontended = x
+                                                                                ^
 Error: This value is "shared" but expected to be "uncontended".
 |}]
 
-let cross_uncontended2 (x : cross_uncontended @@ contended) : _ @@ shared = x
+let cross_uncontended2 (x : cross_uncontended @ contended) : _ @ shared = x
 [%%expect{|
-Line 1, characters 76-77:
-1 | let cross_uncontended2 (x : cross_uncontended @@ contended) : _ @@ shared = x
-                                                                                ^
+Line 1, characters 74-75:
+1 | let cross_uncontended2 (x : cross_uncontended @ contended) : _ @ shared = x
+                                                                              ^
 Error: This value is "contended" but expected to be "shared".
 |}]
 

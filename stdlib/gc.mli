@@ -594,7 +594,7 @@ end
     similar in most regards.)
 
    *)
-module (Memprof @ nonportable) :
+module (Memprof @@ nonportable) :
   sig @@ portable
     type t
     (** the type of a profile *)
@@ -748,7 +748,7 @@ end
 
         OCAMLRUNPARAM='Xfoo=42'
     *)
-module (Tweak @ nonportable) : sig
+module (Tweak @@ nonportable) : sig
   (** Change a parameter.
       Raises Invalid_argument if no such parameter exists *)
   val set : string -> int -> unit

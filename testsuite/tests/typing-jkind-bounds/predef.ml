@@ -135,7 +135,7 @@ Error: This type "int option" should be an instance of type
          because of the definition of require_global at line 7, characters 0-43.
 |}]
 
-let foo (t : int option @@ contended portable once) =
+let foo (t : int option @ contended portable once) =
   use_many t;
   use_uncontended t;
   use_portable t
@@ -143,11 +143,11 @@ let foo (t : int option @@ contended portable once) =
 val foo : int option @ once portable contended -> unit = <fun>
 |}]
 
-let foo (t : int option @@ local) = use_global t [@nontail]
+let foo (t : int option @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : int option @@ local) = use_global t [@nontail]
-                                                   ^
+Line 1, characters 46-47:
+1 | let foo (t : int option @ local) = use_global t [@nontail]
+                                                  ^
 Error: This value escapes its region.
 |}]
 
@@ -230,18 +230,18 @@ Error: This type "int ref" should be an instance of type
          contention: mod uncontended ≰ mod contended
 |}]
 
-let foo (t : int ref @@ portable once) =
+let foo (t : int ref @ portable once) =
   use_many t;
   use_portable t
 [%%expect {|
 val foo : int ref @ once portable -> unit = <fun>
 |}]
 
-let foo (t : int ref @@ contended) = use_uncontended t
+let foo (t : int ref @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 53-54:
-1 | let foo (t : int ref @@ contended) = use_uncontended t
-                                                         ^
+Line 1, characters 52-53:
+1 | let foo (t : int ref @ contended) = use_uncontended t
+                                                        ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -352,7 +352,7 @@ Error: This type "int list" should be an instance of type
          because of the definition of require_global at line 7, characters 0-43.
 |}]
 
-let foo (t : int list @@ contended portable once) =
+let foo (t : int list @ contended portable once) =
   use_many t;
   use_uncontended t;
   use_portable t
@@ -360,11 +360,11 @@ let foo (t : int list @@ contended portable once) =
 val foo : int list @ once portable contended -> unit = <fun>
 |}]
 
-let foo (t : int list @@ local) = use_global t [@nontail]
+let foo (t : int list @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 45-46:
-1 | let foo (t : int list @@ local) = use_global t [@nontail]
-                                                 ^
+Line 1, characters 44-45:
+1 | let foo (t : int list @ local) = use_global t [@nontail]
+                                                ^
 Error: This value escapes its region.
 |}]
 
@@ -443,18 +443,18 @@ Error: This type "int array" should be an instance of type
          because of the definition of require_contended at line 9, characters 0-49.
 |}]
 
-let foo (t : int array @@ portable once) =
+let foo (t : int array @ portable once) =
   use_many t;
   use_portable t
 [%%expect {|
 val foo : int array @ once portable -> unit = <fun>
 |}]
 
-let foo (t : int array @@ contended) = use_uncontended t
+let foo (t : int array @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 55-56:
-1 | let foo (t : int array @@ contended) = use_uncontended t
-                                                           ^
+Line 1, characters 54-55:
+1 | let foo (t : int array @ contended) = use_uncontended t
+                                                          ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -563,7 +563,7 @@ Error: This type "int iarray" should be an instance of type
          because of the definition of require_global at line 7, characters 0-43.
 |}]
 
-let foo (t : int iarray @@ contended portable once) =
+let foo (t : int iarray @ contended portable once) =
   use_many t;
   use_uncontended t;
   use_portable t
@@ -571,10 +571,10 @@ let foo (t : int iarray @@ contended portable once) =
 val foo : int iarray @ once portable contended -> unit = <fun>
 |}]
 
-let foo (t : int iarray @@ local) = use_global t [@nontail]
+let foo (t : int iarray @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : int iarray @@ local) = use_global t [@nontail]
-                                                   ^
+Line 1, characters 46-47:
+1 | let foo (t : int iarray @ local) = use_global t [@nontail]
+                                                  ^
 Error: This value escapes its region.
 |}]
