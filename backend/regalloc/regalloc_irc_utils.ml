@@ -34,6 +34,50 @@ let log_cfg_with_infos : Cfg_with_infos.t -> unit =
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
     cfg_with_infos
 
+module WorkList = struct
+  type t =
+    | Unknown_list
+    | Precolored
+    | Initial
+    | Simplify
+    | Freeze
+    | Spill
+    | Spilled
+    | Coalesced
+    | Colored
+    | Select_stack
+
+  let equal left right =
+    match left, right with
+    | Unknown_list, Unknown_list
+    | Precolored, Precolored
+    | Initial, Initial
+    | Simplify, Simplify
+    | Freeze, Freeze
+    | Spill, Spill
+    | Spilled, Spilled
+    | Coalesced, Coalesced
+    | Colored, Colored
+    | Select_stack, Select_stack ->
+      true
+    | ( ( Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
+        | Spilled | Coalesced | Colored | Select_stack ),
+        _ ) ->
+      false
+
+  let to_string = function
+    | Unknown_list -> "unknown_list"
+    | Precolored -> "precolored"
+    | Initial -> "initial"
+    | Simplify -> "simplify"
+    | Freeze -> "freeze"
+    | Spill -> "spill"
+    | Spilled -> "spilled"
+    | Coalesced -> "coalesced"
+    | Colored -> "colored"
+    | Select_stack -> "select_stack"
+end
+
 module Color = struct
   type t = int
 end
@@ -137,22 +181,6 @@ let all_precolored_regs =
   Proc.precolored_regs
 
 let k reg = Proc.num_available_registers.(Proc.register_class reg)
-
-let update_register_locations : unit -> unit =
- fun () ->
-  if debug then log "update_register_locations";
-  List.iter (Reg.all_registers ()) ~f:(fun reg ->
-      match reg.Reg.loc with
-      | Reg _ -> ()
-      | Stack _ -> ()
-      | Unknown -> (
-        match reg.Reg.irc_color with
-        | None ->
-          (* because of rewrites, the register may no longer be present *)
-          ()
-        | Some color ->
-          if debug then log "updating %a to %d" Printreg.reg reg color;
-          reg.Reg.loc <- Reg color))
 
 module Spilling_heuristics = struct
   type t =

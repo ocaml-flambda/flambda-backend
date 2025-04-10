@@ -15,21 +15,6 @@
 
 (* Pseudo-registers *)
 
-(* CR xclerc for xclerc: double check all constructors are actually used. *)
-type irc_work_list =
-  | Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack
-val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
-val string_of_irc_work_list : irc_work_list -> string
-
 module Raw_name : sig
   type t
   val create_from_var : Backend_var.t -> t
@@ -41,12 +26,7 @@ type t =
     stamp: int;                           (* Unique stamp *)
     typ: Cmm.machtype_component;          (* Type of contents *)
     mutable loc: location;                (* Actual location *)
-    mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
-    mutable irc_color : int option;       (* Current color (IRC only) *)
-    mutable irc_alias : t option;         (* Current alias (IRC only) *)
     mutable spill: bool;                  (* "true" to force stack allocation  *)
-    mutable interf: t list;               (* Other regs live simultaneously *)
-    mutable degree: int;                  (* Number of other regs live sim. *)
     mutable spill_cost: int; }            (* Estimate of spilling cost *)
 
 and location =

@@ -49,33 +49,44 @@ type t =
     stack_slots : Regalloc_stack_slots.t;
     instruction_id : InstructionId.sequence;
     mutable inst_temporaries : Reg.Set.t;
-    mutable block_temporaries : Reg.Set.t
+    mutable block_temporaries : Reg.Set.t;
+    reg_work_list : WorkList.t Reg.Tbl.t;
+    reg_color : int option Reg.Tbl.t;
+    reg_alias : Reg.t option Reg.Tbl.t;
+    reg_interf : Reg.t list Reg.Tbl.t;
+    reg_degree : int Reg.Tbl.t
   }
 
 let max_capacity = 1024
 
 let[@inline] make ~initial ~stack_slots ~last_used () =
+  let num_registers = List.length initial in
+  let reg_work_list = Reg.Tbl.create num_registers in
+  let reg_color = Reg.Tbl.create num_registers in
+  let reg_alias = Reg.Tbl.create num_registers in
+  let reg_interf = Reg.Tbl.create num_registers in
+  let reg_degree = Reg.Tbl.create num_registers in
   List.iter (Reg.all_registers ()) ~f:(fun reg ->
-      reg.Reg.irc_work_list <- Unknown_list;
-      reg.Reg.irc_color <- None;
-      reg.Reg.irc_alias <- None;
-      reg.Reg.interf <- [];
-      reg.Reg.degree <- 0);
-  List.iter initial ~f:(fun reg -> reg.Reg.irc_work_list <- Initial);
+      Reg.Tbl.replace reg_work_list reg WorkList.Unknown_list;
+      Reg.Tbl.replace reg_color reg None;
+      Reg.Tbl.replace reg_alias reg None;
+      Reg.Tbl.replace reg_interf reg [];
+      Reg.Tbl.replace reg_degree reg 0);
+  List.iter initial ~f:(fun reg ->
+      Reg.Tbl.replace reg_work_list reg WorkList.Initial);
   Reg.Set.iter
     (fun reg ->
-      reg.Reg.irc_work_list <- Reg.Precolored;
-      reg.Reg.irc_color
-        <- (match reg.Reg.loc with
-           | Reg color -> Some color
-           | Unknown | Stack _ ->
-             fatal "precolored register %a is not an hardware register"
-               Printreg.reg reg);
-      reg.Reg.irc_alias <- None;
-      reg.Reg.interf <- [];
-      reg.Reg.degree <- Degree.infinite)
+      Reg.Tbl.replace reg_work_list reg WorkList.Precolored;
+      Reg.Tbl.replace reg_color reg
+        (match reg.Reg.loc with
+        | Reg color -> Some color
+        | Unknown | Stack _ ->
+          fatal "precolored register %a is not an hardware register"
+            Printreg.reg reg);
+      Reg.Tbl.replace reg_alias reg None;
+      Reg.Tbl.replace reg_interf reg [];
+      Reg.Tbl.replace reg_degree reg Degree.infinite)
     (all_precolored_regs ());
-  let num_registers = List.length initial in
   let original_capacity = Int.min max_capacity num_registers in
   let simplify_work_list = RegWorkList.make ~original_capacity in
   let freeze_work_list = RegWorkList.make ~original_capacity in
@@ -116,49 +127,58 @@ let[@inline] make ~initial ~stack_slots ~last_used () =
     stack_slots;
     instruction_id;
     inst_temporaries;
-    block_temporaries
+    block_temporaries;
+    reg_work_list;
+    reg_color;
+    reg_alias;
+    reg_interf;
+    reg_degree
   }
 
 let[@inline] add_initial_one state reg =
-  reg.Reg.irc_work_list <- Initial;
-  reg.Reg.irc_color <- None;
-  reg.Reg.irc_alias <- None;
-  reg.Reg.interf <- [];
-  reg.Reg.degree <- 0;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Initial;
+  Reg.Tbl.replace state.reg_color reg None;
+  Reg.Tbl.replace state.reg_alias reg None;
+  Reg.Tbl.replace state.reg_interf reg [];
+  Reg.Tbl.replace state.reg_degree reg 0;
   Doubly_linked_list.add_begin state.initial reg
 
 let[@inline] add_initial_list state regs =
   List.iter regs ~f:(fun reg ->
-      reg.Reg.irc_work_list <- Initial;
-      reg.Reg.irc_color <- None;
-      reg.Reg.irc_alias <- None;
-      reg.Reg.interf <- [];
-      reg.Reg.degree <- 0;
+      Reg.Tbl.replace state.reg_work_list reg WorkList.Initial;
+      Reg.Tbl.replace state.reg_color reg None;
+      Reg.Tbl.replace state.reg_alias reg None;
+      Reg.Tbl.replace state.reg_interf reg [];
+      Reg.Tbl.replace state.reg_degree reg 0;
       Doubly_linked_list.add_begin state.initial reg)
 
 let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   let unknown_reg_work_list (rwl : RegWorkList.t) : unit =
-    RegWorkList.iter rwl ~f:(fun reg -> reg.irc_work_list <- Unknown_list)
+    RegWorkList.iter rwl ~f:(fun reg ->
+        Reg.Tbl.replace state.reg_work_list reg WorkList.Unknown_list)
   in
   let unknown_instruction_work_list (iwl : InstructionWorkList.t) : unit =
     InstructionWorkList.iter iwl ~f:(fun instr ->
         instr.irc_work_list <- Unknown_list)
   in
   List.iter (Reg.all_registers ()) ~f:(fun reg ->
-      reg.Reg.irc_color <- None;
-      reg.Reg.irc_alias <- None;
-      reg.Reg.interf <- [];
-      reg.Reg.degree <- 0);
+      Reg.Tbl.replace state.reg_color reg None;
+      Reg.Tbl.replace state.reg_alias reg None;
+      Reg.Tbl.replace state.reg_interf reg [];
+      Reg.Tbl.replace state.reg_degree reg 0);
   Reg.Set.iter
     (fun reg ->
-      assert (Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Precolored);
-      (match reg.Reg.loc, reg.Reg.irc_color with
+      assert (
+        WorkList.equal
+          (Reg.Tbl.find state.reg_work_list reg)
+          WorkList.Precolored);
+      (match reg.Reg.loc, Reg.Tbl.find state.reg_color reg with
       | Reg color, Some color' -> assert (color = color')
       | Reg _, None -> assert false
       | (Unknown | Stack _), _ -> assert false);
-      reg.Reg.irc_alias <- None;
-      reg.Reg.interf <- [];
-      assert (reg.Reg.degree = Degree.infinite))
+      Reg.Tbl.replace state.reg_alias reg None;
+      Reg.Tbl.replace state.reg_interf reg [];
+      assert (Reg.Tbl.find state.reg_degree reg = Degree.infinite))
     (all_precolored_regs ());
   state.initial <- Doubly_linked_list.of_list new_inst_temporaries;
   Doubly_linked_list.add_list state.initial new_block_temporaries;
@@ -166,7 +186,7 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   RegWorkList.iter state.coalesced_nodes ~f:(fun reg ->
       Doubly_linked_list.add_end state.initial reg);
   Doubly_linked_list.iter state.initial ~f:(fun reg ->
-      reg.Reg.irc_work_list <- Initial);
+      Reg.Tbl.replace state.reg_work_list reg WorkList.Initial);
   unknown_reg_work_list state.simplify_work_list;
   RegWorkList.clear state.simplify_work_list;
   unknown_reg_work_list state.freeze_work_list;
@@ -190,11 +210,23 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   RegisterStamp.PairSet.clear state.adj_set;
   Reg.Tbl.clear state.move_list
 
-let[@inline] is_precolored _state reg =
-  Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Precolored
+let[@inline] work_list state reg = Reg.Tbl.find state.reg_work_list reg
 
-let[@inline] is_precolored_or_colored _state reg =
-  match reg.Reg.irc_work_list with
+let[@inline] color state reg = Reg.Tbl.find state.reg_color reg
+
+let[@inline] set_color state reg color =
+  Reg.Tbl.replace state.reg_color reg color
+
+let[@inline] degree state reg = Reg.Tbl.find state.reg_degree reg
+
+let[@inline] set_degree state reg degree =
+  Reg.Tbl.replace state.reg_degree reg degree
+
+let[@inline] is_precolored state reg =
+  WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Precolored
+
+let[@inline] is_precolored_or_colored state reg =
+  match Reg.Tbl.find state.reg_work_list reg with
   | Precolored | Colored -> true
   | Unknown_list | Initial | Simplify | Freeze | Spill | Spilled | Coalesced
   | Select_stack ->
@@ -202,7 +234,7 @@ let[@inline] is_precolored_or_colored _state reg =
 
 let[@inline] iter_and_clear_initial state ~f =
   Doubly_linked_list.iter state.initial ~f:(fun reg ->
-      reg.Reg.irc_work_list <- Unknown_list);
+      Reg.Tbl.replace state.reg_work_list reg WorkList.Unknown_list);
   Doubly_linked_list.iter state.initial ~f;
   Doubly_linked_list.clear state.initial
 
@@ -210,49 +242,49 @@ let[@inline] is_empty_simplify_work_list state =
   RegWorkList.is_empty state.simplify_work_list
 
 let[@inline] add_simplify_work_list state reg =
-  reg.Reg.irc_work_list <- Reg.Simplify;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Simplify;
   RegWorkList.add state.simplify_work_list reg
 
 let[@inline] choose_and_remove_simplify_work_list state =
   match RegWorkList.choose_and_remove state.simplify_work_list with
   | None -> fatal "simplify_work_list is empty"
   | Some res ->
-    res.Reg.irc_work_list <- Reg.Unknown_list;
+    Reg.Tbl.replace state.reg_work_list res WorkList.Unknown_list;
     res
 
 let[@inline] is_empty_freeze_work_list state =
   RegWorkList.is_empty state.freeze_work_list
 
-let[@inline] mem_freeze_work_list _state reg =
-  Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Freeze
+let[@inline] mem_freeze_work_list state reg =
+  WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Freeze
 
 let[@inline] add_freeze_work_list state reg =
-  reg.Reg.irc_work_list <- Reg.Freeze;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Freeze;
   RegWorkList.add state.freeze_work_list reg
 
 let[@inline] remove_freeze_work_list state reg =
-  reg.Reg.irc_work_list <- Reg.Unknown_list;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Unknown_list;
   RegWorkList.remove state.freeze_work_list reg
 
 let[@inline] choose_and_remove_freeze_work_list state =
   match RegWorkList.choose_and_remove state.freeze_work_list with
   | None -> fatal "freeze_work_list is empty"
   | Some res ->
-    res.Reg.irc_work_list <- Reg.Unknown_list;
+    Reg.Tbl.replace state.reg_work_list res WorkList.Unknown_list;
     res
 
 let[@inline] is_empty_spill_work_list state =
   RegWorkList.is_empty state.spill_work_list
 
-let[@inline] mem_spill_work_list _state reg =
-  Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Spill
+let[@inline] mem_spill_work_list state reg =
+  WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Spill
 
 let[@inline] add_spill_work_list state reg =
-  reg.Reg.irc_work_list <- Reg.Spill;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Spill;
   RegWorkList.add state.spill_work_list reg
 
 let[@inline] remove_spill_work_list state reg =
-  reg.Reg.irc_work_list <- Reg.Unknown_list;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Unknown_list;
   RegWorkList.remove state.spill_work_list reg
 
 let[@inline] fold_spill_work_list state ~f ~init =
@@ -265,32 +297,32 @@ let[@inline] is_empty_spilled_nodes state =
   RegWorkList.is_empty state.spilled_nodes
 
 let[@inline] add_spilled_nodes state reg =
-  reg.Reg.irc_work_list <- Reg.Spilled;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Spilled;
   RegWorkList.add state.spilled_nodes reg
 
 let[@inline] spilled_nodes state = RegWorkList.to_list state.spilled_nodes
 
 let[@inline] clear_spilled_nodes state =
   RegWorkList.iter state.spilled_nodes ~f:(fun reg ->
-      reg.Reg.irc_work_list <- Reg.Unknown_list);
+      Reg.Tbl.replace state.reg_work_list reg WorkList.Unknown_list);
   RegWorkList.clear state.spilled_nodes
 
 let[@inline] add_coalesced_nodes state reg =
-  reg.Reg.irc_work_list <- Reg.Coalesced;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Coalesced;
   RegWorkList.add state.coalesced_nodes reg
 
 let[@inline] iter_coalesced_nodes state ~f =
   RegWorkList.iter state.coalesced_nodes ~f
 
 let[@inline] add_colored_nodes state reg =
-  reg.Reg.irc_work_list <- Reg.Colored;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Colored;
   Doubly_linked_list.add_begin state.colored_nodes reg
 
 let[@inline] is_empty_select_stack state =
   Misc.Stdlib.List.is_empty state.select_stack
 
 let[@inline] push_select_stack state reg =
-  reg.Reg.irc_work_list <- Reg.Select_stack;
+  Reg.Tbl.replace state.reg_work_list reg WorkList.Select_stack;
   state.select_stack <- reg :: state.select_stack
 
 let[@inline] pop_select_stack state =
@@ -298,7 +330,7 @@ let[@inline] pop_select_stack state =
   | [] -> fatal "select_stack is empty"
   | hd :: tl ->
     state.select_stack <- tl;
-    hd.Reg.irc_work_list <- Reg.Unknown_list;
+    Reg.Tbl.replace state.reg_work_list hd WorkList.Unknown_list;
     hd
 
 let[@inline] iter_and_clear_select_stack state ~f =
@@ -346,11 +378,13 @@ let[@inline] mem_adj_set state reg1 reg2 =
   RegisterStamp.PairSet.mem state.adj_set
     (RegisterStamp.pair reg1.Reg.stamp reg2.Reg.stamp)
 
-let[@inline] adj_list _state reg = reg.Reg.interf
+let[@inline] adj_list state reg = Reg.Tbl.find state.reg_interf reg
 
 let[@inline] interferes_with_adj state reg1 reg2 =
   mem_adj_set state reg1 reg2
-  || List.exists reg1.Reg.interf ~f:(Reg.same_phys_reg reg2)
+  || List.exists
+       (Reg.Tbl.find state.reg_interf reg1)
+       ~f:(Reg.same_phys_reg reg2)
 
 let[@inline] add_edge state u v =
   let is_interesting_reg reg =
@@ -365,12 +399,14 @@ let[@inline] add_edge state u v =
      && not (RegisterStamp.PairSet.mem state.adj_set pair)
   then (
     RegisterStamp.PairSet.add state.adj_set pair;
-    let add_adj_list x y = x.Reg.interf <- y :: x.Reg.interf in
+    let add_adj_list x y =
+      Reg.Tbl.replace state.reg_interf x (y :: Reg.Tbl.find state.reg_interf x)
+    in
     let incr_degree x =
-      let deg = x.Reg.degree in
+      let deg = Reg.Tbl.find state.reg_degree x in
       if debug && deg = Degree.infinite
       then fatal "trying to increment the degree of a precolored node";
-      x.Reg.degree <- succ deg
+      Reg.Tbl.replace state.reg_degree x (succ deg)
     in
     if not (is_precolored state u)
     then (
@@ -383,7 +419,7 @@ let[@inline] add_edge state u v =
 
 let[@inline] iter_adjacent state reg ~f =
   List.iter (adj_list state reg) ~f:(fun reg ->
-      match reg.Reg.irc_work_list with
+      match Reg.Tbl.find state.reg_work_list reg with
       | Select_stack | Coalesced -> ()
       | Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
       | Spilled | Colored ->
@@ -391,7 +427,7 @@ let[@inline] iter_adjacent state reg ~f =
 
 let[@inline] for_all_adjacent state reg ~f =
   List.for_all (adj_list state reg) ~f:(fun reg ->
-      match reg.Reg.irc_work_list with
+      match Reg.Tbl.find state.reg_work_list reg with
       | Select_stack | Coalesced -> true
       | Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
       | Spilled | Colored ->
@@ -444,23 +480,23 @@ let[@inline] enable_moves_one state reg =
       | Unknown_list | Coalesced | Constrained | Frozen | Work_list -> ())
 
 let[@inline] decr_degree state reg =
-  let d = reg.Reg.degree in
+  let d = Reg.Tbl.find state.reg_degree reg in
   if d = Degree.infinite
   then ()
   else (
-    reg.Reg.degree <- pred d;
+    Reg.Tbl.replace state.reg_degree reg (pred d);
     if Int.equal d (k reg)
     then (
       enable_moves_one state reg;
       iter_adjacent state reg ~f:(fun r -> enable_moves_one state r);
-      reg.Reg.irc_work_list <- Reg.Unknown_list;
+      Reg.Tbl.replace state.reg_work_list reg WorkList.Unknown_list;
       RegWorkList.remove state.spill_work_list reg;
       if is_move_related state reg
       then (
-        reg.Reg.irc_work_list <- Reg.Freeze;
+        Reg.Tbl.replace state.reg_work_list reg WorkList.Freeze;
         RegWorkList.add state.freeze_work_list reg)
       else (
-        reg.Reg.irc_work_list <- Reg.Simplify;
+        Reg.Tbl.replace state.reg_work_list reg WorkList.Simplify;
         RegWorkList.add state.simplify_work_list reg)))
 
 let[@inline] find_move_list state reg =
@@ -482,14 +518,14 @@ let[@inline] union_move_list state reg set =
     Reg.Tbl.replace state.move_list reg (Instruction.Set.union existing set)
 
 let[@inline] rec find_alias state reg =
-  if Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Coalesced
+  if WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Coalesced
   then
-    match reg.Reg.irc_alias with
+    match Reg.Tbl.find state.reg_alias reg with
     | None -> fatal "register %a has no alias" Printreg.reg reg
     | Some reg' -> find_alias state reg'
   else reg
 
-let[@inline] add_alias _state v u =
+let[@inline] add_alias state v u =
   (* We should never generate moves between registers of different types.
      Bit-casting operations have specific instructions. *)
   if not (Proc.types_are_compatible v u)
@@ -498,7 +534,7 @@ let[@inline] add_alias _state v u =
       "trying to create an alias between %a and %a but they have incompatible \
        types"
       Printreg.reg v Printreg.reg u;
-  v.Reg.irc_alias <- Some u
+  Reg.Tbl.replace state.reg_alias v (Some u)
 
 let[@inline] stack_slots state = state.stack_slots
 
@@ -525,6 +561,21 @@ let[@inline] mem_all_introduced_temporaries state reg =
 let[@inline] diff_all_introduced_temporaries state set =
   Reg.Set.diff (Reg.Set.diff set state.inst_temporaries) state.block_temporaries
 
+let update_register_locations state =
+  if debug then log "update_register_locations";
+  List.iter (Reg.all_registers ()) ~f:(fun reg ->
+      match reg.Reg.loc with
+      | Reg _ -> ()
+      | Stack _ -> ()
+      | Unknown -> (
+        match Reg.Tbl.find state.reg_color reg with
+        | None ->
+          (* because of rewrites, the register may no longer be present *)
+          ()
+        | Some color ->
+          if debug then log "updating %a to %d" Printreg.reg reg color;
+          reg.Reg.loc <- Reg color))
+
 let[@inline] check_disjoint sets ~is_disjoint =
   List.iter sets ~f:(fun (name1, set1) ->
       List.iter sets ~f:(fun (name2, set2) ->
@@ -533,14 +584,15 @@ let[@inline] check_disjoint sets ~is_disjoint =
             if not (is_disjoint set1 set2)
             then fatal "sets %s and %s are not disjoint" name1 name2))
 
-let[@inline] check_set_and_field_consistency_reg (work_list, set, field_value) =
+let[@inline] check_set_and_field_consistency_reg state
+    (work_list, set, field_value) =
   Reg.Set.iter
     (fun reg ->
-      if not (Reg.equal_irc_work_list reg.Reg.irc_work_list field_value)
+      if not (WorkList.equal (Reg.Tbl.find state.reg_work_list reg) field_value)
       then
         fatal "register %a is in %s but its field equals %S" Printreg.reg reg
           work_list
-          (Reg.string_of_irc_work_list reg.Reg.irc_work_list))
+          (WorkList.to_string (Reg.Tbl.find state.reg_work_list reg)))
     set
 
 let[@inline] check_set_and_field_consistency_instr (work_list, set, field_value)
@@ -554,8 +606,8 @@ let[@inline] check_set_and_field_consistency_instr (work_list, set, field_value)
           (Cfg.string_of_irc_work_list instr.Cfg.irc_work_list))
     set
 
-let[@inline] check_inter_has_no_duplicates (reg : Reg.t) : unit =
-  let l = reg.Reg.interf in
+let[@inline] check_inter_has_no_duplicates state (reg : Reg.t) : unit =
+  let l = Reg.Tbl.find state.reg_interf reg in
   let s = Reg.Set.of_list l in
   if List.length l <> Reg.Set.cardinal s
   then fatal "interf list for %a is not a set" Printreg.reg reg
@@ -568,8 +620,8 @@ let[@inline] invariant state =
   if debug && Lazy.force invariants
   then (
     (* interf (list) is morally a set *)
-    List.iter (Reg.all_registers ()) ~f:check_inter_has_no_duplicates;
-    Reg.Set.iter check_inter_has_no_duplicates (all_precolored_regs ());
+    List.iter (Reg.all_registers ()) ~f:(check_inter_has_no_duplicates state);
+    Reg.Set.iter (check_inter_has_no_duplicates state) (all_precolored_regs ());
     (* register sets are disjoint *)
     check_disjoint ~is_disjoint:Reg.Set.disjoint
       [ "precolored", all_precolored_regs ();
@@ -581,28 +633,31 @@ let[@inline] invariant state =
         "coalesced_nodes", reg_set_of_reg_work_list state.coalesced_nodes;
         "colored_nodes", reg_set_of_doubly_linked_list state.colored_nodes;
         "select_stack", Reg.Set.of_list state.select_stack ];
-    List.iter ~f:check_set_and_field_consistency_reg
-      [ "precolored", all_precolored_regs (), Reg.Precolored;
-        "initial", reg_set_of_doubly_linked_list state.initial, Reg.Initial;
+    List.iter
+      ~f:(check_set_and_field_consistency_reg state)
+      [ "precolored", all_precolored_regs (), WorkList.Precolored;
+        "initial", reg_set_of_doubly_linked_list state.initial, WorkList.Initial;
         ( "simplify_work_list",
           reg_set_of_reg_work_list state.simplify_work_list,
-          Reg.Simplify );
+          WorkList.Simplify );
         ( "freeze_work_list",
           reg_set_of_reg_work_list state.freeze_work_list,
-          Reg.Freeze );
+          WorkList.Freeze );
         ( "spill_work_list",
           reg_set_of_reg_work_list state.spill_work_list,
-          Reg.Spill );
+          WorkList.Spill );
         ( "spilled_nodes",
           reg_set_of_reg_work_list state.spilled_nodes,
-          Reg.Spilled );
+          WorkList.Spilled );
         ( "coalesced_nodes",
           reg_set_of_reg_work_list state.coalesced_nodes,
-          Reg.Coalesced );
+          WorkList.Coalesced );
         ( "colored_nodes",
           reg_set_of_doubly_linked_list state.colored_nodes,
-          Reg.Colored );
-        "select_stack", Reg.Set.of_list state.select_stack, Reg.Select_stack ];
+          WorkList.Colored );
+        ( "select_stack",
+          Reg.Set.of_list state.select_stack,
+          WorkList.Select_stack ) ];
     (* move sets are disjoint *)
     check_disjoint ~is_disjoint:Instruction.Set.disjoint
       [ ( "coalesced_moves",
@@ -644,7 +699,7 @@ let[@inline] invariant state =
     in
     Reg.Set.iter
       (fun u ->
-        let degree = u.Reg.degree in
+        let degree = Reg.Tbl.find state.reg_degree u in
         if degree = Degree.infinite
         then fatal "invariant: infinite degree for %a" Printreg.reg u
         else
@@ -654,7 +709,7 @@ let[@inline] invariant state =
           in
           if not (Int.equal degree cardinal)
           then (
-            List.iter u.Reg.interf ~f:(fun r ->
+            List.iter (Reg.Tbl.find state.reg_interf u) ~f:(fun r ->
                 log "%a <- interf[%a]" Printreg.reg r Printreg.reg u);
             Reg.Set.iter
               (fun r -> log "%a <- adj_list[%a]" Printreg.reg r Printreg.reg u)
