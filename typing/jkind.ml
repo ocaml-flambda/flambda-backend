@@ -1313,7 +1313,7 @@ module Const = struct
         name = "immutable_data"
       }
 
-    let atomically_mutable_data =
+    let sync_data =
       { jkind =
           { layout = Base Value;
             mod_bounds =
@@ -1327,7 +1327,7 @@ module Const = struct
                 ~nullability:Nullability.Non_null;
             with_bounds = No_with_bounds
           };
-        name = "atomically_mutable_data"
+        name = "sync_data"
       }
 
     let mutable_data =
@@ -1492,7 +1492,7 @@ module Const = struct
         value_or_null_mod_everything;
         value;
         immutable_data;
-        atomically_mutable_data;
+        sync_data;
         mutable_data;
         void;
         immediate;
@@ -1773,7 +1773,7 @@ module Const = struct
       | "bits64" -> Builtin.bits64.jkind
       | "vec128" -> Builtin.vec128.jkind
       | "immutable_data" -> Builtin.immutable_data.jkind
-      | "atomically_mutable_data" -> Builtin.atomically_mutable_data.jkind
+      | "sync_data" -> Builtin.sync_data.jkind
       | "mutable_data" -> Builtin.mutable_data.jkind
       | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
       |> allow_left |> allow_right
@@ -1975,8 +1975,7 @@ module Jkind_desc = struct
 
     let immutable_data = of_const Const.Builtin.immutable_data.jkind
 
-    let atomically_mutable_data =
-      of_const Const.Builtin.atomically_mutable_data.jkind
+    let sync_data = of_const Const.Builtin.sync_data.jkind
 
     let mutable_data = of_const Const.Builtin.mutable_data.jkind
 
@@ -2074,9 +2073,8 @@ module Builtin = struct
       ~annotation:(mk_annot "immutable_data")
       ~why:(Value_creation why)
 
-  let atomically_mutable_data ~(why : History.value_creation_reason) =
-    fresh_jkind Jkind_desc.Builtin.atomically_mutable_data
-      ~annotation:(mk_annot "atomically_mutable_data")
+  let sync_data ~(why : History.value_creation_reason) =
+    fresh_jkind Jkind_desc.Builtin.sync_data ~annotation:(mk_annot "sync_data")
       ~why:(Value_creation why)
 
   let mutable_data ~(why : History.value_creation_reason) =

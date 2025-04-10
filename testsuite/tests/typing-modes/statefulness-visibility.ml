@@ -3,8 +3,7 @@
 *)
 
 (** In this file, we test the dual relationship between [visibility] and [statefulness]
-    axes, [visibility] requirements over mutable record fields,
-    and the kind [atomically_mutable_data]. *)
+    axes, [visibility] requirements over mutable record fields, and the kind [sync_data]. *)
 
 (* Visibility requirements over mutable record fields.
    [uncontended] to avoid contention errors printed first. *)
@@ -161,16 +160,16 @@ let foo (x @ read_write) a = x := a
 val foo : 'a ref -> 'a -> unit = <fun>
 |}]
 
-(* API that uses the [atomically_mutable_data] layout kind. *)
+(* API that uses the [sync_data] kind. *)
 
 module Atomic : sig @@ stateless
-  type !'a t : atomically_mutable_data with 'a @@ contended
+  type !'a t : sync_data with 'a @@ contended
 
   val make : 'a -> 'a t
   val get : 'a t @ read -> 'a
   val set : 'a t -> 'a -> unit
 end = struct
-  type !'a t : atomically_mutable_data with 'a @@ contended
+  type !'a t : sync_data with 'a @@ contended
 
   external make : 'a -> 'a t @@ stateless = "%makemutable"
   external get : 'a t @ read -> 'a @@ stateless = "%atomic_load"
@@ -181,7 +180,7 @@ end
 [%%expect{|
 module Atomic :
   sig
-    type !'a t : atomically_mutable_data with 'a @@ contended
+    type !'a t : sync_data with 'a @@ contended
     val make : 'a -> 'a t @@ stateless
     val get : 'a t @ read -> 'a @@ stateless
     val set : 'a t -> 'a -> unit @@ stateless
