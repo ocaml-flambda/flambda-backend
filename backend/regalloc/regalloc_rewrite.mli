@@ -11,8 +11,6 @@ module type State = sig
 end
 
 module type Utils = sig
-  type state
-
   val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
   val indent : unit -> unit
@@ -24,9 +22,6 @@ module type Utils = sig
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit
-
-  (* Tests whether the passed register is marked as "spilled". *)
-  val is_spilled : state -> Reg.t -> bool
 end
 
 (* This is the `rewrite` function from IRC, parametrized by state, functions for
@@ -41,7 +36,7 @@ end
    will be empty. *)
 val rewrite_gen :
   (module State with type t = 's) ->
-  (module Utils with type state = 's) ->
+  (module Utils) ->
   's ->
   Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->

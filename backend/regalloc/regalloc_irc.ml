@@ -384,20 +384,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       State.set_color state n (State.color state alias));
   if debug then dedent ()
 
-module Utils = struct
-  include Regalloc_irc_utils
-
-  type state = State.t
-
-  let is_spilled state reg =
-    match State.work_list_opt state reg with
-    | None ->
-      (* Freshly-created may not have been added to the map yet; such registers
-         would morally be in the "unknown" work list, hence returning
-         `false`. *)
-      false
-    | Some work_list -> WorkList.equal work_list WorkList.Spilled
-end
+module Utils = Regalloc_irc_utils
 
 (* Returns `true` if new temporaries have been introduced. *)
 let rewrite :

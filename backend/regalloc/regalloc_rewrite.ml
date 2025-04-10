@@ -14,8 +14,6 @@ module type State = sig
 end
 
 module type Utils = sig
-  type state
-
   val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
   val indent : unit -> unit
@@ -27,8 +25,6 @@ module type Utils = sig
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit
-
-  val is_spilled : state -> Reg.t -> bool
 end
 
 type direction =
@@ -121,7 +117,7 @@ let equal_move_kind left right =
 let rewrite_gen :
     type s.
     (module State with type t = s) ->
-    (module Utils with type state = s) ->
+    (module Utils) ->
     s ->
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
@@ -140,7 +136,6 @@ let rewrite_gen :
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
       ~f:(fun spilled_map reg ->
-        if debug then assert (Utils.is_spilled state reg);
         let spilled = Reg.create reg.Reg.typ in
         (* for printing *)
         spilled.Reg.raw_name <- reg.Reg.raw_name;
@@ -153,6 +148,7 @@ let rewrite_gen :
         Reg.Tbl.replace spilled_map reg spilled;
         spilled_map)
   in
+  let is_spilled reg = Reg.Tbl.mem spilled_map reg in
   let new_inst_temporaries : Reg.t list ref = ref [] in
   let new_block_temporaries = ref [] in
   let make_new_temporary ~(move : Move.t) (reg : Reg.t) : Reg.t =
@@ -169,7 +165,7 @@ let rewrite_gen :
   let[@inline] array_contains_spilled (arr : Reg.t array) : bool =
     let len = Array.length arr in
     let i = ref 0 in
-    while !i < len && not (Utils.is_spilled state (Array.unsafe_get arr !i)) do
+    while !i < len && not (is_spilled (Array.unsafe_get arr !i)) do
       incr i
     done;
     !i < len
@@ -181,7 +177,7 @@ let rewrite_gen :
       ~(sharing : (Reg.t * move_kind) Reg.Tbl.t) (instr : _ Cfg.instruction) :
       unit =
     let[@inline] rewrite_reg (reg : Reg.t) : Reg.t =
-      if Utils.is_spilled state reg
+      if is_spilled reg
       then (
         let spilled =
           match Reg.Tbl.find_opt spilled_map reg with

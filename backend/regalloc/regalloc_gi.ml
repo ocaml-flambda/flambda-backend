@@ -4,14 +4,7 @@ open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 open! Regalloc_gi_utils
 module State = Regalloc_gi_state
-
-module Utils = struct
-  include Regalloc_gi_utils
-
-  type state = State.t
-
-  let is_spilled _state reg = reg.Reg.spill
-end
+module Utils = Regalloc_gi_utils
 
 let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> bool =
  fun state cfg_with_infos ~spilled_nodes ->
