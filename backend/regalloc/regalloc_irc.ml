@@ -402,7 +402,7 @@ module Utils = struct
       false
     | Some work_list -> WorkList.equal work_list WorkList.Spilled
 
-  let set_spilled _state reg = reg.Reg.spill <- true
+  let set_spilled _state _reg = ()
 end
 
 (* Returns `true` if new temporaries have been introduced. *)
