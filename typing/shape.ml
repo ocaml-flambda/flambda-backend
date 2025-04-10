@@ -16,7 +16,10 @@
 module Uid = struct
   type t =
     | Compilation_unit of string
-    | Item of { comp_unit: string; id: int; from: Unit_info.intf_or_impl }
+    | Item of {
+        comp_unit: string;
+        id: int;
+        from: Compilation_unit.intf_or_impl }
     | Internal
     | Predef of string
     | Unboxed_version of t
@@ -29,7 +32,10 @@ module Uid = struct
       | Compilation_unit s1, Compilation_unit s2 -> String.compare s1 s2
       | Item c1, Item c2 ->
         let c = Int.compare c1.id c2.id in
-        if c <> 0 then c else String.compare c1.comp_unit c2.comp_unit
+        let c =
+          if c <> 0 then c else String.compare c1.comp_unit c2.comp_unit
+        in
+        if c <> 0 then c else Stdlib.compare c1.from c2.from
       | Internal, Internal -> 0
       | Predef s1, Predef s2 -> String.compare s1 s2
       | Unboxed_version t1, Unboxed_version t2 -> compare t1 t2
@@ -50,29 +56,17 @@ module Uid = struct
 
     let hash (x : t) = Hashtbl.hash x
 
-<<<<<<< HEAD
-    let rec print fmt = function
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-    let print fmt = function
-=======
     let pp_intf_or_impl fmt = function
-      | Unit_info.Intf -> Format.pp_print_string fmt "[intf]"
-      | Unit_info.Impl -> ()
+      | Compilation_unit.Intf -> Format.pp_print_string fmt "[intf]"
+      | Compilation_unit.Impl -> ()
 
-    let print fmt = function
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+    let rec print fmt = function
       | Internal -> Format.pp_print_string fmt "<internal>"
       | Predef name -> Format.fprintf fmt "<predef:%s>" name
       | Compilation_unit s -> Format.pp_print_string fmt s
-<<<<<<< HEAD
-      | Item { comp_unit; id } -> Format.fprintf fmt "%s.%d" comp_unit id
-      | Unboxed_version t -> Format.fprintf fmt "%a#" print t
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-      | Item { comp_unit; id } -> Format.fprintf fmt "%s.%d" comp_unit id
-=======
       | Item { comp_unit; id; from } ->
           Format.fprintf fmt "%a%s.%d" pp_intf_or_impl from comp_unit id
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+      | Unboxed_version t -> Format.fprintf fmt "%a#" print t
 
     let output oc t =
       let fmt = Format.formatter_of_out_channel oc in
@@ -85,24 +79,12 @@ module Uid = struct
 
   let mk  ~current_unit =
       let comp_unit, from =
-        let open Unit_info in
         match current_unit with
-        | None -> "", Impl
-        | Some ui -> modname ui, kind ui
+        | None -> "", Compilation_unit.Impl
+        | Some (cu, kind) -> Compilation_unit.full_path_as_string cu, kind
       in
       incr id;
-<<<<<<< HEAD
-      let comp_unit =
-        match current_unit with
-        | Some cu -> cu |> Compilation_unit.full_path_as_string
-        | None -> ""
-      in
-      Item { comp_unit; id = !id }
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-      Item { comp_unit = current_unit; id = !id }
-=======
       Item { comp_unit; id = !id; from }
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
 
   let of_compilation_unit_id id =
     Compilation_unit (id |> Compilation_unit.full_path_as_string)

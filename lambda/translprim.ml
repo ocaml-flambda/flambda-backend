@@ -1606,21 +1606,13 @@ let lambda_of_loc kind sloc =
   | Loc_FILE -> Lconst (Const_immstring file)
   | Loc_MODULE ->
     let filename = Filename.basename file in
-<<<<<<< HEAD
     let name = Compilation_unit.get_current () in
     let module_name =
       match name with
       | None -> "//"^filename^"//"
-      | Some comp_unit ->
+      | Some (comp_unit, _) ->
         Compilation_unit.name_as_string comp_unit
     in
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-    let name = Env.get_unit_name () in
-    let module_name = if name = "" then "//"^filename^"//" else name in
-=======
-    let name = Env.get_current_unit_name () in
-    let module_name = if name = "" then "//"^filename^"//" else name in
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
     Lconst (Const_immstring module_name)
   | Loc_LOC ->
     let loc = Printf.sprintf "File %S, line %d, characters %d-%d"

@@ -1401,14 +1401,8 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin jkind =
     type_loc = loc;
     type_attributes = [];
     type_unboxed_default = false;
-<<<<<<< HEAD
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     type_unboxed_version = None;
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-=======
-    type_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   }
 
 let existential_name name_counter ty =

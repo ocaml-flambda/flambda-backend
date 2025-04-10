@@ -996,7 +996,6 @@ let rec print_address ppf = function
   | Alocal id -> Format.fprintf ppf "%s" (Ident.name id)
   | Adot(a, pos) -> Format.fprintf ppf "%a.[%i]" print_address a pos
 
-<<<<<<< HEAD
 type address_head =
   | AHunit of Compilation_unit.t
   | AHlocal of Ident.t
@@ -1008,51 +1007,18 @@ let rec address_head = function
 
 (* The name of the compilation unit currently compiled. *)
 module Current_unit_name : sig
-  val get : unit -> Compilation_unit.t option
-  val set : Compilation_unit.t option -> unit
+  val get : unit -> (Compilation_unit.with_kind) option
+  val set : (Compilation_unit.with_kind) option -> unit
   val is : string -> bool
   val is_ident : Ident.t -> bool
   val is_path : Path.t -> bool
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-(* The name of the compilation unit currently compiled.
-   "" if outside a compilation unit. *)
-module Current_unit_name : sig
-  val get : unit -> modname
-  val set : modname -> unit
-  val is : modname -> bool
-  val is_ident : Ident.t -> bool
-  val is_path : Path.t -> bool
-=======
-(* The name of the compilation unit currently compiled.
-   "" if outside a compilation unit. *)
-module Current_unit : sig
-  val get : unit -> Unit_info.t option
-  val set : Unit_info.t -> unit
-  val unset : unit -> unit
-
-  module Name : sig
-    val get : unit -> modname
-    val is : modname -> bool
-    val is_ident : Ident.t -> bool
-    val is_path : Path.t -> bool
-  end
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
 end = struct
-<<<<<<< HEAD
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-  let current_unit =
-    ref ""
-=======
-  let current_unit : Unit_info.t option ref =
-    ref None
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   let get () =
-<<<<<<< HEAD
     Compilation_unit.get_current ()
   let set comp_unit =
     Compilation_unit.set_current comp_unit
   let get_name () =
-    Option.map Compilation_unit.name (get ())
+    Option.map (fun (cu, _) -> Compilation_unit.name cu) (get ())
   let is name =
     let current_name_string =
       Option.map Compilation_unit.Name.to_string (get_name ())
@@ -1063,87 +1029,30 @@ end = struct
   let is_path = function
   | Pident id -> is_ident id
   | Pdot _ | Papply _ | Pextra_ty _ -> false
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-    !current_unit
-  let set name =
-    current_unit := name
-  let is name =
-    !current_unit = name
-  let is_ident id =
-    Ident.persistent id && is (Ident.name id)
-  let is_path = function
-  | Pident id -> is_ident id
-  | Pdot _ | Papply _ | Pextra_ty _ -> false
-=======
-    !current_unit
-  let set cu =
-    current_unit := Some cu
-  let unset () =
-    current_unit := None
-
-  module Name = struct
-    let get () =
-      match !current_unit with
-      | None -> ""
-      | Some cu -> Unit_info.modname cu
-    let is name =
-      get () = name
-    let is_ident id =
-      Ident.persistent id && is (Ident.name id)
-    let is_path = function
-    | Pident id -> is_ident id
-    | Pdot _ | Papply _ | Pextra_ty _ -> false
-  end
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
 end
 
-let set_current_unit = Current_unit.set
-let get_current_unit = Current_unit.get
-let get_current_unit_name = Current_unit.Name.get
+let set_unit_name = Current_unit_name.set
+let get_unit_name = Current_unit_name.get
 
 let find_same_module id tbl =
   match IdTbl.find_same_without_locks id tbl with
   | x -> x
   | exception Not_found
-<<<<<<< HEAD
     when Ident.is_global id && not (Current_unit_name.is_ident id) ->
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-    when Ident.persistent id && not (Current_unit_name.is_ident id) ->
-=======
-    when Ident.persistent id && not (Current_unit.Name.is_ident id) ->
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
       Mod_persistent
 
 let find_name_module ~mark name tbl =
-<<<<<<< HEAD
   match IdTbl.find_name_and_locks wrap_module ~mark name tbl with
   | Ok x -> x
   | Error locks when not (Current_unit_name.is name) ->
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-  match IdTbl.find_name wrap_module ~mark name tbl with
-  | x -> x
-  | exception Not_found when not (Current_unit_name.is name) ->
-=======
-  match IdTbl.find_name wrap_module ~mark name tbl with
-  | x -> x
-  | exception Not_found when not (Current_unit.Name.is name) ->
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
       let path = Pident(Ident.create_persistent name) in
       path, locks, Mod_persistent
   | _ ->
     raise Not_found
 
 let add_persistent_structure id env =
-<<<<<<< HEAD
   if not (Ident.is_global id) then invalid_arg "Env.add_persistent_structure";
   if Current_unit_name.is_ident id then env
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-  if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
-  if Current_unit_name.is_ident id then env
-=======
-  if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
-  if Current_unit.Name.is_ident id then env
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   else begin
     let material =
       (* This addition only observably changes the environment if it shadows a
@@ -1271,20 +1180,10 @@ let reset_declaration_caches () =
   Types.Uid.Tbl.clear !used_labels;
   ()
 
-<<<<<<< HEAD
 let reset_cache ~preserve_persistent_env =
   Compilation_unit.set_current None;
   if not preserve_persistent_env then
     Persistent_env.clear !persistent_env;
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-let reset_cache () =
-  Current_unit_name.set "";
-  Persistent_env.clear !persistent_env;
-=======
-let reset_cache () =
-  Current_unit.unset ();
-  Persistent_env.clear !persistent_env;
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   reset_declaration_caches ();
   ()
 
@@ -1747,13 +1646,7 @@ let find_shape env (ns : Shape.Sig_component_kind.t) id =
              properly populated. *)
           assert false
       | exception Not_found
-<<<<<<< HEAD
         when Ident.is_global id && not (Current_unit_name.is_ident id) ->
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-        when Ident.persistent id && not (Current_unit_name.is_ident id) ->
-=======
-        when Ident.persistent id && not (Current_unit.Name.is_ident id) ->
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
           Shape.for_persistent_unit (Ident.name id)
       end
   | Module_type ->
@@ -2223,7 +2116,7 @@ let rec components_of_module_maker
               | Type_variant (_,repr,umc) ->
                   let cstrs = List.map snd
                     (Datarepr.constructors_of_type path final_decl
-                        ~current_unit:(get_current_unit ()))
+                        ~current_unit:(get_unit_name ()))
                   in
                   List.iter
                     (fun descr ->
@@ -2277,7 +2170,7 @@ let rec components_of_module_maker
         | Sig_typext(id, ext, _, _) ->
             let ext' = Subst.extension_constructor sub ext in
             let descr =
-              Datarepr.extension_descr ~current_unit:(get_current_unit ()) path
+              Datarepr.extension_descr ~current_unit:(get_unit_name ()) path
                 ext'
             in
             let addr = next_address () in
@@ -2516,7 +2409,7 @@ and store_type ~check id info shape env =
     match info.type_kind with
     | Type_variant (_,repr,umc) ->
         let constructors = Datarepr.constructors_of_type path info
-                            ~current_unit:(get_current_unit ())
+                            ~current_unit:(get_unit_name ())
         in
         Type_variant (List.map snd constructors, repr, umc),
         List.fold_left
@@ -2585,8 +2478,7 @@ and store_type_infos ~tda_shape id info env =
 and store_extension ~check ~rebind id addr ext shape env =
   let loc = ext.ext_loc in
   let cstr =
-    Datarepr.extension_descr
-      ~current_unit:(get_current_unit ()) (Pident id) ext
+    Datarepr.extension_descr ~current_unit:(get_unit_name ()) (Pident id) ext
   in
   let cda =
     { cda_description = cstr;
@@ -4164,22 +4056,10 @@ let lookup_instance_variable ?(use=true) ~loc name env =
 (* Checking if a name is bound *)
 
 let bound_module name env =
-<<<<<<< HEAD
   match IdTbl.find_name_and_locks wrap_module ~mark:false name env.modules with
   | Ok _ -> true
   | Error _ ->
       if Current_unit_name.is name then false
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-  match IdTbl.find_name wrap_module ~mark:false name env.modules with
-  | _ -> true
-  | exception Not_found ->
-      if Current_unit_name.is name then false
-=======
-  match IdTbl.find_name wrap_module ~mark:false name env.modules with
-  | _ -> true
-  | exception Not_found ->
-      if Current_unit.Name.is name then false
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
       else begin
         match
           find_pers_mod ~allow_hidden:false ~allow_excess_args:false
@@ -4672,7 +4552,7 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
   | Cannot_scrape_alias(lid, p) ->
       let cause =
-        if Current_unit.Name.is_path p then "is the current compilation unit"
+        if Current_unit_name.is_path p then "is the current compilation unit"
         else "is missing"
       in
       fprintf ppf

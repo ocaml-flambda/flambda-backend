@@ -496,7 +496,7 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
           ld_name = name;
-          ld_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
+          ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           ld_mutable = mut;
           ld_modalities = modalities;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
@@ -912,16 +912,8 @@ let transl_declaration env sdecl (id, uid) =
           let tcstr =
             { cd_id = name;
               cd_name = scstr.pcd_name;
-<<<<<<< HEAD
               cd_vars = tvars;
               cd_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-              cd_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-              cd_vars = scstr.pcd_vars;
-=======
-              cd_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
-              cd_vars = scstr.pcd_vars;
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
               cd_args = targs;
               cd_res = tret_type;
               cd_loc = scstr.pcd_loc;
@@ -2764,7 +2756,7 @@ let transl_type_decl env rec_flag sdecl_list =
   let ids_list =
     List.map (fun sdecl ->
       Ident.create_scoped ~scope sdecl.ptype_name.txt,
-      Uid.mk ~current_unit:(Env.get_current_unit ())
+      Uid.mk ~current_unit:(Env.get_unit_name ())
     ) sdecl_list
   in
   (* Translate declarations, using a temporary environment where abbreviations
@@ -3088,7 +3080,7 @@ let transl_extension_constructor ~scope env type_path type_params
       ext_private = priv;
       Types.ext_loc = sext.pext_loc;
       Types.ext_attributes = sext.pext_attributes;
-      ext_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
+      ext_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     }
   in
   let ext_cstrs =
@@ -3717,17 +3709,9 @@ let transl_value_decl env loc ~sig_modalities valdecl =
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       in
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
-<<<<<<< HEAD
         val_attributes = valdecl.pval_attributes; val_modalities = modalities;
         val_zero_alloc = zero_alloc;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-        val_attributes = valdecl.pval_attributes;
-        val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-=======
-        val_attributes = valdecl.pval_attributes;
-        val_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
       }
   | [] ->
       raise (Error(valdecl.pval_loc, Val_in_structure))
@@ -3765,17 +3749,9 @@ let transl_value_decl env loc ~sig_modalities valdecl =
       then raise(Error(valdecl.pval_type.ptyp_loc, Missing_native_external));
       check_unboxable env loc ty;
       { val_type = ty; val_kind = Val_prim prim; Types.val_loc = loc;
-<<<<<<< HEAD
         val_attributes = valdecl.pval_attributes; val_modalities = modalities;
         val_zero_alloc = Zero_alloc.default;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-        val_attributes = valdecl.pval_attributes;
-        val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-=======
-        val_attributes = valdecl.pval_attributes;
-        val_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
       }
   in
   let (id, newenv) =
@@ -3938,14 +3914,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_loc = loc;
       type_attributes = sdecl.ptype_attributes;
       type_unboxed_default;
-<<<<<<< HEAD
       type_uid;
       type_unboxed_version;
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-      type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-=======
-      type_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -4031,7 +4001,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 (* A simplified version of [transl_with_constraint], for the case of packages.
    Package constraints are much simpler than normal with type constraints (e.g.,
    they can not have parameters and can only update abstract types.) *)
-<<<<<<< HEAD
 let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
@@ -4052,55 +4021,6 @@ let transl_package_constraint ~loc ty =
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     type_unboxed_version = None;
   }
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-let transl_package_constraint ~loc env ty =
-  let new_sig_decl =
-    { type_params = [];
-      type_arity = 0;
-      type_kind = Type_abstract Definition;
-      type_private = Public;
-      type_manifest = Some ty;
-      type_variance = [];
-      type_separability = [];
-      type_is_newtype = false;
-      type_expansion_scope = Btype.lowest_level;
-      type_loc = loc;
-      type_attributes = [];
-      type_immediate = Unknown;
-      type_unboxed_default = false;
-      type_uid = Uid.mk ~current_unit:(Env.get_unit_name ())
-    }
-  in
-  let new_type_immediate =
-    (* Typedecl_immediacy.compute_decl never raises *)
-    Typedecl_immediacy.compute_decl env new_sig_decl
-  in
-  { new_sig_decl with type_immediate = new_type_immediate }
-=======
-let transl_package_constraint ~loc env ty =
-  let new_sig_decl =
-    { type_params = [];
-      type_arity = 0;
-      type_kind = Type_abstract Definition;
-      type_private = Public;
-      type_manifest = Some ty;
-      type_variance = [];
-      type_separability = [];
-      type_is_newtype = false;
-      type_expansion_scope = Btype.lowest_level;
-      type_loc = loc;
-      type_attributes = [];
-      type_immediate = Unknown;
-      type_unboxed_default = false;
-      type_uid = Uid.mk ~current_unit:(Env.get_current_unit ())
-    }
-  in
-  let new_type_immediate =
-    (* Typedecl_immediacy.compute_decl never raises *)
-    Typedecl_immediacy.compute_decl env new_sig_decl
-  in
-  { new_sig_decl with type_immediate = new_type_immediate }
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
 
 (* Approximate a type declaration: just make all types abstract *)
 

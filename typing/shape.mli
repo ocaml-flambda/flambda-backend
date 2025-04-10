@@ -57,24 +57,20 @@
 module Uid : sig
   type t = private
     | Compilation_unit of string
-    | Item of { comp_unit: string; id: int; from: Unit_info.intf_or_impl }
+    | Item of {
+        comp_unit: string;
+        id: int;
+        from: Compilation_unit.intf_or_impl }
     | Internal
     | Predef of string
     | Unboxed_version of t
 
   val reinit : unit -> unit
 
-<<<<<<< HEAD
-  val mk : current_unit:Compilation_unit.t option -> t
+  val mk :
+    current_unit:(Compilation_unit.with_kind) option -> t
   val of_compilation_unit_id : Compilation_unit.t -> t
   val of_compilation_unit_name : Compilation_unit.Name.t -> t
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-  val mk : current_unit:string -> t
-  val of_compilation_unit_id : Ident.t -> t
-=======
-  val mk : current_unit:(Unit_info.t option) -> t
-  val of_compilation_unit_id : Ident.t -> t
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   val of_predef_id : Ident.t -> t
   val internal_not_actually_unique : t
   val unboxed_version : t -> t

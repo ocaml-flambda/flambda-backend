@@ -494,7 +494,7 @@ let enter_ancestor_met ~loc name ~sign ~meths ~cl_num ~ty ~attrs met_env =
       val_attributes = attrs;
       val_zero_alloc = Zero_alloc.default;
       Types.val_loc = loc;
-      val_uid = Uid.mk ~current_unit:(Env.get_current_unit ()) }
+      val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
   Env.enter_value ~check ~mode:Mode.Value.legacy name desc met_env
 
@@ -510,7 +510,7 @@ let add_self_met loc id sign self_var_kind vars cl_num
       val_attributes = attrs;
       val_zero_alloc = Zero_alloc.default;
       Types.val_loc = loc;
-      val_uid = Uid.mk ~current_unit:(Env.get_current_unit ()) }
+      val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
   Env.add_value ~check ~mode:Mode.Value.legacy id desc met_env
 
@@ -525,14 +525,8 @@ let add_instance_var_met loc label id sign cl_num attrs met_env =
     { val_type = ty; val_modalities = Modality.Value.id; val_kind = kind;
       val_attributes = attrs;
       Types.val_loc = loc;
-<<<<<<< HEAD
       val_zero_alloc = Zero_alloc.default;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-      val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
-=======
-      val_uid = Uid.mk ~current_unit:(Env.get_current_unit ()) }
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   in
   Env.add_value ~mode:Mode.Value.legacy id desc met_env
 
@@ -2024,7 +2018,7 @@ let type_classes define_class approx kind env cls =
           Ident.create_scoped ~scope cl.pci_name.txt,
           Ident.create_scoped ~scope cl.pci_name.txt,
           Ident.create_scoped ~scope cl.pci_name.txt,
-          Uid.mk ~current_unit:(Env.get_current_unit ())
+          Uid.mk ~current_unit:(Env.get_unit_name ())
          ))
       cls
   in

@@ -13,7 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type intf_or_impl = Intf | Impl
 type modname = string
 type filename = string
 type file_prefix = string
@@ -22,12 +21,10 @@ type t = {
   source_file: filename;
   prefix: file_prefix;
   modname: modname;
-  kind: intf_or_impl;
 }
 
 let source_file (x: t) = x.source_file
 let modname (x: t) = x.modname
-let kind (x: t) = x.kind
 let prefix (x: t) = x.prefix
 
 let basename_chop_extensions basename  =
@@ -68,19 +65,9 @@ let check_unit_name file =
     Location.prerr_warning (Location.in_file (source_file file))
       (Warnings.Bad_module_name (modname file))
 
-<<<<<<< HEAD
 let make ?(check_modname=true) ~source_file prefix =
   let modname = modname_from_source prefix in
   let p = { modname; prefix; source_file } in
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-let make ?(check_modname=true) ~source_file prefix =
-  let modname = strict_modname_from_source prefix in
-  let p = { modname; prefix; source_file } in
-=======
-let make ?(check_modname=true) ~source_file kind prefix =
-  let modname = strict_modname_from_source prefix in
-  let p = { modname; prefix; source_file; kind } in
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   if check_modname then check_unit_name p;
   p
 

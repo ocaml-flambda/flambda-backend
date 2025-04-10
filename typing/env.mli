@@ -517,20 +517,9 @@ val reset_cache: preserve_persistent_env:bool -> unit
 (* To be called before each toplevel phrase. *)
 val reset_cache_toplevel: unit -> unit
 
-<<<<<<< HEAD
 (* Remember the name of the current compilation unit. *)
-val set_unit_name: Compilation_unit.t option -> unit
-val get_unit_name: unit -> Compilation_unit.t option
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-(* Remember the name of the current compilation unit. *)
-val set_unit_name: string -> unit
-val get_unit_name: unit -> string
-=======
-(* Remember the current compilation unit. *)
-val set_current_unit: Unit_info.t -> unit
-val get_current_unit : unit -> Unit_info.t option
-val get_current_unit_name: unit -> string
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+val set_unit_name: (Compilation_unit.with_kind) option -> unit
+val get_unit_name: unit -> (Compilation_unit.with_kind) option
 
 (* Read, save a signature to/from a file. *)
 val read_signature:

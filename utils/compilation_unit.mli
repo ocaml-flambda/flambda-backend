@@ -297,9 +297,21 @@ type error = private
 (** The exception raised by conversion functions in this module. *)
 exception Error of error
 
-val set_current : t option -> unit
+(* CR ugerard: there might be a cleaner way to do that. Upstream this info is
+   part of a `Unit_info.t` record that is stored as the "current unit" in the
+   environement. But here in flambda-backend `Compilation_unit.t` instead. This
+   looks like conflicting refactorings that it would be useful to reconcile.
 
-val get_current : unit -> t option
+   Here, for the prototype, we use a tuple to add that information. *)
+type intf_or_impl =
+  | Intf
+  | Impl
+
+type with_kind = t * intf_or_impl
+
+val set_current : with_kind option -> unit
+
+val get_current : unit -> with_kind option
 
 val get_current_or_dummy : unit -> t
 

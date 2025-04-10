@@ -22,22 +22,13 @@ let with_info =
   Compile_common.with_info ~native:false ~tool_name
 
 let interface ~source_file ~output_prefix =
-<<<<<<< HEAD
-  with_info ~source_file ~output_prefix ~dump_ext:"cmi"
+  with_info ~source_file ~kind:Intf ~output_prefix ~dump_ext:"cmi"
     ~compilation_unit:Inferred_from_output_prefix
   @@ fun info ->
   Compile_common.interface
     ~hook_parse_tree:(fun _ -> ())
     ~hook_typed_tree:(fun _ -> ())
     info
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-  with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
-  Compile_common.interface info
-=======
-  let unit_info = Unit_info.make ~source_file Intf output_prefix in
-  with_info ~dump_ext:"cmi" unit_info @@ fun info ->
-  Compile_common.interface info
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
 
 (** Bytecode compilation backend for .ml files. *)
 
@@ -93,7 +84,6 @@ let emit_bytecode i
             ~main_module_block_format ~arg_descr);
     )
 
-<<<<<<< HEAD
 type starting_point =
   | Parsing
   | Instantiation of {
@@ -105,33 +95,14 @@ type starting_point =
 let starting_point_of_compiler_pass start_from =
   match (start_from:Clflags.Compiler_pass.t) with
   | Parsing -> Parsing
-||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
-let implementation ~start_from ~source_file ~output_prefix =
-  let backend info typed =
-    let bytecode = to_bytecode info typed in
-    emit_bytecode info bytecode
-  in
-  with_info ~source_file ~output_prefix ~dump_ext:"cmo" @@ fun info ->
-  match (start_from : Clflags.Compiler_pass.t) with
-  | Parsing -> Compile_common.implementation info ~backend
-=======
-let implementation ~start_from ~source_file ~output_prefix =
-  let backend info typed =
-    let bytecode = to_bytecode info typed in
-    emit_bytecode info bytecode
-  in
-  let unit_info = Unit_info.make ~source_file Impl output_prefix in
-  with_info ~dump_ext:"cmo" unit_info @@ fun info ->
-  match (start_from : Clflags.Compiler_pass.t) with
-  | Parsing -> Compile_common.implementation info ~backend
->>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)
 
 let implementation_aux ~start_from ~source_file ~output_prefix
     ~keep_symbol_tables:_
     ~(compilation_unit : Compile_common.compilation_unit_or_inferred) =
-  with_info ~source_file ~output_prefix ~dump_ext:"cmo" ~compilation_unit
+  with_info ~source_file ~kind:Impl ~output_prefix
+    ~dump_ext:"cmo" ~compilation_unit
   @@ fun info ->
   match start_from with
   | Parsing ->
