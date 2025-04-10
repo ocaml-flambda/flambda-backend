@@ -388,7 +388,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
         | Intop _ | Intop_imm _ | Intop_atomic _
         | Name_for_debugger _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Dls_get)
-  | Poptrap | Prologue
+  | Poptrap _ | Prologue
     -> [||]
   | Stack_check _ -> assert false (* not supported *)
 

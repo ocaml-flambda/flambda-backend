@@ -2518,7 +2518,7 @@ end = struct
           =
         match i.desc with
         | Op op -> Ok (operation t ~next op i.dbg)
-        | Pushtrap _ | Poptrap ->
+        | Pushtrap _ | Poptrap _ ->
           (* treated as no-op here, flow and handling of exceptions is
              incorporated into the blocks and edges of the CFG *)
           Ok next
@@ -2636,8 +2636,9 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
     Annotation.is_check_enabled
       (Annotation.of_cfg cfg.fun_codegen_options cfg.fun_name cfg.fun_dbg)
   in
-  if enabled
-  then (
+  if not enabled
+  then cfg_with_layout
+  else
     let modified = ref false in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         match block.terminator.desc with
@@ -2664,21 +2665,15 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
         | Tailcall_func _ | Call_no_return _ | Call _ ->
           ());
-    if !modified
-    then
-      Profile.record ~accumulate:true "cleanup"
-        (fun () ->
-          Eliminate_fallthrough_blocks.run cfg_with_layout;
-          Merge_straightline_blocks.run cfg_with_layout;
-          Simplify_terminator.run cfg;
-          Eliminate_dead_code.run_dead_block cfg_with_layout)
-        ())
+    if not !modified
+    then cfg_with_layout
+    else
+      Profile.record ~accumulate:true "cleanup" Cfg_simplify.run cfg_with_layout
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in
   Analysis.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
-  update_caml_flambda_invalid_cfg cl;
-  cl
+  update_caml_flambda_invalid_cfg cl
 
 let reset_unit_info () =
   Unit_info.reset unit_info;
