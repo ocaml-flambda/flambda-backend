@@ -1037,7 +1037,7 @@ let rec expression : Typedtree.expression -> term_judg =
       ]
     | Texp_hole _ -> empty
     | Texp_quotation e ->
-        (* The quoted code may be antiquoted into a dereferencing context. *)
+        (* The quoted code may be spliced into a dereferencing context. *)
         expression e << Dereference
     | Texp_antiquotation e ->
         expression e << Dereference

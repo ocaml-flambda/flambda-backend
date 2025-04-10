@@ -150,6 +150,7 @@
   asttypes
   parsetree
   typedtree
+  camlinternalQuote_bootstrap
   outcometree
   cmo_format
   cmxs_format
@@ -179,6 +180,12 @@
 ;  (package ocaml))
 
 ;; .ml:
+
+(rule
+ (action
+   (progn
+     (copy# ../../stdlib/camlinternalQuote.ml camlinternalQuote_bootstrap.ml)
+     (copy# ../../stdlib/camlinternalQuote.mli camlinternalQuote_bootstrap.mli))))
 
 (copy_files ../../utils/runtimetags.ml)
 

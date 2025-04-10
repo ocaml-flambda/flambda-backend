@@ -293,6 +293,7 @@ module History = struct
     | Debug_printer_argument
     | Recmod_fun_arg
     | Quotation_result
+    | Antiquotation_result
     | Unknown of string (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =

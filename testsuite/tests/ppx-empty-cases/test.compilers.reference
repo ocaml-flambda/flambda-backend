@@ -3,35 +3,35 @@
     (empty_cases_returning_string/273 =
        (function {nlocal = 0} param/275
          (raise
-           (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 28 50])))
+           (makeblock 0 (getpredef Match_failure/42!!) [0: "test.ml" 28 50])))
      empty_cases_returning_float64/276 =
        (function {nlocal = 0} param/278 : unboxed_float
          (raise
-           (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 29 50])))
+           (makeblock 0 (getpredef Match_failure/42!!) [0: "test.ml" 29 50])))
      empty_cases_accepting_string/279 =
        (function {nlocal = 0} param/281
          (raise
-           (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 30 50])))
+           (makeblock 0 (getpredef Match_failure/42!!) [0: "test.ml" 30 50])))
      empty_cases_accepting_float64/282 =
        (function {nlocal = 0} param/284[unboxed_float]
          (raise
-           (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 31 50])))
+           (makeblock 0 (getpredef Match_failure/42!!) [0: "test.ml" 31 50])))
      non_empty_cases_returning_string/285 =
        (function {nlocal = 0} param/287
          (raise
-           (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 32 68])))
+           (makeblock 0 (getpredef Assert_failure/52!!) [0: "test.ml" 32 68])))
      non_empty_cases_returning_float64/288 =
        (function {nlocal = 0} param/290 : unboxed_float
          (raise
-           (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 33 68])))
+           (makeblock 0 (getpredef Assert_failure/52!!) [0: "test.ml" 33 68])))
      non_empty_cases_accepting_string/291 =
        (function {nlocal = 0} param/293
          (raise
-           (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 34 68])))
+           (makeblock 0 (getpredef Assert_failure/52!!) [0: "test.ml" 34 68])))
      non_empty_cases_accepting_float64/294 =
        (function {nlocal = 0} param/296[unboxed_float]
          (raise
-           (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 35 68]))))
+           (makeblock 0 (getpredef Assert_failure/52!!) [0: "test.ml" 35 68]))))
     (makeblock 0 empty_cases_returning_string/273
       empty_cases_returning_float64/276 empty_cases_accepting_string/279
       empty_cases_accepting_float64/282 non_empty_cases_returning_string/285

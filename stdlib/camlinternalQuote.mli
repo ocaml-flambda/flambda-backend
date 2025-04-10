@@ -16,8 +16,6 @@ module Name : sig
   type t
 
   val mk : string -> t
-
-  val print : Format.formatter -> t -> unit
 end
 
 module Var : sig
@@ -48,8 +46,6 @@ module Var : sig
   type t
 
   val name : t -> Name.t
-
-  val print : Format.formatter -> t -> unit
 end
 
 module Constant : sig
@@ -63,13 +59,23 @@ module Constant : sig
 
   val float : string -> t
 
+  val float32 : string -> t
+
   val int32 : int32 -> t
 
   val int64 : int64 -> t
 
   val nativeint : nativeint -> t
 
-  val print : Format.formatter -> t -> unit
+  val unboxed_float : string -> t
+
+  val unboxed_float32 : string -> t
+
+  val unboxed_int32 : int32 -> t
+
+  val unboxed_int64 : int64 -> t
+
+  val unboxed_nativeint : nativeint -> t
 end
 
 module Identifier : sig
@@ -242,52 +248,54 @@ module Variant : sig
   type t
 
   val of_string : string -> t
-
-  val print : Format.formatter -> t -> unit
 end
 
 module Method : sig
   type t
 
   val of_string : string -> t
-
-  val print : Format.formatter -> t -> unit
-end
-
-module Pat : sig
-  type t
-
-  val any : t
-
-  val var : Var.Value.t -> t
-
-  val alias : t -> Var.Value.t -> t
-
-  val constant : Constant.t -> t
-
-  val tuple : (Label.Nonoptional.t * t) list -> t
-
-  val construct : Identifier.Constructor.t -> t option -> t
-
-  val variant : string -> t option -> t
-
-  val record : (Identifier.Field.t * t) list -> bool -> t
-
-  val array : t list -> t
-
-  val or_ : t -> t -> t
-
-  val lazy_ : t -> t
-
-  val unpack : Var.Module.t -> t
-
-  val exception_ : t -> t
 end
 
 module Fragment : sig
   type t
 
-  val print : Format.formatter -> t -> unit
+  val name : string -> t
+
+  val dot : t -> string -> t
+end
+
+module Module : sig
+  type t
+
+  val ident : Identifier.Module.t -> t
+
+  val apply : t -> t -> t
+
+  val apply_unit : t -> t
+end
+
+module Constructor : sig
+  type t
+
+  val ident : Identifier.Constructor.t -> t
+
+  val of_string : string -> t
+end
+
+module Field : sig
+  type t
+
+  val ident : Identifier.Field.t -> t
+
+  val of_string : string -> t
+end
+
+module Module_type : sig
+  type t
+
+  val ident : Identifier.Module_type.t -> t
+
+  val of_string : string -> t
 end
 
 module rec Variant_type : sig
@@ -304,14 +312,22 @@ module rec Variant_type : sig
   module Row_field : sig
     type t
 
-    val inherit_row_field : Type.t -> t
+    val inherit_ : Type.t -> t
 
-    val tag_row_field : Variant.t -> bool -> Type.t list -> t
+    val tag : Variant.t -> bool -> Type.t list -> t
   end
 
   type t
 
   val of_row_fields_list : Row_field.t list -> Variant_form.t -> t
+end
+
+and Object_field : sig
+  type t
+
+  val inherit_ : Type.t -> t
+
+  val tag : Name.t -> Type.t -> t
 end
 
 and Type : sig
@@ -323,7 +339,13 @@ and Type : sig
 
   val tuple : (Label.Nonoptional.t * t) list -> t
 
+  val unboxed_tuple : (Label.Nonoptional.t * t) list -> t
+
   val constr : Identifier.Type.t -> t list -> t
+
+  val object_ : Object_field.t list -> bool -> t
+
+  val class_ : Name.t -> t list -> t
 
   val alias : t -> Var.Type_var.t -> t
 
@@ -331,17 +353,45 @@ and Type : sig
 
   val poly : Loc.t -> Name.t list -> (Var.Type_constr.t list -> t) -> t
 
-  val package : Identifier.Module_type.t -> (Fragment.t * t) list -> t
+  val package : Module_type.t -> (Fragment.t * t) list -> t
+
+  val call_pos : t
 end
 
-module Module : sig
+module Pat : sig
   type t
 
-  val ident : Identifier.Module.t -> t
+  val any : t
 
-  val apply : t -> t -> t
+  val var : Var.Value.t -> t
 
-  val apply_unit : t -> t
+  val alias : t -> Var.Value.t -> t
+
+  val constant : Constant.t -> t
+
+  val tuple : (Label.Nonoptional.t * t) list -> t
+
+  val unboxed_tuple : (Label.Nonoptional.t * t) list -> t
+
+  val construct : Constructor.t -> t option -> t
+
+  val variant : string -> t option -> t
+
+  val record : (Field.t * t) list -> bool -> t
+
+  val unboxed_record : (Field.t * t) list -> bool -> t
+
+  val array : t list -> t
+
+  val or_ : t -> t -> t
+
+  val lazy_ : t -> t
+
+  val unpack : Var.Module.t -> t
+
+  val exception_ : t -> t
+
+  val constraint_ : t -> Type.t -> t
 end
 
 module rec Case : sig
@@ -427,7 +477,7 @@ and Exp : sig
     Loc.t ->
     Name.t list ->
     Name.t list ->
-    t ->
+    t list ->
     (Var.Value.t list -> Var.Module.t list -> Pat.t * t) ->
     t
 
@@ -441,15 +491,15 @@ and Exp : sig
 
   val tuple : (Label.Nonoptional.t * t) list -> t
 
-  val construct : Identifier.Constructor.t -> t option -> t
+  val construct : Constructor.t -> t option -> t
 
   val variant : Name.t -> t option -> t
 
-  val record : (Identifier.Field.t * t) list -> t option -> t
+  val record : (Field.t * t) list -> t option -> t
 
-  val field : t -> Identifier.Field.t -> t
+  val field : t -> Field.t -> t
 
-  val setfield : t -> Identifier.Field.t -> t -> t
+  val setfield : t -> Field.t -> t -> t
 
   val array : t list -> t
 
@@ -469,8 +519,9 @@ and Exp : sig
 
   val lazy_ : t -> t
 
-  val letmodule :
-    Loc.t -> Name.t option -> Module.t -> (Var.Module.t option -> t) -> t
+  val letmodule_nonbinding : Module.t -> t -> t
+
+  val letmodule : Loc.t -> Name.t -> Module.t -> (Var.Module.t -> t) -> t
 
   val constraint_ : t -> Type_constraint.t -> t
 
@@ -484,18 +535,11 @@ and Exp : sig
 
   val stack : t -> t
 
-  val extension_constructor : Identifier.Constructor.t -> t
+  val extension_constructor : Name.t -> t
 
   val let_exception : Name.t -> t -> t
 
-  val let_op :
-    Loc.t ->
-    Identifier.Value.t list ->
-    Name.t list ->
-    Name.t list ->
-    t ->
-    (Var.Value.t list -> Var.Module.t list -> Pat.t * t) ->
-    t
+  val let_op : Identifier.Value.t list -> t list -> Case.t -> t
 
   val exclave : t -> t
 
@@ -505,19 +549,23 @@ and Exp : sig
 
   val unboxed_tuple : (Label.Nonoptional.t * t) list -> t
 
-  val unboxed_record_product : (Identifier.Field.t * t) list -> t option -> t
+  val unboxed_record_product : (Field.t * t) list -> t option -> t
 
-  val unboxed_field : t -> Identifier.Field.t -> t
+  val unboxed_field : t -> Field.t -> t
 
   val quote : t -> t
 
-  val antiquote : Code.t -> t
+  val antiquote : t -> t
+
+  val splice : Code.t -> t
 
   val print : Format.formatter -> t -> unit
 end
 
 and Code : sig
   type t
+
+  val to_exp : t -> Exp.t
 
   val of_exp : Exp.t -> Loc.t -> t
 

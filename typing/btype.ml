@@ -112,6 +112,7 @@ let pivot_level = 2 * lowest_level - 1
 
 let newgenty desc = newty2 ~level:generic_level desc
 let newgenvar ?name jkind = newgenty (Tvar { name; jkind })
+let newgenconstr path tyl = newgenty (Tconstr (path, tyl, ref Mnil))
 let newgenstub ~scope jkind =
   newty3 ~level:generic_level ~scope (Tvar { name=None; jkind })
 

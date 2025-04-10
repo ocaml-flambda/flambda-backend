@@ -61,6 +61,8 @@ val generic_level: int
 
 val newgenty: type_desc -> type_expr
         (* Create a generic type *)
+val newgenconstr: Path.t -> type_expr list -> type_expr
+        (* Create a generic type constructor *)
 val newgenvar: ?name:string -> jkind_lr -> type_expr
         (* Return a fresh generic variable *)
 val newgenstub: scope:int -> jkind_lr -> type_expr

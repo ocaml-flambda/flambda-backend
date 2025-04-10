@@ -503,7 +503,7 @@ Line 4, characters 12-13:
 4 |   unique_id r
                 ^
 Error: This value is used here as unique,
-       but it has already been read from in a closure that might be called later:
+       but it has already been read from in a lazy expression that might be forced later:
 Line 3, characters 17-18:
 3 |   let _l = lazy (r.z) in
                      ^

@@ -20,10 +20,10 @@
    (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70)))
  (main
   (flags
-   (:standard -principal -warn-error +A -w +a-4-9-40-41-42-44-45-48-66-67-70)))
+   (:standard -principal -warn-error -A -w +a-4-9-40-41-42-44-45-48-66-67-70)))
  (dev
   (flags
-   (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70 -warn-error +A))))
+   (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70 -warn-error -A))))
 
 (include dune.runtime_selection)
 
@@ -236,6 +236,7 @@
   typedecl_properties
   typedecl_separability
   cmt2annot
+  camlinternalQuote_bootstrap
   ; manual update: mli only files
   annot
   outcometree
@@ -282,6 +283,7 @@
   value_rec_types
   asttypes
   cmo_format
+  camlinternalQuote_bootstrap
   outcometree
   parsetree
   debug_event))

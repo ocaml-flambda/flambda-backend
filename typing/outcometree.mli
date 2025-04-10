@@ -59,7 +59,8 @@ type out_value =
   | Oval_unboxed_tuple of (string option * out_value) list
   | Oval_variant of string * out_value option
   | Oval_lazy of out_value
-  | Oval_code
+  | Oval_code of CamlinternalQuote_bootstrap.Code.t
+
 type out_modality_legacy = Ogf_global
 
 type out_modality_new = string
@@ -71,8 +72,6 @@ type out_modality =
 type out_mutability =
   | Om_immutable
   | Om_mutable of string option
-
-
 
 (** This definition avoids a cyclic dependency between Outcometree and Types. *)
 type arg_label =

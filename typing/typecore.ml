@@ -5771,6 +5771,18 @@ and type_expect_
       in
       {exp with exp_loc = loc}
   | Pexp_apply
+      ({ pexp_desc = Pexp_ident({txt = Longident.Lident "!#"}) },
+       [Nolabel, sbody]) ->
+    let argument_mode = mode_legacy in
+    let ty = newgenconstr Predef.path_code [ty_expected] in
+    let arg = type_expect env argument_mode sbody (mk_expected ty) in
+    re {
+      exp_desc = Texp_antiquotation arg;
+      exp_loc = loc; exp_extra = [];
+      exp_type = instance ty_expected;
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env }
+  | Pexp_apply
       ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
        [Nolabel, sbody]) when is_exclave_extension_node txt ->
       if (txt = "extension.exclave") && not (Language_extension.is_enabled Mode) then
@@ -6771,26 +6783,26 @@ and type_expect_
   | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
       rue (src_pos loc sexp.pexp_attributes env)
   | Pexp_extension ({ txt = ("quote" | "ocaml.quote"); _ }, payload) ->
-      let sarg =
-        match payload with
-        | PStr [{pstr_desc=Pstr_eval (sarg, _)}] -> sarg
-        | _ ->
-            raise (Error (loc, env, Invalid_quote_payload))
-      in
-      let argument_mode = mode_legacy in
-      let jkind = Jkind.Builtin.value ~why:Quotation_result in
-      let ty = newgenvar jkind in
-      let to_unify = Predef.type_code ty in
-      with_explanation (fun () ->
-          unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let arg = type_expect env argument_mode sarg (mk_expected ty) in
-      re {
-          exp_desc = Texp_quotation arg;
-          exp_loc = loc; exp_extra = [];
-          exp_type = instance ty_expected;
-          exp_attributes = sexp.pexp_attributes;
-          exp_env = env }
-  | Pexp_extension ext ->
+    let sarg =
+      match payload with
+      | PStr [{pstr_desc=Pstr_eval (sarg, _)}] -> sarg
+      | _ ->
+        raise (Error (loc, env, Invalid_quote_payload))
+    in
+    let argument_mode = mode_legacy in
+    let jkind = Jkind.Builtin.value ~why:Quotation_result in
+    let ty = newgenvar jkind in
+    let to_unify = Predef.type_code ty in
+    with_explanation (fun () ->
+      unify_exp_types loc env to_unify (generic_instance ty_expected));
+    let arg = type_expect env argument_mode sarg (mk_expected ty) in
+    re {
+      exp_desc = Texp_quotation arg;
+      exp_loc = loc; exp_extra = [];
+      exp_type = instance ty_expected;
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env }
+    | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
   | Pexp_unreachable ->
