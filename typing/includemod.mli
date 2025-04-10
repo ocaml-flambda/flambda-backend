@@ -18,18 +18,6 @@
 open Typedtree
 open Types
 
-(** Type describing which arguments of an inclusion to consider as used
-    for the usage warnings. [Mark_both] is the default. *)
-type mark =
-  | Mark_both
-      (** Mark definitions used from both arguments *)
-  | Mark_positive
-      (** Mark definitions used from the positive (first) argument *)
-  | Mark_negative
-      (** Mark definitions used from the negative (second) argument *)
-  | Mark_neither
-      (** Do not mark definitions used from either argument *)
-
 module Error: sig
 
   type ('elt,'explanation) diff = {
@@ -155,15 +143,44 @@ type modes = Includecore.mmodes
 (* Typechecking *)
 
 val modtypes:
+<<<<<<< HEAD
   loc:Location.t -> Env.t -> mark:mark -> modes:modes ->
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  loc:Location.t -> Env.t -> mark:mark ->
+=======
+  loc:Location.t -> Env.t -> mark:bool ->
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   module_type -> module_type -> module_coercion
 
+<<<<<<< HEAD
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+
+val modtypes_consistency:
+  loc:Location.t -> Env.t -> module_type -> module_type -> unit
+
+=======
+val modtypes_consistency:
+  loc:Location.t -> Env.t -> module_type -> module_type -> unit
+
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 val modtypes_with_shape:
+<<<<<<< HEAD
   shape:Shape.t -> loc:Location.t -> Env.t -> mark:mark -> modes:modes ->
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  shape:Shape.t -> loc:Location.t -> Env.t -> mark:mark ->
+=======
+  shape:Shape.t -> loc:Location.t -> Env.t -> mark:bool ->
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   module_type -> module_type -> module_coercion * Shape.t
 
 val strengthened_module_decl:
+<<<<<<< HEAD
   loc:Location.t -> aliasable:bool -> Env.t -> mark:mark -> mmodes:modes ->
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  loc:Location.t -> aliasable:bool -> Env.t -> mark:mark ->
+=======
+  loc:Location.t -> aliasable:bool -> Env.t -> mark:bool ->
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   module_declaration -> Path.t -> module_declaration -> module_coercion
 
 val check_modtype_inclusion :
@@ -176,21 +193,31 @@ val check_modtype_inclusion :
 val check_modtype_equiv:
   loc:Location.t -> Env.t -> Ident.t -> module_type -> module_type -> unit
 
+<<<<<<< HEAD
 val signatures: Env.t -> mark:mark -> modes:modes ->
   signature -> signature -> module_coercion
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+val signatures: Env.t -> mark:mark ->
+  signature -> signature -> module_coercion
+=======
+val signatures: Env.t -> mark:bool -> signature -> signature -> module_coercion
+
+(** Check an implementation against an interface *)
+val check_implementation: Env.t -> signature -> signature -> unit
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
 val include_functor_signatures : Env.t -> mark:mark ->
   signature -> signature -> (Ident.t * module_coercion) list
 
 val compunit:
-      Env.t -> mark:mark -> string -> signature ->
+      Env.t -> mark:bool -> string -> signature ->
       string -> signature -> Shape.t -> module_coercion * Shape.t
 
 val compunit_as_argument:
       Env.t -> string -> signature -> string -> signature -> module_coercion
 
 val type_declarations:
-  loc:Location.t -> Env.t -> mark:mark ->
+  loc:Location.t -> Env.t -> mark:bool ->
   Ident.t -> type_declaration -> type_declaration -> unit
 
 val print_coercion: Format.formatter -> module_coercion -> unit

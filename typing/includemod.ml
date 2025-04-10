@@ -120,21 +120,88 @@ module Error = struct
 
 end
 
-type mark =
+module Directionality = struct
+
+
+  type mark =
   | Mark_both
   | Mark_positive
-  | Mark_negative
   | Mark_neither
 
-let negate_mark = function
-  | Mark_both -> Mark_both
-  | Mark_positive -> Mark_negative
-  | Mark_negative -> Mark_positive
-  | Mark_neither -> Mark_neither
+  type pos =
+    | Strictly_positive
+      (** Strictly positive positions are notable for tools since they are the
+          the case where we match a implementation definition with an interface
+          declaration. Oherwise in the positive case we are matching
+          declatations inside functor arguments at even level of nesting.*)
+    | Positive
+    | Negative
 
-let mark_positive = function
-  | Mark_both | Mark_positive -> true
-  | Mark_negative | Mark_neither -> false
+
+(**
+   When checking inclusion, the [Directionality.t] type tracks the
+   subtyping direction at the syntactic level.
+
+   The [posivity] field is used in the [cmt_declaration_dependencies] to
+   distinguish between directed and undirected edges, and to avoid recording
+   matched declarations twice.
+
+   The [mark_as_used] field describes if we should record only positive use,
+   any use (because there is no clear implementation side), or none (because we
+   are inside an auxiliary check function.)
+
+   The [in_eq] field is [true] when we are checking both directions inside of
+   module types which allows optimizing module type equality checks. The module
+   subtyping relation [A <: B] checks that [A.T = B.T] when [A] and [B] define a
+   module type [T]. The relation [A.T = B.T] is equivalent to [(A.T <: B.T) and
+   (B.T <: A.T)], but checking both recursively would lead to an exponential
+   slowdown (see #10598 and #10616). To avoid this issue, when [in_eq] is
+   [true], we compute a coarser relation [A << B] which is the same as [A <: B]
+   except that module types [T] are checked only for [A.T << B.T] and not the
+   reverse. Thus, we can implement a cheap module type equality check [A.T =
+   B.T] by computing [(A.T << B.T) and (B.T << A.T)], avoiding the exponential
+   slowdown described above.
+*)
+  type t = {
+      in_eq:bool;
+      mark_as_used:mark;
+      pos:pos;
+    }
+
+  let strictly_positive ~mark =
+    let mark_as_used = if mark then Mark_positive else Mark_neither in
+    { in_eq=false; pos=Strictly_positive; mark_as_used }
+
+  let unknown ~mark =
+    let mark_as_used = if mark then Mark_both else Mark_neither in
+    { in_eq=false; pos=Positive; mark_as_used }
+
+  let negate_pos = function
+    | Positive | Strictly_positive -> Negative
+    | Negative -> Positive
+
+  let negate d = { d with pos = negate_pos d.pos }
+
+  let at_most_positive = function
+    | Strictly_positive -> Positive
+    | Positive | Negative as non_strict -> non_strict
+
+  let enter_eq d =
+    {
+      in_eq = true;
+      pos = at_most_positive d.pos;
+      mark_as_used = d.mark_as_used
+    }
+
+  let mark_as_used d = match d.mark_as_used with
+    | Mark_neither -> false
+    | Mark_both -> true
+    | Mark_positive ->
+       match d.pos with
+       | Positive | Strictly_positive -> true
+       | Negative -> false
+
+end
 
 (* All functions "blah env x1 x2" check that x1 is included in x2,
    i.e. that x1 is the type of an implementation that fulfills the
@@ -146,13 +213,35 @@ let walk_locks ~env ~item = function
       ignore (Env.walk_locks ~env ~item Mode.Value.(legacy |> disallow_right)
         None held_locks)
 
+<<<<<<< HEAD
 let append_ldot s = function
   | (All | Legacy None) as t -> t
   | Legacy (Some (locks, lid, loc)) ->
       Legacy (Some (locks, Ldot (lid, s), loc))
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  let value_descriptions ~loc env ~mark subst id vd1 vd2 =
+    Cmt_format.record_value_dependency vd1 vd2;
+    if mark_positive mark then
+      Env.mark_value_used vd1.val_uid;
+    let vd2 = Subst.value_description subst vd2 in
+    try
+      Ok (Includecore.value_descriptions ~loc env (Ident.name id) vd1 vd2)
+    with Includecore.Dont_match err ->
+      Error Error.(Core (Value_descriptions (diff vd1 vd2 err)))
+=======
+  let value_descriptions ~loc env ~direction subst id vd1 vd2 =
+    if Directionality.mark_as_used direction then
+      Env.mark_value_used vd1.val_uid;
+    let vd2 = Subst.value_description subst vd2 in
+    try
+      Ok (Includecore.value_descriptions ~loc env (Ident.name id) vd1 vd2)
+    with Includecore.Dont_match err ->
+      Error Error.(Core (Value_descriptions (diff vd1 vd2 err)))
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
 (* Inclusion between value descriptions *)
 
+<<<<<<< HEAD
 let value_descriptions ~loc env ~mark subst id ~mmodes vd1 vd2 =
   Cmt_format.record_value_dependency vd1 vd2;
   if mark_positive mark then
@@ -162,14 +251,111 @@ let value_descriptions ~loc env ~mark subst id ~mmodes vd1 vd2 =
     Ok (Includecore.value_descriptions ~loc env (Ident.name id) ~mmodes vd1 vd2)
   with Includecore.Dont_match err ->
     Error Error.(Core (Value_descriptions (diff vd1 vd2 err)))
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  let type_declarations ~loc env ~mark subst id decl1 decl2 =
+    let mark = mark_positive mark in
+    if mark then
+      Env.mark_type_used decl1.type_uid;
+    let decl2 = Subst.type_declaration subst decl2 in
+    match
+      Includecore.type_declarations ~loc env ~mark
+        (Ident.name id) decl1 (Path.Pident id) decl2
+    with
+    | None -> Ok Tcoerce_none
+    | Some err ->
+        Error Error.(Core(Type_declarations (diff decl1 decl2 err)))
+=======
+  let type_declarations ~loc env ~direction subst id decl1 decl2 =
+    let mark = Directionality.mark_as_used direction in
+    if mark then
+      Env.mark_type_used decl1.type_uid;
+    let decl2 = Subst.type_declaration subst decl2 in
+    match
+      Includecore.type_declarations ~loc env ~mark
+        (Ident.name id) decl1 (Path.Pident id) decl2
+    with
+    | None -> Ok Tcoerce_none
+    | Some err ->
+        Error Error.(Core(Type_declarations (diff decl1 decl2 err)))
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
 (* Inclusion between type declarations *)
 
+<<<<<<< HEAD
 let type_declarations ~loc env ~mark subst id decl1 decl2 =
   let mark = mark_positive mark in
   if mark then
     Env.mark_type_used decl1.type_uid;
   let decl2 = Subst.type_declaration subst decl2 in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  let extension_constructors ~loc env ~mark  subst id ext1 ext2 =
+    let mark = mark_positive mark in
+    let ext2 = Subst.extension_constructor subst ext2 in
+    match Includecore.extension_constructors ~loc env ~mark id ext1 ext2 with
+    | None -> Ok Tcoerce_none
+    | Some err ->
+        Error Error.(Core(Extension_constructors(diff ext1 ext2 err)))
+
+  (* Inclusion between class declarations *)
+
+  let class_type_declarations ~loc env ~mark:_ subst _id decl1 decl2 =
+    let decl2 = Subst.cltype_declaration subst decl2 in
+    match Includeclass.class_type_declarations ~loc env decl1 decl2 with
+      []     -> Ok Tcoerce_none
+    | reason ->
+        Error Error.(Core(Class_type_declarations(diff decl1 decl2 reason)))
+
+  let class_declarations ~loc:_ env ~mark:_ subst _id decl1 decl2 =
+    let decl2 = Subst.class_declaration subst decl2 in
+    match Includeclass.class_declarations env decl1 decl2 with
+      []     -> Ok Tcoerce_none
+    | reason ->
+        Error Error.(Core(Class_declarations(diff decl1 decl2 reason)))
+end
+
+(* Expand a module type identifier when possible *)
+
+let expand_modtype_path env path =
+   match Env.find_modtype_expansion path env with
+     | exception Not_found -> None
+     | x -> Some x
+
+let expand_module_alias ~strengthen env path =
+=======
+  let extension_constructors ~loc env ~direction subst id ext1 ext2 =
+    let mark = Directionality.mark_as_used direction in
+    let ext2 = Subst.extension_constructor subst ext2 in
+    match Includecore.extension_constructors ~loc env ~mark id ext1 ext2 with
+    | None -> Ok Tcoerce_none
+    | Some err ->
+        Error Error.(Core(Extension_constructors(diff ext1 ext2 err)))
+
+  (* Inclusion between class declarations *)
+
+  let class_type_declarations ~loc env ~direction:_ subst _id decl1 decl2 =
+    let decl2 = Subst.cltype_declaration subst decl2 in
+    match Includeclass.class_type_declarations ~loc env decl1 decl2 with
+      []     -> Ok Tcoerce_none
+    | reason ->
+        Error Error.(Core(Class_type_declarations(diff decl1 decl2 reason)))
+
+  let class_declarations ~loc:_ env ~direction:_ subst _id decl1 decl2 =
+    let decl2 = Subst.class_declaration subst decl2 in
+    match Includeclass.class_declarations env decl1 decl2 with
+      []     -> Ok Tcoerce_none
+    | reason ->
+        Error Error.(Core(Class_declarations(diff decl1 decl2 reason)))
+end
+
+(* Expand a module type identifier when possible *)
+
+let expand_modtype_path env path =
+   match Env.find_modtype_expansion path env with
+     | exception Not_found -> None
+     | x -> Some x
+
+let expand_module_alias ~strengthen env path =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   match
     Includecore.type_declarations ~loc env ~mark
       (Ident.name id) decl1 (Path.Pident id) decl2
@@ -494,6 +680,7 @@ let rec shallow_modtypes env subst mty1 mty2 =
       shallow_modtypes env subst mty1 mty2
   | (Mty_alias _ | Mty_ident _ | Mty_signature _ | Mty_functor _), _  -> false
 
+<<<<<<< HEAD
 and shallow_module_paths env subst p1 mty2 p2 =
   equal_module_paths env p1 subst p2 ||
   (* This shortcut is a significant win in some cases. Note we don't apply it
@@ -504,11 +691,40 @@ and shallow_module_paths env subst p1 mty2 p2 =
           && equal_module_paths env p1 subst p2
     | Mty_alias _ | Mty_ident _ | Mty_signature _ | Mty_functor _
     | exception Not_found -> false
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  - the normal subtyping relation [<:].
+  - the coarse-grain consistency relation [C], which is defined by
+   [d1 C d2] if there is an environment [E] such that [E |- d1 <: d2]. *)
+type 'a core_incl =
+  loc:Location.t -> Env.t -> mark:mark -> Subst.t -> Ident.t ->
+  'a -> 'a -> (module_coercion, Error.sigitem_symptom) result
 
-(**
-   In the group of mutual functions below, the [~in_eq] argument is [true] when
-   we are in fact checking equality of module types.
+type core_relation = {
+  value_descriptions: Types.value_description core_incl;
+  type_declarations: Types.type_declaration core_incl;
+  extension_constructors: Types.extension_constructor core_incl;
+  class_declarations: Types.class_declaration core_incl;
+  class_type_declarations: Types.class_type_declaration core_incl;
+}
+=======
+  - the normal subtyping relation [<:].
+  - the coarse-grain consistency relation [C], which is defined by
+   [d1 C d2] if there is an environment [E] such that [E |- d1 <: d2]. *)
+type 'a core_incl =
+  loc:Location.t -> Env.t -> direction:Directionality.t -> Subst.t -> Ident.t ->
+  'a -> 'a -> (module_coercion, Error.sigitem_symptom) result
 
+type core_relation = {
+  value_descriptions: Types.value_description core_incl;
+  type_declarations: Types.type_declaration core_incl;
+  extension_constructors: Types.extension_constructor core_incl;
+  class_declarations: Types.class_declaration core_incl;
+  class_type_declarations: Types.class_type_declaration core_incl;
+}
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+
+
+<<<<<<< HEAD
    The module subtyping relation [A <: B] checks that [A.T = B.T] when [A]
    and [B] define a module type [T]. The relation [A.T = B.T] is equivalent
    to [(A.T <: B.T) and (B.T <: A.T)], but checking both recursively would lead
@@ -523,6 +739,25 @@ and shallow_module_paths env subst p1 mty2 p2 =
 
 let rec modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 shape =
   match try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 shape with
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+   The module subtyping relation [A <: B] checks that [A.T = B.T] when [A]
+   and [B] define a module type [T]. The relation [A.T = B.T] is equivalent
+   to [(A.T <: B.T) and (B.T <: A.T)], but checking both recursively would lead
+   to an exponential slowdown (see #10598 and #10616).
+   To avoid this issue, when [~in_eq] is [true], we compute a coarser relation
+   [A << B] which is the same as [A <: B] except that module types [T] are
+   checked only for [A.T << B.T] and not the reverse.
+   Thus, we can implement a cheap module type equality check [A.T = B.T] by
+   computing [(A.T << B.T) and (B.T << A.T)], avoiding the exponential slowdown
+   described above.
+*)
+
+let rec modtypes ~core ~in_eq ~loc env ~mark subst mty1 mty2 shape =
+  match try_modtypes ~core ~in_eq ~loc env ~mark subst mty1 mty2 shape with
+=======
+let rec modtypes ~core ~direction ~loc env subst mty1 mty2 shape =
+  match try_modtypes ~core ~direction ~loc env subst mty1 mty2 shape with
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   | Ok _ as ok -> ok
   | Error reason ->
     let mty1 = Subst.Lazy.force_modtype mty1 in
@@ -531,6 +766,7 @@ let rec modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 shape =
     in
     Error Error.(diff mty1 mty2 reason)
 
+<<<<<<< HEAD
 and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
   let open Subst.Lazy in
   (* Do a quick nominal comparison for simple types and if that fails, try to
@@ -539,7 +775,13 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
     | Mty_alias _ -> true
     | _ -> false
   in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and try_modtypes ~core ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
+=======
+and try_modtypes ~core ~direction ~loc env subst mty1 mty2 orig_shape =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   match mty1, mty2 with
+<<<<<<< HEAD
   | _ when shallow_modtypes env subst mty1 mty2 ->
     walk_locks ~env ~item:Module modes;
     Ok (Tcoerce_none, orig_shape)
@@ -558,14 +800,135 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
             with
             | Ok _ as x -> x
             | Error reason -> Error (Error.After_alias_expansion reason)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  | (Mty_alias p1, Mty_alias p2) ->
+      if Env.is_functor_arg p2 env then
+        Error (Error.Invalid_module_alias p2)
+      else if not (equal_module_paths env p1 subst p2) then
+          Error Error.(Mt_core Incompatible_aliases)
+      else Ok (Tcoerce_none, orig_shape)
+  | (Mty_alias p1, _) -> begin
+      match
+        Env.normalize_module_path (Some Location.none) env p1
+      with
+      | exception Env.Error (Env.Missing_module (_, _, path)) ->
+          Error Error.(Mt_core(Unbound_module_path path))
+      | p1 ->
+          begin match expand_module_alias ~strengthen:false env p1 with
+          | Error e -> Error (Error.Mt_core e)
+          | Ok mty1 ->
+              match strengthened_modtypes ~core ~in_eq ~loc ~aliasable:true env
+                      ~mark subst mty1 p1 mty2 orig_shape
+              with
+              | Ok _ as x -> x
+              | Error reason -> Error (Error.After_alias_expansion reason)
+=======
+  | (Mty_alias p1, Mty_alias p2) ->
+      if Env.is_functor_arg p2 env then
+        Error (Error.Invalid_module_alias p2)
+      else if not (equal_module_paths env p1 subst p2) then
+          Error Error.(Mt_core Incompatible_aliases)
+      else Ok (Tcoerce_none, orig_shape)
+  | (Mty_alias p1, _) -> begin
+      match
+        Env.normalize_module_path (Some Location.none) env p1
+      with
+      | exception Env.Error (Env.Missing_module (_, _, path)) ->
+          Error Error.(Mt_core(Unbound_module_path path))
+      | p1 ->
+          begin match expand_module_alias ~strengthen:false env p1 with
+          | Error e -> Error (Error.Mt_core e)
+          | Ok mty1 ->
+              match strengthened_modtypes ~core ~direction ~loc ~aliasable:true
+                      env subst mty1 p1 mty2 orig_shape
+              with
+              | Ok _ as x -> x
+              | Error reason -> Error (Error.After_alias_expansion reason)
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
           end
+<<<<<<< HEAD
         | exception Not_found ->
             Error (Error.Mt_core (Error.Unbound_module_path p1))
-        end
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
     end
+  | (Mty_ident p1, Mty_ident p2) ->
+      let p1 = Env.normalize_modtype_path env p1 in
+      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
+      if Path.same p1 p2 then Ok (Tcoerce_none, orig_shape)
+      else
+        begin match expand_modtype_path env p1, expand_modtype_path env p2 with
+        | Some mty1, Some mty2 ->
+            try_modtypes ~core ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape
+        | None, _  | _, None -> Error (Error.Mt_core Abstract_module_type)
+=======
+    end
+  | (Mty_ident p1, Mty_ident p2) ->
+      let p1 = Env.normalize_modtype_path env p1 in
+      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
+      if Path.same p1 p2 then Ok (Tcoerce_none, orig_shape)
+      else
+        begin match expand_modtype_path env p1, expand_modtype_path env p2 with
+        | Some mty1, Some mty2 ->
+            try_modtypes ~core ~direction ~loc env subst mty1 mty2 orig_shape
+        | None, _  | _, None -> Error (Error.Mt_core Abstract_module_type)
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        end
+<<<<<<< HEAD
+    end
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  | (Mty_ident p1, _) ->
+      let p1 = Env.normalize_modtype_path env p1 in
+      begin match expand_modtype_path env p1 with
+      | Some p1 ->
+          try_modtypes ~core ~in_eq ~loc env ~mark subst p1 mty2 orig_shape
+      | None -> Error (Error.Mt_core Abstract_module_type)
+      end
+  | (_, Mty_ident p2) ->
+      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
+      begin match expand_modtype_path env p2 with
+      | Some p2 ->
+          try_modtypes ~core ~in_eq ~loc env ~mark subst mty1 p2 orig_shape
+      | None ->
+          begin match mty1 with
+          | Mty_functor _ ->
+              let params1 = retrieve_functor_params env mty1 in
+              let d = Error.sdiff params1 ([],mty2) in
+              Error Error.(Functor (Params d))
+          | _ -> Error Error.(Mt_core Not_an_identifier)
+          end
+      end
+=======
+  | (Mty_ident p1, _) ->
+      let p1 = Env.normalize_modtype_path env p1 in
+      begin match expand_modtype_path env p1 with
+      | Some p1 ->
+          try_modtypes ~core ~direction ~loc env subst p1 mty2 orig_shape
+      | None -> Error (Error.Mt_core Abstract_module_type)
+      end
+  | (_, Mty_ident p2) ->
+      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
+      begin match expand_modtype_path env p2 with
+      | Some p2 ->
+          try_modtypes ~core ~direction ~loc env subst mty1 p2 orig_shape
+      | None ->
+          begin match mty1 with
+          | Mty_functor _ ->
+              let params1 = retrieve_functor_params env mty1 in
+              let d = Error.sdiff params1 ([],mty2) in
+              Error Error.(Functor (Params d))
+          | _ -> Error Error.(Mt_core Not_an_identifier)
+          end
+      end
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   | (Mty_signature sig1, Mty_signature sig2) ->
       begin match
+<<<<<<< HEAD
         signatures ~in_eq ~loc env ~mark subst ~modes sig1 sig2 orig_shape
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        signatures ~core ~in_eq ~loc env ~mark subst sig1 sig2 orig_shape
+=======
+        signatures ~core ~direction ~loc env subst sig1 sig2 orig_shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
       with
       | Ok _ as ok -> ok
       | Error e -> Error (Error.Signature e)
@@ -574,7 +937,14 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
   | Mty_functor (param1, res1), Mty_functor (param2, res2) ->
       walk_locks ~env ~item:Module modes;
       let cc_arg, env, subst =
+<<<<<<< HEAD
         functor_param ~in_eq ~loc env ~mark:(negate_mark mark)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        functor_param ~core ~in_eq ~loc env ~mark:(negate_mark mark)
+=======
+        let direction = Directionality.negate direction in
+        functor_param ~core ~direction ~loc env
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
           subst param1 param2
       in
       let var, res_shape =
@@ -592,8 +962,14 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
             var, Shape.app orig_shape ~arg:shape_var
       in
       let cc_res =
+<<<<<<< HEAD
         modtypes ~in_eq ~loc env ~mark subst res1 res2 res_shape
           ~modes:(Legacy None)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        modtypes ~core ~in_eq ~loc env ~mark subst res1 res2 res_shape
+=======
+        modtypes ~core ~direction ~loc env subst res1 res2 res_shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
       in
       begin match cc_arg, cc_res with
       | Ok Tcoerce_none, Ok (Tcoerce_none, final_res_shape) ->
@@ -682,8 +1058,14 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
 
 (* Functor parameters *)
 
+<<<<<<< HEAD
 and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
   let open Subst.Lazy in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and functor_param ~core ~in_eq ~loc env ~mark subst param1 param2 =
+=======
+and functor_param ~core ~direction ~loc env subst param1 param2 =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   match param1, param2 with
   | Unit, Unit ->
       Ok Tcoerce_none, env, subst
@@ -691,8 +1073,16 @@ and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
       let arg2' = Subst.Lazy.modtype Keep subst arg2 in
       let cc_arg =
         match
+<<<<<<< HEAD
           modtypes ~in_eq ~loc env ~mark Subst.identity arg2' arg1
                 Shape.dummy_mod ~modes:(Legacy None)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+          modtypes ~core ~in_eq ~loc env ~mark Subst.identity arg2' arg1
+                Shape.dummy_mod
+=======
+          modtypes ~core ~direction ~loc env Subst.identity arg2' arg1
+                Shape.dummy_mod
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
         with
         | Ok (cc, _) -> Ok cc
         | Error err -> Error (Error.Mismatch err)
@@ -721,11 +1111,32 @@ and equate_one_functor_param subst env arg2' name1 name2  =
   | None, None ->
       env, subst
 
+<<<<<<< HEAD
 and strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
     subst ~modes mty1 path1 mty2 shape =
   let mty1 = Mtype.strengthen_lazy ~aliasable mty1 path1 in
   modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 shape
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and strengthened_modtypes ~core ~in_eq ~loc ~aliasable env ~mark
+    subst mty1 path1 mty2 shape =
+  match mty1, mty2 with
+  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
+      Ok (Tcoerce_none, shape)
+  | _, _ ->
+      let mty1 = Mtype.strengthen ~aliasable env mty1 path1 in
+      modtypes ~core ~in_eq ~loc env ~mark subst mty1 mty2 shape
+=======
+and strengthened_modtypes ~core ~direction ~loc ~aliasable env
+    subst mty1 path1 mty2 shape =
+  match mty1, mty2 with
+  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
+      Ok (Tcoerce_none, shape)
+  | _, _ ->
+      let mty1 = Mtype.strengthen ~aliasable env mty1 path1 in
+      modtypes ~core ~direction ~loc env subst mty1 mty2 shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
+<<<<<<< HEAD
 and strengthened_module_decl ~loc ~aliasable env ~mark
     subst ~mmodes  md1 path1 md2 shape =
   let md1 = Subst.Lazy.of_module_decl md1 in
@@ -733,11 +1144,37 @@ and strengthened_module_decl ~loc ~aliasable env ~mark
   let mty2 = Subst.Lazy.of_modtype md2.md_type in
   let modes = mmodes in
   modtypes ~in_eq:false ~loc env ~mark subst ~modes md1.md_type mty2 shape
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and strengthened_module_decl ~core ~loc ~aliasable env ~mark
+    subst md1 path1 md2 shape =
+  match md1.md_type, md2.md_type with
+  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
+      Ok (Tcoerce_none, shape)
+  | _, _ ->
+      let md1 = Mtype.strengthen_decl ~aliasable env md1 path1 in
+      modtypes ~core ~in_eq:false ~loc env ~mark subst
+        md1.md_type md2.md_type shape
+=======
+and strengthened_module_decl ~core ~loc ~aliasable ~direction env
+    subst md1 path1 md2 shape =
+  match md1.md_type, md2.md_type with
+  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
+      Ok (Tcoerce_none, shape)
+  | _, _ ->
+      let md1 = Mtype.strengthen_decl ~aliasable env md1 path1 in
+      modtypes ~core ~direction ~loc env subst md1.md_type md2.md_type shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
 (* Inclusion between signatures *)
 
+<<<<<<< HEAD
 and signatures ~in_eq ~loc env ~mark subst ~modes sig1 sig2 mod_shape =
   let open Subst.Lazy in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and signatures ~core ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
+=======
+and signatures ~core ~direction ~loc env subst sig1 sig2 mod_shape =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   (* Environment used to check inclusion of components *)
   let sig1 = force_signature_once sig1 in
   let sig2 = force_signature_once sig2 in
@@ -761,6 +1198,146 @@ and signatures ~in_eq ~loc env ~mark subst ~modes sig1 sig2 mod_shape =
       el, rl
     ) (0, 0) sig2
   in
+<<<<<<< HEAD
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  (* Pair each component of sig2 with a component of sig1,
+     identifying the names along the way.
+     Return a coercion list indicating, for all run-time components
+     of sig2, the position of the matching run-time components of sig1
+     and the coercion to be applied to it. *)
+  let rec pair_components ~core subst paired unpaired = function
+      [] ->
+        let open Sign_diff in
+        let d =
+          signature_components ~core ~in_eq ~loc env ~mark new_env subst
+            mod_shape Shape.Map.empty
+            (List.rev paired)
+        in
+        begin match unpaired, d.errors, d.runtime_coercions, d.leftovers with
+            | [], [], cc, [] ->
+                let shape =
+                  if not d.deep_modifications && exported_len1 = exported_len2
+                  then mod_shape
+                  else Shape.str ?uid:mod_shape.Shape.uid d.shape_map
+                in
+                if runtime_len1 = runtime_len2 then (* see PR#5098 *)
+                  Ok (simplify_structure_coercion cc id_pos_list, shape)
+                else
+                  Ok (Tcoerce_structure (cc, id_pos_list), shape)
+            | missings, incompatibles, runtime_coercions, leftovers ->
+                Error {
+                  Error.env=new_env;
+                  missings;
+                  incompatibles;
+                  oks=runtime_coercions;
+                  leftovers;
+                }
+        end
+    | item2 :: rem ->
+        let (id2, _loc, name2) = item_ident_name item2 in
+        let name2, report =
+          match item2, name2 with
+            Sig_type (_, {type_manifest=None}, _, _), {name=s; kind=Field_type}
+            when Btype.is_row_name s ->
+              (* Do not report in case of failure,
+                 as the main type will generate an error *)
+              { kind=Field_type; name=String.sub s 0 (String.length s - 4) },
+              false
+          | _ -> name2, true
+        in
+        begin match FieldMap.find name2 comps1 with
+        | (id1, item1, pos1) ->
+          let new_subst =
+            match item2 with
+              Sig_type _ ->
+                Subst.add_type id2 (Path.Pident id1) subst
+            | Sig_module _ ->
+                Subst.add_module id2 (Path.Pident id1) subst
+            | Sig_modtype _ ->
+                Subst.add_modtype id2 (Mty_ident (Path.Pident id1)) subst
+            | Sig_value _ | Sig_typext _
+            | Sig_class _ | Sig_class_type _ ->
+                subst
+          in
+          pair_components ~core new_subst
+            ((item1, item2, pos1) :: paired) unpaired rem
+        | exception Not_found ->
+          let unpaired =
+            if report then
+              item2 :: unpaired
+            else unpaired in
+          pair_components ~core subst paired unpaired rem
+        end in
+=======
+  (* Pair each component of sig2 with a component of sig1,
+     identifying the names along the way.
+     Return a coercion list indicating, for all run-time components
+     of sig2, the position of the matching run-time components of sig1
+     and the coercion to be applied to it. *)
+  let rec pair_components ~core subst paired unpaired = function
+      [] ->
+        let open Sign_diff in
+        let d =
+          signature_components ~core ~direction ~loc env new_env subst
+            mod_shape Shape.Map.empty
+            (List.rev paired)
+        in
+        begin match unpaired, d.errors, d.runtime_coercions, d.leftovers with
+            | [], [], cc, [] ->
+                let shape =
+                  if not d.deep_modifications && exported_len1 = exported_len2
+                  then mod_shape
+                  else Shape.str ?uid:mod_shape.Shape.uid d.shape_map
+                in
+                if runtime_len1 = runtime_len2 then (* see PR#5098 *)
+                  Ok (simplify_structure_coercion cc id_pos_list, shape)
+                else
+                  Ok (Tcoerce_structure (cc, id_pos_list), shape)
+            | missings, incompatibles, runtime_coercions, leftovers ->
+                Error {
+                  Error.env=new_env;
+                  missings;
+                  incompatibles;
+                  oks=runtime_coercions;
+                  leftovers;
+                }
+        end
+    | item2 :: rem ->
+        let (id2, _loc, name2) = item_ident_name item2 in
+        let name2, report =
+          match item2, name2 with
+            Sig_type (_, {type_manifest=None}, _, _), {name=s; kind=Field_type}
+            when Btype.is_row_name s ->
+              (* Do not report in case of failure,
+                 as the main type will generate an error *)
+              { kind=Field_type; name=String.sub s 0 (String.length s - 4) },
+              false
+          | _ -> name2, true
+        in
+        begin match FieldMap.find name2 comps1 with
+        | (id1, item1, pos1) ->
+          let new_subst =
+            match item2 with
+              Sig_type _ ->
+                Subst.add_type id2 (Path.Pident id1) subst
+            | Sig_module _ ->
+                Subst.add_module id2 (Path.Pident id1) subst
+            | Sig_modtype _ ->
+                Subst.add_modtype id2 (Mty_ident (Path.Pident id1)) subst
+            | Sig_value _ | Sig_typext _
+            | Sig_class _ | Sig_class_type _ ->
+                subst
+          in
+          pair_components ~core new_subst
+            ((item1, item2, pos1) :: paired) unpaired rem
+        | exception Not_found ->
+          let unpaired =
+            if report then
+              item2 :: unpaired
+            else unpaired in
+          pair_components ~core subst paired unpaired rem
+        end in
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   (* Do the pairing and checking, and return the final coercion *)
   let paired, unpaired, subst = pair_components subst comps1 sig2 in
   let d =
@@ -788,22 +1365,40 @@ and signatures ~in_eq ~loc env ~mark subst ~modes sig1 sig2 mod_shape =
         }
 
 (* Inclusion between signature components *)
+<<<<<<< HEAD
 and signature_components :
   'a. in_eq:_ -> loc:_ -> mark:_ -> _ -> _ -> _ -> _ -> mmodes:_ -> (_ * _ * 'a) list -> 'a Sign_diff.t =
   fun ~in_eq ~loc ~mark env subst orig_shape shape_map ~mmodes paired ->
   let open Subst.Lazy in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+
+and signature_components ~core ~in_eq ~loc old_env ~mark env subst
+    orig_shape shape_map paired =
+=======
+
+and signature_components ~core ~direction ~loc old_env env subst
+    orig_shape shape_map paired =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   match paired with
   | [] -> Sign_diff.{ empty with shape_map }
   | (sigi1, sigi2, pos) :: rem ->
       let shape_modified = ref false in
-      let id, item, shape_map, present_at_runtime =
+      let id, item, paired_uids, shape_map, present_at_runtime =
         match sigi1, sigi2 with
         | Sig_value(id1, valdecl1, _) ,Sig_value(_id2, valdecl2, _) ->
             let mmodes = append_ldot (Ident.name id1) mmodes in
             let item =
+<<<<<<< HEAD
               value_descriptions ~loc env ~mark subst id1 ~mmodes
                 (Subst.Lazy.force_value_description valdecl1)
                 (Subst.Lazy.force_value_description valdecl2)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              core.value_descriptions ~loc env ~mark subst id1
+                valdecl1 valdecl2
+=======
+              core.value_descriptions ~loc ~direction env subst id1
+                valdecl1 valdecl2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
             in
             let item = mark_error_as_recoverable item in
             let present_at_runtime = match valdecl2.val_kind with
@@ -811,25 +1406,39 @@ and signature_components :
               | _ -> true
             in
             let shape_map = Shape.Map.add_value_proj shape_map id1 orig_shape in
-            id1, item, shape_map, present_at_runtime
+            let paired_uids = (valdecl1.val_uid, valdecl2.val_uid) in
+            id1, item, paired_uids, shape_map, present_at_runtime
         | Sig_type(id1, tydec1, _, _), Sig_type(_id2, tydec2, _, _) ->
             let item =
+<<<<<<< HEAD
               type_declarations ~loc env ~mark subst id1 tydec1 tydec2
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              core.type_declarations ~loc env ~mark subst id1 tydec1 tydec2
+=======
+              core.type_declarations ~loc ~direction env subst id1 tydec1 tydec2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
             in
             let item = mark_error_as_unrecoverable item in
             (* Right now we don't filter hidden constructors / labels from the
             shape. *)
             let shape_map = Shape.Map.add_type_proj shape_map id1 orig_shape in
-            id1, item, shape_map, false
+            id1, item, (tydec1.type_uid, tydec2.type_uid), shape_map, false
         | Sig_typext(id1, ext1, _, _), Sig_typext(_id2, ext2, _, _) ->
             let item =
+<<<<<<< HEAD
               extension_constructors ~loc env ~mark  subst id1 ext1 ext2
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              core.extension_constructors ~loc env ~mark  subst id1 ext1 ext2
+=======
+              core.extension_constructors ~loc ~direction env subst id1
+                ext1 ext2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
             in
             let item = mark_error_as_unrecoverable item in
             let shape_map =
               Shape.Map.add_extcons_proj shape_map id1 orig_shape
             in
-            id1, item, shape_map, true
+            id1, item, (ext1.ext_uid, ext2.ext_uid), shape_map, true
         | Sig_module(id1, pres1, mty1, _, _), Sig_module(_, pres2, mty2, _, _)
           -> begin
               let mmodes = append_ldot (Ident.name id1) mmodes in
@@ -837,8 +1446,16 @@ and signature_components :
                 Shape.(proj orig_shape (Item.module_ id1))
               in
               let item =
+<<<<<<< HEAD
                 module_declarations ~in_eq ~loc env ~mark subst id1 mty1 mty2
                   ~mmodes orig_shape
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+                module_declarations ~core ~in_eq ~loc env ~mark subst id1
+                  mty1 mty2 orig_shape
+=======
+                module_declarations ~core ~direction ~loc env subst id1
+                  mty1 mty2 orig_shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
               in
               let item, shape_map =
                 match item with
@@ -862,36 +1479,56 @@ and signature_components :
                 | Mp_absent, Mp_present, _ -> assert false
               in
               let item = mark_error_as_unrecoverable item in
-              id1, item, shape_map, present_at_runtime
+              let paired_uids = (mty1.md_uid, mty2.md_uid) in
+              id1, item, paired_uids, shape_map, present_at_runtime
             end
         | Sig_modtype(id1, info1, _), Sig_modtype(_id2, info2, _) ->
             let item =
+<<<<<<< HEAD
               modtype_infos ~in_eq ~loc env ~mark  subst id1 info1 info2
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              modtype_infos ~core ~in_eq ~loc env ~mark  subst id1 info1 info2
+=======
+              modtype_infos ~core ~direction ~loc env  subst id1 info1 info2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
             in
             let shape_map =
               Shape.Map.add_module_type_proj shape_map id1 orig_shape
             in
             let item = mark_error_as_unrecoverable item in
-            id1, item, shape_map, false
+            id1, item, (info1.mtd_uid, info2.mtd_uid), shape_map, false
         | Sig_class(id1, decl1, _, _), Sig_class(_id2, decl2, _, _) ->
             walk_locks ~env ~item:Class (append_ldot (Ident.name id1) mmodes);
             let item =
+<<<<<<< HEAD
               class_declarations env subst decl1 decl2
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              core.class_declarations ~loc env ~mark subst id1 decl1 decl2
+=======
+              core.class_declarations ~loc ~direction env subst id1 decl1 decl2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
             in
             let shape_map =
               Shape.Map.add_class_proj shape_map id1 orig_shape
             in
             let item = mark_error_as_unrecoverable item in
-            id1, item, shape_map, true
+            id1, item, (decl1.cty_uid, decl2.cty_uid), shape_map, true
         | Sig_class_type(id1, info1, _, _), Sig_class_type(_id2, info2, _, _) ->
             let item =
+<<<<<<< HEAD
               class_type_declarations ~loc env subst info1 info2
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              core.class_type_declarations ~loc env ~mark subst id1 info1 info2
+=======
+              core.class_type_declarations ~loc ~direction env subst id1
+                info1 info2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
             in
             let item = mark_error_as_unrecoverable item in
             let shape_map =
               Shape.Map.add_class_type_proj shape_map id1 orig_shape
             in
-            id1, item, shape_map, false
+            id1, item, (info1.clty_uid, info2.clty_uid), shape_map, false
         | _ ->
             assert false
       in
@@ -899,6 +1536,25 @@ and signature_components :
       let first =
         match item with
         | Ok x ->
+            begin match direction with
+            | { Directionality.in_eq = true; pos = Negative }
+            | { Directionality.mark_as_used = Mark_neither; _ } ->
+              (* We do not store paired uids when checking for reverse
+                module-type inclusion as it would introduce duplicates. *)
+                ()
+            | { Directionality.pos; _} ->
+              let paired_uids =
+                let elt1, elt2 = paired_uids in
+                match pos with
+                | Negative ->
+                    (Cmt_format.Declaration_to_declaration, elt2, elt1)
+                | Positive ->
+                    (Cmt_format.Declaration_to_declaration, elt1, elt2)
+                | Strictly_positive ->
+                    (Cmt_format. Definition_to_declaration, elt1, elt2)
+              in
+              Cmt_format.record_declaration_dependency paired_uids
+            end;
             let runtime_coercions =
               if present_at_runtime then [pos,x] else []
             in
@@ -912,6 +1568,7 @@ and signature_components :
       in
       let rest =
         if continue then
+<<<<<<< HEAD
           signature_components ~in_eq ~loc ~mark env subst
             orig_shape shape_map ~mmodes rem
         else
@@ -923,11 +1580,26 @@ and signature_components :
             rem
           in
           Sign_diff.{ empty with leftovers=rem }
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+          signature_components ~core ~in_eq ~loc old_env ~mark env subst
+            orig_shape shape_map rem
+        else Sign_diff.{ empty with leftovers=rem }
+=======
+          signature_components ~core ~direction ~loc old_env env subst
+            orig_shape shape_map rem
+        else Sign_diff.{ empty with leftovers=rem }
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
        in
        Sign_diff.merge first rest
 
+<<<<<<< HEAD
 and module_declarations  ~in_eq ~loc env ~mark  subst id1 ~mmodes md1 md2 orig_shape =
   let open Subst.Lazy in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and module_declarations  ~in_eq ~loc env ~mark  subst id1 md1 md2 orig_shape =
+=======
+and module_declarations ~direction ~loc env  subst id1 md1 md2 orig_shape =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   Builtin_attributes.check_alerts_inclusion
     ~def:md1.md_loc
     ~use:md2.md_loc
@@ -935,16 +1607,28 @@ and module_declarations  ~in_eq ~loc env ~mark  subst id1 ~mmodes md1 md2 orig_s
     md1.md_attributes md2.md_attributes
     (Ident.name id1);
   let p1 = Path.Pident id1 in
-  if mark_positive mark then
+  if Directionality.mark_as_used direction then
     Env.mark_module_used md1.md_uid;
+<<<<<<< HEAD
   let modes = mmodes in
   strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst ~modes
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst
+=======
+  strengthened_modtypes ~direction ~loc ~aliasable:true env subst
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
     md1.md_type p1 md2.md_type orig_shape
 
 (* Inclusion between module type specifications *)
 
+<<<<<<< HEAD
 and modtype_infos ~in_eq ~loc env ~mark subst id info1 info2 =
   let open Subst.Lazy in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and modtype_infos ~core ~in_eq ~loc env ~mark subst id info1 info2 =
+=======
+and modtype_infos ~core ~direction ~loc env subst id info1 info2 =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   Builtin_attributes.check_alerts_inclusion
     ~def:info1.mtd_loc
     ~use:info2.mtd_loc
@@ -957,10 +1641,22 @@ and modtype_infos ~in_eq ~loc env ~mark subst id info1 info2 =
       (None, None) -> Ok Tcoerce_none
     | (Some _, None) -> Ok Tcoerce_none
     | (Some mty1, Some mty2) ->
+<<<<<<< HEAD
         check_modtype_equiv ~in_eq ~loc env ~mark mty1 mty2
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        check_modtype_equiv ~core ~in_eq ~loc env ~mark mty1 mty2
+=======
+        check_modtype_equiv ~core ~direction ~loc env mty1 mty2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
     | (None, Some mty2) ->
         let mty1 = Mty_ident(Path.Pident id) in
+<<<<<<< HEAD
         check_modtype_equiv ~in_eq ~loc env ~mark mty1 mty2 in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        check_modtype_equiv ~core ~in_eq ~loc env ~mark mty1 mty2 in
+=======
+        check_modtype_equiv ~core ~direction ~loc env mty1 mty2 in
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   match r with
   | Ok _ as ok -> ok
   | Error e ->
@@ -968,21 +1664,42 @@ and modtype_infos ~in_eq ~loc env ~mark subst id info1 info2 =
       let info2 = Subst.Lazy.force_modtype_decl info2 in
       Error Error.(Module_type_declaration (diff info1 info2 e))
 
+<<<<<<< HEAD
 and check_modtype_equiv ~in_eq ~loc env ~mark mty1 mty2 =
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+and check_modtype_equiv ~core ~in_eq ~loc env ~mark mty1 mty2 =
+=======
+and check_modtype_equiv ~core ~direction ~loc env mty1 mty2 =
+  let nested_eq = direction.Directionality.in_eq in
+  let direction = Directionality.enter_eq direction in
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   let c1 =
+<<<<<<< HEAD
     modtypes ~in_eq:true ~loc env ~mark Subst.identity mty1 mty2 Shape.dummy_mod
       ~modes:All
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+    modtypes ~core ~in_eq:true ~loc env ~mark Subst.identity mty1 mty2
+      Shape.dummy_mod
+=======
+    modtypes ~core ~direction ~loc env Subst.identity mty1 mty2 Shape.dummy_mod
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   in
   let c2 =
     (* For nested module type paths, we check only one side of the equivalence:
        the outer module type is the one responsible for checking the other side
        of the equivalence.
      *)
-    if in_eq then None
+    if nested_eq then None
     else
-      let mark = negate_mark mark in
+      let direction = Directionality.negate direction in
       Some (
+<<<<<<< HEAD
         modtypes ~in_eq:true ~loc env ~mark Subst.identity ~modes:All
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        modtypes ~core ~in_eq:true ~loc env ~mark Subst.identity
+=======
+        modtypes ~core ~direction ~loc env Subst.identity
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
           mty2 mty1 Shape.dummy_mod
       )
   in
@@ -1021,6 +1738,7 @@ let can_alias env path =
   no_apply path && not (Env.is_functor_arg path env)
 
 
+<<<<<<< HEAD
 let signatures ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
   let sig1 = Subst.Lazy.of_signature sig1 in
   let sig2 = Subst.Lazy.of_signature sig2 in
@@ -1037,6 +1755,49 @@ let strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
   let mty2 = Subst.Lazy.of_modtype mty2 in
   strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark subst mty1
     path1 mty2 shape
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let core_consistency =
+  let type_declarations ~loc:_ env ~mark:_  _ _ d1 d2 =
+    match Includecore.type_declarations_consistency env d1 d2 with
+    | None -> Ok Tcoerce_none
+    | Some err ->  Error Error.(Core(Type_declarations (diff d1 d2 err)))
+  in
+  let value_descriptions ~loc:_ env ~mark:_ _ _ vd1 vd2 =
+    match Includecore.value_descriptions_consistency env vd1 vd2 with
+    | x -> Ok x
+    | exception Includecore.Dont_match err ->
+        Error Error.(Core (Value_descriptions (diff vd1 vd2 err)))
+  in
+  let accept ~loc:_ _env ~mark:_ _subst _id _d1 _d2 = Ok Tcoerce_none in
+  {
+    type_declarations;
+    value_descriptions;
+    class_declarations=accept;
+    class_type_declarations=accept;
+    extension_constructors=accept;
+  }
+=======
+let core_consistency =
+  let type_declarations ~loc:_ env ~direction:_ _ _ d1 d2 =
+    match Includecore.type_declarations_consistency env d1 d2 with
+    | None -> Ok Tcoerce_none
+    | Some err ->  Error Error.(Core(Type_declarations (diff d1 d2 err)))
+  in
+  let value_descriptions ~loc:_ env ~direction:_ _ _ vd1 vd2 =
+    match Includecore.value_descriptions_consistency env vd1 vd2 with
+    | x -> Ok x
+    | exception Includecore.Dont_match err ->
+        Error Error.(Core (Value_descriptions (diff vd1 vd2 err)))
+  in
+  let accept ~loc:_ _env ~direction:_ _subst _id _d1 _d2 = Ok Tcoerce_none in
+  {
+    type_declarations;
+    value_descriptions;
+    class_declarations=accept;
+    class_type_declarations=accept;
+    extension_constructors=accept;
+  }
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
 type explanation = Env.t * Error.all
 exception Error of explanation
@@ -1055,8 +1816,17 @@ exception Apply_error of {
 
 let check_modtype_inclusion_raw ~loc env mty1 path1 mty2 =
   let aliasable = can_alias env path1 in
+<<<<<<< HEAD
   strengthened_modtypes ~in_eq:false ~loc ~aliasable env ~mark:Mark_both
     Subst.identity ~modes:(Legacy None) mty1 path1 mty2 Shape.dummy_mod
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  strengthened_modtypes ~core:core_inclusion ~in_eq:false ~loc ~aliasable env
+    ~mark:Mark_both Subst.identity mty1 path1 mty2 Shape.dummy_mod
+=======
+  let direction = Directionality.unknown ~mark:true in
+  strengthened_modtypes ~core:core_inclusion ~direction ~loc ~aliasable env
+    Subst.identity mty1 path1 mty2 Shape.dummy_mod
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   |> Result.map fst
 
 let check_modtype_inclusion ~loc env mty1 path1 mty2 =
@@ -1090,11 +1860,28 @@ let () =
 (* Check that an implementation of a compilation unit meets its
    interface. *)
 
+<<<<<<< HEAD
 let compunit0
     ~comparison env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let compunit env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
+  let loc = Location.in_file impl_name in
+=======
+let compunit env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
+  let loc = Location.in_file impl_name in
+  let direction = Directionality.strictly_positive ~mark in
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   match
+<<<<<<< HEAD
     signatures ~in_eq:false ~loc:(Location.in_file impl_name) env ~mark
       Subst.identity ~modes:(Legacy None) impl_sig intf_sig unit_shape
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+    signatures ~core:core_inclusion ~in_eq:false ~loc env
+      ~mark Subst.identity impl_sig intf_sig unit_shape
+=======
+    signatures ~core:core_inclusion ~direction ~loc env Subst.identity
+      impl_sig intf_sig unit_shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   with Result.Error reasons ->
     let diff = Error.diff impl_name intf_name reasons in
     let cdiff =
@@ -1212,10 +1999,19 @@ module Functor_inclusion_diff = struct
         let test st mty1 mty2 =
           let loc = Location.none in
           let res, _, _ =
+<<<<<<< HEAD
             let mty1 = Subst.Lazy.of_functor_parameter mty1 in
             let mty2 = Subst.Lazy.of_functor_parameter mty2 in
             functor_param ~in_eq:false ~loc st.env ~mark:Mark_neither
               st.subst mty1 mty2
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+            functor_param ~core:core_inclusion ~in_eq:false ~loc st.env
+               ~mark:Mark_neither st.subst mty1 mty2
+=======
+            let direction=Directionality.unknown ~mark:false in
+            functor_param ~core:core_inclusion ~direction ~loc st.env
+              st.subst mty1 mty2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
           in
           res
         let update = update
@@ -1308,10 +2104,22 @@ module Functor_app_diff = struct
             | Unit, Named _ | (Anonymous | Named _), Unit ->
                 Result.Error (Error.Incompatible_params(arg,param))
             | ( Anonymous | Named _ | Empty_struct ), Named (_, param) ->
+               let direction=Directionality.unknown ~mark:false in
                 match
+<<<<<<< HEAD
                   modtypes ~in_eq:false ~loc state.env ~mark:Mark_neither
                     state.subst ~modes:(Legacy None) arg_mty param
                     Shape.dummy_mod
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+                  modtypes ~core:core_inclusion ~in_eq:false ~loc state.env
+                     ~mark:Mark_neither state.subst arg_mty param
+                     Shape.dummy_mod
+=======
+                  modtypes
+                    ~core:core_inclusion ~direction ~loc
+                    state.env state.subst arg_mty param
+                    Shape.dummy_mod
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
                 with
                 | Error mty -> Result.Error (Error.Mismatch mty)
                 | Ok (cc, _) -> Ok cc
@@ -1331,32 +2139,104 @@ end
 
 (* Hide the context and substitution parameters to the outside world *)
 
+<<<<<<< HEAD
 let modtypes_with_shape ~shape ~loc env ~mark ~modes mty1 mty2 =
   match modtypes ~in_eq:false ~loc env ~mark
           Subst.identity ~modes mty1 mty2 shape
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let modtypes_with_shape ~shape ~loc env ~mark mty1 mty2 =
+  match modtypes ~core:core_inclusion ~in_eq:false ~loc env ~mark
+          Subst.identity mty1 mty2 shape
+=======
+let modtypes_with_shape ~shape ~loc env ~mark mty1 mty2 =
+  (* modtypes with shape is used when typing module expressions in [Typemod] *)
+  let direction = Directionality.strictly_positive ~mark in
+  match
+    modtypes ~core:core_inclusion ~direction ~loc env Subst.identity
+      mty1 mty2 shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   with
   | Ok (cc, shape) -> cc, shape
   | Error reason -> raise (Error (env, Error.(In_Module_type reason)))
 
+<<<<<<< HEAD
 let modtypes ~loc env ~mark ~modes mty1 mty2 =
   match modtypes ~in_eq:false ~loc env ~mark
           Subst.identity ~modes mty1 mty2 Shape.dummy_mod
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let modtypes_consistency ~loc env mty1 mty2 =
+  match modtypes ~core:core_consistency ~in_eq:false ~loc env ~mark:Mark_neither
+          Subst.identity mty1 mty2 Shape.dummy_mod
+  with
+  | Ok _ -> ()
+  | Error reason -> raise (Error (env, Error.(In_Module_type reason)))
+
+let modtypes ~loc env ~mark mty1 mty2 =
+  match modtypes ~core:core_inclusion ~in_eq:false ~loc env ~mark
+          Subst.identity mty1 mty2 Shape.dummy_mod
+=======
+let modtypes_consistency ~loc env mty1 mty2 =
+  let direction = Directionality.unknown ~mark:false in
+  match
+    modtypes ~core:core_consistency ~direction ~loc env Subst.identity
+      mty1 mty2 Shape.dummy_mod
+  with
+  | Ok _ -> ()
+  | Error reason -> raise (Error (env, Error.(In_Module_type reason)))
+
+let modtypes ~loc env ~mark mty1 mty2 =
+  let direction = Directionality.unknown ~mark in
+  match
+    modtypes ~core:core_inclusion ~direction ~loc env Subst.identity
+      mty1 mty2 Shape.dummy_mod
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   with
   | Ok (cc, _) -> cc
   | Error reason -> raise (Error (env, Error.(In_Module_type reason)))
 
+<<<<<<< HEAD
 let signatures env ~mark ~modes  sig1 sig2 =
   match signatures ~in_eq:false ~loc:Location.none env ~mark
           Subst.identity ~modes sig1 sig2 Shape.dummy_mod
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let signatures env ~mark sig1 sig2 =
+  match signatures ~core:core_inclusion ~in_eq:false ~loc:Location.none env
+          ~mark Subst.identity sig1 sig2 Shape.dummy_mod
+=======
+let gen_signatures env ~direction sig1 sig2 =
+  match
+    signatures
+      ~core:core_inclusion ~direction ~loc:Location.none env
+      Subst.identity sig1 sig2 Shape.dummy_mod
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   with
   | Ok (cc, _) -> cc
   | Error reason -> raise (Error(env,Error.(In_Signature reason)))
 
+<<<<<<< HEAD
 let include_functor_signatures env ~mark sig1 sig2 =
   let sig1 = List.map Subst.Lazy.of_signature_item sig1 in
   let sig2 = List.map Subst.Lazy.of_signature_item sig2 in
   match include_functor_signatures ~loc:Location.none env ~mark
           Subst.identity sig1 sig2 Shape.dummy_mod
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let type_declarations ~loc env ~mark id decl1 decl2 =
+  match Core_inclusion.type_declarations ~loc env ~mark
+          Subst.identity id decl1 decl2
+=======
+let signatures env ~mark sig1 sig2 =
+  let direction = Directionality.unknown ~mark in
+  gen_signatures env ~direction sig1 sig2
+
+let check_implementation env impl intf =
+  let direction = Directionality.strictly_positive ~mark:true in
+  ignore (gen_signatures env ~direction impl intf)
+
+let type_declarations ~loc env ~mark id decl1 decl2 =
+  let direction = Directionality.unknown ~mark in
+  match Core_inclusion.type_declarations ~loc env ~direction
+          Subst.identity id decl1 decl2
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   with
   | Ok cc -> cc
   | Error reason -> raise (Error(env,Error.(In_Include_functor_signature reason)))
@@ -1368,9 +2248,20 @@ let type_declarations ~loc env ~mark id decl1 decl2 =
       raise (Error(env,Error.(In_Type_declaration(id,reason))))
   | Error _ -> assert false
 
+<<<<<<< HEAD
 let strengthened_module_decl ~loc ~aliasable env ~mark ~mmodes md1 path1 md2 =
   match strengthened_module_decl ~loc ~aliasable env ~mark Subst.identity
     ~mmodes md1 path1 md2 Shape.dummy_mod with
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let strengthened_module_decl ~loc ~aliasable env ~mark md1 path1 md2 =
+  match strengthened_module_decl ~core:core_inclusion ~loc ~aliasable env ~mark
+    Subst.identity md1 path1 md2 Shape.dummy_mod with
+=======
+let strengthened_module_decl ~loc ~aliasable env ~mark md1 path1 md2 =
+  let direction = Directionality.unknown ~mark in
+  match strengthened_module_decl ~core:core_inclusion ~loc ~aliasable ~direction
+          env Subst.identity md1 path1 md2 Shape.dummy_mod with
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   | Ok (x, _shape) -> x
   | Error mdiff ->
       raise (Error(env,Error.(In_Module_type mdiff)))
@@ -1382,9 +2273,20 @@ let expand_module_alias ~strengthen env path =
     raise (Error(env,In_Expansion(Error.Unbound_module_path path)))
 
 let check_modtype_equiv ~loc env id mty1 mty2 =
+<<<<<<< HEAD
   let mty1' = Subst.Lazy.of_modtype mty1 in
   let mty2' = Subst.Lazy.of_modtype mty2 in
   match check_modtype_equiv ~in_eq:false ~loc env ~mark:Mark_both mty1' mty2' with
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  match check_modtype_equiv ~core:core_inclusion ~in_eq:false ~loc env
+          ~mark:Mark_both mty1 mty2
+  with
+=======
+  let direction = Directionality.unknown ~mark:true in
+  match
+    check_modtype_equiv ~core:core_inclusion ~loc ~direction env mty1 mty2
+  with
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   | Ok _ -> ()
   | Error e ->
       raise (Error(env,

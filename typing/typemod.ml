@@ -316,8 +316,16 @@ let check_type_decl env sg loc id row_id newdecl decl =
     | Some fresh_row_id -> Env.add_type ~check:false fresh_row_id newdecl env
   in
   let env = Env.add_signature sg env in
+<<<<<<< HEAD
   Includemod.type_declarations ~mark:Mark_both ~loc env fresh_id newdecl decl;
   ignore (Typedecl.check_coherence env loc path newdecl)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+  Includemod.type_declarations ~mark:Mark_both ~loc env fresh_id newdecl decl;
+  Typedecl.check_coherence env loc path newdecl
+=======
+  Includemod.type_declarations ~mark:true ~loc env fresh_id newdecl decl;
+  Typedecl.check_coherence env loc path newdecl
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
 let make_variance p n i =
   let open Variance in
@@ -832,9 +840,19 @@ let merge_constraint initial_env loc sg lid constr =
             ~zap_modality:Mode.Modality.Value.zap_to_id mty
         in
         let md'' = { md' with md_type = mty } in
+<<<<<<< HEAD
         let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
         ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env
           ~modes:(Legacy None) newmd.md_type md.md_type);
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        let newmd = Mtype.strengthen_decl ~aliasable:false sig_env md'' path in
+        ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env
+                 newmd.md_type md.md_type);
+=======
+        let newmd = Mtype.strengthen_decl ~aliasable:false sig_env md'' path in
+        ignore(Includemod.modtypes  ~mark:true ~loc sig_env
+                 newmd.md_type md.md_type);
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
         return
           ~replace_by:(Some(Sig_module(id, pres, newmd, rs, priv)))
           (Pident id, lid, Some (Twith_module (path, lid')))
@@ -843,8 +861,16 @@ let merge_constraint initial_env loc sg lid constr =
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
         let aliasable = not (Env.is_functor_arg path sig_env) in
         ignore
+<<<<<<< HEAD
           (Includemod.strengthened_module_decl ~loc ~mark:Mark_both
              ~aliasable sig_env ~mmodes:(Legacy None) md' path md);
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+          (Includemod.strengthened_module_decl ~loc ~mark:Mark_both
+             ~aliasable sig_env md' path md);
+=======
+          (Includemod.strengthened_module_decl ~loc ~mark:true
+             ~aliasable sig_env md' path md);
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
         real_ids := [Pident id];
         return ~replace_by:None
           (Pident id, lid, Some (Twith_modsubst (path, lid')))
@@ -2426,8 +2452,16 @@ let check_recmodule_inclusion env bindings =
         let coercion, shape =
           try
             Includemod.modtypes_with_shape ~shape
+<<<<<<< HEAD
               ~loc:modl.mod_loc ~mark:Mark_both
               env ~modes:(Legacy None) mty_actual' mty_decl'
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              ~loc:modl.mod_loc ~mark:Mark_both
+              env mty_actual' mty_decl'
+=======
+              ~loc:modl.mod_loc ~mark:true
+              env mty_actual' mty_decl'
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
           with Includemod.Error msg ->
             raise(Error(modl.mod_loc, env, Not_included msg)) in
         let modl' =
@@ -2517,14 +2551,45 @@ let package_subtype env p1 fl1 p2 fl2 =
   | exception Error(_, _, Cannot_scrape_package_type _) -> false
   | mty1, mty2 ->
     let loc = Location.none in
+<<<<<<< HEAD
     match Includemod.modtypes ~loc ~mark:Mark_both env ~modes:All mty1 mty2 with
     | Tcoerce_none -> true
     | _ | exception Includemod.Error _ -> false
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+    match Includemod.modtypes ~loc ~mark:Mark_both env mty1 mty2 with
+    | Tcoerce_none -> Ok ()
+    | c ->
+        let msg =
+          Includemod_errorprinter.coercion_in_package_subtype env mty1 c
+        in
+        Result.Error (Errortrace.Package_coercion msg)
+    | exception Includemod.Error e ->
+        let msg = doc_printf "%a" Includemod_errorprinter.err_msgs e in
+        Result.Error (Errortrace.Package_inclusion msg)
+=======
+    match Includemod.modtypes ~loc ~mark:true env mty1 mty2 with
+    | Tcoerce_none -> Ok ()
+    | c ->
+        let msg =
+          Includemod_errorprinter.coercion_in_package_subtype env mty1 c
+        in
+        Result.Error (Errortrace.Package_coercion msg)
+    | exception Includemod.Error e ->
+        let msg = doc_printf "%a" Includemod_errorprinter.err_msgs e in
+        Result.Error (Errortrace.Package_inclusion msg)
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 
 let () = Ctype.package_subtype := package_subtype
 
+<<<<<<< HEAD
 let wrap_constraint_package env mark arg held_locks mty explicit =
   let mark = if mark then Includemod.Mark_both else Includemod.Mark_neither in
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+let wrap_constraint_package env mark arg mty explicit =
+  let mark = if mark then Includemod.Mark_both else Includemod.Mark_neither in
+=======
+let wrap_constraint_package env mark arg mty explicit =
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
   let mty1 = Subst.modtype Keep Subst.identity arg.mod_type in
   let mty2 = Subst.modtype Keep Subst.identity mty in
   let coercion =
@@ -2540,7 +2605,6 @@ let wrap_constraint_package env mark arg held_locks mty explicit =
 
 let wrap_constraint_with_shape env mark arg held_locks mty
   shape explicit =
-  let mark = if mark then Includemod.Mark_both else Includemod.Mark_neither in
   let coercion, shape =
     try
       Includemod.modtypes_with_shape ~shape ~loc:arg.mod_loc env ~mark
@@ -2895,9 +2959,17 @@ and type_one_application ~ctx:(apply_loc,sfunct,md_f,args)
       | { loc = app_loc; attributes = app_attributes;
           arg = Some { shape = arg_shape; path = arg_path; arg; held_locks } } ->
       let coercion =
+<<<<<<< HEAD
         try Includemod.modtypes
               ~loc:arg.mod_loc ~mark:Mark_both env arg.mod_type mty_param
               ~modes:(Legacy held_locks)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+        try Includemod.modtypes
+              ~loc:arg.mod_loc ~mark:Mark_both env arg.mod_type mty_param
+=======
+        try Includemod.modtypes ~loc:arg.mod_loc ~mark:true env
+              arg.mod_type mty_param
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
         with Includemod.Error _ -> apply_error ()
       in
       let mty_appl =
@@ -2927,9 +2999,17 @@ and type_one_application ~ctx:(apply_loc,sfunct,md_f,args)
                     raise (Error(app_loc, env, error))
             in
             begin match
+<<<<<<< HEAD
               Includemod.modtypes
                 ~loc:app_loc ~mark:Mark_neither env mty_res nondep_mty
                 ~modes:(Legacy None)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+              Includemod.modtypes
+                ~loc:app_loc ~mark:Mark_neither env mty_res nondep_mty
+=======
+              Includemod.modtypes ~loc:app_loc ~mark:false env
+                mty_res nondep_mty
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
             with
             | Tcoerce_none -> ()
             | _ ->
@@ -3859,6 +3939,7 @@ let type_implementation target modulename initial_env ast =
                      { new_arg_type = arg_type; old_source_file = source_intf;
                        old_arg_type = arg_type_from_cmi });
           let coercion, shape =
+<<<<<<< HEAD
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
                 sourcefile sg compiled_intf_file_name dclsig shape)
@@ -3874,6 +3955,15 @@ let type_implementation target modulename initial_env ast =
              ([Tcoerce_primitive] is a pain in particular). *)
           let argument_interface =
             check_argument_type_if_given initial_env source_intf dclsig arg_type
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+            Includemod.compunit initial_env ~mark:Mark_positive
+              sourcefile sg source_intf
+              dclsig shape
+=======
+            Includemod.compunit initial_env ~mark:true
+              sourcefile sg source_intf
+              dclsig shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
@@ -3895,9 +3985,17 @@ let type_implementation target modulename initial_env ast =
             (Location.in_file (Unit_info.source_file target))
             Warnings.Missing_mli;
           let coercion, shape =
+<<<<<<< HEAD
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
                 sourcefile sg "(inferred signature)" simple_sg shape)
+||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
+            Includemod.compunit initial_env ~mark:Mark_positive
+              sourcefile sg "(inferred signature)" simple_sg shape
+=======
+            Includemod.compunit initial_env ~mark:true
+              sourcefile sg "(inferred signature)" simple_sg shape
+>>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
           in
           check_nongen_signature finalenv simple_sg;
           let simple_sg =
@@ -4067,7 +4165,7 @@ let package_units initial_env objfiles target_cmi modulename =
     let name = Compilation_unit.to_global_name_without_prefix modulename in
     let dclsig = Env.read_signature name target_cmi in
     let cc, _shape =
-      Includemod.compunit initial_env ~mark:Mark_both
+      Includemod.compunit initial_env ~mark:true
         "(obtained by packing)" sg mli dclsig shape
     in
     Cmt_format.save_cmt  (Unit_info.companion_cmt target_cmi) modulename
