@@ -1037,6 +1037,44 @@ let check_project_mutability ~loc ~env mutability mode =
 
 (* Typing of patterns *)
 
+<<<<<<< HEAD
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+(* Simplified patterns for effect continuations *)
+let type_continuation_pat env expected_ty sp =
+  let loc = sp.ppat_loc in
+  match sp.ppat_desc with
+  | Ppat_any -> None
+  | Ppat_var name ->
+      let id = Ident.create_local name.txt in
+      let desc =
+        { val_type = expected_ty; val_kind = Val_reg;
+          Types.val_loc = loc; val_attributes = [];
+          val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()); }
+      in
+        Some (id, desc)
+  | Ppat_extension ext ->
+      raise (Error_forward (Builtin_attributes.error_of_extension ext))
+  | _ -> raise (Error (loc, env, Invalid_continuation_pattern))
+
+=======
+(* Simplified patterns for effect continuations *)
+let type_continuation_pat env expected_ty sp =
+  let loc = sp.ppat_loc in
+  match sp.ppat_desc with
+  | Ppat_any -> None
+  | Ppat_var name ->
+      let id = Ident.create_local name.txt in
+      let desc =
+        { val_type = expected_ty; val_kind = Val_reg;
+          Types.val_loc = loc; val_attributes = [];
+          val_uid = Uid.mk ~current_unit:(Env.get_current_unit ()); }
+      in
+        Some (id, desc)
+  | Ppat_extension ext ->
+      raise (Error_forward (Builtin_attributes.error_of_extension ext))
+  | _ -> raise (Error (loc, env, Invalid_continuation_pattern))
+
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
 (* unification inside type_exp and type_expect *)
 let unify_exp_types loc env ty expected_ty =
   (* Format.eprintf "@[%a@ %a@]@." Printtyp.raw_type_expr exp.exp_type
@@ -1302,6 +1340,7 @@ let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
       | Modvars_rejected ->
           raise (Error (loc, Env.empty, Modules_not_allowed));
       | Modvars_allowed { scope; module_variables } ->
+<<<<<<< HEAD
           escape ~loc ~env:Env.empty ~reason:Other mode;
           let id = Ident.create_scoped name.txt ~scope in
           let module_variables =
@@ -1314,10 +1353,35 @@ let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
           tps.tps_module_variables <-
             Modvars_allowed { scope; module_variables; };
           id
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+        let id = Ident.create_scoped name.txt ~scope in
+        let module_variables =
+          { mv_id = id;
+            mv_name = name;
+            mv_loc = loc;
+            mv_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+          } :: module_variables
+        in
+        tps.tps_module_variables <-
+          Modvars_allowed { scope; module_variables; };
+        id
+=======
+        let id = Ident.create_scoped name.txt ~scope in
+        let module_variables =
+          { mv_id = id;
+            mv_name = name;
+            mv_loc = loc;
+            mv_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
+          } :: module_variables
+        in
+        tps.tps_module_variables <-
+          Modvars_allowed { scope; module_variables; };
+        id
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
     end else
       Ident.create_local name.txt
   in
-  let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+  let pv_uid = Uid.mk ~current_unit:(Env.get_current_unit ()) in
   tps.tps_pattern_variables <-
     {pv_id = id;
      pv_mode = Value.disallow_right mode;
@@ -3196,6 +3260,12 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
            if pv_as_var then Warnings.Unused_var s
            else Warnings.Unused_var_strict s in
          let id' = Ident.rename pv_id in
+<<<<<<< HEAD
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+         let val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+=======
+         let val_uid = Uid.mk ~current_unit:(Env.get_current_unit ()) in
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
          let val_env =
           Env.add_value ~mode:Mode.Value.legacy pv_id
             { val_type = pv_type
@@ -6196,6 +6266,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_for(param, slow, shigh, dir, sbody) ->
+<<<<<<< HEAD
       let for_from =
         type_expect env (mode_region Value.max) slow
           (mk_expected ~explanation:For_loop_start_index Predef.type_int)
@@ -6213,6 +6284,45 @@ and type_expect_
       let position = RTail (Regionality.disallow_left Regionality.local, FNontail) in
       let for_body, for_body_sort =
         type_statement ~explanation:For_loop_body ~position new_env sbody
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+      let low = type_expect env slow
+          (mk_expected ~explanation:For_loop_start_index Predef.type_int) in
+      let high = type_expect env shigh
+          (mk_expected ~explanation:For_loop_stop_index Predef.type_int) in
+      let id, new_env =
+        match param.ppat_desc with
+        | Ppat_any -> Ident.create_local "_for", env
+        | Ppat_var {txt} ->
+            Env.enter_value txt
+              {val_type = instance Predef.type_int;
+               val_attributes = [];
+               val_kind = Val_reg;
+               val_loc = loc;
+               val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+              } env
+              ~check:(fun s -> Warnings.Unused_for_index s)
+        | _ ->
+            raise (Error (param.ppat_loc, env, Invalid_for_loop_index))
+=======
+      let low = type_expect env slow
+          (mk_expected ~explanation:For_loop_start_index Predef.type_int) in
+      let high = type_expect env shigh
+          (mk_expected ~explanation:For_loop_stop_index Predef.type_int) in
+      let id, new_env =
+        match param.ppat_desc with
+        | Ppat_any -> Ident.create_local "_for", env
+        | Ppat_var {txt} ->
+            Env.enter_value txt
+              {val_type = instance Predef.type_int;
+               val_attributes = [];
+               val_kind = Val_reg;
+               val_loc = loc;
+               val_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
+              } env
+              ~check:(fun s -> Warnings.Unused_for_index s)
+        | _ ->
+            raise (Error (param.ppat_loc, env, Invalid_for_loop_index))
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
       in
       rue {
         exp_desc = Texp_for {for_id; for_pat = param; for_from; for_to;
@@ -6400,7 +6510,7 @@ and type_expect_
                 | _ -> Mp_present
               in
               let scope = create_scope () in
-              let md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+              let md_uid = Uid.mk ~current_unit:(Env.get_current_unit ()) in
               let md_shape = Shape.set_uid_if_none md_shape md_uid in
               let md =
                 { md_type = modl.mod_type; md_attributes = [];
@@ -7982,7 +8092,7 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
             val_zero_alloc = Zero_alloc.default;
             val_modalities = Modality.Value.id;
             val_loc = Location.none;
-            val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+            val_uid = Uid.mk ~current_unit:(Env.get_current_unit ());
           }
         in
         let exp_env = Env.add_value ~mode id desc env in

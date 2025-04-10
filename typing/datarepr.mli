@@ -19,7 +19,13 @@
 open Types
 
 val extension_descr:
+<<<<<<< HEAD
   current_unit:Compilation_unit.t option -> Path.t -> extension_constructor ->
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+  current_unit:string -> Path.t -> extension_constructor ->
+=======
+  current_unit:(Unit_info.t option) -> Path.t -> extension_constructor ->
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   constructor_description
 
 val labels_of_type:
@@ -29,7 +35,13 @@ val unboxed_labels_of_type:
   Path.t -> type_declaration ->
   (Ident.t * unboxed_label_description) list
 val constructors_of_type:
+<<<<<<< HEAD
   current_unit:Compilation_unit.t option -> Path.t -> type_declaration ->
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+  current_unit:string -> Path.t -> type_declaration ->
+=======
+  current_unit:(Unit_info.t option) -> Path.t -> type_declaration ->
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   (Ident.t * constructor_description) list
 
 

@@ -24,13 +24,20 @@ type info = {
   native : bool;
 }
 
+<<<<<<< HEAD
 type compilation_unit_or_inferred =
   | Exactly of Compilation_unit.t
   | Inferred_from_output_prefix
 
 let with_info ~native ~tool_name ~source_file ~output_prefix
       ~compilation_unit ~dump_ext k =
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
+=======
+let with_info ~native ~tool_name ~dump_ext unit_info k =
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   Compmisc.init_path ();
+<<<<<<< HEAD
   Compmisc.init_parameters ();
   let target = Unit_info.make ~source_file output_prefix in
   let compilation_unit =
@@ -44,12 +51,32 @@ let with_info ~native ~tool_name ~source_file ~output_prefix
   in
   Compilation_unit.set_current (Some compilation_unit);
   Env.set_unit_name (Some compilation_unit);
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+  let target = Unit_info.make ~source_file output_prefix in
+  Env.set_unit_name (Unit_info.modname target);
+=======
+  Env.set_current_unit unit_info ;
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   let env = Compmisc.initial_env() in
+<<<<<<< HEAD
   let dump_file = String.concat "." [output_prefix; dump_ext] in
   Compmisc.with_ppf_dump ~file_prefix:dump_file (fun ppf_dump ->
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+  let dump_file = String.concat "." [output_prefix; dump_ext] in
+  Compmisc.with_ppf_dump ~file_prefix:dump_file @@ fun ppf_dump ->
+=======
+  let dump_file = String.concat "." [Unit_info.prefix unit_info; dump_ext] in
+  Compmisc.with_ppf_dump ~file_prefix:dump_file @@ fun ppf_dump ->
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
   k {
+<<<<<<< HEAD
     target;
     module_name = compilation_unit;
+||||||| parent of f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
+    target;
+=======
+    target = unit_info;
+>>>>>>> f215b2ae41 (Merge pull request #13286 from voodoos/distinct-uids-for-interfaces)
     env;
     ppf_dump;
     tool_name;
