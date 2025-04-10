@@ -213,36 +213,6 @@ let preprocess_phrase ppf phr =
   if !Clflags.dump_source then Pprintast.top_phrase ppf phr;
   phr
 
-<<<<<<< HEAD
-||||||| parent of b951207622 (Merge pull request #13308 from voodoos/link-declarations)
-let typecheck_phrase ppf oldenv sstr =
-  Typecore.reset_delayed_checks ();
-  let (str, sg, sn, shape, newenv) =
-    Typemod.type_toplevel_phrase oldenv sstr
-  in
-  if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
-  let sg' = Typemod.Signature_names.simplify newenv sn sg in
-  ignore (Includemod.signatures ~mark:Mark_positive oldenv sg sg');
-  Typecore.force_delayed_checks ();
-  let shape = Shape_reduce.local_reduce Env.empty shape in
-  if !Clflags.dump_shape then Shape.print ppf shape;
-  (str, sg', newenv)
-
-=======
-let typecheck_phrase ppf oldenv sstr =
-  Typecore.reset_delayed_checks ();
-  let (str, sg, sn, shape, newenv) =
-    Typemod.type_toplevel_phrase oldenv sstr
-  in
-  if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
-  let sg' = Typemod.Signature_names.simplify newenv sn sg in
-  Includemod.check_implementation oldenv sg sg';
-  Typecore.force_delayed_checks ();
-  let shape = Shape_reduce.local_reduce Env.empty shape in
-  if !Clflags.dump_shape then Shape.print ppf shape;
-  (str, sg', newenv)
-
->>>>>>> b951207622 (Merge pull request #13308 from voodoos/link-declarations)
 (* Phrase buffer that stores the last toplevel phrase (see
    [Location.input_phrase_buffer]). *)
 let phrase_buffer = Buffer.create 1024
