@@ -9,9 +9,9 @@
    include unix;
    set OCAMLRUNPARAM = "e=6";
    hasunix;
+   arch_amd64;
    { bytecode; }
    {
-    arch_amd64;
     native;
    }
  }
