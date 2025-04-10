@@ -1,6 +1,19 @@
 (* TEST
-   include stdlib_beta;
-   flags = "-extension small_numbers_beta";
+ include stdlib_beta;
+ flambda2;
+ {
+   flags = "-extension-universe beta";
+   native;
+ } {
+   flags = "-O3 -extension-universe beta";
+   native;
+ } {
+   flags = "-Oclassic -extension-universe beta";
+   native;
+ } {
+   flags = "-extension-universe beta";
+   bytecode;
+ }
 *)
 let min_int = -0x8000
 
