@@ -357,9 +357,9 @@ let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type ~n_way_join
     let when_a_level = TE.cut env_a ~cut_after:join_scope in
     let when_b_level = TE.cut env_b ~cut_after:join_scope in
     (* New variables introduced by either [meet_a] or [meet_b] are not
-       guaranteed to end up in the [result_env] (in fact, they will probably
-       get renamed), but they can still appear in [a_result] and [b_result],
-       so we need to add them back. *)
+       guaranteed to end up in the [result_env] (in fact, they will probably get
+       renamed), but they can still appear in [a_result] and [b_result], so we
+       need to add them back. *)
     let result_env = add_defined_vars result_env when_a_level in
     let result_env = add_defined_vars result_env when_b_level in
     let extensions =
