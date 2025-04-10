@@ -395,7 +395,11 @@ module Utils = struct
 
   let is_spilled state reg =
     match State.work_list_opt state reg with
-    | None -> false
+    | None ->
+      (* Freshly-created may not have been added to the map yet; such registers
+         would morally be in the "unknown" work list, hence returning
+         `false`. *)
+      false
     | Some work_list -> WorkList.equal work_list WorkList.Spilled
 
   let set_spilled _state reg = reg.Reg.spill <- true
