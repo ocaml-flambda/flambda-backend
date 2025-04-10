@@ -394,7 +394,9 @@ module Utils = struct
   let invariants = invariants
 
   let is_spilled state reg =
-    WorkList.equal (State.work_list state reg) WorkList.Spilled
+    match State.work_list_opt state reg with
+    | None -> false
+    | Some work_list -> WorkList.equal work_list WorkList.Spilled
 
   let set_spilled _state reg = reg.Reg.spill <- true
 end

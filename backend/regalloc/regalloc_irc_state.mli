@@ -24,6 +24,8 @@ val reset :
 
 val work_list : t -> Reg.t -> WorkList.t
 
+val work_list_opt : t -> Reg.t -> WorkList.t option
+
 val color : t -> Reg.t -> Color.t option
 
 val set_color : t -> Reg.t -> Color.t option -> unit

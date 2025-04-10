@@ -212,6 +212,8 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
 
 let[@inline] work_list state reg = Reg.Tbl.find state.reg_work_list reg
 
+let[@inline] work_list_opt state reg = Reg.Tbl.find_opt state.reg_work_list reg
+
 let[@inline] color state reg = Reg.Tbl.find state.reg_color reg
 
 let[@inline] set_color state reg color =
