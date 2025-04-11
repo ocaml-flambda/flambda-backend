@@ -60,7 +60,7 @@ type t =
 let max_capacity = 1024
 
 let[@inline] make ~initial ~stack_slots ~last_used () =
-  let num_registers = List.length initial in
+  let num_registers = List.length (Reg.all_registers ()) in
   let reg_work_list = Reg.Tbl.create num_registers in
   let reg_color = Reg.Tbl.create num_registers in
   let reg_alias = Reg.Tbl.create num_registers in
