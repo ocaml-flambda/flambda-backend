@@ -3857,11 +3857,10 @@ let check_curried_application_complete ~env ~app_loc args =
      optional argument with [?] or one labeled with [%call_pos]) that will be
      supplied, even though the user did not actually write the argument in.
 
-   An [Omitted] argument denotes one left off by partial application.
-
-   The length of the list returned from [collect_apply_args] comes from
-   combining the number of arguments visible in the type of the function, adding
-   any arguments that come from over-saturation of that type.
+   An [Omitted] argument denotes one left off by partial application. However,
+   [collect_apply_args] stops when it runs out of source arguments at the
+   application site, so any omitted arguments after all the supplied arguments
+   are left off the list returned from [collect_apply_args].
 
    3. Type-check all of the [Arg] arguments, by mapping [type_apply_arg] over
    the list of arguments. This handles all three varieties of [Arg] argument;
@@ -3879,7 +3878,8 @@ let check_curried_application_complete ~env ~app_loc args =
      correct mode: if any of the closed-over arguments is local or once, say,
      then the final result must also be local or once.
 
-   This is done by collecting up passed [Arg]s until an [Omitted] is
+   This is done (working right-to-left over the list produced by
+   [collect_apply_args]) by collecting up passed [Arg]s until an [Omitted] is
    encountered, and then doing a submode check on each collected [Arg] against
    the expected mode of the final closure. In addition, we use the [close_over]
    and [partial_apply] functions from [Mode.Alloc] to make sure that the modes
