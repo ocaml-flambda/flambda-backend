@@ -413,12 +413,7 @@ module SpillCosts = struct
     List.iter (Reg.all_registers ()) ~f:(fun reg -> Reg.Tbl.replace costs reg 0);
     let update_reg (cost : int) (reg : Reg.t) : unit =
       (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-      let curr_cost =
-        (* hardware registers are not in `all_registers` *)
-        match Reg.Tbl.find_opt costs reg with None -> 0 | Some cost -> cost
-      in
-      Reg.Tbl.replace costs reg (curr_cost + cost)
-    in
+      add_to_reg costs reg cost
     let update_array (cost : int) (regs : Reg.t array) : unit =
       Array.iter regs ~f:(fun reg -> update_reg cost reg)
     in
