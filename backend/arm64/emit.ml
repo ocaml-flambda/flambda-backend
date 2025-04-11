@@ -562,7 +562,7 @@ let local_realloc_sites = ref ([] : local_realloc_call list)
 
 let emit_local_realloc lr =
   emit_printf "%a:\n" femit_label lr.lr_lbl;
-  emit_printf "\t%a\n" (femit_debug_info ~discriminator:0) lr.lr_dbg;
+  emit_printf "\t%a" (femit_debug_info ~discriminator:0) lr.lr_dbg;
   DSL.ins I.BL [| DSL.emit_symbol "caml_call_local_realloc" |];
   DSL.ins I.B [| DSL.emit_label lr.lr_return_lbl |]
 
@@ -788,11 +788,11 @@ let emit_literals p align emit_literal =
 
 let emit_float64_directive_aux f =
   let comment = Printf.sprintf "\t/* %.12g */" (Int64.float_of_bits f) in
-  emit_float64_directive ~comment ".quad" f
+  emit_printf "\t.quad\t%Ld%s\n" f comment
 
 let emit_float32_directive_aux f =
   let comment = Printf.sprintf "\t/* %.12f */" (Int32.float_of_bits f) in
-  emit_float32_directive ~comment ".long" f
+  emit_printf "\t.long\t%ld%s\n" f comment
 
 let emit_float_literal (f, lbl) =
   emit_printf "%a:\n" femit_label lbl;
@@ -2130,16 +2130,16 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         | Add of constant * constant
         | Sub of constant * constant
 
-      let rec string_of_constant ~print_as_hex const =
+      let rec string_of_constant const =
         match const with
-        | Int64 n -> if print_as_hex then Printf.sprintf "%Ld" n else Int64.to_string n
+        | Int64 n -> Int64.to_string n
         | Label s -> s
         | Add (c1, c2) ->
-          Printf.sprintf "(%s + %s)" (string_of_constant ~print_as_hex c1)
-            (string_of_constant ~print_as_hex c2)
+          Printf.sprintf "(%s + %s)" (string_of_constant c1)
+            (string_of_constant c2)
         | Sub (c1, c2) ->
-          Printf.sprintf "(%s - %s)" (string_of_constant ~print_as_hex c1)
-            (string_of_constant ~print_as_hex c2)
+          Printf.sprintf "(%s - %s)" (string_of_constant c1)
+            (string_of_constant c2)
 
       let const_int64 num = Int64 num
 
@@ -2193,27 +2193,27 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
       let type_ sym typ_ = emit_line (Printf.sprintf "\t.type %s,%s" sym typ_)
 
       let byte const =
-        emit_line (Printf.sprintf "\t.byte %s" (string_of_constant ~print_as_hex:true const))
+        emit_line (Printf.sprintf "\t.byte %s" (string_of_constant const))
 
       let word const =
-        emit_line (Printf.sprintf "\t.short %s" (string_of_constant ~print_as_hex:true const))
+        emit_line (Printf.sprintf "\t.short %s" (string_of_constant const))
 
       let long const =
-        emit_line (Printf.sprintf "\t.long %s" (string_of_constant ~print_as_hex:true const))
+        emit_line (Printf.sprintf "\t.long %s" (string_of_constant const))
 
       let qword const =
-        emit_line (Printf.sprintf "\t.quad %s" (string_of_constant ~print_as_hex:true const))
+        emit_line (Printf.sprintf "\t.quad %s" (string_of_constant const))
 
       let bytes str = emit_line (Printf.sprintf "\t.ascii %S" str)
 
       let uleb128 const =
-        emit_line (Printf.sprintf "\t.uleb128 %s" (string_of_constant ~print_as_hex:false const))
+        emit_line (Printf.sprintf "\t.uleb128 %s" (string_of_constant const))
 
       let sleb128 const =
-        emit_line (Printf.sprintf "\t.sleb128 %s" (string_of_constant ~print_as_hex:false const))
+        emit_line (Printf.sprintf "\t.sleb128 %s" (string_of_constant const))
 
       let direct_assignment var const =
-        emit_line (Printf.sprintf "\t.set %s,%s" var (string_of_constant ~print_as_hex:true const))
+        emit_line (Printf.sprintf "\t.set %s,%s" var (string_of_constant const))
     end
   end))
 
@@ -2250,11 +2250,11 @@ let end_assembly () =
   emit_printf "%a:\n" femit_symbol lbl_end;
   let lbl_end = Cmm_helpers.make_symbol "data_end" in
   emit_printf "\t.data\n";
-  emit_printf "\t.quad\t0x0\n";
+  emit_printf "\t.quad\t0\n";
   (* PR#6329 *)
   emit_printf "\t.globl\t%a\n" femit_symbol lbl_end;
   emit_printf "%a:\n" femit_symbol lbl_end;
-  emit_printf "\t.quad\t0x0\n";
+  emit_printf "\t.quad\t0\n";
   emit_printf "\t.align\t3\n";
   (* #7887 *)
   let lbl = Cmm_helpers.make_symbol "frametable" in
