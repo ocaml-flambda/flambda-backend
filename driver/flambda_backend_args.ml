@@ -268,6 +268,15 @@ let mk_flambda2_advanced_meet f =
   Printf.sprintf " Use an advanced meet algorithm (deprecated) (Flambda 2 only)"
 ;;
 
+let mk_flambda2_join_algorithm f =
+  "-flambda2-join-algorithm", Arg.Symbol (["binary"; "n-way"; "checked"], f),
+  Printf.sprintf " Select the join algorithm to use (Flambda 2 only)\n \
+      \     Valid values are: \n\
+      \       \"binary\" is the legacy binary join;\n\
+      \       \"n-way\" is the new n-way join;\n\
+      \       \"checked\" runs both algorithms and compares them (use for \
+      debugging)."
+;;
 
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
@@ -777,6 +786,7 @@ module type Flambda_backend_options = sig
   val no_flambda2_result_types : unit -> unit
   val flambda2_basic_meet : unit -> unit
   val flambda2_advanced_meet : unit -> unit
+  val flambda2_join_algorithm : string -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -916,6 +926,7 @@ struct
       F.no_flambda2_result_types;
     mk_flambda2_basic_meet F.flambda2_basic_meet;
     mk_flambda2_advanced_meet F.flambda2_advanced_meet;
+    mk_flambda2_join_algorithm F.flambda2_join_algorithm;
     mk_flambda2_unbox_along_intra_function_control_flow
       F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
@@ -1126,6 +1137,15 @@ module Flambda_backend_options_impl = struct
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
   let flambda2_basic_meet () = ()
   let flambda2_advanced_meet () = ()
+  let flambda2_join_algorithm algorithm =
+    match algorithm with
+    | "binary" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Binary
+    | "n-way" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.N_way
+    | "checked" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Checked
+    | _ -> () (* This should not occur as we use Arg.Symbol *)
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -1455,6 +1475,13 @@ module Extra_params = struct
       | "basic" | "advanced" -> ()
       | _ ->
         Misc.fatal_error "Syntax: flambda2-meet_algorithm=basic|advanced");
+      true
+    | "flambda2-join-algorithm" ->
+      (match String.lowercase_ascii v with
+      | "binary" | "n-way" | "checked" as v ->
+        Flambda_backend_options_impl.flambda2_join_algorithm v
+      | _ ->
+        Misc.fatal_error "Syntax: flambda2-join-algorithm=binary|n-way|checked");
       true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow
