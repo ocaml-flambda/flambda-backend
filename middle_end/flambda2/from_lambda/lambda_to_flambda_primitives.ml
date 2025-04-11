@@ -1410,6 +1410,24 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     List.map (fun arg : H.expr_primitive -> Simple arg) projected_args
   | Pidxmixedfield (field_path, shape), [] ->
+    ()
+    (* | Pidx_deepen
+        deepening from some mixed product:
+          to a mixed product:
+            - e.g. move index to a #(i64#, #(string, i32#)) to the inner product
+            - calculate how much first value shifts by (FVS)
+              total size of values before the inner product
+            - calculate how much first flat shifts by (FFS)
+              total size of flats before the inner product
+            - dGap = FFS - FVS
+            - then, at runtime: offset += FVS; gap += dGap
+          to all values:
+            - gap = 0; offset += FVS
+          to all flat:
+            - offset = gap + (size of values in outer product); gap = 0
+        from a non-mixed product:
+          total size before the inner *)
+    [@ocamlformat "wrap-comments=false"];
     let shape =
       Mixed_block_shape.of_mixed_block_elements shape
         ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
@@ -1417,28 +1435,50 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let flattened_reordered_shape =
       Mixed_block_shape.flattened_reordered_shape shape
     in
-    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     let new_indexes =
       Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
     in
-    (* values := []
-       non_values := []
-       for each new_index
-         if value flattened_rereordered_shape.(new_index) then
-            values.push(new_index)
-         else
-            non_values.push(new_index)
-       assert value indices increase sequentially,
-       and non value indices increase sequentially,
-       and last value is followed by first nonvalue
-
-       offset = if values empty then non_values[0] else values[0]
-       gap = if values empty or non_values empty then 0 else
-       non_values[0] - values[end]
-    *)
-
-    (* Targetint_32_64.
-     * assert false *)
+    let values, flats =
+      List.partition
+        (fun new_index ->
+          match flattened_reordered_shape.(new_index) with
+          | Value _ -> true
+          | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word
+            ->
+            false)
+        new_indexes
+    in
+    let values = Array.of_list values in
+    let flats = Array.of_list flats in
+    let check_sequential arr =
+      for i = 1 to Array.length arr - 1 do
+        if arr.(i - 1) + 1 <> arr.(i)
+        then Misc.fatal_error "Pidxmixedfield: prefix or suffix not continuous"
+      done
+    in
+    check_sequential values;
+    check_sequential flats;
+    let values_empty = Int.equal (Array.length values) 0 in
+    let flats_empty = Int.equal (Array.length flats) 0 in
+    let offset_words = if values_empty then flats.(0) else values.(0) in
+    let gap_words =
+      if values_empty || flats_empty
+      then 0
+      else flats.(0) - values.(Array.length values - 1) - 1
+    in
+    let offset_bytes = offset_words * 8 in
+    let gap_bytes = gap_words * 8 in
+    if gap_bytes < 0 then Misc.fatal_error "Pidxmixedfield: negative gap";
+    if gap_bytes >= 1 lsl 16
+    then
+      (* this is possible... but I will be suprised if it happens *)
+      Misc.fatal_error "Pidxmixedfield: gap more than 16 bits";
+    let idx_raw_value =
+      Int64.add
+        (Int64.shift_left (Int64.of_int gap_bytes) 48)
+        (Int64.of_int offset_bytes)
+    in
+    [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Parray_element_size_in_bytes array_kind, [_witness] ->
     (* This is implemented as a unary primitive, but from our point of view it's
        actually nullary. *)

@@ -108,15 +108,8 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 99, characters 16-17:
-99 | let f () = (.x.#x)
-                     ^
-Error: The index preceding this unboxed access has element type "int",
-       which is not an unboxed record with field "x".
-|}, Principal{|
-type pt = { x : int; }
-Line 143, characters 16-17:
-143 | let f () = (.x.#x)
+Line 108, characters 16-17:
+108 | let f () = (.x.#x)
                       ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
@@ -140,14 +133,23 @@ Error: Unbound type constructor "imm_idx"
 (**********)
 (* Arrays *)
 
-let idx_array x = (.idx_array(x))
-let idx_array_L x = (.idx_array_L(x))
-let idx_array_l x = (.idx_array_l(x))
-let idx_array_n x = (.idx_array_n(x))
-let idx_iarray x = (.idx_iarray(x))
-let idx_iarray_L x = (.idx_iarray_L(x))
-let idx_iarray_l x = (.idx_iarray_l(x))
-let idx_iarray_n x = (.idx_iarray_n(x))
+let idx_array x = (.(x))
+let idx_array_L x = (.L(x))
+let idx_array_l x = (.l(x))
+let idx_array_n x = (.n(x))
+let idx_iarray x = (.:(x))
+let idx_iarray_L x = (.:L(x))
+let idx_iarray_l x = (.:l(x))
+let idx_iarray_n x = (.:n(x))
+let idx_imm x = (.idx_imm(x))
+let idx_mut x = (.idx_mut(x))
+
+type pt = { x : int ; y : int }
+
+let deepen (idx : ('a, pt)) =
+  (.idx_imm(idx).#y)
+
+
 [%%expect{|
 val idx_array : int -> ('a array, 'a) idx_mut = <fun>
 val idx_array_L : int64# -> ('a array, 'a) idx_mut = <fun>
@@ -182,14 +184,8 @@ val b : unit -> (t1# iarray, string) idx_imm = <fun>
 
 let bad_index_type = (.idx_array("test"))
 [%%expect{|
-Line 169, characters 33-39:
-169 | let bad_index_type = (.idx_array("test"))
-                                       ^^^^^^
-Error: This expression has type "string" but an expression was expected of type
-         "int"
-|}, Principal{|
-Line 239, characters 33-39:
-239 | let bad_index_type = (.idx_array("test"))
+Line 176, characters 33-39:
+176 | let bad_index_type = (.idx_array("test"))
                                        ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"

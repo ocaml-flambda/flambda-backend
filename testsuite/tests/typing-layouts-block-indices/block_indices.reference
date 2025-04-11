@@ -1,1 +1,5 @@
-0
+(.p.#x) (offset 0, gap 0)
+(.r1) (offset 0, gap 8)
+(.r2) (offset 8, gap 16)
+(.r1.#f) (offset 32, gap 0)
+(.idx_imm(rir).#r2.#f) (offset 8, gap 8)

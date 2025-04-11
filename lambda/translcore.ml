@@ -851,6 +851,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
     match ba with
     | Baccess_block (_, index) ->
       transl_exp ~scopes Jkind.Sort.Const.for_idx index
+      (* let index =
+       *   transl_exp ~scopes Jkind.Sort.Const.for_idx index
+       * in
+       * if List.length uas_path = 0 then
+       *   index
+       * else
+       *   Lprim (Pidxdeepen (uas_path, ) *)
     | Baccess_field (id, lbl) ->
       check_record_field_sort id.loc lbl.lbl_sort;
       begin match lbl.lbl_repres with
