@@ -2081,10 +2081,10 @@ let emit_item (d : Cmm.data_item) =
          to be global. *)
       emit_printf "\t.globl\t%a\n" femit_symbol s.sym_name;
     emit_printf "%a:\n" femit_symbol s.sym_name
-  | Cint8 n -> emit_printf "\t.byte\t%a\n" femit_int n
-  | Cint16 n -> emit_printf "\t.short\t%a\n" femit_int n
-  | Cint32 n -> emit_printf "\t.long\t%a\n" femit_nativeint n
-  | Cint n -> emit_printf "\t.quad\t%a\n" femit_nativeint n
+  | Cint8 n -> emit_printf "\t.byte\t0x%x\n" n
+  | Cint16 n -> emit_printf "\t.short\t0x%x\n" n
+  | Cint32 n -> emit_printf "\t.long\t0x%Lx\n" (Int64.of_nativeint n)
+  | Cint n -> emit_printf "\t.quad\t0x%Lx\n" (Int64.of_nativeint n)
   | Csingle f -> emit_float32_directive ".long" (Int32.bits_of_float f)
   | Cdouble f -> emit_float64_directive ".quad" (Int64.bits_of_float f)
   | Cvec128 { high; low } ->
@@ -2122,16 +2122,16 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         | Add of constant * constant
         | Sub of constant * constant
 
-      let rec string_of_constant const =
+      let rec string_of_constant ~print_as_hex const =
         match const with
-        | Int64 n -> Int64.to_string n
+        | Int64 n -> if print_as_hex then Printf.sprintf "0x%Lx" n else Int64.to_string n
         | Label s -> s
         | Add (c1, c2) ->
-          Printf.sprintf "(%s + %s)" (string_of_constant c1)
-            (string_of_constant c2)
+          Printf.sprintf "(%s + %s)" (string_of_constant ~print_as_hex c1)
+            (string_of_constant ~print_as_hex c2)
         | Sub (c1, c2) ->
-          Printf.sprintf "(%s - %s)" (string_of_constant c1)
-            (string_of_constant c2)
+          Printf.sprintf "(%s - %s)" (string_of_constant ~print_as_hex c1)
+            (string_of_constant ~print_as_hex c2)
 
       let const_int64 num = Int64 num
 
@@ -2185,27 +2185,27 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
       let type_ sym typ_ = emit_line (Printf.sprintf "\t.type %s,%s" sym typ_)
 
       let byte const =
-        emit_line (Printf.sprintf "\t.byte %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.byte %s" (string_of_constant ~print_as_hex:true const))
 
       let word const =
-        emit_line (Printf.sprintf "\t.short %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.short %s" (string_of_constant ~print_as_hex:true const))
 
       let long const =
-        emit_line (Printf.sprintf "\t.long %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.long %s" (string_of_constant ~print_as_hex:true const))
 
       let qword const =
-        emit_line (Printf.sprintf "\t.quad %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.quad %s" (string_of_constant ~print_as_hex:true const))
 
       let bytes str = emit_line (Printf.sprintf "\t.ascii %S" str)
 
       let uleb128 const =
-        emit_line (Printf.sprintf "\t.uleb128 %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.uleb128 %s" (string_of_constant ~print_as_hex:false const))
 
       let sleb128 const =
-        emit_line (Printf.sprintf "\t.sleb128 %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.sleb128 %s" (string_of_constant ~print_as_hex:false const))
 
       let direct_assignment var const =
-        emit_line (Printf.sprintf "\t.set %s,%s" var (string_of_constant const))
+        emit_line (Printf.sprintf "\t.set %s,%s" var (string_of_constant ~print_as_hex:true const))
     end
   end))
 
@@ -2261,10 +2261,10 @@ let end_assembly () =
         (fun lbl ->
           emit_symbol_type femit_label lbl "object";
           emit_printf "\t.quad\t%a\n" femit_label lbl);
-      efa_8 = (fun n -> emit_printf "\t.byte\t%a\n" femit_int n);
-      efa_16 = (fun n -> emit_printf "\t.short\t%a\n" femit_int n);
-      efa_32 = (fun n -> emit_printf "\t.long\t%a\n" femit_int32 n);
-      efa_word = (fun n -> emit_printf "\t.quad\t%a\n" femit_int n);
+      efa_8 = (fun n -> emit_printf "\t.byte\t0x%x\n" n);
+      efa_16 = (fun n -> emit_printf "\t.short\t0x%x\n" n);
+      efa_32 = (fun n -> emit_printf "\t.long\t0x%lx\n" n);
+      efa_word = (fun n -> emit_printf "\t.quad\t0x%x\n" n);
       efa_align =
         (fun n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n));
       efa_label_rel =
