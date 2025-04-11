@@ -2089,10 +2089,10 @@ let emit_item (d : Cmm.data_item) =
          to be global. *)
       emit_printf "\t.globl\t%a\n" femit_symbol s.sym_name;
     emit_printf "%a:\n" femit_symbol s.sym_name
-  | Cint8 n -> emit_printf "\t.byte\t0x%x\n" n
-  | Cint16 n -> emit_printf "\t.short\t0x%x\n" n
-  | Cint32 n -> emit_printf "\t.long\t0x%Lx\n" (Int64.of_nativeint n)
-  | Cint n -> emit_printf "\t.quad\t0x%Lx\n" (Int64.of_nativeint n)
+  | Cint8 n -> emit_printf "\t.byte\t%d\n" n
+  | Cint16 n -> emit_printf "\t.short\t%d\n" n
+  | Cint32 n -> emit_printf "\t.long\t%Ld\n" (Int64.of_nativeint n)
+  | Cint n -> emit_printf "\t.quad\t%Ld\n" (Int64.of_nativeint n)
   | Csingle f -> emit_float32_directive_aux (Int32.bits_of_float f)
   | Cdouble f -> emit_float64_directive_aux (Int64.bits_of_float f)
   | Cvec128 { high; low } ->
@@ -2132,7 +2132,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
 
       let rec string_of_constant ~print_as_hex const =
         match const with
-        | Int64 n -> if print_as_hex then Printf.sprintf "0x%Lx" n else Int64.to_string n
+        | Int64 n -> if print_as_hex then Printf.sprintf "%Ld" n else Int64.to_string n
         | Label s -> s
         | Add (c1, c2) ->
           Printf.sprintf "(%s + %s)" (string_of_constant ~print_as_hex c1)
@@ -2269,15 +2269,15 @@ let end_assembly () =
         (fun lbl ->
           emit_symbol_type femit_label lbl "object";
           emit_printf "\t.quad\t%a\n" femit_label lbl);
-      efa_8 = (fun n -> emit_printf "\t.byte\t0x%x\n" n);
-      efa_16 = (fun n -> emit_printf "\t.short\t0x%x\n" n);
-      efa_32 = (fun n -> emit_printf "\t.long\t0x%lx\n" n);
-      efa_word = (fun n -> emit_printf "\t.quad\t0x%x\n" n);
+      efa_8 = (fun n -> emit_printf "\t.byte\t%d\n" n);
+      efa_16 = (fun n -> emit_printf "\t.short\t%d\n" n);
+      efa_32 = (fun n -> emit_printf "\t.long\t%ld\n" n);
+      efa_word = (fun n -> emit_printf "\t.quad\t%d\n" n);
       efa_align =
         (fun n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n));
       efa_label_rel =
         (fun lbl ofs ->
-          emit_printf "\t.long\t(%a + 0x%lx) - .\n" femit_label lbl ofs);
+          emit_printf "\t.long\t(%a + %ld) - .\n" femit_label lbl ofs);
       efa_def_label = (fun lbl -> emit_printf "%a:\n" femit_label lbl);
       efa_string = (fun s -> emit_string_directive "\t.ascii\t" (s ^ "\000"))
     };
