@@ -304,7 +304,6 @@ type empty = |
 type locality_context =
   | Tailcall_function
   | Tailcall_argument
-  | Partial_application
   | Return
   | Lazy
 
