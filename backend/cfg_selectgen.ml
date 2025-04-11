@@ -1082,8 +1082,9 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     let sub_handlers =
       List.map
         (fun ((rs, label), (_, sub_handler)) ->
-          begin match flag with
-          | Normal | Recursive -> Sub_cfg.add_empty_block_at_start sub_handler ~label
+          (match flag with
+          | Normal | Recursive ->
+            Sub_cfg.add_empty_block_at_start sub_handler ~label
           | Exn_handler ->
             Sub_cfg.mark_as_trap_handler sub_handler ~exn_label:label;
             let exn_bucket_in_handler =
@@ -1092,8 +1093,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
               | r :: _ -> r
             in
             Sub_cfg.add_instruction_at_start sub_handler (Cfg.Op Move)
-              [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
-          end;
+              [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none);
           sub_handler)
         l
     in
@@ -1330,9 +1330,9 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       in
       (* CR vlaviron: I hit an issue in the non-tail case where this
          [add_empty_block_at_start] call interfered with the
-         [mark_as_trap_handler] call for the exception case (creating two
-         blocks with the same label). I suspect the issue should occur here
-         too but happens to never be triggered in the compiler itself and its
+         [mark_as_trap_handler] call for the exception case (creating two blocks
+         with the same label). I suspect the issue should occur here too but
+         happens to never be triggered in the compiler itself and its
          testsuite. *)
       Sub_cfg.add_empty_block_at_start seq ~label;
       label, rs, seq
@@ -1365,21 +1365,20 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     let s_handlers =
       List.map
         (fun (label, rs, s) ->
-           let () =
-             match flag with
-             | Normal | Recursive -> ()
-             | Exn_handler ->
-               Sub_cfg.mark_as_trap_handler s ~exn_label:label;
-               let exn_bucket_in_handler =
-                 match rs with
-                 | [] ->
-                   Misc.fatal_error "Exception handler with no parameters"
-                 | r :: _ -> r
-               in
-               Sub_cfg.add_instruction_at_start s (Cfg.Op Move)
-                 [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
-           in
-           s)
+          let () =
+            match flag with
+            | Normal | Recursive -> ()
+            | Exn_handler ->
+              Sub_cfg.mark_as_trap_handler s ~exn_label:label;
+              let exn_bucket_in_handler =
+                match rs with
+                | [] -> Misc.fatal_error "Exception handler with no parameters"
+                | r :: _ -> r
+              in
+              Sub_cfg.add_instruction_at_start s (Cfg.Op Move)
+                [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
+          in
+          s)
         new_handlers
     in
     Sub_cfg.join_tail ~from:(s_body :: s_handlers) ~to_:sub_cfg

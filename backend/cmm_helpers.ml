@@ -4043,7 +4043,7 @@ let trywith ~dbg ~body ~exn_var ~extra_args ~handler_cont ~handler () =
           handler,
           dbg,
           false (* is_cold *) ) ],
-      body)
+      body )
 
 type static_handler =
   int
