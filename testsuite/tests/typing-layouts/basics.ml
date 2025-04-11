@@ -1886,7 +1886,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value mod aliased contended
+       The kind of 'a -> 'b is value mod aliased immutable
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of immediate
          because of the definition of t35 at line 1, characters 0-30.
@@ -2876,7 +2876,7 @@ Line 1, characters 28-29:
                                 ^
 Error: This expression is used as a function, but its type "'a"
        has kind "bits64", which cannot be the kind of a function.
-       (Functions always have kind "value mod aliased contended".)
+       (Functions always have kind "value mod aliased immutable".)
 |}]
 
 let f (x : ('a : value mod portable)) = x ()
@@ -2887,7 +2887,7 @@ Line 1, characters 40-41:
                                             ^
 Error: This expression is used as a function, but its type "'a"
        has kind "value mod portable", which cannot be the kind of a function.
-       (Functions always have kind "value mod aliased contended".)
+       (Functions always have kind "value mod aliased immutable".)
 |}]
 
 let f (x : ('a : value)) = x ()

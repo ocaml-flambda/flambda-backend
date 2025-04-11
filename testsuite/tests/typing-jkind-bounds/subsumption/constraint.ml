@@ -148,6 +148,7 @@ Error: Signature mismatch:
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended with 'b
+         visibility: mod read_write ≰ mod immutable with 'b
 |}]
 
 module M : sig

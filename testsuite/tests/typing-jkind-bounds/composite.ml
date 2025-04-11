@@ -196,6 +196,8 @@ Error: This type "int ref" should be an instance of type "('a : immutable_data)"
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended
          portability: mod portable with int ≰ mod portable
+         statefulness: mod stateless with int ≰ mod stateless
+         visibility: mod read_write ≰ mod immutable
 |}]
 
 let foo (t : int t @ local) = use_global t [@nontail]
@@ -346,6 +348,8 @@ Error: This type "int ref" should be an instance of type "('a : immutable_data)"
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended
          portability: mod portable with int ≰ mod portable
+         statefulness: mod stateless with int ≰ mod stateless
+         visibility: mod read_write ≰ mod immutable
 |}]
 
 let foo (t : int t @ aliased) = use_unique t

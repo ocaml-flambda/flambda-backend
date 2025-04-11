@@ -276,6 +276,9 @@ module Const : sig
     (** Immutable values that don't contain functions. *)
     val immutable_data : t
 
+    (** Atomically mutable values that don't contain functions. *)
+    val sync_data : t
+
     (** Mutable values that don't contain functions. *)
     val mutable_data : t
 
@@ -347,6 +350,9 @@ module Builtin : sig
 
   (** This is suitable for records or variants without mutable fields. *)
   val immutable_data : why:History.value_creation_reason -> 'd Types.jkind
+
+  (** This is suitable for records or variants with atomically mutable fields. *)
+  val sync_data : why:History.value_creation_reason -> 'd Types.jkind
 
   (** This is suitable for records or variants with mutable fields. *)
   val mutable_data : why:History.value_creation_reason -> 'd Types.jkind

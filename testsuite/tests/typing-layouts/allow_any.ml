@@ -313,7 +313,7 @@ module B = struct
   let a t = t.a
 end
 [%%expect{|
-module A : sig type t : mutable_data mod global external_ yielding end
+module A : sig type t : value mod global many portable external_ end
 module B :
   sig
     type t : value mod contended portable = { a : A.t; }
@@ -385,8 +385,10 @@ Lines 1-2, characters 0-34:
 Error: This variant or record definition does not match that of type "'a t"
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
-         the original has: mod many portable unyielding contended with 'a
-         but this has: mod many portable unyielding contended
+         the original has: mod many portable unyielding stateless contended
+         immutable with 'a
+         but this has: mod many portable unyielding stateless contended
+         immutable
 |}]
 
 type ('a, 'b) arity_2 : immutable_data with 'b = { x : 'a }
@@ -404,8 +406,10 @@ Error: This variant or record definition does not match that of type
          "('a, 'b) arity_2"
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
-         the original has: mod many portable unyielding contended with 'b
-         but this has: mod many portable unyielding contended with 'a
+         the original has: mod many portable unyielding stateless contended
+         immutable with 'b
+         but this has: mod many portable unyielding stateless contended
+         immutable with 'a
 |}]
 
 (* mcomp *)
