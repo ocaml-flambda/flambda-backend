@@ -4022,14 +4022,17 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   loop ty_fun ty_fun0 mode_fun [] sargs
 
 let type_omitted_parameters env loc ty_ret mode_ret args =
-  let ty_ret, mode_ret, _, _, args =
+  let ty_ret, mode_ret, _, args =
     List.fold_left
-      (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
+      (fun (ty_ret, mode_ret, closed_args_mode, args) (lbl, arg) ->
          match arg with
          | Arg (exp, marg, sort) ->
-             let open_args = value_to_alloc_r2l marg :: open_args in
+             let closed_args_mode =
+               Alloc.join [ Alloc.close_over (value_to_alloc_r2l marg);
+                            closed_args_mode ]
+             in
              let args = (lbl, Arg (exp, sort)) :: args in
-             (ty_ret, mode_ret, open_args, closed_args, args)
+             (ty_ret, mode_ret, closed_args_mode, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
              let sort_ret =
@@ -4042,13 +4045,10 @@ let type_omitted_parameters env loc ty_ret mode_ret args =
                newty2 ~level
                  (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
              in
-             let closed_args = open_args @ closed_args in
-             let open_args = [] in
-             let mode_closed_args = List.map Alloc.close_over closed_args in
              let mode_partial_fun = Alloc.partial_apply mode_fun in
              let mode_closure, _ =
                Alloc.newvar_above (Alloc.join
-                (mode_partial_fun:: mode_closed_args))
+                [ mode_partial_fun; closed_args_mode ])
              in
              register_allocation_mode mode_closure;
              let arg =
@@ -4060,8 +4060,8 @@ let type_omitted_parameters env loc ty_ret mode_ret args =
                 sort_ret }
              in
              let args = (lbl, arg) :: args in
-             (ty_ret, mode_closure, open_args, closed_args, args))
-      (ty_ret, mode_ret, [], [], []) (List.rev args)
+             (ty_ret, mode_closure, closed_args_mode, args))
+      (ty_ret, mode_ret, Alloc.(disallow_right min), []) (List.rev args)
   in
   ty_ret, mode_ret, args
 
