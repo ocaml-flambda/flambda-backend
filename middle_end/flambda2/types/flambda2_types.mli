@@ -495,12 +495,12 @@ val closure_with_at_least_this_value_slot :
   this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Variable.t ->
-  value_slot_kind:Flambda_kind.With_subkind.t ->
+  value_slot_kind:Flambda_kind.t ->
   flambda_type
 
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
-  (Variable.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
+  (Variable.t * Flambda_kind.t) Value_slot.Map.t ->
   flambda_type
 
 val array_of_length :

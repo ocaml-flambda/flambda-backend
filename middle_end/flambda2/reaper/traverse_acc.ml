@@ -17,7 +17,8 @@ module Graph = Global_flow_graph
 
 type continuation_info =
   { is_exn_handler : bool;
-    params : Variable.t list
+    params : Variable.t list;
+    arity : Flambda_kind.With_subkind.t list
   }
 
 module Env = struct
@@ -26,7 +27,9 @@ module Env = struct
   type t =
     { parent : Rev_expr.rev_expr_holed;
       conts : cont_kind Continuation.Map.t;
-      current_code_id : Code_id.t option
+      current_code_id : Code_id.t option;
+      le_monde_exterieur : Name.t;
+      all_constants : Name.t
     }
 end
 
@@ -36,7 +39,8 @@ type code_dep =
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
     exn : Variable.t; (* Dummy variable representing exn return value *)
-    is_tupled : bool
+    is_tupled : bool;
+    indirect_call_witness : Code_id_or_name.t
   }
 
 type apply_dep =
@@ -84,6 +88,15 @@ let bound_parameter_kind (bp : Bound_parameter.t) t =
   let name = Name.var (Bound_parameter.var bp) in
   t.kinds <- Name.Map.add name kind t.kinds
 
+let simple_to_name ~all_constants simple =
+  Simple.pattern_match' simple
+    ~const:(fun _ -> all_constants)
+    ~var:(fun v ~coercion:_ -> Name.var v)
+    ~symbol:(fun s ~coercion:_ ->
+      if Compilation_unit.is_current (Symbol.compilation_unit s)
+      then Name.symbol s
+      else all_constants)
+
 let alias_kind name simple t =
   let kind =
     Simple.pattern_match simple
@@ -112,24 +125,20 @@ let add_code code_id dep t = t.code <- Code_id.Map.add code_id dep t.code
 
 let find_code t code_id = Code_id.Map.find code_id t.code
 
-let alias_dep ~denv:_ pat dep t =
-  Simple.pattern_match dep
-    ~name:(fun name ~coercion:_ ->
-      Graph.add_alias t.deps ~to_:(Code_id_or_name.var pat) ~from:name)
-    ~const:(fun _ -> ())
+let alias_dep ~(denv : Env.t) pat dep t =
+  Graph.add_alias t.deps ~to_:(Code_id_or_name.var pat)
+    ~from:(simple_to_name ~all_constants:denv.all_constants dep)
 
 let root v t = Graph.add_use t.deps (Code_id_or_name.var v)
 
 let used ~(denv : Env.t) dep t =
-  Simple.pattern_match dep
-    ~name:(fun name ~coercion:_ ->
-      match denv.current_code_id with
-      | None -> Graph.add_use t.deps (Code_id_or_name.name name)
-      | Some code_id ->
-        Graph.add_use_dep t.deps
-          ~to_:(Code_id_or_name.code_id code_id)
-          ~from:(Code_id_or_name.name name))
-    ~const:(fun _ -> ())
+  let name = simple_to_name ~all_constants:denv.all_constants dep in
+  match denv.current_code_id with
+  | None -> Graph.add_use t.deps (Code_id_or_name.name name)
+  | Some code_id ->
+    Graph.add_use_dep t.deps
+      ~to_:(Code_id_or_name.code_id code_id)
+      ~from:(Code_id_or_name.name name)
 
 let used_code_id code_id t =
   Graph.add_use t.deps (Code_id_or_name.code_id code_id)
@@ -207,7 +216,7 @@ let record_set_of_closure_deps t =
              partially applied, as the arity is needed at runtime in that
              case. *)
           Graph.add_constructor_dep t.deps ~base:!acc Code_of_closure
-            ~from:(Code_id_or_name.code_id code_id);
+            ~from:code_dep.indirect_call_witness;
           acc := tmp_name
         done;
         List.iteri
@@ -220,12 +229,12 @@ let record_set_of_closure_deps t =
           (Apply (Indirect_code_pointer, Exn))
           ~from:(Code_id_or_name.var code_dep.exn);
         Graph.add_constructor_dep t.deps ~base:!acc Code_of_closure
-          ~from:(Code_id_or_name.code_id code_id))
+          ~from:code_dep.indirect_call_witness)
     t.set_of_closures_dep
 
 let graph t = t.deps
 
-let deps t =
+let deps t ~all_constants =
   List.iter
     (fun { function_containing_apply_expr;
            apply_code_id;
@@ -241,20 +250,20 @@ let deps t =
         | None ->
           Graph.add_alias t.deps ~to_:(Code_id_or_name.name param) ~from:name
         | Some code_id ->
-          Graph.add_propagate_dep t.deps ~if_used:code_id ~from:name ~to_:param
+          Graph.add_propagate_dep t.deps
+            ~if_used:(Code_id_or_name.code_id code_id)
+            ~from:name
+            ~to_:(Code_id_or_name.name param)
       in
       List.iter2
         (fun param arg ->
-          Simple.pattern_match arg
-            ~name:(fun name ~coercion:_ -> add_cond_dep param name)
-            ~const:(fun _ -> ()))
+          add_cond_dep param (simple_to_name ~all_constants arg))
         code_dep.params apply_args;
       (match apply_closure with
       | None -> ()
       | Some apply_closure ->
-        Simple.pattern_match apply_closure
-          ~name:(fun name ~coercion:_ -> add_cond_dep code_dep.my_closure name)
-          ~const:(fun _ -> ()));
+        add_cond_dep code_dep.my_closure
+          (simple_to_name ~all_constants apply_closure));
       (match params_of_apply_return_cont with
       | None -> ()
       | Some apply_return ->

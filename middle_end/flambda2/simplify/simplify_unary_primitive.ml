@@ -70,7 +70,7 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
       in
       let dacc =
         DA.add_variable dacc result_var
-          (T.alias_type_of (K.With_subkind.kind kind) simple)
+          (T.alias_type_of kind simple)
       in
       SPR.create (Named.create_simple simple) ~try_reify:true dacc
     | Need_meet ->
@@ -81,7 +81,7 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
             (T.closure_with_at_least_this_value_slot
                ~this_function_slot:function_slot value_slot
                ~value_slot_var:(Bound_var.var result_var) ~value_slot_kind:kind)
-          ~result_var ~result_kind:(K.With_subkind.kind kind)
+          ~result_var ~result_kind:kind
       in
       let dacc = DA.add_use_of_value_slot result.dacc value_slot in
       SPR.with_dacc result dacc
@@ -89,7 +89,7 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
   let dacc =
     Simplify_common.add_symbol_projection result.dacc ~projected_from:closure
       (Symbol_projection.Projection.project_value_slot function_slot value_slot)
-      ~projection_bound_to:result_var ~kind
+      ~projection_bound_to:result_var ~kind:(Flambda_kind.With_subkind.anything kind)
   in
   SPR.with_dacc result dacc
 

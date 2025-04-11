@@ -417,7 +417,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   let applied_unarized_args, _ =
     Misc.Stdlib.List.map2_prefix
-      (fun arg kind -> arg, kind)
+      (fun arg kind -> arg, K.With_subkind.kind kind)
       args
       (Flambda_arity.unarize param_arity)
   in
@@ -425,7 +425,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
     Function_slot.create compilation_unit ~name:"partial_app_closure"
-      K.With_subkind.any_value
+      K.value
   in
   (* The allocation mode of the closure is directly determined by the alloc_mode
      of the application. We check here that it is consistent with
@@ -517,7 +517,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               then Symbol symbol
               else
                 let var = Variable.create "symbol" in
-                if not (K.equal (K.With_subkind.kind kind) K.value)
+                if not (K.equal kind K.value)
                 then
                   Misc.fatal_errorf
                     "Simple %a which is a symbol should be of kind Value"
@@ -530,7 +530,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           match Apply.callee apply with
           | None -> None
           | Some callee ->
-            Some (applied_value (callee, K.With_subkind.any_value))
+            Some (applied_value (callee, K.value))
         in
         let applied_unarized_args =
           List.map applied_value applied_unarized_args

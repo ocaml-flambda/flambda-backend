@@ -2627,7 +2627,7 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          Ident.Map.add id (Value_slot.create compilation_unit ~name kind) map)
+          Ident.Map.add id (Value_slot.create compilation_unit ~name (Flambda_kind.With_subkind.kind kind)) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
@@ -2774,10 +2774,10 @@ let close_functions acc external_env ~current_region function_declarations =
         let external_simple, kind' =
           find_simple_from_id_with_kind external_env id
         in
-        if not (K.With_subkind.equal kind kind')
+        if not (K.equal kind (K.With_subkind.kind kind'))
         then
           Misc.fatal_errorf "Value slot kinds %a and %a don't match for slot %a"
-            K.With_subkind.print kind K.With_subkind.print kind'
+            K.print kind K.print (K.With_subkind.kind kind')
             Value_slot.print value_slot;
         (* We're sure [external_simple] is a variable since
            [value_slot_from_idents] has already filtered constants and symbols
@@ -2946,7 +2946,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name wrapper_id) K.With_subkind.any_value
+      ~name:(Ident.name wrapper_id) K.value
   in
   let num_provided = Flambda_arity.num_params provided_arity in
   let missing_arity_and_param_modes =

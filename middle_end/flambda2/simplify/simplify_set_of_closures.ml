@@ -681,7 +681,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
   let value_slot_types =
     Value_slot.Map.mapi
       (fun value_slot in_slot ->
-        let kind = K.With_subkind.kind (Value_slot.kind value_slot) in
+        let kind = Value_slot.kind value_slot in
         Simple.pattern_match in_slot
           ~const:(fun _ -> T.alias_type_of kind in_slot)
           ~name:(fun name ~coercion ->

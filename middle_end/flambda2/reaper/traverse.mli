@@ -18,7 +18,8 @@ type result =
     deps : Global_flow_graph.graph;
     kinds : Flambda_kind.t Name.Map.t;
     fixed_arity_continuations : Continuation.Set.t;
-    continuation_info : Traverse_acc.continuation_info Continuation.Map.t
+    continuation_info : Traverse_acc.continuation_info Continuation.Map.t;
+    code_deps : Traverse_acc.code_dep Code_id.Map.t
   }
 
 val run : Flambda_unit.t -> result
