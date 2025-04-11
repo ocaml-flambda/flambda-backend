@@ -562,7 +562,7 @@ let local_realloc_sites = ref ([] : local_realloc_call list)
 
 let emit_local_realloc lr =
   emit_printf "%a:\n" femit_label lr.lr_lbl;
-  emit_printf "\t%a" (femit_debug_info ~discriminator:0) lr.lr_dbg;
+  emit_debug_info ~discriminator:0 lr.lr_dbg;
   DSL.ins I.BL [| DSL.emit_symbol "caml_call_local_realloc" |];
   DSL.ins I.B [| DSL.emit_label lr.lr_return_lbl |]
 
