@@ -386,14 +386,6 @@ module SpillCosts = struct
     in
     Reg.Tbl.replace costs reg (curr + delta)
 
-  (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-  let pow ~base n =
-    let res = ref 1 in
-    for _ = 1 to n do
-      res := !res * base
-    done;
-    !res
-
   let normal_cost = lazy (find_param_value "SPILL_NORMAL_COST")
 
   let cold_cost = lazy (find_param_value "SPILL_COLD_COST")
@@ -441,6 +433,7 @@ module SpillCosts = struct
               | None -> 10
               | Some cost -> int_of_string cost
             in
+            (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
             pow ~base depth
         in
         let cost = base_cost * cost_multiplier in
