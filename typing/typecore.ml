@@ -3710,6 +3710,7 @@ let list_labels env ty =
 
 (* Collecting arguments for function applications *)
 
+(* See also Note [Type-checking applications] *)
 type untyped_apply_arg =
   | Known_arg of
       { sarg : Parsetree.expression;
@@ -3825,6 +3826,71 @@ let check_curried_application_complete ~env ~app_loc args =
   in
   loop false args
 
+(* Note [Type-checking applications]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   This Note explains how we type-check a function application. It focuses on
+   the common case. Additions to this Note explaining the various special
+   cases (and why levels are bumped where they are) are welcome.
+
+   1. We type-check the function. This is done right in [type_expect_] in
+   the [Pexp_apply] case. (Everything hereafter is done in [type_application].)
+
+   2. We analyze the type of the function, building up a list of [Arg] and
+   [Omitted] nodes describing the arguments in that type. This is done in
+   [collect_apply_args]. The ordering in this list is based on the type of the
+   function, *not* the order of arguments as written in the source code. (The
+   actual arguments passed in the source code are reordered by a quadratic
+   algorithm, calling [extract_label] for each arrow evident in the function's
+   type. But this algorithm is fast in the common case.) An [Arg] denotes an
+   argument that will actually be passed to the function. It is one of these
+   cases:
+
+     * [Known_arg]: This is an argument whose type is dictated by the (known)
+     type of the function being applied.
+
+     * [Unknown_arg]: This is an argument whose type is unknown, either because
+     the type of the function is unknown (because the function is itself
+     lambda-bound) or because the function is over-applied.
+
+     * [Eliminated_optional_arg]: This is an optional argument (either a normal
+     optional argument with [?] or one labeled with [%call_pos]) that will be
+     supplied, even though the user did not actually write the argument in.
+
+   An [Omitted] argument denotes one left off by partial application.
+
+   The length of the list returned from [collect_apply_args] comes from
+   combining the number of arguments visible in the type of the function, adding
+   any arguments that come from over-saturation of that type.
+
+   3. Type-check all of the [Arg] arguments, by mapping [type_apply_arg] over
+   the list of arguments. This handles all three varieties of [Arg] argument;
+   we no longer track the distinction between the three cases.
+
+   [Omitted] arguments are left untouched.
+
+   4. Type-check all of the [Omitted] arguments, in [type_omitted_parameters].
+   There are two critical steps of type-checking an omitted argument:
+
+     * Adjust the final type of the application to be a function taking the type
+     of the omitted argument as a parameter.
+
+     * Ensure that the constructed arrow (and allocation of the closure) has the
+     correct mode: if any of the closed-over arguments is local or once, say,
+     then the final result must also be local or once.
+
+   This is done by collecting up passed [Arg]s until an [Omitted] is
+   encountered, and then doing a submode check on each collected [Arg] against
+   the expected mode of the final closure. In addition, we use the [close_over]
+   and [partial_apply] functions from [Mode.Alloc] to make sure that the modes
+   of the constructed arrows themselves are correct. This algorithm is
+   quadratic, looking at each previously seen [Arg] for every [Omitted]. (It
+   seems to be easy to make this not quadratic, though.)
+*)
+
+(* This function processes any arguments remaining after traversing the type of
+   the function; these would be over-saturated arguments or arguments to a
+   function whose type is not known. *)
 let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar =
   let labels_match ~param ~arg =
     param = arg
@@ -3919,6 +3985,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
   in
   loop ty_fun mode_fun rev_args sargs
 
+(* See Note [Type-checking applications] for an overview *)
 let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret_tvar =
   let warned = ref false in
   let rec loop ty_fun ty_fun0 mode_fun rev_args sargs =
@@ -4029,6 +4096,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
+(* See Note [Type-checking applications] for an overview *)
 let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
   let ty_ret, mode_ret, _, _, args =
     List.fold_left
@@ -5790,6 +5858,7 @@ and type_expect_
           }
       end
   | Pexp_apply(sfunct, sargs) ->
+      (* See Note [Type-checking applications] *)
       assert (sargs <> []);
       let pm = position_and_mode env expected_mode sexp in
       let funct_mode, funct_expected_mode =
@@ -8074,6 +8143,7 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
       unify_exp env texp ty_expected;
       texp
 
+(* See Note [Type-checking applications] for an overview *)
 and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (lbl, arg) =
   match arg with
   | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
@@ -8194,6 +8264,7 @@ and type_application env app_loc expected_mode position_and_mode
       check_partial_application ~statement:false exp;
       ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, position_and_mode)
   | _ ->
+    (* See Note [Type-checking applications] for an overview *)
       let ty = funct.exp_type in
       let ignore_labels =
         !Clflags.classic ||
