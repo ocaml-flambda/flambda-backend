@@ -134,15 +134,16 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     log "main, round #%d" round;
     log_cfg_with_infos cfg_with_infos);
   if debug then log "updating spilling costs";
-  update_spill_cost cfg_with_infos ~flat ();
+  let costs = compute_spill_cost cfg_with_infos ~flat () in
   State.iter_introduced_temporaries state ~f:(fun (reg : Reg.t) ->
-      reg.Reg.spill_cost <- reg.Reg.spill_cost + 10_000);
+      Reg.Tbl.replace costs reg (Reg.Tbl.find costs reg + 10_000));
   if debug
   then (
     log "spilling costs";
     indent ();
-    List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
-        log "%a: %d" Printreg.reg reg reg.spill_cost);
+    Reg.Tbl.iter
+      (fun (reg : Reg.t) (cost : int) -> log "%a: %d" Printreg.reg reg cost)
+      costs;
     dedent ());
   let hardware_registers, prio_queue =
     make_hardware_registers_and_prio_queue cfg_with_infos
@@ -161,7 +162,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
       indent ();
       log "got register %a (prio=%d)" Printreg.reg reg priority);
     (match
-       Hardware_registers.find_available hardware_registers reg interval
+       Hardware_registers.find_available hardware_registers costs reg interval
      with
     | For_assignment { hardware_reg } ->
       if debug

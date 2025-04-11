@@ -117,7 +117,7 @@ val update_live_fields : Cfg_with_layout.t -> liveness -> unit
    [flat] is true, the same weight is given to all uses; if [flat] is false, the
    information about loops is computed and used to give more weight to uses
    inside (nested) loops. *)
-val update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit
+val compute_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> int Reg.Tbl.t
 
 val check_length : string -> 'a array -> int -> unit
 

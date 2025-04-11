@@ -256,8 +256,9 @@ let freeze : State.t -> unit =
   State.add_simplify_work_list state reg;
   freeze_moves state reg
 
-let select_spilling_register_using_heuristics : State.t -> Reg.t =
- fun state ->
+let select_spilling_register_using_heuristics :
+    State.t -> int Reg.Tbl.t -> Reg.t =
+ fun state costs ->
   match Lazy.force Spilling_heuristics.value with
   | Set_choose -> (
     (* This is the "heuristics" from the IRC paper: pick any candidate, just try
@@ -280,8 +281,9 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
     let weighted_cost (reg : Reg.t) =
       if debug
       then
-        log "register %a has spill cost %d" Printreg.reg reg reg.Reg.spill_cost;
-      (float reg.Reg.spill_cost /. float (State.degree state reg))
+        log "register %a has spill cost %d" Printreg.reg reg
+          (Reg.Tbl.find costs reg);
+      (float (Reg.Tbl.find costs reg) /. float (State.degree state reg))
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
          occurrences. *)
@@ -300,13 +302,13 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
           else acc)
       |> fst)
 
-let select_spill : State.t -> unit =
- fun state ->
+let select_spill : State.t -> int Reg.Tbl.t -> unit =
+ fun state costs ->
   if debug
   then (
     log "select_spill";
     indent ());
-  let reg = select_spilling_register_using_heuristics state in
+  let reg = select_spilling_register_using_heuristics state costs in
   if debug
   then
     log "chose %a using heuristics %S" Printreg.reg reg
@@ -461,7 +463,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   make_work_list state;
   State.invariant state;
   if debug then log_work_list_desc "before loop";
-  let spill_cost_is_up_to_date = ref false in
+  let spill_costs = ref (None : int Reg.Tbl.t option) in
   let continue = ref true in
   while !continue do
     if not (State.is_empty_simplify_work_list state)
@@ -471,16 +473,24 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     else if not (State.is_empty_freeze_work_list state)
     then freeze state
     else if not (State.is_empty_spill_work_list state)
-    then (
-      if not !spill_cost_is_up_to_date
-      then (
-        (match Lazy.force Spilling_heuristics.value with
-        | Set_choose ->
-          (* note: `spill_cost` will not be used by the heuristics *) ()
-        | Flat_uses -> update_spill_cost cfg_with_infos ~flat:true ()
-        | Hierarchical_uses -> update_spill_cost cfg_with_infos ~flat:false ());
-        spill_cost_is_up_to_date := true);
-      select_spill state)
+    then
+      let costs =
+        match !spill_costs with
+        | Some costs -> costs
+        | None ->
+          let costs =
+            match Lazy.force Spilling_heuristics.value with
+            | Set_choose ->
+              (* note: `spill_cost` will not be used by the heuristics *)
+              Reg.Tbl.create 0
+            | Flat_uses -> compute_spill_cost cfg_with_infos ~flat:true ()
+            | Hierarchical_uses ->
+              compute_spill_cost cfg_with_infos ~flat:false ()
+          in
+          spill_costs := Some costs;
+          costs
+      in
+      select_spill state costs
     else continue := false;
     if debug then log_work_list_desc "end of loop";
     State.invariant state

@@ -190,5 +190,5 @@ module Hardware_registers : sig
 
   val of_reg : t -> Reg.t -> Hardware_register.t option
 
-  val find_available : t -> Reg.t -> Interval.t -> available
+  val find_available : t -> int Reg.Tbl.t -> Reg.t -> Interval.t -> available
 end

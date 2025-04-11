@@ -391,12 +391,14 @@ let cost_for_block : Cfg.basic_block -> int =
   in
   match Lazy.force param with None -> 1 | Some cost -> int_of_string cost
 
-let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
+let compute_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> int Reg.Tbl.t
+    =
  fun cfg_with_infos ~flat () ->
-  List.iter (Reg.all_registers ()) ~f:(fun reg -> reg.Reg.spill_cost <- 0);
+  let costs = Reg.Tbl.create (List.length (Reg.all_registers ())) in
+  List.iter (Reg.all_registers ()) ~f:(fun reg -> Reg.Tbl.replace costs reg 0);
   let update_reg (cost : int) (reg : Reg.t) : unit =
     (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-    reg.Reg.spill_cost <- reg.Reg.spill_cost + cost
+    Reg.Tbl.replace costs reg (Reg.Tbl.find costs reg + cost)
   in
   let update_array (cost : int) (regs : Reg.t array) : unit =
     Array.iter regs ~f:(fun reg -> update_reg cost reg)
@@ -434,7 +436,8 @@ let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
       | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
       | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
       | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
-        update_instr cost block.terminator)
+        update_instr cost block.terminator);
+  costs
 
 let check_length str arr expected =
   let actual = Array.length arr in
