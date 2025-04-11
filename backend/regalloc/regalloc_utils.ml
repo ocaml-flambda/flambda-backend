@@ -434,7 +434,7 @@ module SpillCosts = struct
               | Some cost -> int_of_string cost
             in
             (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-            pow ~base depth
+            Misc.power ~base depth
         in
         let cost = base_cost * cost_multiplier in
         DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;

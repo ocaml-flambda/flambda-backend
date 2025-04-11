@@ -764,7 +764,7 @@ let rec log2 n =
 let rec log2_nativeint n =
   if n <= 1n then 0 else 1 + log2_nativeint (Nativeint.shift_right n 1)
 
-let pow ~base n =
+let power ~base n =
   let res = ref 1 in
   for _ = 1 to n do
     res := !res * base
