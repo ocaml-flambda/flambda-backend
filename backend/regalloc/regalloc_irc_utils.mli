@@ -18,6 +18,25 @@ val log_body_and_terminator :
 
 val log_cfg_with_infos : Cfg_with_infos.t -> unit
 
+module WorkList : sig
+  (* CR xclerc for xclerc: double check all constructors are actually used. *)
+  type t =
+    | Unknown_list
+    | Precolored
+    | Initial
+    | Simplify
+    | Freeze
+    | Spill
+    | Spilled
+    | Coalesced
+    | Colored
+    | Select_stack
+
+  val equal : t -> t -> bool
+
+  val to_string : t -> string
+end
+
 module Color : sig
   type t = int
 end
@@ -65,8 +84,6 @@ val is_move_instruction : Instruction.t -> bool
 val all_precolored_regs : unit -> Reg.Set.t
 
 val k : Reg.t -> int
-
-val update_register_locations : unit -> unit
 
 module Spilling_heuristics : sig
   type t =

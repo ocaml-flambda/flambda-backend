@@ -10,13 +10,15 @@ let snapshot_for_fatal = ref None
 module Utils = struct
   include Regalloc_ls_utils
 
+  type state = State.t
+
   let debug = debug
 
   let invariants = invariants
 
-  let is_spilled reg = reg.Reg.spill
+  let is_spilled _state reg = reg.Reg.spill
 
-  let set_spilled _reg = ()
+  let set_spilled _state _reg = ()
 end
 
 let rewrite :

@@ -16,52 +16,6 @@
 open! Int_replace_polymorphic_compare
 open Cmm
 
-type irc_work_list =
-  | Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack
-
-let equal_irc_work_list left right =
-  match left, right with
-  | Unknown_list, Unknown_list
-  | Precolored, Precolored
-  | Initial, Initial
-  | Simplify, Simplify
-  | Freeze, Freeze
-  | Spill, Spill
-  | Spilled, Spilled
-  | Coalesced, Coalesced
-  | Colored, Colored
-  | Select_stack, Select_stack -> true
-  | (Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack), _ -> false
-
-let string_of_irc_work_list = function
-  | Unknown_list -> "unknown_list"
-  | Precolored -> "precolored"
-  | Initial -> "initial"
-  | Simplify -> "simplify"
-  | Freeze -> "freeze"
-  | Spill -> "spill"
-  | Spilled -> "spilled"
-  | Coalesced -> "coalesced"
-  | Colored -> "colored"
-  | Select_stack -> "select_stack"
 
 module V = Backend_var
 
@@ -87,12 +41,7 @@ type t =
     stamp: int;
     typ: Cmm.machtype_component;
     mutable loc: location;
-    mutable irc_work_list: irc_work_list;
-    mutable irc_color : int option;
-    mutable irc_alias : t option;
     mutable spill: bool;
-    mutable interf: t list;
-    mutable degree: int;
     mutable spill_cost: int; }
 
 and location =
@@ -110,8 +59,7 @@ type reg = t
 
 let dummy =
   { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
-    irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-    spill = false; interf = []; degree = 0; spill_cost = 0;
+    spill = false; spill_cost = 0;
   }
 
 let currstamp = ref 0
@@ -121,8 +69,7 @@ let hw_reg_list = ref ([] : t list)
 let create ty =
   let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
             loc = Unknown;
-            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; degree = 0;
+            spill = false;
             spill_cost = 0; } in
   reg_list := r :: !reg_list;
   incr currstamp;
@@ -147,8 +94,7 @@ let clone r =
 
 let at_location ty loc =
   let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
-            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; degree = 0;
+            spill = false; 
             spill_cost = 0; } in
   hw_reg_list := r :: !hw_reg_list;
   incr currstamp;
@@ -210,11 +156,6 @@ let num_registers() = !currstamp
 
 let reinit_reg r =
   r.loc <- Unknown;
-  r.irc_work_list <- Unknown_list;
-  r.irc_color <- None;
-  r.irc_alias <- None;
-  r.interf <- [];
-  r.degree <- 0;
   (* Preserve the very high spill costs introduced by the reloading pass *)
   if r.spill_cost >= 100000
   then r.spill_cost <- 100000

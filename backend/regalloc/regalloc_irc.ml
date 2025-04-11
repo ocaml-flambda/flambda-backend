@@ -99,7 +99,7 @@ let make_work_list : State.t -> unit =
     log "make_work_list";
     indent ());
   State.iter_and_clear_initial state ~f:(fun reg ->
-      let deg = reg.Reg.degree in
+      let deg = State.degree state reg in
       if debug
       then (
         log "- %a has degree=%s (k=%d)" Printreg.reg reg (Degree.to_string deg)
@@ -128,8 +128,8 @@ let simplify : State.t -> unit =
 
 let ok : State.t -> Reg.t -> Reg.t -> bool =
  fun state t r ->
-  Reg.equal_irc_work_list t.Reg.irc_work_list Reg.Precolored
-  || t.Reg.degree < k t
+  WorkList.equal (State.work_list state t) WorkList.Precolored
+  || State.degree state t < k t
   || State.mem_adj_set state t r
 
 let all_adjacent_are_ok : State.t -> Reg.t -> Reg.t -> bool =
@@ -145,7 +145,7 @@ let conservative : State.t -> Reg.t -> Reg.t -> bool =
     then (
       Reg.Tbl.replace seen reg ();
       let k = k reg in
-      if reg.Reg.degree >= k
+      if State.degree state reg >= k
       then (
         incr i;
         if !i >= k then raise_notrace False))
@@ -171,7 +171,7 @@ let combine : State.t -> Reg.t -> Reg.t -> unit =
   State.iter_adjacent state v ~f:(fun t ->
       State.add_edge state t u;
       State.decr_degree state t);
-  if State.mem_freeze_work_list state u && u.Reg.degree >= k u
+  if State.mem_freeze_work_list state u && State.degree state u >= k u
   then (
     State.remove_freeze_work_list state u;
     State.add_spill_work_list state u)
@@ -180,7 +180,7 @@ let add_work_list : State.t -> Reg.t -> unit =
  fun state reg ->
   (* note: the test that `reg` is not precolored is redundant since precolored
      registers have an infinite degree. *)
-  if reg.Reg.degree < k reg && not (State.is_move_related state reg)
+  if State.degree state reg < k reg && not (State.is_move_related state reg)
   then (
     State.remove_freeze_work_list state reg;
     State.add_simplify_work_list state reg)
@@ -244,7 +244,7 @@ let freeze_moves : State.t -> Reg.t -> unit =
       in
       State.remove_active_moves state m;
       State.add_frozen_moves state m;
-      if v.Reg.degree < k v && State.is_empty_node_moves state v
+      if State.degree state v < k v && State.is_empty_node_moves state v
       then (
         State.remove_freeze_work_list state v;
         State.add_simplify_work_list state v))
@@ -281,7 +281,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       if debug
       then
         log "register %a has spill cost %d" Printreg.reg reg reg.Reg.spill_cost;
-      (float reg.Reg.spill_cost /. float reg.Reg.degree)
+      (float reg.Reg.spill_cost /. float (State.degree state reg))
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
          occurrences. *)
@@ -352,7 +352,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
           let alias = State.find_alias state hd in
           if State.is_precolored_or_colored state alias
           then (
-            match alias.Reg.irc_color with
+            match State.color state alias with
             | None -> assert false
             | Some color ->
               if debug then log "color %d is not available" color;
@@ -377,23 +377,32 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
         State.add_colored_nodes state n;
         let c = first_avail + reg_first_avail in
         if debug then log "coloring with %d" c;
-        n.Reg.irc_color <- Some c);
+        State.set_color state n (Some c));
       if debug then dedent ());
   State.iter_coalesced_nodes state ~f:(fun n ->
       let alias = State.find_alias state n in
-      n.Reg.irc_color <- alias.Reg.irc_color);
+      State.set_color state n (State.color state alias));
   if debug then dedent ()
 
 module Utils = struct
   include Regalloc_irc_utils
 
+  type state = State.t
+
   let debug = debug
 
   let invariants = invariants
 
-  let is_spilled reg = Reg.equal_irc_work_list reg.Reg.irc_work_list Reg.Spilled
+  let is_spilled state reg =
+    match State.work_list_opt state reg with
+    | None ->
+      (* Freshly-created may not have been added to the map yet; such registers
+         would morally be in the "unknown" work list, hence returning
+         `false`. *)
+      false
+    | Some work_list -> WorkList.equal work_list WorkList.Spilled
 
-  let set_spilled reg = reg.Reg.spill <- true
+  let set_spilled _state reg = reg.Reg.spill <- true
 end
 
 (* Returns `true` if new temporaries have been introduced. *)
@@ -553,7 +562,9 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     (module Utils)
     state
     ~f:(fun () ->
-      update_register_locations ();
-      Reg.Set.iter (fun reg -> reg.Reg.degree <- 0) (all_precolored_regs ()))
+      State.update_register_locations state;
+      Reg.Set.iter
+        (fun reg -> State.set_degree state reg 0)
+        (all_precolored_regs ()))
     cfg_with_infos;
   cfg_with_infos
