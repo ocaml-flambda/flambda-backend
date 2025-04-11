@@ -620,11 +620,11 @@ module Hardware_registers = struct
    fun t ~of_reg ~f ~init ->
     Array.fold_left t.(Proc.register_class of_reg) ~f ~init
 
-  let actual_cost (costs : int Reg.Tbl.t) (reg : Reg.t) : int =
+  let actual_cost (costs : SpillCosts.t) (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
        already spilled (e.g. by the split preprocessing) since they already have
        a stack slot *)
-    Reg.Tbl.find costs reg
+    SpillCosts.for_reg costs reg
 
   let overlap (hardware_reg : Hardware_register.t) (interval : Interval.t) :
       bool =
@@ -668,7 +668,7 @@ module Hardware_registers = struct
             else acc)
     |> Option.map fst
 
-  let find_evictable (t : t) (costs : int Reg.Tbl.t) (reg : Reg.t)
+  let find_evictable (t : t) (costs : SpillCosts.t) (reg : Reg.t)
       (interval : Interval.t) : available =
     let eviction =
       fold_class t ~of_reg:reg ~init:None ~f:(fun acc hardware_reg ->
@@ -731,7 +731,7 @@ module Hardware_registers = struct
       For_eviction { hardware_reg; evicted_regs }
     | None -> Split_or_spill
 
-  let find_available : t -> int Reg.Tbl.t -> Reg.t -> Interval.t -> available =
+  let find_available : t -> SpillCosts.t -> Reg.t -> Interval.t -> available =
    fun t costs reg interval ->
     let with_no_overlap =
       let heuristic =

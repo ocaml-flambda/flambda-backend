@@ -256,8 +256,8 @@ let freeze : State.t -> unit =
   State.add_simplify_work_list state reg;
   freeze_moves state reg
 
-let select_spilling_register_using_heuristics :
-    State.t -> int Reg.Tbl.t -> Reg.t =
+let select_spilling_register_using_heuristics : State.t -> SpillCosts.t -> Reg.t
+    =
  fun state costs ->
   match Lazy.force Spilling_heuristics.value with
   | Set_choose -> (
@@ -282,8 +282,8 @@ let select_spilling_register_using_heuristics :
       if debug
       then
         log "register %a has spill cost %d" Printreg.reg reg
-          (Reg.Tbl.find costs reg);
-      (float (Reg.Tbl.find costs reg) /. float (State.degree state reg))
+          (SpillCosts.for_reg costs reg);
+      (float (SpillCosts.for_reg costs reg) /. float (State.degree state reg))
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
          occurrences. *)
@@ -302,7 +302,7 @@ let select_spilling_register_using_heuristics :
           else acc)
       |> fst)
 
-let select_spill : State.t -> int Reg.Tbl.t -> unit =
+let select_spill : State.t -> SpillCosts.t -> unit =
  fun state costs ->
   if debug
   then (
@@ -463,7 +463,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   make_work_list state;
   State.invariant state;
   if debug then log_work_list_desc "before loop";
-  let spill_costs = ref (None : int Reg.Tbl.t option) in
+  let spill_costs = ref (None : SpillCosts.t option) in
   let continue = ref true in
   while !continue do
     if not (State.is_empty_simplify_work_list state)
@@ -482,10 +482,10 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
             match Lazy.force Spilling_heuristics.value with
             | Set_choose ->
               (* note: `spill_cost` will not be used by the heuristics *)
-              Reg.Tbl.create 0
-            | Flat_uses -> compute_spill_cost cfg_with_infos ~flat:true ()
+              SpillCosts.empty ()
+            | Flat_uses -> SpillCosts.compute cfg_with_infos ~flat:true ()
             | Hierarchical_uses ->
-              compute_spill_cost cfg_with_infos ~flat:false ()
+              SpillCosts.compute cfg_with_infos ~flat:false ()
           in
           spill_costs := Some costs;
           costs

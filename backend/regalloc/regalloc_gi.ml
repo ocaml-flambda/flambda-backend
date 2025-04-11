@@ -134,16 +134,15 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     log "main, round #%d" round;
     log_cfg_with_infos cfg_with_infos);
   if debug then log "updating spilling costs";
-  let costs = compute_spill_cost cfg_with_infos ~flat () in
+  let costs = SpillCosts.compute cfg_with_infos ~flat () in
   State.iter_introduced_temporaries state ~f:(fun (reg : Reg.t) ->
-      Reg.Tbl.replace costs reg (Reg.Tbl.find costs reg + 10_000));
+      SpillCosts.add_to_reg costs reg 10_000);
   if debug
   then (
     log "spilling costs";
     indent ();
-    Reg.Tbl.iter
-      (fun (reg : Reg.t) (cost : int) -> log "%a: %d" Printreg.reg reg cost)
-      costs;
+    SpillCosts.iter costs ~f:(fun (reg : Reg.t) (cost : int) ->
+        log "%a: %d" Printreg.reg reg cost);
     dedent ());
   let hardware_registers, prio_queue =
     make_hardware_registers_and_prio_queue cfg_with_infos

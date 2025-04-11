@@ -370,74 +370,94 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
       DLL.iter block.body ~f:set_liveness;
       set_liveness block.terminator)
 
-(* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-let pow ~base n =
-  let res = ref 1 in
-  for _ = 1 to n do
-    res := !res * base
-  done;
-  !res
+module SpillCosts = struct
+  type t = int Reg.Tbl.t
 
-let spill_normal_cost = lazy (find_param_value "SPILL_NORMAL_COST")
+  let empty () = Reg.Tbl.create 1
 
-let spill_cold_cost = lazy (find_param_value "SPILL_COLD_COST")
+  let iter costs ~f = Reg.Tbl.iter f costs
 
-let spill_loop_cost = lazy (find_param_value "SPILL_LOOP_COST")
+  let for_reg costs reg =
+    match Reg.Tbl.find_opt costs reg with None -> 0 | Some cost -> cost
 
-let cost_for_block : Cfg.basic_block -> int =
- fun block ->
-  let param =
-    match block.cold with false -> spill_normal_cost | true -> spill_cold_cost
-  in
-  match Lazy.force param with None -> 1 | Some cost -> int_of_string cost
+  let add_to_reg costs reg delta =
+    let curr =
+      match Reg.Tbl.find_opt costs reg with None -> 0 | Some cost -> cost
+    in
+    Reg.Tbl.replace costs reg (curr + delta)
 
-let compute_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> int Reg.Tbl.t
-    =
- fun cfg_with_infos ~flat () ->
-  let costs = Reg.Tbl.create (List.length (Reg.all_registers ())) in
-  List.iter (Reg.all_registers ()) ~f:(fun reg -> Reg.Tbl.replace costs reg 0);
-  let update_reg (cost : int) (reg : Reg.t) : unit =
-    (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
-    Reg.Tbl.replace costs reg (Reg.Tbl.find costs reg + cost)
-  in
-  let update_array (cost : int) (regs : Reg.t array) : unit =
-    Array.iter regs ~f:(fun reg -> update_reg cost reg)
-  in
-  let update_instr (cost : int) (instr : _ Cfg.instruction) : unit =
-    update_array cost instr.arg;
-    update_array cost instr.res
-  in
-  let cfg = Cfg_with_infos.cfg cfg_with_infos in
-  let loops_depths : Cfg_loop_infos.loop_depths =
-    if flat
-    then Label.Map.empty
-    else (Cfg_with_infos.loop_infos cfg_with_infos).loop_depths
-  in
-  Cfg.iter_blocks cfg ~f:(fun label block ->
-      let base_cost = cost_for_block block in
-      let cost_multiplier =
-        match Label.Map.find_opt label loops_depths with
-        | None ->
-          assert flat;
-          1
-        | Some depth ->
-          let base =
-            match Lazy.force spill_loop_cost with
-            | None -> 10
-            | Some cost -> int_of_string cost
-          in
-          pow ~base depth
+  (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
+  let pow ~base n =
+    let res = ref 1 in
+    for _ = 1 to n do
+      res := !res * base
+    done;
+    !res
+
+  let normal_cost = lazy (find_param_value "SPILL_NORMAL_COST")
+
+  let cold_cost = lazy (find_param_value "SPILL_COLD_COST")
+
+  let loop_cost = lazy (find_param_value "SPILL_LOOP_COST")
+
+  let cost_for_block : Cfg.basic_block -> int =
+   fun block ->
+    let param =
+      match block.cold with false -> normal_cost | true -> cold_cost
+    in
+    match Lazy.force param with None -> 1 | Some cost -> int_of_string cost
+
+  let compute : Cfg_with_infos.t -> flat:bool -> unit -> t =
+   fun cfg_with_infos ~flat () ->
+    let costs = Reg.Tbl.create (List.length (Reg.all_registers ())) in
+    List.iter (Reg.all_registers ()) ~f:(fun reg -> Reg.Tbl.replace costs reg 0);
+    let update_reg (cost : int) (reg : Reg.t) : unit =
+      (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
+      let curr_cost =
+        (* hardware registers are not in `all_registers` *)
+        match Reg.Tbl.find_opt costs reg with None -> 0 | Some cost -> cost
       in
-      let cost = base_cost * cost_multiplier in
-      DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;
-      (* Ignore probes *)
-      match[@ocaml.warning "-4"] block.terminator.desc with
-      | Prim { op = Probe _; _ } -> ()
-      | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
-      | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-      | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
-        update_instr cost block.terminator);
-  costs
+      Reg.Tbl.replace costs reg (curr_cost + cost)
+    in
+    let update_array (cost : int) (regs : Reg.t array) : unit =
+      Array.iter regs ~f:(fun reg -> update_reg cost reg)
+    in
+    let update_instr (cost : int) (instr : _ Cfg.instruction) : unit =
+      update_array cost instr.arg;
+      update_array cost instr.res
+    in
+    let cfg = Cfg_with_infos.cfg cfg_with_infos in
+    let loops_depths : Cfg_loop_infos.loop_depths =
+      if flat
+      then Label.Map.empty
+      else (Cfg_with_infos.loop_infos cfg_with_infos).loop_depths
+    in
+    Cfg.iter_blocks cfg ~f:(fun label block ->
+        let base_cost = cost_for_block block in
+        let cost_multiplier =
+          match Label.Map.find_opt label loops_depths with
+          | None ->
+            assert flat;
+            1
+          | Some depth ->
+            let base =
+              match Lazy.force loop_cost with
+              | None -> 10
+              | Some cost -> int_of_string cost
+            in
+            pow ~base depth
+        in
+        let cost = base_cost * cost_multiplier in
+        DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;
+        (* Ignore probes *)
+        match[@ocaml.warning "-4"] block.terminator.desc with
+        | Prim { op = Probe _; _ } -> ()
+        | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+        | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+        | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
+          update_instr cost block.terminator);
+    costs
+end
 
 let check_length str arr expected =
   let actual = Array.length arr in
