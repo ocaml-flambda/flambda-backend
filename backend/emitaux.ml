@@ -508,11 +508,13 @@ let femit_debug_info ?discriminator out dbg =
       femit_char out '\t';
       femit_string_literal out file_name;
       femit_char out '\n')
-    (fun ~file_num ~line ~col:_ ?discriminator () ->
+    (fun ~file_num ~line ~col ?discriminator () ->
       femit_string out "\t.loc\t";
       femit_int out file_num;
       femit_char out '\t';
       femit_int out line;
+      femit_char out '\t';
+      femit_int out col;
       femit_char out '\t';
       (match discriminator with
       | None -> ()
