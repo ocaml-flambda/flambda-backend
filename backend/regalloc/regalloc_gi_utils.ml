@@ -620,11 +620,11 @@ module Hardware_registers = struct
    fun t ~of_reg ~f ~init ->
     Array.fold_left t.(Proc.register_class of_reg) ~f ~init
 
-  let actual_cost (reg : Reg.t) : int =
+  let actual_cost (costs : SpillCosts.t) (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
        already spilled (e.g. by the split preprocessing) since they already have
        a stack slot *)
-    reg.Reg.spill_cost
+    SpillCosts.for_reg costs reg
 
   let overlap (hardware_reg : Hardware_register.t) (interval : Interval.t) :
       bool =
@@ -668,7 +668,8 @@ module Hardware_registers = struct
             else acc)
     |> Option.map fst
 
-  let find_evictable (t : t) (reg : Reg.t) (interval : Interval.t) : available =
+  let find_evictable (t : t) (costs : SpillCosts.t) (reg : Reg.t)
+      (interval : Interval.t) : available =
     let eviction =
       fold_class t ~of_reg:reg ~init:None ~f:(fun acc hardware_reg ->
           if debug
@@ -705,7 +706,8 @@ module Hardware_registers = struct
                      (acc_cost, acc_evictable)
                      { Hardware_register.pseudo_reg; interval = _; evictable }
                    ->
-                  acc_cost + actual_cost pseudo_reg, acc_evictable && evictable)
+                  ( acc_cost + actual_cost costs pseudo_reg,
+                    acc_evictable && evictable ))
             in
             if debug then dedent ();
             if not evictable
@@ -714,7 +716,7 @@ module Hardware_registers = struct
               let evict_cost =
                 match acc with None -> max_int | Some (_, _, c) -> c
               in
-              if cost < evict_cost && cost < actual_cost reg
+              if cost < evict_cost && cost < actual_cost costs reg
               then (
                 if debug
                 then
@@ -729,8 +731,8 @@ module Hardware_registers = struct
       For_eviction { hardware_reg; evicted_regs }
     | None -> Split_or_spill
 
-  let find_available : t -> Reg.t -> Interval.t -> available =
-   fun t reg interval ->
+  let find_available : t -> SpillCosts.t -> Reg.t -> Interval.t -> available =
+   fun t costs reg interval ->
     let with_no_overlap =
       let heuristic =
         match Lazy.force Selection_heuristics.value with
@@ -756,5 +758,5 @@ module Hardware_registers = struct
     | Some hardware_reg -> For_assignment { hardware_reg }
     | None ->
       if debug then log "trying to find an evictable register";
-      find_evictable t reg interval
+      find_evictable t costs reg interval
 end

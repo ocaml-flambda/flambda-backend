@@ -229,8 +229,7 @@ end = struct
     }
 
   let to_dummy_reg (t : t) : Reg.t =
-    { Reg.dummy with
-      raw_name = t.for_print.raw_name;
+    { raw_name = t.for_print.raw_name;
       typ = t.for_print.typ;
       stamp = t.for_print.stamp;
       loc = Reg_id.to_loc_lossy t.reg_id

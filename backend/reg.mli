@@ -25,9 +25,7 @@ type t =
   { mutable raw_name: Raw_name.t;         (* Name *)
     stamp: int;                           (* Unique stamp *)
     typ: Cmm.machtype_component;          (* Type of contents *)
-    mutable loc: location;                (* Actual location *)
-    mutable spill: bool;                  (* "true" to force stack allocation  *)
-    mutable spill_cost: int; }            (* Estimate of spilling cost *)
+    mutable loc: location; }              (* Actual location *)
 
 and location =
     Unknown

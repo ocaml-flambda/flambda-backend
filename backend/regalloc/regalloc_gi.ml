@@ -134,16 +134,15 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     log "main, round #%d" round;
     log_cfg_with_infos cfg_with_infos);
   if debug then log "updating spilling costs";
-  update_spill_cost cfg_with_infos ~flat ();
+  let costs = SpillCosts.compute cfg_with_infos ~flat () in
   State.iter_introduced_temporaries state ~f:(fun (reg : Reg.t) ->
-      reg.Reg.spill_cost <- reg.Reg.spill_cost + 10_000);
+      SpillCosts.add_to_reg costs reg 10_000);
   if debug
   then (
     log "spilling costs";
     indent ();
-    List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
-        reg.Reg.spill <- false;
-        log "%a: %d" Printreg.reg reg reg.spill_cost);
+    SpillCosts.iter costs ~f:(fun (reg : Reg.t) (cost : int) ->
+        log "%a: %d" Printreg.reg reg cost);
     dedent ());
   let hardware_registers, prio_queue =
     make_hardware_registers_and_prio_queue cfg_with_infos
@@ -162,7 +161,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
       indent ();
       log "got register %a (prio=%d)" Printreg.reg reg priority);
     (match
-       Hardware_registers.find_available hardware_registers reg interval
+       Hardware_registers.find_available hardware_registers costs reg interval
      with
     | For_assignment { hardware_reg } ->
       if debug
@@ -211,7 +210,6 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     | Split_or_spill ->
       (* CR xclerc for xclerc: we should actually try to split. *)
       if debug then log "spilling %a" Printreg.reg reg;
-      reg.Reg.spill <- true;
       spilling := (reg, interval) :: !spilling);
     if debug then dedent ()
   done;
@@ -280,7 +278,6 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilled_nodes ->
-    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
     let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes in
