@@ -653,9 +653,10 @@ and binding_op =
     bop_loc : Location.t;
   }
 
+(* See Note [Type-checking applications] in Typecore *)
 and ('a, 'b) arg_or_omitted =
-  | Arg of 'a
-  | Omitted of 'b
+  | Arg of 'a (* an argument actually passed to a function *)
+  | Omitted of 'b (* an argument not passed due to partial application *)
 
 and omitted_parameter =
   { mode_closure : Mode.Alloc.r;
