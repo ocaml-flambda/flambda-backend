@@ -210,25 +210,34 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   RegisterStamp.PairSet.clear state.adj_set;
   Reg.Tbl.clear state.move_list
 
-let[@inline] work_list state reg = Reg.Tbl.find state.reg_work_list reg
+let[@inline] work_list state reg =
+  match Reg.Tbl.find_opt state.reg_work_list reg with
+  | None -> fatal "%a is not in the work_list map" Printreg.reg reg
+  | Some x -> x
 
 let[@inline] work_list_opt state reg = Reg.Tbl.find_opt state.reg_work_list reg
 
-let[@inline] color state reg = Reg.Tbl.find state.reg_color reg
+let[@inline] color state reg =
+  match Reg.Tbl.find_opt state.reg_color reg with
+  | None -> fatal "%a is not in the color map" Printreg.reg reg
+  | Some x -> x
 
 let[@inline] set_color state reg color =
   Reg.Tbl.replace state.reg_color reg color
 
-let[@inline] degree state reg = Reg.Tbl.find state.reg_degree reg
+let[@inline] degree state reg =
+  match Reg.Tbl.find_opt state.reg_degree reg with
+  | None -> fatal "%a is not in the degree map" Printreg.reg reg
+  | Some x -> x
 
 let[@inline] set_degree state reg degree =
   Reg.Tbl.replace state.reg_degree reg degree
 
 let[@inline] is_precolored state reg =
-  WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Precolored
+  WorkList.equal (work_list state reg) WorkList.Precolored
 
 let[@inline] is_precolored_or_colored state reg =
-  match Reg.Tbl.find state.reg_work_list reg with
+  match work_list state reg with
   | Precolored | Colored -> true
   | Unknown_list | Initial | Simplify | Freeze | Spill | Spilled | Coalesced
   | Select_stack ->
@@ -258,7 +267,7 @@ let[@inline] is_empty_freeze_work_list state =
   RegWorkList.is_empty state.freeze_work_list
 
 let[@inline] mem_freeze_work_list state reg =
-  WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Freeze
+  WorkList.equal (work_list state reg) WorkList.Freeze
 
 let[@inline] add_freeze_work_list state reg =
   Reg.Tbl.replace state.reg_work_list reg WorkList.Freeze;
@@ -279,7 +288,7 @@ let[@inline] is_empty_spill_work_list state =
   RegWorkList.is_empty state.spill_work_list
 
 let[@inline] mem_spill_work_list state reg =
-  WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Spill
+  WorkList.equal (work_list state reg) WorkList.Spill
 
 let[@inline] add_spill_work_list state reg =
   Reg.Tbl.replace state.reg_work_list reg WorkList.Spill;
@@ -405,7 +414,7 @@ let[@inline] add_edge state u v =
       Reg.Tbl.replace state.reg_interf x (y :: Reg.Tbl.find state.reg_interf x)
     in
     let incr_degree x =
-      let deg = Reg.Tbl.find state.reg_degree x in
+      let deg = degree state x in
       if debug && deg = Degree.infinite
       then fatal "trying to increment the degree of a precolored node";
       Reg.Tbl.replace state.reg_degree x (succ deg)
@@ -421,7 +430,7 @@ let[@inline] add_edge state u v =
 
 let[@inline] iter_adjacent state reg ~f =
   List.iter (adj_list state reg) ~f:(fun reg ->
-      match Reg.Tbl.find state.reg_work_list reg with
+      match work_list state reg with
       | Select_stack | Coalesced -> ()
       | Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
       | Spilled | Colored ->
@@ -429,7 +438,7 @@ let[@inline] iter_adjacent state reg ~f =
 
 let[@inline] for_all_adjacent state reg ~f =
   List.for_all (adj_list state reg) ~f:(fun reg ->
-      match Reg.Tbl.find state.reg_work_list reg with
+      match work_list state reg with
       | Select_stack | Coalesced -> true
       | Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
       | Spilled | Colored ->
@@ -482,7 +491,7 @@ let[@inline] enable_moves_one state reg =
       | Unknown_list | Coalesced | Constrained | Frozen | Work_list -> ())
 
 let[@inline] decr_degree state reg =
-  let d = Reg.Tbl.find state.reg_degree reg in
+  let d = degree state reg in
   if d = Degree.infinite
   then ()
   else (
@@ -520,7 +529,7 @@ let[@inline] union_move_list state reg set =
     Reg.Tbl.replace state.move_list reg (Instruction.Set.union existing set)
 
 let[@inline] rec find_alias state reg =
-  if WorkList.equal (Reg.Tbl.find state.reg_work_list reg) WorkList.Coalesced
+  if WorkList.equal (work_list state reg) WorkList.Coalesced
   then
     match Reg.Tbl.find state.reg_alias reg with
     | None -> fatal "register %a has no alias" Printreg.reg reg
@@ -587,14 +596,14 @@ let[@inline] check_disjoint sets ~is_disjoint =
             then fatal "sets %s and %s are not disjoint" name1 name2))
 
 let[@inline] check_set_and_field_consistency_reg state
-    (work_list, set, field_value) =
+    (worklist, set, field_value) =
   Reg.Set.iter
     (fun reg ->
-      if not (WorkList.equal (Reg.Tbl.find state.reg_work_list reg) field_value)
+      if not (WorkList.equal (work_list state reg) field_value)
       then
         fatal "register %a is in %s but its field equals %S" Printreg.reg reg
-          work_list
-          (WorkList.to_string (Reg.Tbl.find state.reg_work_list reg)))
+          worklist
+          (WorkList.to_string (work_list state reg)))
     set
 
 let[@inline] check_set_and_field_consistency_instr (work_list, set, field_value)
@@ -701,7 +710,7 @@ let[@inline] invariant state =
     in
     Reg.Set.iter
       (fun u ->
-        let degree = Reg.Tbl.find state.reg_degree u in
+        let degree = degree state u in
         if degree = Degree.infinite
         then fatal "invariant: infinite degree for %a" Printreg.reg u
         else
