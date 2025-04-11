@@ -65,7 +65,15 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params:params'
 
 let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
   let uenv = UA.uenv uacc in
-  let cont = AC.continuation apply_cont in
+  let cont, apply_cont =
+    let cont = AC.continuation apply_cont in
+    match
+      Continuation_callsite_map.find cont rewrite_id
+        (UA.specialization_map uacc)
+    with
+    | exception Not_found -> cont, apply_cont
+    | specialized -> specialized, AC.with_continuation apply_cont specialized
+  in
   let rewrite = UE.find_apply_cont_rewrite uenv cont in
   (* CR gbury: when rewriting aliases, we may lose some information that was in
      the kinds of the continuation being rewritten (e.g. is the continuation
