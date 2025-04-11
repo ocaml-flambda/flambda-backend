@@ -515,10 +515,10 @@ let femit_debug_info ?discriminator out dbg =
       femit_int out line;
       femit_char out '\t';
       femit_int out col;
-      femit_char out '\t';
       (match discriminator with
       | None -> ()
       | Some k ->
+        femit_char out '\t';
         femit_string out "discriminator ";
         femit_int out k);
       femit_char out '\n')
