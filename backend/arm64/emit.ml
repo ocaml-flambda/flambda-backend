@@ -395,7 +395,7 @@ end [@warning "-32"] = struct
   let ins name ops = print_ins name ops |> Emitaux.emit_string
 
   let labeled_ins lbl name ops =
-    Emitaux.emit_printf "%s:" (convert_label_representation lbl);
+    Emitaux.emit_printf "%s:\n" (convert_label_representation lbl);
     print_ins name ops |> Emitaux.emit_string
 
   let ins_cond name cond ops =
@@ -780,14 +780,14 @@ let emit_literals p align emit_literal =
   then (
     if macosx
     then
-      emit_printf "\t.section\t__TEXT,__literal%a,%abyte_literals\n" femit_int
+      emit_printf "\t.section __TEXT,__literal%a,%abyte_literals\n" femit_int
         align femit_int align;
     emit_printf "\t.balign\t%a\n" femit_int align;
     List.iter emit_literal !p;
     p := [])
 
 let emit_float_literal (f, lbl) =
-  emit_printf "%a:" femit_label lbl;
+  emit_printf "%a:\n" femit_label lbl;
   emit_float64_directive ".quad" f
 
 let emit_vec128_literal (({ high; low } : Cmm.vec128_bits), lbl) =
@@ -1932,7 +1932,7 @@ let emit_instr i =
          DSL.emit_shift LSL 2
       |];
     DSL.ins I.BR [| DSL.emit_reg reg_tmp1 |];
-    emit_printf "%a:" femit_label lbltbl;
+    emit_printf "%a:\n" femit_label lbltbl;
     for j = 0 to Array.length jumptbl - 1 do
       DSL.ins I.B [| DSL.emit_label jumptbl.(j) |]
     done
@@ -2001,7 +2001,7 @@ let emit_instr i =
     emit_addimm reg_tmp1 reg_tmp1 f;
     DSL.ins I.CMP [| DSL.sp; DSL.emit_reg reg_tmp1 |];
     DSL.ins (I.B_cond CC) [| DSL.emit_label overflow |];
-    emit_printf "%a:" femit_label ret;
+    emit_printf "%a:\n" femit_label ret;
     stack_realloc
       := Some
            { sc_label = overflow;
@@ -2099,7 +2099,7 @@ let emit_item (d : Cmm.data_item) =
 
 let data l =
   emit_printf "\t.data\n";
-  emit_printf "\t.align  3\n";
+  emit_printf "\t.align\t3\n";
   List.iter emit_item l
 
 let emit_line str = emit_string (str ^ "\n")
