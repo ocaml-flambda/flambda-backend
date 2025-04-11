@@ -22,7 +22,7 @@ let with_info =
   Compile_common.with_info ~native:false ~tool_name
 
 let interface ~source_file ~output_prefix =
-  with_info ~source_file ~output_prefix ~dump_ext:"cmi"
+  with_info ~source_file ~kind:Intf ~output_prefix ~dump_ext:"cmi"
     ~compilation_unit:Inferred_from_output_prefix
   @@ fun info ->
   Compile_common.interface
@@ -101,7 +101,8 @@ let starting_point_of_compiler_pass start_from =
 let implementation_aux ~start_from ~source_file ~output_prefix
     ~keep_symbol_tables:_
     ~(compilation_unit : Compile_common.compilation_unit_or_inferred) =
-  with_info ~source_file ~output_prefix ~dump_ext:"cmo" ~compilation_unit
+  with_info ~source_file ~kind:Impl ~output_prefix
+    ~dump_ext:"cmo" ~compilation_unit
   @@ fun info ->
   match start_from with
   | Parsing ->

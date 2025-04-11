@@ -355,7 +355,7 @@ let package_files ~ppf_dump initial_env files targetfile =
     CU.create (CU.Prefix.from_clflags ())
       (Unit_info.Artifact.modname target |> CU.Name.of_string)
   in
-  CU.set_current (Some comp_unit);
+  CU.set_current (Some (comp_unit, Impl));
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files (Unit_info.companion_cmi target)
