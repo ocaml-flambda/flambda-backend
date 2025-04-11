@@ -28,6 +28,7 @@ module Or_never_returns = Select_utils.Or_never_returns
 module SU = Select_utils
 module V = Backend_var
 module VP = Backend_var.With_provenance
+open SU.Or_never_returns.Syntax
 
 (* CR-soon gyorsh: This functor must not have state, because it is instantiated
    twice with the same [Target] (see [Asmgen] and [Peephole_utils] to avoid
@@ -538,22 +539,22 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
 
   and emit_tuple_not_flattened env sub_cfg exp_list =
     let rec emit_list = function
-      | [] -> []
+      | [] -> Or_never_returns.Ok []
       | exp :: rem -> (
         (* Again, force right-to-left evaluation *)
-        let loc_rem = emit_list rem in
+        let* loc_rem = emit_list rem in
         match emit_expr env sub_cfg exp ~bound_name:None with
-        | Never_returns ->
-          assert false (* should have been caught in emit_parts *)
-        | Ok loc_exp -> loc_exp :: loc_rem)
+        | Never_returns -> Never_returns
+        | Ok loc_exp -> Ok (loc_exp :: loc_rem))
     in
     emit_list exp_list
 
   and emit_tuple env sub_cfg exp_list =
-    Array.concat (emit_tuple_not_flattened env sub_cfg exp_list)
+    let* l = emit_tuple_not_flattened env sub_cfg exp_list in
+    Ok (Array.concat l)
 
   and emit_extcall_args env sub_cfg ty_args args dbg =
-    let args = emit_tuple_not_flattened env sub_cfg args in
+    let* args = emit_tuple_not_flattened env sub_cfg args in
     let ty_args =
       match ty_args with
       | [] -> List.map (fun _ -> Cmm.XInt) args
@@ -567,7 +568,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       (fun i arg ->
         insert_move_extcall_arg env sub_cfg ty_args.(i) arg locs.(i) dbg)
       args;
-    Array.concat (Array.to_list locs), stack_ofs
+    Ok (Array.concat (Array.to_list locs), stack_ofs)
 
   and emit_stores env sub_cfg dbg (args : Cmm.expression list) regs_addr =
     let addressing_mode =
@@ -716,14 +717,13 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Ctuple exp_list -> (
       match emit_parts_list env sub_cfg exp_list with
       | Never_returns -> Never_returns
-      | Ok (simple_list, ext_env) -> Ok (emit_tuple ext_env sub_cfg simple_list)
-      )
+      | Ok (simple_list, ext_env) -> emit_tuple ext_env sub_cfg simple_list)
     | Cop (Craise k, args, dbg) -> emit_expr_raise env sub_cfg k args dbg
     | Cop (Copaque, args, dbg) -> (
       match emit_parts_list env sub_cfg args with
       | Never_returns -> Never_returns
       | Ok (simple_args, env) ->
-        let rs = emit_tuple env sub_cfg simple_args in
+        let* rs = emit_tuple env sub_cfg simple_args in
         Ok (insert_op_debug env sub_cfg (SU.make_opaque ()) dbg rs rs))
     | Cop (Ctuple_field (field, fields_layout), [arg], _dbg) -> (
       match emit_expr env sub_cfg arg ~bound_name:None with
@@ -785,7 +785,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
 
   and emit_expr_raise (env : SU.environment) sub_cfg k
       (args : Cmm.expression list) dbg : _ Or_never_returns.t =
-    let r1 = emit_tuple env sub_cfg args in
+    let* r1 = emit_tuple env sub_cfg args in
     let extra_args_regs =
       match env.trap_stack with
       | Uncaught ->
@@ -834,7 +834,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       let new_op, new_args = select_operation op simple_args dbg ~label_after in
       match new_op with
       | Terminator (Call { op = Indirect; label_after } as term) ->
-        let r1 = emit_tuple env sub_cfg new_args in
+        let* r1 = emit_tuple env sub_cfg new_args in
         let rarg = Array.sub r1 1 (Array.length r1 - 1) in
         let rd = SU.regs_for ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
@@ -853,7 +853,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         SU.set_traps_for_raise env;
         Ok rd
       | Terminator (Call { op = Direct _; label_after } as term) ->
-        let r1 = emit_tuple env sub_cfg new_args in
+        let* r1 = emit_tuple env sub_cfg new_args in
         let rd = SU.regs_for ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
         let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
@@ -867,7 +867,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         Ok rd
       | Terminator
           (Prim { op = External ({ ty_args; ty_res; _ } as r); label_after }) ->
-        let loc_arg, stack_ofs =
+        let* loc_arg, stack_ofs =
           emit_extcall_args env sub_cfg ty_args new_args dbg
         in
         let rd = SU.regs_for ty_res in
@@ -884,14 +884,14 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         SU.set_traps_for_raise env;
         Ok rd
       | Terminator (Prim { op = Probe _; label_after } as term) ->
-        let r1 = emit_tuple env sub_cfg new_args in
+        let* r1 = emit_tuple env sub_cfg new_args in
         let rd = SU.regs_for ty in
         let rd = SU.insert_op_debug' env sub_cfg term dbg r1 rd in
         SU.set_traps_for_raise env;
         Sub_cfg.add_never_block sub_cfg ~label:label_after;
         Ok rd
       | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
-        let loc_arg, stack_ofs =
+        let* loc_arg, stack_ofs =
           emit_extcall_args env sub_cfg ty_args new_args dbg
         in
         let keep_for_checking =
@@ -940,7 +940,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           "Selection Alloc: expected a single placehold in dbginfo, found %d"
           (List.length dbginfo)
       | Basic (Op op) ->
-        let r1 = emit_tuple env sub_cfg new_args in
+        let* r1 = emit_tuple env sub_cfg new_args in
         let rd = SU.regs_for ty in
         add_naming_op_for_bound_name sub_cfg rd;
         Ok (insert_op_debug env sub_cfg op dbg r1 rd)
@@ -1102,7 +1102,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Ok (simple_list, ext_env) -> (
       match lbl with
       | Lbl nfail ->
-        let src = emit_tuple ext_env sub_cfg simple_list in
+        let* src = emit_tuple ext_env sub_cfg simple_list in
         let handler =
           try SU.env_find_static_exception nfail env
           with Not_found ->
@@ -1267,7 +1267,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       let new_op, new_args = select_operation op simple_args dbg ~label_after in
       match new_op with
       | Terminator (Call { op = Indirect; label_after } as term) ->
-        let r1 = emit_tuple env sub_cfg new_args in
+        let** r1 = emit_tuple env sub_cfg new_args in
         let rd = SU.regs_for ty in
         let rarg = Array.sub r1 1 (Array.length r1 - 1) in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
@@ -1290,7 +1290,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           SU.insert env sub_cfg (Op (Stackoffset (-stack_ofs))) [||] [||];
           insert_return env sub_cfg (Ok loc_res) (SU.pop_all_traps env))
       | Terminator (Call { op = Direct func; label_after } as term) ->
-        let r1 = emit_tuple env sub_cfg new_args in
+        let** r1 = emit_tuple env sub_cfg new_args in
         let rd = SU.regs_for ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
         let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
