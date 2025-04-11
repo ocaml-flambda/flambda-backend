@@ -23,6 +23,8 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
+open! Int_replace_polymorphic_compare
+
 (** Interface to be satisfied by target-specific code, for instruction
     selection. *)
 
