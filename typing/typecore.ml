@@ -568,14 +568,6 @@ let mode_tailcall_argument mode =
   { (mode_default mode) with
     locality_context = Some Tailcall_argument }
 
-let mode_partial_application expected_mode =
-  let expected_mode =
-    mode_morph (fun mode -> alloc_as_value (value_to_alloc_r2g mode))
-      expected_mode
-  in
-  { expected_mode with
-    locality_context = Some Partial_application }
-
 let mode_trywith expected_mode =
   { expected_mode with position = RNontail }
 
@@ -4029,13 +4021,13 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
-let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
+let type_omitted_parameters env loc ty_ret mode_ret args =
   let ty_ret, mode_ret, _, _, args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
          match arg with
          | Arg (exp, marg, sort) ->
-             let open_args = (exp, marg) :: open_args in
+             let open_args = value_to_alloc_r2l marg :: open_args in
              let args = (lbl, Arg (exp, sort)) :: args in
              (ty_ret, mode_ret, open_args, closed_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
@@ -4050,15 +4042,7 @@ let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
                newty2 ~level
                  (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
              in
-             let new_closed_args =
-               List.map
-                 (fun (exp, marg) ->
-                    submode ~loc:exp.exp_loc ~env ~reason:Other
-                      marg (mode_partial_application expected_mode);
-                    value_to_alloc_r2l marg)
-                 open_args
-             in
-             let closed_args = new_closed_args @ closed_args in
+             let closed_args = open_args @ closed_args in
              let open_args = [] in
              let mode_closed_args = List.map Alloc.close_over closed_args in
              let mode_partial_fun = Alloc.partial_apply mode_fun in
@@ -8232,8 +8216,7 @@ and type_application env app_loc expected_mode position_and_mode
               untyped_args
           in
           let ty_ret, mode_ret, args =
-            type_omitted_parameters expected_mode env app_loc ty_ret mode_ret
-              args
+            type_omitted_parameters env app_loc ty_ret mode_ret args
           in
           check_curried_application_complete ~env ~app_loc untyped_args;
           ty_ret, mode_ret, args, position_and_mode
@@ -10151,7 +10134,6 @@ let stack_hint (context : Env.locality_context option) =
     [ Location.msg
         "@[Hint: This expression cannot be stack-allocated,@ \
          because it is the result of a lazy expression.@]" ]
-  | Some Partial_application -> assert false
   | None -> []
 
 let escaping_hint (failure_reason : Value.error) submode_reason
@@ -10175,9 +10157,6 @@ let escaping_hint (failure_reason : Value.error) submode_reason
       [ Location.msg
           "@[Hint: This function cannot be local,@ \
            because it is the function in a tail call.@]" ]
-    | _, Partial_application ->
-      [ Location.msg
-          "@[Hint: It is captured by a partial application.@]" ]
     | _, Lazy ->
       [ Location.msg
           "@[Hint: It is the result of a lazy expression.@]" ]
