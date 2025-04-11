@@ -42,37 +42,16 @@ let precondition : Cfg_with_layout.t -> unit =
       : unit =
     ArrayLabels.iter regs ~f:(register_must_not_be_on_stack id)
   in
-  (* CR xclerc for xclerc: the check below should not be in this function, since
-     it is IRC-specific *)
-  let register_must_be_on_unknown_list (id : InstructionId.t) (reg : Reg.t) :
-      unit =
-    match reg.Reg.irc_work_list with
-    | Unknown_list -> ()
-    | Precolored -> ()
-    | Initial | Simplify | Freeze | Spill | Spilled | Coalesced | Colored
-    | Select_stack ->
-      fatal "instruction %a has a register (%a) already in a work list (%S)"
-        InstructionId.format id Printreg.reg reg
-        (Reg.string_of_irc_work_list reg.Reg.irc_work_list)
-  in
-  let register_must_be_on_unknown_list (id : InstructionId.t)
-      (regs : Reg.t array) : unit =
-    ArrayLabels.iter regs ~f:(register_must_be_on_unknown_list id)
-  in
   Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun instr ->
       let id = instr.id in
       desc_is_neither_spill_or_reload id instr.desc;
       registers_must_not_be_on_stack id instr.arg;
-      registers_must_not_be_on_stack id instr.res;
-      register_must_be_on_unknown_list id instr.arg;
-      register_must_be_on_unknown_list id instr.res)
+      registers_must_not_be_on_stack id instr.res)
     ~terminator:(fun term ->
       let id = term.id in
       registers_must_not_be_on_stack id term.arg;
-      registers_must_not_be_on_stack id term.res;
-      register_must_be_on_unknown_list id term.arg;
-      register_must_be_on_unknown_list id term.res);
+      registers_must_not_be_on_stack id term.res);
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in

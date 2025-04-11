@@ -11,6 +11,8 @@ module type State = sig
 end
 
 module type Utils = sig
+  type state
+
   val debug : bool
 
   val invariants : bool Lazy.t
@@ -28,10 +30,10 @@ module type Utils = sig
     unit
 
   (* Tests whether the passed register is marked as "spilled". *)
-  val is_spilled : Reg.t -> bool
+  val is_spilled : state -> Reg.t -> bool
 
   (* Sets the passed register as "spilled". *)
-  val set_spilled : Reg.t -> unit
+  val set_spilled : state -> Reg.t -> unit
 end
 
 (* This is the `rewrite` function from IRC, parametrized by state, functions for
@@ -46,7 +48,7 @@ end
    will be empty. *)
 val rewrite_gen :
   (module State with type t = 's) ->
-  (module Utils) ->
+  (module Utils with type state = 's) ->
   's ->
   Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->
