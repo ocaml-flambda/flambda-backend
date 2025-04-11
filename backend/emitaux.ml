@@ -122,7 +122,8 @@ let emit_bytes_directive directive s =
   done;
   if !pos > 0 then emit_char '\n'
 
-let emit_float64_directive directive x = emit_printf "\t%s\t0x%Lx\n" directive x
+let emit_float64_directive ?(comment = "") directive x =
+  emit_printf "\t%s\t0x%Lx%s\n" directive x comment
 
 let emit_float64_split_directive directive x =
   let lo = Int64.logand x 0xFFFF_FFFFL
@@ -131,7 +132,7 @@ let emit_float64_split_directive directive x =
     (if Arch.big_endian then hi else lo)
     (if Arch.big_endian then lo else hi)
 
-let emit_float32_directive directive x = emit_printf "\t%s\t0x%lx\n" directive x
+let emit_float32_directive ?(comment = "") directive x = emit_printf "\t%s\t0x%lx%s\n" directive x comment
 
 (* Record live pointers at call points *)
 
