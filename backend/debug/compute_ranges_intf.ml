@@ -25,6 +25,7 @@
     It is suggested that those unfamiliar with this module start by reading the
     documentation on module type [S], below. *)
 
+open! Int_replace_polymorphic_compare
 module L = Linear
 
 module type S_key = sig

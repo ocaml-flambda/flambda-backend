@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Asm_targets
 
 module Location_list_entry = struct
@@ -147,4 +148,5 @@ let compare_ascending_vma t1 t2 =
   | Base_address_selection_entry _, Location_list_entry _ -> -1
   | Location_list_entry _, Base_address_selection_entry _ -> 1
   | Location_list_entry entry1, Location_list_entry entry2 ->
-    compare entry1.beginning_address_label entry2.beginning_address_label
+    Asm_label.compare entry1.beginning_address_label
+      entry2.beginning_address_label

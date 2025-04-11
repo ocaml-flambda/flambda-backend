@@ -31,6 +31,7 @@ open! Operation
 open Linear
 open Emitaux
 module I = Arm64_ast.Instruction_name
+open! Int_replace_polymorphic_compare
 
 (* Tradeoff between code size and code speed *)
 

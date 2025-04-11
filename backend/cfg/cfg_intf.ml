@@ -29,6 +29,8 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 module S = struct
   type func_call_operation =
     | Indirect
