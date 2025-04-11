@@ -44,7 +44,7 @@ type 'a n_way_join_result = 'a Or_unknown.t * Join_env.t
 
 let map_join_result ~f (v, env) = Or_unknown.map ~f v, env
 
-let ( let>+ ) x f = map_join_result ~f x
+let ( let>>+ ) x f = map_join_result ~f x
 
 let add_equation (simple : Simple.t) ty_of_simple env ~meet_type :
     unit meet_result =
@@ -1698,7 +1698,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Value head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_value env ((id1, head1) :: heads)
             in
             ET.create_value head
@@ -1709,7 +1709,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Naked_immediate head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_naked_immediate env ((id1, head1) :: heads)
             in
             ET.create_naked_immediate head
@@ -1720,7 +1720,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Naked_float32 head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_naked_float32 env (head1, id1) heads
             in
             ET.create_naked_float32 head
@@ -1731,7 +1731,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Naked_float head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_naked_float env (head1, id1) heads
             in
             ET.create_naked_float head
@@ -1742,7 +1742,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Naked_int32 head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_naked_int32 env (head1, id1) heads
             in
             ET.create_naked_int32 head
@@ -1753,7 +1753,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Naked_int64 head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_naked_int64 env (head1, id1) heads
             in
             ET.create_naked_int64 head
@@ -1764,7 +1764,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Naked_nativeint head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_naked_nativeint env (head1, id1) heads
             in
             ET.create_naked_nativeint head
@@ -1775,7 +1775,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Naked_vec128 head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_naked_vec128 env (head1, id1) heads
             in
             ET.create_naked_vec128 head
@@ -1786,7 +1786,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Rec_info head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_rec_info env (head1, id1) heads
             in
             ET.create_rec_info head
@@ -1797,7 +1797,7 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
                   | Region head -> head | _ -> assert false)
                 expandeds
             in
-            let>+ head =
+            let>>+ head =
               n_way_join_head_of_kind_region env (head1, id1) heads
             in
             ET.create_region head
@@ -1885,7 +1885,7 @@ and n_way_join_head_of_kind_value_non_null env
               [first_id, extensions],
               is_unique )
         in
-        let>+ blocks, immediates, extensions =
+        let>>+ blocks, immediates, extensions =
           n_way_join_variant env ~blocks ~imms ~extensions
         in
         TG.Head_of_kind_value_non_null.create_variant ~is_unique ~blocks
@@ -1918,7 +1918,7 @@ and n_way_join_head_of_kind_value_non_null env
             other_heads
             ([first_id, n], alloc_mode)
         in
-        let>+ n = n_way_join env ns in
+        let>>+ n = n_way_join env ns in
         TG.Head_of_kind_value_non_null.create_boxed_float32 n alloc_mode
       | Boxed_float (n, alloc_mode) ->
         let ns, alloc_mode =
@@ -1934,7 +1934,7 @@ and n_way_join_head_of_kind_value_non_null env
             other_heads
             ([first_id, n], alloc_mode)
         in
-        let>+ n = n_way_join env ns in
+        let>>+ n = n_way_join env ns in
         TG.Head_of_kind_value_non_null.create_boxed_float n alloc_mode
       | Boxed_int32 (n, alloc_mode) ->
         let ns, alloc_mode =
@@ -1950,7 +1950,7 @@ and n_way_join_head_of_kind_value_non_null env
             other_heads
             ([first_id, n], alloc_mode)
         in
-        let>+ n = n_way_join env ns in
+        let>>+ n = n_way_join env ns in
         TG.Head_of_kind_value_non_null.create_boxed_int32 n alloc_mode
       | Boxed_int64 (n, alloc_mode) ->
         let ns, alloc_mode =
@@ -1966,7 +1966,7 @@ and n_way_join_head_of_kind_value_non_null env
             other_heads
             ([first_id, n], alloc_mode)
         in
-        let>+ n = n_way_join env ns in
+        let>>+ n = n_way_join env ns in
         TG.Head_of_kind_value_non_null.create_boxed_int64 n alloc_mode
       | Boxed_nativeint (n, alloc_mode) ->
         let ns, alloc_mode =
@@ -1982,7 +1982,7 @@ and n_way_join_head_of_kind_value_non_null env
             other_heads
             ([first_id, n], alloc_mode)
         in
-        let>+ n = n_way_join env ns in
+        let>>+ n = n_way_join env ns in
         TG.Head_of_kind_value_non_null.create_boxed_nativeint n alloc_mode
       | Boxed_vec128 (n, alloc_mode) ->
         let ns, alloc_mode =
@@ -1998,7 +1998,7 @@ and n_way_join_head_of_kind_value_non_null env
             other_heads
             ([first_id, n], alloc_mode)
         in
-        let>+ n = n_way_join env ns in
+        let>>+ n = n_way_join env ns in
         TG.Head_of_kind_value_non_null.create_boxed_vec128 n alloc_mode
       | Closures { by_function_slot; alloc_mode } ->
         let function_slots, alloc_mode =
@@ -2061,7 +2061,7 @@ and n_way_join_head_of_kind_value_non_null env
           n_way_join_array_contents env contents
             ~joined_element_kind:element_kind
         in
-        let>+ length = n_way_join env lengths in
+        let>>+ length = n_way_join env lengths in
         TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
           ~length contents alloc_mode
     with Unknown_result -> Unknown, env)
@@ -2183,13 +2183,13 @@ and n_way_join_head_of_kind_naked_immediate env
     | Bottom ->
       Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
   | _ :: _, [], [] when I.Set.is_empty immediates ->
-    let>+ ty = n_way_join env is_int in
+    let>>+ ty = n_way_join env is_int in
     TG.Head_of_kind_naked_immediate.create_is_int ty
   | [], _ :: _, [] when I.Set.is_empty immediates ->
-    let>+ ty = n_way_join env get_tag in
+    let>>+ ty = n_way_join env get_tag in
     TG.Head_of_kind_naked_immediate.create_get_tag ty
   | [], [], _ :: _ when I.Set.is_empty immediates ->
-    let>+ ty = n_way_join env is_null in
+    let>>+ ty = n_way_join env is_null in
     TG.Head_of_kind_naked_immediate.create_is_null ty
   (* From now on: Irregular cases *)
   (* CR vlaviron: There could be improvements based on reduction (trying to
