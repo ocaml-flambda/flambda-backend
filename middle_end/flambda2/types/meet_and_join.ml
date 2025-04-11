@@ -1807,17 +1807,14 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
         else
           match joined_element_kind with
           | Bottom | Unknown -> Unknown
-          | Ok _ -> (
-            let exception Unknown_result in
-            try
-              let fields =
-                Array.init (Array.length fields1) (fun idx ->
-                    match join env fields1.(idx) fields2.(idx) with
-                    | Unknown -> raise Unknown_result
-                    | Known ty -> ty)
-              in
-              Known (TG.Immutable { fields })
-            with Unknown_result -> Unknown)))
+          | Ok _ ->
+            let fields =
+              Array.init (Array.length fields1) (fun idx ->
+                  match join env fields1.(idx) fields2.(idx) with
+                  | Unknown -> MTC.unknown_like fields1.(idx)
+                  | Known ty -> ty)
+            in
+            Known (TG.Immutable { fields })))
     env array_contents1 array_contents2
 
 and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
