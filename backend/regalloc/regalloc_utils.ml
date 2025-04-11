@@ -414,6 +414,7 @@ module SpillCosts = struct
     let update_reg (cost : int) (reg : Reg.t) : unit =
       (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
       add_to_reg costs reg cost
+    in
     let update_array (cost : int) (regs : Reg.t array) : unit =
       Array.iter regs ~f:(fun reg -> update_reg cost reg)
     in
