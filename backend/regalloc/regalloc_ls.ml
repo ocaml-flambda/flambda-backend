@@ -110,7 +110,6 @@ let allocate_stack_slot : Reg.t -> spilling_reg =
  fun reg ->
   indent ();
   log "spilling register %a" Printreg.reg reg;
-  reg.spill <- true;
   dedent ();
   Spilling reg
 
@@ -119,9 +118,8 @@ exception No_free_register
 let allocate_free_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in
-  match reg.loc, reg.spill with
-  | Unknown, true -> allocate_stack_slot reg
-  | Unknown, _ -> (
+  match reg.loc with
+  | Unknown -> (
     let reg_class = Proc.register_class reg in
     let intervals = State.active state ~reg_class in
     let first_available = Proc.first_available_register.(reg_class) in
@@ -161,7 +159,6 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         else if available.(idx)
         then (
           reg.loc <- Reg (first_available + idx);
-          reg.spill <- false;
           Interval.DLL.insert_sorted intervals.active_dll interval;
           if debug
           then (
@@ -172,7 +169,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         else assign (succ idx)
       in
       assign 0)
-  | (Reg _ | Stack _), _ -> Not_spilling
+  | Reg _ | Stack _ -> Not_spilling
 
 let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
@@ -282,7 +279,6 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilled_nodes ->
-    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
     rewrite state cfg_with_infos ~spilled_nodes ~block_temporaries:false;
     Cfg_with_infos.invalidate_liveness cfg_with_infos);
   main ~round:1 state cfg_with_infos;

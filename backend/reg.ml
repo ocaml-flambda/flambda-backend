@@ -40,9 +40,7 @@ type t =
   { mutable raw_name: Raw_name.t;
     stamp: int;
     typ: Cmm.machtype_component;
-    mutable loc: location;
-    mutable spill: bool;
-    mutable spill_cost: int; }
+    mutable loc: location; }
 
 and location =
     Unknown
@@ -58,19 +56,14 @@ and stack_location =
 type reg = t
 
 let dummy =
-  { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
-    spill = false; spill_cost = 0;
-  }
+  { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown; }
 
 let currstamp = ref 0
 let reg_list = ref([] : t list)
 let hw_reg_list = ref ([] : t list)
 
 let create ty =
-  let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
-            loc = Unknown;
-            spill = false;
-            spill_cost = 0; } in
+  let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty; loc = Unknown; } in
   reg_list := r :: !reg_list;
   incr currstamp;
   r
@@ -93,9 +86,7 @@ let clone r =
   nr
 
 let at_location ty loc =
-  let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
-            spill = false; 
-            spill_cost = 0; } in
+  let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc; } in
   hw_reg_list := r :: !hw_reg_list;
   incr currstamp;
   r
@@ -121,11 +112,7 @@ let is_unknown t =
 let name t =
   match Raw_name.to_string t.raw_name with
   | None -> ""
-  | Some raw_name ->
-      if t.spill then
-        "spilled-" ^ raw_name
-      else
-        raw_name
+  | Some raw_name -> raw_name
 
 let first_virtual_reg_stamp = ref (-1)
 
@@ -155,11 +142,7 @@ let all_registers() = !reg_list
 let num_registers() = !currstamp
 
 let reinit_reg r =
-  r.loc <- Unknown;
-  (* Preserve the very high spill costs introduced by the reloading pass *)
-  if r.spill_cost >= 100000
-  then r.spill_cost <- 100000
-  else r.spill_cost <- 0
+  r.loc <- Unknown
 
 let reinit() =
   List.iter reinit_reg !reg_list
