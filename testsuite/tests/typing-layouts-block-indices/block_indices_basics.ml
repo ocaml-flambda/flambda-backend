@@ -143,13 +143,6 @@ let idx_iarray_l x = (.:l(x))
 let idx_iarray_n x = (.:n(x))
 let idx_imm x = (.idx_imm(x))
 let idx_mut x = (.idx_mut(x))
-
-type pt = { x : int ; y : int }
-
-let deepen (idx : ('a, pt)) =
-  (.idx_imm(idx).#y)
-
-
 [%%expect{|
 val idx_array : int -> ('a array, 'a) idx_mut = <fun>
 val idx_array_L : int64# -> ('a array, 'a) idx_mut = <fun>
@@ -159,34 +152,42 @@ val idx_iarray : int -> ('a iarray, 'a) idx_imm = <fun>
 val idx_iarray_L : int64# -> ('a iarray, 'a) idx_imm = <fun>
 val idx_iarray_l : int32# -> ('a iarray, 'a) idx_imm = <fun>
 val idx_iarray_n : nativeint# -> ('a iarray, 'a) idx_imm = <fun>
+val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
+val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
 |}]
 
 type r = { a : string }
-let a () = (.idx_array(5).#contents.#a)
+let a () = (.(5).#contents.#a)
 [%%expect{|
 type r = { a : string; }
 val a : unit -> (r# ref# array, string) idx_mut = <fun>
 |}]
 
 type t = { mutable a : string; b : int }
-let a () = (.idx_array(5).#a)
+let a () = (.(5).#a)
 [%%expect{|
 type t = { mutable a : string; b : int; }
 val a : unit -> (t# array, string) idx_mut = <fun>
 |}]
 
 type t1 = { mutable a : string; b : int }
-let b () = (.idx_iarray(5).#a)
+let b () = (.:(5).#a)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
 val b : unit -> (t1# iarray, string) idx_imm = <fun>
 |}]
 
-let bad_index_type = (.idx_array("test"))
+let bad_index_type = (.("test"))
 [%%expect{|
-Line 176, characters 33-39:
-176 | let bad_index_type = (.idx_array("test"))
-                                       ^^^^^^
+Line 178, characters 24-30:
+178 | let bad_index_type = (.("test"))
+                              ^^^^^^
+Error: This expression has type "string" but an expression was expected of type
+         "int"
+|}, Principal{|
+Line 189, characters 24-30:
+189 | let bad_index_type = (.("test"))
+                              ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
 |}]

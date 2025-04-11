@@ -3083,23 +3083,35 @@ comprehension_clause:
 block_access:
   | DOT mkrhs(label_longident)
     { Baccess_field $2 }
-  | DOT LIDENT _p=LPAREN i=seq_expr RPAREN
+  | DOT _p=LPAREN i=seq_expr RPAREN
+    { Baccess_array (Mutable, Index_int, i) }
+  | DOTOP _p=LPAREN i=seq_expr RPAREN
+    {
+      match $1 with
+      | ":" -> Baccess_array (Immutable, Index_int, i)
+      | _ -> raise Syntaxerr.(Error(Block_access_bad_paren(make_loc $loc(_p))))
+    }
+  | DOT ident _p=LPAREN i=seq_expr RPAREN
     {
       match $2 with
-      | "idx_array" -> Baccess_array (Mutable, Index_int, i)
-      | "idx_array_L" -> Baccess_array (Mutable, Index_unboxed_int64, i)
-      | "idx_array_l" -> Baccess_array (Mutable, Index_unboxed_int32, i)
-      | "idx_array_n" -> Baccess_array (Mutable, Index_unboxed_nativeint, i)
-      | "idx_iarray" -> Baccess_array (Immutable, Index_int, i)
-      | "idx_iarray_L" -> Baccess_array (Immutable, Index_unboxed_int64, i)
-      | "idx_iarray_l" -> Baccess_array (Immutable, Index_unboxed_int32, i)
-      | "idx_iarray_n" -> Baccess_array (Immutable, Index_unboxed_nativeint, i)
+      | "L" -> Baccess_array (Mutable, Index_unboxed_int64, i)
+      | "l" -> Baccess_array (Mutable, Index_unboxed_int32, i)
+      | "n" -> Baccess_array (Mutable, Index_unboxed_nativeint, i)
       | "idx_imm" -> Baccess_block (Immutable, i)
       | "idx_mut" -> Baccess_block (Mutable, i)
       | _ ->
         raise Syntaxerr.(Error(Block_access_bad_paren(make_loc $loc(_p))))
     }
-  | DOT LIDENT _p=LPAREN seq_expr _e=error
+  | DOTOP ident _p=LPAREN i=seq_expr RPAREN
+    {
+      match $1, $2 with
+      | ":", "L" -> Baccess_array (Immutable, Index_unboxed_int64, i)
+      | ":", "l" -> Baccess_array (Immutable, Index_unboxed_int32, i)
+      | ":", "n" -> Baccess_array (Immutable, Index_unboxed_nativeint, i)
+      | _ ->
+        raise Syntaxerr.(Error(Block_access_bad_paren(make_loc $loc(_p))))
+    }
+  | DOT ident _p=LPAREN seq_expr _e=error
     { indexop_unclosed_error $loc(_p) Paren $loc(_e) }
 ;
 

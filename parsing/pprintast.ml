@@ -2192,18 +2192,18 @@ and block_access ctxt f = function
   | Baccess_field li ->
     pp f ".%a" longident_loc li
   | Baccess_array (mut, index_kind, index) ->
-    let ty =
+    let dotop =
       match mut with
-      | Mutable -> "array"
-      | Immutable -> "iarray"
+      | Mutable -> "."
+      | Immutable -> ".:"
     in
     let suffix = match index_kind with
       | Index_int -> ""
-      | Index_unboxed_int64 -> "_L"
-      | Index_unboxed_int32 -> "_l"
-      | Index_unboxed_nativeint -> "_n"
+      | Index_unboxed_int64 -> "L"
+      | Index_unboxed_int32 -> "l"
+      | Index_unboxed_nativeint -> "n"
     in
-    pp f ".idx_%s%s(%a)" ty suffix (expression ctxt) index
+    pp f "%s%s(%a)" dotop suffix (expression ctxt) index
   | Baccess_block (mut, index) ->
     let s =
       match mut with
