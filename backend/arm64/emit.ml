@@ -782,7 +782,7 @@ let emit_literals p align emit_literal =
     then
       emit_printf "\t.section __TEXT,__literal%a,%abyte_literals\n" femit_int
         align femit_int align;
-    emit_printf "\t.balign\t%a\n" femit_int align;
+    emit_printf "\t.align\t%a\n" femit_int (Misc.log2 align);
     List.iter emit_literal !p;
     p := [])
 
@@ -2093,7 +2093,7 @@ let emit_item (d : Cmm.data_item) =
   | Csymbol_address s -> emit_printf "\t.quad\t%a\n" femit_symbol s.sym_name
   | Csymbol_offset (s, o) ->
     emit_printf "\t.quad\t%a+%a\n" femit_symbol s.sym_name femit_int o
-  | Cstring s -> emit_string_directive "\t.ascii  " s
+  | Cstring s -> emit_string_directive "\t.ascii\t" s
   | Cskip n -> if n > 0 then emit_printf "\t.space\t%a\n" femit_int n
   | Calign n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n)
 
@@ -2269,9 +2269,9 @@ let end_assembly () =
         (fun n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n));
       efa_label_rel =
         (fun lbl ofs ->
-          emit_printf "\t.long\t%a - . + %a\n" femit_label lbl femit_int32 ofs);
+          emit_printf "\t.long\t(%a + 0x%lx) - .\n" femit_label lbl ofs);
       efa_def_label = (fun lbl -> emit_printf "%a:\n" femit_label lbl);
-      efa_string = (fun s -> emit_string_directive "\t.asciz\t" s)
+      efa_string = (fun s -> emit_string_directive "\t.ascii\t" (s ^ "\000"))
     };
   emit_symbol_type femit_symbol lbl "object";
   emit_symbol_size lbl;
