@@ -289,8 +289,7 @@ let select_store ~is_assign addr (exp : Cmm.expression) :
   | Cifthenelse (_, _, _, _, _, _)
   | Cswitch (_, _, _, _)
   | Ccatch (_, _, _)
-  | Cexit (_, _, _)
-  | Ctrywith (_, _, _, _, _, _) ->
+  | Cexit (_, _, _) ->
     Use_default
 
 let is_store_out_of_range _chunk ~byte_offset:_ :

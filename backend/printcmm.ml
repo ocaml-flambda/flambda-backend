@@ -26,9 +26,10 @@ open Location_tracker_formatter
 let with_location_mapping ?label ~dbg ppf f =
   with_location_mapping ?label ~loc:(Debuginfo.to_location dbg) ppf f
 
-let rec_flag ppf = function
-  | Nonrecursive -> ()
+let ccatch_flag ppf = function
+  | Normal -> ()
   | Recursive -> fprintf ppf " rec"
+  | Exn_handler -> fprintf ppf " exn"
 
 let machtype_component ppf (ty : machtype_component) =
   match ty with
@@ -395,20 +396,13 @@ let rec expr ppf = function
       in
       fprintf ppf
         "@[<2>(catch%a@ %a@;<1 -2>with%a)@]"
-        rec_flag flag
+        ccatch_flag flag
         sequence e1
         print_handlers handlers
   | Cexit (i, el, traps) ->
       fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, exn_cont, id, extra_args, e2, dbg) ->
-      fprintf ppf "@[<2>(try@ %a@;<1 -2>with(%d)@ %a@ "
-            sequence e1 exn_cont
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space VP.print)
-            (id :: (List.map fst extra_args));
-      with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
-            fprintf ppf "%a)@]" sequence e2);
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2

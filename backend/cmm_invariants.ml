@@ -152,7 +152,7 @@ let rec check env (expr : Cmm.expression) =
   | Cswitch (body, _, branches, _) ->
     check env body;
     Array.iter (fun (expr, _) -> check env expr) branches
-  | Ccatch (rec_flag, handlers, body) ->
+  | Ccatch (flag, handlers, body) ->
     let env_extended =
       List.fold_left
         (fun env (cont, args, _, _, _) ->
@@ -162,20 +162,13 @@ let rec check env (expr : Cmm.expression) =
     in
     check env_extended body;
     let env_handler =
-      match rec_flag with
+      match flag with
       | Recursive -> env_extended
-      | Nonrecursive -> env
+      | Normal | Exn_handler -> env
     in
     List.iter (fun (_, _, handler, _, _) -> check env_handler handler) handlers
   | Cexit (exit_label, args, _trap_actions) ->
     Env.jump env ~exit_label ~arg_num:(List.length args)
-  | Ctrywith (body, _trywith_kind, _, _, handler, _) ->
-    (* Jumping from inside a trywith body to outside isn't very nice,
-       but it's handled correctly by Linearize, as it happens
-       when compiling match ... with exception ..., for instance, so it is
-       not reported as an error. *)
-    check env body;
-    check env handler
 
 let run ppf (fundecl : Cmm.fundecl) =
   let env = Env.init () in
