@@ -2319,7 +2319,7 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tlink _ | Tsubst _ -> assert false
   | Tvariant row ->
      if tvariant_not_immediate row
-     then Jkind.Builtin.value ~why:Polymorphic_variant
+     then Jkind.for_boxed_row row
      else Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
   | Tunivar { jkind } -> Jkind.disallow_right jkind
   | Tpoly (ty, _) ->
