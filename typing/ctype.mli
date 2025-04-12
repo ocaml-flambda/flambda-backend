@@ -609,7 +609,7 @@ val estimate_type_jkind : Env.t ->  type_expr -> jkind_l
 
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)
-val type_jkind : ?unbound_type_vars:type_expr list -> Env.t -> type_expr -> jkind_l
+val type_jkind : Env.t -> type_expr -> jkind_l
 
 (* Get the jkind of a type, dropping any changes to types caused by
    expansion. *)

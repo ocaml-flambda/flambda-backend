@@ -1056,7 +1056,18 @@ module Layout_and_axes = struct
                 Not_best [@nontail]
             | Skip -> loop ctl bounds_so_far relevant_axes bs (* skip [b] *)
             | Continue ctl_after_unpacking_b -> begin
-                let jkind = jkind_of_type ty in
+                let jkind = begin
+                  Btype.TypeSet.iter (fun ty ->
+                    Btype.mark_type (Transient_expr.type_expr ty)
+                  ) unbound_type_vars;
+                  Misc.try_finally
+                    ~always:(fun () ->
+                      Btype.TypeSet.iter (fun ty ->
+                        Btype.unmark_type (Transient_expr.type_expr ty)
+                      ) unbound_type_vars
+                    )
+                    (fun () -> jkind_of_type ty)
+                end in
                 match jkind with
                 | Some b_jkind ->
                   found_jkind_for_ty ctl_after_unpacking_b
