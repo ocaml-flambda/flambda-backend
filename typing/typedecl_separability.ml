@@ -149,6 +149,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
       immediate_subtypes_object_row [] ty
   | Tlink _ | Tsubst _ -> assert false (* impossible due to Ctype.repr *)
   | Tvar _ | Tunivar _ -> []
+  | Tof_kind _ -> []
   | Tpoly (pty, _) -> [pty]
   | Tconstr (_path, tys, _) -> tys
 
@@ -407,7 +408,9 @@ let check_type
     | (Tvariant(_)        , Sep    )
     | (Tobject(_,_)       , Sep    )
     | ((Tnil | Tfield _)  , Sep    )
-    | (Tpackage(_,_)      , Sep    ) -> empty
+    | (Tpackage(_,_)      , Sep    )
+    (* CR aspsmith: ?? *)
+    | (Tof_kind(_)      , Sep    ) -> empty
     (* "Deeply separable" case for these same constructors. *)
     | (Tarrow _           , Deepsep)
     | (Ttuple _           , Deepsep)
@@ -443,6 +446,7 @@ let check_type
     | (Tpoly(pty,_)       , m      ) ->
         check_type hyps pty m
     | (Tunivar(_)         , _      ) -> empty
+    | (Tof_kind(_)         , _      ) -> empty
     (* Type constructor case. *)
     | (Tconstr(path,tys,_), m      ) ->
         let msig = (Env.find_type path env).type_separability in
