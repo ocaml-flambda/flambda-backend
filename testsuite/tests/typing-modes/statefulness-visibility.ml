@@ -446,7 +446,7 @@ let foo (f : (unit -> unit) @ stateful portable) @ stateless = fun () -> f ()
 Line 1, characters 73-74:
 1 | let foo (f : (unit -> unit) @ stateful portable) @ stateless = fun () -> f ()
                                                                              ^
-Error: The value "f" is stateful, so cannot be used inside a function that may not capture state.
+Error: The value "f" is stateful, so cannot be used inside a function that is stateless.
 |}]
 
 (* The error for [portable] is displayed first. *)
@@ -459,14 +459,12 @@ Line 1, characters 64-65:
 Error: The value "f" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
-(* CR modes: fix the error message. *)
-
 let foo (f : (unit -> unit) @ observing portable) @ stateless = fun () -> f ()
 [%%expect{|
 Line 1, characters 74-75:
 1 | let foo (f : (unit -> unit) @ observing portable) @ stateless = fun () -> f ()
                                                                               ^
-Error: The value "f" is stateful, so cannot be used inside a function that may not capture state.
+Error: The value "f" is observing, so cannot be used inside a function that is stateless.
 |}]
 
 (* Closing over use of read gives observing *)
@@ -504,14 +502,12 @@ let foo (f : (unit -> unit) @ observing) @ stateful = fun () -> f ()
 val foo : (unit -> unit) @ observing -> unit -> unit = <fun>
 |}]
 
-(* CR modes: fix the error message. *)
-
 let foo (f : (unit -> unit) @ stateful) @ observing = fun () -> f ()
 [%%expect{|
 Line 1, characters 64-65:
 1 | let foo (f : (unit -> unit) @ stateful) @ observing = fun () -> f ()
                                                                     ^
-Error: The value "f" is stateful, so cannot be used inside a function that may not capture state.
+Error: The value "f" is stateful, so cannot be used inside a function that is observing.
 |}]
 
 (* Testing defaulting  *)
