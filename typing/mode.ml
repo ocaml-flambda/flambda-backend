@@ -403,9 +403,112 @@ module Lattices = struct
     end)
   end
 
+  module Statefulness = struct
+    type t =
+      | Stateless
+      | Observing
+      | Stateful
+
+    include Total (struct
+      type nonrec t = t
+
+      let min = Stateless
+
+      let max = Stateful
+
+      let legacy = Stateful
+
+      let[@inline] le a b =
+        match a, b with
+        | Stateless, _ | _, Stateful -> true
+        | _, Stateless | Stateful, _ -> false
+        | Observing, Observing -> true
+
+      let[@inline] equal a b =
+        match a, b with
+        | Stateless, Stateless -> true
+        | Observing, Observing -> true
+        | Stateful, Stateful -> true
+        | Stateless, (Observing | Stateful)
+        | Observing, (Stateless | Stateful)
+        | Stateful, (Stateless | Observing) ->
+          false
+
+      let join a b =
+        match a, b with
+        | Stateful, _ | _, Stateful -> Stateful
+        | Observing, _ | _, Observing -> Observing
+        | Stateless, Stateless -> Stateless
+
+      let meet a b =
+        match a, b with
+        | Stateless, _ | _, Stateless -> Stateless
+        | Observing, _ | _, Observing -> Observing
+        | Stateful, Stateful -> Stateful
+
+      let print ppf = function
+        | Stateless -> Format.fprintf ppf "stateless"
+        | Observing -> Format.fprintf ppf "observing"
+        | Stateful -> Format.fprintf ppf "stateful"
+    end)
+  end
+
+  module Visibility = struct
+    type t =
+      | Immutable
+      | Read
+      | Read_write
+
+    include Total (struct
+      type nonrec t = t
+
+      let min = Read_write
+
+      let max = Immutable
+
+      let legacy = Read_write
+
+      let[@inline] le a b =
+        match a, b with
+        | Read_write, _ | _, Immutable -> true
+        | _, Read_write | Immutable, _ -> false
+        | Read, Read -> true
+
+      let[@inline] equal a b =
+        match a, b with
+        | Immutable, Immutable -> true
+        | Read, Read -> true
+        | Read_write, Read_write -> true
+        | Immutable, (Read | Read_write)
+        | Read, (Immutable | Read_write)
+        | Read_write, (Immutable | Read) ->
+          false
+
+      let join a b =
+        match a, b with
+        | Immutable, _ | _, Immutable -> Immutable
+        | Read, _ | _, Read -> Read
+        | Read_write, Read_write -> Read_write
+
+      let meet a b =
+        match a, b with
+        | Read_write, _ | _, Read_write -> Read_write
+        | Read, _ | _, Read -> Read
+        | Immutable, Immutable -> Immutable
+
+      let print ppf = function
+        | Immutable -> Format.fprintf ppf "immutable"
+        | Read -> Format.fprintf ppf "read"
+        | Read_write -> Format.fprintf ppf "read_write"
+    end)
+  end
+
+  module Visibility_op = Opposite (Visibility)
+
   type monadic =
     { uniqueness : Uniqueness.t;
-      contention : Contention.t
+      contention : Contention.t;
+      visibility : Visibility.t
     }
 
   module Monadic = struct
@@ -414,60 +517,90 @@ module Lattices = struct
     let min =
       let uniqueness = Uniqueness.min in
       let contention = Contention.min in
-      { uniqueness; contention }
+      let visibility = Visibility.min in
+      { uniqueness; contention; visibility }
 
     let max =
       let uniqueness = Uniqueness.max in
       let contention = Contention.max in
-      { uniqueness; contention }
+      let visibility = Visibility.max in
+      { uniqueness; contention; visibility }
 
     let legacy =
       let uniqueness = Uniqueness.legacy in
       let contention = Contention.legacy in
-      { uniqueness; contention }
+      let visibility = Visibility.legacy in
+      { uniqueness; contention; visibility }
 
     let le m1 m2 =
-      let { uniqueness = uniqueness1; contention = contention1 } = m1 in
-      let { uniqueness = uniqueness2; contention = contention2 } = m2 in
+      let { uniqueness = uniqueness1;
+            contention = contention1;
+            visibility = visibility1
+          } =
+        m1
+      in
+      let { uniqueness = uniqueness2;
+            contention = contention2;
+            visibility = visibility2
+          } =
+        m2
+      in
       Uniqueness.le uniqueness1 uniqueness2
       && Contention.le contention1 contention2
+      && Visibility.le visibility1 visibility2
 
     let equal m1 m2 =
-      let { uniqueness = uniqueness1; contention = contention1 } = m1 in
-      let { uniqueness = uniqueness2; contention = contention2 } = m2 in
+      let { uniqueness = uniqueness1;
+            contention = contention1;
+            visibility = visibility1
+          } =
+        m1
+      in
+      let { uniqueness = uniqueness2;
+            contention = contention2;
+            visibility = visibility2
+          } =
+        m2
+      in
       Uniqueness.equal uniqueness1 uniqueness2
       && Contention.equal contention1 contention2
+      && Visibility.equal visibility1 visibility2
 
     let join m1 m2 =
       let uniqueness = Uniqueness.join m1.uniqueness m2.uniqueness in
       let contention = Contention.join m1.contention m2.contention in
-      { uniqueness; contention }
+      let visibility = Visibility.join m1.visibility m2.visibility in
+      { uniqueness; contention; visibility }
 
     let meet m1 m2 =
       let uniqueness = Uniqueness.meet m1.uniqueness m2.uniqueness in
       let contention = Contention.meet m1.contention m2.contention in
-      { uniqueness; contention }
+      let visibility = Visibility.meet m1.visibility m2.visibility in
+      { uniqueness; contention; visibility }
 
     let imply m1 m2 =
       let uniqueness = Uniqueness.imply m1.uniqueness m2.uniqueness in
       let contention = Contention.imply m1.contention m2.contention in
-      { uniqueness; contention }
+      let visibility = Visibility.imply m1.visibility m2.visibility in
+      { uniqueness; contention; visibility }
 
     let subtract m1 m2 =
       let uniqueness = Uniqueness.subtract m1.uniqueness m2.uniqueness in
       let contention = Contention.subtract m1.contention m2.contention in
-      { uniqueness; contention }
+      let visibility = Visibility.subtract m1.visibility m2.visibility in
+      { uniqueness; contention; visibility }
 
     let print ppf m =
-      Format.fprintf ppf "%a,%a" Uniqueness.print m.uniqueness Contention.print
-        m.contention
+      Format.fprintf ppf "%a,%a,%a" Uniqueness.print m.uniqueness
+        Contention.print m.contention Visibility.print m.visibility
   end
 
   type 'areality comonadic_with =
     { areality : 'areality;
       linearity : Linearity.t;
       portability : Portability.t;
-      yielding : Yielding.t
+      yielding : Yielding.t;
+      statefulness : Statefulness.t
     }
 
   module Comonadic_with (Areality : Areality) = struct
@@ -478,34 +611,39 @@ module Lattices = struct
       let linearity = Linearity.min in
       let portability = Portability.min in
       let yielding = Yielding.min in
-      { areality; linearity; portability; yielding }
+      let statefulness = Statefulness.min in
+      { areality; linearity; portability; yielding; statefulness }
 
     let max =
       let areality = Areality.max in
       let linearity = Linearity.max in
       let portability = Portability.max in
       let yielding = Yielding.max in
-      { areality; linearity; portability; yielding }
+      let statefulness = Statefulness.max in
+      { areality; linearity; portability; yielding; statefulness }
 
     let legacy =
       let areality = Areality.legacy in
       let linearity = Linearity.legacy in
       let portability = Portability.legacy in
       let yielding = Yielding.legacy in
-      { areality; linearity; portability; yielding }
+      let statefulness = Statefulness.legacy in
+      { areality; linearity; portability; yielding; statefulness }
 
     let le m1 m2 =
       let { areality = areality1;
             linearity = linearity1;
             portability = portability1;
-            yielding = yielding1
+            yielding = yielding1;
+            statefulness = statefulness1
           } =
         m1
       in
       let { areality = areality2;
             linearity = linearity2;
             portability = portability2;
-            yielding = yielding2
+            yielding = yielding2;
+            statefulness = statefulness2
           } =
         m2
       in
@@ -513,19 +651,22 @@ module Lattices = struct
       && Linearity.le linearity1 linearity2
       && Portability.le portability1 portability2
       && Yielding.le yielding1 yielding2
+      && Statefulness.le statefulness1 statefulness2
 
     let equal m1 m2 =
       let { areality = areality1;
             linearity = linearity1;
             portability = portability1;
-            yielding = yielding1
+            yielding = yielding1;
+            statefulness = statefulness1
           } =
         m1
       in
       let { areality = areality2;
             linearity = linearity2;
             portability = portability2;
-            yielding = yielding2
+            yielding = yielding2;
+            statefulness = statefulness2
           } =
         m2
       in
@@ -533,38 +674,46 @@ module Lattices = struct
       && Linearity.equal linearity1 linearity2
       && Portability.equal portability1 portability2
       && Yielding.equal yielding1 yielding2
+      && Statefulness.equal statefulness1 statefulness2
 
     let join m1 m2 =
       let areality = Areality.join m1.areality m2.areality in
       let linearity = Linearity.join m1.linearity m2.linearity in
       let portability = Portability.join m1.portability m2.portability in
       let yielding = Yielding.join m1.yielding m2.yielding in
-      { areality; linearity; portability; yielding }
+      let statefulness = Statefulness.join m1.statefulness m2.statefulness in
+      { areality; linearity; portability; yielding; statefulness }
 
     let meet m1 m2 =
       let areality = Areality.meet m1.areality m2.areality in
       let linearity = Linearity.meet m1.linearity m2.linearity in
       let portability = Portability.meet m1.portability m2.portability in
       let yielding = Yielding.meet m1.yielding m2.yielding in
-      { areality; linearity; portability; yielding }
+      let statefulness = Statefulness.meet m1.statefulness m2.statefulness in
+      { areality; linearity; portability; yielding; statefulness }
 
     let imply m1 m2 =
       let areality = Areality.imply m1.areality m2.areality in
       let linearity = Linearity.imply m1.linearity m2.linearity in
       let portability = Portability.imply m1.portability m2.portability in
       let yielding = Yielding.imply m1.yielding m2.yielding in
-      { areality; linearity; portability; yielding }
+      let statefulness = Statefulness.imply m1.statefulness m2.statefulness in
+      { areality; linearity; portability; yielding; statefulness }
 
     let subtract m1 m2 =
       let areality = Areality.subtract m1.areality m2.areality in
       let linearity = Linearity.subtract m1.linearity m2.linearity in
       let portability = Portability.subtract m1.portability m2.portability in
       let yielding = Yielding.subtract m1.yielding m2.yielding in
-      { areality; linearity; portability; yielding }
+      let statefulness =
+        Statefulness.subtract m1.statefulness m2.statefulness
+      in
+      { areality; linearity; portability; yielding; statefulness }
 
     let print ppf m =
-      Format.fprintf ppf "%a,%a,%a,%a" Areality.print m.areality Linearity.print
-        m.linearity Portability.print m.portability Yielding.print m.yielding
+      Format.fprintf ppf "%a,%a,%a,%a,%a" Areality.print m.areality
+        Linearity.print m.linearity Portability.print m.portability
+        Yielding.print m.yielding Statefulness.print m.statefulness
   end
   [@@inline]
 
@@ -584,7 +733,9 @@ module Lattices = struct
     | Linearity : Linearity.t obj
     | Portability : Portability.t obj
     | Yielding : Yielding.t obj
+    | Statefulness : Statefulness.t obj
     | Contention_op : Contention_op.t obj
+    | Visibility_op : Visibility_op.t obj
     | Monadic_op : Monadic_op.t obj
     | Comonadic_with_regionality : Comonadic_with_regionality.t obj
     | Comonadic_with_locality : Comonadic_with_locality.t obj
@@ -597,7 +748,9 @@ module Lattices = struct
     | Linearity -> Format.fprintf ppf "Linearity"
     | Portability -> Format.fprintf ppf "Portability"
     | Yielding -> Format.fprintf ppf "Yielding"
+    | Statefulness -> Format.fprintf ppf "Statefulness"
     | Contention_op -> Format.fprintf ppf "Contention_op"
+    | Visibility_op -> Format.fprintf ppf "Visibility_op"
     | Monadic_op -> Format.fprintf ppf "Monadic_op"
     | Comonadic_with_locality -> Format.fprintf ppf "Comonadic_with_locality"
     | Comonadic_with_regionality ->
@@ -608,7 +761,9 @@ module Lattices = struct
     | Regionality -> Regionality.min
     | Uniqueness_op -> Uniqueness_op.min
     | Contention_op -> Contention_op.min
+    | Visibility_op -> Visibility_op.min
     | Yielding -> Yielding.min
+    | Statefulness -> Statefulness.min
     | Linearity -> Linearity.min
     | Portability -> Portability.min
     | Monadic_op -> Monadic_op.min
@@ -620,9 +775,11 @@ module Lattices = struct
     | Regionality -> Regionality.max
     | Uniqueness_op -> Uniqueness_op.max
     | Contention_op -> Contention_op.max
+    | Visibility_op -> Visibility_op.max
     | Linearity -> Linearity.max
     | Portability -> Portability.max
     | Yielding -> Yielding.max
+    | Statefulness -> Statefulness.max
     | Monadic_op -> Monadic_op.max
     | Comonadic_with_locality -> Comonadic_with_locality.max
     | Comonadic_with_regionality -> Comonadic_with_regionality.max
@@ -634,9 +791,11 @@ module Lattices = struct
     | Regionality -> Regionality.le a b
     | Uniqueness_op -> Uniqueness_op.le a b
     | Contention_op -> Contention_op.le a b
+    | Visibility_op -> Visibility_op.le a b
     | Linearity -> Linearity.le a b
     | Portability -> Portability.le a b
     | Yielding -> Yielding.le a b
+    | Statefulness -> Statefulness.le a b
     | Monadic_op -> Monadic_op.le a b
     | Comonadic_with_locality -> Comonadic_with_locality.le a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.le a b
@@ -648,9 +807,11 @@ module Lattices = struct
     | Regionality -> Regionality.join a b
     | Uniqueness_op -> Uniqueness_op.join a b
     | Contention_op -> Contention_op.join a b
+    | Visibility_op -> Visibility_op.join a b
     | Linearity -> Linearity.join a b
     | Portability -> Portability.join a b
     | Yielding -> Yielding.join a b
+    | Statefulness -> Statefulness.join a b
     | Monadic_op -> Monadic_op.join a b
     | Comonadic_with_locality -> Comonadic_with_locality.join a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.join a b
@@ -662,9 +823,11 @@ module Lattices = struct
     | Regionality -> Regionality.meet a b
     | Uniqueness_op -> Uniqueness_op.meet a b
     | Contention_op -> Contention_op.meet a b
+    | Visibility_op -> Visibility_op.meet a b
     | Linearity -> Linearity.meet a b
     | Portability -> Portability.meet a b
     | Yielding -> Yielding.meet a b
+    | Statefulness -> Statefulness.meet a b
     | Monadic_op -> Monadic_op.meet a b
     | Comonadic_with_locality -> Comonadic_with_locality.meet a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.meet a b
@@ -676,9 +839,11 @@ module Lattices = struct
     | Regionality -> Regionality.imply a b
     | Uniqueness_op -> Uniqueness_op.imply a b
     | Contention_op -> Contention_op.imply a b
+    | Visibility_op -> Visibility_op.imply a b
     | Linearity -> Linearity.imply a b
     | Portability -> Portability.imply a b
     | Yielding -> Yielding.imply a b
+    | Statefulness -> Statefulness.imply a b
     | Comonadic_with_locality -> Comonadic_with_locality.imply a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.imply a b
     | Monadic_op -> Monadic_op.imply a b
@@ -690,9 +855,11 @@ module Lattices = struct
     | Regionality -> Regionality.subtract a b
     | Uniqueness_op -> Uniqueness_op.subtract a b
     | Contention_op -> Contention_op.subtract a b
+    | Visibility_op -> Visibility_op.subtract a b
     | Linearity -> Linearity.subtract a b
     | Portability -> Portability.subtract a b
     | Yielding -> Yielding.subtract a b
+    | Statefulness -> Statefulness.subtract a b
     | Comonadic_with_locality -> Comonadic_with_locality.subtract a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.subtract a b
     | Monadic_op -> Monadic_op.subtract a b
@@ -703,9 +870,11 @@ module Lattices = struct
     | Regionality -> Regionality.print
     | Uniqueness_op -> Uniqueness_op.print
     | Contention_op -> Contention_op.print
+    | Visibility_op -> Visibility_op.print
     | Linearity -> Linearity.print
     | Portability -> Portability.print
     | Yielding -> Yielding.print
+    | Statefulness -> Statefulness.print
     | Monadic_op -> Monadic_op.print
     | Comonadic_with_locality -> Comonadic_with_locality.print
     | Comonadic_with_regionality -> Comonadic_with_regionality.print
@@ -720,15 +889,17 @@ module Lattices = struct
       | Regionality, Regionality -> Some Refl
       | Uniqueness_op, Uniqueness_op -> Some Refl
       | Contention_op, Contention_op -> Some Refl
+      | Visibility_op, Visibility_op -> Some Refl
       | Linearity, Linearity -> Some Refl
       | Portability, Portability -> Some Refl
       | Yielding, Yielding -> Some Refl
+      | Statefulness, Statefulness -> Some Refl
       | Monadic_op, Monadic_op -> Some Refl
       | Comonadic_with_locality, Comonadic_with_locality -> Some Refl
       | Comonadic_with_regionality, Comonadic_with_regionality -> Some Refl
-      | ( ( Locality | Regionality | Uniqueness_op | Contention_op | Linearity
-          | Portability | Yielding | Monadic_op | Comonadic_with_locality
-          | Comonadic_with_regionality ),
+      | ( ( Locality | Regionality | Uniqueness_op | Contention_op
+          | Visibility_op | Linearity | Portability | Yielding | Statefulness
+          | Monadic_op | Comonadic_with_locality | Comonadic_with_regionality ),
           _ ) ->
         None
   end)
@@ -745,8 +916,10 @@ module Lattices_mono = struct
       | Linearity : ('areality comonadic_with, Linearity.t) t
       | Portability : ('areality comonadic_with, Portability.t) t
       | Yielding : ('areality comonadic_with, Yielding.t) t
+      | Statefulness : ('areality comonadic_with, Statefulness.t) t
       | Uniqueness : (Monadic_op.t, Uniqueness_op.t) t
       | Contention : (Monadic_op.t, Contention_op.t) t
+      | Visibility : (Monadic_op.t, Visibility_op.t) t
 
     let print : type p r. _ -> (p, r) t -> unit =
      fun ppf -> function
@@ -756,6 +929,8 @@ module Lattices_mono = struct
       | Uniqueness -> Format.fprintf ppf "uniqueness"
       | Contention -> Format.fprintf ppf "contention"
       | Yielding -> Format.fprintf ppf "yielding"
+      | Statefulness -> Format.fprintf ppf "statefulness"
+      | Visibility -> Format.fprintf ppf "visibility"
 
     let eq : type p r0 r1. (p, r0) t -> (p, r1) t -> (r0, r1) Misc.eq option =
      fun ax0 ax1 ->
@@ -766,8 +941,10 @@ module Lattices_mono = struct
       | Uniqueness, Uniqueness -> Some Refl
       | Contention, Contention -> Some Refl
       | Yielding, Yielding -> Some Refl
+      | Statefulness, Statefulness -> Some Refl
+      | Visibility, Visibility -> Some Refl
       | ( ( Areality | Linearity | Uniqueness | Portability | Contention
-          | Yielding ),
+          | Yielding | Statefulness | Visibility ),
           _ ) ->
         None
 
@@ -778,8 +955,10 @@ module Lattices_mono = struct
       | Linearity -> t.linearity
       | Portability -> t.portability
       | Yielding -> t.yielding
+      | Statefulness -> t.statefulness
       | Uniqueness -> t.uniqueness
       | Contention -> t.contention
+      | Visibility -> t.visibility
 
     let update : type p r. (p, r) t -> r -> p -> p =
      fun ax r t ->
@@ -788,8 +967,10 @@ module Lattices_mono = struct
       | Linearity -> { t with linearity = r }
       | Portability -> { t with portability = r }
       | Yielding -> { t with yielding = r }
+      | Statefulness -> { t with statefulness = r }
       | Uniqueness -> { t with uniqueness = r }
       | Contention -> { t with contention = r }
+      | Visibility -> { t with visibility = r }
   end
 
   type ('a, 'b, 'd) morph =
@@ -955,8 +1136,11 @@ module Lattices_mono = struct
     | Portability, Comonadic_with_regionality -> Portability
     | Yielding, Comonadic_with_locality -> Yielding
     | Yielding, Comonadic_with_regionality -> Yielding
+    | Statefulness, Comonadic_with_locality -> Statefulness
+    | Statefulness, Comonadic_with_regionality -> Statefulness
     | Uniqueness, Monadic_op -> Uniqueness_op
     | Contention, Monadic_op -> Contention_op
+    | Visibility, Monadic_op -> Visibility_op
 
   let comonadic_with_obj : type a. a obj -> a comonadic_with obj =
    fun a0 ->
@@ -964,7 +1148,8 @@ module Lattices_mono = struct
     | Locality -> Comonadic_with_locality
     | Regionality -> Comonadic_with_regionality
     | Uniqueness_op | Linearity | Monadic_op | Comonadic_with_regionality
-    | Comonadic_with_locality | Contention_op | Portability | Yielding ->
+    | Comonadic_with_locality | Contention_op | Visibility_op | Portability
+    | Yielding | Statefulness ->
       assert false
 
   let rec src : type a b d. b obj -> (a, b, d) morph -> a obj =
@@ -1121,6 +1306,16 @@ module Lattices_mono = struct
     | Locality.Local -> Regionality.Local
     | Locality.Global -> Regionality.Regional
 
+  let statefulness_to_visibility = function
+    | Statefulness.Stateless -> Visibility.Immutable
+    | Statefulness.Observing -> Visibility.Read
+    | Statefulness.Stateful -> Visibility.Read_write
+
+  let visibility_to_statefulness = function
+    | Visibility.Immutable -> Statefulness.Stateless
+    | Visibility.Read -> Statefulness.Observing
+    | Visibility.Read_write -> Statefulness.Stateful
+
   let min_with dst ax a = Axis.update ax a (min dst)
 
   let max_with dst ax a = Axis.update ax a (max dst)
@@ -1136,14 +1331,16 @@ module Lattices_mono = struct
     let linearity = unique_to_linear m.uniqueness in
     let portability = contended_to_portable m.contention in
     let yielding = Yielding.min in
-    { areality; linearity; portability; yielding }
+    let statefulness = visibility_to_statefulness m.visibility in
+    { areality; linearity; portability; yielding; statefulness }
 
   let comonadic_to_monadic :
       type a. a comonadic_with obj -> a comonadic_with -> Monadic_op.t =
    fun _ m ->
     let uniqueness = linear_to_unique m.linearity in
     let contention = portable_to_contended m.portability in
-    { uniqueness; contention }
+    let visibility = statefulness_to_visibility m.statefulness in
+    { uniqueness; contention; visibility }
 
   let monadic_to_comonadic_max :
       type a. a comonadic_with obj -> Monadic_op.t -> a comonadic_with =
@@ -1156,7 +1353,8 @@ module Lattices_mono = struct
     let linearity = unique_to_linear m.uniqueness in
     let portability = contended_to_portable m.contention in
     let yielding = Yielding.max in
-    { areality; linearity; portability; yielding }
+    let statefulness = visibility_to_statefulness m.visibility in
+    { areality; linearity; portability; yielding; statefulness }
 
   let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
    fun dst f a ->
@@ -1246,7 +1444,8 @@ module Lattices_mono = struct
       | Areality -> Some (compose dst f (Proj (src', Areality)))
       | Linearity -> Some (Proj (src', Linearity))
       | Portability -> Some (Proj (src', Portability))
-      | Yielding -> Some (Proj (src', Yielding)))
+      | Yielding -> Some (Proj (src', Yielding))
+      | Statefulness -> Some (Proj (src', Statefulness)))
     | Proj _, Monadic_to_comonadic_min -> None
     | Proj _, Monadic_to_comonadic_max -> None
     | Proj _, Comonadic_to_monadic _ -> None
@@ -1419,14 +1618,16 @@ module S = Solvers_polarized (C)
 
 type monadic = C.monadic =
   { uniqueness : C.Uniqueness.t;
-    contention : C.Contention.t
+    contention : C.Contention.t;
+    visibility : C.Visibility.t
   }
 
 type 'a comonadic_with = 'a C.comonadic_with =
   { areality : 'a;
     linearity : C.Linearity.t;
     portability : C.Portability.t;
-    yielding : C.Yielding.t
+    yielding : C.Yielding.t;
+    statefulness : C.Statefulness.t
   }
 
 module Axis = C.Axis
@@ -1640,6 +1841,56 @@ module Linearity = struct
   let zap_to_legacy = zap_to_floor
 end
 
+module Statefulness = struct
+  module Const = C.Statefulness
+
+  module Obj = struct
+    type const = Const.t
+
+    module Solver = S.Positive
+
+    let obj = C.Statefulness
+  end
+
+  include Common (Obj)
+
+  let stateless = of_const Stateless
+
+  let observing = of_const Observing
+
+  let stateful = of_const Stateful
+
+  let legacy = of_const Const.legacy
+
+  let zap_to_legacy = zap_to_ceil
+end
+
+module Visibility = struct
+  module Const = C.Visibility
+  module Const_op = C.Visibility_op
+
+  module Obj = struct
+    type const = Const.t
+
+    (* the negation of Visibility_op gives us the proper visibility *)
+    module Solver = S.Negative
+
+    let obj = C.Visibility_op
+  end
+
+  include Common (Obj)
+
+  let immutable = of_const Immutable
+
+  let read = of_const Read
+
+  let read_write = of_const Read_write
+
+  let legacy = of_const Const.legacy
+
+  let zap_to_legacy = zap_to_floor
+end
+
 module Portability = struct
   module Const = C.Portability
 
@@ -1655,7 +1906,10 @@ module Portability = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_ceil
+  let zap_to_legacy ~statefulness =
+    match statefulness with
+    | Statefulness.Const.Stateful | Statefulness.Const.Observing -> zap_to_ceil
+    | Statefulness.Const.Stateless -> zap_to_floor
 end
 
 module Uniqueness = struct
@@ -1699,7 +1953,11 @@ module Contention = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_floor
+  (* CR dkalinichenko: ideally, [read] should zap to [shared]. *)
+  let zap_to_legacy ~visibility =
+    match visibility with
+    | Visibility.Const.Read_write | Visibility.Const.Read -> zap_to_floor
+    | Visibility.Const.Immutable -> zap_to_ceil
 end
 
 module Yielding = struct
@@ -1791,6 +2049,7 @@ module Comonadic_with (Areality : Areality) = struct
       | Linearity -> (module Linearity.Const)
       | Portability -> (module Portability.Const)
       | Yielding -> (module Yielding.Const)
+      | Statefulness -> (module Statefulness.Const)
   end
 
   let proj ax m = Obj.Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
@@ -1812,10 +2071,13 @@ module Comonadic_with (Areality : Areality) = struct
   let zap_to_legacy m : Const.t =
     let areality = proj Areality m |> Areality.zap_to_legacy in
     let linearity = proj Linearity m |> Linearity.zap_to_legacy in
-    let portability = proj Portability m |> Portability.zap_to_legacy in
+    let statefulness = proj Statefulness m |> Statefulness.zap_to_legacy in
+    let portability =
+      proj Portability m |> Portability.zap_to_legacy ~statefulness
+    in
     let global = Areality.Const.(equal areality legacy) in
     let yielding = proj Yielding m |> Yielding.zap_to_legacy ~global in
-    { areality; linearity; portability; yielding }
+    { areality; linearity; portability; yielding; statefulness }
 
   let imply c m =
     Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_left m)
@@ -1830,13 +2092,15 @@ module Comonadic_with (Areality : Areality) = struct
             { areality = areality1;
               linearity = linearity1;
               portability = portability1;
-              yielding = yielding1
+              yielding = yielding1;
+              statefulness = statefulness1
             };
           right =
             { areality = areality2;
               linearity = linearity2;
               portability = portability2;
-              yielding = yielding2
+              yielding = yielding2;
+              statefulness = statefulness2
             }
         } =
       err
@@ -1848,7 +2112,15 @@ module Comonadic_with (Areality : Areality) = struct
         if Portability.Const.le portability1 portability2
         then
           if Yielding.Const.le yielding1 yielding2
-          then assert false
+          then
+            if Statefulness.Const.le statefulness1 statefulness2
+            then assert false
+            else
+              Error
+                ( Statefulness,
+                  { left = err.left.statefulness;
+                    right = err.right.statefulness
+                  } )
           else
             Error
               ( Yielding,
@@ -1920,6 +2192,7 @@ module Monadic = struct
       match axis with
       | Uniqueness -> (module Uniqueness.Const_op)
       | Contention -> (module Contention.Const_op)
+      | Visibility -> (module Visibility.Const_op)
   end
 
   module Const_op = C.Monadic_op
@@ -1952,21 +2225,38 @@ module Monadic = struct
 
   let zap_to_legacy m : Const.t =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
-    let contention = proj Contention m |> Contention.zap_to_legacy in
-    { uniqueness; contention }
+    let visibility = proj Visibility m |> Visibility.zap_to_legacy in
+    let contention =
+      proj Contention m |> Contention.zap_to_legacy ~visibility
+    in
+    { uniqueness; contention; visibility }
 
   let legacy = of_const Const.legacy
 
   let axis_of_error (err : Obj.const Solver.error) : error =
-    let { left = { uniqueness = uniqueness1; contention = contention1 };
-          right = { uniqueness = uniqueness2; contention = contention2 }
+    let { left =
+            { uniqueness = uniqueness1;
+              contention = contention1;
+              visibility = visibility1
+            };
+          right =
+            { uniqueness = uniqueness2;
+              contention = contention2;
+              visibility = visibility2
+            }
         } =
       err
     in
     if Uniqueness.Const.le uniqueness1 uniqueness2
     then
       if Contention.Const.le contention1 contention2
-      then assert false
+      then
+        if Visibility.Const.le visibility1 visibility2
+        then assert false
+        else
+          Error
+            ( Visibility,
+              { left = err.left.visibility; right = err.right.visibility } )
       else
         Error
           ( Contention,
@@ -2031,35 +2321,56 @@ module Value_with (Areality : Areality) = struct
       P (Monadic Uniqueness);
       P (Comonadic Linearity);
       P (Monadic Contention);
-      P (Comonadic Portability) ]
+      P (Comonadic Portability);
+      P (Comonadic Statefulness);
+      P (Monadic Visibility) ]
 
   let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
     | Comonadic ax -> Comonadic.proj_obj ax
 
-  type ('a, 'b, 'c, 'd, 'e, 'f) modes =
+  type ('a, 'b, 'c, 'd, 'e, 'f, 'g, 'h) modes =
     { areality : 'a;
       linearity : 'b;
       uniqueness : 'c;
       portability : 'd;
       contention : 'e;
-      yielding : 'f
+      yielding : 'f;
+      statefulness : 'g;
+      visibility : 'h
     }
 
   let split
-      { areality; linearity; portability; yielding; uniqueness; contention } =
-    let monadic : Monadic.Const.t = { uniqueness; contention } in
+      { areality;
+        linearity;
+        portability;
+        yielding;
+        statefulness;
+        uniqueness;
+        contention;
+        visibility
+      } =
+    let monadic : Monadic.Const.t = { uniqueness; contention; visibility } in
     let comonadic : Comonadic.Const.t =
-      { areality; linearity; portability; yielding }
+      { areality; linearity; portability; yielding; statefulness }
     in
     { comonadic; monadic }
 
   let merge { comonadic; monadic } =
-    let ({ areality; linearity; portability; yielding } : Comonadic.Const.t) =
+    let ({ areality; linearity; portability; yielding; statefulness }
+          : Comonadic.Const.t) =
       comonadic
     in
-    let ({ uniqueness; contention } : Monadic.Const.t) = monadic in
-    { areality; linearity; portability; yielding; uniqueness; contention }
+    let ({ uniqueness; contention; visibility } : Monadic.Const.t) = monadic in
+    { areality;
+      linearity;
+      portability;
+      yielding;
+      statefulness;
+      uniqueness;
+      contention;
+      visibility
+    }
 
   let print ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a;%a"
@@ -2084,7 +2395,9 @@ module Value_with (Areality : Areality) = struct
         Uniqueness.Const.t,
         Portability.Const.t,
         Contention.Const.t,
-        Yielding.Const.t )
+        Yielding.Const.t,
+        Statefulness.Const.t,
+        Visibility.Const.t )
       modes
 
     let min = merge { comonadic = Comonadic.min; monadic = Monadic.min }
@@ -2132,7 +2445,9 @@ module Value_with (Areality : Areality) = struct
           Uniqueness.Const.t option,
           Portability.Const.t option,
           Contention.Const.t option,
-          Yielding.Const.t option )
+          Yielding.Const.t option,
+          Statefulness.Const.t option,
+          Visibility.Const.t option )
         modes
 
       let none =
@@ -2141,7 +2456,9 @@ module Value_with (Areality : Areality) = struct
           linearity = None;
           portability = None;
           contention = None;
-          yielding = None
+          yielding = None;
+          statefulness = None;
+          visibility = None
         }
 
       let value opt ~default =
@@ -2157,16 +2474,37 @@ module Value_with (Areality : Areality) = struct
           Option.value opt.contention ~default:default.contention
         in
         let yielding = Option.value opt.yielding ~default:default.yielding in
-        { areality; uniqueness; linearity; portability; contention; yielding }
+        let statefulness =
+          Option.value opt.statefulness ~default:default.statefulness
+        in
+        let visibility =
+          Option.value opt.visibility ~default:default.visibility
+        in
+        { areality;
+          uniqueness;
+          linearity;
+          portability;
+          contention;
+          yielding;
+          statefulness;
+          visibility
+        }
 
       let print ppf
-          { areality; uniqueness; linearity; portability; contention; yielding }
-          =
+          { areality;
+            uniqueness;
+            linearity;
+            portability;
+            contention;
+            yielding;
+            statefulness;
+            visibility
+          } =
         let option_print print ppf = function
           | None -> Format.fprintf ppf "None"
           | Some a -> Format.fprintf ppf "Some %a" print a
         in
-        Format.fprintf ppf "%a,%a,%a,%a,%a,%a"
+        Format.fprintf ppf "%a,%a,%a,%a,%a,%a,%a,%a"
           (option_print Areality.Const.print)
           areality
           (option_print Linearity.Const.print)
@@ -2179,6 +2517,10 @@ module Value_with (Areality : Areality) = struct
           contention
           (option_print Yielding.Const.print)
           yielding
+          (option_print Statefulness.Const.print)
+          statefulness
+          (option_print Visibility.Const.print)
+          visibility
     end
 
     let diff m0 m1 =
@@ -2191,7 +2533,19 @@ module Value_with (Areality : Areality) = struct
       in
       let contention = diff Contention.Const.le m0.contention m1.contention in
       let yielding = diff Yielding.Const.le m0.yielding m1.yielding in
-      { areality; linearity; uniqueness; portability; contention; yielding }
+      let statefulness =
+        diff Statefulness.Const.le m0.statefulness m1.statefulness
+      in
+      let visibility = diff Visibility.Const.le m0.visibility m1.visibility in
+      { areality;
+        linearity;
+        uniqueness;
+        portability;
+        contention;
+        yielding;
+        statefulness;
+        visibility
+      }
 
     (** See [Alloc.close_over] for explanation. *)
     let close_over m =
@@ -2501,10 +2855,26 @@ module Alloc = Value_with (Locality)
 
 module Const = struct
   let alloc_as_value
-      ({ areality; linearity; portability; uniqueness; contention; yielding } :
+      ({ areality;
+         linearity;
+         portability;
+         uniqueness;
+         contention;
+         yielding;
+         statefulness;
+         visibility
+       } :
         Alloc.Const.t) : Value.Const.t =
     let areality = C.locality_as_regionality areality in
-    { areality; linearity; portability; uniqueness; contention; yielding }
+    { areality;
+      linearity;
+      portability;
+      uniqueness;
+      contention;
+      yielding;
+      statefulness;
+      visibility
+    }
 
   module Axis = struct
     let alloc_as_value : type d. d Alloc.axis_packed -> d Value.axis_packed =
@@ -2513,8 +2883,10 @@ module Const = struct
       | P (Comonadic Linearity) -> P (Comonadic Linearity)
       | P (Comonadic Portability) -> P (Comonadic Portability)
       | P (Comonadic Yielding) -> P (Comonadic Yielding)
+      | P (Comonadic Statefulness) -> P (Comonadic Statefulness)
       | P (Monadic Uniqueness) -> P (Monadic Uniqueness)
       | P (Monadic Contention) -> P (Monadic Contention)
+      | P (Monadic Visibility) -> P (Monadic Visibility)
   end
 
   let locality_as_regionality = C.locality_as_regionality
@@ -2627,6 +2999,8 @@ module Modality = struct
           [ (let ax : _ Axis.t = Uniqueness in
              Atom (Monadic ax, Join_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Contention in
+             Atom (Monadic ax, Join_with (Axis.proj ax c)));
+            (let ax : _ Axis.t = Visibility in
              Atom (Monadic ax, Join_with (Axis.proj ax c))) ]
 
       let proj ax = function
@@ -2786,6 +3160,8 @@ module Modality = struct
             (let ax : _ Axis.t = Portability in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Yielding in
+             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
+            (let ax : _ Axis.t = Statefulness in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
       let proj ax = function

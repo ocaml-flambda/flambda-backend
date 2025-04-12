@@ -67,6 +67,7 @@ Error: The kind of type "'a F(Ref).t" is mutable_data
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended with 'a
+         visibility: mod read_write ≰ mod immutable with 'a
 |}]
 
 module Ref = struct
@@ -86,6 +87,7 @@ Error: The kind of type "'a F(Ref).t" is mutable_data
 
        The first mode-crosses less than the second along:
          portability: mod portable with 'a ≰ mod portable
+         statefulness: mod stateless with 'a ≰ mod stateless
 |}]
 
 module F (M : sig

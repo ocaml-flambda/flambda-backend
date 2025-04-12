@@ -140,6 +140,8 @@ Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended
          portability: mod portable with 'a ≰ mod portable
+         statefulness: mod stateless with 'a ≰ mod stateless
+         visibility: mod read_write ≰ mod immutable
 |}]
 
 type t : immutable_data = Foo | Bar of int ref
@@ -158,7 +160,7 @@ type t : immutable_data = Foo of (unit -> unit)
 Line 1, characters 0-47:
 1 | type t : immutable_data = Foo of (unit -> unit)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod immutable
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -191,7 +193,7 @@ type t : mutable_data = Foo of { x : unit -> unit }
 Line 1, characters 0-51:
 1 | type t : mutable_data = Foo of { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod immutable
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
@@ -279,6 +281,7 @@ Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended with 'a
+         visibility: mod read_write ≰ mod immutable with 'a
 |}]
 
 type 'a t : immutable_data with 'a = Foo of { x : 'a -> 'a }
@@ -286,7 +289,7 @@ type 'a t : immutable_data with 'a = Foo of { x : 'a -> 'a }
 Line 1, characters 0-60:
 1 | type 'a t : immutable_data with 'a = Foo of { x : 'a -> 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod immutable
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immutable_data with 'a
          because of the annotation on the declaration of the type t.
@@ -625,7 +628,7 @@ Line 1, characters 24-28:
                             ^^^^
 Error: This expression has type "(unit -> unit) t"
        but an expression was expected of type "('a : value mod portable)"
-       The kind of (unit -> unit) t is value mod contended
+       The kind of (unit -> unit) t is value mod immutable
          because of the definition of t at line 1, characters 0-21.
        But the kind of (unit -> unit) t must be a subkind of
          value mod portable
@@ -650,7 +653,7 @@ Line 1, characters 24-28:
                             ^^^^
 Error: This expression has type "(unit -> unit) t"
        but an expression was expected of type "('a : value mod external_)"
-       The kind of (unit -> unit) t is value mod contended
+       The kind of (unit -> unit) t is value mod immutable
          because of the definition of t at line 1, characters 0-21.
        But the kind of (unit -> unit) t must be a subkind of
          value mod external_
@@ -745,7 +748,7 @@ Line 1, characters 14-30:
                   ^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) t" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) t is value mod contended
+       The kind of (unit -> unit) t is value mod immutable
          because of the definition of t at line 1, characters 0-21.
        But the kind of (unit -> unit) t must be a subkind of
          value mod portable
