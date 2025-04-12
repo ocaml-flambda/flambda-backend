@@ -191,6 +191,18 @@ Error: The kind of type "u" is value
          because of the annotation on the declaration of the type u.
 |}]
 
+type (_, _) t : immediate = K : 'a -> ('a, 'a) t
+[%%expect{|
+Line 1, characters 0-48:
+1 | type (_, _) t : immediate = K : 'a -> ('a, 'a) t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is immutable_data with _
+         because it's a boxed variant type.
+       But the kind of type "t" must be a subkind of immediate
+         because of the annotation on the declaration of the type t.
+|}]
+(* CR aspsmith: lol *)
+
 type ('x, 'y) t : immutable_data with 'x with 'y =
   | T : 'a -> ('a, 'a) t
   | U : 'c -> ('b,  'c) t
