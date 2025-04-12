@@ -2031,6 +2031,16 @@ let rec update_decl_jkind env dpath decl =
                        |> Seq.map Types.Transient_expr.type_expr
                        |> List.of_seq
                      in
+                     let canonical_types =
+                       List.map
+                         (fun ty ->
+                            Btype.newgenty
+                              (Tcanonical
+                                 (Ctype.type_jkind env ty
+                                  |> Jkind.round_up ~jkind_of_type:(fun ty ->
+                                    Some (Ctype.type_jkind env ty)))))
+                       existentials
+                     in
                      (match Types.get_desc res with
                       | Tconstr (_, args, _) ->
                         List.fold_left2
@@ -2041,7 +2051,7 @@ let rec update_decl_jkind env dpath decl =
                                | Tvar _, Tvar _ ->
                                  (param :: params, arg :: ret_args, Btype.TypeSet.add arg seen)
                                | _ -> (params, ret_args, seen)  )
-                          (existentials @ params, existentials @ ret_args, seen)
+                          (canonical_types @ params, existentials @ ret_args, seen)
                           args
                           decl.type_params
                       | _ -> Misc.fatal_error "cd_res must be Tconstr")

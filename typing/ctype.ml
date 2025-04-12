@@ -1297,7 +1297,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
                   Tsubst (ty, None) -> ty
                   (* TODO: is this case possible?
                      possibly an interaction with (copy more) below? *)
-                | Tconstr _ | Tnil ->
+                | Tconstr _ | Tnil | Tcanonical _ ->
                     copy more
                 | Tvar _ | Tunivar _ ->
                     if keep then more else newty mored
@@ -2103,7 +2103,7 @@ let rec extract_concrete_typedecl env ty =
       end
   | Tpoly(ty, _) -> extract_concrete_typedecl env ty
   | Tarrow _ | Ttuple _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
-  | Tvariant _ | Tpackage _ -> Has_no_typedecl
+  | Tvariant _ | Tpackage _ | Tcanonical _ -> Has_no_typedecl
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
@@ -2217,7 +2217,7 @@ let contained_without_boxing env ty =
     List.map snd labeled_tys
   | Tpoly (ty, _) -> [ty]
   | Tvar _ | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil | Tlink _
-  | Tsubst _ | Tvariant _ | Tunivar _ | Tpackage _ -> []
+  | Tsubst _ | Tvariant _ | Tunivar _ | Tpackage _ | Tcanonical _ -> []
 
 (* We use ty_prev to track the last type for which we found a definition,
    allowing us to return a type for which a definition was found even if
@@ -2271,7 +2271,7 @@ let type_jkind_purely_if_principal' =
    don't. *)
 let rec estimate_type_jkind ~expand_component env ty =
   match get_desc ty with
-  | Tvar { jkind } -> Jkind.disallow_right jkind
+  | Tvar { jkind } | Tcanonical jkind -> Jkind.disallow_right jkind
   | Tarrow _ -> Jkind.for_arrow
   | Ttuple elts -> Jkind.for_boxed_tuple elts
   | Tunboxed_tuple ltys ->
@@ -6319,6 +6319,9 @@ let rec build_subtype env (visited : transient_expr list)
       else (t, Unchanged)
   | Tunivar _ | Tpackage _ ->
       (t, Unchanged)
+  | Tcanonical _ ->
+    (* CR aspsmith: Do we need to do something here? *)
+    (t, Unchanged)
 
 and build_subtype_tuple env visited loops posi level t labeled_tlist
       constructor =

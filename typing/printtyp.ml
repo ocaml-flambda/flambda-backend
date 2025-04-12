@@ -721,6 +721,8 @@ and raw_type_desc ppf = function
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
+  | Tcanonical jkind ->
+    fprintf ppf "of_kind_@,%a" Jkind.format jkind
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
@@ -1572,6 +1574,8 @@ let rec tree_of_typexp mode alloc_mode ty =
               tree_of_typexp mode Alloc.Const.legacy ty
             )) fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
+    | Tcanonical jkind ->
+      Otyp_canonical (out_jkind_of_desc (Jkind.get jkind))
   in
   if List.memq px !delayed then delayed := List.filter ((!=) px) !delayed;
   alias_nongen_row mode px ty;

@@ -121,7 +121,7 @@ let classify env ty : classification =
              Maybe we should emit a warning. *)
           Any)
     | Tarrow _ | Ttuple _ | Tpackage _ | Tobject _ | Tnil | Tvariant _ -> Addr
-    | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ | Tunboxed_tuple _ -> assert false
+    | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ | Tunboxed_tuple _ | Tcanonical _ -> assert false
 
 type can_be_float_array =
   | YesFloatArray
@@ -236,7 +236,7 @@ let rec value_kind env (subst : value_shape Subst.t) ~visited ~depth ty :
     else
       match lookup_subst (get_id ty) subst with None -> Value | Some sh -> sh)
   | Tpoly _ -> assert false (* handled by [scrape_ty] currently *)
-  | Tfield _ | Tnil | Tlink _ | Tsubst _ -> assert false
+  | Tfield _ | Tnil | Tlink _ | Tsubst _ | Tcanonical _ -> assert false
   (* NOTE: we should never encounter those in an external declaration *)
   | Tunboxed_tuple _ -> assert false (* not of layout value *)
   | Tpackage _ -> Block None

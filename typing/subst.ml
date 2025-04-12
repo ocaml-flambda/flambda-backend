@@ -479,6 +479,9 @@ let rec typexp copy_scope s ty =
                     if should_duplicate_vars then newpersty mored
                     else if dup && is_Tvar more then newgenty mored
                     else more
+                | Tcanonical _ ->
+                  (* CR aspsmith: ?? *)
+                  typexp copy_scope s more
                 | _ -> assert false
               in
               (* Register new type first for recursion *)
