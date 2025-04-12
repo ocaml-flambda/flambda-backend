@@ -191,18 +191,6 @@ Error: The kind of type "u" is value
          because of the annotation on the declaration of the type u.
 |}]
 
-type (_, _) t : immediate = K : 'a -> ('a, 'a) t
-[%%expect{|
-Line 1, characters 0-48:
-1 | type (_, _) t : immediate = K : 'a -> ('a, 'a) t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data with _
-         because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of immediate
-         because of the annotation on the declaration of the type t.
-|}]
-(* CR aspsmith: lol *)
-
 type ('x, 'y) t : immutable_data with 'x with 'y =
   | T : 'a -> ('a, 'a) t
   | U : 'c -> ('b,  'c) t
@@ -293,4 +281,45 @@ Error: The kind of type "existential_abstract" is value
        But the kind of type "existential_abstract" must be a subkind of
          immediate
          because of the annotation on the declaration of the type existential_abstract.
+|}]
+
+(* _ in parameters *)
+
+type _ box = Box : 'a -> 'a box
+[%%expect{|
+type _ box = Box : 'a -> 'a box
+|}]
+
+let foo (_ : int box @@ contended) = use_uncontended foo
+[%%expect{|
+val foo : int box @ contended -> unit = <fun>
+|}]
+
+
+type (_, _) box2 = Box2 : 'a -> ('a, 'a) box2
+[%%expect{|
+type (_, _) box2 = Box2 : 'a -> ('a, 'a) box2
+|}]
+
+let foo (_ : (int, int) box2 @@ contended) = use_uncontended foo
+[%%expect{|
+val foo : (int, int) box2 @ contended -> unit = <fun>
+|}]
+
+let should_reject (_ : (int ref, int ref) box2 @@ contended) = use_uncontended foo
+[%%expect{|
+val should_reject : (int ref, int ref) box2 @ contended -> unit = <fun>
+|}]
+
+(* The printing is weird but actually everything's fine *)
+type _ box : immediate = Box : 'a -> 'a box
+
+[%%expect{|
+Line 1, characters 0-43:
+1 | type _ box : immediate = Box : 'a -> 'a box
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "box" is immutable_data with _
+         because it's a boxed variant type.
+       But the kind of type "box" must be a subkind of immediate
+         because of the annotation on the declaration of the type box.
 |}]
