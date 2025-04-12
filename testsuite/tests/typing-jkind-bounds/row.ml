@@ -111,7 +111,6 @@ Error: In this "with" constraint, the new definition of "polyvar"
        The second variant type does not allow tag(s) "`B"
 |}]
 
-(* When we give open polymorphic variants more precise kinds, we should make sure to give them not-best quality *)
 module type S = sig
   type 'a polyvar = private [< `A of 'a | `B of int ref ]
   type 'a record : immutable_data with 'a polyvar = { inner : 'a }
@@ -120,7 +119,6 @@ module type S2 = S with type 'a polyvar = [ `A of 'a ]
 module F(M : S2) = struct
   let cross (x : int M.record @ contended) = use_uncontended x
 end
-(* CR layouts v2.8: This should be accepted *)
 [%%expect{|
 module type S =
   sig
@@ -136,17 +134,18 @@ module F :
 
 (* Harder cases: row variables *)
 
-(* CR layouts v2.8: These are both correct, but we could probably infer a more precise kind for both. *)
 type ('a, 'b) t : immediate = [< `X | `Y of 'a] as 'b
 [%%expect{|
 Line 1, characters 0-53:
 1 | type ('a, 'b) t : immediate = [< `X | `Y of 'a] as 'b
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "[< `X | `Y of 'a ]" is value
+Error: The kind of type "[< `X | `Y of 'a ]" is immutable_data with 'a
          because it's a polymorphic variant type.
        But the kind of type "[< `X | `Y of 'a ]" must be a subkind of immediate
          because of the definition of t at line 1, characters 0-53.
 |}]
+
+(* CR layouts v2.8: This is correct, but we could probably infer a more precise kind. *)
 type ('a, 'b) u : immediate = [> `X | `Y of 'a] as 'b
 [%%expect{|
 Line 1, characters 0-53:
@@ -158,11 +157,25 @@ Error: The kind of type "[> `X | `Y of 'a ]" is value
          because of the definition of u at line 1, characters 0-53.
 |}]
 
-(* less-than rows *)
+(* open rows *)
 
 let f (x : [< `A of int | `B of string] @ contended) =
   use_uncontended x
-(* CR layouts v2.8: This should probably be accepted *)
+[%%expect{|
+val f : [< `A of int | `B of string ] @ contended -> unit = <fun>
+|}]
+
+let f (x : [< `A of int | `B of string array] @ contended) =
+  use_uncontended x
+[%%expect{|
+Line 2, characters 18-19:
+2 |   use_uncontended x
+                      ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let f (x : [> `A of int | `B of string] @ contended) =
+  use_uncontended x
 [%%expect{|
 Line 2, characters 18-19:
 2 |   use_uncontended x
@@ -176,14 +189,7 @@ end = struct
   type 'a t = [ `C ]
 end
 [%%expect{|
-Line 2, characters 2-83:
-2 |   type 'a t : immutable_data with 'a = private [< `A of 'a | `B of ('a * 'a) | `C ]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "[< `A of 'a | `B of 'a * 'a | `C ]" is value
-         because it's a polymorphic variant type.
-       But the kind of type "[< `A of 'a | `B of 'a * 'a | `C ]" must be a subkind of
-         immutable_data with 'a
-         because of the definition of t at line 2, characters 2-83.
+module M : sig type 'a t = private [< `A of 'a | `B of 'a * 'a | `C ] end
 |}]
 
 (* Tunivar-ified row variables *)
@@ -206,12 +212,20 @@ Error: This alias is bound to type "[> `Foo of int ]"
 type t2 = { f : ('a : value mod portable). ([< `Foo of int] as 'a) -> unit }
 (* CR layouts v2.8: This should be accepted *)
 [%%expect{|
+Line 1, characters 16-74:
+1 | type t2 = { f : ('a : value mod portable). ([< `Foo of int] as 'a) -> unit }
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind value mod
+       portable.
+       But it was inferred to have kind value
+         because it's a row variable.
+|}, Principal{|
 Line 1, characters 64-65:
 1 | type t2 = { f : ('a : value mod portable). ([< `Foo of int] as 'a) -> unit }
                                                                     ^
 Error: This alias is bound to type "[< `Foo of int ]"
        but is used as an instance of type "('a : value mod portable)"
-       The kind of [< `Foo of int ] is value
+       The kind of [< `Foo of int ] is immutable_data with int
          because it's a polymorphic variant type.
        But the kind of [< `Foo of int ] must be a subkind of
          value mod portable

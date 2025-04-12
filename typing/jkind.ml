@@ -2228,12 +2228,9 @@ let for_boxed_tuple elts =
     (Builtin.immutable_data ~why:Tuple |> mark_best)
 
 let for_boxed_row row =
-  (let base = Builtin.immutable_data ~why:Polymorphic_variant in
-   if not (Btype.static_row row)
+  let base = Builtin.immutable_data ~why:Polymorphic_variant in
+   if (Types.row_closed row)
    then
-     (* CR layouts v2.8: We can probably do a fair bit better here in most cases *)
-     Builtin.value ~why:Polymorphic_variant
-   else
      Btype.fold_row
        (fun jkind type_expr ->
           add_with_bounds
@@ -2243,7 +2240,11 @@ let for_boxed_row row =
        )
        base
        row
-  ) |> mark_best
+       (* Closed => no more variants are possible => best possible kind *)
+     |> mark_best
+   else
+     (* CR layouts v2.8: We can probably do a fair bit better here in most cases *)
+     Builtin.value ~why:Polymorphic_variant
 
 let for_arrow =
   fresh_jkind
@@ -2689,7 +2690,7 @@ module Format_history = struct
         (format_position ~arity position)
         !printtyp_path parent_path layout_or_kind
     | Tuple -> fprintf ppf "it's a tuple type"
-    | Row_variable -> format_with_notify_js ppf "it's a row variable"
+    | Row_variable -> fprintf ppf "it's a row variable"
     | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant type"
     | Arrow -> fprintf ppf "it's a function type"
     | Tfield ->
