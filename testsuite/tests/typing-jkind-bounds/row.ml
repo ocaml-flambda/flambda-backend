@@ -86,6 +86,54 @@ type 'a record : immutable_data with [ `A of 'a ] = { inner : 'a }
 type 'a record = { inner : 'a; }
 |}]
 
+module type S = sig
+  type 'a polyvar = [ `A of 'a ]
+  type 'a record : immutable_data with 'a polyvar = { inner : 'a }
+end
+[%%expect{|
+module type S =
+  sig type 'a polyvar = [ `A of 'a ] type 'a record = { inner : 'a; } end
+|}]
+
+(* This is why we're able to give closed polymorphic variants best kinds *)
+module type S2 = S with type 'a polyvar = [ `B of int ref ]
+[%%expect{|
+Line 1, characters 17-59:
+1 | module type S2 = S with type 'a polyvar = [ `B of int ref ]
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this "with" constraint, the new definition of "polyvar"
+       does not match its original definition in the constrained signature:
+       Type declarations do not match:
+         type 'a polyvar = [ `B of int ref ]
+       is not included in
+         type 'a polyvar = [ `A of 'a ]
+       The type "[ `B of int ref ]" is not equal to the type "[ `A of 'a ]"
+       The second variant type does not allow tag(s) "`B"
+|}]
+
+(* When we give open polymorphic variants more precise kinds, we should make sure to give them not-best quality *)
+module type S = sig
+  type 'a polyvar = private [< `A of 'a | `B of int ref ]
+  type 'a record : immutable_data with 'a polyvar = { inner : 'a }
+end
+module type S2 = S with type 'a polyvar = [ `A of 'a ]
+module F(M : S2) = struct
+  let cross (x : int M.record @ contended) = use_uncontended x
+end
+(* CR layouts v2.8: This should be accepted *)
+[%%expect{|
+module type S =
+  sig
+    type 'a polyvar = private [< `A of 'a | `B of int ref ]
+    type 'a record = { inner : 'a; }
+  end
+module type S2 =
+  sig type 'a polyvar = [ `A of 'a ] type 'a record = { inner : 'a; } end
+module F :
+  functor (M : S2) -> sig val cross : int M.record @ contended -> unit end
+|}]
+
+
 (* Harder cases: row variables *)
 
 (* CR layouts v2.8: These are both correct, but we could probably infer a more precise kind for both. *)
