@@ -2228,24 +2228,22 @@ let for_boxed_tuple elts =
     (Builtin.immutable_data ~why:Tuple |> mark_best)
 
 let for_boxed_row row =
-  let base = Builtin.immutable_data ~why:Polymorphic_variant in
-  if not (Btype.static_row row)
-  then
-    (* CR layouts v2.8: We can probably do a fair bit better here in most cases *)
-    Builtin.value ~why:Polymorphic_variant
-  else
-    Btype.fold_row
-      (fun jkind type_expr ->
-         add_with_bounds
-           ~modality:Mode.Modality.Value.Const.id
-           ~type_expr
-           jkind
-      )
-      base
-      row
-    (* We know it's best because we checked it was static, above, so we're not dealing
-       with a "less-than" or "greater-than" polymorphic variant *)
-    |> mark_best
+  (let base = Builtin.immutable_data ~why:Polymorphic_variant in
+   if not (Btype.static_row row)
+   then
+     (* CR layouts v2.8: We can probably do a fair bit better here in most cases *)
+     Builtin.value ~why:Polymorphic_variant
+   else
+     Btype.fold_row
+       (fun jkind type_expr ->
+          add_with_bounds
+            ~modality:Mode.Modality.Value.Const.id
+            ~type_expr
+            jkind
+       )
+       base
+       row
+  ) |> mark_best
 
 let for_arrow =
   fresh_jkind
