@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Int_replace_polymorphic_compare
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
 module T = struct
   type t =
