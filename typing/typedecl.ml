@@ -2777,7 +2777,15 @@ let normalize_decl_jkinds env shapes decls =
       Jkind.normalize
         ~unbound_type_vars
         ~mode:Require_best
-        ~jkind_of_type:(fun ty -> Some (Ctype.type_jkind env ty))
+        ~jkind_of_type:(fun ty ->
+          Some (
+            Ctype.type_jkind
+              ~unbound_type_vars:(
+                Btype.TypeSet.to_seq unbound_type_vars
+                |> Seq.map Transient_expr.type_expr
+                |> List.of_seq
+              )
+              env ty))
         decl.type_jkind
     in
     let decl =

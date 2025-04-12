@@ -276,7 +276,7 @@ and 'a abstract : value mod portable
 Lines 1-2, characters 0-73:
 1 | type existential_abstract : immediate =
 2 |   | P : ('a : value mod portable). 'a abstract t2 -> existential_abstract
-Error: The kind of type "existential_abstract" is value mod portable with 'a
+Error: The kind of type "existential_abstract" is value
          because it's a boxed variant type.
        But the kind of type "existential_abstract" must be a subkind of
          immediate

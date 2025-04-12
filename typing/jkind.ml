@@ -962,7 +962,7 @@ module Layout_and_axes = struct
           (* CR layouts v2.8: we can do better by early-terminating on a per-axis
              basis *)
           bounds_so_far, No_with_bounds, Sufficient_fuel
-        | (ty, ti) :: bs -> (
+        | (ty, ti) :: bs -> begin
           (* Map the type's info before expanding the type *)
           let ti =
             match map_type_info with
@@ -983,7 +983,7 @@ module Layout_and_axes = struct
             (* If [ty] is not relevant to any axes, then we can safely drop it and
                thereby avoid doing the work of expanding it. *)
             loop ctl bounds_so_far relevant_axes bs
-          | false -> (
+          | false -> begin
             let join_bounds b1 b2 ~relevant_axes =
               let value_for_axis (type a) ~(axis : a Axis.t) : a =
                 if Axis_set.mem relevant_axes axis
@@ -1055,18 +1055,22 @@ module Layout_and_axes = struct
               found_jkind_for_ty ctl_after_stop Mod_bounds.max No_with_bounds
                 Not_best [@nontail]
             | Skip -> loop ctl bounds_so_far relevant_axes bs (* skip [b] *)
-            | Continue ctl_after_unpacking_b -> (
-              match jkind_of_type ty with
-              | Some b_jkind ->
-                found_jkind_for_ty ctl_after_unpacking_b
-                  b_jkind.jkind.mod_bounds b_jkind.jkind.with_bounds
-                  b_jkind.quality [@nontail]
-              | None ->
-                (* kind of b is not principally known, so we treat it as having
-                   the max bound (only along the axes we care about for this
-                   type!) *)
-                found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
-                  No_with_bounds Not_best [@nontail])))
+            | Continue ctl_after_unpacking_b -> begin
+                let jkind = jkind_of_type ty in
+                match jkind with
+                | Some b_jkind ->
+                  found_jkind_for_ty ctl_after_unpacking_b
+                    b_jkind.jkind.mod_bounds b_jkind.jkind.with_bounds
+                    b_jkind.quality [@nontail]
+                | None ->
+                  (* kind of b is not principally known, so we treat it as having
+                     the max bound (only along the axes we care about for this
+                     type!) *)
+                  found_jkind_for_ty ctl_after_unpacking_b Mod_bounds.max
+                    No_with_bounds Not_best [@nontail]
+              end
+          end
+        end
       in
       let mod_bounds = Mod_bounds.set_max_in_set t.mod_bounds skip_axes in
       let mod_bounds, with_bounds, fuel_status =

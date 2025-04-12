@@ -2269,7 +2269,7 @@ let type_jkind_purely_if_principal' =
 (* We parameterize [estimate_type_jkind] by a function
    [expand_component] because some callers want expansion of types and others
    don't. *)
-let rec estimate_type_jkind ~expand_component env ty =
+let rec estimate_type_jkind ?unbound_type_vars ~expand_component env ty =
   match get_desc ty with
   | Tvar { jkind } -> Jkind.disallow_right jkind
   | Tarrow _ -> Jkind.for_arrow
@@ -2286,7 +2286,7 @@ let rec estimate_type_jkind ~expand_component env ty =
         just to throw most of it away will go away once we get [layout_of]. *)
      let layouts =
        List.map (fun (ty, _modality (* ignore; we just care about layout *)) ->
-         estimate_type_jkind ~expand_component env ty |>
+         estimate_type_jkind ?unbound_type_vars ~expand_component env ty |>
          Jkind.extract_layout)
          tys_modalities
      in
@@ -2305,7 +2305,11 @@ let rec estimate_type_jkind ~expand_component env ty =
         (* CR layouts v2.8: We could possibly skip this substitution if we're
            called from [constrain_type_jkind]; the jkind returned without
            substing is just weaker than the one we would get by substing. *)
-        jkind_subst env level type_decl.type_params args jkind
+        let unbound_type_vars = Option.value ~default:[] unbound_type_vars in
+        jkind_subst env level
+          (unbound_type_vars @ type_decl.type_params)
+          (unbound_type_vars @ args)
+          jkind
       else
         jkind
     with
@@ -2324,7 +2328,7 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tunivar { jkind } -> Jkind.disallow_right jkind
   | Tpoly (ty, _) ->
     let jkind_of_type = !type_jkind_purely_if_principal' env in
-    estimate_type_jkind ~expand_component env ty |>
+    estimate_type_jkind ?unbound_type_vars ~expand_component env ty |>
     (* The jkind of [ty] might mention the variables bound in this [Tpoly]
        node, and so just returning it here would be wrong. Instead, we need
        to eliminate these variables. For now, we just [round_up] to eliminate
@@ -2349,16 +2353,20 @@ and close_open_jkind ~expand_component ~is_open env jkind =
   else jkind
 
 let estimate_type_jkind_unwrapped
+      ?unbound_type_vars
       ~expand_component env { ty; is_open; modality } =
-  estimate_type_jkind ~expand_component env ty |>
+  estimate_type_jkind ?unbound_type_vars ~expand_component env ty |>
   close_open_jkind ~expand_component ~is_open env |>
   Jkind.apply_modality_l modality
 
 
-let type_jkind env ty =
+let type_jkind ?unbound_type_vars env ty =
   get_unboxed_type_approximation env ty |>
   estimate_type_jkind_unwrapped
+    ?unbound_type_vars
     ~expand_component:(get_unboxed_type_approximation env) env
+
+let estimate_type_jkind env ty = estimate_type_jkind env ty
 
 (* CR layouts v2.8: This function is quite suspect. See Jane Street internal
    gdoc titled "Let's kill type_jkind_purely". *)
