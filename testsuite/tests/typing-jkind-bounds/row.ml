@@ -137,3 +137,35 @@ Error: The kind of type "[< `A of 'a | `B of 'a * 'a | `C ]" is value
          immutable_data with 'a
          because of the definition of t at line 2, characters 2-83.
 |}]
+
+(* Tunivar-ified row variables *)
+
+type t1 = { f : ('a : value mod portable). ([> `Foo of int] as 'a) -> unit }
+(* CR layouts v2.8: This should be accepted *)
+[%%expect{|
+Line 1, characters 64-65:
+1 | type t1 = { f : ('a : value mod portable). ([> `Foo of int] as 'a) -> unit }
+                                                                    ^
+Error: This alias is bound to type "[> `Foo of int ]"
+       but is used as an instance of type "('a : value mod portable)"
+       The kind of [> `Foo of int ] is value
+         because it's a polymorphic variant type.
+       But the kind of [> `Foo of int ] must be a subkind of
+         value mod portable
+         because of the annotation on the universal variable 'a.
+|}]
+
+type t2 = { f : ('a : value mod portable). ([< `Foo of int] as 'a) -> unit }
+(* CR layouts v2.8: This should be accepted *)
+[%%expect{|
+Line 1, characters 64-65:
+1 | type t2 = { f : ('a : value mod portable). ([< `Foo of int] as 'a) -> unit }
+                                                                    ^
+Error: This alias is bound to type "[< `Foo of int ]"
+       but is used as an instance of type "('a : value mod portable)"
+       The kind of [< `Foo of int ] is value
+         because it's a polymorphic variant type.
+       But the kind of [< `Foo of int ] must be a subkind of
+         value mod portable
+         because of the annotation on the universal variable 'a.
+|}]
