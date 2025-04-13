@@ -156,13 +156,13 @@ type error =
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Global_module.Name.t
+  | Cannot_find_argument_type of Global_module.Parameter_name.t
   | Inconsistent_argument_types of {
-      new_arg_type: Global_module.Name.t option;
-      old_arg_type: Global_module.Name.t option;
+      new_arg_type: Global_module.Parameter_name.t option;
+      old_arg_type: Global_module.Parameter_name.t option;
       old_source_file: Misc.filepath;
     }
-  | Duplicate_parameter_name of Global_module.Name.t
+  | Duplicate_parameter_name of Global_module.Parameter_name.t
   | Submode_failed of Mode.Value.error
   | Modal_module_not_supported
 
