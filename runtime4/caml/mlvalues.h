@@ -373,6 +373,7 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 
 /* The lowest tag for blocks containing no value. */
 #define No_scan_tag 251
+#define Scannable_tag(t)   ((t) < No_scan_tag)
 
 
 /* 1- If tag < No_scan_tag : a tuple of fields.  */
