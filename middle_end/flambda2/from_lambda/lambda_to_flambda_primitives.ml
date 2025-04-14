@@ -1414,17 +1414,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     (* | Pidx_deepen
         deepening from some mixed product:
           to a mixed product:
-            - e.g. move index to a #(i64#, #(string, i32#)) to the inner product
-            - calculate how much first value shifts by (FVS)
-              total size of values before the inner product
-            - calculate how much first flat shifts by (FFS)
-              total size of flats before the inner product
-            - dGap = FFS - FVS
-            - then, at runtime: offset += FVS; gap += dGap
+            - e.g. move index to a #(i64#, #(string, i32#), string) to the inner product
+            - offset += (values before)
+              gap += (values after) + (flats before)
           to all values:
-            - gap = 0; offset += FVS
+            - gap = 0; offset += (values before)
           to all flat:
-            - offset = gap + (size of values in outer product); gap = 0
+            - offset += gap + (size of values in outer product) + (flats after); gap = 0
         from a non-mixed product:
           total size before the inner *)
     [@ocamlformat "wrap-comments=false"];

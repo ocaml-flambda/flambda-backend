@@ -851,7 +851,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
     match ba with
     | Baccess_block (_, index) ->
       transl_exp ~scopes Jkind.Sort.Const.for_idx index
-      (* let index =
+    (* CR rtjoa: don't drop deepening *)
+    (* let index =
        *   transl_exp ~scopes Jkind.Sort.Const.for_idx index
        * in
        * if List.length uas_path = 0 then
