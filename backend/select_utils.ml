@@ -106,29 +106,7 @@ let print_traps ppf traps =
   in
   Format.fprintf ppf "(%a)" print_traps traps
 
-let rec set_traps env nfail traps_ref base_traps exit_traps =
-  let traps =
-    (* CR vlaviron: This weird piece of code is here to handle exception
-       handlers that are not reachable but occur in trap actions. The "right"
-       thing would be to remove traps pointing to handlers that are unreachable,
-       and I think this could be done at the end of [emit_fundecl] when we
-       iterate on all blocks, but for now I instead add this little hack that
-       treats every [Push] trap action as potentially raising, which makes us
-       treat the associated handler as reachable with a correct trap stack,
-       avoiding the problem. This required making [set_traps] recursive, which
-       is not very satisfying. *)
-    List.fold_left
-      (fun trap_stack trap ->
-        (match trap with
-        | Push lbl -> (
-          match env_find_static_exception lbl env with
-          | { traps_ref; _ } -> set_traps env lbl traps_ref trap_stack []
-          | exception Not_found ->
-            Misc.fatal_errorf "Trap %d not registered in env" lbl)
-        | Pop _ -> ());
-        combine_trap trap_stack trap)
-      base_traps exit_traps
-  in
+let set_traps_for_handler nfail traps_ref traps =
   match !traps_ref with
   | Unreachable ->
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
@@ -141,6 +119,29 @@ let rec set_traps env nfail traps_ref base_traps exit_traps =
          traps: %a"
         nfail print_traps prev_traps print_traps traps
     else ()
+
+let set_traps env nfail traps_ref base_traps exit_traps =
+  let traps =
+    (* CR vlaviron: This piece of code is here to handle exception handlers that
+       are not reachable but occur in trap actions. We cannot remove the trap
+       handlers immediately, as we won't know yet whether the handler is
+       reachable when we see the traps. At the moment of writing this, we cannot
+       rely on a later pass cleaning up dead handlers either, as there is an
+       iterator that needs trap actions to be associated to existing blocks. So
+       instead, we make every Push trap action count as a use of the handler. *)
+    List.fold_left
+      (fun trap_stack trap ->
+        (match trap with
+        | Push lbl -> (
+          match env_find_static_exception lbl env with
+          | { traps_ref; _ } -> set_traps_for_handler lbl traps_ref trap_stack
+          | exception Not_found ->
+            Misc.fatal_errorf "Trap %d not registered in env" lbl)
+        | Pop _ -> ());
+        combine_trap trap_stack trap)
+      base_traps exit_traps
+  in
+  set_traps_for_handler nfail traps_ref traps
 
 let set_traps_for_raise env =
   let ts = env.trap_stack in
