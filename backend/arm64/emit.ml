@@ -396,7 +396,7 @@ end [@warning "-32"] = struct
   let ins name ops = print_ins name ops |> Emitaux.emit_string
 
   let labeled_ins lbl name ops =
-    Emitaux.emit_printf "%s:" (convert_label_representation lbl);
+    Emitaux.emit_printf "%s:\n" (convert_label_representation lbl);
     print_ins name ops |> Emitaux.emit_string
 
   let ins_cond name cond ops =
@@ -563,7 +563,7 @@ let local_realloc_sites = ref ([] : local_realloc_call list)
 
 let emit_local_realloc lr =
   emit_printf "%a:\n" femit_label lr.lr_lbl;
-  emit_printf "\t%a\n" (femit_debug_info ~discriminator:0) lr.lr_dbg;
+  emit_debug_info lr.lr_dbg;
   DSL.ins I.BL [| DSL.emit_symbol "caml_call_local_realloc" |];
   DSL.ins I.B [| DSL.emit_label lr.lr_return_lbl |]
 
@@ -782,20 +782,28 @@ let emit_literals p align emit_literal =
   then (
     if macosx
     then
-      emit_printf "\t.section\t__TEXT,__literal%a,%abyte_literals\n" femit_int
+      emit_printf "\t.section __TEXT,__literal%a,%abyte_literals\n" femit_int
         align femit_int align;
-    emit_printf "\t.balign\t%a\n" femit_int align;
+    emit_printf "\t.align\t%a\n" femit_int (Misc.log2 align);
     List.iter emit_literal !p;
     p := [])
 
+let emit_float64_directive_with_comment f =
+  let comment = Printf.sprintf "\t/* %.12g */" (Int64.float_of_bits f) in
+  emit_printf "\t.quad\t%Ld%s\n" f comment
+
+let emit_float32_directive_with_comment f =
+  let comment = Printf.sprintf "\t/* %.12f */" (Int32.float_of_bits f) in
+  emit_printf "\t.long\t%ld%s\n" f comment
+
 let emit_float_literal (f, lbl) =
-  emit_printf "%a:" femit_label lbl;
-  emit_float64_directive ".quad" f
+  emit_printf "%a:\n" femit_label lbl;
+  emit_float64_directive_with_comment f
 
 let emit_vec128_literal (({ high; low } : Cmm.vec128_bits), lbl) =
   emit_printf "%a:\n" femit_label lbl;
-  emit_float64_directive ".quad" low;
-  emit_float64_directive ".quad" high
+  emit_float64_directive_with_comment low;
+  emit_float64_directive_with_comment high
 
 let emit_literals () =
   emit_literals float_literals size_float emit_float_literal;
@@ -1934,7 +1942,7 @@ let emit_instr i =
          DSL.emit_shift LSL 2
       |];
     DSL.ins I.BR [| DSL.emit_reg reg_tmp1 |];
-    emit_printf "%a:" femit_label lbltbl;
+    emit_printf "%a:\n" femit_label lbltbl;
     for j = 0 to Array.length jumptbl - 1 do
       DSL.ins I.B [| DSL.emit_label jumptbl.(j) |]
     done
@@ -2003,7 +2011,7 @@ let emit_instr i =
     emit_addimm reg_tmp1 reg_tmp1 f;
     DSL.ins I.CMP [| DSL.sp; DSL.emit_reg reg_tmp1 |];
     DSL.ins (I.B_cond CC) [| DSL.emit_label overflow |];
-    emit_printf "%a:" femit_label ret;
+    emit_printf "%a:\n" femit_label ret;
     stack_realloc
       := Some
            { sc_label = overflow;
@@ -2084,25 +2092,28 @@ let emit_item (d : Cmm.data_item) =
          to be global. *)
       emit_printf "\t.globl\t%a\n" femit_symbol s.sym_name;
     emit_printf "%a:\n" femit_symbol s.sym_name
-  | Cint8 n -> emit_printf "\t.byte\t%a\n" femit_int n
-  | Cint16 n -> emit_printf "\t.short\t%a\n" femit_int n
-  | Cint32 n -> emit_printf "\t.long\t%a\n" femit_nativeint n
-  | Cint n -> emit_printf "\t.quad\t%a\n" femit_nativeint n
-  | Csingle f -> emit_float32_directive ".long" (Int32.bits_of_float f)
-  | Cdouble f -> emit_float64_directive ".quad" (Int64.bits_of_float f)
+  | Cint8 n -> emit_printf "\t.byte\t%d\n" n
+  | Cint16 n -> emit_printf "\t.short\t%d\n" n
+  | Cint32 n -> emit_printf "\t.long\t%Ld\n" (Int64.of_nativeint n)
+  | Cint n -> emit_printf "\t.quad\t%Ld\n" (Int64.of_nativeint n)
+  | Csingle f -> emit_float32_directive_with_comment (Int32.bits_of_float f)
+  | Cdouble f -> emit_float64_directive_with_comment (Int64.bits_of_float f)
   | Cvec128 { high; low } ->
-    emit_float64_directive ".quad" low;
-    emit_float64_directive ".quad" high
+    emit_float64_directive_with_comment low;
+    emit_float64_directive_with_comment high
   | Csymbol_address s -> emit_printf "\t.quad\t%a\n" femit_symbol s.sym_name
   | Csymbol_offset (s, o) ->
     emit_printf "\t.quad\t%a+%a\n" femit_symbol s.sym_name femit_int o
-  | Cstring s -> emit_string_directive "\t.ascii  " s
+  | Cstring s ->
+    if String.length s = 0
+    then emit_string "\n"
+    else emit_string_directive "\t.ascii\t" s
   | Cskip n -> if n > 0 then emit_printf "\t.space\t%a\n" femit_int n
   | Calign n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n)
 
 let data l =
   emit_printf "\t.data\n";
-  emit_printf "\t.align  3\n";
+  emit_printf "\t.align\t3\n";
   List.iter emit_item l
 
 let emit_line str = emit_string (str ^ "\n")
@@ -2264,17 +2275,17 @@ let end_assembly () =
         (fun lbl ->
           emit_symbol_type femit_label lbl "object";
           emit_printf "\t.quad\t%a\n" femit_label lbl);
-      efa_8 = (fun n -> emit_printf "\t.byte\t%a\n" femit_int n);
-      efa_16 = (fun n -> emit_printf "\t.short\t%a\n" femit_int n);
-      efa_32 = (fun n -> emit_printf "\t.long\t%a\n" femit_int32 n);
-      efa_word = (fun n -> emit_printf "\t.quad\t%a\n" femit_int n);
+      efa_8 = (fun n -> emit_printf "\t.byte\t%d\n" n);
+      efa_16 = (fun n -> emit_printf "\t.short\t%d\n" n);
+      efa_32 = (fun n -> emit_printf "\t.long\t%ld\n" n);
+      efa_word = (fun n -> emit_printf "\t.quad\t%d\n" n);
       efa_align =
         (fun n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n));
       efa_label_rel =
         (fun lbl ofs ->
-          emit_printf "\t.long\t%a - . + %a\n" femit_label lbl femit_int32 ofs);
+          emit_printf "\t.long\t(%a + %ld) - .\n" femit_label lbl ofs);
       efa_def_label = (fun lbl -> emit_printf "%a:\n" femit_label lbl);
-      efa_string = (fun s -> emit_string_directive "\t.asciz\t" s)
+      efa_string = (fun s -> emit_string_directive "\t.ascii\t" (s ^ "\000"))
     };
   emit_symbol_type femit_symbol lbl "object";
   emit_symbol_size lbl;

@@ -507,15 +507,20 @@ let femit_debug_info ?discriminator out dbg =
       femit_char out '\t';
       femit_string_literal out file_name;
       femit_char out '\n')
-    (fun ~file_num ~line ~col:_ ?discriminator () ->
+    (fun ~file_num ~line ~col ?discriminator () ->
       femit_string out "\t.loc\t";
       femit_int out file_num;
       femit_char out '\t';
       femit_int out line;
       femit_char out '\t';
+      (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
+      (* If we don't set the optional column field, debug_line program gets the
+         column value from the previous .loc directive. *)
+      if col >= 0 then femit_int out col else femit_int out 0;
       (match discriminator with
       | None -> ()
       | Some k ->
+        femit_char out '\t';
         femit_string out "discriminator ";
         femit_int out k);
       femit_char out '\n')
