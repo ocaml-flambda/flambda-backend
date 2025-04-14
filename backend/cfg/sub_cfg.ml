@@ -115,9 +115,7 @@ let update_exit_terminator ?arg sub_cfg desc =
          arg = Option.value arg ~default:sub_cfg.exit.terminator.arg
        }
 
-let mark_as_trap_handler sub_cfg ~exn_label =
-  sub_cfg.entry.start <- exn_label;
-  sub_cfg.entry.is_trap_handler <- true
+let mark_as_trap_handler sub_cfg = sub_cfg.entry.is_trap_handler <- true
 
 let dump sub_cfg =
   let liveness = InstructionId.Tbl.create 32 in
