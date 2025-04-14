@@ -632,7 +632,7 @@ Line 1, characters 0-54:
 1 | type ('a : immutable_data) t = Flat | Nested of 'a t t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The kind of 'a t is value
+       The kind of 'a t is non_float_value
          because it's a boxed variant type.
        But the kind of 'a t must be a subkind of immutable_data
          because of the annotation on 'a in the declaration of the type t.
