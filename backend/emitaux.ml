@@ -122,8 +122,7 @@ let emit_bytes_directive directive s =
   done;
   if !pos > 0 then emit_char '\n'
 
-let emit_float64_directive directive x =
-  emit_printf "\t%s\t0x%Lx\n" directive x
+let emit_float64_directive directive x = emit_printf "\t%s\t0x%Lx\n" directive x
 
 let emit_float64_split_directive directive x =
   let lo = Int64.logand x 0xFFFF_FFFFL
