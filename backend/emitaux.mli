@@ -54,11 +54,11 @@ val emit_string_directive : string -> string -> unit
 
 val emit_bytes_directive : string -> string -> unit
 
-val emit_float64_directive : ?comment:string -> string -> int64 -> unit
+val emit_float64_directive : string -> int64 -> unit
 
 val emit_float64_split_directive : string -> int64 -> unit
 
-val emit_float32_directive : ?comment:string -> string -> int32 -> unit
+val emit_float32_directive : string -> int32 -> unit
 
 val reset : unit -> unit
 

@@ -786,22 +786,22 @@ let emit_literals p align emit_literal =
     List.iter emit_literal !p;
     p := [])
 
-let emit_float64_directive_aux f =
+let emit_float64_directive_with_comment f =
   let comment = Printf.sprintf "\t/* %.12g */" (Int64.float_of_bits f) in
   emit_printf "\t.quad\t%Ld%s\n" f comment
 
-let emit_float32_directive_aux f =
+let emit_float32_directive_with_comment f =
   let comment = Printf.sprintf "\t/* %.12f */" (Int32.float_of_bits f) in
   emit_printf "\t.long\t%ld%s\n" f comment
 
 let emit_float_literal (f, lbl) =
   emit_printf "%a:\n" femit_label lbl;
-  emit_float64_directive_aux f
+  emit_float64_directive_with_comment f
 
 let emit_vec128_literal (({ high; low } : Cmm.vec128_bits), lbl) =
   emit_printf "%a:\n" femit_label lbl;
-  emit_float64_directive_aux low;
-  emit_float64_directive_aux high
+  emit_float64_directive_with_comment low;
+  emit_float64_directive_with_comment high
 
 let emit_literals () =
   emit_literals float_literals size_float emit_float_literal;
@@ -2093,11 +2093,11 @@ let emit_item (d : Cmm.data_item) =
   | Cint16 n -> emit_printf "\t.short\t%d\n" n
   | Cint32 n -> emit_printf "\t.long\t%Ld\n" (Int64.of_nativeint n)
   | Cint n -> emit_printf "\t.quad\t%Ld\n" (Int64.of_nativeint n)
-  | Csingle f -> emit_float32_directive_aux (Int32.bits_of_float f)
-  | Cdouble f -> emit_float64_directive_aux (Int64.bits_of_float f)
+  | Csingle f -> emit_float32_directive_with_comment (Int32.bits_of_float f)
+  | Cdouble f -> emit_float64_directive_with_comment (Int64.bits_of_float f)
   | Cvec128 { high; low } ->
-    emit_float64_directive_aux low;
-    emit_float64_directive_aux high
+    emit_float64_directive_with_comment low;
+    emit_float64_directive_with_comment high
   | Csymbol_address s -> emit_printf "\t.quad\t%a\n" femit_symbol s.sym_name
   | Csymbol_offset (s, o) ->
     emit_printf "\t.quad\t%a+%a\n" femit_symbol s.sym_name femit_int o
