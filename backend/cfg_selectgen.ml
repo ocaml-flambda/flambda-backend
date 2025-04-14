@@ -454,6 +454,19 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     Sub_cfg.add_instruction' sub_cfg instr;
     instr.id
 
+  let setup_catch_handler (flag : Cmm.ccatch_flag) rs sub_cfg =
+    match flag with
+    | Normal | Recursive -> ()
+    | Exn_handler ->
+      Sub_cfg.mark_as_trap_handler sub_cfg;
+      let exn_bucket_in_handler =
+        match rs with
+        | [] -> Misc.fatal_error "Exception handler with no parameters"
+        | r :: _ -> r
+      in
+      Sub_cfg.add_instruction_at_start sub_cfg (Cfg.Op Move)
+        [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
+
   (* The following two functions, [emit_parts] and [emit_parts_list], force
      right-to-left evaluation order as required by the Flambda [Un_anf] pass
      (and to be consistent with the bytecode compiler). *)
@@ -1083,17 +1096,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       List.map
         (fun ((rs, label), (_, sub_handler)) ->
           Sub_cfg.add_empty_block_at_start sub_handler ~label;
-          (match flag with
-          | Normal | Recursive -> ()
-          | Exn_handler ->
-            Sub_cfg.mark_as_trap_handler sub_handler;
-            let exn_bucket_in_handler =
-              match rs with
-              | [] -> Misc.fatal_error "Exception handler with no parameters"
-              | r :: _ -> r
-            in
-            Sub_cfg.add_instruction_at_start sub_handler (Cfg.Op Move)
-              [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none);
+          setup_catch_handler flag rs sub_handler;
           sub_handler)
         l
     in
@@ -1359,19 +1362,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     let s_handlers =
       List.map
         (fun (rs, s) ->
-          let () =
-            match flag with
-            | Normal | Recursive -> ()
-            | Exn_handler ->
-              Sub_cfg.mark_as_trap_handler s;
-              let exn_bucket_in_handler =
-                match rs with
-                | [] -> Misc.fatal_error "Exception handler with no parameters"
-                | r :: _ -> r
-              in
-              Sub_cfg.add_instruction_at_start s (Cfg.Op Move)
-                [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
-          in
+          setup_catch_handler flag rs s;
           s)
         new_handlers
     in
