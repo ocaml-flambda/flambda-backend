@@ -201,7 +201,7 @@ Line 3, characters 11-25:
                ^^^^^^^^^^^^^^
 Error: This type "(int -> int) u" should be an instance of type
          "('a : immutable_data)"
-       The kind of (int -> int) u is value mod portable immutable
+       The kind of (int -> int) u is non_float_value mod portable immutable
          because of the definition of u at line 1, characters 0-33.
        But the kind of (int -> int) u must be a subkind of immutable_data
          because of the definition of t at line 2, characters 0-28.
