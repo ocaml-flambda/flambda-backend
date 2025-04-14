@@ -30,6 +30,13 @@ module Or_never_returns = struct
   type 'a t =
     | Ok of 'a
     | Never_returns
+
+  module Syntax = struct
+    let ( let* ) x f =
+      match x with Never_returns -> Never_returns | Ok x -> f x
+
+    let ( let** ) x f = match x with Never_returns -> () | Ok x -> f x
+  end
 end
 
 type trap_stack_info =

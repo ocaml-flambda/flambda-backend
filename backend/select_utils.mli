@@ -170,6 +170,12 @@ module Or_never_returns : sig
   type 'a t =
     | Ok of 'a
     | Never_returns
+
+  module Syntax : sig
+    val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
+
+    val ( let** ) : 'a t -> ('a -> unit) -> unit
+  end
 end
 
 val debug : bool
