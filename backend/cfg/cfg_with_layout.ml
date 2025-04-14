@@ -400,6 +400,13 @@ let reorder_blocks ~comparator t =
   in
   set_layout t (DLL.of_list new_layout)
 
+let iter_blocks : t -> f:(Cfg.basic_block -> unit) -> unit =
+ fun cfg_with_layout ~f ->
+  let cfg = cfg_with_layout.cfg in
+  DLL.iter cfg_with_layout.layout ~f:(fun label ->
+      let block = Cfg.get_block_exn cfg label in
+      f block)
+
 let iter_instructions :
     t ->
     instruction:(Cfg.basic Cfg.instruction -> unit) ->

@@ -94,6 +94,8 @@ val reorder_blocks_random : ?random_state:Random.State.t -> t -> unit
 
 val reorder_blocks : comparator:(Label.t -> Label.t -> int) -> t -> unit
 
+val iter_blocks : t -> f:(Cfg.basic_block -> unit) -> unit
+
 val iter_instructions :
   t ->
   instruction:(Cfg.basic Cfg.instruction -> unit) ->
