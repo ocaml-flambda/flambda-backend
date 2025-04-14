@@ -2088,18 +2088,19 @@ and n_way_join_array_contents env
         | Bottom | Unknown -> Unknown, env
         | Ok _ -> (
           let exception Unknown_result in
-          try
-            let other_fields =
-              List.fold_left
-                (fun acc (id, array_content) ->
-                  match (array_content : TG.array_contents) with
-                  | Mutable -> raise Unknown_result
-                  | Immutable { fields = other_fields } ->
-                    if Array.length other_fields <> Array.length first_fields
-                    then raise Unknown_result
-                    else (id, other_fields) :: acc)
-                [] array_contents
-            in
+          match
+            List.fold_left
+              (fun acc (id, array_content) ->
+                match (array_content : TG.array_contents) with
+                | Mutable -> raise Unknown_result
+                | Immutable { fields = other_fields } ->
+                  if Array.length other_fields <> Array.length first_fields
+                  then raise Unknown_result
+                  else (id, other_fields) :: acc)
+              [] array_contents
+          with
+          | exception Unknown_result -> Unknown, env
+          | other_fields ->
             let env_ref = ref env in
             let fields =
               Array.init (Array.length first_fields) (fun idx ->
@@ -2111,13 +2112,12 @@ and n_way_join_array_contents env
                              other_id, other_fields.(idx))
                            other_fields)
                   with
-                  | Unknown, _ -> raise Unknown_result
+                  | Unknown, _ -> MTC.unknown_like first_fields.(idx)
                   | Known ty, env ->
                     env_ref := env;
                     ty)
             in
-            Known (TG.Immutable { fields }), !env_ref
-          with Unknown_result -> Unknown, env)))
+            Known (TG.Immutable { fields }), !env_ref)))
     env array_contents
 
 and n_way_join_variant env
