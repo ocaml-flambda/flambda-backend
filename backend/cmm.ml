@@ -585,7 +585,7 @@ let equal_machtype_component
        | Valx2
        ) as left : machtype_component) right =
   (* we can use polymorphic compare as long as exttype is all constant constructors *)
-  left = right
+  Stdlib.(=) left right
 
 let equal_exttype
       ((XInt
@@ -599,7 +599,7 @@ let equal_exttype
       right
   =
   (* we can use polymorphic compare as long as exttype is all constant constructors *)
-  left = right
+  Stdlib.(=) left right
 
 let equal_vec128_type v1 v2 =
   match v1, v2 with
