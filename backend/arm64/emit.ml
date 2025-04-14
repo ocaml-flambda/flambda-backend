@@ -2101,7 +2101,10 @@ let emit_item (d : Cmm.data_item) =
   | Csymbol_address s -> emit_printf "\t.quad\t%a\n" femit_symbol s.sym_name
   | Csymbol_offset (s, o) ->
     emit_printf "\t.quad\t%a+%a\n" femit_symbol s.sym_name femit_int o
-  | Cstring s -> if String.length s = 0 then emit_string "\n" else emit_string_directive "\t.ascii\t" s
+  | Cstring s ->
+    if String.length s = 0
+    then emit_string "\n"
+    else emit_string_directive "\t.ascii\t" s
   | Cskip n -> if n > 0 then emit_printf "\t.space\t%a\n" femit_int n
   | Calign n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n)
 
