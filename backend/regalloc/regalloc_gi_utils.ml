@@ -2,7 +2,6 @@
 
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
-module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let gi_rng = Random.State.make [| 4; 6; 2 |]
 
@@ -330,22 +329,8 @@ let iter_instructions_layout :
     terminator:(trap_handler:bool -> Cfg.terminator Cfg.instruction -> unit) ->
     unit =
  fun cfg_with_layout ~instruction ~terminator ->
-  let f (block : Cfg.basic_block) =
-    let trap_handler_id =
-      if block.is_trap_handler
-      then Regalloc_utils.first_instruction_id block
-      else InstructionId.none
-    in
-    DLL.iter block.body ~f:(fun instr ->
-        instruction
-          ~trap_handler:(InstructionId.equal instr.Cfg.id trap_handler_id)
-          instr);
-    terminator
-      ~trap_handler:
-        (InstructionId.equal block.terminator.Cfg.id trap_handler_id)
-      block.terminator
-  in
-  Cfg_with_layout.iter_blocks cfg_with_layout ~f
+  Cfg_with_layout.iter_blocks cfg_with_layout ~f:(fun block ->
+      iter_block block ~instruction ~terminator)
 
 (* CR xclerc for xclerc: the code below is largely copied from the linscan
    allocator, because it is likely tweaks will be needed to implement the "full"

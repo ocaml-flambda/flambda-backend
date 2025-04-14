@@ -54,19 +54,7 @@ let iter_instructions_dfs :
  fun cfg_with_layout ~instruction ~terminator ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks_dfs cfg ~f:(fun (_ : Label.t) (block : Cfg.basic_block) ->
-      let trap_handler_id =
-        if block.is_trap_handler
-        then Regalloc_utils.first_instruction_id block
-        else InstructionId.none
-      in
-      DLL.iter block.body ~f:(fun instr ->
-          instruction
-            ~trap_handler:(InstructionId.equal instr.Cfg.id trap_handler_id)
-            instr);
-      terminator
-        ~trap_handler:
-          (InstructionId.equal block.terminator.Cfg.id trap_handler_id)
-        block.terminator)
+      iter_block block ~instruction ~terminator)
 
 module Range = struct
   type t =
