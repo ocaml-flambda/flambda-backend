@@ -114,11 +114,66 @@ module Nullability = struct
     | Maybe_null -> Format.fprintf ppf "maybe_null"
 end
 
+module Separability = struct
+  type t =
+    | Non_float
+    | Separable
+    | Non_separable
+
+  let max = Non_separable
+
+  let min = Non_float
+
+  let legacy = Separable
+
+  let equal s1 s2 =
+    match s1, s2 with
+    | Non_float, Non_float -> true
+    | Separable, Separable -> true
+    | Non_separable, Non_separable -> true
+    | (Non_float | Separable | Non_separable), _ -> false
+
+  let less_or_equal s1 s2 : Misc.Le_result.t =
+    match s1, s2 with
+    | Non_float, Non_float -> Equal
+    | Non_float, (Separable | Non_separable) -> Less
+    | Separable, Non_float -> Not_le
+    | Separable, Separable -> Equal
+    | Separable, Non_separable -> Less
+    | Non_separable, (Non_float | Separable) -> Not_le
+    | Non_separable, Non_separable -> Equal
+
+  let le s1 s2 = Misc.Le_result.is_le (less_or_equal s1 s2)
+
+  let meet s1 s2 =
+    match s1, s2 with
+    | Non_float, (Non_float | Separable | Non_separable)
+    | (Separable | Non_separable), Non_float ->
+      Non_float
+    | Separable, (Separable | Non_separable) | Non_separable, Separable ->
+      Separable
+    | Non_separable, Non_separable -> Non_separable
+
+  let join s1 s2 =
+    match s1, s2 with
+    | Non_separable, (Non_separable | Separable | Non_float)
+    | (Separable | Non_float), Non_separable ->
+      Non_separable
+    | Separable, (Separable | Non_float) | Non_float, Separable -> Separable
+    | Non_float, Non_float -> Non_float
+
+  let print ppf = function
+    | Non_float -> Format.fprintf ppf "non_float"
+    | Separable -> Format.fprintf ppf "separable"
+    | Non_separable -> Format.fprintf ppf "non_separable"
+end
+
 module Axis = struct
   module Nonmodal = struct
     type 'a t =
       | Externality : Externality.t t
       | Nullability : Nullability.t t
+      | Separability : Separability.t t
   end
 
   type 'a t =
@@ -145,6 +200,7 @@ module Axis = struct
       (module Accent_lattice ((val Mode.Alloc.lattice_of_axis axis)))
     | Nonmodal Externality -> (module Externality)
     | Nonmodal Nullability -> (module Nullability)
+    | Nonmodal Separability -> (module Separability)
 
   let all =
     [ Pack (Modal (Comonadic Areality));
@@ -156,12 +212,14 @@ module Axis = struct
       Pack (Modal (Comonadic Statefulness));
       Pack (Modal (Monadic Visibility));
       Pack (Nonmodal Externality);
-      Pack (Nonmodal Nullability) ]
+      Pack (Nonmodal Nullability);
+      Pack (Nonmodal Separability) ]
 
   let name (type a) : a t -> string = function
     | Modal axis -> Format.asprintf "%a" Mode.Alloc.print_axis axis
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
+    | Nonmodal Separability -> "separability"
 
   let is_modal (type a) : a t -> bool = function
     | Modal (Comonadic Areality) -> true
@@ -174,6 +232,7 @@ module Axis = struct
     | Modal (Monadic Visibility) -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
+    | Nonmodal Separability -> false
 end
 
 module Axis_set = struct
@@ -182,8 +241,6 @@ module Axis_set = struct
      normalization) *)
 
   type t = int
-  (* CR layouts: if we had unboxed types in the compiler, this could be represented with a
-     uint8 since there are only 8 bits that we care about *)
 
   let[@inline] axis_index (type a) : a Axis.t -> _ = function
     | Modal (Comonadic Areality) -> 0
@@ -196,6 +253,7 @@ module Axis_set = struct
     | Modal (Monadic Visibility) -> 7
     | Nonmodal Externality -> 8
     | Nonmodal Nullability -> 9
+    | Nonmodal Separability -> 10
 
   let[@inline] axis_mask ax = 1 lsl axis_index ax
 
@@ -225,6 +283,7 @@ module Axis_set = struct
     |> set_axis (Modal (Monadic Visibility))
     |> set_axis (Nonmodal Externality)
     |> set_axis (Nonmodal Nullability)
+    |> set_axis (Nonmodal Separability)
 
   let all = create ~f:(fun ~axis:_ -> true)
 

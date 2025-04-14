@@ -273,13 +273,19 @@ module Const : sig
     (** This is the jkind of normal ocaml values *)
     val value : t
 
-    (** Immutable values that don't contain functions. *)
+    (** Values that are not floats. *)
+    val non_float_value : t
+
+    (** Immutable separable values that don't contain functions. *)
+    val immutable_separable_value : t
+
+    (** Immutable values that don't contain functions and are not floats. *)
     val immutable_data : t
 
-    (** Atomically mutable values that don't contain functions. *)
+    (** Atomically mutable values that don't contain functions and are not floats. *)
     val sync_data : t
 
-    (** Mutable values that don't contain functions. *)
+    (** Mutable values that don't contain functions and are not floats. *)
     val mutable_data : t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
@@ -339,6 +345,10 @@ module Builtin : sig
     [any]. *)
   val any : why:History.any_creation_reason -> 'd Types.jkind
 
+  (* CR layouts v3: change to [any_separable]. *)
+  (** Jkind of array elements. *)
+  val any_non_null : why:History.any_creation_reason -> 'd Types.jkind
+
   (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:History.void_creation_reason -> ('l * disallowed) Types.jkind
 
@@ -347,6 +357,12 @@ module Builtin : sig
 
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> 'd Types.jkind
+
+  val non_float_value :
+    why:History.value_creation_reason -> 'd Types.jkind
+
+  val immutable_separable_value :
+    why:History.value_creation_reason -> 'd Types.jkind
 
   (** This is suitable for records or variants without mutable fields. *)
   val immutable_data : why:History.value_creation_reason -> 'd Types.jkind
@@ -387,9 +403,6 @@ module Builtin : sig
   val product_of_sorts :
     why:History.product_creation_reason -> int -> Types.jkind_l
 end
-
-(** Take an existing [t] and add an ability to cross across the nullability axis. *)
-val add_nullability_crossing : 'd Types.jkind -> 'd Types.jkind
 
 (** Forcibly change the mod- and with-bounds of a [t] based on the mod- and with-bounds of [from]. *)
 val unsafely_set_bounds :
