@@ -591,7 +591,10 @@ let unary_int_arith_primitive _env dbg kind op arg =
       (* This case should not have a sign extension, confusingly, because it
          arises from the [Pbswap16] Lambda primitive. That operation does not
          affect the sign of the resulting value. *)
-      C.bswap16 arg dbg
+      C.Scalar_type.Integral.static_cast arg ~dbg ~src:naked_immediate
+        ~dst:naked_int16
+      |> (fun arg -> C.bbswap Unboxed_int16 arg dbg)
+      |> C.zero_extend ~bits:16
     | Naked_int8 -> arg
     | Naked_int16 ->
       (* Byte swaps of small integers need a sign-extension in order to match

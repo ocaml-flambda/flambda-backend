@@ -1451,24 +1451,25 @@ module Const = struct
       }
 
     let bits8 =
-      { jkind = mk_jkind (Base Bits8) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = mk_jkind (Base Bits8) ~mode_crossing:false ~nullability:Non_null;
         name = "bits8"
       }
 
-    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let kind_of_unboxed_int8 =
-      { jkind = mk_jkind (Base Bits8) ~mode_crossing:true ~nullability:Non_null;
+      { jkind =
+          mk_jkind (Base Bits8) ~mode_crossing:true ~nullability:Maybe_null;
         name = "bits8 mod everything"
       }
 
     let bits16 =
-      { jkind = mk_jkind (Base Bits16) ~mode_crossing:true ~nullability:Non_null;
+      { jkind =
+          mk_jkind (Base Bits16) ~mode_crossing:false ~nullability:Non_null;
         name = "bits16"
       }
 
-    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let kind_of_unboxed_int16 =
-      { jkind = mk_jkind (Base Bits16) ~mode_crossing:true ~nullability:Non_null;
+      { jkind =
+          mk_jkind (Base Bits16) ~mode_crossing:true ~nullability:Maybe_null;
         name = "bits16 mod everything"
       }
 
@@ -1873,11 +1874,7 @@ module Const = struct
       (jkind : 'd t) =
     let rec scan_layout (l : Layout.Const.t) : Language_extension.maturity =
       match l, Mod_bounds.nullability jkind.mod_bounds with
-      | ( ( Base
-              ( Float64 | Float32 | Word | Bits8 | Bits16 | Bits32 | Bits64
-              | Vec128 )
-          | Any ),
-          _ )
+      | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
       | Base Value, Non_null
       | Base Value, Maybe_null ->
         Stable
@@ -1885,6 +1882,7 @@ module Const = struct
         List.fold_left
           (fun m l -> Language_extension.Maturity.max m (scan_layout l))
           Language_extension.Stable layouts
+      | Base (Bits8 | Bits16), (Non_null | Maybe_null) -> Beta
       | Base Void, _ -> Alpha
     in
     scan_layout jkind.layout

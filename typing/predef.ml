@@ -547,9 +547,9 @@ let add_small_number_beta_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_int8 ~jkind:Jkind.Const.Builtin.immediate
-       ~unboxed_jkind:Jkind.Const.Builtin.bits8
+       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_int8
   |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
-       ~unboxed_jkind:Jkind.Const.Builtin.bits16
+       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_int16
 
 
 

@@ -155,9 +155,6 @@ let classify ~classify_product env loc ty sort : _ classification =
   | Tconstr (p, _args, _abbrev) ->
       if Path.same p Predef.path_float then Float
       else if Path.same p Predef.path_lazy_t then Lazy
-      else if Path.same p Predef.path_int
-           || Path.same p Predef.path_int8
-           || Path.same p Predef.path_int16 then Int
       else if Path.same p Predef.path_string
            || Path.same p Predef.path_bytes
            || Path.same p Predef.path_array
@@ -870,9 +867,9 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
     Lambda.Punboxed_float Unboxed_float64
   | Base Word when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Unboxed_nativeint
-  | Base Bits8 when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Bits8 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_int Unboxed_int8
-  | Base Bits16 when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Bits16 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_int Unboxed_int16
   | Base Bits32 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Unboxed_int32

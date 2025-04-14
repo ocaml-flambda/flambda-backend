@@ -3583,27 +3583,6 @@ let bbswap bi arg dbg =
           dbg )
     else Cop (op, [arg], dbg)
 
-let bswap16 arg dbg =
-  let op = Cbswap { bitwidth = Cmm.Sixteen } in
-  if Proc.operation_supported op
-  then Cop (op, [arg], dbg)
-  else
-    Cop
-      ( Cextcall
-          { func = "caml_bswap16_direct";
-            builtin = false;
-            returns = true;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects;
-            ty = typ_int;
-            alloc = false;
-            (* CR jvanburen: why is ty_args empty here? this is the only
-               difference to [bbswap Unboxed_int16] *)
-            ty_args = []
-          },
-        [arg],
-        dbg )
-
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* Helper for compilation of initialization and assignment operations *)
