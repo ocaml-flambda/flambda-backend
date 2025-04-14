@@ -2673,6 +2673,8 @@ module Format_history = struct
     | Type_variable name -> fprintf ppf "the type variable %s" name
     | Type_wildcard loc ->
       fprintf ppf "the wildcard _ at %a" Location.print_loc_in_lowercase loc
+    | Type_of_kind loc ->
+      fprintf ppf "the type at %a" Location.print_loc_in_lowercase loc
     | With_error_message (_message, context) ->
       (* message gets printed in [format_flattened_history] so we ignore it here *)
       format_annotation_context ppf context
@@ -3464,6 +3466,7 @@ module Debug_printers = struct
     | Type_variable name -> fprintf ppf "Type_variable %S" name
     | Type_wildcard loc ->
       fprintf ppf "Type_wildcard (%a)" Location.print_loc loc
+    | Type_of_kind loc -> fprintf ppf "Type_of_kind (%a)" Location.print_loc loc
     | With_error_message (message, context) ->
       fprintf ppf "With_error_message (%s, %a)" message annotation_context
         context

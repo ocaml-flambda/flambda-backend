@@ -1066,6 +1066,13 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let cty = transl_type new_env ~policy ~row_context mode t in
       ctyp (Ttyp_open (path, mod_ident, cty)) cty.ctyp_type
+  | Ptyp_of_kind jkind ->
+    let tjkind = jkind_of_annotation (Type_of_kind loc) styp.ptyp_attributes jkind in
+    let ty =
+      (* CR aspsmith: can we use [newgenty] here? *)
+      newty (Tof_kind tjkind)
+    in
+    ctyp (Ttyp_of_kind jkind) ty
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
