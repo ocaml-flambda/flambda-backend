@@ -285,7 +285,7 @@ let rewrite_gen :
           then
             (* insert block *)
             let (_ : Cfg.basic_block list) =
-              Regalloc_utils.insert_block
+              Cfg_with_layout.insert_block
                 (Cfg_with_infos.cfg_with_layout cfg_with_infos)
                 new_instrs ~after:block ~before:None
                 ~next_instruction_id:(fun () ->
