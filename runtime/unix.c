@@ -540,11 +540,13 @@ static void* mmap_named(void* addr, size_t length, int prot, int flags,
 void *caml_plat_mem_map(uintnat size, uintnat caml_flags, const char* name)
 {
   uintnat alignment = caml_plat_hugepagesize;
-  uintnat reserve_only = caml_flags & CAML_MAP_RESERVE_ONLY;
-  uintnat no_hugetlb = caml_flags & CAML_MAP_NO_HUGETLB;
 #ifdef WITH_ADDRESS_SANITIZER
   return aligned_alloc(alignment, (size + (alignment - 1)) & ~(alignment - 1));
 #else
+  uintnat reserve_only = caml_flags & CAML_MAP_RESERVE_ONLY;
+  uintnat no_hugetlb = caml_flags & CAML_MAP_NO_HUGETLB;
+  (void)no_hugetlb; /* avoid unused variable warning */
+
   void* mem;
   int prot = reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE);
   int flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -614,7 +616,9 @@ static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
 void *caml_plat_mem_map(uintnat size, uintnat flags, const char* name)
 {
   void* mem;
-  uintnat reserve_only = flags & CAML_MAP_RESERVE_ONLY;
+  uintnat reserve_only = caml_flags & CAML_MAP_RESERVE_ONLY;
+  uintnat no_hugetlb = caml_flags & CAML_MAP_NO_HUGETLB;
+  (void)no_hugetlb; /* Not used on Cygwin */
 
   mem = mmap(0, size, reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE),
              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
