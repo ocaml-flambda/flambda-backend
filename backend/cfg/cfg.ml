@@ -253,6 +253,27 @@ let entry_label t = t.entry_label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks
 
+let iter_blocks_dfs : t -> f:(Label.t -> basic_block -> unit) -> unit =
+ fun cfg ~f ->
+  let marked = ref Label.Set.empty in
+  let rec iter (label : Label.t) : unit =
+    if not (Label.Set.mem label !marked)
+    then (
+      marked := Label.Set.add label !marked;
+      let block = get_block_exn cfg label in
+      f label block;
+      Label.Set.iter
+        (fun succ_label -> iter succ_label)
+        (successor_labels ~normal:true ~exn:true block))
+  in
+  iter cfg.entry_label;
+  (* note: some block may not have been seen since we currently cannot remove
+     all non-reachable blocks. *)
+  if Label.Set.cardinal !marked <> Label.Tbl.length cfg.blocks
+  then
+    iter_blocks cfg ~f:(fun label block ->
+        if not (Label.Set.mem label !marked) then f label block)
+
 let fold_blocks t ~f ~init = Label.Tbl.fold f t.blocks init
 
 let fold_body_instructions t ~f ~init =
