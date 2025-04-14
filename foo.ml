@@ -12,7 +12,7 @@ let view i =
   | D -> Bar 42
 
 let foo i =
-  match view i with
+  match (view[@inlined]) i with
   | Foo i -> Format.printf "foo: %d" i
   | Bar 13 -> Format.printf "bar/13"
   | Bar 42 -> Format.printf "bar/42"

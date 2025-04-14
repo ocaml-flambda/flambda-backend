@@ -995,7 +995,7 @@ let create_handler_to_rebuild
         "... CREATE HANDLER TO REBUILD %a ...@\n\
          params: %a@\n\
          decisions: %a@\n\
-         %a@."
+         uses: %a@."
         Continuation.print cont Bound_parameters.print handler.params
         Unbox_continuation_params.Decisions.print handler.unbox_decisions
         (Format.pp_print_list
