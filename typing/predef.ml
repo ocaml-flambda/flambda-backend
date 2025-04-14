@@ -389,8 +389,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.add_nullability_crossing
-                      (Jkind.Builtin.any ~why:Array_type_argument))
+       ~param_jkind:(Jkind.Builtin.any_non_null ~why:Array_type_argument)
        ~jkind:(fun param ->
          Jkind.Builtin.mutable_data ~why:(Primitive ident_array) |>
          Jkind.add_with_bounds
@@ -399,8 +398,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.add_nullability_crossing
-                      (Jkind.Builtin.any ~why:Array_type_argument))
+       ~param_jkind:(Jkind.Builtin.any_non_null ~why:Array_type_argument)
        ~jkind:(fun param ->
          Jkind.Builtin.immutable_data ~why:(Primitive ident_iarray) |>
          Jkind.add_with_bounds
@@ -410,9 +408,9 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
-  |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.value
+  |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.non_float_value
   |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_separable_value
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
@@ -428,7 +426,7 @@ let build_initial_env add_type add_extension empty_env =
           It might also cross portability, linearity, uniqueness subject to its
           parameter. But I'm also fine not doing that for now (and wait until
           users complains).  *)
-       ~jkind:(fun _ -> Jkind.Builtin.value ~why:(Primitive ident_lazy_t))
+       ~jkind:(fun _ -> Jkind.Builtin.non_float_value ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
        ~separability:Separability.Ind

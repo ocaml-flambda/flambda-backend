@@ -39,6 +39,7 @@ module Jkind_mod_bounds = struct
   module Visibility = Mode.Visibility.Const_op
   module Externality = Jkind_axis.Externality
   module Nullability = Jkind_axis.Nullability
+  module Separability = Jkind_axis.Separability
 
   type t = {
     locality: Locality.t;
@@ -51,6 +52,7 @@ module Jkind_mod_bounds = struct
     visibility: Visibility.t;
     externality: Externality.t;
     nullability: Nullability.t;
+    separability: Separability.t;
   }
 
   let[@inline] locality t = t.locality
@@ -63,6 +65,7 @@ module Jkind_mod_bounds = struct
   let[@inline] visibility t = t.visibility
   let[@inline] externality t = t.externality
   let[@inline] nullability t = t.nullability
+  let[@inline] separability t = t.separability
 
   let[@inline] create
       ~locality
@@ -74,7 +77,8 @@ module Jkind_mod_bounds = struct
       ~statefulness
       ~visibility
       ~externality
-      ~nullability =
+      ~nullability
+      ~separability =
     {
       locality;
       linearity;
@@ -86,6 +90,7 @@ module Jkind_mod_bounds = struct
       visibility;
       externality;
       nullability;
+      separability;
     }
 
   let[@inline] set_locality locality t = { t with locality }
@@ -98,6 +103,7 @@ module Jkind_mod_bounds = struct
   let[@inline] set_visibility visibility t = { t with visibility }
   let[@inline] set_externality externality t = { t with externality }
   let[@inline] set_nullability nullability t = { t with nullability }
+  let[@inline] set_separability separability t = { t with separability }
 
   let[@inline] set_max_in_set t max_axes =
     let open Jkind_axis.Axis_set in
@@ -153,6 +159,11 @@ module Jkind_mod_bounds = struct
       then Nullability.max
       else t.nullability
     in
+    let separability =
+      if mem max_axes (Nonmodal Separability)
+      then Separability.max
+      else t.separability
+    in
     {
       locality;
       linearity;
@@ -164,6 +175,7 @@ module Jkind_mod_bounds = struct
       visibility;
       externality;
       nullability;
+      separability;
     }
 
   let[@inline] set_min_in_set t min_axes =
@@ -220,6 +232,11 @@ module Jkind_mod_bounds = struct
       then Nullability.min
       else t.nullability
     in
+    let separability =
+      if mem min_axes (Nonmodal Separability)
+      then Separability.min
+      else t.separability
+    in
     {
       locality;
       linearity;
@@ -231,6 +248,7 @@ module Jkind_mod_bounds = struct
       yielding;
       externality;
       nullability;
+      separability;
     }
 
   let[@inline] is_max_within_set t axes =
@@ -254,7 +272,9 @@ module Jkind_mod_bounds = struct
     (not (mem axes (Nonmodal Externality)) ||
      Externality.(le max (externality t))) &&
     (not (mem axes (Nonmodal Nullability)) ||
-     Nullability.(le max (nullability t)))
+     Nullability.(le max (nullability t))) &&
+    (not (mem axes (Nonmodal Separability)) ||
+     Separability.(le max (separability t)))
 
   let[@inline] is_max = function
     | { locality = Local;
@@ -266,7 +286,8 @@ module Jkind_mod_bounds = struct
         statefulness = Stateful;
         visibility = Read_write;
         externality = External;
-        nullability = Maybe_null } -> true
+        nullability = Maybe_null;
+        separability = Non_separable } -> true
     | _ -> false
 
   let debug_print ppf
@@ -279,10 +300,11 @@ module Jkind_mod_bounds = struct
           statefulness;
           visibility;
           externality;
-          nullability } =
+          nullability;
+          separability } =
     Format.fprintf ppf "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ \
       portability = %a;@ contention = %a;@ yielding = %a;@ statefulness = %a;@ \
-      visibility = %a;@ externality = %a;@ nullability = %a }@]"
+      visibility = %a;@ externality = %a;@ nullability = %a;@ separability = %a }@]"
       Locality.print locality
       Linearity.print linearity
       Uniqueness.print uniqueness
@@ -293,6 +315,7 @@ module Jkind_mod_bounds = struct
       Visibility.print visibility
       Externality.print externality
       Nullability.print nullability
+      Separability.print separability
 end
 
 
