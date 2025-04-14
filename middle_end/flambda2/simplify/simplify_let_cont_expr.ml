@@ -995,9 +995,9 @@ let create_handler_to_rebuild
         "... CREATE HANDLER TO REBUILD %a ...@\n\
          params: %a@\n\
          decisions: %a@\n\
-         uses: %a@."
-        Continuation.print cont Bound_parameters.print handler.params
-        Unbox_continuation_params.Decisions.print handler.unbox_decisions
+         uses: %a@." Continuation.print cont Bound_parameters.print
+        handler.params Unbox_continuation_params.Decisions.print
+        handler.unbox_decisions
         (Format.pp_print_list
            (Apply_cont_rewrite_id.Map.print
               Continuation_uses.print_arg_type_at_use))
