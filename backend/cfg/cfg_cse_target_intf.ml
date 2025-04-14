@@ -18,6 +18,8 @@
 (** Interface to be satisfied by target-specific code, for common subexpression
     elimination. *)
 
+open! Int_replace_polymorphic_compare
+
 (** Classification of operations *)
 
 type op_class =

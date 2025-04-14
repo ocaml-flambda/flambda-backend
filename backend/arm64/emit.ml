@@ -31,6 +31,7 @@ open! Operation
 open Linear
 open Emitaux
 module I = Arm64_ast.Instruction_name
+open! Int_replace_polymorphic_compare
 
 (* Tradeoff between code size and code speed *)
 
@@ -642,7 +643,7 @@ let decompose_int default n =
     else
       let frag = Nativeint.logand n 0xFFFFn
       and rem = Nativeint.shift_right_logical n 16 in
-      if frag = default
+      if Nativeint.equal frag default
       then decomp rem (pos + 16)
       else (frag, pos) :: decomp rem (pos + 16)
   in
@@ -690,12 +691,13 @@ let num_instructions_for_intconst n =
 let is_immediate_float bits =
   let exp = (Int64.(to_int (shift_right_logical bits 52)) land 0x7FF) - 1023 in
   let mant = Int64.logand bits 0xF_FFFF_FFFF_FFFFL in
-  exp >= -3 && exp <= 4 && Int64.logand mant 0xF_0000_0000_0000L = mant
+  exp >= -3 && exp <= 4
+  && Int64.equal (Int64.logand mant 0xF_0000_0000_0000L) mant
 
 let is_immediate_float32 bits =
   let exp = (Int32.(to_int (shift_right_logical bits 23)) land 0x7F) - 63 in
   let mant = Int32.logand bits 0x7F_FFFFl in
-  exp >= -3 && exp <= 4 && Int32.logand mant 0x78_0000l = mant
+  exp >= -3 && exp <= 4 && Int32.equal (Int32.logand mant 0x78_0000l) mant
 
 (* Adjust sp (up or down) by the given byte amount *)
 
@@ -776,7 +778,7 @@ let vec128_literal f = add_literal vec128_literals f
 
 (* Emit all pending literals *)
 let emit_literals p align emit_literal =
-  if !p <> []
+  if not (Misc.Stdlib.List.is_empty !p)
   then (
     if macosx
     then
@@ -958,7 +960,7 @@ module BR = Branch_relaxation.Make (struct
     | Lcall_op (Lcall_imm _) -> 1
     | Lcall_op Ltailcall_ind -> epilogue_size ()
     | Lcall_op (Ltailcall_imm { func; _ }) ->
-      if func.sym_name = !function_name then 1 else epilogue_size ()
+      if String.equal func.sym_name !function_name then 1 else epilogue_size ()
     | Lcall_op
         (Lextcall
           { alloc; stack_ofs; func = _; ty_res = _; ty_args = _; returns = _ })
@@ -1419,7 +1421,7 @@ let emit_instr i =
   | Lop (Const_int n) -> emit_intconst i.res.(0) n
   | Lop (Const_float32 f) ->
     DSL.check_reg Float32 i.res.(0);
-    if f = 0l
+    if Int32.equal f 0l
     then DSL.ins I.FMOV [| DSL.emit_reg i.res.(0); DSL.wzr |]
     else if is_immediate_float32 f
     then
@@ -1430,7 +1432,7 @@ let emit_instr i =
       let lbl = float_literal (Int64.of_int32 f) in
       emit_load_literal i.res.(0) lbl
   | Lop (Const_float f) ->
-    if f = 0L
+    if Int64.equal f 0L
     then DSL.ins I.FMOV [| DSL.emit_reg i.res.(0); DSL.xzr |]
     else if is_immediate_float f
     then
@@ -1458,7 +1460,7 @@ let emit_instr i =
   | Lcall_op Ltailcall_ind ->
     output_epilogue (fun () -> DSL.ins I.BR [| DSL.emit_reg i.arg.(0) |])
   | Lcall_op (Ltailcall_imm { func }) ->
-    if func.sym_name = !function_name
+    if String.equal func.sym_name !function_name
     then
       match !tailrec_entry_point with
       | None -> Misc.fatal_error "jump to missing tailrec entry point"
@@ -1508,9 +1510,9 @@ let emit_instr i =
     stack_offset := !stack_offset + n
   | Lop (Load { memory_chunk; addressing_mode; is_atomic }) -> (
     assert (
-      memory_chunk = Cmm.Word_int
-      || memory_chunk = Cmm.Word_val
-      || is_atomic = false);
+      Cmm.equal_memory_chunk memory_chunk Cmm.Word_int
+      || Cmm.equal_memory_chunk memory_chunk Cmm.Word_val
+      || not is_atomic);
     let dst = i.res.(0) in
     let base =
       match addressing_mode with
@@ -1548,7 +1550,7 @@ let emit_instr i =
     | Word_int | Word_val ->
       if is_atomic
       then (
-        assert (addressing_mode = Iindexed 0);
+        assert (Arch.equal_addressing_mode addressing_mode (Iindexed 0));
         DSL.ins (I.DMB ISHLD) [||];
         DSL.ins I.LDAR [| DSL.emit_reg dst; DSL.emit_mem i.arg.(0) |])
       else
@@ -1756,7 +1758,7 @@ let emit_instr i =
          DSL.emit_reg i.arg.(2);
          DSL.emit_reg i.arg.(0)
       |]
-  | Lop Opaque -> assert (i.arg.(0).loc = i.res.(0).loc)
+  | Lop Opaque -> assert (Reg.equal_location i.arg.(0).loc i.res.(0).loc)
   | Lop (Specific (Ishiftarith (op, shift))) ->
     let instr = match op with Ishiftadd -> I.ADD | Ishiftsub -> I.SUB in
     let shift =
@@ -2019,7 +2021,8 @@ let emit_instr i =
 (* Emission of an instruction sequence *)
 
 let rec emit_all i =
-  if i.desc = Lend
+  (* CR-soon xclerc for xclerc: get rid of polymorphic compare. *)
+  if Stdlib.compare i.desc Lend = 0
   then ()
   else (
     emit_instr i;
@@ -2073,7 +2076,7 @@ let fundecl fundecl =
 let emit_item (d : Cmm.data_item) =
   match d with
   | Cdefine_symbol s ->
-    if !Clflags.dlcode || s.sym_global = Cmm.Global
+    if !Clflags.dlcode || Cmm.equal_is_global s.sym_global Cmm.Global
     then
       (* GOT relocations against non-global symbols don't seem to work properly:
          GOT entries are not created for the symbols and the relocations

@@ -23,6 +23,9 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
+
+open! Int_replace_polymorphic_compare
+
 module type Arg = sig
   val emit_line : string -> unit
 
