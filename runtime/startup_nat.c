@@ -101,6 +101,8 @@ value caml_startup_common(char_os **argv, int pooling)
   char_os * exe_name, * proc_self_exe;
   value res;
 
+  caml_init_os_params();
+  
   /* Determine options */
   caml_parse_ocamlrunparam();
 
@@ -120,7 +122,6 @@ value caml_startup_common(char_os **argv, int pooling)
   caml_install_invalid_parameter_handler();
 #endif
   caml_init_custom_operations();
-  caml_init_os_params();
   caml_init_gc ();
 
   /* runtime_events's init can cause a stop-the-world pause, so it must be done
