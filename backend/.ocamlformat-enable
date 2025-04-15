@@ -32,6 +32,8 @@ cfg_selectgen.ml
 cfg_selectgen.mli
 cfg_selectgen_target_intf.ml
 cfg_selection.mli
+cmm.ml
+cmm.mli
 cmm_builtins.ml
 cmm_builtins.mli
 cmm_helpers.ml
