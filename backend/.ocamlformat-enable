@@ -84,3 +84,5 @@ x86_masm.ml
 x86_masm.mli
 x86_gas.ml
 x86_gas.mli
+x86_dsl.ml
+x86_dsl.mli
