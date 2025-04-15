@@ -17,7 +17,7 @@
 
 [@@@ocaml.warning "+a-40-41-42"]
 
-open! Int_replace_polymorphic_compare
+open! Int_replace_polymorphic_compare [@@warning "-66"]
 open Format
 open Linear
 
@@ -38,8 +38,10 @@ let call_operation ?(print_reg = Printreg.reg) ppf op arg =
   | Lextcall { func; alloc; _ } ->
     fprintf ppf "extcall \"%s\" %a%s" func regs arg
       (if alloc then "" else " (noalloc)")
-  | Lprobe { name; handler_code_sym } ->
-    fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
+  | Lprobe { name; handler_code_sym; enabled_at_init } ->
+    fprintf ppf "probe \"%s\" %s%s %a"
+      (if enabled_at_init then "enabled_at_init " else "")
+      name handler_code_sym regs arg
 
 let instr' ?(print_reg = Printreg.reg) ppf i =
   let reg = print_reg in
@@ -80,7 +82,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
   | Lend -> ()
   | Lprologue -> fprintf ppf "prologue"
   | Lop op ->
-    (match op with
+    (match[@warning "-4"] op with
     | Alloc _ | Poll -> fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
     | _ -> ());
     operation op i.arg ppf i.res
@@ -88,7 +90,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
     (match op with
     | Lcall_ind | Lcall_imm _ | Lextcall _ | Lprobe _ ->
       fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
-    | _ -> ());
+    | Ltailcall_imm _ | Ltailcall_ind -> ());
     call_operation ppf op i.arg
   | Lreloadretaddr -> fprintf ppf "reload retaddr"
   | Lreturn -> fprintf ppf "return %a" regs i.arg
@@ -127,7 +129,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
 let instr ppf i = instr' ppf i
 
 let rec all_instr ppf i =
-  match i.desc with
+  match[@warning "-4"] i.desc with
   | Lend -> ()
   | _ -> fprintf ppf "%a@,%a" instr i all_instr i.next
 
