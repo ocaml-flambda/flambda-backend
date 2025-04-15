@@ -791,7 +791,7 @@ let new_temp_var () =
 (* CR sspies: once there are richer symbols, make this function take the section
    again *)
 let force_assembly_time_constant expr =
-  if not (is_macos ())
+  if not (TS.is_macos ())
   then expr
   else
     (* This ensures the correct result is obtained on macOS. (Apparently just
@@ -799,78 +799,79 @@ let force_assembly_time_constant expr =
         results when one of the labels is on a section boundary, for
         example.) *)
     let temp = new_temp_var () in
-    D.direct_assignment temp expr;
-    D.const_label temp
+    direct_assignment temp expr;
+    let sym = Asm_symbol.create ~without_prefix:() temp in
+    Symbol sym (* not really a symbol, but OK. *)
 
 let between_symbols_in_current_unit ~upper ~lower =
   (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
      check_symbol_in_current_unit upper; check_symbol_in_current_unit lower;
      check_symbols_in_same_section upper lower; *)
-  let upper = D.const_label (Asm_symbol.encode upper) in
-  let lower = D.const_label (Asm_symbol.encode lower) in
-  let expr = D.const_sub upper lower in
-  if is_macos ()
+  let upper = const_symbol upper in
+  let lower = const_symbol lower in
+  let expr = const_sub upper lower in
+  if TS.is_macos ()
   then const_machine_width (force_assembly_time_constant expr)
   else const_machine_width expr
 
 let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
   (* CR poechsel: use the arguments *)
-  A.emit_line "between_labels_16_bit"
+  Misc.fatal_error "between_labels_16_bit not implemented yet"
 
 let between_labels_32_bit ?comment:_ ~upper:_ ~lower:_ () =
   (* CR poechsel: use the arguments *)
-  A.emit_line "between_labels_32_bit"
+  Misc.fatal_error "between_labels_32_bit not implemented yet"
 
 let between_labels_64_bit ?comment:_ ~upper:_ ~lower:_ () =
   (* CR poechsel: use the arguments *)
-  A.emit_line "between_labels_64_bit"
+  Misc.fatal_error "between_labels_64_bit not implemented yet"
 
-let between_labels_64_bit_with_offsets ?comment ~upper ~upper_offset ~lower
+let between_labels_64_bit_with_offsets ?comment:_comment ~upper ~upper_offset ~lower
     ~lower_offset () =
-  Option.iter D.comment comment;
+  Option.iter comment _comment;
   let upper_offset = Targetint.to_int64 upper_offset in
   let lower_offset = Targetint.to_int64 lower_offset in
   let expr =
-    D.const_sub
-      (D.const_add
-          (D.const_label (Asm_label.encode upper))
-          (D.const_int64 upper_offset))
-      (D.const_add
-          (D.const_label (Asm_label.encode lower))
-          (D.const_int64 lower_offset))
+    const_sub
+      (const_add
+          (const_label upper)
+          (const_int64 upper_offset))
+      (const_add
+          (const_label lower)
+          (const_int64 lower_offset))
   in
   const_machine_width (force_assembly_time_constant expr)
 
-let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
+let between_symbol_in_current_unit_and_label_offset ?comment:_comment ~upper ~lower
     ~offset_upper () =
   (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
       check_symbol_and_label_in_same_section lower upper; *)
-  Option.iter D.comment comment;
+  Option.iter comment _comment;
   if Targetint.compare offset_upper Targetint.zero = 0
   then
     let expr =
-      D.const_sub
-        (D.const_label (Asm_label.encode upper))
-        (D.const_label (Asm_symbol.encode lower))
+      const_sub
+        (const_label upper)
+        (const_symbol lower)
     in
     const_machine_width (force_assembly_time_constant expr)
   else
     let offset_upper = Targetint.to_int64 offset_upper in
     let expr =
-      D.const_sub
-        (D.const_add
-            (D.const_label (Asm_label.encode upper))
-            (D.const_int64 offset_upper))
-        (D.const_label (Asm_symbol.encode lower))
+      const_sub
+        (const_add
+            (const_label upper)
+            (const_int64 offset_upper))
+        (const_symbol lower)
     in
     const_machine_width (force_assembly_time_constant expr)
 
-let const ~width constant =
+let const_with_width ~width constant =
   match width with
-  | Dwarf_flags.Thirty_two -> D.long constant
-  | Dwarf_flags.Sixty_four -> D.qword constant
+  | Dwarf_flags.Thirty_two -> const constant Thirty_two
+  | Dwarf_flags.Sixty_four -> const constant Sixty_four
 
-let offset_into_dwarf_section_label ?comment ~width section upper =
+let offset_into_dwarf_section_label ?comment:_comment ~width section upper =
   let upper_section = Asm_label.section upper in
   let expected_section : Asm_section.t = DWARF section in
   if not (Asm_section.equal upper_section expected_section)
@@ -881,30 +882,30 @@ let offset_into_dwarf_section_label ?comment ~width section upper =
   (if !Clflags.keep_asm_file
   then
     let expected_section = Asm_section.to_string expected_section in
-    match comment with
-    | None -> D.comment (Format.asprintf "offset into %s" expected_section)
-    | Some comment ->
-      D.comment
-        (Format.asprintf "%s (offset into %s)" comment expected_section));
+    match _comment with
+    | None -> comment (Format.asprintf "offset into %s" expected_section)
+    | Some _comment ->
+      comment
+        (Format.asprintf "%s (offset into %s)" _comment expected_section));
   (* macOS does not use relocations in DWARF sections in places, such as here,
       where they might be expected. Instead dsymutil and other tools parse
       DWARF sections properly and adjust offsets manually. *)
   let expr =
-    if is_macos ()
+    if TS.is_macos ()
     then
       let lower = Asm_label.for_dwarf_section section in
       if Asm_label.equal lower upper
-      then D.const_int64 0L
+      then const_int64 0L
       else
         force_assembly_time_constant
-          (D.const_sub
-              (D.const_label (Asm_label.encode upper))
-              (D.const_label (Asm_label.encode lower)))
-    else D.const_label (Asm_label.encode upper)
+          (const_sub
+              (const_label upper)
+              (const_label lower))
+    else const_label upper
   in
-  const ~width expr
+  const_with_width ~width expr
 
-let offset_into_dwarf_section_symbol ?comment
+let offset_into_dwarf_section_symbol ?comment:_comment
     ~(width : Dwarf_flags.dwarf_format) section upper =
   (* CR mshinwell: code from previous DWARF work:
 
@@ -944,23 +945,23 @@ let offset_into_dwarf_section_symbol ?comment
     *   .quad dist
     *   .quad extunit_die - __debug_info
     *)
-  let comment =
+  let _comment =
     if not !Clflags.keep_asm_file
     then None
     else
-      match comment with
+      match _comment with
       | None ->
         Some
           (Format.asprintf "offset into %s"
              (Asm_section.to_string (DWARF section)))
-      | Some comment ->
+      | Some _comment ->
         Some
-          (Format.asprintf "%s (offset into %s)" comment
+          (Format.asprintf "%s (offset into %s)" _comment
              (Asm_section.to_string (DWARF section)))
   in
-  Option.iter D.comment comment;
+  Option.iter comment _comment;
   let expr =
-    if is_macos ()
+    if TS.is_macos ()
     then
       let in_current_unit =
         true
@@ -974,9 +975,9 @@ let offset_into_dwarf_section_symbol ?comment
         let lower = Asm_label.for_dwarf_section section in
         (* Same note as in [offset_into_dwarf_section_label] applies here. *)
         force_assembly_time_constant
-          (D.const_sub
-              (D.const_label (Asm_symbol.encode upper))
-              (D.const_label (Asm_label.encode lower)))
+          (const_sub
+              (const_symbol upper)
+              (const_label lower))
       else
         Misc.fatal_errorf
           "Don't know how to encode offset from start of section XXX to \
@@ -987,6 +988,6 @@ let offset_into_dwarf_section_symbol ?comment
           (Compilation_unit.get_current_exn ())
           Compilation_unit.print
       (* (Asm_symbol.compilation_unit upper) *)
-    else D.const_label (Asm_symbol.encode upper)
+          else const_symbol upper
   in
-  match width with Thirty_two -> D.long expr | Sixty_four -> D.qword expr
+  match width with Thirty_two -> const expr Thirty_two | Sixty_four -> const expr Sixty_four

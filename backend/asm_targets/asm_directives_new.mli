@@ -221,6 +221,13 @@ val between_labels_32_bit :
 val between_labels_64_bit :
   ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> unit
 
+
+
+(** Like [between_symbols], but for two labels with additional offsets, emitting a 64-bit-wide
+    reference.  The labels must be in the same section. *)
+val between_labels_64_bit_with_offsets :
+  ?comment:string -> upper:Asm_label.t -> upper_offset:Targetint.t -> lower:Asm_label.t -> lower_offset:Targetint.t -> unit -> unit
+
 (** Emit a machine-width reference giving the displacement between the
     [lower] symbol and the sum of the address of the [upper] label plus
     [offset_upper].  The [lower] symbol must be in the current compilation
@@ -234,14 +241,6 @@ val between_symbol_in_current_unit_and_label_offset :
   unit ->
   unit
 
-(* CR mshinwell: double-check use of this function *)
-
-(** Emit a 32-bit-wide reference giving the displacement between obtained
-    by subtracting the current assembly location from the sum of the address
-    of the given label plus the given offset.  The label must be in the
-    same section as the assembler is currently emitting into. *)
-val between_this_and_label_offset_32bit :
-  upper:Asm_label.t -> offset_upper:Targetint.t -> unit
 
 (** Emit an offset into a DWARF section given a label identifying the place
     within such section. *)
@@ -258,9 +257,9 @@ val offset_into_dwarf_section_label :
     must always be in the given section. *)
 val offset_into_dwarf_section_symbol :
   ?comment:string ->
+  width:Dwarf_flags.dwarf_format ->
   Asm_section.dwarf_section ->
   Asm_symbol.t ->
-  width:Target_system.machine_width ->
   unit
 
 module Directive : sig
