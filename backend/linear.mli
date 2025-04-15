@@ -15,6 +15,8 @@
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 type label = Cmm.label
 
 type instruction =
