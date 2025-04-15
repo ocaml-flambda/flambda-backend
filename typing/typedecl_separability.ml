@@ -409,8 +409,7 @@ let check_type
     | (Tobject(_,_)       , Sep    )
     | ((Tnil | Tfield _)  , Sep    )
     | (Tpackage(_,_)      , Sep    )
-    (* CR aspsmith: ?? *)
-    | (Tof_kind(_)      , Sep    ) -> empty
+    | (Tof_kind(_)        , Sep    ) -> empty
     (* "Deeply separable" case for these same constructors. *)
     | (Tarrow _           , Deepsep)
     | (Ttuple _           , Deepsep)
