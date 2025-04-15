@@ -78,3 +78,5 @@ zero_alloc_checker.ml
 zero_alloc_checker.mli
 zero_alloc_info.ml
 zero_alloc_info.mli
+x86_proc.ml
+x86_proc.mli
