@@ -48,6 +48,8 @@ generic_fns.ml
 generic_fns.mli
 operation.ml
 operation.mli
+linear.ml
+linear.mli
 polling_utils.ml
 polling_utils.mli
 peephole/**/*.ml
