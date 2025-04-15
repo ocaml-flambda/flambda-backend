@@ -15,6 +15,8 @@
 
 (* Common functions for emitting assembly code *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 val output_channel : out_channel ref
 
 val femit_string : out_channel -> string -> unit
