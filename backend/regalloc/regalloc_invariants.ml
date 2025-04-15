@@ -88,7 +88,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     (* CR xclerc for xclerc: what about cross-compilation? *)
     | "amd64" | "arm64" -> (
       let num_locals = num_stack_locals arg + num_stack_locals res in
-      match[@ocaml.warning "-4"] desc with
+      match desc with
       | Op (Spill | Reload) ->
         (* CR xclerc for xclerc: should check arg/res according to spill/reload,
            rather than the total number. *)
@@ -96,7 +96,19 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         then
           fatal "instruction %a is a move and refers to %d spilling slots"
             InstructionId.format id num_locals
-      | _ -> ())
+      | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+      | Op
+          ( Move | Opaque | Begin_region | End_region | Dls_get | Poll
+          | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+          | Const_vec128 _ | Stackoffset _ | Load _
+          | Store (_, _, _)
+          | Intop _
+          | Intop_imm (_, _)
+          | Intop_atomic _
+          | Floatop (_, _)
+          | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+          | Specific _ | Name_for_debugger _ | Alloc _ ) ->
+        ())
     | arch -> fatal "unsupported architecture %S" arch
   in
   let register_classes_must_be_consistent (id : InstructionId.t) (reg : Reg.t) :

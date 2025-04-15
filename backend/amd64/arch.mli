@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 (* Machine-specific command-line options *)
+[@@@ocaml.warning "+a-40-41-42"]
 
 module Extension : sig
   type t =

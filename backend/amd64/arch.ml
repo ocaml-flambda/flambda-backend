@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 
@@ -309,7 +309,7 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "pause"
   | Icldemote _ ->
       fprintf ppf "cldemote %a" printreg arg.(0)
-  | Iprefetch { is_write; locality; } ->
+  | Iprefetch { is_write; locality; _ } ->
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)

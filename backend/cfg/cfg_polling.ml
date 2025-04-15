@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module List = ListLabels
@@ -101,10 +101,12 @@ let report_error ppf = function
          instrs)
 
 let () =
-  Location.register_error_of_exn (function [@ocaml.warning "-4"]
-    | Error (Poll_error (fun_dbg, _instrs) as err) ->
-      let loc = Debuginfo.to_location fun_dbg in
-      Some (Location.error_of_printer ~loc report_error err)
+  Location.register_error_of_exn (function
+    | Error err -> (
+      match err with
+      | Poll_error (fun_dbg, _instrs) ->
+        let loc = Debuginfo.to_location fun_dbg in
+        Some (Location.error_of_printer ~loc report_error err))
     | _ -> None)
 
 (* Compututation of the "safe" map, which is a map from labels to booleans where
@@ -116,11 +118,7 @@ let () =
    the terminator to always return `false` would be better. *)
 
 let is_safe_basic : Cfg.basic Cfg.instruction -> bool =
- fun instr ->
-  match[@ocaml.warning "-4"] instr.desc with
-  | Op (Poll | Alloc _) -> true
-  | Op _ | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
-    false
+ fun instr -> Cfg.is_alloc instr || Cfg.is_poll instr
 
 let is_safe_terminator : Cfg.terminator Cfg.instruction -> bool =
  fun term ->
@@ -188,10 +186,19 @@ module Polls_before_prtc_transfer = struct
       then Ok dom
       else Ok Always_polls
     | Op (Alloc _) -> Ok Always_polls
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _
-      ->
+    | Op
+        ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Stackoffset _ | Load _
+        | Store (_, _, _)
+        | Intop _
+        | Intop_imm (_, _)
+        | Intop_atomic _
+        | Floatop (_, _)
+        | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+        | Specific _ | Name_for_debugger _ )
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
       Ok dom
-   [@@ocaml.warning "-4"]
 
   let terminator :
       domain ->
@@ -428,12 +435,7 @@ let contains_polls : Cfg.t -> bool =
   let exception Found in
   try
     Cfg.iter_blocks cfg ~f:(fun _label block ->
-        let has_poll_instr =
-          DLL.exists block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-              match[@ocaml.warning "-4"] instr.Cfg.desc with
-              | Cfg.Op Poll -> true
-              | _ -> false)
-        in
+        let has_poll_instr = DLL.exists block.body ~f:Cfg.is_poll in
         if has_poll_instr then raise Found);
     false
   with Found -> true

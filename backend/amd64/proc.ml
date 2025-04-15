@@ -12,7 +12,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4+32"]
+
+[@@@ocaml.warning "+a-40-41-42"]
 
 (* Description of the AMD64 processor *)
 
@@ -21,7 +22,6 @@ open! Int_replace_polymorphic_compare
 open Misc
 open Arch
 open Cmm
-open Reg
 
 let fp = Config.with_frame_pointers
 
@@ -99,13 +99,13 @@ let float_reg_name =
 
 let num_register_classes = 2
 
-let register_class r =
+let register_class (r : Reg.t) =
   match r.typ with
   | Val | Int | Addr -> 0
   | Float | Float32 | Vec128 | Valx2 -> 1
 
 
-let types_are_compatible left right =
+let types_are_compatible (left : Reg.t)  (right : Reg.t) =
   match left.typ, right.typ with
   | (Int | Val | Addr), (Int | Val | Addr)
   | Float, Float
@@ -158,7 +158,7 @@ let phys_reg ty n =
   | Float32 -> hard_float32_reg.(n - 100)
   | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
 
-let gc_regs_offset reg =
+let gc_regs_offset (reg : Reg.t) =
   (* Given register [r], return the offset (the number of [value] slots,
      not their size in bytes) of the register from the
      [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
@@ -274,11 +274,11 @@ let calling_conventions
   (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
-let incoming ofs =
+let incoming ofs : Reg.stack_location =
   if ofs >= 0
   then Incoming ofs
   else Domainstate (ofs + size_domainstate_args)
-let outgoing ofs =
+let outgoing ofs : Reg.stack_location =
   if ofs >= 0
   then Outgoing ofs
   else Domainstate (ofs + size_domainstate_args)
@@ -675,7 +675,7 @@ type slot_offset =
 
 let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
       ~fun_num_stack_slots =
-  match loc with
+  match ( loc : Reg.stack_location) with
   | Incoming n ->
       Bytes_relative_to_stack_pointer (
         frame_size ~stack_offset ~contains_calls:fun_contains_calls

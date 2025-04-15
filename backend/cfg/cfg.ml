@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 
@@ -593,6 +593,59 @@ let make_empty_block ?label terminator : basic_block =
     cold = false
   }
 
+let is_poll (instr : basic instruction) =
+  match instr.desc with
+  | Op Poll -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Move | Spill | Reload | Opaque | Begin_region | End_region
+      | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_alloc (instr : basic instruction) =
+  match instr.desc with
+  | Op (Alloc _) -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Poll | Move | Spill | Reload | Opaque | Begin_region | End_region
+      | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_end_region (b : basic) =
+  match b with
+  | Op End_region -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Poll | Move | Spill | Reload | Opaque | Begin_region | Dls_get
+      | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_alloc_or_poll instr = is_alloc instr || is_poll instr
+
 let basic_block_contains_calls block =
   block.is_trap_handler
   || (match block.terminator.desc with
@@ -613,10 +666,7 @@ let basic_block_contains_calls block =
      | Call _ -> true
      | Prim { op = External _; _ } -> true
      | Prim { op = Probe _; _ } -> true)
-  || DLL.exists block.body ~f:(fun (instr : basic instruction) ->
-         match[@ocaml.warning "-4"] instr.desc with
-         | Op (Alloc _ | Poll) -> true
-         | _ -> false)
+  || DLL.exists block.body ~f:is_alloc_or_poll
 
 let max_instr_id t =
   (* CR-someday xclerc for xclerc: factor out with similar function in

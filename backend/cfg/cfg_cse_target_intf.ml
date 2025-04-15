@@ -18,7 +18,9 @@
 (** Interface to be satisfied by target-specific code, for common subexpression
     elimination. *)
 
-open! Int_replace_polymorphic_compare
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
 (** Classification of operations *)
 

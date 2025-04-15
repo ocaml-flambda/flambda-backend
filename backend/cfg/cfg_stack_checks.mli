@@ -25,5 +25,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        *
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
+[@@@ocaml.warning "+a-40-41-42"]
 
 val cfg : Cfg_with_layout.t -> Cfg_with_layout.t

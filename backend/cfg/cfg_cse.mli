@@ -15,7 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 (* Common subexpression elimination by value numbering over basic blocks. *)
 

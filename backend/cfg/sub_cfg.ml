@@ -19,8 +19,9 @@
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
+[@@@ocaml.warning "+a-40-41-42"]
 
-open! Int_replace_polymorphic_compare
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t =
