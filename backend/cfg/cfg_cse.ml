@@ -337,7 +337,14 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
 
   let is_cheap_operation : Operation.t -> bool = function
     | Const_int _ -> true
-    | _ -> false
+    | Move | Spill | Reload | Const_float32 _ | Const_float _ | Const_symbol _
+    | Const_vec128 _ | Opaque | Stackoffset _ | Load _ | Store _ | Alloc _
+    | Poll | Intop _
+    | Intop_imm (_, _)
+    | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _ | Reinterpret_cast _
+    | Specific _ | Name_for_debugger _ | Probe_is_enabled _ | Begin_region
+    | End_region | Dls_get ->
+      false
 
   let kill_loads (n : numbering) : numbering = remove_mutable_load_numbering n
 
@@ -368,7 +375,17 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
       let n1 = kill_addr_regs (kill_loads n) in
       let n2 = set_unknown_regs n1 i.res in
       n2
-    | Op op -> (
+    | Op
+        (( Const_int _ | Begin_region | End_region | Dls_get | Const_float32 _
+         | Const_float _ | Const_symbol _ | Const_vec128 _ | Stackoffset _
+         | Load _
+         | Store (_, _, _)
+         | Intop _
+         | Intop_imm (_, _)
+         | Intop_atomic _
+         | Floatop (_, _)
+         | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+         | Specific _ | Name_for_debugger _ ) as op) -> (
       match class_of_operation op with
       | (Op_pure | Op_load _) as op_class -> (
         let n1, varg = valnum_regs n i.arg in
