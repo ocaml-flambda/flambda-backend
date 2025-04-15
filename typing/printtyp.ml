@@ -661,6 +661,22 @@ and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
              fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
     tl
+and raw_row_desc ppf row =
+  let Row {fields; more; name; fixed; closed} = row_repr row in
+  fprintf ppf
+    "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
+    "row_fields="
+    (raw_list (fun ppf (l, f) ->
+       fprintf ppf "@[%s,@ %a@]" l raw_field f))
+    fields
+    "row_more=" raw_type more
+    "row_closed=" closed
+    "row_fixed=" raw_row_fixed fixed
+    "row_name="
+    (fun ppf ->
+       match name with None -> fprintf ppf "None"
+                     | Some(p,tl) ->
+                       fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%a)"
@@ -703,21 +719,7 @@ and raw_type_desc ppf = function
         raw_type t
         raw_type_list tl
   | Tvariant row ->
-      let Row {fields; more; name; fixed; closed} = row_repr row in
-      fprintf ppf
-        "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
-        "row_fields="
-        (raw_list (fun ppf (l, f) ->
-          fprintf ppf "@[%s,@ %a@]" l raw_field f))
-        fields
-        "row_more=" raw_type more
-        "row_closed=" closed
-        "row_fixed=" raw_row_fixed fixed
-        "row_name="
-        (fun ppf ->
-          match name with None -> fprintf ppf "None"
-          | Some(p,tl) ->
-              fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
+    raw_row_desc ppf row
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl

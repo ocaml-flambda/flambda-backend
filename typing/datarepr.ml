@@ -21,7 +21,7 @@ open Types
 open Btype
 
 (* Simplified version of Ctype.free_vars *)
-let free_vars ?(param=false) ty =
+let free_vars ?(param=false) ?(include_row_variables=true) ty =
   let ret = ref TypeSet.empty in
   let rec loop ty =
     if try_mark_node ty then
@@ -29,12 +29,14 @@ let free_vars ?(param=false) ty =
       | Tvar _ ->
           ret := TypeSet.add ty !ret
       | Tvariant row ->
-          iter_row loop row;
-          if not (static_row row) then begin
-            match get_desc (row_more row) with
-            | Tvar _ when param -> ret := TypeSet.add ty !ret
-            | _ -> loop (row_more row)
-          end
+        if include_row_variables
+        then iter_row loop row
+        else iter_row_fields loop row;
+        if not (static_row row) && include_row_variables then begin
+          match get_desc (row_more row) with
+          | Tvar _ when param -> ret := TypeSet.add ty !ret
+          | _ -> loop (row_more row)
+        end
       (* XXX: What about Tobject ? *)
       | _ ->
           iter_type_expr loop ty
@@ -315,3 +317,29 @@ let unboxed_labels_of_type ty_path decl =
         labels rep decl.type_private
   | Type_record _
   | Type_variant _ | Type_abstract _ | Type_open -> []
+
+let constructor_unbound_type_vars_excluding_row_variables cstr =
+  match cstr.cd_res with
+  | None -> TypeSet.empty
+  | Some res_ty ->
+    let tyl = tys_of_constr_args cstr.cd_args in
+    let bound_vars =
+      match get_desc res_ty with
+      | Tconstr (_, args, _) ->
+        args
+        |> List.to_seq
+        |> Seq.filter is_Tvar
+        |> Seq.map Transient_expr.repr
+        |> TypeSet.of_seq
+      | _ -> Misc.fatal_error "cd_res must be Tconstr"
+    in
+    let arg_vars_set =
+      free_vars
+        ~include_row_variables:false
+        (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+    in
+    TypeSet.diff arg_vars_set bound_vars
+
+let () =
+  Jkind.constructor_unbound_type_vars_excluding_row_variables
+  := constructor_unbound_type_vars_excluding_row_variables

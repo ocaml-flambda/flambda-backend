@@ -2271,7 +2271,12 @@ let type_jkind_purely_if_principal' =
    don't. *)
 let rec estimate_type_jkind ~expand_component env ty =
   match get_desc ty with
-  | Tvar { jkind } | Tof_kind jkind -> Jkind.disallow_right jkind
+  | Tvar { jkind } -> Jkind.disallow_right jkind
+  | Tof_kind jkind  ->
+    jkind
+    |> Jkind.disallow_right
+    (* [Tof_kind] stands in for an existential type, which always have best kinds *)
+    |> Jkind.mark_best
   | Tarrow _ -> Jkind.for_arrow
   | Ttuple elts -> Jkind.for_boxed_tuple elts
   | Tunboxed_tuple ltys ->

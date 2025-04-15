@@ -1954,7 +1954,12 @@ let rec update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs)
         ) (0,[]) cstrs
       in
-      let jkind = Jkind.for_boxed_variant cstrs in
+      let jkind =
+        Jkind.for_boxed_variant
+          ~decl_params:decl.type_params
+          ~type_apply:(Ctype.apply env)
+          cstrs
+      in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
