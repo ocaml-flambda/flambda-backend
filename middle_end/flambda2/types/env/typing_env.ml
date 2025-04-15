@@ -245,26 +245,6 @@ end = struct
             now_meeting_or_joining_names t name1 name2))
 end
 
-module Meet_env : sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-
-  val create : typing_env -> t
-
-  val env : t -> typing_env
-
-  val now_meeting : t -> Simple.t -> Simple.t -> t
-
-  val already_meeting : t -> Simple.t -> Simple.t -> bool
-end = struct
-  include Meet_or_join_env_base
-
-  let now_meeting = now_meeting_or_joining
-
-  let already_meeting = already_meeting_or_joining
-end
-
 type 'a meet_return_value =
   | Left_input
   | Right_input
