@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-40-41-42-69"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -120,7 +120,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
 
   type work_state =
     { cfg : Cfg.t;
-      mutable queue : WorkSet.t;
+      queue : WorkSet.t;
       map_block : Transfer_domain.t Label.Tbl.t;
       map_instr : D.instr_domain InstructionId.Tbl.t option
     }
@@ -131,7 +131,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
 
   type priority_helper =
     { label : Label.t;
-      mutable index : int;
+      index : int;
       mutable lowlink : int;
       mutable on_stack : bool
     }
