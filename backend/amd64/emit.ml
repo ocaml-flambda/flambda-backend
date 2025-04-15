@@ -34,7 +34,6 @@ open X86_ast_utils
 open X86_proc
 open X86_dsl
 module String = Misc.Stdlib.String
-module Int = Numbers.Int
 
 (* [Branch_relaxation] is not used in this file, but is required by emit.ml
    files for certain other targets; the reference here ensures that when
@@ -2215,7 +2214,7 @@ let fundecl fundecl =
   then
     let n = frame_size () - 8 - if fp then 8 else 0 in
     if n <> 0 then cfi_adjust_cfa_offset (-n));
-  Option.iter def_label fun_end_label;
+  (match fun_end_label with Some l -> def_label l | None -> ());
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
 
