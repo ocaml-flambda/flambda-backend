@@ -310,10 +310,7 @@ module Transfer = struct
             | Begin_region | End_region | Specific _ | Dls_get | Poll | Alloc _
               )
         | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
-          let is_op_end_region = function[@ocaml.warning "-4"]
-            | Cfg.(Op End_region) -> true
-            | _ -> false
-          in
+          let is_op_end_region = Cfg.is_end_region in
           common ~avail_before ~destroyed_at:Proc.destroyed_at_basic
             ~is_interesting_constructor:is_op_end_region
             ~is_end_region:is_op_end_region instr)

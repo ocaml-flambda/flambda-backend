@@ -610,6 +610,23 @@ let is_alloc_or_poll (instr : basic instruction) =
       | Specific _ | Name_for_debugger _ ) ->
     false
 
+let is_end_region (b : basic) =
+  match b with
+  | Op End_region -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Poll | Move | Spill | Reload | Opaque | Begin_region | Dls_get
+      | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
 let basic_block_contains_calls block =
   block.is_trap_handler
   || (match block.terminator.desc with
