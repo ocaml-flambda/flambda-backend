@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open! Int_replace_polymorphic_compare
 open X86_ast
 
@@ -104,27 +106,27 @@ let system = match Config.system with
   | _ -> S_unknown
 
 let windows =
-  match system with
+  match[@warning "-4"] system with
   | S_mingw64 | S_cygwin | S_win64 -> true
   | _ -> false
 
-let is_linux = function
+let is_linux = function[@warning "-4"]
   | S_linux -> true
   | _ -> false
 
-let is_macosx = function
+let is_macosx = function [@warning "-4"]
   | S_macosx -> true
   | _ -> false
 
-let is_win32 = function
+let is_win32 = function [@warning "-4"]
   | S_win32 -> true
   | _ -> false
 
-let is_win64 = function
+let is_win64 = function [@warning "-4"]
   | S_win64 -> true
   | _ -> false
 
-let is_solaris = function
+let is_solaris = function [@warning "-4"]
   | S_solaris -> true
   | _ -> false
 
@@ -331,12 +333,14 @@ let register_internal_assembler f = internal_assembler := Some f
 let masm =
   match system with
   | S_win32 | S_win64 -> true
-  | _ -> false
+  | S_macosx|S_gnu|S_cygwin|S_solaris|S_linux_elf|S_bsd_elf|S_beos|S_mingw|
+    S_linux |S_mingw64|S_freebsd|S_netbsd|S_openbsd|S_unknown -> false
 
 let use_plt =
   match system with
   | S_macosx | S_mingw64 | S_cygwin | S_win64 -> false
-  | _ -> !Clflags.dlcode
+  | S_linux | S_gnu|S_solaris|S_win32|S_linux_elf|S_bsd_elf|S_beos|S_mingw|S_freebsd|
+S_netbsd|S_openbsd|S_unknown  -> !Clflags.dlcode
 
 (* Shall we use an external assembler command ?
    If [binary_content] contains some data, we can directly
@@ -371,7 +375,7 @@ let create_asm_file = ref true
 let directive dir =
   (if !create_asm_file then
      asm_code := dir :: !asm_code);
-  match dir with
+  match[@warning "-4"] dir with
   | Section (name, flags, args, is_delayed) -> (
       let name = Section_name.make name flags args in
       let where = if is_delayed then delayed_sections else asm_code_by_section in

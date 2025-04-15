@@ -16,6 +16,8 @@
 
 (** Definitions shared between the 32 and 64 bit Intel backends. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open X86_ast
 
 (** Helpers for textual emitters *)
