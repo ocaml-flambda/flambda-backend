@@ -1187,13 +1187,13 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     | Exchange -> 1
     | Compare_exchange -> 2
   in
-  let dst = addressing addr DWORD instr first_memory_arg_index in
   let src_index = first_memory_arg_index - 1 in
   let typ, src =
     match size with
     | Thirtytwo -> DWORD, arg32 instr src_index
     | Sixtyfour | Word -> QWORD, arg instr src_index
   in
+  let dst = addressing addr typ instr first_memory_arg_index in
   Address_sanitizer.emit_sanitize ~dependencies:[| src |] ~address:dst
     Thirtytwo_unsigned Store_modify;
   match op with
