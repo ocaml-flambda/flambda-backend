@@ -439,11 +439,12 @@ module SpillCosts = struct
         let cost = base_cost * cost_multiplier in
         DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;
         (* Ignore probes *)
-        match[@ocaml.warning "-4"] block.terminator.desc with
+        match block.terminator.desc with
         | Prim { op = Probe _; _ } -> ()
+        | Prim { op = External _; _ }
         | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-        | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
+        | Tailcall_func _ | Call_no_return _ | Call _ ->
           update_instr cost block.terminator);
     costs
 end

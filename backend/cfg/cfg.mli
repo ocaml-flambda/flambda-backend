@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 val verbose : bool ref
 
@@ -194,6 +194,12 @@ val is_return_terminator : terminator -> bool
 val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
+
+val is_alloc : basic instruction -> bool
+
+val is_poll : basic instruction -> bool
+
+val is_end_region : basic -> bool
 
 val set_stack_offset : 'a instruction -> int -> unit
 

@@ -29,7 +29,7 @@ let bad_immediate fmt =
   Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
 
 (* Assumes untagged int *)
-let[@ocaml.warning "-4"] extract_constant args name ~max =
+let extract_constant args name ~max =
   match args with
   | Cmm.Cconst_int (i, _) :: args ->
     if i < 0 || i > max
@@ -37,7 +37,26 @@ let[@ocaml.warning "-4"] extract_constant args name ~max =
       bad_immediate "Immediate for %s must be in range [0,%d] (got %d)" name max
         i;
     i, args
-  | _ -> bad_immediate "Did not get integer immediate for %s" name
+  | []
+  | Cmm.(
+      ( Cconst_float _
+      | Cconst_natint (_, _)
+      | Cconst_float32 (_, _)
+      | Cconst_vec128 (_, _)
+      | Cconst_symbol (_, _)
+      | Cvar _
+      | Clet (_, _, _)
+      | Cphantom_let (_, _, _)
+      | Ctuple _
+      | Cop (_, _, _)
+      | Csequence (_, _)
+      | Cifthenelse (_, _, _, _, _, _)
+      | Cswitch (_, _, _, _)
+      | Ccatch (_, _, _)
+      | Cexit (_, _, _)
+      | Ctrywith (_, _, _, _, _, _) ))
+    :: _ ->
+    bad_immediate "Did not get integer immediate for %s" name
 
 let float_condition_of_int = function
   | 0 -> EQf

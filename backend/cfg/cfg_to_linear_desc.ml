@@ -1,5 +1,7 @@
+[@@@ocaml.warning "+a-40-41-42"]
+
 open Cfg_intf.S
-open! Int_replace_polymorphic_compare
+open! Int_replace_polymorphic_compare [@@warning "-66"]
 
 let from_basic (basic : basic) : Linear.instruction_desc =
   match basic with

@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -310,10 +310,7 @@ module Transfer = struct
             | Begin_region | End_region | Specific _ | Dls_get | Poll | Alloc _
               )
         | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
-          let is_op_end_region = function[@ocaml.warning "-4"]
-            | Cfg.(Op End_region) -> true
-            | _ -> false
-          in
+          let is_op_end_region = Cfg.is_end_region in
           common ~avail_before ~destroyed_at:Proc.destroyed_at_basic
             ~is_interesting_constructor:is_op_end_region
             ~is_end_region:is_op_end_region instr)
@@ -376,14 +373,30 @@ end
 
 module Analysis = Cfg_dataflow.Forward (Domain) (Transfer)
 
+let get_name_for_debugger_regs (b : Cfg.basic) =
+  match b with
+  | Op (Name_for_debugger { regs; _ }) -> Some regs
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+      | Poll | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Alloc _ ) ->
+    None
+
 let compute_all_regs_that_might_be_named : Cfg.t -> Reg.Set.t =
  fun cfg ->
   Cfg.fold_blocks cfg ~init:Reg.Set.empty ~f:(fun _label block acc ->
       DLL.fold_left block.body ~init:acc ~f:(fun acc instr ->
-          match[@ocaml.warning "-4"] instr.Cfg.desc with
-          | Cfg.(Op (Name_for_debugger { regs; _ })) ->
-            Reg.add_set_array acc regs
-          | _ -> acc))
+          match get_name_for_debugger_regs instr.Cfg.desc with
+          | Some regs -> Reg.add_set_array acc regs
+          | None -> acc))
 
 let run : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->

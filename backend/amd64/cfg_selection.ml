@@ -17,7 +17,7 @@
 
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open Arch
 open Proc
@@ -237,7 +237,7 @@ let is_immediate_test _cmp n : Cfg_selectgen_target_intf.is_immediate_result =
 let is_simple_expr (expr : Cmm.expression) :
     Cfg_selectgen_target_intf.is_simple_expr_result =
   match expr with
-  | Cop (Cextcall { func = fn }, args, _) when List.mem fn inline_ops ->
+  | Cop (Cextcall { func = fn; _ }, args, _) when List.mem fn inline_ops ->
     (* inlined ops are simple if their arguments are *)
     Simple_if_all_expressions_are args
   | _ -> Use_default
@@ -245,7 +245,7 @@ let is_simple_expr (expr : Cmm.expression) :
 let effects_of (expr : Cmm.expression) :
     Cfg_selectgen_target_intf.effects_of_result =
   match expr with
-  | Cop (Cextcall { func = fn }, args, _) when List.mem fn inline_ops ->
+  | Cop (Cextcall { func = fn; _ }, args, _) when List.mem fn inline_ops ->
     Effects_of_all_expressions args
   | _ -> Use_default
 

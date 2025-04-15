@@ -68,7 +68,7 @@ let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
   in
   let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell) =
     let inst = DLL.value inst_cell in
-    match[@ocaml.warning "-4"] inst.desc with
+    match inst.desc with
     | Op Reload -> (
       let var = inst.arg.(0) in
       let temp = inst.res.(0) in
@@ -87,7 +87,19 @@ let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
       match Reg.Tbl.find_opt var_to_block_temp var with
       | None -> Reg.Tbl.add var_to_block_temp var temp
       | Some block_temp -> replace temp block_temp)
-    | _ -> ()
+    | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+    | Op
+        ( Move | Opaque | Begin_region | End_region | Dls_get | Poll
+        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Stackoffset _ | Load _
+        | Store (_, _, _)
+        | Intop _
+        | Intop_imm (_, _)
+        | Intop_atomic _
+        | Floatop (_, _)
+        | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+        | Specific _ | Name_for_debugger _ | Alloc _ ) ->
+      ()
   in
   DLL.iter_cell block.body ~f:update_info_using_inst;
   if Reg.Tbl.length replacements <> 0
