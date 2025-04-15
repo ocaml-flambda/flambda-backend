@@ -788,7 +788,7 @@ end = struct
                 match Instruction.op instruction with
                 | None -> None
                 | Some op -> (
-                  match[@warning "-fragile-match"] op with
+                  match op with
                   | Move | Spill | Reload -> Some (reg, 0)
                   | Intop_imm (Iadd, n) -> Some (reg, n)
                   | Intop_imm (Isub, n) -> Some (reg, -n)
