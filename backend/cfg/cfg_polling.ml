@@ -118,7 +118,7 @@ let () =
    the terminator to always return `false` would be better. *)
 
 let is_safe_basic : Cfg.basic Cfg.instruction -> bool =
- fun instr -> Cfg.is_alloc_or_poll instr
+ fun instr -> Cfg.is_alloc instr || Cfg.is_poll instr
 
 let is_safe_terminator : Cfg.terminator Cfg.instruction -> bool =
  fun term ->

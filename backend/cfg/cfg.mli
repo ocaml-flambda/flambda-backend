@@ -195,7 +195,7 @@ val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
-val is_alloc_or_poll : basic instruction -> bool
+val is_alloc : basic instruction -> bool
 
 val is_poll : basic instruction -> bool
 
