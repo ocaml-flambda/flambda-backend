@@ -424,12 +424,7 @@ let contains_polls : Cfg.t -> bool =
   let exception Found in
   try
     Cfg.iter_blocks cfg ~f:(fun _label block ->
-        let has_poll_instr =
-          DLL.exists block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-              match[@ocaml.warning "-4"] instr.Cfg.desc with
-              | Cfg.Op Poll -> true
-              | _ -> false)
-        in
+        let has_poll_instr = DLL.exists block.body ~f:Cfg.is_poll in
         if has_poll_instr then raise Found);
     false
   with Found -> true

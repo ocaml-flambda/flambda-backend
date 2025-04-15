@@ -197,6 +197,8 @@ val is_noop_move : basic instruction -> bool
 
 val is_alloc_or_poll : basic instruction -> bool
 
+val is_poll : basic instruction -> bool
+
 val is_end_region : basic -> bool
 
 val set_stack_offset : 'a instruction -> int -> unit

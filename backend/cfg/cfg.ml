@@ -593,6 +593,23 @@ let make_empty_block ?label terminator : basic_block =
     cold = false
   }
 
+let is_poll (instr : basic instruction) =
+  match instr.desc with
+  | Op Poll -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Move | Spill | Reload | Opaque | Begin_region | End_region
+      | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
 let is_alloc_or_poll (instr : basic instruction) =
   match instr.desc with
   | Op (Alloc _ | Poll) -> true
