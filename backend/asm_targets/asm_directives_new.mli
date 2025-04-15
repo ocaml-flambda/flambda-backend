@@ -7,7 +7,7 @@
 (*                                                                        *)
 (*   Copyright 2014 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
-(*   Copyright 2016--2018 Jane Street Group LLC                           *)
+(*   Copyright 2016--2025 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -19,9 +19,6 @@
     many intricate details differing between target systems. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
-
-(* CR-someday mshinwell: Use this module throughout the backends as per the
-   original GPR. *)
 
 (** Emit subsequent directives to the given section.  If this function
     has not been called before on the particular section, a label
