@@ -688,6 +688,19 @@ let prim_has_valid_reprs ~loc prim =
     | "%peek" | "%poke" ->
       (* Arities and layouts of these primitives are checked in [Translprim] *)
       fun _ -> Success
+    | "%obj_unsafe_read_offset_in_bytes" ->
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.bits64);
+        any
+      ]
+    | "%obj_unsafe_write_offset_in_bytes" ->
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.bits64);
+        any;
+        is (Same_as_ocaml_repr C.value);
+      ]
     | "%box_float" ->
       exactly [Same_as_ocaml_repr C.float64; Same_as_ocaml_repr C.value]
     | "%unbox_float" ->
