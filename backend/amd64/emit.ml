@@ -19,6 +19,8 @@
    [Flambda_backend_flags] and shared variables. For details, see
    [asmgen.mli]. *)
 
+[@@@ocaml.warning "+a-45-9-4-40-41-42"]
+
 open! Int_replace_polymorphic_compare
 open Cmm
 open Arch
@@ -137,7 +139,7 @@ let pop r =
 
 (* Symbols *)
 
-let symbol_prefix = match system with S_macosx -> "_" | _ -> ""
+let symbol_prefix = if is_macosx system then "_" else ""
 
 let emit_symbol s = string_of_symbol symbol_prefix s
 
@@ -182,12 +184,12 @@ let mem__imp s =
 (* Output a label *)
 
 let label_name lbl =
-  match system with S_macosx | S_win64 -> "L" ^ lbl | _ -> ".L" ^ lbl
+  if is_macosx system || is_win64 system then "L" ^ lbl else ".L" ^ lbl
 
 let emit_label lbl = label_name (Label.to_string lbl)
 
 let rel_plt (s : Cmm.symbol) =
-  match s.sym_global with
+  match (s.sym_global : Cmm.is_global) with
   | Local -> sym (label_name (emit_symbol s.sym_name))
   | Global ->
     if windows && !Clflags.dlcode
@@ -207,12 +209,12 @@ let label s = sym (emit_label s)
 let def_label ?typ s = D.label ?typ (emit_label s)
 
 let emit_cmm_symbol (s : Cmm.symbol) =
-  match s.sym_global with
+  match (s.sym_global : Cmm.is_global) with
   | Global -> emit_symbol s.sym_name
   | Local -> label_name (emit_symbol s.sym_name)
 
 let load_symbol_addr s arg =
-  match s.sym_global with
+  match (s.sym_global : Cmm.is_global) with
   | Local -> I.lea (mem64_rip NONE (label_name (emit_symbol s.sym_name))) arg
   | Global ->
     if !Clflags.dlcode
@@ -232,7 +234,7 @@ let load_symbol_addr s arg =
 let emit_named_text_section ?(suffix = "") func_name =
   if !Clflags.function_sections || !Flambda_backend_flags.basic_block_sections
   then
-    match system with
+    match[@ocaml.warning "-4"] system with
     | S_macosx
     (* Names of section segments in macosx are restricted to 16 characters, but
        function names are often longer, especially anonymous functions. *)
@@ -287,17 +289,17 @@ let x86_data_type_for_stack_slot : machtype_component -> data_type = function
   | Float32 -> REAL4
 
 let reg = function
-  | { loc = Reg.Reg r; typ = ty } -> register_name ty r
-  | { loc = Stack (Domainstate n); typ = ty } ->
+  | { loc = Reg.Reg r; typ = ty; _ } -> register_name ty r
+  | { loc = Stack (Domainstate n); typ = ty; _ } ->
     let ofs = n + (Domainstate.(idx_of_field Domain_extra_params) * 8) in
     mem64 (x86_data_type_for_stack_slot ty) ofs R14
-  | { loc = Stack s; typ = ty } as r ->
+  | { loc = Stack s; typ = ty; _ } as r ->
     let ofs = slot_offset s (Stack_class.of_machtype r.typ) in
     mem64 (x86_data_type_for_stack_slot ty) ofs RSP
-  | { loc = Unknown } -> assert false
+  | { loc = Unknown; _ } -> assert false
 
 let reg64 = function
-  | { loc = Reg.Reg r } -> int_reg_name.(r)
+  | { loc = Reg.Reg r; _ } -> int_reg_name.(r)
   | _ -> assert false
 
 let res i n = reg i.res.(n)
@@ -316,7 +318,7 @@ let emit_subreg tbl typ r =
   match r.loc with
   | Reg.Reg r when r < 13 -> tbl.(r)
   | Stack s -> mem64 typ (slot_offset s (Stack_class.of_machtype r.Reg.typ)) RSP
-  | _ -> assert false
+  | Reg _ | Unknown -> assert false
 
 let arg8 i n = emit_subreg reg_low_8_name BYTE i.arg.(n)
 
@@ -362,15 +364,15 @@ let record_frame_label live dbg =
       | { typ = Val; loc = Stack s } as reg ->
         live_offset
           := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
-      | { typ = Valx2; loc = Reg r } as reg ->
+      | { typ = Valx2; loc = Reg _ } as reg ->
         let n = Proc.gc_regs_offset reg in
         let encode n = (n lsl 1) + 1 in
         live_offset := encode n :: encode (n + 1) :: !live_offset
       | { typ = Valx2; loc = Stack s } as reg ->
         let n = slot_offset s (Stack_class.of_machtype reg.typ) in
         live_offset := n :: (n + Arch.size_addr) :: !live_offset
-      | { typ = Addr } as r -> Misc.fatal_error ("bad GC root " ^ Reg.name r)
-      | { typ = Val | Valx2; loc = Unknown } as r ->
+      | { typ = Addr; _ } as r -> Misc.fatal_error ("bad GC root " ^ Reg.name r)
+      | { typ = Val | Valx2; loc = Unknown; _ } as r ->
         Misc.fatal_error ("Unknown location " ^ Reg.name r)
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
@@ -554,7 +556,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         | QWORD
         | VEC128
 
-      type nonrec constant = constant
+      type nonrec constant = X86_ast.constant
 
       let const_int64 num = Const num
 
