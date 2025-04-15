@@ -348,8 +348,8 @@ let rec map_tail1 e ~f =
   | Cphantom_let (id, exp, body) -> Cphantom_let (id, exp, map_tail1 body ~f)
   | Csequence (e1, e2) -> Csequence (e1, map_tail1 e2 ~f)
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _
-  | Cifthenelse _ | Cexit _ | Ccatch _ | Cswitch _ ->
+  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _ | Cexit _
+  | Ccatch _ | Cswitch _ ->
     f e
 
 let map_tail2 x y ~f = map_tail1 y ~f:(fun y -> map_tail1 x ~f:(fun x -> f x y))
@@ -871,6 +871,11 @@ let[@inline] get_const = function
   | Cconst_natint (i, _) -> Some i
   | _ -> None
 
+let ifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg) =
+  (* This case is matched on in [Cfg_selection] *)
+  let cond = tag_int (Cop (Ccmpi Cne, [cond; Cconst_int (1, dbg)], dbg)) dbg in
+  Cswitch (cond, [| 0; 1 |], [| then_, then_dbg; else_, else_dbg |], dbg)
+
 (** Division or modulo on registers. The overflow case min_int / -1 can
     occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513).
     In typical cases, [operator] is used to compute the result.
@@ -884,7 +889,7 @@ let make_safe_divmod operator ~if_divisor_is_negative_one
   else
     bind "divisor" c2 (fun c2 ->
         bind "dividend" c1 (fun c1 ->
-            Cifthenelse
+            ifthenelse
               ( Cop (Ccmpi Cne, [c2; Cconst_int (-1, dbg)], dbg),
                 dbg,
                 Cop (operator, [c1; c2], dbg),
@@ -910,7 +915,7 @@ let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
     then
       (* integer division by min_int always returns 0 unless the dividend is
          also min_int, in which case it's 1. *)
-      Cifthenelse
+      ifthenelse
         ( Cop (Ccmpi Ceq, [c1; Cconst_natint (divisor, dbg)], dbg),
           dbg,
           Cconst_int (1, dbg),
@@ -990,7 +995,7 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
          divisor is min_int *)
       bind "dividend" c1 (fun c1 ->
           let min_int = Cconst_natint (Nativeint.min_int, dbg) in
-          Cifthenelse
+          ifthenelse
             ( Cop (Ccmpi Ceq, [c1; min_int], dbg),
               dbg,
               Cconst_int (0, dbg),
@@ -2721,7 +2726,7 @@ module SArgBlocks = struct
   let arg_as_test arg = arg
 
   let make_if () cond ifso ifnot =
-    Cifthenelse
+    ifthenelse
       (cond, Debuginfo.none, ifso, Debuginfo.none, ifnot, Debuginfo.none)
 
   let make_switch dbg () arg cases actions =
@@ -2836,7 +2841,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
        caml_applyN that has only the cold path. *)
     bind_list "arg" args (fun args ->
         bind "fun" clos (fun clos ->
-            Cifthenelse
+            ifthenelse
               ( Cop
                   ( Ccmpi Ceq,
                     [ Cop
@@ -2860,7 +2865,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
 let placeholder_dbg () = Debuginfo.none
 
 let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
-  Cifthenelse
+  ifthenelse
     ( Cop (Ccmpi Ceq, [old_region; Cop (Cbeginregion, [], dbg ())], dbg ()),
       dbg (),
       body_tail,
@@ -2988,7 +2993,7 @@ let cache_public_method meths tag cache dbg =
   let check_expr =
     (* Here we check whether the interval [li; hi] is a singleton, and exit the
        loop if so. *)
-    Cifthenelse
+    ifthenelse
       ( Cop (Ccmpi Cge, [Cvar check_li; Cvar check_hi], dbg),
         dbg,
         Cexit (Lbl found_cont, [Cvar check_li], []),
@@ -3005,7 +3010,7 @@ let cache_public_method meths tag cache dbg =
                 (Clsr, [Cop (Caddi, [Cvar li; Cvar hi], dbg); cconst_int 1], dbg);
               cconst_int 1 ],
             dbg ),
-        Cifthenelse
+        ifthenelse
           ( Cop
               ( Ccmpi Clt,
                 [ tag;
@@ -3125,7 +3130,7 @@ let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
     if List.compare_length_with arity 1 = 0
     then code
     else
-      Cifthenelse
+      ifthenelse
         ( Cop
             ( Ccmpi Ceq,
               [ Cop
@@ -3175,7 +3180,7 @@ let send_function (arity, result, mode) =
               (Cand, [Cop (mk_load_mut Word_int, [cache], dbg ()); mask], dbg ()),
             Clet
               ( VP.create real,
-                Cifthenelse
+                ifthenelse
                   ( Cop (Ccmpa Cne, [tag'; tag], dbg ()),
                     dbg (),
                     cache_public_method (Cvar meths) tag cache (dbg ()),
@@ -3868,7 +3873,7 @@ let entry_point namelist =
     let dbg = dbg () in
     let incr_i id = Cop (Caddi, [Cvar id; Cconst_int (1, dbg)], dbg) in
     let exit_if_last_iteration id =
-      Cifthenelse
+      ifthenelse
         ( Cop (Ccmpi Ceq, [Cvar id; high], dbg),
           dbg,
           Cexit (Lbl raise_num, [], []),
@@ -4023,7 +4028,7 @@ let letin v ~defining_expr ~body =
     defining_expr
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Cphantom_let _ | Ctuple _
-  | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ ->
+  | Cop _ | Csequence _ | Cswitch _ | Ccatch _ | Cexit _ ->
     Clet (v, defining_expr, body)
 
 let sequence x y =
@@ -4033,7 +4038,7 @@ let sequence x y =
   | _, _ -> Csequence (x, y)
 
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
-  Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg)
+  ifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg)
 
 let trywith ~dbg ~body ~exn_var ~extra_args ~handler_cont ~handler () =
   Ccatch
@@ -4360,8 +4365,8 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cconst_symbol _ | Cvar _ | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
-  | Clet _ | Cphantom_let _ | Ctuple _ | Csequence _ | Cifthenelse _ | Cswitch _
-  | Ccatch _ | Cexit _ ->
+  | Clet _ | Cphantom_let _ | Ctuple _ | Csequence _ | Cswitch _ | Ccatch _
+  | Cexit _ ->
     None
 
 (* Atomics *)

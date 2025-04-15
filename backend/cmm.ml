@@ -359,8 +359,6 @@ type expression =
   | Ctuple of expression list
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
-  | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
       * Debuginfo.t
   | Ccatch of
@@ -424,10 +422,6 @@ let iter_shallow_tail f = function
   | Clet(_, _, body) | Cphantom_let (_, _, body) ->
       f body;
       true
-  | Cifthenelse(_cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
-      f ifso;
-      f ifnot;
-      true
   | Csequence(_e1, e2) ->
       f e2;
       true
@@ -456,14 +450,6 @@ let map_shallow_tail f = function
       Clet(id, exp, f body)
   | Cphantom_let(id, exp, body) ->
       Cphantom_let (id, exp, f body)
-  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
-      Cifthenelse
-        (
-          cond,
-          ifso_dbg, f ifso,
-          ifnot_dbg, f ifnot,
-          dbg
-        )
   | Csequence(e1, e2) ->
       Csequence(e1, f e2)
   | Cswitch(e, tbl, el, dbg') ->
@@ -511,8 +497,6 @@ let iter_shallow f = function
       List.iter f el
   | Csequence (e1, e2) ->
       f e1; f e2
-  | Cifthenelse(cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
-      f cond; f ifso; f ifnot
   | Cswitch (_e, _ia, ea, _dbg) ->
       Array.iter (fun (e, _) -> f e) ea
   | Ccatch (_f, hl, body) ->
@@ -540,8 +524,6 @@ let map_shallow f = function
       Cop (op, List.map f el, dbg)
   | Csequence (e1, e2) ->
       Csequence (f e1, f e2)
-  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
-      Cifthenelse(f cond, ifso_dbg, f ifso, ifnot_dbg, f ifnot, dbg)
   | Cswitch (e, ia, ea, dbg) ->
       Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg)
   | Ccatch (flag, hl, body) ->
