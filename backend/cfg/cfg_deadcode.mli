@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 (* Dead code elimination: remove pure instructions whose results are not
    used. *)

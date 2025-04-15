@@ -20,6 +20,8 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 (** A "sub" CFG is the counterpart of an instruction list in the original Mach
     selection pass.
 

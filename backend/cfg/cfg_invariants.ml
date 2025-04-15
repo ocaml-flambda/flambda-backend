@@ -25,7 +25,7 @@
  **********************************************************************************)
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 module CL = Cfg_with_layout
 module DLL = Flambda_backend_utils.Doubly_linked_list
