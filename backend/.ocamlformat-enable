@@ -56,6 +56,8 @@ peephole/**/*.ml
 peephole/**/*.mli
 printcmm.ml
 printcmm.mli
+printlinear.ml
+printlinear.mli
 printoperation.ml
 printoperation.mli
 printreg.ml
