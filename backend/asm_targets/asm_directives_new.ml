@@ -809,6 +809,7 @@ let between_symbols_in_current_unit ~upper ~lower =
   let upper = const_symbol upper in
   let lower = const_symbol lower in
   let expr = const_sub upper lower in
+  (* CR sspies: is this check even needed? *)
   if TS.is_macos ()
   then const_machine_width (force_assembly_time_constant expr)
   else const_machine_width expr
