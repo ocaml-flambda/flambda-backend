@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 val operation :
   ?print_reg:(Format.formatter -> Reg.t -> unit) ->
