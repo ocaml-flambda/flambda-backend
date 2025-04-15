@@ -791,77 +791,86 @@ let new_temp_var () =
 (* CR sspies: once there are richer symbols, make this function take the section
    again *)
 let force_assembly_time_constant expr =
-  match TS.assembler () with
-  | GAS_like | MASM -> expr
-  | MacOS ->
+  if not (is_macos ())
+  then expr
+  else
     (* This ensures the correct result is obtained on macOS. (Apparently just
-       writing expressions such as "L100 - L101" inline can cause unexpected
-       results when one of the labels is on a section boundary, for example.) *)
+        writing expressions such as "L100 - L101" inline can cause unexpected
+        results when one of the labels is on a section boundary, for
+        example.) *)
     let temp = new_temp_var () in
-    direct_assignment temp expr;
-    let sym = Asm_symbol.create ~without_prefix:() temp in
-    Symbol sym (* not really a symbol, but OK. *)
+    D.direct_assignment temp expr;
+    D.const_label temp
 
 let between_symbols_in_current_unit ~upper ~lower =
   (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
      check_symbol_in_current_unit upper; check_symbol_in_current_unit lower;
      check_symbols_in_same_section upper lower; *)
-  let upper = const_symbol upper in
-  let lower = const_symbol lower in
-  let expr = const_sub upper lower in
-  (* CR sspies: is this check even needed? *)
-  if TS.is_macos ()
+  let upper = D.const_label (Asm_symbol.encode upper) in
+  let lower = D.const_label (Asm_symbol.encode lower) in
+  let expr = D.const_sub upper lower in
+  if is_macos ()
   then const_machine_width (force_assembly_time_constant expr)
   else const_machine_width expr
 
 let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
-  Misc.fatal_error "Not implemeted yet."
+  (* CR poechsel: use the arguments *)
+  A.emit_line "between_labels_16_bit"
 
 let between_labels_32_bit ?comment:_ ~upper:_ ~lower:_ () =
-  Misc.fatal_error "Not implemeted yet."
+  (* CR poechsel: use the arguments *)
+  A.emit_line "between_labels_32_bit"
 
 let between_labels_64_bit ?comment:_ ~upper:_ ~lower:_ () =
-  Misc.fatal_error "Not implemeted yet."
+  (* CR poechsel: use the arguments *)
+  A.emit_line "between_labels_64_bit"
 
-let between_symbol_in_current_unit_and_label_offset ?comment:_comment ~upper
-    ~lower ~offset_upper () =
+let between_labels_64_bit_with_offsets ?comment ~upper ~upper_offset ~lower
+    ~lower_offset () =
+  Option.iter D.comment comment;
+  let upper_offset = Targetint.to_int64 upper_offset in
+  let lower_offset = Targetint.to_int64 lower_offset in
+  let expr =
+    D.const_sub
+      (D.const_add
+          (D.const_label (Asm_label.encode upper))
+          (D.const_int64 upper_offset))
+      (D.const_add
+          (D.const_label (Asm_label.encode lower))
+          (D.const_int64 lower_offset))
+  in
+  const_machine_width (force_assembly_time_constant expr)
+
+let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
+    ~offset_upper () =
   (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
-     check_symbol_and_label_in_same_section lower upper; *)
-  Option.iter comment _comment;
+      check_symbol_and_label_in_same_section lower upper; *)
+  Option.iter D.comment comment;
   if Targetint.compare offset_upper Targetint.zero = 0
   then
-    let expr = const_sub (const_label upper) (const_symbol lower) in
+    let expr =
+      D.const_sub
+        (D.const_label (Asm_label.encode upper))
+        (D.const_label (Asm_symbol.encode lower))
+    in
     const_machine_width (force_assembly_time_constant expr)
   else
     let offset_upper = Targetint.to_int64 offset_upper in
     let expr =
-      const_sub
-        (const_add (const_label upper) (const_int64 offset_upper))
-        (const_symbol lower)
+      D.const_sub
+        (D.const_add
+            (D.const_label (Asm_label.encode upper))
+            (D.const_int64 offset_upper))
+        (D.const_label (Asm_symbol.encode lower))
     in
     const_machine_width (force_assembly_time_constant expr)
 
-let between_this_and_label_offset_32bit ~upper ~offset_upper =
-  let upper_section = Asm_label.section upper in
-  (match !current_section_ref with
-  | None -> not_initialized ()
-  | Some this_section ->
-    if not (Asm_section.equal upper_section this_section)
-    then
-      Misc.fatal_errorf
-        "Label %a in section %a is not in the current section %a"
-        Asm_label.print upper Asm_section.print upper_section Asm_section.print
-        this_section);
-  let offset_upper = Targetint.to_int64 offset_upper in
-  let expr = Sub (Add (Label upper, Signed_int offset_upper), This) in
-  const (force_assembly_time_constant expr) Thirty_two
-
-let const_with_width ~width constant =
+let const ~width constant =
   match width with
-  | Dwarf_flags.Thirty_two -> const constant Thirty_two
-  | Dwarf_flags.Sixty_four -> const constant Sixty_four
+  | Dwarf_flags.Thirty_two -> D.long constant
+  | Dwarf_flags.Sixty_four -> D.qword constant
 
-let offset_into_dwarf_section_label ?comment:_comment ~width section upper =
+let offset_into_dwarf_section_label ?comment ~width section upper =
   let upper_section = Asm_label.section upper in
   let expected_section : Asm_section.t = DWARF section in
   if not (Asm_section.equal upper_section expected_section)
@@ -872,45 +881,69 @@ let offset_into_dwarf_section_label ?comment:_comment ~width section upper =
   (if !Clflags.keep_asm_file
   then
     let expected_section = Asm_section.to_string expected_section in
-    match _comment with
-    | None -> comment (Format.asprintf "offset into %s" expected_section)
-    | Some _comment ->
-      comment (Format.asprintf "%s (offset into %s)" _comment expected_section));
+    match comment with
+    | None -> D.comment (Format.asprintf "offset into %s" expected_section)
+    | Some comment ->
+      D.comment
+        (Format.asprintf "%s (offset into %s)" comment expected_section));
   (* macOS does not use relocations in DWARF sections in places, such as here,
-     where they might be expected. Instead dsymutil and other tools parse DWARF
-     sections properly and adjust offsets manually. *)
+      where they might be expected. Instead dsymutil and other tools parse
+      DWARF sections properly and adjust offsets manually. *)
   let expr =
-    if TS.is_macos ()
+    if is_macos ()
     then
       let lower = Asm_label.for_dwarf_section section in
       if Asm_label.equal lower upper
-      then const_int64 0L
+      then D.const_int64 0L
       else
         force_assembly_time_constant
-          (const_sub (const_label upper) (const_label lower))
-    else const_label upper
+          (D.const_sub
+              (D.const_label (Asm_label.encode upper))
+              (D.const_label (Asm_label.encode lower)))
+    else D.const_label (Asm_label.encode upper)
   in
-  const_with_width ~width expr
+  const ~width expr
 
-let offset_into_dwarf_section_symbol ?comment section upper
-    ~(width : TS.machine_width) =
-  (* CR sspies: add check test that the upper section is DWARF section*)
+let offset_into_dwarf_section_symbol ?comment
+    ~(width : Dwarf_flags.dwarf_format) section upper =
+  (* CR mshinwell: code from previous DWARF work:
+
+      let upper_section = Asm_symbol.section upper in if not (Asm_section.equal
+      upper_section (DWARF section)) then Misc.fatal_errorf "Symbol %a (in
+      section %a) not in section %a" Asm_symbol.print upper Asm_section.print
+      upper_section Asm_section.print (Asm_section.DWARF section); *)
   (* The macOS assembler doesn't seem to allow "distance to undefined symbol
-     from start of given section". As such we do not allow this function to be
-     used for undefined symbols on macOS at the moment. Relevant link:
-     <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82005>. *)
-  let expr : expr =
-    match TS.assembler () with
-    | MacOS ->
-      (* CR sspies: check whether current unit is equal to upper unit *)
-      let lower = Asm_label.for_dwarf_section section in
-      (* Same note as in [offset_into_dwarf_section_label] applies here. *)
-      force_assembly_time_constant (Sub (Symbol upper, Label lower))
-    | GAS_like | MASM -> Symbol upper
-  in
-  let width : Directive.Constant_with_width.width_in_bytes =
-    match width with Thirty_two -> Thirty_two | Sixty_four -> Sixty_four
-  in
+      from start of given section". As such we do not allow this function to be
+      used for undefined symbols on macOS at the moment. Relevant link:
+      <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82005>. *)
+  (* CR mshinwell: try again to make this work on macOS, maybe using
+    * something like the last .quad in the example below:
+    *
+    * extunit.s
+    *
+    *   .section __DWARF,__debug_info,regular,debug
+    *   .quad 0x12345678
+    *   .globl extunit_die
+    * extunit_die:
+    *   .quad 0xffffdddd
+    *
+    * ---
+    *
+    * unit.s
+    *
+    *   .section __DWARF,__debug_info,regular,debug
+    * Ldebug_info:
+    *   .quad 0x11112222
+    *   .globl unit_die
+    * unit_die1:
+    *   .quad 0x9999888
+    * unit_die:
+    *   .quad 0xaaaabbbb
+    *   .quad unit_die - __debug_info
+    *   .set dist, unit_die - Ldebug_info
+    *   .quad dist
+    *   .quad extunit_die - __debug_info
+    *)
   let comment =
     if not !Clflags.keep_asm_file
     then None
@@ -925,4 +958,35 @@ let offset_into_dwarf_section_symbol ?comment section upper
           (Format.asprintf "%s (offset into %s)" comment
              (Asm_section.to_string (DWARF section)))
   in
-  const ?comment expr width
+  Option.iter D.comment comment;
+  let expr =
+    if is_macos ()
+    then
+      let in_current_unit =
+        true
+        (* CR mshinwell: old code was:
+
+            Compilation_unit.equal (Compilation_unit.get_current_exn ())
+            (Asm_symbol.compilation_unit upper) *)
+      in
+      if in_current_unit
+      then
+        let lower = Asm_label.for_dwarf_section section in
+        (* Same note as in [offset_into_dwarf_section_label] applies here. *)
+        force_assembly_time_constant
+          (D.const_sub
+              (D.const_label (Asm_symbol.encode upper))
+              (D.const_label (Asm_label.encode lower)))
+      else
+        Misc.fatal_errorf
+          "Don't know how to encode offset from start of section XXX to \
+            undefined symbol %a on macOS (current compilation unit %a, symbol \
+            in compilation unit XXX)"
+          (* Asm_section.print upper_section *) Asm_symbol.print upper
+          Compilation_unit.print
+          (Compilation_unit.get_current_exn ())
+          Compilation_unit.print
+      (* (Asm_symbol.compilation_unit upper) *)
+    else D.const_label (Asm_symbol.encode upper)
+  in
+  match width with Thirty_two -> D.long expr | Sixty_four -> D.qword expr
