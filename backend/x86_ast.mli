@@ -15,6 +15,8 @@
 
 (** Structured representation of Intel assembly language (32 and 64 bit). *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 type condition =
   | L | GE     (* signed comparisons: less/greater *)
   | LE | G

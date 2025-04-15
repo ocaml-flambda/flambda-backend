@@ -124,6 +124,10 @@ let is_win64 = function
   | S_win64 -> true
   | _ -> false
 
+let is_solaris = function
+  | S_solaris -> true
+  | _ -> false
+
 let string_of_substring_literal k n s =
   let between x low high =
     Char.compare x low >= 0 && Char.compare x high <= 0

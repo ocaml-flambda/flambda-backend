@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open! Int_replace_polymorphic_compare
 open X86_ast
 open X86_proc
@@ -116,10 +118,10 @@ let i1_call_jmp b s = function
   (* this is the encoding of jump labels: don't use * *)
   | Mem {arch=X86; idx=_;   scale=0; base=None; sym=Some _; _} as x ->
       i1 b s x
-  | Reg32 _ | Reg64 _ | Mem _  | Mem64_RIP _ as x ->
+  | Reg32 _ | Reg64 _ | Mem { arch = (X64 | X86); _} | Mem64_RIP _ as x ->
       bprintf b "\t%s\t*%a" s arg x
   | Sym x -> bprintf b "\t%s\t%s" s x
-  | _ -> assert false
+  | Imm _|Reg8L _|Reg8H _|Reg16 _|Regf _ -> assert false
 
 let print_instr b = function
   | ADD (arg1, arg2) -> i2_s b "add" arg1 arg2
@@ -172,7 +174,11 @@ let print_instr b = function
       i2 b "movabsq" arg1 arg2
   | MOV ((Sym _ as arg1), (Reg64 _ as arg2)) when windows ->
       i2 b "movabsq" arg1 arg2
-  | MOV (arg1, arg2) -> i2_s b "mov" arg1 arg2
+  | MOV (((Reg8L _  | Imm _|Sym _|Reg8H _|Reg16 _|Reg32 _|Reg64 _|Regf _|Mem _
+          | Mem64_RIP (_, _, _)) as arg1),
+         ((Reg8L _ | Imm _|Sym _|Reg8H _|Reg16 _|Reg32 _|Reg64 _
+          |Regf _|Mem _| Mem64_RIP (_, _, _)) as arg2))
+         -> i2_s b "mov" arg1 arg2
   | MOVAPD (arg1, arg2) -> i2 b "movapd" arg1 arg2
   | MOVUPD (arg1, arg2) -> i2 b "movupd" arg1 arg2
   | MOVD (arg1, arg2) -> i2 b "movd" arg1 arg2
@@ -421,9 +427,9 @@ let print_line b = function
       bprintf b "\t.align\t%d" n
   | Byte n -> bprintf b "\t.byte\t%a" cst n
   | Bytes s ->
-      (match system with
-      | S_solaris -> buf_bytes_directive b ".byte" s
-      | _ ->
+      (match is_solaris system with
+      | true -> buf_bytes_directive b ".byte" s
+      | false ->
         (* Very long lines can cause gas to be extremely slow so split up large
           string literals. It turns out that gas reads files in 32kb chunks
           so splitting the string into blocks of 25k characters should be close
@@ -462,13 +468,13 @@ let print_line b = function
       | _ -> bprintf b ",%s" (String.concat "," args)
       end
   | Space n ->
-      (match system with
-      | S_solaris -> bprintf b "\t.zero\t%d" n
-      | _ -> bprintf b "\t.space\t%d" n)
+      (match is_solaris system with
+      | true -> bprintf b "\t.zero\t%d" n
+      | false -> bprintf b "\t.space\t%d" n)
   | Word n ->
-      (match system with
-      | S_solaris -> bprintf b "\t.value\t%a" cst n
-      | _ -> bprintf b "\t.word\t%a" cst n)
+      (match is_solaris system with
+      | true -> bprintf b "\t.value\t%a" cst n
+      | false -> bprintf b "\t.word\t%a" cst n)
 
   | Uleb128 n -> bprintf b "\t.uleb128\t%a" cst n
   | Sleb128 n -> bprintf b "\t.sleb128\t%a" cst n

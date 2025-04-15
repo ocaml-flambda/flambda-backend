@@ -96,7 +96,7 @@ val is_linux : system -> bool
 val is_macosx : system -> bool
 val is_win32 : system -> bool
 val is_win64 : system -> bool
-
+val is_solaris : system -> bool
 
 (** Whether calls need to go via the PLT. *)
 val use_plt : bool

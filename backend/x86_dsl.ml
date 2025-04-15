@@ -20,6 +20,7 @@
    to the official Intel syntax).
 *)
 
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open X86_ast
