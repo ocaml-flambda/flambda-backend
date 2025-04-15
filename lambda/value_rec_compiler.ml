@@ -357,7 +357,9 @@ let compute_static_size lam =
     | Popaque _
     | Pdls_get
     | Ppeek _
-    | Ppoke _ ->
+    | Ppoke _
+    | Pread_offset _
+    | Pwrite_offset _ ->
         dynamic_size lam
 
     (* Primitives specific to flambda-backend *)
