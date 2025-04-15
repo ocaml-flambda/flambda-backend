@@ -19,7 +19,7 @@
    [Flambda_backend_flags] and shared variables. For details, see
    [asmgen.mli]. *)
 
-[@@@ocaml.warning "+a-45-4-40-41-42"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open Arch
@@ -28,7 +28,6 @@ open Reg
 open Operation
 open Linear
 open Emitaux
-open X86_ast
 open X86_ast_utils
 open X86_proc
 open X86_dsl
@@ -45,12 +44,12 @@ let _label s = D.label ~typ:QWORD s
 
 (* Override proc.ml *)
 
-let int_reg_name =
+let int_reg_name : X86_ast.reg64 array =
   [| RAX; RBX; RDI; RSI; RDX; RCX; R8; R9; R12; R13; R10; R11; RBP |]
 
-let float_reg_name = Array.init 16 (fun i -> XMM i)
+let float_reg_name = Array.init 16 (fun i -> X86_ast.XMM i)
 
-let register_name typ r =
+let register_name typ r : X86_ast.arg =
   match (typ : Cmm.machtype_component) with
   | Int | Val | Addr -> Reg64 int_reg_name.(r)
   | Float | Float32 | Vec128 | Valx2 -> Regf float_reg_name.(r - 100)
@@ -279,7 +278,7 @@ let emit_Llabel fallthrough lbl section_name =
 
 (* Output a pseudo-register *)
 
-let x86_data_type_for_stack_slot : Cmm.machtype_component -> data_type =
+let x86_data_type_for_stack_slot : Cmm.machtype_component -> X86_ast.data_type =
   function
   | Float -> REAL8
   | Vec128 -> VEC128
@@ -287,7 +286,7 @@ let x86_data_type_for_stack_slot : Cmm.machtype_component -> data_type =
   | Int | Addr | Val -> QWORD
   | Float32 -> REAL4
 
-let reg = function
+let reg : Reg.t -> X86_ast.arg = function
   | { loc = Reg.Reg r; typ = ty; _ } -> register_name ty r
   | { loc = Stack (Domainstate n); typ = ty; _ } ->
     let ofs = n + (Domainstate.(idx_of_field Domain_extra_params) * 8) in
@@ -307,11 +306,11 @@ let arg i n = reg i.arg.(n)
 
 (* Output a reference to the lower 8, 16 or 32 bits of a register *)
 
-let reg_low_8_name = Array.map (fun r -> Reg8L r) int_reg_name
+let reg_low_8_name = Array.map (fun r -> X86_ast.Reg8L r) int_reg_name
 
-let reg_low_16_name = Array.map (fun r -> Reg16 r) int_reg_name
+let reg_low_16_name = Array.map (fun r -> X86_ast.Reg16 r) int_reg_name
 
-let reg_low_32_name = Array.map (fun r -> Reg32 r) int_reg_name
+let reg_low_32_name = Array.map (fun r -> X86_ast.Reg32 r) int_reg_name
 
 let emit_subreg tbl typ r =
   match r.loc with
@@ -356,7 +355,8 @@ let record_frame_label live dbg =
   let lbl = Cmm.new_label () in
   let live_offset = ref [] in
   Reg.Set.iter
-    (function
+    (fun (r : Reg.t) ->
+      match r with
       | { typ = Val; loc = Reg r; _ } as reg ->
         assert (Proc.gc_regs_offset reg = r);
         live_offset := ((r lsl 1) + 1) :: !live_offset
@@ -616,7 +616,7 @@ let instr_for_floatarithmem (width : Cmm.float_width) op =
   | Float32, Ifloatmul -> I.mulss
   | Float32, Ifloatdiv -> I.divss
 
-let cond = function
+let cond : Operation.integer_comparison -> X86_ast.condition = function
   | Isigned Ceq -> E
   | Isigned Cne -> NE
   | Isigned Cle -> LE
@@ -888,7 +888,7 @@ let find_or_add_semaphore name enabled_at_init dbg =
       assert false
     | Some b, Some b' ->
       if not (Bool.equal b b')
-      then raise (Error (Inconsistent_probe_init (name, dbg))));
+      then raise (Emitaux.Error (Inconsistent_probe_init (name, dbg))));
     label
   | None ->
     let sym = "caml_probes_semaphore_" ^ name in
@@ -979,8 +979,8 @@ module Address_sanitizer : sig
 
   (** Implements [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping]. *)
   val emit_sanitize :
-    ?dependencies:arg array ->
-    address:arg ->
+    ?dependencies:X86_ast.arg array ->
+    address:X86_ast.arg ->
     Cmm.memory_chunk ->
     memory_access ->
     unit
@@ -1024,7 +1024,7 @@ end = struct
 
   let mov_address src dest =
     match src with
-    | Mem
+    | X86_ast.Mem
         { scale = 1;
           base = None;
           sym = None;
@@ -1042,7 +1042,7 @@ end = struct
        https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
     !stack_offset land 15 = 0
 
-  let asan_report_function memory_chunk_size memory_access =
+  let asan_report_function memory_chunk_size memory_access : X86_ast.arg =
     let index =
       (Memory_chunk_size.to_bytes_log2 memory_chunk_size lsl 1)
       +
@@ -1070,7 +1070,8 @@ end = struct
 
   (* CR-soon ksvetlitski: find a way to accomplish this without breaking the
      abstraction barrier of [X86_ast]. *)
-  let[@inline always] uses_register register = function
+  let[@inline always] uses_register register (arg : X86_ast.arg) =
+    match arg with
     | Reg8L register' | Reg16 register' | Reg32 register' | Reg64 register' ->
       equal_reg64 register register'
     | Mem { idx = register'; base = None; scale; _ } ->
@@ -1191,8 +1192,8 @@ let emit_atomic instr (op : Cmm.atomic_op) (size : Cmm.atomic_bitwidth) addr =
   let src_index = first_memory_arg_index - 1 in
   let typ, src =
     match size with
-    | Thirtytwo -> DWORD, arg32 instr src_index
-    | Sixtyfour | Word -> QWORD, arg instr src_index
+    | Thirtytwo -> X86_ast.DWORD, arg32 instr src_index
+    | Sixtyfour | Word -> X86_ast.QWORD, arg instr src_index
   in
   let dst = addressing addr typ instr first_memory_arg_index in
   Address_sanitizer.emit_sanitize ~dependencies:[| src |] ~address:dst
@@ -1945,7 +1946,7 @@ let emit_instr ~first ~fallthrough i =
     emit_test i tst ~taken
   | Lop (Specific Irdtsc) -> (
     I.rdtsc ();
-    let rdx = Reg64 RDX in
+    let rdx = X86_ast.Reg64 RDX in
     (* The instruction fills in the low 32 bits of the result registers. *)
     (* Combine edx and eax into a single 64-bit result. *)
     I.sal (int 32) rdx;
@@ -1962,7 +1963,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop (Specific Irdpmc) ->
     assert (equal_reg64 (arg64 i 0) RCX);
     I.rdpmc ();
-    let rdx = Reg64 RDX in
+    let rdx = X86_ast.Reg64 RDX in
     (* The instruction fills in the low 32 bits of the result registers. *)
     (* Combine edx and eax into a single 64-bit result. *)
     I.sal (int 32) rdx;
@@ -2005,7 +2006,7 @@ let emit_instr ~first ~fallthrough i =
        On these grounds I would consider prefetching invalid addresses to
        usually be a bug, and so we do sanitize such accesses. *)
     Address_sanitizer.emit_sanitize ~address Word_val memory_access;
-    let locality =
+    let locality : X86_ast.prefetch_temporal_locality_hint =
       match locality with
       | Nonlocal -> Nta
       | Low -> T2
@@ -2701,6 +2702,7 @@ let end_assembly () =
       efa_align = D.align ~data:true;
       efa_label_rel =
         (fun lbl ofs ->
+          let open X86_ast in
           let c =
             ConstAdd
               (ConstSub (ConstLabel (emit_label lbl), ConstThis), const_32 ofs)
