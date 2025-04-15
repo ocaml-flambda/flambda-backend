@@ -14,7 +14,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+a-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 (* Emission of ARM assembly code, 64-bit mode *)
 
 (* Correctness: carefully consider any use of [Config], [Clflags],
@@ -516,16 +516,16 @@ let record_frame_label live dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-      | { typ = Val; loc = Reg r } ->
+      | { typ = Val; loc = Reg r; _ } ->
         live_offset := ((r lsl 1) + 1) :: !live_offset
-      | { typ = Val; loc = Stack s } as reg ->
+      | { typ = Val; loc = Stack s; _ } as reg ->
         live_offset
           := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
-      | { typ = Addr } as r -> Misc.fatal_error ("bad GC root " ^ Reg.name r)
-      | { typ = Valx2 } as r ->
+      | { typ = Addr; _ } as r -> Misc.fatal_error ("bad GC root " ^ Reg.name r)
+      | { typ = Valx2; _ } as r ->
         (* CR mslater: (SIMD) arm64 *)
         Misc.fatal_error ("Unexpected Valx2 type of reg " ^ Reg.name r)
-      | { typ = Val; loc = Unknown } as r ->
+      | { typ = Val; loc = Unknown; _ } as r ->
         Misc.fatal_error ("Unknown location " ^ Reg.name r)
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
@@ -1415,17 +1415,14 @@ let emit_instr i =
     let src = i.arg.(0) and dst = i.res.(0) in
     if not (Reg.same_loc src dst)
     then
-      match src, dst with
-      | { loc = Reg _ }, { loc = Reg _ } ->
+      match src.loc, dst.loc with
+      | Reg _, Reg _ ->
         DSL.ins I.MOV [| DSL.emit_reg_w dst; DSL.emit_reg_w src |]
-      | { loc = Reg _ }, { loc = Stack _ } ->
+      | Reg _, Stack _ ->
         DSL.ins I.STR [| DSL.emit_reg_w src; DSL.emit_stack dst |]
-      | { loc = Stack _ }, { loc = Reg _ } ->
+      | Stack _, Reg _ ->
         DSL.ins I.LDR [| DSL.emit_reg_w dst; DSL.emit_stack src |]
-      | { loc = Stack _ }, { loc = Stack _ }
-      | _, { loc = Unknown }
-      | { loc = Unknown }, _ ->
-        assert false)
+      | Stack _, Stack _ | _, Unknown | Unknown, _ -> assert false)
   | Lop (Const_int n) -> emit_intconst i.res.(0) n
   | Lop (Const_float32 f) ->
     DSL.check_reg Float32 i.res.(0);
@@ -1477,7 +1474,7 @@ let emit_instr i =
     else
       output_epilogue (fun () ->
           DSL.ins I.B [| DSL.emit_symbol func.sym_name |])
-  | Lcall_op (Lextcall { func; alloc; stack_ofs }) ->
+  | Lcall_op (Lextcall { func; alloc; stack_ofs; _ }) ->
     if Config.runtime5 && stack_ofs > 0
     then (
       DSL.ins I.MOV [| DSL.emit_reg reg_stack_arg_begin; DSL.sp |];
@@ -1516,7 +1513,7 @@ let emit_instr i =
     assert (n mod 16 = 0);
     emit_stack_adjustment (-n);
     stack_offset := !stack_offset + n
-  | Lop (Load { memory_chunk; addressing_mode; is_atomic }) -> (
+  | Lop (Load { memory_chunk; addressing_mode; is_atomic; _ }) -> (
     assert (
       Cmm.equal_memory_chunk memory_chunk Cmm.Word_int
       || Cmm.equal_memory_chunk memory_chunk Cmm.Word_val
