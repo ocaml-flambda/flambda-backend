@@ -2000,7 +2000,6 @@ end
 module Jkind_desc = struct
   let of_const t = Layout_and_axes.map Layout.of_const t
 
-
   let unsafely_set_bounds t ~from =
     { t with mod_bounds = from.mod_bounds; with_bounds = from.with_bounds }
 
@@ -2159,8 +2158,8 @@ module Builtin = struct
         ~why:(Any_creation why)
 
   let any_non_null ~why =
-    fresh_jkind Jkind_desc.Builtin.any_non_null ~annotation:(mk_annot "any_non_null")
-      ~why:(Any_creation why)
+    fresh_jkind Jkind_desc.Builtin.any_non_null
+      ~annotation:(mk_annot "any_non_null") ~why:(Any_creation why)
 
   let value_v1_safety_check =
     { jkind = Jkind_desc.Builtin.value_or_null;

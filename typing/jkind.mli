@@ -346,6 +346,7 @@ module Builtin : sig
   val any : why:History.any_creation_reason -> 'd Types.jkind
 
   (* CR layouts v3: change to [any_separable]. *)
+
   (** Jkind of array elements. *)
   val any_non_null : why:History.any_creation_reason -> 'd Types.jkind
 
@@ -358,8 +359,7 @@ module Builtin : sig
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> 'd Types.jkind
 
-  val non_float_value :
-    why:History.value_creation_reason -> 'd Types.jkind
+  val non_float_value : why:History.value_creation_reason -> 'd Types.jkind
 
   val immutable_separable_value :
     why:History.value_creation_reason -> 'd Types.jkind
