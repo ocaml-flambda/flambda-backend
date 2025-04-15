@@ -221,12 +221,16 @@ val between_labels_32_bit :
 val between_labels_64_bit :
   ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> unit
 
-
-
 (** Like [between_symbols], but for two labels with additional offsets, emitting a 64-bit-wide
     reference.  The labels must be in the same section. *)
 val between_labels_64_bit_with_offsets :
-  ?comment:string -> upper:Asm_label.t -> upper_offset:Targetint.t -> lower:Asm_label.t -> lower_offset:Targetint.t -> unit -> unit
+  ?comment:string ->
+  upper:Asm_label.t ->
+  upper_offset:Targetint.t ->
+  lower:Asm_label.t ->
+  lower_offset:Targetint.t ->
+  unit ->
+  unit
 
 (** Emit a machine-width reference giving the displacement between the
     [lower] symbol and the sum of the address of the [upper] label plus
@@ -240,7 +244,6 @@ val between_symbol_in_current_unit_and_label_offset :
   offset_upper:Targetint.t ->
   unit ->
   unit
-
 
 (** Emit an offset into a DWARF section given a label identifying the place
     within such section. *)
