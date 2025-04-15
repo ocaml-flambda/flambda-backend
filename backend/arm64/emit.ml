@@ -213,7 +213,7 @@ module DSL : sig
   val simd_instr : Simd.operation -> Linear.instruction -> unit
 
   val simd_instr_size : Simd.operation -> int
-end [@warning "-32"] = struct
+end = struct
   include Arm64_ast.DSL
 
   let check_reg typ reg =
