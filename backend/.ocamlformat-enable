@@ -62,6 +62,7 @@ printoperation.ml
 printoperation.mli
 printreg.ml
 printreg.mli
+proc.mli
 regalloc/**/*.ml
 regalloc/**/*.mli
 select_utils.ml
