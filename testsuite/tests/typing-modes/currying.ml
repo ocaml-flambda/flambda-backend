@@ -84,27 +84,33 @@ val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a = <fun>
 
 let app1 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42) ()
 [%%expect{|
-Line 1, characters 64-79:
+Line 1, characters 59-82:
 1 | let app1 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42) ()
-                                                                    ^^^^^^^^^^^^^^^
+                                                               ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
-  Hint: It is captured by a partial application.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let app2 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42)
 [%%expect{|
-Line 1, characters 64-79:
+Line 1, characters 59-79:
 1 | let app2 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42)
-                                                                    ^^^^^^^^^^^^^^^
+                                                               ^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
-  Hint: It is captured by a partial application.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+  Hint: This is a partial application
+        Adding 2 more arguments will make the value non-local
 |}]
 let app3 (f : a:int -> b:local_ int ref -> unit) = f ~b:(local_ ref 42)
 [%%expect{|
-Line 1, characters 56-71:
+Line 1, characters 51-71:
 1 | let app3 (f : a:int -> b:local_ int ref -> unit) = f ~b:(local_ ref 42)
-                                                            ^^^^^^^^^^^^^^^
+                                                       ^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
-  Hint: It is captured by a partial application.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let app4 (f : b:local_ int ref -> a:int -> unit) = f ~b:(local_ ref 42)
 [%%expect{|
