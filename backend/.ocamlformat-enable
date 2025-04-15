@@ -82,3 +82,5 @@ x86_proc.ml
 x86_proc.mli
 x86_masm.ml
 x86_masm.mli
+x86_gas.ml
+x86_gas.mli

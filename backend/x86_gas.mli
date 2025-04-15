@@ -17,4 +17,4 @@
 
 [@@@ocaml.warning "+a-40-41-42"]
 
-val generate_asm: out_channel -> X86_ast.asm_line list -> unit
+val generate_asm : out_channel -> X86_ast.asm_line list -> unit
