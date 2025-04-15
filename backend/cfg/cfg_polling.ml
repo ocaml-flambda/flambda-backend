@@ -184,10 +184,19 @@ module Polls_before_prtc_transfer = struct
       then Ok dom
       else Ok Always_polls
     | Op (Alloc _) -> Ok Always_polls
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _
-      ->
+    | Op
+        ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Stackoffset _ | Load _
+        | Store (_, _, _)
+        | Intop _
+        | Intop_imm (_, _)
+        | Intop_atomic _
+        | Floatop (_, _)
+        | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+        | Specific _ | Name_for_debugger _ )
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
       Ok dom
-   [@@ocaml.warning "-4"]
 
   let terminator :
       domain ->
