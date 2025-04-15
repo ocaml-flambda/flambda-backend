@@ -935,13 +935,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
-    | "%obj_unsafe_read_offset_in_bytes" ->
-      (* CR rtjoa: we should give a type error for mixed unboxed products in the
-         first version *)
+    | "%unsafe_read_idx" ->
       Primitive(Pread_offset layout, 2)
-    | "%obj_unsafe_write_offset_in_bytes" ->
-      (* CR rtjoa: we should give a type error for mixed unboxed products in the
-         first version *)
+    | "%unsafe_write_idx" ->
       let layout = List.nth arg_layouts 2 in
       Primitive(Pwrite_offset layout, 3)
     | "%peek" -> Peek None

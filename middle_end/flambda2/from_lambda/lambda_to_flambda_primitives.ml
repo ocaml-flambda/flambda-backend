@@ -1373,6 +1373,84 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
       Unary (Opaque_identity { middle_end_only; kind }, arg_component))
     arg kinds
 
+let rec has_val_flat : Lambda.layout -> _ = function
+  | Ptop | Pbottom -> assert false
+  | Pvalue _ -> true, false
+  | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> false, true
+  | Punboxed_product layouts ->
+    List.fold_left
+      (fun (has_val, has_flat) l ->
+        let has_val', has_flat' = has_val_flat l in
+        has_val || has_val', has_flat || has_flat')
+      (false, false) layouts
+
+let is_mixed l =
+  let has_val, has_flat = has_val_flat l in
+  has_val && has_flat
+
+let rec count values flats : Lambda.layout -> _ = function
+  | Ptop | Pbottom -> assert false
+  | Pvalue _ -> incr values
+  | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> incr flats
+  | Punboxed_product layouts -> List.iter (count values flats) layouts
+
+let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
+
+let idx_offsets layout ptr idx =
+  if is_mixed layout
+  then (
+    let mask = Int64.of_int ((1 lsl 48) - 1) in
+    let values_start =
+      H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
+    in
+    let gap =
+      let shifter =
+        H.Simple
+          (Simple.const
+             (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
+      in
+      H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter)
+    in
+    let values, flats = ref 0, ref 0 in
+    count values flats layout;
+    let nth_value_offset n =
+      H.Binary
+        ( Int_arith (Naked_int64, Add),
+          Prim values_start,
+          simple_i64 (Int64.of_int (n * 8)) )
+    in
+    let nth_flat_offset n =
+      H.Binary
+        ( Int_arith (Naked_int64, Add),
+          Prim
+            (H.Binary (Int_arith (Naked_int64, Add), Prim values_start, Prim gap)),
+          simple_i64 (Int64.of_int ((n + !values) * 8)) )
+    in
+    let value_i = ref (-1) in
+    let flat_i = ref (-1) in
+    let f kind =
+      match (kind : P.Offset_access_kind.t) with
+      | Immediates | Values ->
+        incr value_i;
+        nth_value_offset !value_i
+      | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ->
+        incr flat_i;
+        nth_flat_offset !flat_i
+    in
+    let kinds = convert_layout_to_offset_access_kinds layout in
+    List.map f kinds)
+  else
+    let f i kind =
+      let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
+      let offset =
+        H.Binary (Int_arith (Naked_int64, Add), idx, Simple summand)
+      in
+      H.Binary (Read_offset kind, ptr, Prim offset)
+    in
+    let kinds = convert_layout_to_offset_access_kinds layout in
+    List.mapi f kinds
+
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     (dbg : Debuginfo.t) ~current_region ~current_ghost_region :
@@ -1503,12 +1581,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let values_before, flats_before, values_after, flats_after =
       ref 0, ref 0, ref 0, ref 0
     in
-    let rec count values flats : Lambda.layout -> _ = function
-      | Ptop | Pbottom -> assert false
-      | Pvalue _ -> incr values
-      | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> incr flats
-      | Punboxed_product layouts -> List.iter (count values flats) layouts
-    in
     let count_before = count values_before flats_before in
     let count_after = count values_after flats_after in
     let rec count path (layout : Lambda.layout) =
@@ -1533,21 +1605,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     let outer_layout = Lambda.Punboxed_product layouts in
     let inner_layout = count field_path outer_layout in
-    let rec has_val_flat : Lambda.layout -> _ = function
-      | Ptop | Pbottom -> assert false
-      | Pvalue _ -> true, false
-      | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> false, true
-      | Punboxed_product layouts ->
-        List.fold_left
-          (fun (has_val, has_flat) l ->
-            let has_val', has_flat' = has_val_flat l in
-            has_val || has_val', has_flat || has_flat')
-          (false, false) layouts
-    in
-    let is_mixed l =
-      let has_val, has_flat = has_val_flat l in
-      has_val && has_flat
-    in
     (* Format.printf "outer layout: %a\ninner layout: %a\n" Printlambda.layout
      *   outer_layout Printlambda.layout inner_layout;
      * Printf.printf "%d %d %d %d\n" !values_before !flats_before !values_after
@@ -1555,9 +1612,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let values_before_in_bytes = !values_before * 8 |> Int64.of_int in
     let flats_before_in_bytes = !flats_before * 8 |> Int64.of_int in
     let values_after_in_bytes = !values_after * 8 |> Int64.of_int in
-    let simple_i64 x =
-      H.Simple (Simple.const (Reg_width_const.naked_int64 x))
-    in
     match is_mixed outer_layout, has_val_flat inner_layout with
     | true, (true, true) ->
       (* print_endline "mixed product -> mixed product"; *)
@@ -2674,30 +2728,30 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Ppoke layout, [[ptr]; [new_value]] ->
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
-  | Pread_offset layout, [[ptr]; [start_i]] ->
+  | Pread_offset layout, [[ptr]; [idx]] ->
     (* CR rtjoa: the below assumes that each kind in an unboxed product is 8
        bytes apart. we shouldn't bake this in *)
-    let f i kind =
-      let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
-      let offset =
-        H.Binary (Int_arith (Naked_int64, Add), start_i, Simple summand)
-      in
-      H.Binary (Read_offset kind, ptr, Prim offset)
-    in
+    let offsets = idx_offsets layout ptr idx in
     let kinds = convert_layout_to_offset_access_kinds layout in
-    [H.maybe_create_unboxed_product (List.mapi f kinds)]
-  | Pwrite_offset layout, [[ptr]; [start_i]; new_values] ->
-    (* CR rtjoa: the below assumes that each kind in an unboxed product is 8
-       bytes apart. we shouldn't bake this in *)
-    let f i (layout, new_value) =
-      let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
-      let offset =
-        H.Binary (Int_arith (Naked_int64, Add), start_i, Simple summand)
-      in
-      H.Ternary (Write_offset layout, ptr, Prim offset, new_value)
+    let reads =
+      List.map2
+        (fun kind offset -> H.Binary (Read_offset kind, ptr, Prim offset))
+        kinds offsets
     in
+    [H.maybe_create_unboxed_product reads]
+  | Pwrite_offset layout, [[ptr]; [idx]; new_values] ->
+    let offsets = idx_offsets layout ptr idx in
     let kinds = convert_layout_to_offset_access_kinds layout in
-    [H.Sequence (List.mapi f (List.combine kinds new_values))]
+    let map3 f xs ys zs =
+      List.map2 (fun x (y, z) -> f x y z) xs (List.combine ys zs)
+    in
+    let writes =
+      map3
+        (fun kind offset new_value ->
+          H.Ternary (Write_offset kind, ptr, Prim offset, new_value))
+        kinds offsets new_values
+    in
+    [H.Sequence writes]
   | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),

@@ -11,10 +11,10 @@
 external box_float : float# -> (float[@local_opt]) = "%box_float"
 
 external[@layout_poly] read_offset :
-  'a ('b : any). 'a -> int64# -> 'b = "%obj_unsafe_read_offset_in_bytes"
+  'a ('b : any). 'a -> int64# -> 'b = "%unsafe_read_idx"
 
 external[@layout_poly] write_offset :
-  'a ('b : any). 'a -> int64# -> 'b -> unit = "%obj_unsafe_write_offset_in_bytes"
+  'a ('b : any). 'a -> int64# -> 'b -> unit = "%unsafe_write_idx"
 
 type t = { s : string ; j : float# ; k : float# }
 
