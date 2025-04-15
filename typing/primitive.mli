@@ -36,7 +36,7 @@ type native_repr =
   | Same_as_ocaml_repr of Jkind_types.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
-  | Unboxed_integer of boxed_integer
+  | Unboxed_integer of unboxed_integer
   | Untagged_immediate
 
 (* See [middle_end/semantics_of_primitives.mli] *)

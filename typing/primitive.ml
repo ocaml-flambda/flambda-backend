@@ -39,7 +39,7 @@ type native_repr =
   | Same_as_ocaml_repr of Jkind_types.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
-  | Unboxed_integer of boxed_integer
+  | Unboxed_integer of unboxed_integer
   | Untagged_immediate
 
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
@@ -404,7 +404,7 @@ let equal_native_repr nr1 nr2 =
   | Unboxed_vector _,
     (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_integer _) -> false
-  | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
+  | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_unboxed_integer bi1 bi2
   | Unboxed_integer _,
     (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_vector _) -> false

@@ -85,3 +85,21 @@ let[@inline always] to_string t = Int16.to_string (to_int16 t)
 let[@inline always] to_int t = Int16.to_int (to_int16 t)
 
 let[@inline always] of_int i = of_int16 (Int16.of_int i)
+
+let[@inline available] unsigned_compare n m =
+  compare (sub n (min_int ())) (sub m (min_int ()))
+
+let[@inline] unsigned_lt n m = unsigned_compare n m < 0
+
+(* Unsigned division from signed division of the same bitness. See Warren Jr.,
+   Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3. *)
+let[@inline available] unsigned_div n d =
+  if compare d (zero ()) < 0
+  then if unsigned_lt n d then zero () else one ()
+  else
+    let q = shift_left (div (shift_right_logical n 1) d) 1 in
+    let r = sub n (mul q d) in
+    if unsigned_lt r d then q else succ q
+
+let[@inline available] unsigned_rem n d =
+  sub n (mul ((unsigned_div [@inlined]) n d) d)

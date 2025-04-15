@@ -357,7 +357,7 @@ and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
-  | Unboxed_integer of boxed_integer
+  | Unboxed_integer of unboxed_integer
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
@@ -2223,7 +2223,10 @@ let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
   | Unboxed_float bf -> layout_boxed_float bf
-  | Unboxed_integer bi -> layout_boxed_int bi
+  | Unboxed_integer ( Unboxed_int8 | Unboxed_int16 ) ->  layout_int
+  | Unboxed_integer (Unboxed_int64) -> layout_boxed_int Boxed_int64
+  | Unboxed_integer (Unboxed_int32) -> layout_boxed_int Boxed_int32
+  | Unboxed_integer (Unboxed_nativeint) -> layout_boxed_int Boxed_nativeint
   | Same_as_ocaml_repr s -> layout_of_const_sort s
 
 let rec layout_of_scannable_kinds kinds =

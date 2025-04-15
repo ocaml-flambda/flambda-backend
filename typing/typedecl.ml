@@ -3328,12 +3328,16 @@ let native_repr_of_type env kind ty sort_or_poly =
     Some (Unboxed_float Boxed_float64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32 ->
     Some (Unboxed_float Boxed_float32)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8 ->
+    Some (Unboxed_integer Unboxed_int8)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16 ->
+    Some (Unboxed_integer Unboxed_int16)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32 ->
-    Some (Unboxed_integer Boxed_int32)
+    Some (Unboxed_integer Unboxed_int32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64 ->
-    Some (Unboxed_integer Boxed_int64)
+    Some (Unboxed_integer Unboxed_int64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
-    Some (Unboxed_integer Boxed_nativeint)
+    Some (Unboxed_integer Unboxed_nativeint)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
     Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
@@ -4490,15 +4494,19 @@ let report_error ppf = function
         Style.inline_code "[@@untagged]"
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
-                   Only %a, %a, %a, %a, vector primitives, and@ \
+                   Only %a, %a, %a, %a, %a, %a, vector primitives, and@ \
                    the corresponding unboxed types can be marked unboxed.@]"
         Style.inline_code "float"
+        Style.inline_code "int8"
+        Style.inline_code "int16"
         Style.inline_code "int32"
         Style.inline_code "int64"
         Style.inline_code "nativeint"
   | Cannot_unbox_or_untag_type Untagged ->
-      fprintf ppf "@[Don't know how to untag this type. Only %a@ \
-                   and other immediate types can be untagged.@]"
+      fprintf ppf "@[Don't know how to untag this type. Only %a, %a, %a, \
+                   and@ other immediate types can be untagged.@]"
+        Style.inline_code "int8"
+        Style.inline_code "int16"
         Style.inline_code "int"
   | Deep_unbox_or_untag_attribute kind ->
       fprintf ppf

@@ -62,8 +62,16 @@ val mul : int16# -> int16# -> int16#
 (** [div x y] is the division [x / y]. See {!Stdlib.( / )} for details. *)
 val div : int16# -> int16# -> int16#
 
+(** Same as {!div}, except that arguments and result are interpreted as {e
+    unsigned} integers. *)
+val unsigned_div : t -> t -> t
+
 (** [rem x y] is the remainder [x mod y]. See {!Stdlib.( mod )} for details. *)
 val rem : int16# -> int16# -> int16#
+
+(** Same as {!rem}, except that arguments and result are interpreted as {e
+    unsigned} integers. *)
+val unsigned_rem : t -> t -> t
 
 (** [succ x] is [add x 1]. *)
 val succ : int16# -> int16#
@@ -119,6 +127,9 @@ val equal : int16# -> int16# -> bool
 
 (** [compare x y] is {!Stdlib.compare}[ x y] but more efficient. *)
 val compare : int16# -> int16# -> int
+
+(** Same as {!compare}, except that arguments are interpreted as {e unsigned} integers. *)
+val unsigned_compare : t -> t -> int
 
 (** Return the smaller of the two arguments. *)
 val min : int16# -> int16# -> int16#

@@ -189,7 +189,6 @@ external get_register : Smallint.t -> nativeint = "get_register_bytecode" "get_r
 let get_register x = get_register (Smallint.of_int x)
 
 
-
 let () =
   assert (get_register ((1 lsl Smallint.size) - 1) = -1n);
   ()

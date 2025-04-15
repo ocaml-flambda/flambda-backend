@@ -560,7 +560,7 @@ Line 1, characters 40-42:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
                                             ^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -570,8 +570,8 @@ external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
 Line 1, characters 40-42:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
                                             ^^
-Error: Don't know how to untag this type. Only "int"
-       and other immediate types can be untagged.
+Error: Don't know how to untag this type. Only "int8", "int16", "int", and
+       other immediate types can be untagged.
 |}]
 
 external[@layout_poly] id : ('a : any). 'a -> 'a =
