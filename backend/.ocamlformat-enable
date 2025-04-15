@@ -36,6 +36,8 @@ cmm_builtins.ml
 cmm_builtins.mli
 cmm_helpers.ml
 cmm_helpers.mli
+cmmgen_state.ml
+cmmgen_state.mli
 debug/**/*.ml
 debug/**/*.mli
 emitaux.ml
