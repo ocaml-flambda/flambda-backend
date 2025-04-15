@@ -21,7 +21,7 @@
    SOFTWARE. *)
 [@@@ocaml.warning "+a-40-41-42"]
 
-open! Int_replace_polymorphic_compare
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t =
