@@ -19,7 +19,7 @@
    [Flambda_backend_flags] and shared variables. For details, see
    [asmgen.mli]. *)
 
-[@@@ocaml.warning "+a-45-9-4-40-41-42"]
+[@@@ocaml.warning "+a-45-4-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open Arch
@@ -357,17 +357,17 @@ let record_frame_label live dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-      | { typ = Val; loc = Reg r } as reg ->
+      | { typ = Val; loc = Reg r; _ } as reg ->
         assert (Proc.gc_regs_offset reg = r);
         live_offset := ((r lsl 1) + 1) :: !live_offset
-      | { typ = Val; loc = Stack s } as reg ->
+      | { typ = Val; loc = Stack s; _ } as reg ->
         live_offset
           := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
-      | { typ = Valx2; loc = Reg _ } as reg ->
+      | { typ = Valx2; loc = Reg _; _ } as reg ->
         let n = Proc.gc_regs_offset reg in
         let encode n = (n lsl 1) + 1 in
         live_offset := encode n :: encode (n + 1) :: !live_offset
-      | { typ = Valx2; loc = Stack s } as reg ->
+      | { typ = Valx2; loc = Stack s; _ } as reg ->
         let n = slot_offset s (Stack_class.of_machtype reg.typ) in
         live_offset := n :: (n + Arch.size_addr) :: !live_offset
       | { typ = Addr; _ } as r -> Misc.fatal_error ("bad GC root " ^ Reg.name r)
@@ -1657,7 +1657,7 @@ let emit_instr ~first ~fallthrough i =
       output_epilogue (fun () ->
           add_used_symbol func.sym_name;
           emit_jump func)
-  | Lcall_op (Lextcall { func; alloc; stack_ofs }) ->
+  | Lcall_op (Lextcall { func; alloc; stack_ofs; _ }) ->
     add_used_symbol func;
     if Config.runtime5 && stack_ofs > 0
     then (
