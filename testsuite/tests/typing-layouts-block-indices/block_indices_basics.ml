@@ -144,49 +144,48 @@ let idx_iarray_n x = (.:n(x))
 let idx_imm x = (.idx_imm(x))
 let idx_mut x = (.idx_mut(x))
 [%%expect{|
-val idx_array : int -> ('a array, 'a) idx_mut = <fun>
-val idx_array_L : int64# -> ('a array, 'a) idx_mut = <fun>
-val idx_array_l : int32# -> ('a array, 'a) idx_mut = <fun>
-val idx_array_n : nativeint# -> ('a array, 'a) idx_mut = <fun>
-val idx_iarray : int -> ('a iarray, 'a) idx_imm = <fun>
-val idx_iarray_L : int64# -> ('a iarray, 'a) idx_imm = <fun>
-val idx_iarray_l : int32# -> ('a iarray, 'a) idx_imm = <fun>
-val idx_iarray_n : nativeint# -> ('a iarray, 'a) idx_imm = <fun>
-val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
-val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
+
 |}]
 
 type r = { a : string }
 let a () = (.(5).#contents.#a)
 [%%expect{|
 type r = { a : string; }
-val a : unit -> (r# ref# array, string) idx_mut = <fun>
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
+
 |}]
 
 type t = { mutable a : string; b : int }
 let a () = (.(5).#a)
 [%%expect{|
 type t = { mutable a : string; b : int; }
-val a : unit -> (t# array, string) idx_mut = <fun>
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
+
 |}]
 
 type t1 = { mutable a : string; b : int }
 let b () = (.:(5).#a)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
-val b : unit -> (t1# iarray, string) idx_imm = <fun>
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
+
 |}]
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 178, characters 24-30:
-178 | let bad_index_type = (.("test"))
+Line 180, characters 24-30:
+180 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
 |}, Principal{|
-Line 189, characters 24-30:
-189 | let bad_index_type = (.("test"))
+Line 199, characters 24-30:
+199 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
