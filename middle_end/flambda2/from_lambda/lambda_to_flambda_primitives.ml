@@ -1022,10 +1022,12 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
     fun arg -> H.Unary (Box_number (Naked_float32, alloc_mode), Prim arg)
   | Naked_number Naked_float ->
     fun arg -> H.Unary (Box_number (Naked_float, alloc_mode), Prim arg)
-  (* The following tagging operations for small integers are valid because they
-     are always loaded sign-extended into a machine register *)
-  | Naked_number (Naked_int8 | Naked_int16) ->
-    fun arg -> H.Unary (Tag_immediate, Prim arg)
+  | Naked_number Naked_int8 ->
+    fun arg ->
+      H.Unary (Num_conv { src = Naked_int8; dst = Tagged_immediate }, Prim arg)
+  | Naked_number Naked_int16 ->
+    fun arg ->
+      H.Unary (Num_conv { src = Naked_int16; dst = Tagged_immediate }, Prim arg)
   | Naked_number Naked_int32 ->
     fun arg -> H.Unary (Box_number (Naked_int32, alloc_mode), Prim arg)
   | Naked_number Naked_int64 ->
