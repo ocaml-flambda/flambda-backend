@@ -456,3 +456,4 @@ val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 
 val caml_flambda2_invalid : string
 val is_val : machtype_component -> bool
+val is_exn_handler : ccatch_flag -> bool

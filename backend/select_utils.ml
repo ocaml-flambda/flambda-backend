@@ -91,12 +91,13 @@ let env_find_static_exception id env =
 
 let env_set_trap_stack env trap_stack = { env with trap_stack }
 
-let combine_trap trap_stack = function
-  | Push t -> Operation.Specific_trap (t, trap_stack)
-  | Pop _ -> (
+let rec combine_traps trap_stack = function
+  | [] -> trap_stack
+  | Push t :: l -> combine_traps (Operation.Specific_trap (t, trap_stack)) l
+  | Pop _ :: l -> (
     match (trap_stack : Operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
-    | Specific_trap (_, ts) -> ts)
+    | Specific_trap (_, ts) -> combine_traps ts l)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
@@ -106,13 +107,14 @@ let print_traps ppf traps =
   in
   Format.fprintf ppf "(%a)" print_traps traps
 
-let set_traps_for_handler nfail traps_ref traps =
+let set_traps nfail traps_ref base_traps exit_traps =
+  let traps = combine_traps base_traps exit_traps in
   match !traps_ref with
   | Unreachable ->
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if Stdlib.( <> ) prev_traps traps
+    if not (Operation.equal_trap_stack prev_traps traps)
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
@@ -120,36 +122,13 @@ let set_traps_for_handler nfail traps_ref traps =
         nfail print_traps prev_traps print_traps traps
     else ()
 
-let set_traps env nfail traps_ref base_traps exit_traps =
-  let traps =
-    (* CR vlaviron: This piece of code is here to handle exception handlers that
-       are not reachable but occur in trap actions. We cannot remove the trap
-       handlers immediately, as we won't know yet whether the handler is
-       reachable when we see the traps. At the moment of writing this, we cannot
-       rely on a later pass cleaning up dead handlers either, as there is an
-       iterator that needs trap actions to be associated to existing blocks. So
-       instead, we make every Push trap action count as a use of the handler. *)
-    List.fold_left
-      (fun trap_stack trap ->
-        (match trap with
-        | Push lbl -> (
-          match env_find_static_exception lbl env with
-          | { traps_ref; _ } -> set_traps_for_handler lbl traps_ref trap_stack
-          | exception Not_found ->
-            Misc.fatal_errorf "Trap %d not registered in env" lbl)
-        | Pop _ -> ());
-        combine_trap trap_stack trap)
-      base_traps exit_traps
-  in
-  set_traps_for_handler nfail traps_ref traps
-
 let set_traps_for_raise env =
   let ts = env.trap_stack in
   match ts with
   | Uncaught -> ()
   | Specific_trap (lbl, _) -> (
     match env_find_static_exception lbl env with
-    | s -> set_traps env lbl s.traps_ref ts [Pop lbl]
+    | s -> set_traps lbl s.traps_ref ts [Pop lbl]
     | exception Not_found ->
       Misc.fatal_errorf "Trap %d not registered in env" lbl)
 

@@ -77,7 +77,6 @@ val env_set_trap_stack : environment -> Operation.trap_stack -> environment
 val print_traps : Format.formatter -> Operation.trap_stack -> unit
 
 val set_traps :
-  environment ->
   Lambda.static_label ->
   trap_stack_info ref ->
   Operation.trap_stack ->

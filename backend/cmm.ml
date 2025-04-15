@@ -746,3 +746,8 @@ let is_val (m: machtype_component) =
   match m with
   | Val -> true
   | Addr | Int | Float | Vec128 | Float32 | Valx2 -> false
+
+let is_exn_handler (flag : ccatch_flag) =
+  match flag with
+  | Exn_handler -> true
+  | Normal | Recursive -> false

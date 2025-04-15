@@ -467,6 +467,29 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       Sub_cfg.add_instruction_at_start sub_cfg (Cfg.Op Move)
         [| Proc.loc_exn_bucket |] exn_bucket_in_handler Debuginfo.none
 
+  let unreachable_handler : (Operation.trap_stack * Cmm.expression) Lazy.t =
+    lazy
+      (let dummy_constant : Cmm.expression = Cconst_int (1, Debuginfo.none) in
+       let segfault : Cmm.expression =
+         Cop
+           ( Cload
+               { memory_chunk = Word_int;
+                 mutability = Mutable;
+                 is_atomic = false
+               },
+             [Cconst_int (0, Debuginfo.none)],
+             Debuginfo.none )
+       in
+       let dummy_raise : Cmm.expression =
+         Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
+       in
+       (* The use of a raise operation means that this handler is known not to
+          return, making it compatible with any layout for the body or
+          surrounding code. We also set the trap stack to [Uncaught] to ensure
+          that we don't introduce spurious control-flow edges inside the
+          function. *)
+       Uncaught, Csequence (segfault, dummy_raise))
+
   (* The following two functions, [emit_parts] and [emit_parts_list], force
      right-to-left evaluation order as required by the Flambda [Un_anf] pass
      (and to be consistent with the bytecode compiler). *)
@@ -1032,10 +1055,12 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     let translate_one_handler _nfail
         (trap_info, (ids, rs, e2, _dbg, _is_cold, label)) =
       assert (List.length ids = List.length rs);
-      let trap_stack =
+      let trap_stack, e2 =
         match (!trap_info : SU.trap_stack_info) with
-        | Unreachable -> assert false
-        | Reachable t -> t
+        | Unreachable ->
+          assert (Cmm.is_exn_handler flag);
+          Lazy.force unreachable_handler
+        | Reachable t -> t, e2
       in
       let ids_and_rs = List.combine ids rs in
       let new_env =
@@ -1086,8 +1111,18 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         build_all_reachable_handlers ~already_built ~not_built
     in
     let l =
-      build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
-      (* Note: we're dropping unreachable handlers here *)
+      match flag with
+      | Normal | Recursive ->
+        build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
+        (* Note: we're dropping unreachable handlers here *)
+      | Exn_handler ->
+        (* We cannot drop exception handlers as some trap instructions may refer
+           to them even if they're unreachable. Instead, [translate_one_handler]
+           will generate a dummy handler for the unreachable cases. *)
+        Int.Map.fold
+          (fun nfail handler all_handlers ->
+            translate_one_handler nfail handler :: all_handlers)
+          handlers_map []
     in
     let a = Array.of_list ((r_body, sub_body) :: List.map snd l) in
     let r = SU.join_array env a ~bound_name in
@@ -1152,7 +1187,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
             Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
           traps;
         Sub_cfg.update_exit_terminator sub_cfg (Always handler.label);
-        SU.set_traps env nfail handler.SU.traps_ref env.SU.trap_stack traps;
+        SU.set_traps nfail handler.SU.traps_ref env.SU.trap_stack traps;
         Never_returns
       | Return_lbl -> (
         match simple_list with
@@ -1298,10 +1333,12 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     let translate_one_handler _nfail
         (trap_info, (ids, rs, e2, _dbg, _is_cold, label)) =
       assert (List.length ids = List.length rs);
-      let trap_stack =
+      let trap_stack, e2 =
         match (!trap_info : SU.trap_stack_info) with
-        | Unreachable -> assert false
-        | Reachable t -> t
+        | Unreachable ->
+          assert (Cmm.is_exn_handler flag);
+          Lazy.force unreachable_handler
+        | Reachable t -> t, e2
       in
       let ids_and_rs = List.combine ids rs in
       let new_env =
@@ -1353,8 +1390,18 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         build_all_reachable_handlers ~already_built ~not_built
     in
     let new_handlers : (Reg.t array list * Sub_cfg.t) list =
-      build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
-      (* Note: we're dropping unreachable handlers here *)
+      match flag with
+      | Normal | Recursive ->
+        build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
+        (* Note: we're dropping unreachable handlers here *)
+      | Exn_handler ->
+        (* We cannot drop exception handlers as some trap instructions may refer
+           to them even if they're unreachable. Instead, [translate_one_handler]
+           will generate a dummy handler for the unreachable cases. *)
+        Int.Map.fold
+          (fun nfail handler all_handlers ->
+            translate_one_handler nfail handler :: all_handlers)
+          handlers_map []
     in
     assert (Sub_cfg.exit_has_never_terminator sub_cfg);
     let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
