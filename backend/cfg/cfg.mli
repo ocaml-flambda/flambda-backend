@@ -195,6 +195,8 @@ val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
+val is_alloc_or_poll : basic instruction -> bool
+
 val set_stack_offset : 'a instruction -> int -> unit
 
 val set_live : 'a instruction -> Reg.Set.t -> unit

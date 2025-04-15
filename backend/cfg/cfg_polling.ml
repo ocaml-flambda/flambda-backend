@@ -116,11 +116,7 @@ let () =
    the terminator to always return `false` would be better. *)
 
 let is_safe_basic : Cfg.basic Cfg.instruction -> bool =
- fun instr ->
-  match[@ocaml.warning "-4"] instr.desc with
-  | Op (Poll | Alloc _) -> true
-  | Op _ | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
-    false
+ fun instr -> Cfg.is_alloc_or_poll instr
 
 let is_safe_terminator : Cfg.terminator Cfg.instruction -> bool =
  fun term ->
