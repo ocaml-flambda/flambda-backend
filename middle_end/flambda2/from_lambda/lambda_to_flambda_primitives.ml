@@ -1052,8 +1052,14 @@ let bigarray_unbox_or_untag_value_to_store kind =
     fun arg -> H.Prim (Unary (Unbox_number Naked_float32, arg))
   | Naked_number Naked_float ->
     fun arg -> H.Prim (Unary (Unbox_number Naked_float, arg))
-  | Naked_number (Naked_int8 | Naked_int16) ->
-    fun arg -> H.Prim (Unary (Untag_immediate, arg))
+  | Naked_number Naked_int8 ->
+    fun arg ->
+      H.Prim
+        (Unary (Num_conv { src = Tagged_immediate; dst = Naked_int8 }, arg))
+  | Naked_number Naked_int16 ->
+    fun arg ->
+      H.Prim
+        (Unary (Num_conv { src = Tagged_immediate; dst = Naked_int16 }, arg))
   | Naked_number Naked_int32 ->
     fun arg -> H.Prim (Unary (Unbox_number Naked_int32, arg))
   | Naked_number Naked_int64 ->
