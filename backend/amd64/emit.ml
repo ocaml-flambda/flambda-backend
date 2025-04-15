@@ -22,7 +22,6 @@
 [@@@ocaml.warning "+a-45-9-4-40-41-42"]
 
 open! Int_replace_polymorphic_compare
-open Cmm
 open Arch
 open Proc
 open Reg
@@ -52,7 +51,7 @@ let int_reg_name =
 let float_reg_name = Array.init 16 (fun i -> XMM i)
 
 let register_name typ r =
-  match (typ : machtype_component) with
+  match (typ : Cmm.machtype_component) with
   | Int | Val | Addr -> Reg64 int_reg_name.(r)
   | Float | Float32 | Vec128 | Valx2 -> Regf float_reg_name.(r - 100)
 
@@ -212,7 +211,7 @@ let emit_cmm_symbol (s : Cmm.symbol) =
   | Global -> emit_symbol s.sym_name
   | Local -> label_name (emit_symbol s.sym_name)
 
-let load_symbol_addr s arg =
+let load_symbol_addr (s : Cmm.symbol) arg =
   match (s.sym_global : Cmm.is_global) with
   | Local -> I.lea (mem64_rip NONE (label_name (emit_symbol s.sym_name))) arg
   | Global ->
@@ -280,7 +279,8 @@ let emit_Llabel fallthrough lbl section_name =
 
 (* Output a pseudo-register *)
 
-let x86_data_type_for_stack_slot : machtype_component -> data_type = function
+let x86_data_type_for_stack_slot : Cmm.machtype_component -> data_type =
+  function
   | Float -> REAL8
   | Vec128 -> VEC128
   | Valx2 -> VEC128
@@ -353,7 +353,7 @@ let addressing addr typ i n =
 (* Record live pointers at call points -- see Emitaux *)
 
 let record_frame_label live dbg =
-  let lbl = new_label () in
+  let lbl = Cmm.new_label () in
   let live_offset = ref [] in
   Reg.Set.iter
     (function
@@ -499,7 +499,7 @@ let emit_stack_realloc () =
     !stack_realloc
 
 let emit_stack_check ~size_in_bytes ~save_registers =
-  let overflow = new_label () and ret = new_label () in
+  let overflow = Cmm.new_label () and ret = Cmm.new_label () in
   let threshold_offset =
     (Domainstate.stack_ctx_words * 8) + Stack_check.stack_threshold_size
   in
@@ -593,7 +593,7 @@ let instr_for_intop = function
   | Iasr -> I.sar
   | _ -> assert false
 
-let instr_for_floatop width op =
+let instr_for_floatop (width : Cmm.float_width) op =
   match width, op with
   | Float64, Iaddf -> I.addsd
   | Float64, Isubf -> I.subsd
@@ -605,7 +605,7 @@ let instr_for_floatop width op =
   | Float32, Idivf -> I.divss
   | _ -> assert false
 
-let instr_for_floatarithmem width op =
+let instr_for_floatarithmem (width : Cmm.float_width) op =
   match width, op with
   | Float64, Ifloatadd -> I.addsd
   | Float64, Ifloatsub -> I.subsd
@@ -639,7 +639,7 @@ let output_test_zero arg =
 
 (* Output a floating-point compare and branch *)
 
-let emit_float_test (width : Cmm.float_width) cmp i
+let emit_float_test (width : Cmm.float_width) (cmp : Cmm.float_comparison) i
     ~(taken : X86_ast.condition -> unit) =
   (*= Effect of comisd on flags and conditional branches:
                      ZF PF CF  cond. branches taken
@@ -660,7 +660,7 @@ let emit_float_test (width : Cmm.float_width) cmp i
     ucomi (arg i 1) (arg i 0);
     taken NP
   | CFeq ->
-    let next = new_label () in
+    let next = Cmm.new_label () in
     ucomi (arg i 1) (arg i 0);
     I.jp (label next);
     (* skip if unordered *)
@@ -753,7 +753,7 @@ let float_constants = ref ([] : (int64 * label) list)
 let add_float_constant cst =
   try List.assoc cst !float_constants
   with Not_found ->
-    let lbl = new_label () in
+    let lbl = Cmm.new_label () in
     float_constants := (cst, lbl) :: !float_constants;
     lbl
 
@@ -768,11 +768,11 @@ let vec128_constants = ref ([] : (Cmm.vec128_bits * label) list)
 let add_vec128_constant bits =
   try List.assoc bits !vec128_constants
   with Not_found ->
-    let lbl = new_label () in
+    let lbl = Cmm.new_label () in
     vec128_constants := (bits, lbl) :: !vec128_constants;
     lbl
 
-let emit_vec128_constant { high; low } lbl =
+let emit_vec128_constant ({ high; low } : Cmm.vec128_bits) lbl =
   (* SIMD vectors respect little-endian byte order *)
   _label (emit_label lbl);
   D.qword (Const low);
@@ -981,7 +981,7 @@ module Address_sanitizer : sig
   val emit_sanitize :
     ?dependencies:arg array ->
     address:arg ->
-    memory_chunk ->
+    Cmm.memory_chunk ->
     memory_access ->
     unit
 end = struct
@@ -993,7 +993,7 @@ end = struct
   module Memory_chunk_size : sig
     type t
 
-    val of_memory_chunk : memory_chunk -> t
+    val of_memory_chunk : Cmm.memory_chunk -> t
 
     val to_bytes : t -> int
 
@@ -1008,7 +1008,7 @@ end = struct
       | I64
       | I128
 
-    let of_memory_chunk = function
+    let of_memory_chunk : Cmm.memory_chunk -> t = function
       | Byte_unsigned | Byte_signed -> I8
       | Sixteen_unsigned | Sixteen_signed -> I16
       | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> I32
@@ -1085,7 +1085,7 @@ end = struct
      I'd recommend reading that first for reference before touching this
      function. *)
   let emit_sanitize ?(dependencies = [||]) ~address
-      (memory_chunk : memory_chunk) (memory_access : memory_access) =
+      (memory_chunk : Cmm.memory_chunk) (memory_access : memory_access) =
     let[@inline always] need_to_save_register register =
       uses_register register address
       || Array.exists (uses_register register) dependencies
@@ -1109,7 +1109,7 @@ end = struct
     in
     if need_to_save_r10 then push r10;
     (* -------- End prologue -------- *)
-    let asan_check_succeded_label = new_label () in
+    let asan_check_succeded_label = Cmm.new_label () in
     I.mov rdi r11;
     (* These constants come from
        [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *)
@@ -1179,7 +1179,7 @@ end = struct
         emit_sanitize ?dependencies ~address memory_chunk memory_access
 end
 
-let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
+let emit_atomic instr (op : Cmm.atomic_op) (size : Cmm.atomic_bitwidth) addr =
   let first_memory_arg_index =
     match op with
     | Compare_set -> 2
@@ -1758,10 +1758,10 @@ let emit_instr ~first ~fallthrough i =
     then (
       I.sub (int n) r15;
       I.cmp (domain_field Domainstate.Domain_young_limit) r15;
-      let lbl_call_gc = new_label () in
+      let lbl_call_gc = Cmm.new_label () in
       let lbl_frame = record_frame_label i.live (Dbg_alloc dbginfo) in
       I.jb (label lbl_call_gc);
-      let lbl_after_alloc = new_label () in
+      let lbl_after_alloc = Cmm.new_label () in
       def_label lbl_after_alloc;
       I.lea (mem64 NONE 8 R15) (res i 0);
       call_gc_sites
@@ -1788,9 +1788,9 @@ let emit_instr ~first ~fallthrough i =
     I.sub (int n) r;
     I.mov r (domain_field Domainstate.Domain_local_sp);
     I.cmp (domain_field Domainstate.Domain_local_limit) r;
-    let lbl_call = new_label () in
+    let lbl_call = Cmm.new_label () in
     I.j L (label lbl_call);
-    let lbl_after_alloc = new_label () in
+    let lbl_after_alloc = Cmm.new_label () in
     def_label lbl_after_alloc;
     I.add (domain_field Domainstate.Domain_local_top) r;
     I.add (int 8) r;
@@ -1799,8 +1799,8 @@ let emit_instr ~first ~fallthrough i =
          :: !local_realloc_sites
   | Lop Poll ->
     I.cmp (domain_field Domainstate.Domain_young_limit) r15;
-    let gc_call_label = new_label () in
-    let lbl_after_poll = new_label () in
+    let gc_call_label = Cmm.new_label () in
+    let lbl_after_poll = Cmm.new_label () in
     let lbl_frame = record_frame_label i.live (Dbg_alloc []) in
     I.jbe (label gc_call_label);
     call_gc_sites
@@ -1910,8 +1910,8 @@ let emit_instr ~first ~fallthrough i =
       (* We need (63 - result_of_bsr), which can be done with xor. *)
       I.xor (int 63) (res i 0))
     else
-      let lbl_z = new_label () in
-      let lbl_nz = new_label () in
+      let lbl_z = Cmm.new_label () in
+      let lbl_nz = Cmm.new_label () in
       I.bsr (arg i 0) (res i 0);
       I.je (label lbl_z);
       I.xor (int 63) (res i 0);
@@ -1928,7 +1928,7 @@ let emit_instr ~first ~fallthrough i =
       (* No need to handle that bsf is undefined on 0 input. *)
       I.bsf (arg i 0) (res i 0)
     else
-      let lbl_nz = new_label () in
+      let lbl_nz = Cmm.new_label () in
       I.bsf (arg i 0) (res i 0);
       I.jne (label lbl_nz);
       I.mov (int 64) (res i 0);
@@ -2018,7 +2018,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop End_region -> I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
   | Lop (Name_for_debugger _) -> ()
   | Lcall_op (Lprobe { enabled_at_init; _ }) ->
-    let probe_label = new_label () in
+    let probe_label = Cmm.new_label () in
     let probe =
       { probe_label;
         probe_insn = i;
@@ -2067,7 +2067,7 @@ let emit_instr ~first ~fallthrough i =
     (match lbl1 with None -> () | Some lbl -> I.je (label lbl));
     match lbl2 with None -> () | Some lbl -> I.ja (label lbl))
   | Lswitch jumptbl ->
-    let lbl = emit_label (new_label ()) in
+    let lbl = emit_label (Cmm.new_label ()) in
     (* rax and rdx are clobbered by the Lswitch, meaning that no variable that
        is live across the Lswitch is assigned to rax or rdx. However, the
        argument to Lswitch can still be assigned to one of these two registers,
@@ -2220,7 +2220,7 @@ let fundecl fundecl =
 
 (* Emission of data *)
 
-let emit_item = function
+let emit_item : Cmm.data_item -> unit = function
   | Cdefine_symbol s -> (
     match s.sym_global with
     | Local -> _label (label_name (emit_symbol s.sym_name))
@@ -2488,7 +2488,7 @@ let emit_probe_handler_wrapper p =
   add_used_symbol handler_code_sym;
   emit_call (Cmm.global_symbol handler_code_sym);
   (* Record a frame description for the wrapper *)
-  let label = new_label () in
+  let label = Cmm.new_label () in
   let live_offset =
     Array.fold_right
       (fun (r : Reg.t) acc ->
@@ -2528,10 +2528,10 @@ let emit_stapsdt_base_section () =
 
 let emit_elf_note ~owner ~typ ~emit_desc =
   D.align ~data:true 4;
-  let a = new_label () in
-  let b = new_label () in
-  let c = new_label () in
-  let d = new_label () in
+  let a = Cmm.new_label () in
+  let b = Cmm.new_label () in
+  let c = Cmm.new_label () in
+  let d = Cmm.new_label () in
   D.long (ConstSub (ConstLabel (emit_label b), ConstLabel (emit_label a)));
   D.long (ConstSub (ConstLabel (emit_label d), ConstLabel (emit_label c)));
   D.long (const_32 typ);
