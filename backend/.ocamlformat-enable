@@ -20,6 +20,8 @@ arm64_ast.ml
 arm64_ast.mli
 asm_targets/**/*.ml
 asm_targets/**/*.mli
+branch_relaxation.ml
+branch_relaxation.mli
 cfg/**/*.ml
 cfg/**/*.mli
 cfg/vectorize.ml
