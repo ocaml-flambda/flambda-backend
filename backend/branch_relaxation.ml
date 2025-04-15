@@ -69,7 +69,21 @@ module Make (T : Branch_relaxation_intf.S) = struct
         opt_branch_overflows map pc lbl0 max_branch_offset
         || opt_branch_overflows map pc lbl1 max_branch_offset
         || opt_branch_overflows map pc lbl2 max_branch_offset
-      | _ -> Misc.fatal_error "Unsupported instruction for branch relaxation")
+      | Lop
+          ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+          | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+          | Const_vec128 _ | Stackoffset _ | Load _
+          | Store (_, _, _)
+          | Intop _
+          | Intop_imm (_, _)
+          | Intop_atomic _
+          | Floatop (_, _)
+          | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+          | Name_for_debugger _ )
+      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+      | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _ | Ladjust_stack_offset _
+      | Lpushtrap _ | Lraise _ | Lstackcheck _ ->
+        Misc.fatal_error "Unsupported instruction for branch relaxation")
 
   let fixup_branches ~code_size ~max_out_of_line_code_offset map code =
     let expand_optbranch lbl n arg next =
@@ -83,7 +97,12 @@ module Make (T : Branch_relaxation_intf.S) = struct
     let rec fixup did_fix pc instr =
       match instr.desc with
       | Lend -> did_fix
-      | _ -> (
+      | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lop _
+      | Lcall_op _ | Llabel _ | Lbranch _
+      | Lcondbranch (_, _)
+      | Lcondbranch3 (_, _, _)
+      | Lswitch _ | Ladjust_stack_offset _ | Lpushtrap _ | Lraise _
+      | Lstackcheck _ -> (
         let overflows =
           instr_overflows ~code_size ~max_out_of_line_code_offset instr map pc
         in
@@ -94,7 +113,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
           | Lop Poll ->
             instr.desc <- T.relax_poll ();
             fixup true (pc + T.instr_size instr.desc) instr.next
-          | Lop (Alloc { bytes = num_bytes; dbginfo }) ->
+          | Lop (Alloc { bytes = num_bytes; dbginfo; _ }) ->
             instr.desc <- T.relax_allocation ~num_bytes ~dbginfo;
             fixup true (pc + T.instr_size instr.desc) instr.next
           | Lcondbranch (test, lbl) ->
@@ -118,7 +137,20 @@ module Make (T : Branch_relaxation_intf.S) = struct
             instr.desc <- cont.desc;
             instr.next <- cont.next;
             fixup true pc instr
-          | _ ->
+          | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+          | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _
+          | Ladjust_stack_offset _ | Lpushtrap _ | Lraise _ | Lstackcheck _
+          | Lop
+              ( Move | Spill | Reload | Opaque | Begin_region | End_region
+              | Dls_get | Const_int _ | Const_float32 _ | Const_float _
+              | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Load _
+              | Store (_, _, _)
+              | Intop _
+              | Intop_imm (_, _)
+              | Intop_atomic _
+              | Floatop (_, _)
+              | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+              | Name_for_debugger _ | Specific _ ) ->
             (* Any other instruction has already been rejected in
                [instr_overflows] above. We can *never* get here. *)
             assert false)
