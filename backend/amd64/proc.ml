@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+[@@@ocaml.warning "+4+32"]
 
 (* Description of the AMD64 processor *)
 
@@ -205,8 +205,6 @@ let destroy_xmm n =
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
-
-let num_destroyed_by_plt_stub = Array.length destroyed_by_plt_stub
 
 let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 
@@ -519,9 +517,6 @@ let destroyed_at_single_float64_store =
   else
     (destroy_xmm 15)
 ;;
-
-let has_pushtrap traps =
-  List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
 let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
   match register_behavior with
