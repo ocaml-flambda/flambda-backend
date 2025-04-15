@@ -5545,6 +5545,9 @@ let rec eqtype rename type_pairs subst env ~do_jkind_check t1 t2 =
         eqtype_subst type_pairs subst t1 k1 t2 k2 ~do_jkind_check
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
+    | (Tof_kind k1, Tof_kind k2) ->
+      if not (Jkind.equal k1 k2)
+      then raise_for Equality (Unequal_tof_kind_jkinds (k1, k2))
     | _ ->
         let t1' = expand_head_rigid env t1 in
         let t2' = expand_head_rigid env t2 in

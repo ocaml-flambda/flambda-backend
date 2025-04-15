@@ -3187,14 +3187,22 @@ let explanation (type variety) intro prev env
       Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
-  | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
-      let fmt_history t l ppf =
+  | Errortrace.Unequal_var_jkinds (t1,k1,t2,k2) ->
+      let fmt_history t k ppf =
         Jkind.(format_history ~intro:(
-          dprintf "The layout of %a is %a" prepared_type_expr t format l) ppf l)
+          dprintf "The layout of %a is %a" prepared_type_expr t format k) ppf k)
       in
       Some (dprintf "@ because the layouts of their variables are different.\
                      @ @[<v>%t@;%t@]"
-              (fmt_history t1 l1) (fmt_history t2 l2))
+              (fmt_history t1 k1) (fmt_history t2 k2))
+  | Errortrace.Unequal_tof_kind_jkinds (k1, k2) ->
+      let fmt_history which k ppf =
+        Jkind.(format_history ~intro:(
+          dprintf "The kind of %s is %a" which format k) ppf k)
+      in
+      Some (dprintf "@ because their kinds are different.\
+                     @ @[<v>%t@;%t@]"
+              (fmt_history "the first" k1) (fmt_history "the second" k2))
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)
@@ -3258,7 +3266,8 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       tr
   in
   let jkind_error = match Misc.last tr with
-    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _
+           | Unequal_tof_kind_jkinds _) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)
