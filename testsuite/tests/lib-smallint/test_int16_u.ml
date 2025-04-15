@@ -1,19 +1,21 @@
 (* TEST
- include stdlib_beta;
- flambda2;
- {
+   include stdlib_beta;
+   include stdlib_upstream_compatible;
+   modules = "test_repr.c";
+   flambda2;
+   {
    flags = "-extension-universe beta";
    native;
- } {
+   } {
    flags = "-O3 -extension-universe beta";
    native;
- } {
+   } {
    flags = "-Oclassic -extension-universe beta";
    native;
- } {
+   } {
    flags = "-extension-universe beta";
    bytecode;
- }
+   }
 *)
 let min_int = -0x8000
 
@@ -180,4 +182,13 @@ let () =
   test1 (fun x -> assert (Smallint.to_string (of_int x) = Int.to_string x));
   test_logical2 Smallint.min Int.min;
   test_logical2 Smallint.max Int.max;
+  ()
+
+(* test that the value is stored sign-extended in the register *)
+external get_register : Smallint.t -> nativeint = "get_register_bytecode" "get_register"
+let get_register x = get_register (Smallint.of_int x)
+
+
+let () =
+  assert (get_register ((1 lsl Smallint.size) - 1) = -1n);
   ()
