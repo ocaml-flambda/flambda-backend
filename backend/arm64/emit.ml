@@ -116,8 +116,6 @@ module DSL : sig
 
   val mem : base:Arm64_ast.Reg.t -> Arm64_ast.Operand.t
 
-  val mem_offset : base:Arm64_ast.Reg.t -> offset:int -> Arm64_ast.Operand.t
-
   val mem_pre : base:Arm64_ast.Reg.t -> offset:int -> Arm64_ast.Operand.t
 
   val mem_post : base:Arm64_ast.Reg.t -> offset:int -> Arm64_ast.Operand.t
@@ -159,11 +157,11 @@ module DSL : sig
   (* translate registers before producing the operand *)
   val emit_mem : Reg.t -> Arm64_ast.Operand.t
 
-  val emit_mem_offset : Reg.t -> int -> Arm64_ast.Operand.t
+  val emit_mem_offset : Reg.t -> int -> Arm64_ast.Operand.t [@@warning "-32"]
 
-  val emit_mem_pre : Reg.t -> int -> Arm64_ast.Operand.t
+  val emit_mem_pre : Reg.t -> int -> Arm64_ast.Operand.t [@@warning "-32"]
 
-  val emit_mem_post : Reg.t -> int -> Arm64_ast.Operand.t
+  val emit_mem_post : Reg.t -> int -> Arm64_ast.Operand.t [@@warning "-32"]
 
   val emit_mem_sp_offset : int -> Arm64_ast.Operand.t
 
