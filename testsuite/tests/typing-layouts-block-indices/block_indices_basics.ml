@@ -178,14 +178,8 @@ Uncaught exception: Misc.Fatal_error
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 180, characters 24-30:
-180 | let bad_index_type = (.("test"))
-                              ^^^^^^
-Error: This expression has type "string" but an expression was expected of type
-         "int"
-|}, Principal{|
-Line 199, characters 24-30:
-199 | let bad_index_type = (.("test"))
+Line 179, characters 24-30:
+179 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
