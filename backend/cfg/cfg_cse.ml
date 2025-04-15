@@ -338,7 +338,6 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
   let is_cheap_operation : Operation.t -> bool = function
     | Const_int _ -> true
     | _ -> false
-    [@@warning "-4"]
 
   let kill_loads (n : numbering) : numbering = remove_mutable_load_numbering n
 
@@ -412,7 +411,6 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
         let n2 = set_unknown_regs n1 i.res in
         let n3 = kill_loads n2 in
         n3)
-   [@@warning "-4"]
 
   let cse_body :
       State.t -> numbering -> Cfg.basic Cfg.instruction DLL.t -> numbering =
