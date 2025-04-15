@@ -54,6 +54,8 @@ polling_utils.ml
 polling_utils.mli
 peephole/**/*.ml
 peephole/**/*.mli
+printcmm.ml
+printcmm.mli
 printoperation.ml
 printoperation.mli
 printreg.ml
