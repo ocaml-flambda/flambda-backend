@@ -19,7 +19,7 @@
    [Flambda_backend_flags] and shared variables. For details, see
    [asmgen.mli]. *)
 
-[@@@ocaml.warning "+a-4-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open Arch
@@ -286,19 +286,22 @@ let x86_data_type_for_stack_slot : Cmm.machtype_component -> X86_ast.data_type =
   | Int | Addr | Val -> QWORD
   | Float32 -> REAL4
 
-let reg : Reg.t -> X86_ast.arg = function
+let reg : Reg.t -> X86_ast.arg =
+ fun reg ->
+  match reg with
   | { loc = Reg.Reg r; typ = ty; _ } -> register_name ty r
   | { loc = Stack (Domainstate n); typ = ty; _ } ->
     let ofs = n + (Domainstate.(idx_of_field Domain_extra_params) * 8) in
     mem64 (x86_data_type_for_stack_slot ty) ofs R14
-  | { loc = Stack s; typ = ty; _ } as r ->
+  | { loc = Stack ((Reg.Local _ | Incoming _ | Outgoing _) as s); typ = ty; _ }
+    as r ->
     let ofs = slot_offset s (Stack_class.of_machtype r.typ) in
     mem64 (x86_data_type_for_stack_slot ty) ofs RSP
   | { loc = Unknown; _ } -> assert false
 
 let reg64 = function
   | { loc = Reg.Reg r; _ } -> int_reg_name.(r)
-  | _ -> assert false
+  | { loc = Stack _ | Unknown; _ } -> assert false
 
 let res i n = reg i.res.(n)
 
@@ -591,7 +594,7 @@ let instr_for_intop = function
   | Ilsl -> I.sal
   | Ilsr -> I.shr
   | Iasr -> I.sar
-  | _ -> assert false
+  | Idiv | Imod | Ipopcnt | Imulh _ | Iclz _ | Ictz _ | Icomp _ -> assert false
 
 let instr_for_floatop (width : Cmm.float_width) op =
   match width, op with
@@ -603,7 +606,7 @@ let instr_for_floatop (width : Cmm.float_width) op =
   | Float32, Isubf -> I.subss
   | Float32, Imulf -> I.mulss
   | Float32, Idivf -> I.divss
-  | _ -> assert false
+  | (Float32 | Float64), (Inegf | Iabsf | Icompf _) -> assert false
 
 let instr_for_floatarithmem (width : Cmm.float_width) op =
   match width, op with
@@ -635,7 +638,10 @@ let cond : Operation.integer_comparison -> X86_ast.condition = function
 let output_test_zero arg =
   match arg.loc with
   | Reg.Reg _ -> I.test (reg arg) (reg arg)
-  | _ -> I.cmp (int 0) (reg arg)
+  | Stack _ -> I.cmp (int 0) (reg arg)
+  | Unknown ->
+    Misc.fatal_errorf "Emit.output_test_zero: arg location unknown: %a"
+      Printreg.reg arg
 
 (* Output a floating-point compare and branch *)
 
@@ -719,7 +725,10 @@ let emit_test i ~(taken : X86_ast.condition -> unit) = function
     ->
     output_test_zero i.arg.(0);
     taken (cond cmp)
-  | Iinttest_imm (cmp, n) ->
+  | Iinttest_imm
+      ( (( Isigned (Ceq | Cne | Clt | Cgt | Cle | Cge)
+         | Iunsigned (Ceq | Cne | Clt | Cgt | Cle | Cge) ) as cmp),
+        n ) ->
     I.cmp (int n) (arg i 0);
     taken (cond cmp)
   | Ifloattest (width, cmp) -> emit_float_test width cmp i ~taken
@@ -806,18 +815,32 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   let distinct = not (Reg.same_loc src dst) in
   match src.typ, src.loc, dst.typ, dst.loc with
+  | _, Stack _, _, Stack _ ->
+    Misc.fatal_errorf "Illegal move between registers (%a to %a)\n" Printreg.reg
+      src Printreg.reg dst
   | Float, Reg _, Float, Reg _
   | Float32, Reg _, Float32, Reg _
   | ( (Vec128 | Valx2),
-      _,
+      (Reg _ | Stack _),
       (Vec128 | Valx2),
-      _ (* Vec128 stack slots are always aligned. *) ) ->
+      (Reg _ | Stack _ (* Vec128 stack slots are always aligned. *)) ) ->
     if distinct then I.movapd (reg src) (reg dst)
-  | Float, _, Float, _ -> if distinct then I.movsd (reg src) (reg dst)
-  | Float32, _, Float32, _ -> if distinct then I.movss (reg src) (reg dst)
-  | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
+  | Float, (Reg _ | Stack _), Float, (Reg _ | Stack _) ->
+    if distinct then I.movsd (reg src) (reg dst)
+  | Float32, (Reg _ | Stack _), Float32, (Reg _ | Stack _) ->
+    if distinct then I.movss (reg src) (reg dst)
+  | (Int | Val | Addr), (Reg _ | Stack _), (Int | Val | Addr), (Reg _ | Stack _)
+    ->
     if distinct then I.mov (reg src) (reg dst)
-  | (Float | Float32 | Vec128 | Int | Val | Addr | Valx2), _, _, _ ->
+  | _, Unknown, _, (Reg _ | Stack _ | Unknown)
+  | _, (Reg _ | Stack _), _, Unknown ->
+    Misc.fatal_errorf
+      "Illegal move with an unknown register location (%a to %a)\n" Printreg.reg
+      src Printreg.reg dst
+  | ( (Float | Float32 | Vec128 | Int | Val | Addr | Valx2),
+      (Reg _ | Stack _),
+      _,
+      _ ) ->
     Misc.fatal_errorf
       "Illegal move between registers of differing types (%a to %a)\n"
       Printreg.reg src Printreg.reg dst
@@ -1023,8 +1046,8 @@ end = struct
   end
 
   let mov_address src dest =
-    match src with
-    | X86_ast.Mem
+    match (src : X86_ast.arg) with
+    | Mem
         { scale = 1;
           base = None;
           sym = None;
@@ -1034,7 +1057,9 @@ end = struct
           typ = _
         } ->
       I.mov (Reg64 idx) dest
-    | _ -> I.lea src dest
+    | Mem _ | Mem64_RIP _ | Imm _ | Sym _ | Reg8L _ | Reg8H _ | Reg16 _
+    | Reg32 _ | Reg64 _ | Regf _ ->
+      I.lea src dest
 
   let[@inline always] is_stack_16_byte_aligned () =
     (* Yes, sadly this does result in materially better assembly than
@@ -1078,7 +1103,7 @@ end = struct
       scale <> 0 && equal_reg64 register register'
     | Mem { idx = register'; base = Some register''; _ } ->
       equal_reg64 register register' || equal_reg64 register register''
-    | _ -> false
+    | Imm _ | Sym _ | Reg8H _ | Regf _ | Mem64_RIP (_, _, _) -> false
 
   (* The C code snippets in the comments throughout this function refer to the
      implementation given in
@@ -1604,14 +1629,20 @@ let emit_instr ~first ~fallthrough i =
            64-bit-only registers where the behaviour is as if the operands were
            64 bit). *)
         I.xor (res32 i 0) (res32 i 0)
-      | _ -> I.mov (int 0) (res i 0)
+      | Stack _ -> I.mov (int 0) (res i 0)
+      | Unknown ->
+        Misc.fatal_errorf "Unknown register location %a\n" Printreg.reg
+          i.res.(0)
     else if Nativeint.compare n 0n > 0 && Nativeint.compare n 0xFFFF_FFFFn <= 0
     then
       match i.res.(0).loc with
       | Reg _ ->
         (* Similarly, setting only the bottom half clears the top half. *)
         I.mov (nat n) (res32 i 0)
-      | _ -> I.mov (nat n) (res i 0)
+      | Stack _ -> I.mov (nat n) (res i 0)
+      | Unknown ->
+        Misc.fatal_errorf "Unknown register location %a\n" Printreg.reg
+          i.res.(0)
     else I.mov (nat n) (res i 0)
   | Lop (Const_float32 f) -> (
     match f with
@@ -1956,7 +1987,8 @@ let emit_instr ~first ~fallthrough i =
     match reg64 i.res.(0) with
     | RAX -> I.or_ rdx (res i 0) (* combine high and low into rax *)
     | RDX -> I.or_ rax (res i 0) (* combine high and low into rdx *)
-    | _ ->
+    | RBX | RCX | RSP | RBP | RSI | RDI | R8 | R9 | R10 | R11 | R12 | R13 | R14
+    | R15 ->
       (* combine high and low into res *)
       I.mov rax (res i 0);
       I.or_ rdx (res i 0))
@@ -2143,7 +2175,12 @@ let emit_instr ~first ~fallthrough i =
 let rec emit_all ~first ~fallthrough i =
   match i.desc with
   | Lend -> ()
-  | _ ->
+  | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lop _
+  | Lcall_op _ | Llabel _ | Lbranch _
+  | Lcondbranch (_, _)
+  | Lcondbranch3 (_, _, _)
+  | Lswitch _ | Ladjust_stack_offset _ | Lpushtrap _ | Lraise _ | Lstackcheck _
+    ->
     (try emit_instr ~first ~fallthrough i
      with exn ->
        Format.eprintf "Exception whilst emitting instruction:@ %a\n"
@@ -2161,7 +2198,10 @@ let emit_function_type_and_size fun_name =
     then
       D.size (emit_symbol fun_name)
         (ConstSub (ConstThis, ConstLabel (emit_symbol fun_name)))
-  | _ -> ()
+  | S_macosx | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf | S_beos
+  | S_mingw | S_win64 | S_mingw64 | S_freebsd | S_netbsd | S_openbsd | S_unknown
+    ->
+    ()
 
 (* Emission of a function declaration *)
 
@@ -2295,7 +2335,9 @@ let begin_assembly unix =
     | S_macosx -> D.section ["__TEXT"; "__literal16"] None ["16byte_literals"]
     | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
     | S_win64 -> D.data ()
-    | _ -> D.section [".rodata.cst16"] (Some "aM") ["@progbits"; "16"]);
+    | S_gnu | S_solaris | S_win32 | S_linux_elf | S_bsd_elf | S_beos | S_mingw
+    | S_linux | S_freebsd | S_netbsd | S_openbsd | S_unknown ->
+      D.section [".rodata.cst16"] (Some "aM") ["@progbits"; "16"]);
     D.align ~data:true 16;
     _label (emit_symbol "caml_negf_mask");
     D.qword (Const 0x8000000000000000L);
@@ -2417,7 +2459,15 @@ let emit_probe_handler_wrapper p =
     match p.probe_insn.desc with
     | Lcall_op (Lprobe { name; handler_code_sym; enabled_at_init = _ }) ->
       name, handler_code_sym
-    | _ -> assert false
+    | Lcall_op
+        (Lcall_ind | Ltailcall_ind | Lcall_imm _ | Ltailcall_imm _ | Lextcall _)
+    | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+    | Lop _ | Llabel _ | Lbranch _
+    | Lcondbranch (_, _)
+    | Lcondbranch3 (_, _, _)
+    | Lswitch _ | Ladjust_stack_offset _ | Lpushtrap _ | Lraise _
+    | Lstackcheck _ ->
+      assert false
   in
   (*= Restore stack frame info as it was at the probe site, so we can easily
      refer to slots in the corresponding frame.  (As per the comment above,
@@ -2493,14 +2543,15 @@ let emit_probe_handler_wrapper p =
   let live_offset =
     Array.fold_right
       (fun (r : Reg.t) acc ->
-        match r.loc with
+        match (r.loc : Reg.location) with
         | Stack (Outgoing k) -> (
           match r.typ with
           | Val -> k :: acc
           | Int | Float | Vec128 | Float32 -> acc
           | Valx2 -> k :: (k + Arch.size_addr) :: acc
           | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
-        | _ -> assert false)
+        | Stack (Incoming _ | Reg.Local _ | Domainstate _) | Reg _ | Unknown ->
+          assert false)
       saved_live []
   in
   record_frame_descr ~label ~frame_size:(wrapper_frame_size n) ~live_offset
@@ -2575,7 +2626,16 @@ let emit_probe_notes0 () =
       match p.probe_insn.desc with
       | Lcall_op (Lprobe { name; enabled_at_init; handler_code_sym = _ }) ->
         name, enabled_at_init
-      | _ -> assert false
+      | Lcall_op
+          ( Lcall_ind | Ltailcall_ind | Lcall_imm _ | Ltailcall_imm _
+          | Lextcall _ )
+      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+      | Lop _ | Llabel _ | Lbranch _
+      | Lcondbranch (_, _)
+      | Lcondbranch3 (_, _, _)
+      | Lswitch _ | Ladjust_stack_offset _ | Lpushtrap _ | Lraise _
+      | Lstackcheck _ ->
+        assert false
     in
     let args =
       Array.fold_right (fun arg acc -> stap_arg arg :: acc) p.probe_insn.arg []
@@ -2660,7 +2720,9 @@ let end_assembly () =
     | S_macosx -> D.section ["__TEXT"; "__literal8"] None ["8byte_literals"]
     | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
     | S_win64 -> D.data ()
-    | _ -> D.section [".rodata.cst8"] (Some "aM") ["@progbits"; "8"]);
+    | S_linux | S_gnu | S_solaris | S_win32 | S_linux_elf | S_bsd_elf | S_beos
+    | S_mingw | S_freebsd | S_netbsd | S_openbsd | S_unknown ->
+      D.section [".rodata.cst8"] (Some "aM") ["@progbits"; "8"]);
     D.align ~data:true 8;
     List.iter (fun (cst, lbl) -> emit_float_constant cst lbl) !float_constants);
   if not (Misc.Stdlib.List.is_empty !vec128_constants)
@@ -2669,7 +2731,9 @@ let end_assembly () =
     | S_macosx -> D.section ["__TEXT"; "__literal16"] None ["16byte_literals"]
     | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
     | S_win64 -> D.data ()
-    | _ -> D.section [".rodata.cst16"] (Some "aM") ["@progbits"; "16"]);
+    | S_linux | S_gnu | S_solaris | S_win32 | S_linux_elf | S_bsd_elf | S_beos
+    | S_mingw | S_freebsd | S_netbsd | S_openbsd | S_unknown ->
+      D.section [".rodata.cst16"] (Some "aM") ["@progbits"; "16"]);
     D.align ~data:true 16;
     List.iter (fun (cst, lbl) -> emit_vec128_constant cst lbl) !vec128_constants);
   (* Emit probe handler wrappers *)
@@ -2721,7 +2785,9 @@ let end_assembly () =
   | S_linux | S_freebsd | S_netbsd | S_openbsd ->
     let frametable = emit_symbol (Cmm_helpers.make_symbol "frametable") in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
-  | _ -> ());
+  | S_macosx | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
+  | S_beos | S_mingw | S_win64 | S_mingw64 | S_unknown ->
+    ());
   D.data ();
   emit_probe_notes ();
   emit_trap_notes ();
