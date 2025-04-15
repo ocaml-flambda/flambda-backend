@@ -522,3 +522,22 @@ let occurs_block_body : Cfg.basic_block -> Reg.t -> bool =
 let occurs_block : Cfg.basic_block -> Reg.t -> bool =
  fun block reg ->
   occurs_block_body block reg || occurs_instruction block.terminator reg
+
+let iter_block :
+    Cfg.basic_block ->
+    instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
+    terminator:(trap_handler:bool -> Cfg.terminator Cfg.instruction -> unit) ->
+    unit =
+ fun block ~instruction ~terminator ->
+  let trap_handler_id =
+    if block.is_trap_handler
+    then first_instruction_id block
+    else InstructionId.none
+  in
+  DLL.iter block.body ~f:(fun instr ->
+      instruction
+        ~trap_handler:(InstructionId.equal instr.Cfg.id trap_handler_id)
+        instr);
+  terminator
+    ~trap_handler:(InstructionId.equal block.terminator.Cfg.id trap_handler_id)
+    block.terminator

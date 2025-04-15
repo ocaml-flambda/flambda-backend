@@ -164,3 +164,9 @@ val occurs_instruction : _ Cfg.instruction -> Reg.t -> bool
 val occurs_block_body : Cfg.basic_block -> Reg.t -> bool
 
 val occurs_block : Cfg.basic_block -> Reg.t -> bool
+
+val iter_block :
+  Cfg.basic_block ->
+  instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
+  terminator:(trap_handler:bool -> Cfg.terminator Cfg.instruction -> unit) ->
+  unit
