@@ -20,7 +20,7 @@
 
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open Arch
 
@@ -57,7 +57,7 @@ let inline_ops = ["sqrt"]
 let use_direct_addressing _symb = (not !Clflags.dlcode) && not Arch.macosx
 
 let is_stack_slot rv =
-  Reg.(match rv with [| { loc = Stack _ } |] -> true | _ -> false)
+  Reg.(match rv with [| { loc = Stack _; _ } |] -> true | _ -> false)
 
 let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth = function
   | Sixteen -> Sixteen
@@ -81,14 +81,14 @@ let is_simple_expr (expr : Cmm.expression) :
     Cfg_selectgen_target_intf.is_simple_expr_result =
   match expr with
   (* inlined floating-point ops are simple if their arguments are *)
-  | Cop (Cextcall { func }, args, _) when List.mem func inline_ops ->
+  | Cop (Cextcall { func; _ }, args, _) when List.mem func inline_ops ->
     Simple_if_all_expressions_are args
   | _ -> Use_default
 
 let effects_of (expr : Cmm.expression) :
     Cfg_selectgen_target_intf.effects_of_result =
   match expr with
-  | Cop (Cextcall { func }, args, _) when List.mem func inline_ops ->
+  | Cop (Cextcall { func; _ }, args, _) when List.mem func inline_ops ->
     Effects_of_all_expressions args
   | _ -> Use_default
 
@@ -196,7 +196,7 @@ let select_operation ~generic_select_condition:_ (op : Cmm.operation)
     | _ -> Use_default)
   | Cpackf32 -> Rewritten (specific (Isimd Zip1_f32), args)
   (* Recognize floating-point square root *)
-  | Cextcall { func = "sqrt" | "sqrtf" | "caml_neon_float64_sqrt" } ->
+  | Cextcall { func = "sqrt" | "sqrtf" | "caml_neon_float64_sqrt"; _ } ->
     Rewritten (specific Isqrtf, args)
   | Cextcall { func; builtin = true; _ } -> (
     match Simd_selection.select_operation_cfg func args with
