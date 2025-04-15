@@ -101,10 +101,12 @@ let report_error ppf = function
          instrs)
 
 let () =
-  Location.register_error_of_exn (function [@ocaml.warning "-4"]
-    | Error (Poll_error (fun_dbg, _instrs) as err) ->
-      let loc = Debuginfo.to_location fun_dbg in
-      Some (Location.error_of_printer ~loc report_error err)
+  Location.register_error_of_exn (function
+    | Error err -> (
+      match err with
+      | Poll_error (fun_dbg, _instrs) ->
+        let loc = Debuginfo.to_location fun_dbg in
+        Some (Location.error_of_printer ~loc report_error err))
     | _ -> None)
 
 (* Compututation of the "safe" map, which is a map from labels to booleans where
