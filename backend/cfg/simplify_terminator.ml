@@ -126,7 +126,7 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
 
 let is_last_instruction_const_int (body : C.basic C.instruction Dll.t) :
     (nativeint * Reg.t) option =
-  match[@ocaml.warning "-4"] Dll.last body with
+  match Dll.last body with
   | None -> None
   | Some { desc = Op (Const_int const); res = [| reg |]; _ } -> Some (const, reg)
   | Some _ -> None
