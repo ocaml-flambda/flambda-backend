@@ -42,21 +42,19 @@ type assembler =
 
 val assembler : unit -> assembler
 
-
 type machine_width =
   | Thirty_two
   | Sixty_four
 
-
 (** The natural machine width of the target system. *)
 val machine_width : unit -> machine_width
-
 
 type windows_system = private
   | Cygwin
   | MinGW
   | Native
 
+(* CR sspies: Remove some of the systems below that are a bit dated. *)
 type system = private
   | Linux
   | Windows of windows_system

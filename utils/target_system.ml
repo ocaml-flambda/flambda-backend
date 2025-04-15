@@ -121,7 +121,6 @@ let assembler () =
   | Generic_BSD | Solaris | GNU | Dragonfly | BeOS | Unknown ->
     GAS_like
 
-
 type machine_width =
   | Thirty_two
   | Sixty_four
@@ -131,8 +130,6 @@ let machine_width () =
   | 32 -> Thirty_two
   | 64 -> Sixty_four
   | bits -> Misc.fatal_errorf "Unknown machine width: %d" bits
-
-
 
 type windows_system =
   | Cygwin
@@ -174,6 +171,7 @@ let windows () =
   match system () with
   | Windows _ -> true
   | _ -> false
+
 let is_macos () =
   match assembler () with
   | MASM | GAS_like -> false

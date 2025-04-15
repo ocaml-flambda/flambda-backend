@@ -41,7 +41,6 @@ let should_be_escaped = function
   | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> false
   | _c -> true
 
-(* CR sspies: This hack with the prefix is not great. *)
 module Thing = struct
   type t =
     { name : string;
@@ -50,9 +49,10 @@ module Thing = struct
 
   let compare { name = name1; without_prefix = without_prefix1 }
       { name = name2; without_prefix = without_prefix2 } =
-    if String.compare name1 name2 = 0
+    let cmp = String.compare name1 name2 in
+    if cmp = 0
     then Bool.compare without_prefix1 without_prefix2
-    else String.compare name1 name2
+    else cmp
 
   let equal t1 t2 = compare t1 t2 = 0
 
