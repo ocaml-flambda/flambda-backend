@@ -71,12 +71,13 @@ let dwarf_sections_in_order () =
   sections @ dwarf_version_dependent_sections
 
 let is_delayed = function
+  (* Only .debug_line and .debug_frames are delayed.
+     All other sections should be emitted directly.
+     See PR #1719. *)
   | DWARF Debug_line -> true
   | DWARF
       ( Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists
       | Debug_rnglists | Debug_addr | Debug_loc | Debug_ranges )
-  (* CR sspies: Decide which of these are delayed. *)
-  (* FIXME: Except for [Text], these are just a guess. *)
   | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
   | Jump_tables | Text ->
     false
@@ -216,8 +217,18 @@ let flags t ~first_occurrence =
         | Debug_str -> ".debug_str"
         | Debug_line -> ".debug_line"
       in
-      let flags = if first_occurrence then Some "" else None in
-      let args = if first_occurrence then ["%progbits"] else [] in
+      let flags =
+        match first_occurrence, dwarf with
+        | true, Debug_str -> Some "MS" (* #3078 *)
+        | true, _ -> Some ""
+        | false, _ -> None
+      in
+      let args =
+        match first_occurrence, dwarf with
+        | true, Debug_str -> ["%progbits,1"] (* #3078 *)
+        | true, _ -> ["%progbits"]
+        | false, _ -> []
+      in
       [name], flags, args
     | (Eight_byte_literals | Sixteen_byte_literals), (ARM | AArch64 | Z), _
     | (Eight_byte_literals | Sixteen_byte_literals), _, Solaris ->
