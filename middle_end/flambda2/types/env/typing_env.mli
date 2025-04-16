@@ -111,8 +111,6 @@ val increment_scope : t -> t
 
 val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 
-(** The caller is to ensure that the supplied type is the most precise available
-    for the given name. *)
 val add_equation : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t
 
 val add_equation_strict :
