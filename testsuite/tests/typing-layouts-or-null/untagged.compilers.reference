@@ -1,5 +1,5 @@
 File "untagged.ml", line 15, characters 8-19:
 15 |     :  (int_or_null [@untagged])
              ^^^^^^^^^^^
-Error: Don't know how to untag this type. Only "int"
-       and other immediate types can be untagged.
+Error: Don't know how to untag this type. Only "int8", "int16", "int", and
+       other immediate types can be untagged.

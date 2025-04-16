@@ -1160,7 +1160,7 @@ Line 1, characters 36-49:
 1 | external ext_tuple_arg_with_attr : (#(int * bool) [@unboxed]) -> int = "foo"
                                         ^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -1179,7 +1179,7 @@ Line 1, characters 38-47:
 1 | external ext_product_arg_with_attr : (t_product [@unboxed]) -> int = "foo"
                                           ^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -1198,7 +1198,7 @@ Line 1, characters 46-59:
 1 | external ext_tuple_return_with_attr : int -> (#(int * bool) [@unboxed]) = "foo"
                                                   ^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -1217,7 +1217,7 @@ Line 1, characters 48-57:
 1 | external ext_product_return_with_attr : int -> (t_product [@unboxed]) = "foo"
                                                     ^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -1255,7 +1255,7 @@ Line 2, characters 37-63:
 2 | external ext_record_arg_with_attr : (ext_record_arg_attr_record [@unboxed]) -> int = "foo"
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -1274,7 +1274,7 @@ Line 1, characters 38-47:
 1 | external ext_product_arg_with_attr : (t_product [@unboxed]) -> int = "foo"
                                           ^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -1297,7 +1297,7 @@ Line 2, characters 47-48:
 2 | external ext_record_return_with_attr : int -> (t [@unboxed]) = "foo"
                                                    ^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
@@ -1316,7 +1316,7 @@ Line 1, characters 48-57:
 1 | external ext_product_return_with_attr : int -> (t_product [@unboxed]) = "foo"
                                                     ^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       Only "float", "int8", "int16", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 

@@ -334,6 +334,8 @@ type primitive =
   | Pobj_magic of layout
   | Punbox_float of boxed_float
   | Pbox_float of boxed_float * locality_mode
+  | Puntag_int of unboxed_integer
+  | Ptag_int of unboxed_integer
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
   | Punbox_vector of boxed_vector
@@ -374,7 +376,7 @@ and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
-  | Unboxed_integer of boxed_integer
+  | Unboxed_integer of unboxed_integer
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
@@ -486,6 +488,8 @@ and 'a mixed_block_element =
   | Float_boxed of 'a
   | Float64
   | Float32
+  | Bits8
+  | Bits16
   | Bits32
   | Bits64
   | Vec128
@@ -508,6 +512,8 @@ and unboxed_integer = Primitive.unboxed_integer =
   | Unboxed_int64
   | Unboxed_nativeint
   | Unboxed_int32
+  | Unboxed_int16
+  | Unboxed_int8
 
 and unboxed_vector = Primitive.unboxed_vector =
   | Unboxed_vec128
@@ -528,6 +534,8 @@ and peek_or_poke =
   | Ppp_tagged_immediate
   | Ppp_unboxed_float32
   | Ppp_unboxed_float
+  | Ppp_unboxed_int8
+  | Ppp_unboxed_int16
   | Ppp_unboxed_int32
   | Ppp_unboxed_int64
   | Ppp_unboxed_nativeint

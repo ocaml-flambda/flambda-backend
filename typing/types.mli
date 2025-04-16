@@ -757,6 +757,8 @@ and mixed_block_element =
   (* A [Float_boxed] is a float that's stored flat but boxed upon projection. *)
   | Float64
   | Float32
+  | Bits8
+  | Bits16
   | Bits32
   | Bits64
   | Vec128

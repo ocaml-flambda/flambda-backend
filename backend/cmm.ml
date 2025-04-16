@@ -1,3 +1,4 @@
+# 1 "backend/cmm.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -109,6 +110,8 @@ let ge_component comp1 comp2 =
 
 type exttype =
   | XInt
+  | XInt8
+  | XInt16
   | XInt32
   | XInt64
   | XFloat32
@@ -117,6 +120,8 @@ type exttype =
 
 let machtype_of_exttype = function
   | XInt -> typ_int
+  | XInt8 -> typ_int
+  | XInt16 -> typ_int
   | XInt32 -> typ_int
   | XInt64 -> typ_int
   | XFloat -> typ_float
@@ -561,39 +566,31 @@ let map_shallow f = function
     as c ->
       c
 
-let equal_machtype_component (left : machtype_component) (right : machtype_component) =
-  match left, right with
-  | Val, Val -> true
-  | Addr, Addr -> true
-  | Int, Int -> true
-  | Float, Float -> true
-  | Vec128, Vec128 -> true
-  | Float32, Float32 -> true
-  | Valx2, Valx2 -> true
-  | Valx2, (Val | Addr | Int | Float | Vec128 | Float32)
-  | Val, (Addr | Int | Float | Vec128 | Float32 | Valx2)
-  | Addr, (Val | Int | Float | Vec128 | Float32 | Valx2)
-  | Int, (Val | Addr | Float | Vec128 | Float32 | Valx2)
-  | Float, (Val | Addr | Int | Vec128 | Float32 | Valx2)
-  | Vec128, (Val | Addr | Int | Float | Float32 | Valx2)
-  | Float32, (Val | Addr | Int | Float | Vec128 | Valx2) ->
-    false
+let equal_machtype_component
+      ((Val
+       | Addr
+       | Int
+       | Float
+       | Vec128
+       | Float32
+       | Valx2
+       ) as left : machtype_component) right =
+  (* we can use polymorphic compare as long as exttype is all constant constructors *)
+  Stdlib.(=) left right
 
-let equal_exttype left right =
-  match left, right with
-  | XInt, XInt -> true
-  | XInt32, XInt32 -> true
-  | XInt64, XInt64 -> true
-  | XFloat32, XFloat32 -> true
-  | XFloat, XFloat -> true
-  | XVec128, XVec128 -> true
-  | XInt, (XInt32 | XInt64 | XFloat | XFloat32 | XVec128)
-  | XInt32, (XInt | XInt64 | XFloat | XFloat32 | XVec128)
-  | XInt64, (XInt | XInt32 | XFloat | XFloat32 | XVec128)
-  | XFloat, (XInt | XInt32 | XFloat32 | XInt64 | XVec128)
-  | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32)
-  | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
-    false
+let equal_exttype
+      ((XInt
+       | XInt8
+       | XInt16
+       | XInt32
+       | XInt64
+       | XFloat32
+       | XFloat
+       | XVec128) as left)
+      right
+  =
+  (* we can use polymorphic compare as long as exttype is all constant constructors *)
+  Stdlib.(=) left right
 
 let equal_vec128_type v1 v2 =
   match v1, v2 with

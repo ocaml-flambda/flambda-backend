@@ -219,12 +219,12 @@ let is_store_out_of_range kind ~byte_offset :
 
 let insert_move_extcall_arg (ty_arg : Cmm.exttype) src dst :
     Cfg_selectgen_target_intf.insert_move_extcall_arg_result =
-  let ty_arg_is_int32 =
+  let ty_arg_is_small_int =
     match ty_arg with
-    | XInt32 -> true
+    | XInt32 | XInt16 | XInt8 -> true
     | XInt | XInt64 | XFloat32 | XFloat | XVec128 -> false
   in
-  if macosx && ty_arg_is_int32 && is_stack_slot dst
+  if macosx && ty_arg_is_small_int && is_stack_slot dst
   then Rewritten (Op (Specific Imove32), src, dst)
   else Use_default
 

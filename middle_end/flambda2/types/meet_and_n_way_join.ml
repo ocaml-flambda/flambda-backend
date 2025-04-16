@@ -699,6 +699,12 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
   | Naked_float head1, Naked_float head2 ->
     map_result ~f:ET.create_naked_float
       (meet_head_of_kind_naked_float env head1 head2)
+  | Naked_int8 head1, Naked_int8 head2 ->
+    map_result ~f:ET.create_naked_int8
+      (meet_head_of_kind_naked_int8 env head1 head2)
+  | Naked_int16 head1, Naked_int16 head2 ->
+    map_result ~f:ET.create_naked_int16
+      (meet_head_of_kind_naked_int16 env head1 head2)
   | Naked_int32 head1, Naked_int32 head2 ->
     map_result ~f:ET.create_naked_int32
       (meet_head_of_kind_naked_int32 env head1 head2)
@@ -717,8 +723,8 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
   | Region head1, Region head2 ->
     map_result ~f:ET.create_region (meet_head_of_kind_region env head1 head2)
   | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-      | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-      | Rec_info _ | Region _ ),
+      | Naked_int8 _ | Naked_int16 _ | Naked_int32 _ | Naked_vec128 _
+      | Naked_int64 _ | Naked_nativeint _ | Rec_info _ | Region _ ),
       _ ) ->
     assert false
 
@@ -1122,6 +1128,22 @@ and meet_head_of_kind_naked_float env t1 t2 =
       : TG.head_of_kind_naked_float
       :> Numeric_types.Float_by_bit_pattern.Set.t)
     ~of_set:TG.Head_of_kind_naked_float.create_non_empty_set
+
+and meet_head_of_kind_naked_int8 env t1 t2 =
+  set_meet
+    (module Numeric_types.Int8.Set)
+    env
+    (t1 : TG.head_of_kind_naked_int8 :> Numeric_types.Int8.Set.t)
+    (t2 : TG.head_of_kind_naked_int8 :> Numeric_types.Int8.Set.t)
+    ~of_set:TG.Head_of_kind_naked_int8.create_non_empty_set
+
+and meet_head_of_kind_naked_int16 env t1 t2 =
+  set_meet
+    (module Numeric_types.Int16.Set)
+    env
+    (t1 : TG.head_of_kind_naked_int16 :> Numeric_types.Int16.Set.t)
+    (t2 : TG.head_of_kind_naked_int16 :> Numeric_types.Int16.Set.t)
+    ~of_set:TG.Head_of_kind_naked_int16.create_non_empty_set
 
 and meet_head_of_kind_naked_int32 env t1 t2 =
   set_meet
@@ -1735,6 +1757,28 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
               n_way_join_head_of_kind_naked_float env (head1, id1) heads
             in
             ET.create_naked_float head
+          | Naked_int8 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_int8 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>>+ head =
+              n_way_join_head_of_kind_naked_int8 env (head1, id1) heads
+            in
+            ET.create_naked_int8 head
+          | Naked_int16 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_int16 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>>+ head =
+              n_way_join_head_of_kind_naked_int16 env (head1, id1) heads
+            in
+            ET.create_naked_int16 head
           | Naked_int32 head1 ->
             let heads =
               extract_head_exn
@@ -2214,6 +2258,14 @@ and n_way_join_head_of_kind_naked_float32 env t1 ts : _ n_way_join_result =
 
 and n_way_join_head_of_kind_naked_float env t1 ts : _ n_way_join_result =
   n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_float.union
+    env t1 ts
+
+and n_way_join_head_of_kind_naked_int8 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_int8.union
+    env t1 ts
+
+and n_way_join_head_of_kind_naked_int16 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_int16.union
     env t1 ts
 
 and n_way_join_head_of_kind_naked_int32 env t1 ts : _ n_way_join_result =
