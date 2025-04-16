@@ -135,6 +135,7 @@
   debug
   profile
   profile_counters_functions
+  priority_queue
   terminfo
   ccomp
   warnings

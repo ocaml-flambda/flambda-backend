@@ -51,7 +51,7 @@ let update_register_locations : State.t -> unit =
   List.iter (Reg.all_registers ()) ~f:update_register;
   if debug then dedent ()
 
-module Prio_queue = Make_max_priority_queue (Int)
+module Prio_queue = Priority_queue.Make (Int)
 
 type prio_queue = (Reg.t * Interval.t) Prio_queue.t
 
