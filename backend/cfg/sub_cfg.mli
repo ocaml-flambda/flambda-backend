@@ -74,6 +74,6 @@ val update_exit_terminator : ?arg:Reg.t array -> t -> Cfg.terminator -> unit
 
 val start_label : t -> Label.t
 
-val mark_as_trap_handler : t -> exn_label:Label.t -> unit
+val mark_as_trap_handler : t -> unit
 
 val dump : t -> unit
