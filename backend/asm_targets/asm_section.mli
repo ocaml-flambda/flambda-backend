@@ -78,4 +78,3 @@ val equal : t -> t -> bool
 val section_is_text : t -> bool
 
 val all_sections_in_order : unit -> t list
-

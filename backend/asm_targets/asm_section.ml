@@ -49,7 +49,6 @@ type t =
   | Jump_tables
   | Text
 
-
 let dwarf_sections_in_order () =
   let sections =
     [ DWARF Debug_info;
@@ -107,7 +106,6 @@ let section_is_text = function
   | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
   | Jump_tables | DWARF _ ->
     false
-
 
 type section_details =
   { names : string list;
@@ -193,7 +191,6 @@ let details t ~first_occurrence =
 let to_string t =
   let { names; flags = _; args = _ } = details t ~first_occurrence:true in
   String.concat " " names
-
 
 let all_sections_in_order () =
   let sections =
