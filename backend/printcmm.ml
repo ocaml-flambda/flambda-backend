@@ -26,9 +26,10 @@ open Location_tracker_formatter
 let with_location_mapping ?label ~dbg ppf f =
   with_location_mapping ?label ~loc:(Debuginfo.to_location dbg) ppf f
 
-let rec_flag ppf = function
-  | Nonrecursive -> ()
+let ccatch_flag ppf = function
+  | Normal -> ()
   | Recursive -> fprintf ppf " rec"
+  | Exn_handler -> fprintf ppf " exn"
 
 let machtype_component ppf (ty : machtype_component) =
   match ty with
@@ -338,18 +339,9 @@ let rec expr ppf = function
     with_location_mapping ~label:"Cop" ~dbg ppf (fun () ->
         fprintf ppf "@[<2>(%s" (operation dbg op);
         List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
-        (match[@warning "-4"] op with
+        (match op with
         | Capply (mty, _) -> fprintf ppf "@ %a" machtype mty
-        | Cextcall
-            { ty;
-              ty_args;
-              alloc = _;
-              func = _;
-              returns;
-              builtin = _;
-              effects = _;
-              coeffects = _
-            } ->
+        | Cextcall { ty; ty_args; alloc = _; func = _; returns } ->
           let ty = if returns then Some ty else None in
           fprintf ppf "@ %a" extcall_signature (ty, ty_args)
         | _ -> ());
@@ -391,18 +383,12 @@ let rec expr ppf = function
             sequence e2)
     in
     let print_handlers ppf l = List.iter (print_handler ppf) l in
-    fprintf ppf "@[<2>(catch%a@ %a@;<1 -2>with%a)@]" rec_flag flag sequence e1
-      print_handlers handlers
+    fprintf ppf "@[<2>(catch%a@ %a@;<1 -2>with%a)@]" ccatch_flag flag sequence
+      e1 print_handlers handlers
   | Cexit (i, el, traps) ->
     fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
     List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
     fprintf ppf ")@]"
-  | Ctrywith (e1, exn_cont, id, extra_args, e2, dbg) ->
-    fprintf ppf "@[<2>(try@ %a@;<1 -2>with(%d)@ %a@ " sequence e1 exn_cont
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space VP.print)
-      (id :: List.map fst extra_args);
-    with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
-        fprintf ppf "%a)@]" sequence e2)
 
 and sequence ppf = function[@warning "-4"]
   | Csequence (e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2

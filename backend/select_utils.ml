@@ -57,9 +57,6 @@ type environment =
         (** Which registers must be populated when jumping to the given
         handler. *)
     trap_stack : Operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t;
-        (** For each exception handler, any registers that are to be used to hold
-            extra arguments. *)
     tailrec_label : Label.t
   }
 
@@ -85,25 +82,19 @@ let env_find_mut id env =
     Misc.fatal_errorf "Selectgen.env_find_mut: %a is not mutable" V.print id);
   regs, provenance
 
-let env_add_regs_for_exception_extra_args id extra_args env =
-  { env with
-    regs_for_exception_extra_args =
-      Int.Map.add id extra_args env.regs_for_exception_extra_args
-  }
-
 let env_find_regs_for_exception_extra_args id env =
-  try Int.Map.find id env.regs_for_exception_extra_args
-  with Not_found ->
+  match Int.Map.find id env.static_exceptions with
+  | { regs = _exn :: extra_args; _ } -> extra_args
+  | { regs = []; _ } ->
+    Misc.fatal_errorf "Exception handler for continuation %d has no parameters"
+      id
+  | exception Not_found ->
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
 
 let env_find_static_exception id env =
   try Int.Map.find id env.static_exceptions
   with Not_found -> Misc.fatal_errorf "Not found static exception id=%d" id
-
-let env_enter_trywith env id label =
-  let env, _ = env_add_static_exception id [] env label in
-  env
 
 let env_set_trap_stack env trap_stack = { env with trap_stack }
 
@@ -130,7 +121,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if Stdlib.( <> ) prev_traps traps
+    if not (Operation.equal_trap_stack prev_traps traps)
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
@@ -162,7 +153,6 @@ let env_create ~tailrec_label =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
     trap_stack = Uncaught;
-    regs_for_exception_extra_args = Int.Map.empty;
     tailrec_label
   }
 

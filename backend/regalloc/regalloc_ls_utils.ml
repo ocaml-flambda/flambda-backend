@@ -46,27 +46,6 @@ let log_cfg_with_infos : Cfg_with_infos.t -> unit =
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
     cfg_with_infos
 
-let iter_cfg_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
- fun cfg ~f ->
-  let marked = ref Label.Set.empty in
-  let rec iter (label : Label.t) : unit =
-    if not (Label.Set.mem label !marked)
-    then (
-      marked := Label.Set.add label !marked;
-      let block = Cfg.get_block_exn cfg label in
-      f block;
-      Label.Set.iter
-        (fun succ_label -> iter succ_label)
-        (Cfg.successor_labels ~normal:true ~exn:true block))
-  in
-  iter cfg.entry_label;
-  (* note: some block may not have been seen since we currently cannot remove
-     all non-reachable blocks. *)
-  if Label.Set.cardinal !marked <> Label.Tbl.length cfg.blocks
-  then
-    Cfg.iter_blocks cfg ~f:(fun label block ->
-        if not (Label.Set.mem label !marked) then f block)
-
 let iter_instructions_dfs :
     Cfg_with_layout.t ->
     instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
@@ -74,7 +53,7 @@ let iter_instructions_dfs :
     unit =
  fun cfg_with_layout ~instruction ~terminator ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  iter_cfg_dfs cfg ~f:(fun block ->
+  Cfg.iter_blocks_dfs cfg ~f:(fun (_ : Label.t) (block : Cfg.basic_block) ->
       let trap_handler_id =
         if block.is_trap_handler
         then Regalloc_utils.first_instruction_id block

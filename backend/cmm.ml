@@ -178,15 +178,7 @@ type exit_label =
   | Return_lbl
   | Lbl of static_label
 
-type rec_flag =
-  | Nonrecursive
-  | Recursive
-
-type prefetch_temporal_locality_hint =
-  | Nonlocal
-  | Low
-  | Moderate
-  | High
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 type atomic_op =
   | Fetch_and_add
@@ -429,6 +421,8 @@ type vec128_bits =
 
 let global_symbol sym_name = { sym_name; sym_global = Global }
 
+type ccatch_flag = Normal | Recursive | Exn_handler
+
 type expression =
   | Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
@@ -453,22 +447,15 @@ type expression =
   | Cswitch of
       expression * int array * (expression * Debuginfo.t) array * Debuginfo.t
   | Ccatch of
-      rec_flag
-      * (static_label
-        * (Backend_var.With_provenance.t * machtype) list
+      ccatch_flag
+        * (static_label * (Backend_var.With_provenance.t * machtype) list
+          * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression
         * Debuginfo.t
         * bool (* is_cold *))
         list
       * expression
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of
-      expression
-      * trywith_shared_label
-      * Backend_var.With_provenance.t
-      * (Backend_var.With_provenance.t * machtype) list
-      * expression
-      * Debuginfo.t
 
 type codegen_option =
   | Reduce_code_size
@@ -515,86 +502,79 @@ type phrase =
   | Cdata of data_item list
 
 let ccatch (i, ids, e1, e2, dbg, is_cold) =
-  Ccatch (Nonrecursive, [i, ids, e2, dbg, is_cold], e1)
+  Ccatch(Normal, [i, ids, e2, dbg, is_cold], e1)
+
+let ctrywith (body, lbl, id, extra_args, handler, dbg) =
+  Ccatch (Exn_handler,
+          [lbl, (id, typ_val) :: extra_args, handler, dbg, false],
+          body)
 
 let reset () = Label.reset ()
 
 let iter_shallow_tail f = function
-  | Clet (_, _, body) | Cphantom_let (_, _, body) ->
-    f body;
-    true
-  | Cifthenelse (_cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
-    f ifso;
-    f ifnot;
-    true
-  | Csequence (_e1, e2) ->
-    f e2;
-    true
-  | Cswitch (_e, _tbl, el, _dbg') ->
-    Array.iter (fun (e, _dbg) -> f e) el;
-    true
-  | Ccatch (_rec_flag, handlers, body) ->
-    List.iter (fun (_, _, h, _dbg, _) -> f h) handlers;
-    f body;
-    true
-  | Ctrywith (e1, _kind, _id, _extra_args, e2, _dbg) ->
-    f e1;
-    f e2;
-    true
-  | Cexit _ | Cop (Craise _, _, _) -> true
-  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _
-  | Cop
-      ( ( Calloc _ | Caddi | Csubi | Cmuli | Cdivi | Cmodi | Cand | Cor | Cxor
-        | Clsl | Clsr | Casr | Cpopcnt | Caddv | Cadda | Cpackf32 | Copaque
-        | Cbeginregion | Cendregion | Cdls_get | Cpoll
-        | Capply (_, _)
-        | Cextcall _ | Cload _
-        | Cstore (_, _)
-        | Cmulhi _ | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cprefetch _
-        | Catomic _ | Ccmpi _ | Ccmpa _ | Cnegf _ | Cabsf _ | Caddf _ | Csubf _
-        | Cmulf _ | Cdivf _ | Creinterpret_cast _ | Cstatic_cast _
-        | Ccmpf (_, _)
-        | Cprobe _ | Cprobe_is_enabled _
-        | Ctuple_field (_, _) ),
-        _,
-        _ ) ->
-    false
+  | Clet(_, _, body) | Cphantom_let (_, _, body) ->
+      f body;
+      true
+  | Cifthenelse(_cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+      f ifso;
+      f ifnot;
+      true
+  | Csequence(_e1, e2) ->
+      f e2;
+      true
+  | Cswitch(_e, _tbl, el, _dbg') ->
+      Array.iter (fun (e, _dbg) -> f e) el;
+      true
+  | Ccatch(_flag, handlers, body) ->
+      List.iter (fun (_, _, h, _dbg, _) -> f h) handlers;
+      f body;
+      true
+  | Cexit _ | Cop (Craise _, _, _) ->
+      true
+  | Cconst_int _
+  | Cconst_natint _
+  | Cconst_float32 _
+  | Cconst_float _
+  | Cconst_vec128 _
+  | Cconst_symbol _
+  | Cvar _
+  | Ctuple _
+  | Cop _ ->
+      false
 
 let map_shallow_tail f = function
-  | Clet (id, exp, body) -> Clet (id, exp, f body)
-  | Cphantom_let (id, exp, body) -> Cphantom_let (id, exp, f body)
-  | Cifthenelse (cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
-    Cifthenelse (cond, ifso_dbg, f ifso, ifnot_dbg, f ifnot, dbg)
-  | Csequence (e1, e2) -> Csequence (e1, f e2)
-  | Cswitch (e, tbl, el, dbg') ->
-    Cswitch (e, tbl, Array.map (fun (e, dbg) -> f e, dbg) el, dbg')
-  | Ccatch (rec_flag, handlers, body) ->
-    let map_h (n, ids, handler, dbg, is_cold) =
-      n, ids, f handler, dbg, is_cold
-    in
-    Ccatch (rec_flag, List.map map_h handlers, f body)
-  | Ctrywith (e1, kind', id, extra_args, e2, dbg) ->
-    Ctrywith (f e1, kind', id, extra_args, f e2, dbg)
-  | (Cexit _ | Cop (Craise _, _, _)) as cmm -> cmm
-  | ( Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _
-    | Cop
-        ( ( Calloc _ | Caddi | Csubi | Cmuli | Cdivi | Cmodi | Cand | Cor | Cxor
-          | Clsl | Clsr | Casr | Cpopcnt | Caddv | Cadda | Cpackf32 | Copaque
-          | Cbeginregion | Cendregion | Cdls_get | Cpoll
-          | Capply (_, _)
-          | Cextcall _ | Cload _
-          | Cstore (_, _)
-          | Cmulhi _ | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cprefetch _
-          | Catomic _ | Ccmpi _ | Ccmpa _ | Cnegf _ | Cabsf _ | Caddf _
-          | Csubf _ | Cmulf _ | Cdivf _ | Creinterpret_cast _ | Cstatic_cast _
-          | Ccmpf (_, _)
-          | Cprobe _ | Cprobe_is_enabled _
-          | Ctuple_field (_, _) ),
-          _,
-          _ ) ) as cmm ->
-    cmm
+  | Clet(id, exp, body) ->
+      Clet(id, exp, f body)
+  | Cphantom_let(id, exp, body) ->
+      Cphantom_let (id, exp, f body)
+  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
+      Cifthenelse
+        (
+          cond,
+          ifso_dbg, f ifso,
+          ifnot_dbg, f ifnot,
+          dbg
+        )
+  | Csequence(e1, e2) ->
+      Csequence(e1, f e2)
+  | Cswitch(e, tbl, el, dbg') ->
+      Cswitch(e, tbl, Array.map (fun (e, dbg) -> f e, dbg) el, dbg')
+  | Ccatch(flag, handlers, body) ->
+      let map_h (n, ids, handler, dbg, is_cold) =
+        (n, ids, f handler, dbg, is_cold)
+      in
+      Ccatch(flag, List.map map_h handlers, f body)
+  | Cexit _ | Cop (Craise _, _, _) as cmm ->
+      cmm
+  | Cconst_int _
+  | Cconst_natint _
+  | Cconst_float32 _
+  | Cconst_float _
+  | Cconst_vec128 _
+  | Cconst_symbol _
+  | Cvar _
+  | Ctuple _
+  | Cop _ as cmm -> cmm
 
 let map_tail f =
   let rec loop = function
@@ -622,24 +602,24 @@ let iter_shallow f = function
   | Ctuple el -> List.iter f el
   | Cop (_op, el, _dbg) -> List.iter f el
   | Csequence (e1, e2) ->
-    f e1;
-    f e2
-  | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
-    f cond;
-    f ifso;
-    f ifnot
-  | Cswitch (_e, _ia, ea, _dbg) -> Array.iter (fun (e, _) -> f e) ea
-  | Ccatch (_rf, hl, body) ->
-    let iter_h (_n, _ids, handler, _dbg, _is_cold) = f handler in
-    List.iter iter_h hl;
-    f body
-  | Cexit (_n, el, _traps) -> List.iter f el
-  | Ctrywith (e1, _kind, _id, _extra_args, e2, _dbg) ->
-    f e1;
-    f e2
-  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
-    ()
+      f e1; f e2
+  | Cifthenelse(cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+      f cond; f ifso; f ifnot
+  | Cswitch (_e, _ia, ea, _dbg) ->
+      Array.iter (fun (e, _) -> f e) ea
+  | Ccatch (_f, hl, body) ->
+      let iter_h (_n, _ids, handler, _dbg, _is_cold) = f handler in
+      List.iter iter_h hl; f body
+  | Cexit (_n, el, _traps) ->
+      List.iter f el
+  | Cconst_int _
+  | Cconst_natint _
+  | Cconst_float32 _
+  | Cconst_float _
+  | Cconst_vec128 _
+  | Cconst_symbol _
+  | Cvar _ ->
+      ()
 
 let map_shallow f = function
   | Clet (id, e1, e2) -> Clet (id, f e1, f e2)
@@ -650,18 +630,23 @@ let map_shallow f = function
   | Cifthenelse (cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
     Cifthenelse (f cond, ifso_dbg, f ifso, ifnot_dbg, f ifnot, dbg)
   | Cswitch (e, ia, ea, dbg) ->
-    Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg)
-  | Ccatch (rf, hl, body) ->
-    let map_h (n, ids, handler, dbg, is_cold) =
-      n, ids, f handler, dbg, is_cold
-    in
-    Ccatch (rf, List.map map_h hl, f body)
-  | Cexit (n, el, traps) -> Cexit (n, List.map f el, traps)
-  | Ctrywith (e1, kind, id, extra_args, e2, dbg) ->
-    Ctrywith (f e1, kind, id, extra_args, f e2, dbg)
-  | ( Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ) as c ->
-    c
+      Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg)
+  | Ccatch (flag, hl, body) ->
+      let map_h (n, ids, handler, dbg, is_cold) =
+        (n, ids, f handler, dbg, is_cold)
+      in
+      Ccatch (flag, List.map map_h hl, f body)
+  | Cexit (n, el, traps) ->
+      Cexit (n, List.map f el, traps)
+  | Cconst_int _
+  | Cconst_natint _
+  | Cconst_float32 _
+  | Cconst_float _
+  | Cconst_vec128 _
+  | Cconst_symbol _
+  | Cvar _
+    as c ->
+      c
 
 let equal_machtype_component (left : machtype_component)
     (right : machtype_component) =
@@ -856,3 +841,8 @@ let is_val (m : machtype_component) =
   match m with
   | Val -> true
   | Addr | Int | Float | Vec128 | Float32 | Valx2 -> false
+
+let is_exn_handler (flag : ccatch_flag) =
+  match flag with
+  | Exn_handler -> true
+  | Normal | Recursive -> false

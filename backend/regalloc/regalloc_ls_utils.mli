@@ -21,8 +21,6 @@ val log_body_and_terminator :
 
 val log_cfg_with_infos : Cfg_with_infos.t -> unit
 
-val iter_cfg_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit
-
 (* The [trap_handler] parameter to the [instruction] and [terminator] functions
    is set to [true] iff the instruction is the first one of a block which is a
    trap handler. *)
