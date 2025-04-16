@@ -120,12 +120,17 @@ val set_label : label -> unit
 
 val cur_label : unit -> label
 
+type static_label = Lambda.static_label
+
 type exit_label =
   | Return_lbl
-  | Lbl of Lambda.static_label
+  | Lbl of static_label
 
-
-type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+type prefetch_temporal_locality_hint =
+  | Nonlocal
+  | Low
+  | Moderate
+  | High
 
 type atomic_op =
   | Fetch_and_add
@@ -408,7 +413,10 @@ type vec128_bits =
 
 val global_symbol : string -> symbol
 
-type ccatch_flag = Normal | Recursive | Exn_handler
+type ccatch_flag =
+  | Normal
+  | Recursive
+  | Exn_handler
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
@@ -437,15 +445,14 @@ type expression =
       expression * int array * (expression * Debuginfo.t) array * Debuginfo.t
   | Ccatch of
       ccatch_flag
-        * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
-          * expression * Debuginfo.t * bool (* is_cold *)) list
+      * (static_label
+        * (Backend_var.With_provenance.t * machtype) list
         * expression
         * Debuginfo.t
         * bool (* is_cold *))
         list
       * expression
   | Cexit of exit_label * expression list * trap_action list
-
 
 type codegen_option =
   | Reduce_code_size
@@ -508,11 +515,13 @@ val ccatch :
   expression
 
 val ctrywith :
-     expression * trywith_shared_label
-       * Backend_var.With_provenance.t
-       * (Backend_var.With_provenance.t * machtype) list
-       * expression * Debuginfo.t
-  -> expression
+  expression
+  * trywith_shared_label
+  * Backend_var.With_provenance.t
+  * (Backend_var.With_provenance.t * machtype) list
+  * expression
+  * Debuginfo.t ->
+  expression
 
 val reset : unit -> unit
 
@@ -560,4 +569,5 @@ val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val caml_flambda2_invalid : string
 
 val is_val : machtype_component -> bool
+
 val is_exn_handler : ccatch_flag -> bool

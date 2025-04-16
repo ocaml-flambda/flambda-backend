@@ -339,9 +339,18 @@ let rec expr ppf = function
     with_location_mapping ~label:"Cop" ~dbg ppf (fun () ->
         fprintf ppf "@[<2>(%s" (operation dbg op);
         List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
-        (match op with
+        (match[@warning "-4"] op with
         | Capply (mty, _) -> fprintf ppf "@ %a" machtype mty
-        | Cextcall { ty; ty_args; alloc = _; func = _; returns } ->
+        | Cextcall
+            { ty;
+              ty_args;
+              alloc = _;
+              func = _;
+              returns;
+              builtin = _;
+              effects = _;
+              coeffects = _
+            } ->
           let ty = if returns then Some ty else None in
           fprintf ppf "@ %a" extcall_signature (ty, ty_args)
         | _ -> ());

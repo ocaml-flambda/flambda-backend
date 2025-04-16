@@ -84,8 +84,7 @@ let shift32 make_op arg count dbg =
     | Cifthenelse (_, _, _, _, _, _)
     | Cswitch (_, _, _, _)
     | Ccatch (_, _, _)
-    | Cexit (_, _, _)
-    | Ctrywith (_, _, _, _, _, _) ->
+    | Cexit (_, _, _) ->
       Cop (Cand, [count; Cconst_int (mask, dbg)], dbg)
   in
   Some (make_op arg count dbg)
@@ -575,8 +574,7 @@ let transl_builtin name args dbg typ_res =
         | Cifthenelse (_, _, _, _, _, _)
         | Cswitch (_, _, _, _)
         | Ccatch (_, _, _)
-        | Cexit (_, _, _)
-        | Ctrywith (_, _, _, _, _, _) ->
+        | Cexit (_, _, _) ->
           Cop (op, [cond; ifso; ifnot], dbg))
   | "caml_int32_shift_left_by_int32_unboxed" ->
     let arg, count = two_args name args in
