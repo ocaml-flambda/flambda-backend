@@ -28,7 +28,8 @@
     DWARF) to places that are currently at the start of these sections
     get relocated correctly when those places become not at the start
     (e.g. during linking). *)
-val switch_to_section : ?emit_label_on_first_occurrence:bool -> Asm_section.t -> unit
+val switch_to_section :
+  ?emit_label_on_first_occurrence:bool -> Asm_section.t -> unit
 
 (** Emit subsequent directives to the given section, where the section must
     not be one of those in type [section] (see above).  The section is
@@ -415,7 +416,7 @@ end
     will switch to the text section after emitting some debug section labels.  *)
 val initialize : big_endian:bool -> emit:(Directive.t -> unit) -> unit
 
-val debug_header : get_file_num: (string -> int) -> unit
+val debug_header : get_file_num:(string -> int) -> unit
 
 (** Reinitialize the emitter before compiling a different source file. *)
 val reset : unit -> unit

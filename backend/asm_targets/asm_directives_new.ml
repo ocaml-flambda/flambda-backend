@@ -91,8 +91,8 @@ module Directive = struct
            sign bit is). *)
         | MacOS | GAS_like -> bprintf buf "%Ld" n
         | MASM ->
-          if Int64.compare n 0x8000_0000L >= 0 &&
-             Int64.compare n 0x7fff_ffffL <= 0
+          if Int64.compare n 0x8000_0000L >= 0
+             && Int64.compare n 0x7fff_ffffL <= 0
           then Buffer.add_string buf (Int64.to_string n)
           else bprintf buf "0%LxH" n)
       | Unsigned_int n ->
@@ -103,7 +103,6 @@ module Directive = struct
         bprintf buf "(%a + %a)" print_subterm c1 print_subterm c2
       | Sub (c1, c2) ->
         bprintf buf "(%a - %a)" print_subterm c1 print_subterm c2
-
   end
 
   module Constant_with_width = struct
@@ -113,17 +112,15 @@ module Directive = struct
       | Thirty_two
       | Sixty_four
 
-
     type t =
       { constant : Constant.t;
         width_in_bytes : width_in_bytes
       }
 
     let create constant width_in_bytes =
-      (* CR sspies: Potentially enable range check again here.
-         We currently emit numbers like 158 as an 8-bit constant,
-         which breaks int8 range checks, but make the assembler
-         perfectly happy. *)
+      (* CR sspies: Potentially enable range check again here. We currently emit
+         numbers like 158 as an 8-bit constant, which breaks int8 range checks,
+         but make the assembler perfectly happy. *)
       { constant; width_in_bytes }
 
     let constant t = t.constant
@@ -194,8 +191,8 @@ module Directive = struct
 
   let emit_comments () = !Clflags.keep_asm_file
 
-  (* CR sspies: This code is a duplicate with [emit_string_literal]
-     in [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
+  (* CR sspies: This code is a duplicate with [emit_string_literal] in
+     [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
   let string_of_string_literal s =
     let between x low high =
       Char.compare x low >= 0 && Char.compare x high <= 0
@@ -210,8 +207,8 @@ module Directive = struct
         then Printf.bprintf buf "\\%o" (Char.code c)
         else Buffer.add_char buf c
       else if between c ' ' '~'
-          && (not (Char.equal c '"' (* '"' *)))
-          && not (Char.equal c '\\')
+              && (not (Char.equal c '"' (* '"' *)))
+              && not (Char.equal c '\\')
       then (
         Buffer.add_char buf c;
         last_was_escape := false)
@@ -280,8 +277,8 @@ module Directive = struct
            ".2byte" instead. Additionally, it appears on ARM 32-bit and ARM
            64-bit that ".word" 32 bits wide, not 16 bits.
 
-           To be sure the size is the same on all architectures, we use ".2byte",
-           ".4byte", and ".8byte" here. See #3857. *)
+           To be sure the size is the same on all architectures, we use
+           ".2byte", ".4byte", and ".8byte" here. See #3857. *)
         match Constant_with_width.width_in_bytes constant with
         | Eight -> "byte"
         | Sixteen -> (
@@ -619,11 +616,12 @@ let new_line () = if !Clflags.keep_asm_file then emit New_line
 let sections_seen = ref []
 
 let switch_to_section ?(emit_label_on_first_occurrence = false) section =
-  (* CR sspies: This code could be made more sensitive to the tracking of the current section:
-     there is no need to emit the section again if it is the same as the current section. However,
-     that excludes other code from directly switching the section, and it is not consistent with
-     how we currently emit code. So for now we always emit the section, even if we are not switching.
-  *)
+  (* CR sspies: This code could be made more sensitive to the tracking of the
+     current section: there is no need to emit the section again if it is the
+     same as the current section. However, that excludes other code from
+     directly switching the section, and it is not consistent with how we
+     currently emit code. So for now we always emit the section, even if we are
+     not switching. *)
   let first_occurrence =
     if List.mem section !sections_seen
     then false
@@ -631,13 +629,15 @@ let switch_to_section ?(emit_label_on_first_occurrence = false) section =
       sections_seen := section :: !sections_seen;
       true)
   in
-    current_section_ref := Some section;
-    let ({ names; flags; args } : Asm_section.section_details) =
-      Asm_section.details section ~first_occurrence
-    in
-    (* CR sspies: We do not print an empty line here to be consistent with Arm emission. *)
-    emit (Section { names; flags; args });
-    if first_occurrence && emit_label_on_first_occurrence then define_label (Asm_label.for_section section)
+  current_section_ref := Some section;
+  let ({ names; flags; args } : Asm_section.section_details) =
+    Asm_section.details section ~first_occurrence
+  in
+  (* CR sspies: We do not print an empty line here to be consistent with Arm
+     emission. *)
+  emit (Section { names; flags; args });
+  if first_occurrence && emit_label_on_first_occurrence
+  then define_label (Asm_label.for_section section)
 
 let switch_to_section_raw ~names ~flags ~args =
   emit (Section { names; flags; args })
@@ -696,19 +696,19 @@ let file ~file_num ~file_name () =
   in
   emit_non_masm (File { file_num; filename = file_name })
 
-
 let initialize ~big_endian ~(emit : Directive.t -> unit) =
   big_endian_ref := Some big_endian;
   emit_ref := Some emit;
   reset ()
 
-
 let debug_header ~get_file_num =
-  (* Forward label references are illegal on some assemblers/platforms. To
-      avoid errors, emit the beginning of all dwarf sections in advance. *)
+  (* Forward label references are illegal on some assemblers/platforms. To avoid
+     errors, emit the beginning of all dwarf sections in advance. *)
   if TS.is_gas () || TS.is_macos ()
-  then List.iter (switch_to_section ~emit_label_on_first_occurrence:true) (Asm_section.dwarf_sections_in_order ());
-
+  then
+    List.iter
+      (switch_to_section ~emit_label_on_first_occurrence:true)
+      (Asm_section.dwarf_sections_in_order ());
   (* Stop dsymutil complaining about empty __debug_line sections (produces bogus
      error "line table parameters mismatch") by making sure such sections are
      never empty. *)
