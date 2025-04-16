@@ -44,7 +44,7 @@ module Subrange_info : sig
     Reg_with_debug_info.t ->
     Subrange_state.t ->
     fun_contains_calls:bool ->
-    fun_num_stack_slots:int array ->
+    fun_num_stack_slots:int Stack_class.Tbl.t ->
     t
 
   val reg : t -> Reg.t

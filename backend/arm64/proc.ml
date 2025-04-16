@@ -83,15 +83,6 @@ let register_class_of_machtype_component typ =
 let register_class r =
   register_class_of_machtype_component r.typ
 
-let num_stack_slot_classes = 3
-
-let stack_slot_class typ =
-  match (typ : Cmm.machtype_component) with
-  | Val | Int | Addr  -> 0
-  | Float | Float32 -> 1
-  | Vec128 -> 2
-  | Valx2 -> 2
-
 let types_are_compatible left right =
   match left.typ, right.typ with
   | (Int | Val | Addr), (Int | Val | Addr)
@@ -100,13 +91,6 @@ let types_are_compatible left right =
   | Vec128, Vec128 -> true
   | Valx2,Valx2 -> true
   | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
-
-let stack_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | 2 -> "x"
-  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers =
   [| 23; 32 |] (* first 23 int regs allocatable; all float regs allocatable *)
@@ -404,7 +388,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
         | Intop _ | Intop_imm _ | Intop_atomic _
         | Name_for_debugger _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Dls_get)
-  | Poptrap | Prologue
+  | Poptrap _ | Prologue
     -> [||]
   | Stack_check _ -> assert false (* not supported *)
 
@@ -416,8 +400,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     all_phys_regs
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _}
-  | Specific_can_raise _ ->
+  | Tailcall_func _ | Prim {op = Probe _; _} ->
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }; _} ->
@@ -435,8 +418,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     true
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _}
-  | Specific_can_raise _ ->
+  | Tailcall_func _ | Prim {op = Probe _; _} ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}; _} ->
@@ -448,9 +430,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
 (* Layout of the stack *)
 
 let initial_stack_offset ~num_stack_slots ~contains_calls =
-  (8 * num_stack_slots.(0))
-  + (8 * num_stack_slots.(1))
-  + (16 * num_stack_slots.(2))
+  Stack_class.Tbl.total_size_in_bytes num_stack_slots
   + if contains_calls then 8 else 0
 
 let trap_frame_size_in_bytes = 16
@@ -462,9 +442,7 @@ let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
   Misc.align sz 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
-  fun_contains_calls
-    || fun_num_stack_slots.(0) > 0
-     || fun_num_stack_slots.(1) > 0
+  fun_contains_calls || Stack_class.Tbl.exists fun_num_stack_slots ~f:(fun _stack_class num -> num > 0)
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
@@ -487,13 +465,7 @@ let slot_offset (loc : Reg.stack_location) ~stack_class ~stack_offset
   | Local n ->
       let offset =
         stack_offset +
-        (* Preserves original ordering: int below float. *)
-        (match stack_class with
-        | 2 -> n * 16
-        | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
-        | 1 -> fun_num_stack_slots.(2) * 16 +
-               fun_num_stack_slots.(0) * 8 + n * 8
-        | _ -> Misc.fatal_errorf "Unknown stack class %d" stack_class)
+        Stack_class.Tbl.offset_in_bytes fun_num_stack_slots ~stack_class ~slot:n
       in
       Bytes_relative_to_stack_pointer offset
   | Outgoing n ->

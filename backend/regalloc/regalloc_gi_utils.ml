@@ -4,24 +4,18 @@ open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let gi_debug = true
-
 let gi_rng = Random.State.make [| 4; 6; 2 |]
 
-let bool_of_param param_name =
-  bool_of_param ~guard:(gi_debug, "gi_debug") param_name
+let log_function = lazy (make_log_function ~label:"gi")
 
-let gi_verbose : bool Lazy.t = bool_of_param "GI_VERBOSE"
+let indent () = (Lazy.force log_function).indent ()
 
-let gi_invariants : bool Lazy.t = bool_of_param "GI_INVARIANTS"
+let dedent () = (Lazy.force log_function).dedent ()
 
-let log_function =
-  lazy (make_log_function ~verbose:(Lazy.force gi_verbose) ~label:"gi")
+let reset_indentation () = (Lazy.force log_function).reset_indentation ()
 
-let log :
-    type a.
-    indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
- fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
+let log : type a. ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
+ fun ?no_eol fmt -> (Lazy.force log_function).log ?no_eol fmt
 
 let instr_prefix (instr : Cfg.basic Cfg.instruction) =
   Printf.sprintf "#%04d" instr.ls_order
@@ -30,19 +24,18 @@ let term_prefix (term : Cfg.terminator Cfg.instruction) =
   Printf.sprintf "#%04d" term.ls_order
 
 let log_body_and_terminator :
-    indent:int ->
     Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun ~indent body terminator liveness ->
+ fun body terminator liveness ->
   make_log_body_and_terminator (Lazy.force log_function) ~instr_prefix
-    ~term_prefix ~indent body terminator liveness
+    ~term_prefix body terminator liveness
 
-let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
- fun ~indent cfg_with_infos ->
+let log_cfg_with_infos : Cfg_with_infos.t -> unit =
+ fun cfg_with_infos ->
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
-    ~indent cfg_with_infos
+    cfg_with_infos
 
 (* CR xclerc for xclerc: add more heuristics *)
 module Priority_heuristics = struct
@@ -331,13 +324,6 @@ module Make_max_priority_queue (Priority : Order) :
     done
 end
 
-let iter_cfg_layout : Cfg_with_layout.t -> f:(Cfg.basic_block -> unit) -> unit =
- fun cfg_with_layout ~f ->
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  DLL.iter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
-      let block = Cfg.get_block_exn cfg label in
-      f block)
-
 let iter_instructions_layout :
     Cfg_with_layout.t ->
     instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
@@ -359,7 +345,7 @@ let iter_instructions_layout :
         (InstructionId.equal block.terminator.Cfg.id trap_handler_id)
       block.terminator
   in
-  iter_cfg_layout cfg_with_layout ~f
+  Cfg_with_layout.iter_blocks cfg_with_layout ~f
 
 (* CR xclerc for xclerc: the code below is largely copied from the linscan
    allocator, because it is likely tweaks will be needed to implement the "full"
@@ -456,7 +442,10 @@ end
 
 let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
  fun cfg_with_infos ->
-  if gi_debug then log ~indent:1 "build_intervals";
+  if debug
+  then (
+    log "build_intervals";
+    indent ());
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let past_ranges : Interval.t Reg.Tbl.t = Reg.Tbl.create 123 in
@@ -520,11 +509,12 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     (fun _reg (interval : Interval.t) ->
       interval.ranges <- List.rev interval.ranges)
     past_ranges;
-  if gi_debug && Lazy.force gi_verbose
+  if debug && Lazy.force verbose
   then
-    iter_cfg_layout cfg_with_layout ~f:(fun block ->
-        log ~indent:2 "(block %a)" Label.format block.start;
-        log_body_and_terminator ~indent:2 block.body block.terminator liveness);
+    Cfg_with_layout.iter_blocks cfg_with_layout ~f:(fun block ->
+        log "(block %a)" Label.format block.start;
+        log_body_and_terminator block.body block.terminator liveness);
+  if debug then dedent ();
   past_ranges
 
 module Hardware_register = struct
@@ -623,18 +613,19 @@ module Hardware_registers = struct
    fun t ~of_reg ~f ~init ->
     Array.fold_left t.(Proc.register_class of_reg) ~f ~init
 
-  let actual_cost (reg : Reg.t) : int =
+  let actual_cost (costs : SpillCosts.t) (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
        already spilled (e.g. by the split preprocessing) since they already have
        a stack slot *)
-    reg.Reg.spill_cost
+    SpillCosts.for_reg costs reg
 
   let overlap (hardware_reg : Hardware_register.t) (interval : Interval.t) :
       bool =
-    if gi_debug
-    then
-      log ~indent:4 "considering %a" Hardware_register.print_location
+    if debug
+    then (
+      log "considering %a" Hardware_register.print_location
         hardware_reg.location;
+      indent ());
     let overlap_hard : bool = Interval.overlap interval hardware_reg.interval in
     let overlap_assigned =
       List.exists hardware_reg.assigned
@@ -643,10 +634,11 @@ module Hardware_registers = struct
            -> Interval.overlap itv interval)
     in
     let overlap = overlap_hard || overlap_assigned in
-    if gi_debug
-    then
-      log ~indent:5 "overlap=%B (hard=%B, assigned=%B)" overlap overlap_hard
+    if debug
+    then (
+      log "overlap=%B (hard=%B, assigned=%B)" overlap overlap_hard
         overlap_assigned;
+      dedent ());
     overlap
 
   let find_first (t : t) (reg : Reg.t) (interval : Interval.t) :
@@ -669,18 +661,20 @@ module Hardware_registers = struct
             else acc)
     |> Option.map fst
 
-  let find_evictable (t : t) (reg : Reg.t) (interval : Interval.t) : available =
+  let find_evictable (t : t) (costs : SpillCosts.t) (reg : Reg.t)
+      (interval : Interval.t) : available =
     let eviction =
       fold_class t ~of_reg:reg ~init:None ~f:(fun acc hardware_reg ->
-          if gi_debug
+          if debug
           then
-            log ~indent:4 "considering %a (length=%d)"
-              Hardware_register.print_location hardware_reg.location
+            log "considering %a (length=%d)" Hardware_register.print_location
+              hardware_reg.location
               (List.length hardware_reg.assigned);
           let overlap_hard = Interval.overlap interval hardware_reg.interval in
           if overlap_hard
           then acc
-          else
+          else (
+            if debug then indent ();
             let overlaping : Hardware_register.assigned list =
               List.filter hardware_reg.assigned
                 ~f:(fun
@@ -690,10 +684,10 @@ module Hardware_registers = struct
                      }
                    ->
                   let overlap = Interval.overlap interval itv in
-                  if gi_debug
+                  if debug
                   then
-                    log ~indent:5 "%a is assigned / overlap=%B" Printreg.reg
-                      pseudo_reg overlap;
+                    log "%a is assigned / overlap=%B" Printreg.reg pseudo_reg
+                      overlap;
                   overlap)
             in
             (match overlaping with
@@ -705,31 +699,33 @@ module Hardware_registers = struct
                      (acc_cost, acc_evictable)
                      { Hardware_register.pseudo_reg; interval = _; evictable }
                    ->
-                  acc_cost + actual_cost pseudo_reg, acc_evictable && evictable)
+                  ( acc_cost + actual_cost costs pseudo_reg,
+                    acc_evictable && evictable ))
             in
+            if debug then dedent ();
             if not evictable
             then acc
             else
               let evict_cost =
                 match acc with None -> max_int | Some (_, _, c) -> c
               in
-              if cost < evict_cost && cost < actual_cost reg
+              if cost < evict_cost && cost < actual_cost costs reg
               then (
-                if gi_debug
+                if debug
                 then
                   List.iter overlaping ~f:(fun assigned ->
-                      log ~indent:5 "evicting %a"
-                        Hardware_register.print_assigned assigned);
+                      log "evicting %a" Hardware_register.print_assigned
+                        assigned);
                 Some (hardware_reg, overlaping, cost))
-              else acc)
+              else acc))
     in
     match eviction with
     | Some (hardware_reg, evicted_regs, _) ->
       For_eviction { hardware_reg; evicted_regs }
     | None -> Split_or_spill
 
-  let find_available : t -> Reg.t -> Interval.t -> available =
-   fun t reg interval ->
+  let find_available : t -> SpillCosts.t -> Reg.t -> Interval.t -> available =
+   fun t costs reg interval ->
     let with_no_overlap =
       let heuristic =
         match Lazy.force Selection_heuristics.value with
@@ -740,25 +736,20 @@ module Hardware_registers = struct
       match heuristic with
       | Selection_heuristics.Random_for_testing -> assert false
       | Selection_heuristics.First_available ->
-        if gi_debug
-        then
-          log ~indent:3
-            "trying to find an available register with 'first-available'";
+        if debug
+        then log "trying to find an available register with 'first-available'";
         find_first t reg interval
       | Selection_heuristics.Best_fit ->
-        if gi_debug
-        then
-          log ~indent:3 "trying to find an available register with 'best-fit'";
+        if debug then log "trying to find an available register with 'best-fit'";
         find_using_length t reg interval ~better:( > )
       | Selection_heuristics.Worst_fit ->
-        if gi_debug
-        then
-          log ~indent:3 "trying to find an available register with 'worst-fit'";
+        if debug
+        then log "trying to find an available register with 'worst-fit'";
         find_using_length t reg interval ~better:( < )
     in
     match with_no_overlap with
     | Some hardware_reg -> For_assignment { hardware_reg }
     | None ->
-      if gi_debug then log ~indent:3 "trying to find an evictable register";
-      find_evictable t reg interval
+      if debug then log "trying to find an evictable register";
+      find_evictable t costs reg interval
 end

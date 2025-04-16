@@ -2,10 +2,10 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*                       Vincent Laviron, OCamlPro                        *)
+(*                       Basile Clément, OCamlPro                         *)
 (*                                                                        *)
-(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
+(*   Copyright 2024 OCamlPro SAS                                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,10 +13,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Selection of pseudo-instructions, assignment of pseudo-registers,
-   sequentialization. *)
+let meet env t1 t2 =
+  if Flambda_features.use_n_way_join ()
+  then Meet_and_n_way_join.meet env t1 t2
+  else Meet_and_join.meet env t1 t2
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+let[@inline] meet_type () =
+  if Flambda_features.use_n_way_join ()
+  then Meet_and_n_way_join.meet_type
+  else Meet_and_join.meet_type
 
-val fundecl :
-  future_funcnames:Misc.Stdlib.String.Set.t -> Cmm.fundecl -> Cfg_with_layout.t
+let meet_shape env t ~shape =
+  if Flambda_features.use_n_way_join ()
+  then Meet_and_n_way_join.meet_shape env t ~shape
+  else Meet_and_join.meet_shape env t ~shape

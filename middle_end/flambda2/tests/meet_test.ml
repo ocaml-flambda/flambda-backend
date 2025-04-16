@@ -139,6 +139,153 @@ let meet_variants_don't_lose_aliases () =
       Format.eprintf "@[<hov 2>meet:@ %a@]@.@[<hov 2>env:@ %a@]@." T.print
         tag_meet_ty TE.print tag_meet_env)
 
+let test_join_with_extensions () =
+  let define ?(kind = K.value) env v =
+    let v' = Bound_var.create v Name_mode.normal in
+    TE.add_definition env (Bound_name.create_var v') kind
+  in
+  let env = create_env () in
+  let y = Variable.create "y" in
+  let x = Variable.create "x" in
+  let a = Variable.create "a" in
+  let b = Variable.create "b" in
+  let env = define env y in
+  let env = define env x in
+  let env = define ~kind:K.naked_immediate env a in
+  let env = define ~kind:K.naked_immediate env b in
+  let tag_0 = Tag.Scannable.zero in
+  let tag_1 = Option.get (Tag.Scannable.of_tag (Tag.create_exn 1)) in
+  let make ty =
+    T.variant
+      ~const_ctors:(T.bottom K.naked_immediate)
+      ~non_const_ctors:
+        (Tag.Scannable.Map.of_list
+           [ tag_0, (K.Block_shape.Scannable Value_only, [ty]);
+             tag_1, (K.Block_shape.Scannable Value_only, []) ])
+      Alloc_mode.For_types.heap
+  in
+  let env = TE.add_equation env (Name.var y) (make (T.unknown K.value)) in
+  let scope = TE.current_scope env in
+  let scoped_env = TE.increment_scope env in
+  let left_env =
+    TE.add_equation scoped_env (Name.var x)
+      (T.tagged_immediate_alias_to ~naked_immediate:a)
+  in
+  let right_env =
+    TE.add_equation scoped_env (Name.var x)
+      (T.tagged_immediate_alias_to ~naked_immediate:b)
+  in
+  let ty_a = make (T.tagged_immediate_alias_to ~naked_immediate:a) in
+  let ty_b = make (T.tagged_immediate_alias_to ~naked_immediate:b) in
+  let left_env = TE.add_equation left_env (Name.var y) ty_a in
+  let right_env =
+    match T.meet right_env ty_a ty_b with
+    | Ok (ty, right_env) -> TE.add_equation right_env (Name.var y) ty
+    | Bottom -> assert false
+  in
+  Format.eprintf "Left:@.%a@." TE.print left_env;
+  Format.eprintf "Right:@.%a@." TE.print right_env;
+  let joined_env =
+    T.cut_and_n_way_join scoped_env
+      [ left_env, Apply_cont_rewrite_id.create (), Inlinable;
+        right_env, Apply_cont_rewrite_id.create (), Inlinable ]
+      ~params:Bound_parameters.empty ~cut_after:scope
+      ~extra_allowed_names:Name_occurrences.empty
+      ~extra_lifted_consts_in_use_envs:Symbol.Set.empty
+  in
+  Format.eprintf "Res:@.%a@." TE.print joined_env
+
+let test_join_with_complex_extensions () =
+  let define ?(kind = K.value) env v =
+    let v' = Bound_var.create v Name_mode.normal in
+    TE.add_definition env (Bound_name.create_var v') kind
+  in
+  let env = create_env () in
+  let y = Variable.create "y" in
+  let x = Variable.create "x" in
+  let w = Variable.create "w" in
+  let z = Variable.create "z" in
+  let a = Variable.create "a" in
+  let b = Variable.create "b" in
+  let c = Variable.create "c" in
+  let d = Variable.create "d" in
+  let env = define env z in
+  let env = define env x in
+  let env = define env y in
+  let env = define env w in
+  let env = define ~kind:K.naked_immediate env a in
+  let env = define ~kind:K.naked_immediate env b in
+  let env = define ~kind:K.naked_immediate env c in
+  let env = define ~kind:K.naked_immediate env d in
+  let tag_0 = Tag.Scannable.zero in
+  let tag_1 = Option.get (Tag.Scannable.of_tag (Tag.create_exn 1)) in
+  let make tys =
+    T.variant
+      ~const_ctors:(T.bottom K.naked_immediate)
+      ~non_const_ctors:
+        (Tag.Scannable.Map.of_list
+           [ tag_0, (K.Block_shape.Scannable Value_only, tys);
+             tag_1, (K.Block_shape.Scannable Value_only, []) ])
+      Alloc_mode.For_types.heap
+  in
+  let env =
+    TE.add_equation env (Name.var z)
+      (make [T.unknown K.value; T.unknown K.value])
+  in
+  let scope = TE.current_scope env in
+  let scoped_env = TE.increment_scope env in
+  let left_env =
+    TE.add_equation scoped_env (Name.var x)
+      (T.tagged_immediate_alias_to ~naked_immediate:a)
+  in
+  let left_env =
+    TE.add_equation left_env (Name.var y)
+      (T.tagged_immediate_alias_to ~naked_immediate:a)
+  in
+  let left_env =
+    TE.add_equation left_env (Name.var w)
+      (T.tagged_immediate_alias_to ~naked_immediate:a)
+  in
+  let right_env =
+    TE.add_equation scoped_env (Name.var x)
+      (T.tagged_immediate_alias_to ~naked_immediate:b)
+  in
+  let right_env =
+    TE.add_equation right_env (Name.var y)
+      (T.tagged_immediate_alias_to ~naked_immediate:c)
+  in
+  let right_env =
+    TE.add_equation right_env (Name.var w)
+      (T.tagged_immediate_alias_to ~naked_immediate:d)
+  in
+  let ty_a =
+    make
+      [ T.tagged_immediate_alias_to ~naked_immediate:b;
+        T.tagged_immediate_alias_to ~naked_immediate:b ]
+  in
+  let ty_b =
+    make
+      [ T.tagged_immediate_alias_to ~naked_immediate:c;
+        T.tagged_immediate_alias_to ~naked_immediate:d ]
+  in
+  let left_env = TE.add_equation left_env (Name.var z) ty_a in
+  let right_env =
+    match T.meet right_env ty_a ty_b with
+    | Ok (ty, right_env) -> TE.add_equation right_env (Name.var z) ty
+    | Bottom -> assert false
+  in
+  Format.eprintf "Left:@.%a@." TE.print left_env;
+  Format.eprintf "Right:@.%a@." TE.print right_env;
+  let joined_env =
+    T.cut_and_n_way_join scoped_env
+      [ left_env, Apply_cont_rewrite_id.create (), Inlinable;
+        right_env, Apply_cont_rewrite_id.create (), Inlinable ]
+      ~params:Bound_parameters.empty ~cut_after:scope
+      ~extra_allowed_names:Name_occurrences.empty
+      ~extra_lifted_consts_in_use_envs:Symbol.Set.empty
+  in
+  Format.eprintf "Res:@.%a@." TE.print joined_env
+
 let test_meet_two_blocks () =
   let define env v =
     let v' = Bound_var.create v Name_mode.normal in
@@ -272,4 +419,8 @@ let () =
   Format.eprintf "@.MEET ALIAS TO RECOVER @\n@.";
   test_meet_recover_alias ();
   Format.eprintf "@.MEET BOTTOM AFTER ALIAS@\n@.";
-  test_meet_bottom_after_alias ()
+  test_meet_bottom_after_alias ();
+  Format.eprintf "@.JOIN WITH EXTENSIONS@\n@.";
+  test_join_with_extensions ();
+  Format.eprintf "@.JOIN WITH COMPLEX EXTENSIONS@\n@.";
+  test_join_with_complex_extensions ()

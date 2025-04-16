@@ -120,3 +120,59 @@ let assembler () =
   | MinGW_32 | MinGW_64 | Cygwin | Linux | FreeBSD | NetBSD | OpenBSD
   | Generic_BSD | Solaris | GNU | Dragonfly | BeOS | Unknown ->
     GAS_like
+
+type machine_width =
+  | Thirty_two
+  | Sixty_four
+
+let machine_width () =
+  match Targetint.size with
+  | 32 -> Thirty_two
+  | 64 -> Sixty_four
+  | bits -> Misc.fatal_errorf "Unknown machine width: %d" bits
+
+type windows_system =
+  | Cygwin
+  | MinGW
+  | Native
+
+type system =
+  | Linux
+  | Windows of windows_system
+  | MacOS_like
+  | FreeBSD
+  | NetBSD
+  | OpenBSD
+  | Generic_BSD
+  | Solaris
+  | Dragonfly
+  | GNU
+  | BeOS
+  | Unknown
+
+let system () : system =
+  match derived_system () with
+  | Linux -> Linux
+  | MinGW_32 | MinGW_64 -> Windows MinGW
+  | Win32 | Win64 -> Windows Native
+  | Cygwin -> Windows Cygwin
+  | MacOS_like -> MacOS_like
+  | FreeBSD -> FreeBSD
+  | NetBSD -> NetBSD
+  | OpenBSD -> OpenBSD
+  | Generic_BSD -> Generic_BSD
+  | Solaris -> Solaris
+  | Dragonfly -> Dragonfly
+  | GNU -> GNU
+  | BeOS -> BeOS
+  | Unknown -> Unknown
+
+let windows () =
+  match system () with
+  | Windows _ -> true
+  | _ -> false
+
+let is_macos () =
+  match assembler () with
+  | MASM | GAS_like -> false
+  | MacOS -> true

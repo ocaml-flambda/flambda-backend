@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 (* Machine-specific command-line options *)
+[@@@ocaml.warning "+a-40-41-42"]
 
 module Extension : sig
   type t =
@@ -135,8 +136,6 @@ val print_specific_operation :
 val win64 : bool
 
 val operation_is_pure : specific_operation -> bool
-
-val operation_can_raise : specific_operation -> bool
 
 val operation_allocates : specific_operation -> bool
 

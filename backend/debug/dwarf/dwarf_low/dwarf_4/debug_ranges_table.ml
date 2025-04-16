@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 type t = Dwarf_4_range_list.t list ref
 
 let create () : t = ref []

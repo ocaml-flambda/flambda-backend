@@ -390,8 +390,8 @@ type last_fiber : immediate
 type (-'a, +'b) cont
 
 (* CR borrowing: implement [borrow] without magic. *)
-let borrow (f : ('a, 'b) cont @ local -> 'c @ unique) (k : ('a, 'b) cont @@ unique)
-  : 'c * ('a, 'b) cont @@ unique = f k, Obj.magic_unique k
+let borrow (f : ('a, 'b) cont @ local -> 'c @ unique) (k : ('a, 'b) cont @ unique)
+  : 'c * ('a, 'b) cont @ unique = f k, Obj.magic_unique k
 
 external get_cont_callstack :
   ('a, 'b) cont @ local -> int -> Printexc.raw_backtrace @@ portable =
@@ -456,11 +456,11 @@ external reperform :
 let alloc_cont
     (type a b h e es)
     (module H : Handler.Create with type e = e and type es = es)
-    (f : local_ h -> a -> b @@ once)
+    (f : (local_ h -> a -> b) @ once)
     (h : h) : (a, (b, e * es) r) cont =
   let exception Ready__ of (a, (b, e * es) r) cont in
   let effc (type o eh) ((op, h) as perf : (o, eh) perform)
-      (k : (o, (b, e * es) r) cont) last_fiber : _ @@ unique =
+      (k : (o, (b, e * es) r) cont) last_fiber : _ @ unique =
     match h with
     | H.C h ->
       Op(op, h, k, last_fiber)
@@ -483,7 +483,7 @@ let alloc_cont
 let run_stack
     (type a h e es)
     (module H : Handler.Create with type e = e and type es = es)
-     (f : local_ h -> a @@ once) (h : h) : (a, e * es) r =
+     (f : (local_ h -> a) @ once) (h : h) : (a, e * es) r =
   let effc ((op, h) as perf) k last_fiber =
     match h with
     | H.C h ->
@@ -541,7 +541,7 @@ let discontinue_with_backtrace k e bt (local_ hs) =
   resume k (fun e -> Printexc.raise_with_backtrace e bt) e hs
 
 let fiber (type a b e)
-    (f : local_ e Handler.t -> a -> b @@ once)=
+    (f : (local_ e Handler.t -> a -> b) @ once)=
   let module H = (val (Handler.create ()) :
     Handler.Create with type e = e and type es = unit)
   in
@@ -552,7 +552,7 @@ let fiber (type a b e)
   Cont { cont; mapping }
 
 let fiber_with (type a b e es) (local_ l : es Handler.List.Length.t)
-    (f : local_ (e * es) Handler.List.t -> a -> b @@ once) =
+    (f : (local_ (e * es) Handler.List.t -> a -> b) @ once) =
   let module H = (val (Handler.create ()) :
     Handler.Create with type e = e and type es = es)
   in
@@ -564,7 +564,7 @@ let fiber_with (type a b e es) (local_ l : es Handler.List.Length.t)
   let cont = alloc_cont (module H) f handlers in
   Cont { cont; mapping }
 
-let run (type a e) (f : local_ e Handler.t -> a @@ once) =
+let run (type a e) (f : (local_ e Handler.t -> a) @ once) =
   let module H = (val (Handler.create ()) :
     Handler.Create with type e = e and type es = unit)
   in
@@ -574,7 +574,7 @@ let run (type a e) (f : local_ e Handler.t -> a @@ once) =
   handle (Mapping.empty ()) res
 
 let run_with (type a e es) (local_ hs : es Handler.List.t)
-    (f : local_ (e * es) Handler.List.t -> a @@ once) =
+    (f : (local_ (e * es) Handler.List.t -> a) @ once) =
   let module H = (val (Handler.create ()) :
     Handler.Create with type e = e and type es = es)
   in

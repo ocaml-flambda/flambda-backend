@@ -2,23 +2,21 @@
 
 open Regalloc_utils
 
-val gi_debug : bool
+val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
-val gi_verbose : bool Lazy.t
+val indent : unit -> unit
 
-val gi_invariants : bool Lazy.t
+val dedent : unit -> unit
 
-val log :
-  indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+val reset_indentation : unit -> unit
 
 val log_body_and_terminator :
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit
 
-val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
+val log_cfg_with_infos : Cfg_with_infos.t -> unit
 
 module Priority_heuristics : sig
   type t =
@@ -102,8 +100,6 @@ end
 
 module Make_max_priority_queue (Priority : Order) :
   Priority_queue with type priority = Priority.t
-
-val iter_cfg_layout : Cfg_with_layout.t -> f:(Cfg.basic_block -> unit) -> unit
 
 val iter_instructions_layout :
   Cfg_with_layout.t ->
@@ -192,5 +188,5 @@ module Hardware_registers : sig
 
   val of_reg : t -> Reg.t -> Hardware_register.t option
 
-  val find_available : t -> Reg.t -> Interval.t -> available
+  val find_available : t -> SpillCosts.t -> Reg.t -> Interval.t -> available
 end

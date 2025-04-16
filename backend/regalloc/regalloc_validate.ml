@@ -46,7 +46,7 @@ end = struct
     type t =
       | Local of
           { index : int;
-            stack_class : int
+            stack_class : Stack_class.t
           }
       | Incoming of { index : int }
       | Outgoing of { index : int }
@@ -118,7 +118,7 @@ end = struct
       Some
         (Stack
            (Stack.of_stack_loc
-              ~stack_class:(Proc.stack_slot_class reg.Reg.typ)
+              ~stack_class:(Stack_class.of_machtype reg.Reg.typ)
               stack))
 
   let of_reg_exn reg = of_reg reg |> Option.get
@@ -214,6 +214,7 @@ end = struct
     type t =
       { name : Reg.Name.t;
         stamp : int;
+        preassigned : bool;
         typ : Cmm.machtype_component
       }
   end
@@ -225,14 +226,19 @@ end = struct
 
   let create (reg : Reg.t) : t =
     { reg_id = Reg_id.of_reg reg;
-      for_print = { name = reg.name; stamp = reg.stamp; typ = reg.typ }
+      for_print =
+        { name = reg.name;
+          stamp = reg.stamp;
+          preassigned = reg.preassigned;
+          typ = reg.typ
+        }
     }
 
   let to_dummy_reg (t : t) : Reg.t =
-    { Reg.dummy with
-      name = t.for_print.name;
+    { name = t.for_print.name;
       typ = t.for_print.typ;
       stamp = t.for_print.stamp;
+      preassigned = t.for_print.preassigned;
       loc = Reg_id.to_loc_lossy t.reg_id
     }
 
@@ -592,11 +598,6 @@ end = struct
         Prim { op = prim2; label_after = l2 } )
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare prim1 prim2 = 0 ->
-      compare_label l1 l2
-    | ( Specific_can_raise { op = op1; label_after = l1 },
-        Specific_can_raise { op = op2; label_after = l2 } )
-    (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
-      when Stdlib.compare op1 op2 = 0 ->
       compare_label l1 l2
     | _ ->
       Regalloc_utils.fatal

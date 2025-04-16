@@ -302,13 +302,18 @@ let register_allocator fd : register_allocator =
 let available_regs ~stack_slots ~f x =
   (* Skip DWARF variable range generation for complicated functions to avoid
      high compilation speed penalties *)
-  let total_num_stack_slots = Array.fold_left ( + ) 0 (stack_slots x) in
+  let fun_num_stack_slots = stack_slots x in
+  let total_num_stack_slots =
+    Stack_class.Tbl.fold fun_num_stack_slots ~init:0
+      ~f:(fun _stack_class num acc -> acc + num)
+  in
   if total_num_stack_slots > !Dwarf_flags.dwarf_max_function_complexity
   then x
   else f x
 
 let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   let register_allocator = register_allocator fd_cmm in
+  let module CSE = Cfg_cse.Cse_generic (CSE) in
   let cfg_with_infos =
     cfg_with_layout
     ++ (fun cfg_with_layout ->
@@ -370,12 +375,13 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
+  let module Cfg_selection = Cfg_selectgen.Make (Cfg_selection) in
   Proc.init ();
   Reg.restart ();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
   ++ (fun (fd_cmm : Cmm.fundecl) ->
-       Cfg_selection.fundecl ~future_funcnames:funcnames fd_cmm
+       Cfg_selection.emit_fundecl ~future_funcnames:funcnames fd_cmm
        ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
             "After selection")
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)

@@ -25,6 +25,7 @@
     It is suggested that those unfamiliar with this module start by reading the
     documentation on module type [S], below. *)
 
+open! Int_replace_polymorphic_compare
 module L = Linear
 
 module type S_key = sig
@@ -93,7 +94,7 @@ module type S_subrange_info = sig
     key ->
     subrange_state ->
     fun_contains_calls:bool ->
-    fun_num_stack_slots:int array ->
+    fun_num_stack_slots:int Stack_class.Tbl.t ->
     t
 
   val print : Format.formatter -> t -> unit

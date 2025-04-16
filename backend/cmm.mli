@@ -107,8 +107,6 @@ type exit_label =
   | Return_lbl
   | Lbl of Lambda.static_label
 
-type rec_flag = Nonrecursive | Recursive
-
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 type atomic_op =
@@ -307,14 +305,6 @@ type operation =
   | Cdls_get
   | Cpoll
 
-(* This is information used exclusively during construction of cmm terms by
-   cmmgen, and thus irrelevant for selectgen and flambda2. *)
-type kind_for_unboxing =
-  | Any (* This may contain anything, including non-scannable things *)
-  | Boxed_integer of Lambda.boxed_integer
-  | Boxed_vector of Lambda.boxed_vector
-  | Boxed_float of Lambda.boxed_float
-
 type is_global = Global | Local
 val equal_is_global : is_global -> is_global -> bool
 
@@ -340,6 +330,8 @@ type vec128_bits = { low : int64; high: int64 }
 
 val global_symbol : string -> symbol
 
+type ccatch_flag = Normal | Recursive | Exn_handler
+
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
 type expression =
@@ -357,25 +349,15 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing
+      * Debuginfo.t * expression * Debuginfo.t
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t * kind_for_unboxing
+      * Debuginfo.t
   | Ccatch of
-      rec_flag
+      ccatch_flag
         * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression
-        * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of expression * trywith_shared_label
-      * Backend_var.With_provenance.t
-      * (Backend_var.With_provenance.t * machtype) list
-      * expression * Debuginfo.t * kind_for_unboxing
-    (** Ctrywith uses "delayed handlers":
-        The body starts with the previous exception handler, and only after
-        going through an explicit Push-annotated Cexit will this handler become
-        active.  This allows for sharing a single handler in several places, or
-        having multiple entry and exit points to a single trywith block. *)
 
 type codegen_option =
   | Reduce_code_size
@@ -425,8 +407,15 @@ type phrase =
 
 val ccatch :
      Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
-       * expression * expression * Debuginfo.t * kind_for_unboxing
+       * expression * expression * Debuginfo.t
        * bool
+  -> expression
+
+val ctrywith :
+     expression * trywith_shared_label
+       * Backend_var.With_provenance.t
+       * (Backend_var.With_provenance.t * machtype) list
+       * expression * Debuginfo.t
   -> expression
 
 val reset : unit -> unit
@@ -440,12 +429,12 @@ val iter_shallow_tail: (expression -> unit) -> expression -> bool
       considered to be in tail position (because their result become
       the final result for the expression).  *)
 
-val map_shallow_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
+val map_shallow_tail: (expression -> expression) -> expression -> expression
   (** Apply the transformation to those immediate sub-expressions of an
       expression that are in tail position, using the same definition of "tail"
       as [iter_shallow_tail] *)
 
-val map_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
+val map_tail: (expression -> expression) -> expression -> expression
   (** Apply the transformation to an expression, trying to push it
       to all inner sub-expressions that can produce the final result,
       by recursively applying map_shallow_tail *)
@@ -467,3 +456,4 @@ val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 
 val caml_flambda2_invalid : string
 val is_val : machtype_component -> bool
+val is_exn_handler : ccatch_flag -> bool

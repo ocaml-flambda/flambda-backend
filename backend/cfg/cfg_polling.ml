@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module List = ListLabels
@@ -101,10 +101,12 @@ let report_error ppf = function
          instrs)
 
 let () =
-  Location.register_error_of_exn (function [@ocaml.warning "-4"]
-    | Error (Poll_error (fun_dbg, _instrs) as err) ->
-      let loc = Debuginfo.to_location fun_dbg in
-      Some (Location.error_of_printer ~loc report_error err)
+  Location.register_error_of_exn (function
+    | Error err -> (
+      match err with
+      | Poll_error (fun_dbg, _instrs) ->
+        let loc = Debuginfo.to_location fun_dbg in
+        Some (Location.error_of_printer ~loc report_error err))
     | _ -> None)
 
 (* Compututation of the "safe" map, which is a map from labels to booleans where
@@ -116,11 +118,7 @@ let () =
    the terminator to always return `false` would be better. *)
 
 let is_safe_basic : Cfg.basic Cfg.instruction -> bool =
- fun instr ->
-  match[@ocaml.warning "-4"] instr.desc with
-  | Op (Poll | Alloc _) -> true
-  | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
-    false
+ fun instr -> Cfg.is_alloc instr || Cfg.is_poll instr
 
 let is_safe_terminator : Cfg.terminator Cfg.instruction -> bool =
  fun term ->
@@ -131,7 +129,7 @@ let is_safe_terminator : Cfg.terminator Cfg.instruction -> bool =
     false
   | Raise _ -> false
   | Tailcall_self _ | Tailcall_func _ | Return -> true
-  | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ -> false
+  | Call_no_return _ | Call _ | Prim _ -> false
 
 let is_safe_block : Cfg.basic_block -> bool =
  fun block ->
@@ -188,9 +186,19 @@ module Polls_before_prtc_transfer = struct
       then Ok dom
       else Ok Always_polls
     | Op (Alloc _) -> Ok Always_polls
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+    | Op
+        ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Stackoffset _ | Load _
+        | Store (_, _, _)
+        | Intop _
+        | Intop_imm (_, _)
+        | Intop_atomic _
+        | Floatop (_, _)
+        | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+        | Specific _ | Name_for_debugger _ )
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
       Ok dom
-   [@@ocaml.warning "-4"]
 
   let terminator :
       domain ->
@@ -212,7 +220,7 @@ module Polls_before_prtc_transfer = struct
       then Ok Might_not_poll
       else Ok Always_polls
     | Return -> Ok Always_polls
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+    | Call_no_return _ | Call _ | Prim _ ->
       if Cfg.can_raise_terminator term.desc
       then Ok (Polls_before_prtc_domain.join dom exn)
       else Ok dom
@@ -327,10 +335,8 @@ let instr_cfg_with_layout :
         | _ ->
           let before = Some (Cfg.get_block_exn cfg dst) in
           let instrs = DLL.of_list [poll] in
-          (* CR-soon xclerc: that kind of indicates the `insert_block` function
-             should be moved outside of "regalloc/" *)
           let inserted_blocks =
-            Regalloc_utils.insert_block cfg_with_layout instrs ~after ~before
+            Cfg_with_layout.insert_block cfg_with_layout instrs ~after ~before
               ~next_instruction_id
           in
           (* All the inserted blocks are safe since they contain a poll
@@ -357,7 +363,7 @@ let add_poll_or_alloc_basic :
       points
     | Poll -> (Poll, instr.dbg) :: points
     | Alloc _ -> (Alloc, instr.dbg) :: points)
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> points
+  | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> points
 
 let add_calls_terminator :
     Cfg.terminator Cfg.instruction -> polling_points -> polling_points =
@@ -365,7 +371,7 @@ let add_calls_terminator :
   match term.desc with
   | Never -> assert false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return | Raise _ | Specific_can_raise _ ->
+  | Switch _ | Return | Raise _ ->
     points
   | Tailcall_self _ | Tailcall_func _ -> (Function_call, term.dbg) :: points
   | Call _ -> (Function_call, term.dbg) :: points
@@ -427,12 +433,7 @@ let contains_polls : Cfg.t -> bool =
   let exception Found in
   try
     Cfg.iter_blocks cfg ~f:(fun _label block ->
-        let has_poll_instr =
-          DLL.exists block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-              match[@ocaml.warning "-4"] instr.Cfg.desc with
-              | Cfg.Op Poll -> true
-              | _ -> false)
-        in
+        let has_poll_instr = DLL.exists block.body ~f:Cfg.is_poll in
         if has_poll_instr then raise Found);
     false
   with Found -> true
@@ -472,11 +473,7 @@ let instrument_fundecl :
       cfg.fun_contains_calls || added_poll || contains_polls cfg
     in
     let cfg = { cfg with fun_contains_calls = new_contains_calls } in
-    Cfg_with_layout.create cfg
-      ~layout:(Cfg_with_layout.layout cfg_with_layout)
-      ~preserve_orig_labels:
-        (Cfg_with_layout.preserve_orig_labels cfg_with_layout)
-      ~new_labels:(Cfg_with_layout.new_labels cfg_with_layout)
+    Cfg_with_layout.create cfg ~layout:(Cfg_with_layout.layout cfg_with_layout)
 
 let requires_prologue_poll :
     future_funcnames:Misc.Stdlib.String.Set.t ->

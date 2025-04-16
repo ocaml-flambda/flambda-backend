@@ -14,6 +14,8 @@
 (**************************************************************************)
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
+open! Int_replace_polymorphic_compare
+
 type label = Cmm.label
 
 type instruction =
@@ -37,7 +39,7 @@ and instruction_desc =
   | Lreturn
   | Llabel of { label : label; section_name : string option }
   | Lbranch of label
-  | Lcondbranch of Simple_operation.test * label
+  | Lcondbranch of Operation.test * label
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap
@@ -71,7 +73,7 @@ type fundecl =
     fun_dbg : Debuginfo.t;
     fun_tailrec_entry_point_label : label option;
     fun_contains_calls: bool;
-    fun_num_stack_slots: int array;
+    fun_num_stack_slots: int Stack_class.Tbl.t;
     fun_frame_required: bool;
     fun_prologue_required: bool;
     fun_section_name: string option;

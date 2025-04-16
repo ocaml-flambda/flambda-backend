@@ -76,7 +76,6 @@ module Block = struct
       exn;
       can_raise;
       is_trap_handler = false;
-      dead = false;
       cold = false
     }
 end
@@ -94,7 +93,7 @@ module Cfg_desc = struct
       Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:Debuginfo.none
         ~fun_codegen_options:[]
          ~fun_contains_calls
-        ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
+        ~fun_num_stack_slots:(Stack_class.Tbl.make 0)
         ~fun_poll:Lambda.Default_poll
     in
     List.iter
@@ -116,8 +115,7 @@ module Cfg_desc = struct
                suc.is_trap_handler <- true))
       cfg.blocks;
     let cfg_layout =
-      Cfg_with_layout.create ~layout:(DLL.make_empty ())
-        ~preserve_orig_labels:true ~new_labels:Label.Set.empty cfg
+      Cfg_with_layout.create ~layout:(DLL.make_empty ()) cfg
     in
     (if not remove_locs
     then
@@ -125,10 +123,13 @@ module Cfg_desc = struct
          count. *)
       let update_stack_slots i =
         let update_slot (r : Reg.t) =
-          match r.loc, Proc.stack_slot_class r.typ with
+          match r.loc, Stack_class.of_machtype r.typ with
           | Stack (Local idx), stack_class ->
-            cfg.fun_num_stack_slots.(stack_class)
-              <- max cfg.fun_num_stack_slots.(stack_class) (idx + 1)
+            Stack_class.Tbl.update
+            cfg.fun_num_stack_slots
+            stack_class
+            ~f:(fun curr ->
+               max curr (idx + 1))
           | _ -> ()
         in
         Array.iter update_slot i.arg;
@@ -183,7 +184,6 @@ let entry_label =
            is_trap_handler = false;
            predecessors = Label.Set.empty;
            stack_offset = 0;
-           dead = false;
            cold = false;
            terminator =
              { desc = Return;
@@ -199,8 +199,7 @@ let entry_label =
          };
        let cfg =
          cfg
-         |> Cfg_with_layout.create ~layout:[] ~preserve_orig_labels:true
-              ~new_labels:Label.Set.empty
+         |> Cfg_with_layout.create ~layout:[]
        in
        assert (made_cfg = cfg);
        ()
@@ -331,7 +330,7 @@ let base_templ () : Cfg_desc.t * (unit -> InstructionId.t) =
           { start = add_label;
             body =
               [ { Instruction.id = make_id ();
-                  desc = Op (Intop Simple_operation.Iadd);
+                  desc = Op (Intop Operation.Iadd);
                   arg = [| int_arg1; int_arg2 |];
                   res = [| int_arg1 |]
                 } ];

@@ -15,6 +15,8 @@
 
 (* Common functions for emitting assembly code *)
 
+open! Int_replace_polymorphic_compare
+
 type error =
   | Stack_frame_too_large of int
   | Stack_frame_way_too_large of int
@@ -46,27 +48,37 @@ let femit_int32 out n = Printf.fprintf out "0x%lx" n
 
 let emit_int32 n = femit_int32 !output_channel n
 
-let femit_symbol out s =
+let pp_symbol fmt s =
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
     match c with
-    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> output_char out c
-    | _ -> Printf.fprintf out "$%02x" (Char.code c)
+    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' ->
+      Format.pp_print_char fmt c
+    | _ -> Format.fprintf fmt "$%02x" (Char.code c)
   done
+
+let symbol_to_string s = Format.asprintf "%a" pp_symbol s
+
+let femit_symbol out s = output_string out (symbol_to_string s)
 
 let emit_symbol s = femit_symbol !output_channel s
 
 let femit_string_literal out s =
+  let between x low high =
+    Char.compare x low >= 0 && Char.compare x high <= 0
+  in
   let last_was_escape = ref false in
   femit_string out "\"";
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
-    if c >= '0' && c <= '9'
+    if between c '0' '9'
     then
       if !last_was_escape
       then Printf.fprintf out "\\%o" (Char.code c)
       else output_char out c
-    else if c >= ' ' && c <= '~' && c <> '"' (* '"' *) && c <> '\\'
+    else if between c ' ' '~'
+            && (not (Char.equal c '"' (* '"' *)))
+            && not (Char.equal c '\\')
     then (
       output_char out c;
       last_was_escape := false)
@@ -216,7 +228,7 @@ let emit_frames a =
     type t = bool * Debuginfo.Dbg.t
 
     let equal ((rs1 : bool), dbg1) (rs2, dbg2) =
-      rs1 = rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
+      Bool.equal rs1 rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
 
     let hash (rs, dbg) = Hashtbl.hash (rs, Debuginfo.Dbg.hash dbg)
   end) in
@@ -357,8 +369,8 @@ let emit_frames a =
       in
       let info =
         if is_fully_packable
-        then fully_pack_info rs d (rest <> [])
-        else partially_pack_info rs d (rest <> [])
+        then fully_pack_info rs d (not (Misc.Stdlib.List.is_empty rest))
+        else partially_pack_info rs d (not (Misc.Stdlib.List.is_empty rest))
       in
       let loc =
         if is_fully_packable
@@ -393,7 +405,7 @@ let emit_frames a =
 
 let isprefix s1 s2 =
   String.length s1 <= String.length s2
-  && String.sub s2 0 (String.length s1) = s1
+  && String.equal (String.sub s2 0 (String.length s1)) s1
 
 let is_generic_function name =
   List.exists
@@ -495,15 +507,20 @@ let femit_debug_info ?discriminator out dbg =
       femit_char out '\t';
       femit_string_literal out file_name;
       femit_char out '\n')
-    (fun ~file_num ~line ~col:_ ?discriminator () ->
+    (fun ~file_num ~line ~col ?discriminator () ->
       femit_string out "\t.loc\t";
       femit_int out file_num;
       femit_char out '\t';
       femit_int out line;
       femit_char out '\t';
+      (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
+      (* If we don't set the optional column field, debug_line program gets the
+         column value from the previous .loc directive. *)
+      if col >= 0 then femit_int out col else femit_int out 0;
       (match discriminator with
       | None -> ()
       | Some k ->
+        femit_char out '\t';
         femit_string out "discriminator ";
         femit_int out k);
       femit_char out '\n')
@@ -526,7 +543,7 @@ let reduce_heap_size ~reset =
     then float !Flambda_backend_flags.heap_reduction_threshold
     else Float.infinity
   in
-  if major_words > heap_reduction_threshold
+  if Float.compare major_words heap_reduction_threshold > 0
   then
     Profile.record_call "compact" (fun () ->
         reset ();

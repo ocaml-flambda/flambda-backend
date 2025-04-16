@@ -435,6 +435,7 @@
   branch_relaxation
   branch_relaxation_intf
   cfg_selectgen
+  cfg_selectgen_target_intf
   cfg_selection
   cfg_invariants
   cmm_helpers
@@ -463,7 +464,6 @@
   simd_selection
   simd_reload
   simd_proc
-  simple_operation
   stack_check
   sub_cfg
   reg
@@ -471,6 +471,8 @@
   relocation_table
   section_table
   select_utils
+  stack_class
+  stack_class_utils
   string_table
   symbol_entry
   symbol_table
@@ -499,13 +501,10 @@
   cfg_loop_infos
   cfg_to_linear_desc
   cfg_cse
+  cfg_cse_target_intf
   cfg_stack_checks
   cfg_polling
-  eliminate_dead_code
-  disconnect_block
-  eliminate_dead_blocks
-  eliminate_fallthrough_blocks
-  merge_straightline_blocks
+  cfg_simplify
   extra_debug
   label
   linear_utils
@@ -530,6 +529,7 @@
   regalloc_split_utils
   regalloc_stack_operands
   regalloc_stack_slots
+  regalloc_substitution
   regalloc_utils
   regalloc_validate
   ;; file_formats/

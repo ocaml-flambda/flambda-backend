@@ -118,6 +118,49 @@ module Reg = struct
     { reg_name; index }
 
   let name t = Reg_name.name t.reg_name t.index
+
+  (* preallocate the registers *)
+  let reg_array ~last name = Array.init (last + 1) (fun i -> create name i)
+
+  let reg_x_array =
+    reg_array ~last:GP_reg_name.last_numbered (Reg_name.GP GP_reg_name.X)
+
+  let reg_w_array =
+    reg_array ~last:GP_reg_name.last_numbered (Reg_name.GP GP_reg_name.W)
+
+  let reg_s_array =
+    reg_array ~last:Neon_reg_name.last (Reg_name.Neon (Neon_reg_name.Scalar S))
+
+  let reg_d_array =
+    reg_array ~last:Neon_reg_name.last (Reg_name.Neon (Neon_reg_name.Scalar D))
+
+  let reg_q_array =
+    reg_array ~last:Neon_reg_name.last (Reg_name.Neon (Neon_reg_name.Scalar Q))
+
+  let reg_v2d_array =
+    reg_array ~last:Neon_reg_name.last
+      (Reg_name.Neon (Neon_reg_name.Vector V2D))
+
+  (* for special GP registers we use the last index *)
+  let sp = create (GP SP) GP_reg_name.last
+
+  let wsp = create (GP WSP) GP_reg_name.last
+
+  let xzr = create (GP XZR) GP_reg_name.last
+
+  let wzr = create (GP WZR) GP_reg_name.last
+
+  let reg_x i = reg_x_array.(i)
+
+  let reg_w i = reg_w_array.(i)
+
+  let reg_s i = reg_s_array.(i)
+
+  let reg_d i = reg_d_array.(i)
+
+  let reg_q i = reg_q_array.(i)
+
+  let reg_v2d i = reg_v2d_array.(i)
 end
 
 module Instruction_name = struct
@@ -126,18 +169,34 @@ module Instruction_name = struct
       | EQ
       | GT
       | LE
+      | GE
       | LT
+      | NE
+      | CC
+      | CS
+      | LS
+      | HI
 
     let to_string t =
-      match t with EQ -> "eq" | GT -> "gt" | LE -> "le" | LT -> "lt"
+      match t with
+      | EQ -> "eq"
+      | GT -> "gt"
+      | LE -> "le"
+      | GE -> "ge"
+      | LT -> "lt"
+      | NE -> "ne"
+      | CC -> "cc"
+      | CS -> "cs"
+      | LS -> "ls"
+      | HI -> "hi"
   end
 
   module Cond = struct
     type t =
       | EQ
       | NE
-      | CS
-      | CC
+      | CS (* alias HS *)
+      | CC (* alias LO *)
       | MI
       | PL
       | VS
@@ -148,7 +207,8 @@ module Instruction_name = struct
       | LT
       | GT
       | LE
-      | AL
+    (* | AL *)
+    (* | NV *)
 
     let to_string t =
       match t with
@@ -166,7 +226,6 @@ module Instruction_name = struct
       | LT -> "lt"
       | GT -> "gt"
       | LE -> "le"
-      | AL -> "al"
   end
 
   module Rounding_mode = struct
@@ -179,6 +238,37 @@ module Instruction_name = struct
 
     let to_string t =
       match t with M -> "m" | P -> "p" | Z -> "z" | X -> "x" | N -> "n"
+  end
+
+  module Memory_barrier = struct
+    type t =
+      | SY
+      | LD
+      | ST
+      | ISH
+      | ISHLD
+      | ISHST
+      | NSH
+      | NSHLD
+      | NSHST
+      | OSH
+      | OSHLD
+      | OSHST
+
+    let to_string b =
+      match b with
+      | SY -> "sy"
+      | LD -> "ld"
+      | ST -> "st"
+      | ISH -> "ish"
+      | ISHLD -> "ishld"
+      | ISHST -> "ishst"
+      | NSH -> "nsh"
+      | NSHLD -> "nshld"
+      | NSHST -> "nshst"
+      | OSH -> "osh"
+      | OSHLD -> "oshld"
+      | OSHST -> "oshst"
   end
 
   (* Don't split the type into base and neon to make emit easier to read and
@@ -201,9 +291,16 @@ module Instruction_name = struct
     | CNT
     | SMULH
     | UMULH
-    | B of Cond.t
+    | ORR
+    | EOR
+    | B
+    | BR
+    | B_cond of Cond.t
+    | B_cond_float of Float_cond.t
     | BL
     | BLR
+    | CMP
+    | CMN
     | CBNZ
     | CBZ
     | CSEL
@@ -213,9 +310,40 @@ module Instruction_name = struct
     | SXTW
     | UXTB
     | UXTH
+    | LDR
+    | LDRB
+    | LDRSB
+    | LDRH
+    | LDRSH
+    | LDRSW
+    | LDP
+    | LDAR
+    | STR
+    | STRB
+    | STRH
+    | DMB of Memory_barrier.t
+    | DSB of Memory_barrier.t
+    | ISB
+    | SDIV
+    | MSUB
+    | MADD
+    | REV
+    | REV16
+    | UBFM
+    | SBFM
+    | TST
+    | TBNZ
+    | TBZ
+    | ADR
+    | ADRP
+    | STP
+    | RET
     (* neon *)
     | MOV
     | MOVI
+    | MOVN
+    | MOVK
+    | MOVZ
     | FMOV
     | FADD
     | FSUB
@@ -268,9 +396,16 @@ module Instruction_name = struct
     | CNT -> "cnt"
     | SMULH -> "smulh"
     | UMULH -> "umulh"
-    | B c -> "b." ^ Cond.to_string c
+    | ORR -> "orr"
+    | EOR -> "eor"
+    | B -> "b"
+    | BR -> "br"
+    | B_cond c -> "b." ^ Cond.to_string c
+    | B_cond_float c -> "b." ^ Float_cond.to_string c
     | BL -> "bl"
     | BLR -> "blr"
+    | CMP -> "cmp"
+    | CMN -> "cmn"
     | CBNZ -> "cbnz"
     | CBZ -> "cbz"
     | CSEL -> "csel"
@@ -280,9 +415,40 @@ module Instruction_name = struct
     | SXTW -> "sxtw"
     | UXTB -> "uxtb"
     | UXTH -> "uxth"
+    | LDR -> "ldr"
+    | LDRB -> "ldrb"
+    | LDRSB -> "ldrsb"
+    | LDRH -> "ldrh"
+    | LDRSH -> "ldrsh"
+    | LDRSW -> "ldrsw"
+    | LDP -> "ldp"
+    | LDAR -> "ldar"
+    | STR -> "str"
+    | STRB -> "strb"
+    | STRH -> "strh"
+    | DMB b -> "dmb\t" ^ Memory_barrier.to_string b
+    | DSB b -> "dsb\t" ^ Memory_barrier.to_string b
+    | ISB -> "isb"
+    | SDIV -> "sdiv"
+    | MSUB -> "msub"
+    | MADD -> "madd"
+    | REV -> "rev"
+    | REV16 -> "rev16"
+    | UBFM -> "ubfm"
+    | SBFM -> "sbfm"
+    | TST -> "tst"
+    | TBNZ -> "tbnz"
+    | TBZ -> "tbz"
+    | ADR -> "adr"
+    | ADRP -> "adrp"
+    | STP -> "stp"
+    | RET -> "ret"
     (* neon *)
     | MOV -> "mov"
     | MOVI -> "movi"
+    | MOVN -> "movn"
+    | MOVK -> "movk"
+    | MOVZ -> "movz"
     | FMOV -> "fmov"
     | FADD -> "fadd"
     | FSUB -> "fsub"
@@ -315,6 +481,47 @@ module Instruction_name = struct
     | CM cond -> "cm" ^ Cond.to_string cond
     | FCVTL -> "fcvtl"
     | ADDV -> "addv"
+end
+
+module Symbol = struct
+  type reloc_directive =
+    | LOWER_TWELVE
+    | GOT_PAGE
+    | GOT_PAGE_OFF
+    | GOT
+    | GOT_LOWER_TWELVE
+    | PAGE
+    | PAGE_OFF
+
+  type t =
+    { name : string;
+      offset : int;
+      reloc : reloc_directive option
+    }
+
+  let create ?reloc ?(offset = 0) name : t = { name; offset; reloc }
+
+  let print_with_reloc_directive ppf (s, reloc) =
+    match reloc with
+    | None -> Format.pp_print_string ppf s
+    | Some LOWER_TWELVE -> Format.fprintf ppf ":lo12:%s" s
+    | Some GOT -> Format.fprintf ppf ":got:%s" s
+    | Some GOT_LOWER_TWELVE -> Format.fprintf ppf ":got_lo12:%s" s
+    | Some GOT_PAGE -> Format.fprintf ppf "%s%@GOTPAGE" s
+    | Some GOT_PAGE_OFF -> Format.fprintf ppf "%s%@GOTPAGEOFF" s
+    | Some PAGE -> Format.fprintf ppf "%s%@PAGE" s
+    | Some PAGE_OFF -> Format.fprintf ppf "%s%@PAGEOFF" s
+
+  let print_int_offset ppf ofs =
+    if ofs > 0
+    then Format.fprintf ppf "+%d" ofs
+    else if ofs < 0
+    then Format.fprintf ppf "-%d" (-ofs)
+    else ()
+
+  let print ppf ({ name; offset; reloc } : t) =
+    Format.fprintf ppf "%a%a" print_with_reloc_directive (name, reloc)
+      print_int_offset offset
 end
 
 module Operand = struct
@@ -387,41 +594,70 @@ module Operand = struct
   type label = string
 
   module Addressing_mode = struct
-    (* CR gyorsh: only immediate offsets implemented. *)
+    module Offset = struct
+      type t =
+        | Imm of Imm.t
+        | Symbol of Symbol.t
+
+      let print ppf t =
+        match t with Imm i -> Imm.print ppf i | Symbol s -> Symbol.print ppf s
+    end
+
     type t =
-      | Offset of Reg.t * Imm.t
-      | Pre of Reg.t * Imm.t
-      | Post of Reg.t * Imm.t
+      | Reg of Reg.t
+      | Offset of Reg.t * Offset.t
+      | Pre of Reg.t * Offset.t
+      | Post of Reg.t * Offset.t
       | Literal of label
 
     let print ppf t =
       let open Format in
       match t with
-      | Offset (r, imm) -> fprintf ppf "[%s, %a]" (Reg.name r) Imm.print imm
-      | Pre (r, imm) -> fprintf ppf "[%s, %a]!" (Reg.name r) Imm.print imm
-      | Post (r, imm) -> fprintf ppf "[%s], %a" (Reg.name r) Imm.print imm
+      | Reg r -> fprintf ppf "[%s]" (Reg.name r)
+      | Offset (r, off) -> fprintf ppf "[%s, %a]" (Reg.name r) Offset.print off
+      | Pre (r, off) -> fprintf ppf "[%s, %a]!" (Reg.name r) Offset.print off
+      | Post (r, off) -> fprintf ppf "[%s], %a" (Reg.name r) Offset.print off
       | Literal l -> fprintf ppf "%s" l
   end
 
   type t =
     | Imm of Imm.t
+    | Imm_float of float
+    | Imm_nativeint of nativeint
     | Reg of Reg.t
     | Extend of Extend.t
     | Shift of Shift.t
-    | Sym of string
+    | Sym of Symbol.t
     | Cond of Instruction_name.Cond.t
+    | FloatCond of Instruction_name.Float_cond.t
     | Mem of Addressing_mode.t
 
   let print ppf t =
-    let open Format in
     match t with
     | Imm imm -> Imm.print ppf imm
+    | Imm_float f -> Format.fprintf ppf "#%.7f" f
+    | Imm_nativeint n -> Format.fprintf ppf "#%s" (Nativeint.to_string n)
     | Reg r -> Format.fprintf ppf "%s" (Reg.name r)
     | Extend e -> Extend.print ppf e
     | Shift s -> Shift.print ppf s
-    | Sym s -> fprintf ppf "%s" s
+    | Sym s -> Symbol.print ppf s
     | Cond c -> Format.fprintf ppf "%s" (Instruction_name.Cond.to_string c)
+    | FloatCond c ->
+      Format.fprintf ppf "%s" (Instruction_name.Float_cond.to_string c)
     | Mem m -> Format.fprintf ppf "%a" Addressing_mode.print m
+
+  (* We preallocate operand arrays for common registers *)
+  let reg_x = Array.map (fun x -> Reg x) Reg.reg_x_array
+
+  let reg_w = Array.map (fun x -> Reg x) Reg.reg_w_array
+
+  let reg_s = Array.map (fun x -> Reg x) Reg.reg_s_array
+
+  let reg_d = Array.map (fun x -> Reg x) Reg.reg_d_array
+
+  let reg_q = Array.map (fun x -> Reg x) Reg.reg_q_array
+
+  let reg_v2d = Array.map (fun x -> Reg x) Reg.reg_v2d_array
 end
 
 module Instruction = struct
@@ -435,10 +671,13 @@ module Instruction = struct
   let print ppf t =
     let { name; operands } = t in
     let pp_sep = Operand.print_separator in
-    Format.fprintf ppf "%s\t%a"
-      (Instruction_name.to_string name)
-      (Format.pp_print_seq ~pp_sep Operand.print)
-      (Array.to_seq operands)
+    if Array.length operands = 0
+    then Format.fprintf ppf "%s" (Instruction_name.to_string name)
+    else
+      Format.fprintf ppf "%s\t%a"
+        (Instruction_name.to_string name)
+        (Format.pp_print_seq ~pp_sep Operand.print)
+        (Array.to_seq operands)
 end
 
 module Asm = struct
@@ -525,47 +764,23 @@ module Asm = struct
 end
 
 module DSL = struct
-  (* Statically allocate some common combinations *)
-  let reg_array size name = Array.init size (fun i -> Reg.create name i)
+  let symbol (s : Symbol.t) = Operand.Sym s
 
-  let reg_and_operand_array ~last name =
-    let size = last + 1 in
-    let reg_array = reg_array size name in
-    let op_array = Array.init size (fun i -> Operand.Reg reg_array.(i)) in
-    reg_array, op_array
+  let mem ~base = Operand.(Mem (Addressing_mode.Reg base))
 
-  let operand_array ~last name =
-    let _reg_array, op_array = reg_and_operand_array ~last name in
-    op_array
+  let mem_offset ~base ~offset =
+    Operand.(Mem (Addressing_mode.Offset (base, Imm offset)))
 
-  let neon_operand_array name =
-    operand_array ~last:Neon_reg_name.last (Reg_name.Neon name)
-
-  let gp_reg_and_operand_array name =
-    reg_and_operand_array ~last:GP_reg_name.last_numbered (Reg_name.GP name)
-
-  let reg_x, reg_x_operands = gp_reg_and_operand_array GP_reg_name.X
-
-  let _, reg_w_operands = gp_reg_and_operand_array GP_reg_name.W
-
-  let reg_v2d_operands = neon_operand_array Neon_reg_name.(Vector V2D)
-
-  let reg_s_operands = neon_operand_array Neon_reg_name.(Scalar S)
-
-  let reg_d_operands = neon_operand_array Neon_reg_name.(Scalar D)
-
-  let reg_q_operands = neon_operand_array Neon_reg_name.(Scalar Q)
-
-  let mem ~base ~offset =
-    Operand.(Mem (Addressing_mode.Offset (reg_x.(base), offset)))
+  let mem_symbol ~base ~symbol =
+    Operand.(Mem (Addressing_mode.Offset (base, Symbol symbol)))
 
   let mem_pre ~base ~offset =
-    Operand.(Mem (Addressing_mode.Pre (reg_x.(base), offset)))
+    Operand.(Mem (Addressing_mode.Pre (base, Imm offset)))
 
   let mem_post ~base ~offset =
-    Operand.(Mem (Addressing_mode.Post (reg_x.(base), offset)))
+    Operand.(Mem (Addressing_mode.Post (base, Imm offset)))
 
-  let literal l = Operand.(Mem (Addressing_mode.Literal l))
+  let shift ~kind ~amount = Operand.Shift { kind; amount }
 
   let reg_v2s index =
     Operand.Reg (Reg.create (Reg_name.Neon (Vector V2S)) index)
@@ -573,21 +788,36 @@ module DSL = struct
   let reg_v4s index =
     Operand.Reg (Reg.create (Reg_name.Neon (Vector V4S)) index)
 
-  let reg_v2d index = reg_v2d_operands.(index)
+  let reg_v2d index = Operand.reg_v2d.(index)
 
-  let reg_s index = reg_s_operands.(index)
+  let reg_s index = Operand.reg_s.(index)
 
-  let reg_d index = reg_d_operands.(index)
+  let reg_d index = Operand.reg_d.(index)
 
-  let reg_q index = reg_q_operands.(index)
+  let reg_q index = Operand.reg_q.(index)
 
-  let reg_w index = reg_w_operands.(index) [@@warning "-32"]
+  let reg_w index = Operand.reg_w.(index)
 
-  let reg_x index = reg_x_operands.(index)
+  let reg_x index = Operand.reg_x.(index)
 
-  let reg_w index = reg_w_operands.(index)
+  let sp = Operand.Reg Reg.sp
+
+  let xzr = Operand.Reg Reg.xzr
+
+  let wzr = Operand.Reg Reg.wzr
+
+  let reg_op reg = Operand.Reg reg
 
   let imm n = Operand.Imm n
+
+  let imm_float f = Operand.Imm_float f
+
+  let imm_nativeint n = Operand.Imm_nativeint n
+
+  let cond c = Operand.Cond c
+
+  (* CR sspies: probably these should be part of the instruction name instead *)
+  let float_cond c = Operand.FloatCond c
 
   let ins name operands = Asm.Ins (Instruction.create name operands)
 

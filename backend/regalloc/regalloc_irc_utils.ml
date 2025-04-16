@@ -3,22 +3,16 @@
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 
-let irc_debug = false
+let log_function = lazy (make_log_function ~label:"irc")
 
-let bool_of_param param_name =
-  bool_of_param ~guard:(irc_debug, "irc_debug") param_name
+let indent () = (Lazy.force log_function).indent ()
 
-let irc_verbose : bool Lazy.t = bool_of_param "IRC_VERBOSE"
+let dedent () = (Lazy.force log_function).dedent ()
 
-let irc_invariants : bool Lazy.t = bool_of_param "IRC_INVARIANTS"
+let reset_indentation () = (Lazy.force log_function).reset_indentation ()
 
-let log_function =
-  lazy (make_log_function ~verbose:(Lazy.force irc_verbose) ~label:"irc")
-
-let log :
-    type a.
-    indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
- fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
+let log : type a. ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
+ fun ?no_eol fmt -> (Lazy.force log_function).log ?no_eol fmt
 
 let instr_prefix (instr : Cfg.basic Cfg.instruction) =
   InstructionId.to_string_padded instr.id
@@ -27,19 +21,62 @@ let term_prefix (term : Cfg.terminator Cfg.instruction) =
   InstructionId.to_string_padded term.id
 
 let log_body_and_terminator :
-    indent:int ->
     Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun ~indent body terminator liveness ->
+ fun body terminator liveness ->
   make_log_body_and_terminator (Lazy.force log_function) ~instr_prefix
-    ~term_prefix ~indent body terminator liveness
+    ~term_prefix body terminator liveness
 
-let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
- fun ~indent cfg_with_infos ->
+let log_cfg_with_infos : Cfg_with_infos.t -> unit =
+ fun cfg_with_infos ->
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
-    ~indent cfg_with_infos
+    cfg_with_infos
+
+module WorkList = struct
+  type t =
+    | Unknown_list
+    | Precolored
+    | Initial
+    | Simplify
+    | Freeze
+    | Spill
+    | Spilled
+    | Coalesced
+    | Colored
+    | Select_stack
+
+  let equal left right =
+    match left, right with
+    | Unknown_list, Unknown_list
+    | Precolored, Precolored
+    | Initial, Initial
+    | Simplify, Simplify
+    | Freeze, Freeze
+    | Spill, Spill
+    | Spilled, Spilled
+    | Coalesced, Coalesced
+    | Colored, Colored
+    | Select_stack, Select_stack ->
+      true
+    | ( ( Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
+        | Spilled | Coalesced | Colored | Select_stack ),
+        _ ) ->
+      false
+
+  let to_string = function
+    | Unknown_list -> "unknown_list"
+    | Precolored -> "precolored"
+    | Initial -> "initial"
+    | Simplify -> "simplify"
+    | Freeze -> "freeze"
+    | Spill -> "spill"
+    | Spilled -> "spilled"
+    | Coalesced -> "coalesced"
+    | Colored -> "colored"
+    | Select_stack -> "select_stack"
+end
 
 module Color = struct
   type t = int
@@ -134,7 +171,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Dls_get -> false
     | Poll -> false
     | Alloc _ -> false)
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
+  | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc
@@ -144,23 +181,6 @@ let all_precolored_regs =
   Proc.precolored_regs
 
 let k reg = Proc.num_available_registers.(Proc.register_class reg)
-
-let update_register_locations : unit -> unit =
- fun () ->
-  if irc_debug then log ~indent:0 "update_register_locations";
-  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
-      match reg.Reg.loc with
-      | Reg _ -> ()
-      | Stack _ -> ()
-      | Unknown -> (
-        match reg.Reg.irc_color with
-        | None ->
-          (* because of rewrites, the register may no longer be present *)
-          ()
-        | Some color ->
-          if irc_debug
-          then log ~indent:1 "updating %a to %d" Printreg.reg reg color;
-          reg.Reg.loc <- Reg color))
 
 module Spilling_heuristics = struct
   type t =

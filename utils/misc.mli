@@ -498,6 +498,9 @@ val log2_nativeint: nativeint -> int
     [n = Nativeint.shift_left 1n s]
 *)
 
+val power : base:int -> int -> int
+(** [power ~base x] computes [base**x]. *)
+
 val align: int -> int -> int
        (** [align n a] rounds [n] upwards to a multiple of [a]
            (a power of 2). *)

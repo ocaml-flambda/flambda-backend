@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 
@@ -43,7 +43,6 @@ type basic_block =
     mutable exn : Label.t option;
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
-    mutable dead : bool;
     mutable cold : bool
   }
 
@@ -87,7 +86,7 @@ type t =
     entry_label : Label.t;
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
-    fun_num_stack_slots : int array;
+    fun_num_stack_slots : int Stack_class.Tbl.t;
     fun_poll : Lambda.poll_attribute
   }
 
@@ -123,9 +122,7 @@ let successor_labels_normal ti =
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
-  | Call { op = _; label_after }
-  | Prim { op = _; label_after }
-  | Specific_can_raise { op = _; label_after } ->
+  | Call { op = _; label_after } | Prim { op = _; label_after } ->
     Label.Set.singleton label_after
 
 let successor_labels ~normal ~exn block =
@@ -179,8 +176,6 @@ let replace_successor_labels t ~normal ~exn block ~f =
         block.terminator.desc
       | Call { op; label_after } -> Call { op; label_after = f label_after }
       | Prim { op; label_after } -> Prim { op; label_after = f label_after }
-      | Specific_can_raise { op; label_after } ->
-        Specific_can_raise { op; label_after = f label_after }
     in
     block.terminator <- { block.terminator with desc }
 
@@ -191,17 +186,43 @@ let add_block_exn t block =
       Label.format block.start;
   Label.Tbl.add t.blocks block.start block
 
-let remove_block_exn t label =
-  match Label.Tbl.find t.blocks label with
-  | exception Not_found ->
-    Misc.fatal_errorf "Cfg.remove_block_exn: block %a not found" Label.format
-      label
-  | _ -> Label.Tbl.remove t.blocks label
+let remove_trap_instructions t removed_trap_handlers =
+  let remove_trap_instr _ b =
+    DLL.iter_cell b.body ~f:(fun cell ->
+        let i = DLL.value cell in
+        match i.desc with
+        | Pushtrap { lbl_handler } | Poptrap { lbl_handler } ->
+          if Label.Set.mem lbl_handler removed_trap_handlers
+          then DLL.delete_curr cell
+        | Op _ | Reloadretaddr | Prologue | Stack_check _ -> ())
+  in
+  if not (Label.Set.is_empty removed_trap_handlers)
+  then (
+    (* CR-someday gyorsh: avoid iterating over all the instructions to just to
+       remove a few pushtrap/poptrap. *)
+    assert Config.flambda2;
+    (* remove Lpushtrap and Lpoptrap instructions that refer to dead labels. *)
+    Label.Tbl.iter remove_trap_instr t.blocks)
 
 let remove_blocks t labels_to_remove =
+  let removed_labels = ref Label.Set.empty in
+  let removed_trap_handlers = ref Label.Set.empty in
   Label.Tbl.filter_map_inplace
-    (fun l b -> if Label.Set.mem l labels_to_remove then None else Some b)
-    t.blocks
+    (fun l b ->
+      if Label.Set.mem l labels_to_remove
+      then (
+        if b.is_trap_handler
+        then removed_trap_handlers := Label.Set.add l !removed_trap_handlers;
+        removed_labels := Label.Set.add l !removed_labels;
+        None)
+      else Some b)
+    t.blocks;
+  let labels_not_found = Label.Set.diff labels_to_remove !removed_labels in
+  if not (Label.Set.is_empty labels_not_found)
+  then
+    Misc.fatal_errorf "Cfg.remove_blocks: not found blocks %a" Label.Set.print
+      labels_not_found;
+  remove_trap_instructions t !removed_trap_handlers
 
 let get_block t label = Label.Tbl.find_opt t.blocks label
 
@@ -231,6 +252,27 @@ let fun_name t = t.fun_name
 let entry_label t = t.entry_label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks
+
+let iter_blocks_dfs : t -> f:(Label.t -> basic_block -> unit) -> unit =
+ fun cfg ~f ->
+  let marked = ref Label.Set.empty in
+  let rec iter (label : Label.t) : unit =
+    if not (Label.Set.mem label !marked)
+    then (
+      marked := Label.Set.add label !marked;
+      let block = get_block_exn cfg label in
+      f label block;
+      Label.Set.iter
+        (fun succ_label -> iter succ_label)
+        (successor_labels ~normal:true ~exn:true block))
+  in
+  iter cfg.entry_label;
+  (* note: some block may not have been seen since we currently cannot remove
+     all non-reachable blocks. *)
+  if Label.Set.cardinal !marked <> Label.Tbl.length cfg.blocks
+  then
+    iter_blocks cfg ~f:(fun label block ->
+        if not (Label.Set.mem label !marked) then f label block)
 
 let fold_blocks t ~f ~init = Label.Tbl.fold f t.blocks init
 
@@ -266,13 +308,13 @@ let dump_basic ppf (basic : basic) =
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } ->
     fprintf ppf "Pushtrap handler=%a" Label.format lbl_handler
-  | Poptrap -> fprintf ppf "Poptrap"
+  | Poptrap { lbl_handler } ->
+    fprintf ppf "Poptrap handler=%a" Label.format lbl_handler
   | Prologue -> fprintf ppf "Prologue"
   | Stack_check { max_frame_size_bytes } ->
     fprintf ppf "Stack_check size=%d" max_frame_size_bytes
 
 let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
-    ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
     ?(sep = "\n") ppf (terminator : terminator) =
   let first_arg =
     if Array.length args >= 1
@@ -365,9 +407,6 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Linear.Lprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %a" sep Label.format label_after
-  | Specific_can_raise { op; label_after } ->
-    Format.fprintf ppf "%a" specific_can_raise op;
-    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -390,11 +429,7 @@ let print_basic' ?print_reg ppf (instruction : basic instruction) =
 let print_basic ppf i = print_basic' ppf i
 
 let print_terminator' ?print_reg ppf (ti : terminator instruction) =
-  dump_terminator' ?print_reg
-    ~specific_can_raise:(fun ppf op ->
-      (* Print this as basic instruction. *)
-      print_basic' ?print_reg ppf { ti with desc = Op (Specific op) })
-    ~res:ti.res ~args:ti.arg ~sep:"\n" ppf ti.desc
+  dump_terminator' ?print_reg ~res:ti.res ~args:ti.arg ~sep:"\n" ppf ti.desc
 
 let print_terminator ppf ti = print_terminator' ppf ti
 
@@ -419,9 +454,6 @@ let can_raise_terminator (i : terminator) =
       (* Even if going via [caml_c_call], if there are no effects, the function
          cannot raise an exception. (Example: [caml_obj_dup].) *)
       match effects with No_effects -> false | Arbitrary_effects -> true)
-  | Specific_can_raise { op; _ } ->
-    assert (Arch.operation_can_raise op);
-    true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Tailcall_self _ ->
     false
@@ -436,9 +468,6 @@ let is_pure_terminator desc =
   | Return | Raise _ | Call_no_return _ | Tailcall_func _ | Tailcall_self _
   | Call _ | Prim _ ->
     false
-  | Specific_can_raise { op; _ } ->
-    assert (Arch.operation_can_raise op);
-    false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
@@ -449,7 +478,7 @@ let is_never_terminator desc =
   | Never -> true
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-  | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+  | Call_no_return _ | Call _ | Prim _ ->
     false
 
 let is_return_terminator desc =
@@ -457,7 +486,7 @@ let is_return_terminator desc =
   | Return -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-  | Call _ | Prim _ | Specific_can_raise _ ->
+  | Call _ | Prim _ ->
     false
 
 let is_pure_basic : basic -> bool = function
@@ -467,7 +496,7 @@ let is_pure_basic : basic -> bool = function
        wouldn't be. Saying it's not pure doesn't decrease the generated code
        quality and is future-proof.*)
     false
-  | Pushtrap _ | Poptrap ->
+  | Pushtrap _ | Poptrap _ ->
     (* Those instructions modify the trap stack which actually modifies the
        stack pointer. *)
     false
@@ -487,7 +516,10 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
   match r1.loc with
   | Unknown -> Misc.fatal_errorf "Cfg got unknown register location."
   | Reg _ -> Proc.register_class r1 = Proc.register_class r2
-  | Stack _ -> Proc.stack_slot_class r1.typ = Proc.stack_slot_class r2.typ
+  | Stack _ ->
+    Stack_class.equal
+      (Stack_class.of_machtype r1.typ)
+      (Stack_class.of_machtype r2.typ)
 
 let is_noop_move instr =
   match instr.desc with
@@ -506,7 +538,7 @@ let is_noop_move instr =
       | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
       | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
       | Begin_region | End_region | Dls_get | Poll | Alloc _ )
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+  | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
@@ -579,9 +611,61 @@ let make_empty_block ?label terminator : basic_block =
     exn = None;
     can_raise = false;
     is_trap_handler = false;
-    dead = false;
     cold = false
   }
+
+let is_poll (instr : basic instruction) =
+  match instr.desc with
+  | Op Poll -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Move | Spill | Reload | Opaque | Begin_region | End_region
+      | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_alloc (instr : basic instruction) =
+  match instr.desc with
+  | Op (Alloc _) -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Poll | Move | Spill | Reload | Opaque | Begin_region | End_region
+      | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_end_region (b : basic) =
+  match b with
+  | Op End_region -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Poll | Move | Spill | Reload | Opaque | Begin_region | Dls_get
+      | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_alloc_or_poll instr = is_alloc instr || is_poll instr
 
 let basic_block_contains_calls block =
   block.is_trap_handler
@@ -602,12 +686,8 @@ let basic_block_contains_calls block =
      | Call_no_return _ -> true
      | Call _ -> true
      | Prim { op = External _; _ } -> true
-     | Prim { op = Probe _; _ } -> true
-     | Specific_can_raise _ -> false)
-  || DLL.exists block.body ~f:(fun (instr : basic instruction) ->
-         match[@ocaml.warning "-4"] instr.desc with
-         | Op (Alloc _ | Poll) -> true
-         | _ -> false)
+     | Prim { op = Probe _; _ } -> true)
+  || DLL.exists block.body ~f:is_alloc_or_poll
 
 let max_instr_id t =
   (* CR-someday xclerc for xclerc: factor out with similar function in

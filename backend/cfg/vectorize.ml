@@ -228,7 +228,8 @@ end = struct
       let desc = basic_instruction.desc in
       match desc with
       | Op op -> Some op
-      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None)
+      | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
+        None)
     | Terminator _ -> None
 
   let copy (i : Cfg.basic Cfg.instruction) ~arg ~res ~id ~desc =
@@ -271,7 +272,7 @@ end = struct
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
       && Arch.equal_addressing_mode_without_displ addressing_mode1
            addressing_mode2
-      && Simple_operation.equal_mutable_flag mutability1 mutability2
+      && Operation.equal_mutable_flag mutability1 mutability2
       && Bool.equal is_atomic1 is_atomic2
     | ( Store (memory_chunk1, addressing_mode1, is_assignment1),
         Store (memory_chunk2, addressing_mode2, is_assignment2) ) ->
@@ -280,12 +281,12 @@ end = struct
            addressing_mode2
       && Bool.equal is_assignment1 is_assignment2
     | Intop intop1, Intop intop2 ->
-      Simple_operation.equal_integer_operation intop1 intop2
+      Operation.equal_integer_operation intop1 intop2
     | Intop_imm (intop1, _), Intop_imm (intop2, _) ->
-      Simple_operation.equal_integer_operation intop1 intop2
+      Operation.equal_integer_operation intop1 intop2
     | Floatop (width1, floatop1), Floatop (width2, floatop2) ->
-      Simple_operation.equal_float_width width1 width2
-      && Simple_operation.equal_float_operation floatop1 floatop2
+      Operation.equal_float_width width1 width2
+      && Operation.equal_float_operation floatop1 floatop2
     | Specific specific_operation1, Specific specific_operation2 ->
       Arch.isomorphic_specific_operation specific_operation1 specific_operation2
     | Move, _
@@ -787,11 +788,25 @@ end = struct
                 match Instruction.op instruction with
                 | None -> None
                 | Some op -> (
-                  match[@warning "-fragile-match"] op with
+                  match op with
                   | Move | Spill | Reload -> Some (reg, 0)
                   | Intop_imm (Iadd, n) -> Some (reg, n)
                   | Intop_imm (Isub, n) -> Some (reg, -n)
-                  | _ -> None))
+                  | Intop_imm
+                      ( ( Imul | Idiv | Imod | Iand | Ior | Ixor | Ilsl | Ilsr
+                        | Iasr | Ipopcnt | Imulh _ | Iclz _ | Ictz _ | Icomp _
+                          ),
+                        _ )
+                  | Opaque | Begin_region | End_region | Dls_get | Poll
+                  | Const_int _ | Const_float32 _ | Const_float _
+                  | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Load _
+                  | Store (_, _, _)
+                  | Intop _ | Intop_atomic _
+                  | Floatop (_, _)
+                  | Csel _ | Reinterpret_cast _ | Static_cast _
+                  | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+                  | Alloc _ ->
+                    None))
               | _ -> None
             in
             match next with

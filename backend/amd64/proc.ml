@@ -12,7 +12,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+
+[@@@ocaml.warning "+a-40-41-42"]
 
 (* Description of the AMD64 processor *)
 
@@ -21,7 +22,6 @@ open! Int_replace_polymorphic_compare
 open Misc
 open Arch
 open Cmm
-open Reg
 
 let fp = Config.with_frame_pointers
 
@@ -99,20 +99,13 @@ let float_reg_name =
 
 let num_register_classes = 2
 
-let register_class r =
+let register_class (r : Reg.t) =
   match r.typ with
   | Val | Int | Addr -> 0
   | Float | Float32 | Vec128 | Valx2 -> 1
 
-let num_stack_slot_classes = 3
 
-let stack_slot_class typ =
-  match (typ : machtype_component) with
-  | Val | Addr | Int -> 0
-  | Float | Float32 -> 1
-  | Vec128 | Valx2 -> 2
-
-let types_are_compatible left right =
+let types_are_compatible (left : Reg.t)  (right : Reg.t) =
   match left.typ, right.typ with
   | (Int | Val | Addr), (Int | Val | Addr)
   | Float, Float
@@ -120,13 +113,6 @@ let types_are_compatible left right =
   | (Valx2 | Vec128), (Valx2 | Vec128) ->
     true
   | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
-
-let stack_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | 2 -> "x"
-  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers = [| 13; 16 |]
 
@@ -172,7 +158,7 @@ let phys_reg ty n =
   | Float32 -> hard_float32_reg.(n - 100)
   | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
 
-let gc_regs_offset reg =
+let gc_regs_offset (reg : Reg.t) =
   (* Given register [r], return the offset (the number of [value] slots,
      not their size in bytes) of the register from the
      [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
@@ -219,8 +205,6 @@ let destroy_xmm n =
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
-
-let num_destroyed_by_plt_stub = Array.length destroyed_by_plt_stub
 
 let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 
@@ -290,11 +274,11 @@ let calling_conventions
   (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
-let incoming ofs =
+let incoming ofs : Reg.stack_location =
   if ofs >= 0
   then Incoming ofs
   else Domainstate (ofs + size_domainstate_args)
-let outgoing ofs =
+let outgoing ofs : Reg.stack_location =
   if ofs >= 0
   then Outgoing ofs
   else Domainstate (ofs + size_domainstate_args)
@@ -489,7 +473,7 @@ let destroyed_at_c_call_unix =
 
 let destroyed_at_c_call =
   (* C calling conventions preserve rbx, but it is clobbered
-     by the code sequence used for C calls in emit.mlp, so it
+     by the code sequence used for C calls in emit.ml, so it
      is marked as destroyed. *)
   if win64 then destroyed_at_c_call_win64 else destroyed_at_c_call_unix
 
@@ -533,9 +517,6 @@ let destroyed_at_single_float64_store =
   else
     (destroy_xmm 15)
 ;;
-
-let has_pushtrap traps =
-  List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
 let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
   match register_behavior with
@@ -610,7 +591,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                   | Isextend32 | Izextend32 | Ipause
                   | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
-  | Poptrap | Prologue ->
+  | Poptrap _ | Prologue ->
     if fp then [| rbp |] else [||]
   | Stack_check _ ->
     assert false (* the instruction is added after register allocation *)
@@ -631,12 +612,6 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     assert (stack_ofs >= 0);
     if alloc || stack_ofs > 0 then all_phys_regs else destroyed_at_c_call
   | Call {op = Indirect | Direct _; _} -> all_phys_regs
-  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
-                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                       | Icldemote _ | Iprefetch _); _ } ->
-    Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
    We current return `true` when `destroyed_at_terminator` returns
@@ -661,12 +636,6 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
       if alloc then true else false
   | Call {op = Indirect | Direct _; _} ->
     true
-  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
-                       | Isimd _ | Isimd_mem _ | Ilfence | Isfence | Imfence
-                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                       | Icldemote _ | Iprefetch _); _ } ->
-    Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* Layout of the stack frame *)
 
@@ -676,9 +645,9 @@ let trap_frame_size_in_bytes = 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fp || fun_contains_calls ||
-  fun_num_stack_slots.(0) > 0 ||
-  fun_num_stack_slots.(1) > 0 ||
-  fun_num_stack_slots.(2) > 0
+  Stack_class.Tbl.exists
+    fun_num_stack_slots
+    ~f:(fun _stack_class num -> num > 0)
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
@@ -691,9 +660,7 @@ let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
     let sz =
       (stack_offset
        + 8
-       + 8 * num_stack_slots.(0)
-       + 8 * num_stack_slots.(1)
-       + 16 * num_stack_slots.(2)
+       + Stack_class.Tbl.total_size_in_bytes num_stack_slots
        + (if fp then 8 else 0))
     in Misc.align sz 16
   end else
@@ -708,7 +675,7 @@ type slot_offset =
 
 let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
       ~fun_num_stack_slots =
-  match loc with
+  match ( loc : Reg.stack_location) with
   | Incoming n ->
       Bytes_relative_to_stack_pointer (
         frame_size ~stack_offset ~contains_calls:fun_contains_calls
@@ -716,14 +683,8 @@ let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
         + n)
   | Local n ->
       Bytes_relative_to_stack_pointer (
-        stack_offset +
-          (* Preserves original ordering (int -> float) *)
-          match stack_class with
-          | 2 -> n * 16
-          | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
-          | 1 -> fun_num_stack_slots.(2) * 16
-                 + fun_num_stack_slots.(0) * 8 + n * 8
-          | _ -> Misc.fatal_errorf "Unknown register class %d" stack_class)
+        stack_offset + Stack_class.Tbl.offset_in_bytes fun_num_stack_slots ~stack_class ~slot:n
+)
   | Outgoing n -> Bytes_relative_to_stack_pointer n
   | Domainstate n ->
       Bytes_relative_to_domainstate_pointer (

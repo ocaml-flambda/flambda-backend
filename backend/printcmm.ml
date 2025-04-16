@@ -15,6 +15,7 @@
 
 (* Pretty-printing of C-- code *)
 
+open! Int_replace_polymorphic_compare
 open Format
 open Cmm
 
@@ -25,9 +26,10 @@ open Location_tracker_formatter
 let with_location_mapping ?label ~dbg ppf f =
   with_location_mapping ?label ~loc:(Debuginfo.to_location dbg) ppf f
 
-let rec_flag ppf = function
-  | Nonrecursive -> ()
+let ccatch_flag ppf = function
+  | Normal -> ()
   | Recursive -> fprintf ppf " rec"
+  | Exn_handler -> fprintf ppf " exn"
 
 let machtype_component ppf (ty : machtype_component) =
   match ty with
@@ -356,7 +358,7 @@ let rec expr ppf = function
       fprintf ppf ")@]")
   | Csequence(e1, e2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" sequence e1 sequence e2
-  | Cifthenelse(e1, e2_dbg, e2, e3_dbg, e3, dbg, _kind) ->
+  | Cifthenelse(e1, e2_dbg, e2, e3_dbg, e3, dbg) ->
       with_location_mapping ~label:"Cifthenelse-e1" ~dbg ppf (fun () ->
       fprintf ppf "@[<2>(if@ %a@ " expr e1;
       with_location_mapping ~label:"Cifthenelse-e2" ~dbg:e2_dbg ppf (fun () ->
@@ -364,7 +366,7 @@ let rec expr ppf = function
       with_location_mapping ~label:"Cifthenelse-e3" ~dbg:e3_dbg ppf (fun () ->
       fprintf ppf "%a" expr e3);
       fprintf ppf ")@]")
-  | Cswitch(e1, index, cases, dbg, _kind) ->
+  | Cswitch(e1, index, cases, dbg) ->
       with_location_mapping ~label:"Cswitch" ~dbg ppf (fun () ->
       let print_case i ppf =
         for j = 0 to Array.length index - 1 do
@@ -375,7 +377,7 @@ let rec expr ppf = function
         fprintf ppf "@ @[<2>%t@ %a@]" (print_case i) sequence (fst cases.(i))
        done in
       fprintf ppf "@[<v 0>@[<2>(switch@ %a@ @]%t)@]" expr e1 print_cases)
-  | Ccatch(flag, handlers, e1, _kind) ->
+  | Ccatch(flag, handlers, e1) ->
       let print_handler ppf (i, ids, e2, dbg, is_cold) =
         with_location_mapping ~label:"Ccatch-handler" ~dbg ppf (fun () ->
         fprintf ppf "(%d%a)%s@ %a"
@@ -394,20 +396,13 @@ let rec expr ppf = function
       in
       fprintf ppf
         "@[<2>(catch%a@ %a@;<1 -2>with%a)@]"
-        rec_flag flag
+        ccatch_flag flag
         sequence e1
         print_handlers handlers
   | Cexit (i, el, traps) ->
       fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, exn_cont, id, extra_args, e2, dbg, _value_kind) ->
-      fprintf ppf "@[<2>(try@ %a@;<1 -2>with(%d)@ %a@ "
-            sequence e1 exn_cont
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space VP.print)
-            (id :: (List.map fst extra_args));
-      with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
-            fprintf ppf "%a)@]" sequence e2);
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2

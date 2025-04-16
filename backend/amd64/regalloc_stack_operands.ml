@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Regalloc_utils
 open! Int_replace_polymorphic_compare
@@ -255,7 +255,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
                  | Ibswap _))
   | Reloadretaddr
   | Pushtrap _
-  | Poptrap
+  | Poptrap _
   | Prologue ->
     (* no rewrite *)
     May_still_have_spilled_registers
@@ -291,5 +291,3 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
     May_still_have_spilled_registers
   | Prim {op = Probe _; _} ->
     may_use_stack_operands_everywhere map term
-  | Specific_can_raise _ ->
-    fatal "no instructions specific for this architecture can raise"

@@ -124,6 +124,10 @@ type contention_context =
   | Write_mutable
   | Force_lazy
 
+type visibility_context =
+  | Read_mutable
+  | Write_mutable
+
 type unsupported_stack_allocation =
   | Lazy
   | Module
@@ -255,6 +259,7 @@ type error =
       Value.error * submode_reason *
       Env.locality_context option *
       contention_context option *
+      visibility_context option *
       Env.shared_context option
   | Curried_application_complete of
       arg_label * Mode.Alloc.error * [`Prefix|`Single_arg|`Entire_apply]
@@ -391,6 +396,9 @@ type expected_mode =
     contention_context : contention_context option;
     (** Explains why contention axis of [mode] is low. *)
 
+    visibility_context : visibility_context option;
+    (** Explains why visibility axis of [mode] is low. *)
+
     mode : Value.r;
     (** The upper bound, hence r (right) *)
 
@@ -475,6 +483,7 @@ let mode_default mode =
   { position = RNontail;
     locality_context = None;
     contention_context = None;
+    visibility_context = None;
     mode = Value.disallow_left mode;
     strictly_local = false;
     tuple_modes = None }
@@ -620,9 +629,10 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
   | Error failure_reason ->
       let locality_context = expected_mode.locality_context in
       let contention_context = expected_mode.contention_context in
+      let visibility_context = expected_mode.visibility_context in
       let error =
         Submode_failed(failure_reason, reason, locality_context,
-          contention_context, shared_context)
+          contention_context, visibility_context, shared_context)
       in
       raise (Error(loc, env, error))
 
@@ -1007,9 +1017,11 @@ let mode_project_mutable =
     Contention.Const.Shared
     |> Contention.of_const
     |> Value.max_with (Monadic Contention)
+    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read
   in
   { (mode_default mode) with
-    contention_context = Some Read_mutable }
+    contention_context = Some Read_mutable;
+    visibility_context = Some Read_mutable }
 
 (** The [expected_mode] of the record when mutating a mutable field. *)
 let mode_mutate_mutable =
@@ -1017,9 +1029,11 @@ let mode_mutate_mutable =
     Contention.Const.Uncontended
     |> Contention.of_const
     |> Value.max_with (Monadic Contention)
+    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read_write
   in
   { (mode_default mode) with
-    contention_context = Some Write_mutable }
+    contention_context = Some Write_mutable;
+    visibility_context = Some Write_mutable }
 
 (** The [expected_mode] of the lazy expression when forcing it. *)
 let mode_force_lazy =
@@ -3710,6 +3724,7 @@ let list_labels env ty =
 
 (* Collecting arguments for function applications *)
 
+(* See also Note [Type-checking applications] *)
 type untyped_apply_arg =
   | Known_arg of
       { sarg : Parsetree.expression;
@@ -3825,6 +3840,71 @@ let check_curried_application_complete ~env ~app_loc args =
   in
   loop false args
 
+(* Note [Type-checking applications]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   This Note explains how we type-check a function application. It focuses on
+   the common case. Additions to this Note explaining the various special
+   cases (and why levels are bumped where they are) are welcome.
+
+   1. We type-check the function. This is done right in [type_expect_] in
+   the [Pexp_apply] case. (Everything hereafter is done in [type_application].)
+
+   2. We analyze the type of the function, building up a list of [Arg] and
+   [Omitted] nodes describing the arguments in that type. This is done in
+   [collect_apply_args]. The ordering in this list is based on the type of the
+   function, *not* the order of arguments as written in the source code. (The
+   actual arguments passed in the source code are reordered by a quadratic
+   algorithm, calling [extract_label] for each arrow evident in the function's
+   type. But this algorithm is fast in the common case.) An [Arg] denotes an
+   argument that will actually be passed to the function. It is one of these
+   cases:
+
+     * [Known_arg]: This is an argument whose type is dictated by the (known)
+     type of the function being applied.
+
+     * [Unknown_arg]: This is an argument whose type is unknown, either because
+     the type of the function is unknown (because the function is itself
+     lambda-bound) or because the function is over-applied.
+
+     * [Eliminated_optional_arg]: This is an optional argument (either a normal
+     optional argument with [?] or one labeled with [%call_pos]) that will be
+     supplied, even though the user did not actually write the argument in.
+
+   An [Omitted] argument denotes one left off by partial application. However,
+   [collect_apply_args] stops when it runs out of source arguments at the
+   application site, so any omitted arguments after all the supplied arguments
+   are left off the list returned from [collect_apply_args].
+
+   3. Type-check all of the [Arg] arguments, by mapping [type_apply_arg] over
+   the list of arguments. This handles all three varieties of [Arg] argument;
+   we no longer track the distinction between the three cases.
+
+   [Omitted] arguments are left untouched.
+
+   4. Type-check all of the [Omitted] arguments, in [type_omitted_parameters].
+   There are two critical steps of type-checking an omitted argument:
+
+     * Adjust the final type of the application to be a function taking the type
+     of the omitted argument as a parameter.
+
+     * Ensure that the constructed arrow (and allocation of the closure) has the
+     correct mode: if any of the closed-over arguments is local or once, say,
+     then the final result must also be local or once.
+
+   This is done (working right-to-left over the list produced by
+   [collect_apply_args]) by collecting up passed [Arg]s until an [Omitted] is
+   encountered, and then doing a submode check on each collected [Arg] against
+   the expected mode of the final closure. In addition, we use the [close_over]
+   and [partial_apply] functions from [Mode.Alloc] to make sure that the modes
+   of the constructed arrows themselves are correct. This algorithm is
+   quadratic, looking at each previously seen [Arg] for every [Omitted]. (It
+   seems to be easy to make this not quadratic, though.)
+*)
+
+(* This function processes any arguments remaining after traversing the type of
+   the function; these would be over-saturated arguments or arguments to a
+   function whose type is not known. *)
 let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar =
   let labels_match ~param ~arg =
     param = arg
@@ -3919,6 +3999,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
   in
   loop ty_fun mode_fun rev_args sargs
 
+(* See Note [Type-checking applications] for an overview *)
 let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret_tvar =
   let warned = ref false in
   let rec loop ty_fun ty_fun0 mode_fun rev_args sargs =
@@ -4029,6 +4110,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
+(* See Note [Type-checking applications] for an overview *)
 let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
   let ty_ret, mode_ret, _, _, args =
     List.fold_left
@@ -4176,12 +4258,9 @@ let rec is_nonexpansive exp =
   | Texp_assert (exp, _) ->
       is_nonexpansive exp
   | Texp_apply (
-      { exp_desc = Texp_ident (_, _, {val_kind =
-             Val_prim {Primitive.prim_name =
-                         ("%raise" | "%reraise" | "%raise_notrace")}},
-             Id_prim _, _) },
-      [Nolabel, Arg (e, _)], _, _, _) ->
-     is_nonexpansive e
+      { exp_desc = Texp_ident (_, _, {val_kind = Val_prim prim}, Id_prim _, _) },
+      args, _, _, _) ->
+     is_nonexpansive_prim prim args
   | Texp_array (_, _, _ :: _, _)
   | Texp_apply _
   | Texp_try _
@@ -4207,6 +4286,15 @@ let rec is_nonexpansive exp =
   (* Texp_hole can always be replaced by a field read from the old allocation,
      which is non-expansive: *)
   | Texp_hole _ -> true
+
+and is_nonexpansive_prim (prim : Primitive.description) args =
+  match prim.prim_name, args with
+  | ("%raise" | "%reraise" | "%raise_notrace"), [Nolabel, Arg (e, _)] ->
+    is_nonexpansive e
+  | ("%identity" | "%obj_magic"), [Nolabel, Arg (e, _)]
+    when not (Language_extension.erasable_extensions_only ()) ->
+    is_nonexpansive e
+  | _ -> false
 
 and is_nonexpansive_mod mexp =
   match mexp.mod_desc with
@@ -4953,13 +5041,13 @@ let unique_use ~loc ~env mode_l mode_r  =
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Monadic Uniqueness, e) in
-        raise (Error(loc, env, Submode_failed(e, Other, None, None, None)))
+        raise (Error(loc, env, Submode_failed(e, Other, None, None, None, None)))
     );
     (match Linearity.submode linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Comonadic Linearity, e) in
-        raise (Error (loc, env, Submode_failed(e, Other, None, None, None)))
+        raise (Error (loc, env, Submode_failed(e, Other, None, None, None, None)))
     );
     (Uniqueness.disallow_left Uniqueness.aliased,
      Linearity.disallow_right Linearity.many)
@@ -5790,6 +5878,7 @@ and type_expect_
           }
       end
   | Pexp_apply(sfunct, sargs) ->
+      (* See Note [Type-checking applications] *)
       assert (sargs <> []);
       let pm = position_and_mode env expected_mode sexp in
       let funct_mode, funct_expected_mode =
@@ -8074,6 +8163,7 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
       unify_exp env texp ty_expected;
       texp
 
+(* See Note [Type-checking applications] for an overview *)
 and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (lbl, arg) =
   match arg with
   | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
@@ -8194,6 +8284,7 @@ and type_application env app_loc expected_mode position_and_mode
       check_partial_application ~statement:false exp;
       ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, position_and_mode)
   | _ ->
+    (* See Note [Type-checking applications] for an overview *)
       let ty = funct.exp_type in
       let ignore_labels =
         !Clflags.classic ||
@@ -10226,19 +10317,31 @@ let escaping_hint (failure_reason : Value.error) submode_reason
 
 
 let contention_hint _fail_reason _submode_reason context =
-  match context with
+  match (context : contention_context option) with
   | Some Read_mutable ->
       [Location.msg
-        "@[Hint: In order to read from the mutable fields,@ \
+        "@[Hint: In order to read from its mutable fields,@ \
         this record needs to be at least shared.@]"]
   | Some Write_mutable ->
       [Location.msg
-        "@[Hint: In order to write into the mutable fields,@ \
+        "@[Hint: In order to write into its mutable fields,@ \
         this record needs to be uncontended.@]"]
   | Some Force_lazy ->
       [Location.msg
         "@[Hint: In order to force the lazy expression,@ \
         the lazy needs to be uncontended.@]"]
+  | None -> []
+
+let visibility_hint _fail_reason _submode_reason context =
+  match (context : visibility_context option) with
+  | Some Read_mutable ->
+      [Location.msg
+        "@[Hint: In order to read from its mutable fields,@ \
+        this record needs to have read visibility.@]"]
+  | Some Write_mutable ->
+      [Location.msg
+        "@[Hint: In order to write into its mutable fields,@ \
+        this record needs to have read_write visibility.@]"]
   | None -> []
 
 let report_type_expected_explanation_opt expl ppf =
@@ -10863,7 +10966,7 @@ let report_error ~loc env =
         (Style.as_inline_code Printtyp.type_expr) ty
         actual expected
   | Submode_failed(fail_reason, submode_reason, locality_context,
-      contention_context, shared_context)
+      contention_context, visibility_context, shared_context)
      ->
       let sub =
         match fail_reason with
@@ -10877,8 +10980,11 @@ let report_error ~loc env =
           escaping_hint fail_reason submode_reason locality_context
         | Error (Monadic Contention, _ ) ->
           contention_hint fail_reason submode_reason contention_context
+        | Error (Monadic Visibility, _) ->
+          visibility_hint fail_reason submode_reason visibility_context
         | Error (Comonadic Portability, _ ) -> []
         | Error (Comonadic Yielding, _) -> []
+        | Error (Comonadic Statefulness, _) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with

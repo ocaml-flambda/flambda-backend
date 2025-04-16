@@ -25,26 +25,31 @@ type t
 type raw_data = nativeint
 
 external repr : 'a -> t @@ portable = "%obj_magic"
+external repr_contended : 'a @ contended -> t @ contended @@ portable = "%obj_magic"
 external obj : t -> 'a @@ portable = "%obj_magic"
+external obj_contended : t @ contended -> 'a @ contended @@ portable = "%obj_magic"
 external magic : 'a -> 'b @@ portable = "%obj_magic"
 external magic_portable : ('a[@local_opt]) -> ('a[@local_opt]) @ portable @@ portable = "%identity"
 external magic_uncontended : ('a[@local_opt]) @ contended -> ('a[@local_opt]) @@ portable = "%identity"
 external magic_unique : ('a[@local_opt]) -> ('a[@local_opt]) @ unique @@ portable = "%identity"
 external magic_many : ('a[@local_opt]) @ once -> ('a[@local_opt]) @@ portable = "%identity"
 external magic_at_unique : ('a[@local_opt]) @ unique -> ('b[@local_opt]) @ unique @@ portable= "%identity"
-external is_int : t -> bool @@ portable = "%obj_is_int"
+external is_int : t @ contended -> bool @@ portable = "%obj_is_int"
 let [@inline always] is_block a = not (is_int a)
-external tag : t -> int @@ portable = "caml_obj_tag" [@@noalloc]
+external tag : t @ contended -> int @@ portable = "caml_obj_tag" [@@noalloc]
 (* For Flambda 2 there is a strict distinction between arrays and other
    blocks.  %obj_size and %obj_field may only be used on blocks.  As such
    they are protected here using [Sys.opaque_identity], since this
    restriction is likely not respected by callees of this module. *)
-external size : t -> int @@ portable = "%obj_size"
-let [@inline always] size t = size (Sys.opaque_identity t)
+external size : t @ contended -> int @@ portable = "%obj_size"
+external opaque_identity_contended : 'a @ contended -> 'a @ contended @@ portable = "%opaque"
+let [@inline always] size t = size (opaque_identity_contended t)
 external reachable_words : t -> int @@ portable = "caml_obj_reachable_words"
 external uniquely_reachable_words : t array -> int array * int @@ portable = "caml_obj_uniquely_reachable_words"
 external field : t -> int -> t @@ portable = "%obj_field"
 let [@inline always] field t index = field (Sys.opaque_identity t) index
+external field_contended : t @ contended -> int -> t @ contended @@ portable = "%obj_field"
+let [@inline always] field_contended t index = field_contended (opaque_identity_contended t) index
 external set_field : t -> int -> t -> unit @@ portable = "%obj_set_field"
 let [@inline always] set_field t index new_value =
   set_field (Sys.opaque_identity t) index new_value
@@ -97,16 +102,16 @@ module Extension_constructor =
 struct
   type t = extension_constructor
   let of_val x =
-    let x = repr x in
+    let x = repr_contended x in
     let slot =
-      if (is_block x) && (tag x) <> object_tag && (size x) >= 1 then field x 0
+      if (is_block x) && (tag x) <> object_tag && (size x) >= 1 then field_contended x 0
       else x
     in
     let name =
-      if (is_block slot) && (tag slot) = object_tag then field slot 0
+      if (is_block slot) && (tag slot) = object_tag then field_contended slot 0
       else invalid_arg "Obj.extension_constructor"
     in
-      if (tag name) = string_tag then (obj slot : t)
+      if (tag name) = string_tag then (obj_contended slot : t)
       else invalid_arg "Obj.extension_constructor"
 
   let [@inline always] name (slot : t) =

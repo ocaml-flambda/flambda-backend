@@ -35,6 +35,8 @@ module Jkind_mod_bounds = struct
   module Portability = Mode.Portability.Const
   module Contention = Mode.Contention.Const_op
   module Yielding = Mode.Yielding.Const
+  module Statefulness = Mode.Statefulness.Const
+  module Visibility = Mode.Visibility.Const_op
   module Externality = Jkind_axis.Externality
   module Nullability = Jkind_axis.Nullability
 
@@ -45,6 +47,8 @@ module Jkind_mod_bounds = struct
     portability: Portability.t;
     contention: Contention.t;
     yielding: Yielding.t;
+    statefulness: Statefulness.t;
+    visibility: Visibility.t;
     externality: Externality.t;
     nullability: Nullability.t;
   }
@@ -55,6 +59,8 @@ module Jkind_mod_bounds = struct
   let[@inline] portability t = t.portability
   let[@inline] contention t = t.contention
   let[@inline] yielding t = t.yielding
+  let[@inline] statefulness t = t.statefulness
+  let[@inline] visibility t = t.visibility
   let[@inline] externality t = t.externality
   let[@inline] nullability t = t.nullability
 
@@ -65,6 +71,8 @@ module Jkind_mod_bounds = struct
       ~portability
       ~contention
       ~yielding
+      ~statefulness
+      ~visibility
       ~externality
       ~nullability =
     {
@@ -74,6 +82,8 @@ module Jkind_mod_bounds = struct
       portability;
       contention;
       yielding;
+      statefulness;
+      visibility;
       externality;
       nullability;
     }
@@ -84,6 +94,8 @@ module Jkind_mod_bounds = struct
   let[@inline] set_portability portability t = { t with portability }
   let[@inline] set_contention contention t = { t with contention }
   let[@inline] set_yielding yielding t = { t with yielding }
+  let[@inline] set_statefulness statefulness t = { t with statefulness }
+  let[@inline] set_visibility visibility t = { t with visibility }
   let[@inline] set_externality externality t = { t with externality }
   let[@inline] set_nullability nullability t = { t with nullability }
 
@@ -121,6 +133,16 @@ module Jkind_mod_bounds = struct
       then Yielding.max
       else t.yielding
     in
+    let statefulness =
+      if mem max_axes (Modal (Comonadic Statefulness))
+      then Statefulness.max
+      else t.statefulness
+    in
+    let visibility =
+      if mem max_axes (Modal (Monadic Visibility))
+      then Visibility.max
+      else t.visibility
+    in
     let externality =
       if mem max_axes (Nonmodal Externality)
       then Externality.max
@@ -138,6 +160,8 @@ module Jkind_mod_bounds = struct
       portability;
       contention;
       yielding;
+      statefulness;
+      visibility;
       externality;
       nullability;
     }
@@ -176,6 +200,16 @@ module Jkind_mod_bounds = struct
       then Yielding.min
       else t.yielding
     in
+    let statefulness =
+      if mem min_axes (Modal (Comonadic Statefulness))
+      then Statefulness.min
+      else t.statefulness
+    in
+    let visibility =
+      if mem min_axes (Modal (Monadic Visibility))
+      then Visibility.min
+      else t.visibility
+    in
     let externality =
       if mem min_axes (Nonmodal Externality)
       then Externality.min
@@ -192,6 +226,8 @@ module Jkind_mod_bounds = struct
       uniqueness;
       portability;
       contention;
+      statefulness;
+      visibility;
       yielding;
       externality;
       nullability;
@@ -211,6 +247,10 @@ module Jkind_mod_bounds = struct
      Contention.(le max (contention t))) &&
     (not (mem axes (Modal (Comonadic Yielding))) ||
      Yielding.(le max (yielding t))) &&
+    (not (mem axes (Modal (Comonadic Statefulness))) ||
+     Statefulness.(le max (statefulness t))) &&
+    (not (mem axes (Modal (Monadic Visibility))) ||
+     Visibility.(le max (visibility t))) &&
     (not (mem axes (Nonmodal Externality)) ||
      Externality.(le max (externality t))) &&
     (not (mem axes (Nonmodal Nullability)) ||
@@ -223,6 +263,8 @@ module Jkind_mod_bounds = struct
         portability = Portable;
         contention = Uncontended;
         yielding = Yielding;
+        statefulness = Stateful;
+        visibility = Read_write;
         externality = External;
         nullability = Maybe_null } -> true
     | _ -> false
@@ -234,17 +276,21 @@ module Jkind_mod_bounds = struct
           portability;
           contention;
           yielding;
+          statefulness;
+          visibility;
           externality;
           nullability } =
     Format.fprintf ppf "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ \
-      portability = %a;@ contention = %a;@ yielding = %a;@ externality = %a;@ \
-      nullability = %a }@]"
+      portability = %a;@ contention = %a;@ yielding = %a;@ statefulness = %a;@ \
+      visibility = %a;@ externality = %a;@ nullability = %a }@]"
       Locality.print locality
       Linearity.print linearity
       Uniqueness.print uniqueness
       Portability.print portability
       Contention.print contention
       Yielding.print yielding
+      Statefulness.print statefulness
+      Visibility.print visibility
       Externality.print externality
       Nullability.print nullability
 end

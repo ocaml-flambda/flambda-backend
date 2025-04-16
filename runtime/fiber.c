@@ -217,7 +217,8 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 #else
   const char* mapping_name = "stack";
 #endif
-  stack = caml_mem_map(len, 0, mapping_name);
+  /* These mappings should never use HugeTLB pages, due to the guard page */
+  stack = caml_mem_map(len, CAML_MAP_NO_HUGETLB, mapping_name);
   if (stack == NULL) {
     return NULL;
   }

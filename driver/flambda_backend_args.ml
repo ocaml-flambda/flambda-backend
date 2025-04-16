@@ -99,6 +99,12 @@ let mk_no_cfg_stack_checks f =
 let mk_cfg_stack_checks_threshold f =
   "-cfg-stack-checks-threshold", Arg.Int f, "<n>  Only CFGs with fewer than n blocks will be optimized"
 
+let mk_cfg_eliminate_dead_trap_handlers f =
+  "-cfg-eliminate-dead-trap-handlers", Arg.Unit f, " Eliminate dead trap handlers"
+
+let mk_no_cfg_eliminate_dead_trap_handlers f =
+  "-no-cfg-eliminate-dead-trap-handlers", Arg.Unit f, " Do not eliminate dead trap handlers"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -262,6 +268,15 @@ let mk_flambda2_advanced_meet f =
   Printf.sprintf " Use an advanced meet algorithm (deprecated) (Flambda 2 only)"
 ;;
 
+let mk_flambda2_join_algorithm f =
+  "-flambda2-join-algorithm", Arg.Symbol (["binary"; "n-way"; "checked"], f),
+  Printf.sprintf " Select the join algorithm to use (Flambda 2 only)\n \
+      \     Valid values are: \n\
+      \       \"binary\" is the legacy binary join;\n\
+      \       \"n-way\" is the new n-way join;\n\
+      \       \"checked\" runs both algorithms and compares them (use for \
+      debugging)."
+;;
 
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
@@ -726,6 +741,9 @@ module type Flambda_backend_options = sig
   val no_cfg_stack_checks : unit -> unit
   val cfg_stack_checks_threshold : int -> unit
 
+  val cfg_eliminate_dead_trap_handlers : unit -> unit
+  val no_cfg_eliminate_dead_trap_handlers : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -768,6 +786,7 @@ module type Flambda_backend_options = sig
   val no_flambda2_result_types : unit -> unit
   val flambda2_basic_meet : unit -> unit
   val flambda2_advanced_meet : unit -> unit
+  val flambda2_join_algorithm : string -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -857,6 +876,9 @@ struct
     mk_no_cfg_stack_checks F.no_cfg_stack_checks;
     mk_cfg_stack_checks_threshold F.cfg_stack_checks_threshold;
 
+    mk_cfg_eliminate_dead_trap_handlers F.cfg_eliminate_dead_trap_handlers;
+    mk_no_cfg_eliminate_dead_trap_handlers F.no_cfg_eliminate_dead_trap_handlers;
+
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
 
@@ -904,6 +926,7 @@ struct
       F.no_flambda2_result_types;
     mk_flambda2_basic_meet F.flambda2_basic_meet;
     mk_flambda2_advanced_meet F.flambda2_advanced_meet;
+    mk_flambda2_join_algorithm F.flambda2_join_algorithm;
     mk_flambda2_unbox_along_intra_function_control_flow
       F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
@@ -1020,6 +1043,11 @@ module Flambda_backend_options_impl = struct
   let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
   let cfg_stack_checks_threshold n = Flambda_backend_flags.cfg_stack_checks_threshold := n
 
+  let cfg_eliminate_dead_trap_handlers =
+    set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+  let no_cfg_eliminate_dead_trap_handlers =
+    clear' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
@@ -1109,6 +1137,15 @@ module Flambda_backend_options_impl = struct
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
   let flambda2_basic_meet () = ()
   let flambda2_advanced_meet () = ()
+  let flambda2_join_algorithm algorithm =
+    match algorithm with
+    | "binary" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Binary
+    | "n-way" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.N_way
+    | "checked" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Checked
+    | _ -> () (* This should not occur as we use Arg.Symbol *)
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -1348,7 +1385,8 @@ module Extra_params = struct
     | "vectorize-max-block-size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
-    | "cfg-stack-checks-threshold" -> set_int' Flambda_backend_flags.cfg_stack_checks_threshold
+    | "cfg-eliminate-dead-trap-handlers" ->
+        set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges
@@ -1437,6 +1475,13 @@ module Extra_params = struct
       | "basic" | "advanced" -> ()
       | _ ->
         Misc.fatal_error "Syntax: flambda2-meet_algorithm=basic|advanced");
+      true
+    | "flambda2-join-algorithm" ->
+      (match String.lowercase_ascii v with
+      | "binary" | "n-way" | "checked" as v ->
+        Flambda_backend_options_impl.flambda2_join_algorithm v
+      | _ ->
+        Misc.fatal_error "Syntax: flambda2-join-algorithm=binary|n-way|checked");
       true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow

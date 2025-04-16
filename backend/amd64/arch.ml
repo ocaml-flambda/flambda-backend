@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 
@@ -159,6 +159,7 @@ type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type float_width = Cmm.float_width
 
+(* Specific operations, including [Simd], must not raise. *)
 type specific_operation =
     Ilea of addressing_mode            (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
@@ -308,7 +309,7 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "pause"
   | Icldemote _ ->
       fprintf ppf "cldemote %a" printreg arg.(0)
-  | Iprefetch { is_write; locality; } ->
+  | Iprefetch { is_write; locality; _ } ->
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
@@ -331,16 +332,6 @@ let operation_is_pure = function
   | Icldemote _ | Iprefetch _ -> false
   | Isimd op -> Simd.is_pure op
   | Isimd_mem (op, _addr) -> Simd.Mem.is_pure op
-
-(* Specific operations that can raise *)
-(* Keep in sync with [Vectorize_specific] *)
-let operation_can_raise = function
-  | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _
-  | Irdtsc | Irdpmc | Ipause | Isimd _ | Isimd_mem _
-  | Ilfence | Isfence | Imfence
-  | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Icldemote _ | Iprefetch _ -> false
 
 (* Keep in sync with [Vectorize_specific] *)
 let operation_allocates = function

@@ -28,13 +28,6 @@ val phys_reg: Cmm.machtype_component -> int -> Reg.t
 val gc_regs_offset : Reg.t -> int
 val precolored_regs : unit -> Reg.Set.t
 
-(* The number of stack slot classes may differ from the number of register classes.
-   On x86, we use the same class for floating point and SIMD vector registers,
-   but they take up different amounts of space on the stack. *)
-val num_stack_slot_classes: int
-val stack_slot_class: Cmm.machtype_component -> int
-val stack_class_tag: int -> string
-
 (* If two registers have compatible types then we allow moves between them.
    Note that we never allow moves between different register classes or
    stack slot classes, so the following must hold:
@@ -74,20 +67,20 @@ val is_destruction_point : more_destruction_points:bool -> Cfg_intf.S.terminator
 
 (* Info for laying out the stack frame *)
 
-val initial_stack_offset : num_stack_slots:int array
+val initial_stack_offset : num_stack_slots:int Stack_class.Tbl.t
   -> contains_calls:bool -> int
 
 val trap_frame_size_in_bytes : int
 
 val frame_required :
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   bool
 
 val frame_size :
   stack_offset:int ->
   contains_calls:bool ->
-  num_stack_slots:int array ->
+  num_stack_slots:int Stack_class.Tbl.t ->
   int
 
 type slot_offset = private
@@ -96,16 +89,16 @@ type slot_offset = private
 
 val slot_offset :
   Reg.stack_location ->
-  stack_class:int ->
+  stack_class:Stack_class.t ->
   stack_offset:int ->
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   slot_offset
 
 (* Function prologues *)
 val prologue_required :
   fun_contains_calls : bool ->
-  fun_num_stack_slots : int array ->
+  fun_num_stack_slots : int Stack_class.Tbl.t ->
   bool
 
 (** For a given register class, the DWARF register numbering for that class.

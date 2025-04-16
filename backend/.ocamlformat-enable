@@ -1,15 +1,21 @@
+; CR-soon gyorsh: format all files under arm64/amd64
 amd64/cfg_selection.ml
+amd64/emit.ml
 amd64/selection.ml
 amd64/selection_utils.ml
 amd64/simd*.ml
 amd64/stack_check.ml
+amd64/stack_class.ml
 amd64/vectorize_specific.ml
 arm64/cfg_selection.ml
+arm64/emit.ml
 arm64/selection.ml
 arm64/selection_utils.ml
 arm64/simd*.ml
 arm64/stack_check.ml
+arm64/stack_class.ml
 arm64/vectorize_specific.ml
+arm64/regalloc_stack_operands.ml
 arm64_ast.ml
 arm64_ast.mli
 asm_targets/**/*.ml
@@ -22,6 +28,7 @@ vectorize_utils.ml
 vectorize_utils.mli
 cfg_selectgen.ml
 cfg_selectgen.mli
+cfg_selectgen_target_intf.ml
 cfg_selection.mli
 cmm_builtins.ml
 cmm_builtins.mli
@@ -50,9 +57,10 @@ select_utils.mli
 selectgen.ml
 selectgen.mli
 selection.mli
-simple_operation.ml
-simple_operation.mli
 stack_check.mli
+stack_class.mli
+stack_class_utils.ml
+stack_class_utils.mli
 zero_alloc_checker.ml
 zero_alloc_checker.mli
 zero_alloc_info.ml

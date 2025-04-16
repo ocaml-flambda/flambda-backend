@@ -25,7 +25,7 @@
  **********************************************************************************)
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 module CL = Cfg_with_layout
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -130,9 +130,9 @@ let check_tailrec t _label block =
       then
         report t "Two self-tailcall terminators with different labels: %a %a"
           Label.print l Label.print destination)
-  | Call _ | Prim _ | Specific_can_raise _ | Tailcall_func _ | Never | Always _
-  | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return
-  | Raise _ | Call_no_return _ ->
+  | Call _ | Prim _ | Tailcall_func _ | Never | Always _ | Parity_test _
+  | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return | Raise _
+  | Call_no_return _ ->
     ()
 
 let check_can_raise t label (block : Cfg.basic_block) =

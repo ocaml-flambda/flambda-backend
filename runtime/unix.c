@@ -73,6 +73,7 @@
 #include "caml/io.h"
 #include "caml/alloc.h"
 #include "caml/platform.h"
+#include "caml/startup_aux.h"
 
 #ifndef S_ISREG
 #define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
@@ -536,12 +537,16 @@ static void* mmap_named(void* addr, size_t length, int prot, int flags,
 }
 #endif
 
-void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
+void *caml_plat_mem_map(uintnat size, uintnat caml_flags, const char* name)
 {
   uintnat alignment = caml_plat_hugepagesize;
 #ifdef WITH_ADDRESS_SANITIZER
   return aligned_alloc(alignment, (size + (alignment - 1)) & ~(alignment - 1));
 #else
+  uintnat reserve_only = caml_flags & CAML_MAP_RESERVE_ONLY;
+  uintnat no_hugetlb = caml_flags & CAML_MAP_NO_HUGETLB;
+  (void)no_hugetlb; /* avoid unused variable warning */
+
   void* mem;
   int prot = reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE);
   int flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -554,6 +559,15 @@ void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
 
     return mem;
   }
+
+#ifdef HAS_HUGE_PAGES
+  if (caml_params->use_hugetlb_pages && !reserve_only && !no_hugetlb) {
+    /* If requested, try mapping with MAP_HUGETLB */
+    mem = mmap_named(0, size, prot, flags | MAP_HUGETLB, -1, 0, name);
+    if (mem == MAP_FAILED) mem = NULL;
+    return mem;
+  }
+#endif
 
   /* Sensible kernels (on Linux, that means >= 6.7) will always provide aligned
      mappings. To avoid penalising such kernels, try mapping the exact desired
@@ -599,9 +613,12 @@ static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
    done using mprotect, since Cygwin's mmap doesn't implement the required
    functions for committing using mmap. */
 
-void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
+void *caml_plat_mem_map(uintnat size, uintnat flags, const char* name)
 {
   void* mem;
+  uintnat reserve_only = caml_flags & CAML_MAP_RESERVE_ONLY;
+  uintnat no_hugetlb = caml_flags & CAML_MAP_NO_HUGETLB;
+  (void)no_hugetlb; /* Not used on Cygwin */
 
   mem = mmap(0, size, reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE),
              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

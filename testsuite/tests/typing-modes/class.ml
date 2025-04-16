@@ -49,18 +49,18 @@ Error: This value is "aliased" but expected to be "unique".
 
 (* instance variables need to be defined as legacy *)
 class cla = object
-    val x = ("world" : _ @@ local)
+    val x = ("world" : _ @ local)
 end
 [%%expect{|
-Line 2, characters 12-34:
-2 |     val x = ("world" : _ @@ local)
-                ^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 12-33:
+2 |     val x = ("world" : _ @ local)
+                ^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
 (* instance variables are available as legacy to methods *)
 class cla = object
-    val x = (fun y -> y : _ @@ portable)
+    val x = (fun y -> y : _ @ portable)
 
     method foo = portable_use x
 end
@@ -75,12 +75,12 @@ Error: This value is "nonportable" but expected to be "portable".
 class cla = object
     val mutable x = "hello"
 
-    method foo = x <- ("world" : _ @@ local)
+    method foo = x <- ("world" : _ @ local)
 end
 [%%expect{|
-Line 4, characters 22-44:
-4 |     method foo = x <- ("world" : _ @@ local)
-                          ^^^^^^^^^^^^^^^^^^^^^^
+Line 4, characters 22-43:
+4 |     method foo = x <- ("world" : _ @ local)
+                          ^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -114,7 +114,7 @@ val foo : local_ cla -> cla ref = <fun>
 |}]
 
 (* crosses at binding site. This allows the closure to be global. *)
-let foo (obj : cla @@ local) =
+let foo (obj : cla @ local) =
     ref (fun () -> let _ = obj in ())
 [%%expect{|
 val foo : local_ cla -> (unit -> unit) ref = <fun>
@@ -122,7 +122,7 @@ val foo : local_ cla -> (unit -> unit) ref = <fun>
 
 (* Objects don't cross monadic axes. Objects are defined at [uncontended]
     always, but that doesn't mean they cross contention. *)
-let foo (obj : cla @@ contended) =
+let foo (obj : cla @ contended) =
     let _ @ uncontended = obj in
     ()
 [%%expect{|

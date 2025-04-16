@@ -2,23 +2,40 @@
 
 open Regalloc_utils
 
-val irc_debug : bool
+val indent : unit -> unit
 
-val irc_verbose : bool Lazy.t
+val dedent : unit -> unit
 
-val irc_invariants : bool Lazy.t
+val reset_indentation : unit -> unit
 
-val log :
-  indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
 val log_body_and_terminator :
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit
 
-val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
+val log_cfg_with_infos : Cfg_with_infos.t -> unit
+
+module WorkList : sig
+  (* CR xclerc for xclerc: double check all constructors are actually used. *)
+  type t =
+    | Unknown_list
+    | Precolored
+    | Initial
+    | Simplify
+    | Freeze
+    | Spill
+    | Spilled
+    | Coalesced
+    | Colored
+    | Select_stack
+
+  val equal : t -> t -> bool
+
+  val to_string : t -> string
+end
 
 module Color : sig
   type t = int
@@ -67,8 +84,6 @@ val is_move_instruction : Instruction.t -> bool
 val all_precolored_regs : unit -> Reg.Set.t
 
 val k : Reg.t -> int
-
-val update_register_locations : unit -> unit
 
 module Spilling_heuristics : sig
   type t =

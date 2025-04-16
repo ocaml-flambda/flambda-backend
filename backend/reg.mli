@@ -15,21 +15,6 @@
 
 (* Pseudo-registers *)
 
-(* CR xclerc for xclerc: double check all constructors are actually used. *)
-type irc_work_list =
-  | Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack
-val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
-val string_of_irc_work_list : irc_work_list -> string
-
 module Name : sig
   type t
 
@@ -41,14 +26,7 @@ type t =
     stamp: int;                           (* Unique stamp *)
     typ: Cmm.machtype_component;          (* Type of contents *)
     preassigned: bool;                    (* Pinned to a specific location *)
-    mutable loc: location;                (* Current location *)
-    mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
-    mutable irc_color : int option;       (* Current color (IRC only) *)
-    mutable irc_alias : t option;         (* Current alias (IRC only) *)
-    mutable spill: bool;                  (* "true" to force stack allocation  *)
-    mutable interf: t list;               (* Other regs live simultaneously *)
-    mutable degree: int;                  (* Number of other regs live sim. *)
-    mutable spill_cost: int; }            (* Estimate of spilling cost *)
+    mutable loc: location; }              (* Actual location *)
 
 and location =
     Unknown
@@ -118,8 +96,9 @@ val set_of_array: t array -> Set.t
 val set_has_collisions : Set.t -> bool
 
 val restart: unit -> unit
-val reinit_relocatable_regs: unit -> unit
+val total_registers : unit -> int
 val all_relocatable_regs: unit -> t list
+val reinit_relocatable_regs: unit -> unit
 
 val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool

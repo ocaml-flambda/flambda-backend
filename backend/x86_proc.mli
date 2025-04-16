@@ -63,6 +63,7 @@ val assemble_file: (*infile*) string -> (*outfile*) string -> (*retcode*) int
 
 (** System detection *)
 
+(* CR-soon xclerc: remove the systems we do not (and will not) support. *)
 type system =
   (* 32 bits and 64 bits *)
   | S_macosx
@@ -90,6 +91,12 @@ type system =
 val system: system
 val masm: bool
 val windows:bool
+
+val is_linux : system -> bool
+val is_macosx : system -> bool
+val is_win32 : system -> bool
+val is_win64 : system -> bool
+
 
 (** Whether calls need to go via the PLT. *)
 val use_plt : bool

@@ -19,7 +19,7 @@ end = struct
 end
 
 module Hidden_float_u : sig
-  type t : float64
+  type t : float64 mod global many aliased
   val hide : float# -> t
 end = struct
   type t = float#
@@ -28,7 +28,7 @@ end
 
 (* CR layouts v2.8: Change this to be layout bits64, not kind bits64 *)
 module Hidden_int64_u : sig
-  type t : bits64
+  type t : bits64 mod global many aliased
   val hide : int64# -> t
 end = struct
   type t = int64#
@@ -38,8 +38,10 @@ end
 [%%expect{|
 module Hidden_string : sig type t val hide : string -> t end
 module Hidden_int : sig type t : immediate val hide : int -> t end
-module Hidden_float_u : sig type t : float64 val hide : float# -> t end
-module Hidden_int64_u : sig type t : bits64 val hide : int64# -> t end
+module Hidden_float_u :
+  sig type t : float64 mod global aliased many val hide : float# -> t end
+module Hidden_int64_u :
+  sig type t : bits64 mod global aliased many val hide : int64# -> t end
 |}]
 
 module Immediate : sig
@@ -526,8 +528,6 @@ argument kind is known to cross mode. *)
 let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
-val float_u_unshare : unit -> float# = <fun>
-|}, Principal{|
 Line 1, characters 84-85:
 1 | let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
                                                                                         ^
@@ -542,8 +542,6 @@ let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.uni
 
 (* CR layouts v2.8: this should succeed in principal mode, too *)
 [%%expect{|
-val int64_u_unshare : unit -> int64# = <fun>
-|}, Principal{|
 Line 1, characters 84-85:
 1 | let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
                                                                                         ^
@@ -570,8 +568,6 @@ let hidden_float_u_unshare () =
   Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
-val hidden_float_u_unshare : unit -> Hidden_float_u.t = <fun>
-|}, Principal{|
 Line 3, characters 35-36:
 3 |   Float_u.ignore x; Float_u.unique x
                                        ^
@@ -588,8 +584,6 @@ let hidden_int64_u_unshare () =
 
 (* CR layouts v2.8: This should fail when we use layout bits64 with hidden_int64 *)
 [%%expect{|
-val hidden_int64_u_unshare : unit -> Hidden_int64_u.t = <fun>
-|}, Principal{|
 Line 3, characters 35-36:
 3 |   Int64_u.ignore x; Int64_u.unique x
                                        ^

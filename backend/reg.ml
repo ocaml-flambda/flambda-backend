@@ -13,54 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open Cmm
 
-type irc_work_list =
-  | Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack
-
-let equal_irc_work_list left right =
-  match left, right with
-  | Unknown_list, Unknown_list
-  | Precolored, Precolored
-  | Initial, Initial
-  | Simplify, Simplify
-  | Freeze, Freeze
-  | Spill, Spill
-  | Spilled, Spilled
-  | Coalesced, Coalesced
-  | Colored, Colored
-  | Select_stack, Select_stack -> true
-  | (Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack), _ -> false
-
-let string_of_irc_work_list = function
-  | Unknown_list -> "unknown_list"
-  | Precolored -> "precolored"
-  | Initial -> "initial"
-  | Simplify -> "simplify"
-  | Freeze -> "freeze"
-  | Spill -> "spill"
-  | Spilled -> "spilled"
-  | Coalesced -> "coalesced"
-  | Colored -> "colored"
-  | Select_stack -> "select_stack"
 
 module V = Backend_var
 
@@ -83,14 +38,7 @@ type t =
     stamp: int;
     typ: Cmm.machtype_component;
     preassigned: bool;
-    mutable loc: location;
-    mutable irc_work_list: irc_work_list;
-    mutable irc_color : int option;
-    mutable irc_alias : t option;
-    mutable spill: bool;
-    mutable interf: t list;
-    mutable degree: int;
-    mutable spill_cost: int; }
+    mutable loc: location; }
 
 and location =
     Unknown
@@ -106,10 +54,7 @@ and stack_location =
 type reg = t
 
 let dummy =
-  { name = Name.Anon; stamp = 0; typ = Int; preassigned = false; loc = Unknown;
-    irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-    spill = false; interf = []; degree = 0; spill_cost = 0;
-  }
+  { name = Name.Anon; stamp = 0; typ = Int; preassigned = false; loc = Unknown; }
 
 let currstamp = ref 0
 let all_relocatable_regs = ref ([] : t list)
@@ -120,10 +65,7 @@ let create_gen ~name ~typ ~loc =
     | Reg _ | Stack _ -> true
     | Unknown -> false
   in
-  let r = { name; stamp = !currstamp; typ; preassigned; loc;
-            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; degree = 0;
-            spill_cost = 0; } in
+  let r = { name; stamp = !currstamp; typ; preassigned; loc } in
   if not preassigned then all_relocatable_regs := r :: !all_relocatable_regs;
   incr currstamp;
   r
@@ -162,7 +104,6 @@ let typv rv =
 let print t =
   let prefix =
     if t.preassigned then "pin:"
-    else if t.spill then "spill:"
     else ""
   in
   prefix ^ Name.to_string t.name
@@ -192,22 +133,16 @@ let restart () =
      so remember it and use it as the base stamp for allocating soft pseudo-registers *)
   if !first_virtual_reg_stamp = -1 then begin
     first_virtual_reg_stamp := !currstamp;
-    assert (!all_relocatable_regs = []) (* Only preassigned regs created before now *)
+    (* Only hard regs created before now *)
+    assert (Misc.Stdlib.List.is_empty !all_relocatable_regs)
   end;
   currstamp := !first_virtual_reg_stamp;
   all_relocatable_regs := []
 
+let total_registers () = !currstamp
+
 let reinit_reg r =
-  r.loc <- Unknown;
-  r.irc_work_list <- Unknown_list;
-  r.irc_color <- None;
-  r.irc_alias <- None;
-  r.interf <- [];
-  r.degree <- 0;
-  (* Preserve the very high spill costs introduced by the reloading pass *)
-  if r.spill_cost >= 100000
-  then r.spill_cost <- 100000
-  else r.spill_cost <- 0
+  r.loc <- Unknown
 
 let reinit_relocatable_regs () = List.iter reinit_reg !all_relocatable_regs
 let all_relocatable_regs () = !all_relocatable_regs

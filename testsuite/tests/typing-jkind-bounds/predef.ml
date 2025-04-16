@@ -94,7 +94,7 @@ Line 1, characters 14-35:
                   ^^^^^^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) option" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) option is value mod contended
+       The kind of (unit -> unit) option is value mod immutable
          because it's a boxed variant type.
        But the kind of (unit -> unit) option must be a subkind of
          value mod portable
@@ -135,7 +135,7 @@ Error: This type "int option" should be an instance of type
          because of the definition of require_global at line 7, characters 0-43.
 |}]
 
-let foo (t : int option @@ contended portable once) =
+let foo (t : int option @ contended portable once) =
   use_many t;
   use_uncontended t;
   use_portable t
@@ -143,11 +143,11 @@ let foo (t : int option @@ contended portable once) =
 val foo : int option @ once portable contended -> unit = <fun>
 |}]
 
-let foo (t : int option @@ local) = use_global t [@nontail]
+let foo (t : int option @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : int option @@ local) = use_global t [@nontail]
-                                                   ^
+Line 1, characters 46-47:
+1 | let foo (t : int option @ local) = use_global t [@nontail]
+                                                  ^
 Error: This value escapes its region.
 |}]
 
@@ -182,6 +182,7 @@ Error: The kind of type "'a ref" is mutable_data with 'a @@ many unyielding.
 
        The first mode-crosses less than the second along:
          portability: mod portable with 'a ≰ mod portable
+         statefulness: mod stateless with 'a ≰ mod stateless
 |}]
 
 type t_test = int ref require_portable
@@ -230,18 +231,18 @@ Error: This type "int ref" should be an instance of type
          contention: mod uncontended ≰ mod contended
 |}]
 
-let foo (t : int ref @@ portable once) =
+let foo (t : int ref @ portable once) =
   use_many t;
   use_portable t
 [%%expect {|
 val foo : int ref @ once portable -> unit = <fun>
 |}]
 
-let foo (t : int ref @@ contended) = use_uncontended t
+let foo (t : int ref @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 53-54:
-1 | let foo (t : int ref @@ contended) = use_uncontended t
-                                                         ^
+Line 1, characters 52-53:
+1 | let foo (t : int ref @ contended) = use_uncontended t
+                                                        ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -311,7 +312,7 @@ Line 1, characters 14-33:
                   ^^^^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) list" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) list is value mod contended
+       The kind of (unit -> unit) list is value mod immutable
          because it's a boxed variant type.
        But the kind of (unit -> unit) list must be a subkind of
          value mod portable
@@ -352,7 +353,7 @@ Error: This type "int list" should be an instance of type
          because of the definition of require_global at line 7, characters 0-43.
 |}]
 
-let foo (t : int list @@ contended portable once) =
+let foo (t : int list @ contended portable once) =
   use_many t;
   use_uncontended t;
   use_portable t
@@ -360,11 +361,11 @@ let foo (t : int list @@ contended portable once) =
 val foo : int list @ once portable contended -> unit = <fun>
 |}]
 
-let foo (t : int list @@ local) = use_global t [@nontail]
+let foo (t : int list @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 45-46:
-1 | let foo (t : int list @@ local) = use_global t [@nontail]
-                                                 ^
+Line 1, characters 44-45:
+1 | let foo (t : int list @ local) = use_global t [@nontail]
+                                                ^
 Error: This value escapes its region.
 |}]
 
@@ -443,18 +444,18 @@ Error: This type "int array" should be an instance of type
          because of the definition of require_contended at line 9, characters 0-49.
 |}]
 
-let foo (t : int array @@ portable once) =
+let foo (t : int array @ portable once) =
   use_many t;
   use_portable t
 [%%expect {|
 val foo : int array @ once portable -> unit = <fun>
 |}]
 
-let foo (t : int array @@ contended) = use_uncontended t
+let foo (t : int array @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 55-56:
-1 | let foo (t : int array @@ contended) = use_uncontended t
-                                                           ^
+Line 1, characters 54-55:
+1 | let foo (t : int array @ contended) = use_uncontended t
+                                                          ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -522,7 +523,7 @@ Line 1, characters 14-35:
                   ^^^^^^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) iarray" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) iarray is value mod contended
+       The kind of (unit -> unit) iarray is value mod immutable
          because it is the primitive value type iarray.
        But the kind of (unit -> unit) iarray must be a subkind of
          value mod portable
@@ -563,7 +564,7 @@ Error: This type "int iarray" should be an instance of type
          because of the definition of require_global at line 7, characters 0-43.
 |}]
 
-let foo (t : int iarray @@ contended portable once) =
+let foo (t : int iarray @ contended portable once) =
   use_many t;
   use_uncontended t;
   use_portable t
@@ -571,10 +572,10 @@ let foo (t : int iarray @@ contended portable once) =
 val foo : int iarray @ once portable contended -> unit = <fun>
 |}]
 
-let foo (t : int iarray @@ local) = use_global t [@nontail]
+let foo (t : int iarray @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : int iarray @@ local) = use_global t [@nontail]
-                                                   ^
+Line 1, characters 46-47:
+1 | let foo (t : int iarray @ local) = use_global t [@nontail]
+                                                  ^
 Error: This value escapes its region.
 |}]
