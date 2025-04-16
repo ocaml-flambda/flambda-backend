@@ -79,13 +79,3 @@ val section_is_text : t -> bool
 
 val all_sections_in_order : unit -> t list
 
-type flags_for_section = private
-  { names : string list;
-    flags : string option;
-    args : string list
-  }
-
-(** The necessary information for a section directive.  [first_occurrence]
-    should be [true] iff the corresponding directive will be the first such
-    in the relevant assembly file for the given section. *)
-val flags : t -> first_occurrence:bool -> flags_for_section

@@ -49,11 +49,6 @@ type t =
   | Jump_tables
   | Text
 
-type section_details =
-  { names : string list;
-    flags : string option;
-    args : string list
-  }
 
 let dwarf_sections_in_order () =
   let sections =
@@ -80,65 +75,6 @@ let is_delayed = function
   | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
   | Jump_tables | Text ->
     false
-
-let details t ~first_occurrence =
-  let names, flags, args =
-    match t, Target_system.derived_system () with
-    | DWARF dwarf, MacOS_like ->
-      let name =
-        match dwarf with
-        | Debug_info -> "__debug_info"
-        | Debug_abbrev -> "__debug_abbrev"
-        | Debug_aranges -> "__debug_aranges"
-        | Debug_addr -> "__debug_addr"
-        | Debug_loc -> "__debug_loc"
-        | Debug_ranges -> "__debug_ranges"
-        | Debug_loclists -> "__debug_loclists"
-        | Debug_rnglists -> "__debug_rnglists"
-        | Debug_str -> "__debug_str"
-        | Debug_line -> "__debug_line"
-      in
-      ["__DWARF"; name], None, ["regular"; "debug"]
-    | DWARF dwarf, _ ->
-      let name =
-        match dwarf with
-        | Debug_info -> ".debug_info"
-        | Debug_abbrev -> ".debug_abbrev"
-        | Debug_aranges -> ".debug_aranges"
-        | Debug_addr -> ".debug_addr"
-        | Debug_loc -> ".debug_loc"
-        | Debug_ranges -> ".debug_ranges"
-        | Debug_loclists -> ".debug_loclists"
-        | Debug_rnglists -> ".debug_rnglists"
-        | Debug_str -> ".debug_str"
-        | Debug_line -> ".debug_line"
-      in
-      let flags =
-        match first_occurrence, dwarf with
-        | true, Debug_str -> Some "MS"
-        | true, _ -> Some ""
-        | false, _ -> None
-      in
-      let args =
-        match first_occurrence, dwarf with
-        | true, Debug_str -> ["%progbits,1"]
-        | true, _ -> ["%progbits"]
-        | false, _ -> []
-      in
-      [name], flags, args
-    (* CR sspies: Determine what the details should be for these. *)
-    | Data, _ -> Misc.fatal_error "Not yet implemented"
-    | Read_only_data, _ -> Misc.fatal_error "Not yet implemented"
-    | Eight_byte_literals, _ -> Misc.fatal_error "Not yet implemented"
-    | Sixteen_byte_literals, _ -> Misc.fatal_error "Not yet implemented"
-    | Jump_tables, _ -> Misc.fatal_error "Not yet implemented"
-    | Text, _ -> Misc.fatal_error "Not yet implemented"
-  in
-  { names; flags; args }
-
-let to_string t =
-  let { names; flags = _; args = _ } = details t ~first_occurrence:true in
-  String.concat " " names
 
 let print ppf t =
   let str =
@@ -172,13 +108,14 @@ let section_is_text = function
   | Jump_tables | DWARF _ ->
     false
 
-type flags_for_section =
+
+type section_details =
   { names : string list;
     flags : string option;
     args : string list
   }
 
-let flags t ~first_occurrence =
+let details t ~first_occurrence =
   let text () = [".text"], None, [] in
   let data () = [".data"], None, [] in
   let rodata () = [".rodata"], None, [] in
@@ -252,6 +189,11 @@ let flags t ~first_occurrence =
     | Read_only_data, _, _ -> rodata ()
   in
   { names; flags; args }
+
+let to_string t =
+  let { names; flags = _; args = _ } = details t ~first_occurrence:true in
+  String.concat " " names
+
 
 let all_sections_in_order () =
   let sections =
