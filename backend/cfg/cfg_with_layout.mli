@@ -94,6 +94,8 @@ val reorder_blocks_random : ?random_state:Random.State.t -> t -> unit
 
 val reorder_blocks : comparator:(Label.t -> Label.t -> int) -> t -> unit
 
+val iter_blocks : t -> f:(Cfg.basic_block -> unit) -> unit
+
 val iter_instructions :
   t ->
   instruction:(Cfg.basic Cfg.instruction -> unit) ->
@@ -106,3 +108,14 @@ val fold_instructions :
   terminator:('a -> Cfg.terminator Cfg.instruction -> 'a) ->
   init:'a ->
   'a
+
+(* Insert specified instructions along all outgoing edges from the block
+   [after]; if [before] it not [None], the insertion is restricted to edges
+   having [before] as their destination. *)
+val insert_block :
+  t ->
+  Cfg.basic_instruction_list ->
+  after:Cfg.basic_block ->
+  before:Cfg.basic_block option ->
+  next_instruction_id:(unit -> InstructionId.t) ->
+  Cfg.basic_block list
