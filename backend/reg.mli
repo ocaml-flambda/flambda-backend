@@ -21,17 +21,15 @@ module Name : sig
   val to_string : t -> string
 end
 
-(* Every temp and physical register has a unique stamp. However, multiple [t]s
-   may have the same [t.stamp] and different [t.typ]s if they alias the same
-   physical register at different types.
+(* Every temp and physical register has a unique stamp, but physical registers
+   aliased at different types share stamps.
 
    Comparisons and containers for [t] consider both [t.stamp] and [t.typ], so
-   this overlap is not visible to the rest of the compiler, unless it directly
+   this overlap is not visible to the rest of the compiler unless it directly
    manipulates stamps.
 
    The IRC allocator builds an interference graph based on stamps, which makes sure
    that it remembers adjacency between machine registers aliased at multiple types.
-   Note that it is ok for physical registers to share regalloc state.
 *)
 
 type t =

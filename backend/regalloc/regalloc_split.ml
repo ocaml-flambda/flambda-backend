@@ -156,7 +156,7 @@ let make_spill : type a. a make_operation =
         Reg.create_with_typ_and_name ~prefix_if_var:"stack" old_reg
       in
       Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:old_reg;
-      stack.loc <- Reg.(Stack (Local slot));
+      stack.Reg.loc <- Reg.(Stack (Local slot));
       Reg.Tbl.replace stack_subst old_reg stack;
       stack
   in
@@ -290,7 +290,7 @@ let make_reload : type a. a make_operation =
       let stack = Reg.create_with_typ_and_name ~prefix_if_var:"stack" old_reg in
       Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:old_reg;
       Regalloc_stack_slots.use_same_slot_or_fatal slots stack ~existing:new_reg;
-      stack.loc <- Reg.(Stack (Local slot));
+      stack.Reg.loc <- Reg.(Stack (Local slot));
       stack
   in
   if debug

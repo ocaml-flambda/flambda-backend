@@ -147,8 +147,8 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
   let res = ref Reg.Set.empty in
   let max_id = ref InstructionId.none in
   let add_registers (set : Reg.Set.t ref) (regs : Reg.t array) : unit =
-    ArrayLabels.iter regs ~f:(fun (reg : Reg.t) ->
-        match reg.loc with
+    ArrayLabels.iter regs ~f:(fun reg ->
+        match reg.Reg.loc with
         | Unknown -> set := Reg.Set.add reg !set
         | Reg _ | Stack _ -> ())
   in
