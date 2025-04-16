@@ -35,5 +35,4 @@ module type Priority_queue = sig
   val iter : 'a t -> f:('a element -> unit) -> unit
 end
 
-module Make (Priority : Order) :
-  Priority_queue with type priority = Priority.t
+module Make (Priority : Order) : Priority_queue with type priority = Priority.t

@@ -5,7 +5,7 @@ module Array = ArrayLabels
 
 let fatal = Misc.fatal_error
 
-    (* CR xclerc for xclerc: reuse `{Map,Set}.OrderedType`? *)
+(* CR xclerc for xclerc: reuse `{Map,Set}.OrderedType`? *)
 module type Order = sig
   type t
 
