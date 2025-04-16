@@ -1,3 +1,5 @@
+(** Max priority queue  *)
+
 [@@@ocaml.warning "+a-40-41-42"]
 
 module type Order = sig
