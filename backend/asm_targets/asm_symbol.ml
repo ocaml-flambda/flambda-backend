@@ -26,30 +26,53 @@
 
 open! Int_replace_polymorphic_compare
 
+let symbol_prefix () =
+  (* CR mshinwell: needs checking *)
+  match Target_system.architecture () with
+  | IA32 | X86_64 | AArch64 -> (
+    match Target_system.derived_system () with
+    | Linux | Win32 | Win64 | MinGW_32 | MinGW_64 | Cygwin | FreeBSD | NetBSD
+    | OpenBSD | Generic_BSD | Solaris | BeOS | GNU | Dragonfly | Unknown ->
+      "" (* checked ok. *)
+    | MacOS_like -> "_" (* checked ok. *))
+  | ARM | POWER | Z | Riscv -> ""
+
 let should_be_escaped = function
   | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> false
   | _c -> true
 
 module Thing = struct
-  type t = string
+  type t =
+    { name : string;
+      without_prefix : bool
+    }
 
-  let compare = String.compare
+  let compare { name = name1; without_prefix = without_prefix1 }
+      { name = name2; without_prefix = without_prefix2 } =
+    let cmp = String.compare name1 name2 in
+    if cmp = 0 then Bool.compare without_prefix1 without_prefix2 else cmp
 
-  let equal = String.equal
+  let equal t1 t2 = compare t1 t2 = 0
 
   let hash = Hashtbl.hash
 
-  let output chan t = Printf.fprintf chan "%s" t
+  let output chan { name; without_prefix } =
+    let symbol_prefix = if without_prefix then symbol_prefix () else "" in
+    Printf.fprintf chan "%s%s" symbol_prefix name
 
-  let print = Format.pp_print_string
+  let print fmt { name; without_prefix } =
+    let symbol_prefix = if without_prefix then symbol_prefix () else "" in
+    Format.pp_print_string fmt (symbol_prefix ^ name)
 end
 
 include Thing
 include Identifiable.Make (Thing)
 
-let create name = name
+let create ?without_prefix name =
+  let without_prefix = Option.is_some without_prefix in
+  { name; without_prefix }
 
-let to_raw_string t = t
+let to_raw_string { name; without_prefix } = name
 
 let escape name =
   let escaped_nb = ref 0 in
@@ -70,23 +93,10 @@ let escape name =
       name;
     Buffer.contents b
 
-let symbol_prefix () =
-  (* CR mshinwell: needs checking *)
-  match Target_system.architecture () with
-  | IA32 | X86_64 | AArch64 -> (
-    match Target_system.derived_system () with
-    | Linux | Win32 | Win64 | MinGW_32 | MinGW_64 | Cygwin | FreeBSD | NetBSD
-    | OpenBSD | Generic_BSD | Solaris | BeOS | GNU | Dragonfly | Unknown ->
-      "" (* checked ok. *)
-    | MacOS_like -> "_" (* checked ok. *))
-  | ARM | POWER | Z | Riscv -> ""
-
 let to_escaped_string ?suffix ~symbol_prefix t =
   let suffix = match suffix with None -> "" | Some suffix -> suffix in
   symbol_prefix ^ escape t ^ suffix
 
-let encode ?without_prefix t =
-  let symbol_prefix =
-    match without_prefix with None -> symbol_prefix () | Some () -> ""
-  in
-  to_escaped_string ~symbol_prefix t
+let encode t =
+  let symbol_prefix = if t.without_prefix then "" else symbol_prefix () in
+  to_escaped_string ~symbol_prefix t.name
