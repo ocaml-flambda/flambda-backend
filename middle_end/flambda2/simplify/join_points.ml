@@ -119,9 +119,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids
     match cse_join_result with
     | None -> handler_env
     | Some cse_join_result ->
-      Name.Map.fold
-        (fun name ty handler_env -> TE.add_equation handler_env name ty)
-        cse_join_result.extra_equations handler_env
+      TE.add_env_extension handler_env cse_join_result.env_extension
   in
   let denv =
     let denv = DE.with_typing_env denv handler_env in

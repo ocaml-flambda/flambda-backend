@@ -71,9 +71,13 @@ module Typing_env_extension : sig
 
   val empty : t
 
+  val has_equation : Name.t -> t -> bool
+
   val one_equation : Name.t -> flambda_type -> t
 
   val add_or_replace_equation : t -> Name.t -> flambda_type -> t
+
+  val disjoint_union : t -> t -> t
 
   module With_extra_variables : sig
     type t
