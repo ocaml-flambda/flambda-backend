@@ -196,7 +196,7 @@ let simplify_tag_immediate dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty
   SPR.create original_term ~try_reify:true dacc
 
 let simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty:_
-    ~result_var ~make_shape =
+    ~result_var ~add_relation =
   (* CR vlaviron: We could use prover functions to simplify but it's probably
      not going to help that much.
 
@@ -206,7 +206,12 @@ let simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty:_
      ([Is_int x] instead of a constant). However, in practice the information
      can be recovered both when switching on the value (through regular meet) or
      when trying to lift a block containing the value (through reify). *)
-  let dacc = DA.add_variable dacc result_var (make_shape scrutinee) in
+  let dacc =
+    DA.map_denv dacc ~f:(fun denv ->
+        let denv = DE.define_variable denv result_var K.naked_immediate in
+        DE.map_typing_env denv ~f:(fun tenv ->
+            add_relation tenv (Name.var (Bound_var.var result_var)) ~scrutinee))
+  in
   SPR.create original_term ~try_reify:true dacc
 
 let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
@@ -214,8 +219,7 @@ let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
   if variant_only
   then
     simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
-      ~result_var ~make_shape:(fun scrutinee ->
-        T.is_int_for_scrutinee ~scrutinee)
+      ~result_var ~add_relation:TE.add_is_int_relation
   else
     match T.prove_is_int (DA.typing_env dacc) scrutinee_ty with
     | Proved b ->
@@ -228,7 +232,7 @@ let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
 let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
     ~result_var =
   simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
-    ~result_var ~make_shape:(fun block -> T.get_tag_for_block ~block)
+    ~result_var ~add_relation:TE.add_get_tag_relation
 
 let simplify_array_length _array_kind dacc ~original_term ~arg:_
     ~arg_ty:array_ty ~result_var =
@@ -908,7 +912,7 @@ let simplify_lazy ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
 let simplify_is_null dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
     ~result_var =
   simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
-    ~result_var ~make_shape:(fun scrutinee -> T.is_null ~scrutinee)
+    ~result_var ~add_relation:TE.add_is_null_relation
 
 let simplify_peek ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     ~result_var =

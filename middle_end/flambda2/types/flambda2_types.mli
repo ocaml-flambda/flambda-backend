@@ -77,6 +77,12 @@ module Typing_env_extension : sig
 
   val add_or_replace_equation : t -> Name.t -> flambda_type -> t
 
+  val add_is_null_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_is_int_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_get_tag_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
   val disjoint_union : t -> t -> t
 
   module With_extra_variables : sig
@@ -180,6 +186,12 @@ module Typing_env : sig
 
   val add_equations_on_params :
     t -> params:Bound_parameters.t -> param_types:flambda_type list -> t
+
+  val add_is_null_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_is_int_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_get_tag_relation : t -> Name.t -> scrutinee:Simple.t -> t
 
   val mem : ?min_name_mode:Name_mode.t -> t -> Name.t -> bool
 
@@ -441,12 +453,6 @@ val box_vec128 : t -> Alloc_mode.For_types.t -> t
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
 val tag_immediate : t -> t
-
-val is_int_for_scrutinee : scrutinee:Simple.t -> t
-
-val get_tag_for_block : block:Simple.t -> t
-
-val is_null : scrutinee:Simple.t -> t
 
 val any_block : t
 
@@ -795,7 +801,7 @@ val never_holds_locally_allocated_values :
 val remove_outermost_alias : Typing_env.t -> t -> t
 
 module Equal_types_for_debug : sig
-  val equal_type : Typing_env.t -> Type_grammar.t -> Type_grammar.t -> bool
+  val equal_type : Typing_env.t -> t -> t -> bool
 
   val equal_env_extension :
     Typing_env.t -> Typing_env_extension.t -> Typing_env_extension.t -> bool

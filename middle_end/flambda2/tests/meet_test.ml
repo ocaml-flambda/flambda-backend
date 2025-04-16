@@ -124,20 +124,37 @@ let meet_variants_don't_lose_aliases () =
   in
   match T.meet env ty1 ty2 with
   | Bottom -> assert false
-  | Ok (meet_ty, env) -> (
+  | Ok (meet_ty, env) ->
     Format.eprintf "@[<hov 2>Meet:@ %a@ /\\@ %a =>@ %a +@ %a@]@." T.print ty1
       T.print ty2 T.print meet_ty TE.print env;
     (* Env extension should be empty *)
     let env = TE.add_equation env (Name.var v_variant) meet_ty in
-    let t_get_tag = T.get_tag_for_block ~block:(Simple.var v_variant) in
+    let v_naked = Variable.create "naked" in
+    let bv_naked = Bound_var.create v_naked Name_mode.normal in
+    let env =
+      TE.add_definition env (Bound_name.create_var bv_naked) K.naked_immediate
+    in
+    let env =
+      TE.add_get_tag_relation env (Name.var v_naked)
+        ~scrutinee:(Simple.var v_variant)
+    in
     let t_tag_1 = T.this_naked_immediate Targetint_31_63.one in
-    match T.meet env t_get_tag t_tag_1 with
-    | Bottom -> assert false
-    | Ok (tag_meet_ty, tag_meet_env) ->
-      Format.eprintf "t_get_tag: %a@.t_tag: %a@." T.print t_get_tag T.print
-        t_tag_1;
-      Format.eprintf "@[<hov 2>meet:@ %a@]@.@[<hov 2>env:@ %a@]@." T.print
-        tag_meet_ty TE.print tag_meet_env)
+    let env = TE.add_equation env (Name.var v_naked) t_tag_1 in
+    let tag_meet_ty = TE.find env (Name.var v_naked) (Some K.naked_immediate) in
+    assert (T.Equal_types_for_debug.equal_type env tag_meet_ty t_tag_1);
+    let expected_ty =
+      let non_const_ctors =
+        Tag.Scannable.Map.of_list
+          [ ( Tag.Scannable.create_exn 1,
+              ( K.Block_shape.Scannable Value_only,
+                [T.alias_type_of K.value (Simple.var vb)] ) ) ]
+      in
+      T.variant ~const_ctors ~non_const_ctors Alloc_mode.For_types.heap
+    in
+    let meet_ty = TE.find env (Name.var v_variant) (Some K.value) in
+    assert (T.Equal_types_for_debug.equal_type env meet_ty expected_ty);
+    Format.eprintf "@[<hov 2>meet:@ %a@]@.@[<hov 2>env:@ %a@]@." T.print
+      tag_meet_ty TE.print env
 
 let test_join_with_extensions () =
   let define ?(kind = K.value) env v =
