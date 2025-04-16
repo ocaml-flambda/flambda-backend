@@ -789,10 +789,9 @@ let add_alias ~binding_time_resolver ~binding_times_and_modes t
   in
   t, which_element
 
-let add ~binding_time_resolver ~binding_times_and_modes t
+let add0 ~binding_time_resolver ~binding_times_and_modes t
     ~canonical_element1:element1_with_coercion
     ~canonical_element2:element2_with_coercion =
-  let original_t = t in
   (* element1_with_coercion <--[c1]-- element1
    * +
    * element2_with_coercion <--[c2]-- element2
@@ -814,19 +813,22 @@ let add ~binding_time_resolver ~binding_times_and_modes t
     then
       Misc.fatal_errorf "Cannot alias an element to itself: %a" Simple.print
         canonical_element1;
+  add_alias ~binding_time_resolver ~binding_times_and_modes t
+    ~canonical_element1 ~coercion_from_canonical_element2_to_canonical_element1
+    ~canonical_element2
+
+let add ~binding_time_resolver ~binding_times_and_modes t ~canonical_element1
+    ~canonical_element2 =
   let open Or_bottom.Let_syntax in
+  let original_t = t in
   let<+ t, which_element =
-    add_alias ~binding_time_resolver ~binding_times_and_modes t
-      ~canonical_element1
-      ~coercion_from_canonical_element2_to_canonical_element1
+    add0 ~binding_time_resolver ~binding_times_and_modes t ~canonical_element1
       ~canonical_element2
   in
   let canonical_element, alias_of_demoted_element =
     match which_element with
-    | Demote_canonical_element1 ->
-      element2_with_coercion, element1_with_coercion
-    | Demote_canonical_element2 ->
-      element1_with_coercion, element2_with_coercion
+    | Demote_canonical_element1 -> canonical_element2, canonical_element1
+    | Demote_canonical_element2 -> canonical_element1, canonical_element2
   in
   Simple.pattern_match alias_of_demoted_element
     ~const:(fun _ -> Misc.fatal_error "Cannot demote a constant")
@@ -1042,11 +1044,17 @@ let add_alias_set ~binding_time_resolver ~binding_times_and_modes t name aliases
     then t, canonical_element1
     else
       match
-        add ~binding_time_resolver ~binding_times_and_modes t
+        add0 ~binding_time_resolver ~binding_times_and_modes t
           ~canonical_element1 ~canonical_element2:elt
       with
       | Bottom -> Misc.fatal_error "Discovered Bottom during alias join"
-      | Ok { t; canonical_element; demoted_name = _ } -> t, canonical_element
+      | Ok (t, which_element) ->
+        let canonical_element =
+          match which_element with
+          | Demote_canonical_element1 -> elt
+          | Demote_canonical_element2 -> canonical_element1
+        in
+        t, canonical_element
   in
   let ({ const; names } : Alias_set.t) = aliases in
   let acc =
