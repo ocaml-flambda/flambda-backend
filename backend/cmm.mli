@@ -24,7 +24,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Float32
   | Valx2
 
-(*= - [Val] denotes a valid OCaml value: either a pointer to the beginning
+(*=- [Val] denotes a valid OCaml value: either a pointer to the beginning
      of a heap block, an infix pointer if it is preceded by the correct
      infix header, or a 2n+1 encoded integer.
    - [Int] is for integers (not necessarily 2n+1 encoded) and for
