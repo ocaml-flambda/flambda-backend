@@ -28,7 +28,7 @@
     DWARF) to places that are currently at the start of these sections
     get relocated correctly when those places become not at the start
     (e.g. during linking). *)
-val switch_to_section : Asm_section.t -> unit
+val switch_to_section : ?emit_label_on_first_occurrence:bool -> Asm_section.t -> unit
 
 (** Emit subsequent directives to the given section, where the section must
     not be one of those in type [section] (see above).  The section is
@@ -409,8 +409,13 @@ end
     Calling the functions in this module will cause directives to be passed
     to the given [emit] function (a typical implementation of which will just
     call [Directive.print] on its parameter).
-    This function switches to the text section. *)
+    This function _does not_ swich sections.
+    If Dwarf debug information is supposed to be produced,
+    additionally [debug_header] should be called, which
+    will switch to the text section after emitting some debug section labels.  *)
 val initialize : big_endian:bool -> emit:(Directive.t -> unit) -> unit
+
+val debug_header : get_file_num: (string -> int) -> unit
 
 (** Reinitialize the emitter before compiling a different source file. *)
 val reset : unit -> unit

@@ -618,8 +618,12 @@ let new_line () = if !Clflags.keep_asm_file then emit New_line
 
 let sections_seen = ref []
 
-(* CR sspies: update this section switching code *)
-let switch_to_section section =
+let switch_to_section ?(emit_label_on_first_occurrence = false) section =
+  (* CR sspies: This code could be made more sensitive to the tracking of the current section:
+     there is no need to emit the section again if it is the same as the current section. However,
+     that excludes other code from directly switching the section, and it is not consistent with
+     how we currently emit code. So for now we always emit the section, even if we are not switching.
+  *)
   let first_occurrence =
     if List.mem section !sections_seen
     then false
@@ -627,18 +631,13 @@ let switch_to_section section =
       sections_seen := section :: !sections_seen;
       true)
   in
-  match !current_section_ref with
-  | Some section' when Asm_section.equal section section' ->
-    assert (not first_occurrence);
-    ()
-  | _ ->
     current_section_ref := Some section;
     let ({ names; flags; args } : Asm_section.section_details) =
       Asm_section.details section ~first_occurrence
     in
-    if not first_occurrence then new_line ();
+    (* CR sspies: We do not print an empty line here to be consistent with Arm emission. *)
     emit (Section { names; flags; args });
-    if first_occurrence then define_label (Asm_label.for_section section)
+    if first_occurrence && emit_label_on_first_occurrence then define_label (Asm_label.for_section section)
 
 let switch_to_section_raw ~names ~flags ~args =
   emit (Section { names; flags; args })
@@ -697,40 +696,24 @@ let file ~file_num ~file_name () =
   in
   emit_non_masm (File { file_num; filename = file_name })
 
-(* CR sspies: fix this up using the new code *)
+
 let initialize ~big_endian ~(emit : Directive.t -> unit) =
   big_endian_ref := Some big_endian;
   emit_ref := Some emit;
-  reset ();
-  (match TS.assembler () with
-  | MASM | MacOS -> ()
-  | GAS_like ->
-    (* CR mshinwell: Is this really the case? Surely some of the DIEs would have
-       gone wrong if this were the case. Maybe it only applies across
-       sections. *)
-    (* Forward label references are illegal in gas. Just put them in for all
-       assemblers, they won't harm. *)
-    List.iter
-      (fun (section : Asm_section.t) ->
-        match section with
-        | Text | Data | Read_only_data | Eight_byte_literals
-        | Sixteen_byte_literals | Jump_tables ->
-          switch_to_section section
-        | DWARF _ ->
-          (* All of the other settings that require these DWARF sections imply
-             [Debug_dwarf_functions]; see clflags.ml. *)
-          (* CR sspies: enable this again when there is more debugging
-             support. *)
-          (* if Clflags.debug_thing Debug_dwarf_functions && dwarf_supported ()
-             then switch_to_section section *)
-          ())
-      (Asm_section.all_sections_in_order ()));
+  reset ()
+
+
+let debug_header ~get_file_num =
+  (* Forward label references are illegal on some assemblers/platforms. To
+      avoid errors, emit the beginning of all dwarf sections in advance. *)
+  if TS.is_gas () || TS.is_macos ()
+  then List.iter (switch_to_section ~emit_label_on_first_occurrence:true) (Asm_section.dwarf_sections_in_order ());
+
   (* Stop dsymutil complaining about empty __debug_line sections (produces bogus
      error "line table parameters mismatch") by making sure such sections are
      never empty. *)
-  file ~file_num:(Some 1) ~file_name:"none" ();
-  (* also PR#7037 *)
-  loc ~file_num:1 ~line:1 ~col:1 ();
+  let file_num = get_file_num "none" in
+  loc ~file_num ~line:1 ~col:1 ();
   switch_to_section Asm_section.Text
 
 let file ~file_num ~file_name = file ~file_num ~file_name ()
