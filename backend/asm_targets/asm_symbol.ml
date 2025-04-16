@@ -56,14 +56,10 @@ module Thing = struct
 
   let hash = Hashtbl.hash
 
-  (* CR sspies: This changed from not having the prefix previously to now
-     outputting the prefix as well. *)
   let output chan { name; without_prefix } =
     let symbol_prefix = if without_prefix then symbol_prefix () else "" in
     Printf.fprintf chan "%s%s" symbol_prefix name
 
-  (* CR sspies: This changed from not having the prefix previously to now
-     printing the prefix as well. *)
   let print fmt { name; without_prefix } =
     let symbol_prefix = if without_prefix then symbol_prefix () else "" in
     Format.pp_print_string fmt (symbol_prefix ^ name)
