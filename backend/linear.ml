@@ -62,7 +62,7 @@ and call_operation =
 
 let has_fallthrough = function
   | Lreturn | Lbranch _ | Lswitch _ | Lraise _
-  | Lcall_op Ltailcall_ind | Lcall_op (Ltailcall_imm _)
+  | Lcall_op Ltailcall_ind | Lcall_op (Ltailcall_imm _) -> false
   | _ -> true
 
 type fundecl =
