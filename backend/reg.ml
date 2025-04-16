@@ -139,14 +139,12 @@ let restart () =
   currstamp := !first_virtual_reg_stamp;
   all_relocatable_regs := []
 
-let total_registers () = !currstamp
-
 let reinit_reg r =
   r.loc <- Unknown
 
+let total_registers () = !currstamp
 let reinit_relocatable_regs () = List.iter reinit_reg !all_relocatable_regs
 let all_relocatable_regs () = !all_relocatable_regs
-let num_registers () = !currstamp
 
 module RegOrder =
   struct
