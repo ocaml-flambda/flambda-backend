@@ -2,8 +2,12 @@
 
 # Introduction
 
-# Here’s a program we’re sad isn’t parallel
+# Fork/join parallelism
 
+Suppose we're working with binary trees, and we want to take an average over all
+the values in the tree. Here's a basic implementation:
+
+<a id="code-average"></a>
 ```ocaml
 module Tree = struct
   type 'a t =
@@ -25,11 +29,12 @@ let average (tree : float Tree.t) =
 ;;
 ```
 
-# But what if fork/join?
+Now suppose we want to take advantage of multicore OCaml and get those sweet,
+sweet parallel speedups. This is an obvious candidate for _fork/join
+parallelism,_ as provided by the `parallel` library’s `fork_join*` functions.
+For example, a very expensive way to add four integers would be this:
 
-We can achieve fork/join parallelism using the `parallel` library’s `fork_join*`
-functions. For example, a very expensive way to add four integers would be this:
-
+<a id="code-add4"></a>
 ```ocaml
 let add4 (par : Parallel.t) a b c d =
   let a_plus_b, c_plus_d =
@@ -210,7 +215,7 @@ most important rules for using them are, and some workarounds and shortcuts. In
 return, these two modes suffice to run even large amounts of code in fork/join
 style without fear of data races.
 
-## A brief primer on `portable` and `contended`
+## How `portable` and `contended` work
 
 Firstly, `portable` and `contended` are _modes_. Like a type, a mode describes
 something about a name in an OCaml program. But whereas a type describes the
@@ -342,6 +347,7 @@ let price_and_mood (t @ uncontended) = price t, mood t
 Can we really treat `t` as both `contended` (to call `price`) and `uncontended`
 (to call `mood`)? Actually, we can:
 
+<a id="rule-contended-submode"></a>
 > **Rule 3.** An `uncontended` value may be used as though it is `contended`.
 
 This is entirely consistent with rules 1 and 2: having an `uncontended` value
@@ -353,16 +359,18 @@ required to. (You may be aware that `local` is the same way.) On the other hand,
 
 Finally, recall that our running example wants to fork/join over an entire tree
 of `Thing.t`s, so we should consider what happens when the `Thing.t` is in a
-bigger data structure. For this we have two closely-related rules. First:
+bigger data structure.
 
 > <a id="rule-contended-deep"></a>
-> **Rule 4a.** On access, any component of a `contended` value is `contended`.
+> **Rule 4.** Any component of a `contended` value is `contended`.
 
 In particular, every field of a `contended` record, every element of a
 `contended` tuple or array (as before, `iarray`s are exempt), and every argument
-of every constructor of a `contended` variant is `contended`. We say that the
-`contended` mode is _deep._ It's easy to see what goes wrong if we let anyone
-treat, say, a field as `uncontended` when its record is `contended`:
+of every constructor of a `contended` variant is `contended`. And of course this
+applies recursively, so the components of _those_ components are also
+`contended`. Accordingly, We say that the `contended` mode is _deep._ It's easy
+to see what goes wrong if we let anyone treat, say, a field as `uncontended`
+when its record is `contended`:
 
 <a id="code-cheer_up_sneakily"></a>
 ```ocaml
@@ -371,39 +379,32 @@ type t_in_a_trenchcoat = {
 }
 
 let cheer_up_sneakily (t_in_a_trenchcoat @ contended) =
-  let t @ uncontended = t_in_a_trenchcoat.inner_t (* error: rule 4a *) in
+  let t @ uncontended = t_in_a_trenchcoat.inner_t (* error: rule 4 *) in
   cheer_up t (* cue the ominous music again *)
 ```
 
-If not for rule 4a, we could also write `bum_out_sneakily` and then call
+If not for rule 4, we could also write `bum_out_sneakily` and then call
 `cheer_up_sneakily` and `bum_out_sneakily` on the same argument in parallel,
 causing the same data race we've been trying to avoid all along.
 
-In fact, rule 4a is pretty well required to make [rule 1] work at all. The
+In fact, rule 4 is pretty well required to make [rule 1] work at all. The
 interested reader is invited to work out why the text of rule 1 demands that,
 for instance, we say that `t_in_a_trenchcoat.inner_t` is `contended` when
 `t_in_a_trenchcoat` is `contended`.
 
 [rule 1]: #rule-contended-parallel
 
-Finally, rule 4a told us about accessing data but we also need a rule about
-constructing it:
+#### Modalities
 
-**[On reflection, I think I'd rather get rid of rule 4b and just describe how
-`uncontended` and modalities work. It isn't really a Rule the way the others
-are.]**
+[Rule 4] says the `contended` mode is deep—that `contended` values can't
+contain `uncontended` values (unless we demote them to `contended` by [rule 3]).
+In contrast, there's such requirement for `uncontended` values: they can contain
+either `contended` or `uncontended` values, so long as we keep track of which is
+which. For convenience, `uncontended` is “deep by default,” and we use a
+notation called a _modality_ to make a field `contended` instead:
 
-> **Rule 4b.** On construction, every component of a `uncontended` value must be
-> `uncontended`, unless the type declares the component to be `@@ contended`.
-
-If rule 4a makes `contended` deep, rule 4b makes `uncontended` “deep by default.”
-We saw in [`cheer_up_sneakily`] that it's _always_ dangerous for a `contended`
-record to contain an `uncontended` field. Going the other direction is fine,
-though, as that just means we know we have exclusive access to the record, say,
-but someone else might be messing with something _inside_ one of the fields. We
-express this possibility like so:
-
-[`cheer_up_sneakily`]: #code-cheer_up_sneakily
+[Rule 4]: #rule-contended-deep
+[rule 3]: #rule-contended-submode
 
 ```ocaml
 module State = struct
@@ -414,17 +415,16 @@ module State = struct
 end
 ```
 
-The `@@ contended` is called a _modality_ and it lets the field have a different
-mode than the record containing it. (You may already know the `@@ global`
-modality.) Effectively, `most_expensive_thing` is _always_ `contended`, whether
-or not the containing `state` record is, but `my_favorite_thing` has the same
-mode as the whole `state` as usual.
+This says that if I have an `uncontended` `State.t`, I have `uncontended` access
+to its `my_favorite_thing` field but `contended` access to its
+`most_expensive_thing` field. (If I have a `contended` one instead, then as
+always both fields are `contended` by rule 4.)
 
 This means we can _never_ access the `mood` of `most_expensive_thing`:
 
 ```ocaml
 let most_expensive_mood (state @ uncontended) =
-  state.most_expensive_thing.mood
+  state.most_expensive_thing.mood (* error *)
 ```
 
 ```
@@ -435,28 +435,30 @@ In return, we can set `most_expensive_thing` to something `contended`:
 
 ```ocaml
 let set_most_expensive_thing (state @ uncontended) (thing @ contended) =
-  state.most_expensive_thing <- thing
+  state.most_expensive_thing <- thing (* ok *)
 ```
 
-We can't do that with `my_favorite_thing`, since `uncontended` is deep by
-default:
+We can't do that with `my_favorite_thing`, since that field is `uncontended`
+when `state` is:
 
 ```ocaml
 let set_my_favorite_thing (state @ uncontended) (thing @ contended) =
-  state.my_favorite_thing <- thing
+  state.my_favorite_thing <- thing (* error *)
 ```
 
 ```
 Error: This value is contended but expected to be uncontended.
 ```
 
+<!--
 Note that there is actually an `@@ uncontended` modality but it's not useful—if
 the record is `contended`, the field has to be `contended` no matter what (see
-[rule 4a]), so the modality doesn't change anything there. Fortunately, by rule
+[rule 4]), so the modality doesn't change anything there. Fortunately, by rule
 3, you can _always_ put an `uncontended` value in a `contended` record, so the
 modality isn't even necessary there.
 
-[rule 4a]: #rule-contended-deep
+[rule 4]: #rule-contended-deep
+-->
 
 ### The `portable` and `nonportable` modes
 
@@ -575,8 +577,8 @@ value called `a` that's an `int ref` at mode `uncontended`,” but somehow rule 
 only cares when the `a` is something from an outer scope rather than a
 parameter. The difference is in the types:
 
-```
-val loop : int -> unit @@ nonportable
+```ocaml
+val loop : int -> unit
 val loop' : int ref @ uncontended -> int -> unit @@ portable
 ```
 
@@ -604,7 +606,8 @@ as if it's `nonportable`:
 And also for similar reasons as before, we need `portable` to be deep the way
 `contended` is:
 
-> **Rule 4a.** Every component of a `portable` value must be `portable`.
+<a id="rule-portable-deep"></a>
+> **Rule 4.** Every component of a `portable` value must be `portable`.
 
 You may have been wondering why rule 2 talks about accessing values rather than
 calling functions, even though `portable` really only cares about
@@ -615,32 +618,340 @@ accesses_ of `nonportable` values from other domains, not just function calls.
 The good news is that many types (in fact, most types) obviously _can't_ cause
 a problem—you'll never make an `(int * string option) list` that contains a
 function, much less one that will cause a data race—and if the compiler is
-aware, it can ignore portability requirements altogether for values of a given
-type. We'll cover the specifics when we get to [mode crossing].
+aware that a type `t` can't have a function in it, it can ignore portability
+requirements altogether for values of `t`. We'll cover the specifics when we get
+to [mode crossing].
 
 [^other-code-types]: Note that some other types are secretly function types,
-especially `Lazy.t`, so `portable` is also a concern for them.
+notably including `Lazy.t`, so `portable` is also a concern for them.
 
 [in a trenchcoat]: #code-cheer_up_sneakily
 [mode crossing]: #mode-crossing
 
 Lastly, `nonportable` is “deep by default” the way `uncontended` is, with
-a `@@ portable` modality:
+a `@@ portable` modality. For example, one might be implementing a customizable
+scheduler:
 
-**[Oh right, I still need to remove the access/construction distinction from
-the `contended` discussion, as well as rule 4b. Also this 4b should go.
-Actually this 4b is ridiculous.]**
+```ocaml
+module Scheduler = struct
+  type t = {
+    mutable waiting_tasks : (unit -> unit) list @@ portable;
+    run_one_task : (unit -> unit) @ portable -> unit;
+  }
+end
+```
 
-> **Rule 4b.** On construction, every component of a `nonportable` value must be
-> `portable` if the type declares the component to be `@@ portable`.
+Here we have some tasks waiting to run and some custom function for running a
+task. We need to retain the ability for the tasks to run in parallel, so we
+use the `@@ portable` modality to make sure that `waiting_tasks` is `portable`
+(and, because `portable` is [deep], that means that each function is
+`portable`). But the scheduler itself might be confined to one domain, so
+`run_one_task` can happily be `nonportable` if the whole `Scheduler.t` is
+`nonportable`. So we don't give `run_one_task` a modality.
 
-# Mode crossing
+[deep]: #rule-portable-deep
 
-**[Enough to cover `immutable_data` and `mutable_data`]**
+# Niceties
 
-# Atomics
+As with most systems, data-race freedom involves a tradeoff between safety and
+convenience. Fortunately there are powerful ways to keep things convenient in
+common cases.
 
-# But what if parallel sequences?
+## Defaulting to `portable`
+
+If you need to add `@@ portable` to one function in an .mli, you'll usually soon
+find yourself adding `@@ portable` to most or all of them. In such a case, you
+can “portabilize” the whole .mli at once simply by adding `@@ portable` at the
+top. Similarly you can have `@@ portable` as the first thing in a `sig` to make
+each function `portable`. In either case, you can always say `@@ nonportable` to
+opt out an individual function.
+
+So for example, we can take this .mli:
+
+```ocaml
+type t
+
+val create : unit -> t @@ portable
+val combine : t -> t -> t @@ portable
+val do_something_involving_shared_state : t -> unit
+```
+
+And change the default to `portable`:
+
+```ocaml
+@@ portable
+
+type t
+
+val create : unit -> t
+val combine : t -> t -> t
+val do_something_involving_shared_state : t -> unit @@ nonportable
+```
+
+## Mode crossing
+
+In discussing why [`portable` is deep], we mentioned that very few types care
+about `portable`, since the values of most types aren't functions and don't
+contain functions. Similarly, if a type `t` doesn't have any `mutable` fields or
+mutable arrays, having a `contended` or `uncontended` `t` makes no difference.
+
+[`portable` is deep]: #rule-portable-deep
+
+Fortunately, the compiler can be made aware that a type “doesn't care” about
+`portable` or `contended`:
+
+```ocaml
+type float_and_int : immutable_data = float * int
+```
+
+The `immutable_data` here is called a _kind._ Just as the value `(1.2, 3)` has
+the type `float_and_int`, in turn the type `float_and_int` has the kind
+`immutable_data`. Also like types, kinds are inferred where possible, so in
+fact the `: immutable_data` in this case is redundant. However, in an .mli
+they are often useful.
+
+The three most important kinds for data-race freedom are `immutable_data`,
+`mutable_data`, and `value`.
+
+| Kind | Requirements | Crosses |
+| ---- | ------------ | ------- |
+| `immutable_data` | no functions or mutable fields, deeply | portability, contention |
+| `mutable_data` | no functions, deeply | portability |
+| `value` | none | none |
+
+(Note that unboxed types like `int64#` can't have any of these kinds, since
+they have different kinds that express how they're represented in memory and
+in registers. Nonetheless, they are all immutable data and thus cross both
+portability and contention.)
+
+A type crossing portability means that `portable` and `nonportable` are
+irrelevant for that type: a `nonportable` value can be used as though it were
+`portable`. The same goes for contention with `contended` and `uncontended`.
+
+```ocaml
+let always_portable : int_or_string @ nonportable -> int_or_string @ portable =
+ fun a ->
+  let a' @ portable = a in (* ok because [int_or_string] crosses portability *)
+  a'
+```
+
+(We have to write this slightly awkwardly to specify the returned mode of a
+function.)
+
+In fact, we've already seen mode crossing in action. Let's look at the full type
+of `Parallel.fork_join2` as `parallel_kernel.mli` writes it:
+
+```ocaml
+val fork_join2
+  :  t @ local
+  -> (t @ local -> 'a @ contended portable) @ portable
+  -> (t @ local -> 'b @ contended portable) @ portable
+  -> 'a * 'b @ contended portable
+```
+
+We've wrestled before with the fact that both functions have to be `portable`,
+but they also have to _return_ values that are both `contended` and `portable`!
+(Exercise: What goes wrong if they're allowed to return something `uncontended`?
+How about `nonportable`?) Why didn't we worry about this before? Well, let's
+look again at the code we were writing:
+
+```ocaml
+  let average_things_par (par : Parallel.t) tree =
+    let rec total par tree =
+      match tree with
+      | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
+      | Tree.Node (l, r) ->
+        let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
+          Parallel.fork_join2
+            par
+            (fun par -> total par l)
+            (fun par -> total par r)
+        in
+        ~total:(total_l +. total_r), ~count:(count_l + count_r)
+    in
+    let ~total, ~count = total par tree in
+    total /. (count |> Float.of_int)
+  ;;
+```
+
+The type of `total` is this:
+
+```ocaml
+Parallel.t @ local -> Thing.t Tree.t @ contended -> total:float * count:int
+```
+
+Crucially, the returned type—which becomes the type returned by the arguments to
+`fork_join2`—is `total:float * count:int`. The basic `float` and `int` types are
+`immutable_data`, and any pair of `immutable_data` types is also
+`immutable_data`, so this type is `immutable_data` as well (in fact, if not for
+the labels it would be the same type as our `float_and_int`). So even though we
+wrote our code with no concern for whether the returned `total` and `count`
+could be accessed in parallel, thanks to the types involved, we didn't have to
+worry.
+
+**[The following isn't very compelling: even if our returned types didn't cross
+contention, we wouldn't have to worry about anything so long as we weren't
+messing with mutable stuff.]**
+
+To appreciate mode crossing, let's see what happens if (for no compelling
+reason) we have `total` return an `int ref` rather than an `int`. For example,
+the `Tree.Leaf` line becomes
+
+```ocaml
+      | Tree.Leaf x -> ~total:(Thing.price x), ~count:(ref 1)
+```
+
+**[finish discussion of mode crossing being nice]**
+
+Any type variable can be given a kind, so we can write a version of
+`always_portable` that works for _any_ `mutable_data` type:
+
+```ocaml
+let always_portable' : ('a : mutable_data) @ nonportable -> 'a @ portable =
+ fun a ->
+  let a' @ portable = a in
+  a'
+```
+
+The type of `always_portable'` can be read “Given any type `'a` of kind
+`mutable_data`, this function takes a `nonportable` `'a` and returns a
+`portable` `'a`.”
+
+## Atomics
+
+<!--
+As we've seen, life is easier when things aren't `mutable`: immutable fields
+of `contended` values can still be accessed, and a value with _no_ mutable
+components (or subcomponents, etc.) [crosses contention] so that it can
+always be considered `uncontended`.
+
+[crosses contention]: #mode-crossing
+
+There's an important caveat there: arrays aside, this is about fields that
+_carry the `mutable` keyword._ It's right there in [rule 2 of `contended`]:
+no “reading or writing to a `mutable` field.”
+
+[rule 2 of `contended`]: #rule-contended-mutable
+-->
+
+We've seen that `mutable` fields can cause quite some trouble: they require
+`uncontended` access, which can make functions not `portable`, and generally
+they very much get in the way. In some cases, however, you _may_ (with
+significant caveats) be able to swap out `mutable` for `Atomic.t`. Let's do
+that with our `thing.ml`:
+
+```ocaml
+module Thing = struct
+  module Mood = struct
+    type t =
+      | Happy
+      | Neutral
+      | Sad
+  end
+
+  type t : immutable_data =
+    { price : float
+    ; mood : Mood.t Atomic.t
+    }
+
+  let create ~price ~mood = { price; mood = Atomic.make mood }
+  let price { price; _ } = price
+  let mood { mood; _ } = Atomic.get mood
+  let cheer_up { mood; _ } = Atomic.set mood Happy
+  let bum_out { mood; _ } = Atomic.set mood Sad
+end
+```
+
+As you can see, there's a bit of syntactic overhead, but in return we get to
+access `mood` even if a `Thing.t` is `contended`, and in fact we can mark `t` as
+`immutable_data` so that it ignores `contended` and `uncontended` altogether
+(that is, it [crosses contention]). Do go over the documentation for the `Atomic`
+module, as it has many useful operations from `compare_exchange` to atomic
+logical bitwise XOR.
+
+[crosses contention]: #mode-crossing
+
+An `Atomic.t` can be handy outside of a record as well, in cases where you would
+otherwise use a `ref` to hold mutable state. For example, rather than return
+the total and count from our fork/join tasks, we can keep the running total and
+count in atomics:
+
+```ocaml
+  let average_par_running (par : Parallel.t) tree =
+    let total = Atomic.make 0.0 in
+    let count = Atomic.make 0 in
+    let rec go par tree =
+      match tree with
+      | Tree.Leaf x ->
+        Atomic.update total ~pure_f:(fun total -> total +. Thing.price x);
+        Atomic.incr count
+      | Tree.Node (l, r) ->
+        let (), () =
+          Parallel.fork_join2 par (fun par -> go par l) (fun par -> go par r)
+        in
+        ()
+    in
+    go par tree;
+    Atomic.get total /. (Atomic.get count |> Float.of_int)
+```
+
+If we kept `total` and `count` in `ref`s, then `go` would not be able to access
+them. (Exercise: What rules combine to stop us? Remember, a `ref` is just a
+record whose only field is `mutable`. Don't rely on rule 1 of `contended` or
+rule 1 of `portable` for your answer—those only tell us that we _must be
+stopped,_ not what actually stops us.)
+
+Now for the caveats: Firstly, there are performance penalties, since an
+`Atomic.t` is a pointer and atomic operations are more expensive. Secondly,
+`Atomic.t` frees us from concerns about data races, but it absolutely does not
+prevent race _conditions_. There are few guarantees about the order in which the
+updates to `total` and `count` occur: we know only that they all happen before
+the outermost `fork_join2` returns.
+
+Of course, in this case what saves us is that it doesn't matter what order the
+updates happen in: addition is commutative. However, now that we've made `mood`
+atomic as well, suppose we wanted to take the average of all the nodes whose
+`mood` is `Happy`? Nothing in the system stops us now: if someone is calling
+`bum_out` on the entire tree in parallel, then our average will reflect an
+unpredictable number of those changes. The only way to stop _that_ is to use
+something more sophisticated like a lock over the whole tree, which grants a
+function `uncontended` access while the lock is held. That's what the capsule
+API is for, but it's beyond the scope of this tutorial.
+
+# Parallel sequences
+
+Our very first example added exactly four integers, and generally we've been
+assuming that our data is in a shape that makes it obvious how to parallelize
+(or at least makes _one_ strategy obvious). But of course real data isn't so
+convenient:
+
+```ocaml
+let add_many (arr : int iarray) =
+  Iarray.fold arr ~init:0 ~f:(fun a b -> a + b)
+```
+
+(We'll be using immutable arrays a lot, since mutable arrays are miserable for
+parallelism. A mutable array is essentially nothing but a series of `mutable`
+fields, [requiring `uncontended` access] to do almost anything.)
+
+[requiring `uncontended` access]: #rule-contended-mutable
+
+Parallelizing this directly is possible but fussy even in this simple case. The
+`Parallel.Sequence` module makes it nearly trivial:
+
+```ocaml
+let add_many_par par arr =
+  let seq = Parallel.Sequence.of_iarray arr in
+  Parallel.Sequence.reduce par seq ~f:(fun a b -> a + b)
+  |> Option.value ~default:0
+```
+
+We first need to convert from `iarray` to `Parallel.Sequence.t`, a general
+sequence type supporting a rich selection of parallel operations. Among them is
+a parallel `reduce`, which operates much like an unordered `fold`.
+
+Just like `Parallel.fork_join2`, we can use parallel sequences in a nested
+manner. Suppose that rather than a binary tree we have an n-ary tree:
 
 ```ocaml
 module Tree = struct
@@ -648,13 +959,26 @@ module Tree = struct
     | Leaf of 'a
     | Nodes of 'a t iarray
 end
+```
+<!--
+Importantly, we're using `iarray`s rather than the usual mutable `array`s
+here—otherwise there would be little hope of doing anything in parallel. The
+sequential code isn't much different from [before]:
+-->
 
+The sequential code isn't much different from [before]:
+
+[before]: #code-average
+
+```ocaml
 let average tree =
   let rec total tree =
     match tree with
-    | Tree.Leaf x -> ~total:x, ~count:1
+    | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
     | Tree.Nodes arr ->
-      let totals_and_counts = Iarray.map ~f:total arr in
+      let totals_and_counts =
+        Iarray.map arr ~f:(fun subtree -> total subtree)
+      in
       Iarray.fold
         totals_and_counts
         ~init:(~total:0.0, ~count:0)
@@ -664,29 +988,43 @@ let average tree =
   let ~total, ~count = total tree in
   total /. (count |> Float.of_int)
 ;;
+```
 
+Naturally, we now use `Iarray.map` to recurse on subnodes and `Iarray.fold` to
+combine the results. To parallelize, we still need the
+`Parallel.Sequence.of_iarray`, but now `Parallel.Sequence.fold'` combines
+the `map` and `reduce` operations:
+
+```ocaml
 let average_par (par : Parallel.t) tree =
   let rec (total @ portable) par tree =
     match tree with
-    | Tree.Leaf x -> ~total:x, ~count:1
-    | Tree.Nodes arr ->
+    | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
+    | Tree.Node arr ->
       let seq = Parallel.Sequence.of_iarray arr in
-      let totals_and_counts = Parallel.Sequence.map' ~f:total seq in
-      (match
-          Parallel.Sequence.reduce
-            par
-            totals_and_counts
-            ~f:(fun (~total:total_acc, ~count:count_acc) (~total, ~count) ->
-              ~total:(total +. total_acc), ~count:(count + count_acc))
-        with
-        | None -> ~total:0.0, ~count:0
-        | Some total_and_count -> total_and_count)
+      Parallel.Sequence.fold'
+        par
+        seq
+        ~f:(fun par subtree -> total par subtree)
+        ~init:(~total:0.0, ~count:0)
+        ~combine:(fun _par (~total, ~count) (~total:total2, ~count:count2) ->
+          ~total:(total +. total2), ~count:(count + count2))
+      [@nontail]
   in
   let ~total, ~count = total par tree in
   total /. (count |> Float.of_int)
-;;
 ```
 
-**[Also do version with `unfold` that parallelizes over the whole tree]**
+(We use `fold'` rather than `fold` to get the version that passes `par` down
+into our `f` and `combine` functions.)
 
-# But what if capsules and locks?
+Another approach would be to convert the entire tree into a
+`Parallel.Sequence.t` at once rather than rely on nested parallelism. This is
+possible using `Parallel.Sequence.unfold`, though it does take more work,
+requiring a definition of an unfolding state with an operation that splits it in
+half.
+
+**[I made a solution for this but unless there's something I missed that would
+make it _radically_ simpler I'm not sure it makes sense for this tutorial?
+Unless we can use effects. I think there's a really cool way to use effects to
+make it easy-ish.]**
