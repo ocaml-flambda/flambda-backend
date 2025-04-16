@@ -67,9 +67,13 @@ and instrument = function
   | Cifthenelse (cond, t_dbg, t, f_dbg, f, dbg) ->
      Cifthenelse (instrument cond, t_dbg, with_afl_logging t t_dbg,
        f_dbg, with_afl_logging f f_dbg, dbg)
-  | Ctrywith (e, kind, ex, extra_args, handler, dbg) ->
-     Ctrywith (instrument e, kind, ex,
-       extra_args, with_afl_logging handler dbg, dbg)
+  | Ccatch (Exn_handler, cases, body) ->
+     let cases =
+       List.map (fun (nfail, ids, e, dbg, is_cold) ->
+           nfail, ids, with_afl_logging e dbg, dbg, is_cold)
+         cases
+     in
+     Ccatch (Exn_handler, cases, instrument body)
   | Cswitch (e, cases, handlers, dbg) ->
      let handlers =
        Array.map (fun (handler, handler_dbg) ->
@@ -86,13 +90,13 @@ and instrument = function
   | Ctuple es -> Ctuple (List.map instrument es)
   | Cop (op, es, dbg) -> Cop (op, List.map instrument es, dbg)
   | Csequence (e1, e2) -> Csequence (instrument e1, instrument e2)
-  | Ccatch (isrec, cases, body) ->
+  | Ccatch ((Normal | Recursive as flag), cases, body) ->
      let cases =
        List.map (fun (nfail, ids, e, dbg, is_cold) ->
            nfail, ids, instrument e, dbg, is_cold)
          cases
      in
-     Ccatch (isrec, cases, instrument body)
+     Ccatch (flag, cases, instrument body)
   | Cexit (ex, args, traps) -> Cexit (ex, List.map instrument args, traps)
 
   (* these are base cases and have no logging *)
