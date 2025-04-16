@@ -355,7 +355,7 @@ module Directive = struct
       bprintf buf "\t.uleb128 %a%s" Constant.print constant comment
     | Direct_assignment (var, const) -> (
       match TS.assembler () with
-      | MacOS -> bprintf buf "%s = %a" var Constant.print const
+      | MacOS -> bprintf buf "\t.set %s, %a" var Constant.print const
       | _ ->
         Misc.fatal_error
           "Cannot emit [Direct_assignment] except on macOS-like assemblers")
