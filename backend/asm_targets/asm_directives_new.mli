@@ -115,10 +115,11 @@ val emit_cached_strings : unit -> unit
 val comment : string -> unit
 
 (** Assign a file number to a filename. *)
-val file : file_num:int -> file_name:string -> unit
+val file : file_num:int option -> file_name:string -> unit
 
 (** Mark the source location of the current assembly position. *)
-val loc : file_num:int -> line:int -> col:int -> unit
+val loc :
+  file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit
 
 (** Emit a blank line. *)
 val new_line : unit -> unit
@@ -176,6 +177,9 @@ val global : Asm_symbol.t -> unit
 (** Emit a machine-width reference to the given symbol. *)
 val symbol : ?comment:string -> Asm_symbol.t -> unit
 
+(** Emit a protected directive for the given symbol. *)
+val protected : Asm_symbol.t -> unit
+
 (** Mark a symbol as "private extern" (see assembler documentation for
     details). *)
 val private_extern : Asm_symbol.t -> unit
@@ -191,6 +195,20 @@ val define_label : Asm_label.t -> unit
 
 (** Emit a machine-width reference to the given label. *)
 val label : ?comment:string -> Asm_label.t -> unit
+
+(** Emit a machine-width reference to the given label with an offset. *)
+val label_plus_offset :
+  ?comment:string -> Asm_label.t -> offset_in_bytes:Targetint.t -> unit
+
+(** The type of the symbol. There are various other types, but we
+    currently only use and support the following. *)
+type symbol_type =
+  | Function
+  | Object
+
+val type_symbol : Asm_symbol.t -> ty:symbol_type -> unit
+
+val type_label : Asm_label.t -> ty:symbol_type -> unit
 
 (** Emit a machine-width reference to the address formed by adding the
     given byte offset to the address of the given symbol.  The symbol may be
@@ -232,6 +250,13 @@ val between_labels_64_bit_with_offsets :
   unit ->
   unit
 
+(** Emit a 32-bit-wide label expression giving the displacement obtained
+    by subtracting the current assembly location from the sum of the address
+    of the given label plus the given offset.  The label must be in the
+    same section as the assembler is currently emitting into. *)
+val between_this_and_label_offset_32bit_expr :
+  upper:Asm_label.t -> offset_upper:Targetint.t -> unit
+
 (** Emit a machine-width reference giving the displacement between the
     [lower] symbol and the sum of the address of the [upper] label plus
     [offset_upper].  The [lower] symbol must be in the current compilation
@@ -267,7 +292,9 @@ val offset_into_dwarf_section_symbol :
 
 module Directive : sig
   module Constant : sig
-    type t = private
+    (* CR sspies: make this private again once the first-class module has been
+       removed *)
+    type t =
       | Signed_int of Int64.t
       | Unsigned_int of Numbers.Uint64.t
       | This
@@ -288,27 +315,38 @@ module Directive : sig
 
     val constant : t -> Constant.t
 
-    type width_in_bytes = private
+    (* CR sspies: make this private again once the first-class module has been
+       removed *)
+    type width_in_bytes =
       | Eight
       | Sixteen
       | Thirty_two
       | Sixty_four
 
     val width_in_bytes : t -> width_in_bytes
+
+    val create : Constant.t -> width_in_bytes -> t
   end
 
-  type thing_after_label = private
+  (* CR sspies: make this private again once the first-class module has been
+     removed *)
+  type thing_after_label =
     | Code
     | Machine_width_data
 
-  type comment = private string
+  (* CR sspies: make this private again once the first-class module has been
+     removed *)
+  type comment = string
+
+  (* CR sspies: make this private again once the first-class module has been
+     removed *)
 
   (** Internal representation of directives.  Only needed if writing a custom
       assembler or printer instead of using [print], below.
       Symbols that occur in values of type [t] are encoded as [string]s and
       have had all necessary prefixing, mangling, escaping and suffixing
       applied. *)
-  type t = private
+  type t =
     | Align of { bytes : int }
     | Bytes of
         { str : string;
@@ -337,7 +375,8 @@ module Directive : sig
     | Loc of
         { file_num : int;
           line : int;
-          col : int
+          col : int;
+          discriminator : int option
         }
     | New_label of string * thing_after_label
     | New_line
@@ -353,11 +392,12 @@ module Directive : sig
           comment : string option
         }
     | Space of { bytes : int }
-    | Type of string * string
+    | Type of string * symbol_type
     | Uleb128 of
         { constant : Constant.t;
           comment : string option
         }
+    | Protected of string
 
   (** Translate the given directive to textual form.  This produces output
       suitable for either gas or MASM as appropriate. *)
