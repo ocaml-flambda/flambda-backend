@@ -401,7 +401,8 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
             add_phi_moves_to_instr_list state ~before:predecessor_block
               ~phi:block substs to_unify instrs;
             let inserted_blocks =
-              insert_block (Cfg_with_infos.cfg_with_layout cfg_with_infos)
+              Cfg_with_layout.insert_block
+                (Cfg_with_infos.cfg_with_layout cfg_with_infos)
                 instrs ~after:predecessor_block ~before:(Some block)
                 ~next_instruction_id:(fun () ->
                   State.get_and_incr_instruction_id state)

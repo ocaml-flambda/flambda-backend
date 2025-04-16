@@ -324,13 +324,6 @@ module Make_max_priority_queue (Priority : Order) :
     done
 end
 
-let iter_cfg_layout : Cfg_with_layout.t -> f:(Cfg.basic_block -> unit) -> unit =
- fun cfg_with_layout ~f ->
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  DLL.iter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
-      let block = Cfg.get_block_exn cfg label in
-      f block)
-
 let iter_instructions_layout :
     Cfg_with_layout.t ->
     instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
@@ -352,7 +345,7 @@ let iter_instructions_layout :
         (InstructionId.equal block.terminator.Cfg.id trap_handler_id)
       block.terminator
   in
-  iter_cfg_layout cfg_with_layout ~f
+  Cfg_with_layout.iter_blocks cfg_with_layout ~f
 
 (* CR xclerc for xclerc: the code below is largely copied from the linscan
    allocator, because it is likely tweaks will be needed to implement the "full"
@@ -518,7 +511,7 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     past_ranges;
   if debug && Lazy.force verbose
   then
-    iter_cfg_layout cfg_with_layout ~f:(fun block ->
+    Cfg_with_layout.iter_blocks cfg_with_layout ~f:(fun block ->
         log "(block %a)" Label.format block.start;
         log_body_and_terminator block.body block.terminator liveness);
   if debug then dedent ();

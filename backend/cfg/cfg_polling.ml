@@ -335,10 +335,8 @@ let instr_cfg_with_layout :
         | _ ->
           let before = Some (Cfg.get_block_exn cfg dst) in
           let instrs = DLL.of_list [poll] in
-          (* CR-soon xclerc: that kind of indicates the `insert_block` function
-             should be moved outside of "regalloc/" *)
           let inserted_blocks =
-            Regalloc_utils.insert_block cfg_with_layout instrs ~after ~before
+            Cfg_with_layout.insert_block cfg_with_layout instrs ~after ~before
               ~next_instruction_id
           in
           (* All the inserted blocks are safe since they contain a poll
