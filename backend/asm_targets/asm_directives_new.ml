@@ -26,6 +26,9 @@ module Int16 = Numbers.Int16
 module Uint64 = Numbers.Uint64
 module TS = Target_system
 
+(* CR sspies: replace polymorphic compare *)
+open! Int_replace_polymorphic_compare
+
 (* CR sspies: Removed [dwarf_supported] *)
 
 let big_endian_ref = ref None
@@ -88,7 +91,8 @@ module Directive = struct
            sign bit is). *)
         | MacOS | GAS_like -> bprintf buf "%Ld" n
         | MASM ->
-          if n >= -0x8000_0000L && n <= 0x7fff_ffffL
+          if Int64.compare n 0x8000_0000L >= 0 &&
+             Int64.compare n 0x7fff_ffffL <= 0
           then Buffer.add_string buf (Int64.to_string n)
           else bprintf buf "0%LxH" n)
       | Unsigned_int n ->
@@ -100,21 +104,6 @@ module Directive = struct
       | Sub (c1, c2) ->
         bprintf buf "(%a - %a)" print_subterm c1 print_subterm c2
 
-    let rec evaluate t =
-      let ( >>= ) = Stdlib.Option.bind in
-      match t with
-      | Signed_int i -> Some i
-      | Unsigned_int _ ->
-        (* For the moment we don't evaluate arithmetic on unsigned ints. *)
-        None
-      | This -> None
-      | Named_thing _ -> None
-      | Add (t1, t2) ->
-        evaluate t1 >>= fun i1 ->
-        evaluate t2 >>= fun i2 -> Some (Int64.add i1 i2)
-      | Sub (t1, t2) ->
-        evaluate t1 >>= fun i1 ->
-        evaluate t2 >>= fun i2 -> Some (Int64.sub i1 i2)
   end
 
   module Constant_with_width = struct
@@ -124,11 +113,6 @@ module Directive = struct
       | Thirty_two
       | Sixty_four
 
-    let int_of_width_in_bytes = function
-      | Eight -> 8
-      | Sixteen -> 16
-      | Thirty_two -> 32
-      | Sixty_four -> 64
 
     type t =
       { constant : Constant.t;
@@ -136,21 +120,10 @@ module Directive = struct
       }
 
     let create constant width_in_bytes =
-      (match Constant.evaluate constant with
-      | None -> ()
-      | Some n ->
-        let in_range =
-          match width_in_bytes with
-          | Eight -> n >= -0x80L && n <= 0x7fL
-          | Sixteen -> n >= -0x8000L && n <= 0x7fffL
-          | Thirty_two -> n >= -0x8000_0000L && n <= 0x7fff_ffffL
-          | Sixty_four -> true
-        in
-        if not in_range
-        then
-          Misc.fatal_errorf
-            "Signed integer constant %Ld does not fit in %d bits" n
-            (int_of_width_in_bytes width_in_bytes));
+      (* CR sspies: Potentially enable range check again here.
+         We currently emit numbers like 158 as an 8-bit constant,
+         which breaks int8 range checks, but make the assembler
+         perfectly happy. *)
       { constant; width_in_bytes }
 
     let constant t = t.constant
@@ -221,17 +194,24 @@ module Directive = struct
 
   let emit_comments () = !Clflags.keep_asm_file
 
+  (* CR sspies: This code is a duplicate with [emit_string_literal]
+     in [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
   let string_of_string_literal s =
+    let between x low high =
+      Char.compare x low >= 0 && Char.compare x high <= 0
+    in
     let buf = Buffer.create (String.length s + 2) in
     let last_was_escape = ref false in
     for i = 0 to String.length s - 1 do
       let c = s.[i] in
-      if c >= '0' && c <= '9'
+      if between c '0' '9'
       then
         if !last_was_escape
         then Printf.bprintf buf "\\%o" (Char.code c)
         else Buffer.add_char buf c
-      else if c >= ' ' && c <= '~' && c <> '"' (* '"' *) && c <> '\\'
+      else if between c ' ' '~'
+          && (not (Char.equal c '"' (* '"' *)))
+          && not (Char.equal c '\\')
       then (
         Buffer.add_char buf c;
         last_was_escape := false)
@@ -296,18 +276,18 @@ module Directive = struct
       bprintf buf "\t.align\t%d" n
     | Const { constant; comment } ->
       let directive =
+        (* Apple's documentation says that ".word" is i386-specific, so we use
+           ".2byte" instead. Additionally, it appears on ARM 32-bit and ARM
+           64-bit that ".word" 32 bits wide, not 16 bits.
+
+           To be sure the size is the same on all architectures, we use ".2byte",
+           ".4byte", and ".8byte" here. See #3857. *)
         match Constant_with_width.width_in_bytes constant with
         | Eight -> "byte"
         | Sixteen -> (
-          match TS.system () with
-          | Solaris -> "value"
-          | _ ->
-            (* Apple's documentation says that ".word" is i386-specific, so we
-               use ".short" instead. Additionally, it appears on ARM that
-               ".word" may be 32 bits wide, not 16 bits. *)
-            "short")
-        | Thirty_two -> "long"
-        | Sixty_four -> "quad"
+          match TS.system () with Solaris -> "value" | _ -> "2byte")
+        | Thirty_two -> "4byte"
+        | Sixty_four -> "8byte"
       in
       let comment = gas_comment_opt comment in
       bprintf buf "\t.%s\t%a%s" directive Constant.print
@@ -347,6 +327,7 @@ module Directive = struct
         (string_of_string_literal filename)
     | Indirect_symbol s -> bprintf buf "\t.indirect_symbol %s" s
     | Loc { file_num; line; col; discriminator } ->
+      (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
       (* If we don't set the optional column field, debug_line program gets the
          column value from the previous .loc directive. *)
       let print_col buf col =
@@ -522,6 +503,9 @@ let loc ~file_num ~line ~col ?discriminator () =
 
 let space ~bytes = emit (Space { bytes })
 
+(* We do not perform any checks that the string does not contain null bytes. The
+   reason is that we sometimes want to emit strings that have an explicit null
+   byte added. *)
 let string ?comment str = emit (Bytes { str; comment })
 
 let global symbol = emit (Global (Asm_symbol.encode symbol))
@@ -617,6 +601,8 @@ let define_label label =
     | None -> not_initialized ()
     | Some this_section -> this_section
   in
+  (* CR sspies: Thsis assumes no other mechanism was used to switch sections
+     such as calling [D.text] directly. *)
   if not (Asm_section.equal lbl_section this_section)
   then
     Misc.fatal_errorf
@@ -678,14 +664,7 @@ module Cached_string = struct
       then c
       else
         let c = String.compare str1 str2 in
-        if c <> 0
-        then c
-        else
-          match comment1, comment2 with
-          | None, None -> 0
-          | None, Some _ -> -1
-          | Some _, None -> 1
-          | Some comment1, Some comment2 -> String.compare comment1 comment2
+        if c <> 0 then c else Option.compare String.compare comment1 comment2
 
     let equal t1 t2 = compare t1 t2 = 0
 
@@ -845,7 +824,7 @@ let mark_stack_non_executable () =
 let new_temp_var () =
   let id = !temp_var_counter in
   incr temp_var_counter;
-  Printf.sprintf "Ltemp%d" id
+  Printf.sprintf "temp%d" id
 
 (* CR sspies: once there are richer symbols, make this function take the section
    again *)
@@ -858,8 +837,8 @@ let force_assembly_time_constant expr =
        results when one of the labels is on a section boundary, for example.) *)
     let temp = new_temp_var () in
     direct_assignment temp expr;
-    let sym = Asm_symbol.create ~without_prefix:() temp in
-    Symbol sym (* not really a symbol, but OK. *)
+    let lbl = Asm_label.create_string Data temp in
+    const_label lbl (* not really a label, but OK. *)
 
 let between_symbols_in_current_unit ~upper ~lower =
   (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
