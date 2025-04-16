@@ -110,8 +110,8 @@ end = struct
     | Reg of int
     | Stack of Stack.t
 
-  let of_reg reg =
-    match reg.Reg.loc with
+  let of_reg (reg : Reg.t) =
+    match reg.loc with
     | Reg.Unknown -> None
     | Reg.Reg idx -> Some (Reg idx)
     | Reg.Stack stack ->
@@ -990,10 +990,10 @@ module type Description_value = sig
   val description : Description.t
 end
 
-let print_reg_as_loc ppf reg =
+let print_reg_as_loc ppf (reg : Reg.t) =
   Printreg.loc
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
-    ppf reg.Reg.loc reg.Reg.typ
+    ppf reg.loc reg.typ
 
 module Domain : Cfg_dataflow.Domain_S with type t = Equation_set.t = struct
   (** This type corresponds to the set of equations in the dataflow from the

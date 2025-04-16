@@ -142,23 +142,27 @@ let restart () =
 let reinit_reg r =
   r.loc <- Unknown
 
-let total_registers () = !currstamp
 let reinit_relocatable_regs () = List.iter reinit_reg !all_relocatable_regs
 let all_relocatable_regs () = !all_relocatable_regs
 
-module RegOrder =
-  struct
-    type t = reg
-    let compare r1 r2 = r1.stamp - r2.stamp
-  end
+let compare r1 r2 =
+  let c = Int.compare r1.stamp r2.stamp in
+  if c <> 0 then c
+  else Cmm.compare_machtype_component r1.typ r2.typ
 
-module Set = Set.Make(RegOrder)
-module Map = Map.Make(RegOrder)
-module Tbl = Hashtbl.Make (struct
-    type t = reg
-    let equal r1 r2 = r1.stamp = r2.stamp
-    let hash r = r.stamp
-  end)
+let same r1 r2 =
+  r1.stamp = r2.stamp && Cmm.equal_machtype_component r1.typ r2.typ
+
+module RegOrder = struct
+  type t = reg
+  let equal = same
+  let compare = compare
+  let hash r = r.stamp
+end
+
+module Set = Set.Make (RegOrder)
+module Map = Map.Make (RegOrder)
+module Tbl = Hashtbl.Make (RegOrder)
 
 let add_set_array s v =
   match Array.length v with
@@ -237,19 +241,8 @@ let equal_location left right =
   | Stack _, (Unknown | Reg _) ->
     false
 
-let same_phys_reg left right =
-  match left.loc, right.loc with
-  | Reg l, Reg r -> Int.equal l r
-  | (Reg _ | Unknown | Stack _), _ -> false
-
 let same_loc left right =
   (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
      (Local _)]. That's complicated because [reg_class] is definied in [Proc]
      which relies on [Reg]. *)
   equal_location left.loc right.loc
-
-let same left right =
-  Int.equal left.stamp right.stamp
-
-let compare left right =
-  Int.compare left.stamp right.stamp

@@ -14,6 +14,7 @@ module Instruction = struct
       Array.map
         (fun (r : Reg.t) ->
           { r with
+            typ = r.typ;
             loc =
               (if remove_locs && not (Reg.is_preassigned r)
               then Unknown
@@ -573,7 +574,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (anon:V/69) with an unknown \
+      ">> Fatal error: instruction 20 has a register (anon:V/37) with an unknown \
        location"
 
 let () =
@@ -866,7 +867,8 @@ let make_loop ~loop_loc_first n =
   let int_arg2 = args.(1) in
   let int_arg3 = args.(2) in
   let extra_regs =
-    Array.init n (fun _ -> { (Reg.create Int) with loc = int_arg3.loc })
+    Array.init n (fun _ -> let reg = Reg.create Int in
+                           { reg with loc = int_arg3.loc })
   in
   let results, result_locs = make_locs [| int_arg1 |] Proc.loc_results_return in
   let make_moves src dst =

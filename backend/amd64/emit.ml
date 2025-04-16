@@ -2613,13 +2613,13 @@ let emit_probe_notes0 () =
       match arg.loc with
       | Stack s ->
         Printf.sprintf "%d(%%rsp)"
-          (slot_offset s (Stack_class.of_machtype arg.Reg.typ))
-      | Reg reg -> Proc.register_name arg.Reg.typ reg
+          (slot_offset s (Stack_class.of_machtype arg.typ))
+      | Reg reg -> Proc.register_name arg.typ reg
       | Unknown ->
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
           Printreg.reg arg
     in
-    Printf.sprintf "%d@%s" (Select_utils.size_component arg.Reg.typ) arg_name
+    Printf.sprintf "%d@%s" (Select_utils.size_component arg.typ) arg_name
   in
   let describe_one_probe p =
     let probe_name, enabled_at_init =

@@ -561,6 +561,29 @@ let map_shallow f = function
     as c ->
       c
 
+let compare_machtype_component (left : machtype_component) (right : machtype_component) =
+  match left, right with
+  | Val, Val
+  | Addr, Addr
+  | Int, Int
+  | Float, Float
+  | Vec128, Vec128
+  | Float32, Float32
+  | Valx2, Valx2 ->
+    0
+  | Val, (Addr | Int | Float | Vec128 | Float32 | Valx2) -> -1
+  | (Addr | Int | Float | Vec128 | Float32 | Valx2), Val -> 1
+  | Addr, (Int | Float | Vec128 | Float32 | Valx2) -> -1
+  | (Int | Float | Vec128 | Float32 | Valx2), Addr -> 1
+  | Int, (Float | Vec128 | Float32 | Valx2) -> -1
+  | (Float | Vec128 | Float32 | Valx2), Int -> 1
+  | Float, (Vec128 | Float32 | Valx2) -> -1
+  | (Vec128 | Float32 | Valx2), Float -> 1
+  | Vec128, (Float32 | Valx2) -> -1
+  | (Float32 | Valx2), Vec128 -> 1
+  | Float32, Valx2 -> -1
+  | Valx2, Float32 -> 1
+
 let equal_machtype_component (left : machtype_component) (right : machtype_component) =
   match left, right with
   | Val, Val -> true

@@ -8,7 +8,7 @@ module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 module RegWorkList = ArraySet.Make (struct
   type t = Reg.t
 
-  let compare left right = Int.compare left.Reg.stamp right.Reg.stamp
+  let compare = Reg.compare
 
   let dummy = { Reg.dummy with stamp = -1 }
 end)
@@ -78,7 +78,7 @@ let[@inline] make ~initial ~stack_slots ~last_used () =
     (fun reg ->
       Reg.Tbl.replace reg_work_list reg WorkList.Precolored;
       Reg.Tbl.replace reg_color reg
-        (match reg.Reg.loc with
+        (match reg.loc with
         | Reg color -> Some color
         | Unknown | Stack _ ->
           fatal "precolored register %a is not an hardware register"
@@ -172,7 +172,7 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
         WorkList.equal
           (Reg.Tbl.find state.reg_work_list reg)
           WorkList.Precolored);
-      (match reg.Reg.loc, Reg.Tbl.find state.reg_color reg with
+      (match reg.loc, Reg.Tbl.find state.reg_color reg with
       | Reg color, Some color' -> assert (color = color')
       | Reg _, None -> assert false
       | (Unknown | Stack _), _ -> assert false);
@@ -385,26 +385,20 @@ let[@inline] remove_active_moves state instr =
   instr.Cfg.irc_work_list <- Unknown_list;
   InstructionWorkList.remove state.active_moves instr
 
-let[@inline] mem_adj_set state reg1 reg2 =
+let[@inline] mem_adj_set state (reg1 : Reg.t) (reg2 : Reg.t) =
   RegisterStamp.PairSet.mem state.adj_set
-    (RegisterStamp.pair reg1.Reg.stamp reg2.Reg.stamp)
+    (RegisterStamp.pair reg1.stamp reg2.stamp)
 
 let[@inline] adj_list state reg = Reg.Tbl.find state.reg_interf reg
 
-let[@inline] interferes_with_adj state reg1 reg2 =
-  mem_adj_set state reg1 reg2
-  || List.exists
-       (Reg.Tbl.find state.reg_interf reg1)
-       ~f:(Reg.same_phys_reg reg2)
-
-let[@inline] add_edge state u v =
-  let is_interesting_reg reg =
-    match reg.Reg.loc with
+let[@inline] add_edge state (u : Reg.t) (v : Reg.t) =
+  let is_interesting_reg (reg : Reg.t) =
+    match reg.loc with
     | Reg _ -> true
     | Unknown -> true
     | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> false
   in
-  let pair = RegisterStamp.pair u.Reg.stamp v.Reg.stamp in
+  let pair = RegisterStamp.pair u.stamp v.stamp in
   if (not (Reg.same u v))
      && is_interesting_reg u && is_interesting_reg v && same_reg_class u v
      && not (RegisterStamp.PairSet.mem state.adj_set pair)
@@ -574,8 +568,8 @@ let[@inline] diff_all_introduced_temporaries state set =
 
 let update_register_locations state =
   if debug then log "update_register_locations";
-  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
-      match reg.Reg.loc with
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
+      match reg.loc with
       | Reg _ -> ()
       | Stack _ -> ()
       | Unknown -> (
@@ -585,7 +579,7 @@ let update_register_locations state =
           ()
         | Some color ->
           if debug then log "updating %a to %d" Printreg.reg reg color;
-          reg.Reg.loc <- Reg color))
+          reg.loc <- Reg color))
 
 let[@inline] check_disjoint sets ~is_disjoint =
   List.iter sets ~f:(fun (name1, set1) ->

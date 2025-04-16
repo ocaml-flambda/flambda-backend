@@ -33,7 +33,7 @@ let update_register_locations : State.t -> unit =
     log "update_register_locations";
     indent ());
   let update_register (reg : Reg.t) : unit =
-    match reg.Reg.loc with
+    match reg.loc with
     | Reg _ -> ()
     | Stack _ -> ()
     | Unknown -> (
@@ -46,7 +46,7 @@ let update_register_locations : State.t -> unit =
         then
           log "updating %a to %a" Printreg.reg reg
             Hardware_register.print_location location;
-        reg.Reg.loc <- Hardware_register.reg_location_of_location location)
+        reg.loc <- Hardware_register.reg_location_of_location location)
   in
   List.iter (Reg.all_relocatable_regs ()) ~f:update_register;
   if debug then dedent ()

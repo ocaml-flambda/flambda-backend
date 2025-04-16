@@ -445,7 +445,9 @@ val iter_shallow: (expression -> unit) -> expression -> unit
 val map_shallow: (expression -> expression) -> expression -> expression
   (** Apply the transformation to each immediate sub-expression. *)
 
+val compare_machtype_component : machtype_component -> machtype_component -> int
 val equal_machtype_component : machtype_component -> machtype_component -> bool
+
 val equal_exttype : exttype -> exttype -> bool
 val equal_static_cast : static_cast -> static_cast -> bool
 val equal_reinterpret_cast : reinterpret_cast -> reinterpret_cast -> bool
