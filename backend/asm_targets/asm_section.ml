@@ -71,9 +71,8 @@ let dwarf_sections_in_order () =
   sections @ dwarf_version_dependent_sections
 
 let is_delayed = function
-  (* Only .debug_line and .debug_frames are delayed.
-     All other sections should be emitted directly.
-     See PR #1719. *)
+  (* Only .debug_line and .debug_frames are delayed. All other sections should
+     be emitted directly. See PR #1719. *)
   | DWARF Debug_line -> true
   | DWARF
       ( Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists

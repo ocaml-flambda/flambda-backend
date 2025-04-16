@@ -50,9 +50,7 @@ module Thing = struct
   let compare { name = name1; without_prefix = without_prefix1 }
       { name = name2; without_prefix = without_prefix2 } =
     let cmp = String.compare name1 name2 in
-    if cmp = 0
-    then Bool.compare without_prefix1 without_prefix2
-    else cmp
+    if cmp = 0 then Bool.compare without_prefix1 without_prefix2 else cmp
 
   let equal t1 t2 = compare t1 t2 = 0
 
