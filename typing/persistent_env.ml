@@ -947,25 +947,45 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
               (Style.as_inline_code Location.print_filename) filename
               (Style.as_inline_code CU.Name.print) ps_name
               (Style.as_inline_code CU.Name.print) name
-        | Inconsistent_import _ -> assert false
+        | Inconsistent_import _ ->
+            (* Can't be raised by [find_pers_struct ~check:false] *)
+            assert false
         | Need_recursive_types name ->
             Format.asprintf
               "%a uses recursive types"
               (Style.as_inline_code CU.Name.print) name
-        | Inconsistent_package_declaration_between_imports _ -> assert false
+        | Inconsistent_package_declaration_between_imports _ ->
+            (* Can't be raised by [find_pers_struct ~check:false] *)
+            assert false
         | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
             Format.asprintf "%a is inaccessible from %a"
               CU.print unit
               describe_prefix prefix
-        (* The cmi is necessary, otherwise the functor cannot be
-           generated. Moreover, aliases of functor arguments are forbidden. *)
-        | Illegal_import_of_parameter _ -> assert false
-        | Not_compiled_as_parameter _ -> assert false
-        | Imported_module_has_unset_parameter _ -> assert false
-        | Imported_module_has_no_such_parameter _ -> assert false
-        | Not_compiled_as_argument _ -> assert false
-        | Argument_type_mismatch _ -> assert false
-        | Unbound_module_as_argument_value _ -> assert false
+        | Illegal_import_of_parameter (name, _) ->
+            Format.asprintf "%a is a parameter"
+              (Style.as_inline_code Global_module.Name.print) name
+        | Not_compiled_as_parameter name ->
+            Format.asprintf "%a should be a parameter but isn't"
+              (Style.as_inline_code Global_module.Name.print) name
+        | Imported_module_has_unset_parameter { imported; parameter } ->
+            Format.asprintf "%a requires argument for %a"
+              (Style.as_inline_code Global_module.Name.print) imported
+              (Style.as_inline_code Global_module.Name.print) parameter
+        | Imported_module_has_no_such_parameter { imported; parameter; _ } ->
+            Format.asprintf "%a has no parameter %a"
+              (Style.as_inline_code CU.Name.print) imported
+              (Style.as_inline_code Global_module.Name.print) parameter
+        | Not_compiled_as_argument { value; _ } ->
+            Format.asprintf "%a is not compiled as an argument"
+              (Style.as_inline_code Global_module.Name.print) value
+        | Argument_type_mismatch { value; expected; actual; _ } ->
+            Format.asprintf "%a implements %a, not %a"
+              (Style.as_inline_code Global_module.Name.print) value
+              (Style.as_inline_code Global_module.Name.print) actual
+              (Style.as_inline_code Global_module.Name.print) expected
+        | Unbound_module_as_argument_value { value; _ } ->
+            Format.asprintf "Can't find argument %a"
+              (Style.as_inline_code Global_module.Name.print) value
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
