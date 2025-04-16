@@ -41,6 +41,8 @@ module type Priority_queue = sig
   val iter : 'a t -> f:('a element -> unit) -> unit
 end
 
+(* CR-soon gyorsh: check whether the dynamic array module from the stdlib can be
+   used. *)
 (* CR xclerc for xclerc: some issues we might want to address with the
    implementation below: - it uses `Obj.magic`; - `elements` can only grow. *)
 module Make (Priority : Order) :
