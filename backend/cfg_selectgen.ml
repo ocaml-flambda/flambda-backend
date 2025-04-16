@@ -71,7 +71,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
       | Cstatic_cast _ | Ctuple_field _ | Ccmpf _ | Cdls_get ->
         List.for_all is_simple_expr args)
-    | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ -> false
+    | Cswitch _ | Ccatch _ | Cexit _ -> false
 
   and is_simple_expr expr =
     match Target.is_simple_expr expr with
@@ -100,8 +100,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Clet (_id, arg, body) -> EC.join (effects_of arg) (effects_of body)
     | Cphantom_let (_var, _defining_expr, body) -> effects_of body
     | Csequence (e1, e2) -> EC.join (effects_of e1) (effects_of e2)
-    | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
-      EC.join (effects_of cond) (EC.join (effects_of ifso) (effects_of ifnot))
     | Cop (op, args, _) ->
       let from_op =
         match op with
@@ -455,6 +453,24 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     Sub_cfg.add_instruction' sub_cfg instr;
     instr.id
 
+  let recognize_if_then_else ~(cond : Cmm.expression) ~index ~ecases =
+    match[@ocaml.warning "-fragile-match"] index, ecases with
+    | [| 0; 1 |], [| (ifso_expr, ifso_dbg); (ifnot_expr, ifnot_dbg) |] -> (
+      match[@ocaml.warning "-fragile-match"] cond with
+      | Cop
+          ( Caddi,
+            [ Cop
+                ( Clsl,
+                  [ Cop (Ccmpi Cne, [cond; Cconst_int (1, _)], _);
+                    Cconst_int (1, _) ],
+                  _ );
+              Cconst_int (1, _) ],
+            _ ) ->
+        (* See [Cmm_helpers.ifthenelse] *)
+        Some (cond, ifso_expr, ifso_dbg, ifnot_expr, ifnot_dbg)
+      | _ -> None)
+    | _ -> None
+
   let setup_catch_handler (flag : Cmm.ccatch_flag) rs sub_cfg =
     match flag with
     | Normal | Recursive -> ()
@@ -780,9 +796,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       match emit_expr env sub_cfg e1 ~bound_name:None with
       | Never_returns -> Never_returns
       | Ok _ -> emit_expr env sub_cfg e2 ~bound_name)
-    | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg) ->
-      emit_expr_ifthenelse env sub_cfg bound_name econd ifso_dbg eif ifnot_dbg
-        eelse dbg
     | Cswitch (esel, index, ecases, dbg) ->
       emit_expr_switch env sub_cfg bound_name esel index ecases dbg
     | Ccatch (_, [], e1) -> emit_expr env sub_cfg e1 ~bound_name
@@ -804,8 +817,6 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       match emit_expr env sub_cfg e1 ~bound_name:None with
       | Never_returns -> ()
       | Ok _ -> emit_tail env sub_cfg e2)
-    | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg) ->
-      emit_tail_ifthenelse env sub_cfg econd ifso_dbg eif ifnot_dbg eelse dbg
     | Cswitch (esel, index, ecases, dbg) ->
       emit_tail_switch env sub_cfg esel index ecases dbg
     | Ccatch (_, [], e1) -> emit_tail env sub_cfg e1
@@ -1005,6 +1016,14 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       r
 
   and emit_expr_switch env sub_cfg bound_name esel index ecases
+      (dbg : Debuginfo.t) : _ Or_never_returns.t =
+    match recognize_if_then_else ~cond:esel ~index ~ecases with
+    | Some (esel, ifso_expr, ifso_dbg, ifnot_expr, ifnot_dbg) ->
+      emit_expr_ifthenelse env sub_cfg bound_name esel ifso_dbg ifso_expr
+        ifnot_dbg ifnot_expr dbg
+    | _ -> emit_expr_switch0 env sub_cfg bound_name esel index ecases dbg
+
+  and emit_expr_switch0 env sub_cfg bound_name esel index ecases
       (_dbg : Debuginfo.t) : _ Or_never_returns.t =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     match emit_expr env sub_cfg esel ~bound_name:None with
@@ -1289,7 +1308,15 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
       Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:sub_cfg
 
-  and emit_tail_switch env sub_cfg esel index ecases (_dbg : Debuginfo.t) =
+  and emit_tail_switch env sub_cfg esel index ecases (dbg : Debuginfo.t) : unit
+      =
+    match recognize_if_then_else ~cond:esel ~index ~ecases with
+    | Some (esel, ifso_expr, ifso_dbg, ifnot_expr, ifnot_dbg) ->
+      emit_tail_ifthenelse env sub_cfg esel ifso_dbg ifso_expr ifnot_dbg
+        ifnot_expr dbg
+    | _ -> emit_tail_switch0 env sub_cfg esel index ecases dbg
+
+  and emit_tail_switch0 env sub_cfg esel index ecases (_dbg : Debuginfo.t) =
     (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
     match emit_expr env sub_cfg esel ~bound_name:None with
     | Never_returns -> ()

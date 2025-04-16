@@ -145,10 +145,6 @@ let rec check env (expr : Cmm.expression) =
   | Csequence (expr1, expr2) ->
     check env expr1;
     check env expr2
-  | Cifthenelse (test, _, ifso, _, ifnot, _) ->
-    check env test;
-    check env ifso;
-    check env ifnot
   | Cswitch (body, _, branches, _) ->
     check env body;
     Array.iter (fun (expr, _) -> check env expr) branches

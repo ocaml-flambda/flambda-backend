@@ -358,14 +358,6 @@ let rec expr ppf = function
       fprintf ppf ")@]")
   | Csequence(e1, e2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" sequence e1 sequence e2
-  | Cifthenelse(e1, e2_dbg, e2, e3_dbg, e3, dbg) ->
-      with_location_mapping ~label:"Cifthenelse-e1" ~dbg ppf (fun () ->
-      fprintf ppf "@[<2>(if@ %a@ " expr e1;
-      with_location_mapping ~label:"Cifthenelse-e2" ~dbg:e2_dbg ppf (fun () ->
-      fprintf ppf "%a@ " expr e2);
-      with_location_mapping ~label:"Cifthenelse-e3" ~dbg:e3_dbg ppf (fun () ->
-      fprintf ppf "%a" expr e3);
-      fprintf ppf ")@]")
   | Cswitch(e1, index, cases, dbg) ->
       with_location_mapping ~label:"Cswitch" ~dbg ppf (fun () ->
       let print_case i ppf =

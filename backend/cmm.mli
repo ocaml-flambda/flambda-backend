@@ -348,8 +348,6 @@ type expression =
   | Ctuple of expression list
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
-  | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
       * Debuginfo.t
   | Ccatch of
