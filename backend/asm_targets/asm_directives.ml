@@ -243,14 +243,14 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         let lab = D.const_label (Asm_symbol.encode sym) in
         const_machine_width lab)
 
-  let label ?comment lab =
-    Option.iter D.comment comment;
+  let label ?comment:comment' lab =
+    Option.iter comment comment';
     let lab = D.const_label (Asm_label.encode lab) in
     const_machine_width lab
 
-  let label_plus_offset ?comment lab ~offset_in_bytes =
+  let label_plus_offset ?comment:comment' lab ~offset_in_bytes =
     let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
-    Option.iter D.comment comment;
+    Option.iter comment comment';
     let lab = D.const_label (Asm_label.encode lab) in
     const_machine_width (D.const_add lab (D.const_int64 offset_in_bytes))
 
@@ -301,9 +301,9 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_64_bit"
 
-  let between_labels_64_bit_with_offsets ?comment ~upper ~upper_offset ~lower
+  let between_labels_64_bit_with_offsets ?comment:comment' ~upper ~upper_offset ~lower
       ~lower_offset () =
-    Option.iter D.comment comment;
+    Option.iter comment comment';
     let upper_offset = Targetint.to_int64 upper_offset in
     let lower_offset = Targetint.to_int64 lower_offset in
     let expr =
@@ -317,11 +317,11 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     in
     const_machine_width (force_assembly_time_constant expr)
 
-  let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
+  let between_symbol_in_current_unit_and_label_offset ?comment:comment' ~upper ~lower
       ~offset_upper () =
     (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
        check_symbol_and_label_in_same_section lower upper; *)
-    Option.iter D.comment comment;
+    Option.iter comment comment';
     if Targetint.compare offset_upper Targetint.zero = 0
     then
       let expr =
@@ -346,7 +346,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     | Dwarf_flags.Thirty_two -> D.long constant
     | Dwarf_flags.Sixty_four -> D.qword constant
 
-  let offset_into_dwarf_section_label ?comment ~width section upper =
+  let offset_into_dwarf_section_label ?comment:comment' ~width section upper =
     let upper_section = Asm_label.section upper in
     let expected_section : Asm_section.t = DWARF section in
     if not (Asm_section.equal upper_section expected_section)
@@ -357,11 +357,11 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (if !Clflags.keep_asm_file
     then
       let expected_section = Asm_section.to_string expected_section in
-      match comment with
-      | None -> D.comment (Format.asprintf "offset into %s" expected_section)
-      | Some comment ->
-        D.comment
-          (Format.asprintf "%s (offset into %s)" comment expected_section));
+      match comment' with
+      | None -> comment (Format.asprintf "offset into %s" expected_section)
+      | Some comment' ->
+        comment
+          (Format.asprintf "%s (offset into %s)" comment' expected_section));
     (* macOS does not use relocations in DWARF sections in places, such as here,
        where they might be expected. Instead dsymutil and other tools parse
        DWARF sections properly and adjust offsets manually. *)
@@ -380,7 +380,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     in
     const ~width expr
 
-  let offset_into_dwarf_section_symbol ?comment
+  let offset_into_dwarf_section_symbol ?comment:comment'
       ~(width : Dwarf_flags.dwarf_format) section upper =
     (* CR mshinwell: code from previous DWARF work:
 
@@ -420,21 +420,21 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
      *   .quad dist
      *   .quad extunit_die - __debug_info
      *)
-    let comment =
+    let comment' =
       if not !Clflags.keep_asm_file
       then None
       else
-        match comment with
+        match comment' with
         | None ->
           Some
             (Format.asprintf "offset into %s"
                (Asm_section.to_string (DWARF section)))
-        | Some comment ->
+        | Some comment' ->
           Some
-            (Format.asprintf "%s (offset into %s)" comment
+            (Format.asprintf "%s (offset into %s)" comment'
                (Asm_section.to_string (DWARF section)))
     in
-    Option.iter D.comment comment;
+    Option.iter comment comment';
     let expr =
       if is_macos ()
       then
