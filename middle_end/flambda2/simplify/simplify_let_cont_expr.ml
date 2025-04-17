@@ -120,7 +120,7 @@ type rebuilt_handler =
 
 type rebuilt_handlers_group =
   | Recursive of
-      { continuation_handlers : rebuilt_handler Continuation.Map.t;
+      { continuation_handlers : rebuilt_handler Continuation.Lmap.t;
         invariant_params : Bound_parameters.t
       }
   | Non_recursive of
@@ -169,7 +169,7 @@ let split_recursive_let_cont handlers =
   assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
   let handlers = Continuation_handlers.to_map rec_handlers in
   let continuation_handlers =
-    Continuation.Map.map
+    Continuation.Lmap.map
       (fun handler ->
         let is_cold = CH.is_cold handler in
         CH.pattern_match handler ~f:(fun params ~handler ->
@@ -432,7 +432,7 @@ let rebuild_let_cont (data : rebuild_let_cont_data) ~after_rebuild body uacc =
       rebuild_groups expr name_occurrences cost_metrics uacc groups
     | Recursive { continuation_handlers; invariant_params } :: groups ->
       let rec_handlers =
-        Continuation.Map.map
+        Continuation.Lmap.map
           (fun handler -> handler.handler)
           continuation_handlers
       in
@@ -442,20 +442,20 @@ let rebuild_let_cont (data : rebuild_let_cont_data) ~after_rebuild body uacc =
           ~invariant_params rec_handlers ~body
       in
       let name_occurrences =
-        Continuation.Map.fold
+        Continuation.Lmap.fold
           (fun _ handler name_occurrences ->
             NO.union name_occurrences
               (NO.increase_counts handler.name_occurrences_of_handler))
           continuation_handlers name_occurrences_body
       in
       let name_occurrences =
-        Continuation.Map.fold
+        Continuation.Lmap.fold
           (fun cont _ name_occurrences ->
             NO.remove_continuation name_occurrences ~continuation:cont)
           continuation_handlers name_occurrences
       in
       let cost_metrics_of_handlers =
-        Continuation.Map.fold
+        Continuation.Lmap.fold
           (fun _ handler cost_metrics ->
             Cost_metrics.( + ) cost_metrics handler.cost_metrics_of_handler)
           continuation_handlers Cost_metrics.zero
@@ -812,10 +812,10 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
                 else Some invariant_params
             in
             loop uacc invariant_params remaining_handlers
-              (Continuation.Map.add cont rebuilt_handler rebuilt_handlers)
+              (Continuation.Lmap.add cont rebuilt_handler rebuilt_handlers)
               k)
     in
-    loop uacc None rebuild_continuation_handlers Continuation.Map.empty
+    loop uacc None rebuild_continuation_handlers Continuation.Lmap.empty
       (fun invariant_params rebuilt_handlers uacc ->
         (* Add all rewrites and continue rebuilding *)
         rebuild_continuation_handlers_loop ~rebuild_body
@@ -1218,7 +1218,7 @@ and simplify_recursive_handlers ~down_to_up ~rebuild_body ~denv_for_join
       let reachable_handlers_to_simplify =
         Continuation.Set.remove cont reachable_handlers_to_simplify
       in
-      let handler = Continuation.Map.find cont continuation_handlers in
+      let handler = Continuation.Lmap.find cont continuation_handlers in
       simplify_single_recursive_handler ~simplify_expr ~invariant_params
         cont_uses_env_so_far consts_lifted_during_body all_conts_set common_denv
         dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
@@ -1354,7 +1354,9 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
      *)
     let dacc = DA.with_are_lifting_conts dacc Are_lifting_conts.no_lifting in
     let denv = DE.set_at_unit_toplevel_state denv false in
-    let all_conts_set = Continuation.Map.keys continuation_handlers in
+    let all_conts_set =
+      Continuation.Set.of_list @@ Continuation.Lmap.keys continuation_handlers
+    in
     let used_handlers_in_body =
       Continuation.Set.inter all_conts_set
         (CUE.all_continuations_used body_continuation_uses_env)
@@ -1516,7 +1518,7 @@ let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
      allows to simplify a recursive let cont with the name abstraction already
      opened. *)
   let continuation_handlers =
-    Continuation.Map.map
+    Continuation.Lmap.map
       (fun handler ->
         let is_cold = CH.is_cold handler in
         CH.pattern_match handler ~f:(fun params ~handler ->

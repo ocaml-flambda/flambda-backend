@@ -19,7 +19,7 @@ type continuation_handler =
   }
 
 type continuation_handlers =
-  { handlers : Flambda.Continuation_handler.t Continuation.Map.t;
+  { handlers : Flambda.Continuation_handler.t Continuation.Lmap.t;
     free_names : Name_occurrences.t
   }
 
@@ -38,14 +38,14 @@ val create_continuation_handler :
   continuation_handler
 
 val create_continuation_handlers :
-  continuation_handler Continuation.Map.t -> continuation_handlers
+  continuation_handler Continuation.Lmap.t -> continuation_handlers
 
 val create_non_recursive_let_cont :
   Continuation.t -> continuation_handler -> body:t -> t
 
 val create_recursive_let_cont :
   invariant_params:Bound_parameters.t ->
-  continuation_handler Continuation.Map.t ->
+  continuation_handler Continuation.Lmap.t ->
   body:t ->
   t
 
