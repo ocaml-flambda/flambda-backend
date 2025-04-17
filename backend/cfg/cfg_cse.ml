@@ -365,6 +365,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
       empty_numbering
     | Op (Extcall _) ->
       (* Likewise for external calls *)
+      (* CR mshinwell: could do better with knowledge about effects *)
       empty_numbering
     | Op (Alloc _) | Op Poll ->
       (* For allocations, we must avoid extending the live range of a
