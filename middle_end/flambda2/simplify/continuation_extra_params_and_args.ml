@@ -138,8 +138,8 @@ let replace_extra_args t extra_args =
   | Empty -> Empty
   | Non_empty { extra_params; _ } -> Non_empty { extra_params; extra_args }
 
-let concat ~outer:t1 ~inner:t2 =
-  match t1, t2 with
+let concat ~outer ~inner =
+  match outer, inner with
   | Empty, t | t, Empty -> t
   | Non_empty t1, Non_empty t2 ->
     let extra_args =
@@ -148,8 +148,9 @@ let concat ~outer:t1 ~inner:t2 =
           match extra_args1, extra_args2 with
           | None, None -> None
           | Some _, None | None, Some _ ->
-            Misc.fatal_errorf "concat: mismatching domains on id %a"
-              Apply_cont_rewrite_id.print id
+            Misc.fatal_errorf
+              "concat: mismatching domains on id %a.@\nouter: %a@\ninner: %a"
+              Apply_cont_rewrite_id.print id print outer print inner
           | Some Or_invalid.Invalid, Some _ | Some _, Some Or_invalid.Invalid ->
             Some Or_invalid.Invalid
           | Some (Or_invalid.Ok extra_args1), Some (Or_invalid.Ok extra_args2)
