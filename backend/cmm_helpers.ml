@@ -3544,44 +3544,31 @@ let addr_array_length arg dbg =
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
    (e.g., bswap). *)
 
-let bbswap bi arg dbg =
-  match (bi : Primitive.unboxed_integer) with
-  | Unboxed_int8 -> arg
-  | _ ->
-    let bitwidth : Cmm.bswap_bitwidth =
-      match (bi : Primitive.unboxed_integer) with
-      | Unboxed_nativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
-      | Unboxed_int8 -> assert false
-      | Unboxed_int16 -> Sixteen
-      | Unboxed_int32 -> Thirtytwo
-      | Unboxed_int64 -> Sixtyfour
+let bbswap (bitwidth : Cmm.bswap_bitwidth) arg dbg =
+  let op = Cbswap { bitwidth } in
+  if Proc.operation_supported op
+     && not (bitwidth = Cmm.Sixtyfour && size_int < 8)
+  then Cop (op, [arg], dbg)
+  else
+    let func, tyarg =
+      match bitwidth with
+      | Sixteen -> "caml_bswap16_direct", XInt16
+      | Thirtytwo -> "caml_int32_direct_bswap", XInt32
+      | Sixtyfour -> "caml_int64_direct_bswap", XInt64
     in
-    let op = Cbswap { bitwidth } in
-    if (bi = Primitive.Unboxed_int64 && size_int = 4)
-       || not (Proc.operation_supported op)
-    then
-      let func, tyarg =
-        match (bi : Primitive.unboxed_integer) with
-        | Unboxed_int8 -> assert false
-        | Unboxed_int16 -> "caml_bswap16_direct", XInt16
-        | Unboxed_int32 -> "caml_int32_direct_bswap", XInt32
-        | Unboxed_nativeint -> "caml_nativeint_direct_bswap", XInt
-        | Unboxed_int64 -> "caml_int64_direct_bswap", XInt64
-      in
-      Cop
-        ( Cextcall
-            { func;
-              builtin = false;
-              returns = true;
-              effects = Arbitrary_effects;
-              coeffects = Has_coeffects;
-              ty = typ_int;
-              alloc = false;
-              ty_args = [tyarg]
-            },
-          [arg],
-          dbg )
-    else Cop (op, [arg], dbg)
+    Cop
+      ( Cextcall
+          { func;
+            builtin = false;
+            returns = true;
+            effects = No_effects;
+            coeffects = No_coeffects;
+            ty = typ_int;
+            alloc = false;
+            ty_args = [tyarg]
+          },
+        [arg],
+        dbg )
 
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 

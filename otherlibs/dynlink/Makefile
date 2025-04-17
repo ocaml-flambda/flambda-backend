@@ -126,6 +126,7 @@ COMPILERLIBS_SOURCES=\
   typing/path.ml \
   typing/shape.ml \
   typing/jkind_types.ml \
+  typing/scalar.ml \
   typing/primitive.ml \
   typing/zero_alloc.ml \
   typing/types.ml \

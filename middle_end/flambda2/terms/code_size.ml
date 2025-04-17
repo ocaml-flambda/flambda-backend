@@ -66,18 +66,12 @@ let unary_int_prim_size kind op =
     ( (kind : Flambda_kind.Standard_int.t),
       (op : Flambda_primitive.unary_int_arith_op) )
   with
-  | Tagged_immediate, Neg -> 1
   | Tagged_immediate, Swap_byte_endianness ->
     (* CR pchambart: size depends a lot of the architecture. If the backend
        handles it, this is a single arith op. *)
     2 + does_not_need_caml_c_call_extcall_size + 1
-  | Naked_immediate, Neg -> 1
   | Naked_immediate, Swap_byte_endianness ->
     does_not_need_caml_c_call_extcall_size + 1
-  | Naked_int64, Neg when arch32 -> does_not_need_caml_c_call_extcall_size + 1
-  | ( (Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint),
-      Neg ) ->
-    1
   | Naked_int8, Swap_byte_endianness -> 0
   | ( (Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint),
       Swap_byte_endianness ) ->

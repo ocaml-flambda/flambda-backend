@@ -25,17 +25,17 @@ let f x =
 0
 type t = { a : bool; mutable b : int option; }
 (let
-  (f/288 =
-     (function {nlocal = 0} x/290 : int
-       (if (field_int 0 x/290)
-         (let (*match*/294 =o (field_mut 1 x/290))
-           (if *match*/294
-             (if (seq (setfield_ptr 1 x/290 0) 0) 2
-               (let (*match*/295 =o (field_mut 1 x/290))
-                 (field_imm 0 *match*/295)))
+  (f/285 =
+     (function {nlocal = 0} x/287 : int
+       (if (field_int 0 x/287)
+         (let (*match*/291 =o (field_mut 1 x/287))
+           (if *match*/291
+             (if (seq (setfield_ptr 1 x/287 0) 0) 2
+               (let (*match*/292 =o (field_mut 1 x/287))
+                 (field_imm 0 *match*/292)))
              1))
          0)))
-  (apply (field_imm 1 (global Toploop!)) "f" f/288))
+  (apply (field_imm 1 (global Toploop!)) "f" f/285))
 val f : t -> int = <fun>
 |}]
 
@@ -56,13 +56,13 @@ let f x =
 0
 type t = { a : bool; mutable b : int option; }
 (let
-  (f/301 =
-     (function {nlocal = 0} x/302 : int
-       (if (field_int 0 x/302)
-         (let (*match*/306 =o (field_mut 1 x/302))
-           (if *match*/306 (field_imm 0 *match*/306) 1))
+  (f/296 =
+     (function {nlocal = 0} x/297 : int
+       (if (field_int 0 x/297)
+         (let (*match*/301 =o (field_mut 1 x/297))
+           (if *match*/301 (field_imm 0 *match*/301) 1))
          0)))
-  (apply (field_imm 1 (global Toploop!)) "f" f/301))
+  (apply (field_imm 1 (global Toploop!)) "f" f/296))
 val f : t -> int = <fun>
 |}]
 
@@ -85,25 +85,25 @@ let f r =
    unsound here. *)
 [%%expect {|
 (let
-  (f/308 =
-     (function {nlocal = 0} r/309 : int
+  (f/303 =
+     (function {nlocal = 0} r/304 : int
        (region
          (let
-           (*match*/311 =[(consts (0)) (non_consts ([0: *]))]
-              (makelocalblock 0 (*) r/309))
+           (*match*/306 =[(consts (0)) (non_consts ([0: *]))]
+              (makelocalblock 0 (*) r/304))
            (catch
-             (if *match*/311
-               (let (*match*/313 =o (field_mut 0 (field_imm 0 *match*/311)))
-                 (if *match*/313 (exit 7) 0))
+             (if *match*/306
+               (let (*match*/308 =o (field_mut 0 (field_imm 0 *match*/306)))
+                 (if *match*/308 (exit 7) 0))
                (exit 7))
             with (7)
-             (if (seq (setfield_ptr 0 r/309 0) 0) 1
-               (if *match*/311
+             (if (seq (setfield_ptr 0 r/304 0) 0) 1
+               (if *match*/306
                  (let
-                   (*match*/315 =o (field_mut 0 (field_imm 0 *match*/311)))
-                   (field_imm 0 *match*/315))
+                   (*match*/310 =o (field_mut 0 (field_imm 0 *match*/306)))
+                   (field_imm 0 *match*/310))
                  3)))))))
-  (apply (field_imm 1 (global Toploop!)) "f" f/308))
+  (apply (field_imm 1 (global Toploop!)) "f" f/303))
 val f : int option ref -> int = <fun>
 |}]
 
@@ -123,10 +123,10 @@ let test = function
 0
 type _ t = Int : int -> int t | Bool : bool -> bool t
 (let
-  (test/319 =
-     (function {nlocal = 0} param/322[(consts (0)) (non_consts ([0: *]))]
-       : int (if param/322 (field_imm 0 (field_imm 0 param/322)) 0)))
-  (apply (field_imm 1 (global Toploop!)) "test" test/319))
+  (test/314 =
+     (function {nlocal = 0} param/317[(consts (0)) (non_consts ([0: *]))]
+       : int (if param/317 (field_imm 0 (field_imm 0 param/317)) 0)))
+  (apply (field_imm 1 (global Toploop!)) "test" test/314))
 val test : int t option -> int = <fun>
 |}]
 
@@ -144,11 +144,11 @@ let test = function
 0
 type _ t = Int : int -> int t | Bool : bool -> bool t
 (let
-  (test/327 =
-     (function {nlocal = 0} param/329 : int
-       (let (*match*/330 =o (field_mut 0 param/329))
-         (if *match*/330 (field_imm 0 (field_imm 0 *match*/330)) 0))))
-  (apply (field_imm 1 (global Toploop!)) "test" test/327))
+  (test/322 =
+     (function {nlocal = 0} param/324 : int
+       (let (*match*/325 =o (field_mut 0 param/324))
+         (if *match*/325 (field_imm 0 (field_imm 0 *match*/325)) 0))))
+  (apply (field_imm 1 (global Toploop!)) "test" test/322))
 val test : int t option ref -> int = <fun>
 |}]
 
@@ -169,11 +169,11 @@ let test n =
 0
 type _ t = Int : int -> int t | Bool : bool -> bool t
 (let
-  (test/335 =
-     (function {nlocal = 0} n/336 : int
+  (test/330 =
+     (function {nlocal = 0} n/331 : int
        (region
          (let
-           (*match*/339 =[(consts (0)) (non_consts ([0: *]))]
+           (*match*/334 =[(consts (0)) (non_consts ([0: *]))]
               (makelocalblock 0 ([(consts ())
                                   (non_consts ([0: *,
                                                 [(consts ())
@@ -182,13 +182,13 @@ type _ t = Int : int -> int t | Bool : bool -> bool t
                 (makelocalblock 0 (*,[(consts ()) (non_consts ([1: [int]]
                                       [0: [int]]))])
                   (makelocalmutable 0 (int) 1) [0: 42])))
-           (if *match*/339
+           (if *match*/334
              (let
-               (*match*/340 =a (field_imm 0 *match*/339)
-                *match*/342 =o (field_mut 0 (field_imm 0 *match*/340)))
-               (if *match*/342 (field_imm 0 (field_imm 1 *match*/340))
-                 (~ (field_imm 0 (field_imm 1 *match*/340)))))
+               (*match*/335 =a (field_imm 0 *match*/334)
+                *match*/337 =o (field_mut 0 (field_imm 0 *match*/335)))
+               (if *match*/337 (field_imm 0 (field_imm 1 *match*/335))
+                 (%int_neg (field_imm 0 (field_imm 1 *match*/335)))))
              3)))))
-  (apply (field_imm 1 (global Toploop!)) "test" test/335))
+  (apply (field_imm 1 (global Toploop!)) "test" test/330))
 val test : 'a -> int = <fun>
 |}]
