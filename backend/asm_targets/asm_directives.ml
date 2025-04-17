@@ -129,16 +129,10 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         sections_seen := section :: !sections_seen;
         true)
     in
-    match !current_dwarf_section_ref with
-    | Some section' when Asm_section.equal section section' ->
-      assert (not first_occurrence);
-      ()
-    | _ ->
       current_dwarf_section_ref := Some section;
       let ({ names; flags; args } : Asm_section.section_details) =
         Asm_section.details section ~first_occurrence
       in
-      if not first_occurrence then new_line ();
       D.section ~delayed:(Asm_section.is_delayed section) names flags args;
       if first_occurrence then define_label (Asm_label.for_section section)
 
