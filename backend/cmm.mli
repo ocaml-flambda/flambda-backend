@@ -555,6 +555,7 @@ val iter_shallow : (expression -> unit) -> expression -> unit
 val map_shallow : (expression -> expression) -> expression -> expression
 
 val compare_machtype_component : machtype_component -> machtype_component -> int
+
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 
 val equal_exttype : exttype -> exttype -> bool
