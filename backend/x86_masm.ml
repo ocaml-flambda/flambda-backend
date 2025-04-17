@@ -441,10 +441,10 @@ let print_line b = function
   | Model name -> bprintf b "\t.MODEL %s" name (* name = FLAT *)
   (* gas / MacOS only *)
   | Cfi_adjust_cfa_offset _ | Cfi_endproc | Cfi_startproc
-  | Cfi_def_cfa_register _ | Cfi_def_cfa_offset _ | Cfi_remember_state
-  | Cfi_restore_state | File _ | Indirect_symbol _ | Loc _ | Private_extern _
-  | Set _ | Size _ | Type _ | Hidden _ | Weak _ | Reloc _ | Direct_assignment _
-  | Protected _ ->
+  | Cfi_def_cfa_register _ | Cfi_def_cfa_offset _ | Cfi_offset _
+  | Cfi_remember_state | Cfi_restore_state | File _ | Indirect_symbol _ | Loc _
+  | Private_extern _ | Set _ | Size _ | Type _ | Hidden _ | Weak _ | Reloc _
+  | Direct_assignment _ | Protected _ ->
     assert false
 
 let generate_asm oc lines =

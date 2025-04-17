@@ -39,6 +39,82 @@ module String = Misc.Stdlib.String
 [@@@ocaml.warning "-66"]
 
 open! Branch_relaxation
+module ND = Asm_targets.Asm_directives_new
+
+let rec to_x86_constant (c : ND.Directive.Constant.t) : X86_ast.constant =
+  match c with
+  | Signed_int i -> Const i
+  (* CR sspies: Is this cast safe? Seems to be just the identity. *)
+  | Unsigned_int i -> Const (Numbers.Uint64.to_int64 i)
+  | This -> ConstThis
+  | Named_thing s ->
+    ConstLabel s
+    (* both seem to be printed directly to the buffer without any conversion*)
+  | Add (c1, c2) -> ConstAdd (to_x86_constant c1, to_x86_constant c2)
+  | Sub (c1, c2) -> ConstSub (to_x86_constant c1, to_x86_constant c2)
+
+let to_x86_constant_with_width (c : ND.Directive.Constant_with_width.t) :
+    X86_ast.asm_line =
+  let width = ND.Directive.Constant_with_width.width_in_bytes c in
+  let const = ND.Directive.Constant_with_width.constant c in
+  let const = to_x86_constant const in
+  match width with
+  | Eight -> Byte const
+  (* on x86 Word is 2 bytes; warning this is not the same on Arm *)
+  | Sixteen -> Word const
+  | Thirty_two -> Long const
+  | Sixty_four -> Quad const
+
+let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
+  let comment_lines comment =
+    Option.to_list (Option.map (fun s -> X86_ast.Comment s) comment)
+  in
+  match dir with
+  | Align { bytes } ->
+    [X86_ast.Align (false, bytes)]
+    (* The data field is currently ignored by both assembler backends. The bytes
+       field is only converted to the final value when printing. *)
+  | Bytes { str; comment } -> comment_lines comment @ [X86_ast.Bytes str]
+  | Comment s -> [X86_ast.Comment s]
+  | Const { constant; comment } ->
+    comment_lines comment @ [to_x86_constant_with_width constant]
+  | Direct_assignment (s, c) ->
+    [X86_ast.Direct_assignment (s, to_x86_constant c)]
+  | File { file_num = None; _ } ->
+    Misc.fatal_error "file directive must always carry a number on x86"
+  | File { file_num = Some file_num; filename } ->
+    [X86_ast.File (file_num, filename)]
+  | Global s -> [X86_ast.Global s]
+  | Indirect_symbol s -> [X86_ast.Indirect_symbol s]
+  | Loc { file_num; line; col; discriminator } ->
+    (* Behavior differs for negative column values. x86 will not output
+       anything, but new directives will output 0. *)
+    [X86_ast.Loc { file_num; line; col; discriminator }]
+  | New_label (s, _typ) ->
+    [X86_ast.NewLabel (s, NONE)]
+    (* typ is ignored on x86 and in the new directives*)
+  | New_line -> [X86_ast.NewLine]
+  | Private_extern s -> [X86_ast.Private_extern s]
+  | Section { names; flags; args } ->
+    [X86_ast.Section (names, flags, args, false)]
+    (* delayed for this directive is always ignored in GAS printing, and section
+       is not supported in binary emitter. In MASM, it only supports .text and
+       .data. *)
+  | Size (s, c) -> [X86_ast.Size (s, to_x86_constant c)]
+  | Sleb128 { constant; comment } ->
+    comment_lines comment @ [X86_ast.Sleb128 (to_x86_constant constant)]
+  | Space { bytes } -> [Space bytes]
+  | Type (n, st) ->
+    let typ = match st with Function -> "STT_FUNC" | Object -> "STT_OBJECT" in
+    [Type (n, typ)]
+  | Uleb128 { constant; comment } ->
+    comment_lines comment @ [X86_ast.Uleb128 (to_x86_constant constant)]
+  | Cfi_adjust_cfa_offset n -> [X86_ast.Cfi_adjust_cfa_offset n]
+  | Cfi_def_cfa_offset n -> [X86_ast.Cfi_def_cfa_offset n]
+  | Cfi_endproc -> [X86_ast.Cfi_endproc]
+  | Cfi_offset { reg; offset } -> [X86_ast.Cfi_offset (reg, offset)]
+  | Cfi_startproc -> [X86_ast.Cfi_startproc]
+  | Protected s -> [X86_ast.Protected s]
 
 let _label s = D.label ~typ:QWORD s
 
@@ -539,18 +615,32 @@ let emit_jump_tables () =
   List.iter emit_jump_table !jump_tables;
   jump_tables := []
 
+let file_emitter ~file_num ~file_name =
+  ND.file ~file_num:(Some file_num) ~file_name
+
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
   (module Asm_targets.Asm_directives.Make (struct
-    let emit_line str = X86_dsl.D.comment str
+    let emit_line line = ND.comment line
 
-    let get_file_num file_name =
-      Emitaux.get_file_num ~file_emitter:X86_dsl.D.file file_name
+    let get_file_num file_name = Emitaux.get_file_num ~file_emitter file_name
 
     let debugging_comments_in_asm_files = !Flambda_backend_flags.dasm_comments
 
     module D = struct
-      open X86_ast
-      include X86_dsl.D
+      type constant = ND.Directive.Constant.t
+
+      let const_int64 num = ND.Directive.Constant.Signed_int num
+
+      let const_label str = ND.Directive.Constant.Named_thing str
+
+      let const_add c1 c2 = ND.Directive.Constant.Add (c1, c2)
+
+      let const_sub c1 c2 = ND.Directive.Constant.Sub (c1, c2)
+
+      (* CR sspies: The functions depending on [emit_directive] below break
+         abstractions. This is intensional at the moment, because this is only
+         the first step of getting rid of the first-class module entirely. *)
+      let emit_directive d = List.iter directive (to_x86_directive d)
 
       type data_type =
         | NONE
@@ -558,27 +648,69 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         | QWORD
         | VEC128
 
-      type nonrec constant = X86_ast.constant
+      let file = file_emitter
 
-      let const_int64 num = Const num
+      let loc ~file_num ~line ~col ?discriminator () =
+        ignore discriminator;
+        D.loc ~file_num ~line ~col ?discriminator ()
 
-      let const_label str = ConstLabel str
-
-      let const_add c1 c2 = ConstAdd (c1, c2)
-
-      let const_sub c1 c2 = ConstSub (c1, c2)
+      let comment str = D.comment str
 
       let label ?data_type str =
-        let typ =
-          Option.map
-            (function
-              | NONE -> X86_ast.NONE
-              | DWORD -> X86_ast.DWORD
-              | QWORD -> X86_ast.QWORD
-              | VEC128 -> X86_ast.VEC128)
-            data_type
+        let _ = data_type in
+        emit_directive (New_label (str, Code))
+
+      let section ?delayed:_ name flags args =
+        match name, flags, args with
+        | [".data"], _, _ -> ND.data ()
+        | [".text"], _, _ -> ND.text ()
+        | name, flags, args -> ND.switch_to_section_raw ~names:name ~flags ~args
+
+      let text () = D.text ()
+
+      let new_line () = D.new_line ()
+
+      let emit_constant const size =
+        emit_directive
+          (Const
+             { constant = ND.Directive.Constant_with_width.create const size;
+               comment = None
+             })
+
+      let global sym = emit_directive (Global sym)
+
+      let protected sym =
+        if not (is_macosx system) then emit_directive (Protected sym)
+
+      let type_ sym typ_ =
+        let typ_ : ND.symbol_type =
+          match typ_ with
+          | "@function" -> Function
+          | "@object" -> Object
+          | "STT_OBJECT" -> Object
+          | "STT_FUNC" -> Function
+          | _ -> Misc.fatal_error "Unsupported type"
         in
-        label ?typ str
+        emit_directive (Type (sym, typ_))
+
+      let byte const = emit_constant const Eight
+
+      let word const = emit_constant const Sixteen
+
+      let long const = emit_constant const Thirty_two
+
+      let qword const = emit_constant const Sixty_four
+
+      let bytes str = ND.string str
+
+      let uleb128 const =
+        emit_directive (Uleb128 { constant = const; comment = None })
+
+      let sleb128 const =
+        emit_directive (Sleb128 { constant = const; comment = None })
+
+      let direct_assignment var const =
+        emit_directive (Direct_assignment (var, const))
     end
   end))
 
@@ -2314,6 +2446,14 @@ let begin_assembly unix =
   if !Flambda_backend_flags.internal_assembler
      && !Emitaux.binary_backend_available
   then X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
+  (* We initialize the new assembly directives. *)
+  Asm_targets.Asm_label.initialize ~new_label:(fun () ->
+      Cmm.new_label () |> Label.to_int);
+  ND.initialize
+    ~big_endian:Arch.big_endian
+      (* As a first step, we emit by calling the corresponding x86 emit
+         directives. *) ~emit:(fun d ->
+      List.iter directive (to_x86_directive d));
   let code_begin = Cmm_helpers.make_symbol "code_begin" in
   let code_end = Cmm_helpers.make_symbol "code_end" in
   Emitaux.Dwarf_helpers.begin_dwarf ~build_asm_directives ~code_begin ~code_end
