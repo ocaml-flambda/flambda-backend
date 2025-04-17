@@ -34,7 +34,9 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
   | Stack (Domainstate s) -> wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
 let reg ppf r =
-  fprintf ppf "%s:%s" (print r)
+  fprintf ppf "%s%s:%s"
+    (if r.preassigned then "pin:" else "")
+    (Reg.Name.to_string r.name)
     (match (r.typ : Cmm.machtype_component) with
     | Val -> "V"
     | Addr -> "A"

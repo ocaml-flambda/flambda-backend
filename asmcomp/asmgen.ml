@@ -377,7 +377,7 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   let module Cfg_selection = Cfg_selectgen.Make (Cfg_selection) in
   Proc.init ();
-  Reg.restart ();
+  Reg.clear_relocatable_regs ();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
   ++ (fun (fd_cmm : Cmm.fundecl) ->
@@ -482,7 +482,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename
                  afterwards. *)
               Typemod.reset ~preserve_persistent_env:true;
               Emitaux.reset ();
-              Reg.restart ());
+              Reg.clear_relocatable_regs ());
         let assemble_result =
           Profile.record "assemble"
             (Proc.assemble_file asm_filename)
