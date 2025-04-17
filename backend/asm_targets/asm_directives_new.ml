@@ -25,6 +25,7 @@ module Int8 = Numbers.Int8
 module Int16 = Numbers.Int16
 module Uint64 = Numbers.Uint64
 module TS = Target_system
+open! Int_replace_polymorphic_compare
 
 (* CR sspies: Removed [dwarf_supported] *)
 
@@ -49,6 +50,10 @@ let big_endian () =
   match !big_endian_ref with
   | None -> not_initialized ()
   | Some big_endian -> big_endian
+
+type symbol_type =
+  | Function
+  | Object
 
 let bprintf = Printf.bprintf
 
@@ -84,7 +89,8 @@ module Directive = struct
            sign bit is). *)
         | MacOS | GAS_like -> bprintf buf "%Ld" n
         | MASM ->
-          if n >= -0x8000_0000L && n <= 0x7fff_ffffL
+          if Int64.compare n 0x8000_0000L >= 0
+             && Int64.compare n 0x7fff_ffffL <= 0
           then Buffer.add_string buf (Int64.to_string n)
           else bprintf buf "0%LxH" n)
       | Unsigned_int n ->
@@ -95,22 +101,6 @@ module Directive = struct
         bprintf buf "(%a + %a)" print_subterm c1 print_subterm c2
       | Sub (c1, c2) ->
         bprintf buf "(%a - %a)" print_subterm c1 print_subterm c2
-
-    let rec evaluate t =
-      let ( >>= ) = Stdlib.Option.bind in
-      match t with
-      | Signed_int i -> Some i
-      | Unsigned_int _ ->
-        (* For the moment we don't evaluate arithmetic on unsigned ints. *)
-        None
-      | This -> None
-      | Named_thing _ -> None
-      | Add (t1, t2) ->
-        evaluate t1 >>= fun i1 ->
-        evaluate t2 >>= fun i2 -> Some (Int64.add i1 i2)
-      | Sub (t1, t2) ->
-        evaluate t1 >>= fun i1 ->
-        evaluate t2 >>= fun i2 -> Some (Int64.sub i1 i2)
   end
 
   module Constant_with_width = struct
@@ -120,33 +110,15 @@ module Directive = struct
       | Thirty_two
       | Sixty_four
 
-    let int_of_width_in_bytes = function
-      | Eight -> 8
-      | Sixteen -> 16
-      | Thirty_two -> 32
-      | Sixty_four -> 64
-
     type t =
       { constant : Constant.t;
         width_in_bytes : width_in_bytes
       }
 
     let create constant width_in_bytes =
-      (match Constant.evaluate constant with
-      | None -> ()
-      | Some n ->
-        let in_range =
-          match width_in_bytes with
-          | Eight -> n >= -0x80L && n <= 0x7fL
-          | Sixteen -> n >= -0x8000L && n <= 0x7fffL
-          | Thirty_two -> n >= -0x8000_0000L && n <= 0x7fff_ffffL
-          | Sixty_four -> true
-        in
-        if not in_range
-        then
-          Misc.fatal_errorf
-            "Signed integer constant %Ld does not fit in %d bits" n
-            (int_of_width_in_bytes width_in_bytes));
+      (* CR sspies: Potentially enable range check again here. We currently emit
+         numbers like 158 as an 8-bit constant, which breaks int8 range checks,
+         but make the assembler perfectly happy. *)
       { constant; width_in_bytes }
 
     let constant t = t.constant
@@ -189,7 +161,8 @@ module Directive = struct
     | Loc of
         { file_num : int;
           line : int;
-          col : int
+          col : int;
+          discriminator : int option
         }
     | New_label of string * thing_after_label
     | New_line
@@ -205,27 +178,35 @@ module Directive = struct
           comment : string option
         }
     | Space of { bytes : int }
-    | Type of string * string
+    | Type of string * symbol_type
     | Uleb128 of
         { constant : Constant.t;
           comment : string option
         }
+    | Protected of string
 
   let bprintf = Printf.bprintf
 
   let emit_comments () = !Clflags.keep_asm_file
 
+  (* CR sspies: This code is a duplicate with [emit_string_literal] in
+     [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
   let string_of_string_literal s =
+    let between x low high =
+      Char.compare x low >= 0 && Char.compare x high <= 0
+    in
     let buf = Buffer.create (String.length s + 2) in
     let last_was_escape = ref false in
     for i = 0 to String.length s - 1 do
       let c = s.[i] in
-      if c >= '0' && c <= '9'
+      if between c '0' '9'
       then
         if !last_was_escape
         then Printf.bprintf buf "\\%o" (Char.code c)
         else Buffer.add_char buf c
-      else if c >= ' ' && c <= '~' && c <> '"' (* '"' *) && c <> '\\'
+      else if between c ' ' '~'
+              && (not (Char.equal c '"' (* '"' *)))
+              && not (Char.equal c '\\')
       then (
         Buffer.add_char buf c;
         last_was_escape := false)
@@ -250,6 +231,25 @@ module Directive = struct
       if !pos >= 16 then pos := 0
     done
 
+  (* CR sspies: This code is based on [emit_string_directive] in [emitaux.ml].
+     We break up the string into smaller chunks. *)
+  let print_ascii_string_gas buf s =
+    let l = String.length s in
+    if l = 0
+    then ()
+    else
+      (* We first print the string 80 characters at a time. *)
+      let i = ref 0 in
+      while l - !i > 80 do
+        bprintf buf "\t.ascii\t\"%s\"\n"
+          (string_of_string_literal (String.sub s !i 80));
+        i := !i + 80
+      done;
+      (* Then we print the remainder. We do not append a new line, because every
+         directive ends with a new line. *)
+      bprintf buf "\t.ascii\t\"%s\""
+        (string_of_string_literal (String.sub s !i (l - !i)))
+
   let print_gas buf t =
     let gas_comment_opt comment_opt =
       if not (emit_comments ())
@@ -271,18 +271,18 @@ module Directive = struct
       bprintf buf "\t.align\t%d" n
     | Const { constant; comment } ->
       let directive =
+        (* Apple's documentation says that ".word" is i386-specific, so we use
+           ".2byte" instead. Additionally, it appears on ARM 32-bit and ARM
+           64-bit that ".word" 32 bits wide, not 16 bits.
+
+           To be sure the size is the same on all architectures, we use
+           ".2byte", ".4byte", and ".8byte" here. See #3857. *)
         match Constant_with_width.width_in_bytes constant with
         | Eight -> "byte"
         | Sixteen -> (
-          match TS.system () with
-          | Solaris -> "value"
-          | _ ->
-            (* Apple's documentation says that ".word" is i386-specific, so we
-               use ".short" instead. Additionally, it appears on ARM that
-               ".word" may be 32 bits wide, not 16 bits. *)
-            "short")
-        | Thirty_two -> "long"
-        | Sixty_four -> "quad"
+          match TS.system () with Solaris -> "value" | _ -> "2byte")
+        | Thirty_two -> "4byte"
+        | Sixty_four -> "8byte"
       in
       let comment = gas_comment_opt comment in
       bprintf buf "\t.%s\t%a%s" directive Constant.print
@@ -291,7 +291,7 @@ module Directive = struct
     | Bytes { str; comment } ->
       (match TS.system (), TS.architecture () with
       | Solaris, _ | _, POWER -> buf_bytes_directive buf ~directive:".byte" str
-      | _ -> bprintf buf "\t.ascii\t\"%s\"" (string_of_string_literal str));
+      | _ -> print_ascii_string_gas buf str);
       bprintf buf "%s" (gas_comment_opt comment)
     | Comment s -> bprintf buf "\t\t\t/* %s */" s
     | Global s -> bprintf buf "\t.globl\t%s" s
@@ -321,30 +321,43 @@ module Directive = struct
       bprintf buf "\t.file\t%d\t\"%s\"" file_num
         (string_of_string_literal filename)
     | Indirect_symbol s -> bprintf buf "\t.indirect_symbol %s" s
-    | Loc { file_num; line; col } ->
+    | Loc { file_num; line; col; discriminator } ->
       (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
-      if col >= 0
-      then bprintf buf "\t.loc\t%d\t%d\t%d" file_num line col
-      else bprintf buf "\t.loc\t%d\t%d" file_num line
+      (* If we don't set the optional column field, debug_line program gets the
+         column value from the previous .loc directive. *)
+      let print_col buf col =
+        if col >= 0 then bprintf buf "\t%d" col else bprintf buf "\t0"
+      in
+      let print_discriminator buf dis =
+        match dis with
+        | None -> ()
+        | Some dis -> bprintf buf "\tdiscriminator %d" dis
+      in
+      bprintf buf "\t.loc\t%d\t%d%a%a" file_num line print_col col
+        print_discriminator discriminator
     | Private_extern s -> bprintf buf "\t.private_extern %s" s
     | Size (s, c) -> bprintf buf "\t.size %s,%a" s Constant.print c
     | Sleb128 { constant; comment } ->
       let comment = gas_comment_opt comment in
-      bprintf buf "\t.sleb128 %a%s" Constant.print constant comment
+      bprintf buf "\t.sleb128\t%a%s" Constant.print constant comment
     | Type (s, typ) ->
       (* We use the "STT" forms when they are supported as they are unambiguous
          across platforms (cf. https://sourceware.org/binutils/docs/as/Type.html
          ). *)
+      let typ =
+        match typ with Function -> "STT_FUNC" | Object -> "STT_OBJECT"
+      in
       bprintf buf "\t.type %s %s" s typ
     | Uleb128 { constant; comment } ->
       let comment = gas_comment_opt comment in
-      bprintf buf "\t.uleb128 %a%s" Constant.print constant comment
+      bprintf buf "\t.uleb128\t%a%s" Constant.print constant comment
     | Direct_assignment (var, const) -> (
       match TS.assembler () with
-      | MacOS -> bprintf buf "%s = %a" var Constant.print const
+      | MacOS -> bprintf buf "\t.set %s, %a" var Constant.print const
       | _ ->
         Misc.fatal_error
           "Cannot emit [Direct_assignment] except on macOS-like assemblers")
+    | Protected s -> bprintf buf "\t.protected\t%s" s
 
   let print_masm buf t =
     let unsupported name =
@@ -401,6 +414,7 @@ module Directive = struct
     | Type _ -> unsupported "Type"
     | Uleb128 _ -> unsupported "Uleb128"
     | Direct_assignment _ -> unsupported "Direct_assignment"
+    | Protected _ -> unsupported "Protected"
 
   let print b t =
     match TS.assembler () with
@@ -479,10 +493,14 @@ let cfi_startproc () = if should_generate_cfi () then emit Cfi_startproc
 
 let comment text = if !Clflags.keep_asm_file then emit (Comment text)
 
-let loc ~file_num ~line ~col = emit_non_masm (Loc { file_num; line; col })
+let loc ~file_num ~line ~col ?discriminator () =
+  emit_non_masm (Loc { file_num; line; col; discriminator })
 
 let space ~bytes = emit (Space { bytes })
 
+(* We do not perform any checks that the string does not contain null bytes. The
+   reason is that we sometimes want to emit strings that have an explicit null
+   byte added. *)
 let string ?comment str = emit (Bytes { str; comment })
 
 let global symbol = emit (Global (Asm_symbol.encode symbol))
@@ -493,13 +511,15 @@ let private_extern symbol = emit (Private_extern (Asm_symbol.encode symbol))
 
 let size symbol cst = emit (Size (Asm_symbol.encode symbol, lower_expr cst))
 
-let type_ symbol ~type_ = emit (Type (Asm_symbol.encode symbol, type_))
+let type_ symbol ~type_ = emit (Type (symbol, type_))
 
 let sleb128 ?comment i =
   emit (Sleb128 { constant = Directive.Constant.Signed_int i; comment })
 
 let uleb128 ?comment i =
   emit (Uleb128 { constant = Directive.Constant.Unsigned_int i; comment })
+
+let protected symbol = emit (Protected (Asm_symbol.encode symbol))
 
 let direct_assignment var cst = emit (Direct_assignment (var, lower_expr cst))
 
@@ -519,7 +539,7 @@ let float32 f =
     if !Clflags.keep_asm_file then Some (Printf.sprintf "%.12f" f) else None
   in
   let f_int32 = Int64.of_int32 (Int32.bits_of_float f) in
-  const ?comment (Signed_int f_int32) Sixty_four
+  const ?comment (Signed_int f_int32) Thirty_two
 
 let float64_core f f_int64 =
   match TS.machine_width () with
@@ -564,6 +584,11 @@ let size ?size_of symbol =
 
 let label ?comment label = const_machine_width ?comment (Label label)
 
+let label_plus_offset ?comment lab ~offset_in_bytes =
+  let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+  let lab = const_label lab in
+  const_machine_width ?comment (const_add lab (const_int64 offset_in_bytes))
+
 let define_label label =
   let lbl_section = Asm_label.section label in
   let this_section =
@@ -571,6 +596,8 @@ let define_label label =
     | None -> not_initialized ()
     | Some this_section -> this_section
   in
+  (* CR sspies: Thsis assumes no other mechanism was used to switch sections
+     such as calling [D.text] directly. *)
   if not (Asm_section.equal lbl_section this_section)
   then
     Misc.fatal_errorf
@@ -586,7 +613,13 @@ let new_line () = if !Clflags.keep_asm_file then emit New_line
 
 let sections_seen = ref []
 
-let switch_to_section section =
+let switch_to_section ?(emit_label_on_first_occurrence = false) section =
+  (* CR sspies: This code could be made more sensitive to the tracking of the
+     current section: there is no need to emit the section again if it is the
+     same as the current section. However, that excludes other code from
+     directly switching the section, and it is not consistent with how we
+     currently emit code. So for now we always emit the section, even if we are
+     not switching. *)
   let first_occurrence =
     if List.mem section !sections_seen
     then false
@@ -594,18 +627,15 @@ let switch_to_section section =
       sections_seen := section :: !sections_seen;
       true)
   in
-  match !current_section_ref with
-  | Some section' when Asm_section.equal section section' ->
-    assert (not first_occurrence);
-    ()
-  | _ ->
-    current_section_ref := Some section;
-    let ({ names; flags; args } : Asm_section.section_details) =
-      Asm_section.details section ~first_occurrence
-    in
-    if not first_occurrence then new_line ();
-    emit (Section { names; flags; args });
-    if first_occurrence then define_label (Asm_label.for_section section)
+  current_section_ref := Some section;
+  let ({ names; flags; args } : Asm_section.section_details) =
+    Asm_section.details section ~first_occurrence
+  in
+  (* CR sspies: We do not print an empty line here to be consistent with Arm
+     emission. *)
+  emit (Section { names; flags; args });
+  if first_occurrence && emit_label_on_first_occurrence
+  then define_label (Asm_label.for_section section)
 
 let switch_to_section_raw ~names ~flags ~args =
   emit (Section { names; flags; args })
@@ -631,14 +661,7 @@ module Cached_string = struct
       then c
       else
         let c = String.compare str1 str2 in
-        if c <> 0
-        then c
-        else
-          match comment1, comment2 with
-          | None, None -> 0
-          | None, Some _ -> -1
-          | Some _, None -> 1
-          | Some comment1, Some comment2 -> String.compare comment1 comment2
+        if c <> 0 then c else Option.compare String.compare comment1 comment2
 
     let equal t1 t2 = compare t1 t2 = 0
 
@@ -657,9 +680,10 @@ let temp_var_counter = ref 0
 let reset () =
   cached_strings := Cached_string.Map.empty;
   sections_seen := [];
+  current_section_ref := None;
   temp_var_counter := 0
 
-let file ?file_num ~file_name () =
+let file ~file_num ~file_name () =
   (* gas can silently emit corrupted line tables if a .file directive contains a
      number but an empty filename. *)
   let file_name =
@@ -673,36 +697,21 @@ let file ?file_num ~file_name () =
 let initialize ~big_endian ~(emit : Directive.t -> unit) =
   big_endian_ref := Some big_endian;
   emit_ref := Some emit;
-  reset ();
-  (match TS.assembler () with
-  | MASM | MacOS -> ()
-  | GAS_like ->
-    (* CR mshinwell: Is this really the case? Surely some of the DIEs would have
-       gone wrong if this were the case. Maybe it only applies across
-       sections. *)
-    (* Forward label references are illegal in gas. Just put them in for all
-       assemblers, they won't harm. *)
+  reset ()
+
+let debug_header ~get_file_num =
+  (* Forward label references are illegal on some assemblers/platforms. To avoid
+     errors, emit the beginning of all dwarf sections in advance. *)
+  if TS.is_gas () || TS.is_macos ()
+  then
     List.iter
-      (fun (section : Asm_section.t) ->
-        match section with
-        | Text | Data | Read_only_data | Eight_byte_literals
-        | Sixteen_byte_literals | Jump_tables ->
-          switch_to_section section
-        | DWARF _ ->
-          (* All of the other settings that require these DWARF sections imply
-             [Debug_dwarf_functions]; see clflags.ml. *)
-          (* CR sspies: enable this again when there is more debugging
-             support. *)
-          (* if Clflags.debug_thing Debug_dwarf_functions && dwarf_supported ()
-             then switch_to_section section *)
-          ())
-      (Asm_section.all_sections_in_order ()));
+      (switch_to_section ~emit_label_on_first_occurrence:true)
+      (Asm_section.dwarf_sections_in_order ());
   (* Stop dsymutil complaining about empty __debug_line sections (produces bogus
      error "line table parameters mismatch") by making sure such sections are
      never empty. *)
-  file ~file_num:1 ~file_name:"none" ();
-  (* also PR#7037 *)
-  loc ~file_num:1 ~line:1 ~col:1;
+  let file_num = get_file_num "none" in
+  loc ~file_num ~line:1 ~col:1 ();
   switch_to_section Asm_section.Text
 
 let file ~file_num ~file_name = file ~file_num ~file_name ()
@@ -712,7 +721,7 @@ let define_data_symbol symbol =
   (* check_symbol_for_definition_in_current_section symbol; *)
   emit (New_label (Asm_symbol.encode symbol, Machine_width_data));
   match TS.assembler (), TS.windows () with
-  | GAS_like, false -> type_ symbol ~type_:"STT_OBJECT"
+  | GAS_like, false -> type_ (Asm_symbol.encode symbol) ~type_:Object
   | GAS_like, true | MacOS, _ | MASM, _ -> ()
 
 (* CR mshinwell: Rename to [define_text_symbol]? *)
@@ -722,7 +731,17 @@ let define_function_symbol symbol =
   (* CR mshinwell: This shouldn't be called "New_label" *)
   emit (New_label (Asm_symbol.encode symbol, Code));
   match TS.assembler (), TS.windows () with
-  | GAS_like, false -> type_ symbol ~type_:"STT_FUNC"
+  | GAS_like, false -> type_ (Asm_symbol.encode symbol) ~type_:Function
+  | GAS_like, true | MacOS, _ | MASM, _ -> ()
+
+let type_symbol symbol ~ty =
+  match TS.assembler (), TS.windows () with
+  | GAS_like, false -> type_ (Asm_symbol.encode symbol) ~type_:ty
+  | GAS_like, true | MacOS, _ | MASM, _ -> ()
+
+let type_label label ~ty =
+  match TS.assembler (), TS.windows () with
+  | GAS_like, false -> type_ (Asm_label.encode label) ~type_:ty
   | GAS_like, true | MacOS, _ | MASM, _ -> ()
 
 let symbol ?comment sym = const_machine_width ?comment (Symbol sym)
@@ -786,7 +805,7 @@ let mark_stack_non_executable () =
 let new_temp_var () =
   let id = !temp_var_counter in
   incr temp_var_counter;
-  Printf.sprintf "Ltemp%d" id
+  Printf.sprintf "temp%d" id
 
 (* CR sspies: once there are richer symbols, make this function take the section
    again *)
@@ -799,8 +818,8 @@ let force_assembly_time_constant expr =
        results when one of the labels is on a section boundary, for example.) *)
     let temp = new_temp_var () in
     direct_assignment temp expr;
-    let sym = Asm_symbol.create ~without_prefix:() temp in
-    Symbol sym (* not really a symbol, but OK. *)
+    let lbl = Asm_label.create_string Data temp in
+    const_label lbl (* not really a label, but OK. *)
 
 let between_symbols_in_current_unit ~upper ~lower =
   (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
@@ -837,6 +856,21 @@ let between_labels_64_bit_with_offsets ?comment:_comment ~upper ~upper_offset
       (const_add (const_label lower) (const_int64 lower_offset))
   in
   const_machine_width (force_assembly_time_constant expr)
+
+let between_this_and_label_offset_32bit_expr ~upper ~offset_upper =
+  let upper_section = Asm_label.section upper in
+  (match !current_section_ref with
+  | None -> not_initialized ()
+  | Some this_section ->
+    if not (Asm_section.equal upper_section this_section)
+    then
+      Misc.fatal_errorf
+        "Label %a in section %a is not in the current section %a"
+        Asm_label.print upper Asm_section.print upper_section Asm_section.print
+        this_section);
+  let offset_upper = Targetint.to_int64 offset_upper in
+  let expr = Sub (Add (Label upper, Signed_int offset_upper), This) in
+  const expr Thirty_two
 
 let between_symbol_in_current_unit_and_label_offset ?comment:_comment ~upper
     ~lower ~offset_upper () =
