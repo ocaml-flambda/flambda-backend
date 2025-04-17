@@ -563,8 +563,7 @@ let binop ppf binop a b =
       a simple b
 
 let unary_int_arith_op ppf (o : unary_int_arith_op) =
-  Format.pp_print_string ppf
-  @@ match o with Neg -> "~-" | Swap_byte_endianness -> "bswap"
+  Format.pp_print_string ppf @@ match o with Swap_byte_endianness -> "bswap"
 
 let unop ppf u =
   let str s = Format.pp_print_string ppf s in

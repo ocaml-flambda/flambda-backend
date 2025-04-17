@@ -79,6 +79,7 @@ module Component_for_creation = struct
     | Punboxed_int Unboxed_int16 -> Singleton KS.naked_int16
     | Punboxed_int Unboxed_int32 -> Singleton KS.naked_int32
     | Punboxed_int Unboxed_int64 -> Singleton KS.naked_int64
+    | Punboxed_int Unboxed_int -> Singleton KS.naked_immediate
     | Punboxed_int Unboxed_nativeint -> Singleton KS.naked_nativeint
     | Punboxed_vector Unboxed_vec128 -> Singleton KS.naked_vec128
     | Punboxed_product layouts -> Unboxed_product (List.map from_lambda layouts)
