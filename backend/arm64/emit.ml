@@ -2114,7 +2114,7 @@ let data l =
 let emit_line str = emit_string (str ^ "\n")
 
 let file_emitter ~file_num ~file_name =
-  emit_line (Printf.sprintf ".file %d %S" file_num file_name)
+  emit_line (Printf.sprintf "\t.file\t%d\t%S" file_num file_name)
 
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
   (module Asm_targets.Asm_directives.Make (struct
@@ -2132,6 +2132,16 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         | Sub of constant * constant
 
       let rec string_of_constant const =
+        match const with
+        | Add (c1, c2) ->
+          Printf.sprintf "%s + %s" (string_of_const_with_paren c1)
+            (string_of_const_with_paren c2)
+        | Sub (c1, c2) ->
+          Printf.sprintf "%s - %s" (string_of_const_with_paren c1)
+            (string_of_const_with_paren c2)
+        | (Int64 _) as c -> string_of_const_with_paren c
+        | (Label _) as c -> string_of_const_with_paren c
+      and string_of_const_with_paren const =
         match const with
         | Int64 n -> Int64.to_string n
         | Label s -> s
@@ -2160,9 +2170,9 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
 
       let loc ~file_num ~line ~col ?discriminator () =
         ignore discriminator;
-        emit_line (Printf.sprintf ".loc %d %d %d" file_num line col)
+        emit_line (Printf.sprintf "\t.loc\t%d\t%d\t%d" file_num line col)
 
-      let comment str = emit_line (Printf.sprintf "; %s" str)
+      let comment str = emit_line (Printf.sprintf "\t\t\t/* %s */" str)
 
       let label ?data_type str =
         let _ = data_type in
@@ -2194,27 +2204,27 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
       let type_ sym typ_ = emit_line (Printf.sprintf "\t.type %s,%s" sym typ_)
 
       let byte const =
-        emit_line (Printf.sprintf "\t.byte %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.byte\t%s" (string_of_constant const))
 
       let word const =
-        emit_line (Printf.sprintf "\t.2byte %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.2byte\t%s" (string_of_constant const))
 
       let long const =
-        emit_line (Printf.sprintf "\t.4byte %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.4byte\t%s" (string_of_constant const))
 
       let qword const =
-        emit_line (Printf.sprintf "\t.8byte %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.8byte\t%s" (string_of_constant const))
 
-      let bytes str = emit_line (Printf.sprintf "\t.ascii %S" str)
+      let bytes str = emit_line (Printf.sprintf "\t.ascii\t%S" str)
 
       let uleb128 const =
-        emit_line (Printf.sprintf "\t.uleb128 %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.uleb128\t%s" (string_of_constant const))
 
       let sleb128 const =
-        emit_line (Printf.sprintf "\t.sleb128 %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.sleb128\t%s" (string_of_constant const))
 
       let direct_assignment var const =
-        emit_line (Printf.sprintf "\t.set %s,%s" var (string_of_constant const))
+        emit_line (Printf.sprintf "\t.set %s, %s" var (string_of_constant const))
     end
   end))
 
