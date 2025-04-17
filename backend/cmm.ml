@@ -13,7 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Int_replace_polymorphic_compare
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare [@@warning "-66"]
 
 type machtype_component = Cmx_format.machtype_component =
   | Val
@@ -535,7 +537,22 @@ let iter_shallow_tail f = function
     true
   | Cexit _ | Cop (Craise _, _, _) -> true
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _ ->
+  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _
+  | Cop
+      ( ( Calloc _ | Caddi | Csubi | Cmuli | Cdivi | Cmodi | Cand | Cor | Cxor
+        | Clsl | Clsr | Casr | Cpopcnt | Caddv | Cadda | Cpackf32 | Copaque
+        | Cbeginregion | Cendregion | Cdls_get | Cpoll
+        | Capply (_, _)
+        | Cextcall _ | Cload _
+        | Cstore (_, _)
+        | Cmulhi _ | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cprefetch _
+        | Catomic _ | Ccmpi _ | Ccmpa _ | Cnegf _ | Cabsf _ | Caddf _ | Csubf _
+        | Cmulf _ | Cdivf _ | Creinterpret_cast _ | Cstatic_cast _
+        | Ccmpf (_, _)
+        | Cprobe _ | Cprobe_is_enabled _
+        | Ctuple_field (_, _) ),
+        _,
+        _ ) ->
     false
 
 let map_shallow_tail f = function
@@ -553,7 +570,22 @@ let map_shallow_tail f = function
     Ccatch (flag, List.map map_h handlers, f body)
   | (Cexit _ | Cop (Craise _, _, _)) as cmm -> cmm
   | ( Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _ ) as cmm ->
+    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _
+    | Cop
+        ( ( Calloc _ | Caddi | Csubi | Cmuli | Cdivi | Cmodi | Cand | Cor | Cxor
+          | Clsl | Clsr | Casr | Cpopcnt | Caddv | Cadda | Cpackf32 | Copaque
+          | Cbeginregion | Cendregion | Cdls_get | Cpoll
+          | Capply (_, _)
+          | Cextcall _ | Cload _
+          | Cstore (_, _)
+          | Cmulhi _ | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cprefetch _
+          | Catomic _ | Ccmpi _ | Ccmpa _ | Cnegf _ | Cabsf _ | Caddf _
+          | Csubf _ | Cmulf _ | Cdivf _ | Creinterpret_cast _ | Cstatic_cast _
+          | Ccmpf (_, _)
+          | Cprobe _ | Cprobe_is_enabled _
+          | Ctuple_field (_, _) ),
+          _,
+          _ ) ) as cmm ->
     cmm
 
 let map_tail f =
@@ -561,7 +593,15 @@ let map_tail f =
     | ( Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
       | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _ ) as c ->
       f c
-    | cmm -> map_shallow_tail loop cmm
+    | ( Cexit _
+      | Cconst_vec128 (_, _)
+      | Clet (_, _, _)
+      | Cphantom_let (_, _, _)
+      | Csequence (_, _)
+      | Cifthenelse (_, _, _, _, _, _)
+      | Cswitch (_, _, _, _)
+      | Ccatch (_, _, _) ) as cmm ->
+      map_shallow_tail loop cmm
   in
   loop
 

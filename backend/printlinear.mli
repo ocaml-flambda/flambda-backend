@@ -15,6 +15,8 @@
 
 (* Pretty-printing of linearized machine code *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open Format
 open Linear
 

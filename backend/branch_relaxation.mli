@@ -16,6 +16,8 @@
 
 (* Fix up conditional branches that exceed hardware-allowed ranges. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 module Make (T : Branch_relaxation_intf.S) : sig
   val relax :
     Linear.instruction

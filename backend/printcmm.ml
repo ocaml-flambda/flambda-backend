@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 (* Pretty-printing of C-- code *)
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open Format
@@ -212,10 +213,13 @@ let operation d = function
   | Capply (_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
     Printf.sprintf "extcall \"%s\"%s" lbl (location d)
-  | Cload { memory_chunk; mutability } -> (
+  | Cload { memory_chunk; mutability; is_atomic } -> (
+    let atomic = if is_atomic then "_atomic" else "" in
     match mutability with
-    | Asttypes.Immutable -> Printf.sprintf "load %s" (chunk memory_chunk)
-    | Asttypes.Mutable -> Printf.sprintf "load_mut %s" (chunk memory_chunk))
+    | Asttypes.Immutable ->
+      Printf.sprintf "load%s %s" atomic (chunk memory_chunk)
+    | Asttypes.Mutable ->
+      Printf.sprintf "load_mut%s %s" atomic (chunk memory_chunk))
   | Calloc (Alloc_mode.Heap, _) -> "alloc" ^ location d
   | Calloc (Alloc_mode.Local, _) -> "alloc_local" ^ location d
   | Cstore (c, init) ->
@@ -293,7 +297,7 @@ let rec expr ppf = function
     let print_binding id ppf def =
       fprintf ppf "@[<2>%a@ %a@]" VP.print id expr def
     in
-    let rec in_part ppf = function
+    let rec in_part ppf = function[@warning "-4"]
       | Clet (id, def, body) ->
         fprintf ppf "@ %a" (print_binding id) def;
         in_part ppf body
@@ -309,7 +313,7 @@ let rec expr ppf = function
     let print_binding var ppf def =
       fprintf ppf "@[<2>%a@ %a@]" VP.print var phantom_defining_expr_opt def
     in
-    let rec in_part ppf = function
+    let rec in_part ppf = function[@warning "-4"]
       | Cphantom_let (var, def, body) ->
         fprintf ppf "@ %a" (print_binding var) def;
         in_part ppf body
@@ -335,9 +339,18 @@ let rec expr ppf = function
     with_location_mapping ~label:"Cop" ~dbg ppf (fun () ->
         fprintf ppf "@[<2>(%s" (operation dbg op);
         List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
-        (match op with
+        (match[@warning "-4"] op with
         | Capply (mty, _) -> fprintf ppf "@ %a" machtype mty
-        | Cextcall { ty; ty_args; alloc = _; func = _; returns } ->
+        | Cextcall
+            { ty;
+              ty_args;
+              alloc = _;
+              func = _;
+              returns;
+              builtin = _;
+              effects = _;
+              coeffects = _
+            } ->
           let ty = if returns then Some ty else None in
           fprintf ppf "@ %a" extcall_signature (ty, ty_args)
         | _ -> ());
@@ -386,7 +399,7 @@ let rec expr ppf = function
     List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
     fprintf ppf ")@]"
 
-and sequence ppf = function
+and sequence ppf = function[@warning "-4"]
   | Csequence (e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2
   | e -> expression ppf e
 

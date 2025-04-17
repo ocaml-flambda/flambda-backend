@@ -15,6 +15,8 @@
 
 (* Pretty-printing of C-- code *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open Format
 
 val symbol : formatter -> Cmm.symbol -> unit

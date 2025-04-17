@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open! Int_replace_polymorphic_compare
 open X86_ast
 
@@ -102,15 +104,19 @@ let system =
   | _ -> S_unknown
 
 let windows =
-  match system with S_mingw64 | S_cygwin | S_win64 -> true | _ -> false
+  match[@warning "-4"] system with
+  | S_mingw64 | S_cygwin | S_win64 -> true
+  | _ -> false
 
-let is_linux = function S_linux -> true | _ -> false
+let is_linux = function[@warning "-4"] S_linux -> true | _ -> false
 
-let is_macosx = function S_macosx -> true | _ -> false
+let is_macosx = function[@warning "-4"] S_macosx -> true | _ -> false
 
-let is_win32 = function S_win32 -> true | _ -> false
+let is_win32 = function[@warning "-4"] S_win32 -> true | _ -> false
 
-let is_win64 = function S_win64 -> true | _ -> false
+let is_win64 = function[@warning "-4"] S_win64 -> true | _ -> false
+
+let is_solaris = function[@warning "-4"] S_solaris -> true | _ -> false
 
 let string_of_substring_literal k n s =
   let between x low high =
@@ -313,12 +319,15 @@ let internal_assembler = ref None
 let register_internal_assembler f = internal_assembler := Some f
 
 (* Which asm conventions to use *)
-let masm = match system with S_win32 | S_win64 -> true | _ -> false
+let masm =
+  match[@warning "-4"] system with S_win32 | S_win64 -> true | _ -> false
 
 let use_plt =
   match system with
   | S_macosx | S_mingw64 | S_cygwin | S_win64 -> false
-  | _ -> !Clflags.dlcode
+  | S_linux | S_gnu | S_solaris | S_win32 | S_linux_elf | S_bsd_elf | S_beos
+  | S_mingw | S_freebsd | S_netbsd | S_openbsd | S_unknown ->
+    !Clflags.dlcode
 
 (* Shall we use an external assembler command ? If [binary_content] contains
    some data, we can directly save it. Otherwise, we have to ask an external
@@ -358,7 +367,7 @@ let create_asm_file = ref true
 
 let directive dir =
   if !create_asm_file then asm_code := dir :: !asm_code;
-  match dir with
+  match[@warning "-4"] dir with
   | Section (name, flags, args, is_delayed) -> (
     let name = Section_name.make name flags args in
     let where = if is_delayed then delayed_sections else asm_code_by_section in

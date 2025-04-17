@@ -15,7 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 module S = Misc.Stdlib.String
@@ -99,7 +99,10 @@ let compare_structured_constants c1 c2 =
     ->
     let cmp = Int64.compare l0 r0 in
     if cmp = 0 then Int64.compare l1 r1 else cmp
-  | _, _ ->
+  | ( ( Const_string _ | Const_float _ | Const_int32 _ | Const_int64 _
+      | Const_nativeint _ | Const_block _ | Const_float_array _ | Const_vec128 _
+      | Const_float32 _ ),
+      _ ) ->
     (* no overflow possible here *)
     rank_structured_constant c1 - rank_structured_constant c2
 

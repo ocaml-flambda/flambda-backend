@@ -11,7 +11,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+[@@@ocaml.warning "+a-40-41-42"]
 (* Insert instrumentation for afl-fuzz *)
 
 open! Int_replace_polymorphic_compare
