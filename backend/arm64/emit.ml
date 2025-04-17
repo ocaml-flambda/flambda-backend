@@ -519,12 +519,13 @@ let record_frame_label live dbg =
       | { typ = Val; loc = Stack s; _ } as reg ->
         live_offset
           := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
-      | { typ = Addr; _ } as r -> Misc.fatal_error ("bad GC root " ^ Reg.print r)
+      | { typ = Addr; _ } as r ->
+        Misc.fatal_errorf "bad GC root %a" Printreg.reg r
       | { typ = Valx2; _ } as r ->
         (* CR mslater: (SIMD) arm64 *)
-        Misc.fatal_error ("Unexpected Valx2 type of reg " ^ Reg.print r)
+        Misc.fatal_errorf "Unexpected Valx2 type of reg %a" Printreg.reg r
       | { typ = Val; loc = Unknown; _ } as r ->
-        Misc.fatal_error ("Unknown location " ^ Reg.print r)
+        Misc.fatal_errorf "Unknown location %a" Printreg.reg r
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size ())
