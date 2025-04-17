@@ -1,14 +1,12 @@
-open Regalloc_gi_utils
-
 module Int_min = struct
     include Int
 
     let compare l r = Int.compare r l
 end
 
-module Test (I : Order with type t = int) = struct
+module Test (I : Priority_queue.Order with type t = int) = struct
 
-    module Q = Make_max_priority_queue (I)
+    module Q = Priority_queue.Make (I)
     module M = Map.Make (I)
 
     let equal l r = I.compare l r = 0
