@@ -2134,13 +2134,16 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
       let rec string_of_constant const =
         match const with
         | Add (c1, c2) ->
-          Printf.sprintf "%s + %s" (string_of_const_with_paren c1)
+          Printf.sprintf "%s + %s"
+            (string_of_const_with_paren c1)
             (string_of_const_with_paren c2)
         | Sub (c1, c2) ->
-          Printf.sprintf "%s - %s" (string_of_const_with_paren c1)
+          Printf.sprintf "%s - %s"
+            (string_of_const_with_paren c1)
             (string_of_const_with_paren c2)
-        | (Int64 _) as c -> string_of_const_with_paren c
-        | (Label _) as c -> string_of_const_with_paren c
+        | Int64 _ as c -> string_of_const_with_paren c
+        | Label _ as c -> string_of_const_with_paren c
+
       and string_of_const_with_paren const =
         match const with
         | Int64 n -> Int64.to_string n
@@ -2224,7 +2227,8 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         emit_line (Printf.sprintf "\t.sleb128\t%s" (string_of_constant const))
 
       let direct_assignment var const =
-        emit_line (Printf.sprintf "\t.set %s, %s" var (string_of_constant const))
+        emit_line
+          (Printf.sprintf "\t.set %s, %s" var (string_of_constant const))
     end
   end))
 
