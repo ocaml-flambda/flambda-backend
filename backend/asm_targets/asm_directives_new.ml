@@ -434,6 +434,8 @@ type expr =
   | Symbol of Asm_symbol.t
   | Add of expr * expr
   | Sub of expr * expr
+  | Variable of string
+  (** macOS only *)
 
 let rec lower_expr (cst : expr) : Directive.Constant.t =
   match cst with
@@ -442,6 +444,7 @@ let rec lower_expr (cst : expr) : Directive.Constant.t =
   | This -> This
   | Label lbl -> Named_thing (Asm_label.encode lbl)
   | Symbol sym -> Named_thing (Asm_symbol.encode sym)
+  | Variable var -> Named_thing var
   | Add (cst1, cst2) -> Add (lower_expr cst1, lower_expr cst2)
   | Sub (cst1, cst2) -> Sub (lower_expr cst1, lower_expr cst2)
 
@@ -452,6 +455,8 @@ let const_add c1 c2 = Add (c1, c2)
 let const_label lbl = Label lbl
 
 let const_symbol sym = Symbol sym
+
+let const_variable var = Variable var
 
 let const_int64 i : expr = Signed_int i
 
@@ -817,9 +822,8 @@ let force_assembly_time_constant expr =
        writing expressions such as "L100 - L101" inline can cause unexpected
        results when one of the labels is on a section boundary, for example.) *)
     let temp = new_temp_var () in
-    let lbl = Asm_label.create_string Data temp in
-    direct_assignment (Asm_label.encode lbl) expr;
-    const_label lbl (* not really a label, but OK. *)
+    direct_assignment temp expr;
+    const_variable temp
 
 let between_symbols_in_current_unit ~upper ~lower =
   (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
