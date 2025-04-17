@@ -348,8 +348,8 @@ let rec map_tail1 e ~f =
   | Cphantom_let (id, exp, body) -> Cphantom_let (id, exp, map_tail1 body ~f)
   | Csequence (e1, e2) -> Csequence (e1, map_tail1 e2 ~f)
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _
-  | Cifthenelse _ | Cexit _ | Ccatch _ | Cswitch _ ->
+  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _ | Capply _
+  | Cifthenelse _ | Cexit _ | Ccatch _ | Cswitch _ | Craise _ ->
     f e
 
 let map_tail2 x y ~f = map_tail1 y ~f:(fun y -> map_tail1 x ~f:(fun x -> f x y))
@@ -862,9 +862,15 @@ let divimm_parameters d =
  *   unsigned_compare2 twoszp md < 0 && unsigned_compare2 md (add2 twoszp twop1) <= 0
  *)
 
+let raise_prim raise_kind ~extra_args arg dbg =
+  if !Clflags.debug
+  then Craise (raise_kind, arg :: extra_args, dbg)
+  else Craise (Raise_notrace, arg :: extra_args, dbg)
+
 let raise_symbol dbg symb =
-  Cop
-    (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
+  raise_prim Raise_regular ~extra_args:[]
+    (Cconst_symbol (global_symbol symb, dbg))
+    dbg
 
 let[@inline] get_const = function
   | Cconst_int (i, _) -> Some (Nativeint.of_int i)
@@ -1117,9 +1123,7 @@ let float_of_float16 dbg c =
     ( Cextcall
         { func = "caml_double_of_float16";
           ty = typ_float;
-          alloc = false;
           builtin = false;
-          returns = true;
           effects = No_effects;
           coeffects = No_coeffects;
           ty_args = [XInt]
@@ -1132,9 +1136,7 @@ let float16_of_float dbg c =
     ( Cextcall
         { func = "caml_float16_of_double";
           ty = typ_int;
-          alloc = false;
           builtin = false;
-          returns = true;
           effects = No_effects;
           coeffects = No_coeffects;
           ty_args = [XFloat]
@@ -1459,9 +1461,7 @@ let addr_array_set_heap arr ofs newval dbg =
     ( Cextcall
         { func = "caml_modify";
           ty = typ_void;
-          alloc = false;
           builtin = false;
-          returns = true;
           effects = Arbitrary_effects;
           coeffects = Has_coeffects;
           ty_args = []
@@ -1474,9 +1474,7 @@ let addr_array_set_local arr ofs newval dbg =
     ( Cextcall
         { func = "caml_modify_local";
           ty = typ_void;
-          alloc = false;
           builtin = false;
-          returns = true;
           effects = Arbitrary_effects;
           coeffects = Has_coeffects;
           ty_args = []
@@ -1508,11 +1506,9 @@ let addr_array_initialize arr ofs newval dbg =
     ( Cextcall
         { func = "caml_initialize";
           builtin = false;
-          returns = true;
           effects = Arbitrary_effects;
           coeffects = Has_coeffects;
           ty = typ_void;
-          alloc = false;
           ty_args = []
         },
       [array_indexing log2_size_addr arr ofs dbg; newval],
@@ -1821,10 +1817,8 @@ let lookup_tag obj tag dbg =
             { func = "caml_get_public_method";
               ty = typ_val;
               builtin = false;
-              returns = true;
               effects = Arbitrary_effects;
               coeffects = Has_coeffects;
-              alloc = false;
               ty_args = []
             },
           [obj; tag],
@@ -1951,24 +1945,26 @@ let send_function_name arity result (mode : Cmx_format.alloc_mode) =
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   global_symbol ("caml_send" ^ unique_arity_identifier arity ^ res ^ suff)
 
-let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
-    =
+let call_cached_method obj tag cache pos args args_type result
+    (region_close, mode) dbg =
   let cache = array_indexing log2_size_addr cache pos dbg in
   Compilenv.need_send_fun
     (List.map Extended_machtype.change_tagged_int_to_val args_type)
     (Extended_machtype.change_tagged_int_to_val result)
     mode;
-  Cop
-    ( Capply (Extended_machtype.to_machtype result, apos),
-      (* See the cases for caml_apply regarding [change_tagged_int_to_val]. *)
-      Cconst_symbol
-        ( send_function_name
-            (List.map Extended_machtype.change_tagged_int_to_val args_type)
-            (Extended_machtype.change_tagged_int_to_val result)
-            mode,
-          dbg )
-      :: obj :: tag :: cache :: args,
-      dbg )
+  Capply
+    ( { args = obj :: tag :: cache :: args; dbg },
+      OCaml
+        { result_ty = Extended_machtype.to_machtype result;
+          region_close;
+          callee =
+            Cconst_symbol
+              ( send_function_name
+                  (List.map Extended_machtype.change_tagged_int_to_val args_type)
+                  (Extended_machtype.change_tagged_int_to_val result)
+                  mode,
+                dbg )
+        } )
 
 (* Allocation *)
 
@@ -2052,19 +2048,20 @@ let make_alloc_generic ~block_kind ~mode ~alloc_block_kind dbg tag wordsize args
     in
     Clet
       ( VP.create id,
-        Cop
-          ( Cextcall
+        Capply
+          ( { args = List.map (fun arg -> Cconst_int (arg, dbg)) caml_alloc_args;
+              dbg
+            },
+            External
               { func = caml_alloc_func;
                 ty = typ_val;
-                alloc = true;
                 builtin = false;
+                alloc = true;
                 returns = true;
                 effects = Arbitrary_effects;
                 coeffects = Has_coeffects;
                 ty_args = []
-              },
-            List.map (fun arg -> Cconst_int (arg, dbg)) caml_alloc_args,
-            dbg ),
+              } ),
         fill_fields 0 args args_memory_chunks )
 
 let make_alloc ~mode dbg ~tag args =
@@ -2813,17 +2810,21 @@ let split_arity_for_apply arity args =
     let args1, args2 = Misc.Stdlib.List.split_at max_arity args in
     (a1, args1), Some (a2, args2)
 
-let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
+let call_caml_apply extended_ty extended_args_type mut clos args region_close
+    mode dbg =
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
   let ty = Extended_machtype.to_machtype extended_ty in
   let really_call_caml_apply clos args =
-    let cargs =
-      Cconst_symbol (apply_function_sym extended_args_type extended_ty mode, dbg)
-      :: args
-      @ [clos]
-    in
-    Cop (Capply (ty, pos), cargs, dbg)
+    Capply
+      ( { args = args @ [clos]; dbg },
+        OCaml
+          { result_ty = ty;
+            region_close;
+            callee =
+              Cconst_symbol
+                (apply_function_sym extended_args_type extended_ty mode, dbg)
+          } )
   in
   if !Flambda_backend_flags.caml_apply_inline_fast_path
   then
@@ -2847,10 +2848,13 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                       Cconst_int (List.length extended_args_type, dbg) ],
                     dbg ),
                 dbg,
-                Cop
-                  ( Capply (ty, pos),
-                    (get_field_codepointer mut clos 2 dbg :: args) @ [clos],
-                    dbg ),
+                Capply
+                  ( { args = args @ [clos]; dbg },
+                    OCaml
+                      { result_ty = ty;
+                        region_close;
+                        callee = get_field_codepointer mut clos 2 dbg
+                      } ),
                 dbg,
                 really_call_caml_apply clos args,
                 dbg )))
@@ -2872,15 +2876,18 @@ let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
            Csequence (Cop (Cendregion, [old_region], dbg ()), Cvar res) )),
       dbg () )
 
-let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
+let apply_or_call_caml_apply result arity mut clos args region_close mode dbg =
   match args with
   | [arg] ->
     bind "fun" clos (fun clos ->
-        Cop
-          ( Capply (Extended_machtype.to_machtype result, pos),
-            [get_field_codepointer mut clos 0 dbg; arg; clos],
-            dbg ))
-  | _ -> call_caml_apply result arity mut clos args pos mode dbg
+        Capply
+          ( { dbg; args = [arg; clos] },
+            OCaml
+              { result_ty = Extended_machtype.to_machtype result;
+                region_close;
+                callee = get_field_codepointer mut clos 0 dbg
+              } ))
+  | _ -> call_caml_apply result arity mut clos args region_close mode dbg
 
 let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
     mode dbg =
@@ -3086,12 +3093,14 @@ let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
     | [] -> Misc.fatal_error "apply_function_body for empty arity"
     | [arg] -> (
       let app =
-        Cop
-          ( Capply (result, Rc_normal),
-            [ get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
-              Cvar arg;
-              Cvar clos ],
-            dbg () )
+        Capply
+          ( { args = [Cvar arg; Cvar clos]; dbg = dbg () },
+            OCaml
+              { result_ty = result;
+                region_close = Rc_normal;
+                callee =
+                  get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ())
+              } )
       in
       match region with
       | None -> app
@@ -3105,12 +3114,15 @@ let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
       let newclos = V.create_local "clos" in
       Clet
         ( VP.create newclos,
-          Cop
-            ( Capply (typ_val, Rc_normal),
-              [ get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
-                Cvar arg;
-                Cvar clos ],
-              dbg () ),
+          Capply
+            ( { args = [Cvar arg; Cvar clos]; dbg = dbg () },
+              OCaml
+                { result_ty = typ_val;
+                  region_close = Rc_normal;
+                  callee =
+                    get_field_codepointer Asttypes.Mutable (Cvar clos) 0
+                      (dbg ())
+                } ),
           app_fun newclos args )
   in
   let code =
@@ -3136,11 +3148,15 @@ let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
                 Cconst_int (List.length arity, dbg ()) ],
               dbg () ),
           dbg (),
-          Cop
-            ( Capply (result, Rc_normal),
-              get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
-              :: List.map (fun s -> Cvar s) all_args,
-              dbg () ),
+          Capply
+            ( { args = List.map (fun s -> Cvar s) all_args; dbg = dbg () },
+              OCaml
+                { result_ty = result;
+                  region_close = Rc_normal;
+                  callee =
+                    get_field_codepointer Asttypes.Mutable (Cvar clos) 2
+                      (dbg ())
+                } ),
           dbg (),
           code,
           dbg () ) )
@@ -3249,12 +3265,14 @@ let tuplify_function arity return =
     { fun_name;
       fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
       fun_body =
-        Cop
-          ( Capply (return, Rc_normal),
-            get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
-            :: access_components 0
-            @ [Cvar clos],
-            dbg () );
+        Capply
+          ( { args = access_components 0 @ [Cvar clos]; dbg = dbg () },
+            OCaml
+              { result_ty = return;
+                region_close = Rc_normal;
+                callee =
+                  get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
+              } );
       fun_codegen_options = [];
       fun_dbg;
       fun_poll = Default_poll
@@ -3377,11 +3395,14 @@ let rec make_curry_apply result narity args_type args clos n =
   let dbg = placeholder_dbg in
   match args_type with
   | [] ->
-    Cop
-      ( Capply (result, Rc_normal),
-        (get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ()) :: args)
-        @ [Cvar clos],
-        dbg () )
+    Capply
+      ( { args = args @ [Cvar clos]; dbg = dbg () },
+        OCaml
+          { result_ty = result;
+            region_close = Rc_normal;
+            callee =
+              get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
+          } )
   | arg_type :: args_type ->
     let newclos = V.create_local "clos" in
     let arg_pos = if curry_clos_has_nary_application ~narity n then 3 else 2 in
@@ -3529,11 +3550,6 @@ type unary_primitive = expression -> Debuginfo.t -> expression
 let int_as_pointer arg dbg = Cop (Caddi, [arg; Cconst_int (-1, dbg)], dbg)
 (* always a pointer outside the heap *)
 
-let raise_prim raise_kind ~extra_args arg dbg =
-  if !Clflags.debug
-  then Cop (Craise raise_kind, arg :: extra_args, dbg)
-  else Cop (Craise Lambda.Raise_notrace, arg :: extra_args, dbg)
-
 let negint arg dbg = Cop (Csubi, [Cconst_int (2, dbg); arg], dbg)
 
 let addr_array_length arg dbg =
@@ -3565,11 +3581,9 @@ let bbswap bi arg dbg =
       ( Cextcall
           { func = Printf.sprintf "caml_%s_direct_bswap" prim;
             builtin = false;
-            returns = true;
             effects = Arbitrary_effects;
             coeffects = Has_coeffects;
             ty = typ_int;
-            alloc = false;
             ty_args = [tyarg]
           },
         [arg],
@@ -3585,11 +3599,9 @@ let bswap16 arg dbg =
       ( Cextcall
           { func = "caml_bswap16_direct";
             builtin = false;
-            returns = true;
             effects = Arbitrary_effects;
             coeffects = Has_coeffects;
             ty = typ_int;
-            alloc = false;
             ty_args = []
           },
         [arg],
@@ -3627,9 +3639,7 @@ let setfield n ptr init arg1 arg2 dbg =
          ( Cextcall
              { func = "caml_modify";
                ty = typ_void;
-               alloc = false;
                builtin = false;
-               returns = true;
                effects = Arbitrary_effects;
                coeffects = Has_coeffects;
                ty_args = []
@@ -3642,9 +3652,7 @@ let setfield n ptr init arg1 arg2 dbg =
          ( Cextcall
              { func = "caml_modify_local";
                ty = typ_void;
-               alloc = false;
                builtin = false;
-               returns = true;
                effects = Arbitrary_effects;
                coeffects = Has_coeffects;
                ty_args = []
@@ -3657,9 +3665,7 @@ let setfield n ptr init arg1 arg2 dbg =
          ( Cextcall
              { func = "caml_initialize";
                ty = typ_void;
-               alloc = false;
                builtin = false;
-               returns = true;
                effects = Arbitrary_effects;
                coeffects = Has_coeffects;
                ty_args = []
@@ -3848,10 +3854,13 @@ let entry_point namelist =
           dbg () )
     in
     Csequence
-      ( Cop
-          ( Capply (typ_void, Rc_normal),
-            [Cop (mk_load_immut Word_int, [f], dbg ())],
-            dbg () ),
+      ( Capply
+          ( { args = []; dbg = dbg () },
+            OCaml
+              { result_ty = typ_void;
+                region_close = Rc_normal;
+                callee = Cop (mk_load_immut Word_int, [f], dbg ())
+              } ),
         incr_global_inited () )
   in
   let data =
@@ -4023,7 +4032,8 @@ let letin v ~defining_expr ~body =
     defining_expr
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Cphantom_let _ | Ctuple _
-  | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ ->
+  | Capply _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
+  | Cexit _ | Craise _ ->
     Clet (v, defining_expr, body)
 
 let sequence x y =
@@ -4220,11 +4230,11 @@ let beginregion ~dbg = Cop (Cbeginregion, [], dbg)
 let endregion ~dbg region = Cop (Cendregion, [region], dbg)
 
 let probe ~dbg ~name ~handler_code_linkage_name ~enabled_at_init ~args =
-  Cop
-    ( Cprobe
-        { name; handler_code_sym = handler_code_linkage_name; enabled_at_init },
-      args,
-      dbg )
+  Capply
+    ( { args; dbg },
+      Probe
+        { name; handler_code_sym = handler_code_linkage_name; enabled_at_init }
+    )
 
 let load ~dbg memory_chunk mutability ~addr =
   Cop (Cload { memory_chunk; mutability; is_atomic = false }, [addr], dbg)
@@ -4232,8 +4242,9 @@ let load ~dbg memory_chunk mutability ~addr =
 let store ~dbg kind init ~addr ~new_value =
   Cop (Cstore (kind, init), [addr; new_value], dbg)
 
-let direct_call ~dbg ty pos f_code_sym args =
-  Cop (Capply (ty, pos), f_code_sym :: args, dbg)
+let direct_call ~dbg ty region_close f_code_sym args =
+  Capply
+    ({ args; dbg }, OCaml { result_ty = ty; region_close; callee = f_code_sym })
 
 let indirect_call ~dbg ty pos alloc_mode f args_type args =
   might_split_call_caml_apply ty args_type Asttypes.Mutable f args pos
@@ -4252,10 +4263,13 @@ let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
     in
     letin v' ~defining_expr:f
       ~body:
-        (Cop
-           ( Capply (Extended_machtype.to_machtype ty, pos),
-             (fun_ptr :: args) @ [Cvar v],
-             dbg ))
+        (Capply
+           ( { args = args @ [Cvar v]; dbg },
+             OCaml
+               { result_ty = Extended_machtype.to_machtype ty;
+                 region_close = Rc_normal;
+                 callee = fun_ptr
+               } ))
 
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
   let ba_data_f = field_address bigarray 1 dbg in
@@ -4360,8 +4374,8 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cconst_symbol _ | Cvar _ | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
-  | Clet _ | Cphantom_let _ | Ctuple _ | Csequence _ | Cifthenelse _ | Cswitch _
-  | Ccatch _ | Cexit _ ->
+  | Clet _ | Cphantom_let _ | Ctuple _ | Capply _ | Csequence _ | Cifthenelse _
+  | Cswitch _ | Ccatch _ | Cexit _ | Craise _ ->
     None
 
 (* Atomics *)
@@ -4377,12 +4391,10 @@ let atomic_exchange_extcall ~dbg atomic ~new_value =
     ( Cextcall
         { func = "caml_atomic_exchange";
           builtin = false;
-          returns = true;
           effects = Arbitrary_effects;
           coeffects = Has_coeffects;
           ty = typ_val;
-          ty_args = [];
-          alloc = false
+          ty_args = []
         },
       [atomic; new_value],
       dbg )
@@ -4408,12 +4420,10 @@ let atomic_arith ~dbg ~op ~untag ~ext_name atomic i =
       ( Cextcall
           { func = ext_name;
             builtin = false;
-            returns = true;
             effects = Arbitrary_effects;
             coeffects = Has_coeffects;
             ty = typ_int;
-            ty_args = [];
-            alloc = false
+            ty_args = []
           },
         [atomic; i],
         dbg )
@@ -4447,12 +4457,10 @@ let atomic_compare_and_set_extcall ~dbg atomic ~old_value ~new_value =
     ( Cextcall
         { func = "caml_atomic_cas";
           builtin = false;
-          returns = true;
           effects = Arbitrary_effects;
           coeffects = Has_coeffects;
           ty = typ_int;
-          ty_args = [];
-          alloc = false
+          ty_args = []
         },
       [atomic; old_value; new_value],
       dbg )
@@ -4476,12 +4484,10 @@ let atomic_compare_exchange_extcall ~dbg atomic ~old_value ~new_value =
     ( Cextcall
         { func = "caml_atomic_compare_exchange";
           builtin = false;
-          returns = true;
           effects = Arbitrary_effects;
           coeffects = Has_coeffects;
           ty = typ_val;
-          ty_args = [];
-          alloc = false
+          ty_args = []
         },
       [atomic; old_value; new_value],
       dbg )
@@ -4641,43 +4647,48 @@ let perform ~dbg eff =
   in
   (* Rc_normal means "allow tailcalls". Preventing them here by using Rc_nontail
      improves backtraces of paused fibers. *)
-  Cop
-    ( Capply (typ_val, Rc_nontail),
-      [Cconst_symbol (Cmm.global_symbol "caml_perform", dbg); eff; cont],
-      dbg )
+  Capply
+    ( { args = [eff; cont]; dbg },
+      OCaml
+        { result_ty = typ_val;
+          region_close = Rc_nontail;
+          callee = Cconst_symbol (Cmm.global_symbol "caml_perform", dbg)
+        } )
 
 let run_stack ~dbg ~stack ~f ~arg =
   (* Rc_normal would be fine here, but this is unlikely to ever be a tail call
      (usages of this primitive shouldn't be generated in tail position), so we
      use Rc_nontail for clarity. *)
-  Cop
-    ( Capply (typ_val, Rc_nontail),
-      [Cconst_symbol (Cmm.global_symbol "caml_runstack", dbg); stack; f; arg],
-      dbg )
+  Capply
+    ( { args = [stack; f; arg]; dbg },
+      OCaml
+        { result_ty = typ_val;
+          region_close = Rc_nontail;
+          callee = Cconst_symbol (Cmm.global_symbol "caml_runstack", dbg)
+        } )
 
 let resume ~dbg ~stack ~f ~arg ~last_fiber =
   (* Rc_normal is required here, because there are some uses of effects with
      repeated resumes, and these should consume O(1) stack space by tail-calling
      caml_resume. *)
-  Cop
-    ( Capply (typ_val, Rc_normal),
-      [ Cconst_symbol (Cmm.global_symbol "caml_resume", dbg);
-        stack;
-        f;
-        arg;
-        last_fiber ],
-      dbg )
+  Capply
+    ( { args = [stack; f; arg; last_fiber]; dbg },
+      OCaml
+        { result_ty = typ_val;
+          region_close = Rc_normal;
+          callee = Cconst_symbol (Cmm.global_symbol "caml_resume", dbg)
+        } )
 
 let reperform ~dbg ~eff ~cont ~last_fiber =
   (* Rc_normal is required here, this is used in tail position and should tail
      call. *)
-  Cop
-    ( Capply (typ_val, Rc_normal),
-      [ Cconst_symbol (Cmm.global_symbol "caml_reperform", dbg);
-        eff;
-        cont;
-        last_fiber ],
-      dbg )
+  Capply
+    ( { args = [eff; cont; last_fiber]; dbg },
+      OCaml
+        { result_ty = typ_val;
+          region_close = Rc_normal;
+          callee = Cconst_symbol (Cmm.global_symbol "caml_reperform", dbg)
+        } )
 
 let poll ~dbg = return_unit dbg (Cop (Cpoll, [], dbg))
 

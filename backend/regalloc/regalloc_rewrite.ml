@@ -98,7 +98,7 @@ let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
         | Intop_atomic _
         | Floatop (_, _)
         | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-        | Specific _ | Name_for_debugger _ | Alloc _ ) ->
+        | Specific _ | Name_for_debugger _ | Alloc _ | Extcall _ ) ->
       ()
   in
   DLL.iter_cell block.body ~f:update_info_using_inst;

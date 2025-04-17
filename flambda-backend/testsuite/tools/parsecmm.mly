@@ -214,12 +214,17 @@ expr:
   | LBRACKET RBRACKET { Ctuple [] }
   | LPAREN LET letdef sequence RPAREN { make_letdef $3 $4 }
   | LPAREN APPLY location expr exprlist machtype RPAREN
-                { Cop(Capply ($6, Lambda.Rc_normal),
-                      $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
+                { (Capply (
+                     { args = List.rev $5;
+                       dbg = debuginfo ?loc:$3 ();
+                     },
+                     OCaml { callee = $4;
+                       result_ty = $6;
+                       region_close = Lambda.Rc_normal;
+                     })) }
   | LPAREN EXTCALL STRING exprlist machtype RPAREN
-               {Cop(Cextcall {func=$3; ty=$5; alloc=false;
+               {Cop(Cextcall {func=$3; ty=$5;
                               builtin=false;
-                              returns=true;
                               effects=Arbitrary_effects;
                               coeffects=Has_coeffects;
                               ty_args=[];},
@@ -365,7 +370,6 @@ unaryop:
   | INTOFFLOAT                  { Cstatic_cast (Int_of_float Float64) }
   | VALUEOFINT                  { Creinterpret_cast Value_of_int }
   | INTOFVALUE                  { Creinterpret_cast Int_of_value }
-  | RAISE                       { Craise $1 }
   | ABSF                        { Cabsf Float64 }
 ;
 binaryop:

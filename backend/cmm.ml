@@ -331,14 +331,13 @@ type alloc_dbginfo_item =
 type alloc_dbginfo = alloc_dbginfo_item list
 
 type operation =
-  | Capply of machtype * Lambda.region_close
+  (* CR mshinwell/xclerc: maybe we could find a better name than "extcall" for
+     these "operation" ones *)
   | Cextcall of
       { func : string;
         ty : machtype;
         ty_args : exttype list;
-        alloc : bool;
         builtin : bool;
-        returns : bool;
         effects : effects;
         coeffects : coeffects
       }
@@ -388,12 +387,6 @@ type operation =
   | Creinterpret_cast of reinterpret_cast
   | Cstatic_cast of static_cast
   | Ccmpf of float_width * float_comparison
-  | Craise of Lambda.raise_kind
-  | Cprobe of
-      { name : string;
-        handler_code_sym : string;
-        enabled_at_init : bool
-      }
   | Cprobe_is_enabled of { name : string }
   | Copaque
   | Cbeginregion
@@ -440,6 +433,7 @@ type expression =
   | Cphantom_let of
       Backend_var.With_provenance.t * phantom_defining_expr option * expression
   | Ctuple of expression list
+  | Capply of apply_shared * apply
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of
@@ -461,6 +455,34 @@ type expression =
         list
       * expression
   | Cexit of exit_label * expression list * trap_action list
+  | Craise of Lambda.raise_kind * expression list * Debuginfo.t
+
+and apply =
+  | OCaml of
+      { callee : expression;
+        result_ty : machtype;
+        region_close : Lambda.region_close
+      }
+  | External of
+      { func : string;
+        ty : machtype;
+        ty_args : exttype list;
+        builtin : bool;
+        alloc : bool;
+        returns : bool;
+        effects : effects;
+        coeffects : coeffects
+      }
+  | Probe of
+      { name : string;
+        handler_code_sym : string;
+        enabled_at_init : bool
+      }
+
+and apply_shared =
+  { args : expression list;
+    dbg : Debuginfo.t
+  }
 
 type codegen_option =
   | Reduce_code_size
@@ -515,29 +537,6 @@ let ctrywith (body, lbl, id, extra_args, handler, dbg) =
 
 let reset () = Label.reset ()
 
-let iter_shallow_tail f = function
-  | Clet (_, _, body) | Cphantom_let (_, _, body) ->
-    f body;
-    true
-  | Cifthenelse (_cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
-    f ifso;
-    f ifnot;
-    true
-  | Csequence (_e1, e2) ->
-    f e2;
-    true
-  | Cswitch (_e, _tbl, el, _dbg') ->
-    Array.iter (fun (e, _dbg) -> f e) el;
-    true
-  | Ccatch (_flag, handlers, body) ->
-    List.iter (fun (_, _, h, _dbg, _) -> f h) handlers;
-    f body;
-    true
-  | Cexit _ | Cop (Craise _, _, _) -> true
-  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _ ->
-    false
-
 let map_shallow_tail f = function
   | Clet (id, exp, body) -> Clet (id, exp, f body)
   | Cphantom_let (id, exp, body) -> Cphantom_let (id, exp, f body)
@@ -551,9 +550,12 @@ let map_shallow_tail f = function
       n, ids, f handler, dbg, is_cold
     in
     Ccatch (flag, List.map map_h handlers, f body)
-  | (Cexit _ | Cop (Craise _, _, _)) as cmm -> cmm
+  | (Cexit _ | Craise _) as cmm -> cmm
   | ( Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _ ) as cmm ->
+    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Capply _
+    (* Maybe Capply that doesn't return could be treated as tail, but it was not
+       before the change to move Capply to expression. *)
+    | Cop _ ) as cmm ->
     cmm
 
 let map_tail f =
@@ -564,50 +566,6 @@ let map_tail f =
     | cmm -> map_shallow_tail loop cmm
   in
   loop
-
-let iter_shallow f = function
-  | Clet (_id, e1, e2) ->
-    f e1;
-    f e2
-  | Cphantom_let (_id, _de, e) -> f e
-  | Ctuple el -> List.iter f el
-  | Cop (_op, el, _dbg) -> List.iter f el
-  | Csequence (e1, e2) ->
-    f e1;
-    f e2
-  | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
-    f cond;
-    f ifso;
-    f ifnot
-  | Cswitch (_e, _ia, ea, _dbg) -> Array.iter (fun (e, _) -> f e) ea
-  | Ccatch (_f, hl, body) ->
-    let iter_h (_n, _ids, handler, _dbg, _is_cold) = f handler in
-    List.iter iter_h hl;
-    f body
-  | Cexit (_n, el, _traps) -> List.iter f el
-  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
-    ()
-
-let map_shallow f = function
-  | Clet (id, e1, e2) -> Clet (id, f e1, f e2)
-  | Cphantom_let (id, de, e) -> Cphantom_let (id, de, f e)
-  | Ctuple el -> Ctuple (List.map f el)
-  | Cop (op, el, dbg) -> Cop (op, List.map f el, dbg)
-  | Csequence (e1, e2) -> Csequence (f e1, f e2)
-  | Cifthenelse (cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
-    Cifthenelse (f cond, ifso_dbg, f ifso, ifnot_dbg, f ifnot, dbg)
-  | Cswitch (e, ia, ea, dbg) ->
-    Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg)
-  | Ccatch (flag, hl, body) ->
-    let map_h (n, ids, handler, dbg, is_cold) =
-      n, ids, f handler, dbg, is_cold
-    in
-    Ccatch (flag, List.map map_h hl, f body)
-  | Cexit (n, el, traps) -> Cexit (n, List.map f el, traps)
-  | ( Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ) as c ->
-    c
 
 let equal_machtype_component (left : machtype_component)
     (right : machtype_component) =

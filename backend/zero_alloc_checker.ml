@@ -2513,6 +2513,9 @@ end = struct
           transform t ~effect ~next ~exn:Value.bot "heap allocation" dbg
         | Specific s -> transform_specific t s ~next ~exn:Value.bot dbg
         | Dls_get -> next
+        | Extcall _ ->
+          (* This variety of external call operation cannot allocate. *)
+          next
 
       let basic next (i : Cfg.basic Cfg.instruction) t : (domain, error) result
           =
@@ -2551,35 +2554,43 @@ end = struct
           let w = create_witnesses t Indirect_tailcall dbg in
           transform_top t ~next:Value.normal_return ~exn:Value.exn_escape w
             "indirect tailcall" dbg
-        | Call_no_return { alloc = false; _ } ->
+        | Call (External { returns = None; alloc = false; _ }) ->
           (* Sound to ignore [next] and [exn] because the call never returns or
              raises. *)
           Value.bot
-        | Call_no_return { alloc = true; func_symbol = func; _ } ->
+        | Call
+            (External { returns = None; alloc = true; func_symbol = func; _ })
+          ->
           (* Sound to ignore [next] because the call never returns. *)
           (* CR gyorsh: we do not currently generate this, but may later. *)
           let w = create_witnesses t (Extcall { callee = func }) dbg in
           transform_top t ~next:Value.bot ~exn w
             ("external call to " ^ func)
             dbg
-        | Prim { op = External { alloc = false; _ }; _ } ->
-          (* Sound to ignore [exn] because external call marked as noalloc does
-             not raise. *)
-          next
-        | Prim { op = External { alloc = true; func_symbol = func; _ }; _ } ->
+        | Call (External { returns = _; alloc = true; func_symbol = func; _ })
+          ->
           let w = create_witnesses t (Extcall { callee = func }) dbg in
           transform_top t ~next ~exn w ("external call to " ^ func) dbg
-        | Prim { op = Probe { name; handler_code_sym; enabled_at_init = _ }; _ }
+        | Call (External { func_symbol; alloc = false; returns = Some _; _ }) ->
+          Misc.fatal_errorf
+            "Found [Call External] to %s with [alloc] set to [false] and \
+             [returns] set to [Some]:@ %a"
+            func_symbol Debuginfo.print_compact dbg
+        | Call
+            (Probe { name; handler_code_sym; enabled_at_init = _; returns = _ })
           ->
           let desc =
             Printf.sprintf "probe %s handler %s" name handler_code_sym
           in
           let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
           transform_call t ~next ~exn handler_code_sym w ~desc dbg
-        | Call { op = Indirect; _ } ->
+        | Call (OCaml { op = Indirect; returns = _ }) ->
           let w = create_witnesses t Indirect_call dbg in
           transform_top t ~next ~exn w "indirect call" dbg
-        | Call { op = Direct { sym_name = func; _ }; _ } ->
+        | Call
+            (OCaml
+              { op = Direct { sym_name = func; sym_global = _ }; returns = _ })
+          ->
           let w = create_witnesses t (Direct_call { callee = func }) dbg in
           transform_call t ~next ~exn func w ~desc:("direct call to " ^ func)
             dbg
@@ -2642,14 +2653,13 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
     let modified = ref false in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         match block.terminator.desc with
-        | Prim { op = External ({ func_symbol; _ } as ext); label_after = _ } ->
+        | Call (External { func_symbol; _ }) ->
           if String.equal func_symbol Cmm.caml_flambda2_invalid
           then (
             let successors =
               Cfg.successor_labels ~normal:true ~exn:true block
             in
-            block.terminator
-              <- { block.terminator with desc = Call_no_return ext };
+            (* XXX mshinwell: I don't understand the original code here *)
             block.exn <- None;
             block.can_raise <- false;
             (* update predecessors for successors of [block]. *)
@@ -2660,10 +2670,10 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
                   <- Label.Set.remove label successor_block.predecessors)
               successors;
             modified := true)
-        | Prim { op = Probe _; _ }
+        | Call (OCaml _ | Probe _)
         | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-        | Tailcall_func _ | Call_no_return _ | Call _ ->
+        | Tailcall_func _ ->
           ());
     if not !modified
     then cfg_with_layout

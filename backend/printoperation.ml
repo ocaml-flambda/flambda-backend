@@ -109,3 +109,6 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
   | Dls_get -> fprintf ppf "dls_get"
   | Poll -> fprintf ppf "poll call"
   | Probe_is_enabled { name } -> fprintf ppf "probe_is_enabled \"%s\"" name
+  | Extcall { func_symbol; effects = _; ty_res = _; ty_args = _; stack_ofs = _ }
+    ->
+    fprintf ppf "extcall %s" func_symbol

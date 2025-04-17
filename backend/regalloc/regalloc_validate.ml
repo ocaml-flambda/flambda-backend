@@ -578,20 +578,10 @@ end = struct
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare call1 call2 = 0 ->
       ()
-    | Call_no_return call1, Call_no_return call2
+    | Call call1, Call call2
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare call1 call2 = 0 ->
       ()
-    | ( Call { op = call1; label_after = l1 },
-        Call { op = call2; label_after = l2 } )
-    (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
-      when Stdlib.compare call1 call2 = 0 ->
-      compare_label l1 l2
-    | ( Prim { op = prim1; label_after = l1 },
-        Prim { op = prim2; label_after = l2 } )
-    (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
-      when Stdlib.compare prim1 prim2 = 0 ->
-      compare_label l1 l2
     | _ ->
       Regalloc_utils.fatal
         "The desc of terminator with id %a changed, before: %a, after: %a."

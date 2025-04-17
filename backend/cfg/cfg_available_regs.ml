@@ -308,7 +308,7 @@ module Transfer = struct
             | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _
             | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
             | Begin_region | End_region | Specific _ | Dls_get | Poll | Alloc _
-              )
+            | Extcall _ )
         | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
           let is_op_end_region = Cfg.is_end_region in
           common ~avail_before ~destroyed_at:Proc.destroyed_at_basic
@@ -335,18 +335,17 @@ module Transfer = struct
           (* CR xclerc for xclerc: TODO *)
           None, unreachable
         | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-        | Switch _ | Call _ | Prim _ | Return | Raise _ | Tailcall_func _
-        | Call_no_return _ ->
+        | Switch _ | Call _ | Return | Raise _ | Tailcall_func _ ->
           common ~avail_before ~destroyed_at:Proc.destroyed_at_terminator
             ~is_interesting_constructor:
               Cfg.(
                 function
                 | Never -> assert false
-                | Call _ | Prim { op = Probe _; label_after = _ } -> true
+                | Call (OCaml _ | Probe _) -> true
                 | Always _ | Parity_test _ | Truth_test _ | Float_test _
                 | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-                | Tailcall_func _ | Call_no_return _
-                | Prim { op = External _; label_after = _ } ->
+                | Tailcall_func _
+                | Call (External _) ->
                   false)
             ~is_end_region:(fun _ -> false)
             term)
@@ -387,7 +386,7 @@ let get_name_for_debugger_regs (b : Cfg.basic) =
       | Intop_atomic _
       | Floatop (_, _)
       | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-      | Specific _ | Alloc _ ) ->
+      | Specific _ | Alloc _ | Extcall _ ) ->
     None
 
 let compute_all_regs_that_might_be_named : Cfg.t -> Reg.Set.t =

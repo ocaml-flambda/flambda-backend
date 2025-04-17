@@ -859,7 +859,7 @@ let num_call_gc_points instr =
         | Intop_atomic _
         | Floatop (_, _)
         | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-        | Name_for_debugger _ )
+        | Name_for_debugger _ | Extcall _ )
     | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lcall_op _
     | Llabel _ | Lbranch _
     | Lcondbranch (_, _)
@@ -926,7 +926,7 @@ module BR = Branch_relaxation.Make (struct
           | Intop_atomic _
           | Floatop (_, _)
           | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-          | Name_for_debugger _ )
+          | Name_for_debugger _ | Extcall _ )
       | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
       | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _ | Ladjust_stack_offset _
       | Lpushtrap _ | Lraise _ | Lstackcheck _ ->
@@ -972,6 +972,9 @@ module BR = Branch_relaxation.Make (struct
           { alloc; stack_ofs; func = _; ty_res = _; ty_args = _; returns = _ })
       ->
       if Config.runtime5 && stack_ofs > 0 then 5 else if alloc then 3 else 5
+    | Lop (Extcall _) ->
+      (* Never allocates *)
+      5
     | Lop (Stackoffset _) -> 2
     | Lop (Load { memory_chunk; addressing_mode; is_atomic; mutability = _ }) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
@@ -1389,6 +1392,42 @@ let emit_static_cast (cast : Cmm.static_cast) i =
         DSL.check_reg Float src;
         DSL.ins I.FMOV [| DSL.emit_reg_d dst; DSL.emit_reg src |]))
 
+let emit_extcall i ~func ~alloc ~stack_ofs =
+  if Config.runtime5 && stack_ofs > 0
+  then (
+    DSL.ins I.MOV [| DSL.emit_reg reg_stack_arg_begin; DSL.sp |];
+    DSL.ins I.ADD
+      [| DSL.emit_reg reg_stack_arg_end;
+         DSL.sp;
+         DSL.imm (Misc.align stack_ofs 16)
+      |];
+    emit_load_symbol_addr reg_x8 func;
+    DSL.ins I.BL [| DSL.emit_symbol "caml_c_call_stack_args" |];
+    record_frame i.live (Dbg_other i.dbg))
+  else if alloc
+  then (
+    emit_load_symbol_addr reg_x8 func;
+    DSL.ins I.BL [| DSL.emit_symbol "caml_c_call" |];
+    record_frame i.live (Dbg_other i.dbg))
+  else (
+    (*= store ocaml stack in the frame pointer register
+             NB: no need to store previous x29 because OCaml frames don't
+             maintain frame pointer *)
+    if Config.runtime5
+    then (
+      DSL.ins I.MOV [| DSL.reg_x_29; DSL.sp |];
+      cfi_remember_state ();
+      cfi_def_cfa_register ~reg:29;
+      let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
+      DSL.ins I.LDR
+        [| DSL.emit_reg reg_tmp1;
+           DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr
+        |];
+      DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_tmp1 |]);
+    DSL.ins I.BL [| DSL.emit_symbol func |];
+    if Config.runtime5 then DSL.ins I.MOV [| DSL.sp; DSL.reg_x_29 |];
+    cfi_restore_state ())
+
 (* Output the assembly code for an instruction *)
 
 let emit_instr i =
@@ -1473,40 +1512,17 @@ let emit_instr i =
       output_epilogue (fun () ->
           DSL.ins I.B [| DSL.emit_symbol func.sym_name |])
   | Lcall_op (Lextcall { func; alloc; stack_ofs; _ }) ->
-    if Config.runtime5 && stack_ofs > 0
-    then (
-      DSL.ins I.MOV [| DSL.emit_reg reg_stack_arg_begin; DSL.sp |];
-      DSL.ins I.ADD
-        [| DSL.emit_reg reg_stack_arg_end;
-           DSL.sp;
-           DSL.imm (Misc.align stack_ofs 16)
-        |];
-      emit_load_symbol_addr reg_x8 func;
-      DSL.ins I.BL [| DSL.emit_symbol "caml_c_call_stack_args" |];
-      record_frame i.live (Dbg_other i.dbg))
-    else if alloc
-    then (
-      emit_load_symbol_addr reg_x8 func;
-      DSL.ins I.BL [| DSL.emit_symbol "caml_c_call" |];
-      record_frame i.live (Dbg_other i.dbg))
-    else (
-      (*= store ocaml stack in the frame pointer register
-             NB: no need to store previous x29 because OCaml frames don't
-             maintain frame pointer *)
-      if Config.runtime5
-      then (
-        DSL.ins I.MOV [| DSL.reg_x_29; DSL.sp |];
-        cfi_remember_state ();
-        cfi_def_cfa_register ~reg:29;
-        let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-        DSL.ins I.LDR
-          [| DSL.emit_reg reg_tmp1;
-             DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr
-          |];
-        DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_tmp1 |]);
-      DSL.ins I.BL [| DSL.emit_symbol func |];
-      if Config.runtime5 then DSL.ins I.MOV [| DSL.sp; DSL.reg_x_29 |];
-      cfi_restore_state ())
+    emit_extcall i ~func ~alloc ~stack_ofs
+  | Lop
+      (Extcall
+        { func_symbol = func;
+          effects = _;
+          ty_args = _;
+          ty_res = _;
+          stack_ofs;
+          _
+        }) ->
+    emit_extcall i ~func ~alloc:false ~stack_ofs
   | Lop (Stackoffset n) ->
     assert (n mod 16 = 0);
     emit_stack_adjustment (-n);

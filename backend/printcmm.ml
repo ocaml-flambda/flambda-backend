@@ -209,7 +209,6 @@ let static_cast : Cmm.static_cast -> string = function
   | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (vec128_name ty)
 
 let operation d = function
-  | Capply (_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
     Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload { memory_chunk; mutability } -> (
@@ -263,10 +262,6 @@ let operation d = function
   | Cstatic_cast cast -> static_cast cast
   | Ccmpf (Float64, c) -> Printf.sprintf "%sf" (float_comparison c)
   | Ccmpf (Float32, c) -> Printf.sprintf "%sf32" (float_comparison c)
-  | Craise k -> Lambda.raise_kind k ^ location d
-  | Cprobe { name; handler_code_sym; enabled_at_init } ->
-    Printf.sprintf "probe[%s %s%s]" name handler_code_sym
-      (if enabled_at_init then " enabled_at_init" else "")
   | Cprobe_is_enabled { name } -> Printf.sprintf "probe_is_enabled[%s]" name
   | Cprefetch { is_write; locality } ->
     Printf.sprintf "prefetch is_write=%b prefetch_temporal_locality_hint=%s"
@@ -331,14 +326,36 @@ let rec expr ppf = function
         el
     in
     fprintf ppf "@[<1>[%a]@]" tuple el
+  | Capply ({ args; dbg }, OCaml { result_ty; region_close = _; callee }) ->
+    fprintf ppf "@[<1>(apply@ %a@ (%a)@ %a @ %a)@]" expr callee
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space expr)
+      args machtype result_ty Debuginfo.print_compact dbg
+  | Capply
+      ( { args; dbg },
+        External
+          { func;
+            builtin = _;
+            returns = _;
+            effects = _;
+            coeffects = _;
+            ty = _;
+            ty_args = _
+          } ) ->
+    fprintf ppf "@[<1>(extcall \"%s\"%s@ (%a))@]" func (location dbg)
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space expr)
+      args
+  | Capply ({ args; dbg }, Probe { name; handler_code_sym; enabled_at_init }) ->
+    fprintf ppf "@[<1>(probe[%s %s%s]@ (%a))@]" name handler_code_sym
+      (if enabled_at_init then " enabled_at_init" else "")
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space expr)
+      args
   | Cop (op, el, dbg) ->
     with_location_mapping ~label:"Cop" ~dbg ppf (fun () ->
         fprintf ppf "@[<2>(%s" (operation dbg op);
         List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
         (match op with
-        | Capply (mty, _) -> fprintf ppf "@ %a" machtype mty
-        | Cextcall { ty; ty_args; alloc = _; func = _; returns } ->
-          let ty = if returns then Some ty else None in
+        | Cextcall { ty; ty_args; func = _ } ->
+          let ty = Some ty in
           fprintf ppf "@ %a" extcall_signature (ty, ty_args)
         | _ -> ());
         fprintf ppf ")@]")
@@ -385,6 +402,11 @@ let rec expr ppf = function
     fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
     List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
     fprintf ppf ")@]"
+  | Craise (k, args, dbg) ->
+    fprintf ppf "@<2>(raise@ %s@ %a)@]"
+      (Lambda.raise_kind k ^ location dbg)
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space expr)
+      args
 
 and sequence ppf = function
   | Csequence (e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2
