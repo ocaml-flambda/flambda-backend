@@ -539,11 +539,25 @@ let transl_builtin name args dbg typ_res =
         (* Here is an example to show how csel is compiled:
          *   (csel val (!= cond/306 1) ifso/304 ifnot/305))
          * [test_bool] goes from a tagged to an untagged bool. *)
-        let cond = test_bool dbg cond in
-        match cond with
+        let untagged_bool = test_bool dbg cond in
+        match untagged_bool with
         | Cconst_int (0, _) -> ifnot
         | Cconst_int (1, _) -> ifso
-        | _ -> Cop (op, [cond; ifso; ifnot], dbg))
+        | _ -> (
+          match ifso, ifnot with
+          | Cconst_int (1, _), Cconst_int (0, _) -> untagged_bool
+          | Cconst_int (0, _), Cconst_int (1, _) ->
+            untag_int (mk_not dbg (tag_int untagged_bool dbg)) dbg
+          | Cconst_int (3, _), Cconst_int (1, _) ->
+            (* Unsound to use [cond] directly because the backend does not know
+               that [cond] is a "tagged boolean" not an arbitrary tagged
+               integer. [tag_int untagged_bool] produces worse code. Same for
+               [mk_not] case below. *)
+            tag_int untagged_bool dbg
+          | Cconst_int (1, _), Cconst_int (3, _) ->
+            mk_not dbg (tag_int untagged_bool dbg)
+          | Cvar x, Cvar y when Backend_var.same x y -> ifso
+          | _ -> Cop (op, [cond; ifso; ifnot], dbg)))
   | "caml_int32_shift_left_by_int32_unboxed" ->
     let arg, count = two_args name args in
     shift32 lsl_int arg count dbg

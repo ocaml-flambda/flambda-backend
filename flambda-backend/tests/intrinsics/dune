@@ -6,6 +6,20 @@
  (action
   (run %{bin:ocamlopt.opt} %{deps} -c)))
 
+(executables
+ (names select_with_peepholes)
+ (modules select_with_peepholes)
+ (foreign_stubs (language c) (names stubs))
+ (enabled_if
+   (= %{context_name} "main")))
+
+(rule
+ (alias runtest)
+ (enabled_if
+   (= %{context_name} "main"))
+ (deps ./select_with_peepholes.exe)
+ (action (run ./select_with_peepholes.exe)))
+
 ; Test atomics with binary emitter - not supported on macOS
 
 (executables
