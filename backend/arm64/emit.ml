@@ -2112,107 +2112,8 @@ let data l =
   emit_printf "\t.align\t3\n";
   List.iter emit_item l
 
-let emit_line str = emit_string (str ^ "\n")
-
 let file_emitter ~file_num ~file_name =
   D.file ~file_num:(Some file_num) ~file_name
-
-let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
-  (module Asm_targets.Asm_directives.Make (struct
-    let emit_line = emit_line
-
-    let get_file_num file_name = Emitaux.get_file_num ~file_emitter file_name
-
-    let debugging_comments_in_asm_files = !Flambda_backend_flags.dasm_comments
-
-    module D = struct
-      type constant = D.Directive.Constant.t
-
-      let const_int64 num = D.Directive.Constant.Signed_int num
-
-      let const_label str = D.Directive.Constant.Named_thing str
-
-      let const_add c1 c2 = D.Directive.Constant.Add (c1, c2)
-
-      let const_sub c1 c2 = D.Directive.Constant.Sub (c1, c2)
-
-      (* CR sspies: The functions depending on [emit_directive] below break
-         abstractions. This is intensional at the moment, because this is only
-         the first step of getting rid of the first-class module entirely. *)
-      let emit_directive dir =
-        let buf = Buffer.create 80 in
-        D.Directive.print buf dir;
-        Buffer.add_string buf "\n";
-        Buffer.output_buffer !output_channel buf
-
-      let emit_constant const size =
-        emit_directive
-          (Const
-             { constant = D.Directive.Constant_with_width.create const size;
-               comment = None
-             })
-
-      type data_type =
-        | NONE
-        | DWORD
-        | QWORD
-        | VEC128
-
-      let file = file_emitter
-
-      let loc ~file_num ~line ~col ?discriminator () =
-        ignore discriminator;
-        D.loc ~file_num ~line ~col ?discriminator ()
-
-      let comment str = D.comment str
-
-      let label ?data_type:_ str = emit_directive (New_label (str, Code))
-
-      let section ?delayed:_ name flags args =
-        match name, flags, args with
-        | [".data"], _, _ -> D.data ()
-        | [".text"], _, _ -> D.text ()
-        | name, flags, args -> D.switch_to_section_raw ~names:name ~flags ~args
-
-      let text () = D.text ()
-
-      let new_line () = D.new_line ()
-
-      let global sym = emit_directive (Global sym)
-
-      let protected sym = if not macosx then emit_directive (Protected sym)
-
-      let type_ sym typ_ =
-        let typ_ : D.symbol_type =
-          match typ_ with
-          | "@function" -> Function
-          | "@object" -> Object
-          | "STT_FUNC" -> Function
-          | "STT_OBJECT" -> Object
-          | _ -> Misc.fatal_errorf "Unsupported assembly type %s" typ_
-        in
-        emit_directive (Type (sym, typ_))
-
-      let byte const = emit_constant const Eight
-
-      let word const = emit_constant const Sixteen
-
-      let long const = emit_constant const Thirty_two
-
-      let qword const = emit_constant const Sixty_four
-
-      let bytes str = D.string str
-
-      let uleb128 const =
-        emit_directive (Uleb128 { constant = const; comment = None })
-
-      let sleb128 const =
-        emit_directive (Sleb128 { constant = const; comment = None })
-
-      let direct_assignment var const =
-        emit_directive (Direct_assignment (var, const))
-    end
-  end))
 
 (* Beginning / end of an assembly file *)
 
@@ -2245,8 +2146,8 @@ let begin_assembly _unix =
     DSL.ins I.NOP [||];
     emit_printf "\t.align\t3\n");
   let lbl_end = Cmm_helpers.make_symbol "code_end" in
-  Emitaux.Dwarf_helpers.begin_dwarf ~build_asm_directives ~code_begin:lbl_begin
-    ~code_end:lbl_end ~file_emitter
+  Emitaux.Dwarf_helpers.begin_dwarf ~code_begin:lbl_begin ~code_end:lbl_end
+    ~file_emitter
 
 let end_assembly () =
   let lbl_end = Cmm_helpers.make_symbol "code_end" in
