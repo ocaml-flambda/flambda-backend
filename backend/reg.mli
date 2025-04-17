@@ -33,11 +33,11 @@ end
 *)
 
 type t =
-  { name: Name.t;                         (* Name *)
-    stamp: int;                           (* Unique stamp *)
-    typ: Cmm.machtype_component;          (* Type of contents *)
-    preassigned: bool;                    (* Pinned to a specific location *)
-    mutable loc: location; }              (* Actual location *)
+  { name: Name.t;                (* Name *)
+    stamp: int;                  (* Unique stamp *)
+    typ: Cmm.machtype_component; (* Type of contents *)
+    preassigned: bool;           (* Pinned to a hardware register or stack slot *)
+    mutable loc: location; }     (* Actual location, immutable if preassigned *)
 
 and location =
     Unknown
@@ -87,7 +87,6 @@ val createv_with_typs: t array -> t array
 val createv_with_typs_and_id: id:Ident.t -> t array -> t array
 
 val typv: t array -> Cmm.machtype
-val print : t -> string
 
 (* Check [t]'s location *)
 val is_reg : t -> bool
@@ -106,8 +105,8 @@ val disjoint_set_array: Set.t -> t array -> bool
 val set_of_array: t array -> Set.t
 val set_has_collisions : Set.t -> bool
 
-val restart: unit -> unit
 val all_relocatable_regs: unit -> t list
+val clear_relocatable_regs: unit -> unit
 val reinit_relocatable_regs: unit -> unit
 
 val same : t -> t -> bool

@@ -101,13 +101,6 @@ let createv_with_typs_and_id ~id rs = createv_gen ~name:(Name.Var id) ~typs:(Arr
 let typv rv =
   Array.map (fun r -> r.typ) rv
 
-let print t =
-  let prefix =
-    if t.preassigned then "pin:"
-    else ""
-  in
-  prefix ^ Name.to_string t.name
-
 let is_preassigned t = t.preassigned
 
 let is_unknown t =
@@ -127,7 +120,7 @@ let is_reg t =
   | Reg _ -> true
   | Stack _ | Unknown -> false
 
-let restart () =
+let clear_relocatable_regs () =
   (* When restart is called for the first time, the current
      stamp reflects all hard pseudo-registers that have been allocated by Proc,
      so remember it and use it as the base stamp for allocating soft pseudo-registers *)

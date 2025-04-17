@@ -30,11 +30,15 @@ val from_map : Type_grammar.t Name.Map.t -> t
 
 val to_map : t -> Type_grammar.t Name.Map.t
 
+val has_equation : Name.t -> t -> bool
+
 val one_equation : Name.t -> Type_grammar.t -> t
 
 val add_or_replace_equation : t -> Name.t -> Type_grammar.t -> t
 
 val replace_equation : t -> Name.t -> Type_grammar.t -> t
+
+val disjoint_union : t -> t -> t
 
 include Contains_ids.S with type t := t
 

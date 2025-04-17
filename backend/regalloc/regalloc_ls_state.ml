@@ -24,6 +24,7 @@ let[@inline] make ~stack_slots ~last_used =
   let instruction_id = InstructionId.make_sequence ~last_used () in
   { interval_dll; active; stack_slots; instruction_id }
 
+(* CR-someday xclerc: consider using Dynarray *)
 type class_interval_array =
   { mutable elements : Interval.t array;
     mutable length : int

@@ -23,6 +23,8 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module Int = Numbers.Int
 module V = Backend_var
@@ -237,8 +239,6 @@ val make_const_vec128 : Cmm.vec128_bits -> Operation.t
 val make_const_symbol : Cmm.symbol -> Operation.t
 
 val make_opaque : unit -> Operation.t
-
-val basic_op : Operation.t -> Cfg.basic_or_terminator
 
 val insert_debug :
   environment ->

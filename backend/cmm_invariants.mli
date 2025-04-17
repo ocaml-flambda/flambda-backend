@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 (** Check a number of continuation-related invariants *)
 
 (* Currently, this checks that :

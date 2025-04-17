@@ -10,9 +10,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open! Int_replace_polymorphic_compare
-open Cmm
-open Cmm_helpers
+module H = Cmm_helpers
 module CU = Compilation_unit
 
 let considered_as_small_threshold = 20
@@ -46,7 +47,7 @@ module Partition = struct
       | Curry a, Curry b -> compare a b
       | Apply a, Apply b -> compare a b
       | Send a, Send b -> compare a b
-      | _ -> assert false
+      | (Small | Curry _ | Apply _ | Send _), _ -> assert false
 
   module Set = Set.Make (struct
     type nonrec t = t
@@ -70,14 +71,6 @@ module Partition = struct
         empty seq
   end
 
-  module Hashtbl = Hashtbl.Make (struct
-    type nonrec t = t
-
-    let equal a b = compare a b = 0
-
-    let hash x = Hashtbl.hash x
-  end)
-
   let to_string = function
     | Curry arity -> "curry_" ^ string_of_int arity
     | Apply arity -> "apply_" ^ string_of_int arity
@@ -93,10 +86,18 @@ end
 
 module Tbl0 = struct
   type t =
-    { curry : (Lambda.function_kind * machtype list * machtype, unit) Hashtbl.t;
+    { curry :
+        ( Lambda.function_kind * Cmm.machtype list * Cmm.machtype,
+          unit )
+        Hashtbl.t;
       apply :
-        (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t;
-      send : (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t
+        ( Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode,
+          unit )
+        Hashtbl.t;
+      send :
+        ( Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode,
+          unit )
+        Hashtbl.t
     }
 
   let make () =
@@ -143,7 +144,9 @@ module Cache = struct
     * Cmm.machtype_component array list
     * Cmm.machtype_component array
 
-  let has_singleton_layout_value = function [| Val |] -> true | _ -> false
+  let has_singleton_layout_value = function[@warning "-4"]
+    | [| Cmm.Val |] -> true
+    | _ -> false
 
   let only_concerns_values ~arity ~result =
     has_singleton_layout_value result
@@ -151,7 +154,8 @@ module Cache = struct
 
   let len_arity arity =
     List.fold_left
-      (fun acc a -> match a with [| Val |] -> acc + 1 | _ -> acc)
+      (fun acc a ->
+        match[@warning "-4"] a with [| Cmm.Val |] -> acc + 1 | _ -> acc)
       0 arity
 
   let max_send = 20
@@ -208,9 +212,9 @@ module Cache = struct
 
   let partition_apply (arity, _, _) = Partition.(create apply arity)
 
-  let arity n = List.init n (fun _ -> [| Val |])
+  let arity n = List.init n (fun _ -> [| Cmm.Val |])
 
-  let result = [| Val |]
+  let result = [| Cmm.Val |]
 
   let all_curry () =
     let tuplify =
@@ -337,6 +341,7 @@ module Tbl = struct
 end
 
 let default_generic_fns : Cmx_format.generic_fns =
+  let open Cmm in
   { curry_fun = [];
     apply_fun =
       [ [typ_val; typ_val], typ_val, Cmx_format.Alloc_heap;
@@ -352,9 +357,9 @@ let compile ~shared tbl =
   let ({ curry_fun; apply_fun; send_fun } : Cmx_format.generic_fns) =
     Tbl.entries tbl
   in
-  List.concat_map curry_function curry_fun
-  @ List.map send_function send_fun
-  @ List.map apply_function apply_fun
+  List.concat_map H.curry_function curry_fun
+  @ List.map H.send_function send_fun
+  @ List.map H.apply_function apply_fun
 
 let imported_units p =
   Partition.Set.to_seq p |> Seq.map Partition.to_cu |> List.of_seq

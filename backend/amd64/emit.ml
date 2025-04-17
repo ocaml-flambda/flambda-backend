@@ -373,9 +373,10 @@ let record_frame_label live dbg =
       | { typ = Valx2; loc = Stack s; _ } as reg ->
         let n = slot_offset s (Stack_class.of_machtype reg.typ) in
         live_offset := n :: (n + Arch.size_addr) :: !live_offset
-      | { typ = Addr; _ } as r -> Misc.fatal_error ("bad GC root " ^ Reg.print r)
+      | { typ = Addr; _ } as r ->
+        Misc.fatal_errorf "bad GC root %a" Printreg.reg r
       | { typ = Val | Valx2; loc = Unknown; _ } as r ->
-        Misc.fatal_error ("Unknown location " ^ Reg.print r)
+        Misc.fatal_errorf "Unknown location %a" Printreg.reg r
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size ())
@@ -856,8 +857,8 @@ let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
       I.mov r15 (reg dst)
     | Float | Addr | Vec128 | Valx2 | Float32 ->
       Misc.fatal_errorf
-        "Unexpected register type for stack to stack move: from %s to %s\n"
-        (Reg.print src) (Reg.print dst)
+        "Unexpected register type for stack to stack move: from %a to %a\n"
+        Printreg.reg src Printreg.reg dst
 
 let move_allowing_stack_to_stack src dst =
   match Reg.is_stack src, Reg.is_stack dst with
@@ -2549,7 +2550,7 @@ let emit_probe_handler_wrapper p =
           | Val -> k :: acc
           | Int | Float | Vec128 | Float32 -> acc
           | Valx2 -> k :: (k + Arch.size_addr) :: acc
-          | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.print r))
+          | Addr -> Misc.fatal_errorf "bad GC root %a" Printreg.reg r)
         | Stack (Incoming _ | Reg.Local _ | Domainstate _) | Reg _ | Unknown ->
           assert false)
       saved_live []
