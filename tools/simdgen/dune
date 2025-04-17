@@ -19,7 +19,7 @@
 
 (rule
  (target amd64_simd_instrs.ml)
- (deps simdgen.exe amd64/amd64.csv .ocamlformat-enable)
+ (deps simdgen.exe amd64/amd64.csv)
  (mode promote)
  (action
   (with-stdout-to
