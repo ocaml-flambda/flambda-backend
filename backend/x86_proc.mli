@@ -15,6 +15,8 @@
 
 (** Definitions shared between the 32 and 64 bit Intel backends. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open X86_ast
 
 (** Helpers for textual emitters *)
@@ -112,6 +114,8 @@ val is_macosx : system -> bool
 val is_win32 : system -> bool
 
 val is_win64 : system -> bool
+
+val is_solaris : system -> bool
 
 (** Whether calls need to go via the PLT. *)
 val use_plt : bool

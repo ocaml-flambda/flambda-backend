@@ -21,6 +21,8 @@
 
    mov src dst *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open X86_ast
 
 val sym : string -> arg

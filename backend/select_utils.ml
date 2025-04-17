@@ -18,7 +18,7 @@
 
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open Cmm
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -165,8 +165,8 @@ let select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag =
 
 let oper_result_type = function
   | Capply (ty, _) -> ty
-  | Cextcall { ty; ty_args = _; alloc = _; func = _ } -> ty
-  | Cload { memory_chunk } -> (
+  | Cextcall { ty; ty_args = _; alloc = _; func = _; _ } -> ty
+  | Cload { memory_chunk; _ } -> (
     match memory_chunk with
     | Word_val -> typ_val
     | Single { reg = Float64 } | Double -> typ_float

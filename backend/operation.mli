@@ -26,7 +26,7 @@
 
 (* Operations common to CFG and Linear. *)
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 type trap_stack =
   | Uncaught  (** Exceptions escape the current function *)

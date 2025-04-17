@@ -17,7 +17,7 @@
 
 (** Mutable state used by [Cmmgen]. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 type ustructured_constant =
   | Const_float32 of float

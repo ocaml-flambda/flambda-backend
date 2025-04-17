@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 open Format
@@ -37,8 +37,9 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
       (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
       (if is_assign then "(assign)" else "(init)")
-  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Heap } -> fprintf ppf "alloc %i" n
-  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Local } ->
+  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Heap; dbginfo = _ } ->
+    fprintf ppf "alloc %i" n
+  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Local; dbginfo = _ } ->
     fprintf ppf "alloc_local %i" n
   | Intop op ->
     if Operation.is_unary_integer_operation op
@@ -98,7 +99,8 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
   | Static_cast cast ->
     fprintf ppf "%s %a" (Printcmm.static_cast cast) reg arg.(0)
   | Opaque -> fprintf ppf "opaque %a" reg arg.(0)
-  | Name_for_debugger { ident; which_parameter; regs = r } ->
+  | Name_for_debugger
+      { ident; which_parameter; regs = r; provenance = _; is_assignment = _ } ->
     fprintf ppf "%a holds the value of %a%s" regs r Backend_var.print ident
       (match which_parameter with
       | None -> ""

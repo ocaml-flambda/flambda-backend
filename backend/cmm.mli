@@ -15,6 +15,8 @@
 
 (* Second intermediate language (machine independent) *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 type machtype_component = Cmx_format.machtype_component =
   | Val
   | Addr

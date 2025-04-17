@@ -13,6 +13,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+a-40-41-42"]
 
 module type S = sig
   (* The distance between two instructions, in arbitrary units (typically
