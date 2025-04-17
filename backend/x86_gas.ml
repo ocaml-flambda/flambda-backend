@@ -465,10 +465,10 @@ let print_line b = function
   | Protected s -> bprintf b "\t.protected\t%s" s
   | Hidden s -> bprintf b "\t.hidden\t%s" s
   | Weak s -> bprintf b "\t.weak\t%s" s
-  | Long n -> bprintf b "\t.long\t%a" cst n
+  | Long n -> bprintf b "\t.4byte\t%a" cst n
   | NewLabel (s, _) -> bprintf b "%s:" s
   | NewLine -> ()
-  | Quad n -> bprintf b "\t.quad\t%a" cst n
+  | Quad n -> bprintf b "\t.8byte\t%a" cst n
   | Section ([".data"], _, _, _) -> bprintf b "\t.data"
   | Section ([".text"], _, _, _) -> bprintf b "\t.text"
   | Section (name, flags, args, _delayed) -> (
@@ -482,7 +482,7 @@ let print_line b = function
   | Word n -> (
     match is_solaris system with
     | true -> bprintf b "\t.value\t%a" cst n
-    | false -> bprintf b "\t.word\t%a" cst n)
+    | false -> bprintf b "\t.2byte\t%a" cst n)
   | Uleb128 n -> bprintf b "\t.uleb128\t%a" cst n
   | Sleb128 n -> bprintf b "\t.sleb128\t%a" cst n
   (* gas only *)

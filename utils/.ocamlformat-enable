@@ -14,3 +14,6 @@ profile_counters_functions.ml
 profile_counters_functions.mli
 arrayset.ml
 arrayset.mli
+priority_queue.ml
+priority_queue.mli
+

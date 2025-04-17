@@ -98,6 +98,7 @@ module D : sig
      used *)
   val align : data:bool -> int -> unit
 
+  (** directive for an 8-bit constant *)
   val byte : constant -> unit
 
   val bytes : string -> unit
@@ -139,6 +140,7 @@ module D : sig
   val loc :
     file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit
 
+  (** directive for a 32-bit constant *)
   val long : constant -> unit
 
   val mode386 : unit -> unit
@@ -149,6 +151,7 @@ module D : sig
 
   val private_extern : string -> unit
 
+  (** directive for a 64-bit constant *)
   val qword : constant -> unit
 
   val reloc : offset:constant -> name:reloc_type -> expr:constant -> unit
@@ -172,6 +175,7 @@ module D : sig
 
   val weak : string -> unit
 
+  (** directive for a 16-bit constant *)
   val word : constant -> unit
 end
 
