@@ -788,11 +788,11 @@ let emit_literals p align emit_literal =
 
 let emit_float64_directive_with_comment f =
   let comment = Printf.sprintf "\t/* %.12g */" (Int64.float_of_bits f) in
-  emit_printf "\t.quad\t%Ld%s\n" f comment
+  emit_printf "\t.8byte\t%Ld%s\n" f comment
 
 let emit_float32_directive_with_comment f =
   let comment = Printf.sprintf "\t/* %.12f */" (Int32.float_of_bits f) in
-  emit_printf "\t.long\t%ld%s\n" f comment
+  emit_printf "\t.4byte\t%ld%s\n" f comment
 
 let emit_float_literal (f, lbl) =
   emit_printf "%a:\n" femit_label lbl;
@@ -1949,7 +1949,7 @@ let emit_instr i =
         emit_printf "	br	%a\n" femit_reg reg_tmp1;
         emit_printf "%a:\n" femit_label lbltbl;
         for j = 0 to Array.length jumptbl - 1 do
-            emit_printf "	.word	%a - %a\n" femit_label jumptbl.(j) femit_label lbltbl
+            emit_printf "	.4byte	%a - %a\n" femit_label jumptbl.(j) femit_label lbltbl
         done
 *)
   | Lentertrap -> ()
@@ -2088,17 +2088,17 @@ let emit_item (d : Cmm.data_item) =
       emit_printf "\t.globl\t%a\n" femit_symbol s.sym_name;
     emit_printf "%a:\n" femit_symbol s.sym_name
   | Cint8 n -> emit_printf "\t.byte\t%d\n" n
-  | Cint16 n -> emit_printf "\t.short\t%d\n" n
-  | Cint32 n -> emit_printf "\t.long\t%Ld\n" (Int64.of_nativeint n)
-  | Cint n -> emit_printf "\t.quad\t%Ld\n" (Int64.of_nativeint n)
+  | Cint16 n -> emit_printf "\t.2byte\t%d\n" n
+  | Cint32 n -> emit_printf "\t.4byte\t%Ld\n" (Int64.of_nativeint n)
+  | Cint n -> emit_printf "\t.8byte\t%Ld\n" (Int64.of_nativeint n)
   | Csingle f -> emit_float32_directive_with_comment (Int32.bits_of_float f)
   | Cdouble f -> emit_float64_directive_with_comment (Int64.bits_of_float f)
   | Cvec128 { high; low } ->
     emit_float64_directive_with_comment low;
     emit_float64_directive_with_comment high
-  | Csymbol_address s -> emit_printf "\t.quad\t%a\n" femit_symbol s.sym_name
+  | Csymbol_address s -> emit_printf "\t.8byte\t%a\n" femit_symbol s.sym_name
   | Csymbol_offset (s, o) ->
-    emit_printf "\t.quad\t%a+%a\n" femit_symbol s.sym_name femit_int o
+    emit_printf "\t.8byte\t%a+%a\n" femit_symbol s.sym_name femit_int o
   | Cstring s ->
     if String.length s = 0
     then emit_string "\n"
@@ -2114,7 +2114,7 @@ let data l =
 let emit_line str = emit_string (str ^ "\n")
 
 let file_emitter ~file_num ~file_name =
-  emit_line (Printf.sprintf ".file %d %S" file_num file_name)
+  emit_line (Printf.sprintf "\t.file\t%d\t%S" file_num file_name)
 
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
   (module Asm_targets.Asm_directives.Make (struct
@@ -2132,6 +2132,19 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         | Sub of constant * constant
 
       let rec string_of_constant const =
+        match const with
+        | Add (c1, c2) ->
+          Printf.sprintf "%s + %s"
+            (string_of_const_with_paren c1)
+            (string_of_const_with_paren c2)
+        | Sub (c1, c2) ->
+          Printf.sprintf "%s - %s"
+            (string_of_const_with_paren c1)
+            (string_of_const_with_paren c2)
+        | Int64 _ as c -> string_of_const_with_paren c
+        | Label _ as c -> string_of_const_with_paren c
+
+      and string_of_const_with_paren const =
         match const with
         | Int64 n -> Int64.to_string n
         | Label s -> s
@@ -2160,9 +2173,9 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
 
       let loc ~file_num ~line ~col ?discriminator () =
         ignore discriminator;
-        emit_line (Printf.sprintf ".loc %d %d %d" file_num line col)
+        emit_line (Printf.sprintf "\t.loc\t%d\t%d\t%d" file_num line col)
 
-      let comment str = emit_line (Printf.sprintf "; %s" str)
+      let comment str = emit_line (Printf.sprintf "\t\t\t/* %s */" str)
 
       let label ?data_type str =
         let _ = data_type in
@@ -2194,27 +2207,28 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
       let type_ sym typ_ = emit_line (Printf.sprintf "\t.type %s,%s" sym typ_)
 
       let byte const =
-        emit_line (Printf.sprintf "\t.byte %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.byte\t%s" (string_of_constant const))
 
       let word const =
-        emit_line (Printf.sprintf "\t.short %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.2byte\t%s" (string_of_constant const))
 
       let long const =
-        emit_line (Printf.sprintf "\t.long %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.4byte\t%s" (string_of_constant const))
 
       let qword const =
-        emit_line (Printf.sprintf "\t.quad %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.8byte\t%s" (string_of_constant const))
 
-      let bytes str = emit_line (Printf.sprintf "\t.ascii %S" str)
+      let bytes str = emit_line (Printf.sprintf "\t.ascii\t%S" str)
 
       let uleb128 const =
-        emit_line (Printf.sprintf "\t.uleb128 %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.uleb128\t%s" (string_of_constant const))
 
       let sleb128 const =
-        emit_line (Printf.sprintf "\t.sleb128 %s" (string_of_constant const))
+        emit_line (Printf.sprintf "\t.sleb128\t%s" (string_of_constant const))
 
       let direct_assignment var const =
-        emit_line (Printf.sprintf "\t.set %s,%s" var (string_of_constant const))
+        emit_line
+          (Printf.sprintf "\t.set %s, %s" var (string_of_constant const))
     end
   end))
 
@@ -2251,11 +2265,11 @@ let end_assembly () =
   emit_printf "%a:\n" femit_symbol lbl_end;
   let lbl_end = Cmm_helpers.make_symbol "data_end" in
   emit_printf "\t.data\n";
-  emit_printf "\t.quad\t0\n";
+  emit_printf "\t.8byte\t0\n";
   (* PR#6329 *)
   emit_printf "\t.globl\t%a\n" femit_symbol lbl_end;
   emit_printf "%a:\n" femit_symbol lbl_end;
-  emit_printf "\t.quad\t0\n";
+  emit_printf "\t.8byte\t0\n";
   emit_printf "\t.align\t3\n";
   (* #7887 *)
   let lbl = Cmm_helpers.make_symbol "frametable" in
@@ -2265,20 +2279,20 @@ let end_assembly () =
     { efa_code_label =
         (fun lbl ->
           emit_symbol_type femit_label lbl "function";
-          emit_printf "\t.quad\t%a\n" femit_label lbl);
+          emit_printf "\t.8byte\t%a\n" femit_label lbl);
       efa_data_label =
         (fun lbl ->
           emit_symbol_type femit_label lbl "object";
-          emit_printf "\t.quad\t%a\n" femit_label lbl);
+          emit_printf "\t.8byte\t%a\n" femit_label lbl);
       efa_8 = (fun n -> emit_printf "\t.byte\t%d\n" n);
-      efa_16 = (fun n -> emit_printf "\t.short\t%d\n" n);
-      efa_32 = (fun n -> emit_printf "\t.long\t%ld\n" n);
-      efa_word = (fun n -> emit_printf "\t.quad\t%d\n" n);
+      efa_16 = (fun n -> emit_printf "\t.2byte\t%d\n" n);
+      efa_32 = (fun n -> emit_printf "\t.4byte\t%ld\n" n);
+      efa_word = (fun n -> emit_printf "\t.8byte\t%d\n" n);
       efa_align =
         (fun n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n));
       efa_label_rel =
         (fun lbl ofs ->
-          emit_printf "\t.long\t(%a + %ld) - .\n" femit_label lbl ofs);
+          emit_printf "\t.4byte\t(%a + %ld) - .\n" femit_label lbl ofs);
       efa_def_label = (fun lbl -> emit_printf "%a:\n" femit_label lbl);
       efa_string = (fun s -> emit_string_directive "\t.ascii\t" (s ^ "\000"))
     };

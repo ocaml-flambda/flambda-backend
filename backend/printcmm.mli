@@ -15,26 +15,49 @@
 
 (* Pretty-printing of C-- code *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open Format
 
 val symbol : formatter -> Cmm.symbol -> unit
+
 val ccatch_flag : formatter -> Cmm.ccatch_flag -> unit
+
 val machtype_component : formatter -> Cmm.machtype_component -> unit
+
 val machtype : formatter -> Cmm.machtype -> unit
+
 val exttype : formatter -> Cmm.exttype -> unit
-val extcall_signature : formatter -> Cmm.machtype option * Cmm.exttype list -> unit
+
+val extcall_signature :
+  formatter -> Cmm.machtype option * Cmm.exttype list -> unit
+
 val integer_comparison : Cmm.integer_comparison -> string
+
 val float_comparison : Cmm.float_comparison -> string
+
 val trap_action_list : formatter -> Cmm.trap_action list -> unit
+
 val chunk : Cmm.memory_chunk -> string
+
 val atomic_op : Cmm.atomic_op -> string
+
 val atomic_bitwidth : Cmm.atomic_bitwidth -> string
+
 val operation : Debuginfo.t -> Cmm.operation -> string
+
 val expression : formatter -> Cmm.expression -> unit
+
 val fundecl : formatter -> Cmm.fundecl -> unit
+
 val data : formatter -> Cmm.data_item list -> unit
+
 val phrase : formatter -> Cmm.phrase -> unit
+
 val temporal_locality : Cmm.prefetch_temporal_locality_hint -> string
+
 val print_codegen_options : formatter -> Cmm.codegen_option list -> unit
+
 val reinterpret_cast : Cmm.reinterpret_cast -> string
+
 val static_cast : Cmm.static_cast -> string

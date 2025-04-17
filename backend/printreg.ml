@@ -15,7 +15,7 @@
 
 (* Pretty-printing of registers *)
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Format
@@ -90,7 +90,7 @@ let regsetaddr' ?(print_reg = reg) ppf s =
       match r.typ with
       | Val -> fprintf ppf "*"
       | Addr -> fprintf ppf "!"
-      | _ -> ())
+      | Int | Float | Vec128 | Float32 | Valx2 -> ())
     s
 
 let regsetaddr ppf s = regsetaddr' ppf s

@@ -74,3 +74,5 @@ val system: unit -> system
 val windows : unit -> bool
 
 val is_macos : unit -> bool
+
+val is_gas : unit -> bool

@@ -20,6 +20,15 @@ module Typing_env = struct
   let add_equation t name ty =
     add_equation t name ty ~meet_type:(Meet.meet_type ())
 
+  let add_is_null_relation t name ~scrutinee =
+    add_equation t name (Type_grammar.is_null ~scrutinee)
+
+  let add_is_int_relation t name ~scrutinee =
+    add_equation t name (Type_grammar.is_int_for_scrutinee ~scrutinee)
+
+  let add_get_tag_relation t name ~scrutinee =
+    add_equation t name (Type_grammar.get_tag_for_block ~block:scrutinee)
+
   let add_equations_on_params t ~params ~param_types =
     add_equations_on_params t ~params ~param_types
       ~meet_type:(Meet.meet_type ())
@@ -34,7 +43,20 @@ module Typing_env = struct
   module Alias_set = Aliases.Alias_set
 end
 
-module Typing_env_extension = Typing_env_extension
+module Typing_env_extension = struct
+  include Typing_env_extension
+
+  let add_is_null_relation t name ~scrutinee =
+    add_or_replace_equation t name (Type_grammar.is_null ~scrutinee)
+
+  let add_is_int_relation t name ~scrutinee =
+    add_or_replace_equation t name
+      (Type_grammar.is_int_for_scrutinee ~scrutinee)
+
+  let add_get_tag_relation t name ~scrutinee =
+    add_or_replace_equation t name
+      (Type_grammar.get_tag_for_block ~block:scrutinee)
+end
 
 type typing_env = Typing_env.t
 

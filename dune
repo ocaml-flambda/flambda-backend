@@ -124,6 +124,7 @@
   mode_intf)
  (modules
   ;; UTILS
+  arrayset
   config
   build_path_prefix_map
   misc
@@ -134,6 +135,7 @@
   debug
   profile
   profile_counters_functions
+  priority_queue
   terminfo
   ccomp
   warnings

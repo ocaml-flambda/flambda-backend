@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 (* Common functions for emitting assembly code *)
 
 open! Int_replace_polymorphic_compare
@@ -489,7 +491,8 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
     | [] -> ()
     | { Debuginfo.dinfo_line = line;
         dinfo_char_start = col;
-        dinfo_file = file_name
+        dinfo_file = file_name;
+        _
       }
       :: _ ->
       if line > 0
@@ -596,7 +599,7 @@ module Dwarf_helpers = struct
         Target_system.derived_system () )
     with
     | true, (X86_64 | AArch64), _ -> sourcefile_for_dwarf := sourcefile
-    | true, _, _ | false, _, _ -> ()
+    | true, (IA32 | ARM | POWER | Z | Riscv), _ | false, _, _ -> ()
 
   let emit_dwarf () =
     Option.iter
@@ -651,9 +654,21 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
       let s = fs + n in
       loop i.next s (max s max_fs) nontail_flag
     | Lcall_op (Lcall_ind | Lcall_imm _) -> loop i.next fs max_fs true
-    | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn | Llabel _
-    | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
-    | Lraise _ ->
+    | Lprologue
+    | Lop
+        ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+        | Poll | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Load _
+        | Store (_, _, _)
+        | Intop _
+        | Intop_imm (_, _)
+        | Intop_atomic _
+        | Floatop (_, _)
+        | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+        | Specific _ | Name_for_debugger _ | Alloc _ )
+    | Lcall_op (Ltailcall_ind | Ltailcall_imm _ | Lextcall _ | Lprobe _)
+    | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _ | Lcondbranch _
+    | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
       loop i.next fs max_fs nontail_flag
     | Lstackcheck _ ->
       (* should not be already present *)
