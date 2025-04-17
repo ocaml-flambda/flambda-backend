@@ -67,7 +67,12 @@ let to_x86_constant_with_width (c : ND.Directive.Constant_with_width.t) :
 
 let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
   let comment_lines comment =
-    Option.to_list (Option.map (fun s -> X86_ast.Comment s) comment)
+    (* CR sspies: This check is usually done in the printing function of the new
+       directives. Since we are skipping those at the moment (by emitting via
+       the X86 DSL), we do the same check here in the conversion. *)
+    if !Clflags.keep_asm_file && !Flambda_backend_flags.dasm_comments
+    then Option.to_list (Option.map (fun s -> X86_ast.Comment s) comment)
+    else []
   in
   match dir with
   | Align { bytes } ->
@@ -75,7 +80,7 @@ let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
     (* The data field is currently ignored by both assembler backends. The bytes
        field is only converted to the final value when printing. *)
   | Bytes { str; comment } -> comment_lines comment @ [X86_ast.Bytes str]
-  | Comment s -> [X86_ast.Comment s]
+  | Comment s -> comment_lines (Some s)
   | Const { constant; comment } ->
     comment_lines comment @ [to_x86_constant_with_width constant]
   | Direct_assignment (s, c) ->
