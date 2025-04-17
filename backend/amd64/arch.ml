@@ -303,7 +303,7 @@ let print_specific_operation printreg op ppf arg =
   | Irdpmc ->
       fprintf ppf "rdpmc %a" printreg arg.(0)
   | Ipackf32 ->
-      fprintf ppf "packf32 %a" printreg arg.(0)
+      fprintf ppf "packf32 %a %a" printreg arg.(0) printreg arg.(1)
   | Isimd simd ->
       Simd.print_operation printreg simd ppf arg
   | Isimd_mem (simd, addr) ->

@@ -1949,7 +1949,7 @@ let emit_instr ~first ~fallthrough i =
   | Lop (Specific Ipackf32) ->
     let arg0, arg1 = i.arg.(0), i.arg.(1) in
     assert (Reg.is_reg arg0 && Reg.is_reg arg1 && Reg.same_loc arg0 i.res.(0));
-    I.simd Simd_instrs.unpcklps [| arg i 0; arg i 1 |]
+    I.simd Simd_instrs.unpcklps [| arg i 1; res i 0 |]
   | Lop (Specific (Isimd op)) -> emit_simd op i
   | Lop (Specific (Isimd_mem (op, addressing_mode))) ->
     let address = addressing addressing_mode VEC128 i 1 in
