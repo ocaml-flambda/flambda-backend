@@ -282,11 +282,9 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
            anyway. *)
         match[@ocaml.warning "-fragile-match"] EP.to_primitive prim with
         | Unary (Is_int { variant_only = true }, scrutinee) ->
-          TEE.add_or_replace_equation env_extension (Name.var var)
-            (T.is_int_for_scrutinee ~scrutinee)
+          TEE.add_is_int_relation env_extension (Name.var var) ~scrutinee
         | Unary (Get_tag, block) ->
-          TEE.add_or_replace_equation env_extension (Name.var var)
-            (T.get_tag_for_block ~block)
+          TEE.add_get_tag_relation env_extension (Name.var var) ~scrutinee:block
         | _ -> env_extension
       in
       let allowed =
